@@ -26,7 +26,8 @@ nav= [
         { "Character Encoding" = "encoding.md" },
         { "Using Script Files" = "using_scripts.md" },
         { "Documenting Script Actions" = "documentation.md" },
-        { "Debugging" = "debugging.md" }
+        { "Debugging" = "debugging.md" },
+        { "execsql-format" = "formatter.md" }
     ] },
     { "Examples" = "examples.md" },
     { "About" = [

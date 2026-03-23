@@ -92,6 +92,20 @@ of all actions carried out that may have altered data.
 The documentation includes 30 examples showing the use of
 *execsql*'s metacommands, in both simple and complex scripts.
 
+# Formatting Scripts
+
+The `execsql-format` command normalizes execsql script files: it uppercases metacommand keywords, corrects block indentation, and optionally reformats SQL statements via sqlglot. It is installed automatically with the `execsql2` package.
+
+```bash
+# Format files in place
+execsql-format --in-place scripts/
+
+# Check formatting without writing (useful in CI)
+execsql-format --check scripts/
+```
+
+See the [formatter documentation](https://execsql2.readthedocs.io/en/latest/formatter/) for all options.
+
 # An Illustration
 
 The following code illustrates the use of metacommands and substitution variables.
