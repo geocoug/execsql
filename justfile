@@ -78,7 +78,3 @@ bump-minor:
 # Bump major version (e.g. 1.2.3 → 2.0.0)
 bump-major:
     uv run bump-my-version bump major
-
-# Tag a pre-release version (e.g. just bump-pre 2.0.0a1)
-bump-pre version:
-    uv run bump-my-version bump --new-version {{version}}

@@ -8,8 +8,8 @@ import re
 def test_version_string_format():
     import execsql
 
-    assert re.match(r"^\d+\.\d+\.\d+([a-z]\d+)?$", execsql.__version__), (
-        f"__version__ {execsql.__version__!r} does not match PEP 440 version format"
+    assert re.match(r"^\d+\.\d+\.\d+$", execsql.__version__), (
+        f"__version__ {execsql.__version__!r} does not match semver format"
     )
 
 

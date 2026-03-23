@@ -170,14 +170,10 @@ gui_manager_thread: Any = None
 try:
     from execsql import __version__ as _pkg_version
 
-    import re as _re
-
     _vparts = _pkg_version.split(".")
-    # Strip pre-release suffix (e.g. "0a1" → "0") before converting to int.
-    _int = lambda s: int(_re.match(r"\d+", s).group())
-    primary_vno: int = _int(_vparts[0]) if len(_vparts) > 0 else 0
-    secondary_vno: int = _int(_vparts[1]) if len(_vparts) > 1 else 0
-    tertiary_vno: int = _int(_vparts[2]) if len(_vparts) > 2 else 0
+    primary_vno: int = int(_vparts[0]) if len(_vparts) > 0 else 0
+    secondary_vno: int = int(_vparts[1]) if len(_vparts) > 1 else 0
+    tertiary_vno: int = int(_vparts[2]) if len(_vparts) > 2 else 0
 except Exception:
     primary_vno = 1
     secondary_vno = 130
