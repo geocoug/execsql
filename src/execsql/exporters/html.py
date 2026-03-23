@@ -118,6 +118,7 @@ def export_html(
             ef = EncodedFile(outfile, conf.output_encoding)
             f = ef.open("rt")
             tempf, tempfname = tempfile.mkstemp(text=True)
+            os.close(tempf)  # Close the fd from mkstemp; EncodedFile opens its own handle
             tf = EncodedFile(tempfname, conf.output_encoding)
             t = tf.open("wt")
             remainder = ""
