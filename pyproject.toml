@@ -186,6 +186,10 @@ description = "Run tests under {base_python}"
 extras = ["dev", "all"]
 allowlist_externals = ["pytest"]
 commands = [["pytest", "{posargs}"]]
+# Pass through user/login env vars so getpass.getuser() works on Windows
+# (tox strips the environment by default; without these it falls through to
+# `import pwd` which does not exist on Windows).
+passenv = ["USERNAME", "USER", "LOGNAME", "LNAME", "USERPROFILE", "HOMEDRIVE", "HOMEPATH"]
 
 [tool.tox.env.build]
 description = "Build distribution packages"

@@ -274,7 +274,8 @@ class TestCsvFile:
     def test_repr(self, simple_csv):
         cf = CsvFile(simple_csv, "utf-8")
         assert "CsvFile(" in repr(cf)
-        assert simple_csv in repr(cf)
+        # Use repr(simple_csv) because __repr__ uses !r, which escapes backslashes on Windows.
+        assert repr(simple_csv) in repr(cf)
 
     def test_lineformat_sets_attributes(self, simple_csv):
         cf = CsvFile(simple_csv, "utf-8")
