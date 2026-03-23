@@ -1,0 +1,193 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "execsql2"
+version = "2.0.0a1"
+description = "Runs a SQL script against a PostgreSQL, SQLite, MariaDB/MySQL, DuckDB, Firebird, MS-Access, MS-SQL-Server, or Oracle database, or an ODBC DSN. Provides metacommands to import and export data, copy data between databases, conditionally execute SQL and metacommands, and dynamically alter SQL and metacommands with substitution variables."
+readme = { file = "README.md", content-type = "text/markdown" }
+license = { file = "LICENSE.txt" }
+authors = [
+    { name = "Dreas Nielsen", email = "cortice@tutanota.com" },
+]
+maintainers = [
+    { name = "Caleb Grant", email = "grantcaleb22@gmail.com" },
+]
+keywords = [
+    "SQL", "Postgres", "PostgreSQL", "SQLite", "Firebird",
+    "Access", "SQL Server", "MySQL", "MariaDB", "ODBC", "Oracle", "DuckDB",
+    "database", "ETL", "CSV", "TSV", "XML", "HTML", "JSON", "LaTeX",
+    "OpenDocument", "table", "DBMS", "query", "script", "import", "export",
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Intended Audience :: End Users/Desktop",
+    "Intended Audience :: Information Technology",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Database",
+    "Topic :: Database :: Front-Ends",
+]
+requires-python = ">=3.10"
+dependencies = [
+    "rich>=13.0",
+    "sqlglot>=25.0",
+    "textual>=0.47.0",
+    "typer>=0.12",
+]
+
+[project.optional-dependencies]
+postgres = ["psycopg2-binary"]
+mysql = ["pymysql"]
+mssql = ["pyodbc"]
+duckdb = ["duckdb"]
+firebird = ["firebird-driver"]
+oracle = ["oracledb"]
+odbc = ["pyodbc"]
+ods = ["odfpy"]
+excel = ["xlrd", "openpyxl"]
+jinja = ["Jinja2"]
+all = [
+    "psycopg2-binary",
+    "pymysql",
+    "pyodbc",
+    "duckdb",
+    "odfpy",
+    "xlrd",
+    "openpyxl",
+    "Jinja2",
+]
+dev = [
+    "build>=1.2.2.post1",
+    "bump-my-version>=1.2.7",
+    "markdown-include>=0.8",
+    "mkdocstrings-python>=2.0.3",
+    "pre-commit>=3.5.0",
+    "pytest-cov>=5.0.0",
+    "ruff>=0.4",
+    "tox-uv>=1.13.1",
+    "twine>=6.1.0",
+    "zensical>=0.0.28",
+]
+
+[project.scripts]
+execsql = "execsql.cli:_legacy_main"
+execsql-format = "execsql.format:main"
+
+[project.urls]
+Repository = "https://github.com/geocoug/execsql2"
+Issues = "https://github.com/geocoug/execsql2/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/execsql"]
+
+[tool.hatch.build.targets.wheel.shared-data]
+"templates" = "execsql2_extras"
+
+[tool.ruff]
+target-version = "py313"
+line-length = 120
+
+[tool.ruff.lint]
+# Start permissive — tighten during refactor
+select = ["E", "F", "W"]
+ignore = [
+    # Tabs / indentation — legacy code uses tabs throughout
+    "W191",  # indentation contains tabs
+    "E101",  # indentation contains mixed spaces and tabs
+    # Legacy code style — fix during refactor
+    "E402",  # module level import not at top of file
+    "E501",  # line too long
+    "E721",  # type comparison (use isinstance())
+    "E722",  # bare except
+    "E741",  # ambiguous variable names
+    "E731",  # do not assign a lambda expression, use a def
+    "E713",  # not in test
+    "E714",  # is not test
+    "E701",  # multiple statements on one line
+    "E401",  # multiple imports on one line
+    # Unused / undefined — will address during refactor
+    "F401",  # unused imports
+    "F507",  # %-format string placeholder count mismatch (3 bugs in __repr__ methods)
+    "F811",  # redefinition of unused name
+    "F821",  # undefined name
+    "F841",  # local variable assigned but never used
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+
+[tool.bumpversion]
+current_version = "2.0.0a1"
+parse = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)((?P<pre_l>[a-z]+)(?P<pre_n>\\d+))?"
+serialize = [
+    "{major}.{minor}.{patch}{pre_l}{pre_n}",
+    "{major}.{minor}.{patch}",
+]
+commit = true
+commit_args = "--no-verify"
+tag = true
+pre_commit_hooks = ["uv lock", "git add uv.lock"]
+
+[[tool.bumpversion.files]]
+filename = "pyproject.toml"
+search = 'version = "{current_version}"\ndescription'
+replace = 'version = "{new_version}"\ndescription'
+
+[tool.pytest.ini_options]
+addopts = [
+    "--cov=execsql",
+    "--cov=tests",
+    "--cov-branch",
+    "--cov-fail-under=60",
+    "--strict-markers",
+    "--strict-config",
+    "--color=yes",
+    "-ra",
+]
+testpaths = ["tests"]
+log_cli = true
+
+[tool.coverage.report]
+exclude_also = ["if __name__ == .__main__.:"]
+omit = [
+    "_execsql/*"
+]
+
+[tool.typos.default.extend-words]
+# SQL table alias used throughout upsert templates
+ot = "ot"
+# Partial string used as intentional test data in test_metacommands.py
+hel = "hel"
+# Legacy variable name (self.fo) in EncodedFile — from upstream monolith
+fo = "fo"
+
+[tool.tox]
+required = ["tox-uv"]
+env_list = ["py310", "py311", "py312", "py313", "build"]
+skip_missing_interpreters = true
+isolated_build = true
+basepython = "python3.13"
+
+[tool.tox.env_run_base]
+description = "Run tests under {base_python}"
+extras = ["dev", "all"]
+allowlist_externals = ["pytest"]
+commands = [["pytest", "{posargs}"]]
+
+[tool.tox.env.build]
+description = "Build distribution packages"
+allowlist_externals = ["pytest"]
+commands = [["uv", "build"]]

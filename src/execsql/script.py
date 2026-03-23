@@ -1,0 +1,1114 @@
+from __future__ import annotations
+
+"""
+Core script-execution engine for execsql.
+
+This module contains the data structures and functions that load, parse, and
+drive execution of execsql ``.sql`` script files.  It is the heart of the
+runtime.
+
+Key classes:
+
+- :class:`BatchLevels` — tracks which databases are used in nested BEGIN/END
+  BATCH blocks for commit/rollback handling.
+- :class:`IfItem` / :class:`IfLevels` — stack-based IF/ELSE/ENDIF nesting.
+- :class:`CounterVars` — named integer counters (``@NAME``).
+- :class:`SubVarSet` — global ``!!$VAR!!`` substitution-variable store, plus
+  ``&ENV``, ``@COUNTER``, ``~LOCAL``, and ``#ARG`` prefixes.
+- :class:`LocalSubVarSet` / :class:`ScriptArgSubVarSet` — per-script-scope
+  variable overlays.
+- :class:`MetaCommand` — one entry in the metacommand dispatch table (regex +
+  handler function + flags).
+- :class:`MetaCommandList` — ordered list of :class:`MetaCommand` entries;
+  ``get_match()`` finds the first matching entry for a given line.
+- :class:`SqlStmt` — wraps a single SQL string; ``run()`` executes it via the
+  active database connection.
+- :class:`MetacommandStmt` — wraps a metacommand line; ``run()`` dispatches
+  through :attr:`execsql.state.metacommandlist`.
+- :class:`ScriptCmd` — pairs a statement with its source-file location.
+- :class:`CommandList` — ordered list of :class:`ScriptCmd` objects plus an
+  execution cursor; ``run_next()`` drives one step of execution.
+- :class:`CommandListWhileLoop` / :class:`CommandListUntilLoop` — loop
+  variants of :class:`CommandList` that re-evaluate a condition each pass.
+- :class:`ScriptFile` — reads and tokenises a ``.sql`` file into
+  :class:`ScriptCmd` objects.
+- :class:`ScriptExecSpec` — specification for deferred script execution.
+
+Key functions:
+
+- :func:`set_system_vars` — populates built-in ``$VARNAME`` system variables.
+- :func:`substitute_vars` — performs ``!!$VAR!!`` and ``!{$var}!`` expansion.
+- :func:`runscripts` — central execution loop; pops the top
+  :class:`CommandList` from ``_state.commandliststack`` and drives
+  ``run_next()`` until the stack is empty.
+- :func:`current_script_line` — returns the source location of the currently
+  executing command.
+- :func:`read_sqlfile` — parses a SQL script file into a new
+  :class:`CommandList` and pushes it onto ``_state.commandliststack``.
+"""
+
+import copy
+import datetime
+import glob
+import io
+import os
+import os.path
+import re
+import sys
+import uuid
+from typing import Any, Dict, List, Optional
+
+import execsql.state as _state
+from execsql.exceptions import ErrInfo
+from execsql.utils.errors import exception_desc
+from execsql.utils.fileio import EncodedFile
+
+
+# ---------------------------------------------------------------------------
+# BatchLevels
+# ---------------------------------------------------------------------------
+
+
+class BatchLevels:
+    # A stack to keep a record of the databases used in nested batches.
+    class Batch:
+        def __init__(self) -> None:
+            self.dbs_used: List[Any] = []
+
+    def __init__(self) -> None:
+        self.batchlevels: List[BatchLevels.Batch] = []
+
+    def in_batch(self) -> bool:
+        return len(self.batchlevels) > 0
+
+    def new_batch(self) -> None:
+        self.batchlevels.append(self.Batch())
+
+    def using_db(self, db: Any) -> None:
+        if len(self.batchlevels) > 0 and db not in self.batchlevels[-1].dbs_used:
+            self.batchlevels[-1].dbs_used.append(db)
+
+    def uses_db(self, db: Any) -> bool:
+        if len(self.batchlevels) == 0:
+            return False
+        for batch in self.batchlevels:
+            if db in batch.dbs_used:
+                return True
+        return False
+
+    def rollback_batch(self) -> None:
+        if len(self.batchlevels) > 0:
+            b = self.batchlevels[-1]
+            for db in b.dbs_used:
+                db.rollback()
+
+    def end_batch(self) -> None:
+        b = self.batchlevels.pop()
+        for db in b.dbs_used:
+            db.commit()
+
+
+# ---------------------------------------------------------------------------
+# IfItem / IfLevels
+# ---------------------------------------------------------------------------
+
+
+class IfItem:
+    # An object representing an 'if' level, with context data.
+    def __init__(self, tf_value: bool) -> None:
+        self.tf_value = tf_value
+        self.scriptname, self.scriptline = current_script_line()
+
+    def value(self) -> bool:
+        return self.tf_value
+
+    def invert(self) -> None:
+        self.tf_value = not self.tf_value
+
+    def change_to(self, tf_value: bool) -> None:
+        self.tf_value = tf_value
+
+    def script_line(self) -> tuple:
+        return (self.scriptname, self.scriptline)
+
+
+class IfLevels:
+    # A stack of True/False values corresponding to a nested set of conditionals,
+    # with methods to manipulate and query the set of conditional states.
+    def __init__(self) -> None:
+        self.if_levels: List[IfItem] = []
+
+    def nest(self, tf_value: bool) -> None:
+        self.if_levels.append(IfItem(tf_value))
+
+    def unnest(self) -> None:
+        if len(self.if_levels) == 0:
+            raise ErrInfo(type="error", other_msg="Can't exit an IF block; no IF block is active.")
+        else:
+            self.if_levels.pop()
+
+    def invert(self) -> None:
+        if len(self.if_levels) == 0:
+            raise ErrInfo(type="error", other_msg="Can't change the IF state; no IF block is active.")
+        else:
+            self.if_levels[-1].invert()
+
+    def replace(self, tf_value: bool) -> None:
+        if len(self.if_levels) == 0:
+            raise ErrInfo(type="error", other_msg="Can't change the IF state; no IF block is active.")
+        else:
+            self.if_levels[-1].change_to(tf_value)
+
+    def current(self) -> bool:
+        if len(self.if_levels) == 0:
+            raise ErrInfo(type="error", other_msg="No IF block is active.")
+        else:
+            return self.if_levels[-1].value()
+
+    def all_true(self) -> bool:
+        if self.if_levels == []:
+            return True
+        return all([tf.value() for tf in self.if_levels])
+
+    def only_current_false(self) -> bool:
+        # Returns True if the current if level is false and all higher levels are True.
+        if len(self.if_levels) == 0:
+            return False
+        elif len(self.if_levels) == 1:
+            return not self.if_levels[-1].value()
+        else:
+            return not self.if_levels[-1].value() and all([tf.value() for tf in self.if_levels[:-1]])
+
+    def script_lines(self, top_n: int) -> List[tuple]:
+        # Returns a list of tuples containing the script name and line number
+        # for the topmost 'top_n' if levels, in bottom-up order.
+        if len(self.if_levels) < top_n:
+            raise ErrInfo(type="error", other_msg="Invalid IF stack depth reference.")
+        levels = self.if_levels[len(self.if_levels) - top_n :]
+        return [lvl.script_line() for lvl in levels]
+
+
+# ---------------------------------------------------------------------------
+# CounterVars
+# ---------------------------------------------------------------------------
+
+
+class CounterVars:
+    # A dictionary of dynamically created named counter variables.
+    _COUNTER_RX = re.compile(r"!!\$(COUNTER_\d+)!!", re.I)
+
+    def __init__(self) -> None:
+        self.counters: Dict[str, int] = {}
+
+    def _ctrid(self, ctr_no: int) -> str:
+        return f"counter_{ctr_no}"
+
+    def set_counter(self, ctr_no: int, ctr_val: int) -> None:
+        self.counters[self._ctrid(ctr_no)] = ctr_val
+
+    def remove_counter(self, ctr_no: int) -> None:
+        ctr_id = self._ctrid(ctr_no)
+        if ctr_id in self.counters:
+            del self.counters[ctr_id]
+
+    def remove_all_counters(self) -> None:
+        self.counters = {}
+
+    def substitute(self, command_str: str) -> tuple:
+        # Substitutes any counter variable references with the counter value and
+        # returns the modified command string and a flag indicating replacements.
+        match_found = False
+        m = self._COUNTER_RX.search(command_str, re.I)
+        if m:
+            ctr_id = m.group(1).lower()
+            if ctr_id not in self.counters:
+                self.counters[ctr_id] = 0
+            new_count = self.counters[ctr_id] + 1
+            self.counters[ctr_id] = new_count
+            return command_str.replace("!!$" + m.group(1) + "!!", str(new_count)), True
+        return command_str, False
+
+    def substitute_all(self, any_text: str) -> tuple:
+        subbed = True
+        any_subbed = False
+        while subbed:
+            any_text, subbed = self.substitute(any_text)
+            if subbed:
+                any_subbed = True
+        return any_text, any_subbed
+
+
+# ---------------------------------------------------------------------------
+# SubVarSet / LocalSubVarSet / ScriptArgSubVarSet
+# ---------------------------------------------------------------------------
+
+
+class SubVarSet:
+    # A pool of substitution variables.  Each variable consists of a name and
+    # a (string) value.  All variable names are stored as lowercase text.
+    def __init__(self) -> None:
+        self.substitutions: List[tuple] = []
+        self.prefix_list: List[str] = ["$", "&", "@"]
+        # Don't construct/compile on init because deepcopy() can't handle compiled regexes.
+        self.var_rx = None
+
+    def compile_var_rx(self) -> None:
+        self.var_rx_str = r"^[" + "".join(self.prefix_list) + r"]?\w+$"
+        self.var_rx = re.compile(self.var_rx_str, re.I)
+
+    def var_name_ok(self, varname: str) -> bool:
+        if self.var_rx is None:
+            self.compile_var_rx()
+        return self.var_rx.match(varname) is not None
+
+    def check_var_name(self, varname: str) -> None:
+        if not self.var_name_ok(varname.lower()):
+            raise ErrInfo("error", other_msg=f"Invalid variable name ({varname}) in this context.")
+
+    def remove_substitution(self, template_str: str) -> None:
+        self.check_var_name(template_str)
+        old_sub = template_str.lower()
+        self.substitutions = [sub for sub in self.substitutions if sub[0] != old_sub]
+
+    def add_substitution(self, varname: str, repl_str: Any) -> None:
+        self.check_var_name(varname)
+        varname = varname.lower()
+        self.remove_substitution(varname)
+        self.substitutions.append((varname, repl_str))
+
+    def append_substitution(self, varname: str, repl_str: str) -> None:
+        self.check_var_name(varname)
+        varname = varname.lower()
+        oldsub = [x for x in self.substitutions if x[0] == varname]
+        if len(oldsub) == 0:
+            self.add_substitution(varname, repl_str)
+        else:
+            self.add_substitution(varname, f"{oldsub[0][1]}\n{repl_str}")
+
+    def varvalue(self, varname: str) -> Optional[str]:
+        self.check_var_name(varname)
+        vname = varname.lower()
+        for vardef in self.substitutions:
+            if vardef[0] == vname:
+                return vardef[1]
+        return None
+
+    def increment_by(self, varname: str, numeric_increment: Any) -> None:
+        self.check_var_name(varname)
+        varvalue = self.varvalue(varname)
+        if varvalue is None:
+            varvalue = "0"
+            self.add_substitution(varname, varvalue)
+        # Import as_numeric lazily to avoid circular dependency
+        from execsql.utils.numeric import as_numeric
+
+        numvalue = as_numeric(varvalue)
+        numinc = as_numeric(numeric_increment)
+        if numvalue is None or numinc is None:
+            newval = f"{varvalue}+{numeric_increment}"
+        else:
+            newval = str(numvalue + numinc)
+        self.add_substitution(varname, newval)
+
+    def sub_exists(self, template_str: str) -> bool:
+        self.check_var_name(template_str)
+        test_str = template_str.lower()
+        return test_str in [s[0] for s in self.substitutions]
+
+    def merge(self, other_subvars: Optional[SubVarSet]) -> SubVarSet:
+        # Return a new SubVarSet with this object's variables merged with other_subvars.
+        if other_subvars is not None:
+            newsubs = SubVarSet()
+            newsubs.substitutions = self.substitutions
+            newsubs.prefix_list = list(set(self.prefix_list + other_subvars.prefix_list))
+            newsubs.compile_var_rx()
+            for vardef in other_subvars.substitutions:
+                newsubs.add_substitution(vardef[0], vardef[1])
+            return newsubs
+        return self
+
+    def substitute(self, command_str: str) -> tuple:
+        # Replace any substitution variables in the command string.
+        match_found = False
+        if isinstance(command_str, str):
+            for match, sub in self.substitutions:
+                if sub is None:
+                    sub = ""
+                sub = str(sub)
+                if match[0] == "$":
+                    match = "\\" + match
+                if os.name != "posix":
+                    sub = sub.replace("\\", "\\\\")
+                pat = f"!!{match}!!"
+                patq = f"!'!{match}!'!"
+                patdq = f'!"!{match}!"!'
+                if re.search(pat, command_str, re.I):
+                    return re.sub(pat, sub, command_str, flags=re.I), True
+                if re.search(patq, command_str, re.I):
+                    sub = sub.replace("'", "''")
+                    return re.sub(patq, sub, command_str, flags=re.I), True
+                if re.search(patdq, command_str, re.I):
+                    sub = '"' + sub + '"'
+                    return re.sub(patdq, sub, command_str, flags=re.I), True
+        return command_str, False
+
+    def substitute_all(self, any_text: str) -> tuple:
+        subbed = True
+        any_subbed = False
+        while subbed:
+            any_text, subbed = self.substitute(any_text)
+            if subbed:
+                any_subbed = True
+        return any_text, any_subbed
+
+
+class LocalSubVarSet(SubVarSet):
+    # A pool of local substitution variables.
+    # Only '~' is allowed as a prefix and MUST be present.
+    def __init__(self) -> None:
+        SubVarSet.__init__(self)
+        self.prefix_list = ["~"]
+
+    def compile_var_rx(self) -> None:
+        # Prefix is required, not optional.
+        self.var_rx_str = r"^[" + "".join(self.prefix_list) + r"]\w+$"
+        self.var_rx = re.compile(self.var_rx_str, re.I)
+
+
+class ScriptArgSubVarSet(SubVarSet):
+    # A pool of script argument names.
+    # Only '#' is allowed as a prefix and MUST be present.
+    def __init__(self) -> None:
+        SubVarSet.__init__(self)
+        self.prefix_list = ["#"]
+
+    def compile_var_rx(self) -> None:
+        # Prefix is required, not optional.
+        self.var_rx_str = r"^[" + "".join(self.prefix_list) + r"]\w+$"
+        self.var_rx = re.compile(self.var_rx_str, re.I)
+
+
+# ---------------------------------------------------------------------------
+# MetaCommand / MetaCommandList
+# ---------------------------------------------------------------------------
+
+
+class MetaCommand:
+    # A compiled metacommand that can be run if it matches a metacommand command string.
+    def __init__(
+        self,
+        rx: Any,
+        exec_func: Any,
+        description: Optional[str] = None,
+        run_in_batch: bool = False,
+        run_when_false: bool = False,
+        set_error_flag: bool = True,
+    ) -> None:
+        self.next_node = None
+        self.rx = rx
+        self.exec_fn = exec_func
+        self.description = description
+        self.run_in_batch = run_in_batch
+        self.run_when_false = run_when_false
+        self.set_error_flag = set_error_flag
+        self.hitcount = 0
+
+    def __repr__(self) -> str:
+        return (
+            f"MetaCommand({self.rx.pattern!r}, {self.exec_fn!r}, {self.description!r}, "
+            f"{self.run_in_batch!r}, {self.run_when_false!r})"
+        )
+
+    def run(self, cmd_str: str) -> tuple:
+        # Runs the metacommand if the command string matches the regex.
+        m = self.rx.match(cmd_str.strip())
+        if m:
+            cmdargs = m.groupdict()
+            cmdargs["metacommandline"] = cmd_str
+            er = None
+            try:
+                rv = self.exec_fn(**cmdargs)
+            except SystemExit:
+                raise
+            except ErrInfo as errinf:
+                er = errinf
+            except:
+                er = ErrInfo("cmd", command_text=cmd_str, exception_msg=exception_desc())
+            if er:
+                if _state.status.halt_on_metacommand_err:
+                    from execsql.utils.errors import exit_now
+
+                    exit_now(1, er)
+                if self.set_error_flag:
+                    _state.status.metacommand_error = True
+                    return True, None
+            else:
+                if self.set_error_flag:
+                    _state.status.metacommand_error = False
+                self.hitcount += 1
+                return True, rv
+        return False, None
+
+
+class MetaCommandList:
+    # The head node for a linked list of MetaCommand objects.
+    def __init__(self) -> None:
+        self.next_node = None
+
+    def __iter__(self) -> Any:
+        n1 = self.next_node
+        while n1 is not None:
+            yield n1
+            n1 = n1.next_node
+
+    def insert_node(self, new_node: MetaCommand) -> None:
+        new_node.next_node = self.next_node
+        self.next_node = new_node
+
+    def add(
+        self,
+        matching_regexes: Any,
+        exec_func: Any,
+        description: Optional[str] = None,
+        run_in_batch: bool = False,
+        run_when_false: bool = False,
+        set_error_flag: bool = True,
+    ) -> None:
+        if type(matching_regexes) in (tuple, list):
+            self.regexes = [re.compile(rx, re.I) for rx in tuple(matching_regexes)]
+        else:
+            self.regexes = [re.compile(matching_regexes, re.I)]
+        for rx in self.regexes:
+            self.insert_node(MetaCommand(rx, exec_func, description, run_in_batch, run_when_false, set_error_flag))
+
+    def eval(self, cmd_str: str) -> tuple:
+        # Evaluates the given metacommand string.
+        n1 = self
+        node_no = 0
+        while n1 is not None:
+            n2 = n1.next_node
+            if n2 is not None:
+                node_no += 1
+                if _state.if_stack.all_true() or n2.run_when_false:
+                    success, value = n2.run(cmd_str)
+                    if success:
+                        # Move n2 to the head of the list.
+                        n1.next_node = n2.next_node
+                        n2.next_node = self.next_node
+                        self.next_node = n2
+                        return True, value
+            n1 = n2
+        return False, None
+
+    def get_match(self, cmd: str) -> Optional[tuple]:
+        # Tries to match the command to any MetaCommand.
+        n1 = self.next_node
+        while n1 is not None:
+            m = n1.rx.match(cmd.strip())
+            if m is not None:
+                return (n1, m)
+            n1 = n1.next_node
+        return None
+
+
+# ---------------------------------------------------------------------------
+# SqlStmt / MetacommandStmt
+# ---------------------------------------------------------------------------
+
+
+class SqlStmt:
+    # A SQL statement to be passed to a database to execute.
+    def __init__(self, sql_statement: str) -> None:
+        self.statement = re.sub(r"\s*;(\s*;\s*)+$", ";", sql_statement)
+
+    def __repr__(self) -> str:
+        return f"SqlStmt({self.statement})"
+
+    def run(self, localvars: Optional[SubVarSet] = None, commit: bool = True) -> None:
+        # Run the SQL statement on the current database.
+        if _state.if_stack.all_true():
+            e = None
+            _state.status.sql_error = False
+            cmd = substitute_vars(self.statement, localvars)
+            if _state.varlike.search(cmd):
+                _state.output.write(
+                    f"Warning: There is a potential un-substituted variable in the command\n     {cmd}\n",
+                )
+            try:
+                db = _state.dbs.current()
+                db.execute(cmd)
+                if commit:
+                    db.commit()
+            except ErrInfo as errinfo:
+                e = errinfo
+            except SystemExit:
+                raise
+            except:
+                e = ErrInfo(type="exception", exception_msg=exception_desc())
+            if e:
+                _state.subvars.add_substitution("$LAST_ERROR", cmd)
+                _state.status.sql_error = True
+                if _state.status.halt_on_err:
+                    from execsql.utils.errors import exit_now
+
+                    exit_now(1, e)
+                return
+            _state.subvars.add_substitution("$LAST_SQL", cmd)
+
+    def commandline(self) -> str:
+        return self.statement
+
+
+class MetacommandStmt:
+    # A metacommand to be handled by execsql.
+    def __init__(self, metacommand_statement: str) -> None:
+        self.statement = metacommand_statement
+
+    def __repr__(self) -> str:
+        return f"MetacommandStmt({self.statement})"
+
+    def run(self, localvars: Optional[SubVarSet] = None, commit: bool = False) -> Any:
+        # Tries all metacommands in the dispatch table until one runs.
+        errmsg = "Unknown metacommand"
+        cmd = substitute_vars(self.statement, localvars)
+        if _state.if_stack.all_true() and _state.varlike.search(cmd):
+            _state.output.write(f"Warning: There is a potential un-substituted variable in the command\n     {cmd}\n")
+        e = None
+        try:
+            applies, result = _state.metacommandlist.eval(cmd)
+            if applies:
+                return result
+        except ErrInfo as errinfo:
+            e = errinfo
+        except SystemExit:
+            raise
+        except:
+            e = ErrInfo(type="exception", exception_msg=exception_desc())
+        if e:
+            _state.status.metacommand_error = True
+            _state.subvars.add_substitution("$LAST_ERROR", cmd)
+            if _state.status.halt_on_metacommand_err:
+                raise ErrInfo(type="cmd", command_text=cmd, other_msg=errmsg)
+        if _state.if_stack.all_true():
+            # but nothing applies, because we got here.
+            _state.status.metacommand_error = True
+            raise ErrInfo(type="cmd", command_text=cmd, other_msg=errmsg)
+        return None
+
+    def commandline(self) -> str:
+        return "-- !x! " + self.statement
+
+
+# ---------------------------------------------------------------------------
+# ScriptCmd
+# ---------------------------------------------------------------------------
+
+
+class ScriptCmd:
+    # A SQL script object that is either a SQL statement or a metacommand.
+    def __init__(
+        self,
+        command_source_name: str,
+        command_line_no: int,
+        command_type: str,
+        script_command: Any,
+    ) -> None:
+        self.source = command_source_name
+        self.line_no = command_line_no
+        self.command_type = command_type
+        self.command = script_command
+
+    def __repr__(self) -> str:
+        return f"ScriptCmd({self.source!r}, {self.line_no!r}, {self.command_type!r}, {repr(self.command)!r})"
+
+    def current_script_line(self) -> tuple:
+        return (self.source, self.line_no)
+
+    def commandline(self) -> str:
+        return self.command.statement if self.command_type == "sql" else "-- !x! " + self.command.statement
+
+
+# ---------------------------------------------------------------------------
+# CommandList / CommandListWhileLoop / CommandListUntilLoop
+# ---------------------------------------------------------------------------
+
+
+class CommandList:
+    # A list of ScriptCmd objects including execution state.
+    def __init__(
+        self,
+        cmdlist: List[ScriptCmd],
+        listname: str,
+        paramnames: Optional[List[str]] = None,
+    ) -> None:
+        if cmdlist is None:
+            raise ErrInfo("error", other_msg="Initiating a command list without any commands.")
+        self.listname = listname
+        self.cmdlist = cmdlist
+        self.cmdptr = 0
+        self.paramnames = paramnames
+        self.paramvals: Optional[SubVarSet] = None
+        self.localvars = LocalSubVarSet()
+        self.init_if_level: Optional[int] = None
+
+    def add(self, script_command: ScriptCmd) -> None:
+        self.cmdlist.append(script_command)
+
+    def set_paramvals(self, paramvals: SubVarSet) -> None:
+        self.paramvals = paramvals
+        if self.paramnames is not None:
+            passed_paramnames = [p[0][1:] if p[0][0] == "#" else p[0][1:] for p in paramvals.substitutions]
+            if not all([p in passed_paramnames for p in self.paramnames]):
+                raise ErrInfo(
+                    "error",
+                    other_msg=f"Formal and actual parameter name mismatch in call to {self.listname}.",
+                )
+
+    def current_command(self) -> Optional[ScriptCmd]:
+        if self.cmdptr > len(self.cmdlist) - 1:
+            return None
+        return self.cmdlist[self.cmdptr]
+
+    def check_iflevels(self) -> None:
+        if_excess = len(_state.if_stack.if_levels) - self.init_if_level
+        if if_excess > 0:
+            sources = _state.if_stack.script_lines(if_excess)
+            src_msg = ", ".join([f"{src[0]} line {src[1]}" for src in sources])
+            from execsql.utils.errors import write_warning
+
+            write_warning(f"IF level mismatch at beginning and end of script; origin at or after: {src_msg}.")
+
+    def run_and_increment(self) -> None:
+        cmditem = self.cmdlist[self.cmdptr]
+        if _state.compiling_loop:
+            # Don't run this command, but save it or complete the loop.
+            if cmditem.command_type == "cmd" and _state.loop_rx.match(cmditem.command.statement):
+                _state.loop_nest_level += 1
+                # Substitute any deferred substitution variables with regular substitution var flags.
+                m = _state.defer_rx.findall(cmditem.command.statement)
+                if m is not None:
+                    for dv in m:
+                        rep = "!!" + dv[1] + "!!"
+                        cmditem.command.statement = cmditem.command.statement.replace(dv[0], rep)
+                _state.loopcommandstack[-1].add(cmditem)
+            elif cmditem.command_type == "cmd" and _state.endloop_rx.match(cmditem.command.statement):
+                if _state.loop_nest_level == 0:
+                    _state.endloop()
+                else:
+                    _state.loop_nest_level -= 1
+                    _state.loopcommandstack[-1].add(cmditem)
+            else:
+                _state.loopcommandstack[-1].add(cmditem)
+        else:
+            _state.last_command = cmditem
+            if cmditem.command_type == "sql" and _state.status.batch.in_batch():
+                _state.status.batch.using_db(_state.dbs.current())
+            _state.subvars.add_substitution("$CURRENT_TIME", datetime.datetime.now().strftime("%Y-%m-%d %H:%M"))
+            if sys.version_info < (3, 12):
+                utcnow = datetime.datetime.utcnow()
+            else:
+                utcnow = datetime.datetime.now(tz=datetime.timezone.utc)
+            _state.subvars.add_substitution("$CURRENT_TIME_UTC", utcnow.strftime("%Y-%m-%d %H:%M"))
+            _state.subvars.add_substitution("$CURRENT_SCRIPT", cmditem.source)
+            _state.subvars.add_substitution(
+                "$CURRENT_SCRIPT_PATH",
+                os.path.dirname(os.path.abspath(cmditem.source)) + os.sep,
+            )
+            _state.subvars.add_substitution("$CURRENT_SCRIPT_NAME", os.path.basename(cmditem.source))
+            _state.subvars.add_substitution("$CURRENT_SCRIPT_LINE", str(cmditem.line_no))
+            _state.subvars.add_substitution("$SCRIPT_LINE", str(cmditem.line_no))
+            cmditem.command.run(self.localvars.merge(self.paramvals), not _state.status.batch.in_batch())
+        self.cmdptr += 1
+
+    def run_next(self) -> None:
+        if self.cmdptr == 0:
+            self.init_if_level = len(_state.if_stack.if_levels)
+        if self.cmdptr > len(self.cmdlist) - 1:
+            self.check_iflevels()
+            raise StopIteration
+        self.run_and_increment()
+
+    def __iter__(self) -> Any:
+        return self
+
+    def __next__(self) -> ScriptCmd:
+        if self.cmdptr > len(self.cmdlist) - 1:
+            raise StopIteration
+        scriptcmd = self.cmdlist[self.cmdptr]
+        self.cmdptr += 1
+        return scriptcmd
+
+
+class CommandListWhileLoop(CommandList):
+    # Subclass of CommandList that loops WHILE a condition is met.
+    def __init__(
+        self,
+        cmdlist: List[ScriptCmd],
+        listname: str,
+        paramnames: Optional[List[str]],
+        loopcondition: str,
+    ) -> None:
+        super(CommandListWhileLoop, self).__init__(cmdlist, listname, paramnames)
+        self.loopcondition = loopcondition
+
+    def run_next(self) -> None:
+        if self.cmdptr == 0:
+            self.init_if_level = len(_state.if_stack.if_levels)
+            from execsql.parser import CondParser
+
+            if not CondParser(substitute_vars(self.loopcondition)).parse().eval():
+                raise StopIteration
+        if self.cmdptr > len(self.cmdlist) - 1:
+            self.check_iflevels()
+            self.cmdptr = 0
+        else:
+            self.run_and_increment()
+
+
+class CommandListUntilLoop(CommandList):
+    # Subclass of CommandList that loops UNTIL a condition is met.
+    def __init__(
+        self,
+        cmdlist: List[ScriptCmd],
+        listname: str,
+        paramnames: Optional[List[str]],
+        loopcondition: str,
+    ) -> None:
+        super(CommandListUntilLoop, self).__init__(cmdlist, listname, paramnames)
+        self.loopcondition = loopcondition
+
+    def run_next(self) -> None:
+        if self.cmdptr == 0:
+            self.init_if_level = len(_state.if_stack.if_levels)
+        if self.cmdptr > len(self.cmdlist) - 1:
+            self.check_iflevels()
+            from execsql.parser import CondParser
+
+            if CondParser(substitute_vars(self.loopcondition)).parse().eval():
+                raise StopIteration
+            self.cmdptr = 0
+        else:
+            self.run_and_increment()
+
+
+# ---------------------------------------------------------------------------
+# ScriptFile
+# ---------------------------------------------------------------------------
+
+
+class ScriptFile(EncodedFile):
+    # A file reader that returns lines and records the line number.
+    def __init__(self, scriptfname: str, file_encoding: str) -> None:
+        super(ScriptFile, self).__init__(scriptfname, file_encoding)
+        self.lno = 0
+        self.f = self.open("r")
+
+    def __repr__(self) -> str:
+        return f"ScriptFile({super(ScriptFile, self).filename!r}, {super(ScriptFile, self).encoding!r})"
+
+    def __iter__(self) -> Any:
+        return self
+
+    def __next__(self) -> str:
+        l = next(self.f)
+        self.lno += 1
+        return l
+
+
+# ---------------------------------------------------------------------------
+# ScriptExecSpec
+# ---------------------------------------------------------------------------
+
+
+class ScriptExecSpec:
+    # Stores specifications for executing a SCRIPT, for later use.
+    args_rx = re.compile(
+        r'(?P<param>#?\w+)\s*=\s*(?P<arg>(?:(?:[^"\'\[][^,\)]*)|(?:"[^"]*")|(?:\'[^\']*\')|(?:\[[^\]]*\])))',
+        re.I,
+    )
+
+    def __init__(self, **kwargs: Any) -> None:
+        self.script_id = kwargs["script_id"].lower()
+        if self.script_id not in _state.savedscripts.keys():
+            raise ErrInfo("cmd", other_msg=f"There is no SCRIPT named {self.script_id}.")
+        self.arg_exp = kwargs["argexp"]
+        self.looptype = kwargs["looptype"].upper() if "looptype" in kwargs and kwargs["looptype"] is not None else None
+        self.loopcond = kwargs["loopcond"] if "loopcond" in kwargs else None
+
+    def execute(self) -> None:
+        # Copy the saved script to avoid erasing saved script commands during execution.
+        cl = copy.deepcopy(_state.savedscripts[self.script_id])
+        # If looping is specified, redirect to appropriate CommandList subclass.
+        if self.looptype is not None:
+            if self.looptype == "WHILE":
+                cl = CommandListWhileLoop(cl.cmdlist, cl.listname, cl.paramnames, self.loopcond)
+            else:
+                cl = CommandListUntilLoop(cl.cmdlist, cl.listname, cl.paramnames, self.loopcond)
+        # If there are any argument expressions, parse the arguments.
+        if self.arg_exp is not None:
+            all_args = re.findall(self.args_rx, self.arg_exp)
+            from execsql.utils.strings import wo_quotes
+
+            all_cleaned_args = [(ae[0], wo_quotes(ae[1])) for ae in all_args]
+            all_prepared_args = [(ae[0] if ae[0][0] == "#" else "#" + ae[0], ae[1]) for ae in all_cleaned_args]
+            scriptvarset = ScriptArgSubVarSet()
+            for param, arg in all_prepared_args:
+                scriptvarset.add_substitution(param, arg)
+            cl.set_paramvals(scriptvarset)
+        else:
+            if cl.paramnames is not None:
+                raise ErrInfo(
+                    "error",
+                    other_msg=f"Missing expected parameters ({', '.join(cl.paramnames)}) in call to {cl.listname}.",
+                )
+        _state.commandliststack.append(cl)
+
+
+# ---------------------------------------------------------------------------
+# Module-level functions
+# ---------------------------------------------------------------------------
+
+
+def set_system_vars() -> None:
+    # (Re)define the system substitution variables that are not script-specific.
+    _state.subvars.add_substitution("$CANCEL_HALT_STATE", "ON" if _state.status.cancel_halt else "OFF")
+    _state.subvars.add_substitution("$ERROR_HALT_STATE", "ON" if _state.status.halt_on_err else "OFF")
+    _state.subvars.add_substitution(
+        "$METACOMMAND_ERROR_HALT_STATE",
+        "ON" if _state.status.halt_on_metacommand_err else "OFF",
+    )
+    _state.subvars.add_substitution(
+        "$CONSOLE_WAIT_WHEN_ERROR_HALT_STATE",
+        "ON" if _state.conf.gui_wait_on_error_halt else "OFF",
+    )
+    _state.subvars.add_substitution("$CONSOLE_WAIT_WHEN_DONE_STATE", "ON" if _state.conf.gui_wait_on_exit else "OFF")
+    _state.subvars.add_substitution("$CURRENT_TIME", datetime.datetime.now().strftime("%Y-%m-%d %H:%M"))
+    _state.subvars.add_substitution("$CURRENT_DIR", os.path.abspath(os.path.curdir))
+    _state.subvars.add_substitution("$CURRENT_PATH", os.path.abspath(os.path.curdir) + os.sep)
+    _state.subvars.add_substitution("$CURRENT_ALIAS", _state.dbs.current_alias())
+    _state.subvars.add_substitution("$AUTOCOMMIT_STATE", "ON" if _state.dbs.current().autocommit else "OFF")
+    _state.subvars.add_substitution("$TIMER", str(datetime.timedelta(seconds=_state.timer.elapsed())))
+    _state.subvars.add_substitution("$DB_USER", _state.dbs.current().user if _state.dbs.current().user else "")
+    _state.subvars.add_substitution(
+        "$DB_SERVER",
+        _state.dbs.current().server_name if _state.dbs.current().server_name else "",
+    )
+    _state.subvars.add_substitution("$DB_NAME", _state.dbs.current().db_name)
+    _state.subvars.add_substitution("$DB_NEED_PWD", "TRUE" if _state.dbs.current().need_passwd else "FALSE")
+    import random
+
+    _state.subvars.add_substitution("$RANDOM", str(random.random()))
+    _state.subvars.add_substitution("$UUID", str(uuid.uuid4()))
+    _state.subvars.add_substitution("$VERSION1", str(_state.primary_vno))
+    _state.subvars.add_substitution("$VERSION2", str(_state.secondary_vno))
+    _state.subvars.add_substitution("$VERSION3", str(_state.tertiary_vno))
+
+
+def substitute_vars(command_str: str, localvars: Optional[SubVarSet] = None) -> str:
+    # Substitutes global variables, global counters, and local variables.
+    if localvars is not None:
+        subs = _state.subvars.merge(localvars)
+    else:
+        subs = _state.subvars
+    cmdstr = copy.copy(command_str)
+    subs_made = True
+    while subs_made:
+        subs_made = False
+        cmdstr, subs_made = subs.substitute_all(cmdstr)
+        cmdstr, any_subbed = _state.counters.substitute_all(cmdstr)
+        subs_made = subs_made or any_subbed
+    m = _state.defer_rx.findall(cmdstr)
+    # Substitute any deferred substitution variables with regular substitution var flags.
+    if m is not None:
+        for dv in m:
+            rep = "!!" + dv[1] + "!!"
+            cmdstr = cmdstr.replace(dv[0], rep)
+    return cmdstr
+
+
+def runscripts() -> None:
+    from execsql.metacommands import DISPATCH_TABLE  # deferred — avoids circular import
+
+    # Repeatedly run the next statement from the script at the top of the
+    # command list stack until there are no more statements.
+    while len(_state.commandliststack) > 0:
+        current_cmds = _state.commandliststack[-1]
+        set_system_vars()
+        try:
+            current_cmds.run_next()
+        except StopIteration:
+            _state.commandliststack.pop()
+        except SystemExit:
+            raise
+        except ErrInfo:
+            raise
+        except:
+            raise ErrInfo(type="exception", exception_msg=exception_desc())
+        _state.cmds_run += 1
+
+
+def current_script_line() -> tuple:
+    if len(_state.commandliststack) > 0:
+        current_cmds = _state.commandliststack[-1]
+        if current_cmds.current_command() is not None:
+            return current_cmds.current_command().current_script_line()
+        else:
+            return (f"script '{current_cmds.listname}'", len(current_cmds.cmdlist))
+    else:
+        return ("", 0)
+
+
+def read_sqlfile(sql_file_name: str) -> None:
+    # Read lines from the given script file, create a list of ScriptCmd objects,
+    # and append the list to the top of the stack of script commands.
+    from execsql.utils.errors import file_size_date, write_warning
+
+    beginscript = re.compile(
+        r"^\s*--\s*!x!\s*(?:BEGIN|CREATE)\s+SCRIPT\s+(?P<scriptname>\w+)(?:(?P<paramexpr>\s*\S+.*))?$",
+        re.I,
+    )
+    endscript = re.compile(r"^\s*--\s*!x!\s*END\s+SCRIPT(?:\s+(?P<scriptname>\w+))?\s*$", re.I)
+    beginsql = re.compile(r"^\s*--\s*!x!\s*BEGIN\s+SQL\s*$", re.I)
+    endsql = re.compile(r"^\s*--\s*!x!\s*END\s+SQL\s*$", re.I)
+    execline = re.compile(r"^\s*--\s*!x!\s*(?P<cmd>.+)$", re.I)
+    cmtline = re.compile(r"^\s*--")
+    in_block_cmt = False
+    in_block_sql = False
+    sz, dt = file_size_date(sql_file_name)
+    _state.exec_log.log_status_info(f"Reading script file {sql_file_name} (size: {sz}; date: {dt})")
+    scriptfilename = os.path.basename(sql_file_name)
+    scriptfile_obj = ScriptFile(sql_file_name, _state.conf.script_encoding).open("r")
+    sqllist: List[ScriptCmd] = []
+    sqlline = 0
+    subscript_stack: List[CommandList] = []
+    file_lineno = 0
+    currcmd = ""
+    for line in scriptfile_obj:
+        file_lineno += 1
+        # Remove trailing whitespace but not leading whitespace.
+        line = line.rstrip()
+        is_comment_line = False
+        comment_match = cmtline.match(line)
+        metacommand_match = execline.match(line)
+        if len(line) > 0:
+            if in_block_cmt:
+                is_comment_line = True
+                if len(line) > 1 and line[-2:] == "*/":
+                    in_block_cmt = False
+            else:
+                # Not in block comment
+                if len(line.strip()) > 1 and line.strip()[0:2] == "/*":
+                    in_block_cmt = True
+                    is_comment_line = True
+                    if line.strip()[-2:] == "*/":
+                        in_block_cmt = False
+                else:
+                    if comment_match:
+                        is_comment_line = not metacommand_match
+            if not is_comment_line:
+                if metacommand_match:
+                    if beginsql.match(line):
+                        in_block_sql = True
+                    if in_block_sql:
+                        if endsql.match(line):
+                            in_block_sql = False
+                            if len(currcmd) > 0:
+                                cmd = ScriptCmd(sql_file_name, sqlline, "sql", SqlStmt(currcmd))
+                                if len(subscript_stack) == 0:
+                                    sqllist.append(cmd)
+                                else:
+                                    subscript_stack[-1].add(cmd)
+                                currcmd = ""
+                    else:
+                        if len(currcmd) > 0:
+                            write_warning(
+                                f"Incomplete SQL statement starting on line {sqlline} at metacommand on line {file_lineno} of {sql_file_name}.",
+                            )
+                        begs = beginscript.match(line)
+                        if not begs:
+                            ends = endscript.match(line)
+                        if begs:
+                            # This is a BEGIN SCRIPT metacommand.
+                            scriptname = begs.group("scriptname").lower()
+                            paramnames = None
+                            paramexpr = begs.group("paramexpr")
+                            if paramexpr:
+                                withparams = re.compile(
+                                    r"(?:\s+WITH)?(?:\s+PARAM(?:ETER)?S)?\s*\(\s*(?P<params>\w+(?:\s*,\s*\w+)*)\s*\)\s*$",
+                                    re.I,
+                                )
+                                wp = withparams.match(paramexpr)
+                                if not wp:
+                                    raise ErrInfo(
+                                        type="cmd",
+                                        command_text=line,
+                                        other_msg=f"Invalid BEGIN SCRIPT metacommand on line {file_lineno} of file {sql_file_name}.",
+                                    )
+                                else:
+                                    param_rx = re.compile(r"\w+", re.I)
+                                    paramnames = re.findall(param_rx, wp.group("params"))
+                            subscript_stack.append(CommandList([], scriptname, paramnames))
+                        elif ends:
+                            # This is an END SCRIPT metacommand.
+                            endscriptname = ends.group("scriptname")
+                            if endscriptname is not None:
+                                endscriptname = endscriptname.lower()
+                            if len(subscript_stack) == 0:
+                                raise ErrInfo(
+                                    type="cmd",
+                                    command_text=line,
+                                    other_msg=f"Unmatched END SCRIPT metacommand on line {file_lineno} of file {sql_file_name}.",
+                                )
+                            if len(currcmd) > 0:
+                                raise ErrInfo(
+                                    type="cmd",
+                                    command_text=line,
+                                    other_msg=f"Incomplete SQL statement\n  ({currcmd})\nat END SCRIPT metacommand on line {file_lineno} of file {sql_file_name}.",
+                                )
+                            if endscriptname is not None and endscriptname != scriptname:
+                                raise ErrInfo(
+                                    type="cmd",
+                                    command_text=line,
+                                    other_msg=f"Mismatched script name in the END SCRIPT metacommand on line {file_lineno} of file {sql_file_name}.",
+                                )
+                            sub_script = subscript_stack.pop()
+                            _state.savedscripts[sub_script.listname] = sub_script
+                        else:
+                            # This is a non-IMMEDIATE metacommand.
+                            cmd = ScriptCmd(
+                                sql_file_name,
+                                file_lineno,
+                                "cmd",
+                                MetacommandStmt(metacommand_match.group("cmd").strip()),
+                            )
+                            if len(subscript_stack) == 0:
+                                sqllist.append(cmd)
+                            else:
+                                subscript_stack[-1].add(cmd)
+                else:
+                    # This line is not a comment and not a metacommand; part of a SQL statement.
+                    cmd_end = True if line[-1] == ";" else False
+                    if line[-1] == "\\":
+                        line = line[:-1].strip()
+                    if currcmd == "":
+                        sqlline = file_lineno
+                        currcmd = line
+                    else:
+                        currcmd = f"{currcmd} \n{line}"
+                    if cmd_end and not in_block_sql:
+                        cmd = ScriptCmd(sql_file_name, sqlline, "sql", SqlStmt(currcmd.strip()))
+                        if len(subscript_stack) == 0:
+                            sqllist.append(cmd)
+                        else:
+                            subscript_stack[-1].add(cmd)
+                        currcmd = ""
+    if len(subscript_stack) > 0:
+        raise ErrInfo(type="error", other_msg=f"Unmatched BEGIN SCRIPT metacommand at end of file {sql_file_name}.")
+    if len(currcmd) > 0:
+        raise ErrInfo(
+            type="error",
+            other_msg=f"Incomplete SQL statement starting on line {sqlline} at end of file {sql_file_name}.",
+        )
+    if len(sqllist) > 0:
+        # The file might be all comments or just a BEGIN/END SCRIPT metacommand.
+        _state.commandliststack.append(CommandList(sqllist, scriptfilename))

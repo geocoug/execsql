@@ -1,0 +1,133 @@
+from __future__ import annotations
+
+"""
+Base export infrastructure — metadata tracking and write specifications.
+
+Provides:
+
+- :class:`ExportRecord` — records details of a single export operation
+  (query name, output file, optional zip file, description, script
+  location, database info).
+- :class:`ExportMetadata` — collection of :class:`ExportRecord` objects;
+  can write itself as a JSON metadata file.
+- :class:`WriteSpec` — specification for a deferred write operation
+  (message text, file path, encoding) used by halt/cancel hooks.
+"""
+
+import os
+import re
+from typing import Any, Optional, List
+
+import execsql.state as _state
+
+
+class ExportRecord:
+    def __init__(
+        self,
+        queryname: str,
+        outfile: str,
+        zipfile: Optional[str] = None,
+        description: Optional[str] = None,
+    ) -> None:
+        self.exported = False
+        # Record is a list of: table_or_query_name, filename, zipfilename, file_path, user_description, script_name,
+        # script_path, script_line_no, script_datetime, database_name, database_server, user_name.
+        if zipfile is not None:
+            fpath, zfname = os.path.split(os.path.abspath(zipfile))
+            fname = outfile
+        else:
+            fpath, fname = os.path.split(os.path.abspath(outfile))
+            zfname = None
+        script, lno = _state.current_script_line()
+        spath, sname = os.path.split(os.path.abspath(script))
+        ssz, sdt = _state.file_size_date(script)
+        db = _state.dbs.current()
+        svr = db.server_name
+        dbn = db.db_name
+        usr = db.user if db.user is not None else _state.getpass.getuser()
+        self.record = [queryname, fname, zfname, fpath, description, sname, spath, lno, sdt, dbn, svr, usr]
+
+
+class ExportMetadata:
+    # A list of ExportRecord objects.
+    colhdrs = [
+        "query",
+        "filename",
+        "zipfilename",
+        "file_path",
+        "description",
+        "script",
+        "script_path",
+        "script_line",
+        "script_date",
+        "database",
+        "server",
+        "username",
+    ]
+
+    def __init__(self) -> None:
+        self.recordlist: List[ExportRecord] = []
+
+    def add(self, exp_record: ExportRecord) -> None:
+        self.recordlist.append(exp_record)
+
+    def get(self):
+        recs = [er.record for er in self.recordlist if not er.exported]
+        for er in self.recordlist:
+            er.exported = True
+        return self.colhdrs, recs
+
+    def get_all(self):
+        recs = [er.record for er in self.recordlist]
+        for er in self.recordlist:
+            er.exported = True
+        return self.colhdrs, recs
+
+
+class WriteSpec:
+    def __repr__(self) -> str:
+        return f"WriteSpec({self.msg}, {self.outfile}, {self.tee})"
+
+    def __init__(self, message: str, dest: Optional[str] = None, tee: Any = None, repeatable: bool = False) -> None:
+        # Inputs
+        # message: Text to write.  May contain substitution variable references.
+        # dest: The to which the text should be written.  If omitted, the message
+        # is written to the console.
+        # tee: Write to the console as well as to the specified file.  The argument
+        # is coerced to a Boolean.
+        # repeatable: Can the message be written more than once?
+        # Actions
+        # Stores the arguments as properties for later use.
+        self.msg = message
+        self.outfile = dest
+        self.tee = bool(tee)
+        self.repeatable = bool(repeatable)
+        self.written = False
+
+    def write(self) -> None:
+        # Writes the message per the specifications given to '__init__()'.  Substitution
+        # variables are processed.
+        # Inputs: no inputs.
+        # Return value: None.
+        conf = _state.conf
+        subvars = _state.subvars
+        if self.repeatable or not self.written:
+            self.written = True
+            msg = _state.commandliststack[-1].localvars.substitute_all(self.msg)
+            msg = subvars.substitute_all(msg)
+            if self.outfile:
+                from execsql.utils.fileio import EncodedFile
+
+                EncodedFile(self.outfile, conf.output_encoding).open("a").write(msg)
+            if (not self.outfile) or self.tee:
+                try:
+                    _state.output.write(msg.encode(conf.output_encoding))
+                except _state.ConsoleUIError as e:
+                    _state.output.reset()
+                    _state.exec_log.log_status_info(
+                        f"Console UI write failed (message {{{e.value}}}); output reset to stdout.",
+                    )
+                    _state.output.write(msg.encode(conf.output_encoding))
+            if conf.tee_write_log:
+                _state.exec_log.log_user_msg(msg)
+        return None

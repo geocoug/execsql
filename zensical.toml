@@ -1,0 +1,60 @@
+[project]
+site_name = "execsql2"
+site_author = "Caleb Grant"
+site_description = "A multi-DBMS SQL script processor"
+site_url = "https://execsql2.readthedocs.io/"
+repo_url = "https://github.com/geocoug/execsql2"
+repo_name = "geocoug/execsql2"
+docs_dir = "docs"
+copyright = "Copyright &copy; 2007-2025 R.Dreas Nielsen, 2026-present Caleb Grant"
+nav= [
+    { "Home" = "index.md" },
+    { "Getting Started" = [
+        { "Installation" = "installation.md" },
+        { "Requirements" = "requirements.md" },
+        { "Syntax & Options" = "syntax.md" }
+    ] },
+    { "Reference" = [
+        { "Configuration" = "configuration.md" },
+        { "Substitution Variables" = "substitution_vars.md" },
+        { "Metacommands" = "metacommands.md" }
+    ] },
+    { "Guides" = [
+        { "Usage Notes" = "usage.md" },
+        { "SQL Syntax Notes" = "sql_syntax.md" },
+        { "Logging" = "logging.md" },
+        { "Character Encoding" = "encoding.md" },
+        { "Using Script Files" = "using_scripts.md" },
+        { "Documenting Script Actions" = "documentation.md" },
+        { "Debugging" = "debugging.md" }
+    ] },
+    { "Examples" = "examples.md" },
+    { "About" = [
+        { "Copyright" = "copyright.md" },
+        { "Contributors" = "contributors.md" },
+        { "Change Log" = "change_log.md" }
+    ] }
+]
+
+[project.theme]
+# variant = "classic" # Use for old material theme
+features = [
+    "navigation.footer",
+    "navigation.tabs",
+    "navigation.sections",
+    "navigation.path"
+]
+
+# Palette toggle for light mode
+[[project.theme.palette]]
+media = "(prefers-color-scheme: light)"
+scheme = "default"
+toggle.icon = "lucide/sun"
+toggle.name = "Switch to dark mode"
+
+# Palette toggle for dark mode
+[[project.theme.palette]]
+media = "(prefers-color-scheme: dark)"
+scheme = "slate"
+toggle.icon = "lucide/moon"
+toggle.name = "Switch to light mode"

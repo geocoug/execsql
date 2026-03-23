@@ -1,0 +1,94 @@
+from __future__ import annotations
+
+"""
+DuckDB database export for execsql.
+
+Provides :func:`write_query_to_duckdb`, which writes a query result set
+to a table in a DuckDB database file.  Used by ``EXPORT … FORMAT duckdb``.
+Requires the ``execsql2[duckdb]`` extra.
+"""
+
+import math
+import os
+from typing import Any, List, Optional
+
+from execsql.exceptions import ErrInfo
+import execsql.state as _state
+
+
+def export_duckdb(
+    outfile: str,
+    hdrs: List[str],
+    rows: Any,
+    append: bool,
+    tablename: str,
+) -> None:
+    try:
+        import duckdb
+    except Exception:
+        from execsql.utils.errors import fatal_error
+
+        fatal_error("The duckdb module is required to export data in that format.")
+        return
+
+    from execsql.models import DataTable
+    from execsql.utils.errors import exception_info
+
+    chunksize = 10000
+    pre_exist = os.path.isfile(outfile)
+    ddb = duckdb.connect(outfile, read_only=False)
+    if pre_exist:
+        catalog = os.path.splitext(os.path.split(outfile)[1])[0]
+        curs = ddb.cursor()
+        res = curs.execute(
+            f"select count(*) as rows from information_schema.tables "
+            f"where table_catalog = '{catalog}' and table_name = '{tablename}';",
+        )
+        rv = res.fetchone()
+        if not (rv is None or rv[0] == 0):
+            if append:
+                raise ErrInfo(type="error", other_msg=f"The table {tablename} already exists in {outfile}.")
+            else:
+                from execsql.utils.fileio import Logger
+
+                curs.execute(f"drop table {tablename};")
+        curs.close()
+    # Construct and run the CREATE TABLE statement
+    rowdata = list(rows)
+    tablespec = DataTable(hdrs, rowdata)
+    dbt_duckdb = _state.dbt_duckdb
+    sql = tablespec.create_table(dbt_duckdb, schemaname=None, tablename=tablename)
+    curs = ddb.cursor()
+    curs.execute(sql)
+    # Export all rows of data
+    columns = [dbt_duckdb.quoted(col) for col in hdrs]
+    colspec = ",".join(columns)
+    paramspec = ",".join(("?",) * len(columns))
+    sql = f"insert into {tablename} ({colspec}) values ({paramspec});"
+    n_chunks = math.ceil(len(rowdata) / chunksize)
+    curs.execute("BEGIN TRANSACTION;")
+    for i in range(n_chunks):
+        start = i * chunksize
+        end = start + chunksize
+        curs.executemany(sql, rowdata[start:end])
+    curs.execute("COMMIT;")
+    curs.close()
+    ddb.close()
+
+
+def write_query_to_duckdb(
+    select_stmt: str,
+    db: Any,
+    outfile: str,
+    append: bool,
+    tablename: str,
+) -> None:
+    from execsql.utils.errors import exception_info
+
+    try:
+        hdrs, rows = db.select_rowsource(select_stmt)
+    except ErrInfo:
+        raise
+    except Exception:
+        raise ErrInfo("db", select_stmt, exception_msg=exception_info())
+    export_duckdb(outfile, hdrs, rows, append, tablename)

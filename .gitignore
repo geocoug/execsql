@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
+.ruff_cache/
+
+# uv / venv
+.venv/
+
+# MkDocs / Zensical
+site/
+.cache
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Testing
+.pytest_cache/
+.coverage
+.tox/
+htmlcov/
+execsql.log
+scripts/
+
+# Distribution
+*.whl
+*.tar.gz
+
+# Superseded monolith
+_execsql/
+
+# Claude
+.claude/settings.local.json

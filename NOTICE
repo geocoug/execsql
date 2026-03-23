@@ -1,0 +1,10 @@
+execsql2
+========
+This project is a fork of execsql (https://execsql.readthedocs.io/)
+originally authored by R.Dreas Nielsen.
+
+Original work: Copyright (c) 2007-2024 R.Dreas Nielsen
+Modifications: Copyright (c) 2025-present Caleb Grant
+
+Licensed under the GNU General Public License v3 or later.
+See LICENSE.txt for the full license text.
