@@ -4,7 +4,7 @@
 > APIs, CLI behavior, and configuration options may change without notice.
 > Not recommended for production use. For the stable upstream release, see [execsql](https://execsql.readthedocs.io/).
 
-![execsql logo](https://execsql2.readthedocs.io/en/latest/_images/execsql_logo_01.png) *Multi-DBMS SQL script processor.*
+![execsql logo](https://execsql2.readthedocs.io/en/latest/images/execsql_logo_01.png) *Multi-DBMS SQL script processor.*
 *execsql.py* is a Python program that runs a SQL script stored in a text file
 against a PostgreSQL, MS-Access, SQLite, DuckDB, MS-SQL-Server, MySQL, MariaDB,
 Firebird, or Oracle database, or an ODBC DSN. *execsql* also supports a

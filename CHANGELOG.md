@@ -9,11 +9,26 @@ Entries prior to `2.0.0a1` are from the upstream
 
 ______________________________________________________________________
 
-## [2.0.0a1] - Unreleased
+## [Unreleased]
+
+______________________________________________________________________
+
+## [2.0.1] - 2026-03-23
+
+### Fixed
+
+- Fixed `PermissionError` on Windows when exporting to HTML in append mode: the file descriptor returned by `tempfile.mkstemp()` is now closed before the file is opened for writing.
+- Fixed `PermissionError` on Windows when exporting to LaTeX: the file descriptor returned by `tempfile.mkstemp()` is now closed before `EncodedFile` opens the same path.
+
+______________________________________________________________________
+
+## [2.0.0] - 2026-03-23
 
 ### Changed
 
 - Forked from execsql by R.Dreas Nielsen; repackaged as execsql2 with Python 3.13 support and modern tooling.
+- Added support for Python 3.10, 3.11, 3.12, and 3.13; dropped Python 2 compatibility.
+- Distributed as the `execsql2` package on PyPI; CLI entry point remains `execsql`.
 
 ______________________________________________________________________
 

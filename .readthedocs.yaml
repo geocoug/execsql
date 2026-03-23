@@ -10,6 +10,8 @@ build:
   jobs:
     install:
       - pip install zensical
+    pre_build:
+      - cp CHANGELOG.md docs/change_log.md
     build:
       html:
         - zensical build
