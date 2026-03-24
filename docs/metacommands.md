@@ -887,7 +887,7 @@ B64
 
 CGI-HTML
 
-:   Hypertext markup language, consisting of a Content-Type header followed by the data in an HTML table. No header or body sections are included. This format supports the use of *execsql.py* as a Common Gateway Interface (CGI) script when the export is sent to stdout. The output may alternatively be sent to a file. If the "APPEND" keyword is used with an existing file, the table will be written at the end of the file without the Content-Type header. If the "DESCRIPTION" keyword is used, the given description will be used as the table's caption.
+:   Hypertext markup language, consisting of a Content-Type header followed by the data in an HTML table. No header or body sections are included. This format supports the use of *execsql* as a Common Gateway Interface (CGI) script when the export is sent to stdout. The output may alternatively be sent to a file. If the "APPEND" keyword is used with an existing file, the table will be written at the end of the file without the Content-Type header. If the "DESCRIPTION" keyword is used, the given description will be used as the table's caption.
 
 
 CSV
@@ -1131,7 +1131,7 @@ HALT [[MESSAGE] "<error_message>" [TEE TO <outfile>]]
     [DISPLAY <table_or_view>] [EXIT_STATUS <n>]
 ```
 
-Script processing is halted, and the *execsql.py* program terminates. If an error message is provided, it is written to the console, unless the "-v2" or "-v3" option is used, in which case the message is displayed in a dialog. If the TEE clause is used, the error message will be appended to the specified file. If the DISPLAY clause is used, the specified table or view will be displayed in a GUI dialog. If an EXIT_STATUS value is specified, the [system exit status](https://en.wikipedia.org/wiki/Exit_status) is set to that value, otherwise, the system exit status is set to 3.
+Script processing is halted, and the *execsql* program terminates. If an error message is provided, it is written to the console, unless the "-v2" or "-v3" option is used, in which case the message is displayed in a dialog. If the TEE clause is used, the error message will be appended to the specified file. If the DISPLAY clause is used, the specified table or view will be displayed in a GUI dialog. If an EXIT_STATUS value is specified, the [system exit status](https://en.wikipedia.org/wiki/Exit_status) is set to that value, otherwise, the system exit status is set to 3.
 
 !!! warning
     A backward-incompatible change to HALT MESSAGE was made in version 1.26.1.0 (2018-06-13): the default exit status was changed from 2 to 3.
@@ -2353,7 +2353,7 @@ If the selected table or view contains no data, an error will occur, and script 
 SERVE <filename> AS <format>
 ```
 
-Copies the specified file to stdout with Content-Type and Content-Disposition headers. This metacommand is intended to support the use of *execsql.py* as a Common Gateway Interface (CGI) script. The *format* argument determines the type of Content-Type header that is used. Recognized values for the *format* value are:
+Copies the specified file to stdout with Content-Type and Content-Disposition headers. This metacommand is intended to support the use of *execsql* as a Common Gateway Interface (CGI) script. The *format* argument determines the type of Content-Type header that is used. Recognized values for the *format* value are:
 
 > BINARY, CSV, HTML, JSON, ODS, PDF, TXT, ZIP
 
@@ -2393,7 +2393,7 @@ Adds the numeric value that results from evaluating the specified numeric expres
 The numeric expression may consist of the simple algebraic operations of addition, subtraction, multiplication, and division. Parentheses may be used to control evaluation order. Numeric values may be integers or floating-point numbers; if any of the values is a floating-point number, the result will also be a floating-point number.
 
 !!! note
-    The results of evaluation of a numeric expression can differ depending on whether execsql.py is being run using Python 2 or Python 3, because division of integers can produce floating-point values in Python 3, but will only produce integer results in Python 2.
+    Division of integers produces floating-point values in Python 3 (e.g. `5 / 2` yields `2.5`). Use integer division (`//`) in SQL if integer results are needed.
 
 If more complex mathematical operations are needed, SQL can be used to perform computations with numeric substitution variables; see [Example 16](examples.md#example16).
 
@@ -2464,7 +2464,7 @@ Operates identically to the [SUB](#subcmd) metacommand, but always defines a loc
 SUB_QUERYSTRING <query_string>
 ```
 
-Parses out parameters and corresponding values from a query string as is used by an HTTP GET request, and uses them to create a substitution variable for each of the parameters. This is intended to support the use of *execsql.py* as a Common Gateway Interface (CGI) script, when the query string is stored in the environment variable "QUERY_STRING" and can be referenced by the substitution variable "&query_string".
+Parses out parameters and corresponding values from a query string as is used by an HTTP GET request, and uses them to create a substitution variable for each of the parameters. This is intended to support the use of *execsql* as a Common Gateway Interface (CGI) script, when the query string is stored in the environment variable "QUERY_STRING" and can be referenced by the substitution variable "&query_string".
 
 
 ## SUB_TEMPFILE

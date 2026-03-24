@@ -107,7 +107,7 @@ These features can be used to run *execsql* from within the editor, and if an er
 
 ![An execsql error displayed in Geany](images/data_error1_screenshot.jpg)
 
-To enable this capability, use the *Build/Set Build Commands* menu item. A dialog box like that shown below will be displayed. This will allow you to create a new build command to run *execsql* on the script being edited. You should enter a label for this command (e.g., "Run with execsql"); the command to run, using *%f* as a placeholder for the name of the current script (e.g., "execsql.py -v2 %f"); and the regular expression that Geany will use to extract the line number and file name out of *execsql's* error message--this should be "Line\\s(\\d+)\\sof\\sscript\\s(.+)".
+To enable this capability, use the *Build/Set Build Commands* menu item. A dialog box like that shown below will be displayed. This will allow you to create a new build command to run *execsql* on the script being edited. You should enter a label for this command (e.g., "Run with execsql"); the command to run, using *%f* as a placeholder for the name of the current script (e.g., "execsql -v2 %f"); and the regular expression that Geany will use to extract the line number and file name out of *execsql's* error message--this should be "Line\\s(\\d+)\\sof\\sscript\\s(.+)".
 
 ![The Geany dialog to set build commands](images/set_build_commands.jpg)
 
@@ -237,26 +237,17 @@ Sub ExportAllQueries(OutputDir)
 End Sub
 ```
 
-## Ensuring That a Script is Run Using execsql.py
+## Ensuring That a Script is Run Using execsql
 
-*execsql's* metacommands are hidden in SQL comments to allow scripts to be run using other SQL script processors or using GUI tools. However, scripts that make use of [IF](metacommands.md#if_cmd), [EXECUTE SCRIPT](metacommands.md#executescript), [IMPORT](metacommands.md#import), [COPY](metacommands.md#copy), [INCLUDE](metacommands.md#include) or [LOOP](metacommands.md#loop) metacommands are likely to operate incorrectly if they are *not* run using *execsql.py*. The following code will cause a script to fail with a syntax error from the DBMS if it is run using anything other than *execsql.py*:
+*execsql's* metacommands are hidden in SQL comments to allow scripts to be run using other SQL script processors or using GUI tools. However, scripts that make use of [IF](metacommands.md#if_cmd), [EXECUTE SCRIPT](metacommands.md#executescript), [IMPORT](metacommands.md#import), [COPY](metacommands.md#copy), [INCLUDE](metacommands.md#include) or [LOOP](metacommands.md#loop) metacommands are likely to operate incorrectly if they are *not* run using *execsql*. The following code will cause a script to fail with a syntax error from the DBMS if it is run using anything other than *execsql*:
 
 ```sql
 -- !x! if(False)
-    ERROR: This script must be run using execsql.py;
+    ERROR: This script must be run using execsql;
 -- !x! endif
 ```
 
 Note that the error message must end with a semicolon.
-
-## Running execsql.py from the Windows Command Line
-
-Running the following two commands at the command line will allow you to run *execsql.py* (and any other Python program) at the command line just by entering its name, without preceding the name with the full path to Python:
-
-```sh
-assoc .py Python.File
-ftype Python.File=C:\Path\to\python.exe "%1" %*
-```
 
 ## Allowing Multiple Users with Different Logins to Run the Same Script
 

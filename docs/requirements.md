@@ -1,28 +1,53 @@
 # Requirements
 
-The execsql program uses third-party [Python](http://www.python.org/) libraries to communicate with different database and spreadsheet software. These libraries must be installed to use those programs with execsql. Only those libraries that are needed, based on the command line arguments and [metacommands](metacommands.md#metacommands) that are used, must be installed. The libraries required for each database or spreadsheet application are:
+*execsql* requires Python 3.10 or later.
 
-> - PostgreSQL: [psycopg2](https://pypi.org/project/psycopg2/).
-> - MariaDB or MySQL: [pymysql](https://pypi.org/project/PyMySQL/).
-> - SQL Server: [pyodbc](https://pypi.org/project/pyodbc/).
-> - DuckDB: [duckdb](https://pypi.org/project/duckdb/). Version 0.8.1 or later.
-> - MS-Access: [pyodbc](https://pypi.org/project/pyodbc/) and [pywin32](https://pypi.org/project/pywin32/).
-> - Firebird: [fdb](https://pypi.org/project/fdb/).
-> - Oracle: [cx-Oracle](https://pypi.org/project/cx-Oracle/).
-> - DSN data source: [pyodbc](https://pypi.org/project/pyodbc/).
-> - [OpenDocument](http://www.opendocumentformat.org/) spreadsheets: [odfpy](https://pypi.org/project/odfpy/).
-> - Excel spreadsheets (read only): [xlrd](https://pypi.org/project/xlrd) for .xls files and [openpyxl](https://pypi.org/project/openpyxl/) for .xlsx files.
+*execsql* uses third-party Python libraries to communicate with different database and spreadsheet software. Only those libraries that are needed, based on the database type and [metacommands](metacommands.md#metacommands) in use, must be installed.
 
-Connections to SQLite databases are made using Python's standard library, so no additional software is needed.
+The easiest way to install the required libraries is to use the optional dependency extras provided by the `execsql2` package:
 
-To use the [Jinja](http://jinja.pocoo.org/) template processor with the [EXPORT](metacommands.md#export) metacommand, the `Jinja2` package must be installed (or install `execsql2[jinja]`).
+```bash
+pip install "execsql2[postgres]"    # PostgreSQL
+pip install "execsql2[mysql]"       # MySQL / MariaDB
+pip install "execsql2[mssql]"       # MS SQL Server (pyodbc)
+pip install "execsql2[duckdb]"      # DuckDB
+pip install "execsql2[firebird]"    # Firebird
+pip install "execsql2[oracle]"      # Oracle
+pip install "execsql2[odbc]"        # ODBC DSN (pyodbc)
+pip install "execsql2[ods]"         # OpenDocument spreadsheets
+pip install "execsql2[excel]"       # Excel read support
+pip install "execsql2[jinja]"       # Jinja2 template export
+pip install "execsql2[feather]"     # Feather import/export
+pip install "execsql2[hdf5]"        # HDF5 export
+pip install "execsql2[all]"         # All optional drivers
+```
 
-If data are to be [imported](metacommands.md#import) from the [Parquet](https://parquet.apache.org/) file format, the [pandas](https://pypi.org/project/pandas/) library and either the *pyarrow* or *fastparquet* Python packages must also be installed.
+Multiple extras can be combined: `pip install "execsql2[postgres,duckdb,jinja]"`.
 
-If data are to be [exported](metacommands.md#export) to the feather file format, the [pandas](https://pypi.org/project/pandas/) and [pyarrow](https://pypi.org/project/pyarrow/) Python packages must also be installed.
+## Libraries by Database/Format { #libraries }
 
-If data are to be [exported](metacommands.md#export) to the HDF5 file format, the [tables](https://pypi.org/project/tables/) library must be installed.
+The specific libraries installed by each extra are:
 
-All of the additional Python packages that may be needed can be installed with [pip](https://pip.pypa.io/en/stable/).
+| Database / Format                                                  | Extra      | Library                                                                                                 |
+| ------------------------------------------------------------------ | ---------- | ------------------------------------------------------------------------------------------------------- |
+| PostgreSQL                                                         | `postgres` | [psycopg2-binary](https://pypi.org/project/psycopg2-binary/)                                            |
+| MySQL / MariaDB                                                    | `mysql`    | [pymysql](https://pypi.org/project/PyMySQL/)                                                            |
+| MS SQL Server                                                      | `mssql`    | [pyodbc](https://pypi.org/project/pyodbc/)                                                              |
+| DuckDB                                                             | `duckdb`   | [duckdb](https://pypi.org/project/duckdb/)                                                              |
+| Firebird                                                           | `firebird` | [firebird-driver](https://pypi.org/project/firebird-driver/)                                            |
+| Oracle                                                             | `oracle`   | [oracledb](https://pypi.org/project/oracledb/)                                                          |
+| ODBC DSN                                                           | `odbc`     | [pyodbc](https://pypi.org/project/pyodbc/)                                                              |
+| SQLite                                                             | —          | Built-in (`sqlite3` standard library)                                                                   |
+| [OpenDocument](http://www.opendocumentformat.org/) spreadsheets    | `ods`      | [odfpy](https://pypi.org/project/odfpy/)                                                                |
+| Excel spreadsheets (read only)                                     | `excel`    | [xlrd](https://pypi.org/project/xlrd) (.xls) and [openpyxl](https://pypi.org/project/openpyxl/) (.xlsx) |
+| [Jinja2](https://jinja.palletsprojects.com/) templates             | `jinja`    | [Jinja2](https://pypi.org/project/Jinja2/)                                                              |
+| [Feather](https://arrow.apache.org/docs/python/feather.html) files | `feather`  | [polars](https://pypi.org/project/polars/)                                                              |
+| [HDF5](https://www.hdfgroup.org/solutions/hdf5/) files             | `hdf5`     | [tables](https://pypi.org/project/tables/)                                                              |
 
-To use MS-Access, SQL Server, or a DSN data source, an appropriate ODBC driver needs to be installed as well (e.g., the [Database Engine 2010 Redistributable](https://www.microsoft.com/en-US/download/details.aspx?id=13255) for MS-Access).
+Connections to SQLite databases use Python's standard library and require no additional packages.
+
+## Additional System Requirements { #system_requirements }
+
+To use MS Access, SQL Server, or an ODBC DSN, an appropriate ODBC driver must be installed on the system (e.g., the [Microsoft Access Database Engine](https://www.microsoft.com/en-US/download/details.aspx?id=13255) for MS Access, or the [ODBC Driver for SQL Server](https://learn.microsoft.com/en-us/sql/connect/odbc/download-odbc-driver-for-sql-server)).
+
+If data are to be [imported](metacommands.md#import) from the [Parquet](https://parquet.apache.org/) file format, the [pandas](https://pypi.org/project/pandas/) library and either the *pyarrow* or *fastparquet* Python package must be installed.

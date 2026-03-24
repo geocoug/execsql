@@ -44,7 +44,7 @@ Setting the configuration setting [write_warnings](configuration.md#write_warnin
 
 # Error Messages and Reporting
 
-When *execsql* encounters an error it will print an error message that includes the command that caused the error, the line number in the script being processed, and the line number in *execsql.py*. These messages will appear similar to the following:
+When *execsql* encounters an error it will print an error message that includes the command that caused the error, the line number in the script being processed, and the line number in *execsql*. These messages will appear similar to the following:
 
 ```
 **** Error in metacommand.

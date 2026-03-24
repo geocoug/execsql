@@ -1,141 +1,194 @@
 # Syntax and Options
 
-execsql.py should be run at the operating-system command line -- i.e., at a shell prompt in Linux or in a command window in Windows. Python may or may not need to be explicitly invoked, and the .py extension may or may not need to be included, depending on your operating system, operating system settings, and how execsql is [installed](installation.md#installation).
+*execsql* is a command-line tool installed via the `execsql2` package. After [installation](installation.md#installation), the `execsql` command is available on your PATH. Run it from a shell prompt on Linux/macOS or a command window on Windows.
 
-execsql.py runs under both Python 2.7 and Python 3.x.
+*execsql* requires Python 3.10 or later.
 
-For Linux users: The execsql.py file contains a shebang line pointing to /usr/bin/python, so there should be no need to invoke the Python interpreter. Depending on how execsql.py was obtained and installed, it may need to be made executable with the *chmod* command.
+## Basic Usage { #basic_usage }
 
-For Windows users: If you are unfamiliar with running Python programs at the command prompt, see <https://docs.python.org/2/faq/windows.html>.
-
-The syntax for command-line options and arguments is described below. In these syntax descriptions, angle brackets identify required replaceable elements, and square brackets identify optional replaceable elements.
-
-```
-Commands:
-   execsql.py -tp [other options] <sql_script_file> <Postgres_host> <Postgres_db>
-   execsql.py -tl [other options] <sql_script_file> <SQLite_db>
-   execsql.py -tf [other options] <sql_script_file> <Firebird_host> <Firebird_db>
-   execsql.py -ta [other options] <sql_script_file> <Access_db>
-   execsql.py -tm [other options] <sql_script_file> <MySQL_host> <MySQL_db>
-   execsql.py -ts [other options] <sql_script_file> <SQL_Server_host> <SQL_Server_db>
-   execsql.py -to [other options] <sql_script_file> <Oracle_host> <Oracle_service_name>
-   execsql.py -td [other options] <sql_script_file> <DSN_name>
-Arguments:
-   <sql_script_file>
-      The name of a text file of SQL commands to be executed.
-      Required argument.
-   <Postgres_host>
-      The name of the Postgres host (server) against which to
-      run the SQL.
-   <Postgres_db>
-      The name of the Postgres database against which to run
-      the SQL.
-   <SQLite_db>
-      The name of the SQLite database against which to run the
-      SQL.
-   <Firebird_host>
-      The name of the Firebird host (server) against which to
-      run the SQL.
-   <Firebird_db>
-      The name of the Firebird database against which to run
-      the SQL.
-   <MySQL_host>
-      The name of the MySQL or MariaDB host (server) against
-      which to run the SQL.
-   <MySQL_db>
-      The name of the MySQL or MariaDB database against which
-      to run the SQL.
-   <Oracle_host>
-      The name of the Oracle host (server) against which to run
-      the SQL.
-   <Oracle_service_name>
-      The Oracle service name (database) against which to run
-      the SQL.
-   <SQL_Server_host>
-      The name of the SQL Server host (server) against which to
-      run the SQL.
-   <SQL_Server_db>
-      The name of the SQL Server database against which to run
-      the SQL.
-   <Access_db>
-      The name of the Access database against which to run the
-      SQL.
-   <DSN_name>
-      The name of a DSN data source against which to run the SQL.
-Options:
-   -a <value>  Define the replacement for a substitution variable
-               $ARG_x.
-   -b <value>  Control whether input data columns containing only
-               0 and 1 are treated as Boolean or integer:
-               'y'-Yes (default); 'n'-No.
-   -d <value>  Make directories used by the EXPORT metacommand:
-               'n'-No (default); 'y'-Yes.
-   -e <value>  Character encoding of the database.  Only used for
-               some database types.
-   -f <value>  Character encoding of the script file.
-   -g <value>  Character encoding to use for output of the WRITE
-               and EXPORT metacommands.
-   -i <value>  Character encoding to use for data files imported
-               with the IMPORT metacommand.
-   -l          Use an execsql.log file in the user's home
-               directory.
-   -m          Display the allowable metacommands, and exit.
-   -n          Create a new SQLite or Postgres database if the
-               specified database does not exist.
-   -o          Open the online help in the default browser.
-   -p <value>  The port number to use for client-server databases.
-   -s <value>  The number of lines of an IMPORTed file to scan to
-               diagnose the quote and delimiter characters.
-   -t <value>  Type of database: 'p'-Postgres, 'l'-SQLite,
-               'k'-DuckDB, 'f'-Firebird, 'm'-MySQL, 's'-SQL Server,
-               'a'-Access, 'd'-DSN.
-   -u <value>  The database user name.
-   -v <value>  Use a GUI for interactive prompts.
-   -w          Do not prompt for the password when the user is
-               specified.
-   -y          List all valid character encodings and exit.
-   -z <value>  Buffer size, in kb, to use with the IMPORT metacommand
-               (the default is 32).
+```text
+execsql [OPTIONS] SQL_SCRIPT [SERVER DATABASE | DATABASE_FILE]
 ```
 
-Most command-line options and arguments can be specified in [configuration files](configuration.md#configuration) instead of on the command line. If the database type and connection information is specified in a configuration file, then the database type option and the server and database name can be omitted from the command line. The absolute minimum information that must be specified on the command line is the name of the script file to run.
+At minimum, provide a SQL script file to run. If database connection information is specified in a [configuration file](configuration.md#configuration), only the script file is required.
 
-If a server-based database is used (i.e., Postgres, Firebird, MySQL/MariaDB, or SQL Server), then if only one command-line argument is provided in addition to the script file name, that argument will be interpreted as the database name if the server name has been set in a configuration file and the database name has not; otherwise that single argument will be interpreted as the server name.
+### Client-server databases
 
-Following are additional details on some of the command-line options:
+For client-server databases (PostgreSQL, MySQL/MariaDB, SQL Server, Oracle, Firebird), provide the server and database name after the script file:
 
-`-a`
+```bash
+execsql -tp script.sql myserver mydb        # PostgreSQL
+execsql -tm script.sql myserver mydb        # MySQL / MariaDB
+execsql -ts script.sql myserver mydb        # SQL Server
+execsql -to script.sql myserver myservice   # Oracle
+execsql -tf script.sql myserver mydb        # Firebird
+```
 
-:   This option should be followed by text that is to be assigned to a [substitution variable](substitution_vars.md#substitution_vars). Substitution variables can be defined on the command line to provide data or control parameters to a script. The "-a" option can be used repeatedly to define multiple substitution variables. The value provided with each instance of the "-a" option should be a replacement string. execsql will automatically assign the substitution variable names. The substitution variable names will be "$ARG_1", "$ARG_2", etc., for as many variables are defined on the command line. Use of the "-a" option is illustrated in [Example 9](examples.md#example9). Command-line substitution variable assignments are [logged](logging.md#logging).
+If only one argument is provided after the script file, it is interpreted as the database name when the server name has been set in a configuration file; otherwise it is interpreted as the server name.
 
-`-e, -f, -g, -i`
+### File-based databases
 
-:   These options should each be followed by the name of a [character encoding](encoding.md#encoding). Valid names for character encodings can be displayed using the "-y" option.
+For file-based databases (SQLite, DuckDB, MS Access), provide the database file path:
 
-`-p`
+```bash
+execsql -tl script.sql mydb.sqlite          # SQLite
+execsql -tk script.sql mydb.duckdb          # DuckDB
+execsql -ta script.sql mydb.accdb           # MS Access
+```
 
-:   A port number should be provided if the DBMS is using a port different from the default. The default port numbers are:
+### DSN and connection URLs
 
-    > - Postgres: 5432
-    > - SQL Server: 1433
-    > - MySQL: 3306
-    > - Firebird: 3050
+Connect via an ODBC DSN or a connection URL:
 
-`-u`
+```bash
+execsql -td script.sql my_dsn_name                          # ODBC DSN
+execsql --dsn postgresql://user:pass@host:5432/db script.sql # Connection URL
+```
 
-:   The name of the database user should be provided with this option for password-protected databases; execsql will prompt for a password if a user name is provided, unless the "-w" option is also specified.
+### Inline scripts
 
-`-v`
+Use `-c` to execute a SQL or metacommand string directly, without a script file:
 
-:   This option should be followed by an integer indicating the level of GUI interaction that execsql should use. The values allowed are:
+```bash
+execsql -tl -c "SELECT sqlite_version();" mydb.sqlite
+```
 
-    > - 0: Use the terminal for all prompts (the default).
-    > - 1: Use a GUI dialog for password prompts and the [PAUSE](metacommands.md#pause) metacommand.
-    > - 2: Additionally, use a GUI dialog for any message to be displayed with the [HALT](metacommands.md#halt) metacommand, and use a GUI dialog to prompt for the initial database to use if no other specifications are provided.
-    > - 3: Additionally, open a GUI [console](metacommands.md#console) when execsql starts.
+### Config-only invocation
 
-    The prompt for a database password, and the prompt produced by the [PAUSE](metacommands.md#pause) [metacommand](metacommands.md#metacommands), are both displayed on the terminal by default. When the "-v1" option is used, or the GUI [console](metacommands.md#console) is open, both of these prompts will appear in GUI dialogs instead. If the "-v2" option is specified, then the [HALT](metacommands.md#halt) metacommand, if used with a message, will also be displayed in a GUI dialog. In addition, if the "-v2" or "-v3" option is used, and no server name or database name are specified either in a configuration file or on the command line, then execsql will use a GUI dialog to prompt for this information when it starts up.
+When all connection parameters are in a [configuration file](configuration.md#configuration):
 
-`-w`
+```bash
+execsql script.sql
+```
 
-:   Ordinarily if a user name is specified (with the "-u" option), execsql will prompt for a password for that user. When this option is used, execsql will not prompt for entry of a password.
+## Database Types { #db_types }
+
+The `-t` option specifies the database type using a single-character code:
+
+| Flag | Database        |
+| ---- | --------------- |
+| `p`  | PostgreSQL      |
+| `m`  | MySQL / MariaDB |
+| `s`  | MS SQL Server   |
+| `l`  | SQLite          |
+| `k`  | DuckDB          |
+| `a`  | MS Access       |
+| `f`  | Firebird        |
+| `o`  | Oracle          |
+| `d`  | ODBC DSN        |
+
+## Options Reference { #options }
+
+### Connection options
+
+`-t`, `--type` *{a,d,f,k,l,m,o,p,s}*
+
+:   Database type (see table above).
+
+`-u`, `--user` *USER*
+
+:   Database user name. *execsql* will prompt for a password unless `-w` is also specified.
+
+`-p`, `--port` *PORT*
+
+:   Database server port. Override only if the DBMS uses a non-default port. Defaults:
+
+    - PostgreSQL: 5432
+    - SQL Server: 1433
+    - MySQL: 3306
+    - Firebird: 3050
+    - Oracle: 1521
+
+`-w`, `--no-passwd`
+
+:   Skip the password prompt when a user name is specified.
+
+`-n`, `--new-db`
+
+:   Create a new SQLite or PostgreSQL database if the specified database does not exist.
+
+`--dsn`, `--connection-string` *URL*
+
+:   Database connection URL, e.g. `postgresql://user:pass@host:5432/db`. Supported schemes: `postgresql`, `postgres`, `mysql`, `mariadb`, `mssql`, `sqlserver`, `oracle`, `firebird`, `sqlite`, `duckdb`. Overrides `-t`, `-u`, `-p`, and positional server/database arguments. Passwords included in the URL are used directly without prompting.
+
+### Script options
+
+`-c`, `--command` *SCRIPT*
+:   Execute an inline SQL/metacommand script string instead of reading from a file. Use shell `$'line1\nline2'` syntax for multi-line scripts. When `-c` is used, no script file argument is required.
+
+`-a`, `--assign-arg` *VALUE*
+:   Define the replacement string for a [substitution variable](substitution_vars.md#substitution_vars) `$ARG_x`. Can be used repeatedly to define `$ARG_1`, `$ARG_2`, etc. Assignments are [logged](logging.md#logging). See [Example 9](examples.md#example9).
+
+### Encoding options
+
+`-e`, `--database-encoding` *ENCODING*
+:   Character encoding used by the database. Only used for some database types.
+
+`-f`, `--script-encoding` *ENCODING*
+:   Character encoding of the script file. Default: UTF-8.
+
+`-g`, `--output-encoding` *ENCODING*
+:   Character encoding for WRITE and EXPORT output.
+
+`-i`, `--import-encoding` *ENCODING*
+:   Character encoding for data files used with IMPORT.
+
+Valid encoding names can be displayed with the `-y` option. See also [Character Encoding](encoding.md#encoding).
+
+### Output options
+
+`-d`, `--directories`
+:   Auto-create directories used by the EXPORT and WRITE metacommands.
+
+`--output-dir` *DIR*
+:   Default base directory for EXPORT output files. Relative paths in EXPORT metacommands are joined to this directory. Absolute paths and `stdout` are unaffected.
+
+`-l`, `--user-logfile`
+:   Write the run log to `~/execsql.log` instead of the current directory.
+
+### Import options
+
+`-b`, `--boolean-int` *{0,1,t,f,y,n}*
+:   Control whether input data columns containing only 0 and 1 are treated as Boolean (`y`, the default) or integer (`n`).
+
+`-s`, `--scan-lines` *N*
+:   Number of lines of an imported file to scan to determine the quote and delimiter characters. Default: 100. Use 0 to scan the entire file.
+
+`-z`, `--import-buffer` *KB*
+:   Buffer size in KB for the IMPORT metacommand. Default: 32.
+
+### GUI options
+
+`-v`, `--visible-prompts` *{0,1,2,3}*
+
+:   GUI interaction level:
+
+    - **0**: Use the terminal for all prompts (the default).
+    - **1**: Use a GUI dialog for password prompts and the [PAUSE](metacommands.md#pause) metacommand.
+    - **2**: Additionally, use a GUI dialog for [HALT](metacommands.md#halt) messages and prompt for the initial database if no connection parameters are specified.
+    - **3**: Additionally, open a GUI [console](metacommands.md#console) when *execsql* starts.
+
+`--gui-framework` *{tkinter,textual}*
+
+:   GUI framework to use with `--visible-prompts`. Default: `tkinter`. Use `textual` for a terminal-based UI.
+
+### Informational options
+
+`-m`, `--metacommands`
+:   List all metacommands and exit.
+
+`-o`, `--online-help`
+:   Open the online documentation in the default browser.
+
+`-y`, `--encodings`
+:   List all valid character encoding names and exit.
+
+`--dry-run`
+:   Parse the script (or inline `-c` command) and print the full command list — SQL statements and metacommands with source locations — without connecting to a database or executing anything. Useful for validating scripts.
+
+`--version`
+:   Show the version number and exit.
+
+## Configuration File Defaults { #config_defaults }
+
+Most command-line options and arguments can be specified in [configuration files](configuration.md#configuration) instead of on the command line. If the database type and connection information is specified in a configuration file, the `-t` option and the server/database arguments can be omitted. The only required command-line argument is the script file (or `-c` for inline scripts).

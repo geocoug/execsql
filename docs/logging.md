@@ -1,6 +1,6 @@
 # Logging
 
-*execsql.py* automatically logs certain actions, conditions, and errors that occur during the processing of a script file. Although a script file provides good documentation of database operations, there are circumstances in which a script file is not a definitive record of what operations were, or were not, carried out. These circumstances include:
+*execsql* automatically logs certain actions, conditions, and errors that occur during the processing of a script file. Although a script file provides good documentation of database operations, there are circumstances in which a script file is not a definitive record of what operations were, or were not, carried out. These circumstances include:
 
 > - Errors
 > - Choices made by the user in response to a [PROMPT](metacommands.md#prompt) metacommand.
@@ -12,7 +12,7 @@ Information is logged into a tab-delimited text file named `execsql.log`. By def
 
     Prior to version 1.28.0.5 (2018-09-10), the log file was created in the directory of the starting script.
 
-This file contains several different record types. The first value on each line of the file identifies the record type. The second value on each line is a run identifier. All records that are logged during a single run of *execsql.py* have the same run identifier. The run identifier is a compact representation of the date and time at which the run started. The record types and the values that each record of that type contains are:
+This file contains several different record types. The first value on each line of the file identifies the record type. The second value on each line is a run identifier. All records that are logged during a single run of *execsql* have the same run identifier. The run identifier is a compact representation of the date and time at which the run started. The record types and the values that each record of that type contains are:
 
 > **run**---Information about the run as a whole:
 >

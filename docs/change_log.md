@@ -13,30 +13,73 @@ ______________________________________________________________________
 
 ### Added
 
+- `max_log_size_mb` config setting (default `0` = disabled): when set to a positive integer, the log file is rotated to `.1` before a new run appends to it if the file size exceeds the configured threshold. Controlled via `config.py` and implemented in `utils/fileio.py`.
+
+- Per-event ISO 8601 timestamps in log records: `status`, `connect`, `action`, and `user_msg` log entries now include a timestamp as field 4, making it possible to measure elapsed time between steps.
+
+- Run duration in exit record: the `exit` log record now includes elapsed wall-clock time as the last field (e.g. `12.3s`).
+
+- Run ID millisecond precision: the run identifier format changed from `%Y%m%d_%H%M_%S` to `%Y%m%d_%H%M_%S_NNN` to prevent collisions when two runs start within the same second.
+
+- `import_progress_interval` config option (under `[input]`): controls how often row-count progress is written to the execution log during IMPORT operations. Set to a positive integer N to log a status line every N rows (e.g. `import_progress_interval = 10000`); defaults to `0` (silent). When enabled, a final completion line (e.g. `IMPORT into schema.table complete: 1000000 rows imported.`) is also written. Supported for all database adapters (SQLite, PostgreSQL, MySQL, and the generic base adapter).
+
+- `--output-dir DIR` CLI option: sets a default base directory for EXPORT output files. Relative paths in EXPORT metacommands are automatically joined to this directory; absolute paths and `stdout` are unaffected. Eliminates the need to hard-code absolute paths in scripts.
+
+- `--dsn` / `--connection-string` CLI option: accepts a standard database URL (e.g. `postgresql://user:pass@host:5432/db`) and populates the connection parameters automatically. Supported schemes: `postgresql`, `postgres`, `mysql`, `mariadb`, `mssql`, `sqlserver`, `oracle`, `firebird`, `sqlite`, `duckdb`. Overrides `-t`/`-u`/`-p` and positional server/db arguments. Passwords included in the URL are used directly without prompting.
+
+- `--dry-run` CLI flag: parses the script (or inline `-c` command) and prints the full command list (SQL statements and metacommands with source locations) without connecting to a database or executing anything. Useful for validating scripts before running them. parses the script (or inline `-c` command) and prints the full command list (SQL statements and metacommands with source locations) without connecting to a database or executing anything. Useful for validating scripts before running them.
+
 - API reference section in the docs (`docs/api/`) covering `cli`, `db`, `exporters`, `importers`, and `metacommands`; wired `mkdocstrings-python` into `zensical.toml` via `[project.plugins.mkdocstrings]`.
+
 - `feather = ["pandas", "pyarrow"]` optional-dependency extra for Feather import/export support.
+
 - `hdf5 = ["tables"]` optional-dependency extra for HDF5 export support.
+
 - Both extras are included in the `all` group.
+
 - `state.reset()` utility function to reset all module-level runtime state to initial values; used by the test suite to ensure a clean slate between tests.
+
 - `state.initialize()` function that consolidates construction of runtime singletons (`conf`, `if_stack`, `counters`, `timer`, `dbs`, `tempfiles`, `export_metadata`, `metacommandlist`, `conditionallist`) into a single documented call site.
+
 - `ExecSqlError` base class in `exceptions.py`; `ConfigError`, `ColumnError`, `DataTableError`, `OdsFileError`, `XlsFileError`, `XlsxFileError`, `ConsoleUIError`, `CondParserError`, and `NumericParserError` now inherit from it, eliminating boilerplate and ensuring `str(exc)` and `exc.args` produce useful output.
+
 - `ErrInfo.__str__` now returns the most informative available message (`other_msg`, then `exception_msg`, then `type`) so standard logging and exception handlers produce useful output without accessing internal attributes.
+
+- Expanded test coverage to meet 68% combined branch+statement floor: added `ErrInfo.__str__` tests, `CondParser` operator-matching tests (`match_not`, `match_andop`, `match_orop`), XML/SQLite/DuckDB exporter ErrInfo re-raise tests, DuckDB exporter "file-exists-but-table-absent" branch, `SourceString.match_regex` at EOI, and `__init__.__version__` fallback on `PackageNotFoundError`.
+
 - Expanded test coverage for `Database` base-class methods (`select_rowdict`, `select_rowsource`, `select_data`, `cursor`, `rollback`, `commit`, `drop_table`, `table_columns`, `paramsubs`, `schema_qualified_table_name`, `autocommit_off/on`, `DatabasePool.closeall`) via `TestDatabaseDeeperMethods` and `TestDatabasePoolCloseAll`.
+
 - Expanded test coverage for `CsvFile` in `test_delimited.py`.
+
 - Tests for `only_strings`, `replace_newlines`, `import_row_buffer`, and `css_styles` config options in `test_config_data.py`.
+
 - Tests for `replace_newlines` regex behavior and all-NULL column with lenspec in `test_models.py`.
+
 - Tests for `FileWriter.try_open()` failure status in `tests/utils/test_fileio.py`.
+
 - Tests for DuckDB native temporal type mappings in `test_types.py`.
+
 - Tests for `SubVarSet` dict-based storage and pre-compiled regex patterns in `test_script.py`.
+
 - Tests for `DT_Time_Oracle` subclass behavior (matches, from_data, lenspec, varlen) in `test_types.py`.
+
 - Tests for `Database.quote_identifier()` in `tests/db/test_base.py`.
+
 - Tests for PostgreSQL and SQLite connection timeout parameters in `tests/db/`.
+
 - Tests for `write_warning()` null-safety when `exec_log` is uninitialized in `tests/utils/test_errors.py`.
+
 - Tests for `DT_Date` instance-local format deque isolation in `test_types.py`.
+
 - Integration tests (`test_integration.py`) covering end-to-end script execution with SQLite: basic SQL, substitution variables, CSV export/import, conditional execution (IF/ELSE/ENDIF), WRITE metacommand, and full round-trip export-then-import.
+
 - Metacommand handler tests for previously untested modules: `test_metacommands_system.py` (53 tests), `test_metacommands_script_ext.py` (10 tests), `test_metacommands_connect.py` (14 tests), `test_metacommands_io.py` (31 tests).
 
 ### Fixed
+
+- IMPORT completion log message is now always written when a log is active, regardless of the `import_progress_interval` setting. Previously the completion record (e.g. `IMPORT into schema.table complete: N rows imported.`) was suppressed when `import_progress_interval` was `0` (silent mode), leaving no trace of successful imports in the log. Affects `db/base.py`, `db/postgres.py`, `db/mysql.py`, and `db/sqlite.py`.
+
+- `Logger.exit_type` now defaults to `"unknown"` instead of Python `None`, preventing the literal string `"None"` from appearing in the `exit` log record when the run completes without an explicit exit type.
 
 - SQL injection in database metadata queries: `schema_exists()`, `table_exists()`, `column_exists()`, `table_columns()`, `view_exists()`, and `role_exists()` across `db/base.py`, `db/postgres.py`, `db/oracle.py`, `db/duckdb.py`, and `db/sqlite.py` now use parameterized queries and `quote_identifier()` instead of f-string interpolation.
 
@@ -62,6 +105,8 @@ ______________________________________________________________________
 
 ### Changed
 
+- Replaced all `os.path` calls with `pathlib.Path` equivalents across 21 source files (`config.py`, `cli.py`, `script.py`, `utils/fileio.py`, `utils/errors.py`, `utils/mail.py`, `metacommands/io.py`, `metacommands/conditions.py`, `metacommands/connect.py`, `metacommands/prompt.py`, `exporters/base.py`, `exporters/duckdb.py`, `exporters/html.py`, `exporters/latex.py`, `exporters/ods.py`, `exporters/sqlite.py`, `exporters/xls.py`, `db/access.py`, `db/duckdb.py`, `db/factory.py`, `importers/csv.py`). `os.path.expandvars()` is retained where used as it has no `pathlib` equivalent.
+- `MetaCommandList` in `script.py` refactored from a hand-rolled linked list (with a move-to-front performance heuristic) to a plain `list[MetaCommand]`. Command ordering is now stable and predictable; the `insert_node()` method and `next_node` attribute on `MetaCommand` have been removed.
 - `config.py`: All `raise ConfigError(...)` patterns now chain the original exception via `from e` for better debugging context.
 - `SubVarSet` in `script.py` refactored: internal storage changed from list-of-tuples to dict for O(1) variable lookups; regex patterns pre-compiled on `add_substitution()` instead of recompiled on every `substitute()` call.
 - `set_system_vars()` in `script.py`: `_state.dbs.current()` cached once instead of called 7+ times per invocation.

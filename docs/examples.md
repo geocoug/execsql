@@ -321,7 +321,7 @@ insert into todo (todo) values ('!!$arg_1!!');
 This script can be used with a command line like:
 
 ``` sql
-execsql.py -tl -a "Share your dog food" -a 2015-11-21 add.sql todo.db
+execsql -tl -a "Share your dog food" -a 2015-11-21 add.sql todo.db
 ```
 
 
@@ -1233,12 +1233,12 @@ where row_num=(select max(row_num) from agg);
 
 ## **Example 25:** Dynamically Constructing SQL for Upsert Operations { #example25 }
 
-This example illustrates the use of substitution variables and metacommands to dynamically construct SQL statements, process the results of those statements, and direct the course of data loading through the use of SQL 'update' and 'insert' statements. Not strictly an example, this illustration consists of full working execsql scripts to perform these 'upsert' operations in Postgres, MariaDB/MySQL, and MS-SQL Server. The code is in the 'upsert' scripts that are distributed with *execsql.py*: [pg_upsert.sql], [md_upsert.sql], and [ss_upsert.sql].
+This example illustrates the use of substitution variables and metacommands to dynamically construct SQL statements, process the results of those statements, and direct the course of data loading through the use of SQL 'update' and 'insert' statements. Not strictly an example, this illustration consists of full working execsql scripts to perform these 'upsert' operations in Postgres, MariaDB/MySQL, and MS-SQL Server. The code is in the 'upsert' scripts that are distributed with *execsql*: [pg_upsert.sql], [md_upsert.sql], and [ss_upsert.sql].
 
 
 ## **Example 26:** Creating a Glossary to Accompany a Data Summary
 
-Data summaries or tables that are exported from a database may have column names or other types of information that are abbreviated, and possibly unclear or ambiguous. Definitions of those terms can be helpful to users of the data. One way of providing those definitions is to produce a custom glossary to accompany each data export. Execsql scripts to simplify the creation of such a custom glossary table are distributed with *execsql.py* as [pg_glossary.sql], [md_glossary.sql], and [ss_glossary.sql].
+Data summaries or tables that are exported from a database may have column names or other types of information that are abbreviated, and possibly unclear or ambiguous. Definitions of those terms can be helpful to users of the data. One way of providing those definitions is to produce a custom glossary to accompany each data export. Execsql scripts to simplify the creation of such a custom glossary table are distributed with *execsql* as [pg_glossary.sql], [md_glossary.sql], and [ss_glossary.sql].
 
 
 ## **Example 27:** Managing a Task List with the PROMPT ACTION Metacommand
@@ -1412,7 +1412,7 @@ When data sets containing new or revised values are to be added to a database, c
 
 For DBMSs that implement *information schema* views, SQL statements to perform those comparisons can be generated in a way that is independent of each table's specific structure. In particular, a single execsql [SCRIPT](metacommands.md#beginscript) can generate a SQL statement to compare the data in any corresponding pair of base and staging tables.
 
-Full working examples of such scripts are in the [pg_compare.sql], [md_compare.sql], and [ss_compare.sql] scripts that are distributed with *execsql.py*. These scripts generate SQL that produces four different summary tables containing the following types of information:
+Full working examples of such scripts are in the [pg_compare.sql], [md_compare.sql], and [ss_compare.sql] scripts that are distributed with *execsql*. These scripts generate SQL that produces four different summary tables containing the following types of information:
 
 - All values of the base table's primary key that are present in both the base and staging tables (i.e., an inner join of the tables), with a column for each attribute that indicates whether the value for that attribute is the same or different in the two tables.
 - All values of the base table's primary key that are present in both the base and staging tables (i.e., an inner join of the tables), and two columns for each attribute that show the old value (from the base table) and the new value (from the staging table).
@@ -1522,12 +1522,12 @@ The "output_dir" variable that is created by this script can be used in the foll
 -- !x! EXPORT summary_query TO !!output_dir!!!!$pathsep!!output_file.csv AS CSV
 ```
 
-This example is also incorporated into the SQL script template file *script_template.sql* that is distributed with *execsql.py*. The script template also uses the run number for custom logfiles.
+This example is also incorporated into the SQL script template file *script_template.sql* that is distributed with *execsql*. The script template also uses the run number for custom logfiles.
 
 
 ## **Example 34:** Importing Multiple Worksheets
 
-This example illustrates commands to import multiple sheets from a workbook into staging tables. This uses the [IMPORT](metacommands.md#import) metacommand, and two of the system variables that are created when the SHEETS MATCHING clause is used. Each imported staging table is then displayed, and optionally upserted into corresponding base tables. The upsert operation is carried out using the [pg_upsert.sql], [md_upsert.sql], and [ss_upsert.sql] scripts that are distributed with *execsql.py*.
+This example illustrates commands to import multiple sheets from a workbook into staging tables. This uses the [IMPORT](metacommands.md#import) metacommand, and two of the system variables that are created when the SHEETS MATCHING clause is used. Each imported staging table is then displayed, and optionally upserted into corresponding base tables. The upsert operation is carried out using the [pg_upsert.sql], [md_upsert.sql], and [ss_upsert.sql] scripts that are distributed with *execsql*.
 
 This example illustrates import of a set of lookup tables from an OpenDocument workbook named "lookups.ods", where each lookup table is on a sheet with a name starting with "l_", and the sheet names match table names. The sheets are imported into tables in a staging schema named "stg".
 

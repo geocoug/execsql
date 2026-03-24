@@ -1,8 +1,8 @@
 # A Multi-DBMS SQL Script Processor
 
-[![image](images/execsql_logo_01.png)](https://pypi.org/project/execsql/)
+[![image](images/execsql_logo_01.png)](https://pypi.org/project/execsql2/)
 
-`execsql.py` is a Python program that applies a SQL script stored in a text file to a PostgreSQL, SQLite, DuckDB, MS-SQL-Server, MariaDB, MySQL, Firebird, MS-Access, or Oracle database, or an ODBC DSN. *execsql* also supports a set of special commands ([metacommands](metacommands.md#metacommands)) that can import and export data, copy data between databases, display data, and conditionally execute SQL statements and metacommands. These metacommands make up a control language that works the same across all supported database management systems (DBMSs). The metacommands are embedded in SQL comments, so they will be ignored by other script processors (e.g., *psql* for Postgres and *sqlcmd* for SQL Server). The metacommands are a toolbox that can be used to create both automated and interactive data processing applications; some of these uses are illustrated in the [examples](examples.md#examples).
+*execsql* is a command-line tool that applies a SQL script stored in a text file to a PostgreSQL, SQLite, DuckDB, MS-SQL-Server, MariaDB, MySQL, Firebird, MS-Access, or Oracle database, or an ODBC DSN. *execsql* also supports a set of special commands ([metacommands](metacommands.md#metacommands)) that can import and export data, copy data between databases, display data, and conditionally execute SQL statements and metacommands. These metacommands make up a control language that works the same across all supported database management systems (DBMSs). The metacommands are embedded in SQL comments, so they will be ignored by other script processors (e.g., *psql* for Postgres and *sqlcmd* for SQL Server). The metacommands are a toolbox that can be used to create both automated and interactive data processing applications; some of these uses are illustrated in the [examples](examples.md#examples).
 
 # Capabilities
 
@@ -36,7 +36,7 @@ The sections of the *execsql* documentation fall into several categories, descri
 
 These documentation sections contain information that most users will need to read in order to start using *execsql*.
 
-> | [Installation](installation.md#installation): Installation of *execsql.py*.
+> | [Installation](installation.md#installation): Installation of *execsql*.
 > | [Requirements](requirements.md#requirements): Other Python packages that may be needed.
 > | [Syntax and Options](syntax.md#syntax): Command-line arguments and flags.
 
