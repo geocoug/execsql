@@ -105,12 +105,12 @@ class Database:
                 _state.subvars.add_substitution("$LAST_ROWCOUNT", curs.rowcount)
             except Exception:
                 pass
-        except Exception as e:
+        except Exception:
             try:
                 self.rollback()
             except Exception:
-                pass
-            raise e
+                pass  # Rollback is best-effort after a failed execute.
+            raise
 
     def exec_cmd(self, querycommand: str) -> None:
         from execsql.exceptions import DatabaseNotImplementedError

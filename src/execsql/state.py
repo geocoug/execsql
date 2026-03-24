@@ -36,7 +36,24 @@ import re
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from execsql.config import ConfigData
+    import multiprocessing as _mp
+    import threading as _threading
+
+    from execsql.config import ConfigData, StatObj, WriteHooks
+    from execsql.db.base import DatabasePool
+    from execsql.exporters.base import ExportMetadata, WriteSpec
+    from execsql.script import (
+        CommandList,
+        CounterVars,
+        IfLevels,
+        MetaCommandList,
+        ScriptCmd,
+        ScriptExecSpec,
+        SubVarSet,
+    )
+    from execsql.utils.fileio import FileWriter, Logger, TempFileMgr
+    from execsql.utils.mail import MailSpec
+    from execsql.utils.timer import Timer
 
 # ---------------------------------------------------------------------------
 # Configuration / encoding
@@ -53,7 +70,7 @@ logfile_encoding: str = "utf8"  # Should never be changed; is not configurable.
 # ---------------------------------------------------------------------------
 
 # The last command run.  This should be a ScriptCmd object.
-last_command: Any = None
+last_command: ScriptCmd | None = None
 
 # The last user password entered via 'get_password()'
 upass: str | None = None
@@ -63,31 +80,31 @@ upass: str | None = None
 varlike = re.compile(r"!![$@&~#]?\w+!!", re.I)
 
 # A WriteSpec object for messages to be written when the program halts due to an error.
-err_halt_writespec: Any = None
+err_halt_writespec: WriteSpec | None = None
 
 # A MailSpec object for email to be sent when the program halts due to an error.
-err_halt_email: Any = None
+err_halt_email: MailSpec | None = None
 
 # A ScriptExecSpec object for a script to be executed when the program halts due to an error.
-err_halt_exec: Any = None
+err_halt_exec: ScriptExecSpec | None = None
 
 # A WriteSpec object for messages to be written when the program halts due to user cancellation.
-cancel_halt_writespec: Any = None
+cancel_halt_writespec: WriteSpec | None = None
 
 # A MailSpec object for email to be sent when the program halts due to user cancellation.
-cancel_halt_mailspec: Any = None
+cancel_halt_mailspec: MailSpec | None = None
 
 # A ScriptExecSpec object for a script to be executed when the program halts due to user cancellation.
-cancel_halt_exec: Any = None
+cancel_halt_exec: ScriptExecSpec | None = None
 
 # A stack of the CommandList objects currently in the queue to be executed.
-commandliststack: list = []
+commandliststack: list[CommandList] = []
 
 # A dictionary of CommandList objects (ordinarily created by BEGIN/END SCRIPT metacommands).
-savedscripts: dict = {}
+savedscripts: dict[str, CommandList] = {}
 
 # A stack of CommandList objects used when compiling the statements within a loop.
-loopcommandstack: list = []
+loopcommandstack: list[CommandList] = []
 
 # A global flag to indicate that commands should be compiled into the topmost entry
 # in the loopcommandstack rather than executed.
@@ -112,54 +129,54 @@ defer_rx = re.compile(r"(!{([$@&~#]?[a-z0-9_]+)}!)", re.I)
 stringtypes: type = str
 
 # The execution log object; set at startup.
-exec_log: Any = None
+exec_log: Logger | None = None
 
 # The substitution variable set; set at startup.
-subvars: Any = None
+subvars: SubVarSet | None = None
 
 # The program execution status tracker; set at startup.
-status: Any = None
+status: StatObj | None = None
 
 # ---------------------------------------------------------------------------
 # Runtime objects — initialized in main() to avoid circular imports at load time.
 # ---------------------------------------------------------------------------
 
 # Stack-based conditional state (IfLevels instance).
-if_stack: Any = None
+if_stack: IfLevels | None = None
 
 # Global counter variables (CounterVars instance).
-counters: Any = None
+counters: CounterVars | None = None
 
 # Elapsed-time tracker (Timer instance).
-timer: Any = None
+timer: Timer | None = None
 
 # Redirectable output (WriteHooks instance).
-output: Any = None
+output: WriteHooks | None = None
 
 # Database connection pool (DatabasePool instance).
-dbs: Any = None
+dbs: DatabasePool | None = None
 
 # Temporary file manager (TempFileMgr instance).
-tempfiles: Any = None
+tempfiles: TempFileMgr | None = None
 
 # Export metadata tracker (ExportMetadata instance).
-export_metadata: Any = None
+export_metadata: ExportMetadata | None = None
 
 # Metacommand dispatch table (MetaCommandList instance).
-metacommandlist: Any = None
+metacommandlist: MetaCommandList | None = None
 
 # Conditional predicate dispatch table (MetaCommandList instance).
-conditionallist: Any = None
+conditionallist: MetaCommandList | None = None
 
 # Asynchronous file-writer subprocess (FileWriter instance).
-filewriter: Any = None
+filewriter: FileWriter | None = None
 
 # GUI console object.
-gui_console: Any = None
+gui_console: Any = None  # Varies by backend (ConsoleUI, DesktopUI, TextualUI).
 
 # Queue and thread used to communicate with the GUI manager.
-gui_manager_queue: Any = None
-gui_manager_thread: Any = None
+gui_manager_queue: _mp.Queue | None = None
+gui_manager_thread: _threading.Thread | None = None
 
 # ---------------------------------------------------------------------------
 # Version numbers (parsed from package __version__)
@@ -173,9 +190,9 @@ try:
     secondary_vno: int = int(_vparts[1]) if len(_vparts) > 1 else 0
     tertiary_vno: int = int(_vparts[2]) if len(_vparts) > 2 else 0
 except Exception:
-    primary_vno = 1
-    secondary_vno = 130
-    tertiary_vno = 1
+    primary_vno = 0
+    secondary_vno = 0
+    tertiary_vno = 0
 
 # ---------------------------------------------------------------------------
 # Utility functions defined directly here to avoid circular imports.

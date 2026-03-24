@@ -31,7 +31,10 @@ nav= [
     ] },
     { "Examples" = "examples.md" },
     { "Contributing" = [
-        { "Adding Metacommands" = "dev/adding_metacommands.md" }
+        { "Adding Metacommands" = "dev/adding_metacommands.md" },
+        { "Adding Exporters" = "dev/adding_exporters.md" },
+        { "Adding Database Adapters" = "dev/adding_db_adapters.md" },
+        { "Adding Importers" = "dev/adding_importers.md" }
     ] },
     { "API Reference" = [
         { "Overview" = "api/index.md" },
