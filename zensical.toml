@@ -30,12 +30,28 @@ nav= [
         { "execsql-format" = "formatter.md" }
     ] },
     { "Examples" = "examples.md" },
+    { "API Reference" = [
+        { "Overview" = "api/index.md" },
+        { "CLI" = "api/cli.md" },
+        { "Databases" = "api/db.md" },
+        { "Exporters" = "api/exporters.md" },
+        { "Importers" = "api/importers.md" },
+        { "Metacommands" = "api/metacommands.md" }
+    ] },
     { "About" = [
         { "Copyright" = "copyright.md" },
         { "Contributors" = "contributors.md" },
         { "Change Log" = "change_log.md" }
     ] }
 ]
+
+[project.plugins.mkdocstrings]
+default_handler = "python"
+handlers.python.paths = ["src"]
+handlers.python.options.show_source = false
+handlers.python.options.members_order = "source"
+handlers.python.options.show_symbol_type_heading = true
+handlers.python.options.show_symbol_type_toc = true
 
 [project.theme]
 # variant = "classic" # Use for old material theme

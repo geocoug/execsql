@@ -13,6 +13,7 @@ ______________________________________________________________________
 
 ### Added
 
+- API reference section in the docs (`docs/api/`) covering `cli`, `db`, `exporters`, `importers`, and `metacommands`; wired `mkdocstrings-python` into `zensical.toml` via `[project.plugins.mkdocstrings]`.
 - `feather = ["pandas", "pyarrow"]` optional-dependency extra for Feather import/export support.
 - `hdf5 = ["tables"]` optional-dependency extra for HDF5 export support.
 - Both extras are included in the `all` group.
