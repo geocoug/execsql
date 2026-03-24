@@ -35,14 +35,14 @@ def prettyprint_rowset(
         if type(s) in (type(memoryview(b"")), bytes, bytearray):
             return f"Binary data ({len(s)} bytes)"
         else:
-            if type(s) == type(b""):
+            if isinstance(s, bytes):
                 return s.decode(_state.dbs.current().encoding)
         return str(s)
 
-    if type(rows) != "list":
+    if not isinstance(rows, list):
         try:
             rows = list(rows)
-        except:
+        except Exception:
             raise _state.ErrInfo(
                 "exception",
                 exception_msg=_state.exception_desc(),

@@ -56,6 +56,8 @@ odbc = ["pyodbc"]
 ods = ["odfpy"]
 excel = ["xlrd", "openpyxl"]
 jinja = ["Jinja2"]
+feather = ["polars"]
+hdf5 = ["tables"]
 all = [
     "psycopg2-binary",
     "pymysql",
@@ -65,6 +67,9 @@ all = [
     "xlrd",
     "openpyxl",
     "Jinja2",
+    "pandas",
+    "pyarrow",
+    "tables",
 ]
 dev = [
     "build>=1.2.2.post1",
@@ -107,20 +112,15 @@ ignore = [
     # Legacy code style — fix during refactor
     "E402",  # module level import not at top of file
     "E501",  # line too long
-    "E721",  # type comparison (use isinstance())
-    "E722",  # bare except
-    "E741",  # ambiguous variable names
+    # E741/E401/F811/F841 fixed — no longer suppressed
     "E731",  # do not assign a lambda expression, use a def
     "E713",  # not in test
     "E714",  # is not test
     "E701",  # multiple statements on one line
-    "E401",  # multiple imports on one line
     # Unused / undefined — will address during refactor
-    "F401",  # unused imports
+    "F401",  # unused imports (re-exports in state.py and optional-dep guards are intentional)
     "F507",  # %-format string placeholder count mismatch (3 bugs in __repr__ methods)
-    "F811",  # redefinition of unused name
     "F821",  # undefined name
-    "F841",  # local variable assigned but never used
 ]
 
 [tool.ruff.format]
@@ -143,9 +143,8 @@ filename = "pyproject.toml"
 [tool.pytest.ini_options]
 addopts = [
     "--cov=execsql",
-    "--cov=tests",
     "--cov-branch",
-    "--cov-fail-under=60",
+    "--cov-fail-under=68",
     "--strict-markers",
     "--strict-config",
     "--color=yes",
@@ -157,7 +156,19 @@ log_cli = true
 [tool.coverage.report]
 exclude_also = ["if __name__ == .__main__.:"]
 omit = [
-    "_execsql/*"
+    "_execsql/*",
+    # GUI modules require a display/event loop to test
+    "*/execsql/gui/desktop.py",
+    "*/execsql/gui/tui.py",
+    "*/execsql/metacommands/prompt.py",
+    # DB adapters that require external servers or platform-specific drivers
+    "*/execsql/db/postgres.py",
+    "*/execsql/db/mysql.py",
+    "*/execsql/db/oracle.py",
+    "*/execsql/db/firebird.py",
+    "*/execsql/db/sqlserver.py",
+    "*/execsql/db/access.py",
+    "*/execsql/db/dsn.py",
 ]
 
 [tool.typos.default.extend-words]

@@ -317,3 +317,148 @@ class TestCsvFile:
         cf = CsvFile(simple_csv, "utf-8")
         td = cf.data_table_def()
         assert td is not None
+
+    def test_writer_returns_csvwriter(self, tmp_path, noop_filewriter_close):
+        p = tmp_path / "data.csv"
+        p.write_text("id,name\n1,Alice\n", encoding="utf-8")
+        cf = CsvFile(str(p), "utf-8")
+        cf.column_headers()  # triggers format detection
+        w = cf.writer()
+        assert isinstance(w, CsvWriter)
+        w.close()
+
+    def test_openclean_skips_junk_lines(self, tmp_path):
+        p = tmp_path / "data.csv"
+        p.write_text("junk\nid,val\n1,x\n", encoding="utf-8")
+        cf = CsvFile(str(p), "utf-8", junk_header_lines=1)
+        f = cf.openclean("rt")
+        first_line = f.readline().strip()
+        assert first_line == "id,val"
+        f.close()
+
+    def test_colhdrs_del_empty_cols(self, tmp_path, minimal_conf):
+        minimal_conf.del_empty_cols = True
+        p = tmp_path / "data.csv"
+        p.write_text("id,,name\n1,x,Alice\n", encoding="utf-8")
+        cf = CsvFile(str(p), "utf-8")
+        hdrs = cf.column_headers()
+        assert "" not in hdrs
+        assert "id" in hdrs
+        assert "name" in hdrs
+
+    def test_colhdrs_create_col_hdrs(self, tmp_path, minimal_conf):
+        minimal_conf.create_col_hdrs = True
+        p = tmp_path / "data.csv"
+        p.write_text("id,,name\n1,x,Alice\n", encoding="utf-8")
+        cf = CsvFile(str(p), "utf-8")
+        hdrs = cf.column_headers()
+        assert "Col2" in hdrs
+
+    def test_colhdrs_missing_headers_raises(self, tmp_path, minimal_conf):
+        from execsql.exceptions import ErrInfo
+
+        minimal_conf.del_empty_cols = False
+        minimal_conf.create_col_hdrs = False
+        p = tmp_path / "data.csv"
+        p.write_text("id,,name\n1,x,Alice\n", encoding="utf-8")
+        cf = CsvFile(str(p), "utf-8")
+        with pytest.raises(ErrInfo):
+            cf.column_headers()
+
+    def test_reader_with_quoted_csv(self, tmp_path):
+        p = tmp_path / "quoted.csv"
+        p.write_text('id,name\n1,"Alice, Jr."\n', encoding="utf-8")
+        cf = CsvFile(str(p), "utf-8")
+        cf.column_headers()
+        rows = list(cf.reader())
+        # rows includes header + data rows
+        data_rows = [r for r in rows if r[0] != "id"]
+        assert any("Alice" in str(r) for r in data_rows)
+
+    def test_colhdrs_via_iterator(self, tmp_path, minimal_conf):
+        # _colhdrs works with any iterator that yields lists of strings
+        p = tmp_path / "data.csv"
+        p.write_text("id,name\n1,Alice\n", encoding="utf-8")
+        cf = CsvFile(str(p), "utf-8")
+
+        def fake_reader():
+            yield ["id", "name"]
+            yield ["1", "Alice"]
+
+        hdrs = cf._colhdrs(fake_reader())
+        assert hdrs == ["id", "name"]
+
+
+# ===========================================================================
+# CsvLine (internal class)
+# ===========================================================================
+
+
+class TestCsvLine:
+    """Tests for CsvFile.CsvLine via CsvFile instances."""
+
+    def _make_line(self, text):
+        """Instantiate a CsvLine from CsvFile's inner class."""
+        return CsvFile.CsvLine(text)
+
+    def test_str_includes_text(self):
+        line = self._make_line("a,b,c")
+        line.count_delim(",")
+        s = str(line)
+        assert "a,b,c" in s
+
+    def test_count_delim_comma(self):
+        line = self._make_line("a,b,c")
+        line.count_delim(",")
+        assert line.delim_count(",") == 2
+
+    def test_count_delim_space(self):
+        line = self._make_line("a  b  c")
+        line.count_delim(" ")
+        assert line.delim_count(" ") == 2
+
+    def test_items_no_delim_no_quote(self):
+        line = self._make_line("hello world")
+        result = line.items(None, None)
+        assert result == "hello world"
+
+    def test_items_comma_no_quote(self):
+        line = self._make_line("a,b,c")
+        result = line.items(",", None)
+        assert result == ["a", "b", "c"]
+
+    def test_items_space_delim_collapses_spaces(self):
+        line = self._make_line("a  b  c")
+        result = line.items(" ", None)
+        assert result == ["a", "b", "c"]
+
+    def test_items_quoted_field_with_delimiter(self):
+        # items() is a raw parser: surrounding quotes are preserved in the output
+        line = self._make_line('"a,b",c')
+        result = line.items(",", '"')
+        assert len(result) == 2
+        assert "a,b" in result[0]  # delimiter is inside the quoted field
+        assert result[1] == "c"
+
+    def test_items_doubled_quote_inside_quoted(self):
+        line = self._make_line('"say ""hi""",end')
+        result = line.items(",", '"')
+        assert "say" in result[0]
+        assert result[1] == "end"
+
+    def test_well_quoted_no_quotes(self):
+        line = self._make_line("abc")
+        wq, uses_q, escaped = line._well_quoted("abc", '"')
+        assert wq is True
+        assert uses_q is False
+
+    def test_well_quoted_properly_quoted(self):
+        line = self._make_line('"abc"')
+        wq, uses_q, escaped = line._well_quoted('"abc"', '"')
+        assert wq is True
+        assert uses_q is True
+
+    def test_well_quoted_improperly_quoted(self):
+        line = self._make_line('a"b')
+        wq, uses_q, escaped = line._well_quoted('a"b', '"')
+        assert wq is False

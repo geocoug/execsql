@@ -96,7 +96,7 @@ dt_fmts = collections.deque(
 
 
 def parse_datetime(datestr: Any) -> Optional[datetime.datetime]:
-    if type(datestr) == datetime.datetime:
+    if isinstance(datestr, datetime.datetime):
         return datestr
     if not isinstance(datestr, str):
         try:
@@ -242,7 +242,7 @@ def parse_datetimetz(data: Any) -> Optional[datetime.datetime]:
     # Import Tz locally to avoid circular imports
     from execsql.types import Tz
 
-    if type(data) == type(datetime.datetime.now()):
+    if isinstance(data, datetime.datetime):
         if data.tzinfo is None or data.tzinfo.utcoffset(data) is None:
             return None
         return data

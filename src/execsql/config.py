@@ -350,7 +350,7 @@ class ConfigData:
                         raise ConfigError("Invalid argument for export_row_buffer.")
                 if cp.has_option(self._OUTPUT_SECTION, "template_processor"):
                     tp = cp.get(self._OUTPUT_SECTION, "template_processor").lower()
-                    if tp not in ("jinja", "airspeed"):
+                    if tp not in ("jinja",):
                         raise ConfigError(f"Invalid template processor name: {tp}")
                     self.template_processor = tp
                 if cp.has_option(self._OUTPUT_SECTION, "zip_buffer_mb"):

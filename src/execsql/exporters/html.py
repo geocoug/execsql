@@ -210,7 +210,7 @@ def write_query_to_html(
         hdrs, rows = db.select_rowsource(select_stmt)
     except _state.ErrInfo:
         raise
-    except:
+    except Exception:
         raise _state.ErrInfo("db", select_stmt, exception_msg=_state.exception_desc())
     export_html(outfile, hdrs, rows, append, select_stmt, desc, zipfile=zipfile)
 
@@ -227,6 +227,6 @@ def write_query_to_cgi_html(
         hdrs, rows = db.select_rowsource(select_stmt)
     except _state.ErrInfo:
         raise
-    except:
+    except Exception:
         raise _state.ErrInfo("db", select_stmt, exception_msg=_state.exception_desc())
     export_cgi_html(outfile, hdrs, rows, append, select_stmt, desc, zipfile=zipfile)

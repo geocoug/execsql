@@ -33,7 +33,7 @@ def write_query_to_json(
         hdrs, rows = db.select_rowsource(select_stmt)
     except _state.ErrInfo:
         raise
-    except:
+    except Exception:
         raise _state.ErrInfo("db", select_stmt, exception_msg=_state.exception_desc())
     if zipfile is None:
         _state.filewriter_close(outfile)
@@ -77,7 +77,7 @@ def write_query_to_json_ts(
         hdrs, rows = db.select_rowsource(select_stmt)
     except _state.ErrInfo:
         raise
-    except:
+    except Exception:
         raise _state.ErrInfo("db", select_stmt, exception_msg=_state.exception_desc())
     max_col_idx = len(hdrs) - 1
     if zipfile is None:

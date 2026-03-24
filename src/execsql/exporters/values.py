@@ -71,6 +71,6 @@ def write_query_to_values(
         hdrs, rows = db.select_rowsource(select_stmt)
     except _state.ErrInfo:
         raise
-    except:
+    except Exception:
         raise _state.ErrInfo("db", select_stmt, exception_msg=_state.exception_desc())
     export_values(outfile, hdrs, rows, append, desc, zipfile=zipfile)

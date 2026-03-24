@@ -226,7 +226,6 @@ class ConsoleBackend(GuiBackend):
         message = args.get("message", "")
         headers = args.get("headers", [])
         rows = args.get("rows", [])
-        button_list = args.get("button_list", [("OK", 1), ("Cancel", 0)])
 
         print(f"\n=== {title} ===", file=sys.stderr)
         if message:

@@ -110,15 +110,10 @@ def x_subdata(**kwargs: Any) -> None:
     varname = kwargs["match"]
     sql = f"select * from {kwargs['datasource']};"
     db = _state.dbs.current()
-    script, line_no = _state.current_script_line()
-    errmsg = (
-        f"There are no data in {kwargs['datasource']} to use with the SUBDATA metacommand "
-        f"(script {script}, line {line_no})."
-    )
     subvarset, varname = _state.get_subvarset(varname, kwargs["metacommandline"])
     subvarset.remove_substitution(varname)
     try:
-        hdrs, rec = db.select_rowsource(sql)
+        _, rec = db.select_rowsource(sql)
     except _state.ErrInfo:
         raise
     except Exception:

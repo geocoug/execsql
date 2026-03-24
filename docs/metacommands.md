@@ -108,7 +108,7 @@ Alternatives to using batches to control the execution time of SQL statements ar
 >   SCRIPT](#executescript) metacommands, which allow both SQL statements and metacommands to be grouped together and executed as a group, with AUTOCOMMIT either on or off.
 
 
-The END BATCH metacommand is analogous to the "GO" command of the T-SQL language used with SQL Server utilities such as *sqlcmd*. There is no explicit equivalent to BEGIN BATCH in *sqlcmd* or other SQL Server utilities. In *sqlcmd* a new batch is automatically begun at the beginning of the script or immediately after a GO statement. execsqsl only starts a new batch when a BEGIN BATCH statement is encountered.
+The END BATCH metacommand is analogous to the "GO" command of the T-SQL language used with SQL Server utilities such as *sqlcmd*. There is no explicit equivalent to BEGIN BATCH in *sqlcmd* or other SQL Server utilities. In *sqlcmd* a new batch is automatically begun at the beginning of the script or immediately after a GO statement. execsql only starts a new batch when a BEGIN BATCH statement is encountered.
 
 If the end of the script file is encountered while a batch of statements is being compiled, but there is no END BATCH metacommand, the SQL statements in that incomplete batch will not be committed.
 
@@ -342,7 +342,7 @@ The width of the column to be used in an HDF5 export file when the data have a '
 CONFIG IMPORT_COMMON_COLUMNS_ONLY YES|NO
 ```
 
-Controls whether the [IMPORT](#import) metacommand will import CSV files with more columns than the target table. This has the same action as the `import_common_columns_only` [configuration setting](configuration.md#config_input). The argument should be either "Yes" or "No". The default value is "No", in which case the [IMPORT](#import) metacommand will halt with an error message if the target table does not have all of the columns that are in the file to be imported.
+Controls whether the [IMPORT](#import) metacommand will import CSV files with more columns than the target table. This has the same action as the `import_only_common_columns` [configuration setting](configuration.md#config_input). The argument should be either "Yes" or "No". The default value is "No", in which case the [IMPORT](#import) metacommand will halt with an error message if the target table does not have all of the columns that are in the file to be imported.
 
 In addition to reducing the amount of data imported, this setting can also be used to work around some types of malformed input files.
 
@@ -754,7 +754,7 @@ Postgres has stored functions. Functions with no return value are equivalent to 
 Access has only stored queries, which may be equivalent to either a view or a stored procedure in other DBMSs. When using Access, the query referenced in this command should be an INSERT, UPDATE, or DELETE statement---executing a SELECT statement in this context would have no purpose.
 
 
-SQL Server has stored procedures. When using SQL Server, execsqsl treats the argument as the name of a stored procedure.
+SQL Server has stored procedures. When using SQL Server, execsql treats the argument as the name of a stored procedure.
 
 
 SQLite does not support stored procedures or functions, and (unlike Access queries), views can only represent SELECT statements. When using SQLite, *execsql* cannot treat the argument as a stored procedure or function, so it treats it as a view and carries out a SELECT \* FROM \<procedure_name\>; statement. This is unlikely to be very useful in practice, but it is the only reasonable action to take with SQLite.
@@ -1008,7 +1008,7 @@ XML
 
 Template-based exports provide a simple form of report generation or mail-merge capability. The template used for this type of export is a freely-formatted text file containing placeholders for data values, plus whatever additional text is appropriate for the purpose of the report. The exported data will therefore not necessarily be in the form of a table, but may be presented as lists, embedded in paragraphs of text, or in other forms.
 
-*execsql* supports three different template processors, each with its own syntax. The template processor that will be used is controlled by the `template_processor` [configuration](configuration.md#config_output) property. These processors and the syntax they use to refer to exported data values are:
+*execsql* supports two template processors, each with its own syntax. The template processor that will be used is controlled by the `template_processor` [configuration](configuration.md#config_output) property. These processors and the syntax they use to refer to exported data values are:
 
 The default (no template processor specified)
 
@@ -1035,23 +1035,7 @@ The default (no template processor specified)
 
     The template syntax used by Jinja is very similar to that used by [Django](https://www.djangoproject.com/). Jinja's [Template Designer Documentation](http://jinja.pocoo.org/docs/2.9/templates/) provides more details about the template syntax.
 
-
-[Airspeed](https://github.com/purcell/airspeed)
-
-:   Data values are referenced in the template by the name (or object name) prefixed with a dollar sign, or enclosed in curly braces and prefixed with a dollar sign, just as for the default template processor. The Airspeed template processor also allows conditional tests and iteration, and as with Jinja, the entire exported data set is passed to the template processor as an iterable object named "datatable". The names of the column headers are passed as a separate iterable object named "headers". For example, if an exported data set contains bibliographic information, those columns could be referenced, while iterating over the entire data set, to produce a [BibTeX](http://www.bibtex.org/) bibliography, as follows:
-
-    ```
-    #foreach ($doc in $datatable)
-    @$doc.doc_type ,
-        title  = ,
-        . . .
-        }
-    #end
-    ```
-
-    The template syntax used by Airspeed duplicates that used by Apache Velocity, and the [Velocity User's Guide](http://velocity.apache.org/engine/1.7/user-guide.html) and [Reference Guide](http://velocity.apache.org/engine/1.7/vtl-reference.html) provide details about the template syntax.
-
-The Jinja and Airspeed template processors are both more powerful than the default, but are also more complex. The different alternatives may be suitable for different purposes, or for different users, based on prior experience. One potentially important difference between Jinja and Airspeed is that Airspeed requires that the entire data set be processed at once, whereas Jinja does not; for very large data sets, therefore, Airspeed could encounter memory limitations.
+The Jinja template processor is more powerful than the default but also more complex.
 
 
 ## EXPORT_METADATA

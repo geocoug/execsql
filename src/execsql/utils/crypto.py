@@ -32,7 +32,8 @@ class Encrypt:
     def __init__(self) -> None:
         global itertools
         global base64
-        import itertools, base64
+        import itertools
+        import base64
 
     def xor(self, text: str, enckey: str) -> str:
         return "".join(chr(ord(t) ^ ord(k)) for t, k in zip(text, itertools.cycle(enckey)))

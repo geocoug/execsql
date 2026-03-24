@@ -32,7 +32,7 @@ def write_query_raw(
         of = ZipWriter(zipfile, outfile, append)
     for row in rowsource:
         for col in row:
-            if type(col) == type(bytearray()):
+            if isinstance(col, bytearray):
                 of.write(col)
             else:
                 if isinstance(col, str):

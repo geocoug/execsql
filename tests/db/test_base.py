@@ -242,3 +242,150 @@ class TestDatabasePoolDisconnect:
         p.add("secondary", FakeDatabase())
         p.disconnect("secondary")
         assert "secondary" not in p.aliases()
+
+
+# ---------------------------------------------------------------------------
+# Database deeper methods — exercised via SQLiteDatabase (no mocking)
+# ---------------------------------------------------------------------------
+
+
+class TestDatabaseDeeperMethods:
+    """Tests for base-class methods not covered by the FakeDatabase tests above.
+
+    These use a real in-memory SQLiteDatabase so the actual code paths in
+    Database (not the stub overrides) are exercised.
+    """
+
+    @pytest.fixture
+    def db(self):
+        from execsql.db.sqlite import SQLiteDatabase
+
+        d = SQLiteDatabase(":memory:")
+        yield d
+        d.close()
+
+    def test_autocommit_off_then_on(self, db):
+        db.autocommit_off()
+        assert db.autocommit is False
+        db.autocommit_on()
+        assert db.autocommit is True
+
+    def test_exec_cmd_raises_not_implemented(self):
+        # exec_cmd is not implemented in the base class; SQLiteDatabase
+        # overrides it so we test via FakeDatabase (which inherits the base).
+        from execsql.exceptions import DatabaseNotImplementedError
+
+        db = FakeDatabase(db="test")
+        with pytest.raises(DatabaseNotImplementedError):
+            db.exec_cmd("anything")
+
+    def test_select_rowdict_returns_dicts(self, db):
+        db.execute("CREATE TABLE t (a INTEGER, b TEXT);")
+        db.execute("INSERT INTO t VALUES (1, 'hello');")
+        db.execute("INSERT INTO t VALUES (2, 'world');")
+        hdrs, dicts = db.select_rowdict("SELECT * FROM t ORDER BY a;")
+        rows = list(dicts)
+        assert hdrs == ["a", "b"]
+        assert rows == [{"a": 1, "b": "hello"}, {"a": 2, "b": "world"}]
+
+    def test_select_rowdict_empty_table(self, db):
+        db.execute("CREATE TABLE t (id INTEGER);")
+        hdrs, dicts = db.select_rowdict("SELECT * FROM t;")
+        rows = list(dicts)
+        assert hdrs == ["id"]
+        assert rows == []
+
+    def test_cursor_returns_cursor_object(self, db):
+        curs = db.cursor()
+        assert curs is not None
+
+    def test_role_exists_raises_not_implemented(self, db):
+        from execsql.exceptions import DatabaseNotImplementedError
+
+        with pytest.raises(DatabaseNotImplementedError):
+            db.role_exists("some_role")
+
+    def test_select_data_returns_headers_and_rows(self, db):
+        db.execute("CREATE TABLE t (a INTEGER, b TEXT);")
+        db.execute("INSERT INTO t VALUES (1, 'x');")
+        hdrs, rows = db.select_data("SELECT a, b FROM t;")
+        assert hdrs == ["a", "b"]
+        assert len(rows) == 1
+        assert rows[0][0] == 1
+
+    def test_select_rowsource_returns_generator(self, db):
+        db.execute("CREATE TABLE t (id INTEGER);")
+        db.execute("INSERT INTO t VALUES (10);")
+        db.execute("INSERT INTO t VALUES (20);")
+        hdrs, gen = db.select_rowsource("SELECT id FROM t ORDER BY id;")
+        assert hdrs == ["id"]
+        rows = list(gen)
+        assert len(rows) == 2
+
+    def test_execute_with_paramlist(self, db):
+        db.execute("CREATE TABLE t (id INTEGER, name TEXT);")
+        db.execute("INSERT INTO t VALUES (?, ?);", [1, "Alice"])
+        _, rows = db.select_data("SELECT name FROM t WHERE id = 1;")
+        assert rows[0][0] == "Alice"
+
+    def test_paramsubs(self, db):
+        result = db.paramsubs(3)
+        assert result == "?,?,?"
+
+    def test_paramsubs_single(self, db):
+        result = db.paramsubs(1)
+        assert result == "?"
+
+    def test_schema_qualified_name_no_schema(self, db):
+        # SQLiteDatabase has a proper type.quoted; no schema → just quoted table name
+        result = db.schema_qualified_table_name(None, "mytable")
+        assert "mytable" in result
+
+    def test_schema_qualified_name_with_schema(self, db):
+        result = db.schema_qualified_table_name("myschema", "mytable")
+        assert "myschema" in result
+        assert "mytable" in result
+
+    def test_rollback_does_not_raise(self, db):
+        db.execute("CREATE TABLE t (id INTEGER);")
+        # rollback on a connection that has no pending transaction is OK
+        db.rollback()
+
+    def test_drop_table_removes_table(self, db):
+        db.execute("CREATE TABLE droptarget (id INTEGER);")
+        db.execute("INSERT INTO droptarget VALUES (1);")
+        db.drop_table("droptarget")
+        # Table should no longer exist
+        with pytest.raises(Exception):
+            db.select_data("SELECT * FROM droptarget;")
+
+    def test_table_columns_returns_column_names(self, db):
+        db.execute("CREATE TABLE t (alpha INTEGER, beta TEXT);")
+        cols = db.table_columns("t")
+        assert "alpha" in cols
+        assert "beta" in cols
+
+    def test_commit_no_error(self, db):
+        db.execute("CREATE TABLE t (id INTEGER);")
+        db.execute("INSERT INTO t VALUES (1);")
+        db.commit()  # should not raise
+
+    def test_autocommit_off_no_error(self, db):
+        db.autocommit_off()
+        assert db.autocommit is False
+        db.autocommit_on()
+
+
+class TestDatabasePoolCloseAll:
+    def test_closeall_closes_all_connections(self):
+        from execsql.db.sqlite import SQLiteDatabase
+
+        p = DatabasePool()
+        db1 = SQLiteDatabase(":memory:")
+        db2 = SQLiteDatabase(":memory:")
+        p.add("a", db1)
+        p.add("b", db2)
+        p.closeall()
+        # After closeall, both connections should be None
+        assert db1.conn is None
+        assert db2.conn is None

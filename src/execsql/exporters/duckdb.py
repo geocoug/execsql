@@ -83,12 +83,12 @@ def write_query_to_duckdb(
     append: bool,
     tablename: str,
 ) -> None:
-    from execsql.utils.errors import exception_info
+    from execsql.utils.errors import exception_desc
 
     try:
         hdrs, rows = db.select_rowsource(select_stmt)
     except ErrInfo:
         raise
     except Exception:
-        raise ErrInfo("db", select_stmt, exception_msg=exception_info())
+        raise ErrInfo("db", select_stmt, exception_msg=exception_desc())
     export_duckdb(outfile, hdrs, rows, append, tablename)

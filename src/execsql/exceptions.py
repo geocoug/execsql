@@ -6,9 +6,11 @@ Custom exception hierarchy for execsql.
 All domain-specific exceptions are defined here so that callers can import
 from a single location.  Notable exceptions:
 
+- :class:`ExecSqlError` — common base for all single-message execsql exceptions.
 - :class:`ConfigError` — invalid or missing ``execsql.conf`` values.
-- :class:`ErrInfo` — both an exception and a structured error-data carrier
-  (type, command text, exception message, script location).
+- :class:`ErrInfo` — rich exception carrying type, command text, exception
+  message, and script location; used as both a raised exception and an error
+  data carrier passed to ``exit_now()``.
 - :class:`ExecSqlTimeoutError` — timeout during alarm-timer operations.
 - :class:`DataTypeError` / :class:`DbTypeError` — type-system failures.
 - :class:`ColumnError` / :class:`DataTableError` — data-model failures.
@@ -20,12 +22,27 @@ from a single location.  Notable exceptions:
 """
 
 
-class ConfigError(Exception):
-    def __init__(self, msg: str) -> None:
-        self.value = msg
+class ExecSqlError(Exception):
+    """Base class for simple single-message execsql exceptions.
+
+    Subclasses inherit a ``value`` attribute holding the original message and
+    a ``__repr__`` that uses the concrete class name, so no boilerplate is
+    needed in each subclass.
+
+    ``super().__init__(errmsg)`` is called so that ``str(exc)``, ``exc.args``,
+    and standard logging all produce meaningful output.
+    """
+
+    def __init__(self, errmsg: str) -> None:
+        super().__init__(errmsg)
+        self.value = errmsg
 
     def __repr__(self) -> str:
-        return f"ConfigError({self.value!r})"
+        return f"{type(self).__name__}({self.value!r})"
+
+
+class ConfigError(ExecSqlError):
+    """Raised for invalid or missing execsql configuration values."""
 
 
 class ExecSqlTimeoutError(Exception):
@@ -35,10 +52,22 @@ class ExecSqlTimeoutError(Exception):
 
 
 class ErrInfo(Exception):
-    """Both an exception and a data carrier for error information."""
+    """Rich exception and error-data carrier for execsql.
+
+    ``str(e)`` returns the most informative available message (``other_msg``,
+    then ``exception_msg``, then ``type``) so that standard logging and
+    exception handlers produce useful output without requiring callers to know
+    about the execsql-specific ``eval_err()`` / ``write()`` interface.
+
+    ``eval_err()`` / ``write()`` remain available for the full formatted
+    message including script location, timestamp, and command context.
+    """
 
     def __repr__(self) -> str:
         return f"ErrInfo({self.type!r}, {self.command!r}, {self.exception!r}, {self.other!r})"
+
+    def __str__(self) -> str:
+        return self.other or self.exception or self.type or "ErrInfo"
 
     def __init__(
         self,
@@ -56,6 +85,9 @@ class ErrInfo(Exception):
         self.cmd = None
         self.cmdtype = None
         self.error_message = None
+        # Pass a concise message to Exception so str(e), e.args, and
+        # standard loggers produce useful output.
+        super().__init__(self.other or self.exception or self.type)
 
     def script_info(self) -> str | None:
         if self.script_line_no:
@@ -117,6 +149,7 @@ class DataTypeError(Exception):
     def __init__(self, data_type_name: str, error_msg: str) -> None:
         self.data_type_name = data_type_name or "Unspecified data type"
         self.error_msg = error_msg or "Unspecified error"
+        super().__init__(str(self))
 
     def __repr__(self) -> str:
         return f"DataTypeError({self.data_type_name!r}, {self.error_msg!r})"
@@ -130,6 +163,7 @@ class DbTypeError(Exception):
         self.dbms_id = dbms_id
         self.data_type = data_type
         self.error_msg = error_msg or "Unspecified error"
+        super().__init__(str(self))
 
     def __repr__(self) -> str:
         return f"DbTypeError({self.dbms_id!r}, {self.data_type!r}, {self.error_msg!r})"
@@ -141,32 +175,19 @@ class DbTypeError(Exception):
             return f"{self.dbms_id} DBMS type error: {self.error_msg}"
 
 
-class ColumnError(Exception):
-    def __init__(self, errmsg: str) -> None:
-        self.value = errmsg
-
-    def __repr__(self) -> str:
-        return f"ColumnError({self.value!r})"
-
-    def __str__(self) -> str:
-        return repr(self.value)
+class ColumnError(ExecSqlError):
+    """Raised for column-level data errors."""
 
 
-class DataTableError(Exception):
-    def __init__(self, errmsg: str) -> None:
-        self.value = errmsg
-
-    def __repr__(self) -> str:
-        return f"DataTableError({self.value})"
-
-    def __str__(self) -> str:
-        return repr(self.value)
+class DataTableError(ExecSqlError):
+    """Raised for DataTable-level errors."""
 
 
 class DatabaseNotImplementedError(Exception):
     def __init__(self, db_name: str, method: str) -> None:
         self.db_name = db_name
         self.method = method
+        super().__init__(str(self))
 
     def __repr__(self) -> str:
         return f"DatabaseNotImplementedError({self.db_name!r}, {self.method!r})"
@@ -175,49 +196,25 @@ class DatabaseNotImplementedError(Exception):
         return f"Method {self.method} is not implemented for database {self.db_name}"
 
 
-class OdsFileError(Exception):
-    def __init__(self, errmsg: str) -> None:
-        self.value = errmsg
-
-    def __repr__(self) -> str:
-        return f"OdsFileError({self.value!r})"
+class OdsFileError(ExecSqlError):
+    """Raised for ODS file I/O errors."""
 
 
-class XlsFileError(Exception):
-    def __init__(self, errmsg: str) -> None:
-        self.value = errmsg
-
-    def __repr__(self) -> str:
-        return f"XlsFileError({self.value!r})"
+class XlsFileError(ExecSqlError):
+    """Raised for XLS file I/O errors."""
 
 
-class XlsxFileError(Exception):
-    def __init__(self, errmsg: str) -> None:
-        self.value = errmsg
-
-    def __repr__(self) -> str:
-        return f"XlsxFileError({self.value!r})"
+class XlsxFileError(ExecSqlError):
+    """Raised for XLSX file I/O errors."""
 
 
-class ConsoleUIError(Exception):
-    def __init__(self, errmsg: str) -> None:
-        self.value = errmsg
-
-    def __repr__(self) -> str:
-        return f"ConsoleUIError({self.value!r})"
+class ConsoleUIError(ExecSqlError):
+    """Raised for GUI console errors."""
 
 
-class CondParserError(Exception):
-    def __init__(self, errmsg: str) -> None:
-        self.value = errmsg
-
-    def __repr__(self) -> str:
-        return f"CondParserError({self.value!r})"
+class CondParserError(ExecSqlError):
+    """Raised for conditional-expression parse errors."""
 
 
-class NumericParserError(Exception):
-    def __init__(self, errmsg: str) -> None:
-        self.value = errmsg
-
-    def __repr__(self) -> str:
-        return f"NumericParserError({self.value!r})"
+class NumericParserError(ExecSqlError):
+    """Raised for numeric-expression parse errors."""

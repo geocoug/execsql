@@ -31,7 +31,7 @@ def write_query_to_xml(
         hdrs, rows = db.select_rowsource(select_stmt)
     except _state.ErrInfo:
         raise
-    except:
+    except Exception:
         raise _state.ErrInfo("db", select_stmt, exception_msg=_state.exception_desc())
     if zipfile is None:
         _state.filewriter_close(outfile)
@@ -50,10 +50,10 @@ def write_query_to_xml(
     if desc is not None:
         f.write(f"<!--{desc}-->\n")
     f.write(f"<{tablename}>\n")
-    uhdrs = [str(h) for h in hdrs]
+    str_hdrs = [str(h) for h in hdrs]
     for row in rows:
         f.write("  <row>\n")
-        for i, col in enumerate(hdrs):
+        for i, col in enumerate(str_hdrs):
             f.write(f"    <{col}>{row[i]}</{col}>\n")
         f.write("  </row>\n")
     f.write(f"</{tablename}>\n")

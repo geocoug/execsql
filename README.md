@@ -163,12 +163,12 @@ are needed, based on the command line arguments and metacommands, must
 be installed. The libraries required for each database or spreadsheet
 application are:
 
-- PosgreSQL: psycopg2.
+- PostgreSQL: psycopg2.
 - MariaDB or MySQL: pymysql.
-- SQL Server: pydobc.
+- SQL Server: pyodbc.
 - DuckDB: duckdb.
 - Firebird: fdb.
-- MS-Access: pydobc and pywin32.
+- MS-Access: pyodbc and pywin32.
 - Oracle: cx-Oracle.
 - DSN connections: pyodbc.
 - OpenDocument spreadsheets: odfpy.
@@ -177,8 +177,8 @@ application are:
 Connections to SQLite databases are made using Python's standard library,
 so no additional software is needed.
 
-If the Jinja or Airspeed template processors will be used, those software
-libraries must also be installed.
+If the Jinja template processor will be used, the `Jinja2` library must
+also be installed (or install `execsql2[jinja]`).
 
 All of these libraries can be installed from the Python Package Index (PyPI)
 using *pip*.

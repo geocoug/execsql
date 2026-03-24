@@ -15,7 +15,7 @@ The execsql program uses third-party [Python](http://www.python.org/) libraries 
 
 Connections to SQLite databases are made using Python's standard library, so no additional software is needed.
 
-To use the [Jinja](http://jinja.pocoo.org/) or [Airspeed](https://github.com/purcell/airspeed) template processors with the [EXPORT](metacommands.md#export) metacommand, those Python packages must be installed also.
+To use the [Jinja](http://jinja.pocoo.org/) template processor with the [EXPORT](metacommands.md#export) metacommand, the `Jinja2` package must be installed (or install `execsql2[jinja]`).
 
 If data are to be [imported](metacommands.md#import) from the [Parquet](https://parquet.apache.org/) file format, the [pandas](https://pypi.org/project/pandas/) library and either the *pyarrow* or *fastparquet* Python packages must also be installed.
 

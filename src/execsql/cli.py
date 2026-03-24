@@ -574,13 +574,13 @@ def _run(
     # ------------------------------------------------------------------
     # Initialise state objects
     # ------------------------------------------------------------------
-    _state.if_stack = _state.IfLevels()
-    _state.counters = _state.CounterVars()
-    _state.timer = _state.Timer()
+    from execsql.metacommands import DISPATCH_TABLE
+    from execsql.metacommands.conditions import CONDITIONAL_TABLE
+
+    _state.initialize(conf, DISPATCH_TABLE, CONDITIONAL_TABLE)
+
+    # Local-only objects that require CLI-specific args or class definitions
     _state.status = StatObj()
-    _state.dbs = _state.DatabasePool()
-    _state.tempfiles = _state.TempFileMgr()
-    _state.export_metadata = _state.ExportMetadata()
 
     from execsql.config import WriteHooks
 
@@ -597,14 +597,6 @@ def _run(
         )
         _state.filewriter.start()
         atexit.register(_state.filewriter_end)
-
-    from execsql.metacommands import DISPATCH_TABLE
-
-    _state.metacommandlist = DISPATCH_TABLE
-
-    from execsql.metacommands.conditions import CONDITIONAL_TABLE
-
-    _state.conditionallist = CONDITIONAL_TABLE
 
     # ------------------------------------------------------------------
     # Logging

@@ -253,7 +253,7 @@ class AccessDatabase(Database):
             row = curs.fetchone()
             if row:
                 if self.encoding:
-                    r = [c.decode(self.encoding) if type(c) == type(b"") else c for c in row]
+                    r = [c.decode(self.encoding) if isinstance(c, bytes) else c for c in row]
                 else:
                     r = row
                 return dict(zip(headers, r))
@@ -332,7 +332,7 @@ class AccessDatabase(Database):
 
         if val is None or (isinstance(val, _state.stringtypes) and len(val) == 0):
             return None
-        if type(val) == datetime.date or type(val) == datetime.datetime or type(val) == datetime.time:
+        if isinstance(val, (datetime.date, datetime.datetime, datetime.time)):
             return val
         else:
             try:

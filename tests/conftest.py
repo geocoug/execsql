@@ -21,13 +21,14 @@ import execsql.state as _state
 @pytest.fixture(autouse=True)
 def minimal_conf():
     """
-    Set _state.conf to a SimpleNamespace covering all attributes accessed by
-    the pure modules (types, models, parser, …).
+    Reset all module-level state, then set _state.conf to a SimpleNamespace
+    covering all attributes accessed by the pure modules (types, models,
+    parser, …).
 
-    The previous value is restored after every test so that state does not
-    leak between tests.
+    State is fully reset before and after every test so that nothing leaks
+    between tests.
     """
-    prev = _state.conf
+    _state.reset()
     _state.conf = SimpleNamespace(
         # DT_Boolean
         boolean_int=True,
@@ -51,7 +52,7 @@ def minimal_conf():
         gui_wait_on_error_halt=False,
     )
     yield _state.conf
-    _state.conf = prev
+    _state.reset()
 
 
 @pytest.fixture

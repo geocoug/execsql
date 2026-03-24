@@ -43,7 +43,7 @@ The section and property names that may be used in a configuration file are list
 :   The name of the database user, for MS-Access databases only. When using MS-Access, a password will be prompted for only if this configuration option is set or the "-u" command-line option is used, regardless of the setting of the username configuration parameter.
 
 `password_prompt`
-:   Indicates whether or not *execsql* should prompt for the user's password. The property value should be either "Yes" or "No". the default is "Yes". This is equivalent to the "-w" command-line option.
+:   Indicates whether or not *execsql* should prompt for the user's password. The property value should be either "Yes" or "No". The default is "Yes". This is equivalent to the "-w" command-line option.
 
 `new_db`
 :   Indicates whether or not *execsql* should create a new PostgreSQL or SQLite database to connect to.
@@ -107,7 +107,7 @@ The section and property names that may be used in a configuration file are list
 \: Whether or not to delete entire columns from imported data tables when the column headers are missing. The value should be either "Yes" or "No". The default is "No". Column headers are considered to be missing when they are absent or consist only of spaces.
 
 `empty_rows`
-:   Determines whether empty rows in the input are added to a data table by the [IMPORT](metacommands.md#import) and [COPY](metacommands.md#copy) metacommands. The property value should be either "Yes" or "No". The default, "Yes", allows empty rows to be a added to a table (subject to non-null and check constraints on the table). When this is set to "No", rows that contain no data will not be added to the table. An empty string is considered to be data, so when this is used, the `empty_strings` setting will ordinarily also have to be used. The metacommand [CONFIG EMPTY_ROWS](metacommands.md#empty_rows) can also be used to change this configuration item.
+:   Determines whether empty rows in the input are added to a data table by the [IMPORT](metacommands.md#import) and [COPY](metacommands.md#copy) metacommands. The property value should be either "Yes" or "No". The default, "Yes", allows empty rows to be added to a table (subject to non-null and check constraints on the table). When this is set to "No", rows that contain no data will not be added to the table. An empty string is considered to be data, so when this is used, the `empty_strings` setting will ordinarily also have to be used. The metacommand [CONFIG EMPTY_ROWS](metacommands.md#empty_rows) can also be used to change this configuration item.
 
 `empty_strings`
 :   Determines whether empty strings in the input are preserved or, alternatively, will be replaced by NULL. The property value should be either "Yes" or "No". The default, "Yes", indicates that empty strings are allowed. A value of "No" will cause all empty strings to be replaced by NULL. When this is set to "No", a string value consisting of a sequence of zero or more space characters will be considered to be an empty string. There is no command-line option corresponding to this configuration parameter, but the metacommand [CONFIG EMPTY_STRINGS](metacommands.md#empty_strings) can also be used to change this configuration item.
@@ -117,9 +117,7 @@ The section and property names that may be used in a configuration file are list
 
 \: Whether or not to fold (convert) the case of all column headers to lowercase or uppercase, or to leave them unchanged when data are [IMPORTed](metacommands.md#import). Valid values are "No" (the default), "Lower", and "Upper". Case does not matter in the specification.
 
-```
 This setting is also applied to the conversion of spreadsheet names to table names when multiple worksheets are [IMPORTed](metacommands.md#import).
-```
 
 `import_buffer`
 :   The size of the import buffer, in kilobytes, to use with the IMPORT metacommand. This is equivalent to the "-z" command-line option. This value is only used when the fast file reading capability of PostgreSQL is used.
@@ -179,7 +177,7 @@ This setting is also applied to the conversion of spreadsheet names to table nam
 :   A set of CSS style specifications to be included in the header of an HTML file created with the [EXPORT](metacommands.md#export) metacommand. If this is specified, it will replace the CSS styles that *execsql* would otherwise use. Both css_file and css_style may be specified; if they are, they will be included in the header of the HTML file in that order.
 
 `template_processor`
-:   The name of the template processor that will be used with the [EXPORT](metacommands.md#export) and [EXPORT QUERY](metacommands.md#export_query) metacommands. The only valid values for this property are "jinja" and "airspeed". If this property is not specified, the default template processor will be used.
+:   The name of the template processor that will be used with the [EXPORT](metacommands.md#export) and [EXPORT QUERY](metacommands.md#export_query) metacommands. The only valid value for this property is "jinja". If this property is not specified, the default (Python `string.Template`) processor will be used.
 
 <a id="zip_buffer_mb"></a>
 `zip_buffer_mb`
@@ -215,12 +213,10 @@ This setting is also applied to the conversion of spreadsheet names to table nam
 
 \: The level of interaction with the user that should be carried out using GUI dialogs. The property value must be 0, 1, 2, or 3. The meanings of these values are:
 
-```
-> - 0: Do not use any optional GUI dialogs.
-> - 1: Use GUI dialogs for password prompts and for the [PAUSE](metacommands.md#pause) metacommand.
-> - 2: Also use a GUI dialog if a message is included with the [HALT](metacommands.md#halt) metacommand, and prompt for the initial database to use if no database connection parameters are specified in a configuration file or on the command line.
-> - 3: Additionally, open a GUI console when *execsql* starts.
-```
+- 0: Do not use any optional GUI dialogs.
+- 1: Use GUI dialogs for password prompts and for the [PAUSE](metacommands.md#pause) metacommand.
+- 2: Also use a GUI dialog if a message is included with the [HALT](metacommands.md#halt) metacommand, and prompt for the initial database to use if no database connection parameters are specified in a configuration file or on the command line.
+- 3: Additionally, open a GUI console when *execsql* starts.
 
 ## Section `email`
 
@@ -242,7 +238,7 @@ This setting is also applied to the conversion of spreadsheet names to table nam
 
 `enc_password`
 
-:   An encrypted password to be used if the SMTP server required login authentication. The encrypted version of a password should be as is produced by the [SUB_ENCRYPT](metacommands.md#sub_encrypt) metacommand. A suitably encrypted version of a password can be produced by running the script:
+:   An encrypted password to be used if the SMTP server required login authentication. The encrypted version of a password should be exactly as produced by the [SUB_ENCRYPT](metacommands.md#sub_encrypt) metacommand. A suitably encrypted version of a password can be produced by running the script:
 
     ```sql
     -- !x! prompt enter_sub pw password message "Enter a password to encrypt"

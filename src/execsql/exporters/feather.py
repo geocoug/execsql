@@ -16,17 +16,20 @@ import execsql.state as _state
 
 def write_query_to_feather(outfile: str, headers: List[str], rows: Any) -> None:
     try:
-        import pandas as pd
-        import pyarrow.feather
-    except:
+        import polars as pl
+    except ImportError:
         raise _state.ErrInfo(
             "exception",
             exception_msg=_state.exception_desc(),
-            other_msg="The pandas and pyarrow Python packages must be installed to export data to the feather format.",
+            other_msg="The polars Python package must be installed to export data to the feather format.",
         )
-    df = pd.DataFrame(rows, columns=headers)
+    rows_list = list(rows)
+    if rows_list:
+        df = pl.DataFrame(rows_list, schema=headers, orient="row")
+    else:
+        df = pl.DataFrame({h: [] for h in headers})
     _state.filewriter_close(outfile)
-    pyarrow.feather.write_feather(df, outfile)
+    df.write_ipc(outfile)
 
 
 def write_query_to_hdf5(
@@ -39,7 +42,7 @@ def write_query_to_hdf5(
 ) -> None:
     try:
         import tables
-    except:
+    except ImportError:
         raise _state.ErrInfo(
             "exception",
             exception_msg=_state.exception_desc(),
@@ -49,7 +52,7 @@ def write_query_to_hdf5(
         hdrs, rows = db.select_rowsource(select_stmt)
     except _state.ErrInfo:
         raise
-    except:
+    except Exception:
         raise _state.ErrInfo("db", select_stmt, exception_msg=_state.exception_desc())
 
     def h5type(datatype, size):

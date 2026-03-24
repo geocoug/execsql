@@ -21,11 +21,11 @@ def ins_rxs(rx_list: tuple, fragment1: object, fragment2: object) -> tuple:
     # Returns a tuple of all strings consisting of elements of the 'rx_list' tuple
     # inserted between 'fragment1' and 'fragment2'.  The fragments may themselves
     # be tuples.
-    if type(fragment1) != tuple:
+    if not isinstance(fragment1, tuple):
         fragment1 = (fragment1,)
     if fragment2 is None:
         fragment2 = ("",)
-    if type(fragment2) != tuple:
+    if not isinstance(fragment2, tuple):
         fragment2 = (fragment2,)
     rv = []
     for te in rx_list:

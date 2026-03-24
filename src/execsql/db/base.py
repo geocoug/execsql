@@ -180,7 +180,7 @@ class Database:
                     for row in rows:
                         if self.encoding:
                             yield [
-                                c.decode(self.encoding, "backslashreplace") if type(c) == type(b"") else c for c in row
+                                c.decode(self.encoding, "backslashreplace") if isinstance(c, bytes) else c for c in row
                             ]
                         else:
                             yield row
@@ -205,7 +205,7 @@ class Database:
             row = curs.fetchone()
             if row:
                 if self.encoding:
-                    r = [c.decode(self.encoding, "backslashreplace") if type(c) == type(b"") else c for c in row]
+                    r = [c.decode(self.encoding, "backslashreplace") if isinstance(c, bytes) else c for c in row]
                 else:
                     r = row
                 return dict(zip(hdrs, r))
@@ -414,15 +414,15 @@ class Database:
                                             line[i] = None
                         lt = [type_objs[i].from_data(val) if val is not None else None for i, val in enumerate(line)]
                         lt = [type_mod_fn[i](v) if type_mod_fn[i] else v for i, v in enumerate(lt)]
-                        l = []
+                        row = []
                         for i, v in enumerate(lt):
                             if incl_col[i]:
-                                l.append(v)
+                                row.append(v)
                         add_line = True
                         if not _state.conf.empty_rows:
-                            add_line = not all([c is None for c in l])
+                            add_line = not all([c is None for c in row])
                         if add_line:
-                            b.append(l)
+                            b.append(row)
             if len(b) > 0:
                 try:
                     curs.executemany(sql, b)

@@ -27,12 +27,13 @@ class OdsFile:
     def __init__(self) -> None:
         global of
         try:
+            import of as of
             import of.opendocument
             import of.table
             import of.text
             import of.number
             import of.style
-        except:
+        except ImportError:
             _state.fatal_error("The odfpy library is needed to create OpenDocument spreadsheets.")
         self.filename = None
         self.wbk = None
@@ -50,7 +51,7 @@ class OdsFile:
                         name = sty.getAttribute("name")
                         if name not in self.cell_style_names:
                             self.cell_style_names.append(name)
-                except:
+                except Exception:
                     pass
         else:
             self.wbk = of.opendocument.OpenDocumentSpreadsheet()
@@ -133,7 +134,7 @@ class OdsFile:
                 sheet_no = int(sheetname)
                 if sheet_no < 1:
                     sheet_no = None
-            except:
+            except (ValueError, TypeError):
                 sheet_no = None
         if sheet_no is not None:
             for i, sheet in enumerate(self.wbk.spreadsheet.getElementsByType(of.table.Table)):
@@ -338,7 +339,7 @@ def write_query_to_ods(
         hdrs, rows = db.select_rowsource(select_stmt)
     except _state.ErrInfo:
         raise
-    except:
+    except Exception:
         raise _state.ErrInfo("db", select_stmt, exception_msg=_state.exception_desc())
     export_ods(outfile, hdrs, rows, append, select_stmt, sheetname, desc)
 
@@ -399,7 +400,7 @@ def write_queries_to_ods(
             hdrs, rows = db.select_rowsource(select_stmt)
         except _state.ErrInfo:
             raise
-        except:
+        except Exception:
             raise _state.ErrInfo("db", select_stmt, exception_msg=_state.exception_desc())
         # Add the data to a new sheet.
         tbl = wbk.new_sheet(sheet_name)

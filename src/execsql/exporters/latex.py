@@ -116,12 +116,12 @@ def write_query_to_latex(
     desc: Optional[str] = None,
     zipfile: Optional[Any] = None,
 ) -> None:
-    from execsql.utils.errors import exception_info
+    from execsql.utils.errors import exception_desc
 
     try:
         hdrs, rows = db.select_rowsource(select_stmt)
     except ErrInfo:
         raise
     except Exception:
-        raise ErrInfo("db", select_stmt, exception_msg=exception_info())
+        raise ErrInfo("db", select_stmt, exception_msg=exception_desc())
     export_latex(outfile, hdrs, rows, append, select_stmt, desc, zipfile=zipfile)

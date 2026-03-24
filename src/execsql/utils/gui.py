@@ -383,7 +383,6 @@ def _apply_connect_result(alias: str, result: dict) -> None:
     database = result.get("database")
     db_file = result.get("db_file")
     username = result.get("username")
-    conf = _state.conf
 
     if db_type == "p":
         db = db_Postgres(server, database, user=username, pw_needed=True)

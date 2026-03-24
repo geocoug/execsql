@@ -186,25 +186,135 @@ except Exception:
 
 def xcmd_test(teststr: str) -> bool:
     """Evaluate a conditional test string and return a boolean result."""
-    from execsql.parser import CondParser
-    from execsql.exceptions import ErrInfo
+    import execsql.parser as _parser
+    import execsql.exceptions as _exc
 
-    result = CondParser(teststr).parse().eval()
+    result = _parser.CondParser(teststr).parse().eval()
     if result is not None:
         return result
-    raise ErrInfo(type="cmd", command_text=teststr, other_msg="Unrecognized conditional")
+    raise _exc.ErrInfo(type="cmd", command_text=teststr, other_msg="Unrecognized conditional")
 
 
 def endloop() -> None:
     """Complete the current loop being compiled and push it onto the command stack."""
-    from execsql.exceptions import ErrInfo
+    import execsql.exceptions as _exc
 
     global compiling_loop
     if len(loopcommandstack) == 0:
-        raise ErrInfo("error", other_msg="END LOOP metacommand without a matching preceding LOOP metacommand.")
+        raise _exc.ErrInfo("error", other_msg="END LOOP metacommand without a matching preceding LOOP metacommand.")
     compiling_loop = False
     commandliststack.append(loopcommandstack[-1])
     loopcommandstack.pop()
+
+
+# ---------------------------------------------------------------------------
+# Test-support utilities
+# ---------------------------------------------------------------------------
+
+
+def reset() -> None:
+    """Reset all module-level state to initial values.
+
+    Intended for use in tests. Clears mutable containers, resets counters,
+    and sets all lazy singletons back to ``None`` so that each test starts
+    from a clean slate.
+    """
+    global compiling_loop, loop_nest_level, cmds_run
+    global conf, last_command, upass
+    global err_halt_writespec, err_halt_email, err_halt_exec
+    global cancel_halt_writespec, cancel_halt_mailspec, cancel_halt_exec
+    global exec_log, subvars, status, if_stack, counters, timer
+    global output, dbs, tempfiles, export_metadata
+    global metacommandlist, conditionallist, filewriter
+    global gui_console, gui_manager_queue, gui_manager_thread
+
+    # Mutable containers — clear in-place (no rebind needed)
+    commandliststack.clear()
+    loopcommandstack.clear()
+    savedscripts.clear()
+
+    # Scalar flags and counters
+    compiling_loop = False
+    loop_nest_level = 0
+    cmds_run = 0
+
+    # Lazy singletons — reset to None
+    conf = None
+    last_command = None
+    upass = None
+    err_halt_writespec = None
+    err_halt_email = None
+    err_halt_exec = None
+    cancel_halt_writespec = None
+    cancel_halt_mailspec = None
+    cancel_halt_exec = None
+    exec_log = None
+    subvars = None
+    status = None
+    if_stack = None
+    counters = None
+    timer = None
+    output = None
+    dbs = None
+    tempfiles = None
+    export_metadata = None
+    metacommandlist = None
+    conditionallist = None
+    # filewriter is a multiprocessing.Process managed by atexit — do NOT null
+    # it here.  Nulling it while the subprocess is alive creates two competing
+    # consumers on the shared fw_input queue, causing test-to-test races.
+    gui_console = None
+    gui_manager_queue = None
+    gui_manager_thread = None
+
+
+def initialize(
+    config: "ConfigData",
+    dispatch_table: object,
+    conditional_table: object,
+) -> None:
+    """Initialize the shared runtime singletons for a new execsql run.
+
+    Called once from :func:`execsql.cli._run` after configuration has been
+    loaded.  Consolidates object construction in one place so that the
+    sequence is documented, testable, and not scattered across the CLI
+    entry-point.
+
+    Args:
+        config: A fully-populated :class:`execsql.config.ConfigData` instance.
+        dispatch_table: The metacommand dispatch table
+            (``execsql.metacommands.DISPATCH_TABLE``).
+        conditional_table: The conditional-predicate dispatch table
+            (``execsql.metacommands.conditions.CONDITIONAL_TABLE``).
+
+    Note:
+        ``subvars``, ``status``, ``output``, ``filewriter``, and ``exec_log``
+        are **not** set here because they require CLI-specific arguments
+        (script path, subprocess queues, local class definitions).  Those are
+        assigned directly in ``_run()`` before and after this call.
+    """
+    global conf, if_stack, counters, timer, dbs, tempfiles
+    global export_metadata, metacommandlist, conditionallist
+
+    # These names are re-exported at the bottom of this module (after this
+    # function definition), so they are guaranteed to be available by the time
+    # initialize() is called from cli._run().  Using the module-level names
+    # avoids F811 "redefinition of unused name" from local imports.
+    import execsql.script as _script
+    import execsql.utils.timer as _timer_mod
+    import execsql.db.base as _db_base
+    import execsql.utils.fileio as _fileio_mod
+    import execsql.exporters.base as _exporters_base
+
+    conf = config
+    if_stack = _script.IfLevels()
+    counters = _script.CounterVars()
+    timer = _timer_mod.Timer()
+    dbs = _db_base.DatabasePool()
+    tempfiles = _fileio_mod.TempFileMgr()
+    export_metadata = _exporters_base.ExportMetadata()
+    metacommandlist = dispatch_table
+    conditionallist = conditional_table
 
 
 # ---------------------------------------------------------------------------
@@ -332,7 +442,7 @@ from execsql.db.sqlserver import SqlServerDatabase  # noqa: E402
 from execsql.db.dsn import DsnDatabase  # noqa: E402
 
 # Database type descriptors
-from execsql.types import dbt_postgres, dbt_firebird  # noqa: E402
+from execsql.types import dbt_postgres, dbt_firebird, dbt_sqlite, dbt_duckdb  # noqa: E402
 
 # GUI layer — pluggable backends: Textual (TUI), Tkinter (desktop), Console
 from execsql.utils.gui import (  # noqa: E402

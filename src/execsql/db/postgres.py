@@ -254,7 +254,6 @@ class PostgresDatabase(Database):
         input_enc = csv_file_obj.encoding.lower()
         if input_enc in enc_xlates:
             input_enc = enc_xlates[input_enc]
-        enc_match = encodings_match(csv_file_obj.encoding, self.encoding)
         if (
             encodings_match(input_enc, self.encoding)
             and data_table_cols == csv_file_cols

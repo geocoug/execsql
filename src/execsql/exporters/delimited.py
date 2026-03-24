@@ -144,7 +144,7 @@ class CsvFile(EncodedFile):
     def openclean(self, mode: str) -> Any:
         # Returns an opened file object with junk headers stripped.
         f = self.open(mode)
-        for l in range(self.junk_header_lines):
+        for _ in range(self.junk_header_lines):
             f.readline()
         return f
 
@@ -366,7 +366,7 @@ class CsvFile(EncodedFile):
             del delim_stats[k]
 
         def all_well_quoted(delim, qchar):
-            wq = [l.well_quoted_line(delim, qchar) for l in lines]
+            wq = [ln.well_quoted_line(delim, qchar) for ln in lines]
             return (
                 all([b[0] for b in wq]),
                 sum([b[1] for b in wq]),
@@ -599,7 +599,7 @@ class CsvFile(EncodedFile):
         except _state.ErrInfo as e:
             e.other = f"Can't read column header line from {self.filename}.  {e.other or ''}"
             raise e
-        except:
+        except Exception:
             raise _state.ErrInfo(
                 type="exception",
                 exception_msg=_state.exception_desc(),
@@ -708,7 +708,7 @@ def write_delimited_file(
             ofile.write(datarow)
         except _state.ErrInfo:
             raise
-        except:
+        except Exception:
             raise _state.ErrInfo(
                 "exception",
                 exception_msg=_state.exception_desc(),

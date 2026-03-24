@@ -84,7 +84,7 @@ class DataType:
         # This method may be overridden in child classes.
         if data is None:
             raise DataTypeError(self.data_type_name, self._CONV_ERR % "NULL")
-        if type(data) == self.data_type:
+        if type(data) is self.data_type:
             return data
         try:
             i = self.data_type(data)
@@ -115,7 +115,7 @@ class DT_TimestampTZ(DataType):
     def _is_match(self, data: object) -> bool:
         if data is None:
             return False
-        if type(data) == datetime.datetime:
+        if isinstance(data, datetime.datetime):
             if data.tzinfo is not None and data.tzinfo.utcoffset(data) is not None:
                 return True
             return False
@@ -189,7 +189,7 @@ class DT_Date(DataType):
     def _from_data(self, data: object) -> object:
         if data is None:
             raise DataTypeError(self.data_type_name, self._CONV_ERR % "NULL")
-        if type(data) == self.data_type:
+        if type(data) is self.data_type:
             return data
         if not isinstance(data, str):
             raise DataTypeError(self.data_type_name, self._CONV_ERR % data)
@@ -232,9 +232,9 @@ class DT_Time(DataType):
     def _from_data(self, data: object) -> object:
         if data is None:
             raise DataTypeError(self.data_type_name, self._CONV_ERR % "NULL")
-        if type(data) == self.data_type:
+        if type(data) is self.data_type:
             return data
-        if type(data) == datetime.datetime:
+        if isinstance(data, datetime.datetime):
             return datetime.time(data.hour, data.minute, data.second, data.microsecond)
         if not isinstance(data, str):
             raise DataTypeError(self.data_type_name, self._CONV_ERR % data)
@@ -276,9 +276,9 @@ class DT_Time_Oracle(DataType):
     def _from_data(self, data: object) -> object:
         if data is None:
             raise DataTypeError(self.data_type_name, self._CONV_ERR % "NULL")
-        if type(data) == self.data_type:
+        if type(data) is self.data_type:
             return data
-        if type(data) == datetime.datetime:
+        if isinstance(data, datetime.datetime):
             return datetime.time(data.hour, data.minute, data.second, data.microsecond)
         if not isinstance(data, str):
             raise DataTypeError(self.data_type_name, self._CONV_ERR % data)
@@ -322,9 +322,9 @@ class DT_Boolean(DataType):
         if data is None:
             return False
         self.set_bool_matches()
-        if type(data) == bool:
+        if isinstance(data, bool):
             return True
-        elif conf.boolean_int and type(data) == int and data in (0, 1):
+        elif conf.boolean_int and type(data) is int and data in (0, 1):
             return True
         elif isinstance(data, str) and data.lower() in self.bool_repr:
             return True
@@ -337,9 +337,9 @@ class DT_Boolean(DataType):
         if data is None:
             raise DataTypeError(self.data_type_name, self._CONV_ERR % "NULL")
         self.set_bool_matches()
-        if type(data) == bool:
+        if isinstance(data, bool):
             return data
-        elif conf.boolean_int and type(data) == int and data in (0, 1):
+        elif conf.boolean_int and type(data) is int and data in (0, 1):
             return data == 1
         elif isinstance(data, str) and data.lower() in self.bool_repr:
             return data.lower() in self.true
@@ -358,9 +358,9 @@ class DT_Integer(DataType):
         import execsql.state as _state
 
         conf = _state.conf
-        if type(data) == int:
+        if type(data) is int:
             return data <= conf.max_int and data >= -1 * conf.max_int - 1
-        elif type(data) == float:
+        elif isinstance(data, float):
             return False
         elif isinstance(data, str):
             if leading_zero_num(data):
@@ -378,9 +378,9 @@ class DT_Integer(DataType):
     def _from_data(self, data: object) -> object:
         if data is None:
             raise DataTypeError(self.data_type_name, self._CONV_ERR % "NULL")
-        if type(data) == int:
+        if type(data) is int:
             return data
-        if type(data) == float:
+        if isinstance(data, float):
             if int(data) == data:
                 return int(data)
             else:
@@ -408,16 +408,16 @@ class DT_Long(DataType):
 
         if data is None:
             raise DataTypeError(self.data_type_name, self._CONV_ERR % "NULL")
-        if type(data) == int:
+        if type(data) is int:
             return data
-        if type(data) == float:
+        if isinstance(data, float):
             if _math.isnan(data):
                 return None
             else:
                 if int(data) == data:
                     return int(data)
             raise DataTypeError(self.data_type_name, self._CONV_ERR % data)
-        if type(data) == Decimal:
+        if isinstance(data, Decimal):
             raise DataTypeError(self.data_type_name, self._CONV_ERR % data)
         if leading_zero_num(data):
             raise DataTypeError(self.data_type_name, self._CONV_ERR % data)
@@ -440,14 +440,14 @@ class DT_Float(DataType):
     def _is_match(self, data: object) -> bool:
         if data is None:
             return False
-        if type(data) == float:
+        if isinstance(data, float):
             return True
         if leading_zero_num(data):
             return False
         if isinstance(data, str) and not re.match(r"^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$", data):
             return False
         try:
-            i = float(data)
+            float(data)
         except Exception:
             return False
         return True
@@ -455,7 +455,7 @@ class DT_Float(DataType):
     def _from_data(self, data: object) -> object:
         if data is None:
             raise DataTypeError(self.data_type_name, self._CONV_ERR % "NULL")
-        if type(data) == float:
+        if isinstance(data, float):
             return data
         if leading_zero_num(data):
             raise DataTypeError(self.data_type_name, self._CONV_ERR % data)
@@ -491,7 +491,7 @@ class DT_Decimal(DataType):
             raise DataTypeError(self.data_type_name, self._CONV_ERR % "NULL")
         if leading_zero_num(data):
             raise DataTypeError(self.data_type_name, self._CONV_ERR % data)
-        if type(data) == Decimal:
+        if isinstance(data, Decimal):
             self.set_scale_prec(data)
             return data
         elif isinstance(data, str):
@@ -514,7 +514,7 @@ class DT_Character(DataType):
         return "DT_Character()"
 
     def _is_match(self, data: object) -> bool:
-        if type(data) == bytearray:
+        if isinstance(data, bytearray):
             return False
         return super(DT_Character, self)._is_match(data)
 
@@ -544,7 +544,7 @@ class DT_Varchar(DataType):
         return "DT_Varchar()"
 
     def _is_match(self, data: object) -> bool:
-        if type(data) == bytearray:
+        if isinstance(data, bytearray):
             return False
         return super(DT_Varchar, self)._is_match(data)
 
@@ -570,7 +570,7 @@ class DT_Text(DataType):
         return "DT_Text()"
 
     def _is_match(self, data: object) -> bool:
-        if type(data) == bytearray:
+        if isinstance(data, bytearray):
             return False
         return super(DT_Text, self)._is_match(data)
 

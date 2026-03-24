@@ -164,7 +164,7 @@ class FileWriter(multiprocessing.Process):
         def write(self, content: str) -> None:
             self.output_queue.appendleft(content)
             self.try_open()
-            if self.STATUS_OPEN:
+            if self.status == self.STATUS_OPEN:
                 self.write_queue()
 
     def __init__(

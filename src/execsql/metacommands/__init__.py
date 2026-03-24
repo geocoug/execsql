@@ -1040,7 +1040,6 @@ def build_dispatch_table() -> _state.MetaCommandList:
         x_halt,
     )
     for errmsg_delim in (r"\[", r"\#", r"\`", r"\'", r"\~", r'"'):
-        close = errmsg_delim.replace("\\", "") if errmsg_delim.startswith("\\") else errmsg_delim
         # Use the same open/close bracket pair for the errmsg capture
         open_c = errmsg_delim if not errmsg_delim.startswith("\\") else errmsg_delim[1:]
         close_c = "]" if open_c == "[" else open_c

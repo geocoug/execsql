@@ -156,14 +156,72 @@ Triggered on: push to `main`, any tag `v*.*.*`, pull requests.
 
 ## Known Issues / Docs Debt
 
-- ~20 in-page anchor links use RST label names that differ from heading text (e.g. `#if_cmd`, `#beginsql`). Need explicit `{ #anchor }` heading IDs added to the relevant markdown headings.
-- Docs converted from Sphinx/RST — some formatting artifacts may remain.
+*(Docs cleanup completed — anchor IDs fixed, RST artifacts resolved.)*
 
 ## Roadmap / Open Work
 
-1. **Docs cleanup** — fix lingering RST→Markdown formatting issues; add explicit anchor IDs
-1. **Ruff tightening** - Progressive modernization — enable stricter Ruff rules, remove Py2 compat remnants, modernize idioms
-1. **Integration tests (next)** - Expand coverage for: exporters/{sqlite,duckdb,templates,xls,ods,feather}, metacommands/conditions, metacommands/connect (SQLite), db/base deeper methods, format.py
+Items are ordered by recommended priority. Each has a status and a brief
+rationale so the right one can be picked up without re-investigating context.
+
+______________________________________________________________________
+
+### 1. Orphaned optional features ✅ *completed 2026-03-23*
+
+- **Airspeed removed:** `AirspeedTemplateReport` and `FORMAT airspeed` deleted from
+    `exporters/templates.py`; `airspeed` removed from valid `template_processor` config values.
+    Noted in `CHANGELOG.md` under `[Unreleased]`.
+- **`feather = ["pandas", "pyarrow"]`** added to `pyproject.toml` optional-deps and `all` group.
+- **`hdf5 = ["tables"]`** added to `pyproject.toml` optional-deps and `all` group.
+
+______________________________________________________________________
+
+### 2. Wire `mkdocstrings` into the docs *(low effort, high payoff)*
+
+`mkdocstrings-python` is installed as a dev dep but no `:::` autodoc directives
+exist in any docs page. The modular refactor means every public class and
+function now has a docstring. Adding API reference pages would give users
+discoverable, always-up-to-date docs from zero extra writing.
+
+**Recommended action:** Add an `api/` section to the MkDocs nav with at least
+one page per top-level module group (`db/`, `exporters/`, `importers/`,
+`metacommands/`). Start with the most user-facing ones (`db/base.py`,
+`exporters/`, `cli.py`).
+
+______________________________________________________________________
+
+### 3. Surface `execsql-format` in the README and docs nav ✅ *already complete*
+
+- README has a "Formatting Scripts" section (lines 95–107) with usage examples and a docs link.
+- `zensical.toml` nav lists `{ "execsql-format" = "formatter.md" }` under Guides.
+- Completed in commit `a25d1f4`.
+
+______________________________________________________________________
+
+### 4. Raise the coverage floor *(follows test work)*
+
+Coverage is at 64.78% as of 2026-03-23 with the floor at 60%. The next
+natural targets:
+
+- `importers/{ods,xls,feather}` — same pattern as the exporter tests already written
+- `metacommands/` handlers not yet exercised end-to-end (EXPORT SQLITE/DUCKDB via CLI)
+- `db/duckdb.py` deeper methods (mirrors what was done for `db/sqlite.py`)
+
+**Recommended action:** Write the importer tests first (straightforward),
+then raise `--cov-fail-under` from 60 → 70.
+
+______________________________________________________________________
+
+### 5. Ruff tightening *(ongoing, lowest urgency)*
+
+Progressive modernization: enable stricter Ruff rules, remove Py2 compat
+remnants (`type(x) == y` → `isinstance`, bare `except:` → `except Exception:`,
+etc.), modernize idioms. No user-facing change.
+
+**Recommended action:** Work rule-by-rule. Start by removing the most
+egregious suppressions in `pyproject.toml` (`E722` bare-except, `E721`
+type-comparison). Fix each batch of violations before enabling the next rule.
+
+______________________________________________________________________
 
 ## Open Design Questions
 
@@ -305,7 +363,7 @@ main()
 | 3634–3673   | **JSON SCHEMA TYPES** — `JsonDatatype`                                                                                                                                                                                                                      |
 | 3678–5412   | **DATABASE CONNECTIONS** — `Database` base + 9 subclasses, `DatabasePool`                                                                                                                                                                                   |
 | 5416–6136   | **CSV FILES** — `LineDelimiter`, `DelimitedWriter`, `CsvWriter`, `CsvFile`, `ZipWriter`                                                                                                                                                                     |
-| 6140–6249   | **TEMPLATE-BASED REPORTS/EXPORTS** — `StrTemplateReport`, `JinjaTemplateReport`, `AirspeedTemplateReport`                                                                                                                                                   |
+| 6140–6249   | **TEMPLATE-BASED REPORTS/EXPORTS** — `StrTemplateReport`, `JinjaTemplateReport` (`AirspeedTemplateReport` removed 2026-03-23)                                                                                                                               |
 | 6254–6974   | **SCRIPTING** — `BatchLevels`, `IfLevels`, `CounterVars`, `SubVarSet`, `MetaCommand`, `MetaCommandList`, `SqlStmt`, `MetacommandStmt`, `ScriptCmd`, `CommandList`, loops, `ScriptFile`, `ScriptExecSpec`, `GuiSpec`                                         |
 | 6979–9508   | **UI** — Tkinter GUI classes: `MsgUI`, `DisplayUI`, `CompareUI`, `MapUI`, `SelectRowsUI`, `ActionUI`, `CredentialsUI`, `ConnectUI`, `ConsoleUI`, `GuiConsole`, `PauseUI`, `EntryFormUI`, `OpenFileUI`, `SaveFileUI`, `GetDirectoryUI`; GUI helper functions |
 | 9512–9821   | **PARSERS** — `SourceString`, `CondParser`, `NumericParser`, AST nodes                                                                                                                                                                                      |
@@ -452,7 +510,7 @@ Syntax: `!!$VARNAME!!` (immediate) or `!{$varname}!` (deferred).
 
 ### Export Formats
 
-Handled by `x_export()` (13565): `csv`, `tsv`, `txt`, `json`, `json-ts`, `xml`, `html`, `cgi-html`, `latex`, `values`, `ods`, `xls`, `xlsx`, `hdf5`, `duckdb`, `sqlite`, `b64`, `raw`, `feather`, `parquet`, `str-template`, `jinja`, `airspeed`.
+Handled by `x_export()` (13565): `csv`, `tsv`, `txt`, `json`, `json-ts`, `xml`, `html`, `cgi-html`, `latex`, `values`, `ods`, `xls`, `xlsx`, `hdf5`, `duckdb`, `sqlite`, `b64`, `raw`, `feather`, `parquet`, `str-template`, `jinja`. (`airspeed` removed 2026-03-23).
 
 ### Notable Complexity Hot Spots
 

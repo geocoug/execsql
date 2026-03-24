@@ -32,7 +32,7 @@ class XlsFile:
         try:
             global xlrd
             import xlrd
-        except:
+        except ImportError:
             _state.fatal_error("The xlrd library is needed to read Excel (.xls) spreadsheets.")
         self.filename = None
         self.encoding = None
@@ -64,7 +64,7 @@ class XlsFile:
                 sheet_no = int(sheetname)
                 if sheet_no < 1:
                     sheet_no = None
-            except:
+            except (ValueError, TypeError):
                 sheet_no = None
         if sheet_no is None:
             sheet = self.wbk.sheet_by_name(sheetname)
@@ -76,7 +76,7 @@ class XlsFile:
     def sheet_data(self, sheetname: Any, junk_header_rows: int = 0) -> List:
         try:
             sheet = self.sheet_named(sheetname)
-        except:
+        except Exception:
             raise XlsFileError(f"There is no Excel worksheet named {sheetname} in {self.filename}.")
 
         # Don't rely on sheet.ncols and sheet.nrows, because Excel will count columns
@@ -99,7 +99,7 @@ class XlsFile:
                     try:
                         dt = _state.DT_TimestampTZ()._from_data(c.value)
                         datarow.append(dt)
-                    except:
+                    except Exception:
                         datarow.append(c.value)
                 elif c.ctype == 2:
                     # float, but maybe should be int
@@ -159,7 +159,7 @@ class XlsxFile:
         try:
             global openpyxl
             import openpyxl
-        except:
+        except ImportError:
             _state.fatal_error("The openpyxl library is needed to read Excel (.xlsx) spreadsheets.")
         self.filename = None
         self.encoding = None
@@ -199,7 +199,7 @@ class XlsxFile:
                 sheet_no = int(sheetname)
                 if sheet_no < 1:
                     sheet_no = None
-            except:
+            except (ValueError, TypeError):
                 sheet_no = None
         if sheet_no is not None:
             # User-specified sheet numbers should be 1-based
@@ -211,7 +211,7 @@ class XlsxFile:
     def sheet_data(self, sheetname: Any, junk_header_rows: int = 0) -> List:
         try:
             sheet = self.sheet_named(sheetname)
-        except:
+        except Exception:
             raise XlsxFileError(f"There is no Excel worksheet named {sheetname} in {self.filename}.")
         # Don't rely on sheet.max_column and sheet.max_row, because Excel will count columns
         # and rows that have ever been filled, even if they are now empty.  Base the column count

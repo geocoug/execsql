@@ -217,7 +217,6 @@ class CounterVars:
     def substitute(self, command_str: str) -> tuple:
         # Substitutes any counter variable references with the counter value and
         # returns the modified command string and a flag indicating replacements.
-        match_found = False
         m = self._COUNTER_RX.search(command_str, re.I)
         if m:
             ctr_id = m.group(1).lower()
@@ -329,7 +328,6 @@ class SubVarSet:
 
     def substitute(self, command_str: str) -> tuple:
         # Replace any substitution variables in the command string.
-        match_found = False
         if isinstance(command_str, str):
             for match, sub in self.substitutions:
                 if sub is None:
@@ -432,7 +430,7 @@ class MetaCommand:
                 raise
             except ErrInfo as errinf:
                 er = errinf
-            except:
+            except Exception:
                 er = ErrInfo("cmd", command_text=cmd_str, exception_msg=exception_desc())
             if er:
                 if _state.status.halt_on_metacommand_err:
@@ -543,7 +541,7 @@ class SqlStmt:
                 e = errinfo
             except SystemExit:
                 raise
-            except:
+            except Exception:
                 e = ErrInfo(type="exception", exception_msg=exception_desc())
             if e:
                 _state.subvars.add_substitution("$LAST_ERROR", cmd)
@@ -582,7 +580,7 @@ class MetacommandStmt:
             e = errinfo
         except SystemExit:
             raise
-        except:
+        except Exception:
             e = ErrInfo(type="exception", exception_msg=exception_desc())
         if e:
             _state.status.metacommand_error = True
@@ -810,9 +808,9 @@ class ScriptFile(EncodedFile):
         return self
 
     def __next__(self) -> str:
-        l = next(self.f)
+        line = next(self.f)
         self.lno += 1
-        return l
+        return line
 
 
 # ---------------------------------------------------------------------------
@@ -942,7 +940,7 @@ def runscripts() -> None:
             raise
         except ErrInfo:
             raise
-        except:
+        except Exception:
             raise ErrInfo(type="exception", exception_msg=exception_desc())
         _state.cmds_run += 1
 
