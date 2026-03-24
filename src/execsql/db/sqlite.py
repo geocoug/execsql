@@ -173,6 +173,7 @@ class SQLiteDatabase(Database):
         paramspec = ",".join(["?" for c in columns])
         sql = f"insert into {sq_name} ({colspec}) values ({paramspec});"
         curs = self.cursor()
+        total_rows = 0
         for datalineno, line in enumerate(rowsource):
             # Skip empty rows.
             if not (len(line) == 1 and line[0] is None):
@@ -211,6 +212,16 @@ class SQLiteDatabase(Database):
                             exception_msg=exception_desc(),
                             other_msg=f"Can't load data into table {sq_name} from line {{{line}}}",
                         )
+                    total_rows += 1
+                    interval = getattr(_state.conf, "import_progress_interval", 0)
+                    if _state.exec_log and interval > 0 and total_rows % interval == 0:
+                        _state.exec_log.log_status_info(
+                            f"IMPORT into {sq_name}: {total_rows} rows imported so far.",
+                        )
+        if _state.exec_log:
+            _state.exec_log.log_status_info(
+                f"IMPORT into {sq_name} complete: {total_rows} rows imported.",
+            )
 
     def import_entire_file(
         self,

@@ -14,6 +14,7 @@ import pytest
 from execsql.exceptions import NumericParserError
 from execsql.parser import (
     CondAstNode,
+    CondParser,
     CondTokens,
     NumericAstNode,
     NumericParser,
@@ -73,6 +74,14 @@ class TestSourceString:
         import re
 
         ss = SourceString("abc")
+        rx = re.compile(r"(?P<num>\d+)")
+        assert ss.match_regex(rx) is None
+
+    def test_match_regex_at_eoi_returns_none(self):
+        """match_regex returns None when source string is at end of input (line 68)."""
+        import re
+
+        ss = SourceString("")
         rx = re.compile(r"(?P<num>\d+)")
         assert ss.match_regex(rx) is None
 
@@ -234,3 +243,45 @@ class TestCondAstNode:
     def test_conditional_leaf(self):
         leaf = self._bool_leaf(True)
         assert leaf.eval() is True
+
+
+# ---------------------------------------------------------------------------
+# CondParser — operator matching (no conditionallist required)
+# ---------------------------------------------------------------------------
+
+
+class TestCondParserOperatorMatching:
+    """Test the simple operator-matching helpers on CondParser directly.
+
+    These helpers only do string matching against the internal SourceString and
+    do not need the conditionallist metacommand table to be populated.
+    """
+
+    def test_match_not_returns_none_when_absent(self):
+        cp = CondParser("something else")
+        assert cp.match_not() is None
+
+    def test_match_andop_returns_none_when_absent(self):
+        """match_andop returns None when AND is not present (line 199)."""
+        cp = CondParser("something else")
+        assert cp.match_andop() is None
+
+    def test_match_orop_returns_none_when_absent(self):
+        """match_orop returns None when OR is not present (line 206)."""
+        cp = CondParser("something else")
+        assert cp.match_orop() is None
+
+    def test_match_not_returns_not_token(self):
+        cp = CondParser("NOT something")
+        result = cp.match_not()
+        assert result == CondTokens.NOT
+
+    def test_match_andop_returns_and_token(self):
+        cp = CondParser("AND something")
+        result = cp.match_andop()
+        assert result == CondTokens.AND
+
+    def test_match_orop_returns_or_token(self):
+        cp = CondParser("OR something")
+        result = cp.match_orop()
+        assert result == CondTokens.OR

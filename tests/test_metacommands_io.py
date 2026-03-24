@@ -374,3 +374,49 @@ class TestXExportRowBuffer:
 
         x_export_row_buffer(rows="10000")
         assert minimal_conf.export_row_buffer == 10000
+
+
+# ---------------------------------------------------------------------------
+# Tests for _apply_output_dir
+# ---------------------------------------------------------------------------
+
+
+class TestApplyOutputDir:
+    """Tests for the _apply_output_dir() helper."""
+
+    def _fn(self):
+        from execsql.metacommands.io import _apply_output_dir
+
+        return _apply_output_dir
+
+    def test_no_output_dir_returns_path_unchanged(self, minimal_conf):
+        # No export_output_dir attribute on conf → passthrough
+        assert not hasattr(minimal_conf, "export_output_dir") or not minimal_conf.export_output_dir
+        fn = self._fn()
+        assert fn("output.csv") == "output.csv"
+
+    def test_relative_path_gets_prefix(self, minimal_conf):
+        minimal_conf.export_output_dir = "/exports"
+        fn = self._fn()
+        result = fn("output.csv")
+        import os
+
+        assert result == os.path.join("/exports", "output.csv")
+
+    def test_stdout_unchanged(self, minimal_conf):
+        minimal_conf.export_output_dir = "/exports"
+        fn = self._fn()
+        assert fn("stdout") == "stdout"
+        assert fn("STDOUT") == "STDOUT"
+
+    def test_absolute_path_unchanged(self, minimal_conf):
+        minimal_conf.export_output_dir = "/exports"
+        fn = self._fn()
+        assert fn("/abs/path/output.csv") == "/abs/path/output.csv"
+
+    def test_no_attr_returns_path(self, minimal_conf):
+        """If conf has no export_output_dir attribute at all, passthrough."""
+        if hasattr(minimal_conf, "export_output_dir"):
+            del minimal_conf.export_output_dir
+        fn = self._fn()
+        assert fn("file.csv") == "file.csv"

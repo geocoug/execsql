@@ -12,6 +12,7 @@ Provides :func:`write_query_to_ods` (single-sheet export),
 import datetime
 import getpass
 import os
+from pathlib import Path
 from typing import Any
 
 import execsql.state as _state
@@ -44,7 +45,7 @@ class OdsFile:
 
     def open(self, filename: str) -> None:
         self.filename = filename
-        if os.path.isfile(filename):
+        if Path(filename).is_file():
             self.wbk = of.opendocument.load(filename)
             # Get a list of all cell style names used, so as not to re-define them.
             for sty in self.wbk.automaticstyles.childNodes:
@@ -270,7 +271,7 @@ def export_ods(
 ) -> None:
     # If not given, determine the worksheet name to use.  The pattern is "Sheetx", where x is
     # the first integer for which there is not already a sheet name.
-    if append and os.path.isfile(outfile):
+    if append and Path(outfile).is_file():
         wbk = OdsFile()
         wbk.open(outfile)
         sheet_names = wbk.sheetnames()
@@ -285,7 +286,7 @@ def export_ods(
         wbk.close()
     else:
         sheet_name = sheetname or "Sheet1"
-        if os.path.isfile(outfile):
+        if Path(outfile).is_file():
             filewriter_close(outfile)
             os.unlink(outfile)
     wbk = OdsFile()
@@ -312,9 +313,9 @@ def export_ods(
     if datasheetlist:
         script, lno = current_script_line()
         if querytext:
-            src = f"{querytext} with database {_state.dbs.current().name()}, with script {os.path.abspath(script)}, line {lno}"
+            src = f"{querytext} with database {_state.dbs.current().name()}, with script {str(Path(script).resolve())}, line {lno}"
         else:
-            src = f"From database {_state.dbs.current().name()}, with script {os.path.abspath(script)}, line {lno}"
+            src = f"From database {_state.dbs.current().name()}, with script {str(Path(script).resolve())}, line {lno}"
         wbk.add_row_to_sheet(
             (
                 sheet_name,
@@ -361,7 +362,7 @@ def write_queries_to_ods(
     if desc is not None:
         descriptions = [d.strip() for d in desc.split(",")]
         one_desc = len(descriptions) != len(tables)
-    if os.path.isfile(outfile) and not append:
+    if Path(outfile).is_file() and not append:
         filewriter_close(outfile)
         os.unlink(outfile)
     wbk = OdsFile()
@@ -422,7 +423,7 @@ def write_queries_to_ods(
         datasheetlist = wbk.sheet_named(inventory_name)
         if datasheetlist:
             script, lno = current_script_line()
-            src = f"From database {_state.dbs.current().name()}, with script {os.path.abspath(script)}, line {lno}"
+            src = f"From database {_state.dbs.current().name()}, with script {str(Path(script).resolve())}, line {lno}"
             wbk.add_row_to_sheet(
                 (
                     sheet_name,

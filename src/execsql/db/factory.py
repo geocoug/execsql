@@ -12,7 +12,7 @@ functions are the canonical way to open a new database connection from
 :mod:`execsql.cli` and the connection-related metacommand handlers.
 """
 
-import os
+from pathlib import Path
 
 from execsql.exceptions import ErrInfo
 from execsql.db.access import AccessDatabase
@@ -32,7 +32,7 @@ def db_Access(
     user: str | None = None,
     encoding: str | None = None,
 ) -> AccessDatabase:
-    if not os.path.exists(Access_fn):
+    if not Path(Access_fn).exists():
         raise ErrInfo(
             type="error",
             other_msg=f'Access database file "{Access_fn}" does not exist.',
@@ -48,8 +48,9 @@ def db_Postgres(
     port: int | None = None,
     encoding: str | None = None,
     new_db: bool = False,
+    password: str | None = None,
 ) -> PostgresDatabase:
-    return PostgresDatabase(server_name, database_name, user, pw_needed, port, new_db=new_db)
+    return PostgresDatabase(server_name, database_name, user, pw_needed, port, new_db=new_db, password=password)
 
 
 def db_SQLite(
@@ -62,7 +63,7 @@ def db_SQLite(
 
         check_dir(sqlite_fn)
     else:
-        if not os.path.exists(sqlite_fn):
+        if not Path(sqlite_fn).exists():
             raise ErrInfo(
                 type="error",
                 other_msg=f'SQLite database file "{sqlite_fn}" does not exist.',
@@ -102,7 +103,7 @@ def db_DuckDB(
 
         check_dir(duckdb_fn)
     else:
-        if not os.path.exists(duckdb_fn):
+        if not Path(duckdb_fn).exists():
             raise ErrInfo(
                 type="error",
                 other_msg=f'DuckDB database file "{duckdb_fn}" does not exist.',

@@ -197,17 +197,17 @@ ______________________________________________________________________
 
 ______________________________________________________________________
 
-### 4. Raise the coverage floor *(follows test work)*
+### 4. Raise the coverage floor *(follows test work)* ✅ *floor at 68% as of 2026-03-24*
 
-Coverage is at 64.78% as of 2026-03-23 with the floor at 60%. The next
-natural targets:
+Coverage is at 68.18% as of 2026-03-24 with the floor at 68% (`--cov-fail-under=68`). The next
+natural targets to push further:
 
 - `importers/{ods,xls,feather}` — same pattern as the exporter tests already written
 - `metacommands/` handlers not yet exercised end-to-end (EXPORT SQLITE/DUCKDB via CLI)
 - `db/duckdb.py` deeper methods (mirrors what was done for `db/sqlite.py`)
 
 **Recommended action:** Write the importer tests first (straightforward),
-then raise `--cov-fail-under` from 60 → 70.
+then raise `--cov-fail-under` from 68 → 70+.
 
 ______________________________________________________________________
 

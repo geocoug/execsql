@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import importlib
 import re
+from unittest.mock import patch
 
 
 def test_version_string_format():
@@ -32,3 +34,18 @@ def test_state_importable():
     assert hasattr(_state, "commandliststack")
     assert hasattr(_state, "subvars")
     assert hasattr(_state, "varlike")
+
+
+def test_version_fallback_when_package_not_found():
+    """__version__ falls back to 'unknown' when package metadata is missing (lines 15-16)."""
+    from importlib.metadata import PackageNotFoundError
+
+    import execsql
+
+    with patch("importlib.metadata.version", side_effect=PackageNotFoundError("execsql2")):
+        # Re-execute the try/except block by reloading the module
+        importlib.reload(execsql)
+        assert execsql.__version__ == "unknown"
+
+    # Restore to real version
+    importlib.reload(execsql)

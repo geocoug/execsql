@@ -16,9 +16,9 @@ Provides three classes:
 """
 
 import os
-import os.path
 import sys
 from configparser import ConfigParser
+from pathlib import Path
 
 from execsql.exceptions import ConfigError
 from execsql.utils.crypto import Encrypt
@@ -104,10 +104,12 @@ class ConfigData:
         self.outfile_open_timeout = 600
         self.quote_all_text = False
         self.import_row_buffer = 1000
+        self.import_progress_interval = 0
         self.export_row_buffer = 1000
         self.template_processor = None
         self.tee_write_log = False
         self.log_datavars = True
+        self.max_log_size_mb = 0
         self.smtp_host = None
         self.smtp_port = None
         self.smtp_username = None
@@ -121,20 +123,20 @@ class ConfigData:
         self.dao_flush_delay_secs = 5.0
         self.zip_buffer_mb = 10
         if os.name == "posix":
-            sys_config_file = os.path.join("/etc", self.config_file_name)
+            sys_config_file = str(Path("/etc") / self.config_file_name)
         else:
-            sys_config_file = os.path.join(os.path.expandvars(r"%APPDATA%"), self.config_file_name)
-        current_script = os.path.abspath(sys.argv[0])
-        user_config_file = os.path.join(os.path.expanduser(r"~/.config"), self.config_file_name)
-        script_config_file = os.path.join(script_path, self.config_file_name)
-        startdir_config_file = os.path.join(os.path.abspath(os.path.curdir), self.config_file_name)
+            sys_config_file = str(Path(os.path.expandvars(r"%APPDATA%")) / self.config_file_name)
+        current_script = str(Path(sys.argv[0]).resolve())
+        user_config_file = str(Path("~/.config").expanduser() / self.config_file_name)
+        script_config_file = str(Path(script_path) / self.config_file_name)
+        startdir_config_file = str(Path(".").resolve() / self.config_file_name)
         if startdir_config_file != script_config_file:
             config_files = [sys_config_file, user_config_file, script_config_file, startdir_config_file]
         else:
             config_files = [sys_config_file, user_config_file, startdir_config_file]
         self.files_read: list = []
         for ix, configfile in enumerate(config_files):
-            if configfile not in self.files_read and os.path.isfile(configfile):
+            if configfile not in self.files_read and Path(configfile).is_file():
                 self.files_read.append(configfile)
                 cp = ConfigParser()
                 cp.read(configfile)
@@ -278,6 +280,11 @@ class ConfigData:
                         self.import_row_buffer = cp.getint(self._INPUT_SECTION, "import_row_buffer")
                     except Exception as e:
                         raise ConfigError("Invalid argument for import_row_buffer.") from e
+                if cp.has_option(self._INPUT_SECTION, "import_progress_interval"):
+                    try:
+                        self.import_progress_interval = cp.getint(self._INPUT_SECTION, "import_progress_interval")
+                    except Exception as e:
+                        raise ConfigError("Invalid argument for import_progress_interval.") from e
                 if cp.has_option(self._INPUT_SECTION, "access_use_numeric"):
                     try:
                         self.access_use_numeric = cp.getboolean(self._INPUT_SECTION, "access_use_numeric")
@@ -412,33 +419,33 @@ class ConfigData:
                     conffile = cp.get(self._CONFIG_SECTION, "config_file")
                     if os.name == "posix" and conffile[0] == "~":
                         if len(conffile) == 1:
-                            conffile = os.path.expanduser(r"~")
+                            conffile = str(Path("~").expanduser())
                         elif len(conffile) > 1 and conffile[1] == os.sep:
-                            conffile = os.path.join(os.path.expanduser(r"~"), conffile[2:])
+                            conffile = str(Path("~").expanduser() / conffile[2:])
                     conffile = variable_pool.substitute(conffile)[0]
-                    if not os.path.isfile(conffile):
-                        conffile = os.path.join(conffile, self.config_file_name)
-                    if os.path.isfile(conffile):
+                    if not Path(conffile).is_file():
+                        conffile = str(Path(conffile) / self.config_file_name)
+                    if Path(conffile).is_file():
                         # Silently ignore a non-existent file, for cross-OS compatibility.
                         config_files.insert(ix + 1, conffile)
                 if os.name == "posix" and cp.has_option(self._CONFIG_SECTION, "linux_config_file"):
                     conffile = cp.get(self._CONFIG_SECTION, "linux_config_file")
                     if conffile[0] == "~":
                         if len(conffile) == 1:
-                            conffile = os.path.expanduser(r"~")
+                            conffile = str(Path("~").expanduser())
                         elif len(conffile) > 1 and conffile[1] == os.sep:
-                            conffile = os.path.join(os.path.expanduser(r"~"), conffile[2:])
+                            conffile = str(Path("~").expanduser() / conffile[2:])
                     conffile = variable_pool.substitute(conffile)[0]
-                    if not os.path.isfile(conffile):
-                        conffile = os.path.join(conffile, self.config_file_name)
-                    if os.path.isfile(conffile):
+                    if not Path(conffile).is_file():
+                        conffile = str(Path(conffile) / self.config_file_name)
+                    if Path(conffile).is_file():
                         config_files.insert(ix + 1, conffile)
                 if os.name == "windows" and cp.has_option(self._CONFIG_SECTION, "win_config_file"):
                     conffile = cp.get(self._CONFIG_SECTION, "win_config_file")
                     conffile = variable_pool.substitute(conffile)[0]
-                    if not os.path.isfile(conffile):
-                        conffile = os.path.join(conffile, self.config_file_name)
-                    if os.path.isfile(conffile):
+                    if not Path(conffile).is_file():
+                        conffile = str(Path(conffile) / self.config_file_name)
+                    if Path(conffile).is_file():
                         config_files.insert(ix + 1, conffile)
                 if cp.has_option(self._CONFIG_SECTION, "user_logfile"):
                     self.user_logfile = cp.getboolean(self._CONFIG_SECTION, "user_logfile")
@@ -453,6 +460,11 @@ class ConfigData:
                         self.log_datavars = cp.getboolean(self._CONFIG_SECTION, "log_datavars")
                     except Exception as e:
                         raise ConfigError("Invalid argument to log_datavars setting.") from e
+                if cp.has_option(self._CONFIG_SECTION, "max_log_size_mb"):
+                    try:
+                        self.max_log_size_mb = cp.getint(self._CONFIG_SECTION, "max_log_size_mb")
+                    except Exception as e:
+                        raise ConfigError("Invalid argument to max_log_size_mb setting.") from e
                 if cp.has_option(self._EMAIL_SECTION, "host"):
                     self.smtp_host = cp.get(self._EMAIL_SECTION, "host")
                 if cp.has_option(self._EMAIL_SECTION, "port"):
@@ -493,24 +505,24 @@ class ConfigData:
                 if cp.has_section(self._INCLUDE_REQ_SECTION):
                     imp_items = cp.items(self._INCLUDE_REQ_SECTION)
                     ord_items = sorted([(int(i[0]), i[1]) for i in imp_items], key=lambda x: x[0])
-                    newfiles = [os.path.abspath(f[1]) for f in ord_items]
+                    newfiles = [str(Path(f[1]).resolve()) for f in ord_items]
                     u_files = []
                     for f in newfiles:
                         if not (f in u_files or f in self.include_req or f in self.include_opt) and f != current_script:
-                            if not os.path.exists(f):
+                            if not Path(f).exists():
                                 raise ConfigError(f"Required include file {f} does not exist.")
                             u_files.append(f)
                     self.include_req.extend(u_files)
                 if cp.has_section(self._INCLUDE_OPT_SECTION):
                     imp_items = cp.items(self._INCLUDE_OPT_SECTION)
                     ord_items = sorted([(int(i[0]), i[1]) for i in imp_items], key=lambda x: x[0])
-                    newfiles = [os.path.abspath(f[1]) for f in ord_items]
+                    newfiles = [str(Path(f[1]).resolve()) for f in ord_items]
                     u_files = []
                     for f in newfiles:
                         if (
                             not (f in u_files or f in self.include_req or f in self.include_opt)
                             and f != current_script
-                            and os.path.exists(f)
+                            and Path(f).exists()
                         ):
                             u_files.append(f)
                     self.include_opt.extend(u_files)

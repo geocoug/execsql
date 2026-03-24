@@ -4,117 +4,114 @@
 > APIs, CLI behavior, and configuration options may change without notice.
 > Not recommended for production use. For the stable upstream release, see [execsql](https://execsql.readthedocs.io/).
 
-![execsql logo](https://execsql2.readthedocs.io/en/latest/images/execsql_logo_01.png) *Multi-DBMS SQL script processor.*
-*execsql.py* is a Python program that runs a SQL script stored in a text file
-against a PostgreSQL, MS-Access, SQLite, DuckDB, MS-SQL-Server, MySQL, MariaDB,
-Firebird, or Oracle database, or an ODBC DSN. *execsql* also supports a
-set of special commands (metacommands) that can import and export data,
-copy data between databases, and conditionally execute SQL statements and metacommands.
-These metacommands make up a control language that works the same across
-all supported database management systems (DBMSs). The metacommands are
-embedded in SQL comments, so they will be ignored by other script
-processors (e.g., *psql* for Postgres and *sqlcmd* for SQL Server). The
-metacommands make up a toolbox that can be used to create both automated
-and interactive data processing applications.
+![execsql logo](https://execsql2.readthedocs.io/en/latest/images/execsql_logo_01.png)
 
-The program's features and requirements are summarized below.
-Complete documentation is available at
-[https://execsql2.readthedocs.io/](https://execsql2.readthedocs.io/).
+*Multi-DBMS SQL script processor.*
 
-[![Downloads](https://pepy.tech/badge/execsql2)](https://pypi.org/project/execsql2/)
-[![Downloads](https://pepy.tech/badge/execsql2/month)](https://pepy.tech/project/execsql2/)
+[![CI/CD](https://github.com/geocoug/execsql2/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/geocoug/execsql2/actions/workflows/ci-cd.yml)
+[![Downloads](https://pepy.tech/badge/execsql2/month)](https://pepy.tech/project/execsql2)
 
 # Fork
 
-*execsql2* is a fork of [execsql](https://execsql.readthedocs.io/) originally authored by R.Dreas Nielsen.
-The original source is available at [https://execsql.readthedocs.io/](https://execsql.readthedocs.io/).
-This fork is maintained by [Caleb Grant](https://github.com/geocoug).
+*execsql2* is a maintained fork of [execsql](https://execsql.readthedocs.io/) originally authored by R.Dreas Nielsen. The upstream project is no longer actively maintained. This fork is maintained by [Caleb Grant](https://github.com/geocoug) and is distributed on PyPI as `execsql2`. Complete documentation is at [execsql2.readthedocs.io](https://execsql2.readthedocs.io/).
 
-# Capabilities
+# Overview
 
-You can use *execsql* to:
+*execsql* runs SQL scripts against PostgreSQL, MySQL/MariaDB, SQLite, DuckDB, MS-SQL-Server, MS-Access, Firebird, Oracle, or an ODBC DSN. In addition to standard SQL, it supports a set of metacommands (embedded in SQL comments) for importing and exporting data, copying data between databases, conditional execution, looping, substitution variables, and interactive prompts. Because metacommands live in SQL comments, scripts remain valid SQL and are ignored by other tools such as `psql` or `sqlcmd`.
 
-- Import data from text files or spreadsheets into
-    a database.
-- Copy data between different databases, even databases using different
-    types of DBMSs.
-- Export tables and views as formatted text, comma-separated values (CSV), tab-separated
-    values (TSV), OpenDocument spreadsheets, HTML tables, JSON, XML, LaTeX tables, HDF5
-    tables, unformatted (e.g., binary) data, or several other formats.
-- Export data to non-tabular formats using several different
-    template processors.
-- Display a table or view in a GUI dialog,
-    optionally allowing the user to select a data row, enter a data
-    value, or respond to a prompt.
-- Display a pair of tables or views in a GUI dialog, allowing the user
-    to compare data and find rows with matching or non-matching key values.
-- Conditionally execute different SQL commands and metacommands based on the DBMS in use,
-    the database in use, data values, user input, and other conditions.
-- Execute blocks of SQL statements or *execsql* metacommands repeatedly, using
-    any of three different looping methods.
-- Use simple dynamically-created data entry forms to get user input.
-- Write status or informational messages to the console or to a file
-    during the processing of a SQL script. Status messages and data exported in
-    text format can be combined in a single text file. Data tables can be
-    exported in a text format that is compatible with Markdown pipe tables,
-    so that script output can be converted into a variety of document formats.
-- Write more modular and maintainable SQL code by factoring repeated
-    code out into separate scripts, parameterizing the code using
-    substitution variables, and using the INCLUDE or SCRIPT metacommands
-    to merge the modules into a single stream of commands.
-- Merge multiple elements of a workflow—e.g., data loading, summarization, and
-    reporting—into a single script for better coupling of related steps and more
-    secure maintenance.
-- Use *execsql* as a CGI script for a web application that needs to run
-    SQL scripts and return database output.
-
-Standard SQL provides no features for interacting with external files or
-with the user, or for controlling the flow of actions to be carried out
-based either on data or on user input. Some DBMSs provide these features,
-but capabilities and syntax differ between DBMSs. *execsql* provides
-these features in a way that operates identically across all supported
-DBMSs on both Linux and Windows.
-
-*execsql* is inherently a command-line program that can operate in a completely
-non-interactive mode (except for password prompts). Therefore, it is suitable
-for incorporation into a toolchain controlled by a shell script (on Linux),
-batch file (on Windows), or other system-level scripting application. When
-used in this mode, the only interactive elements will be password prompts.
-However, several metacommands generate interactive prompts and data
-displays, so *execsql* scripts can be written to provide some user interactivity.
-
-In addition, *execsql* automatically maintains a log that documents key
-information about each run of the program, including the databases that are
-used, the scripts that are run, and the user's choices in response to
-interactive prompts. Together, the script and the log provide documentation
-of all actions carried out that may have altered data.
-
-The documentation includes 30 examples showing the use of
-*execsql*'s metacommands, in both simple and complex scripts.
-
-# Formatting Scripts
-
-The `execsql-format` command normalizes execsql script files: it uppercases metacommand keywords, corrects block indentation, and optionally reformats SQL statements via sqlglot. It is installed automatically with the `execsql2` package.
+# Installation
 
 ```bash
-# Format files in place
-execsql-format --in-place scripts/
-
-# Check formatting without writing (useful in CI)
-execsql-format --check scripts/
+pip install execsql2
 ```
 
-See the [formatter documentation](https://execsql2.readthedocs.io/en/latest/formatter/) for all options.
+Optional extras install the required database drivers:
+
+```bash
+pip install execsql2[postgres]    # PostgreSQL (psycopg2-binary)
+pip install execsql2[mysql]       # MySQL / MariaDB (pymysql)
+pip install execsql2[mssql]       # SQL Server (pyodbc)
+pip install execsql2[duckdb]      # DuckDB
+pip install execsql2[firebird]    # Firebird (firebird-driver)
+pip install execsql2[oracle]      # Oracle (oracledb)
+pip install execsql2[odbc]        # ODBC DSN (pyodbc)
+pip install execsql2[ods]         # OpenDocument spreadsheets (odfpy)
+pip install execsql2[excel]       # Excel read (xlrd, openpyxl)
+pip install execsql2[jinja]       # Jinja2 template export
+```
+
+SQLite connections use Python's standard library and require no additional packages.
+
+# Usage
+
+```text
+execsql [OPTIONS] SQL_SCRIPT [SERVER DATABASE | DATABASE_FILE]
+```
+
+Examples:
+
+```bash
+execsql -tp script.sql myserver mydb        # PostgreSQL
+execsql -tm script.sql myserver mydb        # MySQL / MariaDB
+execsql -ts script.sql myserver mydb        # SQL Server
+execsql -tl script.sql mydb.sqlite          # SQLite
+execsql -tk script.sql mydb.duckdb          # DuckDB
+execsql -to script.sql myserver myservice   # Oracle
+execsql script.sql                          # read connection from config file
+```
+
+## Supported Databases
+
+| Flag | Database        |
+| ---- | --------------- |
+| `p`  | PostgreSQL      |
+| `m`  | MySQL / MariaDB |
+| `s`  | MS SQL Server   |
+| `l`  | SQLite          |
+| `k`  | DuckDB          |
+| `a`  | MS Access       |
+| `f`  | Firebird        |
+| `o`  | Oracle          |
+| `d`  | ODBC DSN        |
+
+## Options
+
+| Flag                                | Description                                                     |
+| ----------------------------------- | --------------------------------------------------------------- |
+| `-t {p,m,s,l,k,a,f,o,d}`            | Database type                                                   |
+| `-u USER`                           | Database username                                               |
+| `-p PORT`                           | Server port                                                     |
+| `-a VALUE`                          | Set substitution variable `$ARG_x`                              |
+| `-c SCRIPT`                         | Execute inline SQL or metacommand string                        |
+| `-d`                                | Auto-create export directories                                  |
+| `-f ENCODING`                       | Script file encoding (default: UTF-8)                           |
+| `-l`                                | Write run log to `~/execsql.log`                                |
+| `-m`                                | List metacommands and exit                                      |
+| `-n`                                | Create a new SQLite or PostgreSQL database if it does not exist |
+| `-v {0,1,2,3}`                      | GUI level (0=none, 1=password, 2=selection, 3=full)             |
+| `--gui-framework {tkinter,textual}` | GUI framework for interactive prompts                           |
+| `-w`                                | Skip password prompt when a username is supplied                |
+
+Run `execsql --help` for the full option list, or `execsql -m` to list all metacommands.
+
+# Features
+
+- Import data from CSV, TSV, JSON, XML, Excel, or OpenDocument spreadsheets into a database table.
+- Export query results as CSV, TSV, JSON, XML, HTML, LaTeX, OpenDocument, HDF5, Markdown pipe tables, or Jinja2 templates.
+- Copy data between databases, including across different DBMS types.
+- Conditionally execute SQL and metacommands using `IF`/`ELSE`/`ENDIF` based on data values, DBMS type, or user input.
+- Loop over blocks of SQL and metacommands using `LOOP`/`ENDLOOP`.
+- Use substitution variables (`SUB`, `$ARG_x`, built-in variables like `$date_tag`) to parameterize scripts.
+- Include or chain scripts with `INCLUDE` and `SCRIPT`.
+- Display query results in a GUI dialog; optionally prompt the user to select a row, enter a value, or submit a form.
+- Write status messages or tabular output to the console or a file during execution.
+- Automatically log each run, recording databases used, scripts executed, and user responses.
 
 # An Illustration
 
-The following code illustrates the use of metacommands and substitution variables.
-Lines starting with "-- !x!" are metacommands that implement *execsql*-specific features.
-Identifiers enclosed in pairs of exclamation points (!!) are substitution variables
-that have been defined with the SUB metacommand. The "$date_tag" variable is
-a substitution variable that is defined by *execsql* itself rather than by the user.
+The following script demonstrates metacommands and substitution variables. Lines prefixed with `-- !x!` are metacommands; identifiers wrapped in `!!` are substitution variables.
 
-```
+```sql
 -- ==== Configuration ====
 -- Put the (date-tagged) logfile name in the 'inputfile' substitution variable.
 -- !x! SUB inputfile logs/errors_!!$date_tag!!
@@ -144,191 +141,41 @@ a substitution variable that is defined by *execsql* itself rather than by the u
 drop table if exists staging.errorlog cascade;
 ```
 
-The IMPORT metacommand reads the specified file and loads the data into
-the target (staging) table, automatically choosing appropriate data types
-for each column. The EXPORT metacommand saves the data in a CSV file
-that can be used by other applications. The PROMPT metacommand produces
-a GUI display of the data as follows:
+The `PROMPT` metacommand produces a GUI display of the data:
 
-![PROMPT display of 'fatals' view](https://execsql.readthedocs.io/en/latest/_images/fatals.png)
+![PROMPT display of 'fatals' view](https://execsql2.readthedocs.io/en/latest/images/fatals.png)
 
-The complete documentation includes additional examples.
+# Formatting Scripts
 
-# Requirements
+The `execsql-format` command normalizes execsql script files: it uppercases metacommand keywords, corrects block indentation, and optionally reformats SQL via sqlglot. It is installed automatically with the `execsql2` package.
 
-The *execsql* program uses third-party Python libraries to communicate with
-different database and spreadsheet software. These libraries must be
-installed to use those programs with *execsql*. Only those libraries that
-are needed, based on the command line arguments and metacommands, must
-be installed. The libraries required for each database or spreadsheet
-application are:
+```bash
+# Format files in place
+execsql-format --in-place scripts/
 
-- PostgreSQL: psycopg2.
-- MariaDB or MySQL: pymysql.
-- SQL Server: pyodbc.
-- DuckDB: duckdb.
-- Firebird: fdb.
-- MS-Access: pyodbc and pywin32.
-- Oracle: cx-Oracle.
-- DSN connections: pyodbc.
-- OpenDocument spreadsheets: odfpy.
-- Excel spreadsheets (read only): xlrd and openpyxl.
-
-Connections to SQLite databases are made using Python's standard library,
-so no additional software is needed.
-
-If the Jinja template processor will be used, the `Jinja2` library must
-also be installed (or install `execsql2[jinja]`).
-
-All of these libraries can be installed from the Python Package Index (PyPI)
-using *pip*.
-
-# Syntax and Options
-
-Different forms of command lines, with varying arguments and options, are shown below.
-
-## Commands
-
-```
-    execsql.py -ta [other options] sql_script_file Access_db
-
-    execsql.py -tf [other options] sql_script_file Firebird_host Firebird_db
-
-    execsql.py -tm [other options] sql_script_file MySQL_host MySQL_db
-
-    execsql.py -tp [other options] sql_script_file Postgres_host Postgres_db
-
-    execsql.py -ts [other options] sql_script_file SQL_Server_host SQL_Server_db
-
-    execsql.py -to [other options] sql_script_file Oracle_host Oracle_service
-
-    execsql.py -tl [other options] sql_script_file SQLite_db
-
-    execsql.py -tl [other options] sql_script_file DuckDB_db
-
-    execsql.py -tl [other options] sql_script_file DSN_name
+# Check formatting without writing (useful in CI)
+execsql-format --check scripts/
 ```
 
-Most arguments and options can also be specified in a configuration file, so
-only the script file name need be specified on the command line.
+See the [formatter documentation](https://execsql2.readthedocs.io/en/latest/formatter/) for all options.
 
-```
-    execsql.py sql_script_file
-```
+# Templates
 
-## Command-line Arguments
+The `templates/` directory in this repository includes ready-to-use execsql scripts:
 
-```
-     sql_script_file   The name of a text file of SQL commands to be executed. Required argument.
+- **Upsert scripts** (`pg_upsert.sql`, `md_upsert.sql`, `ss_upsert.sql`): Perform merge/upsert operations on multiple tables simultaneously, respecting foreign key order, for PostgreSQL, MySQL/MariaDB, and SQL Server.
+- **Comparison scripts** (`pg_compare.sql`, `md_compare.sql`, `ss_compare.sql`): Compare staging and base tables across multiple dimensions.
+- **Glossary scripts** (`pg_glossary.sql`, `md_glossary.sql`, `ss_glossary.sql`): Produce a glossary of column names and definitions to accompany a database export.
+- **`script_template.sql`**: A framework for new scripts with sections for configuration, logging, and error reporting.
+- **`execsql.conf`**: An annotated configuration file covering all available settings.
 
-     Access_db         The name of the Access database against which to run the SQL.
+# Documentation
 
-     DSN_name          The data set name for an ODBC connection.
-
-     Firebird_db       The name of the Firebird database against which to run the SQL.
-
-     Firebird_host     The name of the Firebird host (server) against which to run the SQL.
-
-     MySQL_db          The name of the MySQL database against which to run the SQL.
-
-     MySQL_host        The name of the MySQL host (server) against which to run the SQL.
-
-     Oracle_host       The name of the Oracle host (server) against which to run the SQL.
-
-     Oracle_service    The Oracle service name (database) against which to run the SQL.
-
-     Postgres_db       The name of the Postgres database against which to run the SQL.
-
-     Postgres_host     The name of the Postgres host (server) against which to run the SQL.
-
-     SQL_Server_db     The name of the SQL Server database against which to run the SQL.
-
-     SQL_Server_host   The name of the SQL Server host (server) against which to run the SQL.
-
-     SQLite_db         The name of the SQLite database against which to run the SQL.
-
-     DuckDB_db         The name of the DuckDB database against which to run the SQL.
-```
-
-## Command-line Options
-
-```
-    -a value        Define the replacement for a substitution variable $ARG_x.
-    -d value        Automatically make directories used by the  EXPORT
-                    metacommand: 'n'-no (default); 'y'-yes.
-    -e value        Character encoding of the database. Only used for some
-                      database types.
-    -f value        Character encoding of the script file.
-    -g value        Character encoding to use for output of the WRITE and EXPORT
-                    metacommands.
-    -i value        Character encoding to use for data files imported with the
-                    IMPORT metacommand.
-    -l              Use execsql.log in the user's home directory.
-    -m              Display the allowable metacommands, and exit.
-    -p value        The port number to use for client-server databases.
-    -s value        The number of lines of an IMPORTed file to scan to diagnose
-                    the quote and delimiter characters.
-    -t value        Type of database:
-                          'p'-Postgres,
-                          'f'-Firebird,
-                          'l'-SQLite,
-                          'k'-DuckDB,
-                          'm'-MySQL or MariaDB,
-                          'a'-Access,
-                          's'-SQL Server,
-                          'o'-Oracle,
-                          'd'-DSN connection.
-    -u value        The database user name (optional).
-    -v value        Use a GUI for interactive prompts.
-    -w              Do not prompt for the password when the user is specified.
-    -y              List all valid character encodings and exit.
-    -z value        Buffer size, in kb, to use with the IMPORT metacommand
-                    (the default is 32).
-```
-
-# Documentation, Tools, and Templates
-
-Complete documentation is at [Read the Docs](https://execsql.readthedocs.io/)
-
-Tools that are installed with *execsql*, that illustrate various uses, and that are useful in their
-own right, are:
-
-- Upsert scripts): A set of *execsql* scripts for
-    Postgres, MariaDB/MySQL, and SQL Server that will perform a merge (upsert) operation
-    on multiple tables simultaneously, automatically ordering the tables according to
-    foreign key constraints, and performing null, primary key, and foreign key data
-    integrity checks. These scripts use the *information_schema* views and so operate
-    on any set of tables in any supported DBMS without customization.
-- Staging table comparison scripts: A set of *execsql*
-    scripts for Postgres, MariaDB/MySQL, and SQL Server that will perform various comparisons
-    of the data in a staging table to the data in the corresponding base table. These scripts
-    use the *information_schema* views and so operate on any table in any supported DBMS
-    without customization.
-- Glossary creation script: An *execsql* script that
-    will produce a table of terms (e.g., column names) and definitions, and that may be useful
-    to accompany a database export.
-
-The set of script templates that are also installed include several types of templates that may be useful in conjunction with *execsql.py*. These are:
-
-- *execsql.conf*: An annotated version of the configuration file that includes all
-    configuration settings and notes on their usage.
-- *script_template.sql*: A framework for SQL scripts that make use of several *execsql*
-    features. It includes sections for custom configuration settings, custom logfile creation,
-    and reporting of unexpected script exits (through user cancellation or errors).
-- *config_settings.sqlite* and *example_config_prompt.sql*: A SQLite database containing
-    specifications for all settings configurable with the CONFIG metacommand, in the form
-    used by the PROMPT ENTRY_FORM metacommand, and a SQL script illustrating how this database can be used to prompt the user for some or all of the configuration settings.
+Full documentation, including a complete metacommand reference and 30+ examples, is at [execsql2.readthedocs.io](https://execsql2.readthedocs.io/).
 
 # Copyright and License
 
 Copyright (c) 2007-2025 R.Dreas Nielsen
 Copyright (c) 2026-present Caleb Grant
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either version 3 of the License, or (at your option) any later
-version. This program is distributed in the hope that it will be useful, but
-WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
-details. The GNU General Public License is available at
-<http://www.gnu.org/licenses/>.
+This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version. This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the [GNU General Public License](http://www.gnu.org/licenses/) for more details.

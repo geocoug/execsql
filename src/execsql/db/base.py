@@ -381,6 +381,7 @@ class Database:
         rows = iter(rowsource)
         curs = self.cursor()
         eof = False
+        total_rows = 0
         while True:
             b = []
             for _j in range(_state.conf.import_row_buffer):
@@ -454,8 +455,18 @@ class Database:
                         exception_msg=exception_desc(),
                         other_msg=f"Can't load data into table {sq_name} of {self.name()} from line {{{line}}}",
                     )
+                total_rows += len(b)
+                interval = _state.conf.import_progress_interval
+                if _state.exec_log and interval > 0 and total_rows % interval == 0:
+                    _state.exec_log.log_status_info(
+                        f"IMPORT into {sq_name}: {total_rows} rows imported so far.",
+                    )
             if eof:
                 break
+        if _state.exec_log:
+            _state.exec_log.log_status_info(
+                f"IMPORT into {sq_name} complete: {total_rows} rows imported.",
+            )
 
     def import_tabular_file(
         self,

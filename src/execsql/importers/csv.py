@@ -9,7 +9,7 @@ a delimited file), used by the ``IMPORT`` metacommand with ``FORMAT csv``,
 ``FORMAT tsv``, and ``FORMAT txt``.
 """
 
-import os
+from pathlib import Path
 from typing import Any
 
 from execsql.exceptions import ErrInfo
@@ -33,7 +33,7 @@ def importtable(
     from execsql.utils.errors import exception_info
 
     conf = _state.conf
-    if not os.path.isfile(filename):
+    if not Path(filename).is_file():
         raise ErrInfo(type="error", other_msg=f"Non-existent file ({filename}) used with the IMPORT metacommand")
     enc = encoding if encoding else conf.import_encoding
 

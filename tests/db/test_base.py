@@ -12,6 +12,7 @@ deferred to integration tests.  Here we test:
 
 from __future__ import annotations
 
+import sqlite3
 from types import SimpleNamespace
 
 import pytest
@@ -386,8 +387,8 @@ class TestDatabaseDeeperMethods:
         db.execute("CREATE TABLE droptarget (id INTEGER);")
         db.execute("INSERT INTO droptarget VALUES (1);")
         db.drop_table("droptarget")
-        # Table should no longer exist
-        with pytest.raises(ErrInfo):
+        # Table should no longer exist; select_data re-raises the raw driver exception
+        with pytest.raises(sqlite3.OperationalError):
             db.select_data("SELECT * FROM droptarget;")
 
     def test_table_columns_returns_column_names(self, db):

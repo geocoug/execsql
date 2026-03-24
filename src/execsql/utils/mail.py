@@ -10,8 +10,8 @@ which compose and send email via SMTP using settings from
 metacommand and the halt/cancel email-notification hooks.
 """
 
-import os
 import re
+from pathlib import Path
 
 import execsql.state as _state
 from execsql.exceptions import ErrInfo
@@ -104,7 +104,7 @@ class Mailer:
                 fdata = MIMEBase("application", "octet-stream")
                 fdata.set_payload(f.read())
             encoders.encode_base64(fdata)
-            fdata.add_header("Content-Disposition", "attachment", filename=os.path.basename(attach_filename))
+            fdata.add_header("Content-Disposition", "attachment", filename=Path(attach_filename).name)
             msg.attach(fdata)
         self.smtpconn.sendmail(send_from, recipients, msg.as_string())
 

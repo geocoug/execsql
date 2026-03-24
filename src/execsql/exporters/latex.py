@@ -10,6 +10,7 @@ set to a LaTeX ``tabular`` environment suitable for inclusion in a
 
 import os
 import tempfile
+from pathlib import Path
 from typing import Any
 
 from execsql.exceptions import ErrInfo
@@ -66,7 +67,7 @@ def export_latex(
         if outfile.lower() != "stdout":
             f.close()
     else:
-        if outfile.lower() == "stdout" or not os.path.isfile(outfile):
+        if outfile.lower() == "stdout" or not Path(outfile).is_file():
             if outfile.lower() == "stdout":
                 import sys
 

@@ -50,9 +50,9 @@ Key functions:
 import copy
 import datetime
 import os
-import os.path
 import re
 import uuid
+from pathlib import Path
 from typing import Any
 
 import execsql.state as _state
@@ -420,7 +420,6 @@ class MetaCommand:
         run_when_false: bool = False,
         set_error_flag: bool = True,
     ) -> None:
-        self.next_node = None
         self.rx = rx
         self.exec_fn = exec_func
         self.description = description
@@ -467,19 +466,19 @@ class MetaCommand:
 
 
 class MetaCommandList:
-    # The head node for a linked list of MetaCommand objects.
+    """Ordered list of :class:`MetaCommand` entries.
+
+    Commands are stored with the most-recently-added entry first, matching
+    the original linked-list prepend semantics. ``eval()`` and ``get_match()``
+    scan the list linearly; the move-to-front heuristic from the original
+    implementation has been removed for predictable, stable ordering.
+    """
+
     def __init__(self) -> None:
-        self.next_node = None
+        self._commands: list[MetaCommand] = []
 
     def __iter__(self) -> Any:
-        n1 = self.next_node
-        while n1 is not None:
-            yield n1
-            n1 = n1.next_node
-
-    def insert_node(self, new_node: MetaCommand) -> None:
-        new_node.next_node = self.next_node
-        self.next_node = new_node
+        return iter(self._commands)
 
     def add(
         self,
@@ -491,39 +490,37 @@ class MetaCommandList:
         set_error_flag: bool = True,
     ) -> None:
         if type(matching_regexes) in (tuple, list):
-            self.regexes = [re.compile(rx, re.I) for rx in tuple(matching_regexes)]
+            regexes = [re.compile(rx, re.I) for rx in tuple(matching_regexes)]
         else:
-            self.regexes = [re.compile(matching_regexes, re.I)]
-        for rx in self.regexes:
-            self.insert_node(MetaCommand(rx, exec_func, description, run_in_batch, run_when_false, set_error_flag))
+            regexes = [re.compile(matching_regexes, re.I)]
+        for rx in regexes:
+            # Prepend to preserve "last registered, first checked" ordering.
+            self._commands.insert(
+                0,
+                MetaCommand(rx, exec_func, description, run_in_batch, run_when_false, set_error_flag),
+            )
 
     def eval(self, cmd_str: str) -> tuple:
-        # Evaluates the given metacommand string.
-        n1 = self
-        node_no = 0
-        while n1 is not None:
-            n2 = n1.next_node
-            if n2 is not None:
-                node_no += 1
-                if _state.if_stack.all_true() or n2.run_when_false:
-                    success, value = n2.run(cmd_str)
-                    if success:
-                        # Move n2 to the head of the list.
-                        n1.next_node = n2.next_node
-                        n2.next_node = self.next_node
-                        self.next_node = n2
-                        return True, value
-            n1 = n2
+        """Evaluate *cmd_str* against the registered metacommands.
+
+        Returns ``(True, return_value)`` if a matching command was found and
+        run, ``(False, None)`` if no command matched.
+        """
+        for cmd in self._commands:
+            if _state.if_stack.all_true() or cmd.run_when_false:
+                success, value = cmd.run(cmd_str)
+                if success:
+                    return True, value
         return False, None
 
     def get_match(self, cmd: str) -> tuple | None:
-        # Tries to match the command to any MetaCommand.
-        n1 = self.next_node
-        while n1 is not None:
-            m = n1.rx.match(cmd.strip())
+        """Return ``(MetaCommand, re.Match)`` for the first entry matching *cmd*,
+        or ``None`` if no entry matches.
+        """
+        for node in self._commands:
+            m = node.rx.match(cmd.strip())
             if m is not None:
-                return (n1, m)
-            n1 = n1.next_node
+                return (node, m)
         return None
 
 
@@ -725,9 +722,9 @@ class CommandList:
             _state.subvars.add_substitution("$CURRENT_SCRIPT", cmditem.source)
             _state.subvars.add_substitution(
                 "$CURRENT_SCRIPT_PATH",
-                os.path.dirname(os.path.abspath(cmditem.source)) + os.sep,
+                str(Path(cmditem.source).resolve().parent) + os.sep,
             )
-            _state.subvars.add_substitution("$CURRENT_SCRIPT_NAME", os.path.basename(cmditem.source))
+            _state.subvars.add_substitution("$CURRENT_SCRIPT_NAME", Path(cmditem.source).name)
             _state.subvars.add_substitution("$CURRENT_SCRIPT_LINE", str(cmditem.line_no))
             _state.subvars.add_substitution("$SCRIPT_LINE", str(cmditem.line_no))
             cmditem.command.run(self.localvars.merge(self.paramvals), not _state.status.batch.in_batch())
@@ -896,8 +893,8 @@ def set_system_vars() -> None:
     )
     _state.subvars.add_substitution("$CONSOLE_WAIT_WHEN_DONE_STATE", "ON" if _state.conf.gui_wait_on_exit else "OFF")
     _state.subvars.add_substitution("$CURRENT_TIME", datetime.datetime.now().strftime("%Y-%m-%d %H:%M"))
-    _state.subvars.add_substitution("$CURRENT_DIR", os.path.abspath(os.path.curdir))
-    _state.subvars.add_substitution("$CURRENT_PATH", os.path.abspath(os.path.curdir) + os.sep)
+    _state.subvars.add_substitution("$CURRENT_DIR", str(Path(".").resolve()))
+    _state.subvars.add_substitution("$CURRENT_PATH", str(Path(".").resolve()) + os.sep)
     _state.subvars.add_substitution("$CURRENT_ALIAS", _state.dbs.current_alias())
     db = _state.dbs.current()
     _state.subvars.add_substitution("$AUTOCOMMIT_STATE", "ON" if db.autocommit else "OFF")
@@ -1132,7 +1129,7 @@ def read_sqlfile(sql_file_name: str) -> None:
     scriptfile_obj = ScriptFile(sql_file_name, _state.conf.script_encoding).open("r")
     sqllist = _parse_script_lines(scriptfile_obj, sql_file_name)
     if sqllist:
-        _state.commandliststack.append(CommandList(sqllist, os.path.basename(sql_file_name)))
+        _state.commandliststack.append(CommandList(sqllist, Path(sql_file_name).name))
 
 
 def read_sqlstring(content: str, source_name: str = "<inline>") -> None:

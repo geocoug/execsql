@@ -126,3 +126,16 @@ class TestWriteQueryToSqlite:
         db = ErrorDB()
         with pytest.raises(ErrInfo):
             write_query_to_sqlite("SELECT 1", db, out, append=False, tablename="t")
+
+    def test_errinfo_from_db_is_reraised(self, tmp_path):
+        """ErrInfo raised by select_rowsource must propagate unchanged (line 77)."""
+        out = str(tmp_path / "out.db")
+        original = ErrInfo(type="db", exception_msg="original error")
+
+        class ErrInfoDB:
+            def select_rowsource(self, sql):
+                raise original
+
+        with pytest.raises(ErrInfo) as exc_info:
+            write_query_to_sqlite("SELECT 1", ErrInfoDB(), out, append=False, tablename="t")
+        assert exc_info.value is original

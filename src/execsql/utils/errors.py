@@ -19,6 +19,7 @@ import os
 import sys
 import time
 import traceback
+from pathlib import Path
 from typing import Any
 
 import execsql.state as _state
@@ -144,7 +145,7 @@ def write_warning(warning_msg: str) -> None:
 
 def file_size_date(filename: str) -> tuple:
     # Returns the file size and date (as string) of the given file.
-    s_file = os.path.abspath(filename)
+    s_file = str(Path(filename).resolve())
     f_stat = os.stat(s_file)
     return f_stat.st_size, time.strftime("%Y-%m-%d %H:%M", time.gmtime(f_stat.st_mtime))
 

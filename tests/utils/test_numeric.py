@@ -28,6 +28,7 @@ class TestLeadingZeroNum:
             ("", False),
             ("a", False),  # non-numeric after stripping "0" prefix
             ("0a", False),  # can't parse remainder as float
+            ("00x", False),  # double-zero prefix, non-numeric remainder
         ],
     )
     def test_leading_zero_num(self, val, expected):

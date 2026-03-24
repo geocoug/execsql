@@ -12,6 +12,7 @@ import getpass
 import os
 import sys
 import traceback
+from pathlib import Path
 from encodings.aliases import aliases as codec_dict
 
 import typer
@@ -348,6 +349,32 @@ def main(
             "Use shell [cyan]$'line1\\nline2'[/cyan] syntax for multi-line scripts."
         ),
     ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help=("Parse the script and print the command list without connecting to a database or executing anything."),
+    ),
+    dsn: str | None = typer.Option(
+        None,
+        "--dsn",
+        "--connection-string",
+        metavar="URL",
+        help=(
+            "Database connection URL, e.g. [cyan]postgresql://user:pass@host:5432/db[/cyan]. "
+            "Supported schemes: postgresql, mysql, mssql, oracle, firebird, sqlite, duckdb. "
+            "Overrides [cyan]-t[/cyan]/[cyan]-u[/cyan]/[cyan]-p[/cyan] and positional server/db args."
+        ),
+    ),
+    output_dir: str | None = typer.Option(
+        None,
+        "--output-dir",
+        metavar="DIR",
+        help=(
+            "Default base directory for EXPORT output files. "
+            "Relative paths in EXPORT metacommands are joined to this directory. "
+            "Absolute paths and [cyan]stdout[/cyan] are unaffected."
+        ),
+    ),
     version: bool | None = typer.Option(
         None,
         "--version",
@@ -393,7 +420,7 @@ def main(
             )
             raise typer.Exit(code=1)
         script_name = positional[0]
-        if not os.path.exists(script_name):
+        if not Path(script_name).exists():
             _err_console.print(
                 f'[bold red]Error:[/bold red] SQL script file [cyan]"{script_name}"[/cyan] does not exist.',
             )
@@ -452,7 +479,115 @@ def main(
         import_buffer=import_buffer,
         script_name=script_name,
         command=command,
+        dry_run=dry_run,
+        dsn=dsn,
+        output_dir=output_dir,
     )
+
+
+# ---------------------------------------------------------------------------
+# Connection-string parser
+# ---------------------------------------------------------------------------
+
+#: Mapping from URL scheme → execsql db_type code
+_SCHEME_TO_DBTYPE: dict[str, str] = {
+    "postgresql": "p",
+    "postgres": "p",
+    "mysql": "m",
+    "mariadb": "m",
+    "mssql": "s",
+    "sqlserver": "s",
+    "oracle": "o",
+    "oracle+cx_oracle": "o",
+    "firebird": "f",
+    "sqlite": "l",
+    "duckdb": "k",
+}
+
+
+def _parse_connection_string(dsn: str) -> dict:
+    """Parse a database URL into a dict of connection parameters.
+
+    Supports the common form::
+
+        scheme://[user[:password]@][host[:port]]/database
+
+    For file-based databases (SQLite, DuckDB) the path after ``//`` is
+    treated as the database file path::
+
+        sqlite:///path/to/file.db   → db_file = /path/to/file.db
+        duckdb:///path/to/file.db   → db_file = /path/to/file.db
+
+    Returns a dict with keys: ``db_type``, ``server``, ``db``, ``db_file``,
+    ``user``, ``password``, ``port``.  Absent components are ``None``.
+
+    Raises :class:`~execsql.exceptions.ConfigError` for an unrecognised
+    URL scheme or a completely un-parseable string.
+    """
+    from urllib.parse import urlparse
+
+    parsed = urlparse(dsn)
+    scheme = parsed.scheme.lower()
+    if not scheme:
+        raise ConfigError(f"Cannot parse connection string (no scheme): {dsn!r}")
+    if scheme not in _SCHEME_TO_DBTYPE:
+        raise ConfigError(
+            f"Unrecognised connection-string scheme {scheme!r}. "
+            f"Supported schemes: {', '.join(sorted(_SCHEME_TO_DBTYPE))}",
+        )
+
+    db_type = _SCHEME_TO_DBTYPE[scheme]
+    port: int | None = parsed.port
+    server: str | None = parsed.hostname or None
+    user: str | None = parsed.username or None
+    password: str | None = parsed.password or None
+
+    # Database / file path
+    # urlparse puts the path in parsed.path.  For three-slash URIs like
+    # sqlite:///foo.db the path starts with "/"; strip exactly one leading
+    # slash for relative paths (sqlite:///foo.db → foo.db) and leave
+    # absolute paths intact (sqlite:////abs/path → /abs/path).
+    raw_path = parsed.path
+    if db_type in ("l", "k", "a"):
+        # File-based: no server component
+        if raw_path.startswith("/") and not raw_path.startswith("//"):
+            db_file: str | None = raw_path[1:] or None
+        else:
+            db_file = raw_path or None
+        db: str | None = None
+    else:
+        db_file = None
+        # Remove leading "/"
+        db = raw_path.lstrip("/") or None
+
+    return {
+        "db_type": db_type,
+        "server": server,
+        "db": db,
+        "db_file": db_file,
+        "user": user,
+        "password": password,
+        "port": port,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Dry-run helper
+# ---------------------------------------------------------------------------
+
+
+def _print_dry_run(cmdlist: object) -> None:
+    """Print the parsed command list for --dry-run mode."""
+    if cmdlist is None or not cmdlist.cmdlist:
+        _console.print("[yellow]No commands found in script.[/yellow]")
+        return
+    n = len(cmdlist.cmdlist)
+    _console.print(f"[bold cyan]Dry Run[/bold cyan] — [dim]{n} command(s) parsed[/dim]")
+    _console.print()
+    for i, cmd in enumerate(cmdlist.cmdlist, 1):
+        ctype = "SQL    " if cmd.command_type == "sql" else "METACMD"
+        source_info = f"[dim]{cmd.source}:{cmd.line_no}[/dim]"
+        _console.print(f"  [dim]{i:>4}[/dim]  [bold green]{ctype}[/bold green]  {source_info}  {cmd.commandline()}")
 
 
 # ---------------------------------------------------------------------------
@@ -481,6 +616,9 @@ def _run(
     import_buffer: int | None = None,
     script_name: str | None = None,
     command: str | None = None,
+    dry_run: bool = False,
+    dsn: str | None = None,
+    output_dir: str | None = None,
 ) -> None:
     """Initialise state, connect to the database, load the script, and run it.
 
@@ -528,9 +666,35 @@ def _run(
     # ------------------------------------------------------------------
     # Read configuration file
     # ------------------------------------------------------------------
-    script_path = os.path.dirname(os.path.abspath(script_name)) if script_name else os.getcwd()
+    script_path = str(Path(script_name).resolve().parent) if script_name else os.getcwd()
     _state.conf = ConfigData(script_path, _state.subvars)
     conf = _state.conf
+
+    # ------------------------------------------------------------------
+    # Connection string (--dsn / --connection-string): overrides -t/-u/-p
+    # and positional server/db args when provided.
+    # ------------------------------------------------------------------
+    if dsn:
+        try:
+            parsed_dsn = _parse_connection_string(dsn)
+        except ConfigError as exc:
+            _err_console.print(f"[bold red]Error:[/bold red] {exc}")
+            raise SystemExit(1)
+        db_type = db_type or parsed_dsn["db_type"]
+        conf.db_type = db_type
+        if parsed_dsn["server"] and not conf.server:
+            conf.server = parsed_dsn["server"]
+        if parsed_dsn["db"] and not conf.db:
+            conf.db = parsed_dsn["db"]
+        if parsed_dsn["db_file"] and not conf.db_file:
+            conf.db_file = parsed_dsn["db_file"]
+        if parsed_dsn["user"] and not user:
+            user = parsed_dsn["user"]
+        if parsed_dsn["password"]:
+            conf.db_password = parsed_dsn["password"]
+            conf.passwd_prompt = False
+        if parsed_dsn["port"] and not port:
+            port = parsed_dsn["port"]
 
     # Apply CLI options over config-file values
     if user:
@@ -581,6 +745,8 @@ def _run(
         conf.access_username = user
     if new_db:
         conf.new_db = True
+    if output_dir:
+        conf.export_output_dir = str(Path(output_dir).resolve())
 
     # Positional arguments after the script name (or all positionals in inline mode)
     # off=1: script file occupies positional[0]; connection args start at [1]
@@ -611,7 +777,7 @@ def _run(
 
     if script_name is not None:
         _state.subvars.add_substitution("$STARTING_SCRIPT", script_name)
-        _state.subvars.add_substitution("$STARTING_SCRIPT_NAME", os.path.basename(script_name))
+        _state.subvars.add_substitution("$STARTING_SCRIPT_NAME", Path(script_name).name)
         _state.subvars.add_substitution("$STARTING_SCRIPT_REVTIME", file_size_date(script_name)[1])
     else:
         _state.subvars.add_substitution("$STARTING_SCRIPT", "<inline>")
@@ -707,6 +873,13 @@ def _run(
         read_sqlfile(script_name)
 
     # ------------------------------------------------------------------
+    # Dry-run: print command list and exit without connecting to DB
+    # ------------------------------------------------------------------
+    if dry_run:
+        _print_dry_run(_state.commandliststack[-1] if _state.commandliststack else None)
+        raise SystemExit(0)
+
+    # ------------------------------------------------------------------
     # Start GUI console if requested
     # ------------------------------------------------------------------
     if conf.gui_level > 2:
@@ -787,7 +960,7 @@ def _execute_script_textual_console(conf: ConfigData) -> None:
         else:
             strace = traceback.extract_tb(exc.__traceback__)[-1:]
             lno = strace[0][1] if strace else "?"
-            msg = f"{os.path.basename(sys.argv[0])}: Uncaught exception {type(exc)} ({exc}) on line {lno}"
+            msg = f"{Path(sys.argv[0]).name}: Uncaught exception {type(exc)} ({exc}) on line {lno}"
             script, slno = current_script_line()
             if script is not None:
                 msg += f" in script {script}, line {slno}"
@@ -836,10 +1009,7 @@ def _execute_script_direct(conf: ConfigData) -> None:
     except Exception:
         strace = traceback.extract_tb(sys.exc_info()[2])[-1:]
         lno = strace[0][1]
-        msg = (
-            f"{os.path.basename(sys.argv[0])}: Uncaught exception "
-            f"{sys.exc_info()[0]} ({sys.exc_info()[1]}) on line {lno}"
-        )
+        msg = f"{Path(sys.argv[0]).name}: Uncaught exception {sys.exc_info()[0]} ({sys.exc_info()[1]}) on line {lno}"
         script, slno = current_script_line()
         if script is not None:
             msg += f" in script {script}, line {slno}"
@@ -897,6 +1067,7 @@ def _connect_initial_db(conf: ConfigData):
             port=conf.port,
             encoding=conf.db_encoding,
             new_db=conf.new_db,
+            password=getattr(conf, "db_password", None),
         )
     elif conf.db_type == "s":
         return db_SqlServer(
@@ -981,10 +1152,7 @@ def _legacy_main() -> None:
     except Exception:
         strace = traceback.extract_tb(sys.exc_info()[2])[-1:]
         lno = strace[0][1]
-        msg = (
-            f"{os.path.basename(sys.argv[0])}: Uncaught exception "
-            f"{sys.exc_info()[0]} ({sys.exc_info()[1]}) on line {lno}"
-        )
+        msg = f"{Path(sys.argv[0]).name}: Uncaught exception {sys.exc_info()[0]} ({sys.exc_info()[1]}) on line {lno}"
         from execsql.utils.errors import exit_now
 
         exit_now(1, ErrInfo("exception", exception_msg=msg))

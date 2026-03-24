@@ -3,6 +3,7 @@
 from __future__ import annotations
 from unittest.mock import patch
 
+import pytest
 from typer.testing import CliRunner
 
 from execsql.cli import app
@@ -92,6 +93,20 @@ class TestErrorHandling:
         script.write_text("-- nothing")
         result = invoke("-b", "x", str(script))
         assert result.exit_code != 0
+
+    def test_invalid_gui_framework_exits_nonzero(self, tmp_path):
+        script = tmp_path / "s.sql"
+        script.write_text("-- nothing")
+        result = invoke("--gui-framework", "qt", str(script))
+        assert result.exit_code != 0
+
+    def test_online_help_flag(self):
+        from unittest.mock import patch
+
+        with patch("webbrowser.open") as mock_open:
+            result = invoke("-o", "dummy.sql")
+        assert result.exit_code == 0
+        mock_open.assert_called_once()
 
 
 # ---------------------------------------------------------------------------
@@ -187,6 +202,12 @@ class TestOptionParsing:
     def test_database_encoding_flag(self, tmp_path):
         assert self._parse_exits_cleanly("-e", "utf8", self._script(tmp_path))
 
+    def test_output_dir_flag(self, tmp_path):
+        assert self._parse_exits_cleanly("--output-dir", str(tmp_path), self._script(tmp_path))
+
+    def test_dsn_flag(self, tmp_path):
+        assert self._parse_exits_cleanly("--dsn", "postgresql://user@host/db", self._script(tmp_path))
+
 
 # ---------------------------------------------------------------------------
 # Positional argument handling
@@ -253,3 +274,205 @@ class TestRichOutput:
         assert result.exit_code == 1
         combined = result.output + (result.stderr or "")
         assert "not_a_real_file.sql" in combined or "does not exist" in combined
+
+
+# ---------------------------------------------------------------------------
+# Dry-run mode
+# ---------------------------------------------------------------------------
+
+
+class TestDryRun:
+    """Tests for the --dry-run flag.
+
+    --dry-run parses the script and prints the command list without
+    connecting to a database or executing anything.
+    """
+
+    def test_dry_run_sql_script_exits_zero(self, tmp_path):
+        script = tmp_path / "test.sql"
+        script.write_text("SELECT 1;\n")
+        result = runner.invoke(app, ["--dry-run", str(script)], catch_exceptions=False)
+        assert result.exit_code == 0
+
+    def test_dry_run_shows_sql_commands(self, tmp_path):
+        script = tmp_path / "test.sql"
+        script.write_text("SELECT 1;\nSELECT 2;\n")
+        result = runner.invoke(app, ["--dry-run", str(script)], catch_exceptions=False)
+        assert result.exit_code == 0
+        assert "SQL" in result.output
+
+    def test_dry_run_shows_metacommands(self, tmp_path):
+        script = tmp_path / "test.sql"
+        script.write_text('-- !x! WRITE "hello"\n')
+        result = runner.invoke(app, ["--dry-run", str(script)], catch_exceptions=False)
+        assert result.exit_code == 0
+        assert "METACMD" in result.output
+
+    def test_dry_run_does_not_require_db_credentials(self, tmp_path):
+        """--dry-run must work without specifying any database connection info."""
+        script = tmp_path / "test.sql"
+        script.write_text("SELECT 1;\n")
+        # No -t, no server, no db_file — would normally fail at the connection step
+        result = runner.invoke(app, ["--dry-run", str(script)], catch_exceptions=False)
+        assert result.exit_code == 0
+
+    def test_dry_run_with_inline_command(self):
+        result = runner.invoke(
+            app,
+            ["--dry-run", "-c", "SELECT 1;"],
+            catch_exceptions=False,
+        )
+        assert result.exit_code == 0
+        assert "SQL" in result.output
+
+    def test_dry_run_shows_header(self, tmp_path):
+        script = tmp_path / "test.sql"
+        script.write_text("SELECT 1;\n")
+        result = runner.invoke(app, ["--dry-run", str(script)], catch_exceptions=False)
+        assert "Dry Run" in result.output
+        assert "command" in result.output.lower()
+
+    def test_dry_run_empty_script_shows_message(self, tmp_path):
+        """A script with only comments produces no commands — print the 'no commands' message."""
+        script = tmp_path / "empty.sql"
+        script.write_text("-- just a comment\n")
+        result = runner.invoke(app, ["--dry-run", str(script)], catch_exceptions=False)
+        assert result.exit_code == 0
+        assert "No commands found" in result.output
+
+    def test_dry_run_with_dsn_populates_db_type(self, tmp_path):
+        """--dsn with --dry-run processes the DSN block without connecting to the DB."""
+        script = tmp_path / "test.sql"
+        script.write_text("SELECT 1;\n")
+        result = runner.invoke(
+            app,
+            ["--dry-run", "--dsn", "postgresql://user@localhost/mydb", str(script)],
+            catch_exceptions=False,
+        )
+        assert result.exit_code == 0
+
+    def test_dry_run_with_dsn_sqlite(self, tmp_path):
+        """--dsn with sqlite:/// and --dry-run sets file-based db_type."""
+        script = tmp_path / "test.sql"
+        script.write_text("SELECT 1;\n")
+        result = runner.invoke(
+            app,
+            ["--dry-run", "--dsn", "sqlite:///myfile.db", str(script)],
+            catch_exceptions=False,
+        )
+        assert result.exit_code == 0
+
+    def test_dry_run_dsn_invalid_scheme_exits_one(self, tmp_path):
+        """An unrecognised --dsn scheme exits with code 1."""
+        script = tmp_path / "test.sql"
+        script.write_text("SELECT 1;\n")
+        result = runner.invoke(
+            app,
+            ["--dry-run", "--dsn", "mongodb://host/db", str(script)],
+            catch_exceptions=False,
+        )
+        assert result.exit_code == 1
+
+
+# ---------------------------------------------------------------------------
+# _parse_connection_string
+# ---------------------------------------------------------------------------
+
+
+class TestParseConnectionString:
+    """Unit tests for _parse_connection_string() helper."""
+
+    @property
+    def _fn(self):
+        from execsql.cli import _parse_connection_string
+
+        return _parse_connection_string
+
+    def test_postgresql_full_url(self):
+        r = self._fn("postgresql://alice:s3cr3t@db.example.com:5432/mydb")
+        assert r["db_type"] == "p"
+        assert r["server"] == "db.example.com"
+        assert r["db"] == "mydb"
+        assert r["user"] == "alice"
+        assert r["password"] == "s3cr3t"
+        assert r["port"] == 5432
+
+    def test_postgres_scheme_alias(self):
+        r = self._fn("postgres://host/db")
+        assert r["db_type"] == "p"
+
+    def test_mysql_scheme(self):
+        r = self._fn("mysql://host/mydb")
+        assert r["db_type"] == "m"
+
+    def test_mssql_scheme(self):
+        r = self._fn("mssql://host/mydb")
+        assert r["db_type"] == "s"
+
+    def test_oracle_scheme(self):
+        r = self._fn("oracle://host/mydb")
+        assert r["db_type"] == "o"
+
+    def test_firebird_scheme(self):
+        r = self._fn("firebird://host/mydb")
+        assert r["db_type"] == "f"
+
+    def test_sqlite_file_path(self):
+        r = self._fn("sqlite:///path/to/file.db")
+        assert r["db_type"] == "l"
+        assert r["db_file"] == "path/to/file.db"
+        assert r["server"] is None
+        assert r["db"] is None
+
+    def test_duckdb_file_path(self):
+        r = self._fn("duckdb:///myfile.duckdb")
+        assert r["db_type"] == "k"
+        assert r["db_file"] == "myfile.duckdb"
+
+    def test_no_password_returns_none(self):
+        r = self._fn("postgresql://user@host/db")
+        assert r["password"] is None
+
+    def test_no_user_returns_none(self):
+        r = self._fn("postgresql://host/db")
+        assert r["user"] is None
+
+    def test_no_port_returns_none(self):
+        r = self._fn("postgresql://host/db")
+        assert r["port"] is None
+
+    def test_unknown_scheme_raises_config_error(self):
+        from execsql.exceptions import ConfigError
+
+        with pytest.raises(ConfigError, match="Unrecognised"):
+            self._fn("mongodb://host/db")
+
+    def test_no_scheme_raises_config_error(self):
+        from execsql.exceptions import ConfigError
+
+        with pytest.raises(ConfigError, match="no scheme"):
+            self._fn("notaurl")
+
+    def test_dsn_flag_accepted_by_cli(self, tmp_path):
+        """--dsn flag is accepted at parse time without error."""
+        script = tmp_path / "s.sql"
+        script.write_text("-- empty")
+        with patch("execsql.cli._run", return_value=None):
+            result = runner.invoke(
+                app,
+                ["--dsn", "postgresql://user@host/db", str(script)],
+                catch_exceptions=False,
+            )
+        assert result.exit_code != 2, result.output
+
+    def test_connection_string_alias_accepted(self, tmp_path):
+        """--connection-string is an alias for --dsn."""
+        script = tmp_path / "s.sql"
+        script.write_text("-- empty")
+        with patch("execsql.cli._run", return_value=None):
+            result = runner.invoke(
+                app,
+                ["--connection-string", "postgresql://user@host/db", str(script)],
+                catch_exceptions=False,
+            )
+        assert result.exit_code != 2, result.output

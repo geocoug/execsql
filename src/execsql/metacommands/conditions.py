@@ -16,6 +16,7 @@ at registration time.
 
 import os
 import time
+from pathlib import Path
 from typing import Any
 from collections.abc import Callable
 
@@ -80,12 +81,12 @@ def xf_dialogcanceled(**kwargs: Any) -> bool:
 
 def xf_fileexists(**kwargs: Any) -> bool:
     filename = kwargs["filename"]
-    return os.path.isfile(filename.strip())
+    return Path(filename.strip()).is_file()
 
 
 def xf_direxists(**kwargs: Any) -> bool:
     dirname = kwargs["dirname"]
-    return os.path.isdir(dirname.strip())
+    return Path(dirname.strip()).is_dir()
 
 
 def xf_schemaexists(**kwargs: Any) -> bool:
@@ -264,9 +265,9 @@ def xf_console(**kwargs: Any) -> bool:
 def xf_newer_file(**kwargs: Any) -> bool:
     file1 = kwargs["file1"]
     file2 = kwargs["file2"]
-    if not os.path.exists(file1):
+    if not Path(file1).exists():
         raise ErrInfo(type="cmd", other_msg=f"File {file1} does not exist.")
-    if not os.path.exists(file2):
+    if not Path(file2).exists():
         raise ErrInfo(type="cmd", other_msg=f"File {file2} does not exist.")
     return os.stat(file1).st_mtime > os.stat(file2).st_mtime
 
@@ -274,7 +275,7 @@ def xf_newer_file(**kwargs: Any) -> bool:
 def xf_newer_date(**kwargs: Any) -> bool:
     file1 = kwargs["file1"]
     datestr = unquoted(kwargs["datestr"])
-    if not os.path.exists(file1):
+    if not Path(file1).exists():
         raise ErrInfo(type="cmd", other_msg=f"File {file1} does not exist.")
     dt_value = parse_datetime(datestr)
     if not dt_value:
@@ -625,7 +626,7 @@ def xcmd_test(teststr: str) -> bool:
 
 def file_size_date(filename: str) -> tuple[int, str]:
     """Returns the file size and date (as string) of the given file."""
-    s_file = os.path.abspath(filename)
+    s_file = str(Path(filename).resolve())
     f_stat = os.stat(s_file)
     return f_stat.st_size, time.strftime("%Y-%m-%d %H:%M", time.gmtime(f_stat.st_mtime))
 

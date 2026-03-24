@@ -23,6 +23,7 @@ console prompts to the user:
 
 import os
 import queue as _queue
+from pathlib import Path
 from typing import Any
 
 import execsql.state as _state
@@ -613,7 +614,7 @@ def x_prompt_savefile(**kwargs: Any) -> None:
         subvarset = _state.subvars if sub_name[0] != "~" else _state.commandliststack[-1].localvars
         subvarset.remove_substitution(sub_name)
         script, lno = current_script_line()
-        working_dir = startdir if startdir is not None else os.path.dirname(os.path.abspath(script))
+        working_dir = startdir if startdir is not None else str(Path(script).resolve().parent)
         enable_gui()
         return_queue = _queue.Queue()
         gui_args = {"working_dir": working_dir, "script": script}
@@ -635,7 +636,7 @@ def x_prompt_savefile(**kwargs: Any) -> None:
             if sub_name2 is not None:
                 subvarset2 = _state.subvars if sub_name2[0] != "~" else _state.commandliststack[-1].localvars
                 subvarset2.remove_substitution(sub_name2)
-                basefn = os.path.basename(fn)
+                basefn = Path(fn).name
                 subvarset2.add_substitution(sub_name2, basefn)
                 _state.exec_log.log_status_info(
                     f"Substitution variable {sub_name2} set to filename {basefn} at line {lno} of {script}",
@@ -643,7 +644,7 @@ def x_prompt_savefile(**kwargs: Any) -> None:
             if sub_name3 is not None:
                 subvarset3 = _state.subvars if sub_name3[0] != "~" else _state.commandliststack[-1].localvars
                 subvarset3.remove_substitution(sub_name3)
-                dirname = os.path.dirname(fn)
+                dirname = str(Path(fn).parent)
                 if os.name != "posix":
                     dirname = dirname.replace("/", "\\")
                 subvarset3.add_substitution(sub_name3, dirname)
@@ -653,7 +654,7 @@ def x_prompt_savefile(**kwargs: Any) -> None:
             if sub_name4 is not None:
                 subvarset4 = _state.subvars if sub_name4[0] != "~" else _state.commandliststack[-1].localvars
                 subvarset4.remove_substitution(sub_name4)
-                root, ext = os.path.splitext(fn)
+                ext = Path(fn).suffix
                 if ext is None:
                     subvarset4.add_substitution(sub_name4, "")
                 else:
@@ -662,9 +663,7 @@ def x_prompt_savefile(**kwargs: Any) -> None:
             if sub_name5 is not None:
                 subvarset5 = _state.subvars if sub_name5[0] != "~" else _state.commandliststack[-1].localvars
                 subvarset5.remove_substitution(sub_name5)
-                basefn = os.path.basename(fn)
-                root, ext = os.path.splitext(basefn)
-                subvarset5.add_substitution(sub_name5, root)
+                subvarset5.add_substitution(sub_name5, Path(fn).stem)
     except (ErrInfo, SystemExit):
         raise
     except Exception:
@@ -688,7 +687,7 @@ def x_prompt_openfile(**kwargs: Any) -> None:
         subvarset = _state.subvars if sub_name[0] != "~" else _state.commandliststack[-1].localvars
         subvarset.remove_substitution(sub_name)
         script, lno = current_script_line()
-        working_dir = startdir if startdir is not None else os.path.dirname(os.path.abspath(script))
+        working_dir = startdir if startdir is not None else str(Path(script).resolve().parent)
         enable_gui()
         return_queue = _queue.Queue()
         gui_args = {"working_dir": working_dir, "script": script}
@@ -710,19 +709,19 @@ def x_prompt_openfile(**kwargs: Any) -> None:
             if sub_name2 is not None:
                 subvarset2 = _state.subvars if sub_name2[0] != "~" else _state.commandliststack[-1].localvars
                 subvarset2.remove_substitution(sub_name2)
-                basefn = os.path.basename(fn)
+                basefn = Path(fn).name
                 subvarset2.add_substitution(sub_name2, basefn)
             if sub_name3 is not None:
                 subvarset3 = _state.subvars if sub_name3[0] != "~" else _state.commandliststack[-1].localvars
                 subvarset3.remove_substitution(sub_name3)
-                dirname = os.path.dirname(fn)
+                dirname = str(Path(fn).parent)
                 if os.name != "posix":
                     dirname = dirname.replace("/", "\\")
                 subvarset3.add_substitution(sub_name3, dirname)
             if sub_name4 is not None:
                 subvarset4 = _state.subvars if sub_name4[0] != "~" else _state.commandliststack[-1].localvars
                 subvarset4.remove_substitution(sub_name4)
-                root, ext = os.path.splitext(fn)
+                ext = Path(fn).suffix
                 if ext is None:
                     subvarset4.add_substitution(sub_name4, "")
                 else:
@@ -731,9 +730,7 @@ def x_prompt_openfile(**kwargs: Any) -> None:
             if sub_name5 is not None:
                 subvarset5 = _state.subvars if sub_name5[0] != "~" else _state.commandliststack[-1].localvars
                 subvarset5.remove_substitution(sub_name5)
-                basefn = os.path.basename(fn)
-                root, ext = os.path.splitext(basefn)
-                subvarset5.add_substitution(sub_name5, root)
+                subvarset5.add_substitution(sub_name5, Path(fn).stem)
     except (ErrInfo, SystemExit):
         raise
     except Exception:
@@ -749,7 +746,7 @@ def x_prompt_directory(**kwargs: Any) -> None:
         subvarset = _state.subvars if sub_name[0] != "~" else _state.commandliststack[-1].localvars
         subvarset.remove_substitution(sub_name)
         script, lno = current_script_line()
-        working_dir = startdir if startdir is not None else os.path.dirname(os.path.abspath(script))
+        working_dir = startdir if startdir is not None else str(Path(script).resolve().parent)
         enable_gui()
         return_queue = _queue.Queue()
         gui_args = {"working_dir": working_dir, "script": script}
@@ -763,7 +760,7 @@ def x_prompt_directory(**kwargs: Any) -> None:
                 exit_now(2, None)
         else:
             if fullpath is not None:
-                dirname = os.path.abspath(dirname)
+                dirname = str(Path(dirname).resolve())
             if os.name != "posix":
                 dirname = dirname.replace("/", "\\")
             subvarset.add_substitution(sub_name, dirname)

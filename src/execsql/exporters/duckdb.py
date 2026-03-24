@@ -9,7 +9,7 @@ Requires the ``execsql2[duckdb]`` extra.
 """
 
 import math
-import os
+from pathlib import Path
 from typing import Any
 
 from execsql.exceptions import ErrInfo
@@ -34,10 +34,10 @@ def export_duckdb(
     from execsql.models import DataTable
 
     chunksize = 10000
-    pre_exist = os.path.isfile(outfile)
+    pre_exist = Path(outfile).is_file()
     ddb = duckdb.connect(outfile, read_only=False)
     if pre_exist:
-        catalog = os.path.splitext(os.path.split(outfile)[1])[0]
+        catalog = Path(outfile).stem
         curs = ddb.cursor()
         res = curs.execute(
             f"select count(*) as rows from information_schema.tables "

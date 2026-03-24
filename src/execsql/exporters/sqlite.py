@@ -8,7 +8,7 @@ to a table in an SQLite database file.  Used by ``EXPORT … FORMAT sqlite``.
 """
 
 import math
-import os
+from pathlib import Path
 from typing import Any
 
 from execsql.exceptions import ErrInfo
@@ -27,7 +27,7 @@ def export_sqlite(
     from execsql.models import DataTable
 
     chunksize = 10000
-    pre_exist = os.path.isfile(outfile)
+    pre_exist = Path(outfile).is_file()
     sdb = sqlite3.connect(outfile)
     if pre_exist:
         curs = sdb.cursor()

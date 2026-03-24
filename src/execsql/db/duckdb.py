@@ -8,7 +8,7 @@ analytics databases via the ``duckdb`` package.  Corresponds to ``-t k``
 on the CLI.
 """
 
-import os
+from pathlib import Path
 
 from execsql.db.base import Database
 from execsql.exceptions import ErrInfo
@@ -27,7 +27,7 @@ class DuckDBDatabase(Database):
         self.type = dbt_duckdb
         self.server_name = None
         self.db_name = DuckDB_fn
-        self.catalog_name = os.path.splitext(DuckDB_fn)[0]
+        self.catalog_name = Path(DuckDB_fn).stem
         self.user = None
         self.need_passwd = False
         self.encoding = "UTF-8"

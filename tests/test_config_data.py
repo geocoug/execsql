@@ -694,6 +694,32 @@ class TestConfigDataInput:
         with pytest.raises(ConfigError):
             _make_conf(str(tmp_path))
 
+    def test_reads_import_progress_interval(self, tmp_path):
+        _write_conf(
+            str(tmp_path),
+            """
+            [input]
+            import_progress_interval = 5000
+        """,
+        )
+        cd = _make_conf(str(tmp_path))
+        assert cd.import_progress_interval == 5000
+
+    def test_default_import_progress_interval(self, tmp_path):
+        cd = _make_conf(str(tmp_path))
+        assert cd.import_progress_interval == 0
+
+    def test_invalid_import_progress_interval_raises(self, tmp_path):
+        _write_conf(
+            str(tmp_path),
+            """
+            [input]
+            import_progress_interval = notanumber
+        """,
+        )
+        with pytest.raises(ConfigError):
+            _make_conf(str(tmp_path))
+
 
 # ---------------------------------------------------------------------------
 # Config file parsing — extended output section

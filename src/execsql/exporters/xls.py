@@ -10,7 +10,7 @@ EXPORT metacommand.  Requires the ``execsql2[excel]`` extras.
 """
 
 import datetime
-import os
+from pathlib import Path
 from typing import Any
 
 from execsql.exceptions import XlsFileError, XlsxFileError
@@ -44,7 +44,7 @@ class XlsFile:
         self.filename = filename
         self.encoding = encoding
         self.read_only = read_only
-        if os.path.isfile(filename):
+        if Path(filename).is_file():
             # The 'read_only' argument is not used, but is present for compatibility with XlsxFile.open().
             self.wbk = xlrd.open_workbook(filename, logfile=self.errlog, encoding_override=self.encoding)
             self.datemode = self.wbk.datemode
@@ -171,7 +171,7 @@ class XlsxFile:
         self.filename = filename
         self.encoding = encoding
         self.read_only = read_only
-        if os.path.isfile(filename):
+        if Path(filename).is_file():
             if read_only:
                 self.wbk = openpyxl.load_workbook(filename, read_only=True)
             else:

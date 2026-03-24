@@ -9,9 +9,9 @@ Implements :class:`AccessDatabase`, which connects to ``.mdb`` and
 """
 
 import datetime
-import os
 import re
 import time
+from pathlib import Path
 from typing import Any
 
 from execsql.db.base import Database
@@ -93,7 +93,7 @@ class AccessDatabase(Database):
         if self.need_passwd and self.user and self.password is None:
             self.password = get_password("MS-Access", self.db_name, self.user)
         connected = False
-        db_name = os.path.abspath(self.db_name)
+        db_name = str(Path(self.db_name).resolve())
         for cs, jet4flag in self.connection_strings:
             if self.need_passwd:
                 connstr = f"{cs % db_name} Uid={self.user}; Pwd={self.password};"

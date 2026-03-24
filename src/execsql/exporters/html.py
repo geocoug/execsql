@@ -14,6 +14,7 @@ import getpass
 import os
 import sys
 import tempfile
+from pathlib import Path
 from typing import Any
 
 import execsql.state as _state
@@ -68,9 +69,9 @@ def export_html(
             f = ZipWriter(zipfile, outfile, append)
         f.write('<!DOCTYPE html>\n<html>\n<head>\n<meta charset="utf-8" />\n')
         if querytext:
-            descrip = f"Source: [{querytext}] with database {_state.dbs.current().name()} in script {os.path.abspath(script)}, line {lno}"
+            descrip = f"Source: [{querytext}] with database {_state.dbs.current().name()} in script {str(Path(script).resolve())}, line {lno}"
         else:
-            descrip = f"From database {_state.dbs.current().name()} in script {os.path.abspath(script)}, line {lno}"
+            descrip = f"From database {_state.dbs.current().name()} in script {str(Path(script).resolve())}, line {lno}"
         f.write(f'<meta name="description" content="{descrip}" />\n')
         datecontent = datetime.datetime.now().strftime("%Y-%m-%d")
         f.write(f'<meta name="created" content="{datecontent}" />\n')
@@ -106,7 +107,7 @@ def export_html(
         if outfile.lower() == "stdout":
             f = sys.stdout
             write_table(f)
-        elif not os.path.isfile(outfile):
+        elif not Path(outfile).is_file():
             from execsql.utils.fileio import EncodedFile
 
             ef = EncodedFile(outfile, conf.output_encoding)
@@ -171,7 +172,7 @@ def export_cgi_html(
         f.write("</tbody>\n</table>\n")
 
     script, lno = current_script_line()
-    if zipfile or not append or (append and not os.path.isfile(outfile)):
+    if zipfile or not append or (append and not Path(outfile).is_file()):
         if zipfile is None:
             if outfile.lower() == "stdout":
                 f = sys.stdout

@@ -20,6 +20,7 @@ database connections at script runtime:
 - ``x_close_db`` — ``CLOSE DATABASE <alias>``
 """
 
+from pathlib import Path
 from typing import Any
 
 import execsql.state as _state
@@ -380,7 +381,7 @@ def x_connect_duckdb(**kwargs: Any) -> None:
     db_file = unquoted2(kwargs["filename"])
     mk_new = kwargs["new"]
     mk_new = unquoted2(mk_new).lower() == "new" if mk_new else False
-    if not mk_new and not os.path.exists(db_file):
+    if not mk_new and not Path(db_file).exists():
         raise ErrInfo(
             type="cmd",
             command_text=kwargs["metacommandline"],
@@ -388,7 +389,7 @@ def x_connect_duckdb(**kwargs: Any) -> None:
         )
     if mk_new:
         check_dir(db_file)
-        if os.path.exists(db_file):
+        if Path(db_file).exists():
             os.unlink(db_file)
     new_db = DuckDBDatabase(db_file)
     _state.dbs.add(kwargs["db_alias"].lower(), new_db)
@@ -401,7 +402,7 @@ def x_connect_sqlite(**kwargs: Any) -> None:
     db_file = unquoted2(kwargs["filename"])
     mk_new = kwargs["new"]
     mk_new = unquoted2(mk_new).lower() == "new" if mk_new else False
-    if not mk_new and not os.path.exists(db_file):
+    if not mk_new and not Path(db_file).exists():
         raise ErrInfo(
             type="cmd",
             command_text=kwargs["metacommandline"],
@@ -409,7 +410,7 @@ def x_connect_sqlite(**kwargs: Any) -> None:
         )
     if mk_new:
         check_dir(db_file)
-        if os.path.exists(db_file):
+        if Path(db_file).exists():
             os.unlink(db_file)
     new_db = SQLiteDatabase(db_file)
     _state.dbs.add(kwargs["db_alias"].lower(), new_db)

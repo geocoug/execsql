@@ -14,7 +14,7 @@ Provides:
 
 from __future__ import annotations
 
-import os
+from pathlib import Path
 from typing import Any
 
 import execsql.state as _state
@@ -41,16 +41,16 @@ class ExportRecord:
         # Record is a list of: table_or_query_name, filename, zipfilename, file_path, user_description, script_name,
         # script_path, script_line_no, script_datetime, database_name, database_server, user_name.
         if zipfile is not None:
-            fpath, zfname = os.path.split(os.path.abspath(zipfile))
+            fpath, zfname = str(Path(zipfile).resolve().parent), Path(zipfile).resolve().name
             fname = outfile
         else:
-            fpath, fname = os.path.split(os.path.abspath(outfile))
+            fpath, fname = str(Path(outfile).resolve().parent), Path(outfile).resolve().name
             zfname = None
         import getpass
 
         script, lno = current_script_line()
-        if script and os.path.isfile(script):
-            spath, sname = os.path.split(os.path.abspath(script))
+        if script and Path(script).is_file():
+            spath, sname = str(Path(script).resolve().parent), Path(script).resolve().name
             _, sdt = file_size_date(script)
         else:
             spath, sname = "", script or "<inline>"

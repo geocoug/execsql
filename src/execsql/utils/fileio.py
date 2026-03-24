@@ -26,8 +26,8 @@ import errno
 import io
 import multiprocessing
 import os
-import os.path
 import queue
+from pathlib import Path
 import stat
 import sys
 import tempfile
@@ -40,9 +40,9 @@ from execsql.exceptions import ErrInfo
 
 def make_export_dirs(outfile: str) -> None:
     if outfile.lower() != "stdout":
-        output_dir = os.path.dirname(outfile)
+        output_dir = str(Path(outfile).parent)
         if output_dir != "":
-            output_dir = os.path.normpath(output_dir)
+            output_dir = str(Path(output_dir))
             emsg = f"Can't create, or can't access, the directory {output_dir} to use for exported data."
             try:
                 os.makedirs(output_dir)
@@ -61,8 +61,8 @@ def check_dir(filename: str) -> None:
         if conf.make_export_dirs:
             make_export_dirs(filename)
         else:
-            dn = os.path.dirname(filename)
-            if dn != "" and not os.path.exists(dn):
+            dn = str(Path(filename).parent)
+            if dn != "" and not Path(dn).exists():
                 raise ErrInfo(type="error", other_msg=f"The directory for file '{filename}' does not exist.")
 
 
@@ -204,7 +204,7 @@ class FileWriter(multiprocessing.Process):
             fc.close()
 
     def close_if_open(self, fn: str) -> None:
-        filename = os.path.abspath(fn)
+        filename = str(Path(fn).resolve())
         if filename in self.files:
             fc = self.files[filename]
             fc.close()
@@ -228,7 +228,7 @@ class FileWriter(multiprocessing.Process):
         self.return_msg_queue.put(token)
 
     def open_as_new(self, fn: str) -> None:
-        filename = os.path.abspath(fn)
+        filename = str(Path(fn).resolve())
         if filename not in self.files:
             self.files[filename] = self.FileControl(
                 filename,
@@ -239,14 +239,14 @@ class FileWriter(multiprocessing.Process):
         fc.open_as_new()
 
     def status(self, fn: str) -> None:
-        filename = os.path.abspath(fn)
+        filename = str(Path(fn).resolve())
         if filename in self.files:
             self.return_msg_queue.put(self.files[filename].status)
         else:
             self.return_msg_queue.put(self.FileControl.STATUS_UNOPENED)
 
     def write(self, fn: str, content: str) -> None:
-        filename = os.path.abspath(fn)
+        filename = str(Path(fn).resolve())
         if filename not in self.files:
             self.files[filename] = self.FileControl(
                 filename,
@@ -356,7 +356,7 @@ class EncodedFile:
                     return enc, bom_len
             return default_enc, 0
 
-        if os.path.exists(filename):
+        if Path(filename).exists():
             self.encoding, self.bom_length = detect_by_bom(filename, file_encoding)
         self.fo = None
 
@@ -406,10 +406,11 @@ class Logger:
             self.log_file_name = log_file_name
         else:
             if user_logfile:
-                self.log_file_name = os.path.expanduser(r"~/execsql.log")
+                self.log_file_name = str(Path("~/execsql.log").expanduser())
             else:
-                self.log_file_name = os.path.join(os.getcwd(), "execsql.log")
-        f_exists = os.path.isfile(self.log_file_name)
+                self.log_file_name = str(Path(os.getcwd()) / "execsql.log")
+        self._rotate_if_needed()
+        f_exists = Path(self.log_file_name).is_file()
         if f_exists:
             try:
                 os.chmod(self.log_file_name, os.stat(self.log_file_name).st_mode | stat.S_IWRITE)
@@ -432,11 +433,13 @@ class Logger:
             )
         import datetime as _datetime
 
-        self.run_id = _datetime.datetime.now().strftime("%Y%m%d_%H%M_%S")
+        _now = _datetime.datetime.now()
+        self.run_start = _now
+        self.run_id = _now.strftime("%Y%m%d_%H%M_%S_") + f"{_now.microsecond // 1000:03d}"
         self.user = getpass.getuser()
-        if script_file_name and os.path.isfile(script_file_name):
+        if script_file_name and Path(script_file_name).is_file():
             sz, dt = file_size_date(script_file_name)
-            abs_script = os.path.abspath(script_file_name)
+            abs_script = str(Path(script_file_name).resolve())
         else:
             sz, dt = 0, ""
             abs_script = script_file_name or "<inline>"
@@ -456,11 +459,34 @@ class Logger:
         self.writelog(msg)
         self.seq_no = 0
         atexit.register(self.close)
-        self.exit_type = None
+        self.exit_type = "unknown"
         self.exit_scriptfile = None
         self.exit_lno = None
         self.exit_description = None
         atexit.register(self.log_exit)
+
+    def _ts(self) -> str:
+        import datetime as _datetime
+
+        return _datetime.datetime.now().isoformat(timespec="seconds")
+
+    def _rotate_if_needed(self) -> None:
+        try:
+            import execsql.state as _state
+
+            max_mb = getattr(_state.conf, "max_log_size_mb", 0) if _state.conf else 0
+        except Exception:
+            max_mb = 0
+        if max_mb > 0 and Path(self.log_file_name).is_file():
+            size_mb = Path(self.log_file_name).stat().st_size / (1024 * 1024)
+            if size_mb >= max_mb:
+                rotated = self.log_file_name + ".1"
+                try:
+                    if Path(rotated).exists():
+                        os.remove(rotated)
+                    os.rename(self.log_file_name, rotated)
+                except Exception:
+                    pass
 
     def writelog(self, msg: str) -> None:
         if self.log_file is not None:
@@ -473,12 +499,12 @@ class Logger:
 
     def log_db_connect(self, db: Any) -> None:
         self.seq_no += 1
-        msg = f"connect\t{self.run_id}\t{self.seq_no}\t{db.name()}\n"
+        msg = f"connect\t{self.run_id}\t{self.seq_no}\t{self._ts()}\t{db.name()}\n"
         self.writelog(msg)
 
     def log_action_export(self, line_no: int, query_name: str, export_file_name: str) -> None:
         self.seq_no += 1
-        msg = f"action\t{self.run_id}\t{self.seq_no}\texport\t{line_no}\tQuery {query_name} exported to {export_file_name}\n"
+        msg = f"action\t{self.run_id}\t{self.seq_no}\t{self._ts()}\texport\t{line_no}\tQuery {query_name} exported to {export_file_name}\n"
         self.writelog(msg)
 
     def log_action_prompt_quit(self, line_no: int, do_quit: bool, msg: str | None) -> None:
@@ -486,38 +512,38 @@ class Logger:
         msg = None if not msg else msg.replace("\n", "")
         self.seq_no += 1
         descrip = '{} after prompt "{}"'.format("Quitting" if do_quit else "Continuing", msg)
-        wmsg = f"action\t{self.run_id}\t{self.seq_no}\tprompt_quit\t{str(line_no) or ''}\t{descrip}\n"
+        wmsg = f"action\t{self.run_id}\t{self.seq_no}\t{self._ts()}\tprompt_quit\t{str(line_no) or ''}\t{descrip}\n"
         self.writelog(wmsg)
 
     def log_status_exception(self, msg: str | None) -> None:
         msg = None if not msg else msg.replace("\n", "")
         self.seq_no += 1
-        wmsg = f"status\t{self.run_id}\t{self.seq_no}\texception\t{msg or ''}\n"
+        wmsg = f"status\t{self.run_id}\t{self.seq_no}\t{self._ts()}\texception\t{msg or ''}\n"
         self.writelog(wmsg)
 
     def log_status_error(self, msg: str | None) -> None:
         msg = None if not msg else msg.replace("\n", "")
         self.seq_no += 1
-        wmsg = f"status\t{self.run_id}\t{self.seq_no}\terror\t{msg or ''}\n"
+        wmsg = f"status\t{self.run_id}\t{self.seq_no}\t{self._ts()}\terror\t{msg or ''}\n"
         self.writelog(wmsg)
 
     def log_status_info(self, msg: str | None) -> None:
         msg = None if not msg else msg.replace("\n", "")
         self.seq_no += 1
-        wmsg = f"status\t{self.run_id}\t{self.seq_no}\tinfo\t{msg or ''}\n"
+        wmsg = f"status\t{self.run_id}\t{self.seq_no}\t{self._ts()}\tinfo\t{msg or ''}\n"
         self.writelog(wmsg)
 
     def log_status_warning(self, msg: str | None) -> None:
         msg = None if not msg else msg.replace("\n", "")
         self.seq_no += 1
-        wmsg = f"status\t{self.run_id}\t{self.seq_no}\twarning\t{msg or ''}\n"
+        wmsg = f"status\t{self.run_id}\t{self.seq_no}\t{self._ts()}\twarning\t{msg or ''}\n"
         self.writelog(wmsg)
 
     def log_user_msg(self, msg: str | None) -> None:
         msg = None if not msg else msg.replace("\n", "")
         if msg != "":
             self.seq_no += 1
-            wmsg = f"user_msg\t{self.run_id}\t{self.seq_no}\tinfo\t{msg}\n"
+            wmsg = f"user_msg\t{self.run_id}\t{self.seq_no}\t{self._ts()}\tinfo\t{msg}\n"
             self.writelog(wmsg)
 
     def log_exit_end(self, script_file_name: str | None = None, line_no: int | None = None) -> None:
@@ -549,12 +575,16 @@ class Logger:
         self.exit_description = None if not msg else msg.replace("\n", "")
 
     def log_exit(self) -> None:
-        wmsg = "exit\t{}\t{}\t{}({})\t{}\n".format(
+        import datetime as _datetime
+
+        elapsed = (_datetime.datetime.now() - self.run_start).total_seconds()
+        wmsg = "exit\t{}\t{}\t{}({})\t{}\t{:.1f}s\n".format(
             self.run_id,
             self.exit_type,
             self.exit_scriptfile or "",
             str(self.exit_lno or ""),
             self.exit_description or "",
+            elapsed,
         )
         self.writelog(wmsg)
 
@@ -576,7 +606,7 @@ class TempFileMgr:
 
     def remove_all(self) -> None:
         for fn in self.temp_file_names:
-            if os.path.exists(fn):
+            if Path(fn).exists():
                 try:
                     # This may fail if the user has it open; let it go.
                     os.unlink(fn)

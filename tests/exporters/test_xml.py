@@ -108,3 +108,31 @@ class TestWriteQueryToXml:
         db.select_rowsource.side_effect = RuntimeError("boom")
         with pytest.raises(ErrInfo):
             write_query_to_xml("SELECT 1", "t", db, outfile)
+
+    def test_errinfo_from_db_is_reraised(self, tmp_path):
+        """ErrInfo raised by select_rowsource must propagate unchanged (line 33)."""
+        from execsql.exceptions import ErrInfo
+
+        outfile = str(tmp_path / "out.xml")
+        original = ErrInfo(type="db", exception_msg="original error")
+        db = MagicMock()
+        db.select_rowsource.side_effect = original
+        with pytest.raises(ErrInfo) as exc_info:
+            write_query_to_xml("SELECT 1", "t", db, outfile)
+        assert exc_info.value is original
+
+    def test_write_to_zipfile(self, tmp_path):
+        """zipfile branch: output is written into a zip archive (lines 48-49)."""
+        import zipfile as _zipfile
+
+        import execsql.state as _state
+
+        _state.conf.zip_buffer_mb = 1
+        zpath = str(tmp_path / "out.zip")
+        member = "data.xml"
+        db = _make_db(["id"], [[1]])
+        write_query_to_xml("SELECT 1", "rows", db, member, zipfile=zpath)
+        with _zipfile.ZipFile(zpath, "r") as zf:
+            content = zf.read(member).decode("utf-8")
+        assert "<?xml" in content
+        assert "<rows>" in content

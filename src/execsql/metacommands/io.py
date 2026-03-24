@@ -18,6 +18,7 @@ metacommands:
 
 import os
 import sys
+from pathlib import Path
 from shutil import copyfileobj
 from typing import Any
 
@@ -51,19 +52,40 @@ from execsql.utils.gui import ConsoleUIError
 from execsql.utils.strings import clean_words, fold_words, unquoted
 
 
+def _apply_output_dir(path: str) -> str:
+    """Prepend the configured --output-dir to *path* if it is a relative path.
+
+    If ``conf.export_output_dir`` is set and *path* is not absolute (and not
+    ``stdout``), the base directory is joined to *path* so that all EXPORT
+    output lands in the same directory without requiring scripts to hard-code
+    absolute paths.
+    """
+    output_dir = getattr(_state.conf, "export_output_dir", None)
+    if not output_dir:
+        return path
+    if path.lower() == "stdout":
+        return path
+    if Path(path).is_absolute():
+        return path
+    # Windows drive-letter paths are also absolute
+    if len(path) > 1 and path[1] == ":":
+        return path
+    return str(Path(output_dir) / path)
+
+
 def x_export(**kwargs: Any) -> None:
     schema = kwargs["schema"]
     table = kwargs["table"]
     queryname = _state.dbs.current().schema_qualified_table_name(schema, table)
     select_stmt = f"select * from {queryname};"
-    outfile = kwargs["filename"]
+    outfile = _apply_output_dir(kwargs["filename"])
     description = kwargs["description"]
     tee = kwargs["tee"]
     tee = bool(tee)
     append = kwargs["append"]
     append = bool(append)
     filefmt = kwargs["format"].lower()
-    zipfilename = kwargs["zipfilename"]
+    zipfilename = _apply_output_dir(kwargs["zipfilename"]) if kwargs["zipfilename"] else None
     if zipfilename is not None:
         if outfile.lower() == "stdout":
             raise ErrInfo("error", other_msg="Cannot write stdout to a zipfile.")
@@ -437,8 +459,8 @@ def x_import(**kwargs: Any) -> None:
     tablename = kwargs["table"]
     filename = kwargs["filename"]
     if len(filename) > 1 and filename[0] == "~" and filename[1] == os.sep:
-        filename = os.path.join(os.path.expanduser(r"~"), filename[2:])
-    if not os.path.exists(filename):
+        filename = str(Path.home() / filename[2:])
+    if not Path(filename).exists():
         raise ErrInfo(
             type="cmd",
             command_text=kwargs["metacommandline"],
@@ -492,7 +514,7 @@ def x_import_file(**kwargs: Any) -> None:
     tablename = kwargs["table"]
     columnname = kwargs["columnname"]
     filename = kwargs["filename"]
-    if not os.path.exists(filename):
+    if not Path(filename).exists():
         raise ErrInfo(
             type="cmd",
             command_text=kwargs["metacommandline"],
@@ -530,7 +552,7 @@ def x_import_ods(**kwargs: Any) -> None:
         hdr_rows = 0
     else:
         hdr_rows = int(hdr_rows)
-    if not os.path.exists(filename):
+    if not Path(filename).exists():
         raise ErrInfo(
             type="cmd",
             command_text=kwargs["metacommandline"],
@@ -565,7 +587,7 @@ def x_import_ods_pattern(**kwargs: Any) -> None:
         hdr_rows = 0
     else:
         hdr_rows = int(hdr_rows)
-    if not os.path.exists(filename):
+    if not Path(filename).exists():
         raise ErrInfo(
             type="cmd",
             command_text=kwargs["metacommandline"],
@@ -621,7 +643,7 @@ def x_import_xls(**kwargs: Any) -> None:
         junk_hdrs = 0
     else:
         junk_hdrs = int(junk_hdrs)
-    if not os.path.exists(filename):
+    if not Path(filename).exists():
         raise ErrInfo(
             type="cmd",
             command_text=kwargs["metacommandline"],
@@ -657,7 +679,7 @@ def x_import_xls_pattern(**kwargs: Any) -> None:
         hdr_rows = 0
     else:
         hdr_rows = int(hdr_rows)
-    if not os.path.exists(filename):
+    if not Path(filename).exists():
         raise ErrInfo(
             type="cmd",
             command_text=kwargs["metacommandline"],
@@ -724,8 +746,8 @@ def x_import_parquet(**kwargs: Any) -> None:
     tablename = kwargs["table"]
     filename = kwargs["filename"]
     if len(filename) > 1 and filename[0] == "~" and filename[1] == os.sep:
-        filename = os.path.join(os.path.expanduser(r"~"), filename[2:])
-    if not os.path.exists(filename):
+        filename = str(Path.home() / filename[2:])
+    if not Path(filename).exists():
         raise ErrInfo(
             type="cmd",
             command_text=kwargs["metacommandline"],
@@ -758,8 +780,8 @@ def x_import_feather(**kwargs: Any) -> None:
     tablename = kwargs["table"]
     filename = kwargs["filename"]
     if len(filename) > 1 and filename[0] == "~" and filename[1] == os.sep:
-        filename = os.path.join(os.path.expanduser(r"~"), filename[2:])
-    if not os.path.exists(filename):
+        filename = str(Path.home() / filename[2:])
+    if not Path(filename).exists():
         raise ErrInfo(
             type="cmd",
             command_text=kwargs["metacommandline"],
@@ -824,7 +846,7 @@ def x_write(**kwargs: Any) -> None:
 
 def x_write_create_table(**kwargs: Any) -> None:
     filename = kwargs["filename"]
-    if not os.path.exists(filename):
+    if not Path(filename).exists():
         raise ErrInfo(
             type="cmd",
             command_text=kwargs["metacommandline"],
@@ -878,7 +900,7 @@ def x_write_create_table_ods(**kwargs: Any) -> None:
         hdr_rows = int(hdr_rows)
     comment = kwargs["comment"]
     outfile = kwargs["outfile"]
-    if not os.path.exists(filename):
+    if not Path(filename).exists():
         raise ErrInfo(
             type="cmd",
             command_text=kwargs["metacommandline"],
@@ -912,7 +934,7 @@ def x_write_create_table_xls(**kwargs: Any) -> None:
         junk_hdrs = int(junk_hdrs)
     comment = kwargs["comment"]
     outfile = kwargs["outfile"]
-    if not os.path.exists(filename):
+    if not Path(filename).exists():
         raise ErrInfo(
             type="cmd",
             command_text=kwargs["metacommandline"],
@@ -1022,13 +1044,13 @@ def x_writescript(**kwargs: Any) -> None:
 def x_include(**kwargs: Any) -> None:
     filename = kwargs["filename"]
     if len(filename) > 1 and filename[0] == "~" and filename[1] == os.sep:
-        filename = os.path.join(os.path.expanduser(r"~"), filename[2:])
+        filename = str(Path.home() / filename[2:])
     exists = kwargs["exists"]
     if exists is not None:
-        if os.path.isfile(filename):
+        if Path(filename).is_file():
             read_sqlfile(filename)
     else:
-        if not os.path.isfile(filename):
+        if not Path(filename).is_file():
             raise ErrInfo(type="error", other_msg=f"File {filename} does not exist.")
         read_sqlfile(filename)
     return None
@@ -1200,7 +1222,7 @@ def x_zip(**kwargs: Any) -> None:
     zf = _zipfile.ZipFile(zipfile_name, mode=zmode, compression=_zipfile.ZIP_BZIP2, compresslevel=9)
     fnlist = _glob.glob(files)
     for f in fnlist:
-        if os.path.isfile(f):
+        if Path(f).is_file():
             zf.write(f)
     zf.close()
 
@@ -1216,7 +1238,7 @@ def x_rm_file(**kwargs: Any) -> None:
     fn = kwargs["filename"].strip(' "')
     fnlist = _glob.glob(fn)
     for f in fnlist:
-        if os.path.isfile(f):
+        if Path(f).is_file():
             filewriter_close(f)
             os.unlink(f)
 
@@ -1228,7 +1250,7 @@ def x_make_export_dirs(**kwargs: Any) -> None:
 
 def x_cd(**kwargs: Any) -> None:
     new_dir = unquoted(kwargs["dir"])
-    if not os.path.isdir(new_dir):
+    if not Path(new_dir).is_dir():
         raise ErrInfo(
             type="cmd",
             command_text=kwargs["metacommandline"],
@@ -1251,13 +1273,13 @@ def x_hdf5_text_len(**kwargs: Any) -> None:
 def x_serve(**kwargs: Any) -> None:
     infname = kwargs["filename"]
     fmt = kwargs["format"].lower()
-    if not os.path.isfile(infname):
+    if not Path(infname).is_file():
         raise ErrInfo(
             type="cmd",
             command_text=kwargs["metacommandline"],
             other_msg=f"Input file {infname} does not exist",
         )
-    fname = os.path.basename(infname)
+    fname = Path(infname).name
     if fmt == "binary":
         contenttype = "application/octet-stream"
     elif fmt == "csv":

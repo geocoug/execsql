@@ -186,6 +186,22 @@ class TestErrInfo:
         assert "something went wrong" in captured.err
         assert errmsg is not None
 
+    def test_str_returns_other_msg(self):
+        e = ErrInfo(type="db", other_msg="something went wrong")
+        assert str(e) == "something went wrong"
+
+    def test_str_returns_exception_msg(self):
+        e = ErrInfo(type="db", exception_msg="exc msg")
+        assert str(e) == "exc msg"
+
+    def test_str_returns_type(self):
+        e = ErrInfo(type="db")
+        assert str(e) == "db"
+
+    def test_str_fallback_to_literal(self):
+        e = ErrInfo(type="")
+        assert str(e) == "ErrInfo"
+
 
 # ---------------------------------------------------------------------------
 # DataTypeError

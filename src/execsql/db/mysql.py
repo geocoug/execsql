@@ -193,6 +193,7 @@ class MySQLDatabase(Database):
                 next(f)
             curs = self.cursor()
             eof = False
+            total_rows = 0
             while True:
                 b: list = []
                 for _j in range(_state.conf.import_row_buffer):
@@ -267,5 +268,15 @@ class MySQLDatabase(Database):
                             exception_msg=exception_desc(),
                             other_msg=f"Import from file into table {sq_name}, line {{{line}}}",
                         )
+                    total_rows += len(b)
+                    interval = _state.conf.import_progress_interval
+                    if _state.exec_log and interval > 0 and total_rows % interval == 0:
+                        _state.exec_log.log_status_info(
+                            f"IMPORT into {sq_name}: {total_rows} rows imported so far.",
+                        )
                 if eof:
                     break
+            if _state.exec_log:
+                _state.exec_log.log_status_info(
+                    f"IMPORT into {sq_name} complete: {total_rows} rows imported.",
+                )
