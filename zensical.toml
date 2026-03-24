@@ -30,6 +30,9 @@ nav= [
         { "execsql-format" = "formatter.md" }
     ] },
     { "Examples" = "examples.md" },
+    { "Contributing" = [
+        { "Adding Metacommands" = "dev/adding_metacommands.md" }
+    ] },
     { "API Reference" = [
         { "Overview" = "api/index.md" },
         { "CLI" = "api/cli.md" },
@@ -45,13 +48,14 @@ nav= [
     ] }
 ]
 
-[project.plugins.mkdocstrings]
-default_handler = "python"
-handlers.python.paths = ["src"]
-handlers.python.options.show_source = false
-handlers.python.options.members_order = "source"
-handlers.python.options.show_symbol_type_heading = true
-handlers.python.options.show_symbol_type_toc = true
+[project.plugins.mkdocstrings.handlers.python]
+paths = ["src"]
+
+[project.plugins.mkdocstrings.handlers.python.options]
+show_source = false
+show_if_no_docstring = true
+merge_init_into_class = true
+show_signature_annotations = false
 
 [project.theme]
 # variant = "classic" # Use for old material theme

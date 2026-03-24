@@ -9,11 +9,104 @@ Entries prior to `2.0.0a1` are from the upstream
 
 ______________________________________________________________________
 
-## [2.0.0a1] - Unreleased
+## [Unreleased]
+
+### Added
+
+- API reference section in the docs (`docs/api/`) covering `cli`, `db`, `exporters`, `importers`, and `metacommands`; wired `mkdocstrings-python` into `zensical.toml` via `[project.plugins.mkdocstrings]`.
+- `feather = ["pandas", "pyarrow"]` optional-dependency extra for Feather import/export support.
+- `hdf5 = ["tables"]` optional-dependency extra for HDF5 export support.
+- Both extras are included in the `all` group.
+- `state.reset()` utility function to reset all module-level runtime state to initial values; used by the test suite to ensure a clean slate between tests.
+- `state.initialize()` function that consolidates construction of runtime singletons (`conf`, `if_stack`, `counters`, `timer`, `dbs`, `tempfiles`, `export_metadata`, `metacommandlist`, `conditionallist`) into a single documented call site.
+- `ExecSqlError` base class in `exceptions.py`; `ConfigError`, `ColumnError`, `DataTableError`, `OdsFileError`, `XlsFileError`, `XlsxFileError`, `ConsoleUIError`, `CondParserError`, and `NumericParserError` now inherit from it, eliminating boilerplate and ensuring `str(exc)` and `exc.args` produce useful output.
+- `ErrInfo.__str__` now returns the most informative available message (`other_msg`, then `exception_msg`, then `type`) so standard logging and exception handlers produce useful output without accessing internal attributes.
+- Expanded test coverage for `Database` base-class methods (`select_rowdict`, `select_rowsource`, `select_data`, `cursor`, `rollback`, `commit`, `drop_table`, `table_columns`, `paramsubs`, `schema_qualified_table_name`, `autocommit_off/on`, `DatabasePool.closeall`) via `TestDatabaseDeeperMethods` and `TestDatabasePoolCloseAll`.
+- Expanded test coverage for `CsvFile` in `test_delimited.py`.
+- Tests for `only_strings`, `replace_newlines`, `import_row_buffer`, and `css_styles` config options in `test_config_data.py`.
+- Tests for `replace_newlines` regex behavior and all-NULL column with lenspec in `test_models.py`.
+- Tests for `FileWriter.try_open()` failure status in `tests/utils/test_fileio.py`.
+- Tests for DuckDB native temporal type mappings in `test_types.py`.
+- Tests for `SubVarSet` dict-based storage and pre-compiled regex patterns in `test_script.py`.
+- Tests for `DT_Time_Oracle` subclass behavior (matches, from_data, lenspec, varlen) in `test_types.py`.
+- Tests for `Database.quote_identifier()` in `tests/db/test_base.py`.
+- Tests for PostgreSQL and SQLite connection timeout parameters in `tests/db/`.
+- Tests for `write_warning()` null-safety when `exec_log` is uninitialized in `tests/utils/test_errors.py`.
+- Tests for `DT_Date` instance-local format deque isolation in `test_types.py`.
+- Integration tests (`test_integration.py`) covering end-to-end script execution with SQLite: basic SQL, substitution variables, CSV export/import, conditional execution (IF/ELSE/ENDIF), WRITE metacommand, and full round-trip export-then-import.
+- Metacommand handler tests for previously untested modules: `test_metacommands_system.py` (53 tests), `test_metacommands_script_ext.py` (10 tests), `test_metacommands_connect.py` (14 tests), `test_metacommands_io.py` (31 tests).
+
+### Fixed
+
+- SQL injection in database metadata queries: `schema_exists()`, `table_exists()`, `column_exists()`, `table_columns()`, `view_exists()`, and `role_exists()` across `db/base.py`, `db/postgres.py`, `db/oracle.py`, `db/duckdb.py`, and `db/sqlite.py` now use parameterized queries and `quote_identifier()` instead of f-string interpolation.
+
+- `utils/errors.py`: `write_warning()` and `exit_now()` now guard all `_state.exec_log`, `_state.conf`, and `_state.output` accesses with null checks to prevent `AttributeError` when called before state initialization.
+
+- `config.py`: `only_strings` config option wrote to nonexistent `self.all_strings` attribute instead of `self.only_strings`.
+
+- `config.py`: `fold_column_headers` config option wrote to `self.fold_column_headers` instead of `self.fold_col_hdrs`.
+
+- `config.py`: `replace_newlines` config option overwrote `self.trim_strings` instead of setting `self.replace_newlines`.
+
+- `config.py`: `import_row_buffer` config option overwrote `self.quote_all_text` instead of setting `self.import_row_buffer`.
+
+- `config.py`: `css_styles` validation checked `self.css_file` instead of `self.css_styles`.
+
+- `models.py`: Missing opening `[` in `replace_newlines` regex pattern (`r"\s\t]*..."` → `r"[\s\t]*..."`).
+
+- `models.py`: `column_type()` referenced undefined loop variable `ac.maxlen` for all-NULL columns; changed to `sel_type.maxlen`.
+
+- `fileio.py`: `FileWriter.try_open()` unconditionally set `STATUS_OPEN` after a failed `io.open()`; moved into `else` block.
+
+- DuckDB temporal type mappings (`DT_TimestampTZ`, `DT_Timestamp`, `DT_Date`, `DT_Time`) changed from `TEXT` to native DuckDB types (`TIMESTAMPTZ`, `TIMESTAMP`, `DATE`, `TIME`).
+
+### Changed
+
+- `config.py`: All `raise ConfigError(...)` patterns now chain the original exception via `from e` for better debugging context.
+- `SubVarSet` in `script.py` refactored: internal storage changed from list-of-tuples to dict for O(1) variable lookups; regex patterns pre-compiled on `add_substitution()` instead of recompiled on every `substitute()` call.
+- `set_system_vars()` in `script.py`: `_state.dbs.current()` cached once instead of called 7+ times per invocation.
+- `DT_Time_Oracle` in `types.py` refactored to a thin subclass of `DT_Time`, overriding only `lenspec = True` and `varlen = True`; duplicated methods and attributes removed.
+- `PostgresDatabase` and `SQLiteDatabase` now accept connection timeout parameters (default 30 s) passed through to the underlying driver (`connect_timeout` for psycopg2, `timeout` for sqlite3). `Database.quote_identifier()` added for safe SQL identifier quoting.
+- `DT_Date` in `types.py`: date format deque (`date_fmts`) is now copied per-instance instead of mutated globally, eliminating thread-safety issues while retaining the most-recent-format-first performance optimization.
+- `utils/crypto.py`: Added prominent security warnings to module and `Encrypt` class docstrings documenting that XOR "encryption" is obfuscation only; keys are hardcoded and passwords are recoverable. `docs/configuration.md` updated with matching admonition.
+- `state.initialize()` is now called from `cli._run()` instead of individually assigning each singleton, making initialization order explicit and testable.
+- Exception hierarchy refactored: `DataTypeError`, `DbTypeError`, and `DatabaseNotImplementedError` now call `super().__init__()` so `str(exc)` and `exc.args` are populated.
+- All bare `except:` clauses replaced with `except Exception:` and bare `except ImportError:` / `except (ValueError, TypeError):` where appropriate, throughout exporters, `script.py`, `db/`, and utilities.
+- `isinstance()` checks replace `type(x) == type(...)` comparisons throughout `db/access.py`, `db/base.py`, `exporters/pretty.py`, `exporters/raw.py`, `types.py`, `utils/regex.py`, and `utils/gui.py` for correctness with subclasses.
+- `type(data) is T` used in place of `type(data) == T` for exact-type checks in `types.py`.
+- `of` imports in `exporters/ods.py` corrected: `import of as of` followed by explicit `import of.*` submodule imports, replacing the broken `import of.*` pattern.
+- `exception_info()` references in `exporters/duckdb.py`, `exporters/latex.py`, and `exporters/sqlite.py` corrected to the actual function name `exception_desc()`.
+- `FileWriter.write()` status check corrected from comparing to the bare constant `STATUS_OPEN` to `self.status == self.STATUS_OPEN`.
+- Unused variable assignments removed (`match_found` in `CounterVars.substitute` and `SubVarSet.substitute`; `enc_match` in `postgres.py`; shadow variable `l` renamed `line` in `ScriptFile.__next__`; unused `button_list` in `ConsoleBackend`; unused `conf` in `_apply_connect_result`; unused `close` in the dispatch-table builder; unused `errmsg` and `hdrs` in `x_subdata`).
+- `itertools` and `base64` imports in `utils/crypto.py` split onto separate lines.
+- `xml.py` local variable `uhdrs` renamed `str_hdrs` and loop corrected to iterate over the string-converted headers.
+- Test `conftest.py` updated to use `_state.reset()` before and after each test instead of manually saving and restoring `_state.conf`.
+- Deferred re-exports removed from `state.py` (was ~160 lines at the bottom of the module). All ~28 call-site modules now import names directly from their canonical source modules (`script`, `utils.fileio`, `utils.gui`, `parser`, etc.) rather than via `_state.X`. No behavior change; `state.py` reduced from ~488 to ~317 lines.
+
+### Removed
+
+- `AirspeedTemplateReport` and `FORMAT airspeed` template export variant. The Airspeed library has been unmaintained since ~2018 with no declared extra. Use `FORMAT jinja` instead.
+- `airspeed` as a valid value for `template_processor` in `execsql.conf` and the `[output]` config section.
+- All documentation references to Airspeed (docs/metacommands.md, docs/requirements.md, docs/configuration.md, README.md, templates/execsql.conf).
+
+______________________________________________________________________
+
+## [2.0.1] - 2026-03-23
+
+### Fixed
+
+- Fixed `PermissionError` on Windows when exporting to HTML in append mode: the file descriptor returned by `tempfile.mkstemp()` is now closed before the file is opened for writing.
+- Fixed `PermissionError` on Windows when exporting to LaTeX: the file descriptor returned by `tempfile.mkstemp()` is now closed before `EncodedFile` opens the same path.
+
+______________________________________________________________________
+
+## [2.0.0] - 2026-03-23
 
 ### Changed
 
 - Forked from execsql by R.Dreas Nielsen; repackaged as execsql2 with Python 3.13 support and modern tooling.
+- Added support for Python 3.10, 3.11, 3.12, and 3.13; dropped Python 2 compatibility.
+- Distributed as the `execsql2` package on PyPI; CLI entry point remains `execsql`.
 
 ______________________________________________________________________
 

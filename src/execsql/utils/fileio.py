@@ -200,7 +200,7 @@ class FileWriter(multiprocessing.Process):
         self.close_all()
 
     def close_all(self) -> None:
-        for fc in self.files.values():
+        for fc in getattr(self, "files", {}).values():
             fc.close()
 
     def close_if_open(self, fn: str) -> None:
@@ -434,10 +434,15 @@ class Logger:
 
         self.run_id = _datetime.datetime.now().strftime("%Y%m%d_%H%M_%S")
         self.user = getpass.getuser()
-        sz, dt = file_size_date(script_file_name)
+        if script_file_name and os.path.isfile(script_file_name):
+            sz, dt = file_size_date(script_file_name)
+            abs_script = os.path.abspath(script_file_name)
+        else:
+            sz, dt = 0, ""
+            abs_script = script_file_name or "<inline>"
         msg = "run\t{}\t{}\t{}\t{}\t{}\t{}\n".format(
             self.run_id,
-            os.path.abspath(script_file_name),
+            abs_script,
             dt,
             sz,
             self.user,

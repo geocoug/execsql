@@ -971,10 +971,9 @@ def current_script_line() -> tuple:
         return ("", 0)
 
 
-def read_sqlfile(sql_file_name: str) -> None:
-    # Read lines from the given script file, create a list of ScriptCmd objects,
-    # and append the list to the top of the stack of script commands.
-    from execsql.utils.errors import file_size_date, write_warning
+def _parse_script_lines(lines_iter, source_name: str) -> list:
+    # Parse an iterable of lines into a list of ScriptCmd objects.
+    from execsql.utils.errors import write_warning
 
     beginscript = re.compile(
         r"^\s*--\s*!x!\s*(?:BEGIN|CREATE)\s+SCRIPT\s+(?P<scriptname>\w+)(?:(?P<paramexpr>\s*\S+.*))?$",
@@ -987,15 +986,12 @@ def read_sqlfile(sql_file_name: str) -> None:
     cmtline = re.compile(r"^\s*--")
     in_block_cmt = False
     in_block_sql = False
-    sz, dt = file_size_date(sql_file_name)
-    _state.exec_log.log_status_info(f"Reading script file {sql_file_name} (size: {sz}; date: {dt})")
-    scriptfilename = os.path.basename(sql_file_name)
-    scriptfile_obj = ScriptFile(sql_file_name, _state.conf.script_encoding).open("r")
     sqllist: list[ScriptCmd] = []
     sqlline = 0
     subscript_stack: list[CommandList] = []
     currcmd = ""
-    for file_lineno, line in enumerate(scriptfile_obj, 1):
+    scriptname = ""
+    for file_lineno, line in enumerate(lines_iter, 1):
         # Remove trailing whitespace but not leading whitespace.
         line = line.rstrip()
         is_comment_line = False
@@ -1024,7 +1020,7 @@ def read_sqlfile(sql_file_name: str) -> None:
                         if endsql.match(line):
                             in_block_sql = False
                             if len(currcmd) > 0:
-                                cmd = ScriptCmd(sql_file_name, sqlline, "sql", SqlStmt(currcmd))
+                                cmd = ScriptCmd(source_name, sqlline, "sql", SqlStmt(currcmd))
                                 if len(subscript_stack) == 0:
                                     sqllist.append(cmd)
                                 else:
@@ -1033,7 +1029,7 @@ def read_sqlfile(sql_file_name: str) -> None:
                     else:
                         if len(currcmd) > 0:
                             write_warning(
-                                f"Incomplete SQL statement starting on line {sqlline} at metacommand on line {file_lineno} of {sql_file_name}.",
+                                f"Incomplete SQL statement starting on line {sqlline} at metacommand on line {file_lineno} of {source_name}.",
                             )
                         begs = beginscript.match(line)
                         if not begs:
@@ -1053,7 +1049,7 @@ def read_sqlfile(sql_file_name: str) -> None:
                                     raise ErrInfo(
                                         type="cmd",
                                         command_text=line,
-                                        other_msg=f"Invalid BEGIN SCRIPT metacommand on line {file_lineno} of file {sql_file_name}.",
+                                        other_msg=f"Invalid BEGIN SCRIPT metacommand on line {file_lineno} of file {source_name}.",
                                     )
                                 else:
                                     param_rx = re.compile(r"\w+", re.I)
@@ -1068,26 +1064,26 @@ def read_sqlfile(sql_file_name: str) -> None:
                                 raise ErrInfo(
                                     type="cmd",
                                     command_text=line,
-                                    other_msg=f"Unmatched END SCRIPT metacommand on line {file_lineno} of file {sql_file_name}.",
+                                    other_msg=f"Unmatched END SCRIPT metacommand on line {file_lineno} of file {source_name}.",
                                 )
                             if len(currcmd) > 0:
                                 raise ErrInfo(
                                     type="cmd",
                                     command_text=line,
-                                    other_msg=f"Incomplete SQL statement\n  ({currcmd})\nat END SCRIPT metacommand on line {file_lineno} of file {sql_file_name}.",
+                                    other_msg=f"Incomplete SQL statement\n  ({currcmd})\nat END SCRIPT metacommand on line {file_lineno} of file {source_name}.",
                                 )
                             if endscriptname is not None and endscriptname != scriptname:
                                 raise ErrInfo(
                                     type="cmd",
                                     command_text=line,
-                                    other_msg=f"Mismatched script name in the END SCRIPT metacommand on line {file_lineno} of file {sql_file_name}.",
+                                    other_msg=f"Mismatched script name in the END SCRIPT metacommand on line {file_lineno} of file {source_name}.",
                                 )
                             sub_script = subscript_stack.pop()
                             _state.savedscripts[sub_script.listname] = sub_script
                         else:
                             # This is a non-IMMEDIATE metacommand.
                             cmd = ScriptCmd(
-                                sql_file_name,
+                                source_name,
                                 file_lineno,
                                 "cmd",
                                 MetacommandStmt(metacommand_match.group("cmd").strip()),
@@ -1107,19 +1103,41 @@ def read_sqlfile(sql_file_name: str) -> None:
                     else:
                         currcmd = f"{currcmd} \n{line}"
                     if cmd_end and not in_block_sql:
-                        cmd = ScriptCmd(sql_file_name, sqlline, "sql", SqlStmt(currcmd.strip()))
+                        cmd = ScriptCmd(source_name, sqlline, "sql", SqlStmt(currcmd.strip()))
                         if len(subscript_stack) == 0:
                             sqllist.append(cmd)
                         else:
                             subscript_stack[-1].add(cmd)
                         currcmd = ""
     if len(subscript_stack) > 0:
-        raise ErrInfo(type="error", other_msg=f"Unmatched BEGIN SCRIPT metacommand at end of file {sql_file_name}.")
+        raise ErrInfo(type="error", other_msg=f"Unmatched BEGIN SCRIPT metacommand at end of file {source_name}.")
     if len(currcmd) > 0:
         raise ErrInfo(
             type="error",
-            other_msg=f"Incomplete SQL statement starting on line {sqlline} at end of file {sql_file_name}.",
+            other_msg=(
+                f"Incomplete SQL statement starting on line {sqlline} at end of file {source_name}."
+                + (" Metacommands must be prefixed with '-- !x!'." if source_name == "<inline>" else "")
+            ),
         )
-    if len(sqllist) > 0:
-        # The file might be all comments or just a BEGIN/END SCRIPT metacommand.
-        _state.commandliststack.append(CommandList(sqllist, scriptfilename))
+    return sqllist
+
+
+def read_sqlfile(sql_file_name: str) -> None:
+    # Read lines from the given script file, create a list of ScriptCmd objects,
+    # and append the list to the top of the stack of script commands.
+    from execsql.utils.errors import file_size_date
+
+    sz, dt = file_size_date(sql_file_name)
+    _state.exec_log.log_status_info(f"Reading script file {sql_file_name} (size: {sz}; date: {dt})")
+    scriptfile_obj = ScriptFile(sql_file_name, _state.conf.script_encoding).open("r")
+    sqllist = _parse_script_lines(scriptfile_obj, sql_file_name)
+    if sqllist:
+        _state.commandliststack.append(CommandList(sqllist, os.path.basename(sql_file_name)))
+
+
+def read_sqlstring(content: str, source_name: str = "<inline>") -> None:
+    """Parse an inline script string and push it onto the command stack."""
+    _state.exec_log.log_status_info(f"Reading inline script ({source_name})")
+    sqllist = _parse_script_lines(content.splitlines(), source_name)
+    if sqllist:
+        _state.commandliststack.append(CommandList(sqllist, source_name))

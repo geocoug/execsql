@@ -21,7 +21,7 @@ from rich.table import Table
 from execsql import __version__
 from execsql.config import ConfigData, StatObj
 from execsql.exceptions import ConfigError, ErrInfo
-from execsql.script import SubVarSet, current_script_line, read_sqlfile, runscripts
+from execsql.script import SubVarSet, current_script_line, read_sqlfile, read_sqlstring, runscripts
 from execsql.utils.fileio import FileWriter, Logger, filewriter_end
 from execsql.utils.gui import gui_connect, gui_console_isrunning, gui_console_off, gui_console_on, gui_console_wait_user
 
@@ -310,10 +310,14 @@ def main(
         metavar="{0,1,2,3}",
         help=(
             "GUI level: [bold]0[/bold]=none (default), [bold]1[/bold]=GUI for password/pause, "
-            "[bold]2[/bold]=GUI for password/pause + DB selection, [bold]3[/bold]=full GUI console. "
-            "Set [cyan]gui_framework[/cyan] in the config [interface] section to choose "
-            "'tkinter' (default) or 'textual'."
+            "[bold]2[/bold]=GUI for password/pause + DB selection, [bold]3[/bold]=full GUI console."
         ),
+    ),
+    gui_framework: str | None = typer.Option(
+        None,
+        "--gui-framework",
+        metavar="{tkinter,textual}",
+        help="GUI framework to use with [cyan]--visible-prompts[/cyan]. [dim]Default: tkinter[/dim]",
     ),
     no_passwd: bool = typer.Option(
         False,
@@ -333,6 +337,16 @@ def main(
         "--import-buffer",
         metavar="KB",
         help="Import buffer size in KB. [dim]Default: 32[/dim]",
+    ),
+    command: str | None = typer.Option(
+        None,
+        "-c",
+        "--command",
+        metavar="SCRIPT",
+        help=(
+            "Execute an inline SQL/metacommand script string instead of a script file. "
+            "Use shell [cyan]$'line1\\nline2'[/cyan] syntax for multi-line scripts."
+        ),
     ),
     version: bool | None = typer.Option(
         None,
@@ -366,20 +380,28 @@ def main(
     if online_help:
         import webbrowser
 
-        webbrowser.open("https://execsql.readthedocs.io/en/latest/", new=2, autoraise=True)
+        webbrowser.open("https://execsql2.readthedocs.io/en/latest/", new=2, autoraise=True)
+        raise typer.Exit()
 
     positional = args or []
-    if not positional:
-        _err_console.print("[bold red]Error:[/bold red] No SQL script file specified.")
-        raise typer.Exit(code=1)
+    if command is not None:
+        script_name = None  # inline mode — no script file
+    else:
+        if not positional:
+            _err_console.print(
+                "[bold red]Error:[/bold red] No SQL script file specified. Use [cyan]-c[/cyan] to run an inline script.",
+            )
+            raise typer.Exit(code=1)
+        script_name = positional[0]
+        if not os.path.exists(script_name):
+            _err_console.print(
+                f'[bold red]Error:[/bold red] SQL script file [cyan]"{script_name}"[/cyan] does not exist.',
+            )
+            raise typer.Exit(code=1)
 
     # ------------------------------------------------------------------
     # Validate positional args and db_type choice
     # ------------------------------------------------------------------
-    script_name = positional[0]
-    if not os.path.exists(script_name):
-        _err_console.print(f'[bold red]Error:[/bold red] SQL script file [cyan]"{script_name}"[/cyan] does not exist.')
-        raise typer.Exit(code=1)
 
     if db_type and db_type not in ("a", "d", "p", "s", "l", "m", "k", "o", "f"):
         _err_console.print(
@@ -391,6 +413,12 @@ def main(
     if use_gui and use_gui not in ("0", "1", "2", "3"):
         _err_console.print(
             f"[bold red]Error:[/bold red] Invalid GUI level [cyan]{use_gui!r}[/cyan]. Choose from: 0, 1, 2, 3",
+        )
+        raise typer.Exit(code=2)
+
+    if gui_framework and gui_framework.lower() not in ("tkinter", "textual"):
+        _err_console.print(
+            f"[bold red]Error:[/bold red] Invalid GUI framework [cyan]{gui_framework!r}[/cyan]. Choose from: tkinter, textual",
         )
         raise typer.Exit(code=2)
 
@@ -419,9 +447,11 @@ def main(
         db_type=db_type,
         user=user,
         use_gui=use_gui,
+        gui_framework=gui_framework,
         no_passwd=no_passwd,
         import_buffer=import_buffer,
         script_name=script_name,
+        command=command,
     )
 
 
@@ -446,11 +476,19 @@ def _run(
     db_type: str | None,
     user: str | None,
     use_gui: str | None,
-    no_passwd: bool,
-    import_buffer: int | None,
-    script_name: str,
+    gui_framework: str | None = None,
+    no_passwd: bool = False,
+    import_buffer: int | None = None,
+    script_name: str | None = None,
+    command: str | None = None,
 ) -> None:
-    """Core execution logic, separated from argument parsing."""
+    """Initialise state, connect to the database, load the script, and run it.
+
+    Separated from argument parsing so it can be called directly in tests
+    without going through the Typer CLI layer. All parameters mirror the
+    corresponding CLI options; see [Syntax & Options](../syntax.md) for
+    descriptions.
+    """
     import execsql.state as _state
 
     # ------------------------------------------------------------------
@@ -490,7 +528,8 @@ def _run(
     # ------------------------------------------------------------------
     # Read configuration file
     # ------------------------------------------------------------------
-    _state.conf = ConfigData(os.path.dirname(os.path.abspath(script_name)), _state.subvars)
+    script_path = os.path.dirname(os.path.abspath(script_name)) if script_name else os.getcwd()
+    _state.conf = ConfigData(script_path, _state.subvars)
     conf = _state.conf
 
     # Apply CLI options over config-file values
@@ -528,6 +567,8 @@ def _run(
         conf.gui_level = 0
     elif conf.gui_level not in range(4):
         raise ConfigError(f"Invalid GUI level specification: {conf.gui_level}")
+    if gui_framework:
+        conf.gui_framework = gui_framework.lower()
     if db_type:
         conf.db_type = db_type
     if conf.db_type is None:
@@ -541,21 +582,24 @@ def _run(
     if new_db:
         conf.new_db = True
 
-    # Positional arguments after the script name
-    if len(positional) == 2:
+    # Positional arguments after the script name (or all positionals in inline mode)
+    # off=1: script file occupies positional[0]; connection args start at [1]
+    # off=0: no script file; all positionals are connection args
+    off = 0 if command is not None else 1
+    if len(positional) == off + 1:
         if conf.db_type in ("a", "l", "k"):
-            conf.db_file = positional[1]
+            conf.db_file = positional[off]
         elif conf.db_type == "d":
-            conf.db = positional[1]
+            conf.db = positional[off]
         else:
             if conf.server and not conf.db:
-                conf.db = positional[1]
+                conf.db = positional[off]
             else:
-                conf.server = positional[1]
-    elif len(positional) == 3:
-        conf.server = positional[1]
-        conf.db = positional[2]
-    elif len(positional) > 3:
+                conf.server = positional[off]
+    elif len(positional) == off + 2:
+        conf.server = positional[off]
+        conf.db = positional[off + 1]
+    elif len(positional) > off + 2:
         from execsql.utils.errors import fatal_error
 
         fatal_error("Incorrect number of command-line arguments.")
@@ -565,9 +609,14 @@ def _run(
     # ------------------------------------------------------------------
     from execsql.utils.errors import file_size_date
 
-    _state.subvars.add_substitution("$STARTING_SCRIPT", script_name)
-    _state.subvars.add_substitution("$STARTING_SCRIPT_NAME", os.path.basename(script_name))
-    _state.subvars.add_substitution("$STARTING_SCRIPT_REVTIME", file_size_date(script_name)[1])
+    if script_name is not None:
+        _state.subvars.add_substitution("$STARTING_SCRIPT", script_name)
+        _state.subvars.add_substitution("$STARTING_SCRIPT_NAME", os.path.basename(script_name))
+        _state.subvars.add_substitution("$STARTING_SCRIPT_REVTIME", file_size_date(script_name)[1])
+    else:
+        _state.subvars.add_substitution("$STARTING_SCRIPT", "<inline>")
+        _state.subvars.add_substitution("$STARTING_SCRIPT_NAME", "<inline>")
+        _state.subvars.add_substitution("$STARTING_SCRIPT_REVTIME", "")
 
     # ------------------------------------------------------------------
     # Initialise state objects
@@ -587,7 +636,7 @@ def _run(
     import execsql.utils.fileio as _fileio
 
     if _state.filewriter is None or not _state.filewriter.is_alive():
-        _state.filewriter = FileWriter(
+        _fileio.filewriter = _state.filewriter = FileWriter(
             _fileio.fw_input,
             _fileio.fw_output,
             file_encoding=conf.output_encoding,
@@ -622,7 +671,7 @@ def _run(
         if v
     }
     _state.exec_log = Logger(
-        script_name,
+        script_name or "<inline>",
         conf.db,
         conf.server,
         opts_dict,
@@ -652,7 +701,10 @@ def _run(
     # ------------------------------------------------------------------
     # Load the SQL script
     # ------------------------------------------------------------------
-    read_sqlfile(script_name)
+    if command is not None:
+        read_sqlstring(command.replace("\\n", "\n").replace("\\t", "\t"), "<inline>")
+    else:
+        read_sqlfile(script_name)
 
     # ------------------------------------------------------------------
     # Start GUI console if requested
@@ -665,7 +717,7 @@ def _run(
     # ------------------------------------------------------------------
     if conf.server is None and conf.db is None and conf.db_file is None:
         if conf.gui_level > 1:
-            gui_connect("initial", f"Select the database to use with {script_name}.")
+            gui_connect("initial", f"Select the database to use with {script_name or '<inline>'}.")
             db = _state.dbs.current()
         else:
             from execsql.utils.errors import fatal_error

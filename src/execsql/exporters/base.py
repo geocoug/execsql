@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """
 Base export infrastructure — metadata tracking and write specifications.
 
@@ -14,6 +12,8 @@ Provides:
   (message text, file path, encoding) used by halt/cancel hooks.
 """
 
+from __future__ import annotations
+
 import os
 from typing import Any
 
@@ -24,6 +24,12 @@ from execsql.utils.gui import ConsoleUIError
 
 
 class ExportRecord:
+    """Records the details of a single EXPORT operation for metadata tracking.
+
+    Captures the query name, output file path, optional zip file, user
+    description, originating script location, and database connection info.
+    """
+
     def __init__(
         self,
         queryname: str,
@@ -40,18 +46,29 @@ class ExportRecord:
         else:
             fpath, fname = os.path.split(os.path.abspath(outfile))
             zfname = None
+        import getpass
+
         script, lno = current_script_line()
-        spath, sname = os.path.split(os.path.abspath(script))
-        ssz, sdt = file_size_date(script)
+        if script and os.path.isfile(script):
+            spath, sname = os.path.split(os.path.abspath(script))
+            _, sdt = file_size_date(script)
+        else:
+            spath, sname = "", script or "<inline>"
+            _, sdt = 0, ""
         db = _state.dbs.current()
         svr = db.server_name
         dbn = db.db_name
-        usr = db.user if db.user is not None else _state.getpass.getuser()
+        usr = db.user if db.user is not None else getpass.getuser()
         self.record = [queryname, fname, zfname, fpath, description, sname, spath, lno, sdt, dbn, svr, usr]
 
 
 class ExportMetadata:
-    # A list of ExportRecord objects.
+    """Collection of :class:`ExportRecord` objects; can write itself as JSON.
+
+    Accumulates export records during a script run and provides them to the
+    EXPORT METADATA metacommand for serialisation.
+    """
+
     colhdrs = [
         "query",
         "filename",
@@ -87,6 +104,12 @@ class ExportMetadata:
 
 
 class WriteSpec:
+    """Specification for a deferred WRITE operation used by halt/cancel hooks.
+
+    Stores a message, optional destination file, tee flag, and repeatability
+    setting. Resolved and executed later by the hook machinery.
+    """
+
     def __repr__(self) -> str:
         return f"WriteSpec({self.msg}, {self.outfile}, {self.tee})"
 
