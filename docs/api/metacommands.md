@@ -2,9 +2,9 @@
 
 ## Dispatch table
 
-The `DISPATCH_TABLE` (a `MetaCommandList`) maps metacommand regex patterns to
-their handler functions. It is populated when this module is first imported
-and consumed by `script.MetacommandStmt.run()` via `_state.metacommandlist`.
+The `DISPATCH_TABLE` (a `MetaCommandList`) maps metacommand regex patterns to their handler functions. It is populated when this module is first imported and consumed by `script.MetacommandStmt.run()` via `_state.metacommandlist`.
+
+If you are adding a new metacommand, start with the [Adding Metacommands](../dev/adding_metacommands.md) guide.
 
 ::: execsql.metacommands
 
@@ -19,6 +19,8 @@ and consumed by `script.MetacommandStmt.run()` via `_state.metacommandlist`.
 ::: execsql.metacommands.data
 
 ::: execsql.metacommands.io
+
+::: execsql.metacommands.prompt
 
 ::: execsql.metacommands.system
 
