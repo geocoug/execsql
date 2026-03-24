@@ -24,6 +24,7 @@ from execsql.types import (
     DT_Long,
     DT_Text,
     DT_Time,
+    DT_Time_Oracle,
     DT_Timestamp,
     DT_TimestampTZ,
     DT_Varchar,
@@ -33,6 +34,7 @@ from execsql.types import (
     dbt_duckdb,
     dbt_sqlserver,
 )
+from execsql.exceptions import DbTypeError
 
 
 # ---------------------------------------------------------------------------
@@ -130,7 +132,6 @@ class TestDTLong:
         assert self.dt.from_data("9999999999") == 9_999_999_999
 
     def test_float_nan_returns_none(self):
-        import math
 
         assert self.dt.from_data(float("nan")) is None
 
@@ -295,6 +296,39 @@ class TestDTDate:
         d = datetime.date(2024, 6, 1)
         assert self.dt.from_data(d) == d
 
+    def test_instances_do_not_share_format_order(self):
+        """Parsing with one DT_Date instance must not affect another's format order."""
+        dt_a = DT_Date()
+        dt_b = DT_Date()
+
+        # Parse a date that is NOT the first format ("%x") — use ISO format
+        # which is "%Y-%m-%d" (index 3 in the default deque).
+        dt_a.from_data("2024-06-15")
+
+        # dt_a's internal deque should now have "%Y-%m-%d" at the front
+        assert dt_a._date_fmts[0] == "%Y-%m-%d"
+
+        # dt_b's internal deque must be unaffected — still in original order
+        assert dt_b._date_fmts[0] == "%x"
+
+    def test_format_reorder_is_instance_local(self):
+        """Successive parses on one instance reorder only that instance."""
+        dt1 = DT_Date()
+        dt2 = DT_Date()
+
+        # Force dt1 to promote "%B %d, %Y" (a late format) to the front
+        dt1.from_data("January 15, 2024")
+        assert dt1._date_fmts[0] == "%B %d, %Y"
+
+        # dt2 should still have the original first element
+        assert dt2._date_fmts[0] == "%x"
+
+        # dt2 parses ISO — its own deque reorders independently
+        dt2.from_data("2024-01-15")
+        assert dt2._date_fmts[0] == "%Y-%m-%d"
+        # dt1 is still showing its own reorder
+        assert dt1._date_fmts[0] == "%B %d, %Y"
+
 
 # ---------------------------------------------------------------------------
 # DT_Time
@@ -320,6 +354,53 @@ class TestDTTime:
     @pytest.mark.parametrize("val", ["not-a-time", None, 42])
     def test_no_match_invalid(self, val):
         assert self.dt.matches(val) is False
+
+
+# ---------------------------------------------------------------------------
+# DT_Time_Oracle
+# ---------------------------------------------------------------------------
+
+
+class TestDTTimeOracle:
+    def setup_method(self):
+        self.dt = DT_Time_Oracle()
+
+    def test_is_subclass_of_dt_time(self):
+        assert isinstance(self.dt, DT_Time)
+
+    def test_lenspec_is_true(self):
+        assert self.dt.lenspec is True
+
+    def test_varlen_is_true(self):
+        assert self.dt.varlen is True
+
+    @pytest.mark.parametrize(
+        "val",
+        [
+            "14:30",
+            "14:30:00",
+            "2:30 PM",
+            "02:30:00 PM",
+        ],
+    )
+    def test_matches_valid_times(self, val):
+        assert self.dt.matches(val) is True
+
+    @pytest.mark.parametrize("val", ["not-a-time", None, 42])
+    def test_no_match_invalid(self, val):
+        assert self.dt.matches(val) is False
+
+    def test_from_data_string(self):
+        result = self.dt.from_data("14:30")
+        assert result == datetime.time(14, 30)
+
+    def test_from_data_time_passthrough(self):
+        t = datetime.time(10, 0, 0)
+        assert self.dt.from_data(t) is t
+
+    def test_from_data_datetime_extracts_time(self):
+        dt_val = datetime.datetime(2024, 1, 1, 10, 30, 45)
+        assert self.dt.from_data(dt_val) == datetime.time(10, 30, 45)
 
 
 # ---------------------------------------------------------------------------
@@ -424,9 +505,27 @@ class TestDbType:
         assert "PostgreSQL" in repr(dbt_postgres)
 
     def test_unknown_type_raises(self):
-        from execsql.exceptions import DbTypeError
 
         dbt = DbType("TestDB", '""')
         # dialect is None — accessing any type should raise
-        with pytest.raises(Exception):
+        with pytest.raises(DbTypeError):
             dbt.column_spec("col", DT_Integer, None, False)
+
+
+# ---------------------------------------------------------------------------
+# DuckDB temporal type mappings
+# ---------------------------------------------------------------------------
+
+
+class TestDbtDuckdbTemporalTypes:
+    def test_timestamptz_maps_to_native(self):
+        assert dbt_duckdb.datatype_name(DT_TimestampTZ) == "TIMESTAMPTZ"
+
+    def test_timestamp_maps_to_native(self):
+        assert dbt_duckdb.datatype_name(DT_Timestamp) == "TIMESTAMP"
+
+    def test_date_maps_to_native(self):
+        assert dbt_duckdb.datatype_name(DT_Date) == "DATE"
+
+    def test_time_maps_to_native(self):
+        assert dbt_duckdb.datatype_name(DT_Time) == "TIME"

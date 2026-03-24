@@ -9,11 +9,8 @@ used by the ``EXPORT … FORMAT raw`` and ``FORMAT b64`` metacommand
 variants.
 """
 
-import io
-import os
-from typing import Any, Optional
+from typing import Any
 
-import execsql.state as _state
 from execsql.exporters.zip import ZipWriter
 from execsql.utils.fileio import filewriter_close
 
@@ -23,12 +20,12 @@ def write_query_raw(
     rowsource: Any,
     db_encoding: str,
     append: bool = False,
-    zipfile: Optional[str] = None,
+    zipfile: str | None = None,
 ) -> None:
     if zipfile is None:
         filewriter_close(outfile)
         mode = "wb" if not append else "ab"
-        of = io.open(outfile, mode)
+        of = open(outfile, mode)  # noqa: SIM115
     else:
         of = ZipWriter(zipfile, outfile, append)
     for row in rowsource:
@@ -43,14 +40,14 @@ def write_query_raw(
     of.close()
 
 
-def write_query_b64(outfile: str, rowsource: Any, append: bool = False, zipfile: Optional[str] = None) -> None:
+def write_query_b64(outfile: str, rowsource: Any, append: bool = False, zipfile: str | None = None) -> None:
     global base64
     import base64
 
     if zipfile is None:
         filewriter_close(outfile)
         mode = "wb" if not append else "ab"
-        of = io.open(outfile, mode)
+        of = open(outfile, mode)  # noqa: SIM115
     else:
         of = ZipWriter(zipfile, outfile, append)
     for row in rowsource:

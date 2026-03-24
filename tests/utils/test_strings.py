@@ -118,7 +118,7 @@ class TestDedupWords:
 
     def test_three_duplicates(self):
         result = dedup_words(["x", "x", "x"])
-        assert len(set(r.lower() for r in result)) == 3
+        assert len({r.lower() for r in result}) == 3
 
     def test_empty_list(self):
         assert dedup_words([]) == []

@@ -8,10 +8,7 @@ Provides :func:`write_query_to_json` (standard JSON array of objects) and
 both of which serialize a query result set to a file or stream.
 """
 
-import datetime
-import io
-import os
-from typing import Any, Optional, List
+from typing import Any
 
 import execsql.state as _state
 from execsql.exporters.zip import ZipWriter
@@ -26,8 +23,8 @@ def write_query_to_json(
     db: Any,
     outfile: str,
     append: bool = False,
-    desc: Optional[str] = None,
-    zipfile: Optional[str] = None,
+    desc: str | None = None,
+    zipfile: str | None = None,
 ) -> None:
     global json
     import json
@@ -73,8 +70,8 @@ def write_query_to_json_ts(
     outfile: str,
     append: bool = False,
     write_types: bool = True,
-    desc: Optional[str] = None,
-    zipfile: Optional[str] = None,
+    desc: str | None = None,
+    zipfile: str | None = None,
 ) -> None:
     conf = _state.conf
     try:

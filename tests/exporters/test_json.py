@@ -8,7 +8,7 @@ write_query_to_json_ts — JSON with top-level timestamp-style wrapper
 from __future__ import annotations
 
 import json
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 

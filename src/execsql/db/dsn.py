@@ -8,8 +8,6 @@ registered as an ODBC DSN via ``pyodbc``.  Corresponds to ``-t d`` on
 the CLI.
 """
 
-import io
-from typing import Optional
 
 from execsql.db.base import Database
 from execsql.exceptions import ErrInfo
@@ -28,10 +26,10 @@ class DsnDatabase(Database):
     def __init__(
         self,
         dsn_name: str,
-        user_name: Optional[str],
+        user_name: str | None,
         need_passwd: bool = False,
-        encoding: Optional[str] = None,
-        password: Optional[str] = None,
+        encoding: str | None = None,
+        password: str | None = None,
     ) -> None:
         try:
             import pyodbc  # noqa: F401
@@ -110,14 +108,14 @@ class DsnDatabase(Database):
 
     def import_entire_file(
         self,
-        schema_name: Optional[str],
+        schema_name: str | None,
         table_name: str,
         column_name: str,
         file_name: str,
     ) -> None:
         import pyodbc
 
-        with io.open(file_name, "rb") as f:
+        with open(file_name, "rb") as f:
             filedata = f.read()
         sq_name = self.schema_qualified_table_name(schema_name, table_name)
         sql = f"insert into {sq_name} ({column_name}) values ({self.paramsubs(1)});"

@@ -23,7 +23,7 @@ Classes:
 """
 
 import re
-from typing import Any, List, Optional
+from typing import Any
 
 from execsql.exceptions import CondParserError, NumericParserError
 
@@ -42,7 +42,7 @@ class SourceString:
         while not self.eoi() and self.str[self.currpos] in [" ", "\t", "\n"]:
             self.currpos += 1
 
-    def match_str(self, str: str) -> Optional[str]:
+    def match_str(self, str: str) -> str | None:
         # Tries to match the 'str' argument at the current position in the
         # source string.  Matching is case-insensitive.  If matching succeeds,
         # the matched string is returned and the internal pointer is incremented.
@@ -59,7 +59,7 @@ class SourceString:
             else:
                 return None
 
-    def match_regex(self, regex: Any) -> Optional[dict]:
+    def match_regex(self, regex: Any) -> dict | None:
         # Tries to match the 'regex' argument at the current position in the
         # source string.  If it succeeds, a dictionary of all of the named
         # groups is returned, and the internal pointer is incremented.
@@ -74,7 +74,7 @@ class SourceString:
             else:
                 return None
 
-    def match_metacommand(self, commandlist: Any) -> Optional[tuple]:
+    def match_metacommand(self, commandlist: Any) -> tuple | None:
         # Tries to match text at the current position to any metacommand
         # in the specified commandlist.
         # If it succeeds, the return value is a tuple of the MetaCommand object
@@ -185,21 +185,21 @@ class CondParser(CondTokens):
         self.condexpr = condexpr
         self.cond_expr = SourceString(condexpr)
 
-    def match_not(self) -> Optional[int]:
+    def match_not(self) -> int | None:
         # Try to match 'NOT' operator. If not found, return None
         m1 = self.cond_expr.match_str("NOT")
         if m1 is not None:
             return self.NOT
         return None
 
-    def match_andop(self) -> Optional[int]:
+    def match_andop(self) -> int | None:
         # Try to match 'AND' operator. If not found, return None
         m1 = self.cond_expr.match_str("AND")
         if m1 is not None:
             return self.AND
         return None
 
-    def match_orop(self) -> Optional[int]:
+    def match_orop(self) -> int | None:
         # Try to match 'OR' operator. If not found, return None
         m1 = self.cond_expr.match_str("OR")
         if m1 is not None:
@@ -270,7 +270,7 @@ class NumericParser(NumTokens):
         self.rxint = re.compile(r"(?P<int_num>[+-]?[0-9]+)")
         self.rxfloat = re.compile(r"(?P<float_num>[+-]?(?:(?:[0-9]*\.[0-9]+)|(?:[0-9]+\.[0-9]*)))")
 
-    def match_number(self) -> Optional[Any]:
+    def match_number(self) -> Any | None:
         # Try to match a number in the source string.
         # Return it if matched, return None if unmatched.
         m1 = self.num_expr.match_regex(self.rxfloat)
@@ -282,7 +282,7 @@ class NumericParser(NumTokens):
                 return int(m2["int_num"])
         return None
 
-    def match_mulop(self) -> Optional[int]:
+    def match_mulop(self) -> int | None:
         # Try to match a multiplication or division operator in the source string.
         # if found, return the matching operator type.  If not found, return None.
         m1 = self.num_expr.match_str("*")
@@ -294,7 +294,7 @@ class NumericParser(NumTokens):
                 return self.DIV
         return None
 
-    def match_addop(self) -> Optional[int]:
+    def match_addop(self) -> int | None:
         # Try to match an addition or subtraction operator in the source string.
         # if found, return the matching operator type.  If not found, return None.
         m1 = self.num_expr.match_str("+")

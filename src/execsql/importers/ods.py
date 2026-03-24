@@ -9,8 +9,7 @@ the ``IMPORT … FORMAT ods`` metacommand.  Requires ``odfpy``
 (``execsql2[ods]``).
 """
 
-import os
-from typing import Any, List, Optional
+from typing import Any
 
 from execsql.exceptions import ErrInfo
 from execsql.db.base import Database
@@ -39,7 +38,7 @@ def ods_data(
     except Exception:
         raise ErrInfo(type="cmd", other_msg=f"{sheetname} is not a worksheet in {filename}.")
     colhdrs = alldata[0]
-    if any([x is None or len(x.strip()) == 0 for x in colhdrs]):
+    if any(x is None or len(x.strip()) == 0 for x in colhdrs):
         if conf.del_empty_cols:
             blanks = [i for i in range(len(colhdrs)) if colhdrs[i] is None or len(colhdrs[i].strip()) == 0]
             while len(blanks) > 0:
@@ -70,7 +69,7 @@ def ods_data(
 
 def importods(
     db: Database,
-    schemaname: Optional[str],
+    schemaname: str | None,
     tablename: str,
     is_new: Any,
     filename: str,

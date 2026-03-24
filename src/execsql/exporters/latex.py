@@ -8,11 +8,9 @@ set to a LaTeX ``tabular`` environment suitable for inclusion in a
 ``.tex`` document.
 """
 
-import io
 import os
-import re
 import tempfile
-from typing import Any, List, Optional
+from typing import Any
 
 from execsql.exceptions import ErrInfo
 from execsql.exporters.zip import WriteableZipfile
@@ -21,15 +19,14 @@ import execsql.state as _state
 
 def export_latex(
     outfile: str,
-    hdrs: List[str],
+    hdrs: list[str],
     rows: Any,
     append: bool = False,
-    querytext: Optional[str] = None,
-    desc: Optional[str] = None,
-    zipfile: Optional[Any] = None,
+    querytext: str | None = None,
+    desc: str | None = None,
+    zipfile: Any | None = None,
 ) -> None:
     from execsql.utils.fileio import EncodedFile
-    from execsql.utils.errors import exception_info
 
     def write_table(f: Any) -> None:
         f.write("\\begin{center}\n")
@@ -113,8 +110,8 @@ def write_query_to_latex(
     db: Any,
     outfile: str,
     append: bool = False,
-    desc: Optional[str] = None,
-    zipfile: Optional[Any] = None,
+    desc: str | None = None,
+    zipfile: Any | None = None,
 ) -> None:
     from execsql.utils.errors import exception_desc
 

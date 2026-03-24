@@ -11,7 +11,6 @@ the same password is needed again within the same session.
 """
 
 import getpass
-from typing import Optional
 
 import execsql.state as _state
 
@@ -20,8 +19,8 @@ def get_password(
     dbms_name: str,
     database_name: str,
     user_name: str,
-    server_name: Optional[str] = None,
-    other_msg: Optional[str] = None,
+    server_name: str | None = None,
+    other_msg: str | None = None,
 ) -> str:
     """Prompt the user for a database password, using the GUI if available."""
     # Deferred imports to avoid circular dependencies at import time.
@@ -73,15 +72,14 @@ def get_password(
             user_response = return_queue.get(block=True)
             btn = user_response["button"]
             passwd = user_response["return_value"]
-            if not btn:
-                if _state.status and _state.status.cancel_halt:
-                    if _state.exec_log:
-                        _state.exec_log.log_exit_halt(
-                            script_name,
-                            0,
-                            f"Canceled on password prompt for {dbms_name} database {database_name}, user {user_name}",
-                        )
-                    exit_now(2, None)
+            if not btn and _state.status and _state.status.cancel_halt:
+                if _state.exec_log:
+                    _state.exec_log.log_exit_halt(
+                        script_name,
+                        0,
+                        f"Canceled on password prompt for {dbms_name} database {database_name}, user {user_name}",
+                    )
+                exit_now(2, None)
         except Exception:
             prompt_text = prompt.replace("\n", " ", 1).replace("\n", ", ") + " >"
             passwd = getpass.getpass(str(prompt_text))

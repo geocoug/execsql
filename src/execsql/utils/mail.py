@@ -10,10 +10,8 @@ which compose and send email via SMTP using settings from
 metacommand and the halt/cancel email-notification hooks.
 """
 
-import io
 import os
 import re
-from typing import List, Optional
 
 import execsql.state as _state
 from execsql.exceptions import ErrInfo
@@ -67,9 +65,9 @@ class Mailer:
         send_from: str,
         send_to: str,
         subject: str,
-        msg_content: Optional[str],
-        content_filename: Optional[str] = None,
-        attach_filename: Optional[str] = None,
+        msg_content: str | None,
+        content_filename: str | None = None,
+        attach_filename: str | None = None,
     ) -> None:
         global smtplib
         global MIMEMultipart
@@ -89,22 +87,22 @@ class Mailer:
         if conf.email_format == "html":
             msg_body = "<html><head>"
             if conf.email_css is not None:
-                msg_body += "<style>%s</style>" % conf.email_css
-            msg_body += "</head><body>%s" % msg_content if msg_content else ""
+                msg_body += f"<style>{conf.email_css}</style>"
+            msg_body += f"</head><body>{msg_content}" if msg_content else ""
         else:
             msg_body = msg_content if msg_content else ""
         if content_filename is not None:
-            msg_body += "\n" + io.open(content_filename, "rt").read()
+            with open(content_filename) as content_file:
+                msg_body += "\n" + content_file.read()
         if conf.email_format == "html":
             msg_body += "</body></html>"
             msg.attach(MIMEText(msg_body, "html"))
         else:
             msg.attach(MIMEText(msg_body, "plain"))
         if attach_filename is not None:
-            f = io.open(attach_filename, "rb")
-            fdata = MIMEBase("application", "octet-stream")
-            fdata.set_payload(f.read())
-            f.close()
+            with open(attach_filename, "rb") as f:
+                fdata = MIMEBase("application", "octet-stream")
+                fdata.set_payload(f.read())
             encoders.encode_base64(fdata)
             fdata.add_header("Content-Disposition", "attachment", filename=os.path.basename(attach_filename))
             msg.attach(fdata)
@@ -117,9 +115,9 @@ class MailSpec:
         send_from: str,
         send_to: str,
         subject: str,
-        msg_content: Optional[str],
-        content_filename: Optional[str] = None,
-        attach_filename: Optional[str] = None,
+        msg_content: str | None,
+        content_filename: str | None = None,
+        attach_filename: str | None = None,
         repeatable: bool = False,
     ) -> None:
         self.send_from = send_from

@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from execsql.gui.base import GuiBackend
 
 
-def get_backend(framework: str = "tkinter") -> "GuiBackend":
+def get_backend(framework: str = "tkinter") -> GuiBackend:
     """Return the best available backend for *framework*.
 
     Falls back gracefully if the preferred backend's dependencies are missing.
@@ -50,7 +50,7 @@ def get_backend(framework: str = "tkinter") -> "GuiBackend":
     return ConsoleBackend()
 
 
-def gui_manager_loop(q: "queue.Queue[Any]", backend: "GuiBackend") -> None:
+def gui_manager_loop(q: queue.Queue[Any], backend: GuiBackend) -> None:
     """GUI manager thread main loop.
 
     Reads ``GuiSpec`` objects from *q*, dispatches each to *backend*, and

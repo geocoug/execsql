@@ -48,7 +48,6 @@ class TestEncrypt:
 
     def test_xor_symmetric(self):
         """xor(xor(text, key), key) == text."""
-        import itertools
 
         key = "somekey"
         text = "hello world"

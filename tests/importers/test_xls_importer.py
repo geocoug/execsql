@@ -7,13 +7,11 @@ xls_data / importxls.  Skipped if openpyxl is not installed.
 
 from __future__ import annotations
 
-from types import SimpleNamespace
 
 import pytest
 
 openpyxl = pytest.importorskip("openpyxl")
 
-import execsql.state as _state
 from execsql.db.sqlite import SQLiteDatabase
 from execsql.importers.xls import xls_data, importxls
 from execsql.exceptions import ErrInfo

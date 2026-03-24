@@ -9,7 +9,6 @@ on the CLI.
 """
 
 import os
-from typing import Optional
 
 from execsql.db.base import Database
 from execsql.exceptions import ErrInfo
@@ -76,8 +75,8 @@ class DuckDBDatabase(Database):
         # In DuckDB, the 'schemata' view is not limited to the current database.
         curs = self.cursor()
         curs.execute(
-            f"SELECT schema_name FROM information_schema.schemata "
-            f"WHERE schema_name = '{schema_name}' and catalog_name = '{self.catalog_name}';",
+            "SELECT schema_name FROM information_schema.schemata WHERE schema_name = ? and catalog_name = ?;",
+            (schema_name, self.catalog_name),
         )
         rows = curs.fetchall()
         curs.close()

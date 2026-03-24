@@ -113,6 +113,37 @@ class TestDatabaseOpenDbNotImplemented:
 
 
 # ---------------------------------------------------------------------------
+# quote_identifier
+# ---------------------------------------------------------------------------
+
+
+class TestQuoteIdentifier:
+    def test_simple_identifier(self):
+        db = Database(server_name=None, db_name=None)
+        assert db.quote_identifier("my_table") == '"my_table"'
+
+    def test_identifier_with_embedded_double_quote(self):
+        db = Database(server_name=None, db_name=None)
+        assert db.quote_identifier('my"table') == '"my""table"'
+
+    def test_identifier_with_multiple_double_quotes(self):
+        db = Database(server_name=None, db_name=None)
+        assert db.quote_identifier('a"b"c') == '"a""b""c"'
+
+    def test_empty_identifier(self):
+        db = Database(server_name=None, db_name=None)
+        assert db.quote_identifier("") == '""'
+
+    def test_identifier_with_spaces(self):
+        db = Database(server_name=None, db_name=None)
+        assert db.quote_identifier("my table") == '"my table"'
+
+    def test_identifier_with_special_chars(self):
+        db = Database(server_name=None, db_name=None)
+        assert db.quote_identifier("col; DROP TABLE--") == '"col; DROP TABLE--"'
+
+
+# ---------------------------------------------------------------------------
 # DatabasePool
 # ---------------------------------------------------------------------------
 
@@ -356,7 +387,7 @@ class TestDatabaseDeeperMethods:
         db.execute("INSERT INTO droptarget VALUES (1);")
         db.drop_table("droptarget")
         # Table should no longer exist
-        with pytest.raises(Exception):
+        with pytest.raises(ErrInfo):
             db.select_data("SELECT * FROM droptarget;")
 
     def test_table_columns_returns_column_names(self, db):

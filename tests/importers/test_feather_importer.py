@@ -11,7 +11,6 @@ import pytest
 
 pl = pytest.importorskip("polars")
 
-import execsql.state as _state
 from execsql.db.sqlite import SQLiteDatabase
 from execsql.importers.feather import import_feather, import_parquet
 

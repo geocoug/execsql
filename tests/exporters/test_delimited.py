@@ -11,15 +11,11 @@ Covers:
 
 from __future__ import annotations
 
-import csv
 import io
 import os
-from types import SimpleNamespace
-from unittest.mock import patch
 
 import pytest
 
-import execsql.state as _state
 from execsql.exporters.delimited import (
     LineDelimiter,
     DelimitedWriter,
@@ -148,7 +144,7 @@ class TestDelimitedWriter:
 # ===========================================================================
 
 
-class TestCsvWriter(object):
+class TestCsvWriter:
     def test_writerow_to_file(self, noop_filewriter_close, tmp_path):
         out = str(tmp_path / "out.csv")
         w = CsvWriter(out, "utf-8", ",", '"', None)

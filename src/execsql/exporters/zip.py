@@ -9,12 +9,9 @@ higher-level interface used by the EXPORT metacommand when the output is
 directed into a ``.zip`` archive.
 """
 
-import io
-import os
 import sys
 import time
 import zipfile
-from typing import Optional
 
 import execsql.state as _state
 

@@ -9,7 +9,7 @@ substitution) and :func:`report_query`, which drives the
 variants.  The Jinja2 template processor is loaded lazily when selected.
 """
 
-from typing import Any, Optional
+from typing import Any
 
 import execsql.state as _state
 from execsql.exceptions import ErrInfo
@@ -41,7 +41,7 @@ class StrTemplateReport:
         data_dict_rows: Any,
         output_dest: str,
         append: bool = False,
-        zipfile: Optional[str] = None,
+        zipfile: str | None = None,
     ) -> None:
         conf = _state.conf
         from execsql.utils.fileio import EncodedFile
@@ -91,7 +91,7 @@ class JinjaTemplateReport:
         data_dict_rows: Any,
         output_dest: str,
         append: bool = False,
-        zipfile: Optional[str] = None,
+        zipfile: str | None = None,
     ) -> None:
         conf = _state.conf
         from execsql.utils.fileio import EncodedFile
@@ -126,7 +126,7 @@ def report_query(
     outfile: str,
     template_file: str,
     append: bool = False,
-    zipfile: Optional[str] = None,
+    zipfile: str | None = None,
 ) -> None:
     # Write (export) a template-based report.
     conf = _state.conf

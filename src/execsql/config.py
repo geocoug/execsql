@@ -17,7 +17,6 @@ Provides three classes:
 
 import os
 import os.path
-import re
 import sys
 from configparser import ConfigParser
 
@@ -155,8 +154,8 @@ class ConfigData:
                 if cp.has_option(self._CONNECT_SECTION, "port"):
                     try:
                         self.port = cp.getint(self._CONNECT_SECTION, "port")
-                    except Exception:
-                        raise ConfigError("Invalid port number.")
+                    except Exception as e:
+                        raise ConfigError("Invalid port number.") from e
                 if cp.has_option(self._CONNECT_SECTION, "database"):
                     self.db = cp.get(self._CONNECT_SECTION, "database")
                     if self.db is None:
@@ -174,13 +173,13 @@ class ConfigData:
                 if cp.has_option(self._CONNECT_SECTION, "password_prompt"):
                     try:
                         self.passwd_prompt = cp.getboolean(self._CONNECT_SECTION, "password_prompt")
-                    except Exception:
-                        raise ConfigError("Invalid argument for password_prompt.")
+                    except Exception as e:
+                        raise ConfigError("Invalid argument for password_prompt.") from e
                 if cp.has_option(self._CONNECT_SECTION, "new_db"):
                     try:
                         self.new_db = cp.getboolean(self._CONNECT_SECTION, "new_db")
-                    except Exception:
-                        raise ConfigError("Invalid argument for new_db.")
+                    except Exception as e:
+                        raise ConfigError("Invalid argument for new_db.") from e
                 if cp.has_option(self._ENCODING_SECTION, "database"):
                     self.db_encoding = cp.get(self._ENCODING_SECTION, "database")
                 if cp.has_option(self._ENCODING_SECTION, "script"):
@@ -203,151 +202,151 @@ class ConfigData:
                 if cp.has_option(self._INPUT_SECTION, "max_int"):
                     try:
                         maxint = cp.getint(self._INPUT_SECTION, "max_int")
-                    except Exception:
-                        raise ConfigError("Invalid argument to max_int.")
+                    except Exception as e:
+                        raise ConfigError("Invalid argument to max_int.") from e
                     else:
                         self.max_int = maxint
                 if cp.has_option(self._INPUT_SECTION, "boolean_int"):
                     try:
                         self.boolean_int = cp.getboolean(self._INPUT_SECTION, "boolean_int")
-                    except Exception:
-                        raise ConfigError("Invalid argument to boolean_int.")
+                    except Exception as e:
+                        raise ConfigError("Invalid argument to boolean_int.") from e
                 if cp.has_option(self._INPUT_SECTION, "boolean_words"):
                     try:
                         self.boolean_words = cp.getboolean(self._INPUT_SECTION, "boolean_words")
-                    except Exception:
-                        raise ConfigError("Invalid argument to boolean_words.")
+                    except Exception as e:
+                        raise ConfigError("Invalid argument to boolean_words.") from e
                 if cp.has_option(self._INPUT_SECTION, "empty_strings"):
                     try:
                         self.empty_strings = cp.getboolean(self._INPUT_SECTION, "empty_strings")
-                    except Exception:
-                        raise ConfigError("Invalid argument to empty_strings.")
+                    except Exception as e:
+                        raise ConfigError("Invalid argument to empty_strings.") from e
                 if cp.has_option(self._INPUT_SECTION, "only_strings"):
                     try:
-                        self.all_strings = cp.getboolean(self._INPUT_SECTION, "only_strings")
-                    except Exception:
-                        raise ConfigError("Invalid argument to only_strings.")
+                        self.only_strings = cp.getboolean(self._INPUT_SECTION, "only_strings")
+                    except Exception as e:
+                        raise ConfigError("Invalid argument to only_strings.") from e
                 if cp.has_option(self._INPUT_SECTION, "empty_rows"):
                     try:
                         self.empty_rows = cp.getboolean(self._INPUT_SECTION, "empty_rows")
-                    except Exception:
-                        raise ConfigError("Invalid argument to empty_rows.")
+                    except Exception as e:
+                        raise ConfigError("Invalid argument to empty_rows.") from e
                 if cp.has_option(self._INPUT_SECTION, "delete_empty_columns"):
                     try:
                         self.del_empty_cols = cp.getboolean(self._INPUT_SECTION, "delete_empty_columns")
-                    except Exception:
-                        raise ConfigError("Invalid argument to delete_empty_columns.")
+                    except Exception as e:
+                        raise ConfigError("Invalid argument to delete_empty_columns.") from e
                 if cp.has_option(self._INPUT_SECTION, "create_column_headers"):
                     try:
                         self.create_col_hdrs = cp.getboolean(self._INPUT_SECTION, "create_column_headers")
-                    except Exception:
-                        raise ConfigError("Invalid argument to create_column_headers.")
+                    except Exception as e:
+                        raise ConfigError("Invalid argument to create_column_headers.") from e
                 if cp.has_option(self._INPUT_SECTION, "trim_column_headers"):
                     try:
                         self.trim_col_hdrs = cp.get(self._INPUT_SECTION, "trim_column_headers").lower()
-                    except Exception:
-                        raise ConfigError("Invalid argument to trim_column_headers.")
+                    except Exception as e:
+                        raise ConfigError("Invalid argument to trim_column_headers.") from e
                     if self.trim_col_hdrs not in ("none", "both", "left", "right"):
                         raise ConfigError(f"Invalid argument to trim_column_headers: {self.trim_col_hdrs}.")
                 if cp.has_option(self._INPUT_SECTION, "clean_column_headers"):
                     try:
                         self.clean_col_hdrs = cp.getboolean(self._INPUT_SECTION, "clean_column_headers")
-                    except Exception:
-                        raise ConfigError("Invalid argument to clean_column_headers.")
+                    except Exception as e:
+                        raise ConfigError("Invalid argument to clean_column_headers.") from e
                 if cp.has_option(self._INPUT_SECTION, "fold_column_headers"):
                     foldspec = cp.get(self._INPUT_SECTION, "fold_column_headers").lower()
                     if foldspec not in ("no", "lower", "upper"):
                         raise ConfigError(f"Invalid argument to fold_column_headers: {foldspec}.")
-                    self.fold_column_headers = foldspec
+                    self.fold_col_hdrs = foldspec
                 if cp.has_option(self._INPUT_SECTION, "dedup_column_headers"):
                     try:
                         self.dedup_col_hdrs = cp.getboolean(self._INPUT_SECTION, "dedup_column_headers")
-                    except Exception:
-                        raise ConfigError("Invalid argument to dedup_column_headers.")
+                    except Exception as e:
+                        raise ConfigError("Invalid argument to dedup_column_headers.") from e
                 if cp.has_option(self._INPUT_SECTION, "trim_strings"):
                     try:
                         self.trim_strings = cp.getboolean(self._INPUT_SECTION, "trim_strings")
-                    except Exception:
-                        raise ConfigError("Invalid argument to trim_strings.")
+                    except Exception as e:
+                        raise ConfigError("Invalid argument to trim_strings.") from e
                 if cp.has_option(self._INPUT_SECTION, "replace_newlines"):
                     try:
-                        self.trim_strings = cp.getboolean(self._INPUT_SECTION, "replace_newlines")
-                    except Exception:
-                        raise ConfigError("Invalid argument to replace_newlines.")
+                        self.replace_newlines = cp.getboolean(self._INPUT_SECTION, "replace_newlines")
+                    except Exception as e:
+                        raise ConfigError("Invalid argument to replace_newlines.") from e
                 if cp.has_option(self._INPUT_SECTION, "import_row_buffer"):
                     try:
-                        self.quote_all_text = cp.getint(self._INPUT_SECTION, "import_row_buffer")
-                    except Exception:
-                        raise ConfigError("Invalid argument for import_row_buffer.")
+                        self.import_row_buffer = cp.getint(self._INPUT_SECTION, "import_row_buffer")
+                    except Exception as e:
+                        raise ConfigError("Invalid argument for import_row_buffer.") from e
                 if cp.has_option(self._INPUT_SECTION, "access_use_numeric"):
                     try:
                         self.access_use_numeric = cp.getboolean(self._INPUT_SECTION, "access_use_numeric")
-                    except Exception:
-                        raise ConfigError("Invalid argument to access_use_numeric.")
+                    except Exception as e:
+                        raise ConfigError("Invalid argument to access_use_numeric.") from e
                 if cp.has_option(self._INPUT_SECTION, "import_only_common_columns"):
                     try:
                         self.import_common_cols_only = cp.getboolean(
                             self._INPUT_SECTION,
                             "import_only_common_columns",
                         )
-                    except Exception:
-                        raise ConfigError("Invalid argument to import_only_common_columns.")
+                    except Exception as e:
+                        raise ConfigError("Invalid argument to import_only_common_columns.") from e
                 if cp.has_option(self._INPUT_SECTION, "import_common_columns_only"):
                     try:
                         self.import_common_cols_only = cp.getboolean(
                             self._INPUT_SECTION,
                             "import_common_columns_only",
                         )
-                    except Exception:
-                        raise ConfigError("Invalid argument to import_common_columns_only.")
+                    except Exception as e:
+                        raise ConfigError("Invalid argument to import_common_columns_only.") from e
                 if cp.has_option(self._INPUT_SECTION, "scan_lines"):
                     try:
                         self.scan_lines = cp.getint(self._INPUT_SECTION, "scan_lines")
-                    except Exception:
-                        raise ConfigError("Invalid argument to scan_lines.")
+                    except Exception as e:
+                        raise ConfigError("Invalid argument to scan_lines.") from e
                 if cp.has_option(self._INPUT_SECTION, "import_buffer"):
                     try:
                         self.import_buffer = cp.getint(self._INPUT_SECTION, "import_buffer") * 1024
-                    except Exception:
-                        raise ConfigError("Invalid argument for import_buffer.")
+                    except Exception as e:
+                        raise ConfigError("Invalid argument for import_buffer.") from e
                 if cp.has_option(self._OUTPUT_SECTION, "log_write_messages"):
                     try:
                         self.tee_write_log = cp.getboolean(self._OUTPUT_SECTION, "log_write_messages")
-                    except Exception:
-                        raise ConfigError("Invalid argument to log_write_messages")
+                    except Exception as e:
+                        raise ConfigError("Invalid argument to log_write_messages") from e
                 if cp.has_option(self._OUTPUT_SECTION, "hdf5_text_len"):
                     try:
                         self.hdf5_text_len = cp.getint(self._OUTPUT_SECTION, "hdf5_text_len")
-                    except Exception:
-                        raise ConfigError("Invalid argument to log_write_messages")
+                    except Exception as e:
+                        raise ConfigError("Invalid argument to log_write_messages") from e
                 if cp.has_option(self._OUTPUT_SECTION, "css_file"):
                     self.css_file = cp.get(self._OUTPUT_SECTION, "css_file")
                     if self.css_file is None:
                         raise ConfigError("The css_file name is missing.")
                 if cp.has_option(self._OUTPUT_SECTION, "css_styles"):
                     self.css_styles = cp.get(self._OUTPUT_SECTION, "css_styles")
-                    if self.css_file is None:
+                    if self.css_styles is None:
                         raise ConfigError("The css_styles are missing.")
                 if cp.has_option(self._OUTPUT_SECTION, "make_export_dirs"):
                     try:
                         self.make_export_dirs = cp.getboolean(self._OUTPUT_SECTION, "make_export_dirs")
-                    except Exception:
-                        raise ConfigError("Invalid argument for make_export_dirs.")
+                    except Exception as e:
+                        raise ConfigError("Invalid argument for make_export_dirs.") from e
                 if cp.has_option(self._OUTPUT_SECTION, "quote_all_text"):
                     try:
                         self.quote_all_text = cp.getboolean(self._OUTPUT_SECTION, "quote_all_text")
-                    except Exception:
-                        raise ConfigError("Invalid argument for make_export_dirs.")
+                    except Exception as e:
+                        raise ConfigError("Invalid argument for make_export_dirs.") from e
                 if cp.has_option(self._OUTPUT_SECTION, "outfile_open_timeout"):
                     try:
                         self.outfile_open_timeout = cp.getint(self._OUTPUT_SECTION, "outfile_open_timeout")
-                    except Exception:
-                        raise ConfigError("Invalid argument for outfile_open_timeout.")
+                    except Exception as e:
+                        raise ConfigError("Invalid argument for outfile_open_timeout.") from e
                 if cp.has_option(self._OUTPUT_SECTION, "export_row_buffer"):
                     try:
                         self.export_row_buffer = cp.getint(self._OUTPUT_SECTION, "export_row_buffer")
-                    except Exception:
-                        raise ConfigError("Invalid argument for export_row_buffer.")
+                    except Exception as e:
+                        raise ConfigError("Invalid argument for export_row_buffer.") from e
                 if cp.has_option(self._OUTPUT_SECTION, "template_processor"):
                     tp = cp.get(self._OUTPUT_SECTION, "template_processor").lower()
                     if tp not in ("jinja",):
@@ -356,25 +355,25 @@ class ConfigData:
                 if cp.has_option(self._OUTPUT_SECTION, "zip_buffer_mb"):
                     try:
                         self.zip_buffer_mb = cp.getint(self._OUTPUT_SECTION, "zip_buffer_mb")
-                    except Exception:
-                        raise ConfigError("Invalid argument for zip_buffer_mb.")
+                    except Exception as e:
+                        raise ConfigError("Invalid argument for zip_buffer_mb.") from e
                 if cp.has_option(self._INTERFACE_SECTION, "write_warnings"):
                     try:
                         self.write_warnings = cp.getboolean(self._INTERFACE_SECTION, "write_warnings")
-                    except Exception:
-                        raise ConfigError("Invalid argument to write_warnings.")
+                    except Exception as e:
+                        raise ConfigError("Invalid argument to write_warnings.") from e
                 if cp.has_option(self._INTERFACE_SECTION, "write_prefix"):
                     try:
                         self.write_prefix = cp.get(self._INTERFACE_SECTION, "write_prefix")
-                    except Exception:
-                        raise ConfigError("Invalid or missing argument to write_prefix.")
+                    except Exception as e:
+                        raise ConfigError("Invalid or missing argument to write_prefix.") from e
                     if self.write_prefix.lower() == "clear":
                         self.write_prefix = None
                 if cp.has_option(self._INTERFACE_SECTION, "write_suffix"):
                     try:
                         self.write_suffix = cp.get(self._INTERFACE_SECTION, "write_suffix")
-                    except Exception:
-                        raise ConfigError("Invalid or missing argument to write_suffix.")
+                    except Exception as e:
+                        raise ConfigError("Invalid or missing argument to write_suffix.") from e
                     if self.write_suffix.lower() == "clear":
                         self.write_suffix = None
                 if cp.has_option(self._INTERFACE_SECTION, "gui_level"):
@@ -389,26 +388,26 @@ class ConfigData:
                 if cp.has_option(self._INTERFACE_SECTION, "console_height"):
                     try:
                         self.gui_console_height = max(5, cp.getint(self._INTERFACE_SECTION, "console_height"))
-                    except Exception:
-                        raise ConfigError("Invalid argument for console_height.")
+                    except Exception as e:
+                        raise ConfigError("Invalid argument for console_height.") from e
                 if cp.has_option(self._INTERFACE_SECTION, "console_width"):
                     try:
                         self.gui_console_width = max(20, cp.getint(self._INTERFACE_SECTION, "console_width"))
-                    except Exception:
-                        raise ConfigError("Invalid argument for console_width.")
+                    except Exception as e:
+                        raise ConfigError("Invalid argument for console_width.") from e
                 if cp.has_option(self._INTERFACE_SECTION, "console_wait_when_done"):
                     try:
                         self.gui_wait_on_exit = cp.getboolean(self._INTERFACE_SECTION, "console_wait_when_done")
-                    except Exception:
-                        raise ConfigError("Invalid argument for console_wait_when_done.")
+                    except Exception as e:
+                        raise ConfigError("Invalid argument for console_wait_when_done.") from e
                 if cp.has_option(self._INTERFACE_SECTION, "console_wait_when_error_halt"):
                     try:
                         self.gui_wait_on_error_halt = cp.getboolean(
                             self._INTERFACE_SECTION,
                             "console_wait_when_error_halt",
                         )
-                    except Exception:
-                        raise ConfigError("Invalid argument for console_wait_when_error_halt.")
+                    except Exception as e:
+                        raise ConfigError("Invalid argument for console_wait_when_error_halt.") from e
                 if cp.has_option(self._CONFIG_SECTION, "config_file"):
                     conffile = cp.get(self._CONFIG_SECTION, "config_file")
                     if os.name == "posix" and conffile[0] == "~":
@@ -452,16 +451,16 @@ class ConfigData:
                 if cp.has_option(self._CONFIG_SECTION, "log_datavars"):
                     try:
                         self.log_datavars = cp.getboolean(self._CONFIG_SECTION, "log_datavars")
-                    except Exception:
-                        raise ConfigError("Invalid argument to log_datavars setting.")
+                    except Exception as e:
+                        raise ConfigError("Invalid argument to log_datavars setting.") from e
                 if cp.has_option(self._EMAIL_SECTION, "host"):
                     self.smtp_host = cp.get(self._EMAIL_SECTION, "host")
                 if cp.has_option(self._EMAIL_SECTION, "port"):
                     self.smtp_port = cp.get(self._EMAIL_SECTION, "port")
                     try:
                         self.smtp_port = cp.getint(self._EMAIL_SECTION, "port")
-                    except Exception:
-                        raise ConfigError("Invalid argument for email port.")
+                    except Exception as e:
+                        raise ConfigError("Invalid argument for email port.") from e
                 if cp.has_option(self._EMAIL_SECTION, "username"):
                     self.smtp_username = cp.get(self._EMAIL_SECTION, "username")
                 if cp.has_option(self._EMAIL_SECTION, "password"):
@@ -471,13 +470,13 @@ class ConfigData:
                 if cp.has_option(self._EMAIL_SECTION, "use_ssl"):
                     try:
                         self.smtp_ssl = cp.getboolean(self._EMAIL_SECTION, "use_ssl")
-                    except Exception:
-                        raise ConfigError("Invalid argument for email use_ssl.")
+                    except Exception as e:
+                        raise ConfigError("Invalid argument for email use_ssl.") from e
                 if cp.has_option(self._EMAIL_SECTION, "use_tls"):
                     try:
                         self.smtp_tls = cp.getboolean(self._EMAIL_SECTION, "use_tls")
-                    except Exception:
-                        raise ConfigError("Invalid argument for email use_tls.")
+                    except Exception as e:
+                        raise ConfigError("Invalid argument for email use_tls.") from e
                 if cp.has_option(self._EMAIL_SECTION, "email_format"):
                     fmt = cp.get(self._EMAIL_SECTION, "email_format").lower()
                     if fmt not in ("plain", "html"):
@@ -508,9 +507,12 @@ class ConfigData:
                     newfiles = [os.path.abspath(f[1]) for f in ord_items]
                     u_files = []
                     for f in newfiles:
-                        if not (f in u_files or f in self.include_req or f in self.include_opt) and f != current_script:
-                            if os.path.exists(f):
-                                u_files.append(f)
+                        if (
+                            not (f in u_files or f in self.include_req or f in self.include_opt)
+                            and f != current_script
+                            and os.path.exists(f)
+                        ):
+                            u_files.append(f)
                     self.include_opt.extend(u_files)
 
 

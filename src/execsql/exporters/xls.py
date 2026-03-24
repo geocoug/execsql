@@ -11,10 +11,8 @@ EXPORT metacommand.  Requires the ``execsql2[excel]`` extras.
 
 import datetime
 import os
-import re
-from typing import Any, Optional, List
+from typing import Any
 
-import execsql.state as _state
 from execsql.exceptions import XlsFileError, XlsxFileError
 from execsql.utils.errors import fatal_error
 
@@ -42,7 +40,7 @@ class XlsFile:
         self.datemode = 0
         self.errlog = self.XlsLog()
 
-    def open(self, filename: str, encoding: Optional[str] = None, read_only: bool = False) -> None:
+    def open(self, filename: str, encoding: str | None = None, read_only: bool = False) -> None:
         self.filename = filename
         self.encoding = encoding
         self.read_only = read_only
@@ -75,7 +73,7 @@ class XlsFile:
             sheet = self.wbk.sheet_by_index(max(0, sheet_no - 1))
         return sheet
 
-    def sheet_data(self, sheetname: Any, junk_header_rows: int = 0) -> List:
+    def sheet_data(self, sheetname: Any, junk_header_rows: int = 0) -> list:
         try:
             sheet = self.sheet_named(sheetname)
         except Exception:
@@ -90,7 +88,7 @@ class XlsFile:
             if columns:
                 d = [cells[c] for c in range(columns)]
             else:
-                d = [cell for cell in cells]
+                d = list(cells)
             datarow = []
             for c in d:
                 if c.ctype == 0:
@@ -169,7 +167,7 @@ class XlsxFile:
         self.read_only = False
         self.errlog = self.XlsxLog()
 
-    def open(self, filename: str, encoding: Optional[str] = None, read_only: bool = False) -> None:
+    def open(self, filename: str, encoding: str | None = None, read_only: bool = False) -> None:
         self.filename = filename
         self.encoding = encoding
         self.read_only = read_only
@@ -188,7 +186,7 @@ class XlsxFile:
             self.filename = None
             self.encoding = None
 
-    def sheetnames(self) -> List[str]:
+    def sheetnames(self) -> list[str]:
         return self.wbk.sheetnames
 
     def sheet_named(self, sheetname: Any) -> Any:
@@ -210,7 +208,7 @@ class XlsxFile:
             sheet = self.wbk[sheetname]
         return sheet
 
-    def sheet_data(self, sheetname: Any, junk_header_rows: int = 0) -> List:
+    def sheet_data(self, sheetname: Any, junk_header_rows: int = 0) -> list:
         try:
             sheet = self.sheet_named(sheetname)
         except Exception:
@@ -221,14 +219,14 @@ class XlsxFile:
         # a row is entirely empty.
         # Get the header row, skipping junk rows
         rowsrc = sheet.iter_rows(max_row=junk_header_rows + 1, values_only=True)
-        for hdr_row in rowsrc:
+        for _hdr_row in rowsrc:
             pass
         # Get the number of columns
         ncols = 0
-        for c in range(len(hdr_row)):
-            if not hdr_row[c]:
+        for c in range(len(_hdr_row)):
+            if not _hdr_row[c]:
                 break
-            ncols += 1
+            ncols += 1  # noqa: SIM113
         # Get all the data rows
         sheet_data = []
         rowsrc = sheet.iter_rows(min_row=junk_header_rows + 1, values_only=True)

@@ -248,8 +248,7 @@ class DisplayScreen(_BaseDialog):
                     id="text_input",
                 )
             with Horizontal(id="buttons"):
-                for btn in _button_row(button_list):
-                    yield btn
+                yield from _button_row(button_list)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         btn_id = event.button.id
@@ -410,8 +409,7 @@ class CompareScreen(_BaseDialog):
                     yield Label("Table 2")
                     yield _make_table_widget("table2", headers2, rows2)
             with Horizontal(id="buttons"):
-                for btn in _button_row(button_list):
-                    yield btn
+                yield from _button_row(button_list)
 
     def on_mount(self) -> None:
         keylist = [str(k) for k in self.args.get("keylist", [])]
@@ -515,8 +513,7 @@ class SelectRowsScreen(_BaseDialog):
                     yield Label("Destination")
                     yield _make_table_widget("dest_table", headers2, rows2)
             with Horizontal(id="buttons"):
-                for btn in _button_row(button_list):
-                    yield btn
+                yield from _button_row(button_list)
 
     def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
         if event.data_table.id == "source_table":
@@ -564,8 +561,7 @@ class SelectSubScreen(_BaseDialog):
             with ScrollableContainer():
                 yield _make_table_widget("sel_table", headers, rows)
             with Horizontal(id="buttons"):
-                for btn in _button_row(button_list):
-                    yield btn
+                yield from _button_row(button_list)
 
     def on_data_table_row_highlighted(self, event: DataTable.RowHighlighted) -> None:
         row_key = event.row_key
@@ -649,8 +645,7 @@ class MapScreen(_BaseDialog):
                 with ScrollableContainer():
                     yield _make_table_widget("map_table", headers, rows)
             with Horizontal(id="buttons"):
-                for btn in _button_row(button_list):
-                    yield btn
+                yield from _button_row(button_list)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         btn_id = event.button.id
@@ -862,7 +857,6 @@ def _build_screen_map() -> dict:
         GUI_SAVEFILE,
         GUI_SELECTROWS,
         GUI_SELECTSUB,
-        QUERY_CONSOLE,
     )
 
     return {

@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-import sys
-
-import pytest
 
 from execsql.config import StatObj, WriteHooks
 

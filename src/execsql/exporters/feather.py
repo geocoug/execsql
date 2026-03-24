@@ -10,7 +10,7 @@ and ``tables``).  Used by ``EXPORT … FORMAT feather`` and
 ``FORMAT hdf5``.  Both packages are optional dependencies.
 """
 
-from typing import Any, Optional, List
+from typing import Any
 
 import execsql.state as _state
 from execsql.models import DataTable
@@ -19,7 +19,7 @@ from execsql.utils.errors import exception_desc
 from execsql.utils.fileio import filewriter_close
 
 
-def write_query_to_feather(outfile: str, headers: List[str], rows: Any) -> None:
+def write_query_to_feather(outfile: str, headers: list[str], rows: Any) -> None:
     try:
         import polars as pl
     except ImportError:
@@ -43,7 +43,7 @@ def write_query_to_hdf5(
     db: Any,
     outfile: str,
     append: bool = False,
-    desc: Optional[str] = None,
+    desc: str | None = None,
 ) -> None:
     try:
         import tables
@@ -88,7 +88,7 @@ def write_query_to_hdf5(
     h5type_dict = {}
     cast_flags = []
     # Iterate over hdrs instead of tbl_desc.cols to preserve column order.
-    for i, h in enumerate(hdrs):
+    for h in hdrs:
         dt = [col for col in tbl_desc.cols if col.name == h][0].dt
         # dt is a tuple of: 0: the column name; 1: the data type class; 2: the maximum length or None if NA; other info.
         h5typ, as_str = h5type(dt[1], dt[2])

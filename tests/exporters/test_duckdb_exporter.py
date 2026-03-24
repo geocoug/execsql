@@ -15,7 +15,6 @@ import pytest
 
 duckdb = pytest.importorskip("duckdb")
 
-import execsql.state as _state
 from execsql.exporters.duckdb import export_duckdb, write_query_to_duckdb
 from execsql.exceptions import ErrInfo
 

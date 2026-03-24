@@ -12,9 +12,7 @@ from __future__ import annotations
 
 import queue
 import threading
-from types import SimpleNamespace
-from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -40,7 +38,6 @@ from execsql.utils.gui import (
     ConsoleUIError,
     EntrySpec,
     GuiSpec,
-    enable_gui,
 )
 
 
@@ -547,7 +544,6 @@ class TestConsoleWindowMethods:
             from execsql.gui.desktop import ConsoleWindow
         except ImportError:
             pytest.skip("tkinter not available")
-        from unittest.mock import MagicMock
 
         cw = ConsoleWindow.__new__(ConsoleWindow)
         mock_var = MagicMock()
@@ -564,7 +560,6 @@ class TestConsoleWindowMethods:
             from execsql.gui.desktop import ConsoleWindow
         except ImportError:
             pytest.skip("tkinter not available")
-        from unittest.mock import MagicMock
 
         cw = ConsoleWindow.__new__(ConsoleWindow)
         mock_var = MagicMock()
@@ -582,7 +577,7 @@ class TestTkinterBackendStructure:
     def test_import_succeeds(self):
         """tkinter is part of CPython stdlib — import should always work."""
         try:
-            from execsql.gui.desktop import TkinterBackend
+            from execsql.gui.desktop import TkinterBackend  # noqa: F401
         except ImportError:
             pytest.skip("tkinter not available")
 
@@ -663,7 +658,7 @@ class TestTkinterBackendStructure:
 class TestTextualBackendStructure:
     def test_import_succeeds_when_textual_available(self):
         try:
-            from execsql.gui.tui import TextualBackend
+            from execsql.gui.tui import TextualBackend  # noqa: F401
         except ImportError:
             pytest.skip("textual not installed")
 
@@ -800,7 +795,6 @@ class TestGuiPublicAPI:
         assert pause("Waiting...", action="CONTINUE", countdown=5.0) == 2  # 2 = timed out
 
     def test_console_ui_error_is_exception(self):
-        from execsql.utils.gui import ConsoleUIError
 
         with pytest.raises(ConsoleUIError):
             raise ConsoleUIError("test error")
@@ -844,7 +838,7 @@ class TestGuiPublicAPI:
         assert pause_win("msg") == pause("msg")
 
     def test_get_yn_win_is_alias_for_get_yn(self, monkeypatch):
-        from execsql.utils.gui import get_yn, get_yn_win
+        from execsql.utils.gui import get_yn_win
 
         monkeypatch.setattr("builtins.input", lambda *a: "y")
         assert get_yn_win("?") is True

@@ -13,9 +13,7 @@ Provides:
 """
 
 import signal
-import threading
 import time
-from typing import Callable, Optional
 
 from execsql.exceptions import ExecSqlTimeoutError
 

@@ -22,7 +22,6 @@ identifiers:
 """
 
 import re
-from typing import Any, List, Optional
 
 
 def clean_word(word: str) -> str:
@@ -34,7 +33,7 @@ def clean_word(word: str) -> str:
     return s1
 
 
-def clean_words(wordlist: List[str]) -> List[str]:
+def clean_words(wordlist: list[str]) -> list[str]:
     return [clean_word(w) for w in wordlist]
 
 
@@ -50,7 +49,7 @@ def trim_word(word: str, blr: str) -> str:
         return word
 
 
-def trim_words(wordlist: List[str], nblr: str) -> List[str]:
+def trim_words(wordlist: list[str], nblr: str) -> list[str]:
     return [trim_word(w, nblr) for w in wordlist]
 
 
@@ -63,16 +62,16 @@ def fold_word(word: str, foldspec: str) -> str:
     return word
 
 
-def fold_words(wordlist: List[str], foldspec: str) -> List[str]:
+def fold_words(wordlist: list[str], foldspec: str) -> list[str]:
     return [fold_word(w, foldspec) for w in wordlist]
 
 
-def dedup_words(wordlist: List[str]) -> List[str]:
+def dedup_words(wordlist: list[str]) -> list[str]:
     # Adds an item number suffix to duplicated words.
     w2 = wordlist
     dup_ix = [ix for ix, w in enumerate(w2) if w.lower() in [wrd.lower() for wrd in w2[:ix]]]
     while len(dup_ix) > 0:
-        w2 = [w + "_%s" % str(ix + 1) if ix in dup_ix else w for ix, w in enumerate(w2)]
+        w2 = [w + f"_{str(ix + 1)}" if ix in dup_ix else w for ix, w in enumerate(w2)]
         dup_ix = [ix for ix, w in enumerate(w2) if w.lower() in [wrd.lower() for wrd in w2[:ix]]]
     return w2
 
@@ -206,10 +205,7 @@ def encodings_match(enc1: str, enc2: str) -> bool:
             "gb18030",
         ),
     )
-    for eq in equivalents:
-        if enc1 in eq and enc2 in eq:
-            return True
-    return False
+    return any(enc1 in eq and enc2 in eq for eq in equivalents)
 
 
 def wo_quotes(argstr: str) -> str:
@@ -247,8 +243,10 @@ def get_subvarset(varname: str, metacommandline: str) -> tuple:
             raise ErrInfo(
                 type="cmd",
                 command_text=metacommandline,
-                other_msg="Outer-scope referent variable (%s) has no matching local variable (%s)."
-                % (re.sub("^[~]", "+", varname), varname),
+                other_msg="Outer-scope referent variable ({}) has no matching local variable ({}).".format(
+                    re.sub("^[~]", "+", varname),
+                    varname,
+                ),
             )
     # Global or local variable
     else:

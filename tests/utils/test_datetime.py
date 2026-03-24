@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import datetime
 
-import pytest
 
 from execsql.utils.datetime import parse_datetime, parse_datetimetz
 

@@ -246,7 +246,20 @@ This setting is also applied to the conversion of spreadsheet names to table nam
     -- !x! write "The encrypted password is: !!enc_pw!!"
     ```
 
-    If both the `password` and `enc_password` configuration properties are used, the `enc_password` property will take precedence and will be used for SMTP authentication. Note that this is not a cryptographically secure encryption, merely an obfuscation of the password.
+    If both the `password` and `enc_password` configuration properties are used, the `enc_password` property will take precedence and will be used for SMTP authentication.
+
+    !!! warning "Obfuscation only — not real encryption"
+
+        The `enc_password` value is produced by a simple XOR operation using
+        keys that are embedded in the execsql source code. Anyone with
+        access to the source or the installed package can decode the
+        password. Treat `enc_password` values in `execsql.conf` as
+        **plaintext-equivalent**.
+
+        For production deployments, prefer OS credential stores (e.g. macOS
+        Keychain, Windows Credential Manager, `secret-tool` on Linux) or
+        environment variables rather than storing passwords in configuration
+        files.
 
 `use_ssl`
 

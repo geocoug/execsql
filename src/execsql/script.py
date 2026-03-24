@@ -49,14 +49,11 @@ Key functions:
 
 import copy
 import datetime
-import glob
-import io
 import os
 import os.path
 import re
-import sys
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import execsql.state as _state
 from execsql.exceptions import ErrInfo
@@ -73,10 +70,10 @@ class BatchLevels:
     # A stack to keep a record of the databases used in nested batches.
     class Batch:
         def __init__(self) -> None:
-            self.dbs_used: List[Any] = []
+            self.dbs_used: list[Any] = []
 
     def __init__(self) -> None:
-        self.batchlevels: List[BatchLevels.Batch] = []
+        self.batchlevels: list[BatchLevels.Batch] = []
 
     def in_batch(self) -> bool:
         return len(self.batchlevels) > 0
@@ -91,10 +88,7 @@ class BatchLevels:
     def uses_db(self, db: Any) -> bool:
         if len(self.batchlevels) == 0:
             return False
-        for batch in self.batchlevels:
-            if db in batch.dbs_used:
-                return True
-        return False
+        return any(db in batch.dbs_used for batch in self.batchlevels)
 
     def rollback_batch(self) -> None:
         if len(self.batchlevels) > 0:
@@ -136,7 +130,7 @@ class IfLevels:
     # A stack of True/False values corresponding to a nested set of conditionals,
     # with methods to manipulate and query the set of conditional states.
     def __init__(self) -> None:
-        self.if_levels: List[IfItem] = []
+        self.if_levels: list[IfItem] = []
 
     def nest(self, tf_value: bool) -> None:
         self.if_levels.append(IfItem(tf_value))
@@ -168,7 +162,7 @@ class IfLevels:
     def all_true(self) -> bool:
         if self.if_levels == []:
             return True
-        return all([tf.value() for tf in self.if_levels])
+        return all(tf.value() for tf in self.if_levels)
 
     def only_current_false(self) -> bool:
         # Returns True if the current if level is false and all higher levels are True.
@@ -177,9 +171,9 @@ class IfLevels:
         elif len(self.if_levels) == 1:
             return not self.if_levels[-1].value()
         else:
-            return not self.if_levels[-1].value() and all([tf.value() for tf in self.if_levels[:-1]])
+            return not self.if_levels[-1].value() and all(tf.value() for tf in self.if_levels[:-1])
 
-    def script_lines(self, top_n: int) -> List[tuple]:
+    def script_lines(self, top_n: int) -> list[tuple]:
         # Returns a list of tuples containing the script name and line number
         # for the topmost 'top_n' if levels, in bottom-up order.
         if len(self.if_levels) < top_n:
@@ -198,7 +192,7 @@ class CounterVars:
     _COUNTER_RX = re.compile(r"!!\$(COUNTER_\d+)!!", re.I)
 
     def __init__(self) -> None:
-        self.counters: Dict[str, int] = {}
+        self.counters: dict[str, int] = {}
 
     def _ctrid(self, ctr_no: int) -> str:
         return f"counter_{ctr_no}"
@@ -245,11 +239,43 @@ class CounterVars:
 class SubVarSet:
     # A pool of substitution variables.  Each variable consists of a name and
     # a (string) value.  All variable names are stored as lowercase text.
+    # Internally uses a dict for O(1) lookups; the ``substitutions`` property
+    # exposes the data as a list of ``(name, value)`` tuples for backward
+    # compatibility with external code.
     def __init__(self) -> None:
-        self.substitutions: List[tuple] = []
-        self.prefix_list: List[str] = ["$", "&", "@"]
+        self._subs_dict: dict[str, Any] = {}
+        self._compiled_patterns: dict[str, tuple] = {}
+        self.prefix_list: list[str] = ["$", "&", "@"]
         # Don't construct/compile on init because deepcopy() can't handle compiled regexes.
         self.var_rx = None
+
+    @property
+    def substitutions(self) -> list[tuple]:
+        """Backward-compatible view of substitutions as a list of (name, value) tuples."""
+        return list(self._subs_dict.items())
+
+    @substitutions.setter
+    def substitutions(self, value: Any) -> None:
+        """Accept a list of (name, value) tuples or a dict and populate the internal dict."""
+        if isinstance(value, dict):
+            self._subs_dict = dict(value)
+        else:
+            self._subs_dict = dict(value)
+        self._rebuild_all_patterns()
+
+    def _compile_patterns_for(self, varname: str) -> tuple:
+        """Compile and return the three regex patterns (plain, single-quoted, double-quoted) for *varname*."""
+        match_escaped = "\\" + varname if varname[0] == "$" else varname
+        pat = re.compile(f"!!{match_escaped}!!", re.I)
+        patq = re.compile(f"!'!{match_escaped}!'!", re.I)
+        patdq = re.compile(f'!"!{match_escaped}!"!', re.I)
+        return (pat, patq, patdq)
+
+    def _rebuild_all_patterns(self) -> None:
+        """Rebuild compiled patterns for every variable currently stored."""
+        self._compiled_patterns = {}
+        for varname in self._subs_dict:
+            self._compiled_patterns[varname] = self._compile_patterns_for(varname)
 
     def compile_var_rx(self) -> None:
         self.var_rx_str = r"^[" + "".join(self.prefix_list) + r"]?\w+$"
@@ -267,30 +293,26 @@ class SubVarSet:
     def remove_substitution(self, template_str: str) -> None:
         self.check_var_name(template_str)
         old_sub = template_str.lower()
-        self.substitutions = [sub for sub in self.substitutions if sub[0] != old_sub]
+        self._subs_dict.pop(old_sub, None)
+        self._compiled_patterns.pop(old_sub, None)
 
     def add_substitution(self, varname: str, repl_str: Any) -> None:
         self.check_var_name(varname)
         varname = varname.lower()
-        self.remove_substitution(varname)
-        self.substitutions.append((varname, repl_str))
+        self._subs_dict[varname] = repl_str
+        self._compiled_patterns[varname] = self._compile_patterns_for(varname)
 
     def append_substitution(self, varname: str, repl_str: str) -> None:
         self.check_var_name(varname)
         varname = varname.lower()
-        oldsub = [x for x in self.substitutions if x[0] == varname]
-        if len(oldsub) == 0:
-            self.add_substitution(varname, repl_str)
+        if varname in self._subs_dict:
+            self.add_substitution(varname, f"{self._subs_dict[varname]}\n{repl_str}")
         else:
-            self.add_substitution(varname, f"{oldsub[0][1]}\n{repl_str}")
+            self.add_substitution(varname, repl_str)
 
-    def varvalue(self, varname: str) -> Optional[str]:
+    def varvalue(self, varname: str) -> str | None:
         self.check_var_name(varname)
-        vname = varname.lower()
-        for vardef in self.substitutions:
-            if vardef[0] == vname:
-                return vardef[1]
-        return None
+        return self._subs_dict.get(varname.lower())
 
     def increment_by(self, varname: str, numeric_increment: Any) -> None:
         self.check_var_name(varname)
@@ -311,43 +333,39 @@ class SubVarSet:
 
     def sub_exists(self, template_str: str) -> bool:
         self.check_var_name(template_str)
-        test_str = template_str.lower()
-        return test_str in [s[0] for s in self.substitutions]
+        return template_str.lower() in self._subs_dict
 
-    def merge(self, other_subvars: Optional[SubVarSet]) -> SubVarSet:
+    def merge(self, other_subvars: SubVarSet | None) -> SubVarSet:
         # Return a new SubVarSet with this object's variables merged with other_subvars.
         if other_subvars is not None:
             newsubs = SubVarSet()
-            newsubs.substitutions = self.substitutions
+            newsubs._subs_dict = dict(self._subs_dict)
+            newsubs._compiled_patterns = dict(self._compiled_patterns)
             newsubs.prefix_list = list(set(self.prefix_list + other_subvars.prefix_list))
             newsubs.compile_var_rx()
-            for vardef in other_subvars.substitutions:
-                newsubs.add_substitution(vardef[0], vardef[1])
+            for varname, value in other_subvars._subs_dict.items():
+                newsubs.add_substitution(varname, value)
             return newsubs
         return self
 
     def substitute(self, command_str: str) -> tuple:
         # Replace any substitution variables in the command string.
         if isinstance(command_str, str):
-            for match, sub in self.substitutions:
+            for varname, sub in self._subs_dict.items():
                 if sub is None:
                     sub = ""
                 sub = str(sub)
-                if match[0] == "$":
-                    match = "\\" + match
                 if os.name != "posix":
                     sub = sub.replace("\\", "\\\\")
-                pat = f"!!{match}!!"
-                patq = f"!'!{match}!'!"
-                patdq = f'!"!{match}!"!'
-                if re.search(pat, command_str, re.I):
-                    return re.sub(pat, sub, command_str, flags=re.I), True
-                if re.search(patq, command_str, re.I):
+                pat_rx, patq_rx, patdq_rx = self._compiled_patterns[varname]
+                if pat_rx.search(command_str):
+                    return pat_rx.sub(sub, command_str), True
+                if patq_rx.search(command_str):
                     sub = sub.replace("'", "''")
-                    return re.sub(patq, sub, command_str, flags=re.I), True
-                if re.search(patdq, command_str, re.I):
+                    return patq_rx.sub(sub, command_str), True
+                if patdq_rx.search(command_str):
                     sub = '"' + sub + '"'
-                    return re.sub(patdq, sub, command_str, flags=re.I), True
+                    return patdq_rx.sub(sub, command_str), True
         return command_str, False
 
     def substitute_all(self, any_text: str) -> tuple:
@@ -397,7 +415,7 @@ class MetaCommand:
         self,
         rx: Any,
         exec_func: Any,
-        description: Optional[str] = None,
+        description: str | None = None,
         run_in_batch: bool = False,
         run_when_false: bool = False,
         set_error_flag: bool = True,
@@ -467,7 +485,7 @@ class MetaCommandList:
         self,
         matching_regexes: Any,
         exec_func: Any,
-        description: Optional[str] = None,
+        description: str | None = None,
         run_in_batch: bool = False,
         run_when_false: bool = False,
         set_error_flag: bool = True,
@@ -498,7 +516,7 @@ class MetaCommandList:
             n1 = n2
         return False, None
 
-    def get_match(self, cmd: str) -> Optional[tuple]:
+    def get_match(self, cmd: str) -> tuple | None:
         # Tries to match the command to any MetaCommand.
         n1 = self.next_node
         while n1 is not None:
@@ -522,7 +540,7 @@ class SqlStmt:
     def __repr__(self) -> str:
         return f"SqlStmt({self.statement})"
 
-    def run(self, localvars: Optional[SubVarSet] = None, commit: bool = True) -> None:
+    def run(self, localvars: SubVarSet | None = None, commit: bool = True) -> None:
         # Run the SQL statement on the current database.
         if _state.if_stack.all_true():
             e = None
@@ -565,7 +583,7 @@ class MetacommandStmt:
     def __repr__(self) -> str:
         return f"MetacommandStmt({self.statement})"
 
-    def run(self, localvars: Optional[SubVarSet] = None, commit: bool = False) -> Any:
+    def run(self, localvars: SubVarSet | None = None, commit: bool = False) -> Any:
         # Tries all metacommands in the dispatch table until one runs.
         errmsg = "Unknown metacommand"
         cmd = substitute_vars(self.statement, localvars)
@@ -635,9 +653,9 @@ class CommandList:
     # A list of ScriptCmd objects including execution state.
     def __init__(
         self,
-        cmdlist: List[ScriptCmd],
+        cmdlist: list[ScriptCmd],
         listname: str,
-        paramnames: Optional[List[str]] = None,
+        paramnames: list[str] | None = None,
     ) -> None:
         if cmdlist is None:
             raise ErrInfo("error", other_msg="Initiating a command list without any commands.")
@@ -645,9 +663,9 @@ class CommandList:
         self.cmdlist = cmdlist
         self.cmdptr = 0
         self.paramnames = paramnames
-        self.paramvals: Optional[SubVarSet] = None
+        self.paramvals: SubVarSet | None = None
         self.localvars = LocalSubVarSet()
-        self.init_if_level: Optional[int] = None
+        self.init_if_level: int | None = None
 
     def add(self, script_command: ScriptCmd) -> None:
         self.cmdlist.append(script_command)
@@ -656,13 +674,13 @@ class CommandList:
         self.paramvals = paramvals
         if self.paramnames is not None:
             passed_paramnames = [p[0][1:] if p[0][0] == "#" else p[0][1:] for p in paramvals.substitutions]
-            if not all([p in passed_paramnames for p in self.paramnames]):
+            if not all(p in passed_paramnames for p in self.paramnames):
                 raise ErrInfo(
                     "error",
                     other_msg=f"Formal and actual parameter name mismatch in call to {self.listname}.",
                 )
 
-    def current_command(self) -> Optional[ScriptCmd]:
+    def current_command(self) -> ScriptCmd | None:
         if self.cmdptr > len(self.cmdlist) - 1:
             return None
         return self.cmdlist[self.cmdptr]
@@ -702,10 +720,7 @@ class CommandList:
             if cmditem.command_type == "sql" and _state.status.batch.in_batch():
                 _state.status.batch.using_db(_state.dbs.current())
             _state.subvars.add_substitution("$CURRENT_TIME", datetime.datetime.now().strftime("%Y-%m-%d %H:%M"))
-            if sys.version_info < (3, 12):
-                utcnow = datetime.datetime.utcnow()
-            else:
-                utcnow = datetime.datetime.now(tz=datetime.timezone.utc)
+            utcnow = datetime.datetime.now(tz=datetime.UTC)
             _state.subvars.add_substitution("$CURRENT_TIME_UTC", utcnow.strftime("%Y-%m-%d %H:%M"))
             _state.subvars.add_substitution("$CURRENT_SCRIPT", cmditem.source)
             _state.subvars.add_substitution(
@@ -741,12 +756,12 @@ class CommandListWhileLoop(CommandList):
     # Subclass of CommandList that loops WHILE a condition is met.
     def __init__(
         self,
-        cmdlist: List[ScriptCmd],
+        cmdlist: list[ScriptCmd],
         listname: str,
-        paramnames: Optional[List[str]],
+        paramnames: list[str] | None,
         loopcondition: str,
     ) -> None:
-        super(CommandListWhileLoop, self).__init__(cmdlist, listname, paramnames)
+        super().__init__(cmdlist, listname, paramnames)
         self.loopcondition = loopcondition
 
     def run_next(self) -> None:
@@ -767,12 +782,12 @@ class CommandListUntilLoop(CommandList):
     # Subclass of CommandList that loops UNTIL a condition is met.
     def __init__(
         self,
-        cmdlist: List[ScriptCmd],
+        cmdlist: list[ScriptCmd],
         listname: str,
-        paramnames: Optional[List[str]],
+        paramnames: list[str] | None,
         loopcondition: str,
     ) -> None:
-        super(CommandListUntilLoop, self).__init__(cmdlist, listname, paramnames)
+        super().__init__(cmdlist, listname, paramnames)
         self.loopcondition = loopcondition
 
     def run_next(self) -> None:
@@ -797,12 +812,12 @@ class CommandListUntilLoop(CommandList):
 class ScriptFile(EncodedFile):
     # A file reader that returns lines and records the line number.
     def __init__(self, scriptfname: str, file_encoding: str) -> None:
-        super(ScriptFile, self).__init__(scriptfname, file_encoding)
+        super().__init__(scriptfname, file_encoding)
         self.lno = 0
         self.f = self.open("r")
 
     def __repr__(self) -> str:
-        return f"ScriptFile({super(ScriptFile, self).filename!r}, {super(ScriptFile, self).encoding!r})"
+        return f"ScriptFile({super().filename!r}, {super().encoding!r})"
 
     def __iter__(self) -> Any:
         return self
@@ -827,11 +842,11 @@ class ScriptExecSpec:
 
     def __init__(self, **kwargs: Any) -> None:
         self.script_id = kwargs["script_id"].lower()
-        if self.script_id not in _state.savedscripts.keys():
+        if self.script_id not in _state.savedscripts:
             raise ErrInfo("cmd", other_msg=f"There is no SCRIPT named {self.script_id}.")
         self.arg_exp = kwargs["argexp"]
         self.looptype = kwargs["looptype"].upper() if "looptype" in kwargs and kwargs["looptype"] is not None else None
-        self.loopcond = kwargs["loopcond"] if "loopcond" in kwargs else None
+        self.loopcond = kwargs.get("loopcond")
 
     def execute(self) -> None:
         # Copy the saved script to avoid erasing saved script commands during execution.
@@ -884,15 +899,16 @@ def set_system_vars() -> None:
     _state.subvars.add_substitution("$CURRENT_DIR", os.path.abspath(os.path.curdir))
     _state.subvars.add_substitution("$CURRENT_PATH", os.path.abspath(os.path.curdir) + os.sep)
     _state.subvars.add_substitution("$CURRENT_ALIAS", _state.dbs.current_alias())
-    _state.subvars.add_substitution("$AUTOCOMMIT_STATE", "ON" if _state.dbs.current().autocommit else "OFF")
+    db = _state.dbs.current()
+    _state.subvars.add_substitution("$AUTOCOMMIT_STATE", "ON" if db.autocommit else "OFF")
     _state.subvars.add_substitution("$TIMER", str(datetime.timedelta(seconds=_state.timer.elapsed())))
-    _state.subvars.add_substitution("$DB_USER", _state.dbs.current().user if _state.dbs.current().user else "")
+    _state.subvars.add_substitution("$DB_USER", db.user if db.user else "")
     _state.subvars.add_substitution(
         "$DB_SERVER",
-        _state.dbs.current().server_name if _state.dbs.current().server_name else "",
+        db.server_name if db.server_name else "",
     )
-    _state.subvars.add_substitution("$DB_NAME", _state.dbs.current().db_name)
-    _state.subvars.add_substitution("$DB_NEED_PWD", "TRUE" if _state.dbs.current().need_passwd else "FALSE")
+    _state.subvars.add_substitution("$DB_NAME", db.db_name)
+    _state.subvars.add_substitution("$DB_NEED_PWD", "TRUE" if db.need_passwd else "FALSE")
     import random
 
     _state.subvars.add_substitution("$RANDOM", str(random.random()))
@@ -902,7 +918,7 @@ def set_system_vars() -> None:
     _state.subvars.add_substitution("$VERSION3", str(_state.tertiary_vno))
 
 
-def substitute_vars(command_str: str, localvars: Optional[SubVarSet] = None) -> str:
+def substitute_vars(command_str: str, localvars: SubVarSet | None = None) -> str:
     # Substitutes global variables, global counters, and local variables.
     if localvars is not None:
         subs = _state.subvars.merge(localvars)
@@ -925,7 +941,6 @@ def substitute_vars(command_str: str, localvars: Optional[SubVarSet] = None) -> 
 
 
 def runscripts() -> None:
-    from execsql.metacommands import DISPATCH_TABLE  # deferred — avoids circular import
 
     # Repeatedly run the next statement from the script at the top of the
     # command list stack until there are no more statements.
@@ -976,13 +991,11 @@ def read_sqlfile(sql_file_name: str) -> None:
     _state.exec_log.log_status_info(f"Reading script file {sql_file_name} (size: {sz}; date: {dt})")
     scriptfilename = os.path.basename(sql_file_name)
     scriptfile_obj = ScriptFile(sql_file_name, _state.conf.script_encoding).open("r")
-    sqllist: List[ScriptCmd] = []
+    sqllist: list[ScriptCmd] = []
     sqlline = 0
-    subscript_stack: List[CommandList] = []
-    file_lineno = 0
+    subscript_stack: list[CommandList] = []
     currcmd = ""
-    for line in scriptfile_obj:
-        file_lineno += 1
+    for file_lineno, line in enumerate(scriptfile_obj, 1):
         # Remove trailing whitespace but not leading whitespace.
         line = line.rstrip()
         is_comment_line = False
@@ -1085,7 +1098,7 @@ def read_sqlfile(sql_file_name: str) -> None:
                                 subscript_stack[-1].add(cmd)
                 else:
                     # This line is not a comment and not a metacommand; part of a SQL statement.
-                    cmd_end = True if line[-1] == ";" else False
+                    cmd_end = line[-1] == ";"
                     if line[-1] == "\\":
                         line = line[:-1].strip()
                     if currcmd == "":

@@ -103,24 +103,45 @@ target-version = "py313"
 line-length = 120
 
 [tool.ruff.lint]
-# Start permissive — tighten during refactor
-select = ["E", "F", "W"]
+select = [
+    "A",   # flake8-builtins
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    # "C90", # mccabe -- complexity inherited from original monolith; refactoring is a separate task
+    # "D",   # pydocstyle -- enable after docstring coverage improves
+    "E",   # pycodestyle[error]
+    "F",   # pyflakes
+    "N",   # pep8-naming
+    "PLE", # pylint errors
+    # "PT",  # flake8-pytest-style -- enable once test coverage grows
+    # "S",   # flake8-bandit -- worth auditing, but noisy
+    "SIM", # flake8-simplify
+    # "TC",  # flake8-type-checking -- `from __future__ import annotations` already avoids runtime eval; TYPE_CHECKING blocks add complexity without benefit
+    "UP",  # pyupgrade
+    "W",   # pycodestyle[warning]
+]
 ignore = [
-    # Tabs / indentation — legacy code uses tabs throughout
-    "W191",  # indentation contains tabs
-    "E101",  # indentation contains mixed spaces and tabs
-    # Legacy code style — fix during refactor
+    # Legacy code style
     "E402",  # module level import not at top of file
-    "E501",  # line too long
-    # E741/E401/F811/F841 fixed — no longer suppressed
+    "E501",  # line too long — many long f-strings and SQL/HTML literals that can't be broken; re-enable once addressed
     "E731",  # do not assign a lambda expression, use a def
-    "E713",  # not in test
-    "E714",  # is not test
-    "E701",  # multiple statements on one line
-    # Unused / undefined — will address during refactor
-    "F401",  # unused imports (re-exports in state.py and optional-dep guards are intentional)
-    "F507",  # %-format string placeholder count mismatch (3 bugs in __repr__ methods)
-    "F821",  # undefined name
+    # flake8-builtins — intentional shadowing in established APIs
+    "A001",  # variable shadowing builtin — `quit`/`min` are intentional in prompt and GUI code
+    "A002",  # function argument shadowing builtin — `type`, `str`, `quit`, `min` are established API parameter names
+    # flake8-bugbear — not applicable
+    "B008",  # typer.Option/typer.Argument must be in function defaults; this is the intended typer pattern
+    "B027",  # empty-method-without-abstract-decorator — GuiBackend methods are intentional no-op defaults that backends optionally override
+    "B904",  # raise-without-from-inside-except — ErrInfo already captures exception via exception_desc(); needs dedicated refactor pass
+    "B905",  # zip-without-explicit-strict — DB drivers always return matching column/row counts
+    # pep8-naming — legacy/established API names
+    "N801",  # class name should use CapWords — DT_Integer, DT_Varchar etc. use a deliberate namespace-prefix convention; renaming is a breaking API change
+    "N802",  # function name should be lowercase — db_SQLite, db_MySQL etc. embed the DBMS name; renaming is a breaking API change
+    "N803",  # argument name should be lowercase — legacy DB adapter parameter names (Access_fn, SQLite_fn, DBMS_id) are established API
+    "N806",  # variable in function should be lowercase — uppercase state-machine constants (_IN_QUOTED, _ESCAPED) and test mock class names are intentional
+    "N818",  # exception name should have Error suffix — ErrInfo is the established name; renaming is a breaking API change
+    # flake8-simplify — style preference
+    "SIM105",  # use contextlib.suppress; explicit try/except/pass is clearer in this codebase
+    "SIM108",  # ternary operator suggestions are often more complex than the original if/else
 ]
 
 [tool.ruff.format]

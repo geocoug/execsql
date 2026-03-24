@@ -8,7 +8,7 @@ servers via ``pymysql``.  Corresponds to ``-t m`` on the CLI.
 """
 
 import re
-from typing import Any, List, Optional
+from typing import Any
 
 from execsql.db.base import Database
 from execsql.exceptions import ErrInfo
@@ -22,11 +22,11 @@ class MySQLDatabase(Database):
         self,
         server_name: str,
         db_name: str,
-        user_name: Optional[str],
+        user_name: str | None,
         need_passwd: bool = False,
-        port: Optional[int] = 3306,
-        encoding: Optional[str] = "latin1",
-        password: Optional[str] = None,
+        port: int | None = 3306,
+        encoding: str | None = "latin1",
+        password: str | None = None,
     ) -> None:
         try:
             import pymysql as mysql_lib  # noqa: F401
@@ -42,7 +42,7 @@ class MySQLDatabase(Database):
         self.user = str(user_name)
         self.need_passwd = need_passwd
         self.password = password
-        self.port = 3306 if not port else port
+        self.port = port if port else 3306
         self.encoding = encoding or "latin1"
         self.encode_commands = True
         self.paramstr = "%s"
@@ -126,7 +126,7 @@ class MySQLDatabase(Database):
 
     def import_tabular_file(
         self,
-        schema_name: Optional[str],
+        schema_name: str | None,
         table_name: str,
         csv_file_obj: Any,
         skipheader: bool,
@@ -195,7 +195,7 @@ class MySQLDatabase(Database):
             eof = False
             while True:
                 b: list = []
-                for j in range(_state.conf.import_row_buffer):
+                for _j in range(_state.conf.import_row_buffer):
                     try:
                         line = next(f)
                     except StopIteration:
@@ -244,15 +244,14 @@ class MySQLDatabase(Database):
                                                 " ",
                                                 line[i],
                                             )
-                                        if not _state.conf.empty_strings:
-                                            if line[i].strip() == "":
-                                                line[i] = None
+                                        if not _state.conf.empty_strings and line[i].strip() == "":
+                                            line[i] = None
                             # Pad short line with nulls
                             line.extend([None] * (len(import_cols) - len(line)))
                             linedata = [line[ix] for ix in data_indexes]
                             add_line = True
                             if not _state.conf.empty_rows:
-                                add_line = not all([c is None for c in linedata])
+                                add_line = not all(c is None for c in linedata)
                             if add_line:
                                 b.append(linedata)
                 if len(b) > 0:

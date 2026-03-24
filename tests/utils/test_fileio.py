@@ -19,6 +19,7 @@ import pytest
 from execsql.exceptions import ErrInfo
 from execsql.utils.fileio import (
     EncodedFile,
+    FileWriter,
     TempFileMgr,
     check_dir,
     list_encodings,
@@ -222,3 +223,18 @@ class TestListEncodings:
         captured = capsys.readouterr()
         # codec_dict key is "utf8" (no underscore)
         assert "utf8" in captured.out
+
+
+# ---------------------------------------------------------------------------
+# FileWriter.FileControl
+# ---------------------------------------------------------------------------
+
+
+class TestFileControlTryOpen:
+    def test_status_remains_waiting_on_open_failure(self, tmp_path):
+        """When io.open() fails, status must stay STATUS_WAITING, not STATUS_OPEN."""
+        # Use a path inside a non-existent directory so io.open() will fail
+        bad_path = str(tmp_path / "no_such_dir" / "file.txt")
+        fc = FileWriter.FileControl(bad_path, open_timeout=600)
+        fc.try_open()
+        assert fc.status == fc.STATUS_WAITING

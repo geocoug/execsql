@@ -11,7 +11,6 @@ relevant package is not installed.
 
 from __future__ import annotations
 
-import datetime
 
 import pytest
 

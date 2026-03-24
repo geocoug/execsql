@@ -8,10 +8,7 @@ to a well-formed XML file with one element per row and column values as
 child elements or attributes.
 """
 
-import io
-import os
-import re
-from typing import Any, Optional, List
+from typing import Any
 
 import execsql.state as _state
 from execsql.exporters.zip import ZipWriter
@@ -26,8 +23,8 @@ def write_query_to_xml(
     db: Any,
     outfile: str,
     append: bool = False,
-    desc: Optional[str] = None,
-    zipfile: Optional[str] = None,
+    desc: str | None = None,
+    zipfile: str | None = None,
 ) -> None:
     conf = _state.conf
     try:

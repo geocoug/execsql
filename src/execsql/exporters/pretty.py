@@ -8,9 +8,7 @@ format a query result set as a fixed-width human-readable text table
 (column-aligned, with a header row and separator).
 """
 
-import io
-import os
-from typing import Any, Optional, List
+from typing import Any
 
 import execsql.state as _state
 from execsql.exporters.zip import ZipWriter
@@ -20,20 +18,20 @@ from execsql.utils.fileio import filewriter_close
 
 
 def prettyprint_rowset(
-    colhdrs: List[str],
+    colhdrs: list[str],
     rows: Any,
     output_dest: str,
     append: bool = False,
     and_val: str = "",
-    desc: Optional[str] = None,
-    zipfile: Optional[str] = None,
+    desc: str | None = None,
+    zipfile: str | None = None,
 ) -> None:
     # Adapted from the pp() function by Aaron Watters,
     # posted to gadfly-rdbms@egroups.com 1999-01-18.
     def as_ucode(s):
         if s is None:
             return and_val
-        if isinstance(s, type("")):
+        if isinstance(s, str):
             return s
         if type(s) in (type(memoryview(b"")), bytes, bytearray):
             return f"Binary data ({len(s)} bytes)"
@@ -94,8 +92,8 @@ def prettyprint_query(
     outfile: str,
     append: bool = False,
     and_val: str = "",
-    desc: Optional[str] = None,
-    zipfile: Optional[str] = None,
+    desc: str | None = None,
+    zipfile: str | None = None,
 ) -> None:
     _state.status.sql_error = False
     names, rows = db.select_data(select_stmt)

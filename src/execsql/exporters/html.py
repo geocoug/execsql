@@ -11,12 +11,10 @@ CSS styling.
 
 import datetime
 import getpass
-import io
 import os
-import re
 import sys
 import tempfile
-from typing import Any, Optional, List
+from typing import Any
 
 import execsql.state as _state
 from execsql.exporters.zip import ZipWriter
@@ -28,12 +26,12 @@ from execsql.utils.fileio import filewriter_close
 
 def export_html(
     outfile: str,
-    hdrs: List[str],
+    hdrs: list[str],
     rows: Any,
     append: bool = False,
-    querytext: Optional[str] = None,
-    desc: Optional[str] = None,
-    zipfile: Optional[str] = None,
+    querytext: str | None = None,
+    desc: str | None = None,
+    zipfile: str | None = None,
 ) -> None:
     conf = _state.conf
 
@@ -148,12 +146,12 @@ def export_html(
 
 def export_cgi_html(
     outfile: str,
-    hdrs: List[str],
+    hdrs: list[str],
     rows: Any,
     append: bool = False,
-    querytext: Optional[str] = None,
-    desc: Optional[str] = None,
-    zipfile: Optional[str] = None,
+    querytext: str | None = None,
+    desc: str | None = None,
+    zipfile: str | None = None,
 ) -> None:
     conf = _state.conf
 
@@ -207,8 +205,8 @@ def write_query_to_html(
     db: Any,
     outfile: str,
     append: bool = False,
-    desc: Optional[str] = None,
-    zipfile: Optional[str] = None,
+    desc: str | None = None,
+    zipfile: str | None = None,
 ) -> None:
     try:
         hdrs, rows = db.select_rowsource(select_stmt)
@@ -224,8 +222,8 @@ def write_query_to_cgi_html(
     db: Any,
     outfile: str,
     append: bool = False,
-    desc: Optional[str] = None,
-    zipfile: Optional[str] = None,
+    desc: str | None = None,
+    zipfile: str | None = None,
 ) -> None:
     try:
         hdrs, rows = db.select_rowsource(select_stmt)

@@ -31,10 +31,9 @@ import queue
 import stat
 import sys
 import tempfile
-import threading
 import time
 from encodings.aliases import aliases as codec_dict
-from typing import Any, Dict, Optional
+from typing import Any
 
 from execsql.exceptions import ErrInfo
 
@@ -122,7 +121,7 @@ class FileWriter(multiprocessing.Process):
                     self.open_start_time = time.time()
                 if time.time() - self.open_start_time < self.open_timeout:
                     try:
-                        self.handle = io.open(
+                        self.handle = open(  # noqa: SIM115
                             file=self.filename,
                             mode=self.openmode,
                             encoding=self.encoding,
@@ -130,10 +129,11 @@ class FileWriter(multiprocessing.Process):
                         )
                     except Exception:
                         self.status = self.STATUS_WAITING
-                    self.status = self.STATUS_OPEN
-                    self.openmode = "a"  # Return to default for next open command.
-                    self.open_start_time = None
-                    self.fail_message_written = False
+                    else:
+                        self.status = self.STATUS_OPEN
+                        self.openmode = "a"  # Return to default for next open command.
+                        self.open_start_time = None
+                        self.fail_message_written = False
                 else:
                     self.status = self.STATUS_OPENFAILURE
                     if not self.fail_message_written:
@@ -176,7 +176,7 @@ class FileWriter(multiprocessing.Process):
     ) -> None:
         # open_timeout is the maximum time, in seconds, that opening will be retried
         # if a file cannot be initially opened for writing.
-        super(FileWriter, self).__init__()
+        super().__init__()
         self.input_queue = input_queue
         self.return_msg_queue = return_msg_queue
         self.file_encoding = file_encoding
@@ -277,7 +277,7 @@ class FileWriter(multiprocessing.Process):
 
 # Subprocess objects for asynchronous writing to text files.
 # filewriter is initialized in main(), so it can take configurable arguments.
-filewriter: Optional[FileWriter] = None
+filewriter: FileWriter | None = None
 fw_input: multiprocessing.Queue = multiprocessing.Queue()
 fw_output: multiprocessing.Queue = multiprocessing.Queue()
 
@@ -345,7 +345,7 @@ class EncodedFile:
         def detect_by_bom(path: str, default_enc: str) -> tuple:
             # Detect whether a file starts with a BOM, and if it does, return the encoding.
             # Otherwise, return the default encoding specified.
-            with io.open(path, "rb") as f:
+            with open(path, "rb") as f:
                 raw = f.read(4)
             for enc, boms, bom_len in (
                 ("utf-8-sig", (codecs.BOM_UTF8,), 3),
@@ -364,7 +364,7 @@ class EncodedFile:
         import execsql.state as _state
 
         conf = _state.conf
-        self.fo = io.open(
+        self.fo = open(  # noqa: SIM115
             file=self.filename,
             mode=mode,
             encoding=self.encoding,
@@ -389,10 +389,10 @@ class Logger:
         self,
         script_file_name: str,
         db_name: str,
-        server_name: Optional[str],
+        server_name: str | None,
         cmdline_options: dict,
         user_logfile: bool = False,
-        log_file_name: Optional[str] = None,
+        log_file_name: str | None = None,
     ) -> None:
         import getpass
         from execsql.utils.errors import exception_desc, exit_now, file_size_date
@@ -441,7 +441,7 @@ class Logger:
             dt,
             sz,
             self.user,
-            ", ".join([f"{k}: {cmdline_options[k]}" for k in cmdline_options.keys()]),
+            ", ".join([f"{k}: {cmdline_options[k]}" for k in cmdline_options]),
         )
         self.writelog(msg)
         if server_name:
@@ -476,7 +476,7 @@ class Logger:
         msg = f"action\t{self.run_id}\t{self.seq_no}\texport\t{line_no}\tQuery {query_name} exported to {export_file_name}\n"
         self.writelog(msg)
 
-    def log_action_prompt_quit(self, line_no: int, do_quit: bool, msg: Optional[str]) -> None:
+    def log_action_prompt_quit(self, line_no: int, do_quit: bool, msg: str | None) -> None:
         # 'do_quit' is Boolean: True to quit, False if not.
         msg = None if not msg else msg.replace("\n", "")
         self.seq_no += 1
@@ -484,45 +484,45 @@ class Logger:
         wmsg = f"action\t{self.run_id}\t{self.seq_no}\tprompt_quit\t{str(line_no) or ''}\t{descrip}\n"
         self.writelog(wmsg)
 
-    def log_status_exception(self, msg: Optional[str]) -> None:
+    def log_status_exception(self, msg: str | None) -> None:
         msg = None if not msg else msg.replace("\n", "")
         self.seq_no += 1
         wmsg = f"status\t{self.run_id}\t{self.seq_no}\texception\t{msg or ''}\n"
         self.writelog(wmsg)
 
-    def log_status_error(self, msg: Optional[str]) -> None:
+    def log_status_error(self, msg: str | None) -> None:
         msg = None if not msg else msg.replace("\n", "")
         self.seq_no += 1
         wmsg = f"status\t{self.run_id}\t{self.seq_no}\terror\t{msg or ''}\n"
         self.writelog(wmsg)
 
-    def log_status_info(self, msg: Optional[str]) -> None:
+    def log_status_info(self, msg: str | None) -> None:
         msg = None if not msg else msg.replace("\n", "")
         self.seq_no += 1
         wmsg = f"status\t{self.run_id}\t{self.seq_no}\tinfo\t{msg or ''}\n"
         self.writelog(wmsg)
 
-    def log_status_warning(self, msg: Optional[str]) -> None:
+    def log_status_warning(self, msg: str | None) -> None:
         msg = None if not msg else msg.replace("\n", "")
         self.seq_no += 1
         wmsg = f"status\t{self.run_id}\t{self.seq_no}\twarning\t{msg or ''}\n"
         self.writelog(wmsg)
 
-    def log_user_msg(self, msg: Optional[str]) -> None:
+    def log_user_msg(self, msg: str | None) -> None:
         msg = None if not msg else msg.replace("\n", "")
         if msg != "":
             self.seq_no += 1
             wmsg = f"user_msg\t{self.run_id}\t{self.seq_no}\tinfo\t{msg}\n"
             self.writelog(wmsg)
 
-    def log_exit_end(self, script_file_name: Optional[str] = None, line_no: Optional[int] = None) -> None:
+    def log_exit_end(self, script_file_name: str | None = None, line_no: int | None = None) -> None:
         # Save values to be used by exit() function triggered on program exit
         self.exit_type = "end_of_script"
         self.exit_scriptfile = script_file_name
         self.exit_lno = line_no
         self.exit_description = None
 
-    def log_exit_halt(self, script_file_name: str, line_no: int, msg: Optional[str] = None) -> None:
+    def log_exit_halt(self, script_file_name: str, line_no: int, msg: str | None = None) -> None:
         # Save values to be used by exit() function triggered on program exit
         self.exit_type = "halt"
         self.exit_scriptfile = script_file_name
@@ -536,7 +536,7 @@ class Logger:
         self.exit_lno = None
         self.exit_description = msg.replace("\n", "")
 
-    def log_exit_error(self, msg: Optional[str]) -> None:
+    def log_exit_error(self, msg: str | None) -> None:
         # Save values to be used by exit() function triggered on program exit
         self.exit_type = "error"
         self.exit_scriptfile = None
@@ -565,7 +565,7 @@ class TempFileMgr:
 
     def new_temp_fn(self) -> str:
         # Get a file object, get its name, and throw away the object
-        fn = tempfile.NamedTemporaryFile().name
+        fn = tempfile.NamedTemporaryFile().name  # noqa: SIM115
         self.temp_file_names.append(fn)
         return fn
 

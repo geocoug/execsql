@@ -9,16 +9,15 @@ to a table in an SQLite database file.  Used by ``EXPORT … FORMAT sqlite``.
 
 import math
 import os
-from typing import Any, List, Optional
+from typing import Any
 
 from execsql.exceptions import ErrInfo
-import execsql.state as _state
 from execsql.types import dbt_sqlite
 
 
 def export_sqlite(
     outfile: str,
-    hdrs: List[str],
+    hdrs: list[str],
     rows: Any,
     append: bool,
     tablename: str,
@@ -26,7 +25,6 @@ def export_sqlite(
     import sqlite3
 
     from execsql.models import DataTable
-    from execsql.utils.errors import exception_info
 
     chunksize = 10000
     pre_exist = os.path.isfile(outfile)

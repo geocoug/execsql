@@ -1,12 +1,23 @@
 from __future__ import annotations
 
 """
-Simple reversible encryption for execsql configuration credentials.
+Simple reversible obfuscation for execsql configuration credentials.
+
+.. warning::
+
+   **This is obfuscation, not encryption.**
+
+   * The XOR keys are hardcoded in this source file; anyone with access to
+     the source code (or the installed package) can decode any password
+     produced by this module.
+   * Passwords stored via ``enc_password`` in ``execsql.conf`` should be
+     treated as **plaintext-equivalent**.
+   * For production deployments, prefer OS credential stores (e.g. macOS
+     Keychain, Windows Credential Manager, ``secret-tool`` on Linux) or
+     environment variables rather than relying on this obfuscation.
 
 Provides :class:`Encrypt` with ``encrypt()`` / ``decrypt()`` methods
 that use XOR against a fixed key table followed by base64 encoding.
-This is *not* cryptographically secure — it is intended only to prevent
-plaintext passwords from appearing verbatim in ``execsql.conf`` files.
 The monolith (line 2301) called this "SIMPLE ENCRYPTION".
 """
 
@@ -15,6 +26,21 @@ import uuid
 
 
 class Encrypt:
+    """Reversible XOR-based obfuscation for configuration file passwords.
+
+    .. warning::
+
+       This class provides **obfuscation only** — not real encryption.
+       The XOR keys are embedded in the source code, so any password
+       encrypted with this class can be trivially reversed by anyone who
+       can read the source or the installed package.  Passwords stored in
+       ``execsql.conf`` using ``enc_password`` should be considered
+       plaintext-equivalent.
+
+       For meaningful credential protection, use OS-level credential
+       stores or environment variables instead.
+    """
+
     ky: dict = {}
     ky["0"] = "6f2bba010bdf450a99c1c324ace5d765"
     ky["3"] = "4a69dd15b6304ed491f10d0ebc7498cf"

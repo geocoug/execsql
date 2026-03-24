@@ -13,7 +13,6 @@ functions are the canonical way to open a new database connection from
 """
 
 import os
-from typing import Optional
 
 from execsql.exceptions import ErrInfo
 from execsql.db.access import AccessDatabase
@@ -30,8 +29,8 @@ from execsql.db.firebird import FirebirdDatabase
 def db_Access(
     Access_fn: str,
     pw_needed: bool = False,
-    user: Optional[str] = None,
-    encoding: Optional[str] = None,
+    user: str | None = None,
+    encoding: str | None = None,
 ) -> AccessDatabase:
     if not os.path.exists(Access_fn):
         raise ErrInfo(
@@ -44,10 +43,10 @@ def db_Access(
 def db_Postgres(
     server_name: str,
     database_name: str,
-    user: Optional[str] = None,
+    user: str | None = None,
     pw_needed: bool = True,
-    port: Optional[int] = None,
-    encoding: Optional[str] = None,
+    port: int | None = None,
+    encoding: str | None = None,
     new_db: bool = False,
 ) -> PostgresDatabase:
     return PostgresDatabase(server_name, database_name, user, pw_needed, port, new_db=new_db)
@@ -56,7 +55,7 @@ def db_Postgres(
 def db_SQLite(
     sqlite_fn: str,
     new_db: bool = False,
-    encoding: Optional[str] = None,
+    encoding: str | None = None,
 ) -> SQLiteDatabase:
     if new_db:
         from execsql.utils.fileio import check_dir
@@ -74,10 +73,10 @@ def db_SQLite(
 def db_SqlServer(
     server_name: str,
     database_name: str,
-    user: Optional[str] = None,
+    user: str | None = None,
     pw_needed: bool = True,
-    port: Optional[int] = None,
-    encoding: Optional[str] = None,
+    port: int | None = None,
+    encoding: str | None = None,
 ) -> SqlServerDatabase:
     return SqlServerDatabase(server_name, database_name, user, pw_needed, port, encoding)
 
@@ -85,10 +84,10 @@ def db_SqlServer(
 def db_MySQL(
     server_name: str,
     database_name: str,
-    user: Optional[str] = None,
+    user: str | None = None,
     pw_needed: bool = True,
-    port: Optional[int] = None,
-    encoding: Optional[str] = None,
+    port: int | None = None,
+    encoding: str | None = None,
 ) -> MySQLDatabase:
     return MySQLDatabase(server_name, database_name, user, pw_needed, port, encoding)
 
@@ -96,7 +95,7 @@ def db_MySQL(
 def db_DuckDB(
     duckdb_fn: str,
     new_db: bool = False,
-    encoding: Optional[str] = None,
+    encoding: str | None = None,
 ) -> DuckDBDatabase:
     if new_db:
         from execsql.utils.fileio import check_dir
@@ -114,10 +113,10 @@ def db_DuckDB(
 def db_Oracle(
     server_name: str,
     database_name: str,
-    user: Optional[str] = None,
+    user: str | None = None,
     pw_needed: bool = True,
-    port: Optional[int] = None,
-    encoding: Optional[str] = None,
+    port: int | None = None,
+    encoding: str | None = None,
 ) -> OracleDatabase:
     return OracleDatabase(server_name, database_name, user, pw_needed, port, encoding)
 
@@ -125,18 +124,18 @@ def db_Oracle(
 def db_Firebird(
     server_name: str,
     database_name: str,
-    user: Optional[str] = None,
+    user: str | None = None,
     pw_needed: bool = True,
-    port: Optional[int] = None,
-    encoding: Optional[str] = None,
+    port: int | None = None,
+    encoding: str | None = None,
 ) -> FirebirdDatabase:
     return FirebirdDatabase(server_name, database_name, user, pw_needed, port, encoding)
 
 
 def db_Dsn(
     dsn_name: str,
-    user: Optional[str] = None,
+    user: str | None = None,
     pw_needed: bool = True,
-    encoding: Optional[str] = None,
+    encoding: str | None = None,
 ) -> DsnDatabase:
     return DsnDatabase(dsn_name=dsn_name, user_name=user, need_passwd=pw_needed, encoding=encoding)

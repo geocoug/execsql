@@ -9,8 +9,7 @@ reader) and the XLSX equivalent using ``openpyxl``.  Used by
 ``execsql2[excel]``.
 """
 
-import os
-from typing import Any, List, Optional
+from typing import Any
 
 from execsql.exceptions import ErrInfo
 from execsql.db.base import Database
@@ -22,7 +21,7 @@ def xls_data(
     filename: str,
     sheetname: str,
     junk_header_rows: int,
-    encoding: Optional[str] = None,
+    encoding: str | None = None,
 ) -> tuple:
     """Returns the data from the specified worksheet as a list of headers and a list of lists of rows."""
     from execsql.utils.strings import clean_words, trim_words, fold_words, dedup_words
@@ -59,7 +58,7 @@ def xls_data(
     if len(alldata) == 1:
         return alldata[0], []
     colhdrs = alldata[0]
-    if any([x is None or (isinstance(x, str) and len(x.strip()) == 0) for x in colhdrs]):
+    if any(x is None or (isinstance(x, str) and len(x.strip()) == 0) for x in colhdrs):
         if conf.del_empty_cols:
             blanks = [i for i in range(len(colhdrs)) if colhdrs[i] is None or len(colhdrs[i].strip()) == 0]
             while len(blanks) > 0:
@@ -90,13 +89,13 @@ def xls_data(
 
 def importxls(
     db: Database,
-    schemaname: Optional[str],
+    schemaname: str | None,
     tablename: str,
     is_new: Any,
     filename: str,
     sheetname: str,
     junk_header_rows: int,
-    encoding: Optional[str],
+    encoding: str | None,
 ) -> None:
     hdrs, data = xls_data(filename, sheetname, junk_header_rows, encoding)
     import_data_table(db, schemaname, tablename, is_new, hdrs, data)

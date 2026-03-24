@@ -5,9 +5,9 @@ from __future__ import annotations
 import os
 import tempfile
 
-import pytest
 
-from execsql.utils.errors import as_none, chainfuncs, exception_desc, exception_info, file_size_date
+import execsql.state as _state
+from execsql.utils.errors import as_none, chainfuncs, exception_desc, exception_info, file_size_date, write_warning
 
 
 # ---------------------------------------------------------------------------
@@ -201,3 +201,33 @@ class TestExceptionInfo:
             info = exception_info()
         # Should not raise; message may be empty string.
         assert isinstance(info[1], str)
+
+
+# ---------------------------------------------------------------------------
+# write_warning — null-safety guards
+# ---------------------------------------------------------------------------
+
+
+class TestWriteWarning:
+    """Verify write_warning tolerates None state globals."""
+
+    def setup_method(self):
+        _state.reset()
+
+    def teardown_method(self):
+        _state.reset()
+
+    def test_no_error_when_exec_log_is_none(self):
+        """write_warning must not raise when exec_log is None."""
+        assert _state.exec_log is None
+        write_warning("some warning")  # should not raise
+
+    def test_no_error_when_conf_is_none(self):
+        """write_warning must not raise when conf is None."""
+        assert _state.conf is None
+        write_warning("another warning")
+
+    def test_no_error_when_output_is_none(self):
+        """write_warning must not raise when output is None."""
+        assert _state.output is None
+        write_warning("yet another warning")

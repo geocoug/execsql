@@ -11,7 +11,6 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-import pytest
 
 from execsql.exporters.base import ExportMetadata, WriteSpec
 

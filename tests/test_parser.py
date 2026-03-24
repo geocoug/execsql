@@ -11,10 +11,9 @@ from __future__ import annotations
 
 import pytest
 
-from execsql.exceptions import NumericParserError, CondParserError
+from execsql.exceptions import NumericParserError
 from execsql.parser import (
     CondAstNode,
-    CondParser,
     CondTokens,
     NumericAstNode,
     NumericParser,
@@ -158,27 +157,27 @@ class TestNumericAstNode:
         assert node.eval() == 7
 
     def test_add_node(self):
-        l = NumericAstNode(NumTokens.NUMBER, 3, None)
+        lhs = NumericAstNode(NumTokens.NUMBER, 3, None)
         r = NumericAstNode(NumTokens.NUMBER, 4, None)
-        node = NumericAstNode(NumTokens.ADD, l, r)
+        node = NumericAstNode(NumTokens.ADD, lhs, r)
         assert node.eval() == 7
 
     def test_mul_node(self):
-        l = NumericAstNode(NumTokens.NUMBER, 3, None)
+        lhs = NumericAstNode(NumTokens.NUMBER, 3, None)
         r = NumericAstNode(NumTokens.NUMBER, 4, None)
-        node = NumericAstNode(NumTokens.MUL, l, r)
+        node = NumericAstNode(NumTokens.MUL, lhs, r)
         assert node.eval() == 12
 
     def test_div_node(self):
-        l = NumericAstNode(NumTokens.NUMBER, 9, None)
+        lhs = NumericAstNode(NumTokens.NUMBER, 9, None)
         r = NumericAstNode(NumTokens.NUMBER, 3, None)
-        node = NumericAstNode(NumTokens.DIV, l, r)
+        node = NumericAstNode(NumTokens.DIV, lhs, r)
         assert node.eval() == 3.0
 
     def test_sub_node(self):
-        l = NumericAstNode(NumTokens.NUMBER, 10, None)
+        lhs = NumericAstNode(NumTokens.NUMBER, 10, None)
         r = NumericAstNode(NumTokens.NUMBER, 4, None)
-        node = NumericAstNode(NumTokens.SUB, l, r)
+        node = NumericAstNode(NumTokens.SUB, lhs, r)
         assert node.eval() == 6
 
 
@@ -209,27 +208,27 @@ class TestCondAstNode:
         assert not_node.eval() is False
 
     def test_and_node_both_true(self):
-        l = self._bool_leaf(True)
+        lhs = self._bool_leaf(True)
         r = self._bool_leaf(True)
-        node = CondAstNode(CondTokens.AND, l, r)
+        node = CondAstNode(CondTokens.AND, lhs, r)
         assert node.eval() is True
 
     def test_and_node_short_circuit_false(self):
-        l = self._bool_leaf(False)
+        lhs = self._bool_leaf(False)
         r = self._bool_leaf(True)
-        node = CondAstNode(CondTokens.AND, l, r)
+        node = CondAstNode(CondTokens.AND, lhs, r)
         assert node.eval() is False
 
     def test_or_node_one_true(self):
-        l = self._bool_leaf(False)
+        lhs = self._bool_leaf(False)
         r = self._bool_leaf(True)
-        node = CondAstNode(CondTokens.OR, l, r)
+        node = CondAstNode(CondTokens.OR, lhs, r)
         assert node.eval() is True
 
     def test_or_node_short_circuit_true(self):
-        l = self._bool_leaf(True)
+        lhs = self._bool_leaf(True)
         r = self._bool_leaf(False)
-        node = CondAstNode(CondTokens.OR, l, r)
+        node = CondAstNode(CondTokens.OR, lhs, r)
         assert node.eval() is True
 
     def test_conditional_leaf(self):

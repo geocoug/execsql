@@ -4,19 +4,10 @@ from __future__ import annotations
 
 import subprocess
 import sys
-from io import StringIO
-from pathlib import Path
 from unittest.mock import patch
 
-import pytest
 
 from execsql.format import (
-    BLOCK_CLOSE,
-    BLOCK_OPEN,
-    CONTINUATION,
-    METACOMMAND_RE,
-    MULTIWORD_KEYWORDS,
-    PIVOT,
     _is_comment_line,
     _protect_variables,
     _restore_variables,
@@ -426,18 +417,18 @@ class TestFormatSqlBlockUseSql:
     def test_indent_applied_with_use_sql(self):
         lines = ["select 1"]
         result = format_sql_block(lines, depth=1, indent=4, use_sql=True)
-        non_empty = [l for l in result if l.strip()]
-        assert all(l.startswith("    ") for l in non_empty)
+        non_empty = [line for line in result if line.strip()]
+        assert all(line.startswith("    ") for line in non_empty)
 
     def test_comment_line_preserved(self):
         lines = ["-- my comment", "select 1"]
         result = format_sql_block(lines, depth=0, indent=4, use_sql=True)
-        assert any("my comment" in l for l in result)
+        assert any("my comment" in line for line in result)
 
     def test_block_comment_preserved(self):
         lines = ["/* block comment */", "select 1"]
         result = format_sql_block(lines, depth=0, indent=4, use_sql=True)
-        assert any("block comment" in l for l in result)
+        assert any("block comment" in line for line in result)
 
     def test_empty_lines_in_output(self):
         lines = ["select 1", "", "select 2"]

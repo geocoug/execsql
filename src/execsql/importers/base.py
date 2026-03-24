@@ -10,9 +10,7 @@ importer sub-modules.  Given a :class:`~execsql.models.DataTable` and a
 information inferred during scanning.
 """
 
-import os
-import re
-from typing import Any, List, Optional
+from typing import Any
 
 from execsql.exceptions import ErrInfo
 from execsql.db.base import Database
@@ -22,16 +20,16 @@ from execsql.types import dbt_firebird
 
 def import_data_table(
     db: Database,
-    schemaname: Optional[str],
+    schemaname: str | None,
     tablename: str,
     is_new: Any,
-    hdrs: List[str],
-    data: List[Any],
+    hdrs: list[str],
+    data: list[Any],
 ) -> None:
     from execsql.utils.errors import exception_info
 
     conf = _state.conf
-    if any([x is None or len(x.strip()) == 0 for x in hdrs]):
+    if any(x is None or len(x.strip()) == 0 for x in hdrs):
         if conf.del_empty_cols:
             blanks = [i for i in range(len(hdrs)) if hdrs[i] is None or len(hdrs[i].strip()) == 0]
             while len(blanks) > 0:

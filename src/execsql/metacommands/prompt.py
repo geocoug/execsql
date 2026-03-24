@@ -83,11 +83,10 @@ def x_prompt(**kwargs: Any) -> None:
     if not free:
         user_response = return_queue.get(block=True)
         btn = user_response["button"]
-        if not btn:
-            if _state.status.cancel_halt:
-                msg = f"Halted from display of {sq_name}"
-                _state.exec_log.log_exit_halt(script, line_no, msg)
-                exit_now(2, None)
+        if not btn and _state.status.cancel_halt:
+            msg = f"Halted from display of {sq_name}"
+            _state.exec_log.log_exit_halt(script, line_no, msg)
+            exit_now(2, None)
     return None
 
 
@@ -386,7 +385,7 @@ def prompt_compare(button_list: list, **kwargs: Any) -> Any:
         raise ErrInfo("error", other_msg=f"There are no data in {sq_name2}.")
     pklist = [pk.replace('"', "").replace(" ", "") for pk in pks.split(",")]
     sidebyside = orient.lower() == "beside"
-    if not all([col in hdrs1 for col in pklist]) or not all([col in hdrs2 for col in pklist]):
+    if not all(col in hdrs1 for col in pklist) or not all(col in hdrs2 for col in pklist):
         script, line_no = current_script_line()
         raise ErrInfo(
             type="error",
@@ -409,12 +408,11 @@ def prompt_compare(button_list: list, **kwargs: Any) -> Any:
     _state.gui_manager_queue.put(GuiSpec(GUI_COMPARE, gui_args, return_queue))
     user_response = return_queue.get(block=True)
     btn = user_response["button"]
-    if btn is None:
-        if _state.status.cancel_halt:
-            script, line_no = current_script_line()
-            msg = f"Halted from comparison of {sq_name1} and {sq_name2}"
-            _state.exec_log.log_exit_halt(script, line_no, msg)
-            exit_now(2, None)
+    if btn is None and _state.status.cancel_halt:
+        script, line_no = current_script_line()
+        msg = f"Halted from comparison of {sq_name1} and {sq_name2}"
+        _state.exec_log.log_exit_halt(script, line_no, msg)
+        exit_now(2, None)
     return btn
 
 
@@ -508,11 +506,10 @@ def x_prompt_map(**kwargs: Any) -> None:
     _state.gui_manager_queue.put(GuiSpec(GUI_MAP, gui_args, return_queue))
     user_response = return_queue.get(block=True)
     btn = user_response["button"]
-    if not btn:
-        if _state.status.cancel_halt:
-            msg = f"Halted from map of {sq_name}"
-            _state.exec_log.log_exit_halt(script, line_no, msg)
-            exit_now(2, None)
+    if not btn and _state.status.cancel_halt:
+        msg = f"Halted from map of {sq_name}"
+        _state.exec_log.log_exit_halt(script, line_no, msg)
+        exit_now(2, None)
     return None
 
 
@@ -599,11 +596,10 @@ def x_prompt_action(**kwargs: Any) -> None:
     user_response = return_queue.get(block=True)
     btn = user_response["button"]
     script, line_no = current_script_line()
-    if not btn:
-        if _state.status.cancel_halt:
-            msg = f"Halted from entry form {tbl1}"
-            _state.exec_log.log_exit_halt(script, line_no, msg)
-            exit_now(2, None)
+    if not btn and _state.status.cancel_halt:
+        msg = f"Halted from entry form {tbl1}"
+        _state.exec_log.log_exit_halt(script, line_no, msg)
+        exit_now(2, None)
 
 
 def x_prompt_savefile(**kwargs: Any) -> None:
@@ -833,12 +829,11 @@ def prompt_select_rows(button_list: list, **kwargs: Any) -> Any:
     _state.gui_manager_queue.put(GuiSpec(GUI_SELECTROWS, gui_args, return_queue))
     user_response = return_queue.get(block=True)
     btn = user_response["button"]
-    if btn is None:
-        if _state.status.cancel_halt:
-            script, line_no = current_script_line()
-            msg = f"Halted from selection of rows from {sq_name1} into {sq_name2}"
-            _state.exec_log.log_exit_halt(script, line_no, msg)
-            exit_now(2, None)
+    if btn is None and _state.status.cancel_halt:
+        script, line_no = current_script_line()
+        msg = f"Halted from selection of rows from {sq_name1} into {sq_name2}"
+        _state.exec_log.log_exit_halt(script, line_no, msg)
+        exit_now(2, None)
     return btn
 
 
@@ -953,7 +948,7 @@ def x_pause(**kwargs: Any) -> None:
 def x_halt_msg(**kwargs: Any) -> None:
     errmsg = kwargs["errmsg"]
     tee = kwargs["tee"]
-    tee = False if not tee else True
+    tee = bool(tee)
     outf = kwargs["filename"]
     errlevel = kwargs["errorlevel"]
     if errlevel:

@@ -9,29 +9,25 @@ a delimited file), used by the ``IMPORT`` metacommand with ``FORMAT csv``,
 ``FORMAT tsv``, and ``FORMAT txt``.
 """
 
-import codecs
-import csv
 import os
-import re
-from typing import Any, Optional
+from typing import Any
 
 from execsql.exceptions import ErrInfo
 from execsql.db.base import Database
-from execsql.importers.base import import_data_table
 import execsql.state as _state
 from execsql.types import dbt_firebird
 
 
 def importtable(
     db: Database,
-    schemaname: Optional[str],
+    schemaname: str | None,
     tablename: str,
     filename: str,
     is_new: Any,
     skip_header_line: bool = True,
-    quotechar: Optional[str] = None,
-    delimchar: Optional[str] = None,
-    encoding: Optional[str] = None,
+    quotechar: str | None = None,
+    delimchar: str | None = None,
+    encoding: str | None = None,
     junk_header_lines: int = 0,
 ) -> None:
     from execsql.utils.errors import exception_info
@@ -39,7 +35,7 @@ def importtable(
     conf = _state.conf
     if not os.path.isfile(filename):
         raise ErrInfo(type="error", other_msg=f"Non-existent file ({filename}) used with the IMPORT metacommand")
-    enc = conf.import_encoding if not encoding else encoding
+    enc = encoding if encoding else conf.import_encoding
 
     # Lazy import of CsvFile
     from execsql.exporters.delimited import CsvFile
@@ -56,8 +52,6 @@ def importtable(
             try:
                 db.drop_table(db.schema_qualified_table_name(schemaname, tablename))
             except Exception:
-                from execsql.utils.fileio import Logger
-
                 _state.exec_log.log_status_info(f"Could not drop existing table ({tablename}) for IMPORT metacommand")
                 # Don't raise an exception; this may not be a problem because the table may not already exist.
         try:
@@ -103,7 +97,7 @@ def importtable(
 
 def importfile(
     db: Database,
-    schemaname: Optional[str],
+    schemaname: str | None,
     tablename: str,
     columname: str,
     filename: str,

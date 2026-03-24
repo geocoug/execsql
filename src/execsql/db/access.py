@@ -9,11 +9,10 @@ Implements :class:`AccessDatabase`, which connects to ``.mdb`` and
 """
 
 import datetime
-import io
 import os
 import re
 import time
-from typing import Any, List, Optional, Tuple
+from typing import Any
 
 from execsql.db.base import Database
 from execsql.exceptions import ErrInfo
@@ -41,9 +40,9 @@ class AccessDatabase(Database):
         self,
         Access_fn: str,
         need_passwd: bool = False,
-        user_name: Optional[str] = None,
-        encoding: Optional[str] = None,
-        password: Optional[str] = None,
+        user_name: str | None = None,
+        encoding: str | None = None,
+        password: str | None = None,
     ) -> None:
         try:
             import win32com.client  # noqa: F401 – imported for side-effects / availability check
@@ -74,7 +73,7 @@ class AccessDatabase(Database):
         self.dt_cast[datetime.datetime] = self.as_datetime
         self.dt_cast[int] = self.int_or_bool
         self.last_dao_time = 0.0
-        self.temp_query_names: List[str] = []
+        self.temp_query_names: list[str] = []
         self.autocommit = True
         # Create the DAO connection
         self.open_dao()
@@ -119,7 +118,7 @@ class AccessDatabase(Database):
         import win32com.client
 
         if self.dao_conn is not None:
-            self.dao_conn.Close
+            self.dao_conn.Close()
             self.dao_conn = None
         if self.need_passwd and self.user and self.password is None:
             self.password = get_password("MS-Access", self.db_name, self.user)
@@ -176,13 +175,13 @@ class AccessDatabase(Database):
         if time.time() - self.last_dao_time < 5.0:
             time.sleep(5 - (time.time() - self.last_dao_time))
 
-    def execute(self, sqlcmd: Any, paramlist: Optional[list] = None) -> None:
+    def execute(self, sqlcmd: Any, paramlist: list | None = None) -> None:
         # A shortcut to self.cursor().execute() that handles encoding and that
         # ensures that at least 5 seconds have passed since the last DAO command,
         # to allow Jet's read buffer to be flushed (see https://support.microsoft.com/en-us/kb/225048).
         # This also handles the 'CREATE TEMPORARY QUERY' extension to Access.
         # For Access, commands in a tuple (batch) are executed singly.
-        def exec1(sql: str, paramlist: Optional[list]) -> None:
+        def exec1(sql: str, paramlist: list | None) -> None:
             tqd = self.temp_rx.match(sql)
             if tqd:
                 qn = tqd.group(3)
@@ -199,9 +198,8 @@ class AccessDatabase(Database):
                 if self.conn is not None:
                     self.conn.close()
                     self.conn = None
-                if tqd.group(1) and tqd.group(1).strip().lower()[:4] == "temp":
-                    if qn not in self.temp_query_names:
-                        self.temp_query_names.append(qn)
+                if tqd.group(1) and tqd.group(1).strip().lower()[:4] == "temp" and qn not in self.temp_query_names:
+                    self.temp_query_names.append(qn)
             else:
                 self.dao_flush_check()
                 curs = self.cursor()
@@ -224,7 +222,7 @@ class AccessDatabase(Database):
     def exec_cmd(self, querycommand: str) -> None:
         self.exec_dao(querycommand)
 
-    def select_data(self, sql: str) -> Tuple[List[str], list]:
+    def select_data(self, sql: str) -> tuple[list[str], list]:
         # Returns the results of the sql select statement.
         # The Access driver returns data as unicode, so no decoding is necessary.
         self.dao_flush_check()
@@ -233,7 +231,7 @@ class AccessDatabase(Database):
         rows = curs.fetchall()
         return [d[0] for d in curs.description], rows
 
-    def select_rowsource(self, sql: str) -> Tuple[List[str], Any]:
+    def select_rowsource(self, sql: str) -> tuple[list[str], Any]:
         # Return 1) a list of column names, and 2) an iterable that yields rows.
         self.dao_flush_check()
         curs = self.cursor()
@@ -241,7 +239,7 @@ class AccessDatabase(Database):
         _state.subvars.add_substitution("$LAST_ROWCOUNT", curs.rowcount)
         return [d[0] for d in curs.description], iter(curs.fetchone, None)
 
-    def select_rowdict(self, sql: str) -> Tuple[List[str], Any]:
+    def select_rowdict(self, sql: str) -> tuple[list[str], Any]:
         # Return an iterable that yields dictionaries of row data.
         self.dao_flush_check()
         curs = self.cursor()
@@ -249,7 +247,7 @@ class AccessDatabase(Database):
         _state.subvars.add_substitution("$LAST_ROWCOUNT", curs.rowcount)
         headers = [d[0] for d in curs.description]
 
-        def dict_row() -> Optional[dict]:
+        def dict_row() -> dict | None:
             row = curs.fetchone()
             if row:
                 if self.encoding:
@@ -262,7 +260,7 @@ class AccessDatabase(Database):
 
         return headers, iter(dict_row, None)
 
-    def table_exists(self, table_name: str, schema_name: Optional[str] = None) -> bool:
+    def table_exists(self, table_name: str, schema_name: str | None = None) -> bool:
         self.dao_flush_check()
         curs = self.cursor()
         try:
@@ -284,7 +282,7 @@ class AccessDatabase(Database):
         self,
         table_name: str,
         column_name: str,
-        schema_name: Optional[str] = None,
+        schema_name: str | None = None,
     ) -> bool:
         self.dao_flush_check()
         curs = self.cursor()
@@ -295,13 +293,13 @@ class AccessDatabase(Database):
             return False
         return True
 
-    def table_columns(self, table_name: str, schema_name: Optional[str] = None) -> List[str]:
+    def table_columns(self, table_name: str, schema_name: str | None = None) -> list[str]:
         self.dao_flush_check()
         curs = self.cursor()
         curs.execute(f"select top 1 * from {table_name};")
         return [d[0] for d in curs.description]
 
-    def view_exists(self, view_name: str, schema_name: Optional[str] = None) -> bool:
+    def view_exists(self, view_name: str, schema_name: str | None = None) -> bool:
         self.dao_flush_check()
         curs = self.cursor()
         try:
@@ -327,7 +325,7 @@ class AccessDatabase(Database):
         tablename = self.type.quoted(tablename)
         self.execute(f"drop table {tablename};")
 
-    def as_datetime(self, val: Any) -> Optional[datetime.datetime]:
+    def as_datetime(self, val: Any) -> datetime.datetime | None:
         from execsql.types import DT_Timestamp, DT_Date, DT_Time, DataTypeError
 
         if val is None or (isinstance(val, _state.stringtypes) and len(val) == 0):
@@ -357,7 +355,7 @@ class AccessDatabase(Database):
                 raise
             return v
 
-    def int_or_bool(self, val: Any) -> Optional[int]:
+    def int_or_bool(self, val: Any) -> int | None:
         # Because Booleans are stored as integers in Access (at least, if execsql
         # creates the table), we have to recognize Boolean values as legitimate
         # integers.
@@ -380,14 +378,14 @@ class AccessDatabase(Database):
 
     def import_entire_file(
         self,
-        schema_name: Optional[str],
+        schema_name: str | None,
         table_name: str,
         column_name: str,
         file_name: str,
     ) -> None:
         import pyodbc
 
-        with io.open(file_name, "rb") as f:
+        with open(file_name, "rb") as f:
             filedata = f.read()
         sq_name = self.schema_qualified_table_name(schema_name, table_name)
         sql = f"insert into {sq_name} ({column_name}) values ({self.paramsubs(1)});"

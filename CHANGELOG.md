@@ -23,9 +23,52 @@ ______________________________________________________________________
 - `ErrInfo.__str__` now returns the most informative available message (`other_msg`, then `exception_msg`, then `type`) so standard logging and exception handlers produce useful output without accessing internal attributes.
 - Expanded test coverage for `Database` base-class methods (`select_rowdict`, `select_rowsource`, `select_data`, `cursor`, `rollback`, `commit`, `drop_table`, `table_columns`, `paramsubs`, `schema_qualified_table_name`, `autocommit_off/on`, `DatabasePool.closeall`) via `TestDatabaseDeeperMethods` and `TestDatabasePoolCloseAll`.
 - Expanded test coverage for `CsvFile` in `test_delimited.py`.
+- Tests for `only_strings`, `replace_newlines`, `import_row_buffer`, and `css_styles` config options in `test_config_data.py`.
+- Tests for `replace_newlines` regex behavior and all-NULL column with lenspec in `test_models.py`.
+- Tests for `FileWriter.try_open()` failure status in `tests/utils/test_fileio.py`.
+- Tests for DuckDB native temporal type mappings in `test_types.py`.
+- Tests for `SubVarSet` dict-based storage and pre-compiled regex patterns in `test_script.py`.
+- Tests for `DT_Time_Oracle` subclass behavior (matches, from_data, lenspec, varlen) in `test_types.py`.
+- Tests for `Database.quote_identifier()` in `tests/db/test_base.py`.
+- Tests for PostgreSQL and SQLite connection timeout parameters in `tests/db/`.
+- Tests for `write_warning()` null-safety when `exec_log` is uninitialized in `tests/utils/test_errors.py`.
+- Tests for `DT_Date` instance-local format deque isolation in `test_types.py`.
+- Integration tests (`test_integration.py`) covering end-to-end script execution with SQLite: basic SQL, substitution variables, CSV export/import, conditional execution (IF/ELSE/ENDIF), WRITE metacommand, and full round-trip export-then-import.
+- Metacommand handler tests for previously untested modules: `test_metacommands_system.py` (53 tests), `test_metacommands_script_ext.py` (10 tests), `test_metacommands_connect.py` (14 tests), `test_metacommands_io.py` (31 tests).
+
+### Fixed
+
+- SQL injection in database metadata queries: `schema_exists()`, `table_exists()`, `column_exists()`, `table_columns()`, `view_exists()`, and `role_exists()` across `db/base.py`, `db/postgres.py`, `db/oracle.py`, `db/duckdb.py`, and `db/sqlite.py` now use parameterized queries and `quote_identifier()` instead of f-string interpolation.
+
+- `utils/errors.py`: `write_warning()` and `exit_now()` now guard all `_state.exec_log`, `_state.conf`, and `_state.output` accesses with null checks to prevent `AttributeError` when called before state initialization.
+
+- `config.py`: `only_strings` config option wrote to nonexistent `self.all_strings` attribute instead of `self.only_strings`.
+
+- `config.py`: `fold_column_headers` config option wrote to `self.fold_column_headers` instead of `self.fold_col_hdrs`.
+
+- `config.py`: `replace_newlines` config option overwrote `self.trim_strings` instead of setting `self.replace_newlines`.
+
+- `config.py`: `import_row_buffer` config option overwrote `self.quote_all_text` instead of setting `self.import_row_buffer`.
+
+- `config.py`: `css_styles` validation checked `self.css_file` instead of `self.css_styles`.
+
+- `models.py`: Missing opening `[` in `replace_newlines` regex pattern (`r"\s\t]*..."` → `r"[\s\t]*..."`).
+
+- `models.py`: `column_type()` referenced undefined loop variable `ac.maxlen` for all-NULL columns; changed to `sel_type.maxlen`.
+
+- `fileio.py`: `FileWriter.try_open()` unconditionally set `STATUS_OPEN` after a failed `io.open()`; moved into `else` block.
+
+- DuckDB temporal type mappings (`DT_TimestampTZ`, `DT_Timestamp`, `DT_Date`, `DT_Time`) changed from `TEXT` to native DuckDB types (`TIMESTAMPTZ`, `TIMESTAMP`, `DATE`, `TIME`).
 
 ### Changed
 
+- `config.py`: All `raise ConfigError(...)` patterns now chain the original exception via `from e` for better debugging context.
+- `SubVarSet` in `script.py` refactored: internal storage changed from list-of-tuples to dict for O(1) variable lookups; regex patterns pre-compiled on `add_substitution()` instead of recompiled on every `substitute()` call.
+- `set_system_vars()` in `script.py`: `_state.dbs.current()` cached once instead of called 7+ times per invocation.
+- `DT_Time_Oracle` in `types.py` refactored to a thin subclass of `DT_Time`, overriding only `lenspec = True` and `varlen = True`; duplicated methods and attributes removed.
+- `PostgresDatabase` and `SQLiteDatabase` now accept connection timeout parameters (default 30 s) passed through to the underlying driver (`connect_timeout` for psycopg2, `timeout` for sqlite3). `Database.quote_identifier()` added for safe SQL identifier quoting.
+- `DT_Date` in `types.py`: date format deque (`date_fmts`) is now copied per-instance instead of mutated globally, eliminating thread-safety issues while retaining the most-recent-format-first performance optimization.
+- `utils/crypto.py`: Added prominent security warnings to module and `Encrypt` class docstrings documenting that XOR "encryption" is obfuscation only; keys are hardcoded and passwords are recoverable. `docs/configuration.md` updated with matching admonition.
 - `state.initialize()` is now called from `cli._run()` instead of individually assigning each singleton, making initialization order explicit and testable.
 - Exception hierarchy refactored: `DataTypeError`, `DbTypeError`, and `DatabaseNotImplementedError` now call `super().__init__()` so `str(exc)` and `exc.args` are populated.
 - All bare `except:` clauses replaced with `except Exception:` and bare `except ImportError:` / `except (ValueError, TypeError):` where appropriate, throughout exporters, `script.py`, `db/`, and utilities.

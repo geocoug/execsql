@@ -11,11 +11,9 @@ The ``minimal_conf`` autouse fixture from conftest already sets
 
 from __future__ import annotations
 
-from unittest.mock import patch
 
 import pytest
 
-import execsql.state as _state
 from execsql.exporters.templates import StrTemplateReport
 
 

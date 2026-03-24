@@ -7,13 +7,11 @@ back via ods_data / importods.  Skipped if odfpy is not installed.
 
 from __future__ import annotations
 
-from types import SimpleNamespace
 
 import pytest
 
 pytest.importorskip("of")
 
-import execsql.state as _state
 from execsql.db.sqlite import SQLiteDatabase
 from execsql.exporters.ods import OdsFile
 from execsql.importers.ods import ods_data, importods

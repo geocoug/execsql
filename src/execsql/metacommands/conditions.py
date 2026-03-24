@@ -16,10 +16,11 @@ at registration time.
 
 import os
 import time
-from typing import Any, Callable
+from typing import Any
+from collections.abc import Callable
 
 import execsql.state as _state
-from execsql.utils.regex import ins_fn_rxs, ins_rxs
+from execsql.utils.regex import ins_fn_rxs
 from execsql.parser import CondParser
 from execsql.script import MetaCommandList
 from execsql.types import DT_Boolean, DT_Date, DT_Timestamp, DT_TimestampTZ
@@ -640,8 +641,6 @@ def chainfuncs(*funcs: Callable) -> Callable:
 
 
 def as_none(item: Any) -> Any:
-    if isinstance(item, str) and len(item) == 0:
-        return None
-    elif isinstance(item, int) and item == 0:
+    if isinstance(item, str) and len(item) == 0 or isinstance(item, int) and item == 0:
         return None
     return item

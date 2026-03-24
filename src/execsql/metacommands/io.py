@@ -59,9 +59,9 @@ def x_export(**kwargs: Any) -> None:
     outfile = kwargs["filename"]
     description = kwargs["description"]
     tee = kwargs["tee"]
-    tee = False if not tee else True
+    tee = bool(tee)
     append = kwargs["append"]
-    append = True if append else False
+    append = bool(append)
     filefmt = kwargs["format"].lower()
     zipfilename = kwargs["zipfilename"]
     if zipfilename is not None:
@@ -81,7 +81,7 @@ def x_export(**kwargs: Any) -> None:
             raise ErrInfo("error", other_msg="Cannot export to the HDF5 format within a zipfile.")
         if filefmt == "ods":
             raise ErrInfo("error", other_msg="Cannot export to an ODS workbook within a zipfile.")
-    notype = True if kwargs.get("notype") else False
+    notype = bool(kwargs.get("notype"))
     if zipfilename is not None:
         check_dir(zipfilename)
     else:
@@ -211,9 +211,9 @@ def x_export_query(**kwargs: Any) -> None:
     outfile = kwargs["filename"]
     description = kwargs["description"]
     tee = kwargs["tee"]
-    tee = False if not tee else True
+    tee = bool(tee)
     append = kwargs["append"]
-    append = True if append else False
+    append = bool(append)
     filefmt = kwargs["format"].lower()
     zipfilename = kwargs["zipfilename"]
     if zipfilename is not None:
@@ -229,7 +229,7 @@ def x_export_query(**kwargs: Any) -> None:
             raise ErrInfo("error", other_msg="Cannot export to the HDF5 format within a zipfile.")
         if filefmt == "ods":
             raise ErrInfo("error", other_msg="Cannot export to an ODS workbook within a zipfile.")
-    notype = True if kwargs.get("notype") else False
+    notype = bool(kwargs.get("notype"))
     check_dir(outfile)
     if tee and outfile.lower() != "stdout":
         prettyprint_query(select_stmt, _state.dbs.current(), "stdout", False, desc=description)
@@ -349,9 +349,9 @@ def x_export_query_with_template(**kwargs: Any) -> None:
     outfile = kwargs["filename"]
     template_file = kwargs["template"]
     tee = kwargs["tee"]
-    tee = False if not tee else True
+    tee = bool(tee)
     append = kwargs["append"]
-    append = True if append else False
+    append = bool(append)
     zipfilename = kwargs["zipfilename"]
     check_dir(outfile)
     if tee and outfile.lower() != "stdout":
@@ -369,9 +369,9 @@ def x_export_with_template(**kwargs: Any) -> None:
     outfile = kwargs["filename"]
     template_file = kwargs["template"]
     tee = kwargs["tee"]
-    tee = False if not tee else True
+    tee = bool(tee)
     append = kwargs["append"]
-    append = True if append else False
+    append = bool(append)
     zipfilename = kwargs["zipfilename"]
     check_dir(outfile)
     if tee and outfile.lower() != "stdout":
@@ -386,9 +386,9 @@ def x_export_ods_multiple(**kwargs: Any) -> None:
     outfile = kwargs["filename"]
     description = kwargs["description"]
     tee = kwargs["tee"]
-    tee = False if not tee else True
+    tee = bool(tee)
     append = kwargs["append"]
-    append = False if append is None else True
+    append = append is not None
     check_dir(outfile)
     write_queries_to_ods(table_list, _state.dbs.current(), outfile, append, tee, desc=description)
 
@@ -795,7 +795,7 @@ def x_export_row_buffer(**kwargs: Any) -> None:
 def x_write(**kwargs: Any) -> None:
     msg = f"{kwargs['text']}\n"
     tee = kwargs["tee"]
-    tee = False if not tee else True
+    tee = bool(tee)
     outf = kwargs["filename"]
     if _state.conf.write_prefix is not None:
         msg = substitute_vars(_state.conf.write_prefix) + " " + msg
@@ -843,7 +843,7 @@ def x_write_create_table(**kwargs: Any) -> None:
         junk_hdrs = 0
     else:
         junk_hdrs = int(junk_hdrs)
-    enc = _state.conf.import_encoding if not encoding else encoding
+    enc = encoding if encoding else _state.conf.import_encoding
     inf = CsvFile(filename, enc, junk_header_lines=junk_hdrs)
     if quotechar and delimchar:
         inf.lineformat(delimchar, quotechar, None)
@@ -905,7 +905,7 @@ def x_write_create_table_xls(**kwargs: Any) -> None:
     sheetname = kwargs["sheet"]
     junk_hdrs = kwargs["skip"]
     encoding = kwargs["encoding"]
-    enc = _state.conf.import_encoding if not encoding else encoding
+    enc = encoding if encoding else _state.conf.import_encoding
     if not junk_hdrs:
         junk_hdrs = 0
     else:

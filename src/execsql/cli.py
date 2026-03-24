@@ -13,12 +13,10 @@ import os
 import sys
 import traceback
 from encodings.aliases import aliases as codec_dict
-from typing import List, Optional
 
 import typer
 from rich.console import Console
 from rich.table import Table
-from rich.text import Text
 
 from execsql import __version__
 from execsql.config import ConfigData, StatObj
@@ -196,7 +194,7 @@ def _version_callback(value: bool) -> None:
 def main(
     ctx: typer.Context,
     # Positional args collected manually (script + optional server/db/file)
-    args: Optional[List[str]] = typer.Argument(
+    args: list[str] | None = typer.Argument(
         None,
         metavar="SQL_SCRIPT [SERVER DATABASE | DATABASE_FILE]",
         help=(
@@ -205,46 +203,46 @@ def main(
         ),
     ),
     # Named options — grouped to mirror the original argparse interface
-    sub_vars: Optional[List[str]] = typer.Option(
+    sub_vars: list[str] | None = typer.Option(
         None,
         "-a",
         "--assign-arg",
         metavar="VALUE",
         help="Define the replacement string for a substitution variable [cyan]\\$ARG_x[/cyan].",
     ),
-    boolean_int: Optional[str] = typer.Option(
+    boolean_int: str | None = typer.Option(
         None,
         "-b",
         "--boolean-int",
         metavar="{0,1,t,f,y,n}",
         help="Treat integers 0 and 1 as boolean values.",
     ),
-    make_dirs: Optional[str] = typer.Option(
+    make_dirs: str | None = typer.Option(
         None,
         "-d",
         "--directories",
         metavar="{0,1,t,f,y,n}",
         help="Auto-create directories for EXPORT metacommand. [dim]n=no (default), y=yes[/dim]",
     ),
-    database_encoding: Optional[str] = typer.Option(
+    database_encoding: str | None = typer.Option(
         None,
         "-e",
         "--database-encoding",
         help="Character encoding used in the database.",
     ),
-    script_encoding: Optional[str] = typer.Option(
+    script_encoding: str | None = typer.Option(
         None,
         "-f",
         "--script-encoding",
         help="Character encoding of the script file. [dim]Default: UTF-8[/dim]",
     ),
-    output_encoding: Optional[str] = typer.Option(
+    output_encoding: str | None = typer.Option(
         None,
         "-g",
         "--output-encoding",
         help="Encoding for WRITE and EXPORT output.",
     ),
-    import_encoding: Optional[str] = typer.Option(
+    import_encoding: str | None = typer.Option(
         None,
         "-i",
         "--import-encoding",
@@ -274,20 +272,20 @@ def main(
         "--online-help",
         help="Open the online documentation in the default browser.",
     ),
-    port: Optional[int] = typer.Option(
+    port: int | None = typer.Option(
         None,
         "-p",
         "--port",
         help="Database server port.",
     ),
-    scanlines: Optional[int] = typer.Option(
+    scanlines: int | None = typer.Option(
         None,
         "-s",
         "--scan-lines",
         metavar="N",
         help="Lines to scan for IMPORT format detection. [dim]0 = scan entire file.[/dim]",
     ),
-    db_type: Optional[str] = typer.Option(
+    db_type: str | None = typer.Option(
         None,
         "-t",
         "--type",
@@ -299,13 +297,13 @@ def main(
             "[bold]d[/bold]=DSN."
         ),
     ),
-    user: Optional[str] = typer.Option(
+    user: str | None = typer.Option(
         None,
         "-u",
         "--user",
         help="Database user name.",
     ),
-    use_gui: Optional[str] = typer.Option(
+    use_gui: str | None = typer.Option(
         None,
         "-v",
         "--visible-prompts",
@@ -329,14 +327,14 @@ def main(
         "--encodings",
         help="List available encoding names and exit.",
     ),
-    import_buffer: Optional[int] = typer.Option(
+    import_buffer: int | None = typer.Option(
         None,
         "-z",
         "--import-buffer",
         metavar="KB",
         help="Import buffer size in KB. [dim]Default: 32[/dim]",
     ),
-    version: Optional[bool] = typer.Option(
+    version: bool | None = typer.Option(
         None,
         "--version",
         callback=_version_callback,
@@ -434,22 +432,22 @@ def main(
 
 def _run(
     positional: list,
-    sub_vars: Optional[List[str]],
-    boolean_int: Optional[str],
-    make_dirs: Optional[str],
-    database_encoding: Optional[str],
-    script_encoding: Optional[str],
-    output_encoding: Optional[str],
-    import_encoding: Optional[str],
+    sub_vars: list[str] | None,
+    boolean_int: str | None,
+    make_dirs: str | None,
+    database_encoding: str | None,
+    script_encoding: str | None,
+    output_encoding: str | None,
+    import_encoding: str | None,
     user_logfile: bool,
     new_db: bool,
-    port: Optional[int],
-    scanlines: Optional[int],
-    db_type: Optional[str],
-    user: Optional[str],
-    use_gui: Optional[str],
+    port: int | None,
+    scanlines: int | None,
+    db_type: str | None,
+    user: str | None,
+    use_gui: str | None,
     no_passwd: bool,
-    import_buffer: Optional[int],
+    import_buffer: int | None,
     script_name: str,
 ) -> None:
     """Core execution logic, separated from argument parsing."""
@@ -468,10 +466,7 @@ def _run(
     _state.subvars.add_substitution("$LAST_ROWCOUNT", None)
 
     dt_now = datetime.datetime.now()
-    if sys.version_info < (3, 12):
-        dt_now_utc = datetime.datetime.utcnow()
-    else:
-        dt_now_utc = datetime.datetime.now(tz=datetime.timezone.utc)
+    dt_now_utc = datetime.datetime.now(tz=datetime.UTC)
 
     _state.subvars.add_substitution("$SCRIPT_START_TIME", dt_now.strftime("%Y-%m-%d %H:%M"))
     _state.subvars.add_substitution("$SCRIPT_START_TIME_UTC", dt_now_utc.strftime("%Y-%m-%d %H:%M"))
@@ -634,7 +629,7 @@ def _run(
         conf.user_logfile,
     )
     _state.exec_log.log_status_info(
-        "Python version %d.%d.%d %s" % sys.version_info[:4],
+        f"Python version {sys.version_info[0]}.{sys.version_info[1]}.{sys.version_info[2]} {sys.version_info[3]}",
     )
     _state.exec_log.log_status_info(f"execsql version {__version__}")
     _state.exec_log.log_status_info(f"System user: {getpass.getuser()}")

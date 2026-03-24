@@ -18,9 +18,8 @@ This module provides:
   ``"string"``, etc.).
 """
 
-import copy
 import re
-from typing import Any, List, Optional
+from typing import Any
 
 from execsql.exceptions import ColumnError, DataTableError
 from execsql.types import (
@@ -60,15 +59,9 @@ class Column:
             self.varscale = False
 
         def __repr__(self) -> str:
-            return "Data type %s; failed=%s; count=%d; maxlen=%d; varlen=%s, precision=%s, scale=%s, varscale=%s" % (
-                self.dt.data_type_name,
-                self.failed,
-                self.count,
-                self.maxlen,
-                self.varlen,
-                self.maxprecision,
-                self.scale,
-                self.varscale,
+            return (
+                f"Data type {self.dt.data_type_name}; failed={self.failed}; count={self.count}; maxlen={self.maxlen};"
+                f" varlen={self.varlen}, precision={self.maxprecision}, scale={self.scale}, varscale={self.varscale}"
             )
 
         def check(self, datavalue: Any) -> None:
@@ -160,7 +153,7 @@ class Column:
             if conf.trim_strings:
                 column_value = column_value.strip()
             if conf.replace_newlines:
-                column_value = re.sub(r"\s\t]*[\r\n]+[\s\t]*", " ", column_value)
+                column_value = re.sub(r"[\s\t]*[\r\n]+[\s\t]*", " ", column_value)
         if column_value is None or (
             not conf.empty_strings and isinstance(column_value, str) and len(column_value.strip()) == 0
         ):
@@ -202,7 +195,7 @@ class Column:
         self.dt = (
             self.name,
             sel_type.dt.__class__,
-            None if not sel_type.dt.lenspec else ac.maxlen,
+            None if not sel_type.dt.lenspec else sel_type.maxlen,
             self.nullrows > 0,
             sel_type.maxprecision,
             sel_type.scale,
@@ -212,7 +205,7 @@ class Column:
 
 
 class DataTable:
-    def __init__(self, column_names: List[str], rowsource: Any) -> None:
+    def __init__(self, column_names: list[str], rowsource: Any) -> None:
         import execsql.state as _state
 
         self.inputrows = 0  # Total number of rows in the row source.
@@ -263,7 +256,7 @@ class DataTable:
     def __repr__(self) -> str:
         return f"DataTable({[col.name for col in self.cols]!r}, rowsource)"
 
-    def column_declarations(self, database_type: DbType) -> List[str]:
+    def column_declarations(self, database_type: DbType) -> list[str]:
         # Returns a list of column specifications.
         spec = []
         for col in self.cols:
@@ -273,7 +266,7 @@ class DataTable:
     def create_table(
         self,
         database_type: DbType,
-        schemaname: Optional[str],
+        schemaname: str | None,
         tablename: str,
         pretty: bool = False,
     ) -> str:

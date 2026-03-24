@@ -534,7 +534,7 @@ class TestConfigDataInput:
         """,
         )
         cd = _make_conf(str(tmp_path))
-        assert cd.fold_column_headers == "lower"
+        assert cd.fold_col_hdrs == "lower"
 
     def test_invalid_fold_column_headers_raises(self, tmp_path):
         _write_conf(
@@ -601,6 +601,98 @@ class TestConfigDataInput:
         )
         cd = _make_conf(str(tmp_path))
         assert cd.dedup_col_hdrs is True
+
+    def test_reads_only_strings_true(self, tmp_path):
+        _write_conf(
+            str(tmp_path),
+            """
+            [input]
+            only_strings = true
+        """,
+        )
+        cd = _make_conf(str(tmp_path))
+        assert cd.only_strings is True
+
+    def test_reads_only_strings_false(self, tmp_path):
+        _write_conf(
+            str(tmp_path),
+            """
+            [input]
+            only_strings = false
+        """,
+        )
+        cd = _make_conf(str(tmp_path))
+        assert cd.only_strings is False
+
+    def test_invalid_only_strings_raises(self, tmp_path):
+        _write_conf(
+            str(tmp_path),
+            """
+            [input]
+            only_strings = notabool
+        """,
+        )
+        with pytest.raises(ConfigError):
+            _make_conf(str(tmp_path))
+
+    def test_reads_replace_newlines_true(self, tmp_path):
+        _write_conf(
+            str(tmp_path),
+            """
+            [input]
+            replace_newlines = true
+        """,
+        )
+        cd = _make_conf(str(tmp_path))
+        assert cd.replace_newlines is True
+
+    def test_reads_replace_newlines_false(self, tmp_path):
+        _write_conf(
+            str(tmp_path),
+            """
+            [input]
+            replace_newlines = false
+        """,
+        )
+        cd = _make_conf(str(tmp_path))
+        assert cd.replace_newlines is False
+
+    def test_invalid_replace_newlines_raises(self, tmp_path):
+        _write_conf(
+            str(tmp_path),
+            """
+            [input]
+            replace_newlines = notabool
+        """,
+        )
+        with pytest.raises(ConfigError):
+            _make_conf(str(tmp_path))
+
+    def test_reads_import_row_buffer(self, tmp_path):
+        _write_conf(
+            str(tmp_path),
+            """
+            [input]
+            import_row_buffer = 500
+        """,
+        )
+        cd = _make_conf(str(tmp_path))
+        assert cd.import_row_buffer == 500
+
+    def test_default_import_row_buffer(self, tmp_path):
+        cd = _make_conf(str(tmp_path))
+        assert cd.import_row_buffer == 1000
+
+    def test_invalid_import_row_buffer_raises(self, tmp_path):
+        _write_conf(
+            str(tmp_path),
+            """
+            [input]
+            import_row_buffer = notanumber
+        """,
+        )
+        with pytest.raises(ConfigError):
+            _make_conf(str(tmp_path))
 
 
 # ---------------------------------------------------------------------------
@@ -696,6 +788,17 @@ class TestConfigDataOutputExtended:
         )
         cd = _make_conf(str(tmp_path))
         assert cd.export_row_buffer == 500
+
+    def test_reads_css_styles(self, tmp_path):
+        _write_conf(
+            str(tmp_path),
+            """
+            [output]
+            css_styles = body { color: red; }
+        """,
+        )
+        cd = _make_conf(str(tmp_path))
+        assert cd.css_styles == "body { color: red; }"
 
     def test_reads_log_write_messages_true(self, tmp_path):
         _write_conf(

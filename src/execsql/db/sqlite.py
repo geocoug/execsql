@@ -9,10 +9,9 @@ files via the Python standard library ``sqlite3`` module.  Corresponds to
 """
 
 import datetime
-import io
 import re
 from decimal import Decimal
-from typing import Any, List, Optional
+from typing import Any
 
 from execsql.db.base import Database
 from execsql.exceptions import ErrInfo
@@ -20,8 +19,11 @@ from execsql.utils.errors import exception_desc, fatal_error
 import execsql.state as _state
 
 
+DEFAULT_CONNECT_TIMEOUT = 30  # seconds
+
+
 class SQLiteDatabase(Database):
-    def __init__(self, SQLite_fn: str) -> None:
+    def __init__(self, SQLite_fn: str, timeout: float = DEFAULT_CONNECT_TIMEOUT) -> None:
         try:
             import sqlite3  # noqa: F401
         except Exception:
@@ -36,6 +38,7 @@ class SQLiteDatabase(Database):
         self.encoding = "UTF-8"
         self.encode_commands = False
         self.paramstr = "?"
+        self.timeout = timeout
         self.conn = None
         self.autocommit = True
         self.open_db()
@@ -48,7 +51,7 @@ class SQLiteDatabase(Database):
 
         if self.conn is None:
             try:
-                self.conn = sqlite3.connect(self.db_name)
+                self.conn = sqlite3.connect(self.db_name, timeout=self.timeout)
             except ErrInfo:
                 raise
             except Exception:
@@ -72,11 +75,11 @@ class SQLiteDatabase(Database):
             self.rollback()
             raise
 
-    def table_exists(self, table_name: str, schema_name: Optional[str] = None) -> bool:
+    def table_exists(self, table_name: str, schema_name: str | None = None) -> bool:
         curs = self.cursor()
-        sql = f"select name from sqlite_master where type='table' and name='{table_name}';"
+        sql = "select name from sqlite_master where type='table' and name=?;"
         try:
-            curs.execute(sql)
+            curs.execute(sql, (table_name,))
         except ErrInfo:
             raise
         except Exception:
@@ -94,19 +97,15 @@ class SQLiteDatabase(Database):
         self,
         table_name: str,
         column_name: str,
-        schema_name: Optional[str] = None,
+        schema_name: str | None = None,
     ) -> bool:
-        curs = self.cursor()
-        sql = f"select {column_name} from {table_name} limit 1;"
-        try:
-            curs.execute(sql)
-        except Exception:
-            return False
-        return True
+        cols = self.table_columns(table_name, schema_name)
+        return column_name in cols
 
-    def table_columns(self, table_name: str, schema_name: Optional[str] = None) -> List[str]:
+    def table_columns(self, table_name: str, schema_name: str | None = None) -> list[str]:
         curs = self.cursor()
-        sql = f"select * from {table_name} where 1=0;"
+        quoted_tbl = self.quote_identifier(table_name)
+        sql = f"select * from {quoted_tbl} where 1=0;"
         try:
             curs.execute(sql)
         except ErrInfo:
@@ -123,9 +122,9 @@ class SQLiteDatabase(Database):
 
     def view_exists(self, view_name: str) -> bool:
         curs = self.cursor()
-        sql = f"select name from sqlite_master where type='view' and name='{view_name}';"
+        sql = "select name from sqlite_master where type='view' and name=?;"
         try:
-            curs.execute(sql)
+            curs.execute(sql, (view_name,))
         except ErrInfo:
             raise
         except Exception:
@@ -148,10 +147,10 @@ class SQLiteDatabase(Database):
 
     def populate_table(
         self,
-        schema_name: Optional[str],
+        schema_name: str | None,
         table_name: str,
         rowsource: Any,
-        column_list: List[str],
+        column_list: list[str],
         tablespec_src: Any,
     ) -> None:
         # The rowsource argument must be a generator yielding a list of values for the columns of the table.
@@ -190,16 +189,15 @@ class SQLiteDatabase(Database):
                                 line[i] = line[i].strip()
                             if _state.conf.replace_newlines:
                                 line[i] = re.sub(r"[\s\t]*[\r\n]+[\s\t]*", " ", line[i])
-                            if not _state.conf.empty_strings:
-                                if line[i].strip() == "":
-                                    line[i] = None
+                            if not _state.conf.empty_strings and line[i].strip() == "":
+                                line[i] = None
                 # Convert datetime, time, and Decimal values to strings.
                 for i in range(len(linedata)):
                     if type(linedata[i]) in (datetime.datetime, datetime.time, Decimal):
                         linedata[i] = str(linedata[i])
                 add_line = True
                 if not _state.conf.empty_rows:
-                    add_line = not all([c is None for c in linedata])
+                    add_line = not all(c is None for c in linedata)
                 if add_line:
                     try:
                         curs.execute(sql, linedata)
@@ -216,14 +214,14 @@ class SQLiteDatabase(Database):
 
     def import_entire_file(
         self,
-        schema_name: Optional[str],
+        schema_name: str | None,
         table_name: str,
         column_name: str,
         file_name: str,
     ) -> None:
         import sqlite3
 
-        with io.open(file_name, "rb") as f:
+        with open(file_name, "rb") as f:
             filedata = f.read()
         sq_name = self.schema_qualified_table_name(schema_name, table_name)
         sql = f"insert into {sq_name} ({column_name}) values ({self.paramsubs(1)});"

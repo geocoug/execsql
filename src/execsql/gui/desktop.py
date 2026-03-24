@@ -10,7 +10,6 @@ Note: On macOS, Tkinter requires that dialogs run in the main thread.
 from __future__ import annotations
 
 import os
-import sys
 import threading
 import time
 from typing import Any
@@ -22,7 +21,7 @@ from execsql.gui.base import GuiBackend
 # ---------------------------------------------------------------------------
 try:
     import tkinter as tk
-    from tkinter import filedialog, font, scrolledtext, ttk
+    from tkinter import filedialog, scrolledtext, ttk
 except ImportError as _e:
     raise ImportError(
         "tkinter is not available on this Python installation.",
@@ -63,7 +62,7 @@ def _populate_treeview(tree: ttk.Treeview, headers: list, rows: list) -> None:
 
 def _add_buttons(frame: tk.Frame, button_list: list, callback) -> None:
     """Add buttons from button_list = [(label, value, key?), ...] to frame."""
-    for i, btn in enumerate(button_list):
+    for _i, btn in enumerate(button_list):
         label = btn[0]
         value = btn[1]
         b = tk.Button(frame, text=label, command=lambda v=value: callback(v), padx=8)
@@ -1079,7 +1078,7 @@ class _TkinterSyncQueue:
 
     import queue as _stdlib_queue
 
-    def __init__(self, backend: "TkinterBackend") -> None:
+    def __init__(self, backend: TkinterBackend) -> None:
         self._backend = backend
 
     # GUI types for which a None/cancelled result means the user wants to exit.

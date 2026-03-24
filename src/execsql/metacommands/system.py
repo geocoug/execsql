@@ -171,7 +171,7 @@ def x_cancel_halt_write_clear(**kwargs: Any) -> None:
 def x_cancel_halt_write(**kwargs: Any) -> None:
     msg = f"{kwargs['text']}\n"
     tee = kwargs["tee"]
-    tee = False if not tee else True
+    tee = bool(tee)
     outf = kwargs["filename"]
     _state.cancel_halt_writespec = WriteSpec(message=msg, dest=outf, tee=tee)
 
@@ -205,7 +205,7 @@ def x_error_halt_write_clear(**kwargs: Any) -> None:
 def x_error_halt_write(**kwargs: Any) -> None:
     msg = f"{kwargs['text']}\n"
     tee = kwargs["tee"]
-    tee = False if not tee else True
+    tee = bool(tee)
     outf = kwargs["filename"]
     _state.err_halt_writespec = WriteSpec(message=msg, dest=outf, tee=tee)
 

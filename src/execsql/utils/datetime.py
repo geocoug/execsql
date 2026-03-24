@@ -14,7 +14,7 @@ scanning imported data for type inference.
 import collections
 import datetime
 import re
-from typing import Any, Optional
+from typing import Any
 
 
 dt_fmts = collections.deque(
@@ -95,7 +95,7 @@ dt_fmts = collections.deque(
 )
 
 
-def parse_datetime(datestr: Any) -> Optional[datetime.datetime]:
+def parse_datetime(datestr: Any) -> datetime.datetime | None:
     if isinstance(datestr, datetime.datetime):
         return datestr
     if not isinstance(datestr, str):
@@ -104,7 +104,7 @@ def parse_datetime(datestr: Any) -> Optional[datetime.datetime]:
         except Exception:
             return None
     dt = None
-    for i, f in enumerate(dt_fmts):
+    for i, f in enumerate(dt_fmts):  # noqa: B007
         try:
             dt = datetime.datetime.strptime(datestr, f)
         except Exception:
@@ -238,7 +238,7 @@ timestamptz_fmts = collections.deque(
 )
 
 
-def parse_datetimetz(data: Any) -> Optional[datetime.datetime]:
+def parse_datetimetz(data: Any) -> datetime.datetime | None:
     # Import Tz locally to avoid circular imports
     from execsql.types import Tz
 
@@ -267,7 +267,7 @@ def parse_datetimetz(data: Any) -> Optional[datetime.datetime]:
         )
     except Exception:
         # Check for alphabetic timezone
-        for i, f in enumerate(timestamptz_fmts):
+        for i, f in enumerate(timestamptz_fmts):  # noqa: B007
             try:
                 dt = datetime.datetime.strptime(data, f)
             except Exception:

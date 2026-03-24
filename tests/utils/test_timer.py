@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import time
 
-import pytest
 
 from execsql.utils.timer import Timer, TimerHandler
 
@@ -80,7 +79,7 @@ class TestTimer:
         t.start()
         time.sleep(0.01)
         t.stop()
-        e1 = t.elapsed()
+        t.elapsed()
         t.start()
         time.sleep(0.01)
         t.stop()

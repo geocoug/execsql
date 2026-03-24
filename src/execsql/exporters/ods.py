@@ -11,10 +11,8 @@ Provides :func:`write_query_to_ods` (single-sheet export),
 
 import datetime
 import getpass
-import io
 import os
-import re
-from typing import Any, Optional, List
+from typing import Any
 
 import execsql.state as _state
 from execsql.exceptions import OdsFileError
@@ -125,7 +123,7 @@ class OdsFile:
             self.wbk.automaticstyles.addElement(dts)
             self.cell_style_names.append(st_name)
 
-    def sheetnames(self) -> List[str]:
+    def sheetnames(self) -> list[str]:
         # Returns a list of the worksheet names in the specified ODS spreadsheet.
         return [sheet.getAttribute("name") for sheet in self.wbk.spreadsheet.getElementsByType(of.table.Table)]
 
@@ -153,7 +151,7 @@ class OdsFile:
                     return sheet
         return None
 
-    def sheet_data(self, sheetname: Any, junk_header_rows: int = 0) -> List:
+    def sheet_data(self, sheetname: Any, junk_header_rows: int = 0) -> list:
         sheet = self.sheet_named(sheetname)
         if not sheet:
             raise OdsFileError(f"There is no sheet named {sheetname}")
@@ -172,19 +170,19 @@ class OdsFile:
                         repeat = spanned
                 ps = cell.getElementsByType(of.text.P)
                 if len(ps) == 0:
-                    for rr in range(int(repeat)):
+                    for _rr in range(int(repeat)):
                         p_content.append(None)
                 else:
                     for p in ps:
                         pval = str(p)
                         if len(pval) == 0:
-                            for rr in range(int(repeat)):
+                            for _rr in range(int(repeat)):
                                 p_content.append(None)
                         else:
-                            for rr in range(int(repeat)):
+                            for _rr in range(int(repeat)):
                                 p_content.append(pval)
                 if len(p_content) == 0:
-                    for rr in range(int(repeat)):
+                    for _rr in range(int(repeat)):
                         rowdata.append(None)
                 elif p_content[0] != "#":
                     rowdata.extend(p_content)
@@ -212,7 +210,7 @@ class OdsFile:
             if isinstance(item, bool):
                 # Booleans must be evaluated before numbers.
                 tc = of.table.TableCell(valuetype="boolean", value=1 if item else 0, stylename=style_name)
-            elif isinstance(item, float) or isinstance(item, int):
+            elif isinstance(item, (float, int)):
                 tc = of.table.TableCell(valuetype="float", value=item, stylename=style_name)
             elif isinstance(item, datetime.datetime):
                 self.define_iso_datetime_style()
@@ -251,9 +249,8 @@ class OdsFile:
         self.wbk.spreadsheet.addElement(of_table)
 
     def save_close(self) -> None:
-        ofile = io.open(self.filename, "wb")
-        self.wbk.write(ofile)
-        ofile.close()
+        with open(self.filename, "wb") as ofile:
+            self.wbk.write(ofile)
         self.filename = None
         self.wbk = None
 
@@ -264,12 +261,12 @@ class OdsFile:
 
 def export_ods(
     outfile: str,
-    hdrs: List[str],
+    hdrs: list[str],
     rows: Any,
     append: bool = False,
-    querytext: Optional[str] = None,
-    sheetname: Optional[str] = None,
-    desc: Optional[str] = None,
+    querytext: str | None = None,
+    sheetname: str | None = None,
+    desc: str | None = None,
 ) -> None:
     # If not given, determine the worksheet name to use.  The pattern is "Sheetx", where x is
     # the first integer for which there is not already a sheet name.
@@ -337,8 +334,8 @@ def write_query_to_ods(
     db: Any,
     outfile: str,
     append: bool = False,
-    sheetname: Optional[str] = None,
-    desc: Optional[str] = None,
+    sheetname: str | None = None,
+    desc: str | None = None,
 ) -> None:
     try:
         hdrs, rows = db.select_rowsource(select_stmt)
@@ -355,7 +352,7 @@ def write_queries_to_ods(
     outfile: str,
     append: bool = False,
     tee: bool = False,
-    desc: Optional[str] = None,
+    desc: str | None = None,
 ) -> None:
     from execsql.exporters.pretty import prettyprint_query
     from execsql.exporters.base import ExportRecord

@@ -32,9 +32,8 @@ All re-exports have been removed. Each module now imports directly from
 its source module rather than accessing names via ``_state``.
 """
 
-import getpass
 import re
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from execsql.config import ConfigData
@@ -44,7 +43,7 @@ if TYPE_CHECKING:
 # ---------------------------------------------------------------------------
 
 # Configuration data, initialized in main()
-conf: Optional[ConfigData] = None
+conf: ConfigData | None = None
 
 # Default encodings
 logfile_encoding: str = "utf8"  # Should never be changed; is not configurable.
@@ -57,7 +56,7 @@ logfile_encoding: str = "utf8"  # Should never be changed; is not configurable.
 last_command: Any = None
 
 # The last user password entered via 'get_password()'
-upass: Optional[str] = None
+upass: str | None = None
 
 # A compiled regex to match prefixed regular expressions, used to check
 # for unsubstituted variables.
@@ -268,7 +267,7 @@ def reset() -> None:
 
 
 def initialize(
-    config: "ConfigData",
+    config: ConfigData,
     dispatch_table: object,
     conditional_table: object,
 ) -> None:

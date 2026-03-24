@@ -12,9 +12,8 @@ Provides:
   string, used by the ``FORMAT NUMBER`` substitution variant.
 """
 
-import math
 import re
-from typing import Any, Optional, Union
+from typing import Any
 
 
 def leading_zero_num(dataval: Any) -> bool:
@@ -42,7 +41,7 @@ def leading_zero_num(dataval: Any) -> bool:
     return False
 
 
-def as_numeric(strval: Any) -> Optional[Union[int, float]]:
+def as_numeric(strval: Any) -> int | float | None:
     # Converts the given value to an int, a float, or None.
     if type(strval) in (int, float):
         return strval

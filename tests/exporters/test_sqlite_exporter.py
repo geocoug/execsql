@@ -15,7 +15,6 @@ import sqlite3
 
 import pytest
 
-import execsql.state as _state
 from execsql.exporters.sqlite import export_sqlite, write_query_to_sqlite
 from execsql.exceptions import ErrInfo
 

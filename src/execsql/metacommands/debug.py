@@ -40,7 +40,9 @@ def x_debug_iflevels(**kwargs: Any) -> None:
     if len(_state.if_stack.if_levels) == 0:
         _state.output.write("If levels: None\n")
     else:
-        _state.output.write("If levels: [%s]\n" % ",".join([str(tf.tf_value) for tf in _state.if_stack.if_levels]))
+        _state.output.write(
+            "If levels: [{}]\n".format(",".join([str(tf.tf_value) for tf in _state.if_stack.if_levels])),
+        )
     return None
 
 

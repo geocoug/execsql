@@ -116,9 +116,7 @@ class DT_TimestampTZ(DataType):
         if data is None:
             return False
         if isinstance(data, datetime.datetime):
-            if data.tzinfo is not None and data.tzinfo.utcoffset(data) is not None:
-                return True
-            return False
+            return bool(data.tzinfo is not None and data.tzinfo.utcoffset(data) is not None)
         if not isinstance(data, str):
             return False
         try:
@@ -183,6 +181,9 @@ class DT_Date(DataType):
     data_type_name = "date"
     data_type = datetime.date
 
+    def __init__(self) -> None:
+        self._date_fmts = collections.deque(date_fmts)
+
     def __repr__(self) -> str:
         return "DT_Date()"
 
@@ -193,7 +194,7 @@ class DT_Date(DataType):
             return data
         if not isinstance(data, str):
             raise DataTypeError(self.data_type_name, self._CONV_ERR % data)
-        for i, f in enumerate(date_fmts):
+        for i, f in enumerate(self._date_fmts):  # noqa: B007
             try:
                 dt = datetime.datetime.strptime(data, f)
                 dtt = datetime.date(dt.year, dt.month, dt.day)
@@ -203,8 +204,8 @@ class DT_Date(DataType):
         else:
             raise DataTypeError(self.data_type_name, self._CONV_ERR % data)
         if i:
-            del date_fmts[i]
-            date_fmts.appendleft(f)
+            del self._date_fmts[i]
+            self._date_fmts.appendleft(f)
         return dtt
 
 
@@ -250,48 +251,11 @@ class DT_Time(DataType):
         return t
 
 
-class DT_Time_Oracle(DataType):
-    data_type_name = "time"
-    data_type = datetime.time
+class DT_Time_Oracle(DT_Time):
+    """Oracle-specific time type stored as VARCHAR2 with length specification."""
+
     lenspec = True
     varlen = True
-    time_fmts = (
-        "%H:%M",
-        "%H%M:%S",
-        "%H%M:%S.%f",
-        "%H:%M:%S",
-        "%H:%M:%S.%f",
-        "%I:%M%p",
-        "%I:%M:%S%p",
-        "%I:%M:%S.%f%p",
-        "%I:%M %p",
-        "%I:%M:%S %p",
-        "%I:%M:%S.%f %p",
-        "%X",
-    )
-
-    def __repr__(self) -> str:
-        return "DT_Time()"
-
-    def _from_data(self, data: object) -> object:
-        if data is None:
-            raise DataTypeError(self.data_type_name, self._CONV_ERR % "NULL")
-        if type(data) is self.data_type:
-            return data
-        if isinstance(data, datetime.datetime):
-            return datetime.time(data.hour, data.minute, data.second, data.microsecond)
-        if not isinstance(data, str):
-            raise DataTypeError(self.data_type_name, self._CONV_ERR % data)
-        for f in self.time_fmts:
-            try:
-                dt = datetime.datetime.strptime(data, f)
-                t = datetime.time(dt.hour, dt.minute, dt.second, dt.microsecond)
-            except Exception:
-                continue
-            break
-        else:
-            raise DataTypeError(self.data_type_name, self._CONV_ERR % data)
-        return t
 
 
 class DT_Boolean(DataType):
@@ -322,13 +286,14 @@ class DT_Boolean(DataType):
         if data is None:
             return False
         self.set_bool_matches()
-        if isinstance(data, bool):
-            return True
-        elif conf.boolean_int and type(data) is int and data in (0, 1):
-            return True
-        elif isinstance(data, str) and data.lower() in self.bool_repr:
-            return True
-        return False
+        return bool(
+            isinstance(data, bool)
+            or conf.boolean_int
+            and type(data) is int
+            and data in (0, 1)
+            or isinstance(data, str)
+            and data.lower() in self.bool_repr,
+        )
 
     def _from_data(self, data: object) -> object:
         import execsql.state as _state
@@ -516,7 +481,7 @@ class DT_Character(DataType):
     def _is_match(self, data: object) -> bool:
         if isinstance(data, bytearray):
             return False
-        return super(DT_Character, self)._is_match(data)
+        return super()._is_match(data)
 
     def _from_data(self, data: object) -> object:
         # data must be non-null.
@@ -546,7 +511,7 @@ class DT_Varchar(DataType):
     def _is_match(self, data: object) -> bool:
         if isinstance(data, bytearray):
             return False
-        return super(DT_Varchar, self)._is_match(data)
+        return super()._is_match(data)
 
     def _from_data(self, data: object) -> object:
         # This varchar data type is the same as the character data type.
@@ -572,7 +537,7 @@ class DT_Text(DataType):
     def _is_match(self, data: object) -> bool:
         if isinstance(data, bytearray):
             return False
-        return super(DT_Text, self)._is_match(data)
+        return super()._is_match(data)
 
     def _from_data(self, data: object) -> object:
         if data is None:
@@ -724,10 +689,10 @@ dbt_sqlite.name_datatype(DT_Text, "varchar")
 dbt_sqlite.name_datatype(DT_Binary, "blob")
 
 dbt_duckdb = DbType("DuckDB")
-dbt_duckdb.name_datatype(DT_TimestampTZ, "TEXT")
-dbt_duckdb.name_datatype(DT_Timestamp, "TEXT")
-dbt_duckdb.name_datatype(DT_Date, "TEXT")
-dbt_duckdb.name_datatype(DT_Time, "TEXT")
+dbt_duckdb.name_datatype(DT_TimestampTZ, "TIMESTAMPTZ")
+dbt_duckdb.name_datatype(DT_Timestamp, "TIMESTAMP")
+dbt_duckdb.name_datatype(DT_Date, "DATE")
+dbt_duckdb.name_datatype(DT_Time, "TIME")
 dbt_duckdb.name_datatype(DT_Integer, "INTEGER")
 dbt_duckdb.name_datatype(DT_Long, "BIGINT")
 dbt_duckdb.name_datatype(DT_Float, "REAL")

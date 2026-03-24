@@ -8,7 +8,7 @@ via the ``oracledb`` driver (python-oracledb).  Corresponds to ``-t o``
 on the CLI.
 """
 
-from typing import Any, List, Optional, Tuple
+from typing import Any
 
 from execsql.db.base import Database
 from execsql.exceptions import ErrInfo
@@ -22,11 +22,11 @@ class OracleDatabase(Database):
         self,
         server_name: str,
         db_name: str,
-        user_name: Optional[str],
+        user_name: str | None,
         need_passwd: bool = False,
-        port: Optional[int] = 5432,
-        encoding: Optional[str] = "UTF8",
-        password: Optional[str] = None,
+        port: int | None = 5432,
+        encoding: str | None = "UTF8",
+        password: str | None = None,
     ) -> None:
         try:
             import cx_Oracle  # noqa: F401
@@ -85,14 +85,14 @@ class OracleDatabase(Database):
                 msg = f"Failed to open Oracle database {self.db_name} on {self.server_name}"
                 raise ErrInfo(type="exception", exception_msg=exception_desc(), other_msg=msg)
 
-    def execute(self, sql: Any, paramlist: Optional[list] = None) -> None:
+    def execute(self, sql: Any, paramlist: list | None = None) -> None:
         # Strip any semicolon off the end and pass to the parent method.
         if sql[-1:] == ";":
             super().execute(sql[:-1], paramlist)
         else:
             super().execute(sql, paramlist)
 
-    def select_data(self, sql: str) -> Tuple[List[str], list]:
+    def select_data(self, sql: str) -> tuple[list[str], list]:
         if sql[-1:] == ";":
             return super().select_data(sql[:-1])
         else:
@@ -115,12 +115,16 @@ class OracleDatabase(Database):
 
         raise DatabaseNotImplementedError(self.name(), "schema_exists")
 
-    def table_exists(self, table_name: str, schema_name: Optional[str] = None) -> bool:
+    def table_exists(self, table_name: str, schema_name: str | None = None) -> bool:
         curs = self.cursor()
-        owner_clause = "" if not schema_name else f" and owner ='{schema_name}'"
-        sql = f"select table_name from sys.all_tables where table_name = '{table_name}'{owner_clause}"
+        params = {"tname": table_name}
+        owner_clause = ""
+        if schema_name:
+            owner_clause = " and owner = :owner"
+            params["owner"] = schema_name
+        sql = f"select table_name from sys.all_tables where table_name = :tname{owner_clause}"
         try:
-            curs.execute(sql)
+            curs.execute(sql, params)
         except ErrInfo:
             raise
         except Exception:
@@ -139,17 +143,17 @@ class OracleDatabase(Database):
         self,
         table_name: str,
         column_name: str,
-        schema_name: Optional[str] = None,
+        schema_name: str | None = None,
     ) -> bool:
         curs = self.cursor()
-        owner_clause = "" if not schema_name else f" and owner ='{schema_name}'"
-        sql = (
-            f"select column_name from all_tab_columns "
-            f"where table_name='{table_name}'{owner_clause} "
-            f"and column_name='{column_name}'"
-        )
+        params = {"tname": table_name, "cname": column_name}
+        owner_clause = ""
+        if schema_name:
+            owner_clause = " and owner = :owner"
+            params["owner"] = schema_name
+        sql = f"select column_name from all_tab_columns where table_name=:tname{owner_clause} and column_name=:cname"
         try:
-            curs.execute(sql)
+            curs.execute(sql, params)
         except ErrInfo:
             raise
         except Exception:
@@ -164,14 +168,16 @@ class OracleDatabase(Database):
         curs.close()
         return len(rows) > 0
 
-    def table_columns(self, table_name: str, schema_name: Optional[str] = None) -> List[str]:
+    def table_columns(self, table_name: str, schema_name: str | None = None) -> list[str]:
         curs = self.cursor()
-        owner_clause = "" if not schema_name else f" and owner='{schema_name}'"
-        sql = (
-            f"select column_name from all_tab_columns where table_name='{table_name}'{owner_clause} order by column_id"
-        )
+        params = {"tname": table_name}
+        owner_clause = ""
+        if schema_name:
+            owner_clause = " and owner=:owner"
+            params["owner"] = schema_name
+        sql = f"select column_name from all_tab_columns where table_name=:tname{owner_clause} order by column_id"
         try:
-            curs.execute(sql)
+            curs.execute(sql, params)
         except ErrInfo:
             raise
         except Exception:
@@ -186,12 +192,16 @@ class OracleDatabase(Database):
         curs.close()
         return [row[0] for row in rows]
 
-    def view_exists(self, view_name: str, schema_name: Optional[str] = None) -> bool:
+    def view_exists(self, view_name: str, schema_name: str | None = None) -> bool:
         curs = self.cursor()
-        owner_clause = "" if not schema_name else f" and owner ='{schema_name}'"
-        sql = f"select view_name from sys.all_views where view_name = '{view_name}'{owner_clause}"
+        params = {"vname": view_name}
+        owner_clause = ""
+        if schema_name:
+            owner_clause = " and owner = :owner"
+            params["owner"] = schema_name
+        sql = f"select view_name from sys.all_views where view_name = :vname{owner_clause}"
         try:
-            curs.execute(sql)
+            curs.execute(sql, params)
         except ErrInfo:
             raise
         except Exception:
@@ -209,8 +219,9 @@ class OracleDatabase(Database):
     def role_exists(self, rolename: str) -> bool:
         curs = self.cursor()
         curs.execute(
-            f"select role from dba_roles where role = '{rolename}' union "
-            f" select username from all_users where username = '{rolename}';",
+            "select role from dba_roles where role = :rname union "
+            " select username from all_users where username = :rname",
+            {"rname": rolename},
         )
         rows = curs.fetchall()
         curs.close()

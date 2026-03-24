@@ -8,8 +8,7 @@ Provides :func:`import_feather` (Apache Arrow Feather v2 / Arrow IPC via
 used by ``IMPORT … FORMAT feather`` and ``FORMAT parquet``.
 """
 
-import os
-from typing import Any, Optional
+from typing import Any
 
 from execsql.exceptions import ErrInfo
 from execsql.db.base import Database
@@ -18,7 +17,7 @@ from execsql.importers.base import import_data_table
 
 def import_feather(
     db: Database,
-    schemaname: Optional[str],
+    schemaname: str | None,
     tablename: str,
     filename: str,
     is_new: Any,
@@ -41,7 +40,7 @@ def import_feather(
 
 def import_parquet(
     db: Database,
-    schemaname: Optional[str],
+    schemaname: str | None,
     tablename: str,
     filename: str,
     is_new: Any,

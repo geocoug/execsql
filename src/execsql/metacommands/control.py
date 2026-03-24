@@ -112,7 +112,7 @@ def endloop() -> None:
 def x_halt(**kwargs: Any) -> None:
     errmsg = kwargs["errmsg"]
     tee = kwargs["tee"]
-    tee = False if not tee else True
+    tee = bool(tee)
     outf = kwargs["filename"]
     errlevel = kwargs["errorlevel"]
     conf = _state.conf
@@ -208,7 +208,7 @@ def x_halt_msg(**kwargs: Any) -> None:
 
     errmsg = kwargs["errmsg"]
     tee = kwargs["tee"]
-    tee = False if not tee else True
+    tee = bool(tee)
     outf = kwargs["filename"]
     errlevel = kwargs["errorlevel"]
     if errlevel:

@@ -15,12 +15,11 @@ throughout the codebase:
 - :func:`fatal_error` — logs a fatal error and calls :func:`exit_now`.
 """
 
-import datetime
 import os
 import sys
 import time
 import traceback
-from typing import Any, Optional
+from typing import Any
 
 import execsql.state as _state
 from execsql.exceptions import ErrInfo
@@ -59,7 +58,7 @@ def exception_desc() -> str:
     return f"{exc_type}: {exc_strval} in {exc_filename} on line {exc_lineno} of execsql."
 
 
-def exit_now(exit_status: int, errinfo: Optional[ErrInfo], logmsg: Optional[str] = None) -> None:
+def exit_now(exit_status: int, errinfo: ErrInfo | None, logmsg: str | None = None) -> None:
     em = None
     if errinfo is not None:
         em = errinfo.write()
@@ -67,18 +66,19 @@ def exit_now(exit_status: int, errinfo: Optional[ErrInfo], logmsg: Optional[str]
             try:
                 _state.err_halt_writespec.write()
             except Exception:
-                _state.exec_log.log_status_error("Failed to write the ON ERROR_HALT WRITE message.")
-    if exit_status == 2:
-        # User canceled
-        if _state.cancel_halt_writespec is not None:
-            try:
-                _state.cancel_halt_writespec.write()
-            except Exception:
+                if _state.exec_log is not None:
+                    _state.exec_log.log_status_error("Failed to write the ON ERROR_HALT WRITE message.")
+    # User canceled
+    if exit_status == 2 and _state.cancel_halt_writespec is not None:
+        try:
+            _state.cancel_halt_writespec.write()
+        except Exception:
+            if _state.exec_log is not None:
                 _state.exec_log.log_status_error("Failed to write the ON CANCEL_HALT WRITE message.")
     # Defer import to avoid circular dependencies
     from execsql.utils.gui import gui_console_isrunning, gui_console_wait_user, gui_console_off
 
-    if gui_console_isrunning():
+    if gui_console_isrunning() and _state.conf is not None:
         if errinfo is not None:
             if _state.conf.gui_wait_on_error_halt:
                 gui_console_wait_user("Script error; close the console window to exit execsql.")
@@ -92,7 +92,8 @@ def exit_now(exit_status: int, errinfo: Optional[ErrInfo], logmsg: Optional[str]
         try:
             _state.err_halt_email.send()
         except Exception:
-            _state.exec_log.log_status_error("Failed to send the ON ERROR_HALT EMAIL message.")
+            if _state.exec_log is not None:
+                _state.exec_log.log_status_error("Failed to send the ON ERROR_HALT EMAIL message.")
     if errinfo is not None and _state.err_halt_exec is not None:
         from execsql.script import runscripts  # deferred: errors.py ↔ script.py circular dep
 
@@ -105,7 +106,8 @@ def exit_now(exit_status: int, errinfo: Optional[ErrInfo], logmsg: Optional[str]
         try:
             _state.cancel_halt_mailspec.send()
         except Exception:
-            _state.exec_log.log_status_error("Failed to send the ON CANCEL_HALT EMAIL message.")
+            if _state.exec_log is not None:
+                _state.exec_log.log_status_error("Failed to send the ON CANCEL_HALT EMAIL message.")
     if exit_status == 2 and _state.cancel_halt_exec is not None:
         from execsql.script import runscripts  # deferred: errors.py ↔ script.py circular dep
 
@@ -114,13 +116,12 @@ def exit_now(exit_status: int, errinfo: Optional[ErrInfo], logmsg: Optional[str]
         _state.commandliststack = []
         cancelexec.execute()
         runscripts()
-    if exit_status > 0:
-        if _state.exec_log:
-            if logmsg:
-                _state.exec_log.log_exit_error(logmsg)
-            else:
-                if em:
-                    _state.exec_log.log_exit_error(em)
+    if exit_status > 0 and _state.exec_log:
+        if logmsg:
+            _state.exec_log.log_exit_error(logmsg)
+        else:
+            if em:
+                _state.exec_log.log_exit_error(em)
     if _state.exec_log is not None:
         _state.exec_log.log_status_info(f"{_state.cmds_run} commands run")
         _state.exec_log.close()
@@ -130,13 +131,14 @@ def exit_now(exit_status: int, errinfo: Optional[ErrInfo], logmsg: Optional[str]
     sys.exit(exit_status)
 
 
-def fatal_error(error_msg: Optional[str] = None) -> None:
+def fatal_error(error_msg: str | None = None) -> None:
     exit_now(1, ErrInfo("error", other_msg=error_msg))
 
 
 def write_warning(warning_msg: str) -> None:
-    _state.exec_log.log_status_warning(warning_msg)
-    if _state.conf.write_warnings:
+    if _state.exec_log is not None:
+        _state.exec_log.log_status_warning(warning_msg)
+    if _state.conf is not None and _state.conf.write_warnings and _state.output is not None:
         _state.output.write_err(f"**** Warning {warning_msg}")
 
 
@@ -158,8 +160,6 @@ def chainfuncs(*funcs: Any) -> Any:
 
 
 def as_none(item: Any) -> Any:
-    if isinstance(item, str) and len(item) == 0:
-        return None
-    elif isinstance(item, int) and item == 0:
+    if isinstance(item, str) and len(item) == 0 or isinstance(item, int) and item == 0:
         return None
     return item

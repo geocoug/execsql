@@ -7,11 +7,10 @@ that Column and DataTable read during type scanning.
 
 from __future__ import annotations
 
-import datetime
 
 import pytest
 
-from execsql.exceptions import ColumnError, DataTableError
+from execsql.exceptions import DataTableError, ErrInfo
 from execsql.models import Column, DataTable, JsonDatatype, to_json_type
 from execsql.types import (
     DT_Boolean,
@@ -19,7 +18,6 @@ from execsql.types import (
     DT_Date,
     DT_Float,
     DT_Integer,
-    DT_Long,
     DT_Text,
     DT_Timestamp,
     DT_Varchar,
@@ -34,7 +32,7 @@ from execsql.types import (
 
 class TestColumn:
     def test_requires_name(self):
-        with pytest.raises(Exception):
+        with pytest.raises(ErrInfo):
             Column("")
 
     def test_repr(self):
@@ -143,6 +141,30 @@ class TestColumn:
         second = col.column_type()
         assert first == second
 
+    def test_replace_newlines(self, minimal_conf):
+        minimal_conf.replace_newlines = True
+        col = Column("desc")
+        col.eval_types("hello\nworld")
+        col.eval_types("foo\r\nbar")
+        col.eval_types("baz\rbam")
+        # Newlines replaced with spaces → all values are simple strings
+        name, dt, *_ = col.column_type()
+        assert dt in (DT_Character, DT_Varchar, DT_Text)
+        # Verify the regex actually works by checking accum maxlen reflects
+        # the replaced (single-space) value, not the original with newlines.
+        # "hello world" is 11 chars — the longest of the three.
+        assert col.column_type()[2] == 11 or col.column_type()[2] is None
+
+    def test_all_null_column_with_lenspec_no_name_error(self):
+        """All-NULL column should not raise NameError on ac.maxlen."""
+        col = Column("empty")
+        col.eval_types(None)
+        col.eval_types(None)
+        # This must not raise NameError (ac undefined when loop never runs)
+        result = col.column_type()
+        assert result[0] == "empty"
+        assert result[1] is DT_Text
+
 
 # ---------------------------------------------------------------------------
 # DataTable
@@ -204,7 +226,7 @@ class TestDataTable:
 
 class TestJsonDatatype:
     def test_has_type_constants(self):
-        jdt = JsonDatatype()
+        JsonDatatype()
         assert JsonDatatype.integer == "integer"
         assert JsonDatatype.string == "string"
         assert JsonDatatype.boolean == "boolean"

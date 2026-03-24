@@ -14,11 +14,8 @@ Functions covered:
 from __future__ import annotations
 
 import base64
-import io
 
-import pytest
 
-import execsql.state as _state
 from execsql.exporters.values import export_values
 from execsql.exporters.raw import write_query_raw, write_query_b64
 from execsql.exporters.pretty import prettyprint_rowset
@@ -76,7 +73,7 @@ class TestExportValues:
         export_values(out, ["id"], [[1]])
         size_first = (tmp_path / "out.sql").stat().st_size
         export_values(out, ["id"], [[2]], append=True)
-        text = (tmp_path / "out.sql").read_text()
+        (tmp_path / "out.sql").read_text()
         # append=True opens in "at" mode so content accumulates
         assert size_first < (tmp_path / "out.sql").stat().st_size
 

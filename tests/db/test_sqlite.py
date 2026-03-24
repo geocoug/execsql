@@ -15,8 +15,9 @@ from __future__ import annotations
 
 import pytest
 
-from execsql.db.sqlite import SQLiteDatabase
-from execsql.exceptions import ErrInfo
+from unittest.mock import patch
+
+from execsql.db.sqlite import DEFAULT_CONNECT_TIMEOUT, SQLiteDatabase
 
 
 # ---------------------------------------------------------------------------
@@ -54,6 +55,24 @@ class TestSQLiteDatabaseInit:
     def test_repr(self, db):
         r = repr(db)
         assert ":memory:" in r
+
+    def test_default_timeout(self, db):
+        assert db.timeout == DEFAULT_CONNECT_TIMEOUT
+
+    def test_custom_timeout(self):
+        d = SQLiteDatabase(":memory:", timeout=10)
+        try:
+            assert d.timeout == 10
+        finally:
+            d.close()
+
+    def test_timeout_passed_to_sqlite3_connect(self):
+        import sqlite3
+
+        with patch.object(sqlite3, "connect", wraps=sqlite3.connect) as mock_connect:
+            d = SQLiteDatabase(":memory:", timeout=15)
+            mock_connect.assert_called_once_with(":memory:", timeout=15)
+            d.close()
 
 
 # ---------------------------------------------------------------------------

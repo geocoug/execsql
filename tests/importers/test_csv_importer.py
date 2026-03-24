@@ -8,11 +8,9 @@ importer_conf fixture extends it with attributes specific to the importers.
 
 from __future__ import annotations
 
-from types import SimpleNamespace
 
 import pytest
 
-import execsql.state as _state
 from execsql.db.sqlite import SQLiteDatabase
 from execsql.importers.csv import importtable, importfile
 from execsql.importers.base import import_data_table

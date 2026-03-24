@@ -12,7 +12,6 @@ import zipfile as _zipfile
 
 import pytest
 
-import execsql.state as _state
 from execsql.exporters.zip import WriteableZipfile, ZipWriter
 
 

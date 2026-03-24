@@ -13,8 +13,6 @@ dispatch regexes at module load time:
 """
 
 import os
-import re
-from typing import List, Optional, Tuple
 
 
 def ins_rxs(rx_list: tuple, fragment1: object, fragment2: object) -> tuple:
@@ -36,10 +34,10 @@ def ins_rxs(rx_list: tuple, fragment1: object, fragment2: object) -> tuple:
 
 
 def ins_quoted_rx(fragment1: object, fragment2: object, rx: str) -> tuple:
-    return ins_rxs((rx, r'"%s"' % rx), fragment1, fragment2)
+    return ins_rxs((rx, rf'"{rx}"'), fragment1, fragment2)
 
 
-def ins_schema_rxs(fragment1: object, fragment2: object, suffix: Optional[str] = None) -> tuple:
+def ins_schema_rxs(fragment1: object, fragment2: object, suffix: str | None = None) -> tuple:
     schema_exprs = (
         r'"(?P<schema>[A-Za-z0-9_\- ]+)"',
         r"(?P<schema>[A-Za-z0-9_\-]+)",
@@ -50,7 +48,7 @@ def ins_schema_rxs(fragment1: object, fragment2: object, suffix: Optional[str] =
     return ins_rxs(schema_exprs, fragment1, fragment2)
 
 
-def ins_table_rxs(fragment1: object, fragment2: object, suffix: Optional[str] = None) -> tuple:
+def ins_table_rxs(fragment1: object, fragment2: object, suffix: str | None = None) -> tuple:
     tbl_exprs = (
         r'(?:"(?P<schema>[A-Za-z0-9_\- ]+)"\.)?"(?P<table>[A-Za-z0-9_\-\# ]+)"',
         r"(?:(?P<schema>[A-Za-z0-9_\-]+)\.)?(?P<table>[A-Za-z0-9_\-\#]+)",
@@ -79,13 +77,12 @@ def ins_table_list_rxs(fragment1: object, fragment2: object) -> tuple:
 def ins_fn_rxs(fragment1: object, fragment2: object, symbolicname: str = "filename") -> tuple:
     if os.name == "posix":
         fns = (
-            r"(?P<%s>[\w\.\-\\\/\'~`!@#$^&()+={}\[\]:;,]*[\w\.\-\\\/\'~`!@#$^&(+={}\[\]:;,])" % symbolicname,
-            r'"(?P<%s>[\w\s\.\-\\\/\'~`!@#$^&()+={}\[\]:;,]+)"' % symbolicname,
+            rf"(?P<{symbolicname}>[\w\.\-\\\/\'~`!@#$^&()+={{}}\[\]:;,]*[\w\.\-\\\/\'~`!@#$^&(+={{}}\[\]:;,])",
+            rf'"(?P<{symbolicname}>[\w\s\.\-\\\/\'~`!@#$^&()+={{}}\[\]:;,]+)"',
         )
     else:
         fns = (
-            r"(?P<%s>([A-Z]\:)?[\w+\,()!@#$^&\+=;\'{}\[\]~`\.\-\\\/]*[\w+\,(!@#$^&\+=;\'{}\[\]~`\.\-\\\/])"
-            % symbolicname,
-            r'"(?P<%s>([A-Z]\:)?[\w+\,()!@#$^&\+=;\'{}\[\]~`\s\.\-\\\/]+)"' % symbolicname,
+            rf"(?P<{symbolicname}>([A-Z]\:)?[\w+\,()!@#$^&\+=;\'{{}}\[\]~`\.\-\\\/]*[\w+\,(!@#$^&\+=;\'{{}}\[\]~`\.\-\\\/])",
+            rf'"(?P<{symbolicname}>([A-Z]\:)?[\w+\,()!@#$^&\+=;\'{{}}\[\]~`\s\.\-\\\/]+)"',
         )
     return ins_rxs(fns, fragment1, fragment2)

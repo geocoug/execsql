@@ -9,9 +9,8 @@ supporting schema-qualified tables, server-side ``COPY``, ``LISTEN``/
 ``-t p`` on the CLI.
 """
 
-import io
 import re
-from typing import Any, List, Optional, Tuple
+from typing import Any
 
 from execsql.db.base import Database
 from execsql.exceptions import ErrInfo
@@ -21,17 +20,21 @@ from execsql.utils.strings import encodings_match
 import execsql.state as _state
 
 
+DEFAULT_CONNECT_TIMEOUT = 30  # seconds
+
+
 class PostgresDatabase(Database):
     def __init__(
         self,
         server_name: str,
         db_name: str,
-        user_name: Optional[str],
+        user_name: str | None,
         need_passwd: bool = False,
-        port: Optional[int] = 5432,
+        port: int | None = 5432,
         new_db: bool = False,
-        encoding: Optional[str] = "UTF8",
-        password: Optional[str] = None,
+        encoding: str | None = "UTF8",
+        password: str | None = None,
+        connect_timeout: int = DEFAULT_CONNECT_TIMEOUT,
     ) -> None:
         try:
             import psycopg2  # noqa: F401
@@ -52,6 +55,7 @@ class PostgresDatabase(Database):
         self.encoding = encoding or "UTF8"
         self.encode_commands = False
         self.paramstr = "%s"
+        self.connect_timeout = connect_timeout
         self.conn = None
         self.autocommit = True
         self.open_db()
@@ -74,12 +78,14 @@ class PostgresDatabase(Database):
                         port=db.port,
                         user=db.user,
                         password=db.password,
+                        connect_timeout=db.connect_timeout,
                     )
                 else:
                     return psycopg2.connect(
                         host=str(db.server_name),
                         database=db_name,
                         port=db.port,
+                        connect_timeout=db.connect_timeout,
                     )
             except Exception:
                 msg = (
@@ -131,24 +137,29 @@ class PostgresDatabase(Database):
 
     def role_exists(self, rolename: str) -> bool:
         curs = self.cursor()
-        curs.execute(f"select rolname from pg_roles where rolname = '{rolename}';")
+        curs.execute("select rolname from pg_roles where rolname = %s;", (rolename,))
         rows = curs.fetchall()
         curs.close()
         return len(rows) > 0
 
-    def table_exists(self, table_name: str, schema_name: Optional[str] = None) -> bool:
+    def table_exists(self, table_name: str, schema_name: str | None = None) -> bool:
         curs = self.cursor()
         if schema_name is not None:
-            schema_clause = "" if not schema_name else f" and table_schema='{schema_name}'"
-            sql = f"select table_name from information_schema.tables where table_name = '{table_name}'{schema_clause};"
+            params: list = [table_name]
+            schema_clause = ""
+            if schema_name:
+                schema_clause = " and table_schema=%s"
+                params.append(schema_name)
+            sql = f"select table_name from information_schema.tables where table_name = %s{schema_clause};"
         else:
-            sql = f"""select table_name from information_schema.tables where table_name = '{table_name}' and
+            params = [table_name]
+            sql = """select table_name from information_schema.tables where table_name = %s and
 \t         table_schema in (select nspname from pg_namespace where oid = pg_my_temp_schema()
                      union
                      select trim(unnest(string_to_array(replace(setting, '"$user"', CURRENT_USER), ',')))
                      from pg_settings where name = 'search_path');"""
         try:
-            curs.execute(sql)
+            curs.execute(sql, params)
         except ErrInfo:
             raise
         except Exception:
@@ -163,19 +174,24 @@ class PostgresDatabase(Database):
         curs.close()
         return len(rows) > 0
 
-    def view_exists(self, view_name: str, schema_name: Optional[str] = None) -> bool:
+    def view_exists(self, view_name: str, schema_name: str | None = None) -> bool:
         curs = self.cursor()
         if schema_name is not None:
-            schema_clause = "" if not schema_name else f" and table_schema='{schema_name}'"
-            sql = f"select table_name from information_schema.views where table_name = '{view_name}'{schema_clause};"
+            params: list = [view_name]
+            schema_clause = ""
+            if schema_name:
+                schema_clause = " and table_schema=%s"
+                params.append(schema_name)
+            sql = f"select table_name from information_schema.views where table_name = %s{schema_clause};"
         else:
-            sql = f"""select table_name from information_schema.views where table_name = '{view_name}' and
+            params = [view_name]
+            sql = """select table_name from information_schema.views where table_name = %s and
 \t         table_schema in (select nspname from pg_namespace where oid = pg_my_temp_schema()
                      union
                      select trim(unnest(string_to_array(replace(setting, '"$user"', CURRENT_USER), ',')))
                      from pg_settings where name = 'search_path');"""
         try:
-            curs.execute(sql)
+            curs.execute(sql, params)
         except ErrInfo:
             raise
         except Exception:
@@ -198,7 +214,7 @@ class PostgresDatabase(Database):
 
     def import_tabular_file(
         self,
-        schema_name: Optional[str],
+        schema_name: str | None,
         table_name: str,
         csv_file_obj: Any,
         skipheader: bool,
@@ -302,7 +318,7 @@ class PostgresDatabase(Database):
             eof = False
             while True:
                 b: list = []
-                for j in range(_state.conf.import_row_buffer):
+                for _j in range(_state.conf.import_row_buffer):
                     try:
                         line = next(f)
                     except StopIteration:
@@ -351,15 +367,14 @@ class PostgresDatabase(Database):
                                                 " ",
                                                 line[i],
                                             )
-                                        if not _state.conf.empty_strings:
-                                            if line[i].strip() == "":
-                                                line[i] = None
+                                        if not _state.conf.empty_strings and line[i].strip() == "":
+                                            line[i] = None
                             # Pad short line with nulls
                             line.extend([None] * (len(import_cols) - len(line)))
                             linedata = [line[ix] for ix in data_indexes]
                             add_line = True
                             if not _state.conf.empty_rows:
-                                add_line = not all([c is None for c in linedata])
+                                add_line = not all(c is None for c in linedata)
                             if add_line:
                                 b.append(linedata)
                 if len(b) > 0:
@@ -380,14 +395,14 @@ class PostgresDatabase(Database):
 
     def import_entire_file(
         self,
-        schema_name: Optional[str],
+        schema_name: str | None,
         table_name: str,
         column_name: str,
         file_name: str,
     ) -> None:
         import psycopg2
 
-        with io.open(file_name, "rb") as f:
+        with open(file_name, "rb") as f:
             filedata = f.read()
         sq_name = self.schema_qualified_table_name(schema_name, table_name)
         sql = f"insert into {sq_name} ({column_name}) values ({self.paramsubs(1)});"

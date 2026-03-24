@@ -16,7 +16,6 @@ import json as _json
 
 import pytest
 
-import execsql.state as _state
 from execsql.exceptions import ErrInfo
 from execsql.exporters.json import write_query_to_json, write_query_to_json_ts
 from execsql.exporters.xml import write_query_to_xml

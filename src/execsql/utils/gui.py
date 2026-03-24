@@ -19,7 +19,7 @@ their bodies to avoid circular imports.
 from __future__ import annotations
 
 import sys
-from typing import Any, Optional
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # GUI command constants — used to identify request types in the GUI queue.
@@ -125,14 +125,14 @@ class EntrySpec:
         varname: str,
         label: str,
         required: bool = False,
-        initial_value: Optional[str] = None,
-        default_width: Optional[int] = None,
-        default_height: Optional[int] = None,
-        lookup_list: Optional[list] = None,
-        form_column: Optional[int] = None,
-        validation_regex: Optional[str] = None,
-        validation_key_regex: Optional[str] = None,
-        entry_type: Optional[str] = None,
+        initial_value: str | None = None,
+        default_width: int | None = None,
+        default_height: int | None = None,
+        lookup_list: list | None = None,
+        form_column: int | None = None,
+        validation_regex: str | None = None,
+        validation_key_regex: str | None = None,
+        entry_type: str | None = None,
     ) -> None:
         self.varname = varname
         self.name = varname  # alias used by prompt.py result processing
@@ -146,7 +146,7 @@ class EntrySpec:
         self.validation_regex = validation_regex
         self.validation_key_regex = validation_key_regex
         self.entry_type = entry_type
-        self.value: Optional[str] = None  # populated by the backend after user input
+        self.value: str | None = None  # populated by the backend after user input
 
 
 # ---------------------------------------------------------------------------
@@ -283,7 +283,7 @@ def gui_console_show() -> None:
         _active_backend.console_show()
 
 
-def gui_console_progress(num: float, total: Optional[float] = None) -> None:
+def gui_console_progress(num: float, total: float | None = None) -> None:
     """Update the progress indicator in the console."""
     if _active_backend is not None:
         _active_backend.console_progress(num, total)
@@ -330,8 +330,8 @@ def gui_console_height() -> int:
 def gui_connect(
     alias: str,
     message: str,
-    help_url: Optional[str] = None,
-    cmd: Optional[str] = None,
+    help_url: str | None = None,
+    cmd: str | None = None,
 ) -> None:
     """Prompt the user to select a database connection.
 
@@ -410,9 +410,9 @@ def _apply_connect_result(alias: str, result: dict) -> None:
 
 def gui_credentials(
     message: str = "",
-    username: Optional[str] = None,
-    pwtext: Optional[str] = None,
-    cmd: Optional[str] = None,
+    username: str | None = None,
+    pwtext: str | None = None,
+    cmd: str | None = None,
 ) -> None:
     """Prompt the user for credentials.
 
@@ -478,9 +478,9 @@ def get_yn_win(prompt: str) -> bool:
 
 def pause(
     text: str,
-    action: Optional[str] = None,
-    countdown: Optional[float] = None,
-    timeunit: Optional[str] = None,
+    action: str | None = None,
+    countdown: float | None = None,
+    timeunit: str | None = None,
 ) -> int:
     """Display a pause message and wait for the user.
 
@@ -504,9 +504,9 @@ def pause(
 
 def pause_win(
     text: str,
-    action: Optional[str] = None,
-    countdown: Optional[float] = None,
-    timeunit: Optional[str] = None,
+    action: str | None = None,
+    countdown: float | None = None,
+    timeunit: str | None = None,
 ) -> int:
     """GUI pause dialog — falls back to terminal in headless mode."""
     return pause(text, action=action, countdown=countdown, timeunit=timeunit)

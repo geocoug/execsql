@@ -9,7 +9,6 @@ state is patched so no database connection is needed.
 from __future__ import annotations
 
 import zipfile
-from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest

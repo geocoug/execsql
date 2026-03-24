@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import re
-from types import SimpleNamespace
 
 import pytest
 
@@ -431,6 +430,109 @@ class TestSubVarSet:
         sv = SubVarSet()
         sv.add_substitution("$MYVAR", "hello")
         assert sv.varvalue("$myvar") == "hello"
+
+    # -- dict-based internal storage -----------------------------------------
+
+    def test_internal_dict_storage(self):
+        sv = SubVarSet()
+        sv.add_substitution("$x", "val")
+        assert "$x" in sv._subs_dict
+        assert sv._subs_dict["$x"] == "val"
+
+    def test_substitutions_property_returns_tuples(self):
+        sv = SubVarSet()
+        sv.add_substitution("$a", "1")
+        sv.add_substitution("$b", "2")
+        subs = sv.substitutions
+        assert isinstance(subs, list)
+        assert all(isinstance(s, tuple) and len(s) == 2 for s in subs)
+        names = [s[0] for s in subs]
+        assert "$a" in names
+        assert "$b" in names
+
+    def test_substitutions_setter_from_list_of_tuples(self):
+        sv = SubVarSet()
+        sv.substitutions = [("$a", "1"), ("$b", "2")]
+        assert sv.varvalue("$a") == "1"
+        assert sv.varvalue("$b") == "2"
+
+    def test_remove_substitution_dict_based(self):
+        sv = SubVarSet()
+        sv.add_substitution("$x", "val")
+        sv.add_substitution("$y", "other")
+        sv.remove_substitution("$x")
+        assert "$x" not in sv._subs_dict
+        assert sv.varvalue("$y") == "other"
+
+    def test_sub_exists_dict_based(self):
+        sv = SubVarSet()
+        sv.add_substitution("$x", "v")
+        assert sv.sub_exists("$x") is True
+        sv.remove_substitution("$x")
+        assert sv.sub_exists("$x") is False
+
+    # -- compiled regex patterns ---------------------------------------------
+
+    def test_compiled_patterns_created_on_add(self):
+        sv = SubVarSet()
+        sv.add_substitution("$foo", "bar")
+        assert "$foo" in sv._compiled_patterns
+        pat, patq, patdq = sv._compiled_patterns["$foo"]
+        assert pat.search("!!$foo!!") is not None
+        assert patq.search("!'!$foo!'!") is not None
+        assert patdq.search('!"!$foo!"!') is not None
+
+    def test_compiled_patterns_removed_on_remove(self):
+        sv = SubVarSet()
+        sv.add_substitution("$foo", "bar")
+        sv.remove_substitution("$foo")
+        assert "$foo" not in sv._compiled_patterns
+
+    def test_substitute_uses_compiled_patterns(self):
+        sv = SubVarSet()
+        sv.add_substitution("$x", "replaced")
+        result, changed = sv.substitute("value is !!$x!!")
+        assert changed is True
+        assert result == "value is replaced"
+
+    def test_substitute_case_insensitive_with_compiled(self):
+        sv = SubVarSet()
+        sv.add_substitution("$myvar", "val")
+        result, changed = sv.substitute("!!$MYVAR!!")
+        assert changed is True
+        assert result == "val"
+
+    def test_substitute_single_quoted_with_compiled(self):
+        sv = SubVarSet()
+        sv.add_substitution("$v", "it's")
+        result, changed = sv.substitute("!'!$v!'!")
+        assert changed is True
+        assert "it''s" in result
+
+    def test_substitute_double_quoted_with_compiled(self):
+        sv = SubVarSet()
+        sv.add_substitution("$v", "hello")
+        result, changed = sv.substitute('!"!$v!"!')
+        assert changed is True
+        assert '"hello"' in result
+
+    def test_merge_preserves_compiled_patterns(self):
+        sv1 = SubVarSet()
+        sv1.add_substitution("$a", "1")
+        sv2 = SubVarSet()
+        sv2.add_substitution("$b", "2")
+        merged = sv1.merge(sv2)
+        assert "$a" in merged._compiled_patterns
+        assert "$b" in merged._compiled_patterns
+        result, changed = merged.substitute_all("!!$a!! !!$b!!")
+        assert result == "1 2"
+
+    def test_substitute_none_value(self):
+        sv = SubVarSet()
+        sv.add_substitution("$x", None)
+        result, changed = sv.substitute("!!$x!!")
+        assert changed is True
+        assert result == ""
 
 
 # ---------------------------------------------------------------------------

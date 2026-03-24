@@ -15,9 +15,7 @@ Coverage targets:
 
 from __future__ import annotations
 
-from types import SimpleNamespace
-from typing import Any
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -29,9 +27,6 @@ from execsql.script import (
     CounterVars,
     IfLevels,
     BatchLevels,
-    CommandList,
-    ScriptCmd,
-    MetacommandStmt,
 )
 
 
@@ -836,9 +831,11 @@ class TestControlHandlers:
     def test_x_break_with_single_command_list(self):
         from execsql.metacommands.control import x_break
 
-        with patch("execsql.metacommands.control.current_script_line", return_value=("test.sql", 1)):
-            with patch("execsql.metacommands.control.write_warning") as mock_warn:
-                x_break()
+        with (
+            patch("execsql.metacommands.control.current_script_line", return_value=("test.sql", 1)),
+            patch("execsql.metacommands.control.write_warning") as mock_warn,
+        ):
+            x_break()
         mock_warn.assert_called_once()
         # Stack should still have one item
         assert len(_state.commandliststack) == 1

@@ -14,11 +14,9 @@ open :class:`Database` instances and tracks which connection is currently
 active.  It is the canonical ``_state.dbs`` object.
 """
 
-import datetime
-import io
 import re
-from decimal import Decimal
-from typing import Any, Callable, Dict, Generator, Iterator, List, Optional, Tuple
+from typing import Any
+from collections.abc import Callable, Generator, Iterator
 
 from execsql.exceptions import ErrInfo
 from execsql.utils.errors import exception_desc
@@ -28,23 +26,23 @@ import execsql.state as _state
 class Database:
     """Abstract base class for all database connections."""
 
-    dt_cast: Dict[type, Callable] = {}  # populated per-subclass or in __init__
+    dt_cast: dict[type, Callable] = {}  # populated per-subclass or in __init__
 
     def __init__(
         self,
-        server_name: Optional[str],
-        db_name: Optional[str],
-        user_name: Optional[str] = None,
-        need_passwd: Optional[bool] = None,
-        port: Optional[int] = None,
-        encoding: Optional[str] = None,
+        server_name: str | None,
+        db_name: str | None,
+        user_name: str | None = None,
+        need_passwd: bool | None = None,
+        port: int | None = None,
+        encoding: str | None = None,
     ) -> None:
         self.type = None
         self.server_name = server_name
         self.db_name = db_name
         self.user = user_name
         self.need_passwd = need_passwd
-        self.password: Optional[str] = None
+        self.password: str | None = None
         self.port = port
         self.encoding = encoding
         self.encode_commands = True
@@ -83,10 +81,15 @@ class Database:
             self.conn.close()
             self.conn = None
 
+    def quote_identifier(self, identifier: str) -> str:
+        """Return *identifier* wrapped in double-quotes with any embedded
+        double-quotes escaped (standard SQL identifier quoting)."""
+        return '"' + identifier.replace('"', '""') + '"'
+
     def paramsubs(self, paramcount: int) -> str:
         return ",".join((self.paramstr,) * paramcount)
 
-    def execute(self, sql: Any, paramlist: Optional[list] = None) -> None:
+    def execute(self, sql: Any, paramlist: list | None = None) -> None:
         # A shortcut to self.cursor().execute() that handles encoding.
         # Whether or not encoding is needed depends on the DBMS.
         if type(sql) in (tuple, list):
@@ -131,14 +134,14 @@ class Database:
             except Exception:
                 pass
 
-    def schema_qualified_table_name(self, schema_name: Optional[str], table_name: str) -> str:
+    def schema_qualified_table_name(self, schema_name: str | None, table_name: str) -> str:
         table_name = self.type.quoted(table_name)
         if schema_name:
             schema_name = self.type.quoted(schema_name)
             return f"{schema_name}.{table_name}"
         return table_name
 
-    def select_data(self, sql: str) -> Tuple[List[str], list]:
+    def select_data(self, sql: str) -> tuple[list[str], list]:
         # Returns the results of the sql select statement.
         curs = self.cursor()
         try:
@@ -153,7 +156,7 @@ class Database:
         rows = curs.fetchall()
         return [d[0] for d in curs.description], rows
 
-    def select_rowsource(self, sql: str) -> Tuple[List[str], Generator]:
+    def select_rowsource(self, sql: str) -> tuple[list[str], Generator]:
         # Return 1) a list of column names, and 2) an iterable that yields rows.
         curs = self.cursor()
         try:
@@ -187,7 +190,7 @@ class Database:
 
         return [d[0] for d in curs.description], decode_row()
 
-    def select_rowdict(self, sql: str) -> Tuple[List[str], Iterator]:
+    def select_rowdict(self, sql: str) -> tuple[list[str], Iterator]:
         # Return an iterable that yields dictionaries of row data
         curs = self.cursor()
         try:
@@ -201,7 +204,7 @@ class Database:
             pass
         hdrs = [d[0] for d in curs.description]
 
-        def dict_row() -> Optional[dict]:
+        def dict_row() -> dict | None:
             row = curs.fetchone()
             if row:
                 if self.encoding:
@@ -216,19 +219,22 @@ class Database:
 
     def schema_exists(self, schema_name: str) -> bool:
         curs = self.cursor()
-        curs.execute(
-            f"SELECT schema_name FROM information_schema.schemata WHERE schema_name = '{schema_name}';",
-        )
+        sql = f"SELECT schema_name FROM information_schema.schemata WHERE schema_name = {self.paramstr};"
+        curs.execute(sql, (schema_name,))
         rows = curs.fetchall()
         curs.close()
         return len(rows) > 0
 
-    def table_exists(self, table_name: str, schema_name: Optional[str] = None) -> bool:
+    def table_exists(self, table_name: str, schema_name: str | None = None) -> bool:
         curs = self.cursor()
-        schema_clause = "" if not schema_name else f" and table_schema='{schema_name}'"
-        sql = f"select table_name from information_schema.tables where table_name = '{table_name}'{schema_clause};"
+        params: list = [table_name]
+        schema_clause = ""
+        if schema_name:
+            schema_clause = f" and table_schema={self.paramstr}"
+            params.append(schema_name)
+        sql = f"select table_name from information_schema.tables where table_name = {self.paramstr}{schema_clause};"
         try:
-            curs.execute(sql)
+            curs.execute(sql, params)
         except ErrInfo:
             raise
         except Exception:
@@ -247,17 +253,22 @@ class Database:
         self,
         table_name: str,
         column_name: str,
-        schema_name: Optional[str] = None,
+        schema_name: str | None = None,
     ) -> bool:
         curs = self.cursor()
-        schema_clause = "" if not schema_name else f" and table_schema='{schema_name}'"
+        params: list = [table_name]
+        schema_clause = ""
+        if schema_name:
+            schema_clause = f" and table_schema={self.paramstr}"
+            params.append(schema_name)
+        params.append(column_name)
         sql = (
             f"select column_name from information_schema.columns "
-            f"where table_name='{table_name}'{schema_clause} "
-            f"and column_name='{column_name}';"
+            f"where table_name={self.paramstr}{schema_clause} "
+            f"and column_name={self.paramstr};"
         )
         try:
-            curs.execute(sql)
+            curs.execute(sql, params)
         except ErrInfo:
             raise
         except Exception:
@@ -272,16 +283,20 @@ class Database:
         curs.close()
         return len(rows) > 0
 
-    def table_columns(self, table_name: str, schema_name: Optional[str] = None) -> List[str]:
+    def table_columns(self, table_name: str, schema_name: str | None = None) -> list[str]:
         curs = self.cursor()
-        schema_clause = "" if not schema_name else f" and table_schema='{schema_name}'"
+        params: list = [table_name]
+        schema_clause = ""
+        if schema_name:
+            schema_clause = f" and table_schema={self.paramstr}"
+            params.append(schema_name)
         sql = (
             f"select column_name from information_schema.columns "
-            f"where table_name='{table_name}'{schema_clause} "
+            f"where table_name={self.paramstr}{schema_clause} "
             f"order by ordinal_position;"
         )
         try:
-            curs.execute(sql)
+            curs.execute(sql, params)
         except ErrInfo:
             raise
         except Exception:
@@ -296,12 +311,16 @@ class Database:
         curs.close()
         return [row[0] for row in rows]
 
-    def view_exists(self, view_name: str, schema_name: Optional[str] = None) -> bool:
+    def view_exists(self, view_name: str, schema_name: str | None = None) -> bool:
         curs = self.cursor()
-        schema_clause = "" if not schema_name else f" and table_schema='{schema_name}'"
-        sql = f"select table_name from information_schema.views where table_name = '{view_name}'{schema_clause};"
+        params: list = [view_name]
+        schema_clause = ""
+        if schema_name:
+            schema_clause = f" and table_schema={self.paramstr}"
+            params.append(schema_name)
+        sql = f"select table_name from information_schema.views where table_name = {self.paramstr}{schema_clause};"
         try:
-            curs.execute(sql)
+            curs.execute(sql, params)
         except ErrInfo:
             raise
         except Exception:
@@ -328,10 +347,10 @@ class Database:
 
     def populate_table(
         self,
-        schema_name: Optional[str],
+        schema_name: str | None,
         table_name: str,
         rowsource: Any,
-        column_list: List[str],
+        column_list: list[str],
         tablespec_src: Callable,
     ) -> None:
         # The rowsource argument must be a generator yielding a list of values for the columns of the table.
@@ -364,7 +383,7 @@ class Database:
         eof = False
         while True:
             b = []
-            for j in range(_state.conf.import_row_buffer):
+            for _j in range(_state.conf.import_row_buffer):
                 try:
                     line = next(rows)
                 except StopIteration:
@@ -409,9 +428,8 @@ class Database:
                                             " ",
                                             line[i],
                                         )
-                                    if not _state.conf.empty_strings:
-                                        if line[i].strip() == "":
-                                            line[i] = None
+                                    if not _state.conf.empty_strings and line[i].strip() == "":
+                                        line[i] = None
                         lt = [type_objs[i].from_data(val) if val is not None else None for i, val in enumerate(line)]
                         lt = [type_mod_fn[i](v) if type_mod_fn[i] else v for i, v in enumerate(lt)]
                         row = []
@@ -420,7 +438,7 @@ class Database:
                                 row.append(v)
                         add_line = True
                         if not _state.conf.empty_rows:
-                            add_line = not all([c is None for c in row])
+                            add_line = not all(c is None for c in row)
                         if add_line:
                             b.append(row)
             if len(b) > 0:
@@ -441,7 +459,7 @@ class Database:
 
     def import_tabular_file(
         self,
-        schema_name: Optional[str],
+        schema_name: str | None,
         table_name: str,
         csv_file_obj: Any,
         skipheader: bool,
@@ -483,12 +501,12 @@ class Database:
 
     def import_entire_file(
         self,
-        schema_name: Optional[str],
+        schema_name: str | None,
         table_name: str,
         column_name: str,
         file_name: str,
     ) -> None:
-        with io.open(file_name, "rb") as f:
+        with open(file_name, "rb") as f:
             filedata = f.read()
         sq_name = self.schema_qualified_table_name(schema_name, table_name)
         sql = f"insert into {sq_name} ({column_name}) values ({self.paramsubs(1)});"
@@ -500,9 +518,9 @@ class DatabasePool:
     and with the current and initial databases identified."""
 
     def __init__(self) -> None:
-        self.pool: Dict[str, Database] = {}
-        self.initial_db: Optional[str] = None
-        self.current_db: Optional[str] = None
+        self.pool: dict[str, Database] = {}
+        self.initial_db: str | None = None
+        self.current_db: str | None = None
         self.do_rollback: bool = True
 
     def __repr__(self) -> str:
@@ -531,7 +549,7 @@ class DatabasePool:
             self.pool[db_alias].close()
         self.pool[db_alias] = db_obj
 
-    def aliases(self) -> List[str]:
+    def aliases(self) -> list[str]:
         # Return a list of the currently defined aliases
         return list(self.pool)
 

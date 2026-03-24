@@ -10,16 +10,15 @@ Requires the ``execsql2[duckdb]`` extra.
 
 import math
 import os
-from typing import Any, List, Optional
+from typing import Any
 
 from execsql.exceptions import ErrInfo
-import execsql.state as _state
 from execsql.types import dbt_duckdb
 
 
 def export_duckdb(
     outfile: str,
-    hdrs: List[str],
+    hdrs: list[str],
     rows: Any,
     append: bool,
     tablename: str,
@@ -33,7 +32,6 @@ def export_duckdb(
         return
 
     from execsql.models import DataTable
-    from execsql.utils.errors import exception_info
 
     chunksize = 10000
     pre_exist = os.path.isfile(outfile)
@@ -50,8 +48,6 @@ def export_duckdb(
             if append:
                 raise ErrInfo(type="error", other_msg=f"The table {tablename} already exists in {outfile}.")
             else:
-                from execsql.utils.fileio import Logger
-
                 curs.execute(f"drop table {tablename};")
         curs.close()
     # Construct and run the CREATE TABLE statement

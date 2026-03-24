@@ -1219,28 +1219,24 @@ class TestConditionsErrorPaths:
 
     def test_xf_iszero_nonnumeric_raises(self):
         from execsql.metacommands.conditions import xf_iszero
-        import execsql.state as _state
 
         with pytest.raises(ErrInfo):
             xf_iszero(value="notanumber", metacommandline="is_zero(notanumber)")
 
     def test_xf_isgt_nonnumeric_raises(self):
         from execsql.metacommands.conditions import xf_isgt
-        import execsql.state as _state
 
         with pytest.raises(ErrInfo):
             xf_isgt(value1="abc", value2="5", metacommandline="is_gt(abc, 5)")
 
     def test_xf_isgte_nonnumeric_raises(self):
         from execsql.metacommands.conditions import xf_isgte
-        import execsql.state as _state
 
         with pytest.raises(ErrInfo):
             xf_isgte(value1="abc", value2="5", metacommandline="is_gte(abc, 5)")
 
     def test_xf_newer_file_missing_file1_raises(self, tmp_path):
         from execsql.metacommands.conditions import xf_newer_file
-        import execsql.state as _state
 
         existing = tmp_path / "exists.txt"
         existing.write_text("here")
@@ -1249,7 +1245,6 @@ class TestConditionsErrorPaths:
 
     def test_xf_newer_file_missing_file2_raises(self, tmp_path):
         from execsql.metacommands.conditions import xf_newer_file
-        import execsql.state as _state
 
         existing = tmp_path / "exists.txt"
         existing.write_text("here")
@@ -1258,14 +1253,12 @@ class TestConditionsErrorPaths:
 
     def test_xf_newer_date_missing_file_raises(self):
         from execsql.metacommands.conditions import xf_newer_date
-        import execsql.state as _state
 
         with pytest.raises(ErrInfo):
             xf_newer_date(file1="/no/such/file.txt", datestr="2020-01-01")
 
     def test_xf_newer_date_invalid_date_raises(self, tmp_path):
         from execsql.metacommands.conditions import xf_newer_date
-        import execsql.state as _state
 
         f = tmp_path / "f.txt"
         f.write_text("data")

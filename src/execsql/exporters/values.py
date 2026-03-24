@@ -8,9 +8,7 @@ set as a series of SQL ``INSERT INTO … VALUES (…)`` statements, suitable
 for loading data into a database from a plain SQL file.
 """
 
-import io
-import os
-from typing import Any, Optional, List
+from typing import Any
 
 import execsql.state as _state
 from execsql.exporters.zip import ZipWriter
@@ -21,11 +19,11 @@ from execsql.utils.fileio import filewriter_close
 
 def export_values(
     outfile: str,
-    hdrs: List[str],
+    hdrs: list[str],
     rows: Any,
     append: bool = False,
-    desc: Optional[str] = None,
-    zipfile: Optional[str] = None,
+    desc: str | None = None,
+    zipfile: str | None = None,
 ) -> None:
     conf = _state.conf
     if outfile.lower() == "stdout":
@@ -67,8 +65,8 @@ def write_query_to_values(
     db: Any,
     outfile: str,
     append: bool = False,
-    desc: Optional[str] = None,
-    zipfile: Optional[str] = None,
+    desc: str | None = None,
+    zipfile: str | None = None,
 ) -> None:
     try:
         hdrs, rows = db.select_rowsource(select_stmt)

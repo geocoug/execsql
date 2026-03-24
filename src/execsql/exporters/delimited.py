@@ -16,16 +16,12 @@ Provides:
 """
 
 import copy
-import csv
-import codecs
-import io
-import os
 import re
 import sys
-from typing import Any, Optional, List
+from typing import Any
 
 from execsql.utils.fileio import EncodedFile
-from execsql.exporters.zip import WriteableZipfile, ZipWriter
+from execsql.exporters.zip import ZipWriter
 import execsql.state as _state
 from execsql.exceptions import ErrInfo
 from execsql.models import DataTable
@@ -35,7 +31,7 @@ from execsql.utils.strings import clean_words, fold_words
 
 
 class LineDelimiter:
-    def __init__(self, delim: Optional[str], quote: Optional[str], escchar: Optional[str]) -> None:
+    def __init__(self, delim: str | None, quote: str | None, escchar: str | None) -> None:
         self.delimiter = delim
         self.joinchar = delim if delim else ""
         self.quotechar = quote
@@ -83,7 +79,7 @@ class LineDelimiter:
 
 
 class DelimitedWriter:
-    def __init__(self, outfile: Any, delim: Optional[str], quote: Optional[str], escchar: Optional[str]) -> None:
+    def __init__(self, outfile: Any, delim: str | None, quote: str | None, escchar: str | None) -> None:
         self.outfile = outfile
         self.line_delimiter = LineDelimiter(delim, quote, escchar)
 
@@ -103,9 +99,9 @@ class CsvWriter:
         self,
         filename: str,
         file_encoding: str,
-        delim: Optional[str],
-        quote: Optional[str],
-        escchar: Optional[str],
+        delim: str | None,
+        quote: str | None,
+        escchar: str | None,
         append: bool = False,
     ) -> None:
         mode = "wt" if not append else "at"
@@ -153,7 +149,7 @@ class CsvFile(EncodedFile):
             f.readline()
         return f
 
-    def lineformat(self, delimiter: Optional[str], quotechar: Optional[str], escapechar: Optional[str]) -> None:
+    def lineformat(self, delimiter: str | None, quotechar: str | None, escapechar: str | None) -> None:
         # Specifies the format of a line.
         self.delimiter = delimiter
         self.quotechar = quotechar
@@ -171,9 +167,10 @@ class CsvFile(EncodedFile):
         def __str__(self) -> str:
             return "; ".join(
                 [
-                    "Text: <<%s>>" % self.text,
-                    "Delimiter counts: <<%s>>"
-                    % ", ".join(["%s: %d" % (k, self.delim_counts[k]) for k in self.delim_counts.keys()]),
+                    f"Text: <<{self.text}>>",
+                    "Delimiter counts: <<{}>>".format(
+                        ", ".join([f"{k}: {self.delim_counts[k]}" for k in self.delim_counts]),
+                    ),
                 ],
             )
 
@@ -217,7 +214,7 @@ class CsvFile(EncodedFile):
         def record_format_error(self, pos_no: int, errmsg: str) -> None:
             self.item_errors.append(f"{errmsg} in position {pos_no}.")
 
-        def items(self, delim: Optional[str], qchar: Optional[str]) -> Any:
+        def items(self, delim: str | None, qchar: str | None) -> Any:
             # Parses the line into a list of items, breaking it at delimiters that are not
             # within quoted stretches.
             self.item_errors = []
@@ -313,7 +310,7 @@ class CsvFile(EncodedFile):
 
             exec_vector = [in_quoted, escaped, quote_in_quoted, in_unquoted, between, delimited]
             state = _BETWEEN
-            for i, c in enumerate(self.text):
+            for i, c in enumerate(self.text):  # noqa: B007
                 state = exec_vector[state]()
             if len(esc_buf[0]) > 0:
                 current_element[0] += esc_buf[0]
@@ -323,16 +320,16 @@ class CsvFile(EncodedFile):
                 raise ErrInfo("error", other_msg=", ".join(self.item_errors))
             return elements
 
-        def well_quoted_line(self, delim: Optional[str], qchar: Optional[str]):
+        def well_quoted_line(self, delim: str | None, qchar: str | None):
             # Returns a tuple of boolean, int, and boolean
             wq = [self._well_quoted(el, qchar) for el in self.items(delim, qchar)]
-            return (all([b[0] for b in wq]), sum([b[1] for b in wq]), any([b[2] for b in wq]))
+            return (all(b[0] for b in wq), sum([b[1] for b in wq]), any(b[2] for b in wq))
 
     def diagnose_delim(
         self,
         linestream: Any,
-        possible_delimiters: Optional[List[str]] = None,
-        possible_quotechars: Optional[List[str]] = None,
+        possible_delimiters: list[str] | None = None,
+        possible_quotechars: list[str] | None = None,
     ):
         # Returns a tuple consisting of the delimiter, quote character, and escape
         # character for quote characters within elements of a line.  All may be None.
@@ -342,7 +339,7 @@ class CsvFile(EncodedFile):
         if not possible_quotechars:
             possible_quotechars = ['"', "'"]
         lines = []
-        for i in range(conf.scan_lines if conf.scan_lines and conf.scan_lines > 0 else 1000000):
+        for _i in range(conf.scan_lines if conf.scan_lines and conf.scan_lines > 0 else 1000000):
             try:
                 ln = next(linestream)
             except StopIteration:
@@ -373,9 +370,9 @@ class CsvFile(EncodedFile):
         def all_well_quoted(delim, qchar):
             wq = [ln.well_quoted_line(delim, qchar) for ln in lines]
             return (
-                all([b[0] for b in wq]),
+                all(b[0] for b in wq),
                 sum([b[1] for b in wq]),
-                self.CsvLine.escchar if any([b[2] for b in wq]) else None,
+                self.CsvLine.escchar if any(b[2] for b in wq) else None,
             )
 
         def eval_quotes(delim):
@@ -390,20 +387,19 @@ class CsvFile(EncodedFile):
                 max_use = max([v[0] for v in ok_quotes.values()])
                 if max_use == 0:
                     return (delim, None, None)
-                for q in ok_quotes.keys():
+                for q in ok_quotes:
                     if ok_quotes[q][0] == max_use:
                         return (delim, q, ok_quotes[q][1])
 
         if len(delim_stats) == 0:
             return eval_quotes(None)
         else:
-            if len(delim_stats) > 1:
-                if " " in delim_stats:
-                    del delim_stats[" "]
+            if len(delim_stats) > 1 and " " in delim_stats:
+                del delim_stats[" "]
             if len(delim_stats) == 1:
                 return eval_quotes(list(delim_stats)[0])
             delim_wts = {}
-            for d in delim_stats.keys():
+            for d in delim_stats:
                 delim_wts[d] = delim_stats[d][0] ** 2 * delim_stats[d][1]
             delim_order = sorted(delim_wts, key=delim_wts.get, reverse=True)
             for d in delim_order:
@@ -425,7 +421,7 @@ class CsvFile(EncodedFile):
     def _record_format_error(self, pos_no: int, errmsg: str) -> None:
         self.parse_errors.append(f"{errmsg} in position {pos_no}")
 
-    def read_and_parse_line(self, f: Any) -> List:
+    def read_and_parse_line(self, f: Any) -> list:
         # Returns a list of line elements, parsed according to the established delimiter and quotechar.
         elements = []
         eat_multiple_delims = self.delimiter == " "
@@ -597,7 +593,7 @@ class CsvFile(EncodedFile):
     def writer(self, append: bool = False) -> CsvWriter:
         return CsvWriter(self.filename, self.encoding, self.delimiter, self.quotechar, self.escapechar, append)
 
-    def _colhdrs(self, inf: Any) -> List[str]:
+    def _colhdrs(self, inf: Any) -> list[str]:
         conf = _state.conf
         try:
             colnames = next(inf)
@@ -610,7 +606,7 @@ class CsvFile(EncodedFile):
                 exception_msg=exception_desc(),
                 other_msg=f"Can't read column header line from {self.filename}",
             )
-        if any([x is None or len(x) == 0 for x in colnames]):
+        if any(x is None or len(x) == 0 for x in colnames):
             if conf.del_empty_cols:
                 self.blank_cols = [
                     i for i in range(len(colnames)) if colnames[i] is None or len(colnames[i].strip()) == 0
@@ -637,7 +633,7 @@ class CsvFile(EncodedFile):
             colnames = _state.dedup_words(colnames)
         return colnames
 
-    def column_headers(self) -> List[str]:
+    def column_headers(self) -> list[str]:
         if not self.lineformat_set:
             self.evaluate_line_format()
         inf = self.reader()
@@ -655,18 +651,18 @@ class CsvFile(EncodedFile):
         colnames = self._colhdrs(inf)
         self.table_data = DataTable(colnames, inf)
 
-    def create_table(self, database_type: Any, schemaname: Optional[str], tablename: str, pretty: bool = False) -> str:
+    def create_table(self, database_type: Any, schemaname: str | None, tablename: str, pretty: bool = False) -> str:
         return self.table_data.create_table(database_type, schemaname, tablename, pretty)
 
 
 def write_delimited_file(
     outfile: str,
     filefmt: str,
-    column_headers: List[str],
+    column_headers: list[str],
     rowsource: Any,
     file_encoding: str = "utf8",
     append: bool = False,
-    zipfile: Optional[str] = None,
+    zipfile: str | None = None,
 ) -> None:
     delim = None
     quote = None

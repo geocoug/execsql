@@ -7,12 +7,10 @@ Implements :class:`SqlServerDatabase`, which connects to Microsoft SQL
 Server via ``pyodbc``.  Corresponds to ``-t s`` on the CLI.
 """
 
-import io
-from typing import Optional
 
 from execsql.db.base import Database
 from execsql.exceptions import ErrInfo
-from execsql.utils.errors import exception_desc, fatal_error
+from execsql.utils.errors import fatal_error
 from execsql.utils.auth import get_password
 import execsql.state as _state
 
@@ -22,11 +20,11 @@ class SqlServerDatabase(Database):
         self,
         server_name: str,
         db_name: str,
-        user_name: Optional[str],
+        user_name: str | None,
         need_passwd: bool = False,
-        port: Optional[int] = 1433,
-        encoding: Optional[str] = "latin1",
-        password: Optional[str] = None,
+        port: int | None = 1433,
+        encoding: str | None = "latin1",
+        password: str | None = None,
     ) -> None:
         try:
             import pyodbc  # noqa: F401
@@ -147,14 +145,14 @@ class SqlServerDatabase(Database):
 
     def import_entire_file(
         self,
-        schema_name: Optional[str],
+        schema_name: str | None,
         table_name: str,
         column_name: str,
         file_name: str,
     ) -> None:
         import pyodbc
 
-        with io.open(file_name, "rb") as f:
+        with open(file_name, "rb") as f:
             filedata = f.read()
         sq_name = self.schema_qualified_table_name(schema_name, table_name)
         sql = f"insert into {sq_name} ({column_name}) values ({self.paramsubs(1)});"

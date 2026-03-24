@@ -7,7 +7,6 @@ Implements :class:`FirebirdDatabase`, which connects to Firebird databases
 via the ``firebird-driver`` package.  Corresponds to ``-t f`` on the CLI.
 """
 
-from typing import List, Optional
 
 from execsql.db.base import Database
 from execsql.exceptions import ErrInfo
@@ -21,11 +20,11 @@ class FirebirdDatabase(Database):
         self,
         server_name: str,
         db_name: str,
-        user_name: Optional[str],
+        user_name: str | None,
         need_passwd: bool = False,
-        port: Optional[int] = 3050,
-        encoding: Optional[str] = "latin1",
-        password: Optional[str] = None,
+        port: int | None = 3050,
+        encoding: str | None = "latin1",
+        password: str | None = None,
     ) -> None:
         try:
             import fdb as firebird_lib  # noqa: F401
@@ -41,7 +40,7 @@ class FirebirdDatabase(Database):
         self.user = str(user_name)
         self.need_passwd = need_passwd
         self.password = password
-        self.port = 3050 if not port else port
+        self.port = port if port else 3050
         self.encoding = encoding or "latin1"
         self.encode_commands = True
         self.paramstr = "?"
@@ -106,7 +105,7 @@ class FirebirdDatabase(Database):
             raise
         _state.subvars.add_substitution("$LAST_ROWCOUNT", curs.rowcount)
 
-    def table_exists(self, table_name: str, schema_name: Optional[str] = None) -> bool:
+    def table_exists(self, table_name: str, schema_name: str | None = None) -> bool:
         curs = self.cursor()
         sql = (
             f"SELECT RDB$RELATION_NAME FROM RDB$RELATIONS "
@@ -138,7 +137,7 @@ class FirebirdDatabase(Database):
         self,
         table_name: str,
         column_name: str,
-        schema_name: Optional[str] = None,
+        schema_name: str | None = None,
     ) -> bool:
         curs = self.cursor()
         sql = f"select first 1 {column_name} from {table_name};"
@@ -148,7 +147,7 @@ class FirebirdDatabase(Database):
             return False
         return True
 
-    def table_columns(self, table_name: str, schema_name: Optional[str] = None) -> List[str]:
+    def table_columns(self, table_name: str, schema_name: str | None = None) -> list[str]:
         curs = self.cursor()
         sql = f"select first 1 * from {table_name};"
         try:
@@ -165,7 +164,7 @@ class FirebirdDatabase(Database):
             )
         return [d[0] for d in curs.description]
 
-    def view_exists(self, view_name: str, schema_name: Optional[str] = None) -> bool:
+    def view_exists(self, view_name: str, schema_name: str | None = None) -> bool:
         curs = self.cursor()
         sql = f"select distinct rdb$view_name from rdb$view_relations where rdb$view_name = '{view_name}';"
         try:

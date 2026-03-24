@@ -15,8 +15,7 @@ Provides:
 """
 
 import os
-import re
-from typing import Any, Optional, List
+from typing import Any
 
 import execsql.state as _state
 from execsql.script import current_script_line
@@ -29,8 +28,8 @@ class ExportRecord:
         self,
         queryname: str,
         outfile: str,
-        zipfile: Optional[str] = None,
-        description: Optional[str] = None,
+        zipfile: str | None = None,
+        description: str | None = None,
     ) -> None:
         self.exported = False
         # Record is a list of: table_or_query_name, filename, zipfilename, file_path, user_description, script_name,
@@ -69,7 +68,7 @@ class ExportMetadata:
     ]
 
     def __init__(self) -> None:
-        self.recordlist: List[ExportRecord] = []
+        self.recordlist: list[ExportRecord] = []
 
     def add(self, exp_record: ExportRecord) -> None:
         self.recordlist.append(exp_record)
@@ -91,7 +90,7 @@ class WriteSpec:
     def __repr__(self) -> str:
         return f"WriteSpec({self.msg}, {self.outfile}, {self.tee})"
 
-    def __init__(self, message: str, dest: Optional[str] = None, tee: Any = None, repeatable: bool = False) -> None:
+    def __init__(self, message: str, dest: str | None = None, tee: Any = None, repeatable: bool = False) -> None:
         # Inputs
         # message: Text to write.  May contain substitution variable references.
         # dest: The to which the text should be written.  If omitted, the message

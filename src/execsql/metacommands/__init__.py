@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import re
 
-import execsql.state as _state
+import execsql.state as _state  # noqa: F401
 
 # Handler imports — grouped by module for readability.
 from execsql.metacommands.connect import (
@@ -29,7 +29,7 @@ from execsql.metacommands.connect import (
     x_connect_user_ora,
     x_connect_duckdb,
     x_connect_sqlite,
-    x_connect_dsn,
+    x_connect_dsn,  # noqa: F401
     x_use,
     x_disconnect,
     x_autocommit_on,
@@ -188,13 +188,13 @@ from execsql.metacommands.system import (
     x_cancel_halt_write,
     x_cancel_halt_email_clear,
     x_cancel_halt_email,
-    x_cancel_halt_exec,
+    x_cancel_halt_exec,  # noqa: F401
     x_cancel_halt_exec_clear,
     x_error_halt_write_clear,
     x_error_halt_write,
     x_error_halt_email_clear,
     x_error_halt_email,
-    x_error_halt_exec,
+    x_error_halt_exec,  # noqa: F401
     x_error_halt_exec_clear,
     x_write_warnings,
     x_gui_level,
@@ -204,7 +204,7 @@ from execsql.metacommands.system import (
 # Regex helper functions (from utils/regex.py)
 from execsql.utils.regex import (
     ins_rxs,
-    ins_quoted_rx,
+    ins_quoted_rx,  # noqa: F401
     ins_schema_rxs,
     ins_table_rxs,
     ins_table_list_rxs,
