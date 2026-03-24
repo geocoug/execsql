@@ -23,6 +23,9 @@ from rich.text import Text
 from execsql import __version__
 from execsql.config import ConfigData, StatObj
 from execsql.exceptions import ConfigError, ErrInfo
+from execsql.script import SubVarSet, current_script_line, read_sqlfile, runscripts
+from execsql.utils.fileio import FileWriter, Logger, filewriter_end
+from execsql.utils.gui import gui_connect, gui_console_isrunning, gui_console_off, gui_console_on, gui_console_wait_user
 
 _console = Console()
 _err_console = Console(stderr=True)
@@ -455,7 +458,7 @@ def _run(
     # ------------------------------------------------------------------
     # Early setup: substitution variables seeded before arg parsing
     # ------------------------------------------------------------------
-    _state.subvars = _state.SubVarSet()
+    _state.subvars = SubVarSet()
 
     for k in os.environ:
         try:
@@ -589,14 +592,14 @@ def _run(
     import execsql.utils.fileio as _fileio
 
     if _state.filewriter is None or not _state.filewriter.is_alive():
-        _state.filewriter = _state.FileWriter(
+        _state.filewriter = FileWriter(
             _fileio.fw_input,
             _fileio.fw_output,
             file_encoding=conf.output_encoding,
             open_timeout=getattr(conf, "outfile_open_timeout", 10),
         )
         _state.filewriter.start()
-        atexit.register(_state.filewriter_end)
+        atexit.register(filewriter_end)
 
     # ------------------------------------------------------------------
     # Logging
@@ -623,7 +626,7 @@ def _run(
         }.items()
         if v
     }
-    _state.exec_log = _state.Logger(
+    _state.exec_log = Logger(
         script_name,
         conf.db,
         conf.server,
@@ -654,20 +657,20 @@ def _run(
     # ------------------------------------------------------------------
     # Load the SQL script
     # ------------------------------------------------------------------
-    _state.read_sqlfile(script_name)
+    read_sqlfile(script_name)
 
     # ------------------------------------------------------------------
     # Start GUI console if requested
     # ------------------------------------------------------------------
     if conf.gui_level > 2:
-        _state.gui_console_on()
+        gui_console_on()
 
     # ------------------------------------------------------------------
     # Establish database connection
     # ------------------------------------------------------------------
     if conf.server is None and conf.db is None and conf.db_file is None:
         if conf.gui_level > 1:
-            _state.gui_connect("initial", f"Select the database to use with {script_name}.")
+            gui_connect("initial", f"Select the database to use with {script_name}.")
             db = _state.dbs.current()
         else:
             from execsql.utils.errors import fatal_error
@@ -709,7 +712,7 @@ def _execute_script_textual_console(conf: ConfigData) -> None:
     _state.gui_manager_queue = dialog_queue
 
     app = ConsoleApp(
-        script_runner=_state.runscripts,
+        script_runner=runscripts,
         dialog_queue=dialog_queue,
         wait_on_exit=conf.gui_wait_on_exit,
     )
@@ -738,7 +741,7 @@ def _execute_script_textual_console(conf: ConfigData) -> None:
             strace = traceback.extract_tb(exc.__traceback__)[-1:]
             lno = strace[0][1] if strace else "?"
             msg = f"{os.path.basename(sys.argv[0])}: Uncaught exception {type(exc)} ({exc}) on line {lno}"
-            script, slno = _state.current_script_line()
+            script, slno = current_script_line()
             if script is not None:
                 msg += f" in script {script}, line {slno}"
             from execsql.utils.errors import exit_now
@@ -767,14 +770,14 @@ def _execute_script_direct(conf: ConfigData) -> None:
             pass
 
     try:
-        _state.runscripts()
+        runscripts()
     except SystemExit as exc:
-        if _state.gui_console_isrunning() and conf.gui_wait_on_exit:
-            _state.gui_console_wait_user(
+        if gui_console_isrunning() and conf.gui_wait_on_exit:
+            gui_console_wait_user(
                 "Script complete; close the console window to exit execsql.",
             )
-            if _state.gui_console_isrunning():
-                _state.gui_console_off()
+            if gui_console_isrunning():
+                gui_console_off()
         _state.exec_log.log_status_info(f"{_state.cmds_run} commands run")
         sys.exit(exc.code)
     except ConfigError:
@@ -790,7 +793,7 @@ def _execute_script_direct(conf: ConfigData) -> None:
             f"{os.path.basename(sys.argv[0])}: Uncaught exception "
             f"{sys.exc_info()[0]} ({sys.exc_info()[1]}) on line {lno}"
         )
-        script, slno = _state.current_script_line()
+        script, slno = current_script_line()
         if script is not None:
             msg += f" in script {script}, line {slno}"
         from execsql.utils.errors import exit_now
@@ -798,12 +801,12 @@ def _execute_script_direct(conf: ConfigData) -> None:
         exit_now(1, ErrInfo("exception", exception_msg=msg))
 
     _state.dbs.do_rollback = False
-    if _state.gui_console_isrunning() and conf.gui_wait_on_exit:
-        _state.gui_console_wait_user(
+    if gui_console_isrunning() and conf.gui_wait_on_exit:
+        gui_console_wait_user(
             "Script complete; close the console window to exit execsql.",
         )
-        if _state.gui_console_isrunning():
-            _state.gui_console_off()
+        if gui_console_isrunning():
+            gui_console_off()
     _state.exec_log.log_status_info(f"{_state.cmds_run} commands run")
     _state.exec_log.log_exit_end()
 

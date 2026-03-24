@@ -1,4 +1,5 @@
 from __future__ import annotations
+from execsql.types import DT_TimestampTZ
 
 """
 XLS and XLSX spreadsheet export for execsql.
@@ -15,6 +16,7 @@ from typing import Any, Optional, List
 
 import execsql.state as _state
 from execsql.exceptions import XlsFileError, XlsxFileError
+from execsql.utils.errors import fatal_error
 
 
 class XlsFile:
@@ -33,7 +35,7 @@ class XlsFile:
             global xlrd
             import xlrd
         except ImportError:
-            _state.fatal_error("The xlrd library is needed to read Excel (.xls) spreadsheets.")
+            fatal_error("The xlrd library is needed to read Excel (.xls) spreadsheets.")
         self.filename = None
         self.encoding = None
         self.wbk = None
@@ -97,7 +99,7 @@ class XlsFile:
                 elif c.ctype == 1:
                     # This might be a timestamp with time zone that xlrd treats as a string.
                     try:
-                        dt = _state.DT_TimestampTZ()._from_data(c.value)
+                        dt = DT_TimestampTZ()._from_data(c.value)
                         datarow.append(dt)
                     except Exception:
                         datarow.append(c.value)
@@ -160,7 +162,7 @@ class XlsxFile:
             global openpyxl
             import openpyxl
         except ImportError:
-            _state.fatal_error("The openpyxl library is needed to read Excel (.xlsx) spreadsheets.")
+            fatal_error("The openpyxl library is needed to read Excel (.xlsx) spreadsheets.")
         self.filename = None
         self.encoding = None
         self.wbk = None

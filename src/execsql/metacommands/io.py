@@ -1,4 +1,5 @@
 from __future__ import annotations
+from execsql.exceptions import ErrInfo
 
 """
 Input/output metacommand handlers for execsql.
@@ -21,6 +22,33 @@ from shutil import copyfileobj
 from typing import Any
 
 import execsql.state as _state
+from execsql.exporters.base import ExportRecord
+from execsql.exporters.delimited import CsvFile, write_delimited_file
+from execsql.exporters.duckdb import write_query_to_duckdb
+from execsql.exporters.feather import write_query_to_feather, write_query_to_hdf5
+from execsql.exporters.html import write_query_to_cgi_html, write_query_to_html
+from execsql.exporters.json import write_query_to_json, write_query_to_json_ts
+from execsql.exporters.latex import write_query_to_latex
+from execsql.exporters.ods import OdsFile, write_queries_to_ods, write_query_to_ods
+from execsql.exporters.pretty import prettyprint_query, prettyprint_rowset
+from execsql.exporters.raw import write_query_b64, write_query_raw
+from execsql.exporters.sqlite import write_query_to_sqlite
+from execsql.exporters.templates import report_query
+from execsql.exporters.values import write_query_to_values
+from execsql.exporters.xls import XlsFile, XlsxFile
+from execsql.exporters.xml import write_query_to_xml
+from execsql.importers.base import import_data_table
+from execsql.importers.csv import importfile, importtable
+from execsql.importers.feather import import_feather, import_parquet
+from execsql.importers.ods import importods, ods_data
+from execsql.importers.xls import importxls, xls_data
+from execsql.models import DataTable
+from execsql.script import current_script_line, read_sqlfile, substitute_vars
+from execsql.types import dbt_firebird
+from execsql.utils.errors import exception_desc
+from execsql.utils.fileio import check_dir, filewriter_close, filewriter_open_as_new, filewriter_write
+from execsql.utils.gui import ConsoleUIError
+from execsql.utils.strings import clean_words, fold_words, unquoted
 
 
 def x_export(**kwargs: Any) -> None:
@@ -38,30 +66,30 @@ def x_export(**kwargs: Any) -> None:
     zipfilename = kwargs["zipfilename"]
     if zipfilename is not None:
         if outfile.lower() == "stdout":
-            raise _state.ErrInfo("error", other_msg="Cannot write stdout to a zipfile.")
+            raise ErrInfo("error", other_msg="Cannot write stdout to a zipfile.")
         elif len(outfile) > 1 and outfile[1] == ":":
-            raise _state.ErrInfo("error", other_msg="Cannot use a drive letter for a file path within a zipfile.")
+            raise ErrInfo("error", other_msg="Cannot use a drive letter for a file path within a zipfile.")
         if filefmt == "duckdb":
-            raise _state.ErrInfo("error", other_msg="Cannot export to the DuckDB format within a zipfile.")
+            raise ErrInfo("error", other_msg="Cannot export to the DuckDB format within a zipfile.")
         if filefmt == "sqlite":
-            raise _state.ErrInfo("error", other_msg="Cannot export to the SQLite format within a zipfile.")
+            raise ErrInfo("error", other_msg="Cannot export to the SQLite format within a zipfile.")
         if filefmt == "latex":
-            raise _state.ErrInfo("error", other_msg="Cannot export to the LaTeX format within a zipfile.")
+            raise ErrInfo("error", other_msg="Cannot export to the LaTeX format within a zipfile.")
         if filefmt == "feather":
-            raise _state.ErrInfo("error", other_msg="Cannot export to the feather format within a zipfile.")
+            raise ErrInfo("error", other_msg="Cannot export to the feather format within a zipfile.")
         if filefmt == "hdf5":
-            raise _state.ErrInfo("error", other_msg="Cannot export to the HDF5 format within a zipfile.")
+            raise ErrInfo("error", other_msg="Cannot export to the HDF5 format within a zipfile.")
         if filefmt == "ods":
-            raise _state.ErrInfo("error", other_msg="Cannot export to an ODS workbook within a zipfile.")
+            raise ErrInfo("error", other_msg="Cannot export to an ODS workbook within a zipfile.")
     notype = True if kwargs.get("notype") else False
     if zipfilename is not None:
-        _state.check_dir(zipfilename)
+        check_dir(zipfilename)
     else:
-        _state.check_dir(outfile)
+        check_dir(outfile)
     if tee and outfile.lower() != "stdout":
-        _state.prettyprint_query(select_stmt, _state.dbs.current(), "stdout", False, desc=description)
+        prettyprint_query(select_stmt, _state.dbs.current(), "stdout", False, desc=description)
     if filefmt in ("txt", "text"):
-        _state.prettyprint_query(
+        prettyprint_query(
             select_stmt,
             _state.dbs.current(),
             outfile,
@@ -70,7 +98,7 @@ def x_export(**kwargs: Any) -> None:
             zipfile=zipfilename,
         )
     elif filefmt in ("txt-and", "text-and"):
-        _state.prettyprint_query(
+        prettyprint_query(
             select_stmt,
             _state.dbs.current(),
             outfile,
@@ -80,7 +108,7 @@ def x_export(**kwargs: Any) -> None:
             zipfile=zipfilename,
         )
     elif filefmt == "ods":
-        _state.write_query_to_ods(
+        write_query_to_ods(
             select_stmt,
             _state.dbs.current(),
             outfile,
@@ -89,11 +117,11 @@ def x_export(**kwargs: Any) -> None:
             desc=description,
         )
     elif filefmt == "duckdb":
-        _state.write_query_to_duckdb(select_stmt, _state.dbs.current(), outfile, append, tablename=queryname)
+        write_query_to_duckdb(select_stmt, _state.dbs.current(), outfile, append, tablename=queryname)
     elif filefmt == "sqlite":
-        _state.write_query_to_sqlite(select_stmt, _state.dbs.current(), outfile, append, tablename=queryname)
+        write_query_to_sqlite(select_stmt, _state.dbs.current(), outfile, append, tablename=queryname)
     elif filefmt == "xml":
-        _state.write_query_to_xml(
+        write_query_to_xml(
             select_stmt,
             table,
             _state.dbs.current(),
@@ -103,7 +131,7 @@ def x_export(**kwargs: Any) -> None:
             zipfile=zipfilename,
         )
     elif filefmt == "json":
-        _state.write_query_to_json(
+        write_query_to_json(
             select_stmt,
             _state.dbs.current(),
             outfile,
@@ -112,7 +140,7 @@ def x_export(**kwargs: Any) -> None:
             zipfile=zipfilename,
         )
     elif filefmt in ("json_ts", "json_tableschema"):
-        _state.write_query_to_json_ts(
+        write_query_to_json_ts(
             select_stmt,
             _state.dbs.current(),
             outfile,
@@ -122,7 +150,7 @@ def x_export(**kwargs: Any) -> None:
             zipfile=zipfilename,
         )
     elif filefmt == "values":
-        _state.write_query_to_values(
+        write_query_to_values(
             select_stmt,
             _state.dbs.current(),
             outfile,
@@ -131,7 +159,7 @@ def x_export(**kwargs: Any) -> None:
             zipfile=zipfilename,
         )
     elif filefmt == "html":
-        _state.write_query_to_html(
+        write_query_to_html(
             select_stmt,
             _state.dbs.current(),
             outfile,
@@ -140,7 +168,7 @@ def x_export(**kwargs: Any) -> None:
             zipfile=zipfilename,
         )
     elif filefmt == "cgi-html":
-        _state.write_query_to_cgi_html(
+        write_query_to_cgi_html(
             select_stmt,
             _state.dbs.current(),
             outfile,
@@ -149,7 +177,7 @@ def x_export(**kwargs: Any) -> None:
             zipfile=zipfilename,
         )
     elif filefmt == "latex":
-        _state.write_query_to_latex(
+        write_query_to_latex(
             select_stmt,
             _state.dbs.current(),
             outfile,
@@ -158,23 +186,23 @@ def x_export(**kwargs: Any) -> None:
             zipfile=zipfilename,
         )
     elif filefmt == "hdf5":
-        _state.write_query_to_hdf5(table, select_stmt, _state.dbs.current(), outfile, append, desc=description)
+        write_query_to_hdf5(table, select_stmt, _state.dbs.current(), outfile, append, desc=description)
     else:
         try:
             hdrs, rows = _state.dbs.current().select_rowsource(select_stmt)
-        except _state.ErrInfo:
+        except ErrInfo:
             raise
         except Exception:
-            raise _state.ErrInfo("db", select_stmt, exception_msg=_state.exception_desc())
+            raise ErrInfo("db", select_stmt, exception_msg=exception_desc())
         if filefmt == "raw":
-            _state.write_query_raw(outfile, rows, _state.dbs.current().encoding, append, zipfile=zipfilename)
+            write_query_raw(outfile, rows, _state.dbs.current().encoding, append, zipfile=zipfilename)
         elif filefmt == "b64":
-            _state.write_query_b64(outfile, rows, append)
+            write_query_b64(outfile, rows, append)
         elif filefmt == "feather":
-            _state.write_query_to_feather(outfile, hdrs, rows)
+            write_query_to_feather(outfile, hdrs, rows)
         else:
-            _state.write_delimited_file(outfile, filefmt, hdrs, rows, _state.conf.output_encoding, append, zipfilename)
-    _state.export_metadata.add(_state.ExportRecord(queryname, outfile, zipfilename, description))
+            write_delimited_file(outfile, filefmt, hdrs, rows, _state.conf.output_encoding, append, zipfilename)
+    _state.export_metadata.add(ExportRecord(queryname, outfile, zipfilename, description))
     return None
 
 
@@ -190,23 +218,23 @@ def x_export_query(**kwargs: Any) -> None:
     zipfilename = kwargs["zipfilename"]
     if zipfilename is not None:
         if outfile == "stdout":
-            raise _state.ErrInfo("error", other_msg="Cannot write stdout to a zipfile.")
+            raise ErrInfo("error", other_msg="Cannot write stdout to a zipfile.")
         elif len(outfile) > 1 and outfile[1] == ":":
-            raise _state.ErrInfo("error", other_msg="Cannot use a drive letter for a file path within a zipfile.")
+            raise ErrInfo("error", other_msg="Cannot use a drive letter for a file path within a zipfile.")
         if filefmt == "latex":
-            raise _state.ErrInfo("error", other_msg="Cannot export to the LaTeX format within a zipfile.")
+            raise ErrInfo("error", other_msg="Cannot export to the LaTeX format within a zipfile.")
         if filefmt == "feather":
-            raise _state.ErrInfo("error", other_msg="Cannot export to the feather format within a zipfile.")
+            raise ErrInfo("error", other_msg="Cannot export to the feather format within a zipfile.")
         if filefmt == "hdf5":
-            raise _state.ErrInfo("error", other_msg="Cannot export to the HDF5 format within a zipfile.")
+            raise ErrInfo("error", other_msg="Cannot export to the HDF5 format within a zipfile.")
         if filefmt == "ods":
-            raise _state.ErrInfo("error", other_msg="Cannot export to an ODS workbook within a zipfile.")
+            raise ErrInfo("error", other_msg="Cannot export to an ODS workbook within a zipfile.")
     notype = True if kwargs.get("notype") else False
-    _state.check_dir(outfile)
+    check_dir(outfile)
     if tee and outfile.lower() != "stdout":
-        _state.prettyprint_query(select_stmt, _state.dbs.current(), "stdout", False, desc=description)
+        prettyprint_query(select_stmt, _state.dbs.current(), "stdout", False, desc=description)
     if filefmt in ("txt", "text"):
-        _state.prettyprint_query(
+        prettyprint_query(
             select_stmt,
             _state.dbs.current(),
             outfile,
@@ -215,7 +243,7 @@ def x_export_query(**kwargs: Any) -> None:
             zipfile=zipfilename,
         )
     elif filefmt in ("txt-and", "text-and"):
-        _state.prettyprint_query(
+        prettyprint_query(
             select_stmt,
             _state.dbs.current(),
             outfile,
@@ -225,8 +253,8 @@ def x_export_query(**kwargs: Any) -> None:
             zipfile=zipfilename,
         )
     elif filefmt == "ods":
-        script_name, lno = _state.current_script_line()
-        _state.write_query_to_ods(
+        script_name, lno = current_script_line()
+        write_query_to_ods(
             select_stmt,
             _state.dbs.current(),
             outfile,
@@ -235,7 +263,7 @@ def x_export_query(**kwargs: Any) -> None:
             desc=description,
         )
     elif filefmt == "json":
-        _state.write_query_to_json(
+        write_query_to_json(
             select_stmt,
             _state.dbs.current(),
             outfile,
@@ -244,7 +272,7 @@ def x_export_query(**kwargs: Any) -> None:
             zipfile=zipfilename,
         )
     elif filefmt in ("json_ts", "json_tableschema"):
-        _state.write_query_to_json_ts(
+        write_query_to_json_ts(
             select_stmt,
             _state.dbs.current(),
             outfile,
@@ -254,7 +282,7 @@ def x_export_query(**kwargs: Any) -> None:
             zipfile=zipfilename,
         )
     elif filefmt == "values":
-        _state.write_query_to_values(
+        write_query_to_values(
             select_stmt,
             _state.dbs.current(),
             outfile,
@@ -263,7 +291,7 @@ def x_export_query(**kwargs: Any) -> None:
             zipfile=zipfilename,
         )
     elif filefmt == "html":
-        _state.write_query_to_html(
+        write_query_to_html(
             select_stmt,
             _state.dbs.current(),
             outfile,
@@ -272,7 +300,7 @@ def x_export_query(**kwargs: Any) -> None:
             zipfile=zipfilename,
         )
     elif filefmt == "cgi-html":
-        _state.write_query_to_cgi_html(
+        write_query_to_cgi_html(
             select_stmt,
             _state.dbs.current(),
             outfile,
@@ -281,7 +309,7 @@ def x_export_query(**kwargs: Any) -> None:
             zipfile=zipfilename,
         )
     elif filefmt == "latex":
-        _state.write_query_to_latex(
+        write_query_to_latex(
             select_stmt,
             _state.dbs.current(),
             outfile,
@@ -292,18 +320,18 @@ def x_export_query(**kwargs: Any) -> None:
     else:
         try:
             hdrs, rows = _state.dbs.current().select_rowsource(select_stmt)
-        except _state.ErrInfo:
+        except ErrInfo:
             raise
         except Exception:
-            raise _state.ErrInfo("db", select_stmt, exception_msg=_state.exception_desc())
+            raise ErrInfo("db", select_stmt, exception_msg=exception_desc())
         if filefmt == "raw":
-            _state.write_query_raw(outfile, rows, _state.dbs.current().encoding, append, zipfile=zipfilename)
+            write_query_raw(outfile, rows, _state.dbs.current().encoding, append, zipfile=zipfilename)
         elif filefmt == "b64":
-            _state.write_query_b64(outfile, rows, append, zipfile=zipfilename)
+            write_query_b64(outfile, rows, append, zipfile=zipfilename)
         elif filefmt == "feather":
-            _state.write_query_to_feather(outfile, hdrs, rows)
+            write_query_to_feather(outfile, hdrs, rows)
         else:
-            _state.write_delimited_file(
+            write_delimited_file(
                 outfile,
                 filefmt,
                 hdrs,
@@ -312,7 +340,7 @@ def x_export_query(**kwargs: Any) -> None:
                 append,
                 zipfile=zipfilename,
             )
-    _state.export_metadata.add(_state.ExportRecord(select_stmt, outfile, zipfilename, description))
+    _state.export_metadata.add(ExportRecord(select_stmt, outfile, zipfilename, description))
     return None
 
 
@@ -325,11 +353,11 @@ def x_export_query_with_template(**kwargs: Any) -> None:
     append = kwargs["append"]
     append = True if append else False
     zipfilename = kwargs["zipfilename"]
-    _state.check_dir(outfile)
+    check_dir(outfile)
     if tee and outfile.lower() != "stdout":
-        _state.prettyprint_query(select_stmt, _state.dbs.current(), "stdout", False)
-    _state.report_query(select_stmt, _state.dbs.current(), outfile, template_file, append, zipfile=zipfilename)
-    _state.export_metadata.add(_state.ExportRecord(select_stmt, outfile, zipfilename))
+        prettyprint_query(select_stmt, _state.dbs.current(), "stdout", False)
+    report_query(select_stmt, _state.dbs.current(), outfile, template_file, append, zipfile=zipfilename)
+    _state.export_metadata.add(ExportRecord(select_stmt, outfile, zipfilename))
     return None
 
 
@@ -345,11 +373,11 @@ def x_export_with_template(**kwargs: Any) -> None:
     append = kwargs["append"]
     append = True if append else False
     zipfilename = kwargs["zipfilename"]
-    _state.check_dir(outfile)
+    check_dir(outfile)
     if tee and outfile.lower() != "stdout":
-        _state.prettyprint_query(select_stmt, _state.dbs.current(), "stdout", False)
-    _state.report_query(select_stmt, _state.dbs.current(), outfile, template_file, append, zipfile=zipfilename)
-    _state.export_metadata.add(_state.ExportRecord(queryname, outfile, zipfilename))
+        prettyprint_query(select_stmt, _state.dbs.current(), "stdout", False)
+    report_query(select_stmt, _state.dbs.current(), outfile, template_file, append, zipfile=zipfilename)
+    _state.export_metadata.add(ExportRecord(queryname, outfile, zipfilename))
     return None
 
 
@@ -361,8 +389,8 @@ def x_export_ods_multiple(**kwargs: Any) -> None:
     tee = False if not tee else True
     append = kwargs["append"]
     append = False if append is None else True
-    _state.check_dir(outfile)
-    _state.write_queries_to_ods(table_list, _state.dbs.current(), outfile, append, tee, desc=description)
+    check_dir(outfile)
+    write_queries_to_ods(table_list, _state.dbs.current(), outfile, append, tee, desc=description)
 
 
 def x_export_metadata(**kwargs: Any) -> None:
@@ -376,11 +404,11 @@ def x_export_metadata(**kwargs: Any) -> None:
     else:
         hdrs, rows = _state.export_metadata.get()
     if outfile.lower() != "stdout":
-        _state.check_dir(outfile)
+        check_dir(outfile)
     if filefmt in ("txt", "text"):
-        _state.prettyprint_rowset(hdrs, rows, outfile, append, and_val="", zipfile=zipfilename)
+        prettyprint_rowset(hdrs, rows, outfile, append, and_val="", zipfile=zipfilename)
     else:
-        _state.write_delimited_file(outfile, filefmt, hdrs, rows, _state.conf.output_encoding, append, zipfilename)
+        write_delimited_file(outfile, filefmt, hdrs, rows, _state.conf.output_encoding, append, zipfilename)
 
 
 def x_export_metadata_table(**kwargs: Any) -> None:
@@ -396,7 +424,7 @@ def x_export_metadata_table(**kwargs: Any) -> None:
         hdrs, rows = _state.export_metadata.get_all()
     else:
         hdrs, rows = _state.export_metadata.get()
-    _state.import_data_table(_state.dbs.current(), schemaname, tablename, is_new, hdrs, rows)
+    import_data_table(_state.dbs.current(), schemaname, tablename, is_new, hdrs, rows)
 
 
 def x_import(**kwargs: Any) -> None:
@@ -411,7 +439,7 @@ def x_import(**kwargs: Any) -> None:
     if len(filename) > 1 and filename[0] == "~" and filename[1] == os.sep:
         filename = os.path.join(os.path.expanduser(r"~"), filename[2:])
     if not os.path.exists(filename):
-        raise _state.ErrInfo(
+        raise ErrInfo(
             type="cmd",
             command_text=kwargs["metacommandline"],
             other_msg=f"Input file {filename} does not exist",
@@ -436,7 +464,7 @@ def x_import(**kwargs: Any) -> None:
     sz, dt = file_size_date(filename)
     _state.exec_log.log_status_info(f"IMPORTing {filename} ({sz}, {dt})")
     try:
-        _state.importtable(
+        importtable(
             _state.dbs.current(),
             schemaname,
             tablename,
@@ -448,12 +476,12 @@ def x_import(**kwargs: Any) -> None:
             encoding=enc,
             junk_header_lines=junk_hdrs,
         )
-    except _state.ErrInfo:
+    except ErrInfo:
         raise
     except Exception:
-        raise _state.ErrInfo(
+        raise ErrInfo(
             "exception",
-            exception_msg=_state.exception_desc(),
+            exception_msg=exception_desc(),
             other_msg=f"Can't import data from tabular text file {filename}",
         )
     return None
@@ -465,7 +493,7 @@ def x_import_file(**kwargs: Any) -> None:
     columnname = kwargs["columnname"]
     filename = kwargs["filename"]
     if not os.path.exists(filename):
-        raise _state.ErrInfo(
+        raise ErrInfo(
             type="cmd",
             command_text=kwargs["metacommandline"],
             other_msg=f"Input file {filename} does not exist",
@@ -475,13 +503,13 @@ def x_import_file(**kwargs: Any) -> None:
     sz, dt = file_size_date(filename)
     _state.exec_log.log_status_info(f"IMPORTing_FILE {filename} ({sz}, {dt})")
     try:
-        _state.importfile(_state.dbs.current(), schemaname, tablename, columnname, filename)
-    except _state.ErrInfo:
+        importfile(_state.dbs.current(), schemaname, tablename, columnname, filename)
+    except ErrInfo:
         raise
     except Exception:
-        raise _state.ErrInfo(
+        raise ErrInfo(
             "exception",
-            exception_msg=_state.exception_desc(),
+            exception_msg=exception_desc(),
             other_msg=f"Can't import file {filename}",
         )
     return None
@@ -503,19 +531,19 @@ def x_import_ods(**kwargs: Any) -> None:
     else:
         hdr_rows = int(hdr_rows)
     if not os.path.exists(filename):
-        raise _state.ErrInfo(
+        raise ErrInfo(
             type="cmd",
             command_text=kwargs["metacommandline"],
             other_msg="Input file does not exist",
         )
     try:
-        _state.importods(_state.dbs.current(), schemaname, tablename, is_new, filename, sheetname, hdr_rows)
-    except _state.ErrInfo:
+        importods(_state.dbs.current(), schemaname, tablename, is_new, filename, sheetname, hdr_rows)
+    except ErrInfo:
         raise
     except Exception:
-        raise _state.ErrInfo(
+        raise ErrInfo(
             "exception",
-            exception_msg=_state.exception_desc(),
+            exception_msg=exception_desc(),
             other_msg=f"Can't import data from ODS file {filename}",
         )
     return None
@@ -538,34 +566,34 @@ def x_import_ods_pattern(**kwargs: Any) -> None:
     else:
         hdr_rows = int(hdr_rows)
     if not os.path.exists(filename):
-        raise _state.ErrInfo(
+        raise ErrInfo(
             type="cmd",
             command_text=kwargs["metacommandline"],
             other_msg="Input file does not exist",
         )
-    wbk = _state.OdsFile()
+    wbk = OdsFile()
     try:
         wbk.open(filename)
     except Exception:
-        raise _state.ErrInfo(type="cmd", other_msg=f"{filename} is not a valid OpenDocument spreadsheet.")
+        raise ErrInfo(type="cmd", other_msg=f"{filename} is not a valid OpenDocument spreadsheet.")
     sheets = wbk.sheetnames()
     impsheets = [s for s in sheets if rx.search(s)]
     tables = list(impsheets)
     if _state.conf.clean_col_hdrs:
-        tables = _state.clean_words(tables)
+        tables = clean_words(tables)
     if _state.conf.fold_col_hdrs != "no":
-        tables = _state.fold_words(tables, _state.conf.fold_col_hdrs)
+        tables = fold_words(tables, _state.conf.fold_col_hdrs)
     for ix in range(len(impsheets)):
         sheetname = impsheets[ix]
         tablename = tables[ix]
         try:
-            _state.importods(_state.dbs.current(), schemaname, tablename, is_new, filename, sheetname, hdr_rows)
-        except _state.ErrInfo:
+            importods(_state.dbs.current(), schemaname, tablename, is_new, filename, sheetname, hdr_rows)
+        except ErrInfo:
             raise
         except Exception:
-            raise _state.ErrInfo(
+            raise ErrInfo(
                 "exception",
-                exception_msg=_state.exception_desc(),
+                exception_msg=exception_desc(),
                 other_msg=f"Can't import data from ODS file {filename}",
             )
     _state.subvars.add_substitution("$SHEETS_IMPORTED", ",".join(impsheets))
@@ -594,19 +622,19 @@ def x_import_xls(**kwargs: Any) -> None:
     else:
         junk_hdrs = int(junk_hdrs)
     if not os.path.exists(filename):
-        raise _state.ErrInfo(
+        raise ErrInfo(
             type="cmd",
             command_text=kwargs["metacommandline"],
             other_msg="Input file does not exist",
         )
     try:
-        _state.importxls(_state.dbs.current(), schemaname, tablename, is_new, filename, sheetname, junk_hdrs, encoding)
-    except _state.ErrInfo:
+        importxls(_state.dbs.current(), schemaname, tablename, is_new, filename, sheetname, junk_hdrs, encoding)
+    except ErrInfo:
         raise
     except Exception:
-        raise _state.ErrInfo(
+        raise ErrInfo(
             "exception",
-            exception_msg=_state.exception_desc(),
+            exception_msg=exception_desc(),
             other_msg=f"Can't import data from Excel file {filename}",
         )
     return None
@@ -630,36 +658,36 @@ def x_import_xls_pattern(**kwargs: Any) -> None:
     else:
         hdr_rows = int(hdr_rows)
     if not os.path.exists(filename):
-        raise _state.ErrInfo(
+        raise ErrInfo(
             type="cmd",
             command_text=kwargs["metacommandline"],
             other_msg="Input file does not exist",
         )
     if len(filename) < 4:
-        raise _state.ErrInfo(type="cmd", other_msg=f"{filename} is not a recognizable Excel spreadsheet name.")
+        raise ErrInfo(type="cmd", other_msg=f"{filename} is not a recognizable Excel spreadsheet name.")
     ext3 = filename[-3:].lower()
     if ext3 == "xls":
-        wbk = _state.XlsFile()
+        wbk = XlsFile()
     elif ext3 == "lsx":
-        wbk = _state.XlsxFile()
+        wbk = XlsxFile()
     else:
-        raise _state.ErrInfo(type="cmd", other_msg=f"{filename} is not a recognizable Excel spreadsheet name.")
+        raise ErrInfo(type="cmd", other_msg=f"{filename} is not a recognizable Excel spreadsheet name.")
     try:
         wbk.open(filename, encoding, read_only=True)
     except Exception:
-        raise _state.ErrInfo(type="cmd", other_msg=f"{filename} is not a valid Excel spreadsheet.")
+        raise ErrInfo(type="cmd", other_msg=f"{filename} is not a valid Excel spreadsheet.")
     sheets = wbk.sheetnames()
     impsheets = [s for s in sheets if rx.search(s)]
     tables = list(impsheets)
     if _state.conf.clean_col_hdrs:
-        tables = _state.clean_words(tables)
+        tables = clean_words(tables)
     if _state.conf.fold_col_hdrs != "no":
-        tables = _state.fold_words(tables, _state.conf.fold_col_hdrs)
+        tables = fold_words(tables, _state.conf.fold_col_hdrs)
     for ix in range(len(impsheets)):
         sheetname = impsheets[ix]
         tablename = tables[ix]
         try:
-            _state.importxls(
+            importxls(
                 _state.dbs.current(),
                 schemaname,
                 tablename,
@@ -669,12 +697,12 @@ def x_import_xls_pattern(**kwargs: Any) -> None:
                 hdr_rows,
                 encoding,
             )
-        except _state.ErrInfo:
+        except ErrInfo:
             raise
         except Exception:
-            raise _state.ErrInfo(
+            raise ErrInfo(
                 "exception",
-                exception_msg=_state.exception_desc(),
+                exception_msg=exception_desc(),
                 other_msg=f"Can't import data from ODS file {filename}",
             )
     _state.subvars.add_substitution("$SHEETS_IMPORTED", ",".join(impsheets))
@@ -698,7 +726,7 @@ def x_import_parquet(**kwargs: Any) -> None:
     if len(filename) > 1 and filename[0] == "~" and filename[1] == os.sep:
         filename = os.path.join(os.path.expanduser(r"~"), filename[2:])
     if not os.path.exists(filename):
-        raise _state.ErrInfo(
+        raise ErrInfo(
             type="cmd",
             command_text=kwargs["metacommandline"],
             other_msg=f"Input file {filename} does not exist",
@@ -708,13 +736,13 @@ def x_import_parquet(**kwargs: Any) -> None:
     sz, dt = file_size_date(filename)
     _state.exec_log.log_status_info(f"IMPORTing from Parquet file {filename} ({sz}, {dt})")
     try:
-        _state.import_parquet(_state.dbs.current(), schemaname, tablename, filename, is_new)
-    except _state.ErrInfo:
+        import_parquet(_state.dbs.current(), schemaname, tablename, filename, is_new)
+    except ErrInfo:
         raise
     except Exception:
-        raise _state.ErrInfo(
+        raise ErrInfo(
             "exception",
-            exception_msg=_state.exception_desc(),
+            exception_msg=exception_desc(),
             other_msg=f"Can't import data from Parquet data file {filename}",
         )
     return None
@@ -732,7 +760,7 @@ def x_import_feather(**kwargs: Any) -> None:
     if len(filename) > 1 and filename[0] == "~" and filename[1] == os.sep:
         filename = os.path.join(os.path.expanduser(r"~"), filename[2:])
     if not os.path.exists(filename):
-        raise _state.ErrInfo(
+        raise ErrInfo(
             type="cmd",
             command_text=kwargs["metacommandline"],
             other_msg=f"Input file {filename} does not exist",
@@ -742,13 +770,13 @@ def x_import_feather(**kwargs: Any) -> None:
     sz, dt = file_size_date(filename)
     _state.exec_log.log_status_info(f"IMPORTing from Feather file {filename} ({sz}, {dt})")
     try:
-        _state.import_feather(_state.dbs.current(), schemaname, tablename, filename, is_new)
-    except _state.ErrInfo:
+        import_feather(_state.dbs.current(), schemaname, tablename, filename, is_new)
+    except ErrInfo:
         raise
     except Exception:
-        raise _state.ErrInfo(
+        raise ErrInfo(
             "exception",
-            exception_msg=_state.exception_desc(),
+            exception_msg=exception_desc(),
             other_msg=f"Can't import data from Feather data file {filename}",
         )
     return None
@@ -770,22 +798,22 @@ def x_write(**kwargs: Any) -> None:
     tee = False if not tee else True
     outf = kwargs["filename"]
     if _state.conf.write_prefix is not None:
-        msg = _state.substitute_vars(_state.conf.write_prefix) + " " + msg
+        msg = substitute_vars(_state.conf.write_prefix) + " " + msg
     if _state.conf.write_suffix is not None:
-        msg = msg[:-1] + " " + _state.substitute_vars(_state.conf.write_suffix) + "\n"
+        msg = msg[:-1] + " " + substitute_vars(_state.conf.write_suffix) + "\n"
     if outf:
-        _state.check_dir(outf)
-        _state.filewriter_write(outf, msg)
+        check_dir(outf)
+        filewriter_write(outf, msg)
     if (not outf) or tee:
         try:
             _state.output.write(msg)
         except TypeError:
-            raise _state.ErrInfo(
+            raise ErrInfo(
                 type="other",
                 command_text=kwargs["metacommandline"],
                 other_msg="TypeError in 'write' metacommand.",
             )
-        except _state.ConsoleUIError as e:
+        except ConsoleUIError as e:
             _state.output.reset()
             _state.exec_log.log_status_info(f"Console UI write failed (message {{{e.value}}}); output reset to stdout.")
             _state.output.write(msg.encode(_state.conf.output_encoding))
@@ -797,7 +825,7 @@ def x_write(**kwargs: Any) -> None:
 def x_write_create_table(**kwargs: Any) -> None:
     filename = kwargs["filename"]
     if not os.path.exists(filename):
-        raise _state.ErrInfo(
+        raise ErrInfo(
             type="cmd",
             command_text=kwargs["metacommandline"],
             other_msg="Input file does not exist",
@@ -816,7 +844,7 @@ def x_write_create_table(**kwargs: Any) -> None:
     else:
         junk_hdrs = int(junk_hdrs)
     enc = _state.conf.import_encoding if not encoding else encoding
-    inf = _state.CsvFile(filename, enc, junk_header_lines=junk_hdrs)
+    inf = CsvFile(filename, enc, junk_header_lines=junk_hdrs)
     if quotechar and delimchar:
         inf.lineformat(delimchar, quotechar, None)
     inf.evaluate_column_types()
@@ -829,10 +857,10 @@ def x_write_create_table(**kwargs: Any) -> None:
         if outfile is None or outfile == "stdout":
             _state.output.write(txt)
         else:
-            _state.filewriter_write(outfile, txt)
+            filewriter_write(outfile, txt)
 
     if outfile:
-        _state.check_dir(outfile)
+        check_dir(outfile)
     if comment:
         write(f"-- {comment}\n")
     write(f"{sql}\n")
@@ -851,19 +879,19 @@ def x_write_create_table_ods(**kwargs: Any) -> None:
     comment = kwargs["comment"]
     outfile = kwargs["outfile"]
     if not os.path.exists(filename):
-        raise _state.ErrInfo(
+        raise ErrInfo(
             type="cmd",
             command_text=kwargs["metacommandline"],
             other_msg="Input file does not exist",
         )
-    hdrs, data = _state.ods_data(filename, sheetname, hdr_rows)
-    tablespec = _state.DataTable(hdrs, data)
+    hdrs, data = ods_data(filename, sheetname, hdr_rows)
+    tablespec = DataTable(hdrs, data)
     sql = tablespec.create_table(_state.dbs.current().type, schemaname, tablename, pretty=True)
     if outfile:
         if comment:
-            _state.filewriter_write(outfile, f"-- {comment}\n")
-        _state.filewriter_write(outfile, sql)
-        _state.filewriter_close(outfile)
+            filewriter_write(outfile, f"-- {comment}\n")
+        filewriter_write(outfile, sql)
+        filewriter_close(outfile)
     else:
         if comment:
             _state.output.write(f"-- {comment}\n")
@@ -885,19 +913,19 @@ def x_write_create_table_xls(**kwargs: Any) -> None:
     comment = kwargs["comment"]
     outfile = kwargs["outfile"]
     if not os.path.exists(filename):
-        raise _state.ErrInfo(
+        raise ErrInfo(
             type="cmd",
             command_text=kwargs["metacommandline"],
             other_msg="Input file does not exist",
         )
-    hdrs, data = _state.xls_data(filename, sheetname, junk_hdrs, enc)
-    tablespec = _state.DataTable(hdrs, data)
+    hdrs, data = xls_data(filename, sheetname, junk_hdrs, enc)
+    tablespec = DataTable(hdrs, data)
     sql = tablespec.create_table(_state.dbs.current().type, schemaname, tablename, pretty=True)
     if outfile:
         if comment:
-            _state.filewriter_write(outfile, f"-- {comment}\n")
-        _state.filewriter_write(outfile, sql)
-        _state.filewriter_close(outfile)
+            filewriter_write(outfile, f"-- {comment}\n")
+        filewriter_write(outfile, sql)
+        filewriter_close(outfile)
     else:
         if comment:
             _state.output.write(f"-- {comment}\n")
@@ -911,7 +939,7 @@ def x_write_create_table_alias(**kwargs: Any) -> None:
     comment = kwargs["comment"]
     outfile = kwargs["filename"]
     if alias not in _state.dbs.aliases():
-        raise _state.ErrInfo(
+        raise ErrInfo(
             type="cmd",
             command_text=kwargs["metacommandline"],
             other_msg=f"Unrecognized database alias: {alias}.",
@@ -920,7 +948,7 @@ def x_write_create_table_alias(**kwargs: Any) -> None:
     tbl = db.schema_qualified_table_name(schema, table)
     try:
         if not db.table_exists(table, schema):
-            raise _state.ErrInfo(
+            raise ErrInfo(
                 type="cmd",
                 command_text=kwargs["metacommandline"],
                 other_msg=f"Table {tbl} does not exist",
@@ -930,17 +958,17 @@ def x_write_create_table_alias(**kwargs: Any) -> None:
     select_stmt = f"select * from {tbl};"
     try:
         hdrs, rows = db.select_rowsource(select_stmt)
-    except _state.ErrInfo:
+    except ErrInfo:
         raise
     except Exception:
-        raise _state.ErrInfo("db", select_stmt, exception_msg=_state.exception_desc())
-    tablespec = _state.DataTable(hdrs, rows)
+        raise ErrInfo("db", select_stmt, exception_msg=exception_desc())
+    tablespec = DataTable(hdrs, rows)
     sql = tablespec.create_table(_state.dbs.current().type, kwargs["schema1"], kwargs["table1"], pretty=True)
     if outfile:
         if comment:
-            _state.filewriter_write(outfile, f"-- {comment}\n")
-        _state.filewriter_write(outfile, sql)
-        _state.filewriter_close(outfile)
+            filewriter_write(outfile, f"-- {comment}\n")
+        filewriter_write(outfile, sql)
+        filewriter_close(outfile)
     else:
         if comment:
             _state.output.write(f"-- {comment}\n")
@@ -974,12 +1002,12 @@ def x_writescript(**kwargs: Any) -> None:
         if output_dest is None or output_dest == "stdout":
             _state.output.write(txt)
         else:
-            _state.filewriter_write(output_dest, txt)
+            filewriter_write(output_dest, txt)
 
     if output_dest is not None and output_dest != "stdout":
-        _state.check_dir(output_dest)
+        check_dir(output_dest)
         if not append:
-            _state.filewriter_open_as_new(output_dest)
+            filewriter_open_as_new(output_dest)
     script = _state.savedscripts[script_id]
     if script.paramnames is not None and len(script.paramnames) > 0:
         write(f"BEGIN SCRIPT {script_id} ({', '.join(script.paramnames)})\n")
@@ -998,11 +1026,11 @@ def x_include(**kwargs: Any) -> None:
     exists = kwargs["exists"]
     if exists is not None:
         if os.path.isfile(filename):
-            _state.read_sqlfile(filename)
+            read_sqlfile(filename)
     else:
         if not os.path.isfile(filename):
-            raise _state.ErrInfo(type="error", other_msg=f"File {filename} does not exist.")
-        _state.read_sqlfile(filename)
+            raise ErrInfo(type="error", other_msg=f"File {filename} does not exist.")
+        read_sqlfile(filename)
     return None
 
 
@@ -1016,13 +1044,13 @@ def x_copy(**kwargs: Any) -> None:
     schema2 = kwargs["schema2"]
     table2 = kwargs["table2"]
     if alias1 not in _state.dbs.aliases():
-        raise _state.ErrInfo(
+        raise ErrInfo(
             type="cmd",
             command_text=kwargs["metacommandline"],
             other_msg=f"Unrecognized database alias: {alias1}.",
         )
     if alias2 not in _state.dbs.aliases():
-        raise _state.ErrInfo(
+        raise ErrInfo(
             type="cmd",
             command_text=kwargs["metacommandline"],
             other_msg=f"Unrecognized database alias: {alias2}.",
@@ -1033,7 +1061,7 @@ def x_copy(**kwargs: Any) -> None:
     tbl2 = db2.schema_qualified_table_name(schema2, table2)
     try:
         if not db1.table_exists(table1, schema1):
-            raise _state.ErrInfo(
+            raise ErrInfo(
                 type="cmd",
                 command_text=kwargs["metacommandline"],
                 other_msg=f"Table {tbl1} does not exist",
@@ -1043,7 +1071,7 @@ def x_copy(**kwargs: Any) -> None:
     if new_tbl2 and new_tbl2 == "new":
         try:
             if db2.table_exists(table2, schema2):
-                raise _state.ErrInfo(
+                raise ErrInfo(
                     type="cmd",
                     command_text=kwargs["metacommandline"],
                     other_msg=f"Table {tbl2} already exists",
@@ -1052,10 +1080,10 @@ def x_copy(**kwargs: Any) -> None:
             pass
     select_stmt = f"select * from {tbl1};"
 
-    def get_ts() -> _state.DataTable:
+    def get_ts() -> DataTable:
         if get_ts.tablespec is None:
             hdrs, rows = db1.select_rowsource(select_stmt)
-            get_ts.tablespec = _state.DataTable(hdrs, rows)
+            get_ts.tablespec = DataTable(hdrs, rows)
         return get_ts.tablespec
 
     get_ts.tablespec = None
@@ -1069,21 +1097,21 @@ def x_copy(**kwargs: Any) -> None:
             except Exception:
                 _state.exec_log.log_status_info(f"Could not drop existing table ({tbl2}) for COPY metacommand")
         db2.execute(create_tbl)
-        if db2.type == _state.dbt_firebird:
+        if db2.type == dbt_firebird:
             db2.execute("COMMIT;")
     try:
         hdrs, rows = db1.select_rowsource(select_stmt)
-    except _state.ErrInfo:
+    except ErrInfo:
         raise
     except Exception:
-        raise _state.ErrInfo("db", select_stmt, exception_msg=_state.exception_desc())
+        raise ErrInfo("db", select_stmt, exception_msg=exception_desc())
     try:
         db2.populate_table(schema2, table2, rows, hdrs, get_ts)
         db2.commit()
-    except _state.ErrInfo:
+    except ErrInfo:
         raise
     except Exception:
-        raise _state.ErrInfo("db", select_stmt, exception_msg=_state.exception_desc())
+        raise ErrInfo("db", select_stmt, exception_msg=exception_desc())
 
 
 def x_copy_query(**kwargs: Any) -> None:
@@ -1095,13 +1123,13 @@ def x_copy_query(**kwargs: Any) -> None:
     schema2 = kwargs["schema"]
     table2 = kwargs["table"]
     if alias1 not in _state.dbs.aliases():
-        raise _state.ErrInfo(
+        raise ErrInfo(
             type="cmd",
             command_text=kwargs["metacommandline"],
             other_msg=f"Unrecognized database alias: {alias1}.",
         )
     if alias2 not in _state.dbs.aliases():
-        raise _state.ErrInfo(
+        raise ErrInfo(
             type="cmd",
             command_text=kwargs["metacommandline"],
             other_msg=f"Unrecognized database alias: {alias2}.",
@@ -1112,7 +1140,7 @@ def x_copy_query(**kwargs: Any) -> None:
     if new_tbl2 and new_tbl2 == "new":
         try:
             if db2.table_exists(table2, schema2):
-                raise _state.ErrInfo(
+                raise ErrInfo(
                     type="cmd",
                     command_text=kwargs["metacommandline"],
                     other_msg=f"Table {tbl2} already exists",
@@ -1120,10 +1148,10 @@ def x_copy_query(**kwargs: Any) -> None:
         except Exception:
             pass
 
-    def get_ts() -> _state.DataTable:
+    def get_ts() -> DataTable:
         if not get_ts.tablespec:
             hdrs, rows = db1.select_rowsource(select_stmt)
-            get_ts.tablespec = _state.DataTable(hdrs, rows)
+            get_ts.tablespec = DataTable(hdrs, rows)
         return get_ts.tablespec
 
     get_ts.tablespec = None
@@ -1131,11 +1159,11 @@ def x_copy_query(**kwargs: Any) -> None:
     if new_tbl2:
         try:
             hdrs, rows = db1.select_rowsource(select_stmt)
-        except _state.ErrInfo:
+        except ErrInfo:
             raise
         except Exception:
-            raise _state.ErrInfo("db", select_stmt, exception_msg=_state.exception_desc())
-        get_ts.tablespec = _state.DataTable(hdrs, rows)
+            raise ErrInfo("db", select_stmt, exception_msg=exception_desc())
+        get_ts.tablespec = DataTable(hdrs, rows)
         tbl_desc = get_ts.tablespec
         create_tbl = tbl_desc.create_table(db2.type, schema2, table2)
         if new_tbl2 == "replacement":
@@ -1144,21 +1172,21 @@ def x_copy_query(**kwargs: Any) -> None:
             except Exception:
                 _state.exec_log.log_status_info(f"Could not drop existing table ({tbl2}) for COPY metacommand")
         db2.execute(create_tbl)
-        if db2.type == _state.dbt_firebird:
+        if db2.type == dbt_firebird:
             db2.execute("COMMIT;")
     try:
         hdrs, rows = db1.select_rowsource(select_stmt)
-    except _state.ErrInfo:
+    except ErrInfo:
         raise
     except Exception:
-        raise _state.ErrInfo("db", select_stmt, exception_msg=_state.exception_desc())
+        raise ErrInfo("db", select_stmt, exception_msg=exception_desc())
     try:
         db2.populate_table(schema2, table2, rows, hdrs, get_ts)
         db2.commit()
-    except _state.ErrInfo:
+    except ErrInfo:
         raise
     except Exception:
-        raise _state.ErrInfo("db", select_stmt, exception_msg=_state.exception_desc())
+        raise ErrInfo("db", select_stmt, exception_msg=exception_desc())
 
 
 def x_zip(**kwargs: Any) -> None:
@@ -1189,7 +1217,7 @@ def x_rm_file(**kwargs: Any) -> None:
     fnlist = _glob.glob(fn)
     for f in fnlist:
         if os.path.isfile(f):
-            _state.filewriter_close(f)
+            filewriter_close(f)
             os.unlink(f)
 
 
@@ -1199,15 +1227,15 @@ def x_make_export_dirs(**kwargs: Any) -> None:
 
 
 def x_cd(**kwargs: Any) -> None:
-    new_dir = _state.unquoted(kwargs["dir"])
+    new_dir = unquoted(kwargs["dir"])
     if not os.path.isdir(new_dir):
-        raise _state.ErrInfo(
+        raise ErrInfo(
             type="cmd",
             command_text=kwargs["metacommandline"],
             other_msg="Directory does not exist",
         )
     os.chdir(new_dir)
-    script, lno = _state.current_script_line()
+    script, lno = current_script_line()
     _state.exec_log.log_status_info(f"Current directory changed to {new_dir} at line {lno} of {script}")
     return None
 
@@ -1224,7 +1252,7 @@ def x_serve(**kwargs: Any) -> None:
     infname = kwargs["filename"]
     fmt = kwargs["format"].lower()
     if not os.path.isfile(infname):
-        raise _state.ErrInfo(
+        raise ErrInfo(
             type="cmd",
             command_text=kwargs["metacommandline"],
             other_msg=f"Input file {infname} does not exist",

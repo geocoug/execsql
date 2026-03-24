@@ -19,6 +19,7 @@ from execsql.exceptions import ErrInfo
 from execsql.db.base import Database
 from execsql.importers.base import import_data_table
 import execsql.state as _state
+from execsql.types import dbt_firebird
 
 
 def importtable(
@@ -36,8 +37,6 @@ def importtable(
     from execsql.utils.errors import exception_info
 
     conf = _state.conf
-    dbt_firebird = _state.dbt_firebird
-
     if not os.path.isfile(filename):
         raise ErrInfo(type="error", other_msg=f"Non-existent file ({filename}) used with the IMPORT metacommand")
     enc = conf.import_encoding if not encoding else encoding

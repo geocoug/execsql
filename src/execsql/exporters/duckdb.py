@@ -14,6 +14,7 @@ from typing import Any, List, Optional
 
 from execsql.exceptions import ErrInfo
 import execsql.state as _state
+from execsql.types import dbt_duckdb
 
 
 def export_duckdb(
@@ -56,7 +57,6 @@ def export_duckdb(
     # Construct and run the CREATE TABLE statement
     rowdata = list(rows)
     tablespec = DataTable(hdrs, rowdata)
-    dbt_duckdb = _state.dbt_duckdb
     sql = tablespec.create_table(dbt_duckdb, schemaname=None, tablename=tablename)
     curs = ddb.cursor()
     curs.execute(sql)

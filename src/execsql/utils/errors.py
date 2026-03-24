@@ -94,22 +94,26 @@ def exit_now(exit_status: int, errinfo: Optional[ErrInfo], logmsg: Optional[str]
         except Exception:
             _state.exec_log.log_status_error("Failed to send the ON ERROR_HALT EMAIL message.")
     if errinfo is not None and _state.err_halt_exec is not None:
+        from execsql.script import runscripts  # deferred: errors.py ↔ script.py circular dep
+
         errexec = _state.err_halt_exec
         _state.err_halt_exec = None
         _state.commandliststack = []
         errexec.execute()
-        _state.runscripts()
+        runscripts()
     if exit_status == 2 and _state.cancel_halt_mailspec is not None:
         try:
             _state.cancel_halt_mailspec.send()
         except Exception:
             _state.exec_log.log_status_error("Failed to send the ON CANCEL_HALT EMAIL message.")
     if exit_status == 2 and _state.cancel_halt_exec is not None:
+        from execsql.script import runscripts  # deferred: errors.py ↔ script.py circular dep
+
         cancelexec = _state.cancel_halt_exec
         _state.cancel_halt_exec = None
         _state.commandliststack = []
         cancelexec.execute()
-        _state.runscripts()
+        runscripts()
     if exit_status > 0:
         if _state.exec_log:
             if logmsg:

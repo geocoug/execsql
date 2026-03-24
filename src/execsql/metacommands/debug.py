@@ -1,4 +1,5 @@
 from __future__ import annotations
+from execsql.utils.errors import fatal_error
 
 """
 Debug metacommand handlers for execsql.
@@ -11,6 +12,7 @@ metacommand list to the log/console for troubleshooting.
 from typing import Any
 
 import execsql.state as _state
+from execsql.utils.fileio import EncodedFile, filewriter_open_as_new, filewriter_write
 
 
 def x_debug_write_metacommands(**kwargs: Any) -> None:
@@ -18,7 +20,7 @@ def x_debug_write_metacommands(**kwargs: Any) -> None:
     if output_dest is None or output_dest == "stdout":
         ofile = _state.output
     else:
-        ofile = _state.EncodedFile(output_dest, _state.conf.output_encoding).open("w")
+        ofile = EncodedFile(output_dest, _state.conf.output_encoding).open("w")
     for m in _state.metacommandlist:
         ofile.write(f"({m.hitcount})  {m.rx.pattern}\n")
 
@@ -46,7 +48,7 @@ def x_debug_write_odbc_drivers(**kwargs: Any) -> None:
     try:
         import pyodbc
     except Exception:
-        _state.fatal_error("The pyodbc module is required.")
+        fatal_error("The pyodbc module is required.")
     output_dest = kwargs["filename"]
     append = kwargs["append"]
 
@@ -55,8 +57,8 @@ def x_debug_write_odbc_drivers(**kwargs: Any) -> None:
             _state.output.write(txt)
         else:
             if not append:
-                _state.filewriter_open_as_new(output_dest)
-            _state.filewriter_write(output_dest, txt)
+                filewriter_open_as_new(output_dest)
+            filewriter_write(output_dest, txt)
 
     for d in pyodbc.drivers():
         write(f"{d}\n")
@@ -126,13 +128,13 @@ def x_debug_write_subvars(**kwargs: Any) -> None:
     user = kwargs["user"]
     local = kwargs["local"]
     if output_dest is not None and output_dest != "stdout" and append is None:
-        _state.filewriter_open_as_new(output_dest)
+        filewriter_open_as_new(output_dest)
 
     def write(txt: str) -> None:
         if output_dest is None or output_dest == "stdout":
             _state.output.write(txt)
         else:
-            _state.filewriter_write(output_dest, txt)
+            filewriter_write(output_dest, txt)
 
     for s in _state.commandliststack[-1].localvars.substitutions:
         write(f"Substitution [{s[0]}] = [{s[1]}]\n")
@@ -153,13 +155,13 @@ def x_debug_write_config(**kwargs: Any) -> None:
         f"Config; GUI level = {conf.gui_level}",
     ]
     if output_dest is not None and output_dest != "stdout" and append is None:
-        _state.filewriter_open_as_new(output_dest)
+        filewriter_open_as_new(output_dest)
 
     def write(txt: str) -> None:
         if output_dest is None or output_dest == "stdout":
             _state.output.write(txt)
         else:
-            _state.filewriter_write(output_dest, txt)
+            filewriter_write(output_dest, txt)
 
     for line in lines:
         write(f"{line}\n")

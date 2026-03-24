@@ -1,4 +1,5 @@
 from __future__ import annotations
+from execsql.exceptions import ErrInfo
 
 """
 Apache Feather and HDF5 export for execsql.
@@ -12,15 +13,19 @@ and ``tables``).  Used by ``EXPORT … FORMAT feather`` and
 from typing import Any, Optional, List
 
 import execsql.state as _state
+from execsql.models import DataTable
+from execsql.types import DT_Boolean, DT_Date, DT_Timestamp, DT_TimestampTZ
+from execsql.utils.errors import exception_desc
+from execsql.utils.fileio import filewriter_close
 
 
 def write_query_to_feather(outfile: str, headers: List[str], rows: Any) -> None:
     try:
         import polars as pl
     except ImportError:
-        raise _state.ErrInfo(
+        raise ErrInfo(
             "exception",
-            exception_msg=_state.exception_desc(),
+            exception_msg=exception_desc(),
             other_msg="The polars Python package must be installed to export data to the feather format.",
         )
     rows_list = list(rows)
@@ -28,7 +33,7 @@ def write_query_to_feather(outfile: str, headers: List[str], rows: Any) -> None:
         df = pl.DataFrame(rows_list, schema=headers, orient="row")
     else:
         df = pl.DataFrame({h: [] for h in headers})
-    _state.filewriter_close(outfile)
+    filewriter_close(outfile)
     df.write_ipc(outfile)
 
 
@@ -43,17 +48,17 @@ def write_query_to_hdf5(
     try:
         import tables
     except ImportError:
-        raise _state.ErrInfo(
+        raise ErrInfo(
             "exception",
-            exception_msg=_state.exception_desc(),
+            exception_msg=exception_desc(),
             other_msg="The tables Python library must be installed to export data to the HDF5 format.",
         )
     try:
         hdrs, rows = db.select_rowsource(select_stmt)
-    except _state.ErrInfo:
+    except ErrInfo:
         raise
     except Exception:
-        raise _state.ErrInfo("db", select_stmt, exception_msg=_state.exception_desc())
+        raise ErrInfo("db", select_stmt, exception_msg=exception_desc())
 
     def h5type(datatype, size):
         if datatype in (_state.DT_Varchar, _state.DT_Text):
@@ -68,18 +73,18 @@ def write_query_to_hdf5(
         elif datatype in (_state.DT_Float, _state.DT_Decimal):
             t = tables.Float64Col()
             do_cast = False
-        elif datatype == _state.DT_Boolean:
+        elif datatype == DT_Boolean:
             t = tables.BoolCol()
             do_cast = False
-        elif datatype in (_state.DT_TimestampTZ, _state.DT_Timestamp, _state.DT_Date, _state.DT_Time):
+        elif datatype in (DT_TimestampTZ, DT_Timestamp, DT_Date, _state.DT_Time):
             t = tables.StringCol(50)
             do_cast = True
         else:
-            raise _state.ErrInfo("error", other_msg=f"Invalid data type for export to HDF5: {repr(datatype)}")
+            raise ErrInfo("error", other_msg=f"Invalid data type for export to HDF5: {repr(datatype)}")
         return t, do_cast
 
     # Create a dictionary of column names with the HDF5 data types
-    tbl_desc = _state.DataTable(hdrs, rows)
+    tbl_desc = DataTable(hdrs, rows)
     h5type_dict = {}
     cast_flags = []
     # Iterate over hdrs instead of tbl_desc.cols to preserve column order.
@@ -90,7 +95,7 @@ def write_query_to_hdf5(
         h5type_dict[h] = h5typ
         cast_flags.append(as_str)
     # Open the HDF5 table
-    _state.filewriter_close(outfile)
+    filewriter_close(outfile)
     h5file_mode = "a" if append else "w"
     h5file = tables.open_file(outfile, mode=h5file_mode)
     h5grp = h5file.create_group("/", table_name, title=desc)

@@ -27,6 +27,11 @@ from typing import Any, Optional, List
 from execsql.utils.fileio import EncodedFile
 from execsql.exporters.zip import WriteableZipfile, ZipWriter
 import execsql.state as _state
+from execsql.exceptions import ErrInfo
+from execsql.models import DataTable
+from execsql.utils.errors import exception_desc
+from execsql.utils.fileio import filewriter_close
+from execsql.utils.strings import clean_words, fold_words
 
 
 class LineDelimiter:
@@ -107,7 +112,7 @@ class CsvWriter:
         if filename.lower() == "stdout":
             self.output = sys.stdout
         else:
-            _state.filewriter_close(filename)
+            filewriter_close(filename)
             self.output = EncodedFile(filename, file_encoding).open(mode)
         self.dwriter = DelimitedWriter(self.output, delim, quote, escchar)
 
@@ -315,7 +320,7 @@ class CsvFile(EncodedFile):
             if len(current_element[0]) > 0:
                 elements.append(current_element[0])
             if len(self.item_errors) > 0:
-                raise _state.ErrInfo("error", other_msg=", ".join(self.item_errors))
+                raise ErrInfo("error", other_msg=", ".join(self.item_errors))
             return elements
 
         def well_quoted_line(self, delim: Optional[str], qchar: Optional[str]):
@@ -349,7 +354,7 @@ class CsvFile(EncodedFile):
             if len(ln) > 0:
                 lines.append(self.CsvLine(ln))
         if len(lines) == 0:
-            raise _state.ErrInfo(type="error", other_msg="CSV diagnosis error: no lines read")
+            raise ErrInfo(type="error", other_msg="CSV diagnosis error: no lines read")
         for ln in lines:
             for d in possible_delimiters:
                 ln.count_delim(d)
@@ -406,7 +411,7 @@ class CsvFile(EncodedFile):
                 if quote_check[0] and quote_check[1]:
                     return quote_check
             return (delim_order[0], None, None)
-        raise _state.ErrInfo(
+        raise ErrInfo(
             type="error",
             other_msg="CSV diagnosis coding error: an untested set of conditions are present",
         )
@@ -562,7 +567,7 @@ class CsvFile(EncodedFile):
                 state = exec_vector[state]()
         end()
         if len(self.parse_errors) > 0:
-            raise _state.ErrInfo("error", other_msg=", ".join(self.parse_errors))
+            raise ErrInfo("error", other_msg=", ".join(self.parse_errors))
         return elements
 
     def reader(self) -> Any:
@@ -574,8 +579,8 @@ class CsvFile(EncodedFile):
             line_no += 1
             try:
                 elements = self.read_and_parse_line(f)
-            except _state.ErrInfo as e:
-                raise _state.ErrInfo("error", other_msg=f"{e.other} on line {line_no}.")
+            except ErrInfo as e:
+                raise ErrInfo("error", other_msg=f"{e.other} on line {line_no}.")
             except:
                 raise
             if len(elements) > 0:
@@ -596,13 +601,13 @@ class CsvFile(EncodedFile):
         conf = _state.conf
         try:
             colnames = next(inf)
-        except _state.ErrInfo as e:
+        except ErrInfo as e:
             e.other = f"Can't read column header line from {self.filename}.  {e.other or ''}"
             raise e
         except Exception:
-            raise _state.ErrInfo(
+            raise ErrInfo(
                 type="exception",
-                exception_msg=_state.exception_desc(),
+                exception_msg=exception_desc(),
                 other_msg=f"Can't read column header line from {self.filename}",
             )
         if any([x is None or len(x) == 0 for x in colnames]):
@@ -620,14 +625,14 @@ class CsvFile(EncodedFile):
                         if colnames[i] is None or len(colnames[i]) == 0:
                             colnames[i] = f"Col{i + 1}"
                 else:
-                    raise _state.ErrInfo(
+                    raise ErrInfo(
                         type="error",
                         other_msg=f"The input file {self.csvfname} has missing column headers.",
                     )
         if conf.clean_col_hdrs:
-            colnames = _state.clean_words(colnames)
+            colnames = clean_words(colnames)
         if conf.fold_col_hdrs != "no":
-            colnames = _state.fold_words(colnames, conf.fold_col_hdrs)
+            colnames = fold_words(colnames, conf.fold_col_hdrs)
         if conf.dedup_col_hdrs:
             colnames = _state.dedup_words(colnames)
         return colnames
@@ -648,7 +653,7 @@ class CsvFile(EncodedFile):
             self.evaluate_line_format()
         inf = self.reader()
         colnames = self._colhdrs(inf)
-        self.table_data = _state.DataTable(colnames, inf)
+        self.table_data = DataTable(colnames, inf)
 
     def create_table(self, database_type: Any, schemaname: Optional[str], tablename: str, pretty: bool = False) -> str:
         return self.table_data.create_table(database_type, schemaname, tablename, pretty)
@@ -696,7 +701,7 @@ def write_delimited_file(
         fdesc = f"{outfile} in {zipfile}"
     else:
         fmode = "w" if not append else "a"
-        _state.filewriter_close(outfile)
+        filewriter_close(outfile)
         ofile = EncodedFile(outfile, file_encoding).open(mode=fmode)
         fdesc = outfile
     if not (filefmt.lower() == "plain" or (append and zipfile is None)):
@@ -706,11 +711,11 @@ def write_delimited_file(
         try:
             datarow = line_delimiter.delimited(rec)
             ofile.write(datarow)
-        except _state.ErrInfo:
+        except ErrInfo:
             raise
         except Exception:
-            raise _state.ErrInfo(
+            raise ErrInfo(
                 "exception",
-                exception_msg=_state.exception_desc(),
+                exception_msg=exception_desc(),
                 other_msg=f"Can't write output to file {fdesc}.",
             )

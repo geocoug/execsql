@@ -1,4 +1,5 @@
 from __future__ import annotations
+from execsql.exceptions import ErrInfo
 
 """
 Control-flow metacommand handlers for execsql.
@@ -20,15 +21,26 @@ import time
 from typing import Any
 
 import execsql.state as _state
+from execsql.script import (
+    CommandList,
+    CommandListUntilLoop,
+    CommandListWhileLoop,
+    MetacommandStmt,
+    ScriptCmd,
+    current_script_line,
+)
+from execsql.utils.errors import exit_now, write_warning
+from execsql.utils.fileio import EncodedFile, check_dir
+from execsql.utils.gui import GUI_HALT, GuiSpec, enable_gui, gui_console_isrunning
 
 
 def x_if(**kwargs: Any) -> None:
     tf_value = _state.xcmd_test(kwargs["condtest"])
     if tf_value:
-        src, line_no = _state.current_script_line()
-        metacmd = _state.MetacommandStmt(kwargs["condcmd"])
-        script_cmd = _state.ScriptCmd(src, line_no, "cmd", metacmd)
-        cmdlist = _state.CommandList([script_cmd], f"{src}_{line_no}")
+        src, line_no = current_script_line()
+        metacmd = MetacommandStmt(kwargs["condcmd"])
+        script_cmd = ScriptCmd(src, line_no, "cmd", metacmd)
+        cmdlist = CommandList([script_cmd], f"{src}_{line_no}")
         _state.commandliststack.append(cmdlist)
     return None
 
@@ -81,17 +93,17 @@ def x_loop(**kwargs: Any) -> None:
     listname = "loop" + str(len(_state.loopcommandstack) + 1)
     if looptype == "WHILE":
         _state.loopcommandstack.append(
-            _state.CommandListWhileLoop([], listname, paramnames=None, loopcondition=loopcond),
+            CommandListWhileLoop([], listname, paramnames=None, loopcondition=loopcond),
         )
     else:
         _state.loopcommandstack.append(
-            _state.CommandListUntilLoop([], listname, paramnames=None, loopcondition=loopcond),
+            CommandListUntilLoop([], listname, paramnames=None, loopcondition=loopcond),
         )
 
 
 def endloop() -> None:
     if len(_state.loopcommandstack) == 0:
-        raise _state.ErrInfo("error", other_msg="END LOOP metacommand without a matching preceding LOOP metacommand.")
+        raise ErrInfo("error", other_msg="END LOOP metacommand without a matching preceding LOOP metacommand.")
     _state.compiling_loop = False
     _state.commandliststack.append(_state.loopcommandstack[-1])
     _state.loopcommandstack.pop()
@@ -105,13 +117,13 @@ def x_halt(**kwargs: Any) -> None:
     errlevel = kwargs["errorlevel"]
     conf = _state.conf
     if outf:
-        _state.check_dir(outf)
-        of = _state.EncodedFile(outf, conf.output_encoding).open("a")
+        check_dir(outf)
+        of = EncodedFile(outf, conf.output_encoding).open("a")
         of.write(f"{errmsg}\n")
         of.close()
     if conf.tee_write_log:
         _state.exec_log.log_user_msg(errmsg)
-    use_gui = _state.gui_console_isrunning()
+    use_gui = gui_console_isrunning()
     if errmsg and (use_gui or conf.gui_level > 1):
         x_halt_msg(table=None, schema=None, **kwargs)
         return
@@ -121,15 +133,15 @@ def x_halt(**kwargs: Any) -> None:
         errlevel = 3
     if errmsg:
         _state.output.write_err(errmsg)
-    script, lno = _state.current_script_line()
+    script, lno = current_script_line()
     _state.exec_log.log_exit_halt(script, lno, msg=errmsg)
-    _state.exit_now(errlevel, None)
+    exit_now(errlevel, None)
 
 
 def x_error_halt(**kwargs: Any) -> None:
     flag = kwargs["onoff"].lower()
     if flag not in ("on", "off", "yes", "no", "true", "false"):
-        raise _state.ErrInfo(
+        raise ErrInfo(
             type="cmd",
             command_text=kwargs["metacommandline"],
             other_msg=f"Unrecognized flag for error handling: {flag}",
@@ -141,7 +153,7 @@ def x_error_halt(**kwargs: Any) -> None:
 def x_metacommand_error_halt(**kwargs: Any) -> None:
     flag = kwargs["onoff"].lower()
     if flag not in ("on", "off", "yes", "no", "true", "false"):
-        raise _state.ErrInfo(
+        raise ErrInfo(
             type="cmd",
             command_text=kwargs["metacommandline"],
             other_msg=f"Unrecognized flag for metacommand error handling: {flag}",
@@ -166,8 +178,8 @@ def x_rollback(**kwargs: Any) -> None:
 
 def x_break(**kwargs: Any) -> None:
     if len(_state.commandliststack) == 1:
-        src, line_no = _state.current_script_line()
-        _state.write_warning(f"BREAK metacommand with no command nesting on line {line_no} of {src}")
+        src, line_no = current_script_line()
+        write_warning(f"BREAK metacommand with no command nesting on line {line_no} of {src}")
     else:
         _state.if_stack.if_levels = _state.if_stack.if_levels[: _state.commandliststack[-1].init_if_level]
         _state.commandliststack.pop()
@@ -183,10 +195,10 @@ def x_wait_until(**kwargs: Any) -> None:
         countdown -= 1
     if kwargs["end"].lower() == "halt":
         _state.exec_log.log_exit_halt(
-            *_state.current_script_line(),
+            *current_script_line(),
             msg="Halted at expiration of WAIT_UNTIL metacommand.",
         )
-        _state.exit_now(2, None)
+        exit_now(2, None)
     return None
 
 
@@ -205,8 +217,8 @@ def x_halt_msg(**kwargs: Any) -> None:
         errlevel = 3
     conf = _state.conf
     if outf:
-        _state.check_dir(outf)
-        of = _state.EncodedFile(outf, conf.output_encoding).open("a")
+        check_dir(outf)
+        of = EncodedFile(outf, conf.output_encoding).open("a")
         of.write(f"{errmsg}\n")
         of.close()
     schema = kwargs.get("schema")
@@ -218,7 +230,7 @@ def x_halt_msg(**kwargs: Any) -> None:
         headers, rows = db.select_data(sql)
     else:
         headers, rows = None, None
-    _state.enable_gui()
+    enable_gui()
     return_queue = _queue.Queue()
     gui_args = {
         "title": "HALT",
@@ -229,7 +241,7 @@ def x_halt_msg(**kwargs: Any) -> None:
         "rowset": rows,
         "help_url": None,
     }
-    _state.gui_manager_queue.put(_state.GuiSpec(_state.GUI_HALT, gui_args, return_queue))
+    _state.gui_manager_queue.put(GuiSpec(GUI_HALT, gui_args, return_queue))
     return_queue.get(block=True)
-    _state.exec_log.log_exit_halt(*_state.current_script_line(), msg=errmsg)
-    _state.exit_now(errlevel, None)
+    _state.exec_log.log_exit_halt(*current_script_line(), msg=errmsg)
+    exit_now(errlevel, None)

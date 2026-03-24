@@ -17,6 +17,7 @@ from typing import Any, List, Optional
 from execsql.exceptions import ErrInfo
 from execsql.db.base import Database
 import execsql.state as _state
+from execsql.types import dbt_firebird
 
 
 def import_data_table(
@@ -72,8 +73,6 @@ def import_data_table(
     get_ts.tablespec = None
 
     exec_log = _state.exec_log
-    dbt_firebird = _state.dbt_firebird
-
     if is_new:
         if is_new == 2:
             tblspec = db.schema_qualified_table_name(schemaname, tablename)

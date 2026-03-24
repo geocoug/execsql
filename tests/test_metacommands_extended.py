@@ -284,21 +284,21 @@ class TestDataSubVarOps:
     def test_x_sub(self):
         from execsql.metacommands.data import x_sub
 
-        with patch("execsql.state.get_subvarset", return_value=(_state.subvars, "myvar")):
+        with patch("execsql.metacommands.data.get_subvarset", return_value=(_state.subvars, "myvar")):
             x_sub(match="myvar", repl="hello", metacommandline="sub myvar hello")
         assert _state.subvars.varvalue("myvar") == "hello"
 
     def test_x_sub_empty(self):
         from execsql.metacommands.data import x_sub_empty
 
-        with patch("execsql.state.get_subvarset", return_value=(_state.subvars, "emptyvar")):
+        with patch("execsql.metacommands.data.get_subvarset", return_value=(_state.subvars, "emptyvar")):
             x_sub_empty(match="emptyvar", metacommandline="sub_empty emptyvar")
         assert _state.subvars.varvalue("emptyvar") == ""
 
     def test_x_sub_append_new_var(self):
         from execsql.metacommands.data import x_sub_append
 
-        with patch("execsql.state.get_subvarset", return_value=(_state.subvars, "myvar")):
+        with patch("execsql.metacommands.data.get_subvarset", return_value=(_state.subvars, "myvar")):
             x_sub_append(match="myvar", repl="first", metacommandline="sub_append myvar first")
         assert _state.subvars.varvalue("myvar") == "first"
 
@@ -306,7 +306,7 @@ class TestDataSubVarOps:
         from execsql.metacommands.data import x_sub_append
 
         _state.subvars.add_substitution("myvar", "first")
-        with patch("execsql.state.get_subvarset", return_value=(_state.subvars, "myvar")):
+        with patch("execsql.metacommands.data.get_subvarset", return_value=(_state.subvars, "myvar")):
             x_sub_append(match="myvar", repl="second", metacommandline="sub_append myvar second")
         assert _state.subvars.varvalue("myvar") == "first\nsecond"
 
@@ -354,7 +354,7 @@ class TestDataSubVarOps:
         from execsql.metacommands.data import x_sub_add
 
         _state.subvars.add_substitution("mycount", "10")
-        with patch("execsql.state.get_subvarset", return_value=(_state.subvars, "mycount")):
+        with patch("execsql.metacommands.data.get_subvarset", return_value=(_state.subvars, "mycount")):
             x_sub_add(match="mycount", increment="5", metacommandline="sub_add mycount 5")
         assert _state.subvars.varvalue("mycount") == "15"
 
@@ -551,7 +551,7 @@ class TestSystemHandlers:
     def test_x_consoleprogress_with_total(self):
         from execsql.metacommands.system import x_consoleprogress
 
-        with patch("execsql.state.gui_console_progress") as mock_progress:
+        with patch("execsql.metacommands.system.gui_console_progress") as mock_progress:
             x_consoleprogress(num="50", total="200")
             # 100 * 50 / 200 = 25.0
             mock_progress.assert_called_once_with(25.0)
@@ -559,42 +559,42 @@ class TestSystemHandlers:
     def test_x_consoleprogress_without_total(self):
         from execsql.metacommands.system import x_consoleprogress
 
-        with patch("execsql.state.gui_console_progress") as mock_progress:
+        with patch("execsql.metacommands.system.gui_console_progress") as mock_progress:
             x_consoleprogress(num="75.5", total=None)
             mock_progress.assert_called_once_with(75.5)
 
     def test_x_console_on(self):
         from execsql.metacommands.system import x_console
 
-        with patch("execsql.state.gui_console_on") as mock_on:
+        with patch("execsql.metacommands.system.gui_console_on") as mock_on:
             x_console(onoff="on")
             mock_on.assert_called_once()
 
     def test_x_console_off(self):
         from execsql.metacommands.system import x_console
 
-        with patch("execsql.state.gui_console_off") as mock_off:
+        with patch("execsql.metacommands.system.gui_console_off") as mock_off:
             x_console(onoff="off")
             mock_off.assert_called_once()
 
     def test_x_console_hideshow_hide(self):
         from execsql.metacommands.system import x_console_hideshow
 
-        with patch("execsql.state.gui_console_hide") as mock_hide:
+        with patch("execsql.metacommands.system.gui_console_hide") as mock_hide:
             x_console_hideshow(hideshow="hide")
             mock_hide.assert_called_once()
 
     def test_x_console_hideshow_show(self):
         from execsql.metacommands.system import x_console_hideshow
 
-        with patch("execsql.state.gui_console_show") as mock_show:
+        with patch("execsql.metacommands.system.gui_console_show") as mock_show:
             x_console_hideshow(hideshow="show")
             mock_show.assert_called_once()
 
     def test_x_consolestatus(self):
         from execsql.metacommands.system import x_consolestatus
 
-        with patch("execsql.state.gui_console_status") as mock_status:
+        with patch("execsql.metacommands.system.gui_console_status") as mock_status:
             x_consolestatus(message="Processing...")
             mock_status.assert_called_once_with("Processing...")
 
@@ -602,8 +602,8 @@ class TestSystemHandlers:
         from execsql.metacommands.system import x_system_cmd
 
         with (
-            patch("execsql.state.current_script_line", return_value=("test.sql", 1)),
-            patch("execsql.state.filewriter_close_all_after_write"),
+            patch("execsql.metacommands.system.current_script_line", return_value=("test.sql", 1)),
+            patch("execsql.metacommands.system.filewriter_close_all_after_write"),
             patch("subprocess.call", return_value=0) as mock_call,
         ):
             x_system_cmd(command="echo hello", **{"continue": None})
@@ -614,8 +614,8 @@ class TestSystemHandlers:
         from execsql.metacommands.system import x_system_cmd
 
         with (
-            patch("execsql.state.current_script_line", return_value=("test.sql", 1)),
-            patch("execsql.state.filewriter_close_all_after_write"),
+            patch("execsql.metacommands.system.current_script_line", return_value=("test.sql", 1)),
+            patch("execsql.metacommands.system.filewriter_close_all_after_write"),
             patch("subprocess.Popen") as mock_popen,
         ):
             x_system_cmd(command="echo hello", **{"continue": "continue"})
@@ -836,8 +836,8 @@ class TestControlHandlers:
     def test_x_break_with_single_command_list(self):
         from execsql.metacommands.control import x_break
 
-        with patch("execsql.state.current_script_line", return_value=("test.sql", 1)):
-            with patch("execsql.state.write_warning") as mock_warn:
+        with patch("execsql.metacommands.control.current_script_line", return_value=("test.sql", 1)):
+            with patch("execsql.metacommands.control.write_warning") as mock_warn:
                 x_break()
         mock_warn.assert_called_once()
         # Stack should still have one item
@@ -1069,7 +1069,7 @@ class TestScriptExtHandlers:
         from execsql.metacommands.script_ext import x_extendscript_metacommand
 
         s = self._make_saved_script("myscript")
-        with patch("execsql.state.current_script_line", return_value=("test.sql", 10)):
+        with patch("execsql.metacommands.script_ext.current_script_line", return_value=("test.sql", 10)):
             x_extendscript_metacommand(script="myscript", cmd="sub foo bar")
         s.add.assert_called_once()
 
@@ -1083,7 +1083,7 @@ class TestScriptExtHandlers:
         from execsql.metacommands.script_ext import x_extendscript_sql
 
         s = self._make_saved_script("myscript")
-        with patch("execsql.state.current_script_line", return_value=("test.sql", 5)):
+        with patch("execsql.metacommands.script_ext.current_script_line", return_value=("test.sql", 5)):
             x_extendscript_sql(script="myscript", sql="select 1;")
         s.add.assert_called_once()
 
@@ -1096,7 +1096,7 @@ class TestScriptExtHandlers:
     def test_x_executescript_missing_id_no_exists(self):
         from execsql.metacommands.script_ext import x_executescript
 
-        with patch("execsql.state.ScriptExecSpec") as mock_spec_cls:
+        with patch("execsql.metacommands.script_ext.ScriptExecSpec") as mock_spec_cls:
             mock_spec = MagicMock()
             mock_spec_cls.return_value = mock_spec
             x_executescript(exists=None, script_id="nonexistent")
@@ -1106,7 +1106,7 @@ class TestScriptExtHandlers:
         from execsql.metacommands.script_ext import x_executescript
 
         self._make_saved_script("existing")
-        with patch("execsql.state.ScriptExecSpec") as mock_spec_cls:
+        with patch("execsql.metacommands.script_ext.ScriptExecSpec") as mock_spec_cls:
             mock_spec = MagicMock()
             mock_spec_cls.return_value = mock_spec
             x_executescript(exists="exists", script_id="existing")
@@ -1115,7 +1115,7 @@ class TestScriptExtHandlers:
     def test_x_executescript_exists_flag_and_script_absent(self):
         from execsql.metacommands.script_ext import x_executescript
 
-        with patch("execsql.state.ScriptExecSpec") as mock_spec_cls:
+        with patch("execsql.metacommands.script_ext.ScriptExecSpec") as mock_spec_cls:
             mock_spec = MagicMock()
             mock_spec_cls.return_value = mock_spec
             x_executescript(exists="exists", script_id="doesnotexist")
@@ -1440,7 +1440,7 @@ class TestIoImportValidation:
         _state.dbs.current.return_value = mock_db
         _state.exec_log = MagicMock()
 
-        with patch("execsql.state.importtable") as mock_import:
+        with patch("execsql.metacommands.io.importtable") as mock_import:
             x_import(
                 new="replacement",
                 schema=None,
@@ -1466,7 +1466,7 @@ class TestIoImportValidation:
         _state.dbs.current.return_value = mock_db
         _state.exec_log = MagicMock()
 
-        with patch("execsql.state.importtable") as mock_import:
+        with patch("execsql.metacommands.io.importtable") as mock_import:
             x_import(
                 new=None,
                 schema=None,
@@ -1493,7 +1493,7 @@ class TestIoImportValidation:
         _state.dbs.current.return_value = mock_db
         _state.exec_log = MagicMock()
 
-        with patch("execsql.state.importtable") as mock_import:
+        with patch("execsql.metacommands.io.importtable") as mock_import:
             x_import(
                 new=None,
                 schema=None,
@@ -1527,8 +1527,8 @@ class TestIoExportMetadata:
 
         _state.export_metadata.get_all.return_value = (["col1"], [("val1",)])
         with (
-            patch("execsql.state.check_dir"),
-            patch("execsql.state.prettyprint_rowset") as mock_pp,
+            patch("execsql.metacommands.io.check_dir"),
+            patch("execsql.metacommands.io.prettyprint_rowset") as mock_pp,
         ):
             x_export_metadata(
                 filename="stdout",
@@ -1545,8 +1545,8 @@ class TestIoExportMetadata:
 
         _state.export_metadata.get.return_value = (["col1"], [("val1",)])
         with (
-            patch("execsql.state.check_dir"),
-            patch("execsql.state.prettyprint_rowset") as mock_pp,
+            patch("execsql.metacommands.io.check_dir"),
+            patch("execsql.metacommands.io.prettyprint_rowset") as mock_pp,
         ):
             x_export_metadata(
                 filename="stdout",
@@ -1562,7 +1562,7 @@ class TestIoExportMetadata:
         from execsql.metacommands.io import x_export_metadata_table
 
         _state.export_metadata.get_all.return_value = (["col1"], [("val1",)])
-        with patch("execsql.state.import_data_table") as mock_import:
+        with patch("execsql.metacommands.io.import_data_table") as mock_import:
             x_export_metadata_table(
                 all="all",
                 schema=None,
@@ -1575,7 +1575,7 @@ class TestIoExportMetadata:
         from execsql.metacommands.io import x_export_metadata_table
 
         _state.export_metadata.get.return_value = (["col1"], [("val1",)])
-        with patch("execsql.state.import_data_table") as mock_import:
+        with patch("execsql.metacommands.io.import_data_table") as mock_import:
             x_export_metadata_table(
                 all=None,
                 schema=None,

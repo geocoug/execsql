@@ -13,15 +13,17 @@ Implements metacommands that extend or augment a running script:
 from typing import Any
 
 import execsql.state as _state
+from execsql.exceptions import ErrInfo
+from execsql.script import MetacommandStmt, ScriptCmd, ScriptExecSpec, SqlStmt, current_script_line
 
 
 def x_extendscript(**kwargs: Any) -> None:
     script1 = kwargs["script1"].lower()
     if script1 not in _state.savedscripts:
-        raise _state.ErrInfo("cmd", other_msg=f"There is no SCRIPT named {script1}.")
+        raise ErrInfo("cmd", other_msg=f"There is no SCRIPT named {script1}.")
     script2 = kwargs["script2"].lower()
     if script2 not in _state.savedscripts:
-        raise _state.ErrInfo("cmd", other_msg=f"There is no SCRIPT named {script2}.")
+        raise ErrInfo("cmd", other_msg=f"There is no SCRIPT named {script2}.")
     s1 = _state.savedscripts[script1]
     s2 = _state.savedscripts[script2]
     for cmd in s1.cmdlist:
@@ -37,20 +39,20 @@ def x_extendscript(**kwargs: Any) -> None:
 def x_extendscript_metacommand(**kwargs: Any) -> None:
     script = kwargs["script"].lower()
     if script not in _state.savedscripts:
-        raise _state.ErrInfo("cmd", other_msg=f"There is no SCRIPT named {script}.")
-    script_file, script_line_no = _state.current_script_line()
+        raise ErrInfo("cmd", other_msg=f"There is no SCRIPT named {script}.")
+    script_file, script_line_no = current_script_line()
     _state.savedscripts[script].add(
-        _state.ScriptCmd(script_file, script_line_no, "cmd", _state.MetacommandStmt(kwargs["cmd"])),
+        ScriptCmd(script_file, script_line_no, "cmd", MetacommandStmt(kwargs["cmd"])),
     )
 
 
 def x_extendscript_sql(**kwargs: Any) -> None:
     script = kwargs["script"].lower()
     if script not in _state.savedscripts:
-        raise _state.ErrInfo("cmd", other_msg=f"There is no SCRIPT named {script}.")
-    script_file, script_line_no = _state.current_script_line()
+        raise ErrInfo("cmd", other_msg=f"There is no SCRIPT named {script}.")
+    script_file, script_line_no = current_script_line()
     _state.savedscripts[script].add(
-        _state.ScriptCmd(script_file, script_line_no, "sql", _state.SqlStmt(kwargs["sql"])),
+        ScriptCmd(script_file, script_line_no, "sql", SqlStmt(kwargs["sql"])),
     )
 
 
@@ -58,4 +60,4 @@ def x_executescript(**kwargs: Any) -> None:
     exists = kwargs["exists"]
     script_id = kwargs["script_id"].lower()
     if exists is None or (exists is not None and script_id in _state.savedscripts):
-        _state.ScriptExecSpec(**kwargs).execute()
+        ScriptExecSpec(**kwargs).execute()

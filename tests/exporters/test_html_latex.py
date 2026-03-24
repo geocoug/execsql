@@ -42,7 +42,7 @@ def noop_state(noop_filewriter_close):
     fake_pool.current.return_value = fake_db
 
     with (
-        patch.object(_state, "current_script_line", return_value=("script.sql", 1)),
+        patch("execsql.exporters.html.current_script_line", return_value=("script.sql", 1)),
         patch.object(_state, "dbs", fake_pool),
     ):
         yield

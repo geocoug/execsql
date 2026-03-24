@@ -1,4 +1,5 @@
 from __future__ import annotations
+from execsql.exceptions import ErrInfo
 
 """
 Data import and export metacommand handlers for execsql.
@@ -14,11 +15,17 @@ import math
 from typing import Any
 
 import execsql.state as _state
+from execsql.parser import NumericParser
+from execsql.script import current_script_line
+from execsql.utils.crypto import Encrypt
+from execsql.utils.errors import exception_desc, exit_now
+from execsql.utils.gui import GUI_SELECTSUB, GuiSpec, enable_gui
+from execsql.utils.strings import get_subvarset, unquoted
 
 
 def x_sub(**kwargs: Any) -> None:
     varname = kwargs["match"]
-    subvarset, varname = _state.get_subvarset(varname, kwargs["metacommandline"])
+    subvarset, varname = get_subvarset(varname, kwargs["metacommandline"])
     subvarset.add_substitution(varname, kwargs["repl"])
     return None
 
@@ -26,21 +33,21 @@ def x_sub(**kwargs: Any) -> None:
 def x_sub_add(**kwargs: Any) -> None:
     varname = kwargs["match"]
     increment_expr = kwargs["increment"]
-    subvarset, varname = _state.get_subvarset(varname, kwargs["metacommandline"])
-    subvarset.increment_by(varname, _state.NumericParser(increment_expr).parse().eval())
+    subvarset, varname = get_subvarset(varname, kwargs["metacommandline"])
+    subvarset.increment_by(varname, NumericParser(increment_expr).parse().eval())
     return None
 
 
 def x_sub_append(**kwargs: Any) -> None:
     varname = kwargs["match"]
-    subvarset, varname = _state.get_subvarset(varname, kwargs["metacommandline"])
+    subvarset, varname = get_subvarset(varname, kwargs["metacommandline"])
     subvarset.append_substitution(varname, kwargs["repl"])
     return None
 
 
 def x_sub_empty(**kwargs: Any) -> None:
     varname = kwargs["match"]
-    subvarset, varname = _state.get_subvarset(varname, kwargs["metacommandline"])
+    subvarset, varname = get_subvarset(varname, kwargs["metacommandline"])
     subvarset.add_substitution(varname, "")
     return None
 
@@ -62,7 +69,7 @@ def x_sub_local(**kwargs: Any) -> None:
 
 def x_sub_tempfile(**kwargs: Any) -> None:
     varname = kwargs["match"]
-    subvarset, varname = _state.get_subvarset(varname, kwargs["metacommandline"])
+    subvarset, varname = get_subvarset(varname, kwargs["metacommandline"])
     subvarset.add_substitution(varname, _state.tempfiles.new_temp_fn())
     return None
 
@@ -78,7 +85,7 @@ def x_sub_ini(**kwargs: Any) -> None:
         varsect = cp.items(ini_sect)
         for sub, repl in varsect:
             if not _state.subvars.var_name_ok(sub):
-                raise _state.ErrInfo(type="error", other_msg=f"Invalid variable name in SUB_INI file: {sub}")
+                raise ErrInfo(type="error", other_msg=f"Invalid variable name in SUB_INI file: {sub}")
             _state.subvars.add_substitution(sub, repl)
 
 
@@ -94,15 +101,15 @@ def x_sub_querystring(**kwargs: Any) -> None:
 
 def x_sub_encrypt(**kwargs: Any) -> None:
     varname = kwargs["match"]
-    subvarset, varname = _state.get_subvarset(varname, kwargs["metacommandline"])
-    subvarset.add_substitution(varname, _state.Encrypt().encrypt(kwargs["plaintext"]))
+    subvarset, varname = get_subvarset(varname, kwargs["metacommandline"])
+    subvarset.add_substitution(varname, Encrypt().encrypt(kwargs["plaintext"]))
     return None
 
 
 def x_sub_decrypt(**kwargs: Any) -> None:
     varname = kwargs["match"]
-    subvarset, varname = _state.get_subvarset(varname, kwargs["metacommandline"])
-    subvarset.add_substitution(varname, _state.Encrypt().decrypt(kwargs["crypttext"]))
+    subvarset, varname = get_subvarset(varname, kwargs["metacommandline"])
+    subvarset.add_substitution(varname, Encrypt().decrypt(kwargs["crypttext"]))
     return None
 
 
@@ -110,16 +117,16 @@ def x_subdata(**kwargs: Any) -> None:
     varname = kwargs["match"]
     sql = f"select * from {kwargs['datasource']};"
     db = _state.dbs.current()
-    subvarset, varname = _state.get_subvarset(varname, kwargs["metacommandline"])
+    subvarset, varname = get_subvarset(varname, kwargs["metacommandline"])
     subvarset.remove_substitution(varname)
     try:
         _, rec = db.select_rowsource(sql)
-    except _state.ErrInfo:
+    except ErrInfo:
         raise
     except Exception:
-        raise _state.ErrInfo(
+        raise ErrInfo(
             type="exception",
-            exception_msg=_state.exception_desc(),
+            exception_msg=exception_desc(),
             other_msg=f"Can't get headers and rows from {sql}.",
         )
     try:
@@ -139,19 +146,19 @@ def x_subdata(**kwargs: Any) -> None:
 def x_selectsub(**kwargs: Any) -> None:
     sql = f"select * from {kwargs['datasource']};"
     db = _state.dbs.current()
-    script, line_no = _state.current_script_line()
+    script, line_no = current_script_line()
     nodatamsg = (
         f"There are no data in {kwargs['datasource']} to use with the SELECT_SUB metacommand "
         f"(script {script}, line {line_no})."
     )
     try:
         hdrs, rec = db.select_rowsource(sql)
-    except _state.ErrInfo:
+    except ErrInfo:
         raise
     except Exception:
-        raise _state.ErrInfo(
+        raise ErrInfo(
             type="exception",
-            exception_msg=_state.exception_desc(),
+            exception_msg=exception_desc(),
             other_msg=f"Can't get headers and rows from {sql}.",
         )
     for subvar in hdrs:
@@ -165,7 +172,7 @@ def x_selectsub(**kwargs: Any) -> None:
     except StopIteration:
         row1 = None
     except Exception:
-        raise _state.ErrInfo(type="exception", exception_msg=_state.exception_desc(), other_msg=nodatamsg)
+        raise ErrInfo(type="exception", exception_msg=exception_desc(), other_msg=nodatamsg)
     if row1:
         for i, item in enumerate(row1):
             if item is None:
@@ -189,20 +196,20 @@ def x_prompt_selectsub(**kwargs: Any) -> None:
     table = kwargs["table"]
     msg = kwargs["msg"]
     cont = kwargs["cont"]
-    help_url = _state.unquoted(kwargs["help"])
+    help_url = unquoted(kwargs["help"])
     db = _state.dbs.current()
     sq_name = db.schema_qualified_table_name(schema, table)
     sql = f"select * from {sq_name};"
     hdrs, rows = db.select_data(sql)
     if len(rows) == 0:
-        raise _state.ErrInfo(type="error", other_msg=f"The table {sq_name} has no rows to display.")
+        raise ErrInfo(type="error", other_msg=f"The table {sq_name} has no rows to display.")
     for subvar in hdrs:
         subvar = "@" + subvar
         _state.subvars.remove_substitution(subvar)
     btns = [("OK", 1, "O")]
     if cont:
         btns.append(("Continue", 2, "<Return>"))
-    _state.enable_gui()
+    enable_gui()
     return_queue = _queue.Queue()
     gui_args = {
         "title": "Select data",
@@ -212,14 +219,14 @@ def x_prompt_selectsub(**kwargs: Any) -> None:
         "rowset": rows,
         "help_url": help_url,
     }
-    _state.gui_manager_queue.put(_state.GuiSpec(_state.GUI_SELECTSUB, gui_args, return_queue))
+    _state.gui_manager_queue.put(GuiSpec(GUI_SELECTSUB, gui_args, return_queue))
     user_response = return_queue.get(block=True)
     btn_val = user_response["button"]
     return_val = user_response["return_value"]
     selected_row = None
     if btn_val and btn_val == 1:
         selected_row = rows[int(return_val[0])]
-    script, line_no = _state.current_script_line()
+    script, line_no = current_script_line()
     if btn_val is None or (btn_val == 1 and selected_row is None):
         if _state.status.cancel_halt:
             _state.exec_log.log_exit_halt(
@@ -227,7 +234,7 @@ def x_prompt_selectsub(**kwargs: Any) -> None:
                 line_no,
                 msg=f"Halted from prompt for row of {sq_name} on line {line_no} of {script}",
             )
-            _state.exit_now(2, None)
+            exit_now(2, None)
     else:
         if btn_val == 1:
             for i, item in enumerate(selected_row):
@@ -342,7 +349,7 @@ def x_reset_counters(**kwargs: Any) -> None:
 def x_set_counter(**kwargs: Any) -> None:
     ctr_no = int(kwargs["counter_no"])
     ctr_expr = kwargs["value"]
-    _state.counters.set_counter(ctr_no, int(math.floor(_state.NumericParser(ctr_expr).parse().eval())))
+    _state.counters.set_counter(ctr_no, int(math.floor(NumericParser(ctr_expr).parse().eval())))
 
 
 def x_max_int(**kwargs: Any) -> None:

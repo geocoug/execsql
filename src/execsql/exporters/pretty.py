@@ -14,6 +14,9 @@ from typing import Any, Optional, List
 
 import execsql.state as _state
 from execsql.exporters.zip import ZipWriter
+from execsql.exceptions import ErrInfo
+from execsql.utils.errors import exception_desc
+from execsql.utils.fileio import filewriter_close
 
 
 def prettyprint_rowset(
@@ -43,9 +46,9 @@ def prettyprint_rowset(
         try:
             rows = list(rows)
         except Exception:
-            raise _state.ErrInfo(
+            raise ErrInfo(
                 "exception",
-                exception_msg=_state.exception_desc(),
+                exception_msg=exception_desc(),
                 other_msg="Can't create a list in memory of the data to be displayed as formatted text.",
             )
     rcols = range(len(colhdrs))
@@ -68,7 +71,7 @@ def prettyprint_rowset(
         if zipfile is None:
             from execsql.utils.fileio import EncodedFile
 
-            _state.filewriter_close(output_dest)
+            filewriter_close(output_dest)
             if append:
                 ofile = EncodedFile(output_dest, _state.conf.output_encoding).open("a")
             else:

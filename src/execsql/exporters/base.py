@@ -19,6 +19,9 @@ import re
 from typing import Any, Optional, List
 
 import execsql.state as _state
+from execsql.script import current_script_line
+from execsql.utils.errors import file_size_date
+from execsql.utils.gui import ConsoleUIError
 
 
 class ExportRecord:
@@ -38,9 +41,9 @@ class ExportRecord:
         else:
             fpath, fname = os.path.split(os.path.abspath(outfile))
             zfname = None
-        script, lno = _state.current_script_line()
+        script, lno = current_script_line()
         spath, sname = os.path.split(os.path.abspath(script))
-        ssz, sdt = _state.file_size_date(script)
+        ssz, sdt = file_size_date(script)
         db = _state.dbs.current()
         svr = db.server_name
         dbn = db.db_name
@@ -122,7 +125,7 @@ class WriteSpec:
             if (not self.outfile) or self.tee:
                 try:
                     _state.output.write(msg.encode(conf.output_encoding))
-                except _state.ConsoleUIError as e:
+                except ConsoleUIError as e:
                     _state.output.reset()
                     _state.exec_log.log_status_info(
                         f"Console UI write failed (message {{{e.value}}}); output reset to stdout.",

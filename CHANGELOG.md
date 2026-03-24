@@ -37,6 +37,7 @@ ______________________________________________________________________
 - `itertools` and `base64` imports in `utils/crypto.py` split onto separate lines.
 - `xml.py` local variable `uhdrs` renamed `str_hdrs` and loop corrected to iterate over the string-converted headers.
 - Test `conftest.py` updated to use `_state.reset()` before and after each test instead of manually saving and restoring `_state.conf`.
+- Deferred re-exports removed from `state.py` (was ~160 lines at the bottom of the module). All ~28 call-site modules now import names directly from their canonical source modules (`script`, `utils.fileio`, `utils.gui`, `parser`, etc.) rather than via `_state.X`. No behavior change; `state.py` reduced from ~488 to ~317 lines.
 
 ### Removed
 

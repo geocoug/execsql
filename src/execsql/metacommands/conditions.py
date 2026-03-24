@@ -1,4 +1,5 @@
 from __future__ import annotations
+from execsql.exceptions import ErrInfo
 
 """
 Conditional test handler functions for execsql.
@@ -19,6 +20,13 @@ from typing import Any, Callable
 
 import execsql.state as _state
 from execsql.utils.regex import ins_fn_rxs, ins_rxs
+from execsql.parser import CondParser
+from execsql.script import MetaCommandList
+from execsql.types import DT_Boolean, DT_Date, DT_Timestamp, DT_TimestampTZ
+from execsql.utils.datetime import parse_datetime
+from execsql.utils.errors import exception_desc
+from execsql.utils.gui import gui_console_isrunning
+from execsql.utils.strings import unquoted
 
 
 def xf_contains(**kwargs: Any) -> bool:
@@ -53,10 +61,10 @@ def xf_hasrows(**kwargs: Any) -> bool:
     sql = f"select count(*) from {queryname};"
     try:
         hdrs, rec = _state.dbs.current().select_data(sql)
-    except _state.ErrInfo:
+    except ErrInfo:
         raise
     except Exception:
-        raise _state.ErrInfo("db", sql, exception_msg=_state.exception_desc())
+        raise ErrInfo("db", sql, exception_msg=exception_desc())
     nrows = rec[0][0]
     return nrows > 0
 
@@ -115,7 +123,7 @@ def xf_sub_empty(**kwargs: Any) -> bool:
     else:
         subvarset = _state.commandliststack[-1].paramvals
     if not subvarset.sub_exists(varname):
-        raise _state.ErrInfo(
+        raise ErrInfo(
             type="cmd",
             command_text=kwargs["metacommandline"],
             other_msg=f"Unrecognized substitution variable name: {varname}",
@@ -136,10 +144,10 @@ def xf_equals(**kwargs: Any) -> bool:
     converters = (
         int,
         float,
-        _state.DT_Timestamp().from_data,
-        _state.DT_TimestampTZ().from_data,
-        _state.DT_Date().from_data,
-        _state.DT_Boolean().from_data,
+        DT_Timestamp().from_data,
+        DT_TimestampTZ().from_data,
+        DT_Date().from_data,
+        DT_Boolean().from_data,
     )
     for convf in converters:
         try:
@@ -171,7 +179,7 @@ def xf_iszero(**kwargs: Any) -> bool:
     try:
         v = float(val)
     except Exception:
-        raise _state.ErrInfo(
+        raise ErrInfo(
             type="cmd",
             command_text=kwargs["metacommandline"],
             other_msg=f"The value {{{val}}} is not numeric.",
@@ -186,7 +194,7 @@ def xf_isgt(**kwargs: Any) -> bool:
         v1 = float(val1)
         v2 = float(val2)
     except Exception:
-        raise _state.ErrInfo(
+        raise ErrInfo(
             type="cmd",
             command_text=kwargs["metacommandline"],
             other_msg=f"Values {{{val1}}} and {{{val2}}} are not both numeric.",
@@ -201,7 +209,7 @@ def xf_isgte(**kwargs: Any) -> bool:
         v1 = float(val1)
         v2 = float(val2)
     except Exception:
-        raise _state.ErrInfo(
+        raise ErrInfo(
             type="cmd",
             command_text=kwargs["metacommandline"],
             other_msg=f"Values {{{val1}}} and {{{val2}}} are not both numeric.",
@@ -210,11 +218,11 @@ def xf_isgte(**kwargs: Any) -> bool:
 
 
 def xf_boolliteral(**kwargs: Any) -> bool:
-    return _state.unquoted(kwargs["value"].strip()).lower() in ("true", "yes", "1")
+    return unquoted(kwargs["value"].strip()).lower() in ("true", "yes", "1")
 
 
 def xf_istrue(**kwargs: Any) -> bool:
-    return _state.unquoted(kwargs["value"].strip()).lower() in ("yes", "y", "true", "t", "1")
+    return unquoted(kwargs["value"].strip()).lower() in ("yes", "y", "true", "t", "1")
 
 
 def xf_dbms(**kwargs: Any) -> bool:
@@ -249,33 +257,33 @@ def xf_metacommanderror(**kwargs: Any) -> bool:
 
 
 def xf_console(**kwargs: Any) -> bool:
-    return _state.gui_console_isrunning()
+    return gui_console_isrunning()
 
 
 def xf_newer_file(**kwargs: Any) -> bool:
     file1 = kwargs["file1"]
     file2 = kwargs["file2"]
     if not os.path.exists(file1):
-        raise _state.ErrInfo(type="cmd", other_msg=f"File {file1} does not exist.")
+        raise ErrInfo(type="cmd", other_msg=f"File {file1} does not exist.")
     if not os.path.exists(file2):
-        raise _state.ErrInfo(type="cmd", other_msg=f"File {file2} does not exist.")
+        raise ErrInfo(type="cmd", other_msg=f"File {file2} does not exist.")
     return os.stat(file1).st_mtime > os.stat(file2).st_mtime
 
 
 def xf_newer_date(**kwargs: Any) -> bool:
     file1 = kwargs["file1"]
-    datestr = _state.unquoted(kwargs["datestr"])
+    datestr = unquoted(kwargs["datestr"])
     if not os.path.exists(file1):
-        raise _state.ErrInfo(type="cmd", other_msg=f"File {file1} does not exist.")
-    dt_value = _state.parse_datetime(datestr)
+        raise ErrInfo(type="cmd", other_msg=f"File {file1} does not exist.")
+    dt_value = parse_datetime(datestr)
     if not dt_value:
-        raise _state.ErrInfo(type="cmd", other_msg=f"{datestr} can't be interpreted as a date/time.")
+        raise ErrInfo(type="cmd", other_msg=f"{datestr} can't be interpreted as a date/time.")
     return os.stat(file1).st_mtime > time.mktime(dt_value.timetuple())
 
 
 def build_conditional_table() -> Any:
     """Construct and return the conditional predicate dispatch table."""
-    mcl = _state.MetaCommandList()
+    mcl = MetaCommandList()
 
     # CONTAINS
     mcl.add(
@@ -607,11 +615,11 @@ CONDITIONAL_TABLE = build_conditional_table()
 
 
 def xcmd_test(teststr: str) -> bool:
-    result = _state.CondParser(teststr).parse().eval()
+    result = CondParser(teststr).parse().eval()
     if result is not None:
         return result
     else:
-        raise _state.ErrInfo(type="cmd", command_text=teststr, other_msg="Unrecognized conditional")
+        raise ErrInfo(type="cmd", command_text=teststr, other_msg="Unrecognized conditional")
 
 
 def file_size_date(filename: str) -> tuple[int, str]:

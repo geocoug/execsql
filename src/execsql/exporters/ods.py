@@ -18,6 +18,11 @@ from typing import Any, Optional, List
 
 import execsql.state as _state
 from execsql.exceptions import OdsFileError
+from execsql.exceptions import ErrInfo
+from execsql.script import current_script_line
+from execsql.utils.errors import exception_desc, fatal_error
+from execsql.utils.fileio import filewriter_close
+from execsql.utils.strings import unquoted
 
 
 class OdsFile:
@@ -34,7 +39,7 @@ class OdsFile:
             import of.number
             import of.style
         except ImportError:
-            _state.fatal_error("The odfpy library is needed to create OpenDocument spreadsheets.")
+            fatal_error("The odfpy library is needed to create OpenDocument spreadsheets.")
         self.filename = None
         self.wbk = None
         self.cell_style_names = []
@@ -284,7 +289,7 @@ def export_ods(
     else:
         sheet_name = sheetname or "Sheet1"
         if os.path.isfile(outfile):
-            _state.filewriter_close(outfile)
+            filewriter_close(outfile)
             os.unlink(outfile)
     wbk = OdsFile()
     wbk.open(outfile)
@@ -308,7 +313,7 @@ def export_ods(
     # Add information to the "Datasheets" sheet.
     datasheetlist = wbk.sheet_named(datasheet_name)
     if datasheetlist:
-        script, lno = _state.current_script_line()
+        script, lno = current_script_line()
         if querytext:
             src = f"{querytext} with database {_state.dbs.current().name()}, with script {os.path.abspath(script)}, line {lno}"
         else:
@@ -337,10 +342,10 @@ def write_query_to_ods(
 ) -> None:
     try:
         hdrs, rows = db.select_rowsource(select_stmt)
-    except _state.ErrInfo:
+    except ErrInfo:
         raise
     except Exception:
-        raise _state.ErrInfo("db", select_stmt, exception_msg=_state.exception_desc())
+        raise ErrInfo("db", select_stmt, exception_msg=exception_desc())
     export_ods(outfile, hdrs, rows, append, select_stmt, sheetname, desc)
 
 
@@ -360,7 +365,7 @@ def write_queries_to_ods(
         descriptions = [d.strip() for d in desc.split(",")]
         one_desc = len(descriptions) != len(tables)
     if os.path.isfile(outfile) and not append:
-        _state.filewriter_close(outfile)
+        filewriter_close(outfile)
         os.unlink(outfile)
     wbk = OdsFile()
     wbk.open(outfile)
@@ -378,13 +383,13 @@ def write_queries_to_ods(
         if "." in t:
             st = t.split(".")
             if len(st) != 2:
-                raise _state.ErrInfo("cmd", other_msg=f"Unrecognized table specification in <{t}>")
+                raise ErrInfo("cmd", other_msg=f"Unrecognized table specification in <{t}>")
             if len(st) == 1:
-                tblname = _state.unquoted(st[0])
+                tblname = unquoted(st[0])
             else:
-                tblname = _state.unquoted(st[1])
+                tblname = unquoted(st[1])
         else:
-            tblname = _state.unquoted(t)
+            tblname = unquoted(t)
         # Get next sheet number for sheet name
         sheet_names = wbk.sheetnames()
         sheet_name = tblname
@@ -398,10 +403,10 @@ def write_queries_to_ods(
         select_stmt = f"select * from {t};"
         try:
             hdrs, rows = db.select_rowsource(select_stmt)
-        except _state.ErrInfo:
+        except ErrInfo:
             raise
         except Exception:
-            raise _state.ErrInfo("db", select_stmt, exception_msg=_state.exception_desc())
+            raise ErrInfo("db", select_stmt, exception_msg=exception_desc())
         # Add the data to a new sheet.
         tbl = wbk.new_sheet(sheet_name)
         wbk.add_row_to_sheet(hdrs, tbl, header=True)
@@ -419,7 +424,7 @@ def write_queries_to_ods(
                 d = descriptions[i]
         datasheetlist = wbk.sheet_named(inventory_name)
         if datasheetlist:
-            script, lno = _state.current_script_line()
+            script, lno = current_script_line()
             src = f"From database {_state.dbs.current().name()}, with script {os.path.abspath(script)}, line {lno}"
             wbk.add_row_to_sheet(
                 (

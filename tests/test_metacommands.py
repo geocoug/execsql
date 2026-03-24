@@ -29,6 +29,7 @@ from typer.testing import CliRunner
 
 from execsql.cli import app
 import execsql.state as _state
+from execsql.exceptions import ErrInfo
 
 _runner = CliRunner()
 
@@ -1220,21 +1221,21 @@ class TestConditionsErrorPaths:
         from execsql.metacommands.conditions import xf_iszero
         import execsql.state as _state
 
-        with pytest.raises(_state.ErrInfo):
+        with pytest.raises(ErrInfo):
             xf_iszero(value="notanumber", metacommandline="is_zero(notanumber)")
 
     def test_xf_isgt_nonnumeric_raises(self):
         from execsql.metacommands.conditions import xf_isgt
         import execsql.state as _state
 
-        with pytest.raises(_state.ErrInfo):
+        with pytest.raises(ErrInfo):
             xf_isgt(value1="abc", value2="5", metacommandline="is_gt(abc, 5)")
 
     def test_xf_isgte_nonnumeric_raises(self):
         from execsql.metacommands.conditions import xf_isgte
         import execsql.state as _state
 
-        with pytest.raises(_state.ErrInfo):
+        with pytest.raises(ErrInfo):
             xf_isgte(value1="abc", value2="5", metacommandline="is_gte(abc, 5)")
 
     def test_xf_newer_file_missing_file1_raises(self, tmp_path):
@@ -1243,7 +1244,7 @@ class TestConditionsErrorPaths:
 
         existing = tmp_path / "exists.txt"
         existing.write_text("here")
-        with pytest.raises(_state.ErrInfo):
+        with pytest.raises(ErrInfo):
             xf_newer_file(file1="/no/such/file.txt", file2=str(existing))
 
     def test_xf_newer_file_missing_file2_raises(self, tmp_path):
@@ -1252,14 +1253,14 @@ class TestConditionsErrorPaths:
 
         existing = tmp_path / "exists.txt"
         existing.write_text("here")
-        with pytest.raises(_state.ErrInfo):
+        with pytest.raises(ErrInfo):
             xf_newer_file(file1=str(existing), file2="/no/such/file.txt")
 
     def test_xf_newer_date_missing_file_raises(self):
         from execsql.metacommands.conditions import xf_newer_date
         import execsql.state as _state
 
-        with pytest.raises(_state.ErrInfo):
+        with pytest.raises(ErrInfo):
             xf_newer_date(file1="/no/such/file.txt", datestr="2020-01-01")
 
     def test_xf_newer_date_invalid_date_raises(self, tmp_path):
@@ -1268,7 +1269,7 @@ class TestConditionsErrorPaths:
 
         f = tmp_path / "f.txt"
         f.write_text("data")
-        with pytest.raises(_state.ErrInfo):
+        with pytest.raises(ErrInfo):
             xf_newer_date(file1=str(f), datestr="not-a-date")
 
 

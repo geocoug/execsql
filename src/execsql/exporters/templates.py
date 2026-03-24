@@ -12,6 +12,9 @@ variants.  The Jinja2 template processor is loaded lazily when selected.
 from typing import Any, Optional
 
 import execsql.state as _state
+from execsql.exceptions import ErrInfo
+from execsql.utils.errors import fatal_error
+from execsql.utils.fileio import filewriter_close
 
 
 class StrTemplateReport:
@@ -48,7 +51,7 @@ class StrTemplateReport:
             ofile = _state.output
         else:
             if zipfile is None:
-                _state.filewriter_close(output_dest)
+                filewriter_close(output_dest)
                 if append:
                     ofile = EncodedFile(output_dest, conf.output_encoding).open("a")
                 else:
@@ -68,7 +71,7 @@ class JinjaTemplateReport:
         try:
             import jinja2
         except ImportError:
-            _state.fatal_error(
+            fatal_error(
                 "The jinja2 library is required to produce reports with the Jinja2 templating system.   See http://jinja.pocoo.org/",
             )
         conf = _state.conf
@@ -98,7 +101,7 @@ class JinjaTemplateReport:
             ofile = _state.output
         else:
             if zipfile is None:
-                _state.filewriter_close(output_dest)
+                filewriter_close(output_dest)
                 if append:
                     ofile = EncodedFile(output_dest, conf.output_encoding).open("a")
                 else:
@@ -108,9 +111,9 @@ class JinjaTemplateReport:
         try:
             ofile.write(self.template.render(headers=headers, datatable=data_dict_rows))
         except jinja2.TemplateSyntaxError as e:
-            raise _state.ErrInfo("error", other_msg=e.message + f" on template line {e.lineno}")
+            raise ErrInfo("error", other_msg=e.message + f" on template line {e.lineno}")
         except jinja2.TemplateError as e:
-            raise _state.ErrInfo("error", other_msg=f"Jinja2 template error ({e.message})")
+            raise ErrInfo("error", other_msg=f"Jinja2 template error ({e.message})")
         except:
             raise
         if output_dest != "stdout":

@@ -14,20 +14,39 @@ import subprocess
 from typing import Any
 
 import execsql.state as _state
+from execsql.exceptions import ErrInfo
+from execsql.exporters.base import WriteSpec
+from execsql.script import ScriptExecSpec, current_script_line
+from execsql.utils.errors import exception_desc
+from execsql.utils.fileio import filewriter_close_all_after_write
+from execsql.utils.gui import (
+    gui_console_height,
+    gui_console_hide,
+    gui_console_off,
+    gui_console_on,
+    gui_console_progress,
+    gui_console_save,
+    gui_console_show,
+    gui_console_status,
+    gui_console_wait_user,
+    gui_console_width,
+)
+from execsql.utils.mail import MailSpec, Mailer
+from execsql.utils.strings import is_doublequoted
 
 
 def x_system_cmd(**kwargs: Any) -> None:
     syscmd = kwargs["command"]
     cont = kwargs["continue"]
-    script, lno = _state.current_script_line()
+    script, lno = current_script_line()
     _state.exec_log.log_user_msg(f"System command on line {lno} of script {script}: {syscmd}")
-    _state.filewriter_close_all_after_write()
+    filewriter_close_all_after_write()
     if os.name != "posix":
         syscmd = syscmd.replace("\\", "\\\\")
         cmdlist = shlex.split(syscmd)
     else:
         cmdlist = shlex.split(syscmd, posix=True)
-    cmdargs = ['"' + cmd + '"' if "&" in cmd and not _state.is_doublequoted(cmd) else cmd for cmd in cmdlist]
+    cmdargs = ['"' + cmd + '"' if "&" in cmd and not is_doublequoted(cmd) else cmd for cmd in cmdlist]
     if cont is None:
         returncode = subprocess.call(cmdargs)
         _state.subvars.add_substitution("$SYSTEM_CMD_EXIT_STATUS", str(returncode))
@@ -43,7 +62,7 @@ def x_email(**kwargs: Any) -> None:
     msg = kwargs["msg"]
     msg_file = kwargs["msg_file"]
     att_file = kwargs["att_file"]
-    m = _state.Mailer()
+    m = Mailer()
     m.sendmail(from_addr, to_addr, subject, msg, msg_file, att_file)
 
 
@@ -73,9 +92,9 @@ def x_log_datavars(**kwargs: Any) -> None:
 def x_console(**kwargs: Any) -> None:
     onoff = kwargs["onoff"].lower()
     if onoff == "on":
-        _state.gui_console_on()
+        gui_console_on()
     else:
-        _state.gui_console_off()
+        gui_console_off()
 
 
 def x_consoleprogress(**kwargs: Any) -> None:
@@ -83,12 +102,12 @@ def x_consoleprogress(**kwargs: Any) -> None:
     total = kwargs["total"]
     if total:
         num = 100 * num / float(total)
-    _state.gui_console_progress(num)
+    gui_console_progress(num)
 
 
 def x_consolewait(**kwargs: Any) -> None:
     message = kwargs["message"]
-    _state.gui_console_wait_user(message)
+    gui_console_wait_user(message)
 
 
 def x_consolewait_onerror(**kwargs: Any) -> None:
@@ -104,39 +123,39 @@ def x_consolewait_whendone(**kwargs: Any) -> None:
 def x_console_hideshow(**kwargs: Any) -> None:
     hideshow = kwargs["hideshow"].lower()
     if hideshow == "hide":
-        _state.gui_console_hide()
+        gui_console_hide()
     else:
-        _state.gui_console_show()
+        gui_console_show()
 
 
 def x_consolewidth(**kwargs: Any) -> None:
     width = kwargs["width"]
     _state.conf.gui_console_width = int(width)
-    _state.gui_console_width(width)
+    gui_console_width(width)
 
 
 def x_consoleheight(**kwargs: Any) -> None:
     height = kwargs["height"]
     _state.conf.gui_console_height = int(height)
-    _state.gui_console_height(height)
+    gui_console_height(height)
 
 
 def x_consolestatus(**kwargs: Any) -> None:
     message = kwargs["message"]
-    _state.gui_console_status(message)
+    gui_console_status(message)
 
 
 def x_consolesave(**kwargs: Any) -> None:
     fn = kwargs["filename"]
     ap = kwargs["append"]
     append = ap is not None
-    _state.gui_console_save(fn, append)
+    gui_console_save(fn, append)
 
 
 def x_cancel_halt(**kwargs: Any) -> None:
     flag = kwargs["onoff"].lower()
     if flag not in ("on", "off", "yes", "no", "true", "false"):
-        raise _state.ErrInfo(
+        raise ErrInfo(
             type="cmd",
             command_text=kwargs["metacommandline"],
             other_msg=f"Unrecognized flag for handling GUI cancellations: {flag}",
@@ -154,7 +173,7 @@ def x_cancel_halt_write(**kwargs: Any) -> None:
     tee = kwargs["tee"]
     tee = False if not tee else True
     outf = kwargs["filename"]
-    _state.cancel_halt_writespec = _state.WriteSpec(message=msg, dest=outf, tee=tee)
+    _state.cancel_halt_writespec = WriteSpec(message=msg, dest=outf, tee=tee)
 
 
 def x_cancel_halt_email_clear(**kwargs: Any) -> None:
@@ -168,11 +187,11 @@ def x_cancel_halt_email(**kwargs: Any) -> None:
     msg = kwargs["msg"]
     msg_file = kwargs["msg_file"]
     att_file = kwargs["att_file"]
-    _state.cancel_halt_mailspec = _state.MailSpec(from_addr, to_addr, subject, msg, msg_file, att_file)
+    _state.cancel_halt_mailspec = MailSpec(from_addr, to_addr, subject, msg, msg_file, att_file)
 
 
 def x_cancel_halt_exec(**kwargs: Any) -> None:
-    _state.cancel_halt_exec = _state.ScriptExecSpec(**kwargs)
+    _state.cancel_halt_exec = ScriptExecSpec(**kwargs)
 
 
 def x_cancel_halt_exec_clear(**kwargs: Any) -> None:
@@ -188,7 +207,7 @@ def x_error_halt_write(**kwargs: Any) -> None:
     tee = kwargs["tee"]
     tee = False if not tee else True
     outf = kwargs["filename"]
-    _state.err_halt_writespec = _state.WriteSpec(message=msg, dest=outf, tee=tee)
+    _state.err_halt_writespec = WriteSpec(message=msg, dest=outf, tee=tee)
 
 
 def x_error_halt_email_clear(**kwargs: Any) -> None:
@@ -202,11 +221,11 @@ def x_error_halt_email(**kwargs: Any) -> None:
     msg = kwargs["msg"]
     msg_file = kwargs["msg_file"]
     att_file = kwargs["att_file"]
-    _state.err_halt_email = _state.MailSpec(from_addr, to_addr, subject, msg, msg_file, att_file)
+    _state.err_halt_email = MailSpec(from_addr, to_addr, subject, msg, msg_file, att_file)
 
 
 def x_error_halt_exec(**kwargs: Any) -> None:
-    _state.err_halt_exec = _state.ScriptExecSpec(**kwargs)
+    _state.err_halt_exec = ScriptExecSpec(**kwargs)
 
 
 def x_error_halt_exec_clear(**kwargs: Any) -> None:
@@ -230,8 +249,8 @@ def x_execute(**kwargs: Any) -> None:
     try:
         db.exec_cmd(sql)
         db.commit()
-    except _state.ErrInfo:
+    except ErrInfo:
         raise
     except Exception:
-        raise _state.ErrInfo("db", command_text=sql, exception_msg=_state.exception_desc())
+        raise ErrInfo("db", command_text=sql, exception_msg=exception_desc())
     return None

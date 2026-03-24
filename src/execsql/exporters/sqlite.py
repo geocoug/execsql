@@ -13,6 +13,7 @@ from typing import Any, List, Optional
 
 from execsql.exceptions import ErrInfo
 import execsql.state as _state
+from execsql.types import dbt_sqlite
 
 
 def export_sqlite(
@@ -45,7 +46,6 @@ def export_sqlite(
     # Construct and run the CREATE TABLE statement
     rowdata = list(rows)
     tablespec = DataTable(hdrs, rowdata)
-    dbt_sqlite = _state.dbt_sqlite
     sql = tablespec.create_table(dbt_sqlite, schemaname=None, tablename=tablename)
     curs = sdb.cursor()
     curs.execute(sql)

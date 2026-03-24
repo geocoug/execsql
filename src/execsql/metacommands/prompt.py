@@ -1,4 +1,5 @@
 from __future__ import annotations
+from execsql.exceptions import ErrInfo
 
 """
 Interactive user prompt metacommand handlers for execsql.
@@ -25,6 +26,35 @@ import queue as _queue
 from typing import Any
 
 import execsql.state as _state
+from execsql.script import current_script_line
+from execsql.utils.errors import exception_desc, exit_now
+from execsql.utils.fileio import EncodedFile, check_dir
+from execsql.utils.gui import (
+    ActionSpec,
+    EntrySpec,
+    GUI_ACTION,
+    GUI_COMPARE,
+    GUI_DIRECTORY,
+    GUI_DISPLAY,
+    GUI_ENTRY,
+    GUI_HALT,
+    GUI_MAP,
+    GUI_MSG,
+    GUI_OPENFILE,
+    GUI_PAUSE,
+    GUI_SAVEFILE,
+    GUI_SELECTROWS,
+    GuiSpec,
+    QUERY_CONSOLE,
+    enable_gui,
+    get_yn,
+    get_yn_win,
+    gui_connect,
+    gui_credentials,
+    pause,
+    pause_win,
+)
+from execsql.utils.strings import unquoted
 
 
 def x_prompt(**kwargs: Any) -> None:
@@ -32,13 +62,13 @@ def x_prompt(**kwargs: Any) -> None:
     schema = kwargs["schema"]
     table = kwargs["table"]
     message = kwargs["message"]
-    help_url = _state.unquoted(kwargs["help"])
+    help_url = unquoted(kwargs["help"])
     free = kwargs["free"] is not None
     sq_name = db.schema_qualified_table_name(schema, table)
-    script, line_no = _state.current_script_line()
+    script, line_no = current_script_line()
     cmd = f"select * from {sq_name};"
     colnames, rows = db.select_data(cmd)
-    _state.enable_gui()
+    enable_gui()
     return_queue = _queue.Queue()
     gui_args = {
         "title": table,
@@ -49,7 +79,7 @@ def x_prompt(**kwargs: Any) -> None:
         "help_url": help_url,
         "free": free,
     }
-    _state.gui_manager_queue.put(_state.GuiSpec(_state.GUI_DISPLAY, gui_args, return_queue))
+    _state.gui_manager_queue.put(GuiSpec(GUI_DISPLAY, gui_args, return_queue))
     if not free:
         user_response = return_queue.get(block=True)
         btn = user_response["button"]
@@ -57,7 +87,7 @@ def x_prompt(**kwargs: Any) -> None:
             if _state.status.cancel_halt:
                 msg = f"Halted from display of {sq_name}"
                 _state.exec_log.log_exit_halt(script, line_no, msg)
-                _state.exit_now(2, None)
+                exit_now(2, None)
     return None
 
 
@@ -70,14 +100,14 @@ def x_prompt_enter(**kwargs: Any) -> None:
     schema = kwargs["schema"]
     table = kwargs["table"]
     initial = kwargs["initial"]
-    help_url = _state.unquoted(kwargs["help"])
+    help_url = unquoted(kwargs["help"])
     if table is not None:
         db = _state.dbs.current()
         cmd = f"select * from {db.schema_qualified_table_name(schema, table)};"
         hdrs, rows = db.select_data(cmd)
     else:
         hdrs, rows = None, None
-    _state.enable_gui()
+    enable_gui()
     return_queue = _queue.Queue()
     gui_args = {
         "title": "Enter a value",
@@ -93,18 +123,18 @@ def x_prompt_enter(**kwargs: Any) -> None:
         "help_url": help_url,
         "free": False,
     }
-    _state.gui_manager_queue.put(_state.GuiSpec(_state.GUI_DISPLAY, gui_args, return_queue))
+    _state.gui_manager_queue.put(GuiSpec(GUI_DISPLAY, gui_args, return_queue))
     user_response = return_queue.get(block=True)
     btnval = user_response["button"]
     txtval = user_response["return_value"]
     if btnval is None:
         if _state.status.cancel_halt:
-            _state.exec_log.log_exit_halt(*_state.current_script_line(), msg="Quit from prompt to enter a SUB value.")
-            _state.exit_now(2, None)
+            _state.exec_log.log_exit_halt(*current_script_line(), msg="Quit from prompt to enter a SUB value.")
+            exit_now(2, None)
     else:
         subvarset = _state.subvars if sub_var[0] != "~" else _state.commandliststack[-1].localvars
         subvarset.add_substitution(sub_var, txtval)
-        script_name, lno = _state.current_script_line()
+        script_name, lno = current_script_line()
         if as_pw:
             _state.exec_log.log_status_info(f"Password assigned to variable {{{sub_var}}} on line {lno}.")
         else:
@@ -120,11 +150,11 @@ def x_prompt_entryform(**kwargs: Any) -> None:
     display_schema = kwargs["schemadisp"]
     display_table = kwargs["tabledisp"]
     message = kwargs["message"]
-    help_url = _state.unquoted(kwargs["help"])
+    help_url = unquoted(kwargs["help"])
     tbl1 = _state.dbs.current().schema_qualified_table_name(spec_schema, spec_table)
     try:
         if not _state.dbs.current().table_exists(spec_table, spec_schema):
-            raise _state.ErrInfo(
+            raise ErrInfo(
                 type="cmd",
                 command_text=kwargs["metacommandline"],
                 other_msg=f"Table {spec_table} does not exist",
@@ -139,7 +169,7 @@ def x_prompt_entryform(**kwargs: Any) -> None:
         cmd = f"select * from {tbl1} order by sequence;"
         curs.execute(cmd)
     if not ("sub_var" in colhdrs and "prompt" in colhdrs):
-        raise _state.ErrInfo(
+        raise ErrInfo(
             type="cmd",
             command_text=kwargs["metacommandline"],
             other_msg="The variable name and prompt are required, but missing.",
@@ -155,20 +185,20 @@ def x_prompt_entryform(**kwargs: Any) -> None:
         v = dict(zip(colhdrs, r))
         subvar = v.get("sub_var")
         if not subvar:
-            raise _state.ErrInfo(
+            raise ErrInfo(
                 type="cmd",
                 command_text=kwargs["metacommandline"],
                 other_msg="A substitution variable name must be provided for all of the entry specifications.",
             )
         if not subvar_rx.match(subvar):
-            raise _state.ErrInfo(
+            raise ErrInfo(
                 type="cmd",
                 command_text=kwargs["metacommandline"],
                 other_msg=f"Invalid substitution variable name: {subvar}",
             )
         prompt_msg = v.get("prompt")
         if not prompt_msg:
-            raise _state.ErrInfo(
+            raise ErrInfo(
                 type="cmd",
                 command_text=kwargs["metacommandline"],
                 other_msg="A prompt must be provided for all of the entry specifications.",
@@ -181,7 +211,7 @@ def x_prompt_entryform(**kwargs: Any) -> None:
                 else:
                     initial_value = str(v["initial_value"])
             except Exception:
-                raise _state.ErrInfo(
+                raise ErrInfo(
                     type="cmd",
                     command_text=kwargs["metacommandline"],
                     other_msg=f"The initial value of {v['initial_value']} can't be used.",
@@ -197,7 +227,7 @@ def x_prompt_entryform(**kwargs: Any) -> None:
                 try:
                     entry_width = int(entry_width)
                 except Exception:
-                    raise _state.ErrInfo(
+                    raise ErrInfo(
                         type="cmd",
                         command_text=kwargs["metacommandline"],
                         other_msg=f"Entry width {entry_width} is not an integer",
@@ -208,7 +238,7 @@ def x_prompt_entryform(**kwargs: Any) -> None:
                 try:
                     entry_height = int(entry_height)
                 except Exception:
-                    raise _state.ErrInfo(
+                    raise ErrInfo(
                         type="cmd",
                         command_text=kwargs["metacommandline"],
                         other_msg=f"Entry height {entry_height} is not an integer",
@@ -221,7 +251,7 @@ def x_prompt_entryform(**kwargs: Any) -> None:
                 try:
                     entry_col = int(entry_col)
                 except Exception:
-                    raise _state.ErrInfo(
+                    raise ErrInfo(
                         type="cmd",
                         command_text=kwargs["metacommandline"],
                         other_msg=f"Entry column {entry_col} is not an integer",
@@ -231,7 +261,7 @@ def x_prompt_entryform(**kwargs: Any) -> None:
         subvarset = _state.subvars if subvar[0] != "~" else _state.commandliststack[-1].localvars
         subvarset.remove_substitution(subvar)
         entry_list.append(
-            _state.EntrySpec(
+            EntrySpec(
                 subvar,
                 prompt_msg,
                 required=bool(v.get("required")),
@@ -250,7 +280,7 @@ def x_prompt_entryform(**kwargs: Any) -> None:
         db = _state.dbs.current()
         sq_name = db.schema_qualified_table_name(display_schema, display_table)
         colnames, rows = db.select_data(f"select * from {sq_name};")
-    _state.enable_gui()
+    enable_gui()
     return_queue = _queue.Queue()
     gui_args = {
         "title": "Entry",
@@ -260,11 +290,11 @@ def x_prompt_entryform(**kwargs: Any) -> None:
         "rowset": rows,
         "help_url": help_url,
     }
-    _state.gui_manager_queue.put(_state.GuiSpec(_state.GUI_ENTRY, gui_args, return_queue))
+    _state.gui_manager_queue.put(GuiSpec(GUI_ENTRY, gui_args, return_queue))
     user_response = return_queue.get(block=True)
     btn = user_response["button"]
     entries = user_response["return_value"]
-    script, line_no = _state.current_script_line()
+    script, line_no = current_script_line()
     if btn:
         for e in entries:
             if e.value:
@@ -283,7 +313,7 @@ def x_prompt_entryform(**kwargs: Any) -> None:
         if _state.status.cancel_halt:
             msg = f"Halted from entry form {tbl1}"
             _state.exec_log.log_exit_halt(script, line_no, msg)
-            _state.exit_now(2, None)
+            exit_now(2, None)
 
 
 def x_prompt_pause(**kwargs: Any) -> None:
@@ -301,20 +331,20 @@ def x_prompt_pause(**kwargs: Any) -> None:
     maxtime_secs = countdown
     if timeunit and timeunit.lower() == "minutes":
         maxtime_secs = maxtime_secs * 60
-    _state.enable_gui()
+    enable_gui()
     return_queue = _queue.Queue()
     gui_args = {
-        "title": f"Script {_state.current_script_line()[0]}",
+        "title": f"Script {current_script_line()[0]}",
         "message": msg,
         "countdown": maxtime_secs,
     }
-    _state.gui_manager_queue.put(_state.GuiSpec(_state.GUI_PAUSE, gui_args, return_queue))
+    _state.gui_manager_queue.put(GuiSpec(GUI_PAUSE, gui_args, return_queue))
     user_response = return_queue.get(block=True)
     quit = user_response["quit"]
     return_queue.task_done()
     if quit and _state.status.cancel_halt:
-        _state.exec_log.log_exit_halt(*_state.current_script_line(), msg=quitmsg)
-        _state.exit_now(2, None)
+        _state.exec_log.log_exit_halt(*current_script_line(), msg=quitmsg)
+        exit_now(2, None)
     return None
 
 
@@ -328,20 +358,20 @@ def prompt_compare(button_list: list, **kwargs: Any) -> Any:
     alias2 = kwargs["alias2"]
     pks = kwargs["pks"]
     msg = kwargs["msg"]
-    help_url = _state.unquoted(kwargs["help"])
+    help_url = unquoted(kwargs["help"])
     badaliasmsg = "Alias %s is not recognized."
     if alias1 is not None:
         try:
             db1 = _state.dbs.aliased_as(alias1)
         except Exception:
-            raise _state.ErrInfo(type="error", other_msg=badaliasmsg % alias1)
+            raise ErrInfo(type="error", other_msg=badaliasmsg % alias1)
     else:
         db1 = _state.dbs.current()
     if alias2 is not None:
         try:
             db2 = _state.dbs.aliased_as(alias2)
         except Exception:
-            raise _state.ErrInfo(type="error", other_msg=badaliasmsg % alias2)
+            raise ErrInfo(type="error", other_msg=badaliasmsg % alias2)
     else:
         db2 = _state.dbs.current()
     sq_name1 = db1.schema_qualified_table_name(schema1, table1)
@@ -350,19 +380,19 @@ def prompt_compare(button_list: list, **kwargs: Any) -> Any:
     sql2 = f"select * from {sq_name2};"
     hdrs1, rows1 = db1.select_data(sql1)
     if len(rows1) == 0:
-        raise _state.ErrInfo("error", other_msg=f"There are no data in {sq_name1}.")
+        raise ErrInfo("error", other_msg=f"There are no data in {sq_name1}.")
     hdrs2, rows2 = db2.select_data(sql2)
     if len(rows2) == 0:
-        raise _state.ErrInfo("error", other_msg=f"There are no data in {sq_name2}.")
+        raise ErrInfo("error", other_msg=f"There are no data in {sq_name2}.")
     pklist = [pk.replace('"', "").replace(" ", "") for pk in pks.split(",")]
     sidebyside = orient.lower() == "beside"
     if not all([col in hdrs1 for col in pklist]) or not all([col in hdrs2 for col in pklist]):
-        script, line_no = _state.current_script_line()
-        raise _state.ErrInfo(
+        script, line_no = current_script_line()
+        raise ErrInfo(
             type="error",
             other_msg=f"Specified primary key columns do not exist in PROMPT COMPARE metacommand on line {line_no} of {script}.",
         )
-    _state.enable_gui()
+    enable_gui()
     return_queue = _queue.Queue()
     gui_args = {
         "title": "Compare data",
@@ -376,15 +406,15 @@ def prompt_compare(button_list: list, **kwargs: Any) -> Any:
         "sidebyside": sidebyside,
         "help_url": help_url,
     }
-    _state.gui_manager_queue.put(_state.GuiSpec(_state.GUI_COMPARE, gui_args, return_queue))
+    _state.gui_manager_queue.put(GuiSpec(GUI_COMPARE, gui_args, return_queue))
     user_response = return_queue.get(block=True)
     btn = user_response["button"]
     if btn is None:
         if _state.status.cancel_halt:
-            script, line_no = _state.current_script_line()
+            script, line_no = current_script_line()
             msg = f"Halted from comparison of {sq_name1} and {sq_name2}"
             _state.exec_log.log_exit_halt(script, line_no, msg)
-            _state.exit_now(2, None)
+            exit_now(2, None)
     return btn
 
 
@@ -394,12 +424,12 @@ def x_prompt_compare(**kwargs: Any) -> None:
 
 def x_prompt_ask_compare(**kwargs: Any) -> None:
     subvar = kwargs["match"]
-    script, lno = _state.current_script_line()
+    script, lno = current_script_line()
     btn = prompt_compare([("Yes", 1, "y"), ("No", 0, "n")], **kwargs)
     if btn is None:
         if _state.status.cancel_halt:
             _state.exec_log.log_exit_halt(script, lno, msg="Quit from PROMPT ASK COMPARE metacommand")
-            _state.exit_now(2, None)
+            exit_now(2, None)
     else:
         respstr = "Yes" if btn == 1 else "No"
         subvarset = _state.subvars if subvar[0] != "~" else _state.commandliststack[-1].localvars
@@ -412,15 +442,15 @@ def x_prompt_ask(**kwargs: Any) -> None:
     subvar = kwargs["match"]
     schema = kwargs["schema"]
     table = kwargs["table"]
-    help_url = _state.unquoted(kwargs["help"])
-    script, lno = _state.current_script_line()
+    help_url = unquoted(kwargs["help"])
+    script, lno = current_script_line()
     if table is not None:
         queryname = _state.dbs.current().schema_qualified_table_name(schema, table)
         cmd = f"select * from {queryname};"
         colnames, rows = _state.dbs.current().select_data(cmd)
     else:
         colnames, rows = None, None
-    _state.enable_gui()
+    enable_gui()
     return_queue = _queue.Queue()
     gui_args = {
         "title": script,
@@ -430,13 +460,13 @@ def x_prompt_ask(**kwargs: Any) -> None:
         "rowset": rows,
         "help_url": help_url,
     }
-    _state.gui_manager_queue.put(_state.GuiSpec(_state.GUI_DISPLAY, gui_args, return_queue))
+    _state.gui_manager_queue.put(GuiSpec(GUI_DISPLAY, gui_args, return_queue))
     user_response = return_queue.get(block=True)
     btn = user_response["button"]
     if btn is None:
         if _state.status.cancel_halt:
             _state.exec_log.log_exit_halt(script, lno, msg=quitmsg)
-            _state.exit_now(2, None)
+            exit_now(2, None)
     else:
         respstr = "Yes" if btn == 1 else "No"
         subvarset = _state.subvars if subvar[0] != "~" else _state.commandliststack[-1].localvars
@@ -458,10 +488,10 @@ def x_prompt_map(**kwargs: Any) -> None:
     symbol_col = kwargs["symbol_col"]
     color_col = kwargs["color_col"]
     sq_name = db.schema_qualified_table_name(schema, table)
-    script, line_no = _state.current_script_line()
+    script, line_no = current_script_line()
     cmd = f"select * from {sq_name};"
     colnames, rows = db.select_data(cmd)
-    _state.enable_gui()
+    enable_gui()
     return_queue = _queue.Queue()
     gui_args = {
         "title": table,
@@ -475,14 +505,14 @@ def x_prompt_map(**kwargs: Any) -> None:
         "symbol_col": symbol_col,
         "color_col": color_col,
     }
-    _state.gui_manager_queue.put(_state.GuiSpec(_state.GUI_MAP, gui_args, return_queue))
+    _state.gui_manager_queue.put(GuiSpec(GUI_MAP, gui_args, return_queue))
     user_response = return_queue.get(block=True)
     btn = user_response["button"]
     if not btn:
         if _state.status.cancel_halt:
             msg = f"Halted from map of {sq_name}"
             _state.exec_log.log_exit_halt(script, line_no, msg)
-            _state.exit_now(2, None)
+            exit_now(2, None)
     return None
 
 
@@ -493,7 +523,7 @@ def x_prompt_action(**kwargs: Any) -> None:
     display_table = kwargs["tabledisp"]
     message = kwargs["message"]
     compact = kwargs["compact"]
-    help_url = _state.unquoted(kwargs["help"])
+    help_url = unquoted(kwargs["help"])
     if compact is not None:
         compact = int(compact)
     do_continue = kwargs["continue"]
@@ -502,7 +532,7 @@ def x_prompt_action(**kwargs: Any) -> None:
     tbl1 = _state.dbs.current().schema_qualified_table_name(spec_schema, spec_table)
     try:
         if not _state.dbs.current().table_exists(spec_table, spec_schema):
-            raise _state.ErrInfo(
+            raise ErrInfo(
                 type="cmd",
                 command_text=kwargs["metacommandline"],
                 other_msg=f"Table {spec_table} does not exist",
@@ -517,7 +547,7 @@ def x_prompt_action(**kwargs: Any) -> None:
         cmd = f"select * from {tbl1} order by sequence;"
         curs.execute(cmd)
     if not ("label" in colhdrs and "prompt" in colhdrs and "script" in colhdrs):
-        raise _state.ErrInfo(
+        raise ErrInfo(
             type="cmd",
             command_text=kwargs["metacommandline"],
             other_msg="The columns 'label', 'prompt', and 'script' are required, but one or more is missing.",
@@ -528,20 +558,20 @@ def x_prompt_action(**kwargs: Any) -> None:
         v = dict(zip(colhdrs, r))
         button_label = v.get("label")
         if not button_label:
-            raise _state.ErrInfo(
+            raise ErrInfo(
                 type="cmd",
                 command_text=kwargs["metacommandline"],
                 other_msg="A button label must be provided for all of the action specifications.",
             )
         prompt_msg = v.get("prompt")
         if not prompt_msg:
-            raise _state.ErrInfo(
+            raise ErrInfo(
                 type="cmd",
                 command_text=kwargs["metacommandline"],
                 other_msg="A prompt must be provided for all of the action specifications.",
             )
         action_list.append(
-            _state.ActionSpec(
+            ActionSpec(
                 button_label,
                 prompt_msg,
                 v["script"],
@@ -553,7 +583,7 @@ def x_prompt_action(**kwargs: Any) -> None:
         db = _state.dbs.current()
         sq_name = db.schema_qualified_table_name(display_schema, display_table)
         colnames, rows = db.select_data(f"select * from {sq_name};")
-    _state.enable_gui()
+    enable_gui()
     return_queue = _queue.Queue()
     gui_args = {
         "title": "Actions",
@@ -565,15 +595,15 @@ def x_prompt_action(**kwargs: Any) -> None:
         "column_headers": colnames,
         "rowset": rows,
     }
-    _state.gui_manager_queue.put(_state.GuiSpec(_state.GUI_ACTION, gui_args, return_queue))
+    _state.gui_manager_queue.put(GuiSpec(GUI_ACTION, gui_args, return_queue))
     user_response = return_queue.get(block=True)
     btn = user_response["button"]
-    script, line_no = _state.current_script_line()
+    script, line_no = current_script_line()
     if not btn:
         if _state.status.cancel_halt:
             msg = f"Halted from entry form {tbl1}"
             _state.exec_log.log_exit_halt(script, line_no, msg)
-            _state.exit_now(2, None)
+            exit_now(2, None)
 
 
 def x_prompt_savefile(**kwargs: Any) -> None:
@@ -586,19 +616,19 @@ def x_prompt_savefile(**kwargs: Any) -> None:
     try:
         subvarset = _state.subvars if sub_name[0] != "~" else _state.commandliststack[-1].localvars
         subvarset.remove_substitution(sub_name)
-        script, lno = _state.current_script_line()
+        script, lno = current_script_line()
         working_dir = startdir if startdir is not None else os.path.dirname(os.path.abspath(script))
-        _state.enable_gui()
+        enable_gui()
         return_queue = _queue.Queue()
         gui_args = {"working_dir": working_dir, "script": script}
-        _state.gui_manager_queue.put(_state.GuiSpec(_state.GUI_SAVEFILE, gui_args, return_queue))
+        _state.gui_manager_queue.put(GuiSpec(GUI_SAVEFILE, gui_args, return_queue))
         user_response = return_queue.get(block=True)
         fn = user_response["filename"]
         if not fn:
             if _state.status.cancel_halt:
                 msg = "Halted from prompt for name of file to save"
                 _state.exec_log.log_exit_halt(script, lno, msg)
-                _state.exit_now(2, None)
+                exit_now(2, None)
         else:
             if os.name != "posix":
                 fn = fn.replace("/", "\\")
@@ -639,10 +669,10 @@ def x_prompt_savefile(**kwargs: Any) -> None:
                 basefn = os.path.basename(fn)
                 root, ext = os.path.splitext(basefn)
                 subvarset5.add_substitution(sub_name5, root)
-    except (_state.ErrInfo, SystemExit):
+    except (ErrInfo, SystemExit):
         raise
     except Exception:
-        raise _state.ErrInfo(type="exception", exception_msg=_state.exception_desc())
+        raise ErrInfo(type="exception", exception_msg=exception_desc())
     return None
 
 
@@ -654,26 +684,26 @@ def x_prompt_openfile(**kwargs: Any) -> None:
     sub_name5 = kwargs["fnbase_match"]
     startdir = kwargs["startdir"]
     if sub_name2 is not None and sub_name2 == sub_name:
-        raise _state.ErrInfo(
+        raise ErrInfo(
             type="error",
             other_msg="Different values can't be assigned to the same substitution variable.",
         )
     try:
         subvarset = _state.subvars if sub_name[0] != "~" else _state.commandliststack[-1].localvars
         subvarset.remove_substitution(sub_name)
-        script, lno = _state.current_script_line()
+        script, lno = current_script_line()
         working_dir = startdir if startdir is not None else os.path.dirname(os.path.abspath(script))
-        _state.enable_gui()
+        enable_gui()
         return_queue = _queue.Queue()
         gui_args = {"working_dir": working_dir, "script": script}
-        _state.gui_manager_queue.put(_state.GuiSpec(_state.GUI_OPENFILE, gui_args, return_queue))
+        _state.gui_manager_queue.put(GuiSpec(GUI_OPENFILE, gui_args, return_queue))
         user_response = return_queue.get(block=True)
         fn = user_response["filename"]
         if not fn:
             if _state.status.cancel_halt:
                 msg = "Halted from prompt for name of file to open"
                 _state.exec_log.log_exit_halt(script, lno, msg)
-                _state.exit_now(2, None)
+                exit_now(2, None)
         else:
             if os.name != "posix":
                 fn = fn.replace("/", "\\")
@@ -708,10 +738,10 @@ def x_prompt_openfile(**kwargs: Any) -> None:
                 basefn = os.path.basename(fn)
                 root, ext = os.path.splitext(basefn)
                 subvarset5.add_substitution(sub_name5, root)
-    except (_state.ErrInfo, SystemExit):
+    except (ErrInfo, SystemExit):
         raise
     except Exception:
-        raise _state.ErrInfo(type="exception", exception_msg=_state.exception_desc())
+        raise ErrInfo(type="exception", exception_msg=exception_desc())
     return None
 
 
@@ -722,19 +752,19 @@ def x_prompt_directory(**kwargs: Any) -> None:
     try:
         subvarset = _state.subvars if sub_name[0] != "~" else _state.commandliststack[-1].localvars
         subvarset.remove_substitution(sub_name)
-        script, lno = _state.current_script_line()
+        script, lno = current_script_line()
         working_dir = startdir if startdir is not None else os.path.dirname(os.path.abspath(script))
-        _state.enable_gui()
+        enable_gui()
         return_queue = _queue.Queue()
         gui_args = {"working_dir": working_dir, "script": script}
-        _state.gui_manager_queue.put(_state.GuiSpec(_state.GUI_DIRECTORY, gui_args, return_queue))
+        _state.gui_manager_queue.put(GuiSpec(GUI_DIRECTORY, gui_args, return_queue))
         user_response = return_queue.get(block=True)
         dirname = user_response["directory"]
         if not dirname:
             if _state.status.cancel_halt:
                 msg = "Halted from prompt for name of directory"
                 _state.exec_log.log_exit_halt(script, lno, msg)
-                _state.exit_now(2, None)
+                exit_now(2, None)
         else:
             if fullpath is not None:
                 dirname = os.path.abspath(dirname)
@@ -744,10 +774,10 @@ def x_prompt_directory(**kwargs: Any) -> None:
             _state.exec_log.log_status_info(
                 f"Substitution string {sub_name} set to directory {dirname} at line {lno} of {script}",
             )
-    except (_state.ErrInfo, SystemExit):
+    except (ErrInfo, SystemExit):
         raise
     except Exception:
-        raise _state.ErrInfo(type="exception", exception_msg=_state.exception_desc())
+        raise ErrInfo(type="exception", exception_msg=exception_desc())
     return None
 
 
@@ -759,20 +789,20 @@ def prompt_select_rows(button_list: list, **kwargs: Any) -> Any:
     table2 = kwargs["table2"]
     alias2 = kwargs["alias2"]
     msg = kwargs["msg"]
-    help_url = _state.unquoted(kwargs["help"])
+    help_url = unquoted(kwargs["help"])
     badaliasmsg = "Alias %s is not recognized."
     if alias1 is not None:
         try:
             db1 = _state.dbs.aliased_as(alias1)
         except Exception:
-            raise _state.ErrInfo(type="error", other_msg=badaliasmsg % alias1)
+            raise ErrInfo(type="error", other_msg=badaliasmsg % alias1)
     else:
         db1 = _state.dbs.current()
     if alias2 is not None:
         try:
             db2 = _state.dbs.aliased_as(alias2)
         except Exception:
-            raise _state.ErrInfo(type="error", other_msg=badaliasmsg % alias2)
+            raise ErrInfo(type="error", other_msg=badaliasmsg % alias2)
     else:
         db2 = _state.dbs.current()
     sq_name1 = db1.schema_qualified_table_name(schema1, table1)
@@ -781,12 +811,12 @@ def prompt_select_rows(button_list: list, **kwargs: Any) -> Any:
     sql2 = f"select * from {sq_name2};"
     hdrs1, rows1 = db1.select_data(sql1)
     if len(rows1) == 0:
-        raise _state.ErrInfo("error", other_msg=f"There are no data in {sq_name1}.")
+        raise ErrInfo("error", other_msg=f"There are no data in {sq_name1}.")
     hdrs2, rows2 = db2.select_data(sql2)
     missing_hdrs = [hdr for hdr in hdrs1 if hdr not in hdrs2]
     if len(missing_hdrs) > 0:
-        raise _state.ErrInfo("error", other_msg=f"Columns [{', '.join(missing_hdrs)}] are missing from {sq_name2}.")
-    _state.enable_gui()
+        raise ErrInfo("error", other_msg=f"Columns [{', '.join(missing_hdrs)}] are missing from {sq_name2}.")
+    enable_gui()
     return_queue = _queue.Queue()
     gui_args = {
         "title": "Select rows",
@@ -800,15 +830,15 @@ def prompt_select_rows(button_list: list, **kwargs: Any) -> Any:
         "table2": sq_name2,
         "help_url": help_url,
     }
-    _state.gui_manager_queue.put(_state.GuiSpec(_state.GUI_SELECTROWS, gui_args, return_queue))
+    _state.gui_manager_queue.put(GuiSpec(GUI_SELECTROWS, gui_args, return_queue))
     user_response = return_queue.get(block=True)
     btn = user_response["button"]
     if btn is None:
         if _state.status.cancel_halt:
-            script, line_no = _state.current_script_line()
+            script, line_no = current_script_line()
             msg = f"Halted from selection of rows from {sq_name1} into {sq_name2}"
             _state.exec_log.log_exit_halt(script, line_no, msg)
-            _state.exit_now(2, None)
+            exit_now(2, None)
     return btn
 
 
@@ -820,22 +850,22 @@ def x_prompt_credentials(**kwargs: Any) -> None:
     message = kwargs["message"]
     user = kwargs["user"]
     pw = kwargs["pw"]
-    _state.gui_credentials(message, username=user, pwtext=pw, cmd=kwargs["metacommandline"])
+    gui_credentials(message, username=user, pwtext=pw, cmd=kwargs["metacommandline"])
     return None
 
 
 def x_prompt_connect(**kwargs: Any) -> None:
     alias = kwargs["alias"]
     message = kwargs["message"]
-    help_url = _state.unquoted(kwargs["help"])
-    _state.gui_connect(alias, message, help_url=help_url, cmd=kwargs["metacommandline"])
+    help_url = unquoted(kwargs["help"])
+    gui_connect(alias, message, help_url=help_url, cmd=kwargs["metacommandline"])
     return None
 
 
 def x_ask(**kwargs: Any) -> None:
     message = kwargs["question"]
     subvar = kwargs["match"]
-    script, lno = _state.current_script_line()
+    script, lno = current_script_line()
     if _state.gui_console:
         return_queue = _queue.Queue()
         gui_args = {
@@ -844,23 +874,23 @@ def x_ask(**kwargs: Any) -> None:
             "button_list": [("Yes", 1, "y"), ("No", 0, "n")],
             "free": False,
         }
-        _state.gui_manager_queue.put(_state.GuiSpec(_state.GUI_DISPLAY, gui_args, return_queue))
+        _state.gui_manager_queue.put(GuiSpec(GUI_DISPLAY, gui_args, return_queue))
         user_response = return_queue.get(block=True)
         btn = user_response["button"]
         if btn is None:
             if _state.status.cancel_halt:
                 _state.exec_log.log_exit_halt(script, lno, msg="Quit from ASK metacommand")
-                _state.exit_now(2, None)
+                exit_now(2, None)
         else:
             respstr = "Yes" if btn == 1 else "No"
     else:
         if os.name == "posix":
-            resp = _state.get_yn(message)
+            resp = get_yn(message)
         else:
-            resp = _state.get_yn_win(message)
+            resp = get_yn_win(message)
         if resp == chr(27):
             _state.exec_log.log_exit_halt(script, lno, msg="Quit from ASK metacommand")
-            _state.exit_now(2, None)
+            exit_now(2, None)
         else:
             respstr = "Yes" if resp == "y" else "No"
     subvarset = _state.subvars if subvar[0] != "~" else _state.commandliststack[-1].localvars
@@ -891,32 +921,32 @@ def x_pause(**kwargs: Any) -> None:
     use_gui = False
     if _state.gui_manager_thread:
         return_queue = _queue.Queue()
-        _state.gui_manager_queue.put(_state.GuiSpec(_state.QUERY_CONSOLE, {}, return_queue))
+        _state.gui_manager_queue.put(GuiSpec(QUERY_CONSOLE, {}, return_queue))
         user_response = return_queue.get(block=True)
         use_gui = user_response["console_running"]
     if use_gui or _state.conf.gui_level > 0:
-        _state.enable_gui()
+        enable_gui()
         return_queue = _queue.Queue()
         gui_args = {
-            "title": f"Script {_state.current_script_line()[0]}",
+            "title": f"Script {current_script_line()[0]}",
             "message": msg,
             "countdown": maxtime_secs,
         }
-        _state.gui_manager_queue.put(_state.GuiSpec(_state.GUI_PAUSE, gui_args, return_queue))
+        _state.gui_manager_queue.put(GuiSpec(GUI_PAUSE, gui_args, return_queue))
         user_response = return_queue.get(block=True)
         quit = user_response["quit"]
         return_queue.task_done()
     else:
         timed_out = False
         if os.name == "posix":
-            rv = _state.pause(msg, action=action, countdown=maxtime_secs, timeunit=timeunit)
+            rv = pause(msg, action=action, countdown=maxtime_secs, timeunit=timeunit)
         else:
-            rv = _state.pause_win(msg, action=action, countdown=maxtime_secs, timeunit=timeunit)
+            rv = pause_win(msg, action=action, countdown=maxtime_secs, timeunit=timeunit)
         quit = rv == 1
         timed_out = rv == 2
     if (quit or (timed_out and action == "halt")) and _state.status.cancel_halt:
-        _state.exec_log.log_exit_halt(*_state.current_script_line(), msg=quitmsg)
-        _state.exit_now(2, None)
+        _state.exec_log.log_exit_halt(*current_script_line(), msg=quitmsg)
+        exit_now(2, None)
     return None
 
 
@@ -932,8 +962,8 @@ def x_halt_msg(**kwargs: Any) -> None:
         errlevel = 3
     conf = _state.conf
     if outf:
-        _state.check_dir(outf)
-        of = _state.EncodedFile(outf, conf.output_encoding).open("a")
+        check_dir(outf)
+        of = EncodedFile(outf, conf.output_encoding).open("a")
         of.write(f"{errmsg}\n")
         of.close()
     schema = kwargs.get("schema")
@@ -945,7 +975,7 @@ def x_halt_msg(**kwargs: Any) -> None:
         headers, rows = db.select_data(sql)
     else:
         headers, rows = None, None
-    _state.enable_gui()
+    enable_gui()
     return_queue = _queue.Queue()
     gui_args = {
         "title": "HALT",
@@ -956,19 +986,19 @@ def x_halt_msg(**kwargs: Any) -> None:
         "rowset": rows,
         "help_url": None,
     }
-    _state.gui_manager_queue.put(_state.GuiSpec(_state.GUI_HALT, gui_args, return_queue))
+    _state.gui_manager_queue.put(GuiSpec(GUI_HALT, gui_args, return_queue))
     return_queue.get(block=True)
-    _state.exec_log.log_exit_halt(*_state.current_script_line(), msg=errmsg)
-    _state.exit_now(errlevel, None)
+    _state.exec_log.log_exit_halt(*current_script_line(), msg=errmsg)
+    exit_now(errlevel, None)
 
 
 def x_msg(**kwargs: Any) -> None:
     message = kwargs["message"]
-    _state.current_script_line()
-    _state.enable_gui()
+    current_script_line()
+    enable_gui()
     return_queue = _queue.Queue()
     gui_args = {"title": "Message", "message": message}
-    _state.gui_manager_queue.put(_state.GuiSpec(_state.GUI_MSG, gui_args, return_queue))
+    _state.gui_manager_queue.put(GuiSpec(GUI_MSG, gui_args, return_queue))
     return_queue.get(block=True)
     return None
 

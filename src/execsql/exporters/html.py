@@ -20,6 +20,10 @@ from typing import Any, Optional, List
 
 import execsql.state as _state
 from execsql.exporters.zip import ZipWriter
+from execsql.exceptions import ErrInfo
+from execsql.script import current_script_line
+from execsql.utils.errors import exception_desc
+from execsql.utils.fileio import filewriter_close
 
 
 def export_html(
@@ -48,7 +52,7 @@ def export_html(
             f.write("</tr>\n")
         f.write("</tbody>\n</table>\n")
 
-    script, lno = _state.current_script_line()
+    script, lno = current_script_line()
     # If not append, write a complete HTML document with header and table.
     # If append and the file does not exist, write just the table.
     # If append and the file exists, R/W up to the </body> tag, write the table, write the remainder of the input.
@@ -57,7 +61,7 @@ def export_html(
             if outfile.lower() == "stdout":
                 f = sys.stdout
             else:
-                _state.filewriter_close(outfile)
+                filewriter_close(outfile)
                 from execsql.utils.fileio import EncodedFile
 
                 ef = EncodedFile(outfile, conf.output_encoding)
@@ -112,7 +116,7 @@ def export_html(
             write_table(f)
             f.close()
         else:
-            _state.filewriter_close(outfile)
+            filewriter_close(outfile)
             from execsql.utils.fileio import EncodedFile
 
             ef = EncodedFile(outfile, conf.output_encoding)
@@ -168,13 +172,13 @@ def export_cgi_html(
             f.write("</tr>\n")
         f.write("</tbody>\n</table>\n")
 
-    script, lno = _state.current_script_line()
+    script, lno = current_script_line()
     if zipfile or not append or (append and not os.path.isfile(outfile)):
         if zipfile is None:
             if outfile.lower() == "stdout":
                 f = sys.stdout
             else:
-                _state.filewriter_close(outfile)
+                filewriter_close(outfile)
                 from execsql.utils.fileio import EncodedFile
 
                 ef = EncodedFile(outfile, conf.output_encoding)
@@ -208,10 +212,10 @@ def write_query_to_html(
 ) -> None:
     try:
         hdrs, rows = db.select_rowsource(select_stmt)
-    except _state.ErrInfo:
+    except ErrInfo:
         raise
     except Exception:
-        raise _state.ErrInfo("db", select_stmt, exception_msg=_state.exception_desc())
+        raise ErrInfo("db", select_stmt, exception_msg=exception_desc())
     export_html(outfile, hdrs, rows, append, select_stmt, desc, zipfile=zipfile)
 
 
@@ -225,8 +229,8 @@ def write_query_to_cgi_html(
 ) -> None:
     try:
         hdrs, rows = db.select_rowsource(select_stmt)
-    except _state.ErrInfo:
+    except ErrInfo:
         raise
     except Exception:
-        raise _state.ErrInfo("db", select_stmt, exception_msg=_state.exception_desc())
+        raise ErrInfo("db", select_stmt, exception_msg=exception_desc())
     export_cgi_html(outfile, hdrs, rows, append, select_stmt, desc, zipfile=zipfile)

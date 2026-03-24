@@ -210,11 +210,12 @@ from execsql.utils.regex import (
     ins_table_list_rxs,
     ins_fn_rxs,
 )
+from execsql.script import MetaCommandList
 
 
-def build_dispatch_table() -> _state.MetaCommandList:
+def build_dispatch_table() -> MetaCommandList:
     """Construct and return the complete metacommand dispatch table."""
-    mcl = _state.MetaCommandList()
+    mcl = MetaCommandList()
 
     # ------------------------------------------------------------------
     # DEBUG metacommands

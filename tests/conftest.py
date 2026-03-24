@@ -10,6 +10,7 @@ requiring a full ConfigData / database initialisation.
 
 from __future__ import annotations
 
+import contextlib
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -58,12 +59,27 @@ def minimal_conf():
 @pytest.fixture
 def noop_filewriter_close():
     """
-    Patch _state.filewriter_close (and the re-export in utils.fileio) to a
-    no-op so that exporter tests never block waiting on the FileWriter
-    subprocess.
+    Patch filewriter_close in each exporter/importer module that imports it
+    directly, so that tests never block waiting on the FileWriter subprocess.
     """
-    with (
-        patch("execsql.state.filewriter_close", return_value=None),
-        patch("execsql.utils.fileio.filewriter_close", return_value=None),
-    ):
+    targets = [
+        "execsql.utils.fileio.filewriter_close",
+        "execsql.exporters.delimited.filewriter_close",
+        "execsql.exporters.feather.filewriter_close",
+        "execsql.exporters.html.filewriter_close",
+        "execsql.exporters.json.filewriter_close",
+        "execsql.exporters.latex.filewriter_close",
+        "execsql.exporters.ods.filewriter_close",
+        "execsql.exporters.pretty.filewriter_close",
+        "execsql.exporters.raw.filewriter_close",
+        "execsql.exporters.templates.filewriter_close",
+        "execsql.exporters.values.filewriter_close",
+        "execsql.exporters.xml.filewriter_close",
+    ]
+    with contextlib.ExitStack() as stack:
+        for target in targets:
+            try:
+                stack.enter_context(patch(target, return_value=None))
+            except AttributeError:
+                pass
         yield

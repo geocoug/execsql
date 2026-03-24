@@ -15,6 +15,7 @@ from typing import Any, Optional
 
 import execsql.state as _state
 from execsql.exporters.zip import ZipWriter
+from execsql.utils.fileio import filewriter_close
 
 
 def write_query_raw(
@@ -25,7 +26,7 @@ def write_query_raw(
     zipfile: Optional[str] = None,
 ) -> None:
     if zipfile is None:
-        _state.filewriter_close(outfile)
+        filewriter_close(outfile)
         mode = "wb" if not append else "ab"
         of = io.open(outfile, mode)
     else:
@@ -47,7 +48,7 @@ def write_query_b64(outfile: str, rowsource: Any, append: bool = False, zipfile:
     import base64
 
     if zipfile is None:
-        _state.filewriter_close(outfile)
+        filewriter_close(outfile)
         mode = "wb" if not append else "ab"
         of = io.open(outfile, mode)
     else:
