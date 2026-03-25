@@ -47,6 +47,7 @@ repos:
           - mdformat-mkdocs==5.1.1
         exclude: |
           (?x)^(
+            docs/api/.*|
             docs/metacommands\.md|
             docs/documentation\.md|
             docs/examples\.md

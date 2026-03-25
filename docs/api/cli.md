@@ -16,6 +16,6 @@ members: false
 
 ## Core execution
 
-::: execsql.cli.\_run
+::: execsql.cli._run
 options:
 show_signature_annotations: false
