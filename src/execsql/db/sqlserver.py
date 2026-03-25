@@ -11,7 +11,7 @@ Server via ``pyodbc``.  Corresponds to ``-t s`` on the CLI.
 from execsql.db.base import Database
 from execsql.exceptions import ErrInfo
 from execsql.utils.errors import fatal_error
-from execsql.utils.auth import get_password
+from execsql.utils.auth import clear_stored_password, get_password, password_from_keyring
 import execsql.state as _state
 
 
@@ -74,30 +74,47 @@ class SqlServerDatabase(Database):
                 "SQL Native Client",
                 "SQL Server",
             )
-            for drv in ssdrivers:
-                if self.user:
-                    if self.password:
-                        connstr = (
-                            f"DRIVER={{{drv}}};SERVER={self.server_name};MARS_Connection=Yes; "
-                            f"DATABASE={self.db_name};Uid={self.user};Pwd={self.password}"
-                        )
+
+            def _try_drivers():
+                for drv in ssdrivers:
+                    if self.user:
+                        if self.password:
+                            connstr = (
+                                f"DRIVER={{{drv}}};SERVER={self.server_name};MARS_Connection=Yes; "
+                                f"DATABASE={self.db_name};Uid={self.user};Pwd={self.password}"
+                            )
+                        else:
+                            connstr = (
+                                f"DRIVER={{{drv}}};SERVER={self.server_name};MARS_Connection=Yes; "
+                                f"DATABASE={self.db_name};Uid={self.user}"
+                            )
                     else:
                         connstr = (
                             f"DRIVER={{{drv}}};SERVER={self.server_name};MARS_Connection=Yes; "
-                            f"DATABASE={self.db_name};Uid={self.user}"
+                            f"DATABASE={self.db_name};Trusted_Connection=yes"
                         )
-                else:
-                    connstr = (
-                        f"DRIVER={{{drv}}};SERVER={self.server_name};MARS_Connection=Yes; "
-                        f"DATABASE={self.db_name};Trusted_Connection=yes"
-                    )
-                try:
-                    self.conn = pyodbc.connect(connstr)
-                except Exception:
-                    _state.exec_log.log_status_info(f"Could not connect using: {connstr}")
-                else:
-                    _state.exec_log.log_status_info(f"Connected using: {connstr}")
-                    break
+                    try:
+                        self.conn = pyodbc.connect(connstr)
+                    except Exception:
+                        _state.exec_log.log_status_info(f"Could not connect using: {connstr}")
+                    else:
+                        _state.exec_log.log_status_info(f"Connected using: {connstr}")
+                        return True
+                return False
+
+            if not _try_drivers() and password_from_keyring():
+                # Stored credential is stale — clear it and re-prompt.
+                clear_stored_password("SQL Server", self.db_name, self.user, self.server_name)
+                self.password = get_password(
+                    "SQL Server",
+                    self.db_name,
+                    self.user,
+                    server_name=self.server_name,
+                    skip_keyring=True,
+                    other_msg="(stored credential failed — enter current password)",
+                )
+                _try_drivers()
+
             if not self.conn:
                 raise ErrInfo(
                     type="error",

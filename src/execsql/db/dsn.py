@@ -12,7 +12,7 @@ the CLI.
 from execsql.db.base import Database
 from execsql.exceptions import ErrInfo
 from execsql.utils.errors import exception_desc, fatal_error
-from execsql.utils.auth import get_password
+from execsql.utils.auth import clear_stored_password, get_password, password_from_keyring
 import execsql.state as _state
 
 
@@ -63,37 +63,55 @@ class DsnDatabase(Database):
             self.conn = None
         if self.need_passwd and self.user and self.password is None:
             self.password = get_password("DSN", self.db_name, self.user)
-        cs = "DSN=%s;"
-        try:
+
+        def _dsn_connect(autocommit: bool = False):
+            cs = "DSN=%s;"
             if self.need_passwd:
+                kwargs = {"autocommit": autocommit} if autocommit else {}
                 self.conn = pyodbc.connect(
                     f"{cs % self.db_name} Uid={self.user}; Pwd={self.password};",
+                    **kwargs,
                 )
             else:
-                self.conn = pyodbc.connect(cs % self.db_name)
-        except Exception:
-            excdesc = exception_desc()
-            if "Optional feature not implemented" in excdesc:
-                try:
-                    if self.need_passwd:
-                        self.conn = pyodbc.connect(
-                            f"{cs % self.db_name} Uid={self.user}; Pwd={self.password};",
-                            autocommit=True,
+                kwargs = {"autocommit": autocommit} if autocommit else {}
+                self.conn = pyodbc.connect(cs % self.db_name, **kwargs)
+
+        def _try_connect():
+            try:
+                _dsn_connect()
+            except Exception:
+                excdesc = exception_desc()
+                if "Optional feature not implemented" in excdesc:
+                    try:
+                        _dsn_connect(autocommit=True)
+                    except Exception:
+                        raise ErrInfo(
+                            type="exception",
+                            exception_msg=exception_desc(),
+                            other_msg=f"Can't open DSN database {self.db_name} using ODBC",
                         )
-                    else:
-                        self.conn = pyodbc.connect(cs % self.db_name, autocommit=True)
-                except Exception:
+                else:
                     raise ErrInfo(
                         type="exception",
-                        exception_msg=exception_desc(),
+                        exception_msg=excdesc,
                         other_msg=f"Can't open DSN database {self.db_name} using ODBC",
                     )
-            else:
-                raise ErrInfo(
-                    type="exception",
-                    exception_msg=excdesc,
-                    other_msg=f"Can't open DSN database {self.db_name} using ODBC",
-                )
+
+        try:
+            _try_connect()
+        except ErrInfo:
+            if not password_from_keyring():
+                raise
+            clear_stored_password("DSN", self.db_name, self.user)
+            self.password = get_password(
+                "DSN",
+                self.db_name,
+                self.user,
+                skip_keyring=True,
+                other_msg="(stored credential failed — enter current password)",
+            )
+            self.conn = None
+            _try_connect()
 
     def exec_cmd(self, querycommand: str) -> None:
         # The querycommand must be a stored procedure

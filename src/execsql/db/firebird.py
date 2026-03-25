@@ -11,7 +11,7 @@ via the ``firebird-driver`` package.  Corresponds to ``-t f`` on the CLI.
 from execsql.db.base import Database
 from execsql.exceptions import ErrInfo
 from execsql.utils.errors import exception_desc, fatal_error
-from execsql.utils.auth import get_password
+from execsql.utils.auth import clear_stored_password, get_password, password_from_keyring
 import execsql.state as _state
 
 
@@ -84,7 +84,21 @@ class FirebirdDatabase(Database):
                         self.user,
                         server_name=self.server_name,
                     )
-                self.conn = db_conn()
+                try:
+                    self.conn = db_conn()
+                except Exception:
+                    if not password_from_keyring():
+                        raise
+                    clear_stored_password("Firebird", self.db_name, self.user, self.server_name)
+                    self.password = get_password(
+                        "Firebird",
+                        self.db_name,
+                        self.user,
+                        server_name=self.server_name,
+                        skip_keyring=True,
+                        other_msg="(stored credential failed — enter current password)",
+                    )
+                    self.conn = db_conn()
             except SystemExit:
                 # If the user canceled the password prompt.
                 raise

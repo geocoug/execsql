@@ -15,7 +15,7 @@ from typing import Any
 from execsql.db.base import Database
 from execsql.exceptions import ErrInfo
 from execsql.utils.errors import exception_desc, fatal_error
-from execsql.utils.auth import get_password
+from execsql.utils.auth import clear_stored_password, get_password, password_from_keyring
 from execsql.utils.strings import encodings_match
 import execsql.state as _state
 
@@ -112,7 +112,22 @@ class PostgresDatabase(Database):
                     )
                 if self.new_db:
                     create_db(self)
-                self.conn = db_conn(self, self.db_name)
+                try:
+                    self.conn = db_conn(self, self.db_name)
+                except (ErrInfo, Exception):
+                    if not password_from_keyring():
+                        raise
+                    # Stored credential is stale — clear it and re-prompt.
+                    clear_stored_password("PostgreSQL", self.db_name, self.user, self.server_name)
+                    self.password = get_password(
+                        "PostgreSQL",
+                        self.db_name,
+                        self.user,
+                        server_name=self.server_name,
+                        skip_keyring=True,
+                        other_msg="(stored credential failed — enter current password)",
+                    )
+                    self.conn = db_conn(self, self.db_name)
             except SystemExit:
                 # If the user canceled the password prompt.
                 raise

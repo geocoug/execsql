@@ -16,6 +16,11 @@ returned without prompting.  After a successful interactive prompt the
 password is offered for storage in the keyring for future use (console
 mode only; GUI mode stores silently).
 
+If the stored credential turns out to be stale (e.g. after a password
+change), callers should use :func:`password_from_keyring` to detect
+this, call :func:`clear_stored_password` to remove the bad entry, and
+re-prompt with ``skip_keyring=True``.
+
 Keyring service names follow the pattern
 ``execsql/<db_type>/<server_or_file>/<database>``.
 """
@@ -23,6 +28,9 @@ Keyring service names follow the pattern
 import getpass
 
 import execsql.state as _state
+
+# Tracks whether the most recent get_password() call returned a keyring-stored value.
+_last_from_keyring: bool = False
 
 
 def _keyring_service(dbms_name: str, database_name: str, server_name: str | None) -> str:
@@ -52,28 +60,66 @@ def _keyring_set(service: str, username: str, password: str) -> bool:
         return False
 
 
+def _keyring_delete(service: str, username: str) -> bool:
+    """Try to remove a password from the OS keyring.  Returns True on success."""
+    try:
+        import keyring
+
+        keyring.delete_password(service, username)
+        return True
+    except Exception:
+        return False
+
+
+def password_from_keyring() -> bool:
+    """Return True if the last :func:`get_password` call used a keyring-stored value."""
+    return _last_from_keyring
+
+
+def clear_stored_password(
+    dbms_name: str,
+    database_name: str,
+    user_name: str,
+    server_name: str | None = None,
+) -> bool:
+    """Remove a stored password from the OS keyring.  Returns True on success."""
+    service = _keyring_service(dbms_name, database_name, server_name)
+    return _keyring_delete(service, user_name)
+
+
 def get_password(
     dbms_name: str,
     database_name: str,
     user_name: str,
     server_name: str | None = None,
     other_msg: str | None = None,
+    skip_keyring: bool = False,
 ) -> str:
     """Prompt the user for a database password, using the GUI if available.
 
     When ``keyring`` is installed the OS credential store is checked first.
     If a stored credential is found it is returned immediately.
+
+    Parameters
+    ----------
+    skip_keyring:
+        If True, bypass the keyring lookup and always prompt interactively.
+        Useful when a previously stored password is known to be invalid.
     """
+    global _last_from_keyring
     # Deferred imports to avoid circular dependencies at import time.
     from execsql.utils.errors import exit_now
+
+    _last_from_keyring = False
 
     # --- Keyring lookup (before any prompting) ---
     conf = _state.conf
     use_keyring = conf is None or getattr(conf, "use_keyring", True)
     service = _keyring_service(dbms_name, database_name, server_name)
-    if use_keyring:
+    if use_keyring and not skip_keyring:
         stored = _keyring_get(service, user_name)
         if stored is not None:
+            _last_from_keyring = True
             _state.upass = stored
             return stored
 

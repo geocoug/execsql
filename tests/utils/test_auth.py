@@ -10,7 +10,15 @@ from __future__ import annotations
 import types
 from unittest.mock import MagicMock, patch
 
-from execsql.utils.auth import _keyring_get, _keyring_set, _keyring_service
+from execsql.utils.auth import (
+    _keyring_delete,
+    _keyring_get,
+    _keyring_set,
+    _keyring_service,
+    clear_stored_password,
+    password_from_keyring,
+)
+import execsql.utils.auth as auth_mod
 
 
 class TestKeyringService:
@@ -78,3 +86,53 @@ class TestKeyringSet:
         with patch.dict("sys.modules", {"keyring": mock_kr}):
             assert _keyring_set("svc", "user", "pass") is True
             mock_kr.set_password.assert_called_once_with("svc", "user", "pass")
+
+
+class TestKeyringDelete:
+    def test_returns_false_when_keyring_not_installed(self):
+        with patch.dict("sys.modules", {"keyring": None}):
+            assert _keyring_delete("svc", "user") is False
+
+    def test_returns_false_on_exception(self):
+        mock_kr = _make_mock_keyring()
+        mock_kr.delete_password.side_effect = Exception("backend unavailable")
+        with patch.dict("sys.modules", {"keyring": mock_kr}):
+            assert _keyring_delete("svc", "user") is False
+
+    def test_returns_true_on_success(self):
+        mock_kr = _make_mock_keyring()
+        with patch.dict("sys.modules", {"keyring": mock_kr}):
+            assert _keyring_delete("svc", "user") is True
+            mock_kr.delete_password.assert_called_once_with("svc", "user")
+
+
+class TestPasswordFromKeyring:
+    def test_default_is_false(self):
+        auth_mod._last_from_keyring = False
+        assert password_from_keyring() is False
+
+    def test_reflects_module_state(self):
+        auth_mod._last_from_keyring = True
+        assert password_from_keyring() is True
+        auth_mod._last_from_keyring = False
+
+
+class TestClearStoredPassword:
+    def test_delegates_to_keyring_delete(self):
+        mock_kr = _make_mock_keyring()
+        with patch.dict("sys.modules", {"keyring": mock_kr}):
+            result = clear_stored_password("PostgreSQL", "mydb", "pguser", "pghost")
+            assert result is True
+            mock_kr.delete_password.assert_called_once_with(
+                "execsql/PostgreSQL/pghost/mydb",
+                "pguser",
+            )
+
+    def test_without_server(self):
+        mock_kr = _make_mock_keyring()
+        with patch.dict("sys.modules", {"keyring": mock_kr}):
+            clear_stored_password("DSN", "mydsn", "user")
+            mock_kr.delete_password.assert_called_once_with(
+                "execsql/DSN/local/mydsn",
+                "user",
+            )
