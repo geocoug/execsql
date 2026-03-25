@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.1.2] - 2026-03-25
+
 ### Changed
 
 - Added PyPI version, Python versions, license, and Read the Docs badges to `README.md`.
