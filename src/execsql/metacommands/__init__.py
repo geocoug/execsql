@@ -118,6 +118,7 @@ from execsql.metacommands.io import (
     x_import_parquet,
     x_import_feather,
     x_import_row_buffer,
+    x_show_progress,
     x_export_row_buffer,
     x_write,
     x_write_create_table,
@@ -173,6 +174,7 @@ from execsql.metacommands.system import (
     x_log,
     x_logwritemessages,
     x_log_datavars,
+    x_log_sql,
     x_console,
     x_consoleprogress,
     x_consolewait,
@@ -614,6 +616,10 @@ def build_dispatch_table() -> MetaCommandList:
         x_quote_all_text,
     )
     mcl.add(r"^\s*CONFIG\s+IMPORT_ROW_BUFFER\s+(?P<rows>[1-9][0-9]*)\s*$", x_import_row_buffer)
+    mcl.add(
+        r"^\s*CONFIG\s+SHOW_PROGRESS\s+(?P<setting>Yes|No|On|Off|True|False|0|1)\s*$",
+        x_show_progress,
+    )
     mcl.add(r"^\s*CONFIG\s+EXPORT_ROW_BUFFER\s+(?P<rows>[1-9][0-9]*)\s*$", x_export_row_buffer)
     mcl.add(r"^\s*CONFIG\s+ZIP_BUFFER_MB\s+(?P<size>[1-9][0-9]*)\s*$", x_zip_buffer_mb)
     mcl.add(
@@ -688,6 +694,10 @@ def build_dispatch_table() -> MetaCommandList:
     mcl.add(
         r"^\s*CONFIG\s+LOG_DATAVARS\s+(?P<setting>Yes|No|On|Off|True|False|0|1)\s*$",
         x_log_datavars,
+    )
+    mcl.add(
+        r"^\s*CONFIG\s+LOG_SQL\s+(?P<setting>Yes|No|On|Off|True|False|0|1)\s*$",
+        x_log_sql,
     )
     mcl.add(
         r"^\s*CONFIG\s+DAO_FLUSH_DELAY_SECS\s+(?P<secs>[0-9]*\.?[0-9]+)\s*$",

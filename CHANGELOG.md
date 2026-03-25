@@ -11,15 +11,31 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Added
+
+- `--progress` CLI flag and `CONFIG SHOW_PROGRESS` metacommand to display a rich progress bar during long-running IMPORT operations. Also configurable via `show_progress` in `execsql.conf`. (FEAT-5)
+- Opt-in SQL query audit logging via `log_sql` config option and `CONFIG LOG_SQL` metacommand. When enabled, all executed SQL statements are written to the log file with a `sql` record type, database name, line number, and query text. (FEAT-6)
+
+### Changed
+
+- Split `cli.py` (1245 lines) into `_cli_help.py`, `_cli_dsn.py`, and `_cli_run.py` with `cli.py` as a re-export façade. All existing import paths preserved. (REFAC-3)
+- Split `metacommands/io.py` (1304 lines) into `io_export.py`, `io_import.py`, `io_write.py`, and `io_fileops.py` with `io.py` as a re-export façade. All existing import paths preserved. (REFAC-4)
+
 ______________________________________________________________________
 
 ## [2.1.2] - 2026-03-25
+
+### Added
+
+- DuckDB integration tests: 15 end-to-end tests (`tests/test_integration_duckdb.py`) covering basic SQL, substitution variables, CSV export/import, conditional execution, WRITE metacommand, round-trip, and DuckDB-specific features (views, schemas, native types).
 
 ### Changed
 
 - Added PyPI version, Python versions, license, and Read the Docs badges to `README.md`.
 
 ### Fixed
+
+- Config parser now accepts `k` (DuckDB) as a valid `db_type` in `execsql.conf`. Previously only the CLI flag `-t k` worked; config file validation rejected it.
 
 - Read the Docs build: added `mkdocstrings-python` and editable project install to `.readthedocs.yaml` so `mkdocstrings` can resolve API references.
 

@@ -549,6 +549,10 @@ class SqlStmt:
                 )
             try:
                 db = _state.dbs.current()
+                if _state.conf.log_sql and _state.exec_log:
+                    lno = getattr(_state, "last_command", None)
+                    lno = lno.line_no if lno and hasattr(lno, "line_no") else None
+                    _state.exec_log.log_sql_query(cmd, db.name(), lno)
                 db.execute(cmd)
                 if commit:
                     db.commit()

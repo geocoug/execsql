@@ -382,87 +382,126 @@ class Database:
         curs = self.cursor()
         eof = False
         total_rows = 0
-        while True:
-            b = []
-            for _j in range(_state.conf.import_row_buffer):
-                try:
-                    line = next(rows)
-                except StopIteration:
-                    eof = True
-                else:
-                    if len(line) > len(ts_colnames):
-                        extra_err = True
-                        if _state.conf.del_empty_cols:
-                            any_non_empty = False
-                            for cno in range(len(ts_colnames), len(line)):
-                                if not (
-                                    line[cno] is None
-                                    or (
-                                        not _state.conf.empty_strings
-                                        and isinstance(line[cno], _state.stringtypes)
-                                        and len(line[cno].strip()) == 0
-                                    )
-                                    and _state.conf.del_empty_cols
-                                ):
-                                    any_non_empty = True
-                                    break
-                            extra_err = any_non_empty
-                        if extra_err:
-                            raise ErrInfo(
-                                type="error",
-                                other_msg=f"Too many data columns on line {{{line}}}",
-                            )
-                        else:
-                            line = line[: len(ts_colnames)]
-                    if not (len(line) == 1 and line[0] is None):
-                        if _state.conf.trim_strings or _state.conf.replace_newlines or not _state.conf.empty_strings:
-                            for i in range(len(line)):
-                                if line[i] is not None and isinstance(
-                                    line[i],
-                                    _state.stringtypes,
-                                ):
-                                    if _state.conf.trim_strings:
-                                        line[i] = line[i].strip()
-                                    if _state.conf.replace_newlines:
-                                        line[i] = re.sub(
-                                            r"[\s\t]*[\r\n]+[\s\t]*",
-                                            " ",
-                                            line[i],
+
+        # Optional rich progress bar for long-running imports.
+        use_progress = getattr(_state.conf, "show_progress", False)
+        progress_ctx = None
+        task_id = None
+        if use_progress:
+            try:
+                from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
+
+                progress_ctx = Progress(
+                    SpinnerColumn(),
+                    TextColumn("[bold blue]IMPORT[/bold blue] {task.description}"),
+                    BarColumn(bar_width=None),
+                    TextColumn("[progress.percentage]{task.completed:,} rows"),
+                    TimeElapsedColumn(),
+                    transient=True,
+                )
+            except ImportError:
+                use_progress = False
+
+        def _import_loop() -> int:
+            nonlocal eof, total_rows, task_id
+            while True:
+                b = []
+                for _j in range(_state.conf.import_row_buffer):
+                    try:
+                        line = next(rows)
+                    except StopIteration:
+                        eof = True
+                    else:
+                        if len(line) > len(ts_colnames):
+                            extra_err = True
+                            if _state.conf.del_empty_cols:
+                                any_non_empty = False
+                                for cno in range(len(ts_colnames), len(line)):
+                                    if not (
+                                        line[cno] is None
+                                        or (
+                                            not _state.conf.empty_strings
+                                            and isinstance(line[cno], _state.stringtypes)
+                                            and len(line[cno].strip()) == 0
                                         )
-                                    if not _state.conf.empty_strings and line[i].strip() == "":
-                                        line[i] = None
-                        lt = [type_objs[i].from_data(val) if val is not None else None for i, val in enumerate(line)]
-                        lt = [type_mod_fn[i](v) if type_mod_fn[i] else v for i, v in enumerate(lt)]
-                        row = []
-                        for i, v in enumerate(lt):
-                            if incl_col[i]:
-                                row.append(v)
-                        add_line = True
-                        if not _state.conf.empty_rows:
-                            add_line = not all(c is None for c in row)
-                        if add_line:
-                            b.append(row)
-            if len(b) > 0:
-                try:
-                    curs.executemany(sql, b)
-                except ErrInfo:
-                    raise
-                except Exception:
-                    self.rollback()
-                    raise ErrInfo(
-                        type="db",
-                        command_text=sql,
-                        exception_msg=exception_desc(),
-                        other_msg=f"Can't load data into table {sq_name} of {self.name()} from line {{{line}}}",
-                    )
-                total_rows += len(b)
-                interval = _state.conf.import_progress_interval
-                if _state.exec_log and interval > 0 and total_rows % interval == 0:
-                    _state.exec_log.log_status_info(
-                        f"IMPORT into {sq_name}: {total_rows} rows imported so far.",
-                    )
-            if eof:
-                break
+                                        and _state.conf.del_empty_cols
+                                    ):
+                                        any_non_empty = True
+                                        break
+                                extra_err = any_non_empty
+                            if extra_err:
+                                raise ErrInfo(
+                                    type="error",
+                                    other_msg=f"Too many data columns on line {{{line}}}",
+                                )
+                            else:
+                                line = line[: len(ts_colnames)]
+                        if not (len(line) == 1 and line[0] is None):
+                            if (
+                                _state.conf.trim_strings
+                                or _state.conf.replace_newlines
+                                or not _state.conf.empty_strings
+                            ):
+                                for i in range(len(line)):
+                                    if line[i] is not None and isinstance(
+                                        line[i],
+                                        _state.stringtypes,
+                                    ):
+                                        if _state.conf.trim_strings:
+                                            line[i] = line[i].strip()
+                                        if _state.conf.replace_newlines:
+                                            line[i] = re.sub(
+                                                r"[\s\t]*[\r\n]+[\s\t]*",
+                                                " ",
+                                                line[i],
+                                            )
+                                        if not _state.conf.empty_strings and line[i].strip() == "":
+                                            line[i] = None
+                            lt = [
+                                type_objs[i].from_data(val) if val is not None else None for i, val in enumerate(line)
+                            ]
+                            lt = [type_mod_fn[i](v) if type_mod_fn[i] else v for i, v in enumerate(lt)]
+                            row = []
+                            for i, v in enumerate(lt):
+                                if incl_col[i]:
+                                    row.append(v)
+                            add_line = True
+                            if not _state.conf.empty_rows:
+                                add_line = not all(c is None for c in row)
+                            if add_line:
+                                b.append(row)
+                if len(b) > 0:
+                    try:
+                        curs.executemany(sql, b)
+                    except ErrInfo:
+                        raise
+                    except Exception:
+                        self.rollback()
+                        raise ErrInfo(
+                            type="db",
+                            command_text=sql,
+                            exception_msg=exception_desc(),
+                            other_msg=f"Can't load data into table {sq_name} of {self.name()} from line {{{line}}}",
+                        )
+                    total_rows += len(b)
+                    if use_progress and progress_ctx is not None and task_id is not None:
+                        progress_ctx.update(task_id, completed=total_rows)
+                    interval = _state.conf.import_progress_interval
+                    if _state.exec_log and interval > 0 and total_rows % interval == 0:
+                        _state.exec_log.log_status_info(
+                            f"IMPORT into {sq_name}: {total_rows} rows imported so far.",
+                        )
+                if eof:
+                    break
+            return total_rows
+
+        if use_progress and progress_ctx is not None:
+            with progress_ctx:
+                task_id = progress_ctx.add_task(sq_name, total=None)
+                _import_loop()
+        else:
+            _import_loop()
+
         if _state.exec_log:
             _state.exec_log.log_status_info(
                 f"IMPORT into {sq_name} complete: {total_rows} rows imported.",

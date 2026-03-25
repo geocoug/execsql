@@ -106,10 +106,12 @@ class ConfigData:
         self.quote_all_text = False
         self.import_row_buffer = 1000
         self.import_progress_interval = 0
+        self.show_progress = False
         self.export_row_buffer = 1000
         self.template_processor = None
         self.tee_write_log = False
         self.log_datavars = True
+        self.log_sql = False
         self.max_log_size_mb = 0
         self.smtp_host = None
         self.smtp_port = None
@@ -143,7 +145,7 @@ class ConfigData:
                 cp.read(configfile)
                 if cp.has_option(self._CONNECT_SECTION, "db_type"):
                     t = cp.get(self._CONNECT_SECTION, "db_type").lower()
-                    if len(t) != 1 or t not in ("a", "l", "p", "f", "m", "o", "s", "d"):
+                    if len(t) != 1 or t not in ("a", "d", "f", "k", "l", "m", "o", "p", "s"):
                         raise ConfigError(f"Invalid database type: {t}")
                     self.db_type = t
                 if cp.has_option(self._CONNECT_SECTION, "server"):
@@ -291,6 +293,11 @@ class ConfigData:
                         self.import_progress_interval = cp.getint(self._INPUT_SECTION, "import_progress_interval")
                     except Exception as e:
                         raise ConfigError("Invalid argument for import_progress_interval.") from e
+                if cp.has_option(self._INPUT_SECTION, "show_progress"):
+                    try:
+                        self.show_progress = cp.getboolean(self._INPUT_SECTION, "show_progress")
+                    except Exception as e:
+                        raise ConfigError("Invalid argument for show_progress.") from e
                 if cp.has_option(self._INPUT_SECTION, "access_use_numeric"):
                     try:
                         self.access_use_numeric = cp.getboolean(self._INPUT_SECTION, "access_use_numeric")
@@ -466,6 +473,11 @@ class ConfigData:
                         self.log_datavars = cp.getboolean(self._CONFIG_SECTION, "log_datavars")
                     except Exception as e:
                         raise ConfigError("Invalid argument to log_datavars setting.") from e
+                if cp.has_option(self._CONFIG_SECTION, "log_sql"):
+                    try:
+                        self.log_sql = cp.getboolean(self._CONFIG_SECTION, "log_sql")
+                    except Exception as e:
+                        raise ConfigError("Invalid argument to log_sql setting.") from e
                 if cp.has_option(self._CONFIG_SECTION, "max_log_size_mb"):
                     try:
                         self.max_log_size_mb = cp.getint(self._CONFIG_SECTION, "max_log_size_mb")

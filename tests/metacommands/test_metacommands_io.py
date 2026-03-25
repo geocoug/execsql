@@ -66,7 +66,10 @@ class TestXWrite:
 
         outfile = str(tmp_path / "out.txt")
 
-        with patch("execsql.metacommands.io.filewriter_write") as mock_fw, patch("execsql.metacommands.io.check_dir"):
+        with (
+            patch("execsql.metacommands.io_write.filewriter_write") as mock_fw,
+            patch("execsql.metacommands.io_write.check_dir"),
+        ):
             x_write(text="file output", tee=None, filename=outfile, metacommandline="WRITE ...")
             mock_fw.assert_called_once_with(outfile, "file output\n")
 
@@ -80,7 +83,7 @@ class TestXWrite:
 
         outfile = str(tmp_path / "out.txt")
 
-        with patch("execsql.metacommands.io.filewriter_write"), patch("execsql.metacommands.io.check_dir"):
+        with patch("execsql.metacommands.io_write.filewriter_write"), patch("execsql.metacommands.io_write.check_dir"):
             x_write(text="tee output", tee="TEE", filename=outfile, metacommandline="WRITE ...")
             # With tee, output.write should also be called
             mock_output.write.assert_called_once_with("tee output\n")
@@ -93,7 +96,7 @@ class TestXWrite:
         minimal_conf.write_suffix = None
         minimal_conf.tee_write_log = False
 
-        with patch("execsql.metacommands.io.substitute_vars", side_effect=lambda x: x):
+        with patch("execsql.metacommands.io_write.substitute_vars", side_effect=lambda x: x):
             x_write(text="msg", tee=None, filename=None, metacommandline="WRITE msg")
             mock_output.write.assert_called_once_with("PREFIX: msg\n")
 
@@ -105,7 +108,7 @@ class TestXWrite:
         minimal_conf.write_suffix = ":SUFFIX"
         minimal_conf.tee_write_log = False
 
-        with patch("execsql.metacommands.io.substitute_vars", side_effect=lambda x: x):
+        with patch("execsql.metacommands.io_write.substitute_vars", side_effect=lambda x: x):
             x_write(text="msg", tee=None, filename=None, metacommandline="WRITE msg")
             mock_output.write.assert_called_once_with("msg :SUFFIX\n")
 
@@ -181,7 +184,7 @@ class TestXRmFile:
         target.write_text("content")
         assert target.exists()
 
-        with patch("execsql.metacommands.io.filewriter_close"):
+        with patch("execsql.metacommands.io_fileops.filewriter_close"):
             x_rm_file(filename=str(target))
 
         assert not target.exists()
@@ -203,7 +206,7 @@ class TestXRmFile:
         f2.write_text("b")
         f3.write_text("c")
 
-        with patch("execsql.metacommands.io.filewriter_close"):
+        with patch("execsql.metacommands.io_fileops.filewriter_close"):
             x_rm_file(filename=str(tmp_path / "data*.csv"))
 
         assert not f1.exists()
@@ -326,7 +329,7 @@ class TestXInclude:
         sql_file = tmp_path / "script.sql"
         sql_file.write_text("SELECT 1;")
 
-        with patch("execsql.metacommands.io.read_sqlfile") as mock_read:
+        with patch("execsql.metacommands.io_fileops.read_sqlfile") as mock_read:
             x_include(filename=str(sql_file), exists=None)
             mock_read.assert_called_once_with(str(sql_file))
 

@@ -539,6 +539,16 @@ class Logger:
         wmsg = f"status\t{self.run_id}\t{self.seq_no}\t{self._ts()}\twarning\t{msg or ''}\n"
         self.writelog(wmsg)
 
+    def log_sql_query(self, sql: str, db_name: str, line_no: int | None = None) -> None:
+        """Log an executed SQL statement for audit purposes."""
+        cleaned = sql.replace("\n", " ").replace("\t", " ")
+        if len(cleaned) > 2000:
+            cleaned = cleaned[:2000] + "..."
+        self.seq_no += 1
+        lno = line_no if line_no is not None else 0
+        wmsg = f"sql\t{self.run_id}\t{self.seq_no}\t{self._ts()}\t{db_name}\t{lno}\t{cleaned}\n"
+        self.writelog(wmsg)
+
     def log_user_msg(self, msg: str | None) -> None:
         msg = None if not msg else msg.replace("\n", "")
         if msg != "":

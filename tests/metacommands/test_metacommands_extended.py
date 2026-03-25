@@ -1437,7 +1437,7 @@ class TestIoImportValidation:
         _state.dbs.current.return_value = mock_db
         _state.exec_log = MagicMock()
 
-        with patch("execsql.metacommands.io.importtable") as mock_import:
+        with patch("execsql.metacommands.io_import.importtable") as mock_import:
             x_import(
                 new="replacement",
                 schema=None,
@@ -1463,7 +1463,7 @@ class TestIoImportValidation:
         _state.dbs.current.return_value = mock_db
         _state.exec_log = MagicMock()
 
-        with patch("execsql.metacommands.io.importtable") as mock_import:
+        with patch("execsql.metacommands.io_import.importtable") as mock_import:
             x_import(
                 new=None,
                 schema=None,
@@ -1490,7 +1490,7 @@ class TestIoImportValidation:
         _state.dbs.current.return_value = mock_db
         _state.exec_log = MagicMock()
 
-        with patch("execsql.metacommands.io.importtable") as mock_import:
+        with patch("execsql.metacommands.io_import.importtable") as mock_import:
             x_import(
                 new=None,
                 schema=None,
@@ -1524,8 +1524,8 @@ class TestIoExportMetadata:
 
         _state.export_metadata.get_all.return_value = (["col1"], [("val1",)])
         with (
-            patch("execsql.metacommands.io.check_dir"),
-            patch("execsql.metacommands.io.prettyprint_rowset") as mock_pp,
+            patch("execsql.metacommands.io_export.check_dir"),
+            patch("execsql.metacommands.io_export.prettyprint_rowset") as mock_pp,
         ):
             x_export_metadata(
                 filename="stdout",
@@ -1542,8 +1542,8 @@ class TestIoExportMetadata:
 
         _state.export_metadata.get.return_value = (["col1"], [("val1",)])
         with (
-            patch("execsql.metacommands.io.check_dir"),
-            patch("execsql.metacommands.io.prettyprint_rowset") as mock_pp,
+            patch("execsql.metacommands.io_export.check_dir"),
+            patch("execsql.metacommands.io_export.prettyprint_rowset") as mock_pp,
         ):
             x_export_metadata(
                 filename="stdout",
@@ -1559,7 +1559,7 @@ class TestIoExportMetadata:
         from execsql.metacommands.io import x_export_metadata_table
 
         _state.export_metadata.get_all.return_value = (["col1"], [("val1",)])
-        with patch("execsql.metacommands.io.import_data_table") as mock_import:
+        with patch("execsql.metacommands.io_export.import_data_table") as mock_import:
             x_export_metadata_table(
                 all="all",
                 schema=None,
@@ -1572,7 +1572,7 @@ class TestIoExportMetadata:
         from execsql.metacommands.io import x_export_metadata_table
 
         _state.export_metadata.get.return_value = (["col1"], [("val1",)])
-        with patch("execsql.metacommands.io.import_data_table") as mock_import:
+        with patch("execsql.metacommands.io_export.import_data_table") as mock_import:
             x_export_metadata_table(
                 all=None,
                 schema=None,

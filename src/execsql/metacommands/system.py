@@ -89,6 +89,11 @@ def x_log_datavars(**kwargs: Any) -> None:
     _state.conf.log_datavars = setting in ("yes", "on", "true", "1")
 
 
+def x_log_sql(**kwargs: Any) -> None:
+    setting = kwargs["setting"].lower()
+    _state.conf.log_sql = setting in ("yes", "on", "true", "1")
+
+
 def x_console(**kwargs: Any) -> None:
     onoff = kwargs["onoff"].lower()
     if onoff == "on":
