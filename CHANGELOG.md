@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.1.0]
+
 ### Changed
 
 - Consolidated optional dependency extras: replaced individual `ods`, `excel`, `jinja`, `feather`, `parquet`, and `hdf5` extras with a single `formats` bundle. Renamed `keyring` extra to `auth`. Added `all-db` convenience group for all database drivers. The `all` extra now uses self-referential extras (`all-db`, `formats`, `auth`) instead of duplicating package lists.
