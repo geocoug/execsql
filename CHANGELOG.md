@@ -11,6 +11,28 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Added
+
+- Keyring credential retry on authentication failure: when a keyring-stored password is rejected by the database, the stale entry is automatically deleted, the user is re-prompted for the current password, and the connection is retried. The new password is then saved to the keyring. Applies to all database adapters (PostgreSQL, MySQL, Oracle, SQL Server, Firebird, DSN, MS Access). New public helpers `password_from_keyring()`, `clear_stored_password()`, and `skip_keyring` parameter on `get_password()` in `utils/auth.py`.
+
+- Tests for `utils/mail.py`: 14 tests covering `MailSpec` construction and `Mailer` config validation/SMTP connection setup (plain, SSL, TLS, auth, sendmail with text/HTML/attachments/multiple recipients) using mocked SMTP.
+
+- Parser edge case tests: 17 new tests for `NumericParser` and `CondParser` error paths (division by zero, unmatched/empty parens, empty/whitespace input, trailing/double operators, deeply nested expressions, non-numeric input).
+
+- Security warning in `docs/substitution_vars.md` about environment variable exposure via `&`-prefixed substitution variables, with guidance on mitigating secret disclosure.
+
+### Fixed
+
+- `ExecSqlTimeoutError` now inherits from `ExecSqlError` instead of `Exception`, so generic `except ExecSqlError` handlers will catch timeouts. Accepts an optional message (defaults to `"Operation timed out"`), preserving compatibility with bare `raise ExecSqlTimeoutError`.
+
+- `exporters/ods.py`: Fixed broken ODS import/export — `import of as of` changed to `import of as of` to match the actual `odfpy` package module name. ODS support was silently non-functional.
+
+- ODS test skip guards: replaced `pytest.importorskip("of")` (confusing error message, wrong module name) with a proper `of.opendocument` availability check and clear skip reason.
+
+- Exception chaining: added `from e` to `raise ErrInfo(...)` in `exporters/delimited.py` and `utils/fileio.py` to preserve original tracebacks. Changed `raise e` to bare `raise` in `exporters/delimited.py:_colhdrs()`.
+
+- Security comment in `cli.py` documenting that all environment variables are exposed as `&`-prefixed substitution variables.
+
 ______________________________________________________________________
 
 ## [2.1.0]

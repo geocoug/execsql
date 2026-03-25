@@ -634,6 +634,10 @@ def _run(
     # ------------------------------------------------------------------
     _state.subvars = SubVarSet()
 
+    # Security note: ALL environment variables are exposed as &-prefixed
+    # substitution variables.  Sensitive values (API keys, tokens) in the
+    # process environment will be accessible to scripts.  See the
+    # "Environment Variables" section in docs/substitution_vars.md.
     for k in os.environ:
         try:
             _state.subvars.add_substitution("&" + k, os.environ[k])

@@ -235,6 +235,17 @@ The operating system environment variables that are defined when execsql starts 
 
 Any environment variable names that contain characters other than letters, digits, and the underscore will not be defined in execsql.
 
+!!! warning "Security consideration"
+
+    **All** environment variables present at startup are exposed as substitution
+    variables. This includes any sensitive values such as API keys, tokens, or
+    credentials that may be set in the process environment. If a script is
+    shared, logged, or produces output that includes substitution variable
+    expansions, those secret values could be disclosed. To reduce risk, avoid
+    storing secrets in environment variables that will be present when execsql
+    runs, or use the `$ENV:` prefix in configuration files instead of
+    referencing `&`-prefixed variables in scripts.
+
 ## Metacommands to Assign Substitution Variables
 
 In addition to the [SUB](metacommands.md#subcmd) metacommand, several other metacommands can be used to define substitution variables based on values in a data table, user input, or a configuration file. All of the metacommands that can be used to define substitution variables are:

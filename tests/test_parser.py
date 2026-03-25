@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import pytest
 
-from execsql.exceptions import NumericParserError
+from execsql.exceptions import CondParserError, NumericParserError
 from execsql.parser import (
     CondAstNode,
     CondParser,
@@ -285,3 +285,83 @@ class TestCondParserOperatorMatching:
         cp = CondParser("OR something")
         result = cp.match_orop()
         assert result == CondTokens.OR
+
+
+# ---------------------------------------------------------------------------
+# NumericParser — edge cases and error paths
+# ---------------------------------------------------------------------------
+
+
+class TestNumericParserEdgeCases:
+    """Error-path and boundary tests for NumericParser."""
+
+    def _eval(self, expr: str):
+        return NumericParser(expr).parse().eval()
+
+    def test_division_by_zero(self):
+        with pytest.raises(ZeroDivisionError):
+            self._eval("1 / 0")
+
+    def test_unmatched_open_paren(self):
+        with pytest.raises(NumericParserError):
+            NumericParser("(((1 + 2)").parse()
+
+    def test_empty_parens(self):
+        with pytest.raises(NumericParserError):
+            NumericParser("()").parse()
+
+    def test_empty_string(self):
+        with pytest.raises(NumericParserError):
+            NumericParser("").parse()
+
+    def test_only_whitespace(self):
+        with pytest.raises(NumericParserError):
+            NumericParser("   ").parse()
+
+    def test_only_operator(self):
+        with pytest.raises(NumericParserError):
+            NumericParser("*").parse()
+
+    def test_trailing_operator(self):
+        with pytest.raises(NumericParserError):
+            NumericParser("1 +").parse()
+
+    def test_double_operator(self):
+        with pytest.raises(NumericParserError):
+            NumericParser("1 + + 2").parse()
+
+    def test_deeply_nested_parens(self):
+        assert self._eval("((((((1 + 2))))))") == 3
+
+    def test_many_chained_additions(self):
+        expr = " + ".join(["1"] * 50)
+        assert self._eval(expr) == 50
+
+    def test_float_division_by_zero(self):
+        with pytest.raises(ZeroDivisionError):
+            self._eval("1.0 / 0.0")
+
+    def test_unmatched_close_paren(self):
+        with pytest.raises(NumericParserError):
+            NumericParser("1 + 2)").parse()
+
+    def test_non_numeric_input(self):
+        with pytest.raises(NumericParserError):
+            NumericParser("hello world").parse()
+
+
+# ---------------------------------------------------------------------------
+# CondParser — edge cases and error paths
+# ---------------------------------------------------------------------------
+
+
+class TestCondParserEdgeCases:
+    """Error-path tests for CondParser structural parsing."""
+
+    def test_empty_string_raises(self):
+        with pytest.raises(CondParserError):
+            CondParser("").parse()
+
+    def test_only_whitespace_raises(self):
+        with pytest.raises(CondParserError):
+            CondParser("   ").parse()

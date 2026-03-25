@@ -576,7 +576,7 @@ class CsvFile(EncodedFile):
             try:
                 elements = self.read_and_parse_line(f)
             except ErrInfo as e:
-                raise ErrInfo("error", other_msg=f"{e.other} on line {line_no}.")
+                raise ErrInfo("error", other_msg=f"{e.other} on line {line_no}.") from e
             except:
                 raise
             if len(elements) > 0:
@@ -599,7 +599,7 @@ class CsvFile(EncodedFile):
             colnames = next(inf)
         except ErrInfo as e:
             e.other = f"Can't read column header line from {self.filename}.  {e.other or ''}"
-            raise e
+            raise
         except Exception:
             raise ErrInfo(
                 type="exception",

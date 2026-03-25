@@ -45,10 +45,17 @@ class ConfigError(ExecSqlError):
     """Raised for invalid or missing execsql configuration values."""
 
 
-class ExecSqlTimeoutError(Exception):
-    """Renamed from TimeoutError to avoid shadowing the Python 3.3+ built-in."""
+class ExecSqlTimeoutError(ExecSqlError):
+    """Timeout during alarm-timer operations.
 
-    pass
+    Inherits from :class:`ExecSqlError` so that generic ``except ExecSqlError``
+    handlers will catch timeouts.  Accepts an optional message (defaults to
+    ``"Operation timed out"``), keeping it compatible with bare
+    ``raise ExecSqlTimeoutError`` usage.
+    """
+
+    def __init__(self, errmsg: str = "Operation timed out") -> None:
+        super().__init__(errmsg)
 
 
 class ErrInfo(Exception):

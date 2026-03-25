@@ -10,7 +10,14 @@ from __future__ import annotations
 
 import pytest
 
-pytest.importorskip("of")
+try:
+    import of.opendocument  # noqa: F401
+
+    _ods_available = True
+except ImportError:
+    _ods_available = False
+
+pytestmark = pytest.mark.skipif(not _ods_available, reason="requires odfpy (install with execsql2[ods])")
 
 from execsql.db.sqlite import SQLiteDatabase
 from execsql.exporters.ods import OdsFile
