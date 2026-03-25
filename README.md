@@ -5,7 +5,8 @@
 > Not recommended for production use. For the stable upstream release, see [execsql](https://execsql.readthedocs.io/).
 
 <div align="center">
-![execsql logo](https://execsql2.readthedocs.io/en/latest/images/execsql_logo_01.png)
+
+<img src="https://execsql2.readthedocs.io/en/latest/images/execsql_logo_01.png" alt="execsql logo">
 
 *Multi-DBMS SQL script processor.*
 
