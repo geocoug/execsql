@@ -279,8 +279,13 @@ class TestLogger:
 class TestMakeExportDirsErrors:
     def test_non_creatable_dir_raises(self, tmp_path):
         """OSError that is not EEXIST should raise ErrInfo."""
-        # Use /dev/null as parent — can't create dirs there
-        target = "/dev/null/impossible/out.csv"
+        import sys
+
+        if sys.platform == "win32":
+            # NUL is the Windows equivalent of /dev/null — can't create dirs under it
+            target = "NUL\\impossible\\out.csv"
+        else:
+            target = "/dev/null/impossible/out.csv"
         with pytest.raises(ErrInfo):
             make_export_dirs(target)
 

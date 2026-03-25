@@ -646,7 +646,7 @@ def _run(
     _state.subvars.add_substitution("$LAST_ROWCOUNT", None)
 
     dt_now = datetime.datetime.now()
-    dt_now_utc = datetime.datetime.now(tz=datetime.UTC)
+    dt_now_utc = datetime.datetime.now(tz=datetime.timezone.utc)
 
     _state.subvars.add_substitution("$SCRIPT_START_TIME", dt_now.strftime("%Y-%m-%d %H:%M"))
     _state.subvars.add_substitution("$SCRIPT_START_TIME_UTC", dt_now_utc.strftime("%Y-%m-%d %H:%M"))

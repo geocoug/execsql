@@ -8,6 +8,7 @@ for file outputs.
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -395,24 +396,24 @@ class TestApplyOutputDir:
         fn = self._fn()
         assert fn("output.csv") == "output.csv"
 
-    def test_relative_path_gets_prefix(self, minimal_conf):
-        minimal_conf.export_output_dir = "/exports"
+    def test_relative_path_gets_prefix(self, minimal_conf, tmp_path):
+        export_dir = str(tmp_path / "exports")
+        minimal_conf.export_output_dir = export_dir
         fn = self._fn()
         result = fn("output.csv")
-        import os
+        assert result == str(Path(export_dir) / "output.csv")
 
-        assert result == os.path.join("/exports", "output.csv")
-
-    def test_stdout_unchanged(self, minimal_conf):
-        minimal_conf.export_output_dir = "/exports"
+    def test_stdout_unchanged(self, minimal_conf, tmp_path):
+        minimal_conf.export_output_dir = str(tmp_path / "exports")
         fn = self._fn()
         assert fn("stdout") == "stdout"
         assert fn("STDOUT") == "STDOUT"
 
-    def test_absolute_path_unchanged(self, minimal_conf):
-        minimal_conf.export_output_dir = "/exports"
+    def test_absolute_path_unchanged(self, minimal_conf, tmp_path):
+        minimal_conf.export_output_dir = str(tmp_path / "exports")
         fn = self._fn()
-        assert fn("/abs/path/output.csv") == "/abs/path/output.csv"
+        abs_path = str(tmp_path / "abs" / "path" / "output.csv")
+        assert fn(abs_path) == abs_path
 
     def test_no_attr_returns_path(self, minimal_conf):
         """If conf has no export_output_dir attribute at all, passthrough."""

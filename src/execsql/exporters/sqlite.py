@@ -29,37 +29,39 @@ def export_sqlite(
     chunksize = 10000
     pre_exist = Path(outfile).is_file()
     sdb = sqlite3.connect(outfile)
-    if pre_exist:
+    try:
+        if pre_exist:
+            curs = sdb.cursor()
+            res = curs.execute(
+                f"select name from sqlite_master where type='table' and name='{tablename}';",
+            )
+            rv = res.fetchone()
+            if not (rv is None or rv[0] == 0):
+                if append:
+                    raise ErrInfo(type="error", other_msg=f"The table {tablename} already exists in {outfile}.")
+                else:
+                    curs.execute(f"drop table {tablename};")
+            curs.close()
+        # Construct and run the CREATE TABLE statement
+        rowdata = list(rows)
+        tablespec = DataTable(hdrs, rowdata)
+        sql = tablespec.create_table(dbt_sqlite, schemaname=None, tablename=tablename)
         curs = sdb.cursor()
-        res = curs.execute(
-            f"select name from sqlite_master where type='table' and name='{tablename}';",
-        )
-        rv = res.fetchone()
-        if not (rv is None or rv[0] == 0):
-            if append:
-                raise ErrInfo(type="error", other_msg=f"The table {tablename} already exists in {outfile}.")
-            else:
-                curs.execute(f"drop table {tablename};")
+        curs.execute(sql)
+        # Export all rows of data
+        columns = [dbt_sqlite.quoted(col) for col in hdrs]
+        colspec = ",".join(columns)
+        paramspec = ",".join(("?",) * len(columns))
+        sql = f"insert into {tablename} ({colspec}) values ({paramspec});"
+        n_chunks = math.ceil(len(rowdata) / chunksize)
+        for i in range(n_chunks):
+            start = i * chunksize
+            end = start + chunksize
+            curs.executemany(sql, rowdata[start:end])
+        sdb.commit()
         curs.close()
-    # Construct and run the CREATE TABLE statement
-    rowdata = list(rows)
-    tablespec = DataTable(hdrs, rowdata)
-    sql = tablespec.create_table(dbt_sqlite, schemaname=None, tablename=tablename)
-    curs = sdb.cursor()
-    curs.execute(sql)
-    # Export all rows of data
-    columns = [dbt_sqlite.quoted(col) for col in hdrs]
-    colspec = ",".join(columns)
-    paramspec = ",".join(("?",) * len(columns))
-    sql = f"insert into {tablename} ({colspec}) values ({paramspec});"
-    n_chunks = math.ceil(len(rowdata) / chunksize)
-    for i in range(n_chunks):
-        start = i * chunksize
-        end = start + chunksize
-        curs.executemany(sql, rowdata[start:end])
-    sdb.commit()
-    curs.close()
-    sdb.close()
+    finally:
+        sdb.close()
 
 
 def write_query_to_sqlite(

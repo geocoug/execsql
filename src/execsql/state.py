@@ -253,6 +253,13 @@ def reset() -> None:
     loop_nest_level = 0
     cmds_run = 0
 
+    # Close open database connections before discarding the pool.
+    if dbs is not None:
+        try:
+            dbs.closeall()
+        except Exception:
+            pass
+
     # Lazy singletons — reset to None
     conf = None
     last_command = None

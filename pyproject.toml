@@ -142,6 +142,8 @@ ignore = [
     # flake8-simplify — style preference
     "SIM105",  # use contextlib.suppress; explicit try/except/pass is clearer in this codebase
     "SIM108",  # ternary operator suggestions are often more complex than the original if/else
+    # pyupgrade — style preference
+    "UP017",  # Use datetime.UTC alias (not available in Python 3.10)
 ]
 
 [tool.ruff.format]
@@ -161,10 +163,20 @@ pre_commit_hooks = ["uv lock", "git add uv.lock"]
 [[tool.bumpversion.files]]
 filename = "pyproject.toml"
 
+[[tool.bumpversion.files]]
+filename = "CHANGELOG.md"
+search = "## [Unreleased]"
+replace = """## [Unreleased]
+
+______________________________________________________________________
+
+## [{new_version}] - {now:%Y-%m-%d}"""
+
 [tool.pytest.ini_options]
 addopts = [
     "--cov=execsql",
     "--cov-branch",
+    "--cov-report=xml",
     "--cov-fail-under=70",
     "--strict-markers",
     "--strict-config",

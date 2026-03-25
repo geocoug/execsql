@@ -717,7 +717,7 @@ class CommandList:
             if cmditem.command_type == "sql" and _state.status.batch.in_batch():
                 _state.status.batch.using_db(_state.dbs.current())
             _state.subvars.add_substitution("$CURRENT_TIME", datetime.datetime.now().strftime("%Y-%m-%d %H:%M"))
-            utcnow = datetime.datetime.now(tz=datetime.UTC)
+            utcnow = datetime.datetime.now(tz=datetime.timezone.utc)
             _state.subvars.add_substitution("$CURRENT_TIME_UTC", utcnow.strftime("%Y-%m-%d %H:%M"))
             _state.subvars.add_substitution("$CURRENT_SCRIPT", cmditem.source)
             _state.subvars.add_substitution(

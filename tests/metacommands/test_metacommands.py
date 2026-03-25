@@ -119,6 +119,12 @@ def _reset_execsql_state():
     _state.counters = None
     _state.timer = None
     _state.output = None
+    # Close open database connections before discarding the pool.
+    if _state.dbs is not None:
+        try:
+            _state.dbs.closeall()
+        except Exception:
+            pass
     _state.dbs = None
     _state.tempfiles = None
     _state.export_metadata = None

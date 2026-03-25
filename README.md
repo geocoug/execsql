@@ -4,12 +4,20 @@
 > APIs, CLI behavior, and configuration options may change without notice.
 > Not recommended for production use. For the stable upstream release, see [execsql](https://execsql.readthedocs.io/).
 
+<div align="center">
 ![execsql logo](https://execsql2.readthedocs.io/en/latest/images/execsql_logo_01.png)
 
 *Multi-DBMS SQL script processor.*
 
+</div>
+
+<div align="center">
+
 [![CI/CD](https://github.com/geocoug/execsql/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/geocoug/execsql/actions/workflows/ci-cd.yml)
+[![codecov](https://codecov.io/gh/geocoug/execsql/graph/badge.svg)](https://codecov.io/gh/geocoug/execsql)
 [![Downloads](https://pepy.tech/badge/execsql2/month)](https://pepy.tech/project/execsql2)
+
+</div>
 
 # Fork
 

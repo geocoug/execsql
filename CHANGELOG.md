@@ -21,6 +21,14 @@ ______________________________________________________________________
 
 - Security warning in `docs/substitution_vars.md` about environment variable exposure via `&`-prefixed substitution variables, with guidance on mitigating secret disclosure.
 
+- Codecov integration: CI uploads coverage reports via `codecov/codecov-action@v5` (Ubuntu / Python 3.13 matrix leg) and a coverage badge in the README.
+
+- Automatic changelog versioning on `bump-my-version` runs: `CHANGELOG.md` is now a bumpversion-managed file — the `[Unreleased]` section is replaced with a dated version heading and a fresh `[Unreleased]` header is preserved for the next cycle.
+
+### Changed
+
+- Centered the logo and badges in `README.md`.
+
 ### Fixed
 
 - `ExecSqlTimeoutError` now inherits from `ExecSqlError` instead of `Exception`, so generic `except ExecSqlError` handlers will catch timeouts. Accepts an optional message (defaults to `"Operation timed out"`), preserving compatibility with bare `raise ExecSqlTimeoutError`.
@@ -32,6 +40,12 @@ ______________________________________________________________________
 - Exception chaining: added `from e` to `raise ErrInfo(...)` in `exporters/delimited.py` and `utils/fileio.py` to preserve original tracebacks. Changed `raise e` to bare `raise` in `exporters/delimited.py:_colhdrs()`.
 
 - Security comment in `cli.py` documenting that all environment variables are exposed as `&`-prefixed substitution variables.
+
+- Python 3.10 compatibility: replaced `datetime.UTC` (3.11+) with `datetime.timezone.utc` in `cli.py` and `script.py`.
+
+- Windows test compatibility: replaced hardcoded Unix paths in `TestApplyOutputDir` tests with `tmp_path`-based platform-native paths, and added Windows-aware path for `TestMakeExportDirsErrors`.
+
+- SQLite connection leaks: `state.reset()` and the test `_reset_execsql_state` fixture now call `dbs.closeall()` before discarding the `DatabasePool`, and `export_sqlite()` uses `try/finally` to guarantee the connection is closed on error. Eliminates `ResourceWarning: unclosed database` warnings.
 
 ______________________________________________________________________
 

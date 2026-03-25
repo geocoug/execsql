@@ -58,6 +58,12 @@ jobs:
                   DISPLAY: ""
               run: |
                   tox -e py
+            - name: Upload coverage to Codecov
+              if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.13'
+              uses: codecov/codecov-action@v5
+              with:
+                  token: ${{ secrets.CODECOV_TOKEN }}
+                  files: coverage.xml
 
     build:
         name: Build distribution 📦
