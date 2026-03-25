@@ -101,10 +101,10 @@ class Database:
             else:
                 curs.execute(sql, paramlist)
             try:
-                # DuckDB does not support the 'rowcount' attribute
+                # DuckDB does not support the 'rowcount' attribute.
                 _state.subvars.add_substitution("$LAST_ROWCOUNT", curs.rowcount)
             except Exception:
-                pass
+                pass  # Non-critical: some drivers lack rowcount support.
         except Exception:
             try:
                 self.rollback()
@@ -132,7 +132,7 @@ class Database:
             try:
                 self.conn.rollback()
             except Exception:
-                pass
+                pass  # Best-effort; connection may already be closed.
 
     def schema_qualified_table_name(self, schema_name: str | None, table_name: str) -> str:
         table_name = self.type.quoted(table_name)
@@ -152,7 +152,7 @@ class Database:
         try:
             _state.subvars.add_substitution("$LAST_ROWCOUNT", curs.rowcount)
         except Exception:
-            pass
+            pass  # Non-critical: some drivers lack rowcount support.
         rows = curs.fetchall()
         return [d[0] for d in curs.description], rows
 
@@ -160,10 +160,10 @@ class Database:
         # Return 1) a list of column names, and 2) an iterable that yields rows.
         curs = self.cursor()
         try:
-            # DuckDB cursors have no 'arraysize' attribute
+            # DuckDB cursors have no 'arraysize' attribute.
             curs.arraysize = _state.conf.export_row_buffer
         except Exception:
-            pass
+            pass  # Non-critical: not all drivers support arraysize.
         try:
             curs.execute(sql)
         except Exception:
@@ -172,7 +172,7 @@ class Database:
         try:
             _state.subvars.add_substitution("$LAST_ROWCOUNT", curs.rowcount)
         except Exception:
-            pass
+            pass  # Non-critical: some drivers lack rowcount support.
 
         def decode_row() -> Generator:
             while True:
@@ -201,7 +201,7 @@ class Database:
         try:
             _state.subvars.add_substitution("$LAST_ROWCOUNT", curs.rowcount)
         except Exception:
-            pass
+            pass  # Non-critical: some drivers lack rowcount support.
         hdrs = [d[0] for d in curs.description]
 
         def dict_row() -> dict | None:

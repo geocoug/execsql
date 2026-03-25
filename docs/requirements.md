@@ -7,6 +7,7 @@
 The easiest way to install the required libraries is to use the optional dependency extras provided by the `execsql2` package:
 
 ```bash
+# Database drivers
 pip install "execsql2[postgres]"    # PostgreSQL
 pip install "execsql2[mysql]"       # MySQL / MariaDB
 pip install "execsql2[mssql]"       # MS SQL Server (pyodbc)
@@ -14,35 +15,51 @@ pip install "execsql2[duckdb]"      # DuckDB
 pip install "execsql2[firebird]"    # Firebird
 pip install "execsql2[oracle]"      # Oracle
 pip install "execsql2[odbc]"        # ODBC DSN (pyodbc)
-pip install "execsql2[ods]"         # OpenDocument spreadsheets
-pip install "execsql2[excel]"       # Excel read support
-pip install "execsql2[jinja]"       # Jinja2 template export
-pip install "execsql2[feather]"     # Feather import/export
-pip install "execsql2[hdf5]"        # HDF5 export
-pip install "execsql2[all]"         # All optional drivers
+
+# Feature bundles
+pip install "execsql2[formats]"     # ODS, Excel, Jinja2, Feather, Parquet, HDF5
+pip install "execsql2[auth]"        # OS keyring integration
+
+# Convenience
+pip install "execsql2[all-db]"      # All database drivers
+pip install "execsql2[all]"         # Everything
 ```
 
-Multiple extras can be combined: `pip install "execsql2[postgres,duckdb,jinja]"`.
+Multiple extras can be combined: `pip install "execsql2[postgres,duckdb,formats]"`.
 
 ## Libraries by Database/Format { #libraries }
 
 The specific libraries installed by each extra are:
 
-| Database / Format                                                  | Extra      | Library                                                                                                 |
-| ------------------------------------------------------------------ | ---------- | ------------------------------------------------------------------------------------------------------- |
-| PostgreSQL                                                         | `postgres` | [psycopg2-binary](https://pypi.org/project/psycopg2-binary/)                                            |
-| MySQL / MariaDB                                                    | `mysql`    | [pymysql](https://pypi.org/project/PyMySQL/)                                                            |
-| MS SQL Server                                                      | `mssql`    | [pyodbc](https://pypi.org/project/pyodbc/)                                                              |
-| DuckDB                                                             | `duckdb`   | [duckdb](https://pypi.org/project/duckdb/)                                                              |
-| Firebird                                                           | `firebird` | [firebird-driver](https://pypi.org/project/firebird-driver/)                                            |
-| Oracle                                                             | `oracle`   | [oracledb](https://pypi.org/project/oracledb/)                                                          |
-| ODBC DSN                                                           | `odbc`     | [pyodbc](https://pypi.org/project/pyodbc/)                                                              |
-| SQLite                                                             | —          | Built-in (`sqlite3` standard library)                                                                   |
-| [OpenDocument](http://www.opendocumentformat.org/) spreadsheets    | `ods`      | [odfpy](https://pypi.org/project/odfpy/)                                                                |
-| Excel spreadsheets (read only)                                     | `excel`    | [xlrd](https://pypi.org/project/xlrd) (.xls) and [openpyxl](https://pypi.org/project/openpyxl/) (.xlsx) |
-| [Jinja2](https://jinja.palletsprojects.com/) templates             | `jinja`    | [Jinja2](https://pypi.org/project/Jinja2/)                                                              |
-| [Feather](https://arrow.apache.org/docs/python/feather.html) files | `feather`  | [polars](https://pypi.org/project/polars/)                                                              |
-| [HDF5](https://www.hdfgroup.org/solutions/hdf5/) files             | `hdf5`     | [tables](https://pypi.org/project/tables/)                                                              |
+### Database drivers
+
+| Database / Format | Extra      | Library                                                      |
+| ----------------- | ---------- | ------------------------------------------------------------ |
+| PostgreSQL        | `postgres` | [psycopg2-binary](https://pypi.org/project/psycopg2-binary/) |
+| MySQL / MariaDB   | `mysql`    | [pymysql](https://pypi.org/project/PyMySQL/)                 |
+| MS SQL Server     | `mssql`    | [pyodbc](https://pypi.org/project/pyodbc/)                   |
+| DuckDB            | `duckdb`   | [duckdb](https://pypi.org/project/duckdb/)                   |
+| Firebird          | `firebird` | [firebird-driver](https://pypi.org/project/firebird-driver/) |
+| Oracle            | `oracle`   | [oracledb](https://pypi.org/project/oracledb/)               |
+| ODBC DSN          | `odbc`     | [pyodbc](https://pypi.org/project/pyodbc/)                   |
+| SQLite            | —          | Built-in (`sqlite3` standard library)                        |
+
+### `formats` bundle
+
+| Format                                                             | Library                                                                                                 |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------- |
+| [OpenDocument](http://www.opendocumentformat.org/) spreadsheets    | [odfpy](https://pypi.org/project/odfpy/)                                                                |
+| Excel spreadsheets (read only)                                     | [xlrd](https://pypi.org/project/xlrd) (.xls) and [openpyxl](https://pypi.org/project/openpyxl/) (.xlsx) |
+| [Jinja2](https://jinja.palletsprojects.com/) templates             | [Jinja2](https://pypi.org/project/Jinja2/)                                                              |
+| [Feather](https://arrow.apache.org/docs/python/feather.html) files | [polars](https://pypi.org/project/polars/)                                                              |
+| [Parquet](https://parquet.apache.org/) files                       | [polars](https://pypi.org/project/polars/)                                                              |
+| [HDF5](https://www.hdfgroup.org/solutions/hdf5/) files             | [tables](https://pypi.org/project/tables/)                                                              |
+
+### `auth` bundle
+
+| Feature              | Library                                      |
+| -------------------- | -------------------------------------------- |
+| OS keyring / secrets | [keyring](https://pypi.org/project/keyring/) |
 
 Connections to SQLite databases use Python's standard library and require no additional packages.
 

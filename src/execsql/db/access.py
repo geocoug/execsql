@@ -165,7 +165,7 @@ class AccessDatabase(Database):
                     self.dao_conn.QueryDefs.Delete(qn)
                     self.last_dao_time = time.time()
                 except Exception:
-                    pass
+                    pass  # Best-effort cleanup of temporary DAO query defs.
             self.dao_conn = None
         if self.conn:
             self.conn.close()

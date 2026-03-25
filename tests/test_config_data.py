@@ -222,6 +222,72 @@ class TestConfigDataConnect:
         cd = _make_conf(str(tmp_path))
         assert cd.new_db is True
 
+    def test_reads_db_file(self, tmp_path):
+        _write_conf(
+            str(tmp_path),
+            """
+            [connect]
+            db_file = /tmp/test.db
+        """,
+        )
+        cd = _make_conf(str(tmp_path))
+        assert cd.db_file == "/tmp/test.db"
+
+    def test_reads_access_username(self, tmp_path):
+        _write_conf(
+            str(tmp_path),
+            """
+            [connect]
+            access_username = admin
+        """,
+        )
+        cd = _make_conf(str(tmp_path))
+        assert cd.access_username == "admin"
+
+    def test_reads_password_prompt_false(self, tmp_path):
+        _write_conf(
+            str(tmp_path),
+            """
+            [connect]
+            password_prompt = false
+        """,
+        )
+        cd = _make_conf(str(tmp_path))
+        assert cd.passwd_prompt is False
+
+    def test_invalid_password_prompt_raises(self, tmp_path):
+        _write_conf(
+            str(tmp_path),
+            """
+            [connect]
+            password_prompt = notabool
+        """,
+        )
+        with pytest.raises(ConfigError):
+            _make_conf(str(tmp_path))
+
+    def test_reads_use_keyring_false(self, tmp_path):
+        _write_conf(
+            str(tmp_path),
+            """
+            [connect]
+            use_keyring = false
+        """,
+        )
+        cd = _make_conf(str(tmp_path))
+        assert cd.use_keyring is False
+
+    def test_invalid_use_keyring_raises(self, tmp_path):
+        _write_conf(
+            str(tmp_path),
+            """
+            [connect]
+            use_keyring = notabool
+        """,
+        )
+        with pytest.raises(ConfigError):
+            _make_conf(str(tmp_path))
+
     def test_invalid_new_db_raises(self, tmp_path):
         _write_conf(
             str(tmp_path),
@@ -272,6 +338,17 @@ class TestConfigDataEncoding:
         )
         cd = _make_conf(str(tmp_path))
         assert cd.import_encoding == "ascii"
+
+    def test_reads_database_encoding(self, tmp_path):
+        _write_conf(
+            str(tmp_path),
+            """
+            [encoding]
+            database = latin-1
+        """,
+        )
+        cd = _make_conf(str(tmp_path))
+        assert cd.db_encoding == "latin-1"
 
     def test_reads_error_response_ignore(self, tmp_path):
         _write_conf(
@@ -694,6 +771,72 @@ class TestConfigDataInput:
         with pytest.raises(ConfigError):
             _make_conf(str(tmp_path))
 
+    def test_reads_empty_rows_false(self, tmp_path):
+        _write_conf(
+            str(tmp_path),
+            """
+            [input]
+            empty_rows = false
+        """,
+        )
+        cd = _make_conf(str(tmp_path))
+        assert cd.empty_rows is False
+
+    def test_invalid_empty_rows_raises(self, tmp_path):
+        _write_conf(
+            str(tmp_path),
+            """
+            [input]
+            empty_rows = notabool
+        """,
+        )
+        with pytest.raises(ConfigError):
+            _make_conf(str(tmp_path))
+
+    def test_reads_access_use_numeric_true(self, tmp_path):
+        _write_conf(
+            str(tmp_path),
+            """
+            [input]
+            access_use_numeric = true
+        """,
+        )
+        cd = _make_conf(str(tmp_path))
+        assert cd.access_use_numeric is True
+
+    def test_invalid_access_use_numeric_raises(self, tmp_path):
+        _write_conf(
+            str(tmp_path),
+            """
+            [input]
+            access_use_numeric = notabool
+        """,
+        )
+        with pytest.raises(ConfigError):
+            _make_conf(str(tmp_path))
+
+    def test_reads_import_common_columns_only(self, tmp_path):
+        _write_conf(
+            str(tmp_path),
+            """
+            [input]
+            import_common_columns_only = true
+        """,
+        )
+        cd = _make_conf(str(tmp_path))
+        assert cd.import_common_cols_only is True
+
+    def test_reads_import_only_common_columns(self, tmp_path):
+        _write_conf(
+            str(tmp_path),
+            """
+            [input]
+            import_only_common_columns = true
+        """,
+        )
+        cd = _make_conf(str(tmp_path))
+        assert cd.import_common_cols_only is True
+
     def test_reads_import_progress_interval(self, tmp_path):
         _write_conf(
             str(tmp_path),
@@ -708,6 +851,83 @@ class TestConfigDataInput:
     def test_default_import_progress_interval(self, tmp_path):
         cd = _make_conf(str(tmp_path))
         assert cd.import_progress_interval == 0
+
+    def test_invalid_delete_empty_columns_raises(self, tmp_path):
+        _write_conf(
+            str(tmp_path),
+            """
+            [input]
+            delete_empty_columns = notabool
+        """,
+        )
+        with pytest.raises(ConfigError):
+            _make_conf(str(tmp_path))
+
+    def test_invalid_create_column_headers_raises(self, tmp_path):
+        _write_conf(
+            str(tmp_path),
+            """
+            [input]
+            create_column_headers = notabool
+        """,
+        )
+        with pytest.raises(ConfigError):
+            _make_conf(str(tmp_path))
+
+    def test_invalid_clean_column_headers_raises(self, tmp_path):
+        _write_conf(
+            str(tmp_path),
+            """
+            [input]
+            clean_column_headers = notabool
+        """,
+        )
+        with pytest.raises(ConfigError):
+            _make_conf(str(tmp_path))
+
+    def test_invalid_dedup_column_headers_raises(self, tmp_path):
+        _write_conf(
+            str(tmp_path),
+            """
+            [input]
+            dedup_column_headers = notabool
+        """,
+        )
+        with pytest.raises(ConfigError):
+            _make_conf(str(tmp_path))
+
+    def test_invalid_access_use_numeric_via_input_raises(self, tmp_path):
+        _write_conf(
+            str(tmp_path),
+            """
+            [input]
+            access_use_numeric = notabool
+        """,
+        )
+        with pytest.raises(ConfigError):
+            _make_conf(str(tmp_path))
+
+    def test_invalid_import_only_common_columns_raises(self, tmp_path):
+        _write_conf(
+            str(tmp_path),
+            """
+            [input]
+            import_only_common_columns = notabool
+        """,
+        )
+        with pytest.raises(ConfigError):
+            _make_conf(str(tmp_path))
+
+    def test_invalid_import_common_columns_only_raises(self, tmp_path):
+        _write_conf(
+            str(tmp_path),
+            """
+            [input]
+            import_common_columns_only = notabool
+        """,
+        )
+        with pytest.raises(ConfigError):
+            _make_conf(str(tmp_path))
 
     def test_invalid_import_progress_interval_raises(self, tmp_path):
         _write_conf(
@@ -793,6 +1013,72 @@ class TestConfigDataOutputExtended:
         with pytest.raises(ConfigError):
             _make_conf(str(tmp_path))
 
+    def test_invalid_hdf5_text_len_raises(self, tmp_path):
+        _write_conf(
+            str(tmp_path),
+            """
+            [output]
+            hdf5_text_len = notanumber
+        """,
+        )
+        with pytest.raises(ConfigError):
+            _make_conf(str(tmp_path))
+
+    def test_invalid_log_write_messages_raises(self, tmp_path):
+        _write_conf(
+            str(tmp_path),
+            """
+            [output]
+            log_write_messages = notabool
+        """,
+        )
+        with pytest.raises(ConfigError):
+            _make_conf(str(tmp_path))
+
+    def test_invalid_make_export_dirs_raises(self, tmp_path):
+        _write_conf(
+            str(tmp_path),
+            """
+            [output]
+            make_export_dirs = notabool
+        """,
+        )
+        with pytest.raises(ConfigError):
+            _make_conf(str(tmp_path))
+
+    def test_invalid_outfile_open_timeout_raises(self, tmp_path):
+        _write_conf(
+            str(tmp_path),
+            """
+            [output]
+            outfile_open_timeout = notanumber
+        """,
+        )
+        with pytest.raises(ConfigError):
+            _make_conf(str(tmp_path))
+
+    def test_invalid_export_row_buffer_raises(self, tmp_path):
+        _write_conf(
+            str(tmp_path),
+            """
+            [output]
+            export_row_buffer = notanumber
+        """,
+        )
+        with pytest.raises(ConfigError):
+            _make_conf(str(tmp_path))
+
+    def test_invalid_zip_buffer_mb_via_output_raises(self, tmp_path):
+        _write_conf(
+            str(tmp_path),
+            """
+            [output]
+            zip_buffer_mb = notanumber
+        """,
+        )
+        with pytest.raises(ConfigError):
+            _make_conf(str(tmp_path))
+
     def test_reads_outfile_open_timeout(self, tmp_path):
         _write_conf(
             str(tmp_path),
@@ -825,6 +1111,28 @@ class TestConfigDataOutputExtended:
         )
         cd = _make_conf(str(tmp_path))
         assert cd.css_styles == "body { color: red; }"
+
+    def test_reads_hdf5_text_len(self, tmp_path):
+        _write_conf(
+            str(tmp_path),
+            """
+            [output]
+            hdf5_text_len = 2000
+        """,
+        )
+        cd = _make_conf(str(tmp_path))
+        assert cd.hdf5_text_len == 2000
+
+    def test_reads_css_file(self, tmp_path):
+        _write_conf(
+            str(tmp_path),
+            """
+            [output]
+            css_file = styles.css
+        """,
+        )
+        cd = _make_conf(str(tmp_path))
+        assert cd.css_file == "styles.css"
 
     def test_reads_log_write_messages_true(self, tmp_path):
         _write_conf(
@@ -976,6 +1284,61 @@ class TestConfigDataInterfaceExtended:
         cd = _make_conf(str(tmp_path))
         assert cd.gui_wait_on_exit is True
 
+    def test_invalid_write_warnings_raises(self, tmp_path):
+        _write_conf(
+            str(tmp_path),
+            """
+            [interface]
+            write_warnings = notabool
+        """,
+        )
+        with pytest.raises(ConfigError):
+            _make_conf(str(tmp_path))
+
+    def test_invalid_console_height_raises(self, tmp_path):
+        _write_conf(
+            str(tmp_path),
+            """
+            [interface]
+            console_height = notanumber
+        """,
+        )
+        with pytest.raises(ConfigError):
+            _make_conf(str(tmp_path))
+
+    def test_invalid_console_width_raises(self, tmp_path):
+        _write_conf(
+            str(tmp_path),
+            """
+            [interface]
+            console_width = notanumber
+        """,
+        )
+        with pytest.raises(ConfigError):
+            _make_conf(str(tmp_path))
+
+    def test_invalid_console_wait_when_done_raises(self, tmp_path):
+        _write_conf(
+            str(tmp_path),
+            """
+            [interface]
+            console_wait_when_done = notabool
+        """,
+        )
+        with pytest.raises(ConfigError):
+            _make_conf(str(tmp_path))
+
+    def test_invalid_console_wait_when_error_halt_raises(self, tmp_path):
+        _write_conf(
+            str(tmp_path),
+            """
+            [interface]
+            console_wait_when_error_halt = notabool
+        """,
+        )
+        with pytest.raises(ConfigError):
+            _make_conf(str(tmp_path))
+
     def test_reads_console_wait_when_error_halt(self, tmp_path):
         _write_conf(
             str(tmp_path),
@@ -1026,6 +1389,39 @@ class TestConfigDataConfigSection:
         )
         cd = _make_conf(str(tmp_path))
         assert cd.log_datavars is False
+
+    def test_reads_user_logfile_true(self, tmp_path):
+        _write_conf(
+            str(tmp_path),
+            """
+            [config]
+            user_logfile = true
+        """,
+        )
+        cd = _make_conf(str(tmp_path))
+        assert cd.user_logfile is True
+
+    def test_reads_max_log_size_mb(self, tmp_path):
+        _write_conf(
+            str(tmp_path),
+            """
+            [config]
+            max_log_size_mb = 50
+        """,
+        )
+        cd = _make_conf(str(tmp_path))
+        assert cd.max_log_size_mb == 50
+
+    def test_invalid_max_log_size_mb_raises(self, tmp_path):
+        _write_conf(
+            str(tmp_path),
+            """
+            [config]
+            max_log_size_mb = notanumber
+        """,
+        )
+        with pytest.raises(ConfigError):
+            _make_conf(str(tmp_path))
 
     def test_invalid_log_datavars_raises(self, tmp_path):
         _write_conf(
@@ -1144,6 +1540,50 @@ class TestConfigDataEmail:
         cd = _make_conf(str(tmp_path))
         assert cd.email_format == "html"
 
+    def test_reads_email_css(self, tmp_path):
+        _write_conf(
+            str(tmp_path),
+            """
+            [email]
+            message_css = body { color: blue; }
+        """,
+        )
+        cd = _make_conf(str(tmp_path))
+        assert cd.email_css == "body { color: blue; }"
+
+    def test_invalid_use_tls_raises(self, tmp_path):
+        _write_conf(
+            str(tmp_path),
+            """
+            [email]
+            use_tls = notabool
+        """,
+        )
+        with pytest.raises(ConfigError):
+            _make_conf(str(tmp_path))
+
+    def test_invalid_use_ssl_via_email_raises(self, tmp_path):
+        _write_conf(
+            str(tmp_path),
+            """
+            [email]
+            use_ssl = notabool
+        """,
+        )
+        with pytest.raises(ConfigError):
+            _make_conf(str(tmp_path))
+
+    def test_reads_invalid_import_buffer_raises(self, tmp_path):
+        _write_conf(
+            str(tmp_path),
+            """
+            [input]
+            import_buffer = notanumber
+        """,
+        )
+        with pytest.raises(ConfigError):
+            _make_conf(str(tmp_path))
+
     def test_invalid_email_format_raises(self, tmp_path):
         _write_conf(
             str(tmp_path),
@@ -1159,6 +1599,50 @@ class TestConfigDataEmail:
 # ---------------------------------------------------------------------------
 # Config file parsing — include sections
 # ---------------------------------------------------------------------------
+
+
+class TestConfigDataVariables:
+    def test_reads_variables_section(self, tmp_path):
+        class FakePool:
+            def var_name_ok(self, name):
+                return True
+
+            def add_substitution(self, sub, repl):
+                self.last_sub = sub
+                self.last_repl = repl
+
+            def substitute(self, s):
+                return (s,)
+
+        pool = FakePool()
+        _write_conf(
+            str(tmp_path),
+            """
+            [variables]
+            myvar = myvalue
+        """,
+        )
+        _make_conf(str(tmp_path), variable_pool=pool)
+        assert pool.last_sub == "myvar"
+        assert pool.last_repl == "myvalue"
+
+    def test_invalid_variable_name_raises(self, tmp_path):
+        class FakePool:
+            def var_name_ok(self, name):
+                return False
+
+            def substitute(self, s):
+                return (s,)
+
+        _write_conf(
+            str(tmp_path),
+            """
+            [variables]
+            bad!name = value
+        """,
+        )
+        with pytest.raises(ConfigError):
+            _make_conf(str(tmp_path), variable_pool=FakePool())
 
 
 class TestConfigDataIncludes:

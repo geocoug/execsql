@@ -638,7 +638,7 @@ def _run(
         try:
             _state.subvars.add_substitution("&" + k, os.environ[k])
         except Exception:
-            pass
+            pass  # Skip env vars with names that can't be substitution keys.
     _state.subvars.add_substitution("$LAST_ROWCOUNT", None)
 
     dt_now = datetime.datetime.now()

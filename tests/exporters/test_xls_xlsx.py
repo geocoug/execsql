@@ -143,6 +143,86 @@ class TestXlsxFileSheetData:
 # ---------------------------------------------------------------------------
 
 
+class TestXlsxFileSheetNamed:
+    def test_sheet_by_string_integer(self, tmp_path):
+        """Passing '1' as string selects the first sheet (1-based)."""
+        from execsql.exporters.xls import XlsxFile
+
+        path = _make_xlsx(tmp_path, "First", [["col"], [42]])
+        f = XlsxFile()
+        f.open(path)
+        data = f.sheet_data("1")
+        f.close()
+        assert data[0] == ["col"]
+
+    def test_sheet_by_zero_uses_name_lookup(self, tmp_path):
+        """Passing '0' (< 1) treats it as a name, which will fail."""
+        from execsql.exporters.xls import XlsxFile
+        from execsql.exceptions import XlsxFileError
+
+        path = _make_xlsx(tmp_path, "Sheet1", [["x"], [1]])
+        f = XlsxFile()
+        f.open(path)
+        with pytest.raises(XlsxFileError):
+            f.sheet_data("0")
+        f.close()
+
+    def test_sheet_by_non_numeric_string(self, tmp_path):
+        """Passing a non-numeric string looks up by name."""
+        from execsql.exporters.xls import XlsxFile
+
+        path = _make_xlsx(tmp_path, "MyData", [["a"], [1]])
+        f = XlsxFile()
+        f.open(path)
+        data = f.sheet_data("MyData")
+        f.close()
+        assert data[0] == ["a"]
+
+
+class TestXlsxFileBoolFormulas:
+    def test_false_formula_converted(self, tmp_path):
+        """Cells with '=FALSE()' are converted to False."""
+        from execsql.exporters.xls import XlsxFile
+
+        path = _make_xlsx(tmp_path, "Sheet1", [["flag"], ["=FALSE()"]])
+        f = XlsxFile()
+        f.open(path)
+        data = f.sheet_data("Sheet1")
+        f.close()
+        assert data[1] == [False]
+
+    def test_true_formula_converted(self, tmp_path):
+        """Cells with '=TRUE()' are converted to True."""
+        from execsql.exporters.xls import XlsxFile
+
+        path = _make_xlsx(tmp_path, "Sheet1", [["flag"], ["=TRUE()"]])
+        f = XlsxFile()
+        f.open(path)
+        data = f.sheet_data("Sheet1")
+        f.close()
+        assert data[1] == [True]
+
+
+class TestXlsxFileReadOnly:
+    def test_open_read_only(self, tmp_path):
+        from execsql.exporters.xls import XlsxFile
+
+        path = _make_xlsx(tmp_path, "Sheet1", [["x"], [1]])
+        f = XlsxFile()
+        f.open(path, read_only=True)
+        assert f.read_only is True
+        f.close()
+
+
+class TestXlsxLog:
+    def test_log_write(self):
+        from execsql.exporters.xls import XlsxFile
+
+        f = XlsxFile()
+        f.errlog.write("test message")
+        assert "test message" in f.errlog.log_msgs
+
+
 class TestXlsFileInit:
     xlrd = pytest.importorskip("xlrd")
 

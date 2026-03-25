@@ -1,18 +1,14 @@
 """
-Tests for execsql.exporters.base — ExportMetadata and WriteSpec.
-
-ExportRecord is not tested here because its __init__ calls into live state
-(_state.current_script_line, _state.dbs, etc.) which requires a running
-database connection.  ExportMetadata and WriteSpec are fully testable with
-lightweight fakes.
+Tests for execsql.exporters.base — ExportMetadata, WriteSpec, and ExportRecord.
 """
 
 from __future__ import annotations
 
 from types import SimpleNamespace
+from unittest.mock import patch
 
-
-from execsql.exporters.base import ExportMetadata, WriteSpec
+import execsql.state as _state
+from execsql.exporters.base import ExportMetadata, ExportRecord, WriteSpec
 
 
 # ---------------------------------------------------------------------------
@@ -165,3 +161,41 @@ class TestWriteSpec:
         ws = WriteSpec("text", dest="file.txt", tee=True)
         r = repr(ws)
         assert r.startswith("WriteSpec(")
+
+
+# ---------------------------------------------------------------------------
+# ExportRecord
+# ---------------------------------------------------------------------------
+
+
+def _fake_db():
+    return SimpleNamespace(server_name="localhost", db_name="testdb", user="testuser")
+
+
+class TestExportRecord:
+    def test_init_with_zipfile(self, tmp_path):
+        """ExportRecord with zipfile extracts zip parent dir and stores filename."""
+        zippath = str(tmp_path / "archive.zip")
+        fake_dbs = SimpleNamespace(current=lambda: _fake_db())
+        with (
+            patch("execsql.exporters.base.current_script_line", return_value=("script.sql", 1)),
+            patch.object(_state, "dbs", fake_dbs),
+        ):
+            rec = ExportRecord("q1", "data.csv", zipfile=zippath)
+        # zipfile name stored at index 2
+        assert rec.record[2] == "archive.zip"
+        # outfile name (inside zip) stored at index 1
+        assert rec.record[1] == "data.csv"
+
+    def test_init_without_script_file(self, tmp_path):
+        """ExportRecord with None script path sets spath/sname to fallback values."""
+        fake_dbs = SimpleNamespace(current=lambda: _fake_db())
+        with (
+            patch("execsql.exporters.base.current_script_line", return_value=(None, 0)),
+            patch.object(_state, "dbs", fake_dbs),
+        ):
+            rec = ExportRecord("q1", str(tmp_path / "out.csv"))
+        # script name should be "<inline>" when script is None
+        assert rec.record[5] == "<inline>"
+        # script path should be empty
+        assert rec.record[6] == ""

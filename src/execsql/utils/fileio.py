@@ -328,7 +328,7 @@ def filewriter_end() -> None:
         filewriter_shutdown()
         filewriter.join()
     except Exception:
-        pass
+        pass  # Best-effort cleanup at interpreter shutdown.
 
 
 class EncodedFile:
@@ -486,7 +486,7 @@ class Logger:
                         os.remove(rotated)
                     os.rename(self.log_file_name, rotated)
                 except Exception:
-                    pass
+                    pass  # Log rotation is best-effort; file may be locked.
 
     def writelog(self, msg: str) -> None:
         if self.log_file is not None:

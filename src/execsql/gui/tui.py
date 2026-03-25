@@ -1119,7 +1119,7 @@ class ConsoleApp(App):
         try:
             self.query_one("#console_log", RichLog).write(text)
         except Exception:
-            pass
+            pass  # Widget may not be mounted yet.
 
     def set_status(self, msg: str) -> None:
         """Thread-safe status bar update."""
@@ -1129,7 +1129,7 @@ class ConsoleApp(App):
         try:
             self.query_one("#status_bar", Label).update(msg)
         except Exception:
-            pass
+            pass  # Widget may not be mounted yet.
 
     def set_progress(self, pct: float) -> None:
         """Thread-safe progress bar update (0–100)."""
@@ -1139,7 +1139,7 @@ class ConsoleApp(App):
         try:
             self.query_one("#progress_bar", ProgressBar).progress = max(0.0, min(100.0, pct))
         except Exception:
-            pass
+            pass  # Widget may not be mounted yet.
 
     def action_request_quit(self) -> None:
         if self._script_thread and self._script_thread.is_alive():

@@ -116,10 +116,27 @@ class TestStrTemplateReport:
         assert "original" not in text
         assert "replaced" in text
 
+    # ---------------------------------------------------------------------------
+    # JinjaTemplateReport (optional — skipped if Jinja2 not installed)
+    # ---------------------------------------------------------------------------
 
-# ---------------------------------------------------------------------------
-# JinjaTemplateReport (optional — skipped if Jinja2 not installed)
-# ---------------------------------------------------------------------------
+    def test_write_report_to_stdout(self, minimal_conf, tmp_path, noop_filewriter_close):
+        """StrTemplateReport writes to _state.output when output_dest is 'stdout'."""
+        import execsql.state as _state
+
+        _augment_conf(minimal_conf, script_encoding="utf-8")
+        tpl = self._make_template(tmp_path, "$v\n")
+        r = StrTemplateReport(tpl)
+        written = []
+
+        class FakeOutput:
+            def write(self, data):
+                written.append(data)
+
+        _state.output = FakeOutput()
+        r.write_report(headers=["v"], data_dict_rows=[{"v": "hello"}], output_dest="stdout")
+        assert len(written) == 1
+        assert "hello" in written[0]
 
 
 class TestJinjaTemplateReport:
@@ -145,3 +162,43 @@ class TestJinjaTemplateReport:
         text = (tmp_path / "out.txt").read_text()
         assert "Alice" in text
         assert "Bob" in text
+
+    def test_repr(self, minimal_conf, tmp_path):
+        from execsql.exporters.templates import JinjaTemplateReport
+
+        _augment_conf(minimal_conf, script_encoding="utf-8")
+        tpl = self._make_template(tmp_path, "hi")
+        r = JinjaTemplateReport(tpl)
+        assert "StrTemplateReport" in repr(r)
+
+    def test_write_report_to_stdout(self, minimal_conf, tmp_path, noop_filewriter_close):
+        import execsql.state as _state
+        from execsql.exporters.templates import JinjaTemplateReport
+
+        _augment_conf(minimal_conf, script_encoding="utf-8")
+        tpl = self._make_template(tmp_path, "{{ headers|join(',') }}")
+        r = JinjaTemplateReport(tpl)
+        written = []
+
+        class FakeOutput:
+            def write(self, data):
+                written.append(data)
+
+        _state.output = FakeOutput()
+        r.write_report(headers=["a", "b"], data_dict_rows=[], output_dest="stdout")
+        assert len(written) == 1
+        assert "a,b" in written[0]
+
+    def test_write_report_append_mode(self, minimal_conf, tmp_path, noop_filewriter_close):
+        """JinjaTemplateReport append mode opens file in 'a' mode."""
+        from execsql.exporters.templates import JinjaTemplateReport
+
+        _augment_conf(minimal_conf, script_encoding="utf-8")
+        tpl = self._make_template(tmp_path, "{{ headers|join(',') }}")
+        r = JinjaTemplateReport(tpl)
+        out = str(tmp_path / "out.txt")
+        r.write_report(headers=["a"], data_dict_rows=[], output_dest=out)
+        r.write_report(headers=["b"], data_dict_rows=[], output_dest=out, append=True)
+        text = (tmp_path / "out.txt").read_text()
+        assert "a" in text
+        assert "b" in text

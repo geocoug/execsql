@@ -11,7 +11,17 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Changed
+
+- Consolidated optional dependency extras: replaced individual `ods`, `excel`, `jinja`, `feather`, `parquet`, and `hdf5` extras with a single `formats` bundle. Renamed `keyring` extra to `auth`. Added `all-db` convenience group for all database drivers. The `all` extra now uses self-referential extras (`all-db`, `formats`, `auth`) instead of duplicating package lists.
+
+- Moved all metacommand test modules from `tests/` into a dedicated `tests/metacommands/` subdirectory, matching the existing pattern used by `tests/db/`, `tests/exporters/`, `tests/importers/`, `tests/utils/`, and `tests/gui/`.
+
 ### Added
+
+- `EXPORT … FORMAT parquet` support: new `exporters/parquet.py` module writes query results to Apache Parquet files via `polars`. Mirrors the existing Feather export pattern. Parquet import already existed; export completes the round-trip. Included in the `formats` optional dependency extra.
+
+- OS keyring integration for database password storage (`utils/auth.py`): when the `keyring` package is installed, `get_password()` checks the OS credential store (macOS Keychain, Windows Credential Manager, Linux SecretService) before prompting. After a successful interactive prompt the password is stored in the keyring for future use. Controlled by the `use_keyring` config option (default `yes`). Included in the `auth` optional dependency extra.
 
 - `max_log_size_mb` config setting (default `0` = disabled): when set to a positive integer, the log file is rotated to `.1` before a new run appends to it if the file size exceeds the configured threshold. Controlled via `config.py` and implemented in `utils/fileio.py`.
 
@@ -31,11 +41,9 @@ ______________________________________________________________________
 
 - API reference section in the docs (`docs/api/`) covering `cli`, `db`, `exporters`, `importers`, and `metacommands`; wired `mkdocstrings-python` into `zensical.toml` via `[project.plugins.mkdocstrings]`.
 
-- `feather = ["pandas", "pyarrow"]` optional-dependency extra for Feather import/export support.
+- Feather import/export support (via `polars`, included in the `formats` extra).
 
-- `hdf5 = ["tables"]` optional-dependency extra for HDF5 export support.
-
-- Both extras are included in the `all` group.
+- HDF5 export support (via `tables`, included in the `formats` extra).
 
 - `state.reset()` utility function to reset all module-level runtime state to initial values; used by the test suite to ensure a clean slate between tests.
 
@@ -60,6 +68,8 @@ ______________________________________________________________________
 - Tests for DuckDB native temporal type mappings in `test_types.py`.
 
 - Tests for `SubVarSet` dict-based storage and pre-compiled regex patterns in `test_script.py`.
+
+- Increased test coverage from 68% to 70% (2003 tests, up from 1840) by adding targeted tests for uncovered branches in `types.py` (83%→96%), `models.py` (88%→96%), `config.py` error branches, `utils/errors.py` (exception_info, write_warning, exit_now), `exporters/` (base, templates, xls, values, pretty), `gui/` (backend fallback, manager dispatch), and `utils/fileio.py` (Logger, BOM detection). Raised `--cov-fail-under` threshold from 68 to 70.
 
 - Tests for `DT_Time_Oracle` subclass behavior (matches, from_data, lenspec, varlen) in `test_types.py`.
 
@@ -103,29 +113,64 @@ ______________________________________________________________________
 
 - DuckDB temporal type mappings (`DT_TimestampTZ`, `DT_Timestamp`, `DT_Date`, `DT_Time`) changed from `TEXT` to native DuckDB types (`TIMESTAMPTZ`, `TIMESTAMP`, `DATE`, `TIME`).
 
+- `db/base.py`: `raise e` in `execute()` changed to bare `raise` for cleaner traceback propagation.
+
+- `db/firebird.py`: `table_exists()` fixed `raise e` → `raise ErrInfo(...)` to correctly raise the constructed error instead of re-raising the original driver exception, and reordered rollback before raise.
+
+- `state.py`: Version-parse fallback changed from legacy `1.130.1` to `0.0.0` to avoid confusion with the v2.x series.
+
 ### Changed
 
+- `state.py`: Replaced 20+ `Any`-typed module globals with concrete types under `TYPE_CHECKING` guards (e.g. `IfLevels | None`, `DatabasePool | None`, `FileWriter | None`). Only `gui_console` remains `Any` (varies by backend).
+
+- All bare `except Exception: pass` blocks across 13 source files now have inline comments explaining why the exception is intentionally silenced (e.g. best-effort rollback, driver compatibility, GUI teardown).
+
+- `README.md`: Corrected import/export format lists to match actual implementation — removed false JSON/XML import claims, added Feather/Parquet imports, expanded export list to cover all 15+ formats.
+
+- Added `[tool.mypy]` configuration to `pyproject.toml` (Python 3.10 target, `warn_return_any`, `ignore_missing_imports`, excludes `_execsql/`).
+
 - Replaced all `os.path` calls with `pathlib.Path` equivalents across 21 source files (`config.py`, `cli.py`, `script.py`, `utils/fileio.py`, `utils/errors.py`, `utils/mail.py`, `metacommands/io.py`, `metacommands/conditions.py`, `metacommands/connect.py`, `metacommands/prompt.py`, `exporters/base.py`, `exporters/duckdb.py`, `exporters/html.py`, `exporters/latex.py`, `exporters/ods.py`, `exporters/sqlite.py`, `exporters/xls.py`, `db/access.py`, `db/duckdb.py`, `db/factory.py`, `importers/csv.py`). `os.path.expandvars()` is retained where used as it has no `pathlib` equivalent.
+
 - `MetaCommandList` in `script.py` refactored from a hand-rolled linked list (with a move-to-front performance heuristic) to a plain `list[MetaCommand]`. Command ordering is now stable and predictable; the `insert_node()` method and `next_node` attribute on `MetaCommand` have been removed.
+
 - `config.py`: All `raise ConfigError(...)` patterns now chain the original exception via `from e` for better debugging context.
+
 - `SubVarSet` in `script.py` refactored: internal storage changed from list-of-tuples to dict for O(1) variable lookups; regex patterns pre-compiled on `add_substitution()` instead of recompiled on every `substitute()` call.
+
 - `set_system_vars()` in `script.py`: `_state.dbs.current()` cached once instead of called 7+ times per invocation.
+
 - `DT_Time_Oracle` in `types.py` refactored to a thin subclass of `DT_Time`, overriding only `lenspec = True` and `varlen = True`; duplicated methods and attributes removed.
+
 - `PostgresDatabase` and `SQLiteDatabase` now accept connection timeout parameters (default 30 s) passed through to the underlying driver (`connect_timeout` for psycopg2, `timeout` for sqlite3). `Database.quote_identifier()` added for safe SQL identifier quoting.
+
 - `DT_Date` in `types.py`: date format deque (`date_fmts`) is now copied per-instance instead of mutated globally, eliminating thread-safety issues while retaining the most-recent-format-first performance optimization.
+
 - `utils/crypto.py`: Added prominent security warnings to module and `Encrypt` class docstrings documenting that XOR "encryption" is obfuscation only; keys are hardcoded and passwords are recoverable. `docs/configuration.md` updated with matching admonition.
+
 - `state.initialize()` is now called from `cli._run()` instead of individually assigning each singleton, making initialization order explicit and testable.
+
 - Exception hierarchy refactored: `DataTypeError`, `DbTypeError`, and `DatabaseNotImplementedError` now call `super().__init__()` so `str(exc)` and `exc.args` are populated.
+
 - All bare `except:` clauses replaced with `except Exception:` and bare `except ImportError:` / `except (ValueError, TypeError):` where appropriate, throughout exporters, `script.py`, `db/`, and utilities.
+
 - `isinstance()` checks replace `type(x) == type(...)` comparisons throughout `db/access.py`, `db/base.py`, `exporters/pretty.py`, `exporters/raw.py`, `types.py`, `utils/regex.py`, and `utils/gui.py` for correctness with subclasses.
+
 - `type(data) is T` used in place of `type(data) == T` for exact-type checks in `types.py`.
+
 - `of` imports in `exporters/ods.py` corrected: `import of as of` followed by explicit `import of.*` submodule imports, replacing the broken `import of.*` pattern.
+
 - `exception_info()` references in `exporters/duckdb.py`, `exporters/latex.py`, and `exporters/sqlite.py` corrected to the actual function name `exception_desc()`.
+
 - `FileWriter.write()` status check corrected from comparing to the bare constant `STATUS_OPEN` to `self.status == self.STATUS_OPEN`.
+
 - Unused variable assignments removed (`match_found` in `CounterVars.substitute` and `SubVarSet.substitute`; `enc_match` in `postgres.py`; shadow variable `l` renamed `line` in `ScriptFile.__next__`; unused `button_list` in `ConsoleBackend`; unused `conf` in `_apply_connect_result`; unused `close` in the dispatch-table builder; unused `errmsg` and `hdrs` in `x_subdata`).
+
 - `itertools` and `base64` imports in `utils/crypto.py` split onto separate lines.
+
 - `xml.py` local variable `uhdrs` renamed `str_hdrs` and loop corrected to iterate over the string-converted headers.
+
 - Test `conftest.py` updated to use `_state.reset()` before and after each test instead of manually saving and restoring `_state.conf`.
+
 - Deferred re-exports removed from `state.py` (was ~160 lines at the bottom of the module). All ~28 call-site modules now import names directly from their canonical source modules (`script`, `utils.fileio`, `utils.gui`, `parser`, etc.) rather than via `_state.X`. No behavior change; `state.py` reduced from ~488 to ~317 lines.
 
 ### Removed

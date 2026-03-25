@@ -45,6 +45,9 @@ The section and property names that may be used in a configuration file are list
 `password_prompt`
 :   Indicates whether or not *execsql* should prompt for the user's password. The property value should be either "Yes" or "No". The default is "Yes". This is equivalent to the "-w" command-line option.
 
+`use_keyring`
+:   When set to "Yes" (the default) and the `keyring` Python package is installed, *execsql* checks the OS credential store (macOS Keychain, Windows Credential Manager, or Linux SecretService) before prompting for a password. After a successful interactive prompt the password is automatically stored in the keyring for future use. Set to "No" to disable keyring integration entirely. Install with `pip install execsql2[auth]`.
+
 `new_db`
 :   Indicates whether or not *execsql* should create a new PostgreSQL or SQLite database to connect to.
 

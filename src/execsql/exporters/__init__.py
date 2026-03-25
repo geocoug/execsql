@@ -10,5 +10,5 @@ importing directly from here.
 
 Sub-modules: ``base``, ``delimited``, ``json``, ``xml``, ``html``,
 ``latex``, ``ods``, ``xls``, ``zip``, ``raw``, ``pretty``, ``values``,
-``templates``, ``feather``, ``duckdb``, ``sqlite``.
+``templates``, ``feather``, ``parquet``, ``duckdb``, ``sqlite``.
 """

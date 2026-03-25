@@ -34,7 +34,63 @@ from execsql.types import (
     dbt_duckdb,
     dbt_sqlserver,
 )
-from execsql.exceptions import DbTypeError
+from execsql.exceptions import DataTypeError, DbTypeError
+
+
+# ---------------------------------------------------------------------------
+# DataType base class
+# ---------------------------------------------------------------------------
+
+
+class TestDataTypeBase:
+    def test_repr(self):
+        from execsql.types import DataType
+
+        dt = DataType()
+        assert "DataType(" in repr(dt)
+
+    def test_from_data_none_returns_none(self):
+        from execsql.types import DataType
+
+        dt = DataType()
+        assert dt.from_data(None) is None
+
+    def test_matches_none_returns_false(self):
+        from execsql.types import DataType
+
+        dt = DataType()
+        assert dt.matches(None) is False
+
+    def test_is_match_default_catches_conversion_error(self):
+        """Base _is_match delegates to _from_data; if it raises DataTypeError, return False."""
+        from execsql.types import DataType
+
+        dt = DataType()
+        # data_type is None, so DataType()(data) will fail
+        assert dt._is_match("anything") is False
+
+    def test_is_match_none_returns_false(self):
+        from execsql.types import DataType
+
+        dt = DataType()
+        assert dt._is_match(None) is False
+
+    def test_from_data_internal_none_raises(self):
+        from execsql.types import DataType
+
+        dt = DataType()
+        dt.data_type_name = "test"
+        with pytest.raises(DataTypeError):
+            dt._from_data(None)
+
+    def test_from_data_internal_matching_type_passthrough(self):
+        """When data is already the right type, _from_data returns it."""
+        from execsql.types import DataType
+
+        dt = DataType()
+        dt.data_type = int
+        dt.data_type_name = "test"
+        assert dt._from_data(42) == 42
 
 
 # ---------------------------------------------------------------------------
@@ -85,6 +141,27 @@ class TestDTBoolean:
         assert dt.matches("y") is False
         assert dt.matches("yes") is True
 
+    def test_repr(self):
+        assert repr(self.dt) == "DT_Boolean()"
+
+    def test_from_data_none_via_internal_raises(self):
+        with pytest.raises(DataTypeError):
+            self.dt._from_data(None)
+
+    def test_from_data_invalid_raises(self):
+        with pytest.raises(DataTypeError):
+            self.dt._from_data("maybe")
+
+    def test_matches_int_when_boolean_int(self, minimal_conf):
+        minimal_conf.boolean_int = True
+        assert self.dt.matches(0) is True
+        assert self.dt.matches(1) is True
+
+    def test_from_data_int_when_boolean_int(self, minimal_conf):
+        minimal_conf.boolean_int = True
+        assert self.dt._from_data(0) is False
+        assert self.dt._from_data(1) is True
+
 
 # ---------------------------------------------------------------------------
 # DT_Integer
@@ -115,6 +192,25 @@ class TestDTInteger:
     def test_from_data_float_whole(self):
         assert self.dt.from_data(3.0) == 3
 
+    def test_repr(self):
+        assert repr(self.dt) == "DT_Integer()"
+
+    def test_from_data_none_raises(self):
+        with pytest.raises(DataTypeError):
+            self.dt._from_data(None)
+
+    def test_from_data_float_non_whole_raises(self):
+        with pytest.raises(DataTypeError):
+            self.dt._from_data(3.5)
+
+    def test_from_data_invalid_string_raises(self):
+        with pytest.raises(DataTypeError):
+            self.dt._from_data("abc")
+
+    def test_from_data_leading_zero_raises(self):
+        with pytest.raises(DataTypeError):
+            self.dt._from_data("007")
+
 
 # ---------------------------------------------------------------------------
 # DT_Long
@@ -132,8 +228,33 @@ class TestDTLong:
         assert self.dt.from_data("9999999999") == 9_999_999_999
 
     def test_float_nan_returns_none(self):
-
         assert self.dt.from_data(float("nan")) is None
+
+    def test_repr(self):
+        assert repr(self.dt) == "DT_Long()"
+
+    def test_from_data_none_raises(self):
+        with pytest.raises(DataTypeError):
+            self.dt._from_data(None)
+
+    def test_from_data_decimal_raises(self):
+        with pytest.raises(DataTypeError):
+            self.dt._from_data(Decimal("3.14"))
+
+    def test_from_data_leading_zero_raises(self):
+        with pytest.raises(DataTypeError):
+            self.dt._from_data("007")
+
+    def test_from_data_float_whole_converts(self):
+        assert self.dt._from_data(5.0) == 5
+
+    def test_from_data_float_non_whole_raises(self):
+        with pytest.raises(DataTypeError):
+            self.dt._from_data(3.7)
+
+    def test_from_data_non_digit_string_raises(self):
+        with pytest.raises(DataTypeError):
+            self.dt._from_data("abc")
 
 
 # ---------------------------------------------------------------------------
@@ -158,6 +279,24 @@ class TestDTFloat:
 
     def test_from_data_passthrough(self):
         assert self.dt.from_data(1.5) == 1.5
+
+    def test_repr(self):
+        assert repr(self.dt) == "DT_Float()"
+
+    def test_from_data_none_raises(self):
+        with pytest.raises(DataTypeError):
+            self.dt._from_data(None)
+
+    def test_from_data_leading_zero_raises(self):
+        with pytest.raises(DataTypeError):
+            self.dt._from_data("07.5")
+
+    def test_from_data_invalid_regex_raises(self):
+        with pytest.raises(DataTypeError):
+            self.dt._from_data("abc")
+
+    def test_from_data_string_converts(self):
+        assert self.dt._from_data("3.14") == 3.14
 
 
 # ---------------------------------------------------------------------------
@@ -189,6 +328,32 @@ class TestDTDecimal:
         result = self.dt.from_data(d)
         assert result == d
 
+    def test_repr(self):
+        assert repr(self.dt) == "DT_Decimal()"
+
+    def test_from_data_none_raises(self):
+        with pytest.raises(DataTypeError):
+            self.dt._from_data(None)
+
+    def test_from_data_leading_zero_raises(self):
+        with pytest.raises(DataTypeError):
+            self.dt._from_data("007")
+
+    def test_from_data_invalid_regex_raises(self):
+        with pytest.raises(DataTypeError):
+            self.dt._from_data("abc")
+
+    def test_from_data_non_string_non_decimal_raises(self):
+        with pytest.raises(DataTypeError):
+            self.dt._from_data([1, 2, 3])
+
+    def test_set_scale_prec_small_exponent(self):
+        """When exponent magnitude exceeds digit count, precision = abs(exponent) + 1."""
+        d = Decimal("0.001")  # digits=(1,), exponent=-3
+        self.dt.set_scale_prec(d)
+        assert self.dt.precision == 4  # abs(-3) + 1
+        assert self.dt.scale == 3
+
 
 # ---------------------------------------------------------------------------
 # DT_Character
@@ -215,6 +380,28 @@ class TestDTCharacter:
     def test_lenspec_is_true(self):
         assert self.dt.lenspec is True
 
+    def test_repr(self):
+        assert repr(self.dt) == "DT_Character()"
+
+    def test_from_data_none_raises(self):
+        with pytest.raises(DataTypeError):
+            self.dt._from_data(None)
+
+    def test_from_data_non_string_converts(self):
+        assert self.dt._from_data(42) == "42"
+
+    def test_from_data_long_non_string_raises(self):
+        """Non-string data that converts to >255 chars raises."""
+        # Create an object whose str() is >255 chars
+        long_val = "x" * 300
+
+        class LongStr:
+            def __str__(self):
+                return long_val
+
+        with pytest.raises(DataTypeError):
+            self.dt._from_data(LongStr())
+
 
 # ---------------------------------------------------------------------------
 # DT_Varchar
@@ -231,6 +418,17 @@ class TestDTVarchar:
 
     def test_no_match_bytearray(self):
         assert self.dt.matches(bytearray(b"data")) is False
+
+    def test_repr(self):
+        assert repr(self.dt) == "DT_Varchar()"
+
+    def test_from_data_none_raises(self):
+        with pytest.raises(DataTypeError):
+            self.dt._from_data(None)
+
+    def test_from_data_long_string_raises(self):
+        with pytest.raises(DataTypeError):
+            self.dt._from_data("x" * 256)
 
 
 # ---------------------------------------------------------------------------
@@ -251,6 +449,16 @@ class TestDTText:
     def test_lenspec_is_false(self):
         assert self.dt.lenspec is False
 
+    def test_repr(self):
+        assert repr(self.dt) == "DT_Text()"
+
+    def test_from_data_none_raises(self):
+        with pytest.raises(DataTypeError):
+            self.dt._from_data(None)
+
+    def test_from_data_non_string_converts(self):
+        assert self.dt._from_data(42) == "42"
+
 
 # ---------------------------------------------------------------------------
 # DT_Binary
@@ -263,6 +471,9 @@ class TestDTBinary:
 
     def test_data_type_is_bytearray(self):
         assert self.dt.data_type is bytearray
+
+    def test_repr(self):
+        assert repr(self.dt) == "DT_Binary()"
 
 
 # ---------------------------------------------------------------------------
@@ -295,6 +506,17 @@ class TestDTDate:
     def test_from_data_passthrough_date(self):
         d = datetime.date(2024, 6, 1)
         assert self.dt.from_data(d) == d
+
+    def test_repr(self):
+        assert repr(self.dt) == "DT_Date()"
+
+    def test_from_data_none_raises(self):
+        with pytest.raises(DataTypeError):
+            self.dt._from_data(None)
+
+    def test_from_data_exhausts_all_formats_raises(self):
+        with pytest.raises(DataTypeError):
+            self.dt._from_data("zzz-not-a-date-zzz")
 
     def test_instances_do_not_share_format_order(self):
         """Parsing with one DT_Date instance must not affect another's format order."""
@@ -354,6 +576,25 @@ class TestDTTime:
     @pytest.mark.parametrize("val", ["not-a-time", None, 42])
     def test_no_match_invalid(self, val):
         assert self.dt.matches(val) is False
+
+    def test_repr(self):
+        assert repr(self.dt) == "DT_Time()"
+
+    def test_from_data_none_raises(self):
+        with pytest.raises(DataTypeError):
+            self.dt._from_data(None)
+
+    def test_from_data_datetime_extracts_time(self):
+        dt_val = datetime.datetime(2024, 1, 1, 10, 30, 45)
+        assert self.dt._from_data(dt_val) == datetime.time(10, 30, 45)
+
+    def test_from_data_non_string_raises(self):
+        with pytest.raises(DataTypeError):
+            self.dt._from_data(42)
+
+    def test_from_data_invalid_string_raises(self):
+        with pytest.raises(DataTypeError):
+            self.dt._from_data("not-a-time")
 
 
 # ---------------------------------------------------------------------------
@@ -427,6 +668,17 @@ class TestDTTimestamp:
         dt = datetime.datetime(2024, 6, 1, 12, 0, 0)
         assert self.dt.from_data(dt) == dt
 
+    def test_repr(self):
+        assert repr(self.dt) == "DT_Timestamp()"
+
+    def test_from_data_none_raises(self):
+        with pytest.raises(DataTypeError):
+            self.dt._from_data(None)
+
+    def test_from_data_invalid_string_raises(self):
+        with pytest.raises(DataTypeError):
+            self.dt._from_data("not-a-datetime")
+
 
 # ---------------------------------------------------------------------------
 # DT_TimestampTZ
@@ -451,6 +703,20 @@ class TestDTTimestampTZ:
     def test_tz_string_matches(self):
         # Numeric timezone must be adjacent to datetime (no space before +)
         assert self.dt.matches("2024-01-15 10:00:00+05:00") is True
+
+    def test_repr(self):
+        assert repr(self.dt) == "DT_TimestampTZ()"
+
+    def test_from_data_none_raises(self):
+        with pytest.raises(DataTypeError):
+            self.dt._from_data(None)
+
+    def test_from_data_invalid_string_raises(self):
+        with pytest.raises(DataTypeError):
+            self.dt._from_data("not-a-tz-datetime")
+
+    def test_non_string_non_datetime_no_match(self):
+        assert self.dt.matches(42) is False
 
 
 # ---------------------------------------------------------------------------
@@ -505,11 +771,47 @@ class TestDbType:
         assert "PostgreSQL" in repr(dbt_postgres)
 
     def test_unknown_type_raises(self):
-
         dbt = DbType("TestDB", '""')
         # dialect is None — accessing any type should raise
         with pytest.raises(DbTypeError):
             dbt.column_spec("col", DT_Integer, None, False)
+
+    def test_quoted_with_bracket_quotes(self):
+        """DbType with asymmetric quote chars (e.g., Access uses [])."""
+        dbt = DbType("Access", "[]")
+        assert dbt.quoted("my table") == "[my table]"
+
+    def test_quoted_escapes_embedded_quote(self):
+        """When quote chars are identical and the name contains one, it's doubled."""
+        dbt = DbType("test", '""')
+        assert dbt.quoted('col"name') == '"col""name"'
+
+    def test_spec_type_with_translation(self):
+        dbt = DbType("test", '""')
+        dbt.dt_xlate = {DT_Time: DT_Varchar}
+        assert dbt.spec_type(DT_Time) is DT_Varchar
+
+    def test_spec_type_without_translation(self):
+        dbt = DbType("test", '""')
+        assert dbt.spec_type(DT_Integer) is DT_Integer
+
+    def test_column_spec_with_precision_scale(self):
+        spec = dbt_postgres.column_spec("amount", DT_Decimal, None, False, precision=10, scale=2)
+        assert "10,2" in spec
+        assert "NOT NULL" in spec
+
+    def test_datatype_name_error_path(self):
+        dbt = DbType("EmptyDB", '""')
+        dbt.dialect = {}
+        with pytest.raises(DbTypeError):
+            dbt.datatype_name(DT_Integer)
+
+    def test_name_datatype_creates_dialect(self):
+        dbt = DbType("NewDB", '""')
+        assert dbt.dialect is None
+        dbt.name_datatype(DT_Integer, "INT")
+        assert dbt.dialect is not None
+        assert DT_Integer in dbt.dialect
 
 
 # ---------------------------------------------------------------------------

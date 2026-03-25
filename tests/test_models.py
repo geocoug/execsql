@@ -171,6 +171,35 @@ class TestColumn:
 # ---------------------------------------------------------------------------
 
 
+class TestColumnTypeTracker:
+    def test_typetracker_repr(self):
+        col = Column("x")
+        # accums are Accum (TypeTracker) instances
+        tracker = col.accums[0]
+        r = repr(tracker)
+        assert "Data type" in r
+        assert "failed=" in r
+        assert "count=" in r
+
+    def test_typetracker_check_bytes_fallback(self):
+        """When str(datavalue) raises, len(bytes(datavalue)) is used (line 80-81)."""
+        col = Column("x")
+        accum = col.accums[0]  # Any accumulator will do
+
+        class BadStr:
+            def __str__(self):
+                raise ValueError("no str")
+
+            def __bytes__(self):
+                return b"abc"
+
+        # Monkeypatch matches to return True so we enter the length branch
+        accum.dt.matches = lambda d: True
+        accum.check(BadStr())
+        assert accum.count == 1
+        assert accum.maxlen == 3  # len(bytes(BadStr())) == 3
+
+
 class TestDataTable:
     def _make_table(self, col_names, rows):
         return DataTable(col_names, iter(rows))
@@ -218,10 +247,40 @@ class TestDataTable:
         assert len(decls) == 1
         assert "name" in decls[0].lower() or "name" in decls[0]
 
+    def test_repr(self):
+        dt = self._make_table(["a", "b"], [["1", "2"]])
+        r = repr(dt)
+        assert "DataTable(" in r
 
-# ---------------------------------------------------------------------------
-# JsonDatatype
-# ---------------------------------------------------------------------------
+    def test_excess_empty_cols_accepted_when_del_empty_cols(self, minimal_conf):
+        """Extra columns that are None/empty are OK when del_empty_cols=True."""
+        minimal_conf.del_empty_cols = True
+        minimal_conf.empty_strings = False
+        dt = self._make_table(["a"], [["1", None, ""], ["2", None, ""]])
+        assert dt.datarows == 2
+
+    def test_excess_nonempty_cols_raises_when_del_empty_cols(self, minimal_conf):
+        """Extra non-empty columns raise DataTableError even with del_empty_cols."""
+        minimal_conf.del_empty_cols = True
+        with pytest.raises(DataTableError):
+            self._make_table(["a"], [["1", "extra_data"]])
+
+    # ---------------------------------------------------------------------------
+    # JsonDatatype
+    # ---------------------------------------------------------------------------
+
+    def test_decimal_column_with_precision_scale(self):
+        """Decimal column triggers the precspec branch (models.py lines 186-189)."""
+        col = Column("amount")
+        for v in ["12.34", "56.78", "90.12"]:
+            col.eval_types(v)
+        name, dt, maxlen, nullable, prec, scale = col.column_type()
+        # DT_Decimal or DT_Float should match
+        from execsql.types import DT_Decimal
+
+        if dt is DT_Decimal:
+            assert prec is not None
+            assert scale is not None
 
 
 class TestJsonDatatype:

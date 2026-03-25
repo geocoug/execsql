@@ -8,7 +8,7 @@
 
 *Multi-DBMS SQL script processor.*
 
-[![CI/CD](https://github.com/geocoug/execsql2/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/geocoug/execsql2/actions/workflows/ci-cd.yml)
+[![CI/CD](https://github.com/geocoug/execsql/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/geocoug/execsql/actions/workflows/ci-cd.yml)
 [![Downloads](https://pepy.tech/badge/execsql2/month)](https://pepy.tech/project/execsql2)
 
 # Fork
@@ -25,9 +25,10 @@
 pip install execsql2
 ```
 
-Optional extras install the required database drivers:
+Optional extras install database drivers and feature bundles:
 
 ```bash
+# Database drivers
 pip install execsql2[postgres]    # PostgreSQL (psycopg2-binary)
 pip install execsql2[mysql]       # MySQL / MariaDB (pymysql)
 pip install execsql2[mssql]       # SQL Server (pyodbc)
@@ -35,9 +36,14 @@ pip install execsql2[duckdb]      # DuckDB
 pip install execsql2[firebird]    # Firebird (firebird-driver)
 pip install execsql2[oracle]      # Oracle (oracledb)
 pip install execsql2[odbc]        # ODBC DSN (pyodbc)
-pip install execsql2[ods]         # OpenDocument spreadsheets (odfpy)
-pip install execsql2[excel]       # Excel read (xlrd, openpyxl)
-pip install execsql2[jinja]       # Jinja2 template export
+
+# Feature bundles
+pip install execsql2[formats]    # ODS, Excel, Jinja2, Feather, Parquet, HDF5
+pip install execsql2[auth]       # OS keyring integration
+
+# Convenience
+pip install execsql2[all-db]     # All database drivers
+pip install execsql2[all]        # Everything
 ```
 
 SQLite connections use Python's standard library and require no additional packages.

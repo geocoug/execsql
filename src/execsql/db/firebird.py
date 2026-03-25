@@ -117,17 +117,16 @@ class FirebirdDatabase(Database):
         except ErrInfo:
             raise
         except Exception:
-            e = ErrInfo(
+            try:
+                self.rollback()
+            except Exception:
+                pass  # Rollback is best-effort after a failed query.
+            raise ErrInfo(
                 type="db",
                 command_text=sql,
                 exception_msg=exception_desc(),
                 other_msg=f"Failed test for existence of Firebird table {table_name}",
             )
-            try:
-                self.rollback()
-            except Exception:
-                pass
-            raise e
         rows = curs.fetchall()
         self.conn.commit()
         curs.close()

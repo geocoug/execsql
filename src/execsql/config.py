@@ -62,6 +62,7 @@ class ConfigData:
         self.username = None
         self.access_username = None
         self.passwd_prompt = True
+        self.use_keyring = True
         self.db_file = None
         self.new_db = False
         self.user_logfile = False
@@ -177,6 +178,11 @@ class ConfigData:
                         self.passwd_prompt = cp.getboolean(self._CONNECT_SECTION, "password_prompt")
                     except Exception as e:
                         raise ConfigError("Invalid argument for password_prompt.") from e
+                if cp.has_option(self._CONNECT_SECTION, "use_keyring"):
+                    try:
+                        self.use_keyring = cp.getboolean(self._CONNECT_SECTION, "use_keyring")
+                    except Exception as e:
+                        raise ConfigError("Invalid argument for use_keyring.") from e
                 if cp.has_option(self._CONNECT_SECTION, "new_db"):
                     try:
                         self.new_db = cp.getboolean(self._CONNECT_SECTION, "new_db")

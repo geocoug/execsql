@@ -32,6 +32,8 @@ Each module below implements one or more output formats. Every writer follows th
 
 ::: execsql.exporters.feather
 
+::: execsql.exporters.parquet
+
 ::: execsql.exporters.sqlite
 
 ::: execsql.exporters.duckdb

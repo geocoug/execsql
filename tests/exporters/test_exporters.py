@@ -26,7 +26,24 @@ from execsql.exporters.pretty import prettyprint_rowset
 # ---------------------------------------------------------------------------
 
 
+import execsql.state as _state
+
+
 class TestExportValues:
+    def test_stdout_writes_to_state_output(self, noop_filewriter_close):
+        """export_values to 'stdout' writes via _state.output."""
+        written = []
+
+        class FakeOutput:
+            def write(self, data):
+                written.append(data)
+
+        _state.output = FakeOutput()
+        export_values("stdout", ["id"], [[1]])
+        combined = "".join(written)
+        assert "INSERT INTO" in combined
+        assert "VALUES" in combined
+
     def test_writes_insert_statement(self, noop_filewriter_close, tmp_path):
         out = str(tmp_path / "out.sql")
         export_values(out, ["id", "name"], [[1, "Alice"], [2, "Bob"]])
@@ -229,3 +246,24 @@ class TestPrettyprintRowset:
         # Header should still be written
         assert "id" in text
         assert "name" in text
+
+    def test_stdout_uses_wide_margin(self, noop_filewriter_close):
+        """prettyprint_rowset to 'stdout' uses 4-space margin."""
+        written = []
+
+        class FakeOutput:
+            def write(self, data):
+                written.append(data)
+
+        _state.output = FakeOutput()
+        prettyprint_rowset(["col"], [("val",)], "stdout")
+        combined = "".join(written)
+        # stdout uses "    " (4 spaces) margin
+        assert "    " in combined
+
+    def test_binary_data_display(self, noop_filewriter_close, tmp_path):
+        """Binary data shows as 'Binary data (N bytes)'."""
+        out = str(tmp_path / "out.txt")
+        prettyprint_rowset(["data"], [(bytearray(b"\x01\x02\x03"),)], out)
+        text = (tmp_path / "out.txt").read_text()
+        assert "Binary data" in text

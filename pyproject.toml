@@ -46,6 +46,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Database drivers
 postgres = ["psycopg2-binary"]
 mysql = ["pymysql"]
 mssql = ["pyodbc"]
@@ -53,23 +54,22 @@ duckdb = ["duckdb"]
 firebird = ["firebird-driver"]
 oracle = ["oracledb"]
 odbc = ["pyodbc"]
-ods = ["odfpy"]
-excel = ["xlrd", "openpyxl"]
-jinja = ["Jinja2"]
-feather = ["polars"]
-hdf5 = ["tables"]
-all = [
+# Feature bundles
+formats = ["odfpy", "xlrd", "openpyxl", "Jinja2", "polars", "tables"]
+auth = ["keyring"]
+# Convenience groups
+all-db = [
     "psycopg2-binary",
     "pymysql",
     "pyodbc",
     "duckdb",
-    "odfpy",
-    "xlrd",
-    "openpyxl",
-    "Jinja2",
-    "pandas",
-    "pyarrow",
-    "tables",
+    "firebird-driver",
+    "oracledb",
+]
+all = [
+    "execsql2[all-db]",
+    "execsql2[formats]",
+    "execsql2[auth]",
 ]
 dev = [
     "build>=1.2.2.post1",
@@ -89,8 +89,8 @@ execsql = "execsql.cli:_legacy_main"
 execsql-format = "execsql.format:main"
 
 [project.urls]
-Repository = "https://github.com/geocoug/execsql2"
-Issues = "https://github.com/geocoug/execsql2/issues"
+Repository = "https://github.com/geocoug/execsql"
+Issues = "https://github.com/geocoug/execsql/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/execsql"]
@@ -165,7 +165,7 @@ filename = "pyproject.toml"
 addopts = [
     "--cov=execsql",
     "--cov-branch",
-    "--cov-fail-under=68",
+    "--cov-fail-under=70",
     "--strict-markers",
     "--strict-config",
     "--color=yes",
@@ -190,6 +190,15 @@ omit = [
     "*/execsql/db/sqlserver.py",
     "*/execsql/db/access.py",
     "*/execsql/db/dsn.py",
+]
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+exclude = [
+    "_execsql/",
 ]
 
 [tool.typos.default.extend-words]

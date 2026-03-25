@@ -27,6 +27,7 @@ from execsql.exporters.base import ExportRecord
 from execsql.exporters.delimited import CsvFile, write_delimited_file
 from execsql.exporters.duckdb import write_query_to_duckdb
 from execsql.exporters.feather import write_query_to_feather, write_query_to_hdf5
+from execsql.exporters.parquet import write_query_to_parquet
 from execsql.exporters.html import write_query_to_cgi_html, write_query_to_html
 from execsql.exporters.json import write_query_to_json, write_query_to_json_ts
 from execsql.exporters.latex import write_query_to_latex
@@ -99,6 +100,8 @@ def x_export(**kwargs: Any) -> None:
             raise ErrInfo("error", other_msg="Cannot export to the LaTeX format within a zipfile.")
         if filefmt == "feather":
             raise ErrInfo("error", other_msg="Cannot export to the feather format within a zipfile.")
+        if filefmt == "parquet":
+            raise ErrInfo("error", other_msg="Cannot export to the parquet format within a zipfile.")
         if filefmt == "hdf5":
             raise ErrInfo("error", other_msg="Cannot export to the HDF5 format within a zipfile.")
         if filefmt == "ods":
@@ -222,6 +225,8 @@ def x_export(**kwargs: Any) -> None:
             write_query_b64(outfile, rows, append)
         elif filefmt == "feather":
             write_query_to_feather(outfile, hdrs, rows)
+        elif filefmt == "parquet":
+            write_query_to_parquet(outfile, hdrs, rows)
         else:
             write_delimited_file(outfile, filefmt, hdrs, rows, _state.conf.output_encoding, append, zipfilename)
     _state.export_metadata.add(ExportRecord(queryname, outfile, zipfilename, description))
@@ -247,6 +252,8 @@ def x_export_query(**kwargs: Any) -> None:
             raise ErrInfo("error", other_msg="Cannot export to the LaTeX format within a zipfile.")
         if filefmt == "feather":
             raise ErrInfo("error", other_msg="Cannot export to the feather format within a zipfile.")
+        if filefmt == "parquet":
+            raise ErrInfo("error", other_msg="Cannot export to the parquet format within a zipfile.")
         if filefmt == "hdf5":
             raise ErrInfo("error", other_msg="Cannot export to the HDF5 format within a zipfile.")
         if filefmt == "ods":
@@ -352,6 +359,8 @@ def x_export_query(**kwargs: Any) -> None:
             write_query_b64(outfile, rows, append, zipfile=zipfilename)
         elif filefmt == "feather":
             write_query_to_feather(outfile, hdrs, rows)
+        elif filefmt == "parquet":
+            write_query_to_parquet(outfile, hdrs, rows)
         else:
             write_delimited_file(
                 outfile,
@@ -976,7 +985,7 @@ def x_write_create_table_alias(**kwargs: Any) -> None:
                 other_msg=f"Table {tbl} does not exist",
             )
     except Exception:
-        pass
+        pass  # Best-effort check; some adapters lack information_schema.
     select_stmt = f"select * from {tbl};"
     try:
         hdrs, rows = db.select_rowsource(select_stmt)
@@ -1089,7 +1098,7 @@ def x_copy(**kwargs: Any) -> None:
                 other_msg=f"Table {tbl1} does not exist",
             )
     except Exception:
-        pass
+        pass  # Best-effort check; some adapters lack information_schema.
     if new_tbl2 and new_tbl2 == "new":
         try:
             if db2.table_exists(table2, schema2):
@@ -1099,7 +1108,7 @@ def x_copy(**kwargs: Any) -> None:
                     other_msg=f"Table {tbl2} already exists",
                 )
         except Exception:
-            pass
+            pass  # Best-effort check; some adapters lack information_schema.
     select_stmt = f"select * from {tbl1};"
 
     def get_ts() -> DataTable:
@@ -1168,7 +1177,7 @@ def x_copy_query(**kwargs: Any) -> None:
                     other_msg=f"Table {tbl2} already exists",
                 )
         except Exception:
-            pass
+            pass  # Best-effort check; some adapters lack information_schema.
 
     def get_ts() -> DataTable:
         if not get_ts.tablespec:

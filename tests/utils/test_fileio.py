@@ -20,6 +20,7 @@ from execsql.exceptions import ErrInfo
 from execsql.utils.fileio import (
     EncodedFile,
     FileWriter,
+    Logger,
     TempFileMgr,
     check_dir,
     list_encodings,
@@ -228,6 +229,60 @@ class TestListEncodings:
 # ---------------------------------------------------------------------------
 # FileWriter.FileControl
 # ---------------------------------------------------------------------------
+
+
+class TestEncodedFileUtf16BeBom:
+    def test_utf16_be_bom_detected(self, tmp_path):
+        path = tmp_path / "bom16be.txt"
+        path.write_bytes(codecs.BOM_UTF16_BE + "hi".encode("utf-16-be"))
+        ef = EncodedFile(str(path), "utf-8")
+        assert ef.encoding == "utf_16"
+        assert ef.bom_length == 2
+
+
+class TestLogger:
+    def test_logger_with_explicit_logfile(self, tmp_path, minimal_conf):
+        """Logger with explicit log_file_name creates the log file."""
+        import execsql.state as _state
+
+        _state.logfile_encoding = "utf-8"
+        log_path = str(tmp_path / "test.log")
+        logger = Logger(
+            script_file_name="test.sql",
+            db_name="testdb",
+            server_name=None,
+            cmdline_options={},
+            log_file_name=log_path,
+        )
+        assert logger.log_file_name == log_path
+        assert logger.log_file is not None
+        logger.close()
+
+    def test_logger_repr(self, tmp_path, minimal_conf):
+        import execsql.state as _state
+
+        _state.logfile_encoding = "utf-8"
+        log_path = str(tmp_path / "test.log")
+        logger = Logger(
+            script_file_name="test.sql",
+            db_name="testdb",
+            server_name=None,
+            cmdline_options={},
+            log_file_name=log_path,
+        )
+        r = repr(logger)
+        assert "Logger(" in r
+        assert "testdb" in r
+        logger.close()
+
+
+class TestMakeExportDirsErrors:
+    def test_non_creatable_dir_raises(self, tmp_path):
+        """OSError that is not EEXIST should raise ErrInfo."""
+        # Use /dev/null as parent — can't create dirs there
+        target = "/dev/null/impossible/out.csv"
+        with pytest.raises(ErrInfo):
+            make_export_dirs(target)
 
 
 class TestFileControlTryOpen:

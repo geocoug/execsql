@@ -424,6 +424,25 @@ class TestGetBackend:
         backend = get_backend("textual")
         assert callable(backend.dispatch)
 
+    def test_falls_back_to_console_when_all_unavailable(self):
+        """When both tkinter and textual fail, fall back to ConsoleBackend."""
+        from unittest.mock import patch
+        from execsql.gui.console import ConsoleBackend
+
+        def fail_import(name, *args, **kwargs):
+            if name in ("execsql.gui.desktop", "execsql.gui.tui"):
+                raise ImportError(f"mocked failure for {name}")
+            return original_import(name, *args, **kwargs)
+
+        import builtins
+
+        original_import = builtins.__import__
+        with patch("builtins.__import__", side_effect=fail_import):
+            from execsql.gui import get_backend
+
+            backend = get_backend("tkinter")
+        assert isinstance(backend, ConsoleBackend)
+
 
 # ---------------------------------------------------------------------------
 # Manager thread integration
@@ -483,6 +502,29 @@ class TestManagerThread:
         q.put(spec)
         result = rq.get(timeout=2)
         assert "error" in result or result.get("button") is None
+
+        q.put(None)
+        t.join(timeout=2)
+
+    def test_manager_handles_dispatch_exception(self):
+        """When backend.dispatch() raises, gui_manager_loop catches and returns error."""
+        from execsql.gui import gui_manager_loop
+
+        class FailBackend:
+            def dispatch(self, spec):
+                raise RuntimeError("dispatch failed")
+
+        q: queue.Queue = queue.Queue()
+        backend = FailBackend()
+        t = threading.Thread(target=gui_manager_loop, args=(q, backend), daemon=True)
+        t.start()
+
+        rq: queue.Queue = queue.Queue()
+        spec = GuiSpec(GUI_MSG, {"title": "t", "message": "m"}, rq)
+        q.put(spec)
+        result = rq.get(timeout=2)
+        assert "error" in result
+        assert "dispatch failed" in result["error"]
 
         q.put(None)
         t.join(timeout=2)

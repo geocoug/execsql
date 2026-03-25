@@ -56,7 +56,7 @@ class OdsFile:
                         if name not in self.cell_style_names:
                             self.cell_style_names.append(name)
                 except Exception:
-                    pass
+                    pass  # Skip nodes without expected attributes.
         else:
             self.wbk = of.opendocument.OpenDocumentSpreadsheet()
 

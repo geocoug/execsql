@@ -160,7 +160,7 @@ def x_prompt_entryform(**kwargs: Any) -> None:
                 other_msg=f"Table {spec_table} does not exist",
             )
     except Exception:
-        pass
+        pass  # Best-effort check; some adapters lack information_schema.
     curs = _state.dbs.current().cursor()
     cmd = f"select * from {tbl1};"
     curs.execute(cmd)
@@ -536,7 +536,7 @@ def x_prompt_action(**kwargs: Any) -> None:
                 other_msg=f"Table {spec_table} does not exist",
             )
     except Exception:
-        pass
+        pass  # Best-effort check; some adapters lack information_schema.
     curs = _state.dbs.current().cursor()
     cmd = f"select * from {tbl1};"
     curs.execute(cmd)

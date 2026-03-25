@@ -46,6 +46,8 @@ def minimal_conf():
         output_encoding="utf-8",
         make_export_dirs=False,
         enc_err_disposition=None,
+        # Warnings
+        write_warnings=False,
         # GUI
         gui_level=0,
         gui_framework="tkinter",
@@ -66,6 +68,7 @@ def noop_filewriter_close():
         "execsql.utils.fileio.filewriter_close",
         "execsql.exporters.delimited.filewriter_close",
         "execsql.exporters.feather.filewriter_close",
+        "execsql.exporters.parquet.filewriter_close",
         "execsql.exporters.html.filewriter_close",
         "execsql.exporters.json.filewriter_close",
         "execsql.exporters.latex.filewriter_close",

@@ -861,7 +861,7 @@ class ConsoleWindow:
             if _state.output is not None and _state.output.write_func is self.write:
                 _state.output.reset()
         except Exception:
-            pass
+            pass  # Best-effort output reset during console teardown.
 
     def write(self, text: str) -> None:
         if self._text and self._text.winfo_exists():
@@ -924,7 +924,7 @@ class TkinterBackend(GuiBackend):
             try:
                 self._root.destroy()
             except Exception:
-                pass
+                pass  # Tk root may already be destroyed.
             self._root = None
 
     def _root_or_raise(self) -> tk.Tk:
@@ -1114,7 +1114,7 @@ class _TkinterSyncQueue:
                 try:
                     self._backend._root.update()
                 except Exception:
-                    pass
+                    pass  # Tk event loop may be torn down.
         except Exception as exc:
             result = {"error": str(exc), "button": None}
         if result is not None and spec.gui_type in self._EXIT_ON_CANCEL and result.get("button") is None:
