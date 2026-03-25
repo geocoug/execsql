@@ -11,6 +11,18 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Changed
+
+- Added PyPI version, Python versions, license, and Read the Docs badges to `README.md`.
+
+### Fixed
+
+- Read the Docs build: added `mkdocstrings-python` and editable project install to `.readthedocs.yaml` so `mkdocstrings` can resolve API references.
+
+- Fixed escaped underscore in `docs/api/cli.md` (`\_run` → `_run`) that caused `mkdocstrings` to fail resolving `execsql.cli._run`.
+
+- Excluded `docs/api/` from `mdformat` pre-commit hook to prevent it from re-escaping underscores in `mkdocstrings` `:::` directives.
+
 ______________________________________________________________________
 
 ## [2.1.1] - 2026-03-25
