@@ -8,17 +8,17 @@
 
 You can use *execsql* to:
 
-> - Import data from text files and spreadsheets into a database.
-> - Export tables and views to text files, OpenDocument spreadsheets, HTML, JSON, LaTeΧ, XML, or 17 other data formats.
-> - Copy data between different databases, even databases using different DBMSs.
-> - Display tables or views on the terminal or in a GUI dialog window.
-> - Export data using template processors to produce non-tabular output with customized format and contents.
-> - Conditionally execute different SQL commands and metacommands based on the DBMS in use, the database in use, data values, user input, and other conditions.
-> - Execute blocks of SQL statements and metacommands repeatedly, using any of three different looping methods.
-> - Prompt the user to select files or directories, answer questions, or enter data values.
-> - Allow the user to visually compare two tables or views.
-> - Serve data tables to a web application when used as a CGI script.
-> - Write messages to the console or to a file during the processing of a SQL script. These messages can be used to display the progress of the script or create a custom log of the operations that have been carried out or results obtained. Status messages and data exported in text format can be combined in a single text file. Data tables can be exported in a text format that is compatible with Markdown pipe tables, so that script output can be converted into a variety of document formats (see [Example 8](examples.md#example8) and [Example 11](examples.md#example11)).
+- Import data from text files and spreadsheets into a database.
+- Export tables and views to text files, OpenDocument spreadsheets, HTML, JSON, LaTeΧ, XML, or 17 other data formats.
+- Copy data between different databases, even databases using different DBMSs.
+- Display tables or views on the terminal or in a GUI dialog window.
+- Export data using template processors to produce non-tabular output with customized format and contents.
+- Conditionally execute different SQL commands and metacommands based on the DBMS in use, the database in use, data values, user input, and other conditions.
+- Execute blocks of SQL statements and metacommands repeatedly, using any of three different looping methods.
+- Prompt the user to select files or directories, answer questions, or enter data values.
+- Allow the user to visually compare two tables or views.
+- Serve data tables to a web application when used as a CGI script.
+- Write messages to the console or to a file during the processing of a SQL script. These messages can be used to display the progress of the script or create a custom log of the operations that have been carried out or results obtained. Status messages and data exported in text format can be combined in a single text file. Data tables can be exported in a text format that is compatible with Markdown pipe tables, so that script output can be converted into a variety of document formats (see [Example 8](examples.md#example8) and [Example 11](examples.md#example11)).
 
 Different DBMSs and DBMS-specific client programs provide different and incompatible extensions to SQL, ordinarily to allow interactions with the file system and to allow conditional tests and looping. Some DBMSs do not have any native extensions of this sort. *execsql* provides these features, as well as features for user interaction, in an identical fashion for all supported DBMSs. This allows standardization of the SQL scripting language used for different types of database management systems.
 

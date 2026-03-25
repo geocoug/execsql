@@ -16,6 +16,10 @@
 
 [![CI/CD](https://github.com/geocoug/execsql/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/geocoug/execsql/actions/workflows/ci-cd.yml)
 [![codecov](https://codecov.io/gh/geocoug/execsql/graph/badge.svg)](https://codecov.io/gh/geocoug/execsql)
+[![Docs](https://readthedocs.org/projects/execsql2/badge/)](https://execsql2.readthedocs.io/)
+[![PyPI](https://img.shields.io/pypi/v/execsql2)](https://pypi.org/project/execsql2/)
+[![Python](https://img.shields.io/pypi/pyversions/execsql2)](https://pypi.org/project/execsql2/)
+[![License](https://img.shields.io/pypi/l/execsql2)](https://pypi.org/project/execsql2/)
 [![Downloads](https://pepy.tech/badge/execsql2/month)](https://pepy.tech/project/execsql2)
 
 </div>
