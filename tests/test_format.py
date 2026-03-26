@@ -471,6 +471,8 @@ class TestMainCLI:
             [sys.executable, "-c", "from execsql.format import main; main()", *args],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
         )
 
     def test_no_args_exits_nonzero(self):

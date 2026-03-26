@@ -50,6 +50,7 @@ jobs:
                   python -m pip install --upgrade pip
                   python -m pip install tox
                   python -m pip install ".[dev]"
+                  python -m pip install ".[formats]"
             - name: Install tkinter (Ubuntu)
               if: runner.os == 'Linux'
               run: sudo apt-get install -y python3-tk

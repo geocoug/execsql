@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 import time
 from unittest.mock import MagicMock, patch
 
@@ -11,6 +12,7 @@ from execsql.exceptions import ExecSqlTimeoutError
 from execsql.utils.timer import TimerHandler
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="signal.setitimer not available on Windows")
 class TestTimerHandlerAlarm:
     def test_alarm_handler_raises_on_timeout(self):
         th = TimerHandler(maxtime=0.0)
