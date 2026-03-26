@@ -40,24 +40,26 @@ def export_values(
                 f = ef.open("wt")
         else:
             f = ZipWriter(zipfile, outfile, append)
-    if desc is not None:
-        f.write(f"-- {desc}\n")
-    f.write(f"INSERT INTO !!target_table!!\n    ({', '.join(hdrs)})\n")
-    f.write("VALUES\n")
-    firstrow = True
-    for r in rows:
-        if firstrow:
-            firstrow = False
-        else:
-            f.write(",\n")
-        quoted_row = [
-            f"'{v.replace(chr(39), chr(39) * 2)}'" if isinstance(v, str) else str(v) if v is not None else "NULL"
-            for v in r
-        ]
-        f.write(f"    ({', '.join(quoted_row)})")
-    f.write("\n    ;\n")
-    if outfile.lower() != "stdout":
-        f.close()
+    try:
+        if desc is not None:
+            f.write(f"-- {desc}\n")
+        f.write(f"INSERT INTO !!target_table!!\n    ({', '.join(hdrs)})\n")
+        f.write("VALUES\n")
+        firstrow = True
+        for r in rows:
+            if firstrow:
+                firstrow = False
+            else:
+                f.write(",\n")
+            quoted_row = [
+                f"'{v.replace(chr(39), chr(39) * 2)}'" if isinstance(v, str) else str(v) if v is not None else "NULL"
+                for v in r
+            ]
+            f.write(f"    ({', '.join(quoted_row)})")
+        f.write("\n    ;\n")
+    finally:
+        if outfile.lower() != "stdout":
+            f.close()
 
 
 def write_query_to_values(

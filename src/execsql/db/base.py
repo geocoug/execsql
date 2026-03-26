@@ -14,7 +14,9 @@ open :class:`Database` instances and tracks which connection is currently
 active.  It is the canonical ``_state.dbs`` object.
 """
 
+import datetime
 import re
+from decimal import Decimal
 from typing import Any
 from collections.abc import Callable, Generator, Iterator
 
@@ -23,10 +25,36 @@ from execsql.utils.errors import exception_desc
 import execsql.state as _state
 
 
+def _default_dt_cast() -> dict[type, Callable]:
+    """Build the default type-cast mapping used by all database backends."""
+    from execsql.types import DT_Boolean, DT_Timestamp, DT_Date, DT_Decimal
+
+    return {
+        int: int,
+        float: float,
+        str: str,
+        bool: DT_Boolean().from_data,
+        datetime.datetime: DT_Timestamp().from_data,
+        datetime.date: DT_Date().from_data,
+        Decimal: DT_Decimal().from_data,
+        bytearray: bytearray,
+    }
+
+
 class Database:
     """Abstract base class for all database connections."""
 
-    dt_cast: dict[type, Callable] = {}  # populated per-subclass or in __init__
+    _dt_cast: dict[type, Callable] | None = None
+
+    @property
+    def dt_cast(self) -> dict[type, Callable]:
+        if self._dt_cast is None:
+            self._dt_cast = _default_dt_cast()
+        return self._dt_cast
+
+    @dt_cast.setter
+    def dt_cast(self, value: dict[type, Callable]) -> None:
+        self._dt_cast = value
 
     def __init__(
         self,
@@ -389,15 +417,15 @@ class Database:
         task_id = None
         if use_progress:
             try:
-                from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
+                from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
+                from rich.console import Console
 
                 progress_ctx = Progress(
                     SpinnerColumn(),
                     TextColumn("[bold blue]IMPORT[/bold blue] {task.description}"),
-                    BarColumn(bar_width=None),
-                    TextColumn("[progress.percentage]{task.completed:,} rows"),
+                    TextColumn("{task.completed:,} rows"),
                     TimeElapsedColumn(),
-                    transient=True,
+                    console=Console(stderr=True),
                 )
             except ImportError:
                 use_progress = False
@@ -559,7 +587,8 @@ class Database:
         with open(file_name, "rb") as f:
             filedata = f.read()
         sq_name = self.schema_qualified_table_name(schema_name, table_name)
-        sql = f"insert into {sq_name} ({column_name}) values ({self.paramsubs(1)});"
+        quoted_col = self.quote_identifier(column_name)
+        sql = f"insert into {sq_name} ({quoted_col}) values ({self.paramsubs(1)});"
         self.cursor().execute(sql, (filedata,))
 
 

@@ -169,7 +169,7 @@ class TestJinjaTemplateReport:
         _augment_conf(minimal_conf, script_encoding="utf-8")
         tpl = self._make_template(tmp_path, "hi")
         r = JinjaTemplateReport(tpl)
-        assert "StrTemplateReport" in repr(r)
+        assert "JinjaTemplateReport" in repr(r)
 
     def test_write_report_to_stdout(self, minimal_conf, tmp_path, noop_filewriter_close):
         import execsql.state as _state

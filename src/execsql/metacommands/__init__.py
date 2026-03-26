@@ -29,7 +29,7 @@ from execsql.metacommands.connect import (
     x_connect_user_ora,
     x_connect_duckdb,
     x_connect_sqlite,
-    x_connect_dsn,  # noqa: F401
+    x_connect_dsn,
     x_use,
     x_disconnect,
     x_autocommit_on,
@@ -214,6 +214,41 @@ from execsql.utils.regex import (
 )
 from execsql.script import MetaCommandList
 
+# ---------------------------------------------------------------------------
+# Export format constants — single source of truth.
+# Used in dispatch table regex patterns and by io_export.py for validation.
+# ---------------------------------------------------------------------------
+DELIMITED_FORMATS = ["CSV", "TAB", "TSV", "TABQ", "TSVQ", "UNITSEP", "US"]
+TEXT_FORMATS = ["TXT", "TXT-AND", "PLAIN"]
+JSON_VARIANT_FORMATS = ["JSON_TS", "JSON_TABLESCHEMA"]
+
+QUERY_EXPORT_FORMATS = (
+    DELIMITED_FORMATS + TEXT_FORMATS + ["ODS", "JSON", "HTML", "CGI-HTML", "VALUES", "LATEX", "RAW", "B64", "FEATHER"]
+)
+TABLE_EXPORT_FORMATS = (
+    DELIMITED_FORMATS
+    + TEXT_FORMATS
+    + ["JSON", "XML", "VALUES", "HTML", "CGI-HTML", "SQLITE", "DUCKDB", "LATEX", "RAW", "B64", "FEATHER", "HDF5"]
+)
+SERVE_FORMATS = ["BINARY", "CSV", "TXT", "TEXT", "ODS", "JSON", "HTML", "PDF", "ZIP"]
+METADATA_FORMATS = ["CSV", "TAB", "TSV", "TABQ", "TSVQ", "TXT", "TEXT"]
+ALL_EXPORT_FORMATS = sorted(
+    set(QUERY_EXPORT_FORMATS + TABLE_EXPORT_FORMATS + JSON_VARIANT_FORMATS),
+)
+
+DATABASE_TYPES = [
+    "POSTGRESQL",
+    "MYSQL",
+    "MARIADB",
+    "ORACLE",
+    "SQLSERVER",
+    "FIREBIRD",
+    "ACCESS",
+    "DUCKDB",
+    "SQLITE",
+    "DSN",
+]
+
 
 def build_dispatch_table() -> MetaCommandList:
     """Construct and return the complete metacommand dispatch table."""
@@ -225,6 +260,8 @@ def build_dispatch_table() -> MetaCommandList:
     mcl.add(
         ins_fn_rxs(r"^\s*DEBUG\s+WRITE\s+METACOMMANDLIST\s+TO\s+", r"\s*$"),
         x_debug_write_metacommands,
+        description="DEBUG",
+        category="action",
     )
     mcl.add(r"^\s*DEBUG\s+WRITE\s+COMMANDLISTSTACK\s*$", x_debug_commandliststack)
     mcl.add(r"^\s*DEBUG\s+WRITE\s+IFLEVELS\s*$", x_debug_iflevels)
@@ -262,17 +299,29 @@ def build_dispatch_table() -> MetaCommandList:
     mcl.add(
         ins_fn_rxs(
             r"^\s*SERVE\s+",
-            r"\s+AS\s+(?P<format>BINARY|CSV|TXT|TEXT|ODS|JSON|HTML|PDF|ZIP)\s*$",
+            rf"\s+AS\s+(?P<format>{'|'.join(SERVE_FORMATS)})\s*$",
         ),
         x_serve,
+        description="SERVE",
+        category="action",
     )
 
     # ------------------------------------------------------------------
     # Misc short commands
     # ------------------------------------------------------------------
-    mcl.add(r"^\s*RESET\s+DIALOG_CANCELED\s*$", x_reset_dialog_canceled)
-    mcl.add(r"^\s*SUB_QUERYSTRING\s+(?P<qstr>.+)\s*$", x_sub_querystring)
-    mcl.add(r"^\s*BREAK\s*$", x_break)
+    mcl.add(
+        r"^\s*RESET\s+DIALOG_CANCELED\s*$",
+        x_reset_dialog_canceled,
+        description="RESET DIALOG_CANCELED",
+        category="action",
+    )
+    mcl.add(
+        r"^\s*SUB_QUERYSTRING\s+(?P<qstr>.+)\s*$",
+        x_sub_querystring,
+        description="SUB_QUERYSTRING",
+        category="action",
+    )
+    mcl.add(r"^\s*BREAK\s*$", x_break, description="BREAK", category="control")
 
     # ------------------------------------------------------------------
     # EXPORT QUERY (various formats)
@@ -282,22 +331,22 @@ def build_dispatch_table() -> MetaCommandList:
             r"^\s*EXPORT\s+QUERY\s+<<\s*(?P<query>.*;)\s*>>\s+(?P<tee>TEE\s+)?(?P<append>APPEND\s+)?TO\s+",
             ins_fn_rxs(
                 r"(?:\s+IN\s+ZIPFILE\s+",
-                r")?\s+AS\s*(?P<format>CSV|TAB|TSV|TABQ|TSVQ|UNITSEP|US|TXT|TXT-AND|PLAIN|ODS|JSON|"
-                r'HTML|CGI-HTML|VALUES|LATEX|RAW|B64|FEATHER)(?:\s+DESCRIP(?:TION)?\s+"(?P<description>[^"]*)")?\s*$',
+                rf")?\s+AS\s*(?P<format>{'|'.join(QUERY_EXPORT_FORMATS)}|PARQUET|TXT-AND)"
+                r'(?:\s+DESCRIP(?:TION)?\s+"(?P<description>[^"]*)")?\s*$',
                 symbolicname="zipfilename",
             ),
         ),
         x_export_query,
-        "Write data from a query to a file.",
+        "EXPORT QUERY",
+        category="action",
     )
     mcl.add(
         ins_fn_rxs(
             r"^\s*EXPORT\s+QUERY\s+<<\s*(?P<query>.*;)\s*>>\s+(?P<tee>TEE\s+)?(?P<append>APPEND\s+)?TO\s+",
-            r"\s+AS\s*(?P<format>JSON_TS|JSON_TABLESCHEMA)(?:\s+(?P<notype>NOTYPE))?"
+            rf"\s+AS\s*(?P<format>{'|'.join(JSON_VARIANT_FORMATS)})(?:\s+(?P<notype>NOTYPE))?"
             r'(?:\s+DESCRIP(?:TION)?\s+"(?P<description>[^"]*)")?\s*$',
         ),
         x_export_query,
-        "Write data from a query to a file.",
     )
     mcl.add(
         ins_fn_rxs(
@@ -327,6 +376,8 @@ def build_dispatch_table() -> MetaCommandList:
             ),
         ),
         x_export_with_template,
+        description="EXPORT",
+        category="action",
     )
     mcl.add(
         ins_table_rxs(
@@ -336,14 +387,14 @@ def build_dispatch_table() -> MetaCommandList:
                     r"\s+(?P<tee>TEE\s+)?(?P<append>APPEND\s+)?TO\s+",
                     r"(?:\s+IN\s+ZIPFILE\s+",
                 ),
-                r")?\s+AS\s+(?P<format>CSV|TAB|TSV|TABQ|TSVQ|UNITSEP|US|TXT|TXT-AND|PLAIN|JSON|XML|"
-                r"VALUES|HTML|CGI-HTML|SQLITE|DUCKDB|LATEX|RAW|B64|FEATHER|HDF5)"
+                rf")?\s+AS\s+(?P<format>{'|'.join(TABLE_EXPORT_FORMATS)}|PARQUET|TXT-AND)"
                 r'(?:\s+DESCRIP(?:TION)?\s+"(?P<description>[^"]*)")?\s*$',
                 symbolicname="zipfilename",
             ),
         ),
         x_export,
-        "Write data from a table or view to a file.",
+        "EXPORT",
+        category="action",
     )
     mcl.add(
         ins_table_rxs(
@@ -353,13 +404,12 @@ def build_dispatch_table() -> MetaCommandList:
                     r"\s+(?P<tee>TEE\s+)?(?P<append>APPEND\s+)?TO\s+",
                     r"(?:\s+IN\s+ZIPFILE\s+",
                 ),
-                r")?\s+AS\s+(?P<format>JSON_TS|JSON_TABLESCHEMA)(?:\s+(?P<notype>NOTYPE))?"
+                rf")?\s+AS\s+(?P<format>{'|'.join(JSON_VARIANT_FORMATS)})(?:\s+(?P<notype>NOTYPE))?"
                 r'(?:\s+DESCRIP(?:TION)?\s+"(?P<description>[^"]*)")?\s*$',
                 symbolicname="zipfilename",
             ),
         ),
         x_export,
-        "Write data from a table or view to a file.",
     )
     mcl.add(
         ins_table_list_rxs(
@@ -370,7 +420,6 @@ def build_dispatch_table() -> MetaCommandList:
             ),
         ),
         x_export_ods_multiple,
-        "Write data from tables or views to an ODS file.",
     )
 
     # ------------------------------------------------------------------
@@ -385,6 +434,8 @@ def build_dispatch_table() -> MetaCommandList:
             ),
         ),
         x_import_file,
+        description="IMPORT_FILE",
+        category="action",
     )
     mcl.add(
         ins_table_rxs(
@@ -409,12 +460,14 @@ def build_dispatch_table() -> MetaCommandList:
             ),
         ),
         x_import_ods_pattern,
+        description="IMPORT",
+        category="action",
     )
 
     # ------------------------------------------------------------------
     # CD
     # ------------------------------------------------------------------
-    mcl.add(r"^\s*CD\s+(?P<dir>.+)\s*$", x_cd)
+    mcl.add(r"^\s*CD\s+(?P<dir>.+)\s*$", x_cd, description="CD", category="action")
 
     # ------------------------------------------------------------------
     # IMPORT ODS (single sheet)
@@ -509,6 +562,8 @@ def build_dispatch_table() -> MetaCommandList:
             ),
         ),
         x_prompt_action,
+        description="PROMPT ACTION",
+        category="prompt",
     )
     mcl.add(
         ins_table_rxs(
@@ -535,6 +590,8 @@ def build_dispatch_table() -> MetaCommandList:
             symbolicname="startdir",
         ),
         x_prompt_savefile,
+        description="PROMPT SAVEFILE",
+        category="prompt",
     )
     mcl.add(
         ins_fn_rxs(
@@ -545,6 +602,8 @@ def build_dispatch_table() -> MetaCommandList:
             symbolicname="startdir",
         ),
         x_prompt_openfile,
+        description="PROMPT OPENFILE",
+        category="prompt",
     )
     mcl.add(
         ins_fn_rxs(
@@ -554,6 +613,8 @@ def build_dispatch_table() -> MetaCommandList:
             symbolicname="startdir",
         ),
         x_prompt_directory,
+        description="PROMPT DIRECTORY",
+        category="prompt",
     )
 
     # ------------------------------------------------------------------
@@ -570,6 +631,8 @@ def build_dispatch_table() -> MetaCommandList:
             suffix="1",
         ),
         x_prompt_select_rows,
+        description="PROMPT SELECT_ROWS",
+        category="prompt",
     )
     mcl.add(
         ins_table_rxs(
@@ -590,11 +653,21 @@ def build_dispatch_table() -> MetaCommandList:
     mcl.add(
         r"^\s*SUB_LOCAL\s+(?P<match>~?\w+)\s+(?P<repl>.+)$",
         x_sub_local,
-        "SUB",
-        "Define a local variable consisting of a string to match and a replacement for it.",
+        description="SUB_LOCAL",
+        category="action",
     )
-    mcl.add(r"^\s*SUB_ENCRYPT\s+(?P<match>[+~]?\w+)\s+(?P<plaintext>.+)\s*$", x_sub_encrypt)
-    mcl.add(r"^\s*SUB_DECRYPT\s+(?P<match>[+~]?\w+)\s+(?P<crypttext>.+)\s*$", x_sub_decrypt)
+    mcl.add(
+        r"^\s*SUB_ENCRYPT\s+(?P<match>[+~]?\w+)\s+(?P<plaintext>.+)\s*$",
+        x_sub_encrypt,
+        description="SUB_ENCRYPT",
+        category="action",
+    )
+    mcl.add(
+        r"^\s*SUB_DECRYPT\s+(?P<match>[+~]?\w+)\s+(?P<crypttext>.+)\s*$",
+        x_sub_decrypt,
+        description="SUB_DECRYPT",
+        category="action",
+    )
 
     # ------------------------------------------------------------------
     # WAIT_UNTIL
@@ -602,29 +675,70 @@ def build_dispatch_table() -> MetaCommandList:
     mcl.add(
         r"^\s*WAIT_UNTIL\s+(?P<condition>.+)\s+(?P<end>HALT|CONTINUE)\s+AFTER\s+(?P<seconds>\d+)\s+SECONDS\s*$",
         x_wait_until,
+        description="WAIT_UNTIL",
+        category="control",
     )
 
     # ------------------------------------------------------------------
     # CONFIG * (various settings)
     # ------------------------------------------------------------------
     mcl.add(
+        r"^\s*LOG_WRITE_MESSAGES\s+(?P<setting>Yes|No|On|Off|True|False|0|1)\s*$",
+        x_logwritemessages,
+        description="LOG_WRITE_MESSAGES",
+        category="config_option",
+    )
+    mcl.add(
         r"^\s*CONFIG\s+LOG_WRITE_MESSAGES\s+(?P<setting>Yes|No|On|Off|True|False|0|1)\s*$",
         x_logwritemessages,
+        description="CONFIG",
+        category="config",
     )
     mcl.add(
         r"^\s*CONFIG\s+QUOTE_ALL_TEXT\s+(?P<setting>Yes|No|On|Off|True|False|0|1)\s*$",
         x_quote_all_text,
+        description="QUOTE_ALL_TEXT",
+        category="config_option",
     )
-    mcl.add(r"^\s*CONFIG\s+IMPORT_ROW_BUFFER\s+(?P<rows>[1-9][0-9]*)\s*$", x_import_row_buffer)
+    mcl.add(
+        r"^\s*CONFIG\s+IMPORT_ROW_BUFFER\s+(?P<rows>[1-9][0-9]*)\s*$",
+        x_import_row_buffer,
+        description="IMPORT_ROW_BUFFER",
+        category="config_option",
+    )
     mcl.add(
         r"^\s*CONFIG\s+SHOW_PROGRESS\s+(?P<setting>Yes|No|On|Off|True|False|0|1)\s*$",
         x_show_progress,
+        description="SHOW_PROGRESS",
+        category="config_option",
     )
-    mcl.add(r"^\s*CONFIG\s+EXPORT_ROW_BUFFER\s+(?P<rows>[1-9][0-9]*)\s*$", x_export_row_buffer)
-    mcl.add(r"^\s*CONFIG\s+ZIP_BUFFER_MB\s+(?P<size>[1-9][0-9]*)\s*$", x_zip_buffer_mb)
+    mcl.add(
+        r"^\s*CONFIG\s+EXPORT_ROW_BUFFER\s+(?P<rows>[1-9][0-9]*)\s*$",
+        x_export_row_buffer,
+        description="EXPORT_ROW_BUFFER",
+        category="config_option",
+    )
+    mcl.add(
+        r"^\s*CONFIG\s+ZIP_BUFFER_MB\s+(?P<size>[1-9][0-9]*)\s*$",
+        x_zip_buffer_mb,
+        description="ZIP_BUFFER_MB",
+        category="config_option",
+    )
+    mcl.add(
+        r"^\s*EMPTY_STRINGS\s+(?P<yesno>YES|NO|ON|OFF|TRUE|FALSE|0|1)\s*$",
+        x_empty_strings,
+        description="EMPTY_STRINGS",
+        category="config_option",
+    )
     mcl.add(
         r"^\s*CONFIG\s+EMPTY_STRINGS\s+(?P<yesno>YES|NO|ON|OFF|TRUE|FALSE|0|1)\s*$",
         x_empty_strings,
+    )
+    mcl.add(
+        r"^\s*TRIM_STRINGS\s+(?P<yesno>YES|NO|ON|OFF|TRUE|FALSE|0|1)\s*$",
+        x_trim_strings,
+        description="TRIM_STRINGS",
+        category="config_option",
     )
     mcl.add(
         r"^\s*CONFIG\s+TRIM_STRINGS\s+(?P<yesno>YES|NO|ON|OFF|TRUE|FALSE|0|1)\s*$",
@@ -633,18 +747,32 @@ def build_dispatch_table() -> MetaCommandList:
     mcl.add(
         r"^\s*CONFIG\s+REPLACE_NEWLINES\s+(?P<yesno>YES|NO|ON|OFF|TRUE|FALSE|0|1)\s*$",
         x_replace_newlines,
+        description="REPLACE_NEWLINES",
+        category="config_option",
     )
     mcl.add(
         r"^\s*CONFIG\s+EMPTY_ROWS\s+(?P<yesno>YES|NO|ON|OFF|TRUE|FALSE|0|1)\s*$",
         x_empty_rows,
+        description="EMPTY_ROWS",
+        category="config_option",
     )
     mcl.add(
         r"^\s*CONFIG\s+ONLY_STRINGS\s+(?P<yesno>YES|NO|ON|OFF|TRUE|FALSE|0|1)\s*$",
         x_only_strings,
+        description="ONLY_STRINGS",
+        category="config_option",
     )
     mcl.add(
         r"^\s*(?:CONFIG\s+)?BOOLEAN_INT\s+(?P<yesno>YES|NO|ON|OFF|TRUE|FALSE|0|1)\s*$",
         x_boolean_int,
+        description="BOOLEAN_INT",
+        category="config_option",
+    )
+    mcl.add(
+        r"^\s*BOOLEAN_WORDS\s+(?P<yesno>YES|NO|ON|OFF|TRUE|FALSE|0|1)\s*$",
+        x_boolean_words,
+        description="BOOLEAN_WORDS",
+        category="config_option",
     )
     mcl.add(
         r"^\s*CONFIG\s+BOOLEAN_WORDS\s+(?P<yesno>YES|NO|ON|OFF|TRUE|FALSE|0|1)\s*$",
@@ -653,10 +781,20 @@ def build_dispatch_table() -> MetaCommandList:
     mcl.add(
         r"^\s*CONFIG\s+FOLD_COLUMN_HEADERS\s+(?P<foldspec>no|lower|upper)\s*$",
         x_fold_col_hdrs,
+        description="FOLD_COLUMN_HEADERS",
+        category="config_option",
     )
     mcl.add(
         r"^\s*CONFIG\s+TRIM_COLUMN_HEADERS\s+(?P<which>NONE|BOTH|LEFT|RIGHT)\s*$",
         x_trim_col_hdrs,
+        description="TRIM_COLUMN_HEADERS",
+        category="config_option",
+    )
+    mcl.add(
+        r"^\s*CLEAN_COLUMN_HEADERS\s+(?P<yesno>YES|NO|ON|OFF|TRUE|FALSE|0|1)\s*$",
+        x_clean_col_hdrs,
+        description="CLEAN_COLUMN_HEADERS",
+        category="config_option",
     )
     mcl.add(
         r"^\s*CONFIG\s+CLEAN_COLUMN_HEADERS\s+(?P<yesno>YES|NO|ON|OFF|TRUE|FALSE|0|1)\s*$",
@@ -665,47 +803,118 @@ def build_dispatch_table() -> MetaCommandList:
     mcl.add(
         r"^\s*CONFIG\s+DELETE_EMPTY_COLUMNS\s+(?P<yesno>YES|NO|ON|OFF|TRUE|FALSE|0|1)\s*$",
         x_del_empty_cols,
+        description="DELETE_EMPTY_COLUMNS",
+        category="config_option",
     )
     mcl.add(
         r"^\s*CONFIG\s+CREATE_COLUMN_HEADERS\s+(?P<yesno>YES|NO|ON|OFF|TRUE|FALSE|0|1)\s*$",
         x_create_col_hdrs,
+        description="CREATE_COLUMN_HEADERS",
+        category="config_option",
     )
     mcl.add(
         r"^\s*CONFIG\s+DEDUP_COLUMN_HEADERS\s+(?P<yesno>YES|NO|ON|OFF|TRUE|FALSE|0|1)\s*$",
         x_dedup_col_hdrs,
+        description="DEDUP_COLUMN_HEADERS",
+        category="config_option",
+    )
+    mcl.add(
+        r"^\s*IMPORT_ONLY_COMMON_COLUMNS\s+(?P<yesno>YES|NO|ON|OFF|TRUE|FALSE|0|1)\s*$",
+        x_import_common_cols_only,
+        description="IMPORT_ONLY_COMMON_COLUMNS",
+        category="config_option",
+    )
+    mcl.add(
+        r"^\s*IMPORT_COMMON_COLUMNS_ONLY\s+(?P<yesno>YES|NO|ON|OFF|TRUE|FALSE|0|1)\s*$",
+        x_import_common_cols_only,
     )
     mcl.add(
         r"^\s*CONFIG\s+IMPORT_ONLY_COMMON_COLUMNS\s+(?P<yesno>YES|NO|ON|OFF|TRUE|FALSE|0|1)\s*$",
         x_import_common_cols_only,
     )
     mcl.add(
+        r"^\s*MAKE_EXPORT_DIRS\s+(?P<setting>Yes|No|On|Off|True|False|0|1)\s*$",
+        x_make_export_dirs,
+        description="MAKE_EXPORT_DIRS",
+        category="config_option",
+    )
+    mcl.add(
         r"^\s*CONFIG\s+MAKE_EXPORT_DIRS\s+(?P<setting>Yes|No|On|Off|True|False|0|1)\s*$",
         x_make_export_dirs,
+    )
+    mcl.add(
+        r"^\s*WRITE_WARNINGS\s+(?P<yesno>YES|NO|ON|OFF|TRUE|FALSE|0|1)\s*$",
+        x_write_warnings,
+        description="WRITE_WARNINGS",
+        category="config_option",
     )
     mcl.add(
         r"^\s*CONFIG\s+WRITE_WARNINGS\s+(?P<yesno>YES|NO|ON|OFF|TRUE|FALSE|0|1)\s*$",
         x_write_warnings,
     )
-    mcl.add(r"^\s*CONFIG\s+GUI_LEVEL\s+(?P<level>[0-2])\s*$", x_gui_level)
-    mcl.add(r"^\s*CONFIG\s+WRITE_PREFIX\s+(?P<prefix>.*)\s*$", x_write_prefix)
-    mcl.add(r"^\s*CONFIG\s+WRITE_SUFFIX\s+(?P<suffix>.*)\s*$", x_write_suffix)
-    mcl.add(r"^\s*CONFIG\s+SCAN_LINES\s+(?P<scanlines>[0-9]+)\s*$", x_scan_lines)
-    mcl.add(r"^\s*CONFIG\s+HDF5_TEXT_LEN\s+(?P<textlen>[0-9]+)\s*$", x_hdf5_text_len)
+    mcl.add(
+        r"^\s*CONFIG\s+GUI_LEVEL\s+(?P<level>[0-2])\s*$",
+        x_gui_level,
+        description="GUI_LEVEL",
+        category="config_option",
+    )
+    mcl.add(
+        r"^\s*CONFIG\s+WRITE_PREFIX\s+(?P<prefix>.*)\s*$",
+        x_write_prefix,
+        description="WRITE_PREFIX",
+        category="config_option",
+    )
+    mcl.add(
+        r"^\s*CONFIG\s+WRITE_SUFFIX\s+(?P<suffix>.*)\s*$",
+        x_write_suffix,
+        description="WRITE_SUFFIX",
+        category="config_option",
+    )
+    mcl.add(
+        r"^\s*CONFIG\s+SCAN_LINES\s+(?P<scanlines>[0-9]+)\s*$",
+        x_scan_lines,
+        description="SCAN_LINES",
+        category="config_option",
+    )
+    mcl.add(
+        r"^\s*CONFIG\s+HDF5_TEXT_LEN\s+(?P<textlen>[0-9]+)\s*$",
+        x_hdf5_text_len,
+        description="HDF5_TEXT_LEN",
+        category="config_option",
+    )
     mcl.add(
         r"^\s*CONFIG\s+LOG_DATAVARS\s+(?P<setting>Yes|No|On|Off|True|False|0|1)\s*$",
         x_log_datavars,
+        description="LOG_DATAVARS",
+        category="config_option",
     )
     mcl.add(
         r"^\s*CONFIG\s+LOG_SQL\s+(?P<setting>Yes|No|On|Off|True|False|0|1)\s*$",
         x_log_sql,
+        description="LOG_SQL",
+        category="config_option",
     )
     mcl.add(
         r"^\s*CONFIG\s+DAO_FLUSH_DELAY_SECS\s+(?P<secs>[0-9]*\.?[0-9]+)\s*$",
         x_daoflushdelay,
+        description="DAO_FLUSH_DELAY_SECS",
+        category="config_option",
+    )
+    mcl.add(
+        r"^\s*CONSOLE\s+WAIT_WHEN_ERROR\s+(?P<onoff>ON|OFF|YES|NO|TRUE|FALSE|0|1)\s*$",
+        x_consolewait_onerror,
+        description="CONSOLE_WAIT_WHEN_ERROR",
+        category="config_option",
     )
     mcl.add(
         r"^\s*CONFIG\s+CONSOLE\s+WAIT_WHEN_ERROR\s+(?P<onoff>ON|OFF|YES|NO|TRUE|FALSE|0|1)\s*$",
         x_consolewait_onerror,
+    )
+    mcl.add(
+        r"^\s*CONSOLE\s+WAIT_WHEN_DONE\s+(?P<onoff>ON|OFF|YES|NO|TRUE|FALSE|0|1)\s*$",
+        x_consolewait_whendone,
+        description="CONSOLE_WAIT_WHEN_DONE",
+        category="config_option",
     )
     mcl.add(
         r"^\s*CONFIG\s+CONSOLE\s+WAIT_WHEN_DONE\s+(?P<onoff>ON|OFF|YES|NO|TRUE|FALSE|0|1)\s*$",
@@ -723,6 +932,8 @@ def build_dispatch_table() -> MetaCommandList:
             r"(?:\s*,\s*ENCODING\s*=\s*(?P<encoding>[A-Z][A-Z0-9_-]+))?\s*\)\s+AS\s+(?P<db_alias>[A-Z][A-Z0-9_]*)\s*$",
         ),
         x_connect_access,
+        description="CONNECT",
+        category="action",
     )
 
     # ------------------------------------------------------------------
@@ -783,22 +994,45 @@ def build_dispatch_table() -> MetaCommandList:
     mcl.add(
         r'^\s*EXEC(?:UTE)?\s+SCRIPT(?:\s+(?P<exists>IF\s+EXISTS))?\s+(?P<script_id>\w+)(?:(?:\s+WITH)?(?:\s+ARG(?:UMENT)?S?)?\s*\(\s*(?P<argexp>#?\w+\s*=\s*(?:(?:[^"\'\[][^,\)]*)|(?:"[^"]*")|(?:\'[^\']*\')|(?:\[[^\]]*\]))(?:\s*,\s*#?\w+\s*=\s*(?:(?:[^"\'\[][^,\)]*)|(?:"[^"]*")|(?:\'[^\']*\')|(?:\[[^\]]*\])))*)\s*\))?(?:\s+(?P<looptype>WHILE|UNTIL)\s*\(\s*(?P<loopcond>.+)\s*\))?\s*$',
         x_executescript,
+        description="EXECUTE SCRIPT",
+        category="action",
     )
     mcl.add(
         r'^\s*RUN\s+SCRIPT(?:\s+(?P<exists>IF\s+EXISTS))?\s+(?P<script_id>\w+)(?:(?:\s+WITH)?(?:\s+ARG(?:UMENT)?S?)?\s*\(\s*(?P<argexp>#?\w+\s*=\s*(?:(?:[^"\'\[][^,\)]*)|(?:"[^"]*")|(?:\'[^\']*\')|(?:\[[^\]]*\]))(?:\s*,\s*#?\w+\s*=\s*(?:(?:[^"\'\[][^,\)]*)|(?:"[^"]*")|(?:\'[^\']*\')|(?:\[[^\]]*\])))*)\s*\))?(?:\s+(?P<looptype>WHILE|UNTIL)\s*\(\s*(?P<loopcond>.+)\s*\))?\s*$',
         x_executescript,
+        description="RUN",
+        category="action",
     )
     mcl.add(
         r"^\s*(?P<cmd>RUN|EXECUTE)\s+(?P<queryname>\#?\w+)\s*$",
         x_execute,
-        "RUN|EXECUTE",
-        "Run a database function, view, or action query (DBMS-dependent)",
+        description="RUN",
+        category="action",
     )
 
     # ------------------------------------------------------------------
     # ON ERROR_HALT / ON CANCEL_HALT
     # ------------------------------------------------------------------
-    mcl.add(r"^\s*ON\s+ERROR_HALT\s+WRITE\s+CLEAR\s*$", x_error_halt_write_clear)
+    mcl.add(
+        r"^\s*ON\s+ERROR_HALT\s+WRITE\s+CLEAR\s*$",
+        x_error_halt_write_clear,
+        description="ON ERROR_HALT",
+        category="config",
+    )
+    mcl.add(
+        ins_fn_rxs(
+            r"^\s*ON\s+ERROR_HALT\s+WRITE\s+\'(?P<text>([^\']|\n)*)\'(?:(?:\s+(?P<tee>TEE))?\s+TO\s+",
+            r")?\s*$",
+        ),
+        x_error_halt_write,
+    )
+    mcl.add(
+        ins_fn_rxs(
+            r"^\s*ON\s+ERROR_HALT\s+WRITE\s+\[(?P<text>([^\]]|\n)*)\](?:(?:\s+(?P<tee>TEE))?\s+TO\s+",
+            r")?\s*$",
+        ),
+        x_error_halt_write,
+    )
     mcl.add(
         ins_fn_rxs(
             r'^\s*ON\s+ERROR_HALT\s+WRITE\s+"(?P<text>([^"]|\n)*)"(?:(?:\s+(?P<tee>TEE))?\s+TO\s+',
@@ -826,7 +1060,26 @@ def build_dispatch_table() -> MetaCommandList:
         x_error_halt_email,
     )
     mcl.add(r"^\s*ON\s+ERROR_HALT\s+EXEC\s+CLEAR\s*$", x_error_halt_exec_clear)
-    mcl.add(r"^\s*ON\s+CANCEL_HALT\s+WRITE\s+CLEAR\s*$", x_cancel_halt_write_clear)
+    mcl.add(
+        r"^\s*ON\s+CANCEL_HALT\s+WRITE\s+CLEAR\s*$",
+        x_cancel_halt_write_clear,
+        description="ON CANCEL_HALT",
+        category="config",
+    )
+    mcl.add(
+        ins_fn_rxs(
+            r"^\s*ON\s+CANCEL_HALT\s+WRITE\s+\'(?P<text>([^\']|\n)*)\'(?:(?:\s+(?P<tee>TEE))?\s+TO\s+",
+            r")?\s*$",
+        ),
+        x_cancel_halt_write,
+    )
+    mcl.add(
+        ins_fn_rxs(
+            r"^\s*ON\s+CANCEL_HALT\s+WRITE\s+\[(?P<text>([^\]]|\n)*)\](?:(?:\s+(?P<tee>TEE))?\s+TO\s+",
+            r")?\s*$",
+        ),
+        x_cancel_halt_write,
+    )
     mcl.add(
         ins_fn_rxs(
             r'^\s*ON\s+CANCEL_HALT\s+WRITE\s+"(?P<text>([^"]|\n)*)"(?:(?:\s+(?P<tee>TEE))?\s+TO\s+',
@@ -858,7 +1111,12 @@ def build_dispatch_table() -> MetaCommandList:
     # ------------------------------------------------------------------
     # SUB_TEMPFILE
     # ------------------------------------------------------------------
-    mcl.add(r"^\s*SUB_TEMPFILE\s+(?P<match>[+~]?\w+)\s*$", x_sub_tempfile)
+    mcl.add(
+        r"^\s*SUB_TEMPFILE\s+(?P<match>[+~]?\w+)\s*$",
+        x_sub_tempfile,
+        description="SUB_TEMPFILE",
+        category="action",
+    )
 
     # ------------------------------------------------------------------
     # WRITE CREATE_TABLE (ODS / XLS / CSV / alias)
@@ -884,6 +1142,8 @@ def build_dispatch_table() -> MetaCommandList:
             ),
         ),
         x_write_create_table_ods,
+        description="WRITE CREATE_TABLE",
+        category="action",
     )
     mcl.add(
         ins_table_rxs(
@@ -941,11 +1201,18 @@ def build_dispatch_table() -> MetaCommandList:
     # ------------------------------------------------------------------
     # RESET / SET COUNTER
     # ------------------------------------------------------------------
-    mcl.add(r"^\s*RESET\s+COUNTER\s+(?P<counter_no>\d+)\s*$", x_reset_counter)
+    mcl.add(
+        r"^\s*RESET\s+COUNTER\s+(?P<counter_no>\d+)\s*$",
+        x_reset_counter,
+        description="RESET COUNTER",
+        category="action",
+    )
     mcl.add(r"^\s*RESET\s+COUNTERS\s*$", x_reset_counters)
     mcl.add(
         r"^\s*SET\s+COUNTER\s+(?P<counter_no>\d+)\s+TO\s+(?P<value>[0-9+\-*/() ]+)\s*$",
         x_set_counter,
+        description="SET COUNTER",
+        category="action",
     )
 
     # ------------------------------------------------------------------
@@ -957,6 +1224,8 @@ def build_dispatch_table() -> MetaCommandList:
             r'^\s*PROMPT(?:\s+"(?P<message>(.|\n)*)")?\s+CREDENTIALS\s+(?P<user>\w+)\s+(?P<pw>\w+)\s*$',
         ),
         x_prompt_credentials,
+        description="PROMPT CREDENTIALS",
+        category="prompt",
     )
     mcl.add(
         (
@@ -970,22 +1239,31 @@ def build_dispatch_table() -> MetaCommandList:
             r'^\s*CONNECT\s+PROMPT(?:\s+"(?P<message>(.|\n)*)")?\s+AS\s+(?P<alias>\w+)(?:\s+HELP\s+"(?P<help>[^"]+)")?\s*$',
         ),
         x_prompt_connect,
+        description="PROMPT CONNECT",
+        category="prompt",
     )
 
     # ------------------------------------------------------------------
     # TIMER / LOG / SUB_INI
     # ------------------------------------------------------------------
-    mcl.add(r"^\s*TIMER\s+(?P<onoff>ON|OFF)\s*$", x_timer)
-    mcl.add(r'^\s*LOG\s+"(?P<message>.+)"\s*$', x_log)
+    mcl.add(r"^\s*TIMER\s+(?P<onoff>ON|OFF)\s*$", x_timer, description="TIMER", category="config")
+    mcl.add(r'^\s*LOG\s+"(?P<message>.+)"\s*$', x_log, description="LOG", category="action")
     mcl.add(
         ins_fn_rxs(r"^\s*SUB_INI\s+(?:FILE\s+)?", r"(?:\s+SECTION)?\s+(?P<section>\w+)\s*$"),
         x_sub_ini,
+        description="SUB_INI",
+        category="action",
     )
 
     # ------------------------------------------------------------------
     # CONSOLE
     # ------------------------------------------------------------------
-    mcl.add(r"^\s*CONSOLE\s+(?P<hideshow>HIDE|SHOW)\s*$", x_console_hideshow)
+    mcl.add(
+        r"^\s*CONSOLE\s+(?P<hideshow>HIDE|SHOW)\s*$",
+        x_console_hideshow,
+        description="CONSOLE",
+        category="prompt",
+    )
     mcl.add(r"^\s*CONSOLE\s+WIDTH\s+(?P<width>\d+)\s*$", x_consolewidth)
     mcl.add(r"^\s*CONSOLE\s+HEIGHT\s+(?P<height>\d+)\s*$", x_consoleheight)
     mcl.add(r'^\s*CONSOLE\s+STATUS\s+"(?P<message>.*)"\s*$', x_consolestatus)
@@ -1003,8 +1281,18 @@ def build_dispatch_table() -> MetaCommandList:
     # ------------------------------------------------------------------
     # DISCONNECT / AUTOCOMMIT
     # ------------------------------------------------------------------
-    mcl.add(r"^\s*DISCONNECT(?:(?:\s+FROM)?\s+(?P<alias>[A-Z][A-Z0-9_]*))?\s*$", x_disconnect)
-    mcl.add(r"^\s*AUTOCOMMIT\s+OFF\s*$", x_autocommit_off)
+    mcl.add(
+        r"^\s*DISCONNECT(?:(?:\s+FROM)?\s+(?P<alias>[A-Z][A-Z0-9_]*))?\s*$",
+        x_disconnect,
+        description="DISCONNECT",
+        category="action",
+    )
+    mcl.add(
+        r"^\s*AUTOCOMMIT\s+OFF\s*$",
+        x_autocommit_off,
+        description="AUTOCOMMIT",
+        category="action",
+    )
     mcl.add(r"^\s*AUTOCOMMIT\s+ON(?:\s+WITH\s+(?P<action>COMMIT|ROLLBACK))?\s*$", x_autocommit_on)
 
     # ------------------------------------------------------------------
@@ -1016,9 +1304,11 @@ def build_dispatch_table() -> MetaCommandList:
             r")?\s*$",
         ),
         x_writescript,
+        description="WRITE SCRIPT",
+        category="action",
     )
-    mcl.add(r"^\s*MAX_INT\s+(?P<maxint>[0-9]+)\s*$", x_max_int)
-    mcl.add(r"^\s*PG_VACUUM(?P<vacuum_args>.*)\s*$", x_pg_vacuum)
+    mcl.add(r"^\s*MAX_INT\s+(?P<maxint>[0-9]+)\s*$", x_max_int, description="MAX_INT", category="action")
+    mcl.add(r"^\s*PG_VACUUM(?P<vacuum_args>.*)\s*$", x_pg_vacuum, description="PG_VACUUM", category="action")
 
     # ------------------------------------------------------------------
     # ZIP
@@ -1030,6 +1320,8 @@ def build_dispatch_table() -> MetaCommandList:
             symbolicname="zipfilename",
         ),
         x_zip,
+        description="ZIP",
+        category="action",
     )
     mcl.add(
         ins_fn_rxs(
@@ -1049,6 +1341,8 @@ def build_dispatch_table() -> MetaCommandList:
             r"))?)?(?:\s+EXIT_STATUS\s+(?P<errorlevel>\d+))?\s*$",
         ),
         x_halt,
+        description="HALT",
+        category="control",
     )
     for errmsg_delim in (r"\[", r"\#", r"\`", r"\'", r"\~", r'"'):
         # Use the same open/close bracket pair for the errmsg capture
@@ -1069,25 +1363,42 @@ def build_dispatch_table() -> MetaCommandList:
     # ------------------------------------------------------------------
     # BEGIN / END BATCH / ROLLBACK
     # ------------------------------------------------------------------
-    mcl.add(r"^\s*BEGIN\s+BATCH\s*$", x_begin_batch)
-    mcl.add(r"^\s*END\s+BATCH\s*$", x_end_batch, "END BATCH", run_in_batch=True)
-    mcl.add(r"^\s*ROLLBACK(:?\s+BATCH)?\s*$", x_rollback, "ROLLBACK BATCH", run_in_batch=True)
+    mcl.add(r"^\s*BEGIN\s+BATCH\s*$", x_begin_batch, description="BEGIN BATCH", category="block")
+    mcl.add(r"^\s*END\s+BATCH\s*$", x_end_batch, "END BATCH", run_in_batch=True, category="block")
+    mcl.add(r"^\s*ROLLBACK(:?\s+BATCH)?\s*$", x_rollback, "ROLLBACK BATCH", run_in_batch=True, category="block")
 
     # ------------------------------------------------------------------
     # ERROR_HALT / METACOMMAND_ERROR_HALT / CANCEL_HALT
     # ------------------------------------------------------------------
-    mcl.add(r"\s*ERROR_HALT\s+(?P<onoff>ON|OFF|YES|NO|TRUE|FALSE)\s*$", x_error_halt)
+    mcl.add(
+        r"\s*ERROR_HALT\s+(?P<onoff>ON|OFF|YES|NO|TRUE|FALSE)\s*$",
+        x_error_halt,
+        description="ERROR_HALT",
+        category="control",
+    )
     mcl.add(
         r"\s*METACOMMAND_ERROR_HALT\s+(?P<onoff>ON|OFF|YES|NO|TRUE|FALSE)\s*$",
         x_metacommand_error_halt,
         set_error_flag=False,
+        description="METACOMMAND_ERROR_HALT",
+        category="control",
     )
-    mcl.add(r"^\s*CANCEL_HALT\s+(?P<onoff>ON|OFF|YES|NO|TRUE|FALSE)\s*$", x_cancel_halt)
+    mcl.add(
+        r"^\s*CANCEL_HALT\s+(?P<onoff>ON|OFF|YES|NO|TRUE|FALSE)\s*$",
+        x_cancel_halt,
+        description="CANCEL_HALT",
+        category="control",
+    )
 
     # ------------------------------------------------------------------
     # LOOP
     # ------------------------------------------------------------------
-    mcl.add(r"^\s*LOOP\s+(?P<looptype>WHILE|UNTIL)\s*\(\s*(?P<loopcond>.+)\s*\)\s*$", x_loop)
+    mcl.add(
+        r"^\s*LOOP\s+(?P<looptype>WHILE|UNTIL)\s*\(\s*(?P<loopcond>.+)\s*\)\s*$",
+        x_loop,
+        description="LOOP",
+        category="control",
+    )
 
     # ------------------------------------------------------------------
     # PAUSE
@@ -1099,6 +1410,8 @@ def build_dispatch_table() -> MetaCommandList:
             r"^\s*PAUSE\s+\[(?P<text>.+)\](?:\s+(?P<action>HALT|CONTINUE)\s+AFTER\s+(?P<countdown>\d+(?:\.\d*)?)\s+(?P<timeunit>SECONDS|MINUTES))?\s*$",
         ),
         x_pause,
+        description="PAUSE",
+        category="control",
     )
 
     # ------------------------------------------------------------------
@@ -1111,6 +1424,8 @@ def build_dispatch_table() -> MetaCommandList:
             r'(?:\s+INITIALLY\s+"(?P<initial>[^"]+)")?(?:\s+HELP\s+(?P<help>[^\s]+))?\s*$',
         ),
         x_prompt_enter,
+        description="PROMPT ENTER_SUB",
+        category="prompt",
     )
     mcl.add(
         ins_table_rxs(
@@ -1134,6 +1449,8 @@ def build_dispatch_table() -> MetaCommandList:
             ),
         ),
         x_prompt_entryform,
+        description="PROMPT ENTRY_FORM",
+        category="prompt",
     )
     mcl.add(
         ins_table_rxs(
@@ -1156,6 +1473,8 @@ def build_dispatch_table() -> MetaCommandList:
             r'\s+MESSAGE\s+"(?P<msg>(.|\n)*)"(?:\s+(?P<cont>CONTINUE))?(?:\s+HELP\s(?P<help>[^\s]+))?\s*$',
         ),
         x_prompt_selectsub,
+        description="PROMPT SELECT_SUB",
+        category="prompt",
     )
     mcl.add(
         ins_table_rxs(
@@ -1175,6 +1494,8 @@ def build_dispatch_table() -> MetaCommandList:
             r"^\s*PROMPT\s+PAUSE\s+\[(?P<text>.+)\](?:\s+(?P<action>HALT|CONTINUE)\s+AFTER\s+(?P<countdown>\d+(?:\.\d*)?)\s+(?P<timeunit>SECONDS|MINUTES))?\s*$",
         ),
         x_prompt_pause,
+        description="PROMPT PAUSE",
+        category="prompt",
     )
 
     # ------------------------------------------------------------------
@@ -1187,6 +1508,8 @@ def build_dispatch_table() -> MetaCommandList:
             r"^\s*ASK\s+\[(?P<question>.+)\]\s+SUB\s+(?P<match>~?\w+)\s*$",
         ),
         x_ask,
+        description="ASK",
+        category="prompt",
     )
 
     # ------------------------------------------------------------------
@@ -1204,6 +1527,8 @@ def build_dispatch_table() -> MetaCommandList:
             suffix="1",
         ),
         x_prompt_compare,
+        description="PROMPT COMPARE",
+        category="prompt",
     )
     mcl.add(
         ins_table_rxs(
@@ -1230,6 +1555,8 @@ def build_dispatch_table() -> MetaCommandList:
             suffix="1",
         ),
         x_prompt_ask_compare,
+        description="PROMPT ASK COMPARE",
+        category="prompt",
     )
     mcl.add(
         ins_table_rxs(
@@ -1256,6 +1583,8 @@ def build_dispatch_table() -> MetaCommandList:
             r"(?:\s+SYMBOL\s+(?P<symbol_col>\w+))?\s*$",
         ),
         x_prompt_map,
+        description="PROMPT MAP",
+        category="prompt",
     )
     mcl.add(
         ins_table_rxs(
@@ -1287,6 +1616,8 @@ def build_dispatch_table() -> MetaCommandList:
             "att_file",
         ),
         x_email,
+        description="EMAIL",
+        category="action",
     )
 
     # ------------------------------------------------------------------
@@ -1298,10 +1629,12 @@ def build_dispatch_table() -> MetaCommandList:
                 r"^\s*EXPORT_METADATA(?:\s+(?P<append>APPEND))?(?:\s+(?P<all>ALL))?\s+TO\s+",
                 r"(?:\s+IN\s+ZIPFILE\s+",
             ),
-            r")?\s+AS\s+(?P<format>CSV|TAB|TSV|TABQ|TSVQ|TXT|TEXT)",
+            rf")?\s+AS\s+(?P<format>{'|'.join(METADATA_FORMATS)})",
             symbolicname="zipfilename",
         ),
         x_export_metadata,
+        description="EXPORT_METADATA",
+        category="action",
     )
     mcl.add(
         ins_table_rxs(
@@ -1314,23 +1647,52 @@ def build_dispatch_table() -> MetaCommandList:
     # ------------------------------------------------------------------
     # SUB operations
     # ------------------------------------------------------------------
-    mcl.add(r"^\s*SUB_EMPTY\s+(?P<match>[+~]?\w+)\s*$", x_sub_empty)
+    mcl.add(
+        r"^\s*SUB_EMPTY\s+(?P<match>[+~]?\w+)\s*$",
+        x_sub_empty,
+        description="SUB_EMPTY",
+        category="action",
+    )
     mcl.add(
         r"^\s*SUB_ADD\s+(?P<match>[+~]?\w+)\s+(?P<increment>[+\-0-9\.*/() ]+)\s*$",
         x_sub_add,
+        description="SUB_ADD",
+        category="action",
     )
-    mcl.add(r"^\s*SUB_APPEND\s+(?P<match>[+~]?\w+)\s(?P<repl>(.|\n)*)$", x_sub_append)
+    mcl.add(
+        r"^\s*SUB_APPEND\s+(?P<match>[+~]?\w+)\s(?P<repl>(.|\n)*)$",
+        x_sub_append,
+        description="SUB_APPEND",
+        category="action",
+    )
 
     # ------------------------------------------------------------------
     # IF / ORIF / ANDIF / ELSEIF / ELSE / ENDIF
     # ------------------------------------------------------------------
-    mcl.add(r"^\s*ORIF\s*\(\s*(?P<condtest>.+)\s*\)\s*$", x_if_orif, run_when_false=True)
-    mcl.add(r"^\s*ELSEIF\s*\(\s*(?P<condtest>.+)\s*\)\s*$", x_if_elseif, run_when_false=True)
-    mcl.add(r"^\s*ANDIF\s*\(\s*(?P<condtest>.+)\s*\)\s*$", x_if_andif)
-    mcl.add(r"^\s*ELSE\s*$", x_if_else, run_when_false=True)
-    mcl.add(r"^\s*IF\s*\(\s*(?P<condtest>.+)\s*\)\s*{\s*(?P<condcmd>.+)\s*}\s*$", x_if)
-    mcl.add(r"^\s*IF\s*\(\s*(?P<condtest>.+)\s*\)\s*$", x_if_block, run_when_false=True)
-    mcl.add(r"^\s*ENDIF\s*$", x_if_end, run_when_false=True)
+    mcl.add(
+        r"^\s*ORIF\s*\(\s*(?P<condtest>.+)\s*\)\s*$",
+        x_if_orif,
+        description="ORIF",
+        run_when_false=True,
+        category="control",
+    )
+    mcl.add(
+        r"^\s*ELSEIF\s*\(\s*(?P<condtest>.+)\s*\)\s*$",
+        x_if_elseif,
+        description="ELSEIF",
+        run_when_false=True,
+        category="control",
+    )
+    mcl.add(r"^\s*ANDIF\s*\(\s*(?P<condtest>.+)\s*\)\s*$", x_if_andif, description="ANDIF", category="control")
+    mcl.add(r"^\s*ELSE\s*$", x_if_else, description="ELSE", run_when_false=True, category="control")
+    mcl.add(
+        r"^\s*IF\s*\(\s*(?P<condtest>.+)\s*\)\s*{\s*(?P<condcmd>.+)\s*}\s*$",
+        x_if,
+        description="IF",
+        category="control",
+    )
+    mcl.add(r"^\s*IF\s*\(\s*(?P<condtest>.+)\s*\)\s*$", x_if_block, run_when_false=True, category="control")
+    mcl.add(r"^\s*ENDIF\s*$", x_if_end, description="ENDIF", run_when_false=True, category="control")
 
     # ------------------------------------------------------------------
     # CONNECT — SQL Server
@@ -1371,6 +1733,8 @@ def build_dispatch_table() -> MetaCommandList:
             r" IN\s+(?P<alias2>[A-Z][A-Z0-9_]*)\s*$",
         ),
         x_copy_query,
+        description="COPY QUERY",
+        category="action",
     )
     mcl.add(
         (
@@ -1381,6 +1745,8 @@ def build_dispatch_table() -> MetaCommandList:
             r"^COPY\s+(?:\[(?P<schema1>[A-Z][A-Z0-9_\-\/\: ]*)\]\.)?\[(?P<table1>[A-Z][A-Z0-9_\-\/\: ]*)\]\s+FROM\s+(?P<alias1>[A-Z][A-Z0-9_]*)\s+TO\s+(?:(?P<new>NEW|REPLACEMENT)\s+)?(?:\[(?P<schema2>[A-Z][A-Z0-9_\-\/\:]*)\]\.)?\[(?P<table2>[A-Z][A-Z0-9_\-\/\:]*)\]\s+IN\s+(?P<alias2>[A-Z][A-Z0-9_]*)\s*$",
         ),
         x_copy,
+        description="COPY",
+        category="action",
     )
 
     # ------------------------------------------------------------------
@@ -1389,10 +1755,14 @@ def build_dispatch_table() -> MetaCommandList:
     mcl.add(
         r"\s*APPEND\s+SCRIPT\s+(?P<script1>\w+)\s+TO\s+(?P<script2>\w+)\s*$",
         x_extendscript,
+        description="APPEND SCRIPT",
+        category="action",
     )
     mcl.add(
         r"\s*EXTEND\s+SCRIPT\s+(?P<script>\w+)\s+WITH\s+METACOMMAND\s+(?P<cmd>.+)\s*$",
         x_extendscript_metacommand,
+        description="EXTEND SCRIPT",
+        category="action",
     )
     mcl.add(
         r"\s*EXTEND\s+SCRIPT\s+(?P<script>\w+)\s+WITH\s+SQL\s+(?P<sql>.+;)\s*$",
@@ -1476,9 +1846,20 @@ def build_dispatch_table() -> MetaCommandList:
     )
 
     # ------------------------------------------------------------------
-    # USE / CONNECT DSN
+    # CONNECT DSN
     # ------------------------------------------------------------------
-    mcl.add(r"^USE\s+(?P<db_alias>[A-Z][A-Z0-9_]*)\s*$", x_use)
+    mcl.add(
+        r"^CONNECT\s+TO\s+DSN\s*\(\s*DSN\s*=\s*(?P<dsn>[A-Z0-9][A-Z0-9_\-\.]*)\s*"
+        r"(?:\s*,\s*USER\s*=\s*(?P<user>[A-Z][A-Z0-9_@\-\.]*)\s*,\s*NEED_PWD\s*=\s*(?P<need_pwd>TRUE|FALSE))?"
+        r"(?:\s*,\s+PASSWORD\s*=\s*(?P<password>[^\s\)]+))?"
+        r"(?:\s*,\s*ENCODING\s*=\s*(?P<encoding>[A-Z][A-Z0-9_-]+))?\s*\)\s+AS\s+(?P<db_alias>[A-Z][A-Z0-9_]*)\s*$",
+        x_connect_dsn,
+    )
+
+    # ------------------------------------------------------------------
+    # USE
+    # ------------------------------------------------------------------
+    mcl.add(r"^USE\s+(?P<db_alias>[A-Z][A-Z0-9_]*)\s*$", x_use, description="USE", category="action")
 
     # ------------------------------------------------------------------
     # SYSTEM_CMD
@@ -1486,12 +1867,19 @@ def build_dispatch_table() -> MetaCommandList:
     mcl.add(
         r"^\s*SYSTEM_CMD\s*\(\s*(?P<command>.+)\s*\)(?:\s+(?P<continue>CONTINUE))?\s*$",
         x_system_cmd,
+        description="SYSTEM_CMD",
+        category="action",
     )
 
     # ------------------------------------------------------------------
     # INCLUDE
     # ------------------------------------------------------------------
-    mcl.add(ins_fn_rxs(r"^\s*INCLUDE(?P<exists>\s+IF\s+EXISTS?)?\s+", r"\s*$"), x_include)
+    mcl.add(
+        ins_fn_rxs(r"^\s*INCLUDE(?P<exists>\s+IF\s+EXISTS?)?\s+", r"\s*$"),
+        x_include,
+        description="INCLUDE",
+        category="action",
+    )
 
     # ------------------------------------------------------------------
     # IMPORT (CSV / delimited)
@@ -1518,14 +1906,21 @@ def build_dispatch_table() -> MetaCommandList:
             r'^RM_FILE\s+"(?P<filename>.+)"\s*$',
         ),
         x_rm_file,
+        description="RM_FILE",
+        category="action",
     )
-    mcl.add(r"^\s*RM_SUB\s+(?P<match>~?\w+)\s*$", x_rm_sub)
+    mcl.add(r"^\s*RM_SUB\s+(?P<match>~?\w+)\s*$", x_rm_sub, description="RM_SUB", category="action")
 
     # ------------------------------------------------------------------
     # SELECT_SUB / SUBDATA
     # ------------------------------------------------------------------
-    mcl.add(r"^\s*SELECT_SUB\s+(?P<datasource>.+)\s*$", x_selectsub)
-    mcl.add(r"^\s*SUBDATA\s+(?P<match>[+~]?\w+)\s+(?P<datasource>.+)\s*$", x_subdata)
+    mcl.add(r"^\s*SELECT_SUB\s+(?P<datasource>.+)\s*$", x_selectsub, description="SELECT_SUB", category="action")
+    mcl.add(
+        r"^\s*SUBDATA\s+(?P<match>[+~]?\w+)\s+(?P<datasource>.+)\s*$",
+        x_subdata,
+        description="SUBDATA",
+        category="action",
+    )
 
     # ------------------------------------------------------------------
     # PROMPT ASK (simple)
@@ -1536,6 +1931,8 @@ def build_dispatch_table() -> MetaCommandList:
             r')?(?:\s+HELP\s+"(?P<help>[^"]+)")?\s*$',
         ),
         x_prompt_ask,
+        description="PROMPT ASK",
+        category="prompt",
     )
 
     # ------------------------------------------------------------------
@@ -1547,6 +1944,8 @@ def build_dispatch_table() -> MetaCommandList:
             r"(?:\s+HELP\s+(?P<help>[^\s]+))?(?:\s+(?P<free>FREE))?\s*$",
         ),
         x_prompt,
+        description="PROMPT DISPLAY",
+        category="prompt",
     )
     mcl.add(
         ins_table_rxs(
@@ -1573,11 +1972,53 @@ def build_dispatch_table() -> MetaCommandList:
     # ------------------------------------------------------------------
     # PROMPT MESSAGE (simple message / MSG)
     # ------------------------------------------------------------------
-    mcl.add(r'^\s*PROMPT(?:\s+MESSAGE)?\s+"(?P<message>(.|\n)*)"\s*$', x_msg)
+    mcl.add(
+        r'^\s*PROMPT(?:\s+MESSAGE)?\s+"(?P<message>(.|\n)*)"\s*$',
+        x_msg,
+        description="PROMPT MESSAGE",
+        category="prompt",
+    )
 
     # ------------------------------------------------------------------
     # WRITE
     # ------------------------------------------------------------------
+    mcl.add(
+        ins_fn_rxs(
+            r"^\s*WRITE\s+\~(?P<text>([^\~]|\n)*)\~(?:(?:\s+(?P<tee>TEE))?\s+TO\s+",
+            r")?\s*$",
+        ),
+        x_write,
+        description="WRITE",
+        category="action",
+    )
+    mcl.add(
+        ins_fn_rxs(
+            r"^\s*WRITE\s+\#(?P<text>([^\#]|\n)*)\#(?:(?:\s+(?P<tee>TEE))?\s+TO\s+",
+            r")?\s*$",
+        ),
+        x_write,
+    )
+    mcl.add(
+        ins_fn_rxs(
+            r"^\s*WRITE\s+\`(?P<text>([^\`]|\n)*)\`(?:(?:\s+(?P<tee>TEE))?\s+TO\s+",
+            r")?\s*$",
+        ),
+        x_write,
+    )
+    mcl.add(
+        ins_fn_rxs(
+            r"^\s*WRITE\s+\[(?P<text>([^\]]|\n)*)\](?:(?:\s+(?P<tee>TEE))?\s+TO\s+",
+            r")?\s*$",
+        ),
+        x_write,
+    )
+    mcl.add(
+        ins_fn_rxs(
+            r"^\s*WRITE\s+\'(?P<text>([^\']|\n)*)\'(?:(?:\s+(?P<tee>TEE))?\s+TO\s+",
+            r")?\s*$",
+        ),
+        x_write,
+    )
     mcl.add(
         ins_fn_rxs(
             r'^\s*WRITE\s+"(?P<text>([^"]|\n)*)"(?:(?:\s+(?P<tee>TEE))?\s+TO\s+',
@@ -1593,8 +2034,8 @@ def build_dispatch_table() -> MetaCommandList:
     mcl.add(
         r"^\s*SUB\s+(?P<match>[+~]?\w+)\s+(?P<repl>.+)$",
         x_sub,
-        "SUB",
-        "Define a string to match and a replacement for it.",
+        description="SUB",
+        category="action",
     )
 
     return mcl

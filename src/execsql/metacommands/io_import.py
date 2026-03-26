@@ -193,9 +193,15 @@ def x_import_ods_pattern(**kwargs: Any) -> None:
     _state.subvars.add_substitution("$SHEETS_IMPORTED", ",".join(impsheets))
     _state.subvars.add_substitution("$SHEETS_TABLES", ",".join(tables))
     if schemaname is None:
-        _state.subvars.add_substitution("$SHEETS_TABLES_VALUES", ",".join([f"('{t}')" for t in tables]))
+        _state.subvars.add_substitution(
+            "$SHEETS_TABLES_VALUES",
+            ",".join([f"('{t.replace(chr(39), chr(39) + chr(39))}')" for t in tables]),
+        )
     else:
-        _state.subvars.add_substitution("$SHEETS_TABLES_VALUES", ",".join([f"('{schemaname}.{t}')" for t in tables]))
+        _state.subvars.add_substitution(
+            "$SHEETS_TABLES_VALUES",
+            ",".join([f"('{schemaname}.{t.replace(chr(39), chr(39) + chr(39))}')" for t in tables]),
+        )
     return None
 
 
@@ -302,9 +308,15 @@ def x_import_xls_pattern(**kwargs: Any) -> None:
     _state.subvars.add_substitution("$SHEETS_IMPORTED", ",".join(impsheets))
     _state.subvars.add_substitution("$SHEETS_TABLES", ",".join(tables))
     if schemaname is None:
-        _state.subvars.add_substitution("$SHEETS_TABLES_VALUES", ",".join([f"('{t}')" for t in tables]))
+        _state.subvars.add_substitution(
+            "$SHEETS_TABLES_VALUES",
+            ",".join([f"('{t.replace(chr(39), chr(39) + chr(39))}')" for t in tables]),
+        )
     else:
-        _state.subvars.add_substitution("$SHEETS_TABLES_VALUES", ",".join([f"('{schemaname}.{t}')" for t in tables]))
+        _state.subvars.add_substitution(
+            "$SHEETS_TABLES_VALUES",
+            ",".join([f"('{schemaname}.{t.replace(chr(39), chr(39) + chr(39))}')" for t in tables]),
+        )
     return None
 
 

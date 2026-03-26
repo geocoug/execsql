@@ -265,14 +265,11 @@ class FileWriter(multiprocessing.Process):
         # is a command and the second is a tuple of arguments for the function indicated
         # by that command.
         while self.active:
-            command = None
-            argtuple = None
             try:
-                command, argtuple = self.input_queue.get_nowait()
+                command, argtuple = self.input_queue.get(timeout=0.1)
             except queue.Empty:
-                pass
-            if command is not None:
-                self.execvec[command](*argtuple)
+                continue
+            self.execvec[command](*argtuple)
 
 
 # Subprocess objects for asynchronous writing to text files.

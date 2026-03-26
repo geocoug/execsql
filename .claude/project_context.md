@@ -7,6 +7,8 @@ ______________________________________________________________________
 > **Canonical location:** `.claude/project_context.md` in the repo.
 > Global memory (`~/.claude/projects/.../memory/`) mirrors this — the repo file is the source of truth.
 > Update this file whenever any architectural, tooling, or directional decision is made.
+> Update the CHANGELOG.md whenever making a release or significant change.
+> Update ROADMAP.md whenever making a release or significant change (if direction changes or if features have already been implemented)
 
 ______________________________________________________________________
 
@@ -78,9 +80,17 @@ src/execsql/               # active codebase — all new work goes here
     auth.py / crypto.py / datetime.py / errors.py / fileio.py
     gui.py / mail.py / numeric.py / regex.py / strings.py / timer.py
 docs/               # 18 MkDocs Markdown pages (Material theme)
+extras/
+  vscode-execsql/   # VS Code syntax highlighting extension (repo-only, not in wheel)
+    package.json
+    syntaxes/
+      execsql.tmLanguage.json  # auto-generated via `just generate-vscode-grammar`
+scripts/
+  generate_vscode_grammar.py   # generates tmLanguage.json from --dump-keywords
 templates/          # SQL templates + config files
 tests/
   test_placeholder.py
+  test_registry.py  # keyword consistency tests (dispatch table ↔ grammar ↔ CLI)
 .github/workflows/
   ci-cd.yml         # CI/CD pipeline (see below)
 .pre-commit-config.yaml
@@ -97,18 +107,18 @@ ______________________________________________________________________
 
 ## Tooling Decisions
 
-| Tool                | Purpose                  | Decision                                                                     |
-| ------------------- | ------------------------ | ---------------------------------------------------------------------------- |
-| `uv`                | Package/env management   | Chosen over pip/poetry                                                       |
-| `hatchling`         | Build backend            | via pyproject.toml                                                           |
-| `ruff`              | Lint + format            | Permissive config during migration, tighten during refactor                  |
-| `tox-uv`            | Multi-Python test matrix | py310–py313                                                                  |
-| `bump-my-version`   | Version bumping          | tags + commits, hooks run `uv lock`                                          |
-| `just`              | Task runner              | `lint`, `test`, `test-all`, `docs`, `docs-serve`, `bump-patch`, `bump-minor` |
-| `pre-commit`        | Git hooks                | gitleaks, uv-lock, ruff, mdformat, markdownlint, typos, validate-pyproject   |
-| `mkdocs` + Material | Docs site                | converted from Sphinx/RST                                                    |
-| `mkdocstrings`      | API docs from docstrings | installed, not yet wired in                                                  |
-| `pytest-cov`        | Coverage                 | configured, `--cov-fail-under` commented out until tests are written         |
+| Tool                | Purpose                  | Decision                                                                                                |
+| ------------------- | ------------------------ | ------------------------------------------------------------------------------------------------------- |
+| `uv`                | Package/env management   | Chosen over pip/poetry                                                                                  |
+| `hatchling`         | Build backend            | via pyproject.toml                                                                                      |
+| `ruff`              | Lint + format            | Permissive config during migration, tighten during refactor                                             |
+| `tox-uv`            | Multi-Python test matrix | py310–py313                                                                                             |
+| `bump-my-version`   | Version bumping          | tags + commits, hooks run `uv lock`                                                                     |
+| `just`              | Task runner              | `lint`, `test`, `test-all`, `docs`, `docs-serve`, `bump-*`, `generate-vscode-grammar`, `install-vscode` |
+| `pre-commit`        | Git hooks                | gitleaks, uv-lock, ruff, mdformat, markdownlint, typos, validate-pyproject                              |
+| `mkdocs` + Material | Docs site                | converted from Sphinx/RST                                                                               |
+| `mkdocstrings`      | API docs from docstrings | installed, not yet wired in                                                                             |
+| `pytest-cov`        | Coverage                 | configured, `--cov-fail-under` commented out until tests are written                                    |
 
 ## Package Layout Decision
 
@@ -154,72 +164,97 @@ Triggered on: push to `main`, any tag `v*.*.*`, pull requests.
 
 `target-version = "py313"`, `line-length = 120`. Currently permissive — many legacy rules ignored (tabs, bare except, ambiguous names, unused imports, etc.). Intent is to tighten rules progressively during refactor.
 
+## Keyword Registry & VS Code Extension
+
+The dispatch table is the single source of truth for all metacommand keywords. Every `mcl.add()` call in `metacommands/__init__.py` has `description=` (keyword name) and `category=` (one of: `control`, `block`, `action`, `config`, `config_option`, `prompt`). Conditional functions in `conditions.py` use `category="condition"`.
+
+- `execsql --dump-keywords` introspects the dispatch table at runtime and outputs structured JSON
+- `scripts/generate_vscode_grammar.py` consumes that JSON to produce `extras/vscode-execsql/syntaxes/execsql.tmLanguage.json`
+- `tests/test_registry.py` validates keyword consistency across dispatch table, CLI output, and grammar
+- Export format constants (`QUERY_EXPORT_FORMATS`, `TABLE_EXPORT_FORMATS`, etc.) are centralized in `metacommands/__init__.py`
+- The VS Code extension lives at `extras/vscode-execsql/` — it is NOT included in the Python wheel (it's an editor extension, not a library). Install via `just install-vscode` (symlinks into `~/.vscode/extensions/`).
+
+**When adding a new metacommand:** add `description=` and `category=` to the `mcl.add()` call, then run `just generate-vscode-grammar`.
+
+______________________________________________________________________
+
 ## Known Issues / Docs Debt
 
 *(Docs cleanup completed — anchor IDs fixed, RST artifacts resolved.)*
 
-## Roadmap / Open Work
+## Roadmap
 
-Items are ordered by recommended priority. Each has a status and a brief
-rationale so the right one can be picked up without re-investigating context.
+Milestones are v2.x minor releases. Python 3.10 support is maintained for
+the foreseeable future. See also `ROADMAP.md` in the repo root.
 
-______________________________________________________________________
+### Completed
 
-### 1. Orphaned optional features ✅ *completed 2026-03-23*
-
-- **Airspeed removed:** `AirspeedTemplateReport` and `FORMAT airspeed` deleted from
-    `exporters/templates.py`; `airspeed` removed from valid `template_processor` config values.
-    Noted in `CHANGELOG.md` under `[Unreleased]`.
-- **`feather = ["pandas", "pyarrow"]`** added to `pyproject.toml` optional-deps and `all` group.
-- **`hdf5 = ["tables"]`** added to `pyproject.toml` optional-deps and `all` group.
-
-______________________________________________________________________
-
-### 2. Wire `mkdocstrings` into the docs *(low effort, high payoff)*
-
-`mkdocstrings-python` is installed as a dev dep but no `:::` autodoc directives
-exist in any docs page. The modular refactor means every public class and
-function now has a docstring. Adding API reference pages would give users
-discoverable, always-up-to-date docs from zero extra writing.
-
-**Recommended action:** Add an `api/` section to the MkDocs nav with at least
-one page per top-level module group (`db/`, `exporters/`, `importers/`,
-`metacommands/`). Start with the most user-facing ones (`db/base.py`,
-`exporters/`, `cli.py`).
+| Item                                              | Version       | Date    |
+| ------------------------------------------------- | ------------- | ------- |
+| Monolith → modular refactor (80+ files)           | 2.0.0a1–2.1.0 | 2026-03 |
+| 30+ security/correctness fixes (ANALYSIS.md)      | 2.1.x         | 2026-03 |
+| mkdocstrings API docs wired up                    | 2.1.0         | 2026-03 |
+| `execsql-format` surfaced in README + docs nav    | 2.1.0         | 2026-03 |
+| Coverage floor raised to 70% (2,055 tests)        | 2.1.2         | 2026-03 |
+| Orphaned optional features cleaned up             | 2.1.0         | 2026-03 |
+| Keyring auth, Parquet/Feather/HDF5 export, DuckDB | 2.1.0         | 2026-03 |
+| Progress bars, SQL audit logging                  | unreleased    | 2026-03 |
+| Full monolith parity verified                     | unreleased    | 2026-03 |
 
 ______________________________________________________________________
 
-### 3. Surface `execsql-format` in the README and docs nav ✅ *already complete*
+### v2.2 — Stability & Testing
 
-- README has a "Formatting Scripts" section (lines 95–107) with usage examples and a docs link.
-- `zensical.toml` nav lists `{ "execsql-format" = "formatter.md" }` under Guides.
-- Completed in commit `a25d1f4`.
+Theme: Harden what exists before adding features.
 
-______________________________________________________________________
-
-### 4. Raise the coverage floor *(follows test work)* ✅ *floor at 68% as of 2026-03-24*
-
-Coverage is at 68.18% as of 2026-03-24 with the floor at 68% (`--cov-fail-under=68`). The next
-natural targets to push further:
-
-- `importers/{ods,xls,feather}` — same pattern as the exporter tests already written
-- `metacommands/` handlers not yet exercised end-to-end (EXPORT SQLITE/DUCKDB via CLI)
-- `db/duckdb.py` deeper methods (mirrors what was done for `db/sqlite.py`)
-
-**Recommended action:** Write the importer tests first (straightforward),
-then raise `--cov-fail-under` from 68 → 70+.
+- **SQLite integration tests** — full lifecycle (connect, DDL, CRUD, export/import, disconnect)
+- **End-to-end CLI tests** — run scripts through the actual CLI entry point
+- **Exception chaining** — add `from e` to ~80 `except Exception: raise ErrInfo(...)` patterns
+- **Exception hierarchy** — make `ErrInfo`, `DataTypeError`, `DbTypeError`, `DatabaseNotImplementedError` inherit from `ExecSqlError`
+- **`py.typed` marker** — add `src/execsql/py.typed` for downstream type checking
+- **README accuracy** — remove "not yet stable" warning, update feature list
+- **Raise coverage floor** — target 75%
 
 ______________________________________________________________________
 
-### 5. Ruff tightening *(ongoing, lowest urgency)*
+### v2.3 — Code Quality & Documentation
 
-Progressive modernization: enable stricter Ruff rules, remove Py2 compat
-remnants (`type(x) == y` → `isinstance`, bare `except:` → `except Exception:`,
-etc.), modernize idioms. No user-facing change.
+Theme: Make the codebase welcoming to contributors and transparent to users.
 
-**Recommended action:** Work rule-by-rule. Start by removing the most
-egregious suppressions in `pyproject.toml` (`E722` bare-except, `E721`
-type-comparison). Fix each batch of violations before enabling the next rule.
+- **Docstring coverage** — target 50%+ on public API (focus on `db/`, `exporters/`, `script.py`, `config.py`)
+- **CONTRIBUTING.md** — dev setup, architecture overview, PR workflow, testing expectations
+- **Security documentation** — document trust model and security boundaries (SHELL, path traversal, SMTP, passwords)
+- **Ruff tightening** — enable E722 (bare except), E721 (type comparison), remove legacy suppressions
+- **`__all__` exports** — add to all public modules
+- **Remove lazy import anti-pattern** — replace ~30 `global module; import module` with top-level or proper lazy imports
+
+______________________________________________________________________
+
+### v2.4 — Architecture & Performance
+
+Theme: Internal modernization. May include backward-incompatible internal API changes (public CLI behavior preserved).
+
+- **Split large modules** — `script.py` (1,157 lines) and `metacommands/__init__.py` (1,606 lines)
+- **Database ABC with `@abstractmethod`** — replace runtime `DatabaseNotImplementedError` with true abstract methods
+- **Cursor context managers** — explicit cursor lifecycle in `execute()`, `select_data()`, `select_rowsource()`
+- **Metacommand dispatch optimization** — consider dict/trie lookup instead of O(N) regex scan
+- **Variable substitution optimization** — reduce O(V×D) complexity
+- **Exporter protocol** — define a `Protocol` or ABC for exporters with a common interface
+
+______________________________________________________________________
+
+### v2.5+ — Future
+
+- **Plugin system** — allow external packages to register exporters, importers, or metacommands
+
+______________________________________________________________________
+
+### Ongoing / No-milestone
+
+- PostgreSQL integration tests (requires external server — CI docker service)
+- MySQL integration tests (same)
+- `savedscripts` memory pruning
+- Textual TUI polish
 
 ______________________________________________________________________
 

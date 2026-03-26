@@ -21,8 +21,12 @@ def x_debug_write_metacommands(**kwargs: Any) -> None:
         ofile = _state.output
     else:
         ofile = EncodedFile(output_dest, _state.conf.output_encoding).open("w")
-    for m in _state.metacommandlist:
-        ofile.write(f"({m.hitcount})  {m.rx.pattern}\n")
+    try:
+        for m in _state.metacommandlist:
+            ofile.write(f"({m.hitcount})  {m.rx.pattern}\n")
+    finally:
+        if output_dest is not None and output_dest != "stdout":
+            ofile.close()
 
 
 def x_debug_commandliststack(**kwargs: Any) -> None:

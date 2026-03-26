@@ -2,7 +2,7 @@
 
 Initialises global state, connects to the database, loads the SQL script,
 and drives the main execution loop.  Separated from argument parsing
-(``cli.py``) for testability and maintainability.
+(``cli/__init__.py``) for testability and maintainability.
 """
 
 from __future__ import annotations
@@ -16,8 +16,8 @@ import traceback
 from pathlib import Path
 
 from execsql import __version__
-from execsql._cli_dsn import _parse_connection_string
-from execsql._cli_help import _console, _err_console
+from execsql.cli.dsn import _parse_connection_string
+from execsql.cli.help import _console, _err_console
 from execsql.config import ConfigData, StatObj
 from execsql.exceptions import ConfigError, ErrInfo
 from execsql.script import SubVarSet, current_script_line, read_sqlfile, read_sqlstring, runscripts

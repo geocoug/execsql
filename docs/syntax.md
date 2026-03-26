@@ -183,6 +183,9 @@ Valid encoding names can be displayed with the `-y` option. See also [Character 
 `-y`, `--encodings`
 :   List all valid character encoding names and exit.
 
+`--dump-keywords`
+:   Dump all metacommand keywords, conditional functions, config options, and export formats as JSON and exit. Useful for tooling that consumes execsql's keyword registry (e.g., the VS Code grammar generator).
+
 `--dry-run`
 :   Parse the script (or inline `-c` command) and print the full command list — SQL statements and metacommands with source locations — without connecting to a database or executing anything. Useful for validating scripts.
 

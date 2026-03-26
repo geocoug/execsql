@@ -48,20 +48,22 @@ def write_query_to_json(
             f = ef.open("wt")
     else:
         f = ZipWriter(zipfile, outfile, append)
-    f.write("[")
-    uhdrs = [str(h) for h in hdrs]
-    first = True
-    for row in rows:
-        if first:
-            f.write("\n")
-        else:
-            f.write(",\n")
-        first = False
-        dictdata = dict(zip(uhdrs, [str(v) if isinstance(v, str) else v for v in row]))
-        jsondata = json.dumps(dictdata, separators=(",", ":"), default=str)
-        f.write(str(jsondata))
-    f.write("\n]\n")
-    f.close()
+    try:
+        f.write("[")
+        uhdrs = [str(h) for h in hdrs]
+        first = True
+        for row in rows:
+            if first:
+                f.write("\n")
+            else:
+                f.write(",\n")
+            first = False
+            dictdata = dict(zip(uhdrs, [str(v) if isinstance(v, str) else v for v in row]))
+            jsondata = json.dumps(dictdata, separators=(",", ":"), default=str)
+            f.write(str(jsondata))
+        f.write("\n]\n")
+    finally:
+        f.close()
 
 
 def write_query_to_json_ts(
@@ -73,6 +75,9 @@ def write_query_to_json_ts(
     desc: str | None = None,
     zipfile: str | None = None,
 ) -> None:
+    global json
+    import json
+
     conf = _state.conf
     try:
         hdrs, rows = db.select_rowsource(select_stmt)
@@ -93,27 +98,30 @@ def write_query_to_json_ts(
             f = ef.open("wt")
     else:
         f = ZipWriter(zipfile, outfile, append)
-    f.write("{\n")
-    if desc is not None:
-        f.write(f'  "description": "{desc}",\n')
-    f.write('  "fields": [\n')
-    if write_types:
-        # Scan the data to determine data types.
-        tbl_desc = DataTable(hdrs, rows)
-        # Write the column descriptions to the header.
-        # Iterate over hdrs instead of tbl_desc.cols to preserve column order.
-        for i, h in enumerate(hdrs):
-            qcomma = "," if i < max_col_idx else ""
-            c = [col for col in tbl_desc.cols if col.name == h][0]
-            f.write(
-                f'    {{\n      "name": "{c.name}",\n      "title": "{c.name.capitalize().replace("_", " ")}",\n      "type": "{_state.to_json_type[c.dt[1]]}"\n    }}{qcomma}\n',
-            )
-    else:
-        # Write the column descriptions to the header.
-        for i, h in enumerate(hdrs):
-            qcomma = "," if i < max_col_idx else ""
-            f.write(
-                f'    {{\n      "name": "{h}",\n      "title": "{h.capitalize().replace("_", " ")}"\n    }}{qcomma}\n',
-            )
-    f.write("  ]\n}\n")
-    f.close()
+    try:
+        f.write("{\n")
+        if desc is not None:
+            escaped_desc = json.dumps(desc)
+            f.write(f'  "description": {escaped_desc},\n')
+        f.write('  "fields": [\n')
+        if write_types:
+            # Scan the data to determine data types.
+            tbl_desc = DataTable(hdrs, rows)
+            # Write the column descriptions to the header.
+            # Iterate over hdrs instead of tbl_desc.cols to preserve column order.
+            for i, h in enumerate(hdrs):
+                qcomma = "," if i < max_col_idx else ""
+                c = [col for col in tbl_desc.cols if col.name == h][0]
+                f.write(
+                    f'    {{\n      "name": "{c.name}",\n      "title": "{c.name.capitalize().replace("_", " ")}",\n      "type": "{_state.to_json_type[c.dt[1]]}"\n    }}{qcomma}\n',
+                )
+        else:
+            # Write the column descriptions to the header.
+            for i, h in enumerate(hdrs):
+                qcomma = "," if i < max_col_idx else ""
+                f.write(
+                    f'    {{\n      "name": "{h}",\n      "title": "{h.capitalize().replace("_", " ")}"\n    }}{qcomma}\n',
+                )
+        f.write("  ]\n}\n")
+    finally:
+        f.close()

@@ -291,6 +291,8 @@ def build_conditional_table() -> Any:
     mcl.add(
         r"^\s*CONTAINS\s*\(\s*(?P<string1>[^ )]+)\s*,\s*(?P<string2>[^ )]+)(?:\s*,\s*(?P<ignorecase>I))?\s*\)",
         xf_contains,
+        description="CONTAINS",
+        category="condition",
     )
     mcl.add(
         r'^\s*CONTAINS\s*\(\s*"(?P<string1>[^"]+)"\s*,\s*(?P<string2>[^ )]+)(?:\s*,\s*(?P<ignorecase>I))?\s*\)',
@@ -357,6 +359,8 @@ def build_conditional_table() -> Any:
     mcl.add(
         r"^\s*STARTS_WITH\s*\(\s*(?P<string1>[^ )]+)\s*,\s*(?P<string2>[^ )]+)(?:\s*,\s*(?P<ignorecase>I))?\s*\)",
         xf_startswith,
+        description="STARTS_WITH",
+        category="condition",
     )
     mcl.add(
         r'^\s*STARTS_WITH\s*\(\s*"(?P<string1>[^"]+)"\s*,\s*(?P<string2>[^ )]+)(?:\s*,\s*(?P<ignorecase>I))?\s*\)',
@@ -423,6 +427,8 @@ def build_conditional_table() -> Any:
     mcl.add(
         r"^\s*ENDS_WITH\s*\(\s*(?P<string1>[^ )]+)\s*,\s*(?P<string2>[^ )]+)(?:\s*,\s*(?P<ignorecase>I))?\s*\)",
         xf_endswith,
+        description="ENDS_WITH",
+        category="condition",
     )
     mcl.add(
         r'^\s*ENDS_WITH\s*\(\s*"(?P<string1>[^"]+)"\s*,\s*(?P<string2>[^ )]+)(?:\s*,\s*(?P<ignorecase>I))?\s*\)',
@@ -486,18 +492,23 @@ def build_conditional_table() -> Any:
     )
 
     # HASROWS / HAS_ROWS
-    mcl.add(r"^\s*HASROWS\((?P<queryname>[^)]+)\)", xf_hasrows)
+    mcl.add(r"^\s*HASROWS\((?P<queryname>[^)]+)\)", xf_hasrows, description="HASROWS", category="condition")
     mcl.add(r"^\s*HAS_ROWS\((?P<queryname>[^)]+)\)", xf_hasrows)
 
     # Status predicates
-    mcl.add(r"^\s*sql_error\(\s*\)", xf_sqlerror)
-    mcl.add(r"^\s*dialog_canceled\(\s*\)", xf_dialogcanceled)
-    mcl.add(r"^\s*metacommand_error\(\s*\)", xf_metacommanderror)
-    mcl.add(r"^\s*CONSOLE_ON", xf_console)
+    mcl.add(r"^\s*sql_error\(\s*\)", xf_sqlerror, description="SQL_ERROR", category="condition")
+    mcl.add(r"^\s*dialog_canceled\(\s*\)", xf_dialogcanceled, description="DIALOG_CANCELED", category="condition")
+    mcl.add(r"^\s*metacommand_error\(\s*\)", xf_metacommanderror, description="METACOMMAND_ERROR", category="condition")
+    mcl.add(r"^\s*CONSOLE_ON", xf_console, description="CONSOLE_ON", category="condition")
 
     # FILE / DIRECTORY
-    mcl.add(ins_fn_rxs(r"^FILE_EXISTS\(\s*", r"\)"), xf_fileexists)
-    mcl.add(r'^DIRECTORY_EXISTS\(\s*("?)(?P<dirname>[^")]+)\1\)', xf_direxists)
+    mcl.add(ins_fn_rxs(r"^FILE_EXISTS\(\s*", r"\)"), xf_fileexists, description="FILE_EXISTS", category="condition")
+    mcl.add(
+        r'^DIRECTORY_EXISTS\(\s*("?)(?P<dirname>[^")]+)\1\)',
+        xf_direxists,
+        description="DIRECTORY_EXISTS",
+        category="condition",
+    )
 
     # Database object existence
     mcl.add(
@@ -506,6 +517,8 @@ def build_conditional_table() -> Any:
             r'^SCHEMA_EXISTS\(\s*"(?P<schema>[A-Za-z0-9_\-\: ]+)"\s*\)',
         ),
         xf_schemaexists,
+        description="SCHEMA_EXISTS",
+        category="condition",
     )
     mcl.add(
         (
@@ -515,6 +528,8 @@ def build_conditional_table() -> Any:
             r"^TABLE_EXISTS\(\s*(?:(?P<schema>[A-Za-z0-9_\-\/]+)\.)?(?P<tablename>[A-Za-z0-9_\-\/]+)\)",
         ),
         xf_tableexists,
+        description="TABLE_EXISTS",
+        category="condition",
     )
     mcl.add(
         (
@@ -522,8 +537,15 @@ def build_conditional_table() -> Any:
             r'^ROLE_EXISTS\(\s*"(?P<role>[A-Za-z0-9_\-\:\$ ]+)"\s*\)',
         ),
         xf_roleexists,
+        description="ROLE_EXISTS",
+        category="condition",
     )
-    mcl.add(r'^\s*VIEW_EXISTS\(\s*("?)(?P<viewname>[^")]+)\1\)', xf_viewexists)
+    mcl.add(
+        r'^\s*VIEW_EXISTS\(\s*("?)(?P<viewname>[^")]+)\1\)',
+        xf_viewexists,
+        description="VIEW_EXISTS",
+        category="condition",
+    )
     mcl.add(
         (
             r"^COLUMN_EXISTS\(\s*(?P<columnname>[A-Za-z0-9_\-\:]+)\s+IN\s+(?:(?P<schema>[A-Za-z0-9_\-\: ]+)\.)?(?P<tablename>[A-Za-z0-9_\-\: ]+)\)",
@@ -534,28 +556,70 @@ def build_conditional_table() -> Any:
             r'^COLUMN_EXISTS\(\s*"(?P<columnname>[A-Za-z0-9_\-\: ]+)"\s+IN\s+(?:"(?P<schema>[A-Za-z0-9_\-\: ]+)"\.)?"(?P<tablename>[A-Za-z0-9_\-\: ]+)"\)',
         ),
         xf_columnexists,
+        description="COLUMN_EXISTS",
+        category="condition",
     )
-    mcl.add(r"^\s*ALIAS_DEFINED\s*\(\s*(?P<alias>\w+)\s*\)", xf_aliasdefined)
+    mcl.add(
+        r"^\s*ALIAS_DEFINED\s*\(\s*(?P<alias>\w+)\s*\)",
+        xf_aliasdefined,
+        description="ALIAS_DEFINED",
+        category="condition",
+    )
 
     # Substitution variable predicates
-    mcl.add(r"^SUB_DEFINED\s*\(\s*(?P<match_str>[\$&@~#]?\w+)\s*\)", xf_sub_defined)
-    mcl.add(r"^SUB_EMPTY\s*\(\s*(?P<match_str>[\$&@~#]?\w+)\s*\)", xf_sub_empty)
-    mcl.add(r"^\s*SCRIPT_EXISTS\s*\(\s*(?P<script_id>\w+)\s*\)", xf_script_exists)
+    mcl.add(
+        r"^SUB_DEFINED\s*\(\s*(?P<match_str>[\$&@~#]?\w+)\s*\)",
+        xf_sub_defined,
+        description="SUB_DEFINED",
+        category="condition",
+    )
+    mcl.add(
+        r"^SUB_EMPTY\s*\(\s*(?P<match_str>[\$&@~#]?\w+)\s*\)",
+        xf_sub_empty,
+        description="SUB_EMPTY",
+        category="condition",
+    )
+    mcl.add(
+        r"^\s*SCRIPT_EXISTS\s*\(\s*(?P<script_id>\w+)\s*\)",
+        xf_script_exists,
+        description="SCRIPT_EXISTS",
+        category="condition",
+    )
 
     # Comparison predicates
-    mcl.add(r"^\s*EQUAL(S)?\s*\(\s*(?P<string1>[^ )]+)\s*,\s*(?P<string2>[^ )]+)\s*\)", xf_equals)
+    mcl.add(
+        r"^\s*EQUAL(S)?\s*\(\s*(?P<string1>[^ )]+)\s*,\s*(?P<string2>[^ )]+)\s*\)",
+        xf_equals,
+        description="EQUAL",
+        category="condition",
+    )
     mcl.add(r'^\s*EQUAL(S)?\s*\(\s*"(?P<string1>[^"]+)"\s*,\s*(?P<string2>[^ )]+)\s*\)', xf_equals)
     mcl.add(r'^\s*EQUAL(S)?\s*\(\s*(?P<string1>[^ )]+)\s*,\s*"(?P<string2>[^"]+)"\s*\)', xf_equals)
     mcl.add(r'^\s*EQUAL(S)?\s*\(\s*"(?P<string1>[^"]+)"\s*,\s*"(?P<string2>[^"]+)"\s*\)', xf_equals)
-    mcl.add(r"^\s*IDENTICAL\s*\(\s*(?P<string1>[^ ,)]+)\s*,\s*(?P<string2>[^ )]+)\s*\)", xf_identical)
+    mcl.add(
+        r"^\s*IDENTICAL\s*\(\s*(?P<string1>[^ ,)]+)\s*,\s*(?P<string2>[^ )]+)\s*\)",
+        xf_identical,
+        description="IDENTICAL",
+        category="condition",
+    )
     mcl.add(r'^\s*IDENTICAL\s*\(\s*"(?P<string1>[^"]+)"\s*,\s*(?P<string2>[^ )]+)\s*\)', xf_identical)
     mcl.add(r'^\s*IDENTICAL\s*\(\s*(?P<string1>[^ ,]+)\s*,\s*"(?P<string2>[^"]+)"\s*\)', xf_identical)
     mcl.add(r'^\s*IDENTICAL\s*\(\s*"(?P<string1>[^"]+)"\s*,\s*"(?P<string2>[^"]+)"\s*\)', xf_identical)
-    mcl.add(r'^\s*IS_NULL\(\s*(?P<item>"[^"]*")\s*\)', xf_isnull)
-    mcl.add(r"^\s*IS_ZERO\(\s*(?P<value>[^)]*)\s*\)", xf_iszero)
-    mcl.add(r"^\s*IS_GT\(\s*(?P<value1>[^)]*)\s*,\s*(?P<value2>[^)]*)\s*\)", xf_isgt)
-    mcl.add(r"^\s*IS_GTE\(\s*(?P<value1>[^)]*)\s*,\s*(?P<value2>[^)]*)\s*\)", xf_isgte)
-    mcl.add(r"^\s*IS_TRUE\(\s*(?P<value>[^)]*)\s*\)", xf_istrue)
+    mcl.add(r'^\s*IS_NULL\(\s*(?P<item>"[^"]*")\s*\)', xf_isnull, description="IS_NULL", category="condition")
+    mcl.add(r"^\s*IS_ZERO\(\s*(?P<value>[^)]*)\s*\)", xf_iszero, description="IS_ZERO", category="condition")
+    mcl.add(
+        r"^\s*IS_GT\(\s*(?P<value1>[^)]*)\s*,\s*(?P<value2>[^)]*)\s*\)",
+        xf_isgt,
+        description="IS_GT",
+        category="condition",
+    )
+    mcl.add(
+        r"^\s*IS_GTE\(\s*(?P<value1>[^)]*)\s*,\s*(?P<value2>[^)]*)\s*\)",
+        xf_isgte,
+        description="IS_GTE",
+        category="condition",
+    )
+    mcl.add(r"^\s*IS_TRUE\(\s*(?P<value>[^)]*)\s*\)", xf_istrue, description="IS_TRUE", category="condition")
 
     # Boolean literals
     mcl.add(
@@ -574,6 +638,8 @@ def build_conditional_table() -> Any:
             r"^\s*(?P<value>True)\s*",
         ),
         xf_boolliteral,
+        description="IS_TRUE",
+        category="condition",
     )
 
     # Database type / name
@@ -583,6 +649,8 @@ def build_conditional_table() -> Any:
             r'^\s*DBMS\(\s*"(?P<dbms>[A-Z0-9_\-\(\)\/\\\. ]+)"\s*\)',
         ),
         xf_dbms,
+        description="DBMS",
+        category="condition",
     )
     mcl.add(
         (
@@ -590,6 +658,8 @@ def build_conditional_table() -> Any:
             r'^\s*DATABASE_NAME\(\s*"(?P<dbname>[A-Z0-9_;\-\(\)\/\\\. ]+)"\s*\)',
         ),
         xf_dbname,
+        description="DATABASE_NAME",
+        category="condition",
     )
 
     # File modification time comparisons
@@ -600,6 +670,8 @@ def build_conditional_table() -> Any:
             symbolicname="file1",
         ),
         xf_newer_file,
+        description="NEWER_FILE",
+        category="condition",
     )
     mcl.add(
         ins_fn_rxs(
@@ -608,6 +680,8 @@ def build_conditional_table() -> Any:
             symbolicname="file1",
         ),
         xf_newer_date,
+        description="NEWER_DATE",
+        category="condition",
     )
 
     return mcl

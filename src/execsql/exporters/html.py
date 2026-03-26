@@ -11,6 +11,7 @@ CSS styling.
 
 import datetime
 import getpass
+import html as html_mod
 import os
 import sys
 import tempfile
@@ -42,12 +43,12 @@ def export_html(
             f.write(f"<caption>{desc}</caption>\n")
         f.write("<thead><tr>")
         for h in hdrs:
-            f.write(f"<th>{h}</th>")
+            f.write(f"<th>{html_mod.escape(str(h))}</th>")
         f.write("</tr></thead>\n<tbody>\n")
         for r in rows:
             f.write("<tr>")
             for v in r:
-                f.write(f"<td>{v if v else ''}</td>")
+                f.write(f"<td>{html_mod.escape(str(v)) if v else ''}</td>")
             f.write("</tr>\n")
         f.write("</tbody>\n</table>\n")
 
@@ -67,42 +68,47 @@ def export_html(
                 f = ef.open("wt")
         else:
             f = ZipWriter(zipfile, outfile, append)
-        f.write('<!DOCTYPE html>\n<html>\n<head>\n<meta charset="utf-8" />\n')
-        if querytext:
-            descrip = f"Source: [{querytext}] with database {_state.dbs.current().name()} in script {str(Path(script).resolve())}, line {lno}"
-        else:
-            descrip = f"From database {_state.dbs.current().name()} in script {str(Path(script).resolve())}, line {lno}"
-        f.write(f'<meta name="description" content="{descrip}" />\n')
-        datecontent = datetime.datetime.now().strftime("%Y-%m-%d")
-        f.write(f'<meta name="created" content="{datecontent}" />\n')
-        f.write(f'<meta name="revised" content="{datecontent}" />\n')
-        f.write(f'<meta name="author" content="{getpass.getuser()}" />\n')
-        f.write("<title>Data Table</title>\n")
-        if conf.css_file or conf.css_styles:
-            if conf.css_file:
-                f.write(f'<link rel="stylesheet" type="text/css" href="{conf.css_file}">')
-            if conf.css_styles:
-                f.write(f'<style type="text/css">\n{conf.css_styles}\n</style>')
-        else:
-            f.write('<style type="text/css">\n')
-            f.write(
-                'table {font-family: "Liberation Mono", "DejaVu Sans Mono", "Bitstream Vera Sans Mono", "Lucida Console", "Courier New", Courier, fixed; '
-                + "border-top: 3px solid #814324; border-bottom: 3px solid #814324; "
-                + "border-left: 2px solid #814324; border-right: 2px solid #814324; "
-                + "border-collapse: collapse; }\n",
-            )
-            f.write("td {text-align: left; padding 0 10px; border-right: 1px dotted #814324; }\n")
-            f.write(
-                "th {padding: 2px 10px; text-align: center; border-bottom: 1px solid #814324; border-right: 1px dotted #814324;}\n",
-            )
-            f.write("tr.hdr {font-weight: bold;}\n")
-            f.write("thead tr {border-bottom: 1px solid #814324; background-color: #F3F1E2; }\n")
-            f.write("tbody tr { border-bottom: 1px dotted #814324; }\n")
-            f.write("</style>")
-        f.write("\n</head>\n<body>\n")
-        write_table(f)
-        f.write("</body>\n</html>\n")
-        f.close()
+        try:
+            f.write('<!DOCTYPE html>\n<html>\n<head>\n<meta charset="utf-8" />\n')
+            if querytext:
+                descrip = f"Source: [{querytext}] with database {_state.dbs.current().name()} in script {str(Path(script).resolve())}, line {lno}"
+            else:
+                descrip = (
+                    f"From database {_state.dbs.current().name()} in script {str(Path(script).resolve())}, line {lno}"
+                )
+            f.write(f'<meta name="description" content="{descrip}" />\n')
+            datecontent = datetime.datetime.now().strftime("%Y-%m-%d")
+            f.write(f'<meta name="created" content="{datecontent}" />\n')
+            f.write(f'<meta name="revised" content="{datecontent}" />\n')
+            f.write(f'<meta name="author" content="{getpass.getuser()}" />\n')
+            f.write("<title>Data Table</title>\n")
+            if conf.css_file or conf.css_styles:
+                if conf.css_file:
+                    f.write(f'<link rel="stylesheet" type="text/css" href="{conf.css_file}">')
+                if conf.css_styles:
+                    f.write(f'<style type="text/css">\n{conf.css_styles}\n</style>')
+            else:
+                f.write('<style type="text/css">\n')
+                f.write(
+                    'table {font-family: "Liberation Mono", "DejaVu Sans Mono", "Bitstream Vera Sans Mono", "Lucida Console", "Courier New", Courier, fixed; '
+                    + "border-top: 3px solid #814324; border-bottom: 3px solid #814324; "
+                    + "border-left: 2px solid #814324; border-right: 2px solid #814324; "
+                    + "border-collapse: collapse; }\n",
+                )
+                f.write("td {text-align: left; padding 0 10px; border-right: 1px dotted #814324; }\n")
+                f.write(
+                    "th {padding: 2px 10px; text-align: center; border-bottom: 1px solid #814324; border-right: 1px dotted #814324;}\n",
+                )
+                f.write("tr.hdr {font-weight: bold;}\n")
+                f.write("thead tr {border-bottom: 1px solid #814324; background-color: #F3F1E2; }\n")
+                f.write("tbody tr { border-bottom: 1px dotted #814324; }\n")
+                f.write("</style>")
+            f.write("\n</head>\n<body>\n")
+            write_table(f)
+            f.write("</body>\n</html>\n")
+        finally:
+            if outfile.lower() != "stdout":
+                f.close()
     elif not zipfile and append:
         if outfile.lower() == "stdout":
             f = sys.stdout
@@ -112,8 +118,10 @@ def export_html(
 
             ef = EncodedFile(outfile, conf.output_encoding)
             f = ef.open("wt")
-            write_table(f)
-            f.close()
+            try:
+                write_table(f)
+            finally:
+                f.close()
         else:
             filewriter_close(outfile)
             from execsql.utils.fileio import EncodedFile
@@ -124,23 +132,25 @@ def export_html(
             os.close(tempf)  # Close the fd from mkstemp; EncodedFile opens its own handle
             tf = EncodedFile(tempfname, conf.output_encoding)
             t = tf.open("wt")
-            remainder = ""
-            for line in f:
-                bodypos = line.lower().find("</body>")
-                if bodypos > -1:
-                    t.write(line[0:bodypos])
-                    t.write("\n")
-                    remainder = line[bodypos:]
-                    break
-                else:
+            try:
+                remainder = ""
+                for line in f:
+                    bodypos = line.lower().find("</body>")
+                    if bodypos > -1:
+                        t.write(line[0:bodypos])
+                        t.write("\n")
+                        remainder = line[bodypos:]
+                        break
+                    else:
+                        t.write(line)
+                t.write("\n")
+                write_table(t)
+                t.write(remainder)
+                for line in f:
                     t.write(line)
-            t.write("\n")
-            write_table(t)
-            t.write(remainder)
-            for line in f:
-                t.write(line)
-            t.close()
-            f.close()
+            finally:
+                t.close()
+                f.close()
             os.unlink(outfile)
             os.rename(tempfname, outfile)
 
@@ -162,12 +172,12 @@ def export_cgi_html(
             f.write(f"<caption>{desc}</caption>\n")
         f.write("<thead><tr>")
         for h in hdrs:
-            f.write(f"<th>{h}</th>")
+            f.write(f"<th>{html_mod.escape(str(h))}</th>")
         f.write("</tr></thead>\n<tbody>\n")
         for r in rows:
             f.write("<tr>")
             for v in r:
-                f.write(f"<td>{v if v else ''}</td>")
+                f.write(f"<td>{html_mod.escape(str(v)) if v else ''}</td>")
             f.write("</tr>\n")
         f.write("</tbody>\n</table>\n")
 
@@ -184,10 +194,12 @@ def export_cgi_html(
                 f = ef.open("wt")
         else:
             f = ZipWriter(zipfile, outfile, append)
-        f.write("Content-Type: text/html\n\n")
-        write_table(f)
-        if outfile.lower() != "stdout":
-            f.close()
+        try:
+            f.write("Content-Type: text/html\n\n")
+            write_table(f)
+        finally:
+            if outfile.lower() != "stdout":
+                f.close()
     else:
         if outfile == "stdout":
             f = sys.stdout
@@ -196,9 +208,11 @@ def export_cgi_html(
 
             ef = EncodedFile(outfile, conf.output_encoding)
             f = ef.open("a")
-        write_table(f)
-        if outfile.lower() != "stdout":
-            f.close()
+        try:
+            write_table(f)
+        finally:
+            if outfile.lower() != "stdout":
+                f.close()
 
 
 def write_query_to_html(

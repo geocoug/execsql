@@ -3,11 +3,11 @@
 Parses arguments via Typer, then delegates to :func:`_run` for state
 initialisation, database connection, and script execution.
 
-Implementation is split across sibling modules for maintainability:
+Submodules:
 
-- :mod:`execsql._cli_help`  — Rich-formatted help output & console objects
-- :mod:`execsql._cli_dsn`   — Connection-string (DSN URL) parser
-- :mod:`execsql._cli_run`   — Core execution logic
+- :mod:`execsql.cli.help`  — Rich-formatted help output & console objects
+- :mod:`execsql.cli.dsn`   — Connection-string (DSN URL) parser
+- :mod:`execsql.cli.run`   — Core execution logic
 """
 
 from __future__ import annotations
@@ -19,9 +19,9 @@ from pathlib import Path
 import typer
 
 from execsql import __version__
-from execsql._cli_dsn import _parse_connection_string, _SCHEME_TO_DBTYPE  # noqa: F401 — re-export
-from execsql._cli_help import _console, _err_console, _print_encodings, _print_metacommands  # noqa: F401 — re-export
-from execsql._cli_run import _connect_initial_db, _run  # noqa: F401 — re-export
+from execsql.cli.dsn import _parse_connection_string, _SCHEME_TO_DBTYPE  # noqa: F401 — re-export
+from execsql.cli.help import _console, _err_console, _print_encodings, _print_metacommands  # noqa: F401 — re-export
+from execsql.cli.run import _connect_initial_db, _run  # noqa: F401 — re-export
 from execsql.exceptions import ConfigError, ErrInfo
 
 
@@ -235,6 +235,11 @@ def main(
         "--progress",
         help="Show a progress bar for long-running IMPORT operations.",
     ),
+    dump_keywords: bool = typer.Option(
+        False,
+        "--dump-keywords",
+        help="Dump all metacommand keywords as JSON and exit.",
+    ),
     version: bool | None = typer.Option(
         None,
         "--version",
@@ -262,6 +267,59 @@ def main(
 
     if encodings:
         _print_encodings()
+        raise typer.Exit()
+
+    if dump_keywords:
+        import json as _json
+
+        from execsql.metacommands import (
+            ALL_EXPORT_FORMATS,
+            DATABASE_TYPES,
+            DISPATCH_TABLE,
+            JSON_VARIANT_FORMATS,
+            METADATA_FORMATS,
+            QUERY_EXPORT_FORMATS,
+            SERVE_FORMATS,
+            TABLE_EXPORT_FORMATS,
+        )
+        from execsql.metacommands.conditions import CONDITIONAL_TABLE
+
+        mc_kw = DISPATCH_TABLE.keywords_by_category()
+        cond_kw = CONDITIONAL_TABLE.keywords_by_category()
+
+        data = {
+            "metacommands": {
+                "control": sorted(mc_kw.get("control", [])),
+                "block": sorted(
+                    mc_kw.get("block", []) + ["BEGIN SCRIPT", "END SCRIPT", "BEGIN SQL", "END SQL"],
+                ),
+                "action": sorted(mc_kw.get("action", [])),
+                "config": sorted(mc_kw.get("config", [])),
+                "prompt": sorted(mc_kw.get("prompt", [])),
+            },
+            "conditions": sorted(cond_kw.get("condition", []) + ["IS_FALSE", "NOT", "OR"]),
+            "config_options": sorted(mc_kw.get("config_option", [])),
+            "export_formats": {
+                "query": sorted(QUERY_EXPORT_FORMATS),
+                "table": sorted(TABLE_EXPORT_FORMATS),
+                "serve": sorted(SERVE_FORMATS),
+                "metadata": sorted(METADATA_FORMATS),
+                "json_variants": sorted(JSON_VARIANT_FORMATS),
+                "all": sorted(ALL_EXPORT_FORMATS),
+            },
+            "database_types": sorted(DATABASE_TYPES),
+            "variable_patterns": {
+                "system": "!!$name!!",
+                "environment": "!!&name!!",
+                "parameter": "!!#name!!",
+                "column": "!!@name!!",
+                "local": "!!~name!!",
+                "local_alt": "!!+name!!",
+                "regular": "!!name!!",
+                "deferred": "!{name}!",
+            },
+        }
+        _console.print_json(_json.dumps(data, indent=2))
         raise typer.Exit()
 
     if online_help:

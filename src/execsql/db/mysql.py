@@ -130,9 +130,10 @@ class MySQLDatabase(Database):
     def role_exists(self, rolename: str) -> bool:
         curs = self.cursor()
         curs.execute(
-            f"select distinct user as role from mysql.user where user = '{rolename}'"
-            f" union select distinct role_name as role from information_schema.applicable_roles"
-            f" where role_name = '{rolename}'",
+            "select distinct user as role from mysql.user where user = %s"
+            " union select distinct role_name as role from information_schema.applicable_roles"
+            " where role_name = %s",
+            (rolename, rolename),
         )
         rows = curs.fetchall()
         curs.close()

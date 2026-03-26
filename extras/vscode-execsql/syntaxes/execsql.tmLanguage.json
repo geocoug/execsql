@@ -1,0 +1,240 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "execsql injection",
+  "scopeName": "injection.execsql",
+  "injectionSelector": "L:source.sql",
+  "patterns": [
+    {
+      "include": "#commented-out-metacommand"
+    },
+    {
+      "include": "#metacommand-line"
+    },
+    {
+      "include": "#variable-substitution"
+    }
+  ],
+  "repository": {
+    "commented-out-metacommand": {
+      "comment": "A metacommand line preceded by an extra -- or wrapped in /* */. Consumes the entire line so keyword/variable patterns are suppressed.",
+      "patterns": [
+        {
+          "comment": "Line-commented metacommand: -- ... -- !x! ...",
+          "match": "^\\s*--.*--\\s*!x!.*$",
+          "name": "comment.line.double-dash.sql"
+        },
+        {
+          "comment": "Block-commented metacommand (single line): /* ... -- !x! ... */",
+          "match": "^\\s*/\\*.*--\\s*!x!.*\\*/\\s*$",
+          "name": "comment.block.sql"
+        },
+        {
+          "comment": "Multi-line block comment /* ... */. Suppresses metacommand highlighting inside.",
+          "begin": "/\\*",
+          "end": "\\*/",
+          "name": "comment.block.sql"
+        }
+      ]
+    },
+    "metacommand-line": {
+      "comment": "Matches an entire -- !x! metacommand line",
+      "begin": "^\\s*(--\\s*!x!\\s*)",
+      "end": "$",
+      "beginCaptures": {
+        "1": {
+          "name": "keyword.control.directive.marker.execsql"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#block-keywords"
+        },
+        {
+          "include": "#control-keywords"
+        },
+        {
+          "include": "#prompt-keywords"
+        },
+        {
+          "include": "#config-event-keywords"
+        },
+        {
+          "include": "#action-keywords"
+        },
+        {
+          "include": "#builtin-functions"
+        },
+        {
+          "include": "#config-option-names"
+        },
+        {
+          "include": "#export-formats"
+        },
+        {
+          "include": "#secondary-operators"
+        },
+        {
+          "include": "#variable-substitution"
+        },
+        {
+          "include": "#string-double"
+        }
+      ]
+    },
+    "control-keywords": {
+      "comment": "if/else/loop/halt etc.",
+      "match": "(?i)\\b(metacommand_error_halt|cancel_halt|error_halt|wait_until|end\\s+loop|endloop|elseif|andif|break|endif|pause|else|halt|loop|orif|if)\\b",
+      "name": "keyword.control.execsql"
+    },
+    "block-keywords": {
+      "comment": "begin/end script/batch/sql/rollback",
+      "match": "(?i)\\b(rollback\\s+batch|begin\\s+script|begin\\s+batch|end\\s+script|begin\\s+sql|end\\s+batch|rollback|end\\s+sql)\\b",
+      "name": "keyword.control.block.execsql"
+    },
+    "action-keywords": {
+      "comment": "sub, write, execute script, export, etc.",
+      "match": "(?i)\\b(reset\\s+dialog_canceled|write\\s+create_table|export_metadata|sub_querystring|execute\\s+script|append\\s+script|extend\\s+script|reset\\s+counter|export\\s+query|sub_tempfile|write\\s+script|import_file|set\\s+counter|sub_decrypt|sub_encrypt|autocommit|copy\\s+query|disconnect|select_sub|sub_append|system_cmd|pg_vacuum|sub_empty|sub_local|connect|include|max_int|rm_file|subdata|sub_add|sub_ini|export|import|rm_sub|debug|email|serve|write|copy|log|run|sub|use|zip|cd)\\b",
+      "name": "keyword.other.execsql"
+    },
+    "config-event-keywords": {
+      "comment": "config, on error_halt, on cancel_halt, on, timer",
+      "match": "(?i)\\b(metacommand_error_halt|on\\s+cancel_halt|on\\s+error_halt|error_halt|config|timer|on)\\b",
+      "name": "keyword.other.directive.execsql"
+    },
+    "prompt-keywords": {
+      "comment": "prompt subcommands and console",
+      "match": "(?i)\\b(prompt\\s+ask\\s+compare|prompt\\s+credentials|prompt\\s+select_rows|prompt\\s+entry_form|prompt\\s+select_sub|prompt\\s+directory|prompt\\s+enter_sub|prompt\\s+openfile|prompt\\s+savefile|prompt\\s+compare|prompt\\s+connect|prompt\\s+display|prompt\\s+message|prompt\\s+action|prompt\\s+pause|prompt\\s+ask|prompt\\s+map|console|ask)\\b",
+      "name": "keyword.other.prompt.execsql"
+    },
+    "builtin-functions": {
+      "comment": "Conditional test functions used in if/elseif",
+      "match": "(?i)\\b(metacommand_error|directory_exists|dialog_canceled|alias_defined|column_exists|database_name|schema_exists|script_exists|table_exists|file_exists|role_exists|starts_with|sub_defined|view_exists|console_on|newer_date|newer_file|ends_with|identical|sql_error|sub_empty|contains|is_false|hasrows|is_null|is_true|is_zero|is_gte|equal|is_gt|dbms|not|or)\\b",
+      "name": "support.function.execsql"
+    },
+    "config-option-names": {
+      "comment": "Config option names used after the config keyword",
+      "match": "(?i)\\b(console_wait_when_error_halt|import_common_columns_only|import_only_common_columns|console_wait_when_error|console_wait_when_done|create_column_headers|clean_column_headers|dao_flush_delay_secs|dedup_column_headers|delete_empty_columns|outfile_open_timeout|fold_column_headers|trim_column_headers|access_use_numeric|log_write_messages|template_processor|export_row_buffer|import_row_buffer|make_export_dirs|replace_newlines|access_username|password_prompt|console_height|quote_all_text|write_warnings|boolean_words|console_width|empty_strings|hdf5_text_len|show_progress|zip_buffer_mb|log_datavars|only_strings|trim_strings|user_logfile|write_prefix|write_suffix|boolean_int|empty_rows|scan_lines|css_style|gui_level|css_file|username|db_file|db_type|log_sql|new_db|server|port|db)\\b",
+      "name": "support.constant.config.execsql"
+    },
+    "export-formats": {
+      "comment": "Export/import format names",
+      "match": "(?i)\\b(json_tableschema|cgi-html|feather|json_ts|txt-and|unitsep|duckdb|sqlite|values|latex|plain|hdf5|html|json|tabq|tsvq|b64|csv|ods|raw|tab|tsv|txt|xml|us)\\b",
+      "name": "support.constant.execsql"
+    },
+    "secondary-operators": {
+      "comment": "Modifier keywords used as arguments/options",
+      "match": "(?i)\\b(with\\s+template|attach_file|in\\s+zipfile|continue|compare|display|message|subject|append|after|from|with|key|tee|as|to)\\b",
+      "name": "keyword.operator.execsql"
+    },
+    "variable-substitution": {
+      "comment": "Variable substitution patterns \u2014 apply everywhere in .sql files",
+      "patterns": [
+        {
+          "comment": "System variable !!$name!!",
+          "match": "(!!)(\\$[A-Za-z_][A-Za-z0-9_]*)(!!)",
+          "captures": {
+            "1": {
+              "name": "punctuation.definition.variable.execsql"
+            },
+            "2": {
+              "name": "variable.language.execsql"
+            },
+            "3": {
+              "name": "punctuation.definition.variable.execsql"
+            }
+          }
+        },
+        {
+          "comment": "Environment variable !!&name!!",
+          "match": "(!!)(&[A-Za-z_][A-Za-z0-9_]*)(!!)",
+          "captures": {
+            "1": {
+              "name": "punctuation.definition.variable.execsql"
+            },
+            "2": {
+              "name": "variable.language.execsql"
+            },
+            "3": {
+              "name": "punctuation.definition.variable.execsql"
+            }
+          }
+        },
+        {
+          "comment": "Parameter variable !!#name!!",
+          "match": "(!!)(#[A-Za-z_][A-Za-z0-9_]*)(!!)",
+          "captures": {
+            "1": {
+              "name": "punctuation.definition.variable.execsql"
+            },
+            "2": {
+              "name": "variable.parameter.execsql"
+            },
+            "3": {
+              "name": "punctuation.definition.variable.execsql"
+            }
+          }
+        },
+        {
+          "comment": "Column/data variable !!@name!!",
+          "match": "(!!)(@[A-Za-z_][A-Za-z0-9_]*)(!!)",
+          "captures": {
+            "1": {
+              "name": "punctuation.definition.variable.execsql"
+            },
+            "2": {
+              "name": "variable.other.member.execsql"
+            },
+            "3": {
+              "name": "punctuation.definition.variable.execsql"
+            }
+          }
+        },
+        {
+          "comment": "Local variable !!~name!! or !!+name!!",
+          "match": "(!!)([~+][A-Za-z_][A-Za-z0-9_]*)(!!)",
+          "captures": {
+            "1": {
+              "name": "punctuation.definition.variable.execsql"
+            },
+            "2": {
+              "name": "variable.other.local.execsql"
+            },
+            "3": {
+              "name": "punctuation.definition.variable.execsql"
+            }
+          }
+        },
+        {
+          "comment": "Regular variable !!name!!",
+          "match": "(!!)([A-Za-z_][A-Za-z0-9_]*)(!!)",
+          "captures": {
+            "1": {
+              "name": "punctuation.definition.variable.execsql"
+            },
+            "2": {
+              "name": "variable.other.execsql"
+            },
+            "3": {
+              "name": "punctuation.definition.variable.execsql"
+            }
+          }
+        },
+        {
+          "comment": "Deferred substitution !{name}!",
+          "match": "!\\{[A-Za-z_~+$@&#][A-Za-z0-9_]*\\}!",
+          "name": "variable.other.execsql"
+        },
+        {
+          "comment": "Bare variable delimiters !!",
+          "match": "!!",
+          "name": "punctuation.definition.variable.execsql"
+        }
+      ]
+    },
+    "string-double": {
+      "comment": "Double-quoted string literals inside metacommand lines",
+      "match": "\"[^\"]*\"",
+      "name": "string.quoted.double.execsql"
+    }
+  }
+}

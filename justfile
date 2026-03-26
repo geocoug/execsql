@@ -50,6 +50,15 @@ clean:
     find . -type f -name ".coverage" -exec rm -rf {} +
 
 
+# ── VS Code Extension ────────────────────────────────────────────────────────
+
+# Install VS Code extension via symlink
+install-vscode:
+    uv run python scripts/generate_vscode_grammar.py
+    ln -sfn "$(pwd)/extras/vscode-execsql" ~/.vscode/extensions/execsql-syntax
+    @echo "Restart VS Code to activate the execsql extension."
+
+
 # ── Documentation──────────────────────────────────────────────────────────────
 
 # Build documentation

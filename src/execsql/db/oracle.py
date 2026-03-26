@@ -24,7 +24,7 @@ class OracleDatabase(Database):
         db_name: str,
         user_name: str | None,
         need_passwd: bool = False,
-        port: int | None = 5432,
+        port: int | None = 1521,
         encoding: str | None = "UTF8",
         password: str | None = None,
     ) -> None:

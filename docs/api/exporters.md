@@ -26,6 +26,8 @@ Each module below implements one or more output formats. Every writer follows th
 
 ::: execsql.exporters.templates
 
+::: execsql.exporters.latex
+
 ::: execsql.exporters.ods
 
 ::: execsql.exporters.xls
@@ -37,3 +39,5 @@ Each module below implements one or more output formats. Every writer follows th
 ::: execsql.exporters.sqlite
 
 ::: execsql.exporters.duckdb
+
+::: execsql.exporters.zip

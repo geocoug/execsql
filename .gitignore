@@ -31,7 +31,12 @@ coverage.xml
 .tox/
 htmlcov/
 execsql.log
-scripts/
+scripts/execsql.conf
+scripts/*.csv
+scripts/test_import_sqlite.sql
+scripts/test_script.sql
+scripts/test.db
+scripts/*.log
 
 # Distribution
 *.whl

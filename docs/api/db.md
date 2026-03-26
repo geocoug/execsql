@@ -13,3 +13,23 @@ If you are adding support for a new database, start with the [Adding Database Ad
 Convenience constructors used internally to create typed `Database` instances. The CLI calls the appropriate factory function based on the `-t` flag value. Each factory validates its arguments (e.g., checking that a file exists) before constructing and returning the adapter.
 
 ::: execsql.db.factory
+
+## Adapters
+
+::: execsql.db.postgres
+
+::: execsql.db.sqlite
+
+::: execsql.db.duckdb
+
+::: execsql.db.sqlserver
+
+::: execsql.db.mysql
+
+::: execsql.db.oracle
+
+::: execsql.db.firebird
+
+::: execsql.db.access
+
+::: execsql.db.dsn

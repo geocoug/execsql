@@ -101,7 +101,7 @@ def x_export(**kwargs: Any) -> None:
             desc=description,
             zipfile=zipfilename,
         )
-    elif filefmt in ("txt-and", "text-and"):
+    elif filefmt in ("txt-and", "text-and", "txt-and", "text-and"):
         prettyprint_query(
             select_stmt,
             _state.dbs.current(),
@@ -250,7 +250,7 @@ def x_export_query(**kwargs: Any) -> None:
             desc=description,
             zipfile=zipfilename,
         )
-    elif filefmt in ("txt-and", "text-and"):
+    elif filefmt in ("txt-and", "text-and", "txt-and", "text-and"):
         prettyprint_query(
             select_stmt,
             _state.dbs.current(),

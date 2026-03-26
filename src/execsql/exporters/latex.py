@@ -60,12 +60,14 @@ def export_latex(
                 f = ef.open("wt")
             else:
                 f = WriteableZipfile(zipfile).open(outfile, append)
-        f.write("\\documentclass{article}\n")
-        f.write("\\begin{document}\n")
-        write_table(f)
-        f.write("\\end{document}\n")
-        if outfile.lower() != "stdout":
-            f.close()
+        try:
+            f.write("\\documentclass{article}\n")
+            f.write("\\begin{document}\n")
+            write_table(f)
+            f.write("\\end{document}\n")
+        finally:
+            if outfile.lower() != "stdout":
+                f.close()
     else:
         if outfile.lower() == "stdout" or not Path(outfile).is_file():
             if outfile.lower() == "stdout":
@@ -75,9 +77,11 @@ def export_latex(
             else:
                 ef = EncodedFile(outfile, conf.output_encoding)
                 f = ef.open("wt")
-            write_table(f)
-            if outfile.lower() != "stdout":
-                f.close()
+            try:
+                write_table(f)
+            finally:
+                if outfile.lower() != "stdout":
+                    f.close()
         else:
             ef = EncodedFile(outfile, conf.output_encoding)
             f = ef.open("rt")
@@ -85,23 +89,25 @@ def export_latex(
             os.close(tempf)  # Close the fd from mkstemp; EncodedFile opens its own handle
             tf = EncodedFile(tempfname, conf.output_encoding)
             t = tf.open("wt")
-            remainder = ""
-            for line in f:
-                bodypos = line.lower().find("\\end{document}")
-                if bodypos > -1:
-                    t.write(line[0:bodypos])
-                    t.write("\n")
-                    remainder = line[bodypos:]
-                    break
-                else:
+            try:
+                remainder = ""
+                for line in f:
+                    bodypos = line.lower().find("\\end{document}")
+                    if bodypos > -1:
+                        t.write(line[0:bodypos])
+                        t.write("\n")
+                        remainder = line[bodypos:]
+                        break
+                    else:
+                        t.write(line)
+                t.write("\n")
+                write_table(t)
+                t.write(remainder)
+                for line in f:
                     t.write(line)
-            t.write("\n")
-            write_table(t)
-            t.write(remainder)
-            for line in f:
-                t.write(line)
-            t.close()
-            f.close()
+            finally:
+                t.close()
+                f.close()
             os.unlink(outfile)
             os.rename(tempfname, outfile)
 

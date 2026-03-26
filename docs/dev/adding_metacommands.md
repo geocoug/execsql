@@ -89,19 +89,22 @@ Open `src/execsql/metacommands/__init__.py` and add a `mcl.add()` call inside `b
 mcl.add(
     r"^\s*MY_COMMAND\s+(?P<target>\w+)\s+(?P<value>.+)$",
     x_my_command,
+    description="MY_COMMAND",
+    category="action",
 )
 ```
 
 `MetaCommandList.add()` accepts these parameters:
 
-| Parameter          | Type                       | Default  | Purpose                                                                                |
-| ------------------ | -------------------------- | -------- | -------------------------------------------------------------------------------------- |
-| `matching_regexes` | `str` or `tuple[str, ...]` | required | One regex string, or a tuple of strings all mapped to the same handler                 |
-| `exec_func`        | callable                   | required | The handler function                                                                   |
-| `description`      | `str \| None`              | `None`   | Human-readable label (shown in `DEBUG WRITE METACOMMANDLIST`)                          |
-| `run_in_batch`     | `bool`                     | `False`  | Allow execution inside an open `BEGIN_BATCH`/`END_BATCH` block                         |
-| `run_when_false`   | `bool`                     | `False`  | Execute even when the `IF`-stack condition is false (needed for `ELSE`, `ENDIF`, etc.) |
-| `set_error_flag`   | `bool`                     | `True`   | Update `_state.status.metacommand_error` on success/failure                            |
+| Parameter          | Type                       | Default  | Purpose                                                                                                           |
+| ------------------ | -------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------- |
+| `matching_regexes` | `str` or `tuple[str, ...]` | required | One regex string, or a tuple of strings all mapped to the same handler                                            |
+| `exec_func`        | callable                   | required | The handler function                                                                                              |
+| `description`      | `str \| None`              | `None`   | Human-readable keyword name (shown in `DEBUG WRITE METACOMMANDLIST` and `--dump-keywords`)                        |
+| `run_in_batch`     | `bool`                     | `False`  | Allow execution inside an open `BEGIN_BATCH`/`END_BATCH` block                                                    |
+| `run_when_false`   | `bool`                     | `False`  | Execute even when the `IF`-stack condition is false (needed for `ELSE`, `ENDIF`, etc.)                            |
+| `set_error_flag`   | `bool`                     | `True`   | Update `_state.status.metacommand_error` on success/failure                                                       |
+| `category`         | `str \| None`              | `None`   | Keyword category for `--dump-keywords` and VS Code grammar generation (e.g., `"action"`, `"control"`, `"config"`) |
 
 All regexes are compiled with `re.I` (case-insensitive) automatically.
 
@@ -209,9 +212,10 @@ ______________________________________________________________________
 
 - [ ] Handler function added to the appropriate `src/execsql/metacommands/*.py` module
 - [ ] Handler imported in `src/execsql/metacommands/__init__.py`
-- [ ] `mcl.add(...)` call added in `build_dispatch_table()` at the right position
+- [ ] `mcl.add(...)` call added in `build_dispatch_table()` with `description=` and `category=`
+- [ ] Run `just generate-vscode-grammar` to update the VS Code grammar
 - [ ] Integration test added to `tests/test_metacommands.py` (or relevant file)
-- [ ] `pytest` passes locally
+- [ ] `pytest` passes locally (including `tests/test_registry.py` keyword consistency checks)
 
 ______________________________________________________________________
 

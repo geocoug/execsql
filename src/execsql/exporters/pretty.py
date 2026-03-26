@@ -76,13 +76,15 @@ def prettyprint_rowset(
                 ofile = EncodedFile(output_dest, _state.conf.output_encoding).open("w")
         else:
             ofile = ZipWriter(zipfile, output_dest, append)
-    if desc is not None:
-        ofile.write(f"{desc}\n")
-    for row in rows:
-        ln = f"{margin}{row}\n"
-        ofile.write(ln)
-    if output_dest != "stdout":
-        ofile.close()
+    try:
+        if desc is not None:
+            ofile.write(f"{desc}\n")
+        for row in rows:
+            ln = f"{margin}{row}\n"
+            ofile.write(ln)
+    finally:
+        if output_dest != "stdout":
+            ofile.close()
     return None
 
 

@@ -98,7 +98,9 @@ class PostgresDatabase(Database):
             conn = db_conn(db, "postgres")
             conn.autocommit = True
             curs = conn.cursor()
-            curs.execute(f"create database {db.db_name} encoding '{db.encoding}';")
+            quoted_name = db.quote_identifier(db.db_name)
+            quoted_enc = db.quote_identifier(db.encoding)
+            curs.execute(f"create database {quoted_name} encoding {quoted_enc};")
             conn.close()
 
         if self.conn is None:
@@ -304,9 +306,18 @@ class PostgresDatabase(Database):
             # ASCII unit separator, which, if it had been used for its intended purpose,
             # should have been identified as the delimiter, so presumably it has not been used.
             delim = csv_file_obj.delimiter if csv_file_obj.delimiter else chr(31)
-            copy_cmd = f"copy {sq_name} ({input_col_list}) from stdin with (format csv, null '', delimiter '{delim}'"
+            if len(delim) != 1:
+                raise ErrInfo(
+                    type="error",
+                    other_msg=f"Invalid delimiter for COPY: expected single character, got {len(delim)} characters",
+                )
+            safe_delim = delim.replace("'", "''")
+            copy_cmd = (
+                f"copy {sq_name} ({input_col_list}) from stdin with (format csv, null '', delimiter '{safe_delim}'"
+            )
             if csv_file_obj.quotechar:
-                copy_cmd = copy_cmd + f", quote '{csv_file_obj.quotechar}'"
+                safe_quote = csv_file_obj.quotechar.replace("'", "''")
+                copy_cmd = copy_cmd + f", quote '{safe_quote}'"
             copy_cmd = copy_cmd + ")"
             _state.exec_log.log_status_info(
                 f"IMPORTing {csv_file_obj.csvfname} using Postgres' fast file reading routine",
@@ -431,5 +442,6 @@ class PostgresDatabase(Database):
         with open(file_name, "rb") as f:
             filedata = f.read()
         sq_name = self.schema_qualified_table_name(schema_name, table_name)
-        sql = f"insert into {sq_name} ({column_name}) values ({self.paramsubs(1)});"
+        quoted_col = self.quote_identifier(column_name)
+        sql = f"insert into {sq_name} ({quoted_col}) values ({self.paramsubs(1)});"
         self.cursor().execute(sql, (psycopg2.Binary(filedata),))

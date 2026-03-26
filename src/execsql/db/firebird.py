@@ -30,7 +30,7 @@ class FirebirdDatabase(Database):
             import fdb as firebird_lib  # noqa: F401
         except Exception:
             fatal_error(
-                "The fdb module is required to connect to MySQL.   See https://pypi.python.org/pypi/fdb/",
+                "The fdb module is required to connect to Firebird.   See https://pypi.python.org/pypi/fdb/",
             )
         from execsql.types import dbt_firebird
 
@@ -122,12 +122,12 @@ class FirebirdDatabase(Database):
     def table_exists(self, table_name: str, schema_name: str | None = None) -> bool:
         curs = self.cursor()
         sql = (
-            f"SELECT RDB$RELATION_NAME FROM RDB$RELATIONS "
-            f"WHERE RDB$SYSTEM_FLAG=0 AND RDB$VIEW_BLR IS NULL "
-            f"AND RDB$RELATION_NAME='{table_name.upper()}';"
+            "SELECT RDB$RELATION_NAME FROM RDB$RELATIONS "
+            "WHERE RDB$SYSTEM_FLAG=0 AND RDB$VIEW_BLR IS NULL "
+            "AND RDB$RELATION_NAME=?;"
         )
         try:
-            curs.execute(sql)
+            curs.execute(sql, (table_name.upper(),))
         except ErrInfo:
             raise
         except Exception:
@@ -153,7 +153,9 @@ class FirebirdDatabase(Database):
         schema_name: str | None = None,
     ) -> bool:
         curs = self.cursor()
-        sql = f"select first 1 {column_name} from {table_name};"
+        quoted_col = self.quote_identifier(column_name)
+        quoted_tbl = self.quote_identifier(table_name)
+        sql = f"select first 1 {quoted_col} from {quoted_tbl};"
         try:
             curs.execute(sql)
         except Exception:
@@ -162,7 +164,8 @@ class FirebirdDatabase(Database):
 
     def table_columns(self, table_name: str, schema_name: str | None = None) -> list[str]:
         curs = self.cursor()
-        sql = f"select first 1 * from {table_name};"
+        quoted_tbl = self.quote_identifier(table_name)
+        sql = f"select first 1 * from {quoted_tbl};"
         try:
             curs.execute(sql)
         except ErrInfo:
@@ -179,9 +182,9 @@ class FirebirdDatabase(Database):
 
     def view_exists(self, view_name: str, schema_name: str | None = None) -> bool:
         curs = self.cursor()
-        sql = f"select distinct rdb$view_name from rdb$view_relations where rdb$view_name = '{view_name}';"
+        sql = "select distinct rdb$view_name from rdb$view_relations where rdb$view_name = ?;"
         try:
-            curs.execute(sql)
+            curs.execute(sql, (view_name,))
         except ErrInfo:
             raise
         except Exception:
@@ -202,8 +205,9 @@ class FirebirdDatabase(Database):
     def role_exists(self, rolename: str) -> bool:
         curs = self.cursor()
         curs.execute(
-            f"SELECT DISTINCT USER FROM RDB$USER_PRIVILEGES WHERE USER = '{rolename}' union "
-            f" SELECT DISTINCT RDB$ROLE_NAME FROM RDB$ROLES WHERE RDB$ROLE_NAME = '{rolename}';",
+            "SELECT DISTINCT USER FROM RDB$USER_PRIVILEGES WHERE USER = ? union "
+            " SELECT DISTINCT RDB$ROLE_NAME FROM RDB$ROLES WHERE RDB$ROLE_NAME = ?;",
+            (rolename, rolename),
         )
         rows = curs.fetchall()
         curs.close()

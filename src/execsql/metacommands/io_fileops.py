@@ -281,6 +281,7 @@ def x_serve(**kwargs: Any) -> None:
     else:
         contenttype = "application/octet-stream"
     print(f"Content-Type: {contenttype}")
-    print(f"Content-Disposition: attachment; filename={fname}\n")
+    safe_fname = fname.replace("\r", "").replace("\n", "").replace('"', '\\"')
+    print(f'Content-Disposition: attachment; filename="{safe_fname}"\n')
     with open(infname, "rb") as f:
         copyfileobj(f, sys.stdout.buffer)

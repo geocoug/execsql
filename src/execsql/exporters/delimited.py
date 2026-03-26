@@ -700,18 +700,21 @@ def write_delimited_file(
         filewriter_close(outfile)
         ofile = EncodedFile(outfile, file_encoding).open(mode=fmode)
         fdesc = outfile
-    if not (filefmt.lower() == "plain" or (append and zipfile is None)):
-        datarow = line_delimiter.delimited(column_headers)
-        ofile.write(datarow)
-    for rec in rowsource:
-        try:
-            datarow = line_delimiter.delimited(rec)
+    try:
+        if not (filefmt.lower() == "plain" or (append and zipfile is None)):
+            datarow = line_delimiter.delimited(column_headers)
             ofile.write(datarow)
-        except ErrInfo:
-            raise
-        except Exception:
-            raise ErrInfo(
-                "exception",
-                exception_msg=exception_desc(),
-                other_msg=f"Can't write output to file {fdesc}.",
-            )
+        for rec in rowsource:
+            try:
+                datarow = line_delimiter.delimited(rec)
+                ofile.write(datarow)
+            except ErrInfo:
+                raise
+            except Exception:
+                raise ErrInfo(
+                    "exception",
+                    exception_msg=exception_desc(),
+                    other_msg=f"Can't write output to file {fdesc}.",
+                )
+    finally:
+        ofile.close()

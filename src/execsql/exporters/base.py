@@ -143,7 +143,12 @@ class WriteSpec:
             if self.outfile:
                 from execsql.utils.fileio import EncodedFile
 
-                EncodedFile(self.outfile, conf.output_encoding).open("a").write(msg)
+                ef = EncodedFile(self.outfile, conf.output_encoding)
+                fh = ef.open("a")
+                try:
+                    fh.write(msg)
+                finally:
+                    fh.close()
             if (not self.outfile) or self.tee:
                 try:
                     _state.output.write(msg.encode(conf.output_encoding))

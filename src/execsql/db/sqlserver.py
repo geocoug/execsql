@@ -141,7 +141,7 @@ class SqlServerDatabase(Database):
 
     def schema_exists(self, schema_name: str) -> bool:
         curs = self.cursor()
-        curs.execute(f"select * from sys.schemas where name = '{schema_name}';")
+        curs.execute("select * from sys.schemas where name = ?;", (schema_name,))
         rows = curs.fetchall()
         curs.close()
         return len(rows) > 0
@@ -149,7 +149,8 @@ class SqlServerDatabase(Database):
     def role_exists(self, rolename: str) -> bool:
         curs = self.cursor()
         curs.execute(
-            f"select name from sys.database_principals where type in ('R', 'S') and name = '{rolename}';",
+            "select name from sys.database_principals where type in ('R', 'S') and name = ?;",
+            (rolename,),
         )
         rows = curs.fetchall()
         curs.close()
@@ -172,5 +173,6 @@ class SqlServerDatabase(Database):
         with open(file_name, "rb") as f:
             filedata = f.read()
         sq_name = self.schema_qualified_table_name(schema_name, table_name)
-        sql = f"insert into {sq_name} ({column_name}) values ({self.paramsubs(1)});"
+        quoted_col = self.quote_identifier(column_name)
+        sql = f"insert into {sq_name} ({quoted_col}) values ({self.paramsubs(1)});"
         self.cursor().execute(sql, (pyodbc.Binary(filedata),))

@@ -419,6 +419,7 @@ class MetaCommand:
         run_in_batch: bool = False,
         run_when_false: bool = False,
         set_error_flag: bool = True,
+        category: str | None = None,
     ) -> None:
         self.rx = rx
         self.exec_fn = exec_func
@@ -426,6 +427,7 @@ class MetaCommand:
         self.run_in_batch = run_in_batch
         self.run_when_false = run_when_false
         self.set_error_flag = set_error_flag
+        self.category = category
         self.hitcount = 0
 
     def __repr__(self) -> str:
@@ -488,6 +490,7 @@ class MetaCommandList:
         run_in_batch: bool = False,
         run_when_false: bool = False,
         set_error_flag: bool = True,
+        category: str | None = None,
     ) -> None:
         if type(matching_regexes) in (tuple, list):
             regexes = [re.compile(rx, re.I) for rx in tuple(matching_regexes)]
@@ -497,8 +500,29 @@ class MetaCommandList:
             # Prepend to preserve "last registered, first checked" ordering.
             self._commands.insert(
                 0,
-                MetaCommand(rx, exec_func, description, run_in_batch, run_when_false, set_error_flag),
+                MetaCommand(
+                    rx,
+                    exec_func,
+                    description,
+                    run_in_batch,
+                    run_when_false,
+                    set_error_flag,
+                    category,
+                ),
             )
+
+    def keywords_by_category(self) -> dict[str, list[str]]:
+        """Return ``{category: [keyword, ...]}`` from entries that have both.
+
+        Used by ``--dump-keywords`` to introspect the dispatch table.
+        """
+        result: dict[str, list[str]] = {}
+        for mc in self._commands:
+            if mc.category and mc.description:
+                kw_list = result.setdefault(mc.category, [])
+                if mc.description not in kw_list:
+                    kw_list.append(mc.description)
+        return result
 
     def eval(self, cmd_str: str) -> tuple:
         """Evaluate *cmd_str* against the registered metacommands.
@@ -919,6 +943,9 @@ def set_system_vars() -> None:
     _state.subvars.add_substitution("$VERSION3", str(_state.tertiary_vno))
 
 
+_MAX_SUBSTITUTION_DEPTH = 100
+
+
 def substitute_vars(command_str: str, localvars: SubVarSet | None = None) -> str:
     # Substitutes global variables, global counters, and local variables.
     if localvars is not None:
@@ -927,11 +954,21 @@ def substitute_vars(command_str: str, localvars: SubVarSet | None = None) -> str
         subs = _state.subvars
     cmdstr = copy.copy(command_str)
     subs_made = True
+    iterations = 0
     while subs_made:
         subs_made = False
         cmdstr, subs_made = subs.substitute_all(cmdstr)
         cmdstr, any_subbed = _state.counters.substitute_all(cmdstr)
         subs_made = subs_made or any_subbed
+        iterations += 1
+        if iterations >= _MAX_SUBSTITUTION_DEPTH:
+            raise ErrInfo(
+                type="error",
+                other_msg=(
+                    f"Substitution variable cycle detected: exceeded {_MAX_SUBSTITUTION_DEPTH} "
+                    f"iterations while expanding variables in: {command_str[:200]}"
+                ),
+            )
     m = _state.defer_rx.findall(cmdstr)
     # Substitute any deferred substitution variables with regular substitution var flags.
     if m is not None:
@@ -1130,7 +1167,7 @@ def read_sqlfile(sql_file_name: str) -> None:
 
     sz, dt = file_size_date(sql_file_name)
     _state.exec_log.log_status_info(f"Reading script file {sql_file_name} (size: {sz}; date: {dt})")
-    scriptfile_obj = ScriptFile(sql_file_name, _state.conf.script_encoding).open("r")
+    scriptfile_obj = ScriptFile(sql_file_name, _state.conf.script_encoding)
     sqllist = _parse_script_lines(scriptfile_obj, sql_file_name)
     if sqllist:
         _state.commandliststack.append(CommandList(sqllist, Path(sql_file_name).name))

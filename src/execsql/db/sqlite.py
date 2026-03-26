@@ -235,5 +235,6 @@ class SQLiteDatabase(Database):
         with open(file_name, "rb") as f:
             filedata = f.read()
         sq_name = self.schema_qualified_table_name(schema_name, table_name)
-        sql = f"insert into {sq_name} ({column_name}) values ({self.paramsubs(1)});"
+        quoted_col = self.quote_identifier(column_name)
+        sql = f"insert into {sq_name} ({quoted_col}) values ({self.paramsubs(1)});"
         self.cursor().execute(sql, (sqlite3.Binary(filedata),))

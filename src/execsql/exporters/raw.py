@@ -28,16 +28,18 @@ def write_query_raw(
         of = open(outfile, mode)  # noqa: SIM115
     else:
         of = ZipWriter(zipfile, outfile, append)
-    for row in rowsource:
-        for col in row:
-            if isinstance(col, bytearray):
-                of.write(col)
-            else:
-                if isinstance(col, str):
-                    of.write(bytes(col, db_encoding))
+    try:
+        for row in rowsource:
+            for col in row:
+                if isinstance(col, bytearray):
+                    of.write(col)
                 else:
-                    of.write(bytes(str(col), db_encoding))
-    of.close()
+                    if isinstance(col, str):
+                        of.write(bytes(col, db_encoding))
+                    else:
+                        of.write(bytes(str(col), db_encoding))
+    finally:
+        of.close()
 
 
 def write_query_b64(outfile: str, rowsource: Any, append: bool = False, zipfile: str | None = None) -> None:
@@ -50,7 +52,9 @@ def write_query_b64(outfile: str, rowsource: Any, append: bool = False, zipfile:
         of = open(outfile, mode)  # noqa: SIM115
     else:
         of = ZipWriter(zipfile, outfile, append)
-    for row in rowsource:
-        for col in row:
-            of.write(base64.standard_b64decode(col))
-    of.close()
+    try:
+        for row in rowsource:
+            for col in row:
+                of.write(base64.standard_b64decode(col))
+    finally:
+        of.close()

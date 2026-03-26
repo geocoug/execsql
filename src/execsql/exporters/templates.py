@@ -29,8 +29,11 @@ class StrTemplateReport:
         from execsql.utils.fileio import EncodedFile
 
         inf = EncodedFile(self.infname, conf.script_encoding)
-        self.template = string.Template(inf.open("r").read())
-        inf.close()
+        fh = inf.open("r")
+        try:
+            self.template = string.Template(fh.read())
+        finally:
+            fh.close()
 
     def __repr__(self) -> str:
         return f"StrTemplateReport({self.infname})"
@@ -58,10 +61,12 @@ class StrTemplateReport:
                     ofile = EncodedFile(output_dest, conf.output_encoding).open("w")
             else:
                 ofile = ZipWriter(zipfile, output_dest, append)
-        for dd in data_dict_rows:
-            ofile.write(self.template.safe_substitute(dd))
-        if output_dest != "stdout":
-            ofile.close()
+        try:
+            for dd in data_dict_rows:
+                ofile.write(self.template.safe_substitute(dd))
+        finally:
+            if output_dest != "stdout":
+                ofile.close()
 
 
 class JinjaTemplateReport:
@@ -70,6 +75,7 @@ class JinjaTemplateReport:
         global jinja2
         try:
             import jinja2
+            from jinja2.sandbox import SandboxedEnvironment
         except ImportError:
             fatal_error(
                 "The jinja2 library is required to produce reports with the Jinja2 templating system.   See http://jinja.pocoo.org/",
@@ -79,11 +85,14 @@ class JinjaTemplateReport:
         from execsql.utils.fileio import EncodedFile
 
         inf = EncodedFile(template_file, conf.script_encoding)
-        self.template = jinja2.Template(inf.open("r").read())
-        inf.close()
+        fh = inf.open("r")
+        try:
+            self.template = SandboxedEnvironment().from_string(fh.read())
+        finally:
+            fh.close()
 
     def __repr__(self) -> str:
-        return f"StrTemplateReport({self.infname})"
+        return f"JinjaTemplateReport({self.infname})"
 
     def write_report(
         self,
@@ -111,13 +120,12 @@ class JinjaTemplateReport:
         try:
             ofile.write(self.template.render(headers=headers, datatable=data_dict_rows))
         except jinja2.TemplateSyntaxError as e:
-            raise ErrInfo("error", other_msg=e.message + f" on template line {e.lineno}")
+            raise ErrInfo("error", other_msg=e.message + f" on template line {e.lineno}") from e
         except jinja2.TemplateError as e:
-            raise ErrInfo("error", other_msg=f"Jinja2 template error ({e.message})")
-        except:
-            raise
-        if output_dest != "stdout":
-            ofile.close()
+            raise ErrInfo("error", other_msg=f"Jinja2 template error ({e.message})") from e
+        finally:
+            if output_dest != "stdout":
+                ofile.close()
 
 
 def report_query(

@@ -1,0 +1,24 @@
+{
+  "name": "execsql-syntax",
+  "displayName": "execsql Syntax Highlighting",
+  "description": "Syntax highlighting for execsql metacommands in SQL files",
+  "version": "0.1.0",
+  "publisher": "gsi",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "grammars": [
+      {
+        "path": "./syntaxes/execsql.tmLanguage.json",
+        "scopeName": "injection.execsql",
+        "injectTo": [
+          "source.sql"
+        ]
+      }
+    ]
+  }
+}

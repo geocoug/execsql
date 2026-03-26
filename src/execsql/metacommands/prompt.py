@@ -29,7 +29,6 @@ from typing import Any
 import execsql.state as _state
 from execsql.script import current_script_line
 from execsql.utils.errors import exception_desc, exit_now
-from execsql.utils.fileio import EncodedFile, check_dir
 from execsql.utils.gui import (
     ActionSpec,
     EntrySpec,
@@ -38,7 +37,6 @@ from execsql.utils.gui import (
     GUI_DIRECTORY,
     GUI_DISPLAY,
     GUI_ENTRY,
-    GUI_HALT,
     GUI_MAP,
     GUI_MSG,
     GUI_OPENFILE,
@@ -940,48 +938,6 @@ def x_pause(**kwargs: Any) -> None:
         _state.exec_log.log_exit_halt(*current_script_line(), msg=quitmsg)
         exit_now(2, None)
     return None
-
-
-def x_halt_msg(**kwargs: Any) -> None:
-    errmsg = kwargs["errmsg"]
-    tee = kwargs["tee"]
-    tee = bool(tee)
-    outf = kwargs["filename"]
-    errlevel = kwargs["errorlevel"]
-    if errlevel:
-        errlevel = int(errlevel)
-    else:
-        errlevel = 3
-    conf = _state.conf
-    if outf:
-        check_dir(outf)
-        of = EncodedFile(outf, conf.output_encoding).open("a")
-        of.write(f"{errmsg}\n")
-        of.close()
-    schema = kwargs.get("schema")
-    table = kwargs.get("table")
-    if table:
-        db = _state.dbs.current()
-        db_obj = db.schema_qualified_table_name(schema, table)
-        sql = f"select * from {db_obj};"
-        headers, rows = db.select_data(sql)
-    else:
-        headers, rows = None, None
-    enable_gui()
-    return_queue = _queue.Queue()
-    gui_args = {
-        "title": "HALT",
-        "message": errmsg,
-        "button_list": [("OK", 1, "<Return>")],
-        "no_cancel": True,
-        "column_headers": headers,
-        "rowset": rows,
-        "help_url": None,
-    }
-    _state.gui_manager_queue.put(GuiSpec(GUI_HALT, gui_args, return_queue))
-    return_queue.get(block=True)
-    _state.exec_log.log_exit_halt(*current_script_line(), msg=errmsg)
-    exit_now(errlevel, None)
 
 
 def x_msg(**kwargs: Any) -> None:

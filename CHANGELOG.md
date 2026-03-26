@@ -15,11 +15,78 @@ ______________________________________________________________________
 
 - `--progress` CLI flag and `CONFIG SHOW_PROGRESS` metacommand to display a rich progress bar during long-running IMPORT operations. Also configurable via `show_progress` in `execsql.conf`. (FEAT-5)
 - Opt-in SQL query audit logging via `log_sql` config option and `CONFIG LOG_SQL` metacommand. When enabled, all executed SQL statements are written to the log file with a `sql` record type, database name, line number, and query text. (FEAT-6)
+- `--dump-keywords` CLI option: outputs all metacommand keywords, conditional functions, config options, export formats, database types, and variable patterns as structured JSON. Enables tooling (e.g., editor grammar generators) to consume keyword data directly from the dispatch table.
+- VS Code syntax highlighting extension colocated at `extras/vscode-execsql/`. The grammar (`execsql.tmLanguage.json`) is auto-generated from the dispatch table via `just generate-vscode-grammar`.
+- Keyword registry: `MetaCommand` and `MetaCommandList` now support `category` parameter. All `mcl.add()` calls are tagged with `description=` and `category=`, making the dispatch table the single source of truth for keyword metadata.
+- Export format constants (`QUERY_EXPORT_FORMATS`, `TABLE_EXPORT_FORMATS`, `SERVE_FORMATS`, etc.) centralized in `metacommands/__init__.py` and used in dispatch table regex construction.
+- `tests/test_registry.py`: keyword consistency tests validating `--dump-keywords` output, dispatch table categories, conditional table coverage, export format constants, and grammar synchronization.
 
 ### Changed
 
 - Split `cli.py` (1245 lines) into `_cli_help.py`, `_cli_dsn.py`, and `_cli_run.py` with `cli.py` as a re-export façade. All existing import paths preserved. (REFAC-3)
 - Split `metacommands/io.py` (1304 lines) into `io_export.py`, `io_import.py`, `io_write.py`, and `io_fileops.py` with `io.py` as a re-export façade. All existing import paths preserved. (REFAC-4)
+
+### Fixed
+
+- File handle leaks in exporters: wrapped write operations in `try/finally` blocks to guarantee file handles are closed on error in `exporters/raw.py`, `exporters/xml.py`, `exporters/json.py`, `exporters/templates.py`, `exporters/values.py`, `exporters/pretty.py`, `exporters/html.py`, `exporters/latex.py`, `metacommands/debug.py`, `metacommands/control.py`, and `metacommands/prompt.py`. Previously, an exception during export could leak open file handles.
+
+- XML export injection: `exporters/xml.py` now escapes `<`, `>`, `&` in cell values using `xml.sax.saxutils.escape()` and sanitizes `--` in XML comments. Previously, data containing XML special characters produced malformed XML output.
+
+- HTML export XSS: `exporters/html.py` now escapes column headers and cell values using `html.escape()`. Previously, data containing `<script>` or other HTML markup was written directly to the output file.
+
+- JSON export injection: `exporters/json.py` now uses `json.dumps()` to properly escape the `description` field in JSON-TS exports. Previously, descriptions containing quotes or backslashes produced malformed JSON. Also added missing `import json` to `write_query_to_json_ts` which previously relied on a global set by `write_query_to_json`.
+
+- `JinjaTemplateReport.__repr__` incorrectly returned `StrTemplateReport(...)` instead of `JinjaTemplateReport(...)`.
+
+- `exporters/templates.py`: removed bare `except: raise` clause in `JinjaTemplateReport.write_report()` and added proper exception chaining (`from e`) to Jinja2 template errors.
+
+- `exporters/delimited.py`: `write_delimited_file()` now closes the output file handle via `try/finally`. Previously, the file was opened but never closed, leaking the handle on both success and error paths.
+
+- SQL injection in remaining database metadata queries: `role_exists()` in `db/mysql.py`, `db/sqlserver.py`, and `db/firebird.py`, `schema_exists()` in `db/sqlserver.py`, `table_exists()` and `view_exists()` in `db/access.py` and `db/firebird.py` now use parameterized queries instead of f-string interpolation. `column_exists()` and `table_columns()` in `db/access.py` and `db/firebird.py` now use `quote_identifier()` for SQL identifiers that cannot be parameterized.
+
+- SQL injection in `db/postgres.py`: `create_db()` now uses `quote_identifier()` for database name and encoding in `CREATE DATABASE` DDL. COPY command delimiter and quote character are now escaped/validated to prevent injection.
+
+- CPU busy-loop in `utils/fileio.py`: `FileWriter.run()` now uses blocking `queue.get(timeout=0.1)` instead of `get_nowait()` in a tight loop, eliminating unnecessary CPU consumption when the file writer subprocess is idle.
+
+- Substitution variable cycle detection in `script.py`: `substitute_vars()` now enforces a maximum of 100 iterations to prevent infinite loops when variables reference each other cyclically (e.g., `$A` expands to `!!$B!!` and `$B` expands to `!!$A!!`).
+
+- Jinja2 template injection: `exporters/templates.py` now uses `jinja2.sandbox.SandboxedEnvironment` instead of the default `jinja2.Template` constructor. Previously, a malicious template file could access Python internals and execute arbitrary code.
+
+- SQL injection in `import_entire_file()` across 6 database backends (`db/base.py`, `db/dsn.py`, `db/sqlite.py`, `db/sqlserver.py`, `db/postgres.py`, `db/access.py`): the `column_name` parameter is now quoted with `quote_identifier()` instead of being interpolated directly into the INSERT statement.
+
+- XML export malformed output: `exporters/xml.py` now sanitizes column headers and table names used as XML element names, replacing invalid XML name characters with underscores. Previously, column names containing `>`, `<`, or other XML metacharacters produced malformed XML.
+
+- `$SHEETS_TABLES_VALUES` SQL injection in `metacommands/io_import.py`: sheet names from ODS/XLS imports are now escaped (single quotes doubled) before embedding in SQL value expressions. Previously, a sheet name containing a single quote produced malformed or injectable SQL.
+
+- HTTP header injection in SERVE metacommand (`metacommands/io_fileops.py`): the `Content-Disposition` filename is now sanitized (newlines/carriage returns stripped, quotes escaped) to prevent HTTP response splitting.
+
+- Empty `dt_cast` type-cast mapping in `Database` base class (`db/base.py`): the monolith populated this dict with 8 type converters (int, float, str, bool, datetime, date, Decimal, bytearray) but the refactored version was initialized to `{}`. Now uses a lazy property that auto-populates on first access, ensuring all backends get the correct type casters even though none call `super().__init__()`.
+
+- `WriteSpec.write()` file descriptor leak (`exporters/base.py`): the one-liner `EncodedFile(...).open("a").write(msg)` opened a file, wrote, and discarded the handle without closing. Now properly closes the handle in a try/finally block.
+
+- Removed duplicate `x_halt_msg` function from `metacommands/prompt.py`. The canonical version in `metacommands/control.py` (used by the dispatch table) was the correct one; the prompt.py copy was dead code.
+
+- `read_sqlfile()` double-open file leak (`script.py`): `ScriptFile.__init__` already opens the file, but `read_sqlfile()` called `.open("r")` again, creating a second leaked handle. Now uses the ScriptFile directly.
+
+- Missing WRITE metacommand delimiter patterns in dispatch table (`metacommands/__init__.py`): added 5 missing delimiter variants (tilde, hash, backtick, bracket, single-quote) for WRITE and ON ERROR_HALT/ON CANCEL_HALT WRITE metacommands that were present in the monolith but missing from the refactored dispatch table.
+
+- Missing bare (non-CONFIG) settings aliases in dispatch table (`metacommands/__init__.py`): added 10 bare settings forms (e.g., `FEEDBACK ON` without the `CONFIG` prefix) that the monolith supported but the refactored dispatch table omitted.
+
+- `CONNECT TO DSN` metacommand unreachable (`metacommands/__init__.py`): the `x_connect_dsn` handler was imported but never registered with `mcl.add()`. DSN-based connections via metacommand were completely broken.
+
+- `PARQUET` missing from EXPORT format regex lists (`metacommands/__init__.py`): the export handler code supported Parquet output but the dispatch table regex didn't include `PARQUET` as a valid format, making `EXPORT ... AS PARQUET` unreachable. Added to both EXPORT QUERY and EXPORT table format lists.
+
+- Firebird error message typo (`db/firebird.py`): error message said "required to connect to MySQL" instead of "required to connect to Firebird".
+
+- Oracle default port in function signature (`db/oracle.py`): default port parameter was `5432` (PostgreSQL's port) instead of `1521` (Oracle's port). The body already corrected to 1521 but the signature was misleading.
+
+- Missing documentation for `show_progress` and `log_sql` config options in `docs/configuration.md`.
+
+- Backward compatibility for `TXT-AND` export format (`metacommands/__init__.py`, `metacommands/io_export.py`): the monolith used `TXT-AND`/`TEXT-AND` but the refactored code renamed it to `TXT-AND`/`TEXT-AND`. Added `TXT-AND` as a backward-compatible alias so existing scripts continue to work.
+
+- `docs/api/db.md` missing individual database adapter documentation — added all 9 adapters (postgres, sqlite, duckdb, sqlserver, mysql, oracle, firebird, access, dsn).
+
+- `docs/api/exporters.md` missing `latex` and `zip` module references — added both.
 
 ______________________________________________________________________
 

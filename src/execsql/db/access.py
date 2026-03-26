@@ -68,7 +68,7 @@ class AccessDatabase(Database):
         self.dao_conn = None
         self.conn = None  # ODBC connection
         self.paramstr = "?"
-        self.dt_cast = dict(Database.dt_cast)
+        self.dt_cast = dict(self.dt_cast)  # Copy the lazy-initialized default before overriding.
         self.dt_cast[datetime.date] = self.as_datetime
         self.dt_cast[datetime.datetime] = self.as_datetime
         self.dt_cast[int] = self.int_or_bool
@@ -290,8 +290,8 @@ class AccessDatabase(Database):
         self.dao_flush_check()
         curs = self.cursor()
         try:
-            sql = f"select Name from MSysObjects where Name='{table_name}' And Type In (1,4,6);"
-            curs.execute(sql)
+            sql = "select Name from MSysObjects where Name=? And Type In (1,4,6);"
+            curs.execute(sql, (table_name,))
         except ErrInfo:
             raise
         except Exception:
@@ -312,7 +312,9 @@ class AccessDatabase(Database):
     ) -> bool:
         self.dao_flush_check()
         curs = self.cursor()
-        sql = f"select top 1 {column_name} from {table_name};"
+        quoted_col = self.quote_identifier(column_name)
+        quoted_tbl = self.quote_identifier(table_name)
+        sql = f"select top 1 {quoted_col} from {quoted_tbl};"
         try:
             curs.execute(sql)
         except Exception:
@@ -322,15 +324,16 @@ class AccessDatabase(Database):
     def table_columns(self, table_name: str, schema_name: str | None = None) -> list[str]:
         self.dao_flush_check()
         curs = self.cursor()
-        curs.execute(f"select top 1 * from {table_name};")
+        quoted_tbl = self.quote_identifier(table_name)
+        curs.execute(f"select top 1 * from {quoted_tbl};")
         return [d[0] for d in curs.description]
 
     def view_exists(self, view_name: str, schema_name: str | None = None) -> bool:
         self.dao_flush_check()
         curs = self.cursor()
         try:
-            sql = f"select Name from MSysObjects where Name='{view_name}' And Type = 5;"
-            curs.execute(sql)
+            sql = "select Name from MSysObjects where Name=? And Type = 5;"
+            curs.execute(sql, (view_name,))
         except ErrInfo:
             raise
         except Exception:
@@ -414,5 +417,6 @@ class AccessDatabase(Database):
         with open(file_name, "rb") as f:
             filedata = f.read()
         sq_name = self.schema_qualified_table_name(schema_name, table_name)
-        sql = f"insert into {sq_name} ({column_name}) values ({self.paramsubs(1)});"
+        quoted_col = self.quote_identifier(column_name)
+        sql = f"insert into {sq_name} ({quoted_col}) values ({self.paramsubs(1)});"
         self.cursor().execute(sql, (pyodbc.Binary(filedata),))

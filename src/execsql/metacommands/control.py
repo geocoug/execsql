@@ -119,8 +119,10 @@ def x_halt(**kwargs: Any) -> None:
     if outf:
         check_dir(outf)
         of = EncodedFile(outf, conf.output_encoding).open("a")
-        of.write(f"{errmsg}\n")
-        of.close()
+        try:
+            of.write(f"{errmsg}\n")
+        finally:
+            of.close()
     if conf.tee_write_log:
         _state.exec_log.log_user_msg(errmsg)
     use_gui = gui_console_isrunning()
@@ -219,8 +221,10 @@ def x_halt_msg(**kwargs: Any) -> None:
     if outf:
         check_dir(outf)
         of = EncodedFile(outf, conf.output_encoding).open("a")
-        of.write(f"{errmsg}\n")
-        of.close()
+        try:
+            of.write(f"{errmsg}\n")
+        finally:
+            of.close()
     schema = kwargs.get("schema")
     table = kwargs.get("table")
     if table:

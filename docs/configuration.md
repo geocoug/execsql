@@ -152,6 +152,10 @@ The section and property names that may be used in a configuration file are list
 
 :   Replaces newline characters that are in text values on [IMPORT](metacommands.md#import). Every sequence of a newline and any surrounding whitespace is replaced with a single space character.
 
+`show_progress`
+
+:   Whether or not to display a rich progress bar during long-running IMPORT operations. The property value should be either "Yes" or "No". The default is "No". This can also be enabled via the `--progress` CLI flag or the `CONFIG SHOW_PROGRESS` metacommand. Requires the `rich` Python package.
+
 `scan_lines` { #scan_lines }
 
 :   The number of lines of a data file to scan to determine the quoting character and delimiter character used. This is equivalent to the `-s` command-line option. The default value is 100.
@@ -305,6 +309,9 @@ The section and property names that may be used in a configuration file are list
 
 `linux_config_file`
 :   The full name or path to an additional configuration file to be read if *execsql* is running on Linux. If only a path is specified, the name of the configuration file should be `execsql.conf`. The configuration file specified will be read immediately following the configuration file in which it is named. No configuration file will be read more than once. If the name or path are invalid, this setting will be silently ignored. This setting may include [substitution variables](substitution_vars.md#substitution_vars); at the time that configuration files are read, however, only environment variables and system variables related to the script name and path are defined.
+
+`log_sql` { #log_sql }
+:   When set to "Yes", all executed SQL statements are written to the log file with a `sql` record type, including the database name, line number, and query text. The property value should be either "Yes" or "No". The default is "No". This can also be enabled via the `CONFIG LOG_SQL` metacommand.
 
 `max_log_size_mb` { #max_log_size_mb }
 :   Maximum size of the log file in megabytes before it is rotated. When set to a positive integer, the log file is rotated to `.1` before a new run appends to it if the file size exceeds the configured threshold. The default is `0` (disabled — no rotation).
