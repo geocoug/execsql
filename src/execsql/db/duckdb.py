@@ -48,12 +48,12 @@ class DuckDBDatabase(Database):
                 self.conn = duckdb.connect(self.db_name, read_only=False)
             except ErrInfo:
                 raise
-            except Exception:
+            except Exception as e:
                 raise ErrInfo(
                     type="exception",
                     exception_msg=exception_desc(),
                     other_msg=f"Can't open DuckDB database {self.db_name}",
-                )
+                ) from e
 
     def exec_cmd(self, querycommand: str) -> None:
         # DuckDB does not support stored functions, so the querycommand

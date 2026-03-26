@@ -43,12 +43,12 @@ def prettyprint_rowset(
     if not isinstance(rows, list):
         try:
             rows = list(rows)
-        except Exception:
+        except Exception as e:
             raise ErrInfo(
                 "exception",
                 exception_msg=exception_desc(),
                 other_msg="Can't create a list in memory of the data to be displayed as formatted text.",
-            )
+            ) from e
     rcols = range(len(colhdrs))
     rrows = range(len(rows))
     colwidths = [max(0, len(colhdrs[j]), *(len(as_ucode(rows[i][j])) for i in rrows)) for j in rcols]

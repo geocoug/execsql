@@ -1,8 +1,8 @@
-> [!WARNING]
-> **This project is in active development and is not yet stable.**
-> The codebase is being modernized from the upstream monolith into a modular package.
-> APIs, CLI behavior, and configuration options may change without notice.
-> Not recommended for production use. For the stable upstream release, see [execsql](https://execsql.readthedocs.io/).
+> [!NOTE]
+> **This is a maintained fork of [execsql](https://execsql.readthedocs.io/).**
+> The original monolith has been fully refactored into a modular package with 2,000+ tests.
+> The CLI and configuration are backwards-compatible with upstream v1.130.1.
+> Report issues at [github.com/geocoug/execsql/issues](https://github.com/geocoug/execsql/issues).
 
 <div align="center">
 

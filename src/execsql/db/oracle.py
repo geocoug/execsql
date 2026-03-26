@@ -95,9 +95,9 @@ class OracleDatabase(Database):
                 raise
             except ErrInfo:
                 raise
-            except Exception:
+            except Exception as e:
                 msg = f"Failed to open Oracle database {self.db_name} on {self.server_name}"
-                raise ErrInfo(type="exception", exception_msg=exception_desc(), other_msg=msg)
+                raise ErrInfo(type="exception", exception_msg=exception_desc(), other_msg=msg) from e
 
     def execute(self, sql: Any, paramlist: list | None = None) -> None:
         # Strip any semicolon off the end and pass to the parent method.
@@ -141,14 +141,14 @@ class OracleDatabase(Database):
             curs.execute(sql, params)
         except ErrInfo:
             raise
-        except Exception:
+        except Exception as e:
             self.rollback()
             raise ErrInfo(
                 type="db",
                 command_text=sql,
                 exception_msg=exception_desc(),
                 other_msg=f"Failed test for existence of table {table_name} in {self.name()}",
-            )
+            ) from e
         rows = curs.fetchall()
         curs.close()
         return len(rows) > 0
@@ -170,14 +170,14 @@ class OracleDatabase(Database):
             curs.execute(sql, params)
         except ErrInfo:
             raise
-        except Exception:
+        except Exception as e:
             self.rollback()
             raise ErrInfo(
                 type="db",
                 command_text=sql,
                 exception_msg=exception_desc(),
                 other_msg=f"Failed test for existence of column {column_name} in table {table_name} of {self.name()}",
-            )
+            ) from e
         rows = curs.fetchall()
         curs.close()
         return len(rows) > 0
@@ -194,14 +194,14 @@ class OracleDatabase(Database):
             curs.execute(sql, params)
         except ErrInfo:
             raise
-        except Exception:
+        except Exception as e:
             self.rollback()
             raise ErrInfo(
                 type="db",
                 command_text=sql,
                 exception_msg=exception_desc(),
                 other_msg=f"Failed to get column names for table {table_name} of {self.name()}",
-            )
+            ) from e
         rows = curs.fetchall()
         curs.close()
         return [row[0] for row in rows]
@@ -218,14 +218,14 @@ class OracleDatabase(Database):
             curs.execute(sql, params)
         except ErrInfo:
             raise
-        except Exception:
+        except Exception as e:
             self.rollback()
             raise ErrInfo(
                 type="db",
                 command_text=sql,
                 exception_msg=exception_desc(),
                 other_msg=f"Failed test for existence of view {view_name} in {self.name()}",
-            )
+            ) from e
         rows = curs.fetchall()
         curs.close()
         return len(rows) > 0

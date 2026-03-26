@@ -65,8 +65,8 @@ def xf_hasrows(**kwargs: Any) -> bool:
         hdrs, rec = _state.dbs.current().select_data(sql)
     except ErrInfo:
         raise
-    except Exception:
-        raise ErrInfo("db", sql, exception_msg=exception_desc())
+    except Exception as e:
+        raise ErrInfo("db", sql, exception_msg=exception_desc()) from e
     nrows = rec[0][0]
     return nrows > 0
 
@@ -180,12 +180,12 @@ def xf_iszero(**kwargs: Any) -> bool:
     val = kwargs["value"].strip()
     try:
         v = float(val)
-    except Exception:
+    except Exception as e:
         raise ErrInfo(
             type="cmd",
             command_text=kwargs["metacommandline"],
             other_msg=f"The value {{{val}}} is not numeric.",
-        )
+        ) from e
     return v == 0
 
 
@@ -195,12 +195,12 @@ def xf_isgt(**kwargs: Any) -> bool:
     try:
         v1 = float(val1)
         v2 = float(val2)
-    except Exception:
+    except Exception as e:
         raise ErrInfo(
             type="cmd",
             command_text=kwargs["metacommandline"],
             other_msg=f"Values {{{val1}}} and {{{val2}}} are not both numeric.",
-        )
+        ) from e
     return v1 > v2
 
 
@@ -210,12 +210,12 @@ def xf_isgte(**kwargs: Any) -> bool:
     try:
         v1 = float(val1)
         v2 = float(val2)
-    except Exception:
+    except Exception as e:
         raise ErrInfo(
             type="cmd",
             command_text=kwargs["metacommandline"],
             other_msg=f"Values {{{val1}}} and {{{val2}}} are not both numeric.",
-        )
+        ) from e
     return v1 >= v2
 
 

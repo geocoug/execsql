@@ -34,8 +34,8 @@ def write_query_to_json(
         hdrs, rows = db.select_rowsource(select_stmt)
     except ErrInfo:
         raise
-    except Exception:
-        raise ErrInfo("db", select_stmt, exception_msg=exception_desc())
+    except Exception as e:
+        raise ErrInfo("db", select_stmt, exception_msg=exception_desc()) from e
     if zipfile is None:
         filewriter_close(outfile)
         from execsql.utils.fileio import EncodedFile
@@ -83,8 +83,8 @@ def write_query_to_json_ts(
         hdrs, rows = db.select_rowsource(select_stmt)
     except ErrInfo:
         raise
-    except Exception:
-        raise ErrInfo("db", select_stmt, exception_msg=exception_desc())
+    except Exception as e:
+        raise ErrInfo("db", select_stmt, exception_msg=exception_desc()) from e
     max_col_idx = len(hdrs) - 1
     if zipfile is None:
         filewriter_close(outfile)

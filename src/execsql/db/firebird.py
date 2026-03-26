@@ -104,9 +104,9 @@ class FirebirdDatabase(Database):
                 raise
             except ErrInfo:
                 raise
-            except Exception:
+            except Exception as e:
                 msg = f"Failed to open Firebird database {self.db_name} on {self.server_name}"
-                raise ErrInfo(type="exception", exception_msg=exception_desc(), other_msg=msg)
+                raise ErrInfo(type="exception", exception_msg=exception_desc(), other_msg=msg) from e
 
     def exec_cmd(self, querycommand: str) -> None:
         # The querycommand must be a stored function (/procedure)
@@ -130,7 +130,7 @@ class FirebirdDatabase(Database):
             curs.execute(sql, (table_name.upper(),))
         except ErrInfo:
             raise
-        except Exception:
+        except Exception as e:
             try:
                 self.rollback()
             except Exception:
@@ -140,7 +140,7 @@ class FirebirdDatabase(Database):
                 command_text=sql,
                 exception_msg=exception_desc(),
                 other_msg=f"Failed test for existence of Firebird table {table_name}",
-            )
+            ) from e
         rows = curs.fetchall()
         self.conn.commit()
         curs.close()
@@ -170,14 +170,14 @@ class FirebirdDatabase(Database):
             curs.execute(sql)
         except ErrInfo:
             raise
-        except Exception:
+        except Exception as e:
             self.rollback()
             raise ErrInfo(
                 type="db",
                 command_text=sql,
                 exception_msg=exception_desc(),
                 other_msg=f"Failed to get column names for table {table_name} of {self.name()}",
-            )
+            ) from e
         return [d[0] for d in curs.description]
 
     def view_exists(self, view_name: str, schema_name: str | None = None) -> bool:
@@ -187,14 +187,14 @@ class FirebirdDatabase(Database):
             curs.execute(sql, (view_name,))
         except ErrInfo:
             raise
-        except Exception:
+        except Exception as e:
             self.rollback()
             raise ErrInfo(
                 type="db",
                 command_text=sql,
                 exception_msg=exception_desc(),
                 other_msg=f"Failed test for existence of Firebird view {view_name}",
-            )
+            ) from e
         rows = curs.fetchall()
         curs.close()
         return len(rows) > 0

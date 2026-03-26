@@ -107,15 +107,15 @@ def x_copy(**kwargs: Any) -> None:
         hdrs, rows = db1.select_rowsource(select_stmt)
     except ErrInfo:
         raise
-    except Exception:
-        raise ErrInfo("db", select_stmt, exception_msg=exception_desc())
+    except Exception as e:
+        raise ErrInfo("db", select_stmt, exception_msg=exception_desc()) from e
     try:
         db2.populate_table(schema2, table2, rows, hdrs, get_ts)
         db2.commit()
     except ErrInfo:
         raise
-    except Exception:
-        raise ErrInfo("db", select_stmt, exception_msg=exception_desc())
+    except Exception as e:
+        raise ErrInfo("db", select_stmt, exception_msg=exception_desc()) from e
 
 
 def x_copy_query(**kwargs: Any) -> None:
@@ -165,8 +165,8 @@ def x_copy_query(**kwargs: Any) -> None:
             hdrs, rows = db1.select_rowsource(select_stmt)
         except ErrInfo:
             raise
-        except Exception:
-            raise ErrInfo("db", select_stmt, exception_msg=exception_desc())
+        except Exception as e:
+            raise ErrInfo("db", select_stmt, exception_msg=exception_desc()) from e
         get_ts.tablespec = DataTable(hdrs, rows)
         tbl_desc = get_ts.tablespec
         create_tbl = tbl_desc.create_table(db2.type, schema2, table2)
@@ -182,15 +182,15 @@ def x_copy_query(**kwargs: Any) -> None:
         hdrs, rows = db1.select_rowsource(select_stmt)
     except ErrInfo:
         raise
-    except Exception:
-        raise ErrInfo("db", select_stmt, exception_msg=exception_desc())
+    except Exception as e:
+        raise ErrInfo("db", select_stmt, exception_msg=exception_desc()) from e
     try:
         db2.populate_table(schema2, table2, rows, hdrs, get_ts)
         db2.commit()
     except ErrInfo:
         raise
-    except Exception:
-        raise ErrInfo("db", select_stmt, exception_msg=exception_desc())
+    except Exception as e:
+        raise ErrInfo("db", select_stmt, exception_msg=exception_desc()) from e
 
 
 def x_zip(**kwargs: Any) -> None:

@@ -294,13 +294,13 @@ class AccessDatabase(Database):
             curs.execute(sql, (table_name,))
         except ErrInfo:
             raise
-        except Exception:
+        except Exception as e:
             raise ErrInfo(
                 type="db",
                 command_text=sql,
                 exception_msg=exception_desc(),
                 other_msg=f"Failure on test for existence of Access table {table_name}",
-            )
+            ) from e
         rows = curs.fetchall()
         return len(rows) > 0
 
@@ -336,13 +336,13 @@ class AccessDatabase(Database):
             curs.execute(sql, (view_name,))
         except ErrInfo:
             raise
-        except Exception:
+        except Exception as e:
             raise ErrInfo(
                 type="db",
                 command_text=sql,
                 exception_msg=exception_desc(),
                 other_msg=f"Test for existence of Access view/query {view_name}",
-            )
+            ) from e
         rows = curs.fetchall()
         return len(rows) > 0
 

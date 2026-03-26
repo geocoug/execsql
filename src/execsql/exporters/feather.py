@@ -22,12 +22,12 @@ from execsql.utils.fileio import filewriter_close
 def write_query_to_feather(outfile: str, headers: list[str], rows: Any) -> None:
     try:
         import polars as pl
-    except ImportError:
+    except ImportError as e:
         raise ErrInfo(
             "exception",
             exception_msg=exception_desc(),
             other_msg="The polars Python package must be installed to export data to the feather format.",
-        )
+        ) from e
     rows_list = list(rows)
     if rows_list:
         df = pl.DataFrame(rows_list, schema=headers, orient="row")
@@ -47,18 +47,18 @@ def write_query_to_hdf5(
 ) -> None:
     try:
         import tables
-    except ImportError:
+    except ImportError as e:
         raise ErrInfo(
             "exception",
             exception_msg=exception_desc(),
             other_msg="The tables Python library must be installed to export data to the HDF5 format.",
-        )
+        ) from e
     try:
         hdrs, rows = db.select_rowsource(select_stmt)
     except ErrInfo:
         raise
-    except Exception:
-        raise ErrInfo("db", select_stmt, exception_msg=exception_desc())
+    except Exception as e:
+        raise ErrInfo("db", select_stmt, exception_msg=exception_desc()) from e
 
     def h5type(datatype, size):
         if datatype in (_state.DT_Varchar, _state.DT_Text):

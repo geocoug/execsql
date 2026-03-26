@@ -196,8 +196,8 @@ def x_export(**kwargs: Any) -> None:
             hdrs, rows = _state.dbs.current().select_rowsource(select_stmt)
         except ErrInfo:
             raise
-        except Exception:
-            raise ErrInfo("db", select_stmt, exception_msg=exception_desc())
+        except Exception as e:
+            raise ErrInfo("db", select_stmt, exception_msg=exception_desc()) from e
         if filefmt == "raw":
             write_query_raw(outfile, rows, _state.dbs.current().encoding, append, zipfile=zipfilename)
         elif filefmt == "b64":
@@ -330,8 +330,8 @@ def x_export_query(**kwargs: Any) -> None:
             hdrs, rows = _state.dbs.current().select_rowsource(select_stmt)
         except ErrInfo:
             raise
-        except Exception:
-            raise ErrInfo("db", select_stmt, exception_msg=exception_desc())
+        except Exception as e:
+            raise ErrInfo("db", select_stmt, exception_msg=exception_desc()) from e
         if filefmt == "raw":
             write_query_raw(outfile, rows, _state.dbs.current().encoding, append, zipfile=zipfilename)
         elif filefmt == "b64":

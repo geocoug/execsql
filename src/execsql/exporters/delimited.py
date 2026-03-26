@@ -600,12 +600,12 @@ class CsvFile(EncodedFile):
         except ErrInfo as e:
             e.other = f"Can't read column header line from {self.filename}.  {e.other or ''}"
             raise
-        except Exception:
+        except Exception as e:
             raise ErrInfo(
                 type="exception",
                 exception_msg=exception_desc(),
                 other_msg=f"Can't read column header line from {self.filename}",
-            )
+            ) from e
         if any(x is None or len(x) == 0 for x in colnames):
             if conf.del_empty_cols:
                 self.blank_cols = [
@@ -710,11 +710,11 @@ def write_delimited_file(
                 ofile.write(datarow)
             except ErrInfo:
                 raise
-            except Exception:
+            except Exception as e:
                 raise ErrInfo(
                     "exception",
                     exception_msg=exception_desc(),
                     other_msg=f"Can't write output to file {fdesc}.",
-                )
+                ) from e
     finally:
         ofile.close()

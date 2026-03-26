@@ -36,12 +36,12 @@ def x_write(**kwargs: Any) -> None:
     if (not outf) or tee:
         try:
             _state.output.write(msg)
-        except TypeError:
+        except TypeError as e:
             raise ErrInfo(
                 type="other",
                 command_text=kwargs["metacommandline"],
                 other_msg="TypeError in 'write' metacommand.",
-            )
+            ) from e
         except ConsoleUIError as e:
             _state.output.reset()
             _state.exec_log.log_status_info(f"Console UI write failed (message {{{e.value}}}); output reset to stdout.")
@@ -189,8 +189,8 @@ def x_write_create_table_alias(**kwargs: Any) -> None:
         hdrs, rows = db.select_rowsource(select_stmt)
     except ErrInfo:
         raise
-    except Exception:
-        raise ErrInfo("db", select_stmt, exception_msg=exception_desc())
+    except Exception as e:
+        raise ErrInfo("db", select_stmt, exception_msg=exception_desc()) from e
     tablespec = DataTable(hdrs, rows)
     sql = tablespec.create_table(_state.dbs.current().type, kwargs["schema1"], kwargs["table1"], pretty=True)
     if outfile:

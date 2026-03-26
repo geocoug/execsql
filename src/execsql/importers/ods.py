@@ -31,12 +31,12 @@ def ods_data(
     wbk = OdsFile()
     try:
         wbk.open(filename)
-    except Exception:
-        raise ErrInfo(type="cmd", other_msg=f"{filename} is not a valid OpenDocument spreadsheet.")
+    except Exception as e:
+        raise ErrInfo(type="cmd", other_msg=f"{filename} is not a valid OpenDocument spreadsheet.") from e
     try:
         alldata = wbk.sheet_data(sheetname, junk_header_rows)
-    except Exception:
-        raise ErrInfo(type="cmd", other_msg=f"{sheetname} is not a worksheet in {filename}.")
+    except Exception as e:
+        raise ErrInfo(type="cmd", other_msg=f"{sheetname} is not a worksheet in {filename}.") from e
     colhdrs = alldata[0]
     if any(x is None or len(x.strip()) == 0 for x in colhdrs):
         if conf.del_empty_cols:

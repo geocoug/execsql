@@ -1,6 +1,11 @@
 """Tests for the CLI interface in execsql.cli (Typer/Rich)."""
 
 from __future__ import annotations
+
+import sqlite3
+import subprocess
+import sys
+import textwrap
 from unittest.mock import patch
 
 import pytest
@@ -476,3 +481,134 @@ class TestParseConnectionString:
                 catch_exceptions=False,
             )
         assert result.exit_code != 2, result.output
+
+
+# ---------------------------------------------------------------------------
+# End-to-end CLI tests — real execution, no mocking
+# ---------------------------------------------------------------------------
+
+
+def _write_conf(tmp_path, db_filename="test.db"):
+    """Write a minimal execsql.conf for SQLite."""
+    conf = tmp_path / "execsql.conf"
+    conf.write_text(
+        textwrap.dedent(f"""\
+        [connect]
+        db_type = l
+        db_file = {db_filename}
+        new_db = yes
+        password_prompt = no
+
+        [encoding]
+        script = utf-8
+        output = utf-8
+        import = utf-8
+    """),
+    )
+    return conf
+
+
+def _run_cli(tmp_path, args, timeout=30):
+    """Run execsql CLI via subprocess and return CompletedProcess."""
+    return subprocess.run(
+        [sys.executable, "-m", "execsql"] + args,
+        cwd=str(tmp_path),
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+    )
+
+
+class TestEndToEndExecution:
+    """Tests that run actual SQL through the CLI — no mocking."""
+
+    def test_inline_command_creates_table(self, tmp_path):
+        """The -c flag runs inline SQL that creates a table and inserts data."""
+        _write_conf(tmp_path)
+        result = _run_cli(
+            tmp_path,
+            [
+                "-c",
+                "CREATE TABLE e2e (val TEXT);\\nINSERT INTO e2e VALUES ('works');",
+            ],
+        )
+        assert result.returncode == 0, f"stderr: {result.stderr}"
+
+        conn = sqlite3.connect(str(tmp_path / "test.db"))
+        rows = conn.execute("SELECT val FROM e2e").fetchall()
+        conn.close()
+        assert rows == [("works",)]
+
+    def test_dsn_flag_with_sqlite(self, tmp_path):
+        """The --dsn flag with a sqlite:// URL connects and executes."""
+        db_path = tmp_path / "dsn_test.db"
+        script = tmp_path / "test.sql"
+        script.write_text(
+            "CREATE TABLE dsn_tbl (id INTEGER);\nINSERT INTO dsn_tbl VALUES (42);\n",
+        )
+
+        result = _run_cli(
+            tmp_path,
+            [
+                "--dsn",
+                f"sqlite:///{db_path}",
+                "-n",
+                str(script),
+            ],
+        )
+        assert result.returncode == 0, f"stderr: {result.stderr}"
+
+        conn = sqlite3.connect(str(db_path))
+        rows = conn.execute("SELECT id FROM dsn_tbl").fetchall()
+        conn.close()
+        assert rows == [(42,)]
+
+    def test_assign_arg_substitution(self, tmp_path):
+        """The -a flag sets $ARG_1 for use in script substitution."""
+        _write_conf(tmp_path)
+        script = tmp_path / "test.sql"
+        script.write_text(
+            "CREATE TABLE args (val TEXT);\nINSERT INTO args VALUES ('!!$ARG_1!!');\n",
+        )
+
+        result = _run_cli(tmp_path, ["-a", "hello_arg", str(script)])
+        assert result.returncode == 0, f"stderr: {result.stderr}"
+
+        conn = sqlite3.connect(str(tmp_path / "test.db"))
+        rows = conn.execute("SELECT val FROM args").fetchall()
+        conn.close()
+        assert rows == [("hello_arg",)]
+
+    def test_dry_run_does_not_create_db(self, tmp_path):
+        """--dry-run parses but does not create the database file."""
+        _write_conf(tmp_path, db_filename="should_not_exist.db")
+        script = tmp_path / "test.sql"
+        script.write_text("CREATE TABLE t (id INTEGER);\n")
+
+        result = _run_cli(tmp_path, ["--dry-run", str(script)])
+        assert result.returncode == 0, f"stderr: {result.stderr}"
+        assert not (tmp_path / "should_not_exist.db").exists()
+
+    def test_dump_keywords_json_valid(self, tmp_path):
+        """--dump-keywords produces valid JSON with expected top-level keys."""
+        import json
+
+        result = _run_cli(tmp_path, ["--dump-keywords"])
+        assert result.returncode == 0, f"stderr: {result.stderr}"
+
+        data = json.loads(result.stdout)
+        assert "metacommands" in data
+        assert "conditions" in data
+        assert "database_types" in data
+
+    def test_version_output(self, tmp_path):
+        """--version prints the version string."""
+        result = _run_cli(tmp_path, ["--version"])
+        assert result.returncode == 0
+        assert "execsql" in result.stdout.lower() or "." in result.stdout
+
+    def test_nonexistent_script_fails(self, tmp_path):
+        """Passing a script that doesn't exist returns non-zero."""
+        _write_conf(tmp_path)
+        result = _run_cli(tmp_path, ["no_such_file.sql"])
+        assert result.returncode != 0

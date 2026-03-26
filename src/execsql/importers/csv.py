@@ -60,13 +60,13 @@ def importtable(
             # ...except for Firebird.  Execute the commit directly via the connection so it is always done.
             if db.type == dbt_firebird:
                 db.conn.commit()
-        except Exception:
+        except Exception as e:
             raise ErrInfo(
                 type="db",
                 command_text=sql,
                 exception_msg=exception_info(),
                 other_msg=f"Could not create new table ({tablename}) for IMPORT metacommand",
-            )
+            ) from e
     else:
         if schemaname is not None:
             if not db.table_exists(tablename, schemaname):
@@ -85,13 +85,13 @@ def importtable(
         db.commit()
     except ErrInfo:
         raise
-    except Exception:
+    except Exception as e:
         fq_tablename = db.schema_qualified_table_name(schemaname, tablename)
         raise ErrInfo(
             "exception",
             exception_msg=exception_info(),
             other_msg=f"Can't import tabular file ({filename}) to table ({fq_tablename})",
-        )
+        ) from e
     inf.close()
 
 
@@ -121,10 +121,10 @@ def importfile(
         db.commit()
     except ErrInfo:
         raise
-    except Exception:
+    except Exception as e:
         fq_tablename = db.schema_qualified_table_name(schemaname, tablename)
         raise ErrInfo(
             "exception",
             exception_msg=exception_info(),
             other_msg=f"Can't import file ({filename}) to table ({fq_tablename})",
-        )
+        ) from e

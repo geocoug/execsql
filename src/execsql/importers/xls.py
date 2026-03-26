@@ -45,12 +45,12 @@ def xls_data(
         raise ErrInfo(type="cmd", other_msg=f"{filename} is not a recognizable Excel spreadsheet name.")
     try:
         wbk.open(filename, encoding, read_only=True)
-    except Exception:
-        raise ErrInfo(type="cmd", other_msg=f"{filename} is not a valid Excel spreadsheet.")
+    except Exception as e:
+        raise ErrInfo(type="cmd", other_msg=f"{filename} is not a valid Excel spreadsheet.") from e
     try:
         alldata = wbk.sheet_data(sheetname, junk_header_rows)
-    except Exception:
-        raise ErrInfo(type="cmd", other_msg=f"Error reading worksheet {sheetname} from {filename}.")
+    except Exception as e:
+        raise ErrInfo(type="cmd", other_msg=f"Error reading worksheet {sheetname} from {filename}.") from e
     if len(alldata) == 0:
         raise ErrInfo(type="cmd", other_msg=f"There are no data on worksheet {sheetname} of file {filename}.")
     if ext3 == "lsx":

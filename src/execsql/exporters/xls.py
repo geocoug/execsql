@@ -76,8 +76,8 @@ class XlsFile:
     def sheet_data(self, sheetname: Any, junk_header_rows: int = 0) -> list:
         try:
             sheet = self.sheet_named(sheetname)
-        except Exception:
-            raise XlsFileError(f"There is no Excel worksheet named {sheetname} in {self.filename}.")
+        except Exception as e:
+            raise XlsFileError(f"There is no Excel worksheet named {sheetname} in {self.filename}.") from e
 
         # Don't rely on sheet.ncols and sheet.nrows, because Excel will count columns
         # and rows that have ever been filled, even if they are now empty.  Base the column count
@@ -211,8 +211,8 @@ class XlsxFile:
     def sheet_data(self, sheetname: Any, junk_header_rows: int = 0) -> list:
         try:
             sheet = self.sheet_named(sheetname)
-        except Exception:
-            raise XlsxFileError(f"There is no Excel worksheet named {sheetname} in {self.filename}.")
+        except Exception as e:
+            raise XlsxFileError(f"There is no Excel worksheet named {sheetname} in {self.filename}.") from e
         # Don't rely on sheet.max_column and sheet.max_row, because Excel will count columns
         # and rows that have ever been filled, even if they are now empty.  Base the column count
         # on the number of contiguous non-empty cells in the first row, and process the data up to nrows until

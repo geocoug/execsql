@@ -109,9 +109,9 @@ class MySQLDatabase(Database):
                 raise
             except ErrInfo:
                 raise
-            except Exception:
+            except Exception as e:
                 msg = f"Failed to open MySQL database {self.db_name} on {self.server_name}"
-                raise ErrInfo(type="exception", exception_msg=exception_desc(), other_msg=msg)
+                raise ErrInfo(type="exception", exception_msg=exception_desc(), other_msg=msg) from e
 
     def exec_cmd(self, querycommand: str) -> None:
         # The querycommand must be a stored function (/procedure)
@@ -275,14 +275,14 @@ class MySQLDatabase(Database):
                         curs.executemany(sql_template, b)
                     except ErrInfo:
                         raise
-                    except Exception:
+                    except Exception as e:
                         self.rollback()
                         raise ErrInfo(
                             type="db",
                             command_text=sql_template,
                             exception_msg=exception_desc(),
                             other_msg=f"Import from file into table {sq_name}, line {{{line}}}",
-                        )
+                        ) from e
                     total_rows += len(b)
                     interval = _state.conf.import_progress_interval
                     if _state.exec_log and interval > 0 and total_rows % interval == 0:

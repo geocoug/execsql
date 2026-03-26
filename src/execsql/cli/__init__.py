@@ -414,7 +414,7 @@ def _legacy_main() -> None:
     try:
         app()
     except SystemExit as exc:
-        raise exc
+        raise exc from exc
     except ErrInfo as exc:
         from execsql.utils.errors import exit_now
 

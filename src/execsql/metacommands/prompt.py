@@ -208,12 +208,12 @@ def x_prompt_entryform(**kwargs: Any) -> None:
                     initial_value = str(str(v["initial_value"]).lower() in ("yes", "true", "on", "1"))
                 else:
                     initial_value = str(v["initial_value"])
-            except Exception:
+            except Exception as e:
                 raise ErrInfo(
                     type="cmd",
                     command_text=kwargs["metacommandline"],
                     other_msg=f"The initial value of {v['initial_value']} can't be used.",
-                )
+                ) from e
         if "lookup_table" in colhdrs:
             lt = v["lookup_table"]
             if lt:
@@ -224,23 +224,23 @@ def x_prompt_entryform(**kwargs: Any) -> None:
             if entry_width:
                 try:
                     entry_width = int(entry_width)
-                except Exception:
+                except Exception as e:
                     raise ErrInfo(
                         type="cmd",
                         command_text=kwargs["metacommandline"],
                         other_msg=f"Entry width {entry_width} is not an integer",
-                    )
+                    ) from e
         if "height" in colhdrs:
             entry_height = v.get("height")
             if entry_height:
                 try:
                     entry_height = int(entry_height)
-                except Exception:
+                except Exception as e:
                     raise ErrInfo(
                         type="cmd",
                         command_text=kwargs["metacommandline"],
                         other_msg=f"Entry height {entry_height} is not an integer",
-                    )
+                    ) from e
                 if entry_height < 1:
                     entry_height = 1
         if "form_column" in colhdrs:
@@ -248,12 +248,12 @@ def x_prompt_entryform(**kwargs: Any) -> None:
             if entry_col:
                 try:
                     entry_col = int(entry_col)
-                except Exception:
+                except Exception as e:
                     raise ErrInfo(
                         type="cmd",
                         command_text=kwargs["metacommandline"],
                         other_msg=f"Entry column {entry_col} is not an integer",
-                    )
+                    ) from e
                 if entry_col < 1:
                     entry_col = 1
         subvarset = _state.subvars if subvar[0] != "~" else _state.commandliststack[-1].localvars
@@ -361,15 +361,15 @@ def prompt_compare(button_list: list, **kwargs: Any) -> Any:
     if alias1 is not None:
         try:
             db1 = _state.dbs.aliased_as(alias1)
-        except Exception:
-            raise ErrInfo(type="error", other_msg=badaliasmsg % alias1)
+        except Exception as e:
+            raise ErrInfo(type="error", other_msg=badaliasmsg % alias1) from e
     else:
         db1 = _state.dbs.current()
     if alias2 is not None:
         try:
             db2 = _state.dbs.aliased_as(alias2)
-        except Exception:
-            raise ErrInfo(type="error", other_msg=badaliasmsg % alias2)
+        except Exception as e:
+            raise ErrInfo(type="error", other_msg=badaliasmsg % alias2) from e
     else:
         db2 = _state.dbs.current()
     sq_name1 = db1.schema_qualified_table_name(schema1, table1)
@@ -664,8 +664,8 @@ def x_prompt_savefile(**kwargs: Any) -> None:
                 subvarset5.add_substitution(sub_name5, Path(fn).stem)
     except (ErrInfo, SystemExit):
         raise
-    except Exception:
-        raise ErrInfo(type="exception", exception_msg=exception_desc())
+    except Exception as e:
+        raise ErrInfo(type="exception", exception_msg=exception_desc()) from e
     return None
 
 
@@ -731,8 +731,8 @@ def x_prompt_openfile(**kwargs: Any) -> None:
                 subvarset5.add_substitution(sub_name5, Path(fn).stem)
     except (ErrInfo, SystemExit):
         raise
-    except Exception:
-        raise ErrInfo(type="exception", exception_msg=exception_desc())
+    except Exception as e:
+        raise ErrInfo(type="exception", exception_msg=exception_desc()) from e
     return None
 
 
@@ -767,8 +767,8 @@ def x_prompt_directory(**kwargs: Any) -> None:
             )
     except (ErrInfo, SystemExit):
         raise
-    except Exception:
-        raise ErrInfo(type="exception", exception_msg=exception_desc())
+    except Exception as e:
+        raise ErrInfo(type="exception", exception_msg=exception_desc()) from e
     return None
 
 
@@ -785,15 +785,15 @@ def prompt_select_rows(button_list: list, **kwargs: Any) -> Any:
     if alias1 is not None:
         try:
             db1 = _state.dbs.aliased_as(alias1)
-        except Exception:
-            raise ErrInfo(type="error", other_msg=badaliasmsg % alias1)
+        except Exception as e:
+            raise ErrInfo(type="error", other_msg=badaliasmsg % alias1) from e
     else:
         db1 = _state.dbs.current()
     if alias2 is not None:
         try:
             db2 = _state.dbs.aliased_as(alias2)
-        except Exception:
-            raise ErrInfo(type="error", other_msg=badaliasmsg % alias2)
+        except Exception as e:
+            raise ErrInfo(type="error", other_msg=badaliasmsg % alias2) from e
     else:
         db2 = _state.dbs.current()
     sq_name1 = db1.schema_qualified_table_name(schema1, table1)

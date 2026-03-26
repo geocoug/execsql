@@ -58,7 +58,7 @@ class ExecSqlTimeoutError(ExecSqlError):
         super().__init__(errmsg)
 
 
-class ErrInfo(Exception):
+class ErrInfo(ExecSqlError):
     """Rich exception and error-data carrier for execsql.
 
     ``str(e)`` returns the most informative available message (``other_msg``,
@@ -152,11 +152,11 @@ class ErrInfo(Exception):
         return self.eval_err()
 
 
-class DataTypeError(Exception):
+class DataTypeError(ExecSqlError):
     def __init__(self, data_type_name: str, error_msg: str) -> None:
         self.data_type_name = data_type_name or "Unspecified data type"
         self.error_msg = error_msg or "Unspecified error"
-        super().__init__(str(self))
+        Exception.__init__(self, str(self))
 
     def __repr__(self) -> str:
         return f"DataTypeError({self.data_type_name!r}, {self.error_msg!r})"
@@ -165,12 +165,12 @@ class DataTypeError(Exception):
         return f"{self.data_type_name}: {self.error_msg}"
 
 
-class DbTypeError(Exception):
+class DbTypeError(ExecSqlError):
     def __init__(self, dbms_id: str, data_type: object, error_msg: str) -> None:
         self.dbms_id = dbms_id
         self.data_type = data_type
         self.error_msg = error_msg or "Unspecified error"
-        super().__init__(str(self))
+        Exception.__init__(self, str(self))
 
     def __repr__(self) -> str:
         return f"DbTypeError({self.dbms_id!r}, {self.data_type!r}, {self.error_msg!r})"
@@ -190,11 +190,11 @@ class DataTableError(ExecSqlError):
     """Raised for DataTable-level errors."""
 
 
-class DatabaseNotImplementedError(Exception):
+class DatabaseNotImplementedError(ExecSqlError):
     def __init__(self, db_name: str, method: str) -> None:
         self.db_name = db_name
         self.method = method
-        super().__init__(str(self))
+        Exception.__init__(self, str(self))
 
     def __repr__(self) -> str:
         return f"DatabaseNotImplementedError({self.db_name!r}, {self.method!r})"

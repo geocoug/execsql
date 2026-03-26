@@ -87,12 +87,12 @@ class PostgresDatabase(Database):
                         port=db.port,
                         connect_timeout=db.connect_timeout,
                     )
-            except Exception:
+            except Exception as e:
                 msg = (
                     f"Failed to open PostgreSQL database {self.db_name} on {self.server_name}; "
                     "check server and database name, and validity of credentials"
                 )
-                raise ErrInfo(type="exception", exception_msg=exception_desc(), other_msg=msg)
+                raise ErrInfo(type="exception", exception_msg=exception_desc(), other_msg=msg) from e
 
         def create_db(db: PostgresDatabase) -> None:
             conn = db_conn(db, "postgres")
@@ -135,9 +135,9 @@ class PostgresDatabase(Database):
                 raise
             except ErrInfo:
                 raise
-            except Exception:
+            except Exception as e:
                 msg = f"Failed to open PostgreSQL database {self.db_name} on {self.server_name}"
-                raise ErrInfo(type="exception", exception_msg=exception_desc(), other_msg=msg)
+                raise ErrInfo(type="exception", exception_msg=exception_desc(), other_msg=msg) from e
             # (Re)set the encoding to match the database.
             self.encoding = self.conn.encoding
 
@@ -179,14 +179,14 @@ class PostgresDatabase(Database):
             curs.execute(sql, params)
         except ErrInfo:
             raise
-        except Exception:
+        except Exception as e:
             self.rollback()
             raise ErrInfo(
                 type="db",
                 command_text=sql,
                 exception_msg=exception_desc(),
                 other_msg=f"Failed test for existence of table {table_name} in {self.name()}",
-            )
+            ) from e
         rows = curs.fetchall()
         curs.close()
         return len(rows) > 0
@@ -211,14 +211,14 @@ class PostgresDatabase(Database):
             curs.execute(sql, params)
         except ErrInfo:
             raise
-        except Exception:
+        except Exception as e:
             self.rollback()
             raise ErrInfo(
                 type="db",
                 command_text=sql,
                 exception_msg=exception_desc(),
                 other_msg=f"Failed test for existence of view {view_name} in {self.name()}",
-            )
+            ) from e
         rows = curs.fetchall()
         curs.close()
         return len(rows) > 0
@@ -326,13 +326,13 @@ class PostgresDatabase(Database):
                 curs.copy_expert(copy_cmd, rf, _state.conf.import_buffer)
             except ErrInfo:
                 raise
-            except Exception:
+            except Exception as e:
                 self.rollback()
                 raise ErrInfo(
                     type="exception",
                     exception_msg=exception_desc(),
                     other_msg=f"Can't import from file to table {sq_name}",
-                )
+                ) from e
         else:
             data_indexes = [csv_file_cols_q.index(col) for col in import_cols]
             paramspec = ",".join(["%s"] * len(import_cols))
@@ -409,14 +409,14 @@ class PostgresDatabase(Database):
                         curs.executemany(sql_template, b)
                     except ErrInfo:
                         raise
-                    except Exception:
+                    except Exception as e:
                         self.rollback()
                         raise ErrInfo(
                             type="db",
                             command_text=sql_template,
                             exception_msg=exception_desc(),
                             other_msg=f"Can't load data into table {sq_name} of {self.name()} from line {{{line}}}",
-                        )
+                        ) from e
                     total_rows += len(b)
                     interval = _state.conf.import_progress_interval
                     if _state.exec_log and interval > 0 and total_rows % interval == 0:

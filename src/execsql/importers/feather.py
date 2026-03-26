@@ -26,12 +26,12 @@ def import_feather(
 
     try:
         import polars as pl
-    except Exception:
+    except Exception as e:
         raise ErrInfo(
             "exception",
             exception_msg=exception_info(),
             other_msg="The polars Python library must be installed to import data from the Feather format.",
-        )
+        ) from e
     df = pl.read_ipc(filename)
     hdrs = df.columns
     data = [list(row) for row in df.rows()]
@@ -49,12 +49,12 @@ def import_parquet(
 
     try:
         import polars as pl
-    except Exception:
+    except Exception as e:
         raise ErrInfo(
             "exception",
             exception_msg=exception_info(),
             other_msg="The polars Python library must be installed to import data from the Parquet format.",
-        )
+        ) from e
     df = pl.read_parquet(filename)
     hdrs = df.columns
     data = [list(row) for row in df.rows()]

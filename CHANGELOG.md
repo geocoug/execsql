@@ -13,6 +13,8 @@ ______________________________________________________________________
 
 ### Added
 
+- `py.typed` marker for PEP 561 downstream type checking.
+- 21 new tests (2,062 → 2,083): SQLite integration tests for JSON/HTML/LaTeX/TSV exports, DDL operations (views, indexes, drop/recreate), WRITE-to-file, CONFIG metacommand, error handling, and inline commands; end-to-end CLI tests for `-c`, `--dsn sqlite://`, `-a` substitution, `--dry-run`, `--dump-keywords`, and `--version`.
 - `--progress` CLI flag and `CONFIG SHOW_PROGRESS` metacommand to display a rich progress bar during long-running IMPORT operations. Also configurable via `show_progress` in `execsql.conf`. (FEAT-5)
 - Opt-in SQL query audit logging via `log_sql` config option and `CONFIG LOG_SQL` metacommand. When enabled, all executed SQL statements are written to the log file with a `sql` record type, database name, line number, and query text. (FEAT-6)
 - `--dump-keywords` CLI option: outputs all metacommand keywords, conditional functions, config options, export formats, database types, and variable patterns as structured JSON. Enables tooling (e.g., editor grammar generators) to consume keyword data directly from the dispatch table.
@@ -23,6 +25,10 @@ ______________________________________________________________________
 
 ### Changed
 
+- CLI reorganized from flat `_cli_*.py` files into `cli/` subpackage (`cli/__init__.py`, `cli/run.py`, `cli/dsn.py`, `cli/help.py`). All existing `from execsql.cli import ...` paths preserved.
+- Exception hierarchy: `ErrInfo`, `DataTypeError`, `DbTypeError`, and `DatabaseNotImplementedError` now inherit from `ExecSqlError` base class instead of bare `Exception`.
+- Exception chaining: added `from e` to 115 `raise` statements across 38 files that previously discarded the original exception context.
+- README: replaced "not yet stable" warning with "maintained fork" note reflecting current project maturity.
 - Split `cli.py` (1245 lines) into `_cli_help.py`, `_cli_dsn.py`, and `_cli_run.py` with `cli.py` as a re-export façade. All existing import paths preserved. (REFAC-3)
 - Split `metacommands/io.py` (1304 lines) into `io_export.py`, `io_import.py`, `io_write.py`, and `io_fileops.py` with `io.py` as a re-export façade. All existing import paths preserved. (REFAC-4)
 

@@ -256,6 +256,6 @@ def x_execute(**kwargs: Any) -> None:
         db.commit()
     except ErrInfo:
         raise
-    except Exception:
-        raise ErrInfo("db", command_text=sql, exception_msg=exception_desc())
+    except Exception as e:
+        raise ErrInfo("db", command_text=sql, exception_msg=exception_desc()) from e
     return None

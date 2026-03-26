@@ -342,8 +342,8 @@ def write_query_to_ods(
         hdrs, rows = db.select_rowsource(select_stmt)
     except ErrInfo:
         raise
-    except Exception:
-        raise ErrInfo("db", select_stmt, exception_msg=exception_desc())
+    except Exception as e:
+        raise ErrInfo("db", select_stmt, exception_msg=exception_desc()) from e
     export_ods(outfile, hdrs, rows, append, select_stmt, sheetname, desc)
 
 
@@ -403,8 +403,8 @@ def write_queries_to_ods(
             hdrs, rows = db.select_rowsource(select_stmt)
         except ErrInfo:
             raise
-        except Exception:
-            raise ErrInfo("db", select_stmt, exception_msg=exception_desc())
+        except Exception as e:
+            raise ErrInfo("db", select_stmt, exception_msg=exception_desc()) from e
         # Add the data to a new sheet.
         tbl = wbk.new_sheet(sheet_name)
         wbk.add_row_to_sheet(hdrs, tbl, header=True)

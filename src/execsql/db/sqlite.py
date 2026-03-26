@@ -54,12 +54,12 @@ class SQLiteDatabase(Database):
                 self.conn = sqlite3.connect(self.db_name, timeout=self.timeout)
             except ErrInfo:
                 raise
-            except Exception:
+            except Exception as e:
                 raise ErrInfo(
                     type="exception",
                     exception_msg=exception_desc(),
                     other_msg=f"Can't open SQLite database {self.db_name}",
-                )
+                ) from e
         pragma_cols, pragma_data = self.select_data("pragma encoding;")
         self.encoding = pragma_data[0][0]
 
@@ -82,14 +82,14 @@ class SQLiteDatabase(Database):
             curs.execute(sql, (table_name,))
         except ErrInfo:
             raise
-        except Exception:
+        except Exception as e:
             self.rollback()
             raise ErrInfo(
                 type="db",
                 command_text=sql,
                 exception_msg=exception_desc(),
                 other_msg=f'Failed test for existence of SQLite table "{table_name}";',
-            )
+            ) from e
         rows = curs.fetchall()
         return len(rows) > 0
 
@@ -110,14 +110,14 @@ class SQLiteDatabase(Database):
             curs.execute(sql)
         except ErrInfo:
             raise
-        except Exception:
+        except Exception as e:
             self.rollback()
             raise ErrInfo(
                 type="db",
                 command_text=sql,
                 exception_msg=exception_desc(),
                 other_msg=f"Failed to get column names for table {table_name} of {self.name()}",
-            )
+            ) from e
         return [d[0] for d in curs.description]
 
     def view_exists(self, view_name: str) -> bool:
@@ -127,14 +127,14 @@ class SQLiteDatabase(Database):
             curs.execute(sql, (view_name,))
         except ErrInfo:
             raise
-        except Exception:
+        except Exception as e:
             self.rollback()
             raise ErrInfo(
                 type="db",
                 command_text=sql,
                 exception_msg=exception_desc(),
                 other_msg=f'Failed test for existence of SQLite view "{view_name}";',
-            )
+            ) from e
         rows = curs.fetchall()
         return len(rows) > 0
 
@@ -204,14 +204,14 @@ class SQLiteDatabase(Database):
                         curs.execute(sql, linedata)
                     except ErrInfo:
                         raise
-                    except Exception:
+                    except Exception as e:
                         self.rollback()
                         raise ErrInfo(
                             type="db",
                             command_text=sql,
                             exception_msg=exception_desc(),
                             other_msg=f"Can't load data into table {sq_name} from line {{{line}}}",
-                        )
+                        ) from e
                     total_rows += 1
                     interval = getattr(_state.conf, "import_progress_interval", 0)
                     if _state.exec_log and interval > 0 and total_rows % interval == 0:

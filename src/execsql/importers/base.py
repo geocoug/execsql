@@ -85,13 +85,13 @@ def import_data_table(
             # ...except for Firebird.
             if db.type == dbt_firebird:
                 db.conn.commit()
-        except Exception:
+        except Exception as e:
             raise ErrInfo(
                 type="db",
                 command_text=sql,
                 exception_msg=exception_info(),
                 other_msg=f"Could not create new table ({tablename}) for IMPORT metacommand",
-            )
+            ) from e
     table_cols = db.table_columns(tablename, schemaname)
     if conf.import_common_cols_only:
         import_cols = [col for col in hdrs if col.lower() in [tc.lower() for tc in table_cols]]
@@ -108,5 +108,5 @@ def import_data_table(
         db.commit()
     except ErrInfo:
         raise
-    except Exception:
-        raise ErrInfo("db", "Call to populate_table when importing data", exception_msg=exception_info())
+    except Exception as e:
+        raise ErrInfo("db", "Call to populate_table when importing data", exception_msg=exception_info()) from e

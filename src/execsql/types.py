@@ -88,8 +88,8 @@ class DataType:
             return data
         try:
             i = self.data_type(data)
-        except Exception:
-            raise DataTypeError(self.data_type_name, self._CONV_ERR % data)
+        except Exception as e:
+            raise DataTypeError(self.data_type_name, self._CONV_ERR % data) from e
         return i
 
 
@@ -354,8 +354,8 @@ class DT_Integer(DataType):
             raise DataTypeError(self.data_type_name, self._CONV_ERR % data)
         try:
             i = int(data)
-        except Exception:
-            raise DataTypeError(self.data_type_name, self._CONV_ERR % data)
+        except Exception as e:
+            raise DataTypeError(self.data_type_name, self._CONV_ERR % data) from e
         if leading_zero_num(data):
             raise DataTypeError(self.data_type_name, self._CONV_ERR % data)
         return i
@@ -390,8 +390,8 @@ class DT_Long(DataType):
             raise DataTypeError(self.data_type_name, self._CONV_ERR % data)
         try:
             i = int(data)
-        except Exception:
-            raise DataTypeError(self.data_type_name, self._CONV_ERR % data)
+        except Exception as e:
+            raise DataTypeError(self.data_type_name, self._CONV_ERR % data) from e
         return i
 
 
@@ -428,8 +428,8 @@ class DT_Float(DataType):
             raise DataTypeError(self.data_type_name, self._CONV_ERR % data)
         try:
             i = float(data)
-        except Exception:
-            raise DataTypeError(self.data_type_name, self._CONV_ERR % data)
+        except Exception as e:
+            raise DataTypeError(self.data_type_name, self._CONV_ERR % data) from e
         return i
 
 
@@ -464,8 +464,8 @@ class DT_Decimal(DataType):
                 raise DataTypeError(self.data_type_name, self._CONV_ERR % data)
             try:
                 dec = Decimal(data)
-            except Exception:
-                raise DataTypeError(self.data_type_name, self._CONV_ERR % data)
+            except Exception as e:
+                raise DataTypeError(self.data_type_name, self._CONV_ERR % data) from e
             self.set_scale_prec(dec)
             return dec
         raise DataTypeError(self.data_type_name, self._CONV_ERR % data)
@@ -493,8 +493,8 @@ class DT_Character(DataType):
         if not isinstance(data, str):
             try:
                 data = data_type(data)
-            except ValueError:
-                raise DataTypeError(self.data_type_name, self._CONV_ERR % data)
+            except ValueError as e:
+                raise DataTypeError(self.data_type_name, self._CONV_ERR % data) from e
             if len(data) > 255:
                 raise DataTypeError(self.data_type_name, self._CONV_ERR % data)
         return data
@@ -521,8 +521,8 @@ class DT_Varchar(DataType):
         if isinstance(data, str):
             try:
                 data = data_type(data)
-            except ValueError:
-                raise DataTypeError(self.data_type_name, self._CONV_ERR % data)
+            except ValueError as e:
+                raise DataTypeError(self.data_type_name, self._CONV_ERR % data) from e
             if len(data) > 255:
                 raise DataTypeError(self.data_type_name, self._CONV_ERR % data)
         return data
@@ -546,8 +546,8 @@ class DT_Text(DataType):
         if not isinstance(data, str):
             try:
                 data = data_type(data)
-            except ValueError:
-                raise DataTypeError(self.data_type_name, self._CONV_ERR % data)
+            except ValueError as e:
+                raise DataTypeError(self.data_type_name, self._CONV_ERR % data) from e
         return data
 
 
@@ -605,12 +605,12 @@ class DbType:
         # A convenience function to simplify access to data type names.
         try:
             return self.dialect[data_type][0]
-        except Exception:
+        except Exception as e:
             raise DbTypeError(
                 self.dbms_id,
                 data_type,
                 f"{self.dbms_id} DBMS type has no specification for data type {data_type.data_type_name}",
-            )
+            ) from e
 
     def quoted(self, dbms_object: str) -> str:
         if re.search(r"\W", dbms_object):
@@ -638,12 +638,12 @@ class DbType:
         data_type = self.spec_type(data_type)
         try:
             dts = self.dialect[data_type]
-        except Exception:
+        except Exception as e:
             raise DbTypeError(
                 self.dbms_id,
                 data_type,
                 f"{self.dbms_id} DBMS type has no specification for data type {data_type.data_type_name}",
-            )
+            ) from e
         if max_len and max_len > 0 and dts[1]:
             spec = f"{self.quoted(column_name)} {dts[0]}({max_len})"
         elif data_type.precspec and precision and scale:

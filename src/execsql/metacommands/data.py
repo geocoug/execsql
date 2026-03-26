@@ -123,12 +123,12 @@ def x_subdata(**kwargs: Any) -> None:
         _, rec = db.select_rowsource(sql)
     except ErrInfo:
         raise
-    except Exception:
+    except Exception as e:
         raise ErrInfo(
             type="exception",
             exception_msg=exception_desc(),
             other_msg=f"Can't get headers and rows from {sql}.",
-        )
+        ) from e
     try:
         row1 = next(rec)
     except Exception:
@@ -155,12 +155,12 @@ def x_selectsub(**kwargs: Any) -> None:
         hdrs, rec = db.select_rowsource(sql)
     except ErrInfo:
         raise
-    except Exception:
+    except Exception as e:
         raise ErrInfo(
             type="exception",
             exception_msg=exception_desc(),
             other_msg=f"Can't get headers and rows from {sql}.",
-        )
+        ) from e
     for subvar in hdrs:
         subvar = "@" + subvar
         if _state.subvars.sub_exists(subvar):
@@ -171,8 +171,8 @@ def x_selectsub(**kwargs: Any) -> None:
         row1 = next(rec)
     except StopIteration:
         row1 = None
-    except Exception:
-        raise ErrInfo(type="exception", exception_msg=exception_desc(), other_msg=nodatamsg)
+    except Exception as e:
+        raise ErrInfo(type="exception", exception_msg=exception_desc(), other_msg=nodatamsg) from e
     if row1:
         for i, item in enumerate(row1):
             if item is None:

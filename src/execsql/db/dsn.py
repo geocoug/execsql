@@ -79,23 +79,23 @@ class DsnDatabase(Database):
         def _try_connect():
             try:
                 _dsn_connect()
-            except Exception:
+            except Exception as e:
                 excdesc = exception_desc()
                 if "Optional feature not implemented" in excdesc:
                     try:
                         _dsn_connect(autocommit=True)
-                    except Exception:
+                    except Exception as e:
                         raise ErrInfo(
                             type="exception",
                             exception_msg=exception_desc(),
                             other_msg=f"Can't open DSN database {self.db_name} using ODBC",
-                        )
+                        ) from e
                 else:
                     raise ErrInfo(
                         type="exception",
                         exception_msg=excdesc,
                         other_msg=f"Can't open DSN database {self.db_name} using ODBC",
-                    )
+                    ) from e
 
         try:
             _try_connect()

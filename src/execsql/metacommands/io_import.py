@@ -72,12 +72,12 @@ def x_import(**kwargs: Any) -> None:
         )
     except ErrInfo:
         raise
-    except Exception:
+    except Exception as e:
         raise ErrInfo(
             "exception",
             exception_msg=exception_desc(),
             other_msg=f"Can't import data from tabular text file {filename}",
-        )
+        ) from e
     return None
 
 
@@ -100,12 +100,12 @@ def x_import_file(**kwargs: Any) -> None:
         importfile(_state.dbs.current(), schemaname, tablename, columnname, filename)
     except ErrInfo:
         raise
-    except Exception:
+    except Exception as e:
         raise ErrInfo(
             "exception",
             exception_msg=exception_desc(),
             other_msg=f"Can't import file {filename}",
-        )
+        ) from e
     return None
 
 
@@ -134,12 +134,12 @@ def x_import_ods(**kwargs: Any) -> None:
         importods(_state.dbs.current(), schemaname, tablename, is_new, filename, sheetname, hdr_rows)
     except ErrInfo:
         raise
-    except Exception:
+    except Exception as e:
         raise ErrInfo(
             "exception",
             exception_msg=exception_desc(),
             other_msg=f"Can't import data from ODS file {filename}",
-        )
+        ) from e
     return None
 
 
@@ -168,8 +168,8 @@ def x_import_ods_pattern(**kwargs: Any) -> None:
     wbk = OdsFile()
     try:
         wbk.open(filename)
-    except Exception:
-        raise ErrInfo(type="cmd", other_msg=f"{filename} is not a valid OpenDocument spreadsheet.")
+    except Exception as e:
+        raise ErrInfo(type="cmd", other_msg=f"{filename} is not a valid OpenDocument spreadsheet.") from e
     sheets = wbk.sheetnames()
     impsheets = [s for s in sheets if rx.search(s)]
     tables = list(impsheets)
@@ -184,12 +184,12 @@ def x_import_ods_pattern(**kwargs: Any) -> None:
             importods(_state.dbs.current(), schemaname, tablename, is_new, filename, sheetname, hdr_rows)
         except ErrInfo:
             raise
-        except Exception:
+        except Exception as e:
             raise ErrInfo(
                 "exception",
                 exception_msg=exception_desc(),
                 other_msg=f"Can't import data from ODS file {filename}",
-            )
+            ) from e
     _state.subvars.add_substitution("$SHEETS_IMPORTED", ",".join(impsheets))
     _state.subvars.add_substitution("$SHEETS_TABLES", ",".join(tables))
     if schemaname is None:
@@ -231,12 +231,12 @@ def x_import_xls(**kwargs: Any) -> None:
         importxls(_state.dbs.current(), schemaname, tablename, is_new, filename, sheetname, junk_hdrs, encoding)
     except ErrInfo:
         raise
-    except Exception:
+    except Exception as e:
         raise ErrInfo(
             "exception",
             exception_msg=exception_desc(),
             other_msg=f"Can't import data from Excel file {filename}",
-        )
+        ) from e
     return None
 
 
@@ -274,8 +274,8 @@ def x_import_xls_pattern(**kwargs: Any) -> None:
         raise ErrInfo(type="cmd", other_msg=f"{filename} is not a recognizable Excel spreadsheet name.")
     try:
         wbk.open(filename, encoding, read_only=True)
-    except Exception:
-        raise ErrInfo(type="cmd", other_msg=f"{filename} is not a valid Excel spreadsheet.")
+    except Exception as e:
+        raise ErrInfo(type="cmd", other_msg=f"{filename} is not a valid Excel spreadsheet.") from e
     sheets = wbk.sheetnames()
     impsheets = [s for s in sheets if rx.search(s)]
     tables = list(impsheets)
@@ -299,12 +299,12 @@ def x_import_xls_pattern(**kwargs: Any) -> None:
             )
         except ErrInfo:
             raise
-        except Exception:
+        except Exception as e:
             raise ErrInfo(
                 "exception",
                 exception_msg=exception_desc(),
                 other_msg=f"Can't import data from ODS file {filename}",
-            )
+            ) from e
     _state.subvars.add_substitution("$SHEETS_IMPORTED", ",".join(impsheets))
     _state.subvars.add_substitution("$SHEETS_TABLES", ",".join(tables))
     if schemaname is None:
@@ -345,12 +345,12 @@ def x_import_parquet(**kwargs: Any) -> None:
         import_parquet(_state.dbs.current(), schemaname, tablename, filename, is_new)
     except ErrInfo:
         raise
-    except Exception:
+    except Exception as e:
         raise ErrInfo(
             "exception",
             exception_msg=exception_desc(),
             other_msg=f"Can't import data from Parquet data file {filename}",
-        )
+        ) from e
     return None
 
 
@@ -379,12 +379,12 @@ def x_import_feather(**kwargs: Any) -> None:
         import_feather(_state.dbs.current(), schemaname, tablename, filename, is_new)
     except ErrInfo:
         raise
-    except Exception:
+    except Exception as e:
         raise ErrInfo(
             "exception",
             exception_msg=exception_desc(),
             other_msg=f"Can't import data from Feather data file {filename}",
-        )
+        ) from e
     return None
 
 

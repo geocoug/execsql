@@ -49,8 +49,8 @@ def make_export_dirs(outfile: str) -> None:
             except OSError as e:
                 if e.errno != errno.EEXIST:
                     raise ErrInfo("exception", exception_msg=emsg) from e
-            except Exception:
-                raise ErrInfo("exception", exception_msg=emsg)
+            except Exception as e:
+                raise ErrInfo("exception", exception_msg=emsg) from e
 
 
 def check_dir(filename: str) -> None:

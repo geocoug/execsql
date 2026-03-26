@@ -17,12 +17,12 @@ from execsql.utils.fileio import filewriter_close
 def write_query_to_parquet(outfile: str, headers: list[str], rows: Any) -> None:
     try:
         import polars as pl
-    except ImportError:
+    except ImportError as e:
         raise ErrInfo(
             "exception",
             exception_msg=exception_desc(),
             other_msg="The polars Python package must be installed to export data to the parquet format.",
-        )
+        ) from e
     rows_list = list(rows)
     if rows_list:
         df = pl.DataFrame(rows_list, schema=headers, orient="row")

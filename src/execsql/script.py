@@ -993,8 +993,8 @@ def runscripts() -> None:
             raise
         except ErrInfo:
             raise
-        except Exception:
-            raise ErrInfo(type="exception", exception_msg=exception_desc())
+        except Exception as e:
+            raise ErrInfo(type="exception", exception_msg=exception_desc()) from e
         _state.cmds_run += 1
 
 
