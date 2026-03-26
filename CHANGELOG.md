@@ -11,6 +11,11 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Fixed
+
+- Skip `TimerHandler` alarm tests on Windows where `signal.setitimer` is unavailable.
+- Fix `UnicodeDecodeError` in CLI subprocess tests on Windows by specifying UTF-8 encoding.
+
 ______________________________________________________________________
 
 ## [2.2.0] - 2026-03-26
