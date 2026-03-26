@@ -13,16 +13,14 @@ ______________________________________________________________________
 
 ______________________________________________________________________
 
-## [2.3.0] - 2026-03-26
-
-______________________________________________________________________
-
 ## [2.2.0] - 2026-03-26
 
 ### Added
 
 - `py.typed` marker for PEP 561 downstream type checking.
-- 21 new tests (2,062 → 2,083): SQLite integration tests for JSON/HTML/LaTeX/TSV exports, DDL operations (views, indexes, drop/recreate), WRITE-to-file, CONFIG metacommand, error handling, and inline commands; end-to-end CLI tests for `-c`, `--dsn sqlite://`, `-a` substitution, `--dry-run`, `--dump-keywords`, and `--version`.
+- 252 new tests (2,062 → 2,314) covering metacommands (`data`, `system`, `io_fileops`, `io_write`), utils (`auth`, `errors`, `fileio`, `timer`), and SQLite integration tests for JSON/HTML/LaTeX/TSV exports, DDL operations, WRITE-to-file, CONFIG metacommand, error handling, and inline commands; end-to-end CLI tests for `-c`, `--dsn sqlite://`, `-a` substitution, `--dry-run`, `--dump-keywords`, and `--version`. Coverage floor raised from 70% to 75%.
+- `ods` optional-dependency extra in `pyproject.toml` (`pip install execsql2[ods]`).
+- Keyring credential storage documentation in usage notes.
 - `--progress` CLI flag and `CONFIG SHOW_PROGRESS` metacommand to display a rich progress bar during long-running IMPORT operations. Also configurable via `show_progress` in `execsql.conf`. (FEAT-5)
 - Opt-in SQL query audit logging via `log_sql` config option and `CONFIG LOG_SQL` metacommand. When enabled, all executed SQL statements are written to the log file with a `sql` record type, database name, line number, and query text. (FEAT-6)
 - `--dump-keywords` CLI option: outputs all metacommand keywords, conditional functions, config options, export formats, database types, and variable patterns as structured JSON. Enables tooling (e.g., editor grammar generators) to consume keyword data directly from the dispatch table.
@@ -41,6 +39,14 @@ ______________________________________________________________________
 - Split `metacommands/io.py` (1304 lines) into `io_export.py`, `io_import.py`, `io_write.py`, and `io_fileops.py` with `io.py` as a re-export façade. All existing import paths preserved. (REFAC-4)
 
 ### Fixed
+
+- `of` module typo throughout `exporters/ods.py`: all imports and references used `of` (e.g., `import of as of`, `of.table.Table`) instead of `of` (e.g., `import of as of`, `of.table.Table`). ODS export/import was completely broken when `odfpy` was installed. Same typo fixed in `tests/exporters/test_ods.py` and `tests/importers/test_ods_importer.py`.
+
+- Unclosed `ScriptFile` in `script.py`: `read_sqlfile()` iterated through the file but never closed it, leaking a file handle on every script load.
+
+- Unclosed CSV file handle in `exporters/delimited.py`: `evaluate_line_format()` opened a file for delimiter diagnosis but never closed it. `reader()` generator also leaked the file handle if not fully consumed or if an exception occurred mid-iteration. Both now use `try/finally`.
+
+- Unclosed `sqlite3.Connection` in test assertions: `with sqlite3.connect(...)` only commits/rolls back but does not close the connection. Fixed in `tests/exporters/test_sqlite_exporter.py` and `tests/metacommands/test_metacommands.py`.
 
 - File handle leaks in exporters: wrapped write operations in `try/finally` blocks to guarantee file handles are closed on error in `exporters/raw.py`, `exporters/xml.py`, `exporters/json.py`, `exporters/templates.py`, `exporters/values.py`, `exporters/pretty.py`, `exporters/html.py`, `exporters/latex.py`, `metacommands/debug.py`, `metacommands/control.py`, and `metacommands/prompt.py`. Previously, an exception during export could leak open file handles.
 
