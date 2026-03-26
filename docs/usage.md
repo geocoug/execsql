@@ -256,6 +256,47 @@ In a multi-user environment, where more than one person may run a script, and ea
 - One copy of *execsql.conf* should be in the directory that contains the script, or in the directory from which it is run, and should contain all of the connection settings except [username].
 - A second copy of *execsql.conf* should be in the user-specific configuration directory (e.g., ~/.config on Linux), and should contain the [username] configuration setting.
 
+## Password Storage and the OS Keyring
+
+When *execsql* is installed with the `auth` extra (`pip install execsql2[auth]`), it integrates with your operating system's credential store via the [keyring](https://pypi.org/project/keyring/) Python package. This means that **you will typically only be prompted for a database password once** per database connection. After that, *execsql* retrieves the stored password automatically, which may be surprising if you expect a prompt on every run.
+
+### How It Works
+
+1. When *execsql* needs a password, it first checks the OS credential store for a matching entry.
+1. If a stored password is found, it is used immediately --- you will not see a password prompt.
+1. If no stored password is found, *execsql* prompts you interactively. After a successful connection, the password is automatically saved to the credential store for future use.
+
+Passwords are stored in whatever credential backend your OS provides:
+
+- **macOS**: Keychain Access (viewable in the Keychain Access app under the service name `execsql/...`)
+- **Windows**: Windows Credential Manager (viewable in Control Panel > Credential Manager)
+- **Linux**: SecretService-compatible store (e.g., GNOME Keyring or KWallet)
+
+Stored credentials use the service name pattern `execsql/<db_type>/<server>/<database>` and are keyed to your database username.
+
+### When a Password Changes
+
+If your database password changes, the stored credential will be stale. *execsql* handles this automatically: if a connection fails using a keyring-stored password, it clears the bad entry and re-prompts you for the new password. The new password is then stored in the keyring.
+
+### Disabling Keyring Integration
+
+If you prefer to be prompted for your password every time, you can disable keyring integration by setting `use_keyring` to "No" in your [configuration file](configuration.md#configuration):
+
+```ini
+[connect]
+use_keyring=No
+```
+
+Alternatively, if the `keyring` package is simply not installed (i.e., you installed with `pip install execsql2` without the `[auth]` extra), keyring integration is inactive and *execsql* will always prompt for a password.
+
+### Removing a Stored Password
+
+To remove a stored password from your OS credential store, use your platform's native credential management tool:
+
+- **macOS**: Open Keychain Access, search for "execsql", and delete the entry.
+- **Windows**: Open Credential Manager (Control Panel > Credential Manager), find the entry under "Generic Credentials", and remove it.
+- **Linux**: Use your keyring manager (e.g., Seahorse for GNOME Keyring) to find and delete the entry.
+
 ## Connecting to SQL Server Using Windows Authentication With a Default Username Configured
 
 If you ordinarily use a DBMS for which a username must be provided, it is convenient to specify your username in an *execsql* configuration file, for example, in your \<home>/.config directory. However, if you need to connect to an instance of SQL Server (or SQL Express) that uses Windows authentication, you must *not* specify a username when connecting. One convenient way to do this is to create a custom *execsql.conf* file in the directory containing the scripts to be run against the SQL Server instance, and to explicitly un-set your username in this configuration file. The \[[connect]\] section of the configuration file would look like this:
