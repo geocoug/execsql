@@ -80,8 +80,11 @@ def _flush_filewriter() -> None:
 
 def qdb(db_path: Path, sql: str) -> list[tuple[Any, ...]]:
     """Execute *sql* against the test SQLite database and return all rows."""
-    with sqlite3.connect(db_path) as conn:
+    conn = sqlite3.connect(db_path)
+    try:
         return conn.execute(sql).fetchall()
+    finally:
+        conn.close()
 
 
 def table_exists(db_path: Path, table: str) -> bool:

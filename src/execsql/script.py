@@ -1168,7 +1168,10 @@ def read_sqlfile(sql_file_name: str) -> None:
     sz, dt = file_size_date(sql_file_name)
     _state.exec_log.log_status_info(f"Reading script file {sql_file_name} (size: {sz}; date: {dt})")
     scriptfile_obj = ScriptFile(sql_file_name, _state.conf.script_encoding)
-    sqllist = _parse_script_lines(scriptfile_obj, sql_file_name)
+    try:
+        sqllist = _parse_script_lines(scriptfile_obj, sql_file_name)
+    finally:
+        scriptfile_obj.close()
     if sqllist:
         _state.commandliststack.append(CommandList(sqllist, Path(sql_file_name).name))
 

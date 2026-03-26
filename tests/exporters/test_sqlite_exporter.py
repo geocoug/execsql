@@ -56,22 +56,31 @@ class TestExportSqlite:
     def test_table_contains_rows(self, tmp_path):
         out = str(tmp_path / "out.db")
         export_sqlite(out, ["id", "name"], [(1, "Alice"), (2, "Bob")], append=False, tablename="t")
-        with sqlite3.connect(out) as con:
+        con = sqlite3.connect(out)
+        try:
             rows = con.execute("SELECT id, name FROM t ORDER BY id").fetchall()
+        finally:
+            con.close()
         assert rows == [(1, "Alice"), (2, "Bob")]
 
     def test_table_headers(self, tmp_path):
         out = str(tmp_path / "out.db")
         export_sqlite(out, ["alpha", "beta"], [(10, 20)], append=False, tablename="hdr_tbl")
-        with sqlite3.connect(out) as con:
+        con = sqlite3.connect(out)
+        try:
             cols = [d[0] for d in con.execute("SELECT * FROM hdr_tbl").description]
+        finally:
+            con.close()
         assert cols == ["alpha", "beta"]
 
     def test_empty_rows(self, tmp_path):
         out = str(tmp_path / "out.db")
         export_sqlite(out, ["id"], [], append=False, tablename="empty_t")
-        with sqlite3.connect(out) as con:
+        con = sqlite3.connect(out)
+        try:
             rows = con.execute("SELECT id FROM empty_t").fetchall()
+        finally:
+            con.close()
         assert rows == []
 
     def test_overwrite_existing_table(self, tmp_path):
@@ -79,8 +88,11 @@ class TestExportSqlite:
         export_sqlite(out, ["val"], [(1,)], append=False, tablename="t")
         # Second call with append=False should drop and recreate the table
         export_sqlite(out, ["val"], [(99,)], append=False, tablename="t")
-        with sqlite3.connect(out) as con:
+        con = sqlite3.connect(out)
+        try:
             rows = con.execute("SELECT val FROM t").fetchall()
+        finally:
+            con.close()
         assert rows == [(99,)]
 
     def test_append_to_existing_table_raises(self, tmp_path):
@@ -95,15 +107,21 @@ class TestExportSqlite:
         out = str(tmp_path / "large.db")
         rows = [(i, f"name_{i}") for i in range(12_000)]
         export_sqlite(out, ["id", "name"], rows, append=False, tablename="big")
-        with sqlite3.connect(out) as con:
+        con = sqlite3.connect(out)
+        try:
             count = con.execute("SELECT count(*) FROM big").fetchone()[0]
+        finally:
+            con.close()
         assert count == 12_000
 
     def test_none_values(self, tmp_path):
         out = str(tmp_path / "out.db")
         export_sqlite(out, ["id", "val"], [(1, None)], append=False, tablename="t")
-        with sqlite3.connect(out) as con:
+        con = sqlite3.connect(out)
+        try:
             rows = con.execute("SELECT val FROM t").fetchall()
+        finally:
+            con.close()
         assert rows == [(None,)]
 
 
@@ -117,8 +135,11 @@ class TestWriteQueryToSqlite:
         out = str(tmp_path / "out.db")
         db = FakeDB(["x", "y"], [(1, "a"), (2, "b")])
         write_query_to_sqlite("SELECT x, y FROM t", db, out, append=False, tablename="res")
-        with sqlite3.connect(out) as con:
+        con = sqlite3.connect(out)
+        try:
             rows = con.execute("SELECT x, y FROM res ORDER BY x").fetchall()
+        finally:
+            con.close()
         assert rows == [(1, "a"), (2, "b")]
 
     def test_driver_error_raises_errinfo(self, tmp_path):

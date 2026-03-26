@@ -415,7 +415,11 @@ class CsvFile(EncodedFile):
     def evaluate_line_format(self) -> None:
         # Scans the file to determine the delimiter, quote character, and escapechar.
         if not self.lineformat_set:
-            self.delimiter, self.quotechar, self.escapechar = self.diagnose_delim(self.openclean("rt"))
+            f = self.openclean("rt")
+            try:
+                self.delimiter, self.quotechar, self.escapechar = self.diagnose_delim(f)
+            finally:
+                f.close()
             self.lineformat_set = True
 
     def _record_format_error(self, pos_no: int, errmsg: str) -> None:
@@ -571,24 +575,26 @@ class CsvFile(EncodedFile):
         self.evaluate_line_format()
         f = self.openclean("rt")
         line_no = 0
-        while True:
-            line_no += 1
-            try:
-                elements = self.read_and_parse_line(f)
-            except ErrInfo as e:
-                raise ErrInfo("error", other_msg=f"{e.other} on line {line_no}.") from e
-            except:
-                raise
-            if len(elements) > 0:
-                if conf.del_empty_cols and len(self.blank_cols) > 0:
-                    blanks = copy.copy(self.blank_cols)
-                    while len(blanks) > 0:
-                        b = blanks.pop()
-                        del elements[b]
-                yield elements
-            else:
-                break
-        f.close()
+        try:
+            while True:
+                line_no += 1
+                try:
+                    elements = self.read_and_parse_line(f)
+                except ErrInfo as e:
+                    raise ErrInfo("error", other_msg=f"{e.other} on line {line_no}.") from e
+                except:
+                    raise
+                if len(elements) > 0:
+                    if conf.del_empty_cols and len(self.blank_cols) > 0:
+                        blanks = copy.copy(self.blank_cols)
+                        while len(blanks) > 0:
+                            b = blanks.pop()
+                            del elements[b]
+                    yield elements
+                else:
+                    break
+        finally:
+            f.close()
 
     def writer(self, append: bool = False) -> CsvWriter:
         return CsvWriter(self.filename, self.encoding, self.delimiter, self.quotechar, self.escapechar, append)
