@@ -412,29 +412,45 @@ class SubVarSet:
             return newsubs
         return self
 
+    # Combined regex matching any variable token in one pass.
+    # Group 1: quote marker — empty for plain !!var!!, ' for !'!var!'!, " for !"!var!"!
+    # Group 2: variable name (with optional prefix character)
+    _TOKEN_RX = re.compile(
+        r"!(?P<q>['\"]?)!(?P<varname>[$&@~#]?\w+)!(?P=q)!",
+        re.I,
+    )
+
     def substitute(self, command_str: str) -> tuple:
         """Replace the first matching variable token in *command_str*.
+
+        Uses a single combined regex to find any ``!!var!!``, ``!'!var!'!``, or
+        ``!"!var!"!`` token in one pass, then looks up the variable name in the
+        dict.  This is O(1) per call instead of O(V) where V is the number of
+        defined variables.
 
         Returns ``(modified_string, True)`` if a substitution was made, or
         ``(original_string, False)`` if no variable pattern matched.
         """
-        # Replace any substitution variables in the command string.
-        if isinstance(command_str, str):
-            for varname, sub in self._subs_dict.items():
+        if not isinstance(command_str, str):
+            return command_str, False
+        m = self._TOKEN_RX.search(command_str)
+        while m:
+            varname = m.group("varname").lower()
+            if varname in self._subs_dict:
+                sub = self._subs_dict[varname]
                 if sub is None:
                     sub = ""
                 sub = str(sub)
                 if os.name != "posix":
                     sub = sub.replace("\\", "\\\\")
-                pat_rx, patq_rx, patdq_rx = self._compiled_patterns[varname]
-                if pat_rx.search(command_str):
-                    return pat_rx.sub(sub, command_str), True
-                if patq_rx.search(command_str):
+                quote = m.group("q")
+                if quote == "'":
                     sub = sub.replace("'", "''")
-                    return patq_rx.sub(sub, command_str), True
-                if patdq_rx.search(command_str):
+                elif quote == '"':
                     sub = '"' + sub + '"'
-                    return patdq_rx.sub(sub, command_str), True
+                return command_str[: m.start()] + sub + command_str[m.end() :], True
+            # Token found but variable not defined — skip it and keep searching.
+            m = self._TOKEN_RX.search(command_str, m.end())
         return command_str, False
 
     def substitute_all(self, any_text: str) -> tuple:

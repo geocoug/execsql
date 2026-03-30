@@ -16,6 +16,7 @@ ______________________________________________________________________
 - `Database` is now an abstract base class (ABC) with `open_db()` and `exec_cmd()` as `@abstractmethod`. Subclasses that omit either method will raise `TypeError` at instantiation time instead of `DatabaseNotImplementedError` at call time.
 - Cursor lifecycle management in `Database` — `execute()`, `select_data()`, `schema_exists()`, `table_exists()`, `column_exists()`, `table_columns()`, `view_exists()`, and `import_entire_file()` now use a context manager that guarantees cursor cleanup on exit.
 - Metacommand dispatch uses keyword-indexed lookup, reducing per-command dispatch from O(205) regex scans to O(K) where K is the number of patterns sharing the same leading keyword (typically 1–5).
+- Variable substitution uses a single combined regex to find tokens in one pass, then does a dict lookup for the value — reducing `substitute()` from O(V) to O(1) per call, where V is the number of defined variables.
 - Converted `templates/READ_ME.rst` to `templates/README.md` (Markdown format).
 
 ### Added

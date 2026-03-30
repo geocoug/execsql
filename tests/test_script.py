@@ -535,6 +535,192 @@ class TestSubVarSet:
         assert result == ""
 
 
+class TestSubVarSetTokenOptimization:
+    """Tests for the combined-regex substitution optimization.
+
+    Verifies that the single-pass _TOKEN_RX approach matches the same behavior
+    as the old per-variable iteration, including edge cases.
+    """
+
+    def test_plain_substitution(self):
+        sv = SubVarSet()
+        sv.add_substitution("$name", "world")
+        result, changed = sv.substitute("hello !!$name!!")
+        assert changed is True
+        assert result == "hello world"
+
+    def test_single_quoted_doubles_apostrophes(self):
+        sv = SubVarSet()
+        sv.add_substitution("$val", "it's a test")
+        result, changed = sv.substitute("WHERE name = !'!$val!'!")
+        assert changed is True
+        assert "it''s a test" in result
+
+    def test_double_quoted_wraps_in_quotes(self):
+        sv = SubVarSet()
+        sv.add_substitution("$val", "hello world")
+        result, changed = sv.substitute('SELECT !"!$val!"!')
+        assert changed is True
+        assert '"hello world"' in result
+
+    def test_undefined_variable_not_replaced(self):
+        sv = SubVarSet()
+        sv.add_substitution("$defined", "yes")
+        result, changed = sv.substitute("!!$undefined!! stays")
+        assert changed is False
+        assert result == "!!$undefined!! stays"
+
+    def test_skips_undefined_finds_defined(self):
+        """If the first token is undefined but a later one is defined, still substitutes."""
+        sv = SubVarSet()
+        sv.add_substitution("$b", "found")
+        result, changed = sv.substitute("!!$a!! then !!$b!!")
+        assert changed is True
+        assert "found" in result
+        assert "!!$a!!" in result
+
+    def test_case_insensitive_token_match(self):
+        sv = SubVarSet()
+        sv.add_substitution("$myvar", "val")
+        result, changed = sv.substitute("!!$MYVAR!!")
+        assert changed is True
+        assert result == "val"
+
+    def test_ampersand_prefix(self):
+        sv = SubVarSet()
+        sv.add_substitution("&env_var", "production")
+        result, changed = sv.substitute("!!&env_var!!")
+        assert changed is True
+        assert result == "production"
+
+    def test_at_prefix_counter_style(self):
+        sv = SubVarSet()
+        sv.add_substitution("@count", "42")
+        result, changed = sv.substitute("!!@count!!")
+        assert changed is True
+        assert result == "42"
+
+    def test_no_prefix_variable(self):
+        sv = SubVarSet()
+        sv.add_substitution("myvar", "value")
+        result, changed = sv.substitute("!!myvar!!")
+        assert changed is True
+        assert result == "value"
+
+    def test_multiple_vars_substitute_all(self):
+        sv = SubVarSet()
+        sv.add_substitution("$a", "foo")
+        sv.add_substitution("$b", "bar")
+        sv.add_substitution("$c", "baz")
+        result, changed = sv.substitute_all("!!$a!! !!$b!! !!$c!!")
+        assert changed is True
+        assert result == "foo bar baz"
+
+    def test_substitute_all_with_many_variables(self):
+        """Stress test: 100 variables, only 3 used in the string."""
+        sv = SubVarSet()
+        for i in range(100):
+            sv.add_substitution(f"$var{i}", f"val{i}")
+        result, changed = sv.substitute_all("!!$var0!! !!$var50!! !!$var99!!")
+        assert changed is True
+        assert result == "val0 val50 val99"
+
+    def test_none_value_becomes_empty(self):
+        sv = SubVarSet()
+        sv.add_substitution("$x", None)
+        result, changed = sv.substitute("before !!$x!! after")
+        assert changed is True
+        assert result == "before  after"
+
+    def test_numeric_value_converted_to_string(self):
+        sv = SubVarSet()
+        sv.add_substitution("$n", 42)
+        result, changed = sv.substitute("count is !!$n!!")
+        assert changed is True
+        assert result == "count is 42"
+
+    def test_empty_string_value(self):
+        sv = SubVarSet()
+        sv.add_substitution("$x", "")
+        result, changed = sv.substitute("!!$x!!")
+        assert changed is True
+        assert result == ""
+
+    def test_value_containing_exclamation_marks(self):
+        sv = SubVarSet()
+        sv.add_substitution("$x", "wow!!")
+        result, changed = sv.substitute("say !!$x!!")
+        assert changed is True
+        assert result == "say wow!!"
+
+    def test_adjacent_tokens(self):
+        sv = SubVarSet()
+        sv.add_substitution("$a", "hello")
+        sv.add_substitution("$b", "world")
+        result, changed = sv.substitute_all("!!$a!!!!$b!!")
+        assert changed is True
+        assert result == "helloworld"
+
+    def test_nested_variable_reference_in_value(self):
+        """Variable value contains another variable token — substitute_all expands recursively."""
+        sv = SubVarSet()
+        sv.add_substitution("$inner", "resolved")
+        sv.add_substitution("$outer", "!!$inner!!")
+        result, changed = sv.substitute_all("!!$outer!!")
+        assert changed is True
+        assert result == "resolved"
+
+    def test_non_string_input_returns_unchanged(self):
+        sv = SubVarSet()
+        sv.add_substitution("$x", "val")
+        result, changed = sv.substitute(123)
+        assert changed is False
+        assert result == 123
+
+    def test_no_vars_defined_no_match(self):
+        sv = SubVarSet()
+        result, changed = sv.substitute("!!$whatever!!")
+        assert changed is False
+
+    def test_single_quoted_no_apostrophes(self):
+        """Single-quoted form with a value that has no apostrophes — no doubling needed."""
+        sv = SubVarSet()
+        sv.add_substitution("$v", "clean")
+        result, changed = sv.substitute("!'!$v!'!")
+        assert changed is True
+        assert result == "clean"
+
+    def test_double_quoted_empty_value(self):
+        sv = SubVarSet()
+        sv.add_substitution("$v", "")
+        result, changed = sv.substitute('!"!$v!"!')
+        assert changed is True
+        assert result == '""'
+
+    def test_substitute_only_replaces_first_occurrence(self):
+        """A single substitute() call replaces only the first token."""
+        sv = SubVarSet()
+        sv.add_substitution("$x", "val")
+        result, changed = sv.substitute("!!$x!! and !!$x!!")
+        assert changed is True
+        assert result == "val and !!$x!!"
+
+    def test_substitute_all_replaces_all_occurrences(self):
+        sv = SubVarSet()
+        sv.add_substitution("$x", "val")
+        result, changed = sv.substitute_all("!!$x!! and !!$x!!")
+        assert changed is True
+        assert result == "val and val"
+
+    def test_mixed_quote_styles_in_one_string(self):
+        sv = SubVarSet()
+        sv.add_substitution("$v", "it's")
+        result, changed = sv.substitute_all("plain=!!$v!! quoted=!'!$v!'!")
+        assert changed is True
+        assert "plain=it's" in result
+        assert "quoted=it''s" in result
+
+
 # ---------------------------------------------------------------------------
 # LocalSubVarSet
 # ---------------------------------------------------------------------------
