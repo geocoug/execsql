@@ -11,7 +11,7 @@ from __future__ import annotations
 import pytest
 
 try:
-    import of.opendocument  # noqa: F401
+    import odf.opendocument  # noqa: F401
 
     _ods_available = True
 except ImportError:

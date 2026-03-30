@@ -22,8 +22,12 @@ ______________________________________________________________________
 ### Added
 
 - Python 3.14 support — added to CI matrix, tox environments, and PyPI classifiers.
-
+- `formats` extra included in `dev` dependencies so ODS/Excel/Jinja2 tests run without manual installation.
 - Roadmap items in `templates/README.md` for integrating execsql-compare and execsql-upsert documentation into the main docs site.
+
+### Fixed
+
+- Fix odfpy import — `import of` corrected to `import odf as of` in `exporters/ods.py` and test skip guards. ODS export was broken since the modular refactor.
 
 ______________________________________________________________________
 

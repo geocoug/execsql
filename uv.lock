@@ -699,13 +699,20 @@ auth = [
 dev = [
     { name = "build" },
     { name = "bump-my-version" },
+    { name = "jinja2" },
     { name = "markdown-include" },
     { name = "mkdocstrings-python" },
+    { name = "odfpy" },
+    { name = "openpyxl" },
+    { name = "polars" },
     { name = "pre-commit" },
     { name = "pytest-cov" },
     { name = "ruff" },
+    { name = "tables", version = "3.10.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "tables", version = "3.11.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "tox-uv" },
     { name = "twine" },
+    { name = "xlrd" },
     { name = "zensical" },
 ]
 duckdb = [
@@ -749,6 +756,7 @@ requires-dist = [
     { name = "execsql2", extras = ["all-db"], marker = "extra == 'all'" },
     { name = "execsql2", extras = ["auth"], marker = "extra == 'all'" },
     { name = "execsql2", extras = ["formats"], marker = "extra == 'all'" },
+    { name = "execsql2", extras = ["formats"], marker = "extra == 'dev'" },
     { name = "firebird-driver", marker = "extra == 'all-db'" },
     { name = "firebird-driver", marker = "extra == 'firebird'" },
     { name = "jinja2", marker = "extra == 'formats'" },

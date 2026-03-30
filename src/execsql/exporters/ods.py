@@ -36,12 +36,12 @@ class OdsFile:
         """Import odfpy and initialise the workbook state."""
         global of
         try:
-            import of as of
-            import of.opendocument
-            import of.table
-            import of.text
-            import of.number
-            import of.style
+            import odf as of  # noqa: F401 — submodule imports below register on the `of` alias
+            import odf.opendocument  # noqa: F401
+            import odf.table  # noqa: F401
+            import odf.text  # noqa: F401
+            import odf.number  # noqa: F401
+            import odf.style  # noqa: F401
         except ImportError:
             fatal_error("The odfpy library is needed to create OpenDocument spreadsheets.")
         self.filename = None

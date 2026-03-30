@@ -75,6 +75,7 @@ all = [
 dev = [
     "build>=1.2.2.post1",
     "bump-my-version>=1.2.7",
+    "execsql2[formats]",
     "markdown-include>=0.8",
     "mkdocstrings-python>=2.0.3",
     "pre-commit>=3.5.0",
@@ -100,7 +101,7 @@ packages = ["src/execsql"]
 "templates" = "execsql2_extras"
 
 [tool.ruff]
-target-version = "py314"
+target-version = "py310"  # must match requires-python minimum, not newest supported
 line-length = 120
 
 [tool.ruff.lint]
@@ -221,6 +222,8 @@ ot = "ot"
 hel = "hel"
 # Legacy variable name (self.fo) in EncodedFile — from upstream monolith
 fo = "fo"
+# odfpy package imports as 'odf', not 'of'
+odf = "odf"
 
 [tool.tox]
 required = ["tox-uv"]
