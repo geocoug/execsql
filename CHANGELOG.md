@@ -29,11 +29,16 @@ ______________________________________________________________________
 
 - Python 3.14 support — added to CI matrix, tox environments, and PyPI classifiers.
 - `formats` extra included in `dev` dependencies so ODS/Excel/Jinja2 tests run without manual installation.
+- PostgreSQL integration tests (9 tests) — full lifecycle via `--dsn` connection strings.
+- MySQL/MariaDB integration tests (9 tests, 1 xfail for pre-existing import adapter bug).
+- `docker-compose.yml` for local PostgreSQL and MySQL test databases.
+- CI integration test job with GitHub Actions services (PostgreSQL 16, MySQL 8).
 - Roadmap items in `templates/README.md` for integrating execsql-compare and execsql-upsert documentation into the main docs site.
 
 ### Fixed
 
 - Fix odfpy import — `import of` corrected to `import odf as of` in `exporters/ods.py` and test skip guards. ODS export was broken since the modular refactor.
+- Pass `--dsn` password through to all database backends (MySQL, SQL Server, Oracle, Firebird, DSN). Previously only PostgreSQL received the password from connection strings.
 
 ______________________________________________________________________
 

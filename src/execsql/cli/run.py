@@ -538,6 +538,7 @@ def _connect_initial_db(conf: ConfigData):
             pw_needed=conf.passwd_prompt,
             port=conf.port,
             encoding=conf.db_encoding,
+            password=getattr(conf, "db_password", None),
         )
     elif conf.db_type == "l":
         if conf.db_file is None:
@@ -553,6 +554,7 @@ def _connect_initial_db(conf: ConfigData):
             pw_needed=conf.passwd_prompt,
             port=conf.port,
             encoding=conf.db_encoding,
+            password=getattr(conf, "db_password", None),
         )
     elif conf.db_type == "k":
         if conf.db_file is None:
@@ -568,6 +570,7 @@ def _connect_initial_db(conf: ConfigData):
             pw_needed=conf.passwd_prompt,
             port=conf.port,
             encoding=conf.db_encoding,
+            password=getattr(conf, "db_password", None),
         )
     elif conf.db_type == "f":
         return db_Firebird(
@@ -577,6 +580,7 @@ def _connect_initial_db(conf: ConfigData):
             pw_needed=conf.passwd_prompt,
             port=conf.port,
             encoding=conf.db_encoding,
+            password=getattr(conf, "db_password", None),
         )
     elif conf.db_type == "d":
         return db_Dsn(
@@ -584,6 +588,7 @@ def _connect_initial_db(conf: ConfigData):
             user=conf.username,
             pw_needed=conf.passwd_prompt,
             encoding=conf.db_encoding,
+            password=getattr(conf, "db_password", None),
         )
     else:
         from execsql.utils.errors import fatal_error

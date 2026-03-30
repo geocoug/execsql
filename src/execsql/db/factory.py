@@ -93,9 +93,10 @@ def db_SqlServer(
     pw_needed: bool = True,
     port: int | None = None,
     encoding: str | None = None,
+    password: str | None = None,
 ) -> SqlServerDatabase:
     """Open a Microsoft SQL Server connection via pyodbc."""
-    return SqlServerDatabase(server_name, database_name, user, pw_needed, port, encoding)
+    return SqlServerDatabase(server_name, database_name, user, pw_needed, port, encoding, password=password)
 
 
 def db_MySQL(
@@ -105,9 +106,10 @@ def db_MySQL(
     pw_needed: bool = True,
     port: int | None = None,
     encoding: str | None = None,
+    password: str | None = None,
 ) -> MySQLDatabase:
     """Open a MySQL or MariaDB connection via pymysql."""
-    return MySQLDatabase(server_name, database_name, user, pw_needed, port, encoding)
+    return MySQLDatabase(server_name, database_name, user, pw_needed, port, encoding, password=password)
 
 
 def db_DuckDB(
@@ -136,9 +138,10 @@ def db_Oracle(
     pw_needed: bool = True,
     port: int | None = None,
     encoding: str | None = None,
+    password: str | None = None,
 ) -> OracleDatabase:
     """Open an Oracle database connection via cx_Oracle (python-oracledb)."""
-    return OracleDatabase(server_name, database_name, user, pw_needed, port, encoding)
+    return OracleDatabase(server_name, database_name, user, pw_needed, port, encoding, password=password)
 
 
 def db_Firebird(
@@ -148,9 +151,10 @@ def db_Firebird(
     pw_needed: bool = True,
     port: int | None = None,
     encoding: str | None = None,
+    password: str | None = None,
 ) -> FirebirdDatabase:
     """Open a Firebird database connection via the firebird-driver package."""
-    return FirebirdDatabase(server_name, database_name, user, pw_needed, port, encoding)
+    return FirebirdDatabase(server_name, database_name, user, pw_needed, port, encoding, password=password)
 
 
 def db_Dsn(
@@ -158,6 +162,7 @@ def db_Dsn(
     user: str | None = None,
     pw_needed: bool = True,
     encoding: str | None = None,
+    password: str | None = None,
 ) -> DsnDatabase:
     """Open a connection to any ODBC data source registered under *dsn_name*."""
-    return DsnDatabase(dsn_name=dsn_name, user_name=user, need_passwd=pw_needed, encoding=encoding)
+    return DsnDatabase(dsn_name=dsn_name, user_name=user, need_passwd=pw_needed, encoding=encoding, password=password)
