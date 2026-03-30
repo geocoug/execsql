@@ -18,6 +18,18 @@ import execsql.state as _state
 
 __all__ = ["MySQLDatabase"]
 
+# Map Python encoding names to MySQL CHARACTER SET names for LOAD DATA INFILE.
+_PYTHON_TO_MYSQL_CHARSET: dict[str, str] = {
+    "utf-8": "utf8mb4",
+    "utf8": "utf8mb4",
+    "latin-1": "latin1",
+    "iso-8859-1": "latin1",
+    "iso8859-1": "latin1",
+    "ascii": "ascii",
+    "cp1252": "cp1252",
+    "windows-1252": "cp1252",
+}
+
 
 class MySQLDatabase(Database):
     """MySQL and MariaDB adapter using the pymysql package."""
@@ -190,7 +202,8 @@ class MySQLDatabase(Database):
         ):
             import_sql = f"load data local infile '{csv_file_obj.csvfname}' into table {sq_name}"
             if csv_file_obj.encoding:
-                import_sql = f"{import_sql} character set {csv_file_obj.encoding}"
+                charset = _PYTHON_TO_MYSQL_CHARSET.get(csv_file_obj.encoding.lower(), csv_file_obj.encoding)
+                import_sql = f"{import_sql} character set {charset}"
             if csv_file_obj.delimiter or csv_file_obj.quotechar:
                 import_sql = import_sql + " columns"
                 if csv_file_obj.delimiter:

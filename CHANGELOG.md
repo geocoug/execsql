@@ -40,6 +40,7 @@ ______________________________________________________________________
 - Fix odfpy import — `import of` corrected to `import odf as of` in `exporters/ods.py` and test skip guards. ODS export was broken since the modular refactor.
 - Pass `--dsn` password through to all database backends (MySQL, SQL Server, Oracle, Firebird, DSN). Previously only PostgreSQL received the password from connection strings.
 - Fix importer error reporting — `exception_info()` (returns tuple) replaced with `exception_desc()` (returns string) in 6 call sites across `importers/base.py`, `importers/csv.py`, and `importers/feather.py`. This caused `AttributeError: 'tuple' has no attribute 'replace'` on any import failure.
+- Map Python encoding names to MySQL charset names in `LOAD DATA LOCAL INFILE` (e.g., `utf-8` → `utf8mb4`). Previously caused `Unknown character set` errors on MySQL imports.
 
 ______________________________________________________________________
 
