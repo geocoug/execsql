@@ -21,6 +21,52 @@ from __future__ import annotations
 import sys
 from typing import Any
 
+__all__ = [
+    # Constants
+    "GUI_HALT",
+    "GUI_MSG",
+    "GUI_PAUSE",
+    "GUI_DISPLAY",
+    "GUI_ENTRY",
+    "GUI_COMPARE",
+    "GUI_SELECTROWS",
+    "GUI_SELECTSUB",
+    "GUI_ACTION",
+    "GUI_MAP",
+    "GUI_OPENFILE",
+    "GUI_SAVEFILE",
+    "GUI_DIRECTORY",
+    "QUERY_CONSOLE",
+    "GUI_CREDENTIALS",
+    "GUI_CONNECT",
+    # Data-carrier classes
+    "GuiSpec",
+    "ConsoleUIError",
+    "ActionSpec",
+    "EntrySpec",
+    # Console lifecycle
+    "gui_console_isrunning",
+    "enable_gui",
+    "gui_console_on",
+    "gui_console_off",
+    "gui_console_hide",
+    "gui_console_show",
+    "gui_console_progress",
+    "gui_console_save",
+    "gui_console_status",
+    "gui_console_wait_user",
+    "gui_console_width",
+    "gui_console_height",
+    # Database connection GUI
+    "gui_connect",
+    "gui_credentials",
+    # Interactive prompts
+    "get_yn",
+    "get_yn_win",
+    "pause",
+    "pause_win",
+]
+
 # ---------------------------------------------------------------------------
 # GUI command constants — used to identify request types in the GUI queue.
 # ---------------------------------------------------------------------------

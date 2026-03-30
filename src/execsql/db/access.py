@@ -20,6 +20,8 @@ from execsql.utils.errors import exception_desc, fatal_error
 from execsql.utils.auth import clear_stored_password, get_password, password_from_keyring
 import execsql.state as _state
 
+__all__ = ["AccessDatabase"]
+
 
 class AccessDatabase(Database):
     # Regex for the 'create temporary view' SQL extension
@@ -359,7 +361,7 @@ class AccessDatabase(Database):
 
         if val is None or (isinstance(val, _state.stringtypes) and len(val) == 0):
             return None
-        if isinstance(val, (datetime.date, datetime.datetime, datetime.time)):
+        if isinstance(val, datetime.date | datetime.datetime | datetime.time):
             return val
         else:
             try:

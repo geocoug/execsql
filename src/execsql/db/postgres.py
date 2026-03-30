@@ -19,6 +19,7 @@ from execsql.utils.auth import clear_stored_password, get_password, password_fro
 from execsql.utils.strings import encodings_match
 import execsql.state as _state
 
+__all__ = ["PostgresDatabase"]
 
 DEFAULT_CONNECT_TIMEOUT = 30  # seconds
 

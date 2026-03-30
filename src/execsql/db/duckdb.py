@@ -15,6 +15,8 @@ from execsql.exceptions import ErrInfo
 from execsql.utils.errors import exception_desc, fatal_error
 import execsql.state as _state
 
+__all__ = ["DuckDBDatabase"]
+
 
 class DuckDBDatabase(Database):
     def __init__(self, DuckDB_fn: str) -> None:

@@ -18,6 +18,8 @@ from execsql.types import DT_Boolean, DT_Date, DT_Timestamp, DT_TimestampTZ
 from execsql.utils.errors import exception_desc
 from execsql.utils.fileio import filewriter_close
 
+__all__ = ["write_query_to_feather", "write_query_to_hdf5"]
+
 
 def write_query_to_feather(outfile: str, headers: list[str], rows: Any) -> None:
     try:

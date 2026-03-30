@@ -24,6 +24,8 @@ from execsql.exceptions import ErrInfo
 from execsql.utils.errors import exception_desc
 import execsql.state as _state
 
+__all__ = ["Database", "DatabasePool"]
+
 
 def _default_dt_cast() -> dict[type, Callable]:
     """Build the default type-cast mapping used by all database backends."""

@@ -15,6 +15,8 @@ import zipfile
 
 import execsql.state as _state
 
+__all__ = ["WriteableZipfile", "ZipWriter"]
+
 
 class WriteableZipfile:
     def __init__(self, zipfile_name: str, append: bool = False) -> None:

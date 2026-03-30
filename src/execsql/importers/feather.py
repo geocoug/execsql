@@ -14,6 +14,8 @@ from execsql.exceptions import ErrInfo
 from execsql.db.base import Database
 from execsql.importers.base import import_data_table
 
+__all__ = ["import_feather", "import_parquet"]
+
 
 def import_feather(
     db: Database,

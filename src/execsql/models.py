@@ -40,6 +40,13 @@ from execsql.types import (
     DT_Varchar,
 )
 
+__all__ = [
+    "Column",
+    "DataTable",
+    "JsonDatatype",
+    "to_json_type",
+]
+
 
 class Column:
     # Column objects are used to compile information about the data types that a set of data

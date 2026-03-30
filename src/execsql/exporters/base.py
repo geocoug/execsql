@@ -22,6 +22,8 @@ from execsql.script import current_script_line
 from execsql.utils.errors import file_size_date
 from execsql.utils.gui import ConsoleUIError
 
+__all__ = ["WriteSpec", "ExportRecord", "ExportMetadata"]
+
 
 class ExportRecord:
     """Records the details of a single EXPORT operation for metadata tracking.

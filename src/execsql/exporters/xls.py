@@ -16,6 +16,8 @@ from typing import Any
 from execsql.exceptions import XlsFileError, XlsxFileError
 from execsql.utils.errors import fatal_error
 
+__all__ = ["XlsFile", "XlsxFile"]
+
 
 class XlsFile:
     def __repr__(self) -> str:

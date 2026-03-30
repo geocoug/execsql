@@ -16,6 +16,8 @@ from execsql.exceptions import ErrInfo
 from execsql.utils.errors import exception_desc
 from execsql.utils.fileio import filewriter_close
 
+__all__ = ["prettyprint_query", "prettyprint_rowset"]
+
 
 def prettyprint_rowset(
     colhdrs: list[str],

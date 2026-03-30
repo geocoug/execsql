@@ -14,6 +14,8 @@ from typing import Any
 from execsql.exceptions import ErrInfo
 from execsql.types import dbt_sqlite
 
+__all__ = ["export_sqlite", "write_query_to_sqlite"]
+
 
 def export_sqlite(
     outfile: str,

@@ -18,6 +18,7 @@ from execsql.exceptions import ErrInfo
 from execsql.utils.errors import exception_desc, fatal_error
 import execsql.state as _state
 
+__all__ = ["SQLiteDatabase"]
 
 DEFAULT_CONNECT_TIMEOUT = 30  # seconds
 

@@ -17,6 +17,8 @@ from execsql.exporters.ods import OdsFile
 from execsql.importers.base import import_data_table
 import execsql.state as _state
 
+__all__ = ["importods", "ods_data"]
+
 
 def ods_data(
     filename: str,

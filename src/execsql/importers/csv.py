@@ -17,6 +17,8 @@ from execsql.db.base import Database
 import execsql.state as _state
 from execsql.types import dbt_firebird
 
+__all__ = ["importfile", "importtable"]
+
 
 def importtable(
     db: Database,

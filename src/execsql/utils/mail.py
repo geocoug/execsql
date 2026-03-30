@@ -16,6 +16,8 @@ from pathlib import Path
 import execsql.state as _state
 from execsql.exceptions import ErrInfo
 
+__all__ = ["MailSpec", "Mailer"]
+
 
 class Mailer:
     def __repr__(self) -> str:

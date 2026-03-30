@@ -14,6 +14,15 @@ dispatch regexes at module load time:
 
 import os
 
+__all__ = [
+    "ins_rxs",
+    "ins_quoted_rx",
+    "ins_schema_rxs",
+    "ins_table_rxs",
+    "ins_table_list_rxs",
+    "ins_fn_rxs",
+]
+
 
 def ins_rxs(rx_list: tuple, fragment1: object, fragment2: object) -> tuple:
     # Returns a tuple of all strings consisting of elements of the 'rx_list' tuple

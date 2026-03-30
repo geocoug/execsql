@@ -16,6 +16,8 @@ from execsql.exceptions import ErrInfo
 from execsql.utils.errors import fatal_error
 from execsql.utils.fileio import filewriter_close
 
+__all__ = ["StrTemplateReport", "JinjaTemplateReport", "report_query"]
+
 
 class StrTemplateReport:
     # Exporting/reporting using Python's default string.Template, iterated over all

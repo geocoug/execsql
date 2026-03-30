@@ -17,6 +17,8 @@ from execsql.models import DataTable
 from execsql.utils.errors import exception_desc
 from execsql.utils.fileio import filewriter_close
 
+__all__ = ["write_query_to_json", "write_query_to_json_ts"]
+
 
 def write_query_to_json(
     select_stmt: str,

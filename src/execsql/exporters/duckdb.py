@@ -15,6 +15,8 @@ from typing import Any
 from execsql.exceptions import ErrInfo
 from execsql.types import dbt_duckdb
 
+__all__ = ["export_duckdb", "write_query_to_duckdb"]
+
 
 def export_duckdb(
     outfile: str,

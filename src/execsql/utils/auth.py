@@ -29,6 +29,8 @@ import getpass
 
 import execsql.state as _state
 
+__all__ = ["get_password", "clear_stored_password", "password_from_keyring"]
+
 # Tracks whether the most recent get_password() call returned a keyring-stored value.
 _last_from_keyring: bool = False
 

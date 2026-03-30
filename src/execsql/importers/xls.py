@@ -16,6 +16,8 @@ from execsql.db.base import Database
 from execsql.importers.base import import_data_table
 import execsql.state as _state
 
+__all__ = ["importxls", "xls_data"]
+
 
 def xls_data(
     filename: str,

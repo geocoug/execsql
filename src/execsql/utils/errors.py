@@ -25,6 +25,17 @@ from typing import Any
 import execsql.state as _state
 from execsql.exceptions import ErrInfo
 
+__all__ = [
+    "exception_info",
+    "exception_desc",
+    "exit_now",
+    "fatal_error",
+    "write_warning",
+    "file_size_date",
+    "chainfuncs",
+    "as_none",
+]
+
 
 def exception_info() -> tuple:
     # Returns the exception type, value, source file name, source line number, and source line text.

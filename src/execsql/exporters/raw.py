@@ -14,6 +14,8 @@ from typing import Any
 from execsql.exporters.zip import ZipWriter
 from execsql.utils.fileio import filewriter_close
 
+__all__ = ["write_query_raw", "write_query_b64"]
+
 
 def write_query_raw(
     outfile: str,

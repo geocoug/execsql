@@ -23,6 +23,12 @@ from pathlib import Path
 from execsql.exceptions import ConfigError
 from execsql.utils.crypto import Encrypt
 
+__all__ = [
+    "StatObj",
+    "ConfigData",
+    "WriteHooks",
+]
+
 
 class StatObj:
     # A generic object to maintain status indicators.  These status

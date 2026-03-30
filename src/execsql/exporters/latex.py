@@ -17,6 +17,8 @@ from execsql.exceptions import ErrInfo
 from execsql.exporters.zip import WriteableZipfile
 import execsql.state as _state
 
+__all__ = ["export_latex", "write_query_to_latex"]
+
 
 def export_latex(
     outfile: str,

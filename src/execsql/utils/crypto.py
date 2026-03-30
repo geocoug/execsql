@@ -24,6 +24,8 @@ The monolith (line 2301) called this "SIMPLE ENCRYPTION".
 import random
 import uuid
 
+__all__ = ["Encrypt"]
+
 
 class Encrypt:
     """Reversible XOR-based obfuscation for configuration file passwords.

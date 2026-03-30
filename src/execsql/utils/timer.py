@@ -17,6 +17,8 @@ import time
 
 from execsql.exceptions import ExecSqlTimeoutError
 
+__all__ = ["Timer", "TimerHandler"]
+
 
 class TimerHandler:
     def __init__(self, maxtime: float) -> None:

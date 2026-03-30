@@ -23,6 +23,22 @@ identifiers:
 
 import re
 
+__all__ = [
+    "clean_word",
+    "clean_words",
+    "trim_word",
+    "trim_words",
+    "fold_word",
+    "fold_words",
+    "dedup_words",
+    "is_doublequoted",
+    "unquoted",
+    "unquoted2",
+    "encodings_match",
+    "wo_quotes",
+    "get_subvarset",
+]
+
 
 def clean_word(word: str) -> str:
     # Trim leading and trailing spaces and replaces all non-alphanumeric characters with an underscore.

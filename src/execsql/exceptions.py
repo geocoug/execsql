@@ -21,6 +21,24 @@ from a single location.  Notable exceptions:
 - :class:`CondParserError` / :class:`NumericParserError` — parser failures.
 """
 
+__all__ = [
+    "ExecSqlError",
+    "ConfigError",
+    "ExecSqlTimeoutError",
+    "ErrInfo",
+    "DataTypeError",
+    "DbTypeError",
+    "ColumnError",
+    "DataTableError",
+    "DatabaseNotImplementedError",
+    "OdsFileError",
+    "XlsFileError",
+    "XlsxFileError",
+    "ConsoleUIError",
+    "CondParserError",
+    "NumericParserError",
+]
+
 
 class ExecSqlError(Exception):
     """Base class for simple single-message execsql exceptions.

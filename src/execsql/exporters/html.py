@@ -25,6 +25,8 @@ from execsql.script import current_script_line
 from execsql.utils.errors import exception_desc
 from execsql.utils.fileio import filewriter_close
 
+__all__ = ["export_html", "export_cgi_html", "write_query_to_html", "write_query_to_cgi_html"]
+
 
 def export_html(
     outfile: str,

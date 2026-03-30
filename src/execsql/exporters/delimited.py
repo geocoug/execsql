@@ -29,6 +29,8 @@ from execsql.utils.errors import exception_desc
 from execsql.utils.fileio import filewriter_close
 from execsql.utils.strings import clean_words, fold_words
 
+__all__ = ["LineDelimiter", "CsvFile", "CsvWriter", "DelimitedWriter", "write_delimited_file"]
+
 
 class LineDelimiter:
     def __init__(self, delim: str | None, quote: str | None, escchar: str | None) -> None:

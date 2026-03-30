@@ -18,6 +18,8 @@ from execsql.exceptions import ErrInfo
 from execsql.utils.errors import exception_desc
 from execsql.utils.fileio import filewriter_close
 
+__all__ = ["write_query_to_xml"]
+
 
 def write_query_to_xml(
     select_stmt: str,

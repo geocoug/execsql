@@ -14,6 +14,8 @@ from execsql.utils.errors import fatal_error
 from execsql.utils.auth import clear_stored_password, get_password, password_from_keyring
 import execsql.state as _state
 
+__all__ = ["SqlServerDatabase"]
+
 
 class SqlServerDatabase(Database):
     def __init__(

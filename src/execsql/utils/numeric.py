@@ -15,6 +15,8 @@ Provides:
 import re
 from typing import Any
 
+__all__ = ["as_numeric", "leading_zero_num"]
+
 
 def leading_zero_num(dataval: Any) -> bool:
     # Returns True if the data value is potentially a number but has a leading zero

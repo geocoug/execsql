@@ -37,6 +37,24 @@ from typing import Any
 
 from execsql.exceptions import ErrInfo
 
+__all__ = [
+    "make_export_dirs",
+    "check_dir",
+    "FileWriter",
+    "EncodedFile",
+    "Logger",
+    "TempFileMgr",
+    "list_encodings",
+    "filewriter_filestatus",
+    "filewriter_write",
+    "filewriter_open_as_new",
+    "filewriter_close",
+    "filewriter_close_all_after_write",
+    "filewriter_closeall",
+    "filewriter_shutdown",
+    "filewriter_end",
+]
+
 
 def make_export_dirs(outfile: str) -> None:
     if outfile.lower() != "stdout":

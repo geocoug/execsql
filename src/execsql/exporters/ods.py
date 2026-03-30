@@ -23,6 +23,8 @@ from execsql.utils.errors import exception_desc, fatal_error
 from execsql.utils.fileio import filewriter_close
 from execsql.utils.strings import unquoted
 
+__all__ = ["OdsFile", "export_ods", "write_query_to_ods", "write_queries_to_ods"]
+
 
 class OdsFile:
     def __repr__(self) -> str:
@@ -211,7 +213,7 @@ class OdsFile:
             if isinstance(item, bool):
                 # Booleans must be evaluated before numbers.
                 tc = of.table.TableCell(valuetype="boolean", value=1 if item else 0, stylename=style_name)
-            elif isinstance(item, (float, int)):
+            elif isinstance(item, float | int):
                 tc = of.table.TableCell(valuetype="float", value=item, stylename=style_name)
             elif isinstance(item, datetime.datetime):
                 self.define_iso_datetime_style()
