@@ -141,18 +141,19 @@ def _run(
             raise SystemExit(1)
         db_type = db_type or parsed_dsn["db_type"]
         conf.db_type = db_type
-        if parsed_dsn["server"] and not conf.server:
+        # DSN values override conf-file values — the CLI flag is explicit.
+        if parsed_dsn["server"]:
             conf.server = parsed_dsn["server"]
-        if parsed_dsn["db"] and not conf.db:
+        if parsed_dsn["db"]:
             conf.db = parsed_dsn["db"]
-        if parsed_dsn["db_file"] and not conf.db_file:
+        if parsed_dsn["db_file"]:
             conf.db_file = parsed_dsn["db_file"]
-        if parsed_dsn["user"] and not user:
+        if parsed_dsn["user"]:
             user = parsed_dsn["user"]
         if parsed_dsn["password"]:
             conf.db_password = parsed_dsn["password"]
             conf.passwd_prompt = False
-        if parsed_dsn["port"] and not port:
+        if parsed_dsn["port"]:
             port = parsed_dsn["port"]
 
     # Apply CLI options over config-file values
