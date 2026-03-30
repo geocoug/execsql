@@ -248,6 +248,7 @@ class TestImportCSV:
             f"""\
             CREATE TABLE students (id INTEGER, name VARCHAR(255), score INTEGER) ENGINE=InnoDB;
 
+            -- !x! TRIM_STRINGS YES
             -- !x! IMPORT TO students FROM {csv_path}
             """,
         )
