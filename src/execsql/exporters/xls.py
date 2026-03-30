@@ -32,8 +32,9 @@ class XlsFile:
 
     def __init__(self) -> None:
         try:
-            global xlrd
             import xlrd
+
+            self._xlrd = xlrd
         except ImportError:
             fatal_error("The xlrd library is needed to read Excel (.xls) spreadsheets.")
         self.filename = None
@@ -48,7 +49,7 @@ class XlsFile:
         self.read_only = read_only
         if Path(filename).is_file():
             # The 'read_only' argument is not used, but is present for compatibility with XlsxFile.open().
-            self.wbk = xlrd.open_workbook(filename, logfile=self.errlog, encoding_override=self.encoding)
+            self.wbk = self._xlrd.open_workbook(filename, logfile=self.errlog, encoding_override=self.encoding)
             self.datemode = self.wbk.datemode
         else:
             raise XlsFileError(f"There is no Excel file {self.filename}.")
@@ -111,7 +112,7 @@ class XlsFile:
                         datarow.append(c.value)
                 elif c.ctype == 3:
                     # date
-                    dt = xlrd.xldate_as_tuple(c.value, self.datemode)
+                    dt = self._xlrd.xldate_as_tuple(c.value, self.datemode)
                     # Convert to time or datetime
                     if not any(dt[:3]):
                         # No date values
@@ -123,7 +124,7 @@ class XlsFile:
                     datarow.append(bool(c.value))
                 elif c.ctype == 5:
                     # Error code
-                    datarow.append(xlrd.error_text_from_code(c.value))
+                    datarow.append(self._xlrd.error_text_from_code(c.value))
                 elif c.ctype == 6:
                     # blank
                     datarow.append(None)
@@ -159,8 +160,9 @@ class XlsxFile:
 
     def __init__(self) -> None:
         try:
-            global openpyxl
             import openpyxl
+
+            self._openpyxl = openpyxl
         except ImportError:
             fatal_error("The openpyxl library is needed to read Excel (.xlsx) spreadsheets.")
         self.filename = None
@@ -175,9 +177,9 @@ class XlsxFile:
         self.read_only = read_only
         if Path(filename).is_file():
             if read_only:
-                self.wbk = openpyxl.load_workbook(filename, read_only=True)
+                self.wbk = self._openpyxl.load_workbook(filename, read_only=True)
             else:
-                self.wbk = openpyxl.load_workbook(filename)
+                self.wbk = self._openpyxl.load_workbook(filename)
         else:
             raise XlsxFileError(f"There is no Excel file {self.filename}.")
 

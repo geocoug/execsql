@@ -9,6 +9,7 @@ used by the ``EXPORT … FORMAT raw`` and ``FORMAT b64`` metacommand
 variants.
 """
 
+import base64
 from typing import Any
 
 from execsql.exporters.zip import ZipWriter
@@ -45,8 +46,6 @@ def write_query_raw(
 
 
 def write_query_b64(outfile: str, rowsource: Any, append: bool = False, zipfile: str | None = None) -> None:
-    global base64
-    import base64
 
     if zipfile is None:
         filewriter_close(outfile)

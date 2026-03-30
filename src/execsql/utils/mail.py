@@ -11,6 +11,11 @@ metacommand and the halt/cancel email-notification hooks.
 """
 
 import re
+import smtplib
+from email import encoders
+from email.mime.base import MIMEBase
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from pathlib import Path
 
 import execsql.state as _state
@@ -28,17 +33,6 @@ class Mailer:
             self.smtpconn.quit()
 
     def __init__(self) -> None:
-        global smtplib
-        global MIMEMultipart
-        global MIMEText
-        global MIMEBase
-        global encoders
-        import smtplib
-        from email.mime.multipart import MIMEMultipart
-        from email.mime.text import MIMEText
-        from email.mime.base import MIMEBase
-        from email import encoders
-
         conf = _state.conf
         if conf.smtp_host is None:
             raise ErrInfo(type="error", other_msg="Can't send email; the email host is not configured.")
@@ -71,12 +65,6 @@ class Mailer:
         content_filename: str | None = None,
         attach_filename: str | None = None,
     ) -> None:
-        global smtplib
-        global MIMEMultipart
-        global MIMEText
-        global MIMEBase
-        global encoders
-
         conf = _state.conf
         if conf.email_format == "html":
             msg = MIMEMultipart("alternative")

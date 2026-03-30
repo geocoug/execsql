@@ -9,6 +9,7 @@ substitution) and :func:`report_query`, which drives the
 variants.  The Jinja2 template processor is loaded lazily when selected.
 """
 
+import string
 from typing import Any
 
 import execsql.state as _state
@@ -23,9 +24,6 @@ class StrTemplateReport:
     # Exporting/reporting using Python's default string.Template, iterated over all
     # rows of a data table.
     def __init__(self, template_file: str) -> None:
-        global string
-        import string
-
         conf = _state.conf
         self.infname = template_file
         from execsql.utils.fileio import EncodedFile
@@ -74,10 +72,11 @@ class StrTemplateReport:
 class JinjaTemplateReport:
     # Exporting/reporting using the Jinja2 templating library.
     def __init__(self, template_file: str) -> None:
-        global jinja2
         try:
             import jinja2
             from jinja2.sandbox import SandboxedEnvironment
+
+            self._jinja2 = jinja2
         except ImportError:
             fatal_error(
                 "The jinja2 library is required to produce reports with the Jinja2 templating system.   See http://jinja.pocoo.org/",
@@ -121,9 +120,9 @@ class JinjaTemplateReport:
                 ofile = ZipWriter(zipfile, output_dest, append)
         try:
             ofile.write(self.template.render(headers=headers, datatable=data_dict_rows))
-        except jinja2.TemplateSyntaxError as e:
+        except self._jinja2.TemplateSyntaxError as e:
             raise ErrInfo("error", other_msg=e.message + f" on template line {e.lineno}") from e
-        except jinja2.TemplateError as e:
+        except self._jinja2.TemplateError as e:
             raise ErrInfo("error", other_msg=f"Jinja2 template error ({e.message})") from e
         finally:
             if output_dest != "stdout":

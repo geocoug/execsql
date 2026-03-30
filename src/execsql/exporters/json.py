@@ -8,6 +8,7 @@ Provides :func:`write_query_to_json` (standard JSON array of objects) and
 both of which serialize a query result set to a file or stream.
 """
 
+import json
 from typing import Any
 
 import execsql.state as _state
@@ -28,8 +29,6 @@ def write_query_to_json(
     desc: str | None = None,
     zipfile: str | None = None,
 ) -> None:
-    global json
-    import json
 
     conf = _state.conf
     try:
@@ -77,8 +76,6 @@ def write_query_to_json_ts(
     desc: str | None = None,
     zipfile: str | None = None,
 ) -> None:
-    global json
-    import json
 
     conf = _state.conf
     try:

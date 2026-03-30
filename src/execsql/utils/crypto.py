@@ -21,6 +21,8 @@ that use XOR against a fixed key table followed by base64 encoding.
 The monolith (line 2301) called this "SIMPLE ENCRYPTION".
 """
 
+import base64
+import itertools
 import random
 import uuid
 
@@ -56,12 +58,6 @@ class Encrypt:
 
     def __repr__(self) -> str:
         return "Encrypt()"
-
-    def __init__(self) -> None:
-        global itertools
-        global base64
-        import itertools
-        import base64
 
     def xor(self, text: str, enckey: str) -> str:
         return "".join(chr(ord(t) ^ ord(k)) for t, k in zip(text, itertools.cycle(enckey)))
