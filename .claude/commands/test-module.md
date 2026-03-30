@@ -43,7 +43,7 @@ ______________________________________________________________________
 
 ## Phase 3: Write
 
-Launch a `test-engineer` agent with:
+Launch a `qa` agent with:
 
 - The full module content
 - The test plan from Phase 2

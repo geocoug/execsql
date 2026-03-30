@@ -25,7 +25,7 @@ ______________________________________________________________________
 
 ## Phase 2: Review
 
-Launch 2 `code-reviewer` agents **in parallel**, each with the full diff and file contents:
+Launch 2 `inspector` agents **in parallel**, each with the full diff and file contents:
 
 **Reviewer 1 — Correctness & Migration:**
 Focus on:

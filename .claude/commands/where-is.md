@@ -10,7 +10,7 @@ ______________________________________________________________________
 
 ## Step 1: Search Both Codebases in Parallel
 
-Launch a `monolith-navigator` agent to find `$ARGUMENTS` in `_execsql/execsql.py`.
+Launch an `oracle` agent to find `$ARGUMENTS` in both `_execsql/execsql.py` and `src/execsql/`.
 
 Simultaneously, search `src/execsql/` directly:
 

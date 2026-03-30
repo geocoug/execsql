@@ -8,7 +8,7 @@ ______________________________________________________________________
 
 ______________________________________________________________________
 
-Launch a `code-oracle` agent with the question above.
+Launch an `oracle` agent with the question above.
 
 Provide the agent with this context:
 

@@ -1,0 +1,51 @@
+# The SQL Syndicate
+
+A multi-agent system where specialized agents collaborate to improve, extend, debug, and maintain execsql2.
+
+## Architecture
+
+- **The DBA** (Dispatcher) orchestrates all agents via hub-and-spoke communication
+- Agents communicate through files in `comms/` — they do NOT talk directly to each other
+- All agents read `.claude/project_context.md` as their canonical project reference
+- Existing skills (`/code-oracle`, `/migrate`, `/test-module`, `/update-changelog`, `/review-changes`, `/where-is`) remain available and agents may reference them
+
+## Directory Structure
+
+- `.claude/agents/` — Agent prompt definitions
+- `.claude/commands/` — Skill definitions (slash commands)
+- `.claude/comms/briefings/` — Tasks assigned by The DBA to agents
+- `.claude/comms/reports/` — Agent outputs back to The DBA
+- `.claude/research/` — Oracle's codebase investigation findings
+- `.claude/plans/` — DBA's implementation plans
+- `.claude/patches/` — Patcher's code change descriptions and notes
+- `.claude/test-reports/` — QA's test results and coverage reports
+- `.claude/docs-drafts/` — Scribe's documentation drafts
+- `.claude/releases/` — Herald's release notes and changelog entries
+- `.claude/state/` — Shared state (current phase, active task, agent status)
+
+## Communication Protocol
+
+1. The DBA writes a briefing to `.claude/comms/briefings/{agent}-{YYYY-MM-DD}.md`
+1. The DBA spawns the target agent
+1. Agent reads its briefing, does its work, writes output to `.claude/comms/reports/{agent}-{YYYY-MM-DD}.md`
+1. Agent also writes artifacts to its dedicated directory (.claude/research/, .claude/patches/, etc.)
+1. The DBA reads the report and decides next steps
+
+## Development Phases
+
+1. **Triage** — DBA understands the issue/request, decides scope and agents needed
+1. **Research** — Oracle investigates codebase, finds relevant code paths and impact
+1. **Plan** — DBA synthesizes research into implementation approach, aligns with human
+1. **Implement** — Patcher writes code, Oracle advises on architecture
+1. **Test** — QA writes/runs tests, verifies coverage stays above 75%
+1. **Document** — Scribe updates docs, Herald updates changelog
+1. **Review** — Inspector does final code review before human merge
+
+## Constraints
+
+- Coverage floor (75%) must be maintained — QA blocks any change that drops it
+- Backwards compatibility with upstream execsql v1.130.1 unless explicitly approved
+- No destructive git operations without human approval
+- Agents should always read `.claude/project_context.md` before starting work
+- The existing post-tool hooks (auto-changelog, auto-docs) continue working independently
+- All code must pass `ruff check` and target Python 3.10+

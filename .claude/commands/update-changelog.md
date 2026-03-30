@@ -8,7 +8,7 @@ ______________________________________________________________________
 
 ______________________________________________________________________
 
-Launch a `changelog-manager` agent with the instruction above.
+Launch a `herald` agent with the instruction above.
 
 Provide the agent with this context:
 

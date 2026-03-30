@@ -12,7 +12,7 @@ ______________________________________________________________________
 
 ## Phase 1: Locate
 
-Launch a `monolith-navigator` agent to:
+Launch a `oracle` agent to:
 
 - Find `$ARGUMENTS` in `_execsql/execsql.py`
 - Report: exact line range, function/class signature, all dependencies (other functions/globals it uses), and the corresponding new module location per the mapping table
@@ -35,7 +35,7 @@ ______________________________________________________________________
 
 ## Phase 2: Implement
 
-Launch a `migration-coder` agent with the full context from Phase 1:
+Launch a `patcher` agent with the full context from Phase 1:
 
 - Exact monolith lines to migrate
 - Target module in `src/execsql/`
@@ -48,9 +48,9 @@ ______________________________________________________________________
 
 ## Phase 3: Test
 
-Launch a `test-engineer` agent for the module that was just updated:
+Launch a `qa` agent for the module that was just updated:
 
-- Provide the list of "test hints" from the migration-coder agent
+- Provide the list of "test hints" from the patcher agent
 - Specify the target test file location
 
 Verify tests pass by running: `uv run python -m pytest <test_file> -v`
@@ -59,7 +59,7 @@ ______________________________________________________________________
 
 ## Phase 4: Review
 
-Launch a `code-reviewer` agent focused on the changed files.
+Launch a `inspector` agent focused on the changed files.
 
 Present findings to the user organized by severity. Ask which issues to fix before finishing.
 
