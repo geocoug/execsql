@@ -14,6 +14,7 @@ open :class:`Database` instances and tracks which connection is currently
 active.  It is the canonical ``_state.dbs`` object.
 """
 
+import contextlib
 import datetime
 import re
 from abc import ABC, abstractmethod
@@ -106,6 +107,19 @@ class Database(ABC):
             self.open_db()
         return self.conn.cursor()
 
+    @contextlib.contextmanager
+    def _cursor(self):
+        """Context manager that yields a cursor and closes it on exit.
+
+        Works with any DB-API 2.0 cursor regardless of whether the driver
+        natively supports the context manager protocol.
+        """
+        curs = self.cursor()
+        try:
+            yield curs
+        finally:
+            curs.close()
+
     def close(self) -> None:
         """Close the database connection, logging a warning if autocommit is off."""
         if self.conn:
@@ -130,21 +144,18 @@ class Database(ABC):
 
         Rolls back the current transaction and re-raises on any driver error.
         """
-        # A shortcut to self.cursor().execute() that handles encoding.
-        # Whether or not encoding is needed depends on the DBMS.
         if type(sql) in (tuple, list):
             sql = " ".join(sql)
         try:
-            curs = self.cursor()
-            if paramlist is None:
-                curs.execute(sql)
-            else:
-                curs.execute(sql, paramlist)
-            try:
-                # DuckDB does not support the 'rowcount' attribute.
-                _state.subvars.add_substitution("$LAST_ROWCOUNT", curs.rowcount)
-            except Exception:
-                pass  # Non-critical: some drivers lack rowcount support.
+            with self._cursor() as curs:
+                if paramlist is None:
+                    curs.execute(sql)
+                else:
+                    curs.execute(sql, paramlist)
+                try:
+                    _state.subvars.add_substitution("$LAST_ROWCOUNT", curs.rowcount)
+                except Exception:
+                    pass  # Non-critical: some drivers lack rowcount support.
         except Exception:
             try:
                 self.rollback()
@@ -188,19 +199,18 @@ class Database(ABC):
 
     def select_data(self, sql: str) -> tuple[list[str], list]:
         """Execute *sql* and return ``(column_names, rows)`` with all rows fetched into memory."""
-        # Returns the results of the sql select statement.
-        curs = self.cursor()
-        try:
-            curs.execute(sql)
-        except Exception:
-            self.rollback()
-            raise
-        try:
-            _state.subvars.add_substitution("$LAST_ROWCOUNT", curs.rowcount)
-        except Exception:
-            pass  # Non-critical: some drivers lack rowcount support.
-        rows = curs.fetchall()
-        return [d[0] for d in curs.description], rows
+        with self._cursor() as curs:
+            try:
+                curs.execute(sql)
+            except Exception:
+                self.rollback()
+                raise
+            try:
+                _state.subvars.add_substitution("$LAST_ROWCOUNT", curs.rowcount)
+            except Exception:
+                pass  # Non-critical: some drivers lack rowcount support.
+            rows = curs.fetchall()
+            return [d[0] for d in curs.description], rows
 
     def select_rowsource(self, sql: str) -> tuple[list[str], Generator]:
         """Execute *sql* and return ``(column_names, row_generator)`` for streaming large result sets."""
@@ -267,36 +277,34 @@ class Database(ABC):
 
     def schema_exists(self, schema_name: str) -> bool:
         """Return ``True`` if *schema_name* exists in this database."""
-        curs = self.cursor()
-        sql = f"SELECT schema_name FROM information_schema.schemata WHERE schema_name = {self.paramstr};"
-        curs.execute(sql, (schema_name,))
-        rows = curs.fetchall()
-        curs.close()
+        with self._cursor() as curs:
+            sql = f"SELECT schema_name FROM information_schema.schemata WHERE schema_name = {self.paramstr};"
+            curs.execute(sql, (schema_name,))
+            rows = curs.fetchall()
         return len(rows) > 0
 
     def table_exists(self, table_name: str, schema_name: str | None = None) -> bool:
         """Return ``True`` if *table_name* (optionally in *schema_name*) exists."""
-        curs = self.cursor()
-        params: list = [table_name]
-        schema_clause = ""
-        if schema_name:
-            schema_clause = f" and table_schema={self.paramstr}"
-            params.append(schema_name)
-        sql = f"select table_name from information_schema.tables where table_name = {self.paramstr}{schema_clause};"
-        try:
-            curs.execute(sql, params)
-        except ErrInfo:
-            raise
-        except Exception as e:
-            self.rollback()
-            raise ErrInfo(
-                type="db",
-                command_text=sql,
-                exception_msg=exception_desc(),
-                other_msg=f"Failed test for existence of table {table_name} in {self.name()}",
-            ) from e
-        rows = curs.fetchall()
-        curs.close()
+        with self._cursor() as curs:
+            params: list = [table_name]
+            schema_clause = ""
+            if schema_name:
+                schema_clause = f" and table_schema={self.paramstr}"
+                params.append(schema_name)
+            sql = f"select table_name from information_schema.tables where table_name = {self.paramstr}{schema_clause};"
+            try:
+                curs.execute(sql, params)
+            except ErrInfo:
+                raise
+            except Exception as e:
+                self.rollback()
+                raise ErrInfo(
+                    type="db",
+                    command_text=sql,
+                    exception_msg=exception_desc(),
+                    other_msg=f"Failed test for existence of table {table_name} in {self.name()}",
+                ) from e
+            rows = curs.fetchall()
         return len(rows) > 0
 
     def column_exists(
@@ -306,86 +314,83 @@ class Database(ABC):
         schema_name: str | None = None,
     ) -> bool:
         """Return ``True`` if *column_name* exists in *table_name* (optionally in *schema_name*)."""
-        curs = self.cursor()
-        params: list = [table_name]
-        schema_clause = ""
-        if schema_name:
-            schema_clause = f" and table_schema={self.paramstr}"
-            params.append(schema_name)
-        params.append(column_name)
-        sql = (
-            f"select column_name from information_schema.columns "
-            f"where table_name={self.paramstr}{schema_clause} "
-            f"and column_name={self.paramstr};"
-        )
-        try:
-            curs.execute(sql, params)
-        except ErrInfo:
-            raise
-        except Exception as e:
-            self.rollback()
-            raise ErrInfo(
-                type="db",
-                command_text=sql,
-                exception_msg=exception_desc(),
-                other_msg=f"Failed test for existence of column {column_name} in table {table_name} of {self.name()}",
-            ) from e
-        rows = curs.fetchall()
-        curs.close()
+        with self._cursor() as curs:
+            params: list = [table_name]
+            schema_clause = ""
+            if schema_name:
+                schema_clause = f" and table_schema={self.paramstr}"
+                params.append(schema_name)
+            params.append(column_name)
+            sql = (
+                f"select column_name from information_schema.columns "
+                f"where table_name={self.paramstr}{schema_clause} "
+                f"and column_name={self.paramstr};"
+            )
+            try:
+                curs.execute(sql, params)
+            except ErrInfo:
+                raise
+            except Exception as e:
+                self.rollback()
+                raise ErrInfo(
+                    type="db",
+                    command_text=sql,
+                    exception_msg=exception_desc(),
+                    other_msg=f"Failed test for existence of column {column_name} in table {table_name} of {self.name()}",
+                ) from e
+            rows = curs.fetchall()
         return len(rows) > 0
 
     def table_columns(self, table_name: str, schema_name: str | None = None) -> list[str]:
         """Return the ordered list of column names for *table_name*."""
-        curs = self.cursor()
-        params: list = [table_name]
-        schema_clause = ""
-        if schema_name:
-            schema_clause = f" and table_schema={self.paramstr}"
-            params.append(schema_name)
-        sql = (
-            f"select column_name from information_schema.columns "
-            f"where table_name={self.paramstr}{schema_clause} "
-            f"order by ordinal_position;"
-        )
-        try:
-            curs.execute(sql, params)
-        except ErrInfo:
-            raise
-        except Exception as e:
-            self.rollback()
-            raise ErrInfo(
-                type="db",
-                command_text=sql,
-                exception_msg=exception_desc(),
-                other_msg=f"Failed to get column names for table {table_name} of {self.name()}",
-            ) from e
-        rows = curs.fetchall()
-        curs.close()
+        with self._cursor() as curs:
+            params: list = [table_name]
+            schema_clause = ""
+            if schema_name:
+                schema_clause = f" and table_schema={self.paramstr}"
+                params.append(schema_name)
+            sql = (
+                f"select column_name from information_schema.columns "
+                f"where table_name={self.paramstr}{schema_clause} "
+                f"order by ordinal_position;"
+            )
+            try:
+                curs.execute(sql, params)
+            except ErrInfo:
+                raise
+            except Exception as e:
+                self.rollback()
+                raise ErrInfo(
+                    type="db",
+                    command_text=sql,
+                    exception_msg=exception_desc(),
+                    other_msg=f"Failed to get column names for table {table_name} of {self.name()}",
+                ) from e
+            rows = curs.fetchall()
         return [row[0] for row in rows]
 
     def view_exists(self, view_name: str, schema_name: str | None = None) -> bool:
         """Return ``True`` if *view_name* (optionally in *schema_name*) exists."""
-        curs = self.cursor()
-        params: list = [view_name]
-        schema_clause = ""
-        if schema_name:
-            schema_clause = f" and table_schema={self.paramstr}"
-            params.append(schema_name)
-        sql = f"select table_name from information_schema.views where table_name = {self.paramstr}{schema_clause};"
-        try:
-            curs.execute(sql, params)
-        except ErrInfo:
-            raise
-        except Exception as e:
-            self.rollback()
-            raise ErrInfo(
-                type="db",
-                command_text=sql,
-                exception_msg=exception_desc(),
-                other_msg=f"Failed test for existence of view {view_name} in {self.name()}",
-            ) from e
-        rows = curs.fetchall()
-        curs.close()
+        with self._cursor() as curs:
+            params: list = [view_name]
+            schema_clause = ""
+            if schema_name:
+                schema_clause = f" and table_schema={self.paramstr}"
+                params.append(schema_name)
+            sql = f"select table_name from information_schema.views where table_name = {self.paramstr}{schema_clause};"
+            try:
+                curs.execute(sql, params)
+            except ErrInfo:
+                raise
+            except Exception as e:
+                self.rollback()
+                raise ErrInfo(
+                    type="db",
+                    command_text=sql,
+                    exception_msg=exception_desc(),
+                    other_msg=f"Failed test for existence of view {view_name} in {self.name()}",
+                ) from e
+            rows = curs.fetchall()
         return len(rows) > 0
 
     def role_exists(self, rolename: str) -> bool:
@@ -623,7 +628,8 @@ class Database(ABC):
         sq_name = self.schema_qualified_table_name(schema_name, table_name)
         quoted_col = self.quote_identifier(column_name)
         sql = f"insert into {sq_name} ({quoted_col}) values ({self.paramsubs(1)});"
-        self.cursor().execute(sql, (filedata,))
+        with self._cursor() as curs:
+            curs.execute(sql, (filedata,))
 
 
 class DatabasePool:
