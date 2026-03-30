@@ -117,7 +117,7 @@ jobs:
                   python -m pip install ".[dev,postgres,mysql]"
             - name: Run integration tests
               run: |
-                  python -m pytest tests/integration/test_postgres.py tests/integration/test_mysql.py -v
+                  python -m pytest tests/integration/test_postgres.py tests/integration/test_mysql.py -v --override-ini="addopts="
 
     build:
         name: Build distribution 📦
