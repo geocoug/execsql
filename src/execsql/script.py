@@ -93,6 +93,12 @@ __all__ = [
 
 
 class BatchLevels:
+    """Track the databases used within nested BEGIN/END BATCH blocks.
+
+    Maintains a stack of :class:`Batch` objects so that each nesting level
+    records its own set of active database connections for commit/rollback.
+    """
+
     # A stack to keep a record of the databases used in nested batches.
     class Batch:
         def __init__(self) -> None:
@@ -102,27 +108,33 @@ class BatchLevels:
         self.batchlevels: list[BatchLevels.Batch] = []
 
     def in_batch(self) -> bool:
+        """Return True if execution is currently inside at least one BATCH block."""
         return len(self.batchlevels) > 0
 
     def new_batch(self) -> None:
+        """Push a new empty batch level onto the stack."""
         self.batchlevels.append(self.Batch())
 
     def using_db(self, db: Any) -> None:
+        """Register *db* as used within the innermost active batch."""
         if len(self.batchlevels) > 0 and db not in self.batchlevels[-1].dbs_used:
             self.batchlevels[-1].dbs_used.append(db)
 
     def uses_db(self, db: Any) -> bool:
+        """Return True if *db* is registered in any active batch level."""
         if len(self.batchlevels) == 0:
             return False
         return any(db in batch.dbs_used for batch in self.batchlevels)
 
     def rollback_batch(self) -> None:
+        """Roll back all databases registered in the innermost batch level."""
         if len(self.batchlevels) > 0:
             b = self.batchlevels[-1]
             for db in b.dbs_used:
                 db.rollback()
 
     def end_batch(self) -> None:
+        """Commit all databases in the innermost batch level and pop the stack."""
         b = self.batchlevels.pop()
         for db in b.dbs_used:
             db.commit()
@@ -134,6 +146,8 @@ class BatchLevels:
 
 
 class IfItem:
+    """One level of a nested IF/ELSE/ENDIF condition, paired with its source location."""
+
     # An object representing an 'if' level, with context data.
     def __init__(self, tf_value: bool) -> None:
         self.tf_value = tf_value
@@ -153,15 +167,24 @@ class IfItem:
 
 
 class IfLevels:
+    """Stack of boolean IF-level states for nested conditional execution.
+
+    Each :meth:`nest` call corresponds to an IF statement; each
+    :meth:`unnest` call corresponds to an ENDIF.  :meth:`all_true` drives
+    the execution gate — commands are skipped unless every level is ``True``.
+    """
+
     # A stack of True/False values corresponding to a nested set of conditionals,
     # with methods to manipulate and query the set of conditional states.
     def __init__(self) -> None:
         self.if_levels: list[IfItem] = []
 
     def nest(self, tf_value: bool) -> None:
+        """Push a new IF level onto the stack with the given boolean value."""
         self.if_levels.append(IfItem(tf_value))
 
     def unnest(self) -> None:
+        """Pop the innermost IF level; raise ErrInfo if the stack is empty."""
         if len(self.if_levels) == 0:
             raise ErrInfo(type="error", other_msg="Can't exit an IF block; no IF block is active.")
         else:
@@ -186,6 +209,7 @@ class IfLevels:
             return self.if_levels[-1].value()
 
     def all_true(self) -> bool:
+        """Return True if every active IF level is true (or the stack is empty)."""
         if self.if_levels == []:
             return True
         return all(tf.value() for tf in self.if_levels)
@@ -214,6 +238,8 @@ class IfLevels:
 
 
 class CounterVars:
+    """Named auto-incrementing integer counters referenced as ``!!$COUNTER_N!!``."""
+
     # A dictionary of dynamically created named counter variables.
     _COUNTER_RX = re.compile(r"!!\$(COUNTER_\d+)!!", re.I)
 
@@ -263,6 +289,13 @@ class CounterVars:
 
 
 class SubVarSet:
+    """Pool of ``!!$VAR!!``-style substitution variables.
+
+    Variable names are stored in lowercase.  Supports ``$``, ``&``, and ``@``
+    prefixes by default.  Use :meth:`add_substitution` / :meth:`remove_substitution`
+    to manage entries, and :meth:`substitute_all` to expand a string.
+    """
+
     # A pool of substitution variables.  Each variable consists of a name and
     # a (string) value.  All variable names are stored as lowercase text.
     # Internally uses a dict for O(1) lookups; the ``substitutions`` property
@@ -304,6 +337,7 @@ class SubVarSet:
             self._compiled_patterns[varname] = self._compile_patterns_for(varname)
 
     def compile_var_rx(self) -> None:
+        """Compile the variable-name validation regex from the current prefix list."""
         self.var_rx_str = r"^[" + "".join(self.prefix_list) + r"]?\w+$"
         self.var_rx = re.compile(self.var_rx_str, re.I)
 
@@ -317,12 +351,14 @@ class SubVarSet:
             raise ErrInfo("error", other_msg=f"Invalid variable name ({varname}) in this context.")
 
     def remove_substitution(self, template_str: str) -> None:
+        """Remove the variable named *template_str* from the substitution pool."""
         self.check_var_name(template_str)
         old_sub = template_str.lower()
         self._subs_dict.pop(old_sub, None)
         self._compiled_patterns.pop(old_sub, None)
 
     def add_substitution(self, varname: str, repl_str: Any) -> None:
+        """Add or overwrite a substitution variable, compiling its match patterns."""
         self.check_var_name(varname)
         varname = varname.lower()
         self._subs_dict[varname] = repl_str
@@ -337,6 +373,7 @@ class SubVarSet:
             self.add_substitution(varname, repl_str)
 
     def varvalue(self, varname: str) -> str | None:
+        """Return the value of *varname*, or ``None`` if it is not defined."""
         self.check_var_name(varname)
         return self._subs_dict.get(varname.lower())
 
@@ -358,11 +395,12 @@ class SubVarSet:
         self.add_substitution(varname, newval)
 
     def sub_exists(self, template_str: str) -> bool:
+        """Return True if the variable named *template_str* is defined."""
         self.check_var_name(template_str)
         return template_str.lower() in self._subs_dict
 
     def merge(self, other_subvars: SubVarSet | None) -> SubVarSet:
-        # Return a new SubVarSet with this object's variables merged with other_subvars.
+        """Return a new SubVarSet with this object's variables merged with other_subvars."""
         if other_subvars is not None:
             newsubs = SubVarSet()
             newsubs._subs_dict = dict(self._subs_dict)
@@ -375,6 +413,11 @@ class SubVarSet:
         return self
 
     def substitute(self, command_str: str) -> tuple:
+        """Replace the first matching variable token in *command_str*.
+
+        Returns ``(modified_string, True)`` if a substitution was made, or
+        ``(original_string, False)`` if no variable pattern matched.
+        """
         # Replace any substitution variables in the command string.
         if isinstance(command_str, str):
             for varname, sub in self._subs_dict.items():
@@ -395,6 +438,10 @@ class SubVarSet:
         return command_str, False
 
     def substitute_all(self, any_text: str) -> tuple:
+        """Repeatedly apply :meth:`substitute` until no more substitutions remain.
+
+        Returns ``(fully_expanded_string, any_substitution_made)``.
+        """
         subbed = True
         any_subbed = False
         while subbed:
@@ -405,6 +452,8 @@ class SubVarSet:
 
 
 class LocalSubVarSet(SubVarSet):
+    """Substitution-variable pool restricted to ``~``-prefixed local variables."""
+
     # A pool of local substitution variables.
     # Only '~' is allowed as a prefix and MUST be present.
     def __init__(self) -> None:
@@ -418,6 +467,8 @@ class LocalSubVarSet(SubVarSet):
 
 
 class ScriptArgSubVarSet(SubVarSet):
+    """Substitution-variable pool restricted to ``#``-prefixed script arguments."""
+
     # A pool of script argument names.
     # Only '#' is allowed as a prefix and MUST be present.
     def __init__(self) -> None:
@@ -436,6 +487,13 @@ class ScriptArgSubVarSet(SubVarSet):
 
 
 class MetaCommand:
+    """A single entry in the metacommand dispatch table.
+
+    Holds a compiled regex, a handler function, and execution-control flags.
+    Call :meth:`run` with a raw command string to attempt a match and invoke
+    the handler.
+    """
+
     # A compiled metacommand that can be run if it matches a metacommand command string.
     def __init__(
         self,
@@ -463,6 +521,10 @@ class MetaCommand:
         )
 
     def run(self, cmd_str: str) -> tuple:
+        """Match *cmd_str* against this entry's regex and, if it matches, invoke the handler.
+
+        Returns ``(True, return_value)`` on a match, ``(False, None)`` otherwise.
+        """
         # Runs the metacommand if the command string matches the regex.
         m = self.rx.match(cmd_str.strip())
         if m:
@@ -518,6 +580,12 @@ class MetaCommandList:
         set_error_flag: bool = True,
         category: str | None = None,
     ) -> None:
+        """Register one or more regex patterns as a new :class:`MetaCommand` entry.
+
+        *matching_regexes* may be a single pattern string or a list/tuple of
+        patterns; each compiles into a separate :class:`MetaCommand` prepended to
+        the dispatch list so that later registrations take priority.
+        """
         if type(matching_regexes) in (tuple, list):
             regexes = [re.compile(rx, re.I) for rx in tuple(matching_regexes)]
         else:
@@ -580,6 +648,8 @@ class MetaCommandList:
 
 
 class SqlStmt:
+    """A single SQL statement ready to be executed against the active database."""
+
     # A SQL statement to be passed to a database to execute.
     def __init__(self, sql_statement: str) -> None:
         self.statement = re.sub(r"\s*;(\s*;\s*)+$", ";", sql_statement)
@@ -588,6 +658,7 @@ class SqlStmt:
         return f"SqlStmt({self.statement})"
 
     def run(self, localvars: SubVarSet | None = None, commit: bool = True) -> None:
+        """Execute the statement on the current database, committing unless in a batch."""
         # Run the SQL statement on the current database.
         if _state.if_stack.all_true():
             e = None
@@ -623,10 +694,13 @@ class SqlStmt:
             _state.subvars.add_substitution("$LAST_SQL", cmd)
 
     def commandline(self) -> str:
+        """Return the raw SQL statement text."""
         return self.statement
 
 
 class MetacommandStmt:
+    """A single execsql metacommand line ready to be dispatched."""
+
     # A metacommand to be handled by execsql.
     def __init__(self, metacommand_statement: str) -> None:
         self.statement = metacommand_statement
@@ -635,6 +709,7 @@ class MetacommandStmt:
         return f"MetacommandStmt({self.statement})"
 
     def run(self, localvars: SubVarSet | None = None, commit: bool = False) -> Any:
+        """Expand substitution variables then dispatch through the metacommand table."""
         # Tries all metacommands in the dispatch table until one runs.
         errmsg = "Unknown metacommand"
         cmd = substitute_vars(self.statement, localvars)
@@ -663,6 +738,7 @@ class MetacommandStmt:
         return None
 
     def commandline(self) -> str:
+        """Return the metacommand line in its canonical ``-- !x! ...`` form."""
         return "-- !x! " + self.statement
 
 
@@ -672,6 +748,8 @@ class MetacommandStmt:
 
 
 class ScriptCmd:
+    """A parsed script item: either a :class:`SqlStmt` or a :class:`MetacommandStmt`, with source location."""
+
     # A SQL script object that is either a SQL statement or a metacommand.
     def __init__(
         self,
@@ -701,6 +779,12 @@ class ScriptCmd:
 
 
 class CommandList:
+    """Ordered sequence of :class:`ScriptCmd` objects with a forward-only execution cursor.
+
+    Push onto ``_state.commandliststack`` and call :meth:`run_next` in a loop
+    (or let :func:`runscripts` drive it) to execute each command in turn.
+    """
+
     # A list of ScriptCmd objects including execution state.
     def __init__(
         self,
@@ -719,6 +803,7 @@ class CommandList:
         self.init_if_level: int | None = None
 
     def add(self, script_command: ScriptCmd) -> None:
+        """Append *script_command* to the end of this command list."""
         self.cmdlist.append(script_command)
 
     def set_paramvals(self, paramvals: SubVarSet) -> None:
@@ -732,11 +817,13 @@ class CommandList:
                 )
 
     def current_command(self) -> ScriptCmd | None:
+        """Return the :class:`ScriptCmd` at the current cursor position, or ``None`` if exhausted."""
         if self.cmdptr > len(self.cmdlist) - 1:
             return None
         return self.cmdlist[self.cmdptr]
 
     def check_iflevels(self) -> None:
+        """Warn if the IF-stack depth changed during execution of this command list."""
         if_excess = len(_state.if_stack.if_levels) - self.init_if_level
         if if_excess > 0:
             sources = _state.if_stack.script_lines(if_excess)
@@ -785,6 +872,7 @@ class CommandList:
         self.cmdptr += 1
 
     def run_next(self) -> None:
+        """Execute the command at the current cursor and advance; raise StopIteration when done."""
         if self.cmdptr == 0:
             self.init_if_level = len(_state.if_stack.if_levels)
         if self.cmdptr > len(self.cmdlist) - 1:
@@ -804,6 +892,8 @@ class CommandList:
 
 
 class CommandListWhileLoop(CommandList):
+    """A :class:`CommandList` that repeats its commands while a condition evaluates to true."""
+
     # Subclass of CommandList that loops WHILE a condition is met.
     def __init__(
         self,
@@ -830,6 +920,8 @@ class CommandListWhileLoop(CommandList):
 
 
 class CommandListUntilLoop(CommandList):
+    """A :class:`CommandList` that repeats its commands until a condition evaluates to true."""
+
     # Subclass of CommandList that loops UNTIL a condition is met.
     def __init__(
         self,
@@ -861,6 +953,13 @@ class CommandListUntilLoop(CommandList):
 
 
 class ScriptFile(EncodedFile):
+    """An iterable file reader that tracks the current line number.
+
+    Wraps :class:`~execsql.utils.fileio.EncodedFile` and increments
+    :attr:`lno` on each ``next()`` call so that callers always know which
+    source line is being processed.
+    """
+
     # A file reader that returns lines and records the line number.
     def __init__(self, scriptfname: str, file_encoding: str) -> None:
         super().__init__(scriptfname, file_encoding)
@@ -885,6 +984,13 @@ class ScriptFile(EncodedFile):
 
 
 class ScriptExecSpec:
+    """Deferred execution specification for a named SCRIPT block.
+
+    Parses argument expressions and loop-type flags at construction time;
+    call :meth:`execute` to push the resolved :class:`CommandList` onto the
+    execution stack.
+    """
+
     # Stores specifications for executing a SCRIPT, for later use.
     args_rx = re.compile(
         r'(?P<param>#?\w+)\s*=\s*(?P<arg>(?:(?:[^"\'\[][^,\)]*)|(?:"[^"]*")|(?:\'[^\']*\')|(?:\[[^\]]*\])))',
@@ -934,6 +1040,7 @@ class ScriptExecSpec:
 
 
 def set_system_vars() -> None:
+    """Refresh all built-in system substitution variables (``$CURRENT_TIME``, ``$DB_NAME``, etc.)."""
     # (Re)define the system substitution variables that are not script-specific.
     _state.subvars.add_substitution("$CANCEL_HALT_STATE", "ON" if _state.status.cancel_halt else "OFF")
     _state.subvars.add_substitution("$ERROR_HALT_STATE", "ON" if _state.status.halt_on_err else "OFF")
@@ -973,6 +1080,7 @@ _MAX_SUBSTITUTION_DEPTH = 100
 
 
 def substitute_vars(command_str: str, localvars: SubVarSet | None = None) -> str:
+    """Expand all ``!!$VAR!!`` tokens in *command_str*, merging *localvars* when provided."""
     # Substitutes global variables, global counters, and local variables.
     if localvars is not None:
         subs = _state.subvars.merge(localvars)
@@ -1005,7 +1113,7 @@ def substitute_vars(command_str: str, localvars: SubVarSet | None = None) -> str
 
 
 def runscripts() -> None:
-
+    """Drive execution until the command-list stack is empty."""
     # Repeatedly run the next statement from the script at the top of the
     # command list stack until there are no more statements.
     while len(_state.commandliststack) > 0:
@@ -1025,6 +1133,7 @@ def runscripts() -> None:
 
 
 def current_script_line() -> tuple:
+    """Return ``(source_name, line_number)`` for the command currently executing."""
     if len(_state.commandliststack) > 0:
         current_cmds = _state.commandliststack[-1]
         if current_cmds.current_command() is not None:
@@ -1187,6 +1296,7 @@ def _parse_script_lines(lines_iter, source_name: str) -> list:
 
 
 def read_sqlfile(sql_file_name: str) -> None:
+    """Parse a ``.sql`` file and push the resulting :class:`CommandList` onto the execution stack."""
     # Read lines from the given script file, create a list of ScriptCmd objects,
     # and append the list to the top of the stack of script commands.
     from execsql.utils.errors import file_size_date

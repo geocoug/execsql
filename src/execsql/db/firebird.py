@@ -18,6 +18,8 @@ __all__ = ["FirebirdDatabase"]
 
 
 class FirebirdDatabase(Database):
+    """Firebird adapter using the firebird-driver (fdb) package."""
+
     def __init__(
         self,
         server_name: str,

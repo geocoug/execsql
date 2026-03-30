@@ -20,6 +20,8 @@ __all__ = ["XlsFile", "XlsxFile"]
 
 
 class XlsFile:
+    """Read-only wrapper around ``xlrd`` for importing legacy ``.xls`` spreadsheets."""
+
     def __repr__(self) -> str:
         return "XlsFile()"
 
@@ -31,6 +33,7 @@ class XlsFile:
             self.log_msgs.append(msg)
 
     def __init__(self) -> None:
+        """Import xlrd and initialise file state; raises a fatal error if xlrd is absent."""
         try:
             import xlrd
 
@@ -44,6 +47,7 @@ class XlsFile:
         self.errlog = self.XlsLog()
 
     def open(self, filename: str, encoding: str | None = None, read_only: bool = False) -> None:
+        """Open an existing ``.xls`` file for reading; raises XlsFileError if absent."""
         self.filename = filename
         self.encoding = encoding
         self.read_only = read_only
@@ -55,9 +59,11 @@ class XlsFile:
             raise XlsFileError(f"There is no Excel file {self.filename}.")
 
     def sheetnames(self) -> Any:
+        """Return the list of sheet objects in the open workbook."""
         return self.wbk.sheets()
 
     def sheet_named(self, sheetname: Any) -> Any:
+        """Return the sheet matching a name or 1-based integer, raising XlsFileError if absent."""
         # Return the sheet with the matching name.  If the name is actually an integer,
         # return that sheet number.
         if isinstance(sheetname, int):
@@ -77,6 +83,7 @@ class XlsFile:
         return sheet
 
     def sheet_data(self, sheetname: Any, junk_header_rows: int = 0) -> list:
+        """Return all row data from the named sheet, optionally skipping leading junk rows."""
         try:
             sheet = self.sheet_named(sheetname)
         except Exception as e:
@@ -148,6 +155,8 @@ class XlsFile:
 
 
 class XlsxFile:
+    """Read/write wrapper around ``openpyxl`` for ``.xlsx`` spreadsheets."""
+
     def __repr__(self) -> str:
         return "XlsxFile()"
 
@@ -159,6 +168,7 @@ class XlsxFile:
             self.log_msgs.append(msg)
 
     def __init__(self) -> None:
+        """Import openpyxl and initialise file state; raises a fatal error if openpyxl is absent."""
         try:
             import openpyxl
 
@@ -172,6 +182,7 @@ class XlsxFile:
         self.errlog = self.XlsxLog()
 
     def open(self, filename: str, encoding: str | None = None, read_only: bool = False) -> None:
+        """Open an existing ``.xlsx`` file for reading; raises XlsxFileError if absent."""
         self.filename = filename
         self.encoding = encoding
         self.read_only = read_only
@@ -184,6 +195,7 @@ class XlsxFile:
             raise XlsxFileError(f"There is no Excel file {self.filename}.")
 
     def close(self) -> None:
+        """Close the open workbook and reset all state attributes."""
         if self.wbk is not None:
             self.wbk.close()
             self.wbk = None
@@ -191,9 +203,11 @@ class XlsxFile:
             self.encoding = None
 
     def sheetnames(self) -> list[str]:
+        """Return the list of worksheet names in the open workbook."""
         return self.wbk.sheetnames
 
     def sheet_named(self, sheetname: Any) -> Any:
+        """Return the sheet matching a name or 1-based integer index."""
         # Return the sheet with the matching name.  If the name is actually an integer,
         # return that sheet number.
         if isinstance(sheetname, int):
@@ -213,6 +227,7 @@ class XlsxFile:
         return sheet
 
     def sheet_data(self, sheetname: Any, junk_header_rows: int = 0) -> list:
+        """Return all row data from the named sheet, optionally skipping leading junk rows."""
         try:
             sheet = self.sheet_named(sheetname)
         except Exception as e:

@@ -19,6 +19,8 @@ __all__ = ["DsnDatabase"]
 
 
 class DsnDatabase(Database):
+    """Generic ODBC adapter that connects to any data source registered as an ODBC DSN via pyodbc."""
+
     # There's no telling what is actually connected to a DSN, so this uses
     # generic Database methods almost exclusively.  Only 'exec_cmd()' is
     # overridden, and that uses the method for SQL Server because the DAO

@@ -3,7 +3,7 @@
   "displayName": "execsql Syntax Highlighting",
   "description": "Syntax highlighting for execsql metacommands in SQL files",
   "version": "0.1.0",
-  "publisher": "gsi",
+  "publisher": "geocoug",
   "engines": {
     "vscode": "^1.74.0"
   },

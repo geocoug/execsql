@@ -25,6 +25,7 @@ def write_query_raw(
     append: bool = False,
     zipfile: str | None = None,
 ) -> None:
+    """Write raw binary column data from a row source directly to a file or ZIP archive."""
     if zipfile is None:
         filewriter_close(outfile)
         mode = "wb" if not append else "ab"
@@ -46,7 +47,7 @@ def write_query_raw(
 
 
 def write_query_b64(outfile: str, rowsource: Any, append: bool = False, zipfile: str | None = None) -> None:
-
+    """Decode base64 column data from a row source and write the raw bytes to a file or ZIP archive."""
     if zipfile is None:
         filewriter_close(outfile)
         mode = "wb" if not append else "ab"

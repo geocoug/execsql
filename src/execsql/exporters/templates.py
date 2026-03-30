@@ -21,9 +21,12 @@ __all__ = ["StrTemplateReport", "JinjaTemplateReport", "report_query"]
 
 
 class StrTemplateReport:
+    """Generates a report by applying Python's :class:`string.Template` to each row of a data table."""
+
     # Exporting/reporting using Python's default string.Template, iterated over all
     # rows of a data table.
     def __init__(self, template_file: str) -> None:
+        """Load and compile the template from the given file path."""
         conf = _state.conf
         self.infname = template_file
         from execsql.utils.fileio import EncodedFile
@@ -46,6 +49,7 @@ class StrTemplateReport:
         append: bool = False,
         zipfile: str | None = None,
     ) -> None:
+        """Render the template for each row in ``data_dict_rows`` and write the output."""
         conf = _state.conf
         from execsql.utils.fileio import EncodedFile
         from execsql.exporters.zip import ZipWriter
@@ -70,8 +74,11 @@ class StrTemplateReport:
 
 
 class JinjaTemplateReport:
+    """Generates a report by rendering a Jinja2 template against the full data table."""
+
     # Exporting/reporting using the Jinja2 templating library.
     def __init__(self, template_file: str) -> None:
+        """Load and compile the Jinja2 template from the given file path."""
         try:
             import jinja2
             from jinja2.sandbox import SandboxedEnvironment
@@ -103,6 +110,7 @@ class JinjaTemplateReport:
         append: bool = False,
         zipfile: str | None = None,
     ) -> None:
+        """Render the Jinja2 template with ``headers`` and ``datatable`` context and write the output."""
         conf = _state.conf
         from execsql.utils.fileio import EncodedFile
         from execsql.exporters.zip import ZipWriter
@@ -137,6 +145,7 @@ def report_query(
     append: bool = False,
     zipfile: str | None = None,
 ) -> None:
+    """Execute a SELECT and render the result set through a str-template or Jinja2 template file."""
     # Write (export) a template-based report.
     conf = _state.conf
     _state.status.sql_error = False

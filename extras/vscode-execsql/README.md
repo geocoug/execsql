@@ -1,6 +1,6 @@
 # execsql Syntax Highlighting for VSCode
 
-Adds syntax highlighting for [execsql](https://execsql.readthedocs.io/) metacommands in `.sql` files.
+Adds syntax highlighting for [execsql](https://execsql2.readthedocs.io/) metacommands in `.sql` files.
 Standard SQL highlighting is preserved — execsql `-- !x!` lines and variable substitutions get
 distinct custom colors layered on top.
 
@@ -43,13 +43,13 @@ ______________________________________________________________________
 Create a symlink from the VSCode extensions directory to this folder:
 
 ```sh
-ln -s /path/to/data-management/vscode-execsql ~/.vscode/extensions/execsql-syntax
+ln -s /path/to/execsql/vscode-execsql ~/.vscode/extensions/execsql-syntax
 ```
 
-For example, if you cloned the repo to `~/GitHub/gsi/data-management`:
+For example, if you cloned the repo to `./execsql`:
 
 ```sh
-ln -s ~/GitHub/gsi/data-management/vscode-execsql ~/.vscode/extensions/execsql-syntax
+ln -s ./execsql/vscode-execsql ~/.vscode/extensions/execsql-syntax
 ```
 
 ### Windows
@@ -57,13 +57,13 @@ ln -s ~/GitHub/gsi/data-management/vscode-execsql ~/.vscode/extensions/execsql-s
 Create a directory junction using Command Prompt **as Administrator**:
 
 ```cmd
-mklink /J "%USERPROFILE%\.vscode\extensions\execsql-syntax" "C:\path\to\data-management\vscode-execsql"
+mklink /J "%USERPROFILE%\.vscode\extensions\execsql-syntax" "C:\path\to\execsql\vscode-execsql"
 ```
 
 Or using PowerShell **as Administrator**:
 
 ```powershell
-New-Item -ItemType Junction -Path "$env:USERPROFILE\.vscode\extensions\execsql-syntax" -Target "C:\path\to\data-management\vscode-execsql"
+New-Item -ItemType Junction -Path "$env:USERPROFILE\.vscode\extensions\execsql-syntax" -Target "C:\path\to\execsql\vscode-execsql"
 ```
 
 ### After installing

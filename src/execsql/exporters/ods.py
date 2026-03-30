@@ -27,10 +27,13 @@ __all__ = ["OdsFile", "export_ods", "write_query_to_ods", "write_queries_to_ods"
 
 
 class OdsFile:
+    """Wrapper around the ``odfpy`` library for reading and writing OpenDocument Spreadsheet files."""
+
     def __repr__(self) -> str:
         return "OdsFile()"
 
     def __init__(self) -> None:
+        """Import odfpy and initialise the workbook state."""
         global of
         try:
             import of as of
@@ -46,6 +49,7 @@ class OdsFile:
         self.cell_style_names = []
 
     def open(self, filename: str) -> None:
+        """Open an existing ODS file or create a new one at the given path."""
         self.filename = filename
         if Path(filename).is_file():
             self.wbk = of.opendocument.load(filename)
@@ -63,6 +67,7 @@ class OdsFile:
             self.wbk = of.opendocument.OpenDocumentSpreadsheet()
 
     def define_body_style(self) -> None:
+        """Register the ``body`` cell style in the workbook if not already defined."""
         st_name = "body"
         if st_name not in self.cell_style_names:
             body_style = of.style.Style(name=st_name, family="table-cell")
@@ -71,6 +76,7 @@ class OdsFile:
             self.cell_style_names.append(st_name)
 
     def define_header_style(self) -> None:
+        """Register the ``header`` cell style (bottom-bordered) in the workbook if not already defined."""
         st_name = "header"
         if st_name not in self.cell_style_names:
             header_style = of.style.Style(name=st_name, family="table-cell")
@@ -86,6 +92,7 @@ class OdsFile:
             self.cell_style_names.append(st_name)
 
     def define_iso_datetime_style(self) -> None:
+        """Register an ISO-8601 datetime number style in the workbook if not already defined."""
         st_name = "iso_datetime"
         if st_name not in self.cell_style_names:
             dt_style = of.number.DateStyle(name="iso-datetime")
@@ -112,6 +119,7 @@ class OdsFile:
             self.cell_style_names.append(st_name)
 
     def define_iso_date_style(self) -> None:
+        """Register an ISO-8601 date number style in the workbook if not already defined."""
         st_name = "iso_date"
         if st_name not in self.cell_style_names:
             dt_style = of.number.DateStyle(name="iso-date")
@@ -127,10 +135,12 @@ class OdsFile:
             self.cell_style_names.append(st_name)
 
     def sheetnames(self) -> list[str]:
+        """Return a list of worksheet names in the open workbook."""
         # Returns a list of the worksheet names in the specified ODS spreadsheet.
         return [sheet.getAttribute("name") for sheet in self.wbk.spreadsheet.getElementsByType(of.table.Table)]
 
     def sheet_named(self, sheetname: Any) -> Any:
+        """Return the sheet matching a name or 1-based integer index, or ``None`` if not found."""
         # Return the sheet with the matching name.  If the name is actually an integer,
         # return that sheet number.
         if isinstance(sheetname, int):
@@ -155,6 +165,7 @@ class OdsFile:
         return None
 
     def sheet_data(self, sheetname: Any, junk_header_rows: int = 0) -> list:
+        """Return all row data from the named sheet, optionally skipping leading junk rows."""
         sheet = self.sheet_named(sheetname)
         if not sheet:
             raise OdsFileError(f"There is no sheet named {sheetname}")
@@ -197,10 +208,12 @@ class OdsFile:
         return [row_data(r) for r in rows]
 
     def new_sheet(self, sheetname: str) -> Any:
+        """Create and return a detached sheet object that can later be added to the workbook."""
         # Returns a sheet (a named Table) that has not yet been added to the workbook
         return of.table.Table(name=sheetname)
 
     def add_row_to_sheet(self, datarow: Any, of_table: Any, header: bool = False) -> None:
+        """Append a data row to an ODS table, applying header or body cell styles as appropriate."""
         if header:
             self.define_header_style()
             style_name = "header"
@@ -249,15 +262,18 @@ class OdsFile:
             tr.addElement(tc)
 
     def add_sheet(self, of_table: Any) -> None:
+        """Attach a prepared sheet object to the workbook's spreadsheet element."""
         self.wbk.spreadsheet.addElement(of_table)
 
     def save_close(self) -> None:
+        """Serialise the workbook to disk and release all resources."""
         with open(self.filename, "wb") as ofile:
             self.wbk.write(ofile)
         self.filename = None
         self.wbk = None
 
     def close(self) -> None:
+        """Release the workbook reference without saving."""
         self.filename = None
         self.wbk = None
 
@@ -271,6 +287,7 @@ def export_ods(
     sheetname: str | None = None,
     desc: str | None = None,
 ) -> None:
+    """Write a single-sheet ODS file from pre-fetched column headers and rows."""
     # If not given, determine the worksheet name to use.  The pattern is "Sheetx", where x is
     # the first integer for which there is not already a sheet name.
     if append and Path(outfile).is_file():
@@ -340,6 +357,7 @@ def write_query_to_ods(
     sheetname: str | None = None,
     desc: str | None = None,
 ) -> None:
+    """Execute a SELECT and write the result set as a single-sheet ODS spreadsheet."""
     try:
         hdrs, rows = db.select_rowsource(select_stmt)
     except ErrInfo:
@@ -357,6 +375,7 @@ def write_queries_to_ods(
     tee: bool = False,
     desc: str | None = None,
 ) -> None:
+    """Write multiple tables/queries to separate sheets in a single ODS workbook."""
     from execsql.exporters.pretty import prettyprint_query
     from execsql.exporters.base import ExportRecord
 

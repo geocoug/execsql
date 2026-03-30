@@ -37,6 +37,7 @@ def export_html(
     desc: str | None = None,
     zipfile: str | None = None,
 ) -> None:
+    """Write a complete HTML document containing a data table to a file or ZIP archive."""
     conf = _state.conf
 
     def write_table(f):
@@ -166,6 +167,7 @@ def export_cgi_html(
     desc: str | None = None,
     zipfile: str | None = None,
 ) -> None:
+    """Write a CGI-style HTML fragment (Content-Type header + table) to a file or ZIP archive."""
     conf = _state.conf
 
     def write_table(f):
@@ -225,6 +227,7 @@ def write_query_to_html(
     desc: str | None = None,
     zipfile: str | None = None,
 ) -> None:
+    """Execute a SELECT and write the result set as a standalone HTML document."""
     try:
         hdrs, rows = db.select_rowsource(select_stmt)
     except ErrInfo:
@@ -242,6 +245,7 @@ def write_query_to_cgi_html(
     desc: str | None = None,
     zipfile: str | None = None,
 ) -> None:
+    """Execute a SELECT and write the result set as a CGI-style HTML fragment."""
     try:
         hdrs, rows = db.select_rowsource(select_stmt)
     except ErrInfo:

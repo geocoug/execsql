@@ -24,6 +24,8 @@ DEFAULT_CONNECT_TIMEOUT = 30  # seconds
 
 
 class SQLiteDatabase(Database):
+    """SQLite adapter using the Python standard-library sqlite3 module."""
+
     def __init__(self, SQLite_fn: str, timeout: float = DEFAULT_CONNECT_TIMEOUT) -> None:
         try:
             import sqlite3  # noqa: F401

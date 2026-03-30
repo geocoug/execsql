@@ -33,7 +33,10 @@ __all__ = ["LineDelimiter", "CsvFile", "CsvWriter", "DelimitedWriter", "write_de
 
 
 class LineDelimiter:
+    """Encapsulates delimiter, quote character, and escape rules for a single line format."""
+
     def __init__(self, delim: str | None, quote: str | None, escchar: str | None) -> None:
+        """Initialise the line-format constants for a given delimiter/quote pair."""
         self.delimiter = delim
         self.joinchar = delim if delim else ""
         self.quotechar = quote
@@ -46,6 +49,7 @@ class LineDelimiter:
             self.quotedquote = None
 
     def delimited(self, datarow: Any, add_newline: bool = True) -> str:
+        """Format a sequence of values as a single delimited text line."""
         conf = _state.conf
         if self.quotechar:
             d_row = []
@@ -81,22 +85,30 @@ class LineDelimiter:
 
 
 class DelimitedWriter:
+    """Low-level writer that formats data rows as delimited text and sends them to an open file object."""
+
     def __init__(self, outfile: Any, delim: str | None, quote: str | None, escchar: str | None) -> None:
+        """Wrap an open file object with a :class:`LineDelimiter` for row-by-row writing."""
         self.outfile = outfile
         self.line_delimiter = LineDelimiter(delim, quote, escchar)
 
     def write(self, text_str: str) -> None:
+        """Write a raw string directly to the underlying file object."""
         self.outfile.write(text_str)
 
     def writerow(self, datarow: Any) -> None:
+        """Format one data row as delimited text and write it to the file."""
         self.outfile.write(self.line_delimiter.delimited(datarow))
 
     def writerows(self, datarows: Any) -> None:
+        """Write each row in an iterable of data rows to the file."""
         for row in datarows:
             self.writerow(row)
 
 
 class CsvWriter:
+    """Opens a named file (or stdout) and exposes a row-oriented delimited-text writing API."""
+
     def __init__(
         self,
         filename: str,
@@ -115,21 +127,32 @@ class CsvWriter:
         self.dwriter = DelimitedWriter(self.output, delim, quote, escchar)
 
     def write(self, text_str: str) -> None:
+        """Write a raw string to the output file."""
         self.dwriter.write(text_str)
 
     def writerow(self, datarow: Any) -> None:
+        """Format and write a single data row."""
         self.dwriter.writerow(datarow)
 
     def writerows(self, datarows: Any) -> None:
+        """Format and write each row in an iterable."""
         self.dwriter.writerows(datarows)
 
     def close(self) -> None:
+        """Close the underlying output file."""
         self.output.close()
         self.output = None
 
 
 class CsvFile(EncodedFile):
+    """Full delimited-file reader/writer with automatic format diagnosis.
+
+    Supports custom delimiters, quoting, encoding, junk-header skipping,
+    column-type inference, and ZIP output via :class:`CsvWriter`.
+    """
+
     def __init__(self, csvfname: str, file_encoding: str, junk_header_lines: int = 0) -> None:
+        """Open a CSV file path for later reading or writing."""
         super().__init__(csvfname, file_encoding)
         self.csvfname = csvfname
         self.junk_header_lines = junk_header_lines
@@ -145,6 +168,7 @@ class CsvFile(EncodedFile):
         return f"CsvFile({self.csvfname!r}, {self.encoding!r})"
 
     def openclean(self, mode: str) -> Any:
+        """Return an opened file object with the configured number of junk header lines skipped."""
         # Returns an opened file object with junk headers stripped.
         f = self.open(mode)
         for _ in range(self.junk_header_lines):
@@ -152,6 +176,7 @@ class CsvFile(EncodedFile):
         return f
 
     def lineformat(self, delimiter: str | None, quotechar: str | None, escapechar: str | None) -> None:
+        """Explicitly set the delimiter, quote character, and escape character."""
         # Specifies the format of a line.
         self.delimiter = delimiter
         self.quotechar = quotechar
@@ -415,6 +440,7 @@ class CsvFile(EncodedFile):
         )
 
     def evaluate_line_format(self) -> None:
+        """Scan the file to auto-detect the delimiter, quote character, and escape character."""
         # Scans the file to determine the delimiter, quote character, and escapechar.
         if not self.lineformat_set:
             f = self.openclean("rt")
@@ -428,6 +454,7 @@ class CsvFile(EncodedFile):
         self.parse_errors.append(f"{errmsg} in position {pos_no}")
 
     def read_and_parse_line(self, f: Any) -> list:
+        """Read and parse one line from an open file, returning a list of field values."""
         # Returns a list of line elements, parsed according to the established delimiter and quotechar.
         elements = []
         eat_multiple_delims = self.delimiter == " "
@@ -573,6 +600,7 @@ class CsvFile(EncodedFile):
         return elements
 
     def reader(self) -> Any:
+        """Yield parsed rows from the file as lists of field values."""
         conf = _state.conf
         self.evaluate_line_format()
         f = self.openclean("rt")
@@ -599,6 +627,7 @@ class CsvFile(EncodedFile):
             f.close()
 
     def writer(self, append: bool = False) -> CsvWriter:
+        """Return a :class:`CsvWriter` configured with this file's format settings."""
         return CsvWriter(self.filename, self.encoding, self.delimiter, self.quotechar, self.escapechar, append)
 
     def _colhdrs(self, inf: Any) -> list[str]:
@@ -642,17 +671,20 @@ class CsvFile(EncodedFile):
         return colnames
 
     def column_headers(self) -> list[str]:
+        """Return the first row of the file as a list of column header strings."""
         if not self.lineformat_set:
             self.evaluate_line_format()
         inf = self.reader()
         return self._colhdrs(inf)
 
     def data_table_def(self) -> Any:
+        """Return a :class:`DataTable` describing the file's columns and types."""
         if self.table_data is None:
             self.evaluate_column_types()
         return self.table_data
 
     def evaluate_column_types(self) -> None:
+        """Scan the file and populate ``table_data`` with inferred column types."""
         if not self.lineformat_set:
             self.evaluate_line_format()
         inf = self.reader()
@@ -660,6 +692,7 @@ class CsvFile(EncodedFile):
         self.table_data = DataTable(colnames, inf)
 
     def create_table(self, database_type: Any, schemaname: str | None, tablename: str, pretty: bool = False) -> str:
+        """Generate a CREATE TABLE SQL statement for this file's inferred schema."""
         return self.table_data.create_table(database_type, schemaname, tablename, pretty)
 
 
@@ -672,6 +705,7 @@ def write_delimited_file(
     append: bool = False,
     zipfile: str | None = None,
 ) -> None:
+    """Write a query result set to a CSV, TSV, or other delimited text file."""
     delim = None
     quote = None
     escchar = None

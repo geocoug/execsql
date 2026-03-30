@@ -20,6 +20,8 @@ __all__ = ["MySQLDatabase"]
 
 
 class MySQLDatabase(Database):
+    """MySQL and MariaDB adapter using the pymysql package."""
+
     def __init__(
         self,
         server_name: str,

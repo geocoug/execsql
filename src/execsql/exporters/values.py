@@ -27,6 +27,7 @@ def export_values(
     desc: str | None = None,
     zipfile: str | None = None,
 ) -> None:
+    """Write pre-fetched rows as SQL INSERT … VALUES statements to a file or ZIP archive."""
     conf = _state.conf
     if outfile.lower() == "stdout":
         f = _state.output
@@ -72,6 +73,7 @@ def write_query_to_values(
     desc: str | None = None,
     zipfile: str | None = None,
 ) -> None:
+    """Execute a SELECT and write the result set as SQL INSERT … VALUES statements."""
     try:
         hdrs, rows = db.select_rowsource(select_stmt)
     except ErrInfo:

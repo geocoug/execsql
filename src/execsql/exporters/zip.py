@@ -19,7 +19,10 @@ __all__ = ["WriteableZipfile", "ZipWriter"]
 
 
 class WriteableZipfile:
+    """Thin ZipFile wrapper that accepts chunked string writes via an internal buffer."""
+
     def __init__(self, zipfile_name: str, append: bool = False) -> None:
+        """Open (or create) a ZIP archive and allocate a write buffer."""
         conf = _state.conf
         self.bufsize = conf.zip_buffer_mb * 1024 * 1000
         self.buf = memoryview(bytearray(self.bufsize))
@@ -33,6 +36,7 @@ class WriteableZipfile:
         self.close()
 
     def member_file(self, member_filename: str) -> None:
+        """Create a new member entry in the archive and open it for writing."""
         # Creates a ZipInfo object (file) within the zipfile and opens it for writing.
         self.current_zinfo = zipfile.ZipInfo(
             filename=member_filename,
@@ -51,6 +55,7 @@ class WriteableZipfile:
         self.current_handle = self.zf.open(self.current_zinfo, mode="w")
 
     def zip_buffer(self) -> None:
+        """Flush any buffered bytes to the currently open zip member file."""
         # Writes the buffer contents, if any, to the zip member file.
         if self.buflen > 0 and self.current_handle is not None:
             with self.zf._lock:
@@ -59,6 +64,7 @@ class WriteableZipfile:
             self.buflen = 0
 
     def write(self, str_data: str) -> None:
+        """Buffer a UTF-8-encoded string for writing to the currently open member."""
         # Writes the given text to the currently open member.
         # Convert from string to bytes.
         data = str_data.encode("utf-8")
@@ -69,26 +75,33 @@ class WriteableZipfile:
         self.buflen = self.buflen + datalen
 
     def close_member(self) -> None:
+        """Flush the buffer and close the currently open member file handle."""
         if self.current_handle is not None:
             self.zip_buffer()
             self.current_handle.close()
             self.current_handle = None
 
     def close(self) -> None:
+        """Close the open member (flushing the buffer) and finalise the ZIP archive."""
         self.close_member()
         self.zf.close()
 
 
 class ZipWriter:
+    """High-level write-only interface used by EXPORT metacommands to stream output into a ZIP archive."""
+
     def __init__(self, zip_fname: str, member_fname: str, append: bool = False) -> None:
+        """Open the archive at ``zip_fname`` and begin a new member file named ``member_fname``."""
         self.zip_fname = zip_fname
         self.member_fname = member_fname
         self.zwriter = WriteableZipfile(self.zip_fname, append)
         self.member = self.zwriter.member_file(member_fname)
 
     def write(self, str_data: str) -> None:
+        """Write a string to the current zip member."""
         self.zwriter.write(str_data)
 
     def close(self) -> None:
+        """Close the zip member and finalise the archive."""
         self.zwriter.close()
         self.zwriter = None

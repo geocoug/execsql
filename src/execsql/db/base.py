@@ -50,6 +50,7 @@ class Database:
 
     @property
     def dt_cast(self) -> dict[type, Callable]:
+        """Return the type-cast mapping, initialising it lazily on first access."""
         if self._dt_cast is None:
             self._dt_cast = _default_dt_cast()
         return self._dt_cast
@@ -87,22 +88,26 @@ class Database:
         )
 
     def name(self) -> str:
+        """Return a human-readable description of this connection (DBMS + server/file)."""
         if self.server_name:
             return f"{self.type.dbms_id}(server {self.server_name}; database {self.db_name})"
         else:
             return f"{self.type.dbms_id}(file {self.db_name})"
 
     def open_db(self) -> None:
+        """Open the underlying database connection; subclasses must override this."""
         from execsql.exceptions import DatabaseNotImplementedError
 
         raise DatabaseNotImplementedError(self.name(), "open_db")
 
     def cursor(self):
+        """Return a new cursor, opening the connection first if it has not been opened yet."""
         if self.conn is None:
             self.open_db()
         return self.conn.cursor()
 
     def close(self) -> None:
+        """Close the database connection, logging a warning if autocommit is off."""
         if self.conn:
             if not self.autocommit:
                 _state.exec_log.log_status_info(
@@ -117,9 +122,14 @@ class Database:
         return '"' + identifier.replace('"', '""') + '"'
 
     def paramsubs(self, paramcount: int) -> str:
+        """Return a comma-separated string of *paramcount* parameter placeholders."""
         return ",".join((self.paramstr,) * paramcount)
 
     def execute(self, sql: Any, paramlist: list | None = None) -> None:
+        """Execute *sql* (optionally with *paramlist*), updating ``$LAST_ROWCOUNT``.
+
+        Rolls back the current transaction and re-raises on any driver error.
+        """
         # A shortcut to self.cursor().execute() that handles encoding.
         # Whether or not encoding is needed depends on the DBMS.
         if type(sql) in (tuple, list):
@@ -143,21 +153,26 @@ class Database:
             raise
 
     def exec_cmd(self, querycommand: str) -> None:
+        """Execute a stored procedure or function by name; subclasses must override this."""
         from execsql.exceptions import DatabaseNotImplementedError
 
         raise DatabaseNotImplementedError(self.name(), "exec_cmd")
 
     def autocommit_on(self) -> None:
+        """Enable autocommit mode so each statement is committed immediately."""
         self.autocommit = True
 
     def autocommit_off(self) -> None:
+        """Disable autocommit mode, grouping subsequent statements into a transaction."""
         self.autocommit = False
 
     def commit(self) -> None:
+        """Commit the current transaction if autocommit is enabled."""
         if self.conn and self.autocommit:
             self.conn.commit()
 
     def rollback(self) -> None:
+        """Roll back the current transaction; swallows errors (best-effort)."""
         if self.conn:
             try:
                 self.conn.rollback()
@@ -165,6 +180,7 @@ class Database:
                 pass  # Best-effort; connection may already be closed.
 
     def schema_qualified_table_name(self, schema_name: str | None, table_name: str) -> str:
+        """Return the quoted, optionally schema-qualified form of *table_name*."""
         table_name = self.type.quoted(table_name)
         if schema_name:
             schema_name = self.type.quoted(schema_name)
@@ -172,6 +188,7 @@ class Database:
         return table_name
 
     def select_data(self, sql: str) -> tuple[list[str], list]:
+        """Execute *sql* and return ``(column_names, rows)`` with all rows fetched into memory."""
         # Returns the results of the sql select statement.
         curs = self.cursor()
         try:
@@ -187,6 +204,7 @@ class Database:
         return [d[0] for d in curs.description], rows
 
     def select_rowsource(self, sql: str) -> tuple[list[str], Generator]:
+        """Execute *sql* and return ``(column_names, row_generator)`` for streaming large result sets."""
         # Return 1) a list of column names, and 2) an iterable that yields rows.
         curs = self.cursor()
         try:
@@ -221,6 +239,7 @@ class Database:
         return [d[0] for d in curs.description], decode_row()
 
     def select_rowdict(self, sql: str) -> tuple[list[str], Iterator]:
+        """Execute *sql* and return ``(column_names, row_iterator)`` where each row is a ``dict``."""
         # Return an iterable that yields dictionaries of row data
         curs = self.cursor()
         try:
@@ -248,6 +267,7 @@ class Database:
         return hdrs, iter(dict_row, None)
 
     def schema_exists(self, schema_name: str) -> bool:
+        """Return ``True`` if *schema_name* exists in this database."""
         curs = self.cursor()
         sql = f"SELECT schema_name FROM information_schema.schemata WHERE schema_name = {self.paramstr};"
         curs.execute(sql, (schema_name,))
@@ -256,6 +276,7 @@ class Database:
         return len(rows) > 0
 
     def table_exists(self, table_name: str, schema_name: str | None = None) -> bool:
+        """Return ``True`` if *table_name* (optionally in *schema_name*) exists."""
         curs = self.cursor()
         params: list = [table_name]
         schema_clause = ""
@@ -285,6 +306,7 @@ class Database:
         column_name: str,
         schema_name: str | None = None,
     ) -> bool:
+        """Return ``True`` if *column_name* exists in *table_name* (optionally in *schema_name*)."""
         curs = self.cursor()
         params: list = [table_name]
         schema_clause = ""
@@ -314,6 +336,7 @@ class Database:
         return len(rows) > 0
 
     def table_columns(self, table_name: str, schema_name: str | None = None) -> list[str]:
+        """Return the ordered list of column names for *table_name*."""
         curs = self.cursor()
         params: list = [table_name]
         schema_clause = ""
@@ -342,6 +365,7 @@ class Database:
         return [row[0] for row in rows]
 
     def view_exists(self, view_name: str, schema_name: str | None = None) -> bool:
+        """Return ``True`` if *view_name* (optionally in *schema_name*) exists."""
         curs = self.cursor()
         params: list = [view_name]
         schema_clause = ""
@@ -366,11 +390,13 @@ class Database:
         return len(rows) > 0
 
     def role_exists(self, rolename: str) -> bool:
+        """Return ``True`` if *rolename* exists; subclasses must override this."""
         from execsql.exceptions import DatabaseNotImplementedError
 
         raise DatabaseNotImplementedError(self.name(), "role_exists")
 
     def drop_table(self, tablename: str) -> None:
+        """Drop *tablename* if it exists; *tablename* must already be schema-qualified and quoted."""
         # The 'tablename' argument should be schema-qualified and quoted as necessary.
         self.execute(f"drop table if exists {tablename} cascade;")
         self.commit()
@@ -383,6 +409,11 @@ class Database:
         column_list: list[str],
         tablespec_src: Callable,
     ) -> None:
+        """Bulk-insert rows from *rowsource* into *table_name* using the columns in *column_list*.
+
+        *rowsource* must be a generator yielding lists of values in column order.
+        *tablespec_src* is a zero-argument callable that returns the table's type specification.
+        """
         # The rowsource argument must be a generator yielding a list of values for the columns of the table.
         # The column_list argument must an iterable containing column names.  This may be a subset of
         # the names of columns in the rowsource.
@@ -544,6 +575,7 @@ class Database:
         csv_file_obj: Any,
         skipheader: bool,
     ) -> None:
+        """Import a CSV/tabular file into *table_name*; column names must be compatible."""
         # Import a text (CSV) file containing tabular data to a table.  Columns must be compatible.
         if not self.table_exists(table_name, schema_name):
             raise ErrInfo(
@@ -586,6 +618,7 @@ class Database:
         column_name: str,
         file_name: str,
     ) -> None:
+        """Insert the raw binary content of *file_name* as a single row into *column_name* of *table_name*."""
         with open(file_name, "rb") as f:
             filedata = f.read()
         sq_name = self.schema_qualified_table_name(schema_name, table_name)
@@ -608,6 +641,7 @@ class DatabasePool:
         return "DatabasePool()"
 
     def add(self, db_alias: str, db_obj: Database) -> None:
+        """Register *db_obj* under *db_alias*, setting it as initial/current if this is the first connection."""
         db_alias = db_alias.lower()
         if db_alias == "initial" and len(self.pool) > 0:
             raise ErrInfo(
@@ -631,25 +665,27 @@ class DatabasePool:
         self.pool[db_alias] = db_obj
 
     def aliases(self) -> list[str]:
-        # Return a list of the currently defined aliases
+        """Return a list of all currently registered database aliases."""
         return list(self.pool)
 
     def current(self) -> Database:
-        # Return the current db object.
+        """Return the currently active ``Database`` object."""
         return self.pool[self.current_db]
 
     def current_alias(self) -> str:
-        # Return the alias of the current db object.
+        """Return the alias string for the currently active database."""
         return self.current_db
 
     def initial(self) -> Database:
+        """Return the first ``Database`` that was added to the pool."""
         return self.pool[self.initial_db]
 
     def aliased_as(self, db_alias: str) -> Database:
+        """Return the ``Database`` registered under *db_alias*."""
         return self.pool[db_alias]
 
     def make_current(self, db_alias: str) -> None:
-        # Change the current database in use.
+        """Set the active database to *db_alias*; raises ``ErrInfo`` if the alias is unknown."""
         db_alias = db_alias.lower()
         if db_alias not in self.pool:
             raise ErrInfo(
@@ -659,6 +695,7 @@ class DatabasePool:
         self.current_db = db_alias
 
     def disconnect(self, alias: str) -> None:
+        """Close and remove the connection registered under *alias* from the pool."""
         if alias == self.current_db or (alias == "initial" and "initial" in self.pool):
             raise ErrInfo(
                 type="error",
@@ -669,6 +706,7 @@ class DatabasePool:
             del self.pool[alias]
 
     def closeall(self) -> None:
+        """Roll back and close every connection in the pool, then reset the pool to empty."""
         for alias, db in self.pool.items():
             nm = db.name()
             try:

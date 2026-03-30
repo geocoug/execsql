@@ -31,10 +31,17 @@ __all__ = [
 
 
 class StatObj:
+    """Lightweight container for runtime status flags used by the metacommand engine.
+
+    Tracks error conditions, halt-on-error policy, dialog cancellation state,
+    and the current batch nesting level.
+    """
+
     # A generic object to maintain status indicators.  These status
     # indicators are primarily those used in the metacommand
     # environment rather than for the program as a whole.
     def __init__(self) -> None:
+        """Initialise all status flags to their default (non-error) values."""
         self.halt_on_err = True
         self.sql_error = False
         self.halt_on_metacommand_err = True
@@ -48,6 +55,13 @@ class StatObj:
 
 
 class ConfigData:
+    """Reads and merges ``execsql.conf`` INI files, exposing all options as attributes.
+
+    Searches system, user, script-directory, and working-directory locations
+    (in that order) and applies each file's settings cumulatively so that
+    later files override earlier ones.
+    """
+
     config_file_name = "execsql.conf"
     _CONNECT_SECTION = "connect"
     _ENCODING_SECTION = "encoding"
@@ -61,6 +75,15 @@ class ConfigData:
     _INCLUDE_OPT_SECTION = "include_optional"
 
     def __init__(self, script_path: str, variable_pool: object) -> None:
+        """Load and merge all discoverable execsql.conf files for the given script path.
+
+        Args:
+            script_path: Directory of the running script; used to locate a
+                script-adjacent ``execsql.conf``.
+            variable_pool: Substitution-variable registry used to expand
+                ``config_file`` path values and to populate ``[variables]``
+                sections.
+        """
         self.db_type = "a"
         self.server = None
         self.port = None
@@ -553,6 +576,12 @@ class ConfigData:
 
 
 class WriteHooks:
+    """Thin wrapper around stdout/stderr that supports GUI or test-harness redirection.
+
+    Each output hook is a callable that accepts a single string.  When a hook
+    is ``None`` the default ``sys.stdout`` or ``sys.stderr`` is used.
+    """
+
     def __repr__(self) -> str:
         return f"WriteHooks({self.write_func!r}, {self.err_func!r}, {self.status_func!r})"
 
@@ -562,6 +591,16 @@ class WriteHooks:
         error_output_func: object = None,
         status_output_func: object = None,
     ) -> None:
+        """Store optional hook callables; ``None`` means use the default stream.
+
+        Args:
+            standard_output_func: Callable to receive standard-output text, or
+                ``None`` to use ``sys.stdout``.
+            error_output_func: Callable to receive error-output text, or
+                ``None`` to use ``sys.stderr``.
+            status_output_func: Callable to receive status-line text, or
+                ``None`` to suppress.
+        """
         # Arguments should be functions that take a single string and
         # write it to the desired destination.  Both stdout and stderr can be hooked.
         # If a hook function is not specified, the default of stdout or stderr will
@@ -573,22 +612,27 @@ class WriteHooks:
         self.tee_stderr = True
 
     def reset(self) -> None:
+        """Reset both output hooks to ``None``, restoring stdout/stderr behaviour."""
         # Resets output to stdout and stderr.
         self.write_func = None
         self.err_func = None
 
     def redir_stdout(self, standard_output_func: object) -> None:
+        """Replace the standard-output hook with the given callable."""
         self.write_func = standard_output_func
 
     def redir_stderr(self, error_output_func: object, tee: bool = True) -> None:
+        """Replace the error-output hook and optionally keep tee-to-stderr behaviour."""
         self.err_func = error_output_func
         self.tee_stderr = tee
 
     def redir(self, standard_output_func: object, error_output_func: object) -> None:
+        """Redirect both stdout and stderr hooks in one call."""
         self.redir_stdout(standard_output_func)
         self.redir_stderr(error_output_func)
 
     def write(self, strval: str) -> None:
+        """Write a string to the standard-output hook, or to sys.stdout if unset."""
         if self.write_func:
             self.write_func(strval)
         else:
@@ -596,6 +640,7 @@ class WriteHooks:
             sys.stdout.flush()
 
     def write_err(self, strval: str) -> None:
+        """Write an error string to the error-output hook, or to sys.stderr if unset."""
         if strval[-1] != "\n":
             strval += "\n"
         if self.err_func:
@@ -608,5 +653,6 @@ class WriteHooks:
             sys.stderr.flush()
 
     def write_status(self, strval: str) -> None:
+        """Forward a status string to the status hook if one is registered."""
         if self.status_func:
             self.status_func(strval)

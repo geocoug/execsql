@@ -19,6 +19,8 @@ __all__ = ["DuckDBDatabase"]
 
 
 class DuckDBDatabase(Database):
+    """DuckDB in-process analytics adapter using the duckdb package."""
+
     def __init__(self, DuckDB_fn: str) -> None:
         try:
             import duckdb  # noqa: F401

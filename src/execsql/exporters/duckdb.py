@@ -25,6 +25,7 @@ def export_duckdb(
     append: bool,
     tablename: str,
 ) -> None:
+    """Write pre-fetched rows to a named table in a DuckDB database file."""
     try:
         import duckdb
     except Exception:
@@ -81,6 +82,7 @@ def write_query_to_duckdb(
     append: bool,
     tablename: str,
 ) -> None:
+    """Execute a SELECT and write the result set to a named table in a DuckDB database."""
     from execsql.utils.errors import exception_desc
 
     try:

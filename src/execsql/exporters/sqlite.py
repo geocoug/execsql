@@ -24,6 +24,7 @@ def export_sqlite(
     append: bool,
     tablename: str,
 ) -> None:
+    """Write pre-fetched rows to a table in an SQLite database file, creating it if necessary."""
     import sqlite3
 
     from execsql.models import DataTable
@@ -73,6 +74,7 @@ def write_query_to_sqlite(
     append: bool,
     tablename: str,
 ) -> None:
+    """Execute a SELECT and write the result set to a named table in an SQLite database."""
     from execsql.utils.errors import exception_desc
 
     try:

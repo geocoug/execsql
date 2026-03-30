@@ -29,7 +29,7 @@ def write_query_to_json(
     desc: str | None = None,
     zipfile: str | None = None,
 ) -> None:
-
+    """Execute a SELECT and write the result set as a JSON array of objects."""
     conf = _state.conf
     try:
         hdrs, rows = db.select_rowsource(select_stmt)
@@ -76,7 +76,7 @@ def write_query_to_json_ts(
     desc: str | None = None,
     zipfile: str | None = None,
 ) -> None:
-
+    """Execute a SELECT and write the result set as a JSON object with a top-level field-type schema."""
     conf = _state.conf
     try:
         hdrs, rows = db.select_rowsource(select_stmt)

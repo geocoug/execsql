@@ -22,6 +22,7 @@ __all__ = ["write_query_to_feather", "write_query_to_hdf5"]
 
 
 def write_query_to_feather(outfile: str, headers: list[str], rows: Any) -> None:
+    """Write a row source as an Apache Arrow Feather v2 file using polars."""
     try:
         import polars as pl
     except ImportError as e:
@@ -47,6 +48,7 @@ def write_query_to_hdf5(
     append: bool = False,
     desc: str | None = None,
 ) -> None:
+    """Execute a SELECT and write the result set to an HDF5 file using the tables library."""
     try:
         import tables
     except ImportError as e:

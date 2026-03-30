@@ -17,6 +17,7 @@ __all__ = ["write_query_to_parquet"]
 
 
 def write_query_to_parquet(outfile: str, headers: list[str], rows: Any) -> None:
+    """Write a row source as an Apache Parquet file using polars."""
     try:
         import polars as pl
     except ImportError as e:

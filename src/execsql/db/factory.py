@@ -44,6 +44,7 @@ def db_Access(
     user: str | None = None,
     encoding: str | None = None,
 ) -> AccessDatabase:
+    """Open an MS Access database file (.mdb or .accdb) via DAO/ODBC."""
     if not Path(Access_fn).exists():
         raise ErrInfo(
             type="error",
@@ -62,6 +63,7 @@ def db_Postgres(
     new_db: bool = False,
     password: str | None = None,
 ) -> PostgresDatabase:
+    """Open a new PostgreSQL connection via psycopg2."""
     return PostgresDatabase(server_name, database_name, user, pw_needed, port, new_db=new_db, password=password)
 
 
@@ -70,6 +72,7 @@ def db_SQLite(
     new_db: bool = False,
     encoding: str | None = None,
 ) -> SQLiteDatabase:
+    """Open a SQLite database file via the standard-library sqlite3 module."""
     if new_db:
         from execsql.utils.fileio import check_dir
 
@@ -91,6 +94,7 @@ def db_SqlServer(
     port: int | None = None,
     encoding: str | None = None,
 ) -> SqlServerDatabase:
+    """Open a Microsoft SQL Server connection via pyodbc."""
     return SqlServerDatabase(server_name, database_name, user, pw_needed, port, encoding)
 
 
@@ -102,6 +106,7 @@ def db_MySQL(
     port: int | None = None,
     encoding: str | None = None,
 ) -> MySQLDatabase:
+    """Open a MySQL or MariaDB connection via pymysql."""
     return MySQLDatabase(server_name, database_name, user, pw_needed, port, encoding)
 
 
@@ -110,6 +115,7 @@ def db_DuckDB(
     new_db: bool = False,
     encoding: str | None = None,
 ) -> DuckDBDatabase:
+    """Open a DuckDB in-process analytics database file via the duckdb package."""
     if new_db:
         from execsql.utils.fileio import check_dir
 
@@ -131,6 +137,7 @@ def db_Oracle(
     port: int | None = None,
     encoding: str | None = None,
 ) -> OracleDatabase:
+    """Open an Oracle database connection via cx_Oracle (python-oracledb)."""
     return OracleDatabase(server_name, database_name, user, pw_needed, port, encoding)
 
 
@@ -142,6 +149,7 @@ def db_Firebird(
     port: int | None = None,
     encoding: str | None = None,
 ) -> FirebirdDatabase:
+    """Open a Firebird database connection via the firebird-driver package."""
     return FirebirdDatabase(server_name, database_name, user, pw_needed, port, encoding)
 
 
@@ -151,4 +159,5 @@ def db_Dsn(
     pw_needed: bool = True,
     encoding: str | None = None,
 ) -> DsnDatabase:
+    """Open a connection to any ODBC data source registered under *dsn_name*."""
     return DsnDatabase(dsn_name=dsn_name, user_name=user, need_passwd=pw_needed, encoding=encoding)

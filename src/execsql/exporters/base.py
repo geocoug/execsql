@@ -90,15 +90,18 @@ class ExportMetadata:
         self.recordlist: list[ExportRecord] = []
 
     def add(self, exp_record: ExportRecord) -> None:
+        """Append an export record to the collection."""
         self.recordlist.append(exp_record)
 
     def get(self):
+        """Return column headers and all not-yet-exported records, marking them exported."""
         recs = [er.record for er in self.recordlist if not er.exported]
         for er in self.recordlist:
             er.exported = True
         return self.colhdrs, recs
 
     def get_all(self):
+        """Return column headers and every record regardless of prior export state."""
         recs = [er.record for er in self.recordlist]
         for er in self.recordlist:
             er.exported = True
@@ -132,6 +135,7 @@ class WriteSpec:
         self.written = False
 
     def write(self) -> None:
+        """Execute the deferred write, expanding substitution variables first."""
         # Writes the message per the specifications given to '__init__()'.  Substitution
         # variables are processed.
         # Inputs: no inputs.

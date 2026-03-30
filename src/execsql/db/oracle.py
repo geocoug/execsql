@@ -20,6 +20,8 @@ __all__ = ["OracleDatabase"]
 
 
 class OracleDatabase(Database):
+    """Oracle adapter using the cx_Oracle (python-oracledb) driver."""
+
     def __init__(
         self,
         server_name: str,

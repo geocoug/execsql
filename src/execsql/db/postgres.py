@@ -25,6 +25,8 @@ DEFAULT_CONNECT_TIMEOUT = 30  # seconds
 
 
 class PostgresDatabase(Database):
+    """PostgreSQL adapter using psycopg2, with schema support, server-side COPY, and keyring auth."""
+
     def __init__(
         self,
         server_name: str,

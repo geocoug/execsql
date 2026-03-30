@@ -30,6 +30,7 @@ def write_query_to_xml(
     desc: str | None = None,
     zipfile: str | None = None,
 ) -> None:
+    """Execute a SELECT and write the result set as a well-formed XML document."""
     conf = _state.conf
     try:
         hdrs, rows = db.select_rowsource(select_stmt)

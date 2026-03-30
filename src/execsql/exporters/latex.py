@@ -29,6 +29,7 @@ def export_latex(
     desc: str | None = None,
     zipfile: Any | None = None,
 ) -> None:
+    """Write pre-fetched rows as a LaTeX tabular environment to a file or ZIP archive."""
     from execsql.utils.fileio import EncodedFile
 
     def write_table(f: Any) -> None:
@@ -122,6 +123,7 @@ def write_query_to_latex(
     desc: str | None = None,
     zipfile: Any | None = None,
 ) -> None:
+    """Execute a SELECT and write the result set as a LaTeX tabular table."""
     from execsql.utils.errors import exception_desc
 
     try:

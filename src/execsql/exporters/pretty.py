@@ -28,6 +28,8 @@ def prettyprint_rowset(
     desc: str | None = None,
     zipfile: str | None = None,
 ) -> None:
+    """Format a pre-fetched result set as a fixed-width human-readable text table and write it."""
+
     # Adapted from the pp() function by Aaron Watters,
     # posted to gadfly-rdbms@egroups.com 1999-01-18.
     def as_ucode(s):
@@ -99,6 +101,7 @@ def prettyprint_query(
     desc: str | None = None,
     zipfile: str | None = None,
 ) -> None:
+    """Execute a SELECT and write the result set as a column-aligned text table."""
     _state.status.sql_error = False
     names, rows = db.select_data(select_stmt)
     prettyprint_rowset(names, rows, outfile, append, and_val, desc, zipfile=zipfile)
