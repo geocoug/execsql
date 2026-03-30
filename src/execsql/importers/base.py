@@ -28,7 +28,7 @@ def import_data_table(
     hdrs: list[str],
     data: list[Any],
 ) -> None:
-    from execsql.utils.errors import exception_info
+    from execsql.utils.errors import exception_desc
 
     conf = _state.conf
     if any(x is None or len(x.strip()) == 0 for x in hdrs):
@@ -91,7 +91,7 @@ def import_data_table(
             raise ErrInfo(
                 type="db",
                 command_text=sql,
-                exception_msg=exception_info(),
+                exception_msg=exception_desc(),
                 other_msg=f"Could not create new table ({tablename}) for IMPORT metacommand",
             ) from e
     table_cols = db.table_columns(tablename, schemaname)
@@ -111,4 +111,4 @@ def import_data_table(
     except ErrInfo:
         raise
     except Exception as e:
-        raise ErrInfo("db", "Call to populate_table when importing data", exception_msg=exception_info()) from e
+        raise ErrInfo("db", "Call to populate_table when importing data", exception_msg=exception_desc()) from e

@@ -32,7 +32,7 @@ def importtable(
     encoding: str | None = None,
     junk_header_lines: int = 0,
 ) -> None:
-    from execsql.utils.errors import exception_info
+    from execsql.utils.errors import exception_desc
 
     conf = _state.conf
     if not Path(filename).is_file():
@@ -66,7 +66,7 @@ def importtable(
             raise ErrInfo(
                 type="db",
                 command_text=sql,
-                exception_msg=exception_info(),
+                exception_msg=exception_desc(),
                 other_msg=f"Could not create new table ({tablename}) for IMPORT metacommand",
             ) from e
     else:
@@ -91,7 +91,7 @@ def importtable(
         fq_tablename = db.schema_qualified_table_name(schemaname, tablename)
         raise ErrInfo(
             "exception",
-            exception_msg=exception_info(),
+            exception_msg=exception_desc(),
             other_msg=f"Can't import tabular file ({filename}) to table ({fq_tablename})",
         ) from e
     inf.close()
@@ -104,7 +104,7 @@ def importfile(
     columname: str,
     filename: str,
 ) -> None:
-    from execsql.utils.errors import exception_info
+    from execsql.utils.errors import exception_desc
 
     if schemaname is not None:
         if not db.table_exists(tablename, schemaname):
@@ -127,6 +127,6 @@ def importfile(
         fq_tablename = db.schema_qualified_table_name(schemaname, tablename)
         raise ErrInfo(
             "exception",
-            exception_msg=exception_info(),
+            exception_msg=exception_desc(),
             other_msg=f"Can't import file ({filename}) to table ({fq_tablename})",
         ) from e

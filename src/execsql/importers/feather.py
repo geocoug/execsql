@@ -24,14 +24,14 @@ def import_feather(
     filename: str,
     is_new: Any,
 ) -> None:
-    from execsql.utils.errors import exception_info
+    from execsql.utils.errors import exception_desc
 
     try:
         import polars as pl
     except Exception as e:
         raise ErrInfo(
             "exception",
-            exception_msg=exception_info(),
+            exception_msg=exception_desc(),
             other_msg="The polars Python library must be installed to import data from the Feather format.",
         ) from e
     df = pl.read_ipc(filename)
@@ -47,14 +47,14 @@ def import_parquet(
     filename: str,
     is_new: Any,
 ) -> None:
-    from execsql.utils.errors import exception_info
+    from execsql.utils.errors import exception_desc
 
     try:
         import polars as pl
     except Exception as e:
         raise ErrInfo(
             "exception",
-            exception_msg=exception_info(),
+            exception_msg=exception_desc(),
             other_msg="The polars Python library must be installed to import data from the Parquet format.",
         ) from e
     df = pl.read_parquet(filename)

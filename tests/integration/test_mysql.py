@@ -235,7 +235,6 @@ class TestExportCSV:
 
 
 class TestImportCSV:
-    @pytest.mark.xfail(reason="MySQL IMPORT hits 'tuple' has no attribute 'replace' — pre-existing adapter bug")
     def test_import_csv_into_table(self, tmp_path):
         """Import a CSV file into a pre-created table and verify row counts."""
         _exec_mysql("DROP TABLE IF EXISTS students")
