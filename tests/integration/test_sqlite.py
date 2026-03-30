@@ -14,6 +14,8 @@ import subprocess
 import sys
 import textwrap
 
+from tests.integration.conftest import run_execsql, write_script
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -41,32 +43,6 @@ def _write_conf(tmp_path, db_filename="test.db", extra=""):
     return conf
 
 
-def _write_script(tmp_path, sql_text, name="test_script.sql"):
-    """Write a .sql script file into *tmp_path*."""
-    script = tmp_path / name
-    script.write_text(textwrap.dedent(sql_text))
-    return script
-
-
-def _run_execsql(tmp_path, script_path, extra_args=None, timeout=30):
-    """Run execsql on the given script via subprocess.
-
-    Returns the completed process. The working directory is set to *tmp_path*
-    so that execsql.conf is picked up automatically.
-    """
-    cmd = [sys.executable, "-m", "execsql", str(script_path)]
-    if extra_args:
-        cmd.extend(extra_args)
-    result = subprocess.run(
-        cmd,
-        cwd=str(tmp_path),
-        capture_output=True,
-        text=True,
-        timeout=timeout,
-    )
-    return result
-
-
 # ---------------------------------------------------------------------------
 # Test: basic SQL execution (CREATE TABLE, INSERT, SELECT)
 # ---------------------------------------------------------------------------
@@ -76,7 +52,7 @@ class TestBasicSQLExecution:
     def test_create_table_and_insert(self, tmp_path):
         """CREATE TABLE + INSERT via execsql, then verify rows in the DB."""
         _write_conf(tmp_path)
-        script = _write_script(
+        script = write_script(
             tmp_path,
             """\
             CREATE TABLE fruits (
@@ -90,7 +66,7 @@ class TestBasicSQLExecution:
         """,
         )
 
-        result = _run_execsql(tmp_path, script)
+        result = run_execsql(tmp_path, script)
         assert result.returncode == 0, f"stderr: {result.stderr}"
 
         db_path = tmp_path / "test.db"
@@ -108,7 +84,7 @@ class TestBasicSQLExecution:
     def test_multiple_statements(self, tmp_path):
         """Run multiple DDL/DML statements in sequence."""
         _write_conf(tmp_path)
-        script = _write_script(
+        script = write_script(
             tmp_path,
             """\
             CREATE TABLE counters (name TEXT, val INTEGER);
@@ -119,7 +95,7 @@ class TestBasicSQLExecution:
         """,
         )
 
-        result = _run_execsql(tmp_path, script)
+        result = run_execsql(tmp_path, script)
         assert result.returncode == 0, f"stderr: {result.stderr}"
 
         conn = sqlite3.connect(str(tmp_path / "test.db"))
@@ -138,7 +114,7 @@ class TestSubstitutionVariables:
     def test_sub_variable_in_insert(self, tmp_path):
         """Define a SUB variable and use it in a SQL INSERT."""
         _write_conf(tmp_path)
-        script = _write_script(
+        script = write_script(
             tmp_path,
             """\
             CREATE TABLE greetings (msg TEXT);
@@ -148,7 +124,7 @@ class TestSubstitutionVariables:
         """,
         )
 
-        result = _run_execsql(tmp_path, script)
+        result = run_execsql(tmp_path, script)
         assert result.returncode == 0, f"stderr: {result.stderr}"
 
         conn = sqlite3.connect(str(tmp_path / "test.db"))
@@ -161,7 +137,7 @@ class TestSubstitutionVariables:
     def test_sub_variable_in_table_name(self, tmp_path):
         """Use a SUB variable as part of a table name."""
         _write_conf(tmp_path)
-        script = _write_script(
+        script = write_script(
             tmp_path,
             """\
             -- !x! SUB tblname mytable
@@ -170,7 +146,7 @@ class TestSubstitutionVariables:
         """,
         )
 
-        result = _run_execsql(tmp_path, script)
+        result = run_execsql(tmp_path, script)
         assert result.returncode == 0, f"stderr: {result.stderr}"
 
         conn = sqlite3.connect(str(tmp_path / "test.db"))
@@ -190,7 +166,7 @@ class TestExportCSV:
         """Run a SELECT and export results to a CSV file, then verify contents."""
         _write_conf(tmp_path)
         csv_path = tmp_path / "output.csv"
-        script = _write_script(
+        script = write_script(
             tmp_path,
             f"""\
             CREATE TABLE items (id INTEGER, label TEXT);
@@ -202,7 +178,7 @@ class TestExportCSV:
         """,
         )
 
-        result = _run_execsql(tmp_path, script)
+        result = run_execsql(tmp_path, script)
         assert result.returncode == 0, f"stderr: {result.stderr}"
 
         assert csv_path.exists(), "CSV file was not created"
@@ -232,7 +208,7 @@ class TestImportCSV:
         csv_path = tmp_path / "data.csv"
         csv_path.write_text("id,name,score\n1,Alice,95\n2,Bob,87\n3,Carol,92\n")
 
-        script = _write_script(
+        script = write_script(
             tmp_path,
             f"""\
             CREATE TABLE students (id INTEGER, name TEXT, score INTEGER);
@@ -241,7 +217,7 @@ class TestImportCSV:
         """,
         )
 
-        result = _run_execsql(tmp_path, script)
+        result = run_execsql(tmp_path, script)
         assert result.returncode == 0, f"stderr: {result.stderr}"
 
         conn = sqlite3.connect(str(tmp_path / "test.db"))
@@ -263,7 +239,7 @@ class TestConditionalExecution:
     def test_if_true_branch_executes(self, tmp_path):
         """IF condition is true: the block inside executes."""
         _write_conf(tmp_path)
-        script = _write_script(
+        script = write_script(
             tmp_path,
             """\
             CREATE TABLE results (branch TEXT);
@@ -275,7 +251,7 @@ class TestConditionalExecution:
         """,
         )
 
-        result = _run_execsql(tmp_path, script)
+        result = run_execsql(tmp_path, script)
         assert result.returncode == 0, f"stderr: {result.stderr}"
 
         conn = sqlite3.connect(str(tmp_path / "test.db"))
@@ -287,7 +263,7 @@ class TestConditionalExecution:
     def test_if_false_branch_skipped(self, tmp_path):
         """IF condition is false: the block is skipped."""
         _write_conf(tmp_path)
-        script = _write_script(
+        script = write_script(
             tmp_path,
             """\
             CREATE TABLE results (branch TEXT);
@@ -299,7 +275,7 @@ class TestConditionalExecution:
         """,
         )
 
-        result = _run_execsql(tmp_path, script)
+        result = run_execsql(tmp_path, script)
         assert result.returncode == 0, f"stderr: {result.stderr}"
 
         conn = sqlite3.connect(str(tmp_path / "test.db"))
@@ -311,7 +287,7 @@ class TestConditionalExecution:
     def test_if_else(self, tmp_path):
         """IF/ELSE: the ELSE branch executes when the condition is false."""
         _write_conf(tmp_path)
-        script = _write_script(
+        script = write_script(
             tmp_path,
             """\
             CREATE TABLE results (branch TEXT);
@@ -325,7 +301,7 @@ class TestConditionalExecution:
         """,
         )
 
-        result = _run_execsql(tmp_path, script)
+        result = run_execsql(tmp_path, script)
         assert result.returncode == 0, f"stderr: {result.stderr}"
 
         conn = sqlite3.connect(str(tmp_path / "test.db"))
@@ -337,7 +313,7 @@ class TestConditionalExecution:
     def test_nested_if(self, tmp_path):
         """Nested IF blocks execute correctly."""
         _write_conf(tmp_path)
-        script = _write_script(
+        script = write_script(
             tmp_path,
             """\
             CREATE TABLE results (val TEXT);
@@ -352,7 +328,7 @@ class TestConditionalExecution:
         """,
         )
 
-        result = _run_execsql(tmp_path, script)
+        result = run_execsql(tmp_path, script)
         assert result.returncode == 0, f"stderr: {result.stderr}"
 
         conn = sqlite3.connect(str(tmp_path / "test.db"))
@@ -371,14 +347,14 @@ class TestWriteMetacommand:
     def test_write_to_stdout(self, tmp_path):
         """WRITE metacommand without a TO clause prints to stdout."""
         _write_conf(tmp_path)
-        script = _write_script(
+        script = write_script(
             tmp_path,
             """\
             -- !x! WRITE "Hello from execsql"
         """,
         )
 
-        result = _run_execsql(tmp_path, script)
+        result = run_execsql(tmp_path, script)
         assert result.returncode == 0, f"stderr: {result.stderr}"
         assert "Hello from execsql" in result.stdout
 
@@ -393,7 +369,7 @@ class TestRoundTrip:
         """Create a table, export to CSV, drop table, re-import, and verify."""
         _write_conf(tmp_path)
         csv_path = tmp_path / "roundtrip.csv"
-        script = _write_script(
+        script = write_script(
             tmp_path,
             f"""\
             CREATE TABLE original (id INTEGER, color TEXT);
@@ -410,7 +386,7 @@ class TestRoundTrip:
         """,
         )
 
-        result = _run_execsql(tmp_path, script)
+        result = run_execsql(tmp_path, script)
         assert result.returncode == 0, f"stderr: {result.stderr}"
 
         conn = sqlite3.connect(str(tmp_path / "test.db"))
@@ -433,7 +409,7 @@ class TestExportJSON:
         """Export query results to a JSON file."""
         _write_conf(tmp_path)
         out = tmp_path / "output.json"
-        script = _write_script(
+        script = write_script(
             tmp_path,
             f"""\
             CREATE TABLE items (id INTEGER, label TEXT);
@@ -444,7 +420,7 @@ class TestExportJSON:
         """,
         )
 
-        result = _run_execsql(tmp_path, script)
+        result = run_execsql(tmp_path, script)
         assert result.returncode == 0, f"stderr: {result.stderr}"
         assert out.exists()
 
@@ -466,7 +442,7 @@ class TestExportHTML:
         """Export query results to an HTML file and verify it contains a table."""
         _write_conf(tmp_path)
         out = tmp_path / "output.html"
-        script = _write_script(
+        script = write_script(
             tmp_path,
             f"""\
             CREATE TABLE items (id INTEGER, label TEXT);
@@ -477,7 +453,7 @@ class TestExportHTML:
         """,
         )
 
-        result = _run_execsql(tmp_path, script)
+        result = run_execsql(tmp_path, script)
         assert result.returncode == 0, f"stderr: {result.stderr}"
         assert out.exists()
 
@@ -497,7 +473,7 @@ class TestExportLaTeX:
         """Export query results to a LaTeX file."""
         _write_conf(tmp_path)
         out = tmp_path / "output.tex"
-        script = _write_script(
+        script = write_script(
             tmp_path,
             f"""\
             CREATE TABLE items (id INTEGER, label TEXT);
@@ -508,7 +484,7 @@ class TestExportLaTeX:
         """,
         )
 
-        result = _run_execsql(tmp_path, script)
+        result = run_execsql(tmp_path, script)
         assert result.returncode == 0, f"stderr: {result.stderr}"
         assert out.exists()
 
@@ -528,7 +504,7 @@ class TestExportTSV:
         """Export query results to a TSV file."""
         _write_conf(tmp_path)
         out = tmp_path / "output.tsv"
-        script = _write_script(
+        script = write_script(
             tmp_path,
             f"""\
             CREATE TABLE items (id INTEGER, label TEXT);
@@ -539,7 +515,7 @@ class TestExportTSV:
         """,
         )
 
-        result = _run_execsql(tmp_path, script)
+        result = run_execsql(tmp_path, script)
         assert result.returncode == 0, f"stderr: {result.stderr}"
         assert out.exists()
 
@@ -559,7 +535,7 @@ class TestDDLOperations:
     def test_create_view(self, tmp_path):
         """Create a view and query through it."""
         _write_conf(tmp_path)
-        script = _write_script(
+        script = write_script(
             tmp_path,
             """\
             CREATE TABLE employees (id INTEGER, name TEXT, dept TEXT);
@@ -572,7 +548,7 @@ class TestDDLOperations:
         """,
         )
 
-        result = _run_execsql(tmp_path, script)
+        result = run_execsql(tmp_path, script)
         assert result.returncode == 0, f"stderr: {result.stderr}"
 
         conn = sqlite3.connect(str(tmp_path / "test.db"))
@@ -584,7 +560,7 @@ class TestDDLOperations:
     def test_create_index(self, tmp_path):
         """Create an index on a table."""
         _write_conf(tmp_path)
-        script = _write_script(
+        script = write_script(
             tmp_path,
             """\
             CREATE TABLE logs (id INTEGER PRIMARY KEY, ts TEXT, msg TEXT);
@@ -593,7 +569,7 @@ class TestDDLOperations:
         """,
         )
 
-        result = _run_execsql(tmp_path, script)
+        result = run_execsql(tmp_path, script)
         assert result.returncode == 0, f"stderr: {result.stderr}"
 
         conn = sqlite3.connect(str(tmp_path / "test.db"))
@@ -608,7 +584,7 @@ class TestDDLOperations:
     def test_drop_and_recreate_table(self, tmp_path):
         """Drop a table and recreate it."""
         _write_conf(tmp_path)
-        script = _write_script(
+        script = write_script(
             tmp_path,
             """\
             CREATE TABLE tmp (val INTEGER);
@@ -619,7 +595,7 @@ class TestDDLOperations:
         """,
         )
 
-        result = _run_execsql(tmp_path, script)
+        result = run_execsql(tmp_path, script)
         assert result.returncode == 0, f"stderr: {result.stderr}"
 
         conn = sqlite3.connect(str(tmp_path / "test.db"))
@@ -639,14 +615,14 @@ class TestWriteToFile:
         """WRITE TO <file> creates an output file with the expected text."""
         _write_conf(tmp_path)
         out = tmp_path / "message.txt"
-        script = _write_script(
+        script = write_script(
             tmp_path,
             f"""\
             -- !x! WRITE "Hello from execsql" TO {out}
         """,
         )
 
-        result = _run_execsql(tmp_path, script)
+        result = run_execsql(tmp_path, script)
         assert result.returncode == 0, f"stderr: {result.stderr}"
         assert out.exists()
 
@@ -664,14 +640,14 @@ class TestWriteWithSubVars:
         """WRITE can interpolate system substitution variables."""
         _write_conf(tmp_path)
         out = tmp_path / "info.txt"
-        script = _write_script(
+        script = write_script(
             tmp_path,
             f"""\
             -- !x! WRITE "OS=!!$OS!!" TO {out}
         """,
         )
 
-        result = _run_execsql(tmp_path, script)
+        result = run_execsql(tmp_path, script)
         assert result.returncode == 0, f"stderr: {result.stderr}"
         assert out.exists()
 
@@ -691,7 +667,7 @@ class TestConfigMetacommand:
         """CONFIG MAKE_EXPORT_DIRS creates intermediate directories for EXPORT."""
         _write_conf(tmp_path)
         out = tmp_path / "subdir" / "deep" / "output.csv"
-        script = _write_script(
+        script = write_script(
             tmp_path,
             f"""\
             -- !x! CONFIG MAKE_EXPORT_DIRS Yes
@@ -702,7 +678,7 @@ class TestConfigMetacommand:
         """,
         )
 
-        result = _run_execsql(tmp_path, script)
+        result = run_execsql(tmp_path, script)
         assert result.returncode == 0, f"stderr: {result.stderr}"
         assert out.exists()
 
@@ -716,7 +692,7 @@ class TestErrorHandling:
     def test_bad_sql_reports_error(self, tmp_path):
         """A SQL syntax error causes a non-zero exit or error output."""
         _write_conf(tmp_path)
-        script = _write_script(
+        script = write_script(
             tmp_path,
             """\
             CREATE TABLE good (id INTEGER);
@@ -725,14 +701,14 @@ class TestErrorHandling:
         """,
         )
 
-        result = _run_execsql(tmp_path, script)
+        result = run_execsql(tmp_path, script)
         # Should fail (non-zero exit) or produce error output
         assert result.returncode != 0 or "error" in result.stderr.lower()
 
     def test_halt_on_error(self, tmp_path):
         """HALT ON ERROR stops execution at the first error."""
         _write_conf(tmp_path)
-        script = _write_script(
+        script = write_script(
             tmp_path,
             """\
             -- !x! HALT ON ERROR
@@ -742,7 +718,7 @@ class TestErrorHandling:
         """,
         )
 
-        result = _run_execsql(tmp_path, script)
+        result = run_execsql(tmp_path, script)
         assert result.returncode != 0
 
         # t2 should NOT have been created because HALT ON ERROR
@@ -793,7 +769,7 @@ class TestMultipleExports:
         _write_conf(tmp_path)
         csv_out = tmp_path / "out.csv"
         json_out = tmp_path / "out.json"
-        script = _write_script(
+        script = write_script(
             tmp_path,
             f"""\
             CREATE TABLE data (id INTEGER, val TEXT);
@@ -805,7 +781,7 @@ class TestMultipleExports:
         """,
         )
 
-        result = _run_execsql(tmp_path, script)
+        result = run_execsql(tmp_path, script)
         assert result.returncode == 0, f"stderr: {result.stderr}"
 
         assert csv_out.exists()

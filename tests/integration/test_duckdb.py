@@ -1,6 +1,6 @@
 """Integration tests that run SQL scripts through the full execsql pipeline using DuckDB.
 
-Mirrors the SQLite integration tests in test_integration.py but uses DuckDB as
+Mirrors the SQLite integration tests in test_sqlite.py but uses DuckDB as
 the backend (db_type = k).  Each test writes a minimal execsql.conf, creates a
 .sql script with metacommands, invokes the CLI via subprocess, and asserts
 outcomes.
@@ -9,11 +9,11 @@ outcomes.
 from __future__ import annotations
 
 import csv
-import subprocess
-import sys
 import textwrap
 
 import pytest
+
+from tests.integration.conftest import run_execsql, write_script
 
 duckdb = pytest.importorskip("duckdb", reason="duckdb package required")
 
@@ -44,31 +44,6 @@ def _write_conf(tmp_path, db_filename="test.duckdb", extra=""):
     return conf
 
 
-def _write_script(tmp_path, sql_text, name="test_script.sql"):
-    """Write a .sql script file into *tmp_path*."""
-    script = tmp_path / name
-    script.write_text(textwrap.dedent(sql_text))
-    return script
-
-
-def _run_execsql(tmp_path, script_path, extra_args=None, timeout=30):
-    """Run execsql on the given script via subprocess.
-
-    Returns the completed process. The working directory is set to *tmp_path*
-    so that execsql.conf is picked up automatically.
-    """
-    cmd = [sys.executable, "-m", "execsql", str(script_path)]
-    if extra_args:
-        cmd.extend(extra_args)
-    return subprocess.run(
-        cmd,
-        cwd=str(tmp_path),
-        capture_output=True,
-        text=True,
-        timeout=timeout,
-    )
-
-
 def _query_duckdb(db_path, sql):
     """Open a DuckDB file, run *sql*, and return all rows."""
     conn = duckdb.connect(str(db_path), read_only=True)
@@ -87,7 +62,7 @@ class TestBasicSQLExecution:
     def test_create_table_and_insert(self, tmp_path):
         """CREATE TABLE + INSERT via execsql, then verify rows in the DB."""
         _write_conf(tmp_path)
-        script = _write_script(
+        script = write_script(
             tmp_path,
             """\
             CREATE TABLE fruits (
@@ -101,7 +76,7 @@ class TestBasicSQLExecution:
         """,
         )
 
-        result = _run_execsql(tmp_path, script)
+        result = run_execsql(tmp_path, script)
         assert result.returncode == 0, f"stderr: {result.stderr}"
 
         db_path = tmp_path / "test.duckdb"
@@ -116,7 +91,7 @@ class TestBasicSQLExecution:
     def test_multiple_statements(self, tmp_path):
         """Run multiple DDL/DML statements in sequence."""
         _write_conf(tmp_path)
-        script = _write_script(
+        script = write_script(
             tmp_path,
             """\
             CREATE TABLE counters (name TEXT, val INTEGER);
@@ -127,7 +102,7 @@ class TestBasicSQLExecution:
         """,
         )
 
-        result = _run_execsql(tmp_path, script)
+        result = run_execsql(tmp_path, script)
         assert result.returncode == 0, f"stderr: {result.stderr}"
 
         rows = _query_duckdb(
@@ -146,7 +121,7 @@ class TestSubstitutionVariables:
     def test_sub_variable_in_insert(self, tmp_path):
         """Define a SUB variable and use it in a SQL INSERT."""
         _write_conf(tmp_path)
-        script = _write_script(
+        script = write_script(
             tmp_path,
             """\
             CREATE TABLE greetings (msg TEXT);
@@ -156,7 +131,7 @@ class TestSubstitutionVariables:
         """,
         )
 
-        result = _run_execsql(tmp_path, script)
+        result = run_execsql(tmp_path, script)
         assert result.returncode == 0, f"stderr: {result.stderr}"
 
         rows = _query_duckdb(
@@ -169,7 +144,7 @@ class TestSubstitutionVariables:
     def test_sub_variable_in_table_name(self, tmp_path):
         """Use a SUB variable as part of a table name."""
         _write_conf(tmp_path)
-        script = _write_script(
+        script = write_script(
             tmp_path,
             """\
             -- !x! SUB tblname mytable
@@ -178,7 +153,7 @@ class TestSubstitutionVariables:
         """,
         )
 
-        result = _run_execsql(tmp_path, script)
+        result = run_execsql(tmp_path, script)
         assert result.returncode == 0, f"stderr: {result.stderr}"
 
         rows = _query_duckdb(tmp_path / "test.duckdb", "SELECT id FROM mytable")
@@ -195,7 +170,7 @@ class TestExportCSV:
         """Run a SELECT and export results to a CSV file, then verify contents."""
         _write_conf(tmp_path)
         csv_path = tmp_path / "output.csv"
-        script = _write_script(
+        script = write_script(
             tmp_path,
             f"""\
             CREATE TABLE items (id INTEGER, label TEXT);
@@ -207,7 +182,7 @@ class TestExportCSV:
         """,
         )
 
-        result = _run_execsql(tmp_path, script)
+        result = run_execsql(tmp_path, script)
         assert result.returncode == 0, f"stderr: {result.stderr}"
 
         assert csv_path.exists(), "CSV file was not created"
@@ -235,7 +210,7 @@ class TestImportCSV:
         csv_path = tmp_path / "data.csv"
         csv_path.write_text("id,name,score\n1,Alice,95\n2,Bob,87\n3,Carol,92\n")
 
-        script = _write_script(
+        script = write_script(
             tmp_path,
             f"""\
             CREATE TABLE students (id INTEGER, name TEXT, score INTEGER);
@@ -244,7 +219,7 @@ class TestImportCSV:
         """,
         )
 
-        result = _run_execsql(tmp_path, script)
+        result = run_execsql(tmp_path, script)
         assert result.returncode == 0, f"stderr: {result.stderr}"
 
         rows = _query_duckdb(
@@ -266,7 +241,7 @@ class TestConditionalExecution:
     def test_if_true_branch_executes(self, tmp_path):
         """IF condition is true: the block inside executes."""
         _write_conf(tmp_path)
-        script = _write_script(
+        script = write_script(
             tmp_path,
             """\
             CREATE TABLE results (branch TEXT);
@@ -278,7 +253,7 @@ class TestConditionalExecution:
         """,
         )
 
-        result = _run_execsql(tmp_path, script)
+        result = run_execsql(tmp_path, script)
         assert result.returncode == 0, f"stderr: {result.stderr}"
 
         rows = _query_duckdb(
@@ -290,7 +265,7 @@ class TestConditionalExecution:
     def test_if_false_branch_skipped(self, tmp_path):
         """IF condition is false: the block is skipped."""
         _write_conf(tmp_path)
-        script = _write_script(
+        script = write_script(
             tmp_path,
             """\
             CREATE TABLE results (branch TEXT);
@@ -302,7 +277,7 @@ class TestConditionalExecution:
         """,
         )
 
-        result = _run_execsql(tmp_path, script)
+        result = run_execsql(tmp_path, script)
         assert result.returncode == 0, f"stderr: {result.stderr}"
 
         rows = _query_duckdb(
@@ -314,7 +289,7 @@ class TestConditionalExecution:
     def test_if_else(self, tmp_path):
         """IF/ELSE: the ELSE branch executes when the condition is false."""
         _write_conf(tmp_path)
-        script = _write_script(
+        script = write_script(
             tmp_path,
             """\
             CREATE TABLE results (branch TEXT);
@@ -328,7 +303,7 @@ class TestConditionalExecution:
         """,
         )
 
-        result = _run_execsql(tmp_path, script)
+        result = run_execsql(tmp_path, script)
         assert result.returncode == 0, f"stderr: {result.stderr}"
 
         rows = _query_duckdb(
@@ -340,7 +315,7 @@ class TestConditionalExecution:
     def test_nested_if(self, tmp_path):
         """Nested IF blocks execute correctly."""
         _write_conf(tmp_path)
-        script = _write_script(
+        script = write_script(
             tmp_path,
             """\
             CREATE TABLE results (val TEXT);
@@ -355,7 +330,7 @@ class TestConditionalExecution:
         """,
         )
 
-        result = _run_execsql(tmp_path, script)
+        result = run_execsql(tmp_path, script)
         assert result.returncode == 0, f"stderr: {result.stderr}"
 
         rows = _query_duckdb(
@@ -374,14 +349,14 @@ class TestWriteMetacommand:
     def test_write_to_stdout(self, tmp_path):
         """WRITE metacommand without a TO clause prints to stdout."""
         _write_conf(tmp_path)
-        script = _write_script(
+        script = write_script(
             tmp_path,
             """\
             -- !x! WRITE "Hello from execsql"
         """,
         )
 
-        result = _run_execsql(tmp_path, script)
+        result = run_execsql(tmp_path, script)
         assert result.returncode == 0, f"stderr: {result.stderr}"
         assert "Hello from execsql" in result.stdout
 
@@ -396,7 +371,7 @@ class TestRoundTrip:
         """Create a table, export to CSV, drop table, re-import, and verify."""
         _write_conf(tmp_path)
         csv_path = tmp_path / "roundtrip.csv"
-        script = _write_script(
+        script = write_script(
             tmp_path,
             f"""\
             CREATE TABLE original (id INTEGER, color TEXT);
@@ -413,7 +388,7 @@ class TestRoundTrip:
         """,
         )
 
-        result = _run_execsql(tmp_path, script)
+        result = run_execsql(tmp_path, script)
         assert result.returncode == 0, f"stderr: {result.stderr}"
 
         rows = _query_duckdb(
@@ -435,7 +410,7 @@ class TestDuckDBSpecific:
     def test_create_and_query_view(self, tmp_path):
         """DuckDB views are queryable through execsql."""
         _write_conf(tmp_path)
-        script = _write_script(
+        script = write_script(
             tmp_path,
             """\
             CREATE TABLE base (id INTEGER, val DOUBLE);
@@ -446,7 +421,7 @@ class TestDuckDBSpecific:
         """,
         )
 
-        result = _run_execsql(tmp_path, script)
+        result = run_execsql(tmp_path, script)
         assert result.returncode == 0, f"stderr: {result.stderr}"
 
         rows = _query_duckdb(
@@ -460,7 +435,7 @@ class TestDuckDBSpecific:
     def test_schema_creation(self, tmp_path):
         """DuckDB supports schemas beyond the default 'main'."""
         _write_conf(tmp_path)
-        script = _write_script(
+        script = write_script(
             tmp_path,
             """\
             CREATE SCHEMA staging;
@@ -469,7 +444,7 @@ class TestDuckDBSpecific:
         """,
         )
 
-        result = _run_execsql(tmp_path, script)
+        result = run_execsql(tmp_path, script)
         assert result.returncode == 0, f"stderr: {result.stderr}"
 
         rows = _query_duckdb(
@@ -481,7 +456,7 @@ class TestDuckDBSpecific:
     def test_duckdb_native_types(self, tmp_path):
         """DuckDB supports types beyond typical SQLite (DATE, TIMESTAMP, LIST)."""
         _write_conf(tmp_path)
-        script = _write_script(
+        script = write_script(
             tmp_path,
             """\
             CREATE TABLE typed (
@@ -494,7 +469,7 @@ class TestDuckDBSpecific:
         """,
         )
 
-        result = _run_execsql(tmp_path, script)
+        result = run_execsql(tmp_path, script)
         assert result.returncode == 0, f"stderr: {result.stderr}"
 
         rows = _query_duckdb(
