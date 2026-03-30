@@ -79,7 +79,7 @@ def _write_conf(tmp_path, extra=""):
         [encoding]
         script = utf-8
         output = utf-8
-        import = utf-8
+        import = utf8mb4
         {extra}
     """),
     )
