@@ -49,3 +49,4 @@ A multi-agent system where specialized agents collaborate to improve, extend, de
 - Agents should always read `.claude/project_context.md` before starting work
 - The existing post-tool hooks (auto-changelog, auto-docs) continue working independently
 - All code must pass `ruff check` and target Python 3.10+
+- **Every user-visible change must be reflected in `CHANGELOG.md`** under the `[Unreleased]` section using [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) categories: Added, Changed, Fixed, Removed. Do not leave changelog updates for later — include them in the same commit or PR as the code change.
