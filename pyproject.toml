@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "execsql2"
-version = "2.3.0"
+version = "2.4.0"
 description = "Runs a SQL script against a PostgreSQL, SQLite, MariaDB/MySQL, DuckDB, Firebird, MS-Access, MS-SQL-Server, or Oracle database, or an ODBC DSN. Provides metacommands to import and export data, copy data between databases, conditionally execute SQL and metacommands, and dynamically alter SQL and metacommands with substitution variables."
 readme = { file = "README.md", content-type = "text/markdown" }
 license = { file = "LICENSE.txt" }
@@ -155,7 +155,7 @@ skip-magic-trailing-comma = false
 line-ending = "auto"
 
 [tool.bumpversion]
-current_version = "2.3.0"
+current_version = "2.4.0"
 commit = true
 commit_args = "--no-verify"
 tag = true
