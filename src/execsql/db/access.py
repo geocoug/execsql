@@ -24,6 +24,8 @@ __all__ = ["AccessDatabase"]
 
 
 class AccessDatabase(Database):
+    """MS Access adapter connecting to .mdb/.accdb files via DAO (win32com) with pyodbc fallback."""
+
     # Regex for the 'create temporary view' SQL extension
     temp_rx = re.compile(
         r"^\s*create(?:\s+or\s+replace)?(\s+temp(?:orary)?)?\s+(?:(view|query))\s+(\w+) as\s+",
@@ -105,9 +107,13 @@ class AccessDatabase(Database):
                 try:
                     self.conn = pyodbc.connect(connstr)
                 except Exception:
-                    _state.exec_log.log_status_info(f"Could not connect via ODBC using: {connstr}")
+                    _state.exec_log.log_status_info(
+                        f"Could not connect via ODBC using: {re.sub(r'Pwd=[^;]*', 'Pwd=***', connstr)}",
+                    )
                 else:
-                    _state.exec_log.log_status_info(f"Connected via ODBC using: {connstr}")
+                    _state.exec_log.log_status_info(
+                        f"Connected via ODBC using: {re.sub(r'Pwd=[^;]*', 'Pwd=***', connstr)}",
+                    )
                     self.jet4 = jet4flag
                     return True
             return False

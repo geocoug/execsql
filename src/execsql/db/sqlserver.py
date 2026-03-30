@@ -7,6 +7,7 @@ Implements :class:`SqlServerDatabase`, which connects to Microsoft SQL
 Server via ``pyodbc``.  Corresponds to ``-t s`` on the CLI.
 """
 
+import re
 
 from execsql.db.base import Database
 from execsql.exceptions import ErrInfo
@@ -18,6 +19,8 @@ __all__ = ["SqlServerDatabase"]
 
 
 class SqlServerDatabase(Database):
+    """Microsoft SQL Server adapter using pyodbc, trying drivers from newest to oldest."""
+
     def __init__(
         self,
         server_name: str,
@@ -98,9 +101,13 @@ class SqlServerDatabase(Database):
                     try:
                         self.conn = pyodbc.connect(connstr)
                     except Exception:
-                        _state.exec_log.log_status_info(f"Could not connect using: {connstr}")
+                        _state.exec_log.log_status_info(
+                            f"Could not connect using: {re.sub(r'Pwd=[^;]*', 'Pwd=***', connstr)}",
+                        )
                     else:
-                        _state.exec_log.log_status_info(f"Connected using: {connstr}")
+                        _state.exec_log.log_status_info(
+                            f"Connected using: {re.sub(r'Pwd=[^;]*', 'Pwd=***', connstr)}",
+                        )
                         return True
                 return False
 
