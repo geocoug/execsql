@@ -34,6 +34,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Database",
     "Topic :: Database :: Front-Ends",
 ]
@@ -99,7 +100,7 @@ packages = ["src/execsql"]
 "templates" = "execsql2_extras"
 
 [tool.ruff]
-target-version = "py313"
+target-version = "py314"
 line-length = 120
 
 [tool.ruff.lint]
@@ -223,7 +224,7 @@ fo = "fo"
 
 [tool.tox]
 required = ["tox-uv"]
-env_list = ["py310", "py311", "py312", "py313", "build"]
+env_list = ["py310", "py311", "py312", "py313", "py314", "build"]
 skip_missing_interpreters = true
 isolated_build = true
 basepython = "python3.13"

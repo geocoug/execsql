@@ -21,6 +21,8 @@ ______________________________________________________________________
 
 ### Added
 
+- Python 3.14 support — added to CI matrix, tox environments, and PyPI classifiers.
+
 - Roadmap items in `templates/README.md` for integrating execsql-compare and execsql-upsert documentation into the main docs site.
 
 ______________________________________________________________________
