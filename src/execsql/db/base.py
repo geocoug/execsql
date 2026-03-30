@@ -16,6 +16,7 @@ active.  It is the canonical ``_state.dbs`` object.
 
 import datetime
 import re
+from abc import ABC, abstractmethod
 from decimal import Decimal
 from typing import Any
 from collections.abc import Callable, Generator, Iterator
@@ -43,7 +44,7 @@ def _default_dt_cast() -> dict[type, Callable]:
     }
 
 
-class Database:
+class Database(ABC):
     """Abstract base class for all database connections."""
 
     _dt_cast: dict[type, Callable] | None = None
@@ -94,11 +95,10 @@ class Database:
         else:
             return f"{self.type.dbms_id}(file {self.db_name})"
 
+    @abstractmethod
     def open_db(self) -> None:
-        """Open the underlying database connection; subclasses must override this."""
-        from execsql.exceptions import DatabaseNotImplementedError
-
-        raise DatabaseNotImplementedError(self.name(), "open_db")
+        """Open the underlying database connection."""
+        ...
 
     def cursor(self):
         """Return a new cursor, opening the connection first if it has not been opened yet."""
@@ -152,11 +152,10 @@ class Database:
                 pass  # Rollback is best-effort after a failed execute.
             raise
 
+    @abstractmethod
     def exec_cmd(self, querycommand: str) -> None:
-        """Execute a stored procedure or function by name; subclasses must override this."""
-        from execsql.exceptions import DatabaseNotImplementedError
-
-        raise DatabaseNotImplementedError(self.name(), "exec_cmd")
+        """Execute a stored procedure or function by name."""
+        ...
 
     def autocommit_on(self) -> None:
         """Enable autocommit mode so each statement is committed immediately."""

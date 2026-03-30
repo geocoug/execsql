@@ -18,7 +18,7 @@ from types import SimpleNamespace
 import pytest
 
 from execsql.db.base import Database, DatabasePool
-from execsql.exceptions import ErrInfo, DatabaseNotImplementedError
+from execsql.exceptions import ErrInfo
 
 
 # ---------------------------------------------------------------------------
@@ -35,7 +35,9 @@ class FakeDatabase(Database):
         self.type = SimpleNamespace(dbms_id="fake")
 
     def open_db(self):
-        # Do not raise — pretend the connection succeeds instantly.
+        pass
+
+    def exec_cmd(self, querycommand):
         pass
 
     def close(self):
@@ -60,35 +62,35 @@ class TestDatabaseInit:
         assert db.db_name == "mydb"
 
     def test_user_none_by_default(self):
-        db = Database(server_name=None, db_name=None)
+        db = FakeDatabase()
         assert db.user is None
 
     def test_password_none_initially(self):
-        db = Database(server_name=None, db_name=None)
+        db = FakeDatabase()
         assert db.password is None
 
     def test_conn_none_initially(self):
-        db = Database(server_name=None, db_name=None)
+        db = FakeDatabase()
         assert db.conn is None
 
     def test_autocommit_true_by_default(self):
-        db = Database(server_name=None, db_name=None)
+        db = FakeDatabase()
         assert db.autocommit is True
 
     def test_paramstr_default(self):
-        db = Database(server_name=None, db_name=None)
+        db = FakeDatabase()
         assert db.paramstr == "?"
 
 
 class TestDatabaseRepr:
     def test_repr_contains_server_and_db(self):
-        db = Database(server_name="myhost", db_name="mydb")
+        db = FakeDatabase(server="myhost", db="mydb")
         r = repr(db)
         assert "myhost" in r
         assert "mydb" in r
 
     def test_repr_starts_with_database(self):
-        db = Database(server_name=None, db_name=None)
+        db = FakeDatabase()
         assert repr(db).startswith("Database(")
 
 
@@ -105,12 +107,10 @@ class TestDatabaseName:
         assert "myfile.db" in name
 
 
-class TestDatabaseOpenDbNotImplemented:
-    def test_open_db_raises_database_not_implemented(self):
-        db = Database(server_name=None, db_name="x")
-        db.type = SimpleNamespace(dbms_id="abstract")
-        with pytest.raises(DatabaseNotImplementedError):
-            db.open_db()
+class TestDatabaseIsAbstract:
+    def test_cannot_instantiate_database_directly(self):
+        with pytest.raises(TypeError, match="abstract method"):
+            Database(server_name=None, db_name="x")
 
 
 # ---------------------------------------------------------------------------
@@ -120,27 +120,27 @@ class TestDatabaseOpenDbNotImplemented:
 
 class TestQuoteIdentifier:
     def test_simple_identifier(self):
-        db = Database(server_name=None, db_name=None)
+        db = FakeDatabase()
         assert db.quote_identifier("my_table") == '"my_table"'
 
     def test_identifier_with_embedded_double_quote(self):
-        db = Database(server_name=None, db_name=None)
+        db = FakeDatabase()
         assert db.quote_identifier('my"table') == '"my""table"'
 
     def test_identifier_with_multiple_double_quotes(self):
-        db = Database(server_name=None, db_name=None)
+        db = FakeDatabase()
         assert db.quote_identifier('a"b"c') == '"a""b""c"'
 
     def test_empty_identifier(self):
-        db = Database(server_name=None, db_name=None)
+        db = FakeDatabase()
         assert db.quote_identifier("") == '""'
 
     def test_identifier_with_spaces(self):
-        db = Database(server_name=None, db_name=None)
+        db = FakeDatabase()
         assert db.quote_identifier("my table") == '"my table"'
 
     def test_identifier_with_special_chars(self):
-        db = Database(server_name=None, db_name=None)
+        db = FakeDatabase()
         assert db.quote_identifier("col; DROP TABLE--") == '"col; DROP TABLE--"'
 
 
@@ -302,14 +302,14 @@ class TestDatabaseDeeperMethods:
         db.autocommit_on()
         assert db.autocommit is True
 
-    def test_exec_cmd_raises_not_implemented(self):
-        # exec_cmd is not implemented in the base class; SQLiteDatabase
-        # overrides it so we test via FakeDatabase (which inherits the base).
-        from execsql.exceptions import DatabaseNotImplementedError
+    def test_incomplete_subclass_cannot_be_instantiated(self):
+        # A subclass that only implements open_db but not exec_cmd cannot be instantiated.
+        class IncompleteDatabase(Database):
+            def open_db(self):
+                pass
 
-        db = FakeDatabase(db="test")
-        with pytest.raises(DatabaseNotImplementedError):
-            db.exec_cmd("anything")
+        with pytest.raises(TypeError, match="abstract method"):
+            IncompleteDatabase(server_name=None, db_name=None)
 
     def test_select_rowdict_returns_dicts(self, db):
         db.execute("CREATE TABLE t (a INTEGER, b TEXT);")
