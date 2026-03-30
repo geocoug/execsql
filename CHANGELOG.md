@@ -15,6 +15,22 @@ ______________________________________________________________________
 
 ## [2.3.0] - 2026-03-30
 
+### Added
+
+- `__all__` exports on 50 public modules for clean API surface and tooling support.
+- Docstrings on all public classes and key methods in `db/`, `exporters/`, `config.py`, and `script.py` (50%+ coverage target met).
+- Security documentation (`docs/security.md`) covering trust model, SHELL execution, credential handling, file system access, SMTP, and SQL variable substitution.
+
+### Fixed
+
+- Redact plaintext passwords (`Pwd=***`) from ODBC connection strings in log output for Access and SQL Server adapters.
+- Fix 2 ruff UP038 violations — use `X | Y` union syntax in `isinstance` calls.
+
+### Changed
+
+- Remove lazy import anti-pattern from 6 modules — stdlib imports (`json`, `base64`, `itertools`, `string`, `smtplib`, `email.*`) moved to module level; optional deps (`xlrd`, `openpyxl`, `jinja2`) use instance attributes instead of `global`.
+- Fix VS Code extension README paths and URLs.
+
 ______________________________________________________________________
 
 ## [2.2.1] - 2026-03-26
