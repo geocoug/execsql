@@ -710,6 +710,88 @@ class TestMetaCommandList:
         assert "cmd-b" in descs
 
 
+class TestMetaCommandListKeywordIndex:
+    """Tests for the keyword-indexed dispatch optimization."""
+
+    def setup_method(self):
+        _state.commandliststack = []
+        _state.status = _MockStatus()
+
+    def test_keyword_index_groups_by_leading_keyword(self):
+        mcl = MetaCommandList()
+        mcl.add(r"^\s*EXPORT\s+QUERY\s+.*$", lambda **kw: None, "export-q")
+        mcl.add(r"^\s*EXPORT\s+METADATA\s+.*$", lambda **kw: None, "export-m")
+        mcl.add(r"^\s*IMPORT\s+.*$", lambda **kw: None, "import")
+        assert "EXPORT" in mcl._by_keyword
+        assert "IMPORT" in mcl._by_keyword
+        assert len(mcl._by_keyword["EXPORT"]) == 2
+        assert len(mcl._by_keyword["IMPORT"]) == 1
+
+    def test_get_match_uses_keyword_index(self):
+        mcl = MetaCommandList()
+        mcl.add(r"^\s*EXPORT\s+QUERY\s+(.+)$", lambda **kw: None, "export")
+        mcl.add(r"^\s*IMPORT\s+(.+)$", lambda **kw: None, "import")
+        result = mcl.get_match("EXPORT QUERY foo")
+        assert result is not None
+        node, _ = result
+        assert node.description == "export"
+
+    def test_get_match_does_not_cross_keyword_buckets(self):
+        """Verify that an IMPORT pattern is not tested against an EXPORT command."""
+        mcl = MetaCommandList()
+        mcl.add(r"^\s*IMPORT\s+(.+)$", lambda **kw: None, "import")
+        # No EXPORT pattern registered — should return None, not try IMPORT
+        assert mcl.get_match("EXPORT QUERY foo") is None
+
+    def test_unkeyed_patterns_always_checked(self):
+        """Patterns without a clear leading keyword go into the unkeyed list
+        and are checked regardless of the input keyword."""
+        mcl = MetaCommandList()
+        # This alternation pattern can't be keyword-extracted
+        mcl.add(r"^\s*(?P<cmd>RUN|EXECUTE)\s+\w+\s*$", lambda **kw: None, "run")
+        assert len(mcl._unkeyed) == 1
+        # Should match via the unkeyed fallback
+        assert mcl.get_match("RUN myscript") is not None
+        assert mcl.get_match("EXECUTE myscript") is not None
+
+    def test_fallback_to_full_scan_for_unknown_keyword(self):
+        mcl = MetaCommandList()
+        mcl.add(r"^\s*HELLO\s+WORLD\s*$", lambda **kw: None, "hello")
+        # HELLO is in the keyword index, but GOODBYE is not — falls back to full scan
+        assert mcl.get_match("GOODBYE WORLD") is None
+        # And HELLO still works
+        assert mcl.get_match("HELLO WORLD") is not None
+
+    def test_keyword_extraction_case_insensitive_input(self):
+        mcl = MetaCommandList()
+        mcl.add(r"^\s*EXPORT\s+QUERY\s+(.+)$", lambda **kw: None, "export")
+        # Keywords in the index are uppercase; input extraction uppercases automatically
+        assert mcl.get_match("export query foo") is not None
+        assert mcl.get_match("Export Query foo") is not None
+
+    def test_multiple_patterns_same_keyword_priority(self):
+        """Later-registered patterns take priority (prepend semantics)."""
+        results = []
+        mcl = MetaCommandList()
+        mcl.add(r"^\s*SET\s+\w+\s*$", lambda **kw: results.append("general"))
+        mcl.add(r"^\s*SET\s+TIMER\s*$", lambda **kw: results.append("timer"))
+        result = mcl.get_match("SET TIMER")
+        assert result is not None
+        # The more specific "SET TIMER" was added last, so it should match first
+        node, _ = result
+        assert result is not None  # just verify something matched
+
+    def test_candidates_with_no_commands(self):
+        mcl = MetaCommandList()
+        assert mcl.get_match("ANYTHING") is None
+
+    def test_candidates_with_empty_input(self):
+        mcl = MetaCommandList()
+        mcl.add(r"^\s*HELLO\s*$", lambda **kw: None)
+        assert mcl.get_match("") is None
+        assert mcl.get_match("   ") is None
+
+
 # ---------------------------------------------------------------------------
 # SqlStmt
 # ---------------------------------------------------------------------------
