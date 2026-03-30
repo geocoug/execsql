@@ -17,6 +17,8 @@ ______________________________________________________________________
 - Cursor lifecycle management in `Database` — `execute()`, `select_data()`, `schema_exists()`, `table_exists()`, `column_exists()`, `table_columns()`, `view_exists()`, and `import_entire_file()` now use a context manager that guarantees cursor cleanup on exit.
 - Metacommand dispatch uses keyword-indexed lookup, reducing per-command dispatch from O(205) regex scans to O(K) where K is the number of patterns sharing the same leading keyword (typically 1–5).
 - Variable substitution uses a single combined regex to find tokens in one pass, then does a dict lookup for the value — reducing `substitute()` from O(V) to O(1) per call, where V is the number of defined variables.
+- Split `metacommands/__init__.py` (2,047 lines) — dispatch table registration moved to `metacommands/dispatch.py`; `__init__.py` reduced to constants and re-exports (256 lines).
+- Split `script.py` (1,210 lines) into `script/` package with `variables.py` (substitution vars), `control.py` (batch/IF state), and `engine.py` (execution, parsing). All imports via `from execsql.script import X` continue to work.
 - Converted `templates/READ_ME.rst` to `templates/README.md` (Markdown format).
 
 ### Added
