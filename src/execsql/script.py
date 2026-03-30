@@ -556,19 +556,48 @@ class MetaCommand:
 
 
 class MetaCommandList:
-    """Ordered list of :class:`MetaCommand` entries.
+    """Ordered list of :class:`MetaCommand` entries with keyword-indexed dispatch.
 
     Commands are stored with the most-recently-added entry first, matching
-    the original linked-list prepend semantics. ``eval()`` and ``get_match()``
-    scan the list linearly; the move-to-front heuristic from the original
-    implementation has been removed for predictable, stable ordering.
+    the original linked-list prepend semantics.  A keyword index
+    (``_by_keyword``) groups entries by their leading keyword so that
+    ``eval()`` and ``get_match()`` test only the small subset of regexes
+    that could possibly match, reducing dispatch from O(N) to O(K) where
+    K is the number of patterns sharing the same leading keyword (typically
+    1–5 vs. 205 total).
     """
+
+    # Regex to extract the leading keyword from a metacommand regex pattern.
+    # Handles ^\s*KEYWORD, ^KEYWORD, and ^\s*(?:PREFIX\s+)?KEYWORD.
+    _KEYWORD_RX = re.compile(
+        r"^\^"
+        r"(?:\\s\*)?(?:\(\?:[^)]+\))?(?:\\s\+)?"
+        r"(?:\\s\*)?"
+        r"([A-Z_]+)",
+    )
 
     def __init__(self) -> None:
         self._commands: list[MetaCommand] = []
+        self._by_keyword: dict[str, list[MetaCommand]] = {}
+        self._unkeyed: list[MetaCommand] = []
 
     def __iter__(self) -> Any:
         return iter(self._commands)
+
+    @staticmethod
+    def _extract_keyword(cmd_str: str) -> str | None:
+        """Extract the leading keyword from a metacommand string."""
+        word = cmd_str.strip().split(None, 1)
+        return word[0].upper() if word else None
+
+    def _index_command(self, mc: MetaCommand, rx_pattern: str) -> None:
+        """Add *mc* to the keyword index based on its regex pattern."""
+        m = self._KEYWORD_RX.match(rx_pattern)
+        if m:
+            kw = m.group(1)
+            self._by_keyword.setdefault(kw, []).insert(0, mc)
+        else:
+            self._unkeyed.insert(0, mc)
 
     def add(
         self,
@@ -587,23 +616,35 @@ class MetaCommandList:
         the dispatch list so that later registrations take priority.
         """
         if type(matching_regexes) in (tuple, list):
-            regexes = [re.compile(rx, re.I) for rx in tuple(matching_regexes)]
+            raw_patterns = list(matching_regexes)
+            regexes = [re.compile(rx, re.I) for rx in raw_patterns]
         else:
+            raw_patterns = [matching_regexes]
             regexes = [re.compile(matching_regexes, re.I)]
-        for rx in regexes:
-            # Prepend to preserve "last registered, first checked" ordering.
-            self._commands.insert(
-                0,
-                MetaCommand(
-                    rx,
-                    exec_func,
-                    description,
-                    run_in_batch,
-                    run_when_false,
-                    set_error_flag,
-                    category,
-                ),
+        for rx, raw in zip(regexes, raw_patterns):
+            mc = MetaCommand(
+                rx,
+                exec_func,
+                description,
+                run_in_batch,
+                run_when_false,
+                set_error_flag,
+                category,
             )
+            # Prepend to preserve "last registered, first checked" ordering.
+            self._commands.insert(0, mc)
+            self._index_command(mc, raw)
+
+    def _candidates(self, cmd_str: str) -> list[MetaCommand]:
+        """Return the subset of commands whose keyword matches *cmd_str*.
+
+        Falls back to the full command list if no keyword match is found.
+        """
+        kw = self._extract_keyword(cmd_str)
+        if kw and kw in self._by_keyword:
+            # Keyword-matched entries plus any unkeyed entries that could match anything.
+            return self._by_keyword[kw] + self._unkeyed
+        return self._commands
 
     def keywords_by_category(self) -> dict[str, list[str]]:
         """Return ``{category: [keyword, ...]}`` from entries that have both.
@@ -624,7 +665,7 @@ class MetaCommandList:
         Returns ``(True, return_value)`` if a matching command was found and
         run, ``(False, None)`` if no command matched.
         """
-        for cmd in self._commands:
+        for cmd in self._candidates(cmd_str):
             if _state.if_stack.all_true() or cmd.run_when_false:
                 success, value = cmd.run(cmd_str)
                 if success:
@@ -635,8 +676,9 @@ class MetaCommandList:
         """Return ``(MetaCommand, re.Match)`` for the first entry matching *cmd*,
         or ``None`` if no entry matches.
         """
-        for node in self._commands:
-            m = node.rx.match(cmd.strip())
+        stripped = cmd.strip()
+        for node in self._candidates(stripped):
+            m = node.rx.match(stripped)
             if m is not None:
                 return (node, m)
         return None
