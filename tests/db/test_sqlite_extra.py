@@ -78,17 +78,6 @@ def db_with_table(db):
 
 
 class TestInitImportFailure:
-    def test_fatal_error_called_when_sqlite3_missing(self):
-        """If sqlite3 cannot be imported, fatal_error() should be called."""
-        with (
-            patch("builtins.__import__", side_effect=ImportError("no sqlite3")),
-            patch("execsql.db.sqlite.fatal_error"),
-        ):
-            # We need to reach the `import sqlite3` line inside __init__;
-            # patching builtins.__import__ globally is too broad, so we
-            # target the specific import inside the method body.
-            pass  # see targeted test below
-
     def test_fatal_error_called_via_exception_in_init(self):
         """Cover lines 32-33: exception during sqlite3 import triggers fatal_error."""
         import builtins
@@ -100,14 +89,15 @@ class TestInitImportFailure:
                 raise ImportError("mocked missing sqlite3")
             return real_import(name, *args, **kwargs)
 
-        with (
-            patch("builtins.__import__", side_effect=broken_import),
-            patch("execsql.db.sqlite.fatal_error") as mock_fatal,
-        ):
-            try:
-                SQLiteDatabase(":memory:")
-            except Exception:
-                pass
+        # Patch fatal_error first — patching __import__ must come second,
+        # otherwise the mock side_effect fires when patch() tries to
+        # resolve "execsql.db.sqlite.fatal_error".
+        with patch("execsql.db.sqlite.fatal_error") as mock_fatal:
+            with patch("builtins.__import__", side_effect=broken_import):
+                try:
+                    SQLiteDatabase(":memory:")
+                except Exception:
+                    pass
             mock_fatal.assert_called_once()
 
 
