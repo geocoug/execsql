@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.4.6] - 2026-03-31
+
 ### Added
 
 - End-to-end CLI tests (26 tests) covering `--version`, `--help`, `--dump-keywords`, `-c` inline commands, script file execution, `--dry-run`, error cases, and `execsql-format`.
