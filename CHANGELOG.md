@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Added
+
+- Pre-commit hook for `execsql-format` — users can add the repo to their `.pre-commit-config.yaml` and pass `--check` or `--in-place` via `args`.
+
 ______________________________________________________________________
 
 ## [2.4.2] - 2026-03-30

@@ -1,0 +1,7 @@
+- id: execsql-format
+  name: execsql-format
+  description: Format execsql SQL scripts — normalize metacommand indentation and uppercase keywords.
+  entry: execsql-format
+  language: python
+  types: [file]
+  files: \.sql$

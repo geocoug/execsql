@@ -161,6 +161,35 @@ select id,name,created_at from users where active = true order by name;
 -- !x! END LOOP
 ```
 
+## Pre-commit Hook { #pre-commit }
+
+`execsql-format` can be used as a [pre-commit](https://pre-commit.com/) hook. Add the following to your `.pre-commit-config.yaml`:
+
+```yaml
+repos:
+  - repo: https://github.com/geocoug/execsql
+    rev: v2.4.2
+    hooks:
+      - id: execsql-format
+        args: [--in-place]
+```
+
+The hook runs on `*.sql` files. Pass any CLI options via `args`:
+
+```yaml
+# Check-only (CI — fail if files need formatting)
+- id: execsql-format
+  args: [--check]
+
+# Auto-fix in place, skip SQL reformatting
+- id: execsql-format
+  args: [--in-place, --no-sql]
+
+# Custom indent width
+- id: execsql-format
+  args: [--in-place, --indent, "2"]
+```
+
 ## Exit Codes { #exit-codes }
 
 | Code | Meaning                                                                                                           |
