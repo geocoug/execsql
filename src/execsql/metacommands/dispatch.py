@@ -169,6 +169,7 @@ from execsql.metacommands.system import (
     x_cancel_halt,
     x_cancel_halt_email,
     x_cancel_halt_email_clear,
+    x_cancel_halt_exec,
     x_cancel_halt_exec_clear,
     x_cancel_halt_write,
     x_cancel_halt_write_clear,
@@ -185,6 +186,7 @@ from execsql.metacommands.system import (
     x_email,
     x_error_halt_email,
     x_error_halt_email_clear,
+    x_error_halt_exec,
     x_error_halt_exec_clear,
     x_error_halt_write,
     x_error_halt_write_clear,
@@ -1031,6 +1033,10 @@ def build_dispatch_table() -> MetaCommandList:
     )
     mcl.add(r"^\s*ON\s+ERROR_HALT\s+EXEC\s+CLEAR\s*$", x_error_halt_exec_clear)
     mcl.add(
+        r'^\s*ON\s+ERROR_HALT\s+EXEC(?:UTE)?\s+SCRIPT(?:\s+(?P<exists>IF\s+EXISTS))?\s+(?P<script_id>\w+)(?:(?:\s+WITH)?(?:\s+ARG(?:UMENT)?S?)?\s*\(\s*(?P<argexp>#?\w+\s*=\s*(?:(?:[^"\'\[][^,\)]*)|(?:"[^"]*")|(?:\'[^\']*\')|(?:\[[^\]]*\]))(?:\s*,\s*#?\w+\s*=\s*(?:(?:[^"\'\[][^,\)]*)|(?:"[^"]*")|(?:\'[^\']*\')|(?:\[[^\]]*\])))*)\s*\))?(?:\s+(?P<looptype>WHILE|UNTIL)\s*\(\s*(?P<loopcond>.+)\s*\))?\s*$',
+        x_error_halt_exec,
+    )
+    mcl.add(
         r"^\s*ON\s+CANCEL_HALT\s+WRITE\s+CLEAR\s*$",
         x_cancel_halt_write_clear,
         description="ON CANCEL_HALT",
@@ -1077,6 +1083,10 @@ def build_dispatch_table() -> MetaCommandList:
         x_cancel_halt_email,
     )
     mcl.add(r"^\s*ON\s+CANCEL_HALT\s+EXEC\s+CLEAR\s*$", x_cancel_halt_exec_clear)
+    mcl.add(
+        r'^\s*ON\s+CANCEL_HALT\s+EXEC(?:UTE)?\s+SCRIPT(?:\s+(?P<exists>IF\s+EXISTS))?\s+(?P<script_id>\w+)(?:(?:\s+WITH)?(?:\s+ARG(?:UMENT)?S?)?\s*\(\s*(?P<argexp>#?\w+\s*=\s*(?:(?:[^"\'\[][^,\)]*)|(?:"[^"]*")|(?:\'[^\']*\')|(?:\[[^\]]*\]))(?:\s*,\s*#?\w+\s*=\s*(?:(?:[^"\'\[][^,\)]*)|(?:"[^"]*")|(?:\'[^\']*\')|(?:\[[^\]]*\])))*)\s*\))?(?:\s+(?P<looptype>WHILE|UNTIL)\s*\(\s*(?P<loopcond>.+)\s*\))?\s*$',
+        x_cancel_halt_exec,
+    )
 
     # ------------------------------------------------------------------
     # SUB_TEMPFILE
@@ -1680,15 +1690,53 @@ def build_dispatch_table() -> MetaCommandList:
     )
     mcl.add(
         (
+            # SERVER unquoted, DB unquoted, PASSWORD unquoted
             r"^CONNECT\s+TO\s+SQLSERVER\s*\(\s*SERVER\s*=\s*(?P<server>[A-Z0-9][A-Z0-9_\/\\\-\.]*)\s*,\s*"
             r"DB\s*=\s*(?P<db_name>[A-Z][A-Z0-9_\-]*)(?:\s*,\s*USER\s*=\s*(?P<user>[A-Z][A-Z0-9_~`!@#$%^&\*\+=\/\?\.-]*)"
             r"\s*,\s*NEED_PWD\s*=\s*(?P<need_pwd>TRUE|FALSE))?(?:\s*,\s*PORT\s*=\s*(?P<port>\d+))?"
             r"(?:\s*,\s+PASSWORD\s*=\s*(?P<password>[^\s\)]+))?"
             r"(?:\s*,\s*ENCODING\s*=\s*(?P<encoding>[A-Z][A-Z0-9_-]+))?\s*\)\s+AS\s+(?P<db_alias>[A-Z][A-Z0-9_]*)\s*$",
+            # SERVER quoted, DB quoted, PASSWORD unquoted
             r'^CONNECT\s+TO\s+SQLSERVER\s*\(\s*SERVER\s*=\s*"(?P<server>[A-Z0-9][A-Z0-9_\/\\\s\-\.]*)"\s*,\s*'
             r'DB\s*=\s*"(?P<db_name>[A-Z][A-Z0-9_\-\s]*)"(?:\s*,\s*USER\s*=\s*(?P<user>[A-Z][A-Z0-9_~`!@#$%^&\*\+=\/\?\.-]*)'
             r"\s*,\s*NEED_PWD\s*=\s*(?P<need_pwd>TRUE|FALSE))?(?:\s*,\s*PORT\s*=\s*(?P<port>\d+))?"
             r"(?:\s*,\s+PASSWORD\s*=\s*(?P<password>[^\s\)]+))?"
+            r"(?:\s*,\s*ENCODING\s*=\s*(?P<encoding>[A-Z][A-Z0-9_-]+))?\s*\)\s+AS\s+(?P<db_alias>[A-Z][A-Z0-9_]*)\s*$",
+            # SERVER quoted, DB unquoted, PASSWORD unquoted
+            r'^CONNECT\s+TO\s+SQLSERVER\s*\(\s*SERVER\s*=\s*"(?P<server>[A-Z0-9][A-Z0-9_\/\\\s\-\.]*)"\s*,\s*'
+            r"DB\s*=\s*(?P<db_name>[A-Z][A-Z0-9_\-]*)(?:\s*,\s*USER\s*=\s*(?P<user>[A-Z][A-Z0-9_~`!@#$%^&\*\+=\/\?\.-]*)"
+            r"\s*,\s*NEED_PWD\s*=\s*(?P<need_pwd>TRUE|FALSE))?(?:\s*,\s*PORT\s*=\s*(?P<port>\d+))?"
+            r"(?:\s*,\s+PASSWORD\s*=\s*(?P<password>[^\s\)]+))?"
+            r"(?:\s*,\s*ENCODING\s*=\s*(?P<encoding>[A-Z][A-Z0-9_-]+))?\s*\)\s+AS\s+(?P<db_alias>[A-Z][A-Z0-9_]*)\s*$",
+            # SERVER unquoted, DB quoted, PASSWORD unquoted
+            r"^CONNECT\s+TO\s+SQLSERVER\s*\(\s*SERVER\s*=\s*(?P<server>[A-Z0-9][A-Z0-9_\/\\\-\.]*)\s*,\s*"
+            r'DB\s*=\s*"(?P<db_name>[A-Z][A-Z0-9_\- ]*)"(?:\s*,\s*USER\s*=\s*(?P<user>[A-Z][A-Z0-9_~`!@#$%^&\*\+=\/\?\.-]*)'
+            r"\s*,\s*NEED_PWD\s*=\s*(?P<need_pwd>TRUE|FALSE))?(?:\s*,\s*PORT\s*=\s*(?P<port>\d+))?"
+            r"(?:\s*,\s+PASSWORD\s*=\s*(?P<password>[^\s\)]+))?"
+            r"(?:\s*,\s*ENCODING\s*=\s*(?P<encoding>[A-Z][A-Z0-9_-]+))?\s*\)\s+AS\s+(?P<db_alias>[A-Z][A-Z0-9_]*)\s*$",
+            # SERVER unquoted, DB unquoted, PASSWORD quoted
+            r"^CONNECT\s+TO\s+SQLSERVER\s*\(\s*SERVER\s*=\s*(?P<server>[A-Z0-9][A-Z0-9_\/\\\-\.]*)\s*,\s*"
+            r"DB\s*=\s*(?P<db_name>[A-Z][A-Z0-9_\-]*)(?:\s*,\s*USER\s*=\s*(?P<user>[A-Z][A-Z0-9_~`!@#$%^&\*\+=\/\?\.-]*)"
+            r"\s*,\s*NEED_PWD\s*=\s*(?P<need_pwd>TRUE|FALSE))?(?:\s*,\s*PORT\s*=\s*(?P<port>\d+))?"
+            r'(?:\s*,\s+PASSWORD\s*=\s*(?P<password>"[^\s\)]+"))?'
+            r"(?:\s*,\s*ENCODING\s*=\s*(?P<encoding>[A-Z][A-Z0-9_-]+))?\s*\)\s+AS\s+(?P<db_alias>[A-Z][A-Z0-9_]*)\s*$",
+            # SERVER quoted, DB quoted, PASSWORD quoted
+            r'^CONNECT\s+TO\s+SQLSERVER\s*\(\s*SERVER\s*=\s*"(?P<server>[A-Z0-9][A-Z0-9_\/\\\s\-\.]*)"\s*,\s*'
+            r'DB\s*=\s*"(?P<db_name>[A-Z][A-Z0-9_\-\s]*)"(?:\s*,\s*USER\s*=\s*(?P<user>[A-Z][A-Z0-9_~`!@#$%^&\*\+=\/\?\.-]*)'
+            r"\s*,\s*NEED_PWD\s*=\s*(?P<need_pwd>TRUE|FALSE))?(?:\s*,\s*PORT\s*=\s*(?P<port>\d+))?"
+            r'(?:\s*,\s+PASSWORD\s*=\s*(?P<password>"[^\s\)]+"))?'
+            r"(?:\s*,\s*ENCODING\s*=\s*(?P<encoding>[A-Z][A-Z0-9_-]+))?\s*\)\s+AS\s+(?P<db_alias>[A-Z][A-Z0-9_]*)\s*$",
+            # SERVER quoted, DB unquoted, PASSWORD quoted
+            r'^CONNECT\s+TO\s+SQLSERVER\s*\(\s*SERVER\s*=\s*"(?P<server>[A-Z0-9][A-Z0-9_\/\\\s\-\.]*)"\s*,\s*'
+            r"DB\s*=\s*(?P<db_name>[A-Z][A-Z0-9_\-]*)(?:\s*,\s*USER\s*=\s*(?P<user>[A-Z][A-Z0-9_~`!@#$%^&\*\+=\/\?\.-]*)"
+            r"\s*,\s*NEED_PWD\s*=\s*(?P<need_pwd>TRUE|FALSE))?(?:\s*,\s*PORT\s*=\s*(?P<port>\d+))?"
+            r'(?:\s*,\s+PASSWORD\s*=\s*(?P<password>"[^\s\)]+"))?'
+            r"(?:\s*,\s*ENCODING\s*=\s*(?P<encoding>[A-Z][A-Z0-9_-]+))?\s*\)\s+AS\s+(?P<db_alias>[A-Z][A-Z0-9_]*)\s*$",
+            # SERVER unquoted, DB quoted, PASSWORD quoted
+            r"^CONNECT\s+TO\s+SQLSERVER\s*\(\s*SERVER\s*=\s*(?P<server>[A-Z0-9][A-Z0-9_\/\\\-\.]*)\s*,\s*"
+            r'DB\s*=\s*"(?P<db_name>[A-Z][A-Z0-9_\- ]*)"(?:\s*,\s*USER\s*=\s*(?P<user>[A-Z][A-Z0-9_~`!@#$%^&\*\+=\/\?\.-]*)'
+            r"\s*,\s*NEED_PWD\s*=\s*(?P<need_pwd>TRUE|FALSE))?(?:\s*,\s*PORT\s*=\s*(?P<port>\d+))?"
+            r'(?:\s*,\s+PASSWORD\s*=\s*(?P<password>"[^\s\)]+"))?'
             r"(?:\s*,\s*ENCODING\s*=\s*(?P<encoding>[A-Z][A-Z0-9_-]+))?\s*\)\s+AS\s+(?P<db_alias>[A-Z][A-Z0-9_]*)\s*$",
         ),
         x_connect_ssvr,
@@ -1722,6 +1770,12 @@ def build_dispatch_table() -> MetaCommandList:
     # ------------------------------------------------------------------
     # APPEND/EXTEND SCRIPT
     # ------------------------------------------------------------------
+    mcl.add(
+        r"\s*EXTEND\s+SCRIPT\s+(?P<script2>\w+)\s+WITH\s+SCRIPT\s+(?P<script1>\w+)\s*$",
+        x_extendscript,
+        description="EXTEND SCRIPT",
+        category="action",
+    )
     mcl.add(
         r"\s*APPEND\s+SCRIPT\s+(?P<script1>\w+)\s+TO\s+(?P<script2>\w+)\s*$",
         x_extendscript,
@@ -1897,12 +1951,47 @@ def build_dispatch_table() -> MetaCommandList:
     # ------------------------------------------------------------------
     mcl.add(
         ins_table_rxs(
-            r'^\s*PROMPT\s+ASK\s+"(?P<question>[^"]+)"\s+SUB\s+(?P<match>~?\w+)(?:\s+DISPLAY\s+',
-            r')?(?:\s+HELP\s+"(?P<help>[^"]+)")?\s*$',
+            r"^\s*PROMPT\s+ASK\s+'(?P<question>[^']+)'\s+SUB\s+(?P<match>~?\w+)(?:\s+DISPLAY\s+",
+            r")?(?:\s+HELP\s+(?P<help>[^\s]+))?\s*$",
         ),
         x_prompt_ask,
         description="PROMPT ASK",
         category="prompt",
+    )
+    mcl.add(
+        ins_table_rxs(
+            r"^\s*PROMPT\s+ASK\s+'(?P<question>[^']+)'\s+SUB\s+(?P<match>~?\w+)(?:\s+DISPLAY\s+",
+            r')?(?:\s+HELP\s+"(?P<help>[^"]+)")?\s*$',
+        ),
+        x_prompt_ask,
+    )
+    mcl.add(
+        ins_table_rxs(
+            r"^\s*PROMPT\s+ASK\s+\[(?P<question>[^\]]+)\]\s+SUB\s+(?P<match>~?\w+)(?:\s+DISPLAY\s+",
+            r")?(?:\s+HELP\s+(?P<help>[^\s]+))?\s*$",
+        ),
+        x_prompt_ask,
+    )
+    mcl.add(
+        ins_table_rxs(
+            r"^\s*PROMPT\s+ASK\s+\[(?P<question>[^\]]+)\]\s+SUB\s+(?P<match>~?\w+)(?:\s+DISPLAY\s+",
+            r')?(?:\s+HELP\s+"(?P<help>[^"]+)")?\s*$',
+        ),
+        x_prompt_ask,
+    )
+    mcl.add(
+        ins_table_rxs(
+            r'^\s*PROMPT\s+ASK\s+"(?P<question>[^"]+)"\s+SUB\s+(?P<match>~?\w+)(?:\s+DISPLAY\s+',
+            r")?(?:\s+HELP\s+(?P<help>[^\s]+))?\s*$",
+        ),
+        x_prompt_ask,
+    )
+    mcl.add(
+        ins_table_rxs(
+            r'^\s*PROMPT\s+ASK\s+"(?P<question>[^"]+)"\s+SUB\s+(?P<match>~?\w+)(?:\s+DISPLAY\s+',
+            r')?(?:\s+HELP\s+"(?P<help>[^"]+)")?\s*$',
+        ),
+        x_prompt_ask,
     )
 
     # ------------------------------------------------------------------

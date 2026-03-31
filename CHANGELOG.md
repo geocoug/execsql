@@ -11,6 +11,13 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Fixed
+
+- `ON ERROR_HALT EXECUTE SCRIPT` and `ON CANCEL_HALT EXECUTE SCRIPT` metacommands were not recognized — handler functions existed but dispatch patterns were missing.
+- `EXTEND SCRIPT <X> WITH SCRIPT <Y>` metacommand was not recognized — only the `APPEND SCRIPT` synonym was ported from the upstream monolith.
+- `PROMPT ASK` with single-quoted (`'...'`) or bracket-delimited (`[...]`) questions, and with unquoted `HELP` arguments, were not recognized — only the double-quoted question with double-quoted help variant was ported.
+- `CONNECT TO SQLSERVER` with mixed quoting (e.g., quoted SERVER + unquoted DB) or quoted PASSWORD was not recognized — only the fully-unquoted and fully-quoted variants were ported.
+
 ______________________________________________________________________
 
 ## [2.4.4] - 2026-03-30
