@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.4.5] - 2026-03-31
+
 ### Fixed
 
 - `ON ERROR_HALT EXECUTE SCRIPT` and `ON CANCEL_HALT EXECUTE SCRIPT` metacommands were not recognized — handler functions existed but dispatch patterns were missing.
