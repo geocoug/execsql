@@ -1,6 +1,6 @@
 > [!NOTE]
 > **This is a maintained fork of [execsql](https://execsql.readthedocs.io/).**
-> The original monolith has been fully refactored into a modular package with 2,000+ tests.
+> The original monolith has been fully refactored into a modular package.
 > The CLI and configuration are backwards-compatible with upstream v1.130.1.
 > Report issues at [github.com/geocoug/execsql/issues](https://github.com/geocoug/execsql/issues).
 
@@ -108,8 +108,12 @@ execsql script.sql                          # read connection from config file
 | `-m`                                | List metacommands and exit                                      |
 | `-n`                                | Create a new SQLite or PostgreSQL database if it does not exist |
 | `-v {0,1,2,3}`                      | GUI level (0=none, 1=password, 2=selection, 3=full)             |
-| `--gui-framework {tkinter,textual}` | GUI framework for interactive prompts                           |
 | `-w`                                | Skip password prompt when a username is supplied                |
+| `--dsn URL`                         | Connection string (e.g. `postgresql://user:pass@host/db`)       |
+| `--dry-run`                         | Parse the script and report commands without executing          |
+| `--progress`                        | Show a progress bar for long-running IMPORT operations          |
+| `--dump-keywords`                   | Print metacommand keywords as JSON and exit                     |
+| `--gui-framework {tkinter,textual}` | GUI framework for interactive prompts                           |
 
 Run `execsql --help` for the full option list, or `execsql -m` to list all metacommands.
 

@@ -50,3 +50,4 @@ A multi-agent system where specialized agents collaborate to improve, extend, de
 - The existing post-tool hooks (auto-changelog, auto-docs) continue working independently
 - All code must pass `ruff check` and target Python 3.10+
 - **Every user-visible change must be reflected in `CHANGELOG.md`** under the `[Unreleased]` section using [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) categories: Added, Changed, Fixed, Removed. Do not leave changelog updates for later — include them in the same commit or PR as the code change.
+- **Every user-visible change must also update documentation** — review and revise `README.md`, `docs/`, and any other relevant documentation to stay consistent with the code. New CLI options, features, or behavior changes must be reflected in the README Options table, feature list, and the corresponding docs page. Do not leave doc updates for later.
