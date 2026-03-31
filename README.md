@@ -176,6 +176,17 @@ execsql-format --in-place scripts/
 execsql-format --check scripts/
 ```
 
+`execsql-format` is also available as a [pre-commit](https://pre-commit.com/) hook:
+
+```yaml
+repos:
+  - repo: https://github.com/geocoug/execsql
+    rev: v2.4.4
+    hooks:
+      - id: execsql-format
+        args: [--in-place]
+```
+
 See the [formatter documentation](https://execsql2.readthedocs.io/en/latest/formatter/) for all options.
 
 # Templates
