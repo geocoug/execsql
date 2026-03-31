@@ -189,6 +189,18 @@ repos:
 
 See the [formatter documentation](https://execsql2.readthedocs.io/en/latest/formatter/) for all options.
 
+# VS Code Syntax Highlighting
+
+A VS Code extension for execsql syntax highlighting is included in [`extras/vscode-execsql`](extras/vscode-execsql). It injects a TextMate grammar into `.sql` files, adding highlighting for `-- !x!` metacommand markers, keywords (control flow, block, action, directive), variable substitutions (`!!var!!`, `!{var}!`), built-in functions, export formats, and config options — all layered on top of standard SQL highlighting.
+
+To install, symlink the extension folder into your VS Code extensions directory:
+
+```sh
+ln -s /path/to/execsql/extras/vscode-execsql ~/.vscode/extensions/execsql-syntax
+```
+
+See the [extension README](extras/vscode-execsql/README.md) for Windows instructions, color customization, and troubleshooting.
+
 # Templates
 
 The `templates/` directory in this repository includes ready-to-use execsql scripts:
