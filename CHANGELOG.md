@@ -15,6 +15,18 @@ ______________________________________________________________________
 
 ## [2.4.1] - 2026-03-30
 
+### Fixed
+
+- `--dsn` now correctly overrides connection settings from configuration files.
+- MySQL `LOAD DATA INFILE` encoding — map Python encoding names (e.g. `utf-8`) to MySQL charset names (e.g. `utf8mb4`).
+- Importer error reporting — replaced removed `exception_info()` with `exception_desc()`.
+
+### Changed
+
+- Integration tests moved to `tests/integration/` with a shared conftest and parallel CI execution.
+- CI no longer enforces the coverage threshold for integration tests.
+- Removed `docker-compose.yml` — CI uses GitHub Actions services directly.
+
 ______________________________________________________________________
 
 ## [2.4.0] - 2026-03-30

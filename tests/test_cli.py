@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sqlite3
 import subprocess
 import sys
@@ -12,6 +13,7 @@ import pytest
 from typer.testing import CliRunner
 
 from execsql.cli import app
+from execsql.cli import _legacy_main
 
 runner = CliRunner()
 
@@ -612,3 +614,279 @@ class TestEndToEndExecution:
         _write_conf(tmp_path)
         result = _run_cli(tmp_path, ["no_such_file.sql"])
         assert result.returncode != 0
+
+
+# ---------------------------------------------------------------------------
+# --dump-keywords (lines 272-323)
+# ---------------------------------------------------------------------------
+
+
+class TestDumpKeywords:
+    """In-process tests for the --dump-keywords early-exit branch.
+
+    These use CliRunner so that every line inside the branch is counted
+    for coverage (the subprocess-based test in TestEndToEndExecution does not
+    contribute to in-process line coverage).
+    """
+
+    def _data(self):
+        """Invoke --dump-keywords and return the parsed JSON dict."""
+        result = runner.invoke(app, ["--dump-keywords"], catch_exceptions=False)
+        assert result.exit_code == 0, f"Non-zero exit: {result.output}"
+        return json.loads(result.output)
+
+    def test_exits_zero(self):
+        result = runner.invoke(app, ["--dump-keywords"], catch_exceptions=False)
+        assert result.exit_code == 0
+
+    def test_output_is_valid_json(self):
+        result = runner.invoke(app, ["--dump-keywords"], catch_exceptions=False)
+        # Must not raise
+        json.loads(result.output)
+
+    def test_top_level_keys_present(self):
+        data = self._data()
+        expected = {
+            "metacommands",
+            "conditions",
+            "config_options",
+            "export_formats",
+            "database_types",
+            "variable_patterns",
+        }
+        assert expected == set(data.keys())
+
+    def test_metacommands_has_five_categories(self):
+        data = self._data()
+        mc = data["metacommands"]
+        assert set(mc.keys()) == {"control", "block", "action", "config", "prompt"}
+
+    def test_metacommands_block_contains_begin_end_script(self):
+        """BEGIN SCRIPT and END SCRIPT are injected into the block category."""
+        data = self._data()
+        block = data["metacommands"]["block"]
+        assert "BEGIN SCRIPT" in block
+        assert "END SCRIPT" in block
+        assert "BEGIN SQL" in block
+        assert "END SQL" in block
+
+    def test_metacommands_categories_are_sorted_lists(self):
+        data = self._data()
+        for category, items in data["metacommands"].items():
+            assert isinstance(items, list), f"Category {category!r} is not a list"
+            assert items == sorted(items), f"Category {category!r} is not sorted"
+
+    def test_conditions_is_sorted_list(self):
+        data = self._data()
+        conds = data["conditions"]
+        assert isinstance(conds, list)
+        assert len(conds) > 0
+        assert conds == sorted(conds)
+
+    def test_conditions_contains_injected_keywords(self):
+        """IS_FALSE, NOT, and OR are injected into the conditions list."""
+        data = self._data()
+        for kw in ("IS_FALSE", "NOT", "OR"):
+            assert kw in data["conditions"], f"{kw!r} missing from conditions"
+
+    def test_config_options_is_sorted_list(self):
+        data = self._data()
+        opts = data["config_options"]
+        assert isinstance(opts, list)
+        assert opts == sorted(opts)
+
+    def test_export_formats_has_expected_keys(self):
+        data = self._data()
+        ef = data["export_formats"]
+        assert set(ef.keys()) == {"query", "table", "serve", "metadata", "json_variants", "all"}
+
+    def test_export_formats_all_is_sorted(self):
+        data = self._data()
+        all_fmts = data["export_formats"]["all"]
+        assert isinstance(all_fmts, list)
+        assert len(all_fmts) > 0
+        assert all_fmts == sorted(all_fmts)
+
+    def test_export_formats_query_is_subset_of_all(self):
+        data = self._data()
+        ef = data["export_formats"]
+        assert set(ef["query"]).issubset(set(ef["all"]))
+
+    def test_export_formats_table_is_subset_of_all(self):
+        data = self._data()
+        ef = data["export_formats"]
+        assert set(ef["table"]).issubset(set(ef["all"]))
+
+    def test_database_types_is_sorted_list(self):
+        data = self._data()
+        dbtypes = data["database_types"]
+        assert isinstance(dbtypes, list)
+        assert len(dbtypes) > 0
+        assert dbtypes == sorted(dbtypes)
+
+    def test_variable_patterns_has_all_pattern_keys(self):
+        data = self._data()
+        vp = data["variable_patterns"]
+        expected_keys = {
+            "system",
+            "environment",
+            "parameter",
+            "column",
+            "local",
+            "local_alt",
+            "regular",
+            "deferred",
+        }
+        assert expected_keys == set(vp.keys())
+
+    def test_variable_patterns_values_are_strings(self):
+        data = self._data()
+        for key, val in data["variable_patterns"].items():
+            assert isinstance(val, str), f"variable_patterns[{key!r}] is not a string"
+
+    def test_variable_patterns_system_uses_bang_syntax(self):
+        data = self._data()
+        assert data["variable_patterns"]["system"] == "!!$name!!"
+
+    def test_variable_patterns_deferred_uses_brace_syntax(self):
+        data = self._data()
+        assert data["variable_patterns"]["deferred"] == "!{name}!"
+
+    def test_metacommands_action_is_nonempty(self):
+        data = self._data()
+        assert len(data["metacommands"]["action"]) > 0
+
+    def test_metacommands_control_is_nonempty(self):
+        data = self._data()
+        assert len(data["metacommands"]["control"]) > 0
+
+
+# ---------------------------------------------------------------------------
+# _legacy_main() exception handling (lines 414-432)
+# ---------------------------------------------------------------------------
+
+
+class TestLegacyMain:
+    """Unit tests for the three exception branches in _legacy_main().
+
+    We mock ``execsql.cli.app`` so that calling _legacy_main() triggers each
+    handler without needing a real Typer invocation.
+    """
+
+    def test_system_exit_propagates(self):
+        """A SystemExit raised inside app() is re-raised unchanged."""
+        with patch("execsql.cli.app", side_effect=SystemExit(0)), pytest.raises(SystemExit) as exc_info:
+            _legacy_main()
+        assert exc_info.value.code == 0
+
+    def test_system_exit_nonzero_propagates(self):
+        """A non-zero SystemExit propagates without being caught."""
+        with patch("execsql.cli.app", side_effect=SystemExit(3)), pytest.raises(SystemExit) as exc_info:
+            _legacy_main()
+        assert exc_info.value.code == 3
+
+    def test_errinfo_calls_exit_now(self):
+        """An ErrInfo exception is handled by calling exit_now(1, exc)."""
+        from execsql.exceptions import ErrInfo
+
+        exc = ErrInfo("error", exception_msg="something went wrong")
+
+        with patch("execsql.cli.app", side_effect=exc), patch("execsql.utils.errors.exit_now") as mock_exit_now:
+            # exit_now calls sys.exit internally; stop propagation here
+            mock_exit_now.side_effect = SystemExit(1)
+            with pytest.raises(SystemExit) as exc_info:
+                _legacy_main()
+        assert exc_info.value.code == 1
+        mock_exit_now.assert_called_once()
+        call_args = mock_exit_now.call_args
+        assert call_args[0][0] == 1  # exit_status=1
+        assert isinstance(call_args[0][1], ErrInfo)
+
+    def test_config_error_calls_sys_exit_with_message(self):
+        """A ConfigError exits via sys.exit with a human-readable message."""
+        from execsql.exceptions import ConfigError
+
+        exc = ConfigError("bad config value")
+
+        with patch("execsql.cli.app", side_effect=exc), pytest.raises(SystemExit) as exc_info:
+            _legacy_main()
+
+        # sys.exit was called with a string message, not just a code
+        msg = exc_info.value.code
+        assert isinstance(msg, str)
+        assert "Configuration error" in msg
+        assert "execsql" in msg
+
+    def test_config_error_message_contains_line_number(self):
+        """ConfigError exit message includes a line number from the traceback."""
+        from execsql.exceptions import ConfigError
+
+        with patch("execsql.cli.app", side_effect=ConfigError("oops")), pytest.raises(SystemExit) as exc_info:
+            _legacy_main()
+
+        msg = exc_info.value.code
+        # The message format is "Configuration error on line <N> of execsql: <msg>"
+        assert "line" in msg
+        assert "oops" in msg
+
+    def test_generic_exception_wraps_in_errinfo(self):
+        """An unexpected Exception is wrapped in ErrInfo and passed to exit_now."""
+        from execsql.exceptions import ErrInfo
+
+        with (
+            patch("execsql.cli.app", side_effect=RuntimeError("unexpected failure")),
+            patch("execsql.utils.errors.exit_now") as mock_exit_now,
+            pytest.raises(SystemExit) as exc_info,
+        ):
+            mock_exit_now.side_effect = SystemExit(1)
+            _legacy_main()
+
+        assert exc_info.value.code == 1
+        mock_exit_now.assert_called_once()
+        call_args = mock_exit_now.call_args
+        assert call_args[0][0] == 1
+        wrapped = call_args[0][1]
+        assert isinstance(wrapped, ErrInfo)
+
+    def test_generic_exception_message_contains_exception_type(self):
+        """The ErrInfo wrapping a generic exception includes the exception class name."""
+        from execsql.exceptions import ErrInfo as _ErrInfo
+
+        captured = {}
+
+        def capture_exit_now(status, errinfo, *a, **kw):
+            captured["errinfo"] = errinfo
+            raise SystemExit(status)
+
+        with (
+            patch("execsql.cli.app", side_effect=ValueError("bad value")),
+            patch("execsql.utils.errors.exit_now", side_effect=capture_exit_now),
+            pytest.raises(SystemExit),
+        ):
+            _legacy_main()
+
+        errinfo = captured["errinfo"]
+        assert isinstance(errinfo, _ErrInfo)
+        # The exception message includes the exception class name
+        assert "ValueError" in (errinfo.exception or "")
+
+    def test_generic_exception_message_contains_argv0(self):
+        """The ErrInfo message includes sys.argv[0]'s basename."""
+        captured = {}
+
+        def capture_exit_now(status, errinfo, *a, **kw):
+            captured["errinfo"] = errinfo
+            raise SystemExit(status)
+
+        with (
+            patch("execsql.cli.app", side_effect=OSError("disk error")),
+            patch("execsql.utils.errors.exit_now", side_effect=capture_exit_now),
+            pytest.raises(SystemExit),
+        ):
+            _legacy_main()
+
+        from pathlib import Path
+
+        expected_name = Path(sys.argv[0]).name
+        errinfo = captured["errinfo"]
+        assert expected_name in (errinfo.exception or "")

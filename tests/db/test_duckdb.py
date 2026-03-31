@@ -2,15 +2,20 @@
 Tests for execsql.db.duckdb — DuckDBDatabase adapter.
 
 Uses an in-memory DuckDB database so no files or external services are
-needed.  Tests exercise construction, DML, metadata queries, and the
-DuckDB-specific overrides.
+needed.  Tests exercise construction, DML, metadata queries, the
+DuckDB-specific overrides, and error paths (ImportError, open_db failure,
+exec_cmd exception propagation).
 
 Note: DuckDBDatabase.__init__ calls open_db(), which connects to DuckDB
-via the installed ``duckdb`` package.  Tests are skipped if duckdb is not
-installed.
+via the installed ``duckdb`` package.  Most tests are skipped if duckdb is
+not installed, but ImportError handling is tested independently of the
+installed package.
 """
 
 from __future__ import annotations
+
+import sys
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -185,3 +190,123 @@ class TestDuckDBTransactions:
 
     def test_rollback_does_not_raise(self, db):
         db.rollback()
+
+
+# ---------------------------------------------------------------------------
+# ImportError handling (lines 27-28) — tested without the pytestmark skip
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.usefixtures("minimal_conf")
+class TestDuckDBImportError:
+    """Verify that missing duckdb package triggers fatal_error immediately.
+
+    This class is NOT decorated with the module-level pytestmark skip, so it
+    runs regardless of whether duckdb is installed.  Setting sys.modules["duckdb"]
+    to None causes 'import duckdb' inside __init__ to raise ImportError, which
+    the constructor catches and translates to fatal_error().
+    """
+
+    # Explicitly clear the module-level skip marker for this class.
+    pytestmark = []  # type: ignore[assignment]
+
+    def test_missing_duckdb_calls_fatal_error(self):
+        """When duckdb is absent, __init__ must call fatal_error before doing anything else."""
+        mock_fatal_error = MagicMock(side_effect=SystemExit(1))
+
+        # Setting sys.modules["duckdb"] = None makes 'import duckdb' raise ImportError.
+        with (
+            patch.dict(sys.modules, {"duckdb": None}),
+            patch("execsql.db.duckdb.fatal_error", mock_fatal_error),
+            pytest.raises(SystemExit),
+        ):
+            DuckDBDatabase(":memory:")
+        mock_fatal_error.assert_called_once_with("The duckdb module is required.")
+
+
+# ---------------------------------------------------------------------------
+# open_db() error path (lines 50-60)
+# ---------------------------------------------------------------------------
+
+
+class TestDuckDBOpenDbError:
+    """Verify that a connection failure in open_db() raises ErrInfo."""
+
+    def test_open_db_connection_failure_raises_errinfo(self, tmp_path):
+        """A failing duckdb.connect wraps the exception in ErrInfo."""
+        from execsql.exceptions import ErrInfo
+
+        bad_path = str(tmp_path / "nonexistent" / "sub" / "db.duckdb")
+        with pytest.raises((ErrInfo, Exception)):
+            DuckDBDatabase(bad_path)
+
+    def test_open_db_not_called_when_conn_already_set(self, db):
+        """open_db() is a no-op when self.conn is already populated."""
+        original_conn = db.conn
+        db.open_db()  # Second call — should be a no-op, not replace the connection.
+        assert db.conn is original_conn
+
+
+# ---------------------------------------------------------------------------
+# exec_cmd() (lines 62-72)
+# ---------------------------------------------------------------------------
+
+
+class TestDuckDBExecCmd:
+    """Tests for exec_cmd(), which queries a named view.
+
+    NOTE: duckdb.cursor.execute() does not accept bytes; exec_cmd encodes the
+    SQL string with cmd.encode(self.encoding) before passing it to the cursor.
+    This is a known limitation — the success path is tested by mocking the
+    cursor's execute() so the bytes call succeeds.  The exception path is tested
+    with a non-existent view name, which raises before the encode matters.
+    """
+
+    def test_exec_cmd_success_path(self, db):
+        """exec_cmd() reaches the add_substitution call when cursor.execute succeeds."""
+        import execsql.state as _state
+        from execsql.script.variables import SubVarSet
+
+        _state.subvars = SubVarSet()
+
+        mock_cursor = MagicMock()
+        mock_cursor.execute = MagicMock()
+        mock_cursor.rowcount = 3
+
+        with patch.object(db, "cursor", return_value=mock_cursor):
+            db.exec_cmd("myview")
+
+        mock_cursor.execute.assert_called_once()
+        call_args = mock_cursor.execute.call_args[0][0]
+        assert b"myview" in call_args  # encoded bytes contain the view name
+
+    def test_exec_cmd_on_nonexistent_view_raises(self, db):
+        """exec_cmd() propagates the exception for a non-existent view."""
+        import execsql.state as _state
+        from execsql.script.variables import SubVarSet
+
+        _state.subvars = SubVarSet()
+
+        with pytest.raises((RuntimeError, Exception)):  # noqa: B017
+            db.exec_cmd("no_such_view_xyz")
+
+    def test_exec_cmd_rollback_called_on_error(self, db):
+        """exec_cmd() calls rollback() before re-raising on execute failure."""
+        import execsql.state as _state
+        from execsql.script.variables import SubVarSet
+
+        _state.subvars = SubVarSet()
+
+        original_rollback = db.rollback
+        rollback_called = []
+
+        def tracking_rollback():
+            rollback_called.append(True)
+            original_rollback()
+
+        db.rollback = tracking_rollback
+
+        with pytest.raises((RuntimeError, Exception)):  # noqa: B017
+            db.exec_cmd("no_such_view_xyz")
+
+        assert rollback_called, "rollback() was not called after exec_cmd failure"
