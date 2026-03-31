@@ -8,7 +8,6 @@ ______________________________________________________________________
 > Global memory (`~/.claude/projects/.../memory/`) mirrors this — the repo file is the source of truth.
 > Update this file whenever any architectural, tooling, or directional decision is made.
 > Update the CHANGELOG.md whenever making a release or significant change.
-> Update ROADMAP.md whenever making a release or significant change (if direction changes or if features have already been implemented)
 
 ______________________________________________________________________
 
@@ -38,15 +37,19 @@ ______________________________________________________________________
 _execsql/   # original upstream monolith — reference only, do not edit
   execsql.py               # upstream v1.130.1, ~16,627 lines, kept for diffing/reference
 src/execsql/               # active codebase — all new work goes here
-  __init__.py              # version = "1.130.1"
-  __main__.py              # entry point → main()
-  cli.py                   # argparse CLI + main() orchestration
+  __init__.py              # version via importlib.metadata
+  __main__.py              # entry point → cli.main()
+  cli/
+    __init__.py            # Typer app, main() command, _legacy_main()
+    dsn.py                 # connection string / DSN URL parsing
+    help.py                # Rich console, --help metacommand/encoding display
+    run.py                 # _run() — core CLI execution logic
   config.py                # StatObj, ConfigData, WriteHooks
   constants.py             # map tile servers, X11 bitmaps, color names
-  exceptions.py            # custom exception hierarchy
+  exceptions.py            # ExecSqlError base + ErrInfo, DataTypeError, DbTypeError, etc.
+  format.py                # execsql-format CLI (Typer) + format_file()
   models.py                # Column, DataTable, JsonDatatype (type inference)
   parser.py                # CondParser, NumericParser, AST nodes
-  script.py                # SubVarSet, CommandList, runscripts(), read_sqlfile()
   state.py                 # module-level global runtime state
   types.py                 # DataType subclasses + DbType dialect mappings
   db/
@@ -65,42 +68,71 @@ src/execsql/               # active codebase — all new work goes here
     __init__.py
     base.py / csv.py / ods.py / xls.py / feather.py
   metacommands/
-    __init__.py            # DISPATCH_TABLE — all metacommand registrations
-    conditions.py          # xf_* conditional tests + IF/ELSEIF/ELSE/ENDIF
+    __init__.py            # DISPATCH_TABLE, format/db constants, re-exports all handlers
+    dispatch.py            # build_dispatch_table() — all mcl.add() regex registrations
+    conditions.py          # xf_* conditional tests + CONDITIONAL_TABLE
     connect.py             # x_connect_* database connection handlers
     control.py             # loops, batches, includes, error control, SET
     data.py                # x_export, x_import
     debug.py               # x_debug_write_metacommands
-    io.py                  # WRITE, PAUSE, file management, log
+    io.py                  # re-export façade for io_export/io_import/io_write/io_fileops
+    io_export.py / io_import.py / io_write.py / io_fileops.py
     prompt.py              # GUI dialogs: ACTION, MESSAGE, DISPLAY, ENTRY…
-    script_ext.py          # EXTEND SCRIPT
-    system.py              # SHELL command execution
+    script_ext.py          # EXTEND/APPEND SCRIPT
+    system.py              # SHELL, ON ERROR/CANCEL_HALT, CONSOLE, EMAIL
+  script/
+    __init__.py            # re-exports from engine.py, control.py, variables.py
+    engine.py              # MetaCommand, MetaCommandList, CommandList, ScriptFile, runscripts()
+    control.py             # BatchLevels, IfItem, IfLevels
+    variables.py           # SubVarSet, CounterVars, LocalSubVarSet, ScriptArgSubVarSet
+  gui/
+    __init__.py            # get_backend(), gui_manager_loop()
+    base.py                # GuiBackend ABC
+    console.py             # ConsoleBackend (text-only fallback)
+    desktop.py             # TkinterBackend (full GUI)
+    tui.py                 # TextualBackend (TUI)
   utils/
     __init__.py
     auth.py / crypto.py / datetime.py / errors.py / fileio.py
     gui.py / mail.py / numeric.py / regex.py / strings.py / timer.py
-docs/               # 18 MkDocs Markdown pages (Material theme)
+docs/                      # MkDocs pages (Zensical builder, Material theme)
+  index.md
+  getting-started/         # installation, requirements, syntax
+  reference/               # configuration, substitution_vars, metacommands, security
+  guides/                  # usage, sql_syntax, logging, encoding, debugging, examples, etc.
+  about/                   # copyright, contributors, change_log (auto-generated)
+  api/                     # mkdocstrings API reference
+  dev/                     # contributor guides (adding metacommands/exporters/etc.)
+  images/
 extras/
-  vscode-execsql/   # VS Code syntax highlighting extension (repo-only, not in wheel)
+  vscode-execsql/          # VS Code syntax highlighting extension (repo-only, not in wheel)
     package.json
     syntaxes/
-      execsql.tmLanguage.json  # auto-generated via `just generate-vscode-grammar`
+      execsql.tmLanguage.json  # auto-generated via scripts/generate_vscode_grammar.py
 scripts/
   generate_vscode_grammar.py   # generates tmLanguage.json from --dump-keywords
-templates/          # SQL templates + config files
+templates/                 # SQL templates + config files
 tests/
-  test_placeholder.py
-  test_registry.py  # keyword consistency tests (dispatch table ↔ grammar ↔ CLI)
+  test_package.py          # import hygiene, version string
+  test_registry.py         # keyword consistency (dispatch table ↔ grammar ↔ CLI)
+  test_cli_e2e.py          # 26 end-to-end CLI tests via subprocess
+  test_config.py           # ConfigData tests
+  metacommands/            # metacommand handler unit tests
+  integration/             # SQLite/PostgreSQL/MySQL integration tests
+  utils/                   # utility module tests
+  gui/                     # GUI backend tests
 .github/workflows/
-  ci-cd.yml         # CI/CD pipeline (see below)
+  ci-cd.yml                # CI/CD pipeline (see below)
 .pre-commit-config.yaml
-justfile            # task runner (just lint, test, docs, bump-*)
-pyproject.toml      # build config
-mkdocs.yaml
+justfile                   # task runner (just lint, test, docs, bump-*)
+pyproject.toml             # build config
+zensical.toml              # docs site config (nav, theme, plugins)
 CHANGELOG.md
+CLAUDE.md                  # agent instructions
 .claude/
-  project_context.md  # this file
-  settings.local.json
+  project_context.md       # this file
+  agents/                  # SQL Syndicate agent prompts
+  commands/                # slash command definitions
 ```
 
 ______________________________________________________________________
@@ -111,14 +143,14 @@ ______________________________________________________________________
 | ------------------- | ------------------------ | ------------------------------------------------------------------------------------------------------- |
 | `uv`                | Package/env management   | Chosen over pip/poetry                                                                                  |
 | `hatchling`         | Build backend            | via pyproject.toml                                                                                      |
-| `ruff`              | Lint + format            | Permissive config during migration, tighten during refactor                                             |
-| `tox-uv`            | Multi-Python test matrix | py310–py313                                                                                             |
+| `ruff`              | Lint + format            | Aggressively configured — B904, E722, E721 enforced; see pyproject.toml for remaining suppressions      |
+| `tox-uv`            | Multi-Python test matrix | py310–py314                                                                                             |
 | `bump-my-version`   | Version bumping          | tags + commits, hooks run `uv lock`                                                                     |
-| `just`              | Task runner              | `lint`, `test`, `test-all`, `docs`, `docs-serve`, `bump-*`, `generate-vscode-grammar`, `install-vscode` |
+| `just`              | Task runner              | `lint`, `test`, `test-all`, `docs`, `docs-serve`, `bump-*`, `install-vscode`                            |
 | `pre-commit`        | Git hooks                | gitleaks, uv-lock, ruff, mdformat, markdownlint, typos, validate-pyproject                              |
-| `mkdocs` + Material | Docs site                | converted from Sphinx/RST                                                                               |
-| `mkdocstrings`      | API docs from docstrings | installed, not yet wired in                                                                             |
-| `pytest-cov`        | Coverage                 | configured, `--cov-fail-under` commented out until tests are written                                    |
+| `zensical`          | Docs builder             | MkDocs-compatible, Material theme, configured via `zensical.toml`                                       |
+| `mkdocstrings`      | API docs from docstrings | Wired up — `docs/api/` pages auto-generate from source                                                  |
+| `pytest-cov`        | Coverage                 | `--cov-fail-under=80` enforced                                                                          |
 
 ## Package Layout Decision
 
@@ -126,7 +158,7 @@ The source package is `src/execsql/` (not `src/execsql2/`). The PyPI name is `ex
 
 ## Python Version Support
 
-Requires Python >=3.10. CI matrix: 3.10, 3.11, 3.12, 3.13. All three OS runners (ubuntu, macos, windows).
+Requires Python >=3.10. CI matrix: 3.10, 3.11, 3.12, 3.13, 3.14. All three OS runners (ubuntu, macos, windows). Integration tests on 3.13.
 
 ## Optional Dependencies
 
@@ -148,25 +180,28 @@ Database drivers are optional extras:
 Triggered on: push to `main`, any tag `v*.*.*`, pull requests.
 
 1. **tests** — matrix across os × python-version, runs `tox -e py`
-1. **build** — runs only on `v*.*.*` tags, builds sdist + wheel with `python -m build`, checks with twine
-1. **publish** — pushes to PyPI via `pypa/gh-action-pypi-publish` (OIDC trusted publishing, `pypi` environment)
-1. **generate-release** — creates GitHub Release with dist artifacts and auto-generated release notes
+2. **integration-tests** — SQLite + PostgreSQL + MySQL via Docker services (py3.13)
+3. **build** — runs only on `v*.*.*` tags, builds sdist + wheel with `python -m build`, checks with twine
+4. **publish** — pushes to PyPI via `pypa/gh-action-pypi-publish` (OIDC trusted publishing, `pypi` environment)
+5. **generate-release** — creates GitHub Release with dist artifacts and auto-generated release notes
+
+**After every bump + push:** always `git push && git push --tags`, then `gh run watch <id> --exit-status` to monitor CI. Failures on bump commits need immediate attention since they trigger PyPI publish.
 
 ## Versioning
 
-`bump-my-version` manages versions. Current: `1.130.1`. Bump commands:
+`bump-my-version` manages versions. Current: `2.4.6`. Bump commands:
 
-- `just bump-patch` → 1.130.1 → 1.130.2
-- `just bump-minor` → 1.130.1 → 1.131.0
-    Bumps commit + tag. Pre-commit hook runs `uv lock` + stages `uv.lock`.
+- `just bump-patch` → 2.4.6 → 2.4.7
+- `just bump-minor` → 2.4.6 → 2.5.0
+  Bumps commit + tag. Pre-commit hook runs `uv lock` + stages `uv.lock`.
 
 ## Ruff Config
 
-`target-version = "py313"`, `line-length = 120`. Currently permissive — many legacy rules ignored (tabs, bare except, ambiguous names, unused imports, etc.). Intent is to tighten rules progressively during refactor.
+`target-version = "py310"`, `line-length = 120`. Rules enabled: E, W, F, I, B, N, SIM, UP, A. Notable suppressions with reasons documented in pyproject.toml — see that file for details. B904 (raise-without-from) is enforced.
 
 ## Keyword Registry & VS Code Extension
 
-The dispatch table is the single source of truth for all metacommand keywords. Every `mcl.add()` call in `metacommands/__init__.py` has `description=` (keyword name) and `category=` (one of: `control`, `block`, `action`, `config`, `config_option`, `prompt`). Conditional functions in `conditions.py` use `category="condition"`.
+The dispatch table is the single source of truth for all metacommand keywords. Every `mcl.add()` call in `metacommands/dispatch.py` has `description=` (keyword name) and `category=` (one of: `control`, `block`, `action`, `config`, `config_option`, `prompt`). Conditional functions in `conditions.py` use `category="condition"`.
 
 - `execsql --dump-keywords` introspects the dispatch table at runtime and outputs structured JSON
 - `scripts/generate_vscode_grammar.py` consumes that JSON to produce `extras/vscode-execsql/syntaxes/execsql.tmLanguage.json`
@@ -174,67 +209,55 @@ The dispatch table is the single source of truth for all metacommand keywords. E
 - Export format constants (`QUERY_EXPORT_FORMATS`, `TABLE_EXPORT_FORMATS`, etc.) are centralized in `metacommands/__init__.py`
 - The VS Code extension lives at `extras/vscode-execsql/` — it is NOT included in the Python wheel (it's an editor extension, not a library). Install via `just install-vscode` (symlinks into `~/.vscode/extensions/`).
 
-**When adding a new metacommand:** add `description=` and `category=` to the `mcl.add()` call, then run `just generate-vscode-grammar`.
+**When adding a new metacommand:** add `description=` and `category=` to the `mcl.add()` call in `dispatch.py`, then run `just install-vscode` to regenerate the grammar.
 
 ______________________________________________________________________
-
-## Known Issues / Docs Debt
-
-*(Docs cleanup completed — anchor IDs fixed, RST artifacts resolved.)*
 
 ## Roadmap
 
 Milestones are v2.x minor releases. Python 3.10 support is maintained for
-the foreseeable future. See also `ROADMAP.md` in the repo root.
+the foreseeable future.
 
 ### Completed
 
-| Item                                              | Version       | Date    |
-| ------------------------------------------------- | ------------- | ------- |
+| Item                                              | Version        | Date    |
+| ------------------------------------------------- | -------------- | ------- |
 | Monolith → modular refactor (80+ files)           | 2.0.0a1–2.1.0 | 2026-03 |
-| 30+ security/correctness fixes (ANALYSIS.md)      | 2.1.x         | 2026-03 |
-| mkdocstrings API docs wired up                    | 2.1.0         | 2026-03 |
-| `execsql-format` surfaced in README + docs nav    | 2.1.0         | 2026-03 |
-| Coverage floor raised to 70% (2,055 tests)        | 2.1.2         | 2026-03 |
-| Orphaned optional features cleaned up             | 2.1.0         | 2026-03 |
-| Keyring auth, Parquet/Feather/HDF5 export, DuckDB | 2.1.0         | 2026-03 |
-| Progress bars, SQL audit logging                  | unreleased    | 2026-03 |
-| Full monolith parity verified                     | unreleased    | 2026-03 |
+| 30+ security/correctness fixes (ANALYSIS.md)      | 2.1.x          | 2026-03 |
+| mkdocstrings API docs wired up                    | 2.1.0          | 2026-03 |
+| `execsql-format` surfaced in README + docs nav    | 2.1.0          | 2026-03 |
+| Coverage floor raised to 80% (2,596 tests)        | 2.4.x          | 2026-03 |
+| Orphaned optional features cleaned up             | 2.1.0          | 2026-03 |
+| Keyring auth, Parquet/Feather/HDF5 export, DuckDB | 2.1.0          | 2026-03 |
+| Progress bars, SQL audit logging                  | 2.2.x          | 2026-03 |
+| Full monolith parity verified + 14 missing patterns fixed | 2.4.5  | 2026-03 |
+| Exception hierarchy (`ExecSqlError` base)         | 2.1.0          | 2026-03 |
+| `py.typed` marker                                 | 2.1.0          | 2026-03 |
+| Exception chaining + B904 enforced                | 2.4.6          | 2026-03 |
+| `__all__` exports on 18 public modules            | 2.4.6          | 2026-03 |
+| End-to-end CLI tests (26 tests)                   | 2.4.6          | 2026-03 |
+| CONTRIBUTING.md                                   | 2.3.x          | 2026-03 |
+| Security docs (`docs/reference/security.md`)      | 2.3.x          | 2026-03 |
+| E722/E721 ruff enforcement                        | 2.3.x          | 2026-03 |
+| Lazy import cleanup (zero instances)              | 2.3.x          | 2026-03 |
+| Docs reorganized (getting-started/reference/guides/about) | 2.4.6  | 2026-03 |
+| Pre-commit hook for `execsql-format`              | 2.4.3          | 2026-03 |
+| VS Code syntax highlighting extension             | 2.4.x          | 2026-03 |
 
 ______________________________________________________________________
 
-### v2.2 — Stability & Testing
+### v2.5 — Remaining Code Quality
 
-Theme: Harden what exists before adding features.
+Theme: Complete the remaining v2.2/v2.3 items and continue stabilization.
 
-- **SQLite integration tests** — full lifecycle (connect, DDL, CRUD, export/import, disconnect)
-- **End-to-end CLI tests** — run scripts through the actual CLI entry point
-- **Exception chaining** — add `from e` to ~80 `except Exception: raise ErrInfo(...)` patterns
-- **Exception hierarchy** — make `ErrInfo`, `DataTypeError`, `DbTypeError`, `DatabaseNotImplementedError` inherit from `ExecSqlError`
-- **`py.typed` marker** — add `src/execsql/py.typed` for downstream type checking
-- **README accuracy** — remove "not yet stable" warning, update feature list
-- **Raise coverage floor** — target 75%
+- **Docstring coverage** — target 50%+ on public API (focus on `exporters/`, `db/`, `config.py`)
 
 ______________________________________________________________________
 
-### v2.3 — Code Quality & Documentation
-
-Theme: Make the codebase welcoming to contributors and transparent to users.
-
-- **Docstring coverage** — target 50%+ on public API (focus on `db/`, `exporters/`, `script.py`, `config.py`)
-- **CONTRIBUTING.md** — dev setup, architecture overview, PR workflow, testing expectations
-- **Security documentation** — document trust model and security boundaries (SHELL, path traversal, SMTP, passwords)
-- **Ruff tightening** — enable E722 (bare except), E721 (type comparison), remove legacy suppressions
-- **`__all__` exports** — add to all public modules
-- **Remove lazy import anti-pattern** — replace ~30 `global module; import module` with top-level or proper lazy imports
-
-______________________________________________________________________
-
-### v2.4 — Architecture & Performance
+### v2.6 — Architecture & Performance
 
 Theme: Internal modernization. May include backward-incompatible internal API changes (public CLI behavior preserved).
 
-- **Split large modules** — `script.py` (1,157 lines) and `metacommands/__init__.py` (1,606 lines)
 - **Database ABC with `@abstractmethod`** — replace runtime `DatabaseNotImplementedError` with true abstract methods
 - **Cursor context managers** — explicit cursor lifecycle in `execute()`, `select_data()`, `select_rowsource()`
 - **Metacommand dispatch optimization** — consider dict/trie lookup instead of O(N) regex scan
@@ -243,7 +266,7 @@ Theme: Internal modernization. May include backward-incompatible internal API ch
 
 ______________________________________________________________________
 
-### v2.5+ — Future
+### v3.0+ — Future
 
 - **Plugin system** — allow external packages to register exporters, importers, or metacommands
 
@@ -262,14 +285,7 @@ ______________________________________________________________________
 
 ### Distribution / single-file invocation model
 
-The original monolith could be dropped anywhere and run as `execsql.py <script>` with the directory on PATH. The refactored package no longer supports this directly. Two non-exclusive paths forward (decide post-refactor):
-
-- **Primary: `uv tool install` / `pipx install`** — already works today. Gives every user a global `execsql2` CLI entry point, isolated and versioned. Strictly better than directory-PATH for managed environments.
-- **Complement: `zipapp` artifact** — `python -m zipapp src/execsql -o execsql2.pyz -m execsql.__main__:main` produces a single executable `.pyz` that can be dropped anywhere and run with any compatible Python. No install required. Best fit for shared servers, airgapped machines, or sysadmins who want a file they can distribute. Would be an optional artifact in GitHub Releases, built via `just`.
-
-`shiv` (zipapp with bundled deps) is a heavier alternative to zipapp but unnecessary given that DB drivers are optional and platform-specific anyway.
-
-**Decision:** Option A only. `uv tool install execsql2` / `pipx install execsql2` is the supported install path. No zipapp or wrapper artifacts. Keep the modular package structure as-is.
+**Decision:** `uv tool install execsql2` / `pipx install execsql2` is the supported install path. No zipapp or wrapper artifacts. Keep the modular package structure as-is.
 
 ______________________________________________________________________
 
@@ -322,21 +338,21 @@ behavior.
 | **DATABASE CONNECTIONS** — `Database` base + 9 subclasses, `DatabasePool` (3678–5412)                                                                                                                                           | `db/base.py`, `db/access.py`, `db/dsn.py`, `db/sqlserver.py`, `db/postgres.py`, `db/oracle.py`, `db/sqlite.py`, `db/duckdb.py`, `db/mysql.py`, `db/firebird.py`                                                                                                                                                                                                                                                        |
 | **CSV FILES** — `LineDelimiter`, `DelimitedWriter`, `CsvWriter`, `CsvFile`, `ZipWriter` (5416–6136)                                                                                                                             | `exporters/delimited.py`, `exporters/zip.py`                                                                                                                                                                                                                                                                                                                                                                           |
 | **TEMPLATE-BASED REPORTS/EXPORTS** — `StrTemplateReport`, `JinjaTemplateReport`, `AirspeedTemplateReport` (6140–6249)                                                                                                           | `exporters/templates.py`                                                                                                                                                                                                                                                                                                                                                                                               |
-| **SCRIPTING** — `BatchLevels`, `IfLevels`, `CounterVars`, `SubVarSet`, `MetaCommand`, `MetaCommandList`, `SqlStmt`, `MetacommandStmt`, `ScriptCmd`, `CommandList`, loops, `ScriptFile`, `ScriptExecSpec`, `GuiSpec` (6254–6974) | `script.py`, `utils/gui.py`                                                                                                                                                                                                                                                                                                                                                                                            |
-| **UI** — Tkinter GUI classes (6979–9508)                                                                                                                                                                                        | `utils/gui.py` (stubs/no-ops; Tkinter classes not yet ported)                                                                                                                                                                                                                                                                                                                                                          |
+| **SCRIPTING** — `BatchLevels`, `IfLevels`, `CounterVars`, `SubVarSet`, `MetaCommand`, `MetaCommandList`, `SqlStmt`, `MetacommandStmt`, `ScriptCmd`, `CommandList`, loops, `ScriptFile`, `ScriptExecSpec`, `GuiSpec` (6254–6974) | `script/engine.py`, `script/control.py`, `script/variables.py`, `utils/gui.py`                                                                                                                                                                                                                                                                                                                                         |
+| **UI** — Tkinter GUI classes (6979–9508)                                                                                                                                                                                        | `gui/desktop.py` (TkinterBackend), `gui/base.py`, `gui/console.py`, `gui/tui.py`                                                                                                                                                                                                                                                                                                                                      |
 | **PARSERS** — `SourceString`, `CondParser`, `NumericParser`, AST nodes (9512–9821)                                                                                                                                              | `parser.py`                                                                                                                                                                                                                                                                                                                                                                                                            |
-| **METACOMMAND FUNCTIONS** — ~200 `x_*` handler functions + registrations (9826–13781)                                                                                                                                           | `metacommands/__init__.py`, `metacommands/conditions.py`, `metacommands/connect.py`, `metacommands/control.py`, `metacommands/data.py`, `metacommands/debug.py`, `metacommands/io.py`, `metacommands/prompt.py`, `metacommands/script_ext.py`, `metacommands/system.py`                                                                                                                                                |
+| **METACOMMAND FUNCTIONS** — ~200 `x_*` handler functions + registrations (9826–13781)                                                                                                                                           | `metacommands/dispatch.py`, `metacommands/connect.py`, `metacommands/control.py`, `metacommands/data.py`, `metacommands/debug.py`, `metacommands/io*.py`, `metacommands/prompt.py`, `metacommands/script_ext.py`, `metacommands/system.py`                                                                                                                                                                              |
 | **CONDITIONAL TESTS** — `xf_*` functions + registrations (13785–14163)                                                                                                                                                          | `metacommands/conditions.py`                                                                                                                                                                                                                                                                                                                                                                                           |
 | Utility functions: `chainfuncs`, `write_warning`, `parse_datetime`, `parse_datetimetz` (14164–14371)                                                                                                                            | `utils/errors.py`, `utils/datetime.py`                                                                                                                                                                                                                                                                                                                                                                                 |
-| `set_system_vars()`, `substitute_vars()` (14373–14423)                                                                                                                                                                          | `script.py`                                                                                                                                                                                                                                                                                                                                                                                                            |
-| `runscripts()`, `current_script_line()`, `read_sqlfile()` (14425–14602)                                                                                                                                                         | `script.py`                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `set_system_vars()`, `substitute_vars()` (14373–14423)                                                                                                                                                                          | `script/engine.py`                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `runscripts()`, `current_script_line()`, `read_sqlfile()` (14425–14602)                                                                                                                                                         | `script/engine.py`                                                                                                                                                                                                                                                                                                                                                                                                     |
 | Export/import helpers: `write_delimited_file`, `write_query_to_*`, `export_*`, `import*`, `pause`, `get_password` (14604–15874)                                                                                                 | `exporters/delimited.py`, `exporters/json.py`, `exporters/xml.py`, `exporters/html.py`, `exporters/latex.py`, `exporters/ods.py`, `exporters/xls.py`, `exporters/raw.py`, `exporters/feather.py`, `exporters/pretty.py`, `exporters/values.py`, `exporters/duckdb.py`, `exporters/sqlite.py`, `importers/csv.py`, `importers/ods.py`, `importers/xls.py`, `importers/feather.py`, `importers/base.py`, `utils/auth.py` |
 | GUI bridge functions: `gui_credentials`, `gui_connect`, `gui_console_*` (15875–16052)                                                                                                                                           | `utils/gui.py`                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `wo_quotes`, `get_subvarset`, `db_*` convenience constructors (16053–16134)                                                                                                                                                     | `utils/strings.py`, `db/factory.py`                                                                                                                                                                                                                                                                                                                                                                                    |
-| `list_metacommands()`, `list_encodings()` (16135–16229)                                                                                                                                                                         | `cli.py`                                                                                                                                                                                                                                                                                                                                                                                                               |
-| `clparser()` — CLI option definitions (16236–16309)                                                                                                                                                                             | `cli.py`                                                                                                                                                                                                                                                                                                                                                                                                               |
-| **GLOBAL OBJECTS** — module-level singleton instantiations (16316–16366)                                                                                                                                                        | `state.py`, `cli.py` (main() initialisation)                                                                                                                                                                                                                                                                                                                                                                           |
-| `main()` (16372–16627)                                                                                                                                                                                                          | `cli.py`                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `list_metacommands()`, `list_encodings()` (16135–16229)                                                                                                                                                                         | `cli/help.py`                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `clparser()` — CLI option definitions (16236–16309)                                                                                                                                                                             | `cli/__init__.py` (Typer-based)                                                                                                                                                                                                                                                                                                                                                                                        |
+| **GLOBAL OBJECTS** — module-level singleton instantiations (16316–16366)                                                                                                                                                        | `state.py`, `state.initialize()`                                                                                                                                                                                                                                                                                                                                                                                       |
+| `main()` (16372–16627)                                                                                                                                                                                                          | `cli/run.py` (_run())                                                                                                                                                                                                                                                                                                                                                                                                  |
 
 ### Coverage Notes
 
@@ -376,194 +392,3 @@ main()
 ```
 
 `runscripts()` (line 14425) is the central loop: pops the top `CommandList` from `commandliststack`, calls `run_next()` until `StopIteration`, then pops the stack. Metacommands may push new `CommandList` entries (e.g., `INCLUDE`, `EXECUTE SCRIPT`, `LOOP`).
-
-### File Sections
-
-| Lines       | Section                                                                                                                                                                                                                                                     |
-| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1–122       | Module header, imports, lazy-global declarations                                                                                                                                                                                                            |
-| 123–435     | **GLOBAL VARIABLES** — runtime state, regex patterns, map icons/colors                                                                                                                                                                                      |
-| 438–921     | **STATUS RECORDING** — `StatObj`, `ConfigError`, `ConfigData`                                                                                                                                                                                               |
-| 926–1218    | **SUPPORT FUNCTIONS AND CLASSES (1)** — regex builders, string utilities                                                                                                                                                                                    |
-| 1220–1245   | **ALARM TIMER** — `TimeoutError`, `TimerHandler`                                                                                                                                                                                                            |
-| 1250–1292   | **EXPORT METADATA RECORDS** — `ExportRecord`, `ExportMetadata`                                                                                                                                                                                              |
-| 1297–2298   | **FILE I/O** — `GetChar`, `FileWriter` (multiprocessing), `EncodedFile`, `WriteableZipfile`, `WriteSpec`, `Logger`, `TempFileMgr`, ODS/XLS/XLSX file classes                                                                                                |
-| 2301–2339   | **SIMPLE ENCRYPTION** — `Encrypt` (XOR + base64)                                                                                                                                                                                                            |
-| 2344–2454   | **EMAIL** — `Mailer`, `MailSpec`                                                                                                                                                                                                                            |
-| 2458–2480   | **TIMER** — `Timer`                                                                                                                                                                                                                                         |
-| 2483–2674   | **ERROR HANDLING** — `ErrInfo`, `exception_info()`, `exit_now()`, `fatal_error()`                                                                                                                                                                           |
-| 2678–3167   | **DATA TYPES** — `DataType` base + 14 subclasses (Timestamp, Date, Time, Boolean, Integer, Long, Float, Decimal, Character, Varchar, Text, Binary, etc.)                                                                                                    |
-| 3171–3412   | **DATABASE TYPES** — `DbTypeError`, `DbType` (per-DBMS type mapping)                                                                                                                                                                                        |
-| 3416–3630   | **COLUMNS AND TABLES** — `ColumnError`, `Column`, `DataTableError`, `DataTable`                                                                                                                                                                             |
-| 3634–3673   | **JSON SCHEMA TYPES** — `JsonDatatype`                                                                                                                                                                                                                      |
-| 3678–5412   | **DATABASE CONNECTIONS** — `Database` base + 9 subclasses, `DatabasePool`                                                                                                                                                                                   |
-| 5416–6136   | **CSV FILES** — `LineDelimiter`, `DelimitedWriter`, `CsvWriter`, `CsvFile`, `ZipWriter`                                                                                                                                                                     |
-| 6140–6249   | **TEMPLATE-BASED REPORTS/EXPORTS** — `StrTemplateReport`, `JinjaTemplateReport` (`AirspeedTemplateReport` removed 2026-03-23)                                                                                                                               |
-| 6254–6974   | **SCRIPTING** — `BatchLevels`, `IfLevels`, `CounterVars`, `SubVarSet`, `MetaCommand`, `MetaCommandList`, `SqlStmt`, `MetacommandStmt`, `ScriptCmd`, `CommandList`, loops, `ScriptFile`, `ScriptExecSpec`, `GuiSpec`                                         |
-| 6979–9508   | **UI** — Tkinter GUI classes: `MsgUI`, `DisplayUI`, `CompareUI`, `MapUI`, `SelectRowsUI`, `ActionUI`, `CredentialsUI`, `ConnectUI`, `ConsoleUI`, `GuiConsole`, `PauseUI`, `EntryFormUI`, `OpenFileUI`, `SaveFileUI`, `GetDirectoryUI`; GUI helper functions |
-| 9512–9821   | **PARSERS** — `SourceString`, `CondParser`, `NumericParser`, AST nodes                                                                                                                                                                                      |
-| 9826–13781  | **METACOMMAND FUNCTIONS** — ~200 `x_*` handler functions + `metacommandlist.add(...)` registrations                                                                                                                                                         |
-| 13785–14163 | **CONDITIONAL TESTS** — `xf_*` functions + `conditionallist.add(...)` registrations                                                                                                                                                                         |
-| 14164–14371 | Utility functions: `chainfuncs`, `write_warning`, `parse_datetime`, `parse_datetimetz`                                                                                                                                                                      |
-| 14373–14423 | `set_system_vars()`, `substitute_vars()`                                                                                                                                                                                                                    |
-| 14425–14602 | `runscripts()`, `current_script_line()`, `read_sqlfile()`                                                                                                                                                                                                   |
-| 14604–15874 | Export/import helpers: `write_delimited_file`, `write_query_to_*`, `export_*`, `import*`, `pause`, `get_password`                                                                                                                                           |
-| 15875–16052 | GUI bridge functions: `gui_credentials`, `gui_connect`, `gui_console_*`                                                                                                                                                                                     |
-| 16053–16134 | `wo_quotes`, `get_subvarset`, `db_*` convenience constructors                                                                                                                                                                                               |
-| 16135–16229 | `list_metacommands()`, `list_encodings()`                                                                                                                                                                                                                   |
-| 16236–16309 | `clparser()` — CLI option definitions                                                                                                                                                                                                                       |
-| 16316–16366 | **GLOBAL OBJECTS** — module-level singleton instantiations                                                                                                                                                                                                  |
-| 16372–16627 | `main()`                                                                                                                                                                                                                                                    |
-
-### Class Hierarchy
-
-**Database backends** (`Database` base at line 3691):
-
-```
-Database
-├── AccessDatabase      (4023)  — win32com/pyodbc, .mdb/.accdb
-├── DsnDatabase         (4307)  — ODBC DSN via pyodbc
-├── SqlServerDatabase   (4378)  — pyodbc
-├── PostgresDatabase    (4468)  — psycopg2
-├── OracleDatabase      (4725)  — oracledb
-├── SQLiteDatabase      (4871)  — sqlite3
-├── DuckDBDatabase      (5018)  — duckdb
-├── MySQLDatabase       (5070)  — pymysql
-└── FirebirdDatabase    (5231)  — firebird-driver
-```
-
-`DatabasePool` (5351) — dict of alias→Database, tracks current active DB.
-
-**Data types** (`DataType` base at line 2693):
-
-```
-DataType
-├── DT_TimestampTZ / DT_Timestamp / DT_Date / DT_Time / DT_Time_Oracle
-├── DT_Boolean
-├── DT_Integer / DT_Long / DT_Float / DT_Decimal
-└── DT_Character / DT_Varchar / DT_Text / DT_Binary
-```
-
-`DbType` (3189) — maps Python `DataType` to per-DBMS SQL type strings for CREATE TABLE.
-
-**Script execution:**
-
-```
-CommandList (6775) — ordered list of ScriptCmd objects + execution cursor
-├── CommandListWhileLoop (6881)
-└── CommandListUntilLoop (6901)
-ScriptCmd (6753) — wraps one command with source location
-SqlStmt (6660) — SQL string; calls db.execute()
-MetacommandStmt (6708) — dispatched through MetaCommandList
-```
-
-**Substitution variables:**
-
-```
-SubVarSet (6390) — global !!$VAR!! store
-├── LocalSubVarSet (6509) — script-local vars
-└── ScriptArgSubVarSet (6522) — $ARG_1, $ARG_2, ...
-```
-
-### Metacommand Dispatch System
-
-Two linked lists built at module load time (before `main()` is called):
-
-- **`metacommandlist`** (`MetaCommandList`, 6596) — imperative metacommands. Each entry: `MetaCommand(regex, x_func, description, run_in_batch, run_when_false)`. First regex match wins → calls `x_func(**groupdict)`.
-- **`conditionallist`** — conditional test functions for IF/ELSEIF. Each entry maps a regex to an `xf_func` returning bool.
-
-Naming conventions:
-
-- `x_<name>` — imperative handler (e.g., `x_export`, `x_import`, `x_connect_pg`)
-- `xf_<name>` — conditional test (e.g., `xf_tableexists`, `xf_fileexists`, `xf_equals`)
-
-### Global Variables and Objects
-
-**Variables** (lines 123–435):
-
-| Name                                  | Purpose                                                                      |
-| ------------------------------------- | ---------------------------------------------------------------------------- |
-| `conf`                                | `ConfigData` — configuration from execsql.conf + CLI                         |
-| `commandliststack`                    | Stack of `CommandList` objects being executed                                |
-| `savedscripts`                        | Named scripts from BEGIN/END SCRIPT                                          |
-| `loopcommandstack`                    | Stack for compiling LOOP bodies                                              |
-| `compiling_loop`                      | When True, commands compile into loop instead of executing                   |
-| `subvars`                             | `SubVarSet` — global substitution variables (also holds env vars as `&NAME`) |
-| `counters`                            | `CounterVars` — named counter variables                                      |
-| `err_halt_writespec/email/exec`       | What to do when halting on error                                             |
-| `cancel_halt_writespec/mailspec/exec` | What to do when halting on cancel                                            |
-| `varlike`                             | regex: `!![$@&~#]?\w+!!` — detects unsubstituted vars                        |
-| `defer_rx`                            | regex: `!{somevar}!` — deferred substitution                                 |
-
-**Objects** (lines 16316–16366, instantiated before `main()`):
-
-| Name              | Type              | Purpose                                              |
-| ----------------- | ----------------- | ---------------------------------------------------- |
-| `status`          | `StatObj`         | Runtime flags (halt_on_err, metacommand_error, etc.) |
-| `if_stack`        | `IfLevels`        | IF/ELSE/ENDIF nesting stack                          |
-| `subvars`         | `SubVarSet`       | Substitution variables                               |
-| `counters`        | `CounterVars`     | Counter variables                                    |
-| `timer`           | `Timer`           | Elapsed time for `$TIMER`                            |
-| `output`          | `WriteHooks`      | Redirectable stdout                                  |
-| `dbs`             | `DatabasePool`    | All open database connections                        |
-| `filewriter`      | `FileWriter`      | Async multiprocessing text file writer               |
-| `tempfiles`       | `TempFileMgr`     | Temp file registry                                   |
-| `export_metadata` | `ExportMetadata`  | Export operation metadata                            |
-| `metacommandlist` | `MetaCommandList` | All metacommand handlers                             |
-| `conditionallist` | `MetaCommandList` | All conditional test handlers                        |
-
-### CLI Options (`clparser()`, line 16236)
-
-| Flag          | Meaning                                                                                                                |
-| ------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `-a`          | Assign `$ARG_x` substitution variables                                                                                 |
-| `-b`          | Treat 0/1 as bool                                                                                                      |
-| `-d`          | Auto-create export directories                                                                                         |
-| `-e/-f/-g/-i` | database/script/output/import encoding                                                                                 |
-| `-l`          | Use `~/execsql.log`                                                                                                    |
-| `-m`          | List metacommands + exit                                                                                               |
-| `-n`          | Create new SQLite/Postgres DB                                                                                          |
-| `-p`          | DB server port                                                                                                         |
-| `-s`          | Lines to scan for IMPORT format detection                                                                              |
-| `-t`          | DB type: `a`=Access, `p`=Postgres, `s`=SqlServer, `l`=SQLite, `m`=MySQL, `k`=DuckDB, `o`=Oracle, `f`=Firebird, `d`=DSN |
-| `-u`          | DB username                                                                                                            |
-| `-v`          | GUI level 0–3                                                                                                          |
-| `-w`          | Skip password prompt                                                                                                   |
-| `-z`          | Import buffer size (kb)                                                                                                |
-
-### Substitution Variable Prefixes
-
-| Prefix  | Meaning                      |
-| ------- | ---------------------------- |
-| `$NAME` | System/user-defined variable |
-| `&NAME` | Environment variable         |
-| `@NAME` | Counter variable             |
-| `~NAME` | Script-local variable        |
-| `#NAME` | Script argument (`$ARG_x`)   |
-
-Syntax: `!!$VARNAME!!` (immediate) or `!{$varname}!` (deferred).
-
-### Export Formats
-
-Handled by `x_export()` (13565): `csv`, `tsv`, `txt`, `json`, `json-ts`, `xml`, `html`, `cgi-html`, `latex`, `values`, `ods`, `xls`, `xlsx`, `hdf5`, `duckdb`, `sqlite`, `b64`, `raw`, `feather`, `parquet`, `str-template`, `jinja`. (`airspeed` removed 2026-03-23).
-
-### Notable Complexity Hot Spots
-
-- `ConfigData` (468–921): ~450 lines of INI parsing
-- `PostgresDatabase` (4468–4724): ~257 lines; most complex adapter (schema support, COPY, notify)
-- `AccessDatabase` (4023–4306): ~284 lines; win32com DAO-based
-- `CsvFile` (5500–6121): ~622 lines; full delimited reader/writer
-- `EntryFormUI` (9098–9466): ~369 lines; Tkinter form builder
-- `MapUI` (7873–8145): ~273 lines; Tkinter + tkintermapview interactive map
-- Conditional test registrations (e.g., `CONTAINS`, `STARTS_WITH`): each generates ~17 regex variants for all quoting combinations
-
-### Quick-Lookup Guide
-
-| Goal                               | How                                                                                 |
-| ---------------------------------- | ----------------------------------------------------------------------------------- |
-| Find a metacommand implementation  | `grep "def x_<keyword>"`                                                            |
-| Find a conditional test            | `grep "def xf_<keyword>"`                                                           |
-| Find a DB backend method           | `grep "class <Name>Database"`, read from that line                                  |
-| Understand data flow               | `runscripts()` (14425) → `CommandList.run_next()` → `MetacommandStmt.run()` → `x_*` |
-| Find where a config option is read | Search `ConfigData` (468–921) or `main()` (16372+)                                  |
-| Understand variable substitution   | `substitute_vars()` at 14398, `SubVarSet.substitute_all()` in `SubVarSet` (6390)    |
