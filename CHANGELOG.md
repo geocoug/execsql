@@ -13,6 +13,7 @@ ______________________________________________________________________
 
 ### Added
 
+- End-to-end CLI tests (26 tests) covering `--version`, `--help`, `--dump-keywords`, `-c` inline commands, script file execution, `--dry-run`, error cases, and `execsql-format`.
 - `__all__` exports to 18 public modules: `state.py`, `format.py`, `constants.py`, `cli/` (4 files), `gui/` (5 files), `script/` (3 files), `metacommands/` (3 files).
 - Exception chaining (`from None`) on all `raise` statements inside `except` blocks; enabled ruff rule B904.
 
