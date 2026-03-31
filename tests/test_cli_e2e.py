@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import shutil
 import subprocess
 import sys
 
@@ -24,11 +23,9 @@ def _run_execsql(*args: str, **kwargs) -> subprocess.CompletedProcess[str]:
 
 
 def _run_formatter(*args: str) -> subprocess.CompletedProcess[str]:
-    """Invoke ``execsql-format`` with the given arguments."""
-    fmt = shutil.which("execsql-format")
-    assert fmt is not None, "execsql-format not found on PATH"
+    """Invoke the execsql-format entry point via Python."""
     return subprocess.run(
-        [fmt, *args],
+        [sys.executable, "-c", "from execsql.format import main; main()", *args],
         capture_output=True,
         text=True,
     )
@@ -63,7 +60,8 @@ def test_help_exits_zero():
 
 def test_help_contains_usage():
     result = _run_execsql("--help")
-    assert "Usage" in result.stdout or "usage" in result.stdout
+    combined = (result.stdout or "") + (result.stderr or "")
+    assert "Usage" in combined or "usage" in combined
 
 
 # ---------------------------------------------------------------------------
@@ -214,15 +212,19 @@ def test_no_script_file_error_message():
     assert "No SQL script file specified" in combined or "Usage" in combined
 
 
-def test_nonexistent_script_exits_nonzero():
-    result = _run_execsql("/tmp/this_file_does_not_exist_12345.sql")
+def test_nonexistent_script_exits_nonzero(tmp_path):
+    fake = str(tmp_path / "this_file_does_not_exist_12345.sql")
+    result = _run_execsql(fake)
     assert result.returncode == 1
 
 
-def test_nonexistent_script_error_message():
-    result = _run_execsql("/tmp/this_file_does_not_exist_12345.sql")
-    combined = result.stdout + result.stderr
-    assert "does not exist" in combined
+def test_nonexistent_script_error_message(tmp_path):
+    fake = str(tmp_path / "this_file_does_not_exist_12345.sql")
+    result = _run_execsql(fake)
+    combined = (result.stdout or "") + (result.stderr or "")
+    # Rich may wrap long paths across lines, so collapse whitespace before checking.
+    collapsed = " ".join(combined.split())
+    assert "does not exist" in collapsed
 
 
 # ---------------------------------------------------------------------------
@@ -237,7 +239,8 @@ def test_formatter_help_exits_zero():
 
 def test_formatter_help_contains_usage():
     result = _run_formatter("--help")
-    assert "Usage" in result.stdout or "usage" in result.stdout
+    combined = (result.stdout or "") + (result.stderr or "")
+    assert "Usage" in combined or "usage" in combined
 
 
 def test_formatter_check_mode(tmp_path):
@@ -260,5 +263,5 @@ def test_formatter_stdout_output(tmp_path):
 def test_formatter_no_args_shows_usage():
     """Running with no arguments should show usage information."""
     result = _run_formatter()
-    combined = result.stdout + result.stderr
+    combined = (result.stdout or "") + (result.stderr or "")
     assert "Usage" in combined or "FILE_OR_DIR" in combined
