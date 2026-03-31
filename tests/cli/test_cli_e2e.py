@@ -3,8 +3,12 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
+
+# Force Rich/Typer to produce output even without a TTY (e.g. Windows CI).
+_SUBPROCESS_ENV = {**os.environ, "NO_COLOR": "1", "COLUMNS": "200", "TERM": "dumb"}
 
 
 # ---------------------------------------------------------------------------
@@ -18,6 +22,7 @@ def _run_execsql(*args: str, **kwargs) -> subprocess.CompletedProcess[str]:
         [sys.executable, "-m", "execsql", *args],
         capture_output=True,
         text=True,
+        env=_SUBPROCESS_ENV,
         **kwargs,
     )
 
@@ -28,6 +33,7 @@ def _run_formatter(*args: str) -> subprocess.CompletedProcess[str]:
         [sys.executable, "-c", "from execsql.format import main; main()", *args],
         capture_output=True,
         text=True,
+        env=_SUBPROCESS_ENV,
     )
 
 
