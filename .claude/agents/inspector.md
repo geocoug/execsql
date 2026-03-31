@@ -63,7 +63,7 @@ You are a senior code reviewer for the execsql2 project. You review code with hi
 ### Documentation
 
 - [ ] New public API is documented in `docs/`
-- [ ] New metacommands are documented in `docs/metacommands.md`
+- [ ] New metacommands are documented in `docs/reference/metacommands.md`
 - [ ] `CHANGELOG.md` entry added for user-visible changes
 
 ## Findings Format

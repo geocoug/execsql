@@ -11,9 +11,29 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Added
+
+- `__all__` exports to 18 public modules: `state.py`, `format.py`, `constants.py`, `cli/` (4 files), `gui/` (5 files), `script/` (3 files), `metacommands/` (3 files).
+- Exception chaining (`from None`) on all `raise` statements inside `except` blocks; enabled ruff rule B904.
+
+### Changed
+
+- Gitignore `docs/change_log.md` — it is auto-generated from `CHANGELOG.md` by the ReadTheDocs pre-build step and `just docs`/`just docs-serve` recipes.
+- Clarified conditional test headings in metacommand docs — removed ambiguous "test" suffix from all 30 headings and added a section preamble explaining where conditional expressions can be used.
+- Reorganized documentation file structure to match nav groupings: `getting-started/`, `reference/`, `guides/`, `about/` subdirectories. Updated all 306 cross-references.
+
 ______________________________________________________________________
 
 ## [2.4.5] - 2026-03-31
+
+### Added
+
+- VS Code syntax highlighting section to README.
+- Pre-commit hook usage to README formatting section.
+
+### Changed
+
+- Updated README options table, removed test count badge, require doc updates for all changes.
 
 ### Fixed
 
@@ -25,6 +45,11 @@ ______________________________________________________________________
 ______________________________________________________________________
 
 ## [2.4.4] - 2026-03-30
+
+### Fixed
+
+- PyPI publish URL — use `execsql2` package name instead of repo name.
+- SQLite import-error test — patch `fatal_error` before `__import__`.
 
 ______________________________________________________________________
 

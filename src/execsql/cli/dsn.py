@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from execsql.exceptions import ConfigError
 
+__all__ = ["_SCHEME_TO_DBTYPE", "_parse_connection_string"]
+
 #: Mapping from URL scheme to execsql db_type code.
 _SCHEME_TO_DBTYPE: dict[str, str] = {
     "postgresql": "p",

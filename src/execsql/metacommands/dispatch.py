@@ -221,6 +221,8 @@ from execsql.metacommands import (
     TABLE_EXPORT_FORMATS,
 )
 
+__all__ = ["build_dispatch_table"]
+
 
 def build_dispatch_table() -> MetaCommandList:
     """Construct and return the complete metacommand dispatch table."""

@@ -10,7 +10,7 @@
 execsql [OPTIONS] SQL_SCRIPT [SERVER DATABASE | DATABASE_FILE]
 ```
 
-At minimum, provide a SQL script file to run. If database connection information is specified in a [configuration file](configuration.md#configuration), only the script file is required.
+At minimum, provide a SQL script file to run. If database connection information is specified in a [configuration file](../reference/configuration.md#configuration), only the script file is required.
 
 ### Client-server databases
 
@@ -55,7 +55,7 @@ execsql -tl -c "SELECT sqlite_version();" mydb.sqlite
 
 ### Config-only invocation
 
-When all connection parameters are in a [configuration file](configuration.md#configuration):
+When all connection parameters are in a [configuration file](../reference/configuration.md#configuration):
 
 ```bash
 execsql script.sql
@@ -117,7 +117,7 @@ The `-t` option specifies the database type using a single-character code:
 :   Execute an inline SQL/metacommand script string instead of reading from a file. Use shell `$'line1\nline2'` syntax for multi-line scripts. When `-c` is used, no script file argument is required.
 
 `-a`, `--assign-arg` *VALUE*
-:   Define the replacement string for a [substitution variable](substitution_vars.md#substitution_vars) `$ARG_x`. Can be used repeatedly to define `$ARG_1`, `$ARG_2`, etc. Assignments are [logged](logging.md#logging). See [Example 9](examples.md#example9).
+:   Define the replacement string for a [substitution variable](../reference/substitution_vars.md#substitution_vars) `$ARG_x`. Can be used repeatedly to define `$ARG_1`, `$ARG_2`, etc. Assignments are [logged](../guides/logging.md#logging). See [Example 9](../guides/examples.md#example9).
 
 ### Encoding options
 
@@ -133,7 +133,7 @@ The `-t` option specifies the database type using a single-character code:
 `-i`, `--import-encoding` *ENCODING*
 :   Character encoding for data files used with IMPORT.
 
-Valid encoding names can be displayed with the `-y` option. See also [Character Encoding](encoding.md#encoding).
+Valid encoding names can be displayed with the `-y` option. See also [Character Encoding](../guides/encoding.md#encoding).
 
 ### Output options
 
@@ -164,9 +164,9 @@ Valid encoding names can be displayed with the `-y` option. See also [Character 
 :   GUI interaction level:
 
     - **0**: Use the terminal for all prompts (the default).
-    - **1**: Use a GUI dialog for password prompts and the [PAUSE](metacommands.md#pause) metacommand.
-    - **2**: Additionally, use a GUI dialog for [HALT](metacommands.md#halt) messages and prompt for the initial database if no connection parameters are specified.
-    - **3**: Additionally, open a GUI [console](metacommands.md#console) when *execsql* starts.
+    - **1**: Use a GUI dialog for password prompts and the [PAUSE](../reference/metacommands.md#pause) metacommand.
+    - **2**: Additionally, use a GUI dialog for [HALT](../reference/metacommands.md#halt) messages and prompt for the initial database if no connection parameters are specified.
+    - **3**: Additionally, open a GUI [console](../reference/metacommands.md#console) when *execsql* starts.
 
 `--gui-framework` *{tkinter,textual}*
 
@@ -194,4 +194,4 @@ Valid encoding names can be displayed with the `-y` option. See also [Character 
 
 ## Configuration File Defaults { #config_defaults }
 
-Most command-line options and arguments can be specified in [configuration files](configuration.md#configuration) instead of on the command line. If the database type and connection information is specified in a configuration file, the `-t` option and the server/database arguments can be omitted. The only required command-line argument is the script file (or `-c` for inline scripts).
+Most command-line options and arguments can be specified in [configuration files](../reference/configuration.md#configuration) instead of on the command line. If the database type and connection information is specified in a configuration file, the `-t` option and the server/database arguments can be omitted. The only required command-line argument is the script file (or `-c` for inline scripts).

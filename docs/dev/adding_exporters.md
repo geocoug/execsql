@@ -188,5 +188,5 @@ ______________________________________________________________________
 - [ ] Zip guard added if the format does not support zip output
 - [ ] Test added to `tests/exporters/`
 - [ ] `pytest` passes locally
-- [ ] New format string documented in [Metacommands — EXPORT](../metacommands.md#export)
-- [ ] New library dependency (if any) added to `pyproject.toml` extras and documented in [Requirements](../requirements.md#libraries)
+- [ ] New format string documented in [Metacommands — EXPORT](../reference/metacommands.md#export)
+- [ ] New library dependency (if any) added to `pyproject.toml` extras and documented in [Requirements](../getting-started/requirements.md#libraries)

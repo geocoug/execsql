@@ -27,6 +27,7 @@ except ImportError as _e:
         "tkinter is not available on this Python installation.",
     ) from _e
 
+__all__ = ["TkinterBackend"]
 
 # ---------------------------------------------------------------------------
 # Helpers

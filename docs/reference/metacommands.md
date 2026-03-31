@@ -17,7 +17,7 @@ The *execsql* program supports several special commands — metacommands — tha
 > - Conditionally execute SQL or metacommands based on data values or user input.
 > - Execute an operating system command.
 
-Whereas SQL is often embedded in programs written in other languages, *execsql* inverts this paradigm through the use of metacommands (and [substitution variables](substitution_vars.md#substitution_vars)). These allow database operations to be interleaved with user interactions and file system access in a way that may be easier to develop, easier to [re-use](using_scripts.md#scripting), and more accessible to multiple users than embedded SQL in a high-level programming language.
+Whereas SQL is often embedded in programs written in other languages, *execsql* inverts this paradigm through the use of metacommands (and [substitution variables](substitution_vars.md#substitution_vars)). These allow database operations to be interleaved with user interactions and file system access in a way that may be easier to develop, easier to [re-use](../guides/using_scripts.md#scripting), and more accessible to multiple users than embedded SQL in a high-level programming language.
 
 Metacommands recognized by *execsql* are embedded in SQL comments, and are identified by the token "`!x!`" immediately following the comment characters at the beginning of the line. Each metacommand must be completely on a single line. An example metacommand is:
 
@@ -27,7 +27,7 @@ Metacommands recognized by *execsql* are embedded in SQL comments, and are ident
 
 This metacommand ([IMPORT](#import)) imports data from a text file or spreadsheet into a database table, and can automatically create the table with appropriate data types.
 
-Other illustrations of metacommand usage are in the [examples](examples.md#examples).
+Other illustrations of metacommand usage are in the [examples](../guides/examples.md#examples).
 
 Because metacommands are embedded in comments, they are hidden from other SQL script processors such as *psql* for Postgres, *mysql* for MySQL/MariaDB, and *sqlcmd* for SQL Server. Thus, a script containing *execsql* metacommands can potentially also be run using a DBMS's own native script processor. Scripts that make extensive use of *execsql*'s features, however, may not run satisfactorily with other script processors. Scripts that use metacommands such as [IF](#if_cmd), [IMPORT](#import), [INCLUDE](#include), [EXECUTE SCRIPT](#executescript), [LOOP](#loop), or [USE](#use), or that use [substitution variables](substitution_vars.md#substitution_vars) in SQL statements, are not likely to run properly with other script processors.
 
@@ -42,7 +42,7 @@ The metacommands are described in the following sections. Metacommand names are 
 ASK "<question>" SUB <match_string>
 ```
 
-Prompts the user to provide a yes or no response to the specified question, presenting the prompt on the console, and assigns the result, as either "Yes" or "No", to the substitution variable specified. The "Y" and "N" keys will select the corresponding response. The \<Esc\> key will cancel the script. The selection is also [logged](logging.md#logging). If the prompt is canceled, script processing is halted, and the system exit value is set to 2.
+Prompts the user to provide a yes or no response to the specified question, presenting the prompt on the console, and assigns the result, as either "Yes" or "No", to the substitution variable specified. The "Y" and "N" keys will select the corresponding response. The \<Esc\> key will cancel the script. The selection is also [logged](../guides/logging.md#logging). If the prompt is canceled, script processing is halted, and the system exit value is set to 2.
 
 Double quotes (as shown above), apostrophes, or square brackets can be used to delimit the text of the question.
 
@@ -167,7 +167,7 @@ The BEGIN SQL and END SQL metacommands define a block of lines in the script fil
 
 The primary intended use case for these metacommands is to bracket procedure and function definitions. A function definition may contain multiple SQL statements, each of which is ended by a semicolon, but which should all be sent to the DBMS as a single statement, not as a series of individual SQL statements.
 
-The BEGIN SQL and END SQL metacommands are an alternative to the use of [line continuation characters](usage.md#continuationchars).
+The BEGIN SQL and END SQL metacommands are an alternative to the use of [line continuation characters](../guides/usage.md#continuationchars).
 
 Metacommands that appear within a BEGIN/END SQL block will be treated as comments and will be ignored: they will not be executed when the SQL statement is run, and no error message will be produced.
 
@@ -189,7 +189,7 @@ If this metacommand is used when none of these structures are active, a warning 
 CANCEL_HALT ON|OFF
 ```
 
-When CANCEL_HALT is set to ON, which is the default, if the user presses the "Cancel" button on a dialog (such as is presented by the [PROMPT DISPLAY](#prompt) metacommand), *execsql* will halt script processing. If CANCEL_HALT is set to OFF, then *execsql* will not halt script processing, and it is the script author's responsibility to ensure that adverse consequences do not result from the lack of a response to the dialog. The [DIALOG_CANCELED](#dialog_canceled) conditional can be used to determine whether a dialog has been canceled. [Example 10](examples.md#example10) illustrates a condition in which setting CANCEL_HALT to OFF is appropriate.
+When CANCEL_HALT is set to ON, which is the default, if the user presses the "Cancel" button on a dialog (such as is presented by the [PROMPT DISPLAY](#prompt) metacommand), *execsql* will halt script processing. If CANCEL_HALT is set to OFF, then *execsql* will not halt script processing, and it is the script author's responsibility to ensure that adverse consequences do not result from the lack of a response to the dialog. The [DIALOG_CANCELED](#dialog_canceled) conditional can be used to determine whether a dialog has been canceled. [Example 10](../guides/examples.md#example10) illustrates a condition in which setting CANCEL_HALT to OFF is appropriate.
 
 
 ## CD
@@ -203,7 +203,7 @@ Changes the current working directory.
 
 ## CONFIG
 
-Several of the configuration settings that can be specified either with [command-line options](syntax.md#syntax) or in [configuration files](configuration.md#configuration) can also be dynamically altered using metacommands.
+Several of the configuration settings that can be specified either with [command-line options](../getting-started/syntax.md#syntax) or in [configuration files](configuration.md#configuration) can also be dynamically altered using metacommands.
 
 
 ```
@@ -358,14 +358,14 @@ Specifies the number of data rows that will be read from an input data source at
 CONFIG LOG_DATAVARS YES|NO
 ```
 
-Controls whether data variables that are created by the [SELECT_SUB](#select_sub), [PROMPT SELECT_SUB](#prompt_selsub) and [PROMPT ACTION](#prompt_action) metacommands are written to *execsql*'s [log file](logging.md#logging). By default, all data variable assignments are logged. The performance of scripts that make extensive use of these metacommands (e.g., [Example 27](examples.md#example27)) can be improved by changing this setting to 'No'.
+Controls whether data variables that are created by the [SELECT_SUB](#select_sub), [PROMPT SELECT_SUB](#prompt_selsub) and [PROMPT ACTION](#prompt_action) metacommands are written to *execsql*'s [log file](../guides/logging.md#logging). By default, all data variable assignments are logged. The performance of scripts that make extensive use of these metacommands (e.g., [Example 27](../guides/examples.md#example27)) can be improved by changing this setting to 'No'.
 
 
 ```
 CONFIG LOG_WRITE_MESSAGES YES|NO
 ```
 
-Controls whether output of the [WRITE](#write) metacommand will also be written to *execsql*'s log file. When this is set to "Yes" or "On" (the default value is "No"), all output of the [WRITE](#write) metacommand will also be written to *execsql*'s [log file](logging.md#logging). This behavior can also be controlled with the `log_write_messages` configuration option.
+Controls whether output of the [WRITE](#write) metacommand will also be written to *execsql*'s log file. When this is set to "Yes" or "On" (the default value is "No"), all output of the [WRITE](#write) metacommand will also be written to *execsql*'s [log file](../guides/logging.md#logging). This behavior can also be controlled with the `log_write_messages` configuration option.
 
 
 ```
@@ -670,7 +670,7 @@ The second (destination) table must have column names that are identical to the 
 If the "NEW" keyword is used, the destination table will be automatically created with column names and data types that are compatible with the first (source) table. The data types used for the columns in the newly created table will be determined by a scan of all of the data in the first table, but may not exactly match those in the first table. If the destination table already exists when the "NEW" keyword is used, an error will occur.
 
 If the "REPLACEMENT" keyword is used, the destination table will also be created to be compatible with the source table, but any existing destination table of the same name will be dropped first. *execsql* uses a "drop table" statement to drop an existing destination table, and this statement may not succeed if there are dependencies on that table (see the discussion of [implicit drop table
-statements](sql_syntax.md#implicit_drop)). If the destination table is not dropped, then data from the source table will be added to the existing table, or an error will occur if the table formats are not compatible.
+statements](../guides/sql_syntax.md#implicit_drop)). If the destination table is not dropped, then data from the source table will be added to the existing table, or an error will occur if the table formats are not compatible.
 
 If there are constraints on the second table that are not met by the data being added, an error will occur. If an error occurs at any point during the data copying process, no new data will be added to the second table.
 
@@ -948,7 +948,7 @@ ODS
 
 PLAIN
 
-:   Text with no header row, no quoting, and columns delimited by a single space. This format is appropriate when you want to export text---see [Example 11](examples.md#example11) for an illustration of its use. No description text will be included in the output even if it is provided.
+:   Text with no header row, no quoting, and columns delimited by a single space. This format is appropriate when you want to export text---see [Example 11](../guides/examples.md#example11) for an illustration of its use. No description text will be included in the output even if it is provided.
 
 
 RAW
@@ -968,7 +968,7 @@ TABQ or TSVQ
 
 TXT
 
-:   Text with data delimited and padded with spaces so that values are aligned in columns. Column headers are underlined with a row of dashes. Columns are separated with the pipe character (\|). Column headers are always written, even when the "APPEND" keyword is used. This output is compatible with Markdown pipe tables---see [Example 8](examples.md#example8). If the "DESCRIPTION" keyword is used, the given description will be written as plain text on the line before the table. If any columns of the table contain binary data, a message identifying the size, in bytes, of the data will be displayed instead of the data itself.
+:   Text with data delimited and padded with spaces so that values are aligned in columns. Column headers are underlined with a row of dashes. Columns are separated with the pipe character (\|). Column headers are always written, even when the "APPEND" keyword is used. This output is compatible with Markdown pipe tables---see [Example 8](../guides/examples.md#example8). If the "DESCRIPTION" keyword is used, the given description will be written as plain text on the line before the table. If any columns of the table contain binary data, a message identifying the size, in bytes, of the data will be displayed instead of the data itself.
 
 
 TXT-AND
@@ -1206,7 +1206,7 @@ ORIF(<conditional expression>)
 ENDIF
 ```
 
-The IF metacommands can be used not only to control a single stream of script commands, but also to loop over sets of SQL statements and metacommands, as shown in [Example 6](examples.md#example6).
+The IF metacommands can be used not only to control a single stream of script commands, but also to loop over sets of SQL statements and metacommands, as shown in [Example 6](../guides/examples.md#example6).
 
 The IF metacommands cannot be used within a SQL statement (nor can any other metacommands). This restriction prohibits constructions such as:
 
@@ -1235,10 +1235,10 @@ Conditional expressions used in IF metacommands are composed of one or more Bool
 
 Short-circuit evaluation is used for tests combined with AND and OR. If the first of two tests combined with AND is false, the second test will not be evaluated; if the first of two tests combined with OR is true, the second test will not be evaluated.
 
-The conditional tests that can be used with the IF, EXECUTE SCRIPT, LOOP, and WAIT_UNTIL metacommands are listed in the following subsections.
+The following subsections describe all available conditional tests. Each one evaluates to true or false and can be used wherever a conditional expression is accepted: IF, EXECUTE SCRIPT ... WHILE/UNTIL, LOOP ... WHILE/UNTIL, and WAIT_UNTIL metacommands.
 
 
-### *ALIAS_DEFINED* test
+### *ALIAS_DEFINED*
 
 ```
 ALIAS_DEFINED(<alias>)
@@ -1247,7 +1247,7 @@ ALIAS_DEFINED(<alias>)
 Evaluates whether a database connection has been made using the specified alias. Database aliases are defined using the [CONNECT](#connect) and [PROMPT CONNECT](#prompt_connect) metacommands.
 
 
-### *COLUMN_EXISTS* test
+### *COLUMN_EXISTS*
 
 ```
 COLUMN_EXISTS(<column_name> IN <table_name>)
@@ -1256,7 +1256,7 @@ COLUMN_EXISTS(<column_name> IN <table_name>)
 Evaluates whether there is a column of the given name in the specified database table. The table name may include a schema. *execsql* queries the information schema tables for those DBMSs that have information schema tables. You must have permission to use these system tables. If you do not, an alternative approach is to try to select data from the specified column table and determine if an error occurs.
 
 
-### *CONSOLE_ON* test
+### *CONSOLE_ON*
 
 ```
 CONSOLE_ON
@@ -1265,7 +1265,7 @@ CONSOLE_ON
 Evaluates whether or not *execsql*'s [CONSOLE](#console) is on.
 
 
-### *CONTAINS* test
+### *CONTAINS*
 
 ```
 CONTAINS("<string1>", "<string2>" [, I])
@@ -1274,7 +1274,7 @@ CONTAINS("<string1>", "<string2>" [, I])
 Evaluates whether *string2* is contained within *string1*. The comparison is case-sensitive unless the optional argument "I" is used. The strings may be unquoted if they do not contain any spaces, or may be quoted with double quotes ("), apostrophes (') or backticks (\`).
 
 
-### *DATABASE_NAME* test
+### *DATABASE_NAME*
 
 ```
 DATABASE_NAME(<database_name>)
@@ -1283,7 +1283,7 @@ DATABASE_NAME(<database_name>)
 Evaluates whether the current database name matches the one specified. Database names used in this conditional test should exactly match those contained in the "\$CURRENT_DATABASE" [substitution variable](substitution_vars.md#system_vars).
 
 
-### *DBMS* test
+### *DBMS*
 
 ```
 DBMS(<dbms_name>)
@@ -1292,7 +1292,7 @@ DBMS(<dbms_name>)
 Evaluates whether the current DBMS matches the one specified. DBMS names used in this conditional test should exactly match those contained in the "\$CURRENT_DBMS" [substitution variable](substitution_vars.md#system_vars).
 
 
-### *DIALOG_CANCELED* test { #dialog_canceled }
+### *DIALOG_CANCELED* { #dialog_canceled }
 
 ```
 DIALOG_CANCELED()
@@ -1301,7 +1301,7 @@ DIALOG_CANCELED()
 Returns True or False depending on whether the previous GUI dialog was canceled by either clicking on a 'Cancel' button, hitting the Escape key, or closing the window.
 
 
-### *DIRECTORY_EXISTS* test
+### *DIRECTORY_EXISTS*
 
 ```
 DIRECTORY_EXISTS(<directory_name>)
@@ -1310,7 +1310,7 @@ DIRECTORY_EXISTS(<directory_name>)
 Evaluates whether there is an existing directory with the given name.
 
 
-### *ENDS_WITH* test
+### *ENDS_WITH*
 
 ```
 ENDS_WITH("<string1>", "<string2>" [, I])
@@ -1319,7 +1319,7 @@ ENDS_WITH("<string1>", "<string2>" [, I])
 Evaluates whether *string1* ends with *string2*. The comparison is case-sensitive unless the optional argument "I" is used. The strings may be unquoted if they do not contain any spaces, or may be quoted with double quotes ("), apostrophes (') or backticks (\`).
 
 
-### *EQUAL* test { #equals }
+### *EQUAL* { #equals }
 
 ```
 EQUAL("<string_1>", "<string_2>")
@@ -1330,7 +1330,7 @@ Evaluates whether the two values are equal. The two string representations of th
 The double quotes around the strings may be omitted if they are not needed.
 
 
-### *FILE_EXISTS* test
+### *FILE_EXISTS*
 
 ```
 FILE_EXISTS(<filename>)
@@ -1339,7 +1339,7 @@ FILE_EXISTS(<filename>)
 Evaluates whether there is a disk file of the given name.
 
 
-### *HASROWS* test
+### *HASROWS*
 
 ```
 HASROWS(<table_or_view)
@@ -1348,7 +1348,7 @@ HASROWS(<table_or_view)
 Evaluates whether the specified table or view has a non-zero number of rows.
 
 
-### *IDENTICAL* test { #identical }
+### *IDENTICAL* { #identical }
 
 ```
 IDENTICAL("<string_1>", "<string_2>")
@@ -1359,7 +1359,7 @@ Evaluates whether the two quoted strings are exactly identical. No Unicode norma
 The double quotes around the strings may be omitted if they are not needed.
 
 
-### *IS_GT* test
+### *IS_GT*
 
 ```
 IS_GT(<value1>, <value2>)
@@ -1368,7 +1368,7 @@ IS_GT(<value1>, <value2>)
 Evaluates whether or not the first of the specified values is greater than the second value. If the values are not numeric, an error will occur, and script processing will halt.
 
 
-### *IS_GTE* test
+### *IS_GTE*
 
 ```
 IS_GTE(<value1>, <value2>)
@@ -1377,7 +1377,7 @@ IS_GTE(<value1>, <value2>)
 Evaluates whether or not the first of the specified values is greater than or equal to the second value. If the values are not numeric, an error will occur, and script processing will halt.
 
 
-### *IS_NULL* test
+### *IS_NULL*
 
 ```
 IS_NULL("<value>")
@@ -1386,7 +1386,7 @@ IS_NULL("<value>")
 Evaluates whether or not the specified value is null---that is, whether it is a zero-length string.
 
 
-### *IS_TRUE* test
+### *IS_TRUE*
 
 ```
 IS_TRUE(<value>)
@@ -1397,7 +1397,7 @@ Evaluates whether or not the specified value represents a Boolean value of True.
 The IS_TRUE test should also be used where the use of a single undefined substitution variable as the entire Boolean expression causes a problem for the logical expression parser. Alternatively, initialize the substitution variable before it is used.
 
 
-### *IS_ZERO* test
+### *IS_ZERO*
 
 ```
 IS_ZERO(<value>)
@@ -1406,7 +1406,7 @@ IS_ZERO(<value>)
 Evaluates whether or not the specified value is equal to zero. If the value is not numeric, an error will occur, and script processing will halt.
 
 
-### *METACOMMAND_ERROR* test { #metacommanderror }
+### *METACOMMAND_ERROR* { #metacommanderror }
 
 ```
 METACOMMAND_ERROR()
@@ -1415,7 +1415,7 @@ METACOMMAND_ERROR()
 Evaluates whether the previous metacommand generated an error. This test for SQL errors will only be effective if the [METACOMMAND_ERROR_HALT OFF](#metacommanderrorhalt) metacommand has previously been issued. This conditional must be used in the first metacommand after any metacommand that might have encountered an error.
 
 
-### *NEWER_DATE* test
+### *NEWER_DATE*
 
 ```
 NEWER_DATE(<filename>, <date>)
@@ -1424,7 +1424,7 @@ NEWER_DATE(<filename>, <date>)
 Evaluates whether the specified file was last modified after the given date. This can be used, for example, to compare the date of an output file to the latest revision date of all the data rows that should be included in the output; if the data have been revised after the output file was created, the output file should be regenerated.
 
 
-### *NEWER_FILE* test
+### *NEWER_FILE*
 
 ```
 NEWER_FILE(<filename1>, <filename2>)
@@ -1433,7 +1433,7 @@ NEWER_FILE(<filename1>, <filename2>)
 Evaluates whether the first of the specified files was last modified after the second of the files. This can be used, for example, to compare the date of an output file to the date of the script file that produces that output; if the script is newer, it may be [INCLUDEEd](#include) to run it again.
 
 
-### *ROLE_EXISTS* test
+### *ROLE_EXISTS*
 
 ```
 ROLE_EXISTS(<role_name>)
@@ -1442,7 +1442,7 @@ ROLE_EXISTS(<role_name>)
 Evaluates whether or not the specified role name or user name exists in the current database (and is visible to the current user). For SQLite and MS-Access, which do not support roles, an error message will be issued and *execsql* will halt.
 
 
-### *SCHEMA_EXISTS* test
+### *SCHEMA_EXISTS*
 
 ```
 SCHEMA_EXISTS(<schema_name>)
@@ -1451,7 +1451,7 @@ SCHEMA_EXISTS(<schema_name>)
 Evaluates whether or not the specified schema already exists in the database. For DBMSs that do not support schemas (SQLite, MySQL, MariaDB, Firebird, and MS-Access), this will always return a value of False. *execsql* queries the information schema tables, or analogous tables, for this information. You must have permission to use these system tables.
 
 
-### *SCRIPT_EXISTS* test
+### *SCRIPT_EXISTS*
 
 ```
 SCRIPT_EXISTS(<script_name>)
@@ -1460,7 +1460,7 @@ SCRIPT_EXISTS(<script_name>)
 Evaluates whether a script with the specified name has been created with the [BEGIN SCRIPT](#beginscript) metacommand.
 
 
-### *SQL_ERROR* test { #sqlerror }
+### *SQL_ERROR* { #sqlerror }
 
 ```
 SQL_ERROR()
@@ -1471,7 +1471,7 @@ Evaluates whether the previous SQL statement generated an error. Errors will res
 Errors in metacommands and some other errors encountered by *execsql* will cause the program to halt immediately, regardless of the setting of [ERROR_HALT](#error_halt) or the use of the IF(SQL_ERROR()) test.
 
 
-### *STARTS_WITH* test
+### *STARTS_WITH*
 
 ```
 STARTS_WITH("<string1>", "<string2>" [, I])
@@ -1480,7 +1480,7 @@ STARTS_WITH("<string1>", "<string2>" [, I])
 Evaluates whether *string1* starts with *string2*. The comparison is case-sensitive unless the optional argument "I" is used. The strings may be unquoted if they do not contain any spaces, or may be quoted with double quotes ("), apostrophes (') or backticks (\`).
 
 
-### *SUB_DEFINED* test { #sub_defined }
+### *SUB_DEFINED* { #sub_defined }
 
 ```
 SUB_DEFINED(<match_string>)
@@ -1489,7 +1489,7 @@ SUB_DEFINED(<match_string>)
 Evaluates whether a replacement string has been defined for the specified substitution variable (matching string).
 
 
-### *SUB_EMPTY* test
+### *SUB_EMPTY*
 
 ```
 SUB_EMPTY(<match_string>)
@@ -1498,7 +1498,7 @@ SUB_EMPTY(<match_string>)
 Evaluates whether the specified substitution variable is empty (i.e., is a zero-length string). The specified substitution variable must be defined.
 
 
-### *TABLE_EXISTS* test { #tableexists }
+### *TABLE_EXISTS* { #tableexists }
 
 ```
 TABLE_EXISTS(<tablename>)
@@ -1516,7 +1516,7 @@ select count(*) from maybe_not_a_real_table;
 The table name may include a schema name, for those DBMSs that support schemas. If a schema name is specified, this test will return True only if the table exists in that schema. If no schema name is specified, this test will return True if the table exists in any schema, except for Postgres, where the test will return True only if the table exists in the temporary schema or in any of the schemas on Postgres's *search_path* for the database in use.
 
 
-### *VIEW_EXISTS* test
+### *VIEW_EXISTS*
 
 ```
 VIEW_EXISTS(<viewname>)
@@ -1593,7 +1593,7 @@ The delimiter characters that will be recognized in a text file, and that can be
 The SKIP key phrase specifies the number of lines (or rows) at the beginning of the file (or worksheet) to discard before evaluating the remainder of the input as a data table.
 
 If the NEW keyword is used, the input will be scanned to determine the data type of each column, and a CREATE TABLE statement run to create a new table for the data. Scanning of the file to determine data formats is separate from the scanning that may be done to determine the quote and delimiter characters. If the table already exists when the NEW keyword is used, a fatal error will result and *execsql* will halt. If the REPLACEMENT keyword is used, the result is the same as if the NEW keyword were used, except that an existing table of the given name will be deleted first. *execsql* uses a "drop table" statement to drop an existing table, and the "drop table" statement may not succeed if there are dependencies on that table (see the discussion of [implicit drop table
-statements](sql_syntax.md#implicit_drop)). If the table to be dropped does not exist, an informational message will be written to the log.
+statements](../guides/sql_syntax.md#implicit_drop)). If the table to be dropped does not exist, an informational message will be written to the log.
 
 If neither the NEW or REPLACEMENT keywords are used, the table must exist, must have column names identical to those in the input data, and columns must have data types that are compatible with (though not necessarily identical to) those in the input data. If neither the NEW or REPLACEMENT keywords are used, the input data is not scanned to determine the data type of each column.
 
@@ -1601,7 +1601,7 @@ If a table is scanned to determine data types, any column that is completely emp
 
 When data are imported from Parquet or Feather data formats, and either the NEW or REPLACEMENT keywords are used, these data will be scanned to identify data types to use in the table-creation statement, regardless of the data types identified in the input file.
 
-The handling of Boolean data types when data are imported depends on the capabilities of the DBMS in use. See the relevant section of the [SQL syntax notes](sql_syntax.md#boolean_data_types).
+The handling of Boolean data types when data are imported depends on the capabilities of the DBMS in use. See the relevant section of the [SQL syntax notes](../guides/sql_syntax.md#boolean_data_types).
 
 If a column of imported data contains only numeric values, but any non-zero value has a leading digit of "0", that column will be imported as a text data type (character, character varying, or text).
 
@@ -1616,7 +1616,7 @@ If the NEW or REPLACEMENT keywords are used, the target table will be created wi
 
 If multiple worksheets are imported at once, using the SHEETS MATCHING clause, the [clean_column_headers](#clean_column_headers) and [fold_column_headers](#config_fold_column_headers) settings are used when creating table names from worksheet names.
 
-When the SHEETS MATCHING clause is used, the system variable \$SHEETS_IMPORTED will be set to a comma-delimited list of the names of the sheets that are imported, as they appear in the workbook, and the \$SHEETS_TABLES system variable will be set to a comma-delimited list of the names of the tables created. The \$SHEETS_TABLES_VALUES system variable will contain the single-quoted table names, including any schema name, and individually parenthesized, as might be used in an INSERT\...VALUES statement. This is illustrated in [example 34](examples.md#example34).
+When the SHEETS MATCHING clause is used, the system variable \$SHEETS_IMPORTED will be set to a comma-delimited list of the names of the sheets that are imported, as they appear in the workbook, and the \$SHEETS_TABLES system variable will be set to a comma-delimited list of the names of the tables created. The \$SHEETS_TABLES_VALUES system variable will contain the single-quoted table names, including any schema name, and individually parenthesized, as might be used in an INSERT\...VALUES statement. This is illustrated in [example 34](../guides/examples.md#example34).
 
 
 The NEW and REPLACEMENT keywords should not be used within a [batch](#batch) with Firebird. Firebird requires that the CREATE TABLE statement be committed---the table actually created---before data can be added. There is only one commit statement for a batch, at the end of the batch, and therefore the CREATE TABLE statement is not committed before data are added.
@@ -1659,7 +1659,7 @@ Because the data addition to the target table is always committed except when [A
 
 In general, if an error occurs while importing data, none of the new data should be in the target table (the operation is not committed). However, MySQL/MariaDB may issue messages about data type incompatibility to the standard error device (ordinarily the terminal), yet load some or all of the data. If the NEW or REPLACEMENT keywords are used, depending on the DBMS and where the error occurred, the target table may be created even if the data are not loaded.
 
-The name, size, and date of the IMPORTed file are written to the [execsql.log](logging.md#logging) file.
+The name, size, and date of the IMPORTed file are written to the [execsql.log](../guides/logging.md#logging) file.
 
 
 ## IMPORT_FILE
@@ -1690,7 +1690,7 @@ If the optional `IF EXISTS` clause is used, no error message will be displayed a
 LOG "<message>"
 ```
 
-Writes the specified message to *execsql*'s [log file](logging.md#logging).
+Writes the specified message to *execsql*'s [log file](../guides/logging.md#logging).
 
 
 ## LOOP
@@ -1770,7 +1770,7 @@ The email specification is scanned for [substitution variables](substitution_var
 This metacommand sends email after any action triggered by an [ON CANCEL_HALT WRITE](#cancel_halt_write) metacommand has completed. This allows any output file created by the [ON CANCEL_HALT WRITE](#cancel_halt_write) metacommand to be included in the email message or attached to the message.
 
 If an error occurs during the sending of email (for example, if no SMTP port is defined in a [configuration file](configuration.md#configuration)), then the email will not be sent and no error message describing this failure will be issued. An error message describing the error that triggered the sending of email will be issued, as it would be if the ON CANCEL_HALT EMAIL metacommand had not been used. The *execsql* [log
-file](logging.md#logging) will contain a message describing the failure of the ON CANCEL_HALT EMAIL metacommand.
+file](../guides/logging.md#logging) will contain a message describing the failure of the ON CANCEL_HALT EMAIL metacommand.
 
 
 ## ON CANCEL_HALT EXECUTE SCRIPT { #cancel_halt_exec }
@@ -1810,7 +1810,7 @@ The form of the metacommand with the "CLEAR" keyword will eliminate any message 
 
 The text to be written is scanned for [substitution variables](substitution_vars.md#substitution_vars) at two different times: first, when the ON CANCEL_HALT WRITE metacommand is invoked, and second, when the specified text is actually written. Substitution variables that are to be replaced when the text is written should be initially [deferred](substitution_vars.md#deferred_substitution) by bracketing them with the markers "!!" instead of "!!".
 
-If an error occurs when the text is written (for example if an attempt is made to write to a read-only file), then the text will not be written and no error message describing this failure will be issued. An error message describing the error that triggered the CANCEL_HALT WRITE action will be issued, as it would be if the ON CANCEL_HALT WRITE metacommand had not been used. The *execsql* [log file](logging.md#logging) will contain a message describing the failure of the ON CANCEL_HALT WRITE metacommand.
+If an error occurs when the text is written (for example if an attempt is made to write to a read-only file), then the text will not be written and no error message describing this failure will be issued. An error message describing the error that triggered the CANCEL_HALT WRITE action will be issued, as it would be if the ON CANCEL_HALT WRITE metacommand had not been used. The *execsql* [log file](../guides/logging.md#logging) will contain a message describing the failure of the ON CANCEL_HALT WRITE metacommand.
 
 
 ## ON ERROR_HALT EMAIL
@@ -1835,7 +1835,7 @@ The email specification is scanned for [substitution variables](substitution_var
 This metacommand sends email after any action triggered by an [ON ERROR_HALT WRITE](#error_halt_write) metacommand has completed. This allows any output file created by the [ON ERROR_HALT WRITE](#error_halt_write) metacommand to be included in the email message or attached to the message.
 
 If an error occurs during the sending of email (for example, if no SMTP port is defined in a [configuration file](configuration.md#configuration)), then the email will not be sent and no error message describing this failure will be issued. An error message describing the error that triggered the sending of email will be issued, as it would be if the ON ERROR_HALT EMAIL metacommand had not been used. The *execsql* [log
-file](logging.md#logging) will contain a message describing the failure of the ON ERROR_HALT EMAIL metacommand.
+file](../guides/logging.md#logging) will contain a message describing the failure of the ON ERROR_HALT EMAIL metacommand.
 
 
 ## ON ERROR_HALT EXECUTE SCRIPT { #error_halt_exec }
@@ -1875,7 +1875,7 @@ The form of the metacommand with the "CLEAR" keyword will eliminate any message 
 
 The text to be written is scanned for [substitution variables](substitution_vars.md#substitution_vars) at two different times: first, when the ON ERROR_HALT WRITE metacommand is invoked, and second, when the specified text is actually written. Substitution variables that are to be replaced when the text is written should be initially [deferred](substitution_vars.md#deferred_substitution) by bracketing them with the markers "!!" instead of "!!".
 
-If an error occurs when the text is written (for example if an attempt is made to write to a read-only file), then the text will not be written and no error message describing this failure will be issued. An error message describing the error that triggered the ERROR_HALT WRITE action will be issued, as it would be if the ON ERROR_HALT WRITE metacommand had not been used. The *execsql* [log file](logging.md#logging) will contain a message describing the failure of the ON ERROR_HALT WRITE metacommand. The *execsql* log file will contain a message describing the failure of the ON ERROR_HALT WRITE metacommand.
+If an error occurs when the text is written (for example if an attempt is made to write to a read-only file), then the text will not be written and no error message describing this failure will be issued. An error message describing the error that triggered the ERROR_HALT WRITE action will be issued, as it would be if the ON ERROR_HALT WRITE metacommand had not been used. The *execsql* [log file](../guides/logging.md#logging) will contain a message describing the failure of the ON ERROR_HALT WRITE metacommand. The *execsql* log file will contain a message describing the failure of the ON ERROR_HALT WRITE metacommand.
 
 
 ## PAUSE
@@ -1888,7 +1888,7 @@ Displays the specified text and pauses script processing. You can continue scrip
 
 If the "HALT\|CONTINUE\..." clause is used, the PAUSE prompt will disappear after the specified time, regardless of whether the \<Enter\> or \<Esc\> keys were struck. If the PAUSE prompt times out in this way, script processing will be either halted or continued, as specified. The prompt with a timeout limit will look like this on the console:
 
-![PAUSE prompt with timeout](images/pause_terminal_sm.png)
+![PAUSE prompt with timeout](../images/pause_terminal_sm.png)
 
 The countdown of time remaining is always displayed in seconds.
 
@@ -1960,7 +1960,7 @@ If the CONTINUE keyword is used, the dialog box will include a "Continue" button
 
 If a URL is provided with the HELP keyword, the dialog box will include a button that will open that URL when clicked. The URL must be double-quoted if it contains spaces.
 
-Use of the PROMPT ACTION metacommand is illustrated in [Example 27](examples.md#example27).
+Use of the PROMPT ACTION metacommand is illustrated in [Example 27](../guides/examples.md#example27).
 
 
 ## PROMPT ASK { #prompt_ask }
@@ -2008,13 +2008,13 @@ The alias names used with the `IN <alias>` key phrases should be either an alias
 
 The display looks like this with the `BESIDE` orientation:
 
-![Display of the PROMPT COMPARE metacommand](images/Compare_planets.png)
+![Display of the PROMPT COMPARE metacommand](../images/Compare_planets.png)
 
 The checkbox controls whether or not matching rows in the table that was clicked are also highlighted. When this is not checked (the default), clicking on a row on the 'many' side of a many-to-one relationship will cause only that one row to be highlighted. When the checkbox is checked, clicking on a row on the 'many' side of a many-to-one relationship will cause all matching rows on that side to be highlighted, as well as the matching row(s) in the other table.
 
 The 'Show mismatches' button will highlight all the rows in each table that have values for the key columns that are not present in the other table. The display will look like this (where "species" is the key column for both tables):
 
-![Display of unmatched data with the PROMPT COMPARE metacommand](images/unmatched.png)
+![Display of unmatched data with the PROMPT COMPARE metacommand](../images/unmatched.png)
 
 If the 'Continue' button is selected, the script will continue to run. If the 'Cancel' button is selected, the script will immediately halt unless [CANCEL_HALT](#cancel_halt) is set to OFF. The Enter key also carries out the action of the 'Continue' button, and the Escape key carries out the action of the 'Cancel' button.
 
@@ -2031,7 +2031,7 @@ Prompts for database connection parameters in a dialog box, and assigns that con
 
 The connection dialog looks like this:
 
-![Database connection dialog](images/connect.png)
+![Database connection dialog](../images/connect.png)
 
 The prompt provides several common options for the database encoding. If the database uses a different encoding, you can type in the name of that encoding.
 
@@ -2060,11 +2060,11 @@ Prompts for a user name and password, using a dialog box, and assigns the entere
 PROMPT DIRECTORY SUB <match_string> [FROM <starting_dir>]
 ```
 
-Prompts for the name of an existing directory, using a dialog box, and assigns the selected directory name (including the full path) to the substitution variable specified. The selection is also [logged](logging.md#logging). If the prompt is canceled, unless [CANCEL_HALT](#cancel_halt) is set to OFF, script processing is halted, and the system exit value is set to 2. If [CANCEL_HALT](#cancel_halt) is set to ON, the specified substitution variable will be undefined.
+Prompts for the name of an existing directory, using a dialog box, and assigns the selected directory name (including the full path) to the substitution variable specified. The selection is also [logged](../guides/logging.md#logging). If the prompt is canceled, unless [CANCEL_HALT](#cancel_halt) is set to OFF, script processing is halted, and the system exit value is set to 2. If [CANCEL_HALT](#cancel_halt) is set to ON, the specified substitution variable will be undefined.
 
 If the FROM keyword and directory are specified, the specified directory will be initially displayed in the prompt. If this keyword is not specified, the script's working directory will be initially displayed.
 
-The selection is [logged](logging.md#logging).
+The selection is [logged](../guides/logging.md#logging).
 
 
 ## PROMPT DISPLAY { #prompt }
@@ -2078,7 +2078,7 @@ Displays the selected view or table in a window with the specified message and b
 
 The prompt display looks like this:
 
-![Prompt display](images/unit_conversions_029.png)
+![Prompt display](../images/unit_conversions_029.png)
 
 If any columns of the table contain binary data, a message identifying the size, in bytes, of the data will be displayed instead of the data itself.
 
@@ -2187,7 +2187,7 @@ The \<Enter\> key will carry out the action of the "Continue" button except when
 
 If a URL is provided with the HELP keyword, the dialog box will include a button that will open that URL when clicked. The URL must be double-quoted if it contains spaces.
 
-Although the PROMPT ENTRY_FORM metacommand supports validation of individual entries through the use of either a list of valid values or a regular expression, it does not support cross-column validation or foreign key checks (except for single valid values). The primary purpose of *execsql* is to facilitate scripting, and therefore documentation, of data modifications, and interactive data entry runs counter to that purpose. There are nevertheless circumstances in which a data entry form is an appropriate tool to collect user input. Use of a simple custom data entry form is illustrated in [Example 18](examples.md#example18) and [Example 23](examples.md#example23).
+Although the PROMPT ENTRY_FORM metacommand supports validation of individual entries through the use of either a list of valid values or a regular expression, it does not support cross-column validation or foreign key checks (except for single valid values). The primary purpose of *execsql* is to facilitate scripting, and therefore documentation, of data modifications, and interactive data entry runs counter to that purpose. There are nevertheless circumstances in which a data entry form is an appropriate tool to collect user input. Use of a simple custom data entry form is illustrated in [Example 18](../guides/examples.md#example18) and [Example 23](../guides/examples.md#example23).
 
 
 ## PROMPT MESSAGE
@@ -2210,7 +2210,7 @@ Prompts for the name of an existing file (implicitly, to be opened), using a dia
 
 If the FROM keyword and directory are specified, the specified directory will be initially displayed in the prompt. If this keyword is not specified, the script's working directory will be initially displayed.
 
-The selection is [logged](logging.md#logging).
+The selection is [logged](../guides/logging.md#logging).
 
 If the prompt is canceled, unless [CANCEL_HALT](#cancel_halt) is set to OFF, script processing is halted, and the system exit value is set to 2. If CANCEL_HALT is set to ON, the specified substitution variable(s) will be undefined.
 
@@ -2243,7 +2243,7 @@ Prompts for the name of a new or existing file, using a dialog box, and assigns 
 
 If the FROM keyword and directory are specified, the specified directory will be initially displayed in the prompt. If this keyword is not specified, the script's working directory will be initially displayed. The keywords IN or TO can be used instead of FROM.
 
-The selection is [logged](logging.md#logging).
+The selection is [logged](../guides/logging.md#logging).
 
 If the prompt is canceled, unless [CANCEL_HALT](#cancel_halt) is set to OFF, script processing is halted, and the system exit value is set to 2. If CANCEL_HALT is set to ON, the specified substitution variable(s) will be undefined.
 
@@ -2285,7 +2285,7 @@ If no data value is selected (i.e., either the "Continue" button has been used, 
 
 If a URL is provided with the HELP keyword, the dialog box will include a button that will open that URL when clicked. The URL must be double-quoted if it contains spaces.
 
-See [Example 8](examples.md#example8) for an illustration of the use of this metacommand, and [Example 17](examples.md#example17) for an illustration of the use of the CONTINUE keyword.
+See [Example 8](../guides/examples.md#example8) for an illustration of the use of this metacommand, and [Example 17](../guides/examples.md#example17) for an illustration of the use of the CONTINUE keyword.
 
 
 ## RESET COUNTER
@@ -2395,7 +2395,7 @@ The numeric expression may consist of the simple algebraic operations of additio
 !!! note
     Division of integers produces floating-point values in Python 3 (e.g. `5 / 2` yields `2.5`). Use integer division (`//`) in SQL if integer results are needed.
 
-If more complex mathematical operations are needed, SQL can be used to perform computations with numeric substitution variables; see [Example 16](examples.md#example16).
+If more complex mathematical operations are needed, SQL can be used to perform computations with numeric substitution variables; see [Example 16](../guides/examples.md#example16).
 
 If the substitution variable is not numeric, it will be redefined with a suffix of "+", followed by the value of the numeric expression.
 
@@ -2473,7 +2473,7 @@ Parses out parameters and corresponding values from a query string as is used by
 SUB_TEMPFILE <match_string>
 ```
 
-Assigns a unique temporary file name to the specified substitution variable (\<match_string\>). The location of (path to) this temporary file is operating-system dependent; the file may not be located in the current working directory. The temporary file will not be created, opened, or used directly by *execsql*. All temporary files will automatically be deleted when *execsql* exits (however, a temporary file will not be deleted if it is in use by another process, and then may persist until manually removed). See [Example 12](examples.md#example12) and [Example 13](examples.md#example13) for illustrations of the use of temporary files.
+Assigns a unique temporary file name to the specified substitution variable (\<match_string\>). The location of (path to) this temporary file is operating-system dependent; the file may not be located in the current working directory. The temporary file will not be created, opened, or used directly by *execsql*. All temporary files will automatically be deleted when *execsql* exits (however, a temporary file will not be deleted if it is in use by another process, and then may persist until manually removed). See [Example 12](../guides/examples.md#example12) and [Example 13](../guides/examples.md#example13) for illustrations of the use of temporary files.
 
 
 ## SUBDATA
@@ -2510,7 +2510,7 @@ Execution of the SQL script does not ordinarily continue until the operating sys
 
 On non-POSIX operating systems (specifically, Windows), any backslashes in the command line will be doubled before the command line is passed to the operating system. Because backslashes are used as directory separators in Windows paths, this automatic alteration of the command line is meant to eliminate the need to double backslashes in path specifications on Windows.
 
-The command line that is run will be automatically [logged](logging.md#logging) in `execsql.log`.
+The command line that is run will be automatically [logged](../guides/logging.md#logging) in `execsql.log`.
 
 The exit status of the command that is invoked will be stored in the [system variable](substitution_vars.md#system_vars) \$SYSTEM_CMD_EXIT_STATUS if the CONTINUE keyword has not been used.
 
@@ -2599,7 +2599,7 @@ WRITE CREATE_TABLE <table_name> FROM <table_name>
     IN <alias> [COMMENT "<comment_text>"] [TO <output>]
 ```
 
-Generates the CREATE TABLE statement that would be executed prior to [importing](#import) data from the specified file or worksheet, or copying data from the specified aliased database, if the NEW or REPLACEMENT keyword were used with the [IMPORT](#import) or [COPY](#copy) metacommand. The comment text, if provided, will be written as a SQL comment preceding the CREATE TABLE statement. The comment text must be double-quoted; table, file, and worksheet names can be quoted or unquoted. If no output filename is specified, the text will be written to the console. Text will always be appended to any existing file of the given name. The output file directory will be created if it does not exist and the `make_export_dirs` [configuration setting](configuration.md#config_output) is set to "Yes". See [Example 12](examples.md#example12) for an illustration of the use of this metacommand.
+Generates the CREATE TABLE statement that would be executed prior to [importing](#import) data from the specified file or worksheet, or copying data from the specified aliased database, if the NEW or REPLACEMENT keyword were used with the [IMPORT](#import) or [COPY](#copy) metacommand. The comment text, if provided, will be written as a SQL comment preceding the CREATE TABLE statement. The comment text must be double-quoted; table, file, and worksheet names can be quoted or unquoted. If no output filename is specified, the text will be written to the console. Text will always be appended to any existing file of the given name. The output file directory will be created if it does not exist and the `make_export_dirs` [configuration setting](configuration.md#config_output) is set to "Yes". See [Example 12](../guides/examples.md#example12) for an illustration of the use of this metacommand.
 
 The SKIP key phrase specifies the number of lines at the beginning of the file or worksheet to discard before evaluating the remainder of the file as a data table.
 

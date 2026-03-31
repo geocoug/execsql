@@ -36,11 +36,11 @@ Writes the names of available ODBC drivers to the console or to the specified te
 DEBUG WRITE <script_name> [[APPEND] TO <filename>]
 ```
 
-This is an alias for the [WRITE SCRIPT](metacommands.md#write_script) metacommand.
+This is an alias for the [WRITE SCRIPT](../reference/metacommands.md#write_script) metacommand.
 
 The ON ERROR_HALT metacommands allow custom reporting (or cleanup) actions to be taken when errors occur.
 
-Setting the configuration setting [write_warnings](configuration.md#write_warnings) to "Yes" can also assist with debugging by displaying conditions that may result from errors in the script.
+Setting the configuration setting [write_warnings](../reference/configuration.md#write_warnings) to "Yes" can also assist with debugging by displaying conditions that may result from errors in the script.
 
 # Error Messages and Reporting
 
@@ -59,5 +59,5 @@ Error messages may result from:
 
 - Typographic or syntax errors in metacommands (as above) or SQL statements.
 - SQL statements that are inconsistent with the database structure or that violate data type, integrity, or check constraints--that is, errors that originate from the DBMS.
-- Character encoding inconsistencies, particularly with data being [imported](metacommands.md#import).
+- Character encoding inconsistencies, particularly with data being [imported](../reference/metacommands.md#import).
 - Bugs in *execsql*.

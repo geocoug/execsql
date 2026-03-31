@@ -1,6 +1,6 @@
 # Character Encoding
 
-[Command-line options](syntax.md#syntax) and [configuration file](configuration.md#configuration) settings allow specification of the encoding used in the database, the encoding used to read the script file and imported data files, and the encoding used to write output text. The encoding of data files to be imported can also be specified with the [IMPORT](metacommands.md#import) metacommand. Database encoding can also be specified with the [CONNECT](metacommands.md#connect) metacommand. Specification of appropriate encoding will eliminate errors that would otherwise result from the presence of characters in an encoding that is not compatible with the database.
+[Command-line options](../getting-started/syntax.md#syntax) and [configuration file](../reference/configuration.md#configuration) settings allow specification of the encoding used in the database, the encoding used to read the script file and imported data files, and the encoding used to write output text. The encoding of data files to be imported can also be specified with the [IMPORT](../reference/metacommands.md#import) metacommand. Database encoding can also be specified with the [CONNECT](../reference/metacommands.md#connect) metacommand. Specification of appropriate encoding will eliminate errors that would otherwise result from the presence of characters in an encoding that is not compatible with the database.
 
 For Postgres and SQLite, the database encoding used is determined by interrogating the database itself, and any database encoding specified on the command line or in a configuration file is ignored.
 
@@ -15,7 +15,7 @@ If no encodings are specified, the following default encodings are used:
 > - Output: utf8
 > - Import: utf8
 
-If a UTF byte order mark (BOM) is found at the start of the script file or at the start of a data file to be [IMPORTed](metacommands.md#import), the encoding indicated by the BOM will be taken as definitive regardless of any configuration options that may be used.
+If a UTF byte order mark (BOM) is found at the start of the script file or at the start of a data file to be [IMPORTed](../reference/metacommands.md#import), the encoding indicated by the BOM will be taken as definitive regardless of any configuration options that may be used.
 
 There is no default encoding for a DSN connection because the actual data source used is unknown, and because some ODBC drivers may return results in Unicode. If no encoding is specified, the ODBC driver must return result in Unicode or some compatible format (e.g., ASCII).
 

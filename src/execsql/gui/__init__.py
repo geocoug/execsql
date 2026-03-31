@@ -21,6 +21,8 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from execsql.gui.base import GuiBackend
 
+__all__ = ["get_backend", "gui_manager_loop"]
+
 
 def get_backend(framework: str = "tkinter") -> GuiBackend:
     """Return the best available backend for *framework*.

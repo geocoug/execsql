@@ -1,6 +1,6 @@
 # Copyright and License
 
-[![image](images/execsql_logo_01.png)](https://pypi.org/project/execsql2/)
+[![image](../images/execsql_logo_01.png)](https://pypi.org/project/execsql2/)
 
 Copyright (c) 2007-2025 R.Dreas Nielsen
 

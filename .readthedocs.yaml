@@ -12,7 +12,7 @@ build:
       - pip install zensical mkdocstrings-python
       - pip install -e .
     pre_build:
-      - cp CHANGELOG.md docs/change_log.md
+      - cp CHANGELOG.md docs/about/change_log.md
     build:
       html:
         - zensical build

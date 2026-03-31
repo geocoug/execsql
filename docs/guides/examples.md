@@ -5,7 +5,7 @@ The following examples illustrate some of the features of execsql.
 
 ## **Example 1:** A Simple Illustration of Metacommands and Substitution Variables
 
-The following code illustrates the use of metacommands and substitution variables. Lines starting with "-- !x!" are metacommands that implement *execsql*-specific features. Identifiers enclosed in pairs of exclamation points (!!) are substitution variables that have been defined with the SUB metacommand. The "$date_tag" variable is a [substitution variable](substitution_vars.md#substitution_vars) that is defined by *execsql* itself rather than by the user.
+The following code illustrates the use of metacommands and substitution variables. Lines starting with "-- !x!" are metacommands that implement *execsql*-specific features. Identifiers enclosed in pairs of exclamation points (!!) are substitution variables that have been defined with the SUB metacommand. The "$date_tag" variable is a [substitution variable](../reference/substitution_vars.md#substitution_vars) that is defined by *execsql* itself rather than by the user.
 
 ``` sql
 -- ==== Configuration ====
@@ -37,9 +37,9 @@ The following code illustrates the use of metacommands and substitution variable
 drop table if exists staging.errorlog cascade;
 ```
 
-The [IMPORT](metacommands.md#import) metacommand reads the specified file of error messages and loads the data into the target (staging) table, automatically choosing appropriate data types for each column. The [EXPORT](metacommands.md#export) metacommand saves the data in a CSV file that can be used by other applications. The [PROMPT](metacommands.md#prompt) metacommand produces a GUI display of the data like the following:
+The [IMPORT](../reference/metacommands.md#import) metacommand reads the specified file of error messages and loads the data into the target (staging) table, automatically choosing appropriate data types for each column. The [EXPORT](../reference/metacommands.md#export) metacommand saves the data in a CSV file that can be used by other applications. The [PROMPT](../reference/metacommands.md#prompt) metacommand produces a GUI display of the data like the following:
 
-![GUI produced by the PROMPT DISPLAY metacommand for the 'fatals' view.](images/fatals.png)
+![GUI produced by the PROMPT DISPLAY metacommand for the 'fatals' view.](../images/fatals.png)
 
 
 ## **Example 2:** Use Temporary Queries to Select and Summarize Data in Access
@@ -223,9 +223,9 @@ This example illustrates how a script file can be included if a database table e
 
 ## **Example 6:** Looping Using Tail Recursion { #example6 }
 
-Looping can be performed using the [LOOP](metacommands.md#loop) metacommand or the WHILE and UNTIL clauses of the [EXECUTE SCRIPT](metacommands.md#executescript) metacommand. In addition, looping can be performed using the [IF](metacommands.md#if_cmd) metacommand and tail recursion to repeatedly execute a block of commands that is either defined with the [BEGIN/END SCRIPT](metacommands.md#beginscript) metacommands or included with the [INCLUDE](metacommands.md#include) metacommand. This example demonstrates the third of these techniques.
+Looping can be performed using the [LOOP](../reference/metacommands.md#loop) metacommand or the WHILE and UNTIL clauses of the [EXECUTE SCRIPT](../reference/metacommands.md#executescript) metacommand. In addition, looping can be performed using the [IF](../reference/metacommands.md#if_cmd) metacommand and tail recursion to repeatedly execute a block of commands that is either defined with the [BEGIN/END SCRIPT](../reference/metacommands.md#beginscript) metacommands or included with the [INCLUDE](../reference/metacommands.md#include) metacommand. This example demonstrates the third of these techniques.
 
-To implement tail recursion, the block of commands that is to be repeatedly executed should end with another [INCLUDE](metacommands.md#include) or [EXECUTE SCRIPT](metacommands.md#executescript) metacommand to continue the loop. If this metacommand is not executed (ordinarily as the result of a conditional test), the loop will be exited.
+To implement tail recursion, the block of commands that is to be repeatedly executed should end with another [INCLUDE](../reference/metacommands.md#include) or [EXECUTE SCRIPT](../reference/metacommands.md#executescript) metacommand to continue the loop. If this metacommand is not executed (ordinarily as the result of a conditional test), the loop will be exited.
 
 The following code example illustrates the technique. Either a single-line IF metacommand can be used, as shown here, or the script's recursive invocation of itself can be contained within a block IF statement.
 
@@ -245,7 +245,7 @@ In this example, the commands to be repeated are contained in a script file name
 -- !x! if(equals("!!loop_again!!", "Yes"))
 ```
 
-The IF statement on the last line controls whether the loop is repeated or exited. In this case, termination of the loop is controlled by the user's response to the prompt. Termination of the loop can also be controlled by some data condition instead of by an interactive prompt to the user. For example, you could loop for as many times as there are rows in a table by using the [SUBDATA](metacommands.md#subdata) metacommand to get a count of all of the rows in a table, and then use the [IF(EQUALS())](metacommands.md#equals) conditional test to terminate the loop when a counter variable equals the number of rows in the table.
+The IF statement on the last line controls whether the loop is repeated or exited. In this case, termination of the loop is controlled by the user's response to the prompt. Termination of the loop can also be controlled by some data condition instead of by an interactive prompt to the user. For example, you could loop for as many times as there are rows in a table by using the [SUBDATA](../reference/metacommands.md#subdata) metacommand to get a count of all of the rows in a table, and then use the [IF(EQUALS())](../reference/metacommands.md#equals) conditional test to terminate the loop when a counter variable equals the number of rows in the table.
 
 ## **Example 7:** Nested Variable Evaluation
 
@@ -272,7 +272,7 @@ On line 3 of this script the substitution variable argvar is first evaluated to 
 
 ## **Example 8:** Prompt the User to Choose an Option { #example8 }
 
-This example illustrates how the [PROMPT SELECT_SUB](metacommands.md#prompt_selsub) metacommand can be used to prompt the user to select among several options. In this example, the options allow the user to choose a format in which to (export and) view a data table or view. For this example, there must be a data table or view in the database named some_data.
+This example illustrates how the [PROMPT SELECT_SUB](../reference/metacommands.md#prompt_selsub) metacommand can be used to prompt the user to select among several options. In this example, the options allow the user to choose a format in which to (export and) view a data table or view. For this example, there must be a data table or view in the database named some_data.
 
 ``` sql
 drop table if exists formats;
@@ -298,7 +298,7 @@ values ('csv'), ('tsv'), ('ods'), ('html'), ('txt'), ('pdf'), ('GUI');
 -- !x! endif
 ```
 
-This example also illustrates that, because the text ("txt") output format of the [EXPORT](metacommands.md#export) metacommand creates a Markdown-compatible table, this type of text output can be combined with output of [WRITE](metacommands.md#write) metacommands and converted to Portable Document Format (PDF). This example also illustrates how the [SYSTEM_CMD](metacommands.md#system_cmd) metacommand can be used to immediately open and display a data file that was just exported. (Note that the `xdg-open` command is available in most Linux desktop environments. In Windows, the `start` command is equivalent.)
+This example also illustrates that, because the text ("txt") output format of the [EXPORT](../reference/metacommands.md#export) metacommand creates a Markdown-compatible table, this type of text output can be combined with output of [WRITE](../reference/metacommands.md#write) metacommands and converted to Portable Document Format (PDF). This example also illustrates how the [SYSTEM_CMD](../reference/metacommands.md#system_cmd) metacommand can be used to immediately open and display a data file that was just exported. (Note that the `xdg-open` command is available in most Linux desktop environments. In Windows, the `start` command is equivalent.)
 
 This example also illustrates how substitution variables can be used to parameterize code to support modularization and code re-use. In this example the substitution variable data_table is assigned a value at the beginning of the script. Alternatively, this variable might be assigned different values at different locations in a main script, and the commands in the remainder of this example placed in a second script that is INCLUDEEd where appropriate to allow the export and display of several different data tables or views. [Example 10](#example10) illustrates this usage.
 
@@ -327,12 +327,12 @@ execsql -tl -a "Share your dog food" -a 2015-11-21 add.sql todo.db
 
 ## **Example 10:** Using CANCEL_HALT to Control Looping with Dialogs { #example10 }
 
-This example illustrates the use of the [CANCEL_HALT](metacommands.md#cancel_halt) metacommand during user interaction with dialogs. Ordinarily when a user presses the "Cancel" button on a dialog, execsql treats this as an indication that a necessary response was not received, and that further script processing could have adverse consequences---and therefore execsql halts script processing. However, there are certain cases when the "Cancel" button is appropriately used to terminate a user interaction without stopping script processing.
+This example illustrates the use of the [CANCEL_HALT](../reference/metacommands.md#cancel_halt) metacommand during user interaction with dialogs. Ordinarily when a user presses the "Cancel" button on a dialog, execsql treats this as an indication that a necessary response was not received, and that further script processing could have adverse consequences---and therefore execsql halts script processing. However, there are certain cases when the "Cancel" button is appropriately used to terminate a user interaction without stopping script processing.
 
 The scripts in this example presents the user with a list of all views in the database, allows the user to select one, and then prompts the user to choose how to see the data. Three scripts are used:
 
-> - `view_views.sql`: This is the initial script that starts the process. It turns the [CANCEL_HALT](metacommands.md#cancel_halt) flag off at the start of the process, and turns it back on again at the end.
-> - `view_views2.sql`: This script is included by view_views.sql, and acts as an inner loop, repeatedly presenting the user with a list of all the views in the database. The "Cancel" button on this dialog is used to terminate the overall process. If the user selects a view, rather than canceling the process, then the choose_view.sql script is [INCLUDEEd](metacommands.md#include) to allow the user to choose how to see the data.
+> - `view_views.sql`: This is the initial script that starts the process. It turns the [CANCEL_HALT](../reference/metacommands.md#cancel_halt) flag off at the start of the process, and turns it back on again at the end.
+> - `view_views2.sql`: This script is included by view_views.sql, and acts as an inner loop, repeatedly presenting the user with a list of all the views in the database. The "Cancel" button on this dialog is used to terminate the overall process. If the user selects a view, rather than canceling the process, then the choose_view.sql script is [INCLUDEEd](../reference/metacommands.md#include) to allow the user to choose how to see the data.
 > - `choose_view.sql`: This script presents the dialog that allows the user to choose how to see the data from the selected view. This is the same script used in [Example 8](#example8), except that the data_table variable is defined in the `view_views2.sql` script instead of in `choose_view.sql`.
 
 `view_views.sql` :
@@ -359,7 +359,7 @@ select table_name from information_schema.views;
 
 The `choose_view.sql` script can be seen in [Example 8](#example8).
 
-The CONTINUE keyword of the [PROMPT SELECT_SUB](metacommands.md#prompt_selsub) metacommand can also be used to close the dialog without canceling the script.
+The CONTINUE keyword of the [PROMPT SELECT_SUB](../reference/metacommands.md#prompt_selsub) metacommand can also be used to close the dialog without canceling the script.
 
 
 ## **Example 11:** Output Numbering with Counters
@@ -393,20 +393,20 @@ select comment_text from qa_results where check_number = !!check_no!!;
 -- !x! write "" to !!outfile!!
 ```
 
-A script like this one could be [INCLUDEEd](metacommands.md#include) as many times as there are sets of QA results to report.
+A script like this one could be [INCLUDEEd](../reference/metacommands.md#include) as many times as there are sets of QA results to report.
 
 This example also illustrates how the value of a counter variable can be preserved for repeated use by assigning it to a user-defined substitution variable.
 
 
 ## **Example 12:** Customize the Table Structure for Data to be Imported
 
-This example illustrates how the structure of a table that would be created by the [IMPORT](metacommands.md#import) metacommand can be customized during the import process. Customization may be necessary because the data types that are automatically selected for the columns of the new table need to be modified. This may occur when:
+This example illustrates how the structure of a table that would be created by the [IMPORT](../reference/metacommands.md#import) metacommand can be customized during the import process. Customization may be necessary because the data types that are automatically selected for the columns of the new table need to be modified. This may occur when:
 
 > - A column is entirely null. In this case, execsql will create the column with a text data type, whereas a different data type may be more appropriate.
 > - A column contains only integers of 1 and 0; execsql will create this column with a Boolean data type, whereas an integer type may be more appropriate.
 > - A column contains only integers, whereas a floating-point type may be more appropriate.
 
-The technique shown here first writes the CREATE TABLE statement to a temporary file, and then opens that file in an editor so that you can make changes. After the file is edited and closed, the file is [INCLUDEEd](metacommands.md#include) to create the table structure, and then the data are loaded into that table.
+The technique shown here first writes the CREATE TABLE statement to a temporary file, and then opens that file in an editor so that you can make changes. After the file is edited and closed, the file is [INCLUDEEd](../reference/metacommands.md#include) to create the table structure, and then the data are loaded into that table.
 
 ``` sql
 -- !x! sub input_file storm_tracks.csv
@@ -436,7 +436,7 @@ When a group of related data files are to be loaded together into a database, th
 > - Adding columns to that table for the name of the table into which each CSV file is imported and the time of import. The main file name of each CSV file is used as the table name.
 > - Looping over the list of CSV files, choosing one that does not have an import time, importing that file, and setting the import time.
 
-This process uses a script defined with the [BEGIN/END SCRIPT](metacommands.md#beginscript) metacommand to import each individual CSV file. This script is run repeatedly using the [EXECUTE SCRIPT...WHILE](metacommands.md#executescript) metacommand. Before calling this script, the process imports the list of CSV files into the control table and creates a view that will return the name of one CSV file that has not yet been imported. The main script looks like this:
+This process uses a script defined with the [BEGIN/END SCRIPT](../reference/metacommands.md#beginscript) metacommand to import each individual CSV file. This script is run repeatedly using the [EXECUTE SCRIPT...WHILE](../reference/metacommands.md#executescript) metacommand. Before calling this script, the process imports the list of CSV files into the control table and creates a view that will return the name of one CSV file that has not yet been imported. The main script looks like this:
 
 ``` sql
 -- !x! prompt directory sub dir
@@ -499,14 +499,14 @@ where script_name = 'check_sdg';
 
 This technique could be combined with a prompt for the script to run, using the method illustrated in [Example 8](#example8), to create a tool that allows interactive selection and execution of SQL scripts.
 
-This technique can be extended to export all scripts with the same script_group value, and then to run the master script for that group. To use this approach, the filename used with the [IMPORT](metacommands.md#import) metacommand in each script must be a substitution variable that is to be replaced with the name of a temporary file created with the [SUB_TEMPFILE](metacommands.md#sub_tempfile) metacommand.
+This technique can be extended to export all scripts with the same script_group value, and then to run the master script for that group. To use this approach, the filename used with the [IMPORT](../reference/metacommands.md#import) metacommand in each script must be a substitution variable that is to be replaced with the name of a temporary file created with the [SUB_TEMPFILE](../reference/metacommands.md#sub_tempfile) metacommand.
 
 
 ## **Example 15:** Prompt for Multiple Values
 
-The [PROMPT SELECT_SUB](metacommands.md#prompt_selsub) metacommand allows the selection of only one row of data at a time. Multiple selections can be obtained, however, by using the [PROMPT SELECT_SUB](metacommands.md#prompt_selsub) metacommand in a loop and accumulating the results in another variable or variables.
+The [PROMPT SELECT_SUB](../reference/metacommands.md#prompt_selsub) metacommand allows the selection of only one row of data at a time. Multiple selections can be obtained, however, by using the [PROMPT SELECT_SUB](../reference/metacommands.md#prompt_selsub) metacommand in a loop and accumulating the results in another variable or variables.
 
-This example illustrates that process, using a main script that [INCLUDEEs](metacommands.md#include) another script, `choose2.sql`, to present the prompt and accumulate the choices in the desired form.
+This example illustrates that process, using a main script that [INCLUDEEs](../reference/metacommands.md#include) another script, `choose2.sql`, to present the prompt and accumulate the choices in the desired form.
 
 The main script looks like this:
 
@@ -606,9 +606,9 @@ The user can cancel further script processing using the "Cancel" button on eithe
 
 ## **Example 18:** Creating a Simple Entry Form
 
-This example illustrates the creation of a simple data entry form using the [PROMPT ENTRY_FORM](metacommands.md#prompt_entry) metacommand. In this example, the form is used to get a numeric value and a recognized set of units for that value, and then display that value converted to all compatible units in the database.
+This example illustrates the creation of a simple data entry form using the [PROMPT ENTRY_FORM](../reference/metacommands.md#prompt_entry) metacommand. In this example, the form is used to get a numeric value and a recognized set of units for that value, and then display that value converted to all compatible units in the database.
 
-This example relies on the presence of a unit dictionary in the database (`e_unit`) that contains the unit code, the dimenension of that unit, and a conversion factor to convert values to a standard unit for the dimension. This example uses two scripts, named unit_conv.sql and unit_conv2.sql, the first of which [INCLUDEEs](metacommands.md#include) the second.
+This example relies on the presence of a unit dictionary in the database (`e_unit`) that contains the unit code, the dimenension of that unit, and a conversion factor to convert values to a standard unit for the dimension. This example uses two scripts, named unit_conv.sql and unit_conv2.sql, the first of which [INCLUDEEs](../reference/metacommands.md#include) the second.
 
 `unit_conv.sql` :
 
@@ -752,7 +752,7 @@ The script that logs the issues is named `log_issue.sql`. It should be included 
 
 > - `dataset`: The name of the data set to which this issue applies.
 > - `issue`: A description of the issue.
-> - `issue_data`: The name of a table or view containing a data summary that illustrates the issue. This substitution variable need not be defined if no illustrative data are necessary or applicable (use the [RM_SUB](metacommands.md#rm_sub) metacommand to un-define this variable if it has been previously used).
+> - `issue_data`: The name of a table or view containing a data summary that illustrates the issue. This substitution variable need not be defined if no illustrative data are necessary or applicable (use the [RM_SUB](../reference/metacommands.md#rm_sub) metacommand to un-define this variable if it has been previously used).
 
 Each issue is logged only once. The issue_log table is created with additional columns that may be used to record the resolution of each issue, and these are not overwritten if an issue is encountered repeatedly.
 
@@ -877,7 +877,7 @@ create or replace temporary view allsampdups as
 
 ## **Example 21:** Updating Multiple Databases with a Cross-Database Transaction
 
-This example illustrates how the same SQL script can be applied to multiple databases, and the changes committed only if they were successful for all databases. This makes use of the looping technique illustrated in [Example 6](#example6), but using sub-scripts defined with [BEGIN/END SCRIPT](metacommands.md#beginscript) metacommands instead of [INCLUDE](metacommands.md#include) metacommands. The same approach, of committing changes only if there were no errors in any database, could also be done without looping, simply by unrolling the loops to apply the updates to each database in turn. This latter approach would be necessary when different changes were to be made to each database---though even in that case, the commit statements could all be executed in a loop.
+This example illustrates how the same SQL script can be applied to multiple databases, and the changes committed only if they were successful for all databases. This makes use of the looping technique illustrated in [Example 6](#example6), but using sub-scripts defined with [BEGIN/END SCRIPT](../reference/metacommands.md#beginscript) metacommands instead of [INCLUDE](../reference/metacommands.md#include) metacommands. The same approach, of committing changes only if there were no errors in any database, could also be done without looping, simply by unrolling the loops to apply the updates to each database in turn. This latter approach would be necessary when different changes were to be made to each database---though even in that case, the commit statements could all be executed in a loop.
 
 ``` sql
 -- =========================================================
@@ -974,14 +974,14 @@ update dblist set updated=False;
 
 ## **Example 22:** Exporting with a Template to Create a Wikipedia Table
 
-This example illustrates how the [EXPORT](metacommands.md#export) metacommand can be used with the Jinja2 template processor to create a simple [Wikipedia table](https://en.wikipedia.org/wiki/Help:Table#Simple_straightforward_tables). To run this example, Jinja2 must be specified as the template processor to use; the [configuration file](configuration.md#configuration) must contain the following lines:
+This example illustrates how the [EXPORT](../reference/metacommands.md#export) metacommand can be used with the Jinja2 template processor to create a simple [Wikipedia table](https://en.wikipedia.org/wiki/Help:Table#Simple_straightforward_tables). To run this example, Jinja2 must be specified as the template processor to use; the [configuration file](../reference/configuration.md#configuration) must contain the following lines:
 
 ``` sql
 [output]
 template_processor=jinja
 ```
 
-The following template file to be used with the [EXPORT](metacommands.md#export) metacommand will result in output that will render the exported data as a Wikipedia table.
+The following template file to be used with the [EXPORT](../reference/metacommands.md#export) metacommand will result in output that will render the exported data as a Wikipedia table.
 
 ``` jinja
 
@@ -1007,7 +1007,7 @@ This template will work with any exported data table.
 
 This example illustrates how validation of interactively entered data can be performed, and the user prompted repeatedly until the entered data are valid.
 
-Although the [PROMPT ENTRY_FORM](metacommands.md#prompt_entry) metacommand allows validation of individual entries, this capability is limited, and cannot be used to cross-validate different entries. The following code demonstrates a prompt for a pair of dates, where validation of both the individual entries and a properly-ordered relationship between the two entries is carried out using a [SCRIPT](metacommands.md#beginscript) that re-runs itself if the data are not valid.
+Although the [PROMPT ENTRY_FORM](../reference/metacommands.md#prompt_entry) metacommand allows validation of individual entries, this capability is limited, and cannot be used to cross-validate different entries. The following code demonstrates a prompt for a pair of dates, where validation of both the individual entries and a properly-ordered relationship between the two entries is carried out using a [SCRIPT](../reference/metacommands.md#beginscript) that re-runs itself if the data are not valid.
 
 ``` sql
 create temporary table tt_datespecs (
@@ -1279,7 +1279,7 @@ The metacommand to display the user interface that combines this specification t
 
 The user interface dialog that results appears as follows before any task is selected:
 
-![Task list display produced by the PROMPT ACTION metacommand](images/actions.png)
+![Task list display produced by the PROMPT ACTION metacommand](../images/actions.png)
 
 After a task is selected, all of the buttons will be enabled.
 
@@ -1311,7 +1311,7 @@ Ensure that the flag variable is not defined, and then run the PROMPT ACTION met
 
 The resulting dialog will look like this, with an item selected:
 
-![Compact task list display produced by the PROMPT ACTION metacommand](images/actions2.png)
+![Compact task list display produced by the PROMPT ACTION metacommand](../images/actions2.png)
 
 ## **Example 28:** Ordering Tables by Foreign Key Dependencies
 
@@ -1354,12 +1354,12 @@ insert into tt_allresults ....
 -- !x! endif
 ```
 
-Any error message produced by *xtab.py* is written to a text file, but that file does not have a column name on the first line, as required by the [IMPORT](metacommands.md#import) metacommand, so following steps append the error message to another text file that contains a column name. An alternate approach would be to use the IMPORT_FILE metacommand to import the error message file just as it was created by *xtab.py*.
+Any error message produced by *xtab.py* is written to a text file, but that file does not have a column name on the first line, as required by the [IMPORT](../reference/metacommands.md#import) metacommand, so following steps append the error message to another text file that contains a column name. An alternate approach would be to use the IMPORT_FILE metacommand to import the error message file just as it was created by *xtab.py*.
 
 
 ## **Example 30:** Simple Creation of Checkbox Prompts
 
-A SQL script may have several sections, each of which can be run separately, and it may be useful to choose which sections to run each time the script is run. A set of checkboxes created with a [PROMPT ENTRY_FORM](metacommands.md#prompt_entry) metacommand is a convenient way to interactively select which sections to run. If this technique is used repeatedly, the work to create the specification table for the entry form can be delegated to the following [SCRIPT](metacommands.md#beginscript).
+A SQL script may have several sections, each of which can be run separately, and it may be useful to choose which sections to run each time the script is run. A set of checkboxes created with a [PROMPT ENTRY_FORM](../reference/metacommands.md#prompt_entry) metacommand is a convenient way to interactively select which sections to run. If this technique is used repeatedly, the work to create the specification table for the entry form can be delegated to the following [SCRIPT](../reference/metacommands.md#beginscript).
 
 This script takes two arguments:
 
@@ -1401,16 +1401,16 @@ This script can be run--the checkbox form created and displayed--with a single m
 
 This will produce the following entry form:
 
-![Checkbox form](images/checkboxes.png)
+![Checkbox form](../images/checkboxes.png)
 
-Instead of using a long string of variable names and prompts directly in the EXECUTE SCRIPT metacommand, the string could be created in a substitution variable with a series of [SUB](metacommands.md#subcmd) and [SUB_APPEND](metacommands.md#sub_append) metacommands.
+Instead of using a long string of variable names and prompts directly in the EXECUTE SCRIPT metacommand, the string could be created in a substitution variable with a series of [SUB](../reference/metacommands.md#subcmd) and [SUB_APPEND](../reference/metacommands.md#sub_append) metacommands.
 
 
 ## **Example 31:** Generating SQL to Compare Staging and Base Tables
 
 When data sets containing new or revised values are to be added to a database, comparing the incoming data to the existing data may be an appropriate quality assurance step prior to adding those data to the base tables. If incoming data are prepared for addition in staging tables (e.g., prior to upserting them as illustrated in [Example 25](#example25)), the equivalent structure of staging and base tables can be used to simplify the creation of SQL statements that will compare data values in corresponding tables.
 
-For DBMSs that implement *information schema* views, SQL statements to perform those comparisons can be generated in a way that is independent of each table's specific structure. In particular, a single execsql [SCRIPT](metacommands.md#beginscript) can generate a SQL statement to compare the data in any corresponding pair of base and staging tables.
+For DBMSs that implement *information schema* views, SQL statements to perform those comparisons can be generated in a way that is independent of each table's specific structure. In particular, a single execsql [SCRIPT](../reference/metacommands.md#beginscript) can generate a SQL statement to compare the data in any corresponding pair of base and staging tables.
 
 Full working examples of such scripts are in the [pg_compare.sql], [md_compare.sql], and [ss_compare.sql] scripts that are distributed with *execsql*. These scripts generate SQL that produces four different summary tables containing the following types of information:
 
@@ -1424,7 +1424,7 @@ Full working examples of such scripts are in the [pg_compare.sql], [md_compare.s
 
 Although execsql is designed to execute SQL scripts, its features can also be used to create simple interfaces to allow interactive querying. Two different approaches are illustrated in the following code snippets.
 
-An interactive querying tool like these may be embedded into an error-handling script (e.g., one implemented with [ON ERROR_HALT EXECUTE SCRIPT](metacommands.md#error_halt_exec)) to assist in interrogating temporary tables or views before they are automatically removed when the script finishes.
+An interactive querying tool like these may be embedded into an error-handling script (e.g., one implemented with [ON ERROR_HALT EXECUTE SCRIPT](../reference/metacommands.md#error_halt_exec)) to assist in interrogating temporary tables or views before they are automatically removed when the script finishes.
 
 ### a) Using PROMPT ENTER_SUB
 
@@ -1448,7 +1448,7 @@ This approach repeatedly displays a single-line entry area in which a SQL statem
 
 ### b) Using PROMPT ENTRY_FORM
 
-This approach is similar to the first one, but uses the [PROMPT ENTRY_FORM](metacommands.md#prompt_entry) metacommand to present a multi-line entry area for the SQL statement, and also to prompt for a description of the query. In addition, each SQL statement and its description are saved to a SQL script file (*sql_statements.sql*), and the output of each statement is not only displayed on the screen but is also saved to an ODS workbook (*sql_output.ods*).
+This approach is similar to the first one, but uses the [PROMPT ENTRY_FORM](../reference/metacommands.md#prompt_entry) metacommand to present a multi-line entry area for the SQL statement, and also to prompt for a description of the query. In addition, each SQL statement and its description are saved to a SQL script file (*sql_statements.sql*), and the output of each statement is not only displayed on the screen but is also saved to an ODS workbook (*sql_output.ods*).
 
 This example requires the use of execsql version 1.97 or later.
 
@@ -1504,7 +1504,7 @@ This example illustrates one way in which this can be done. The features of this
 > - All output is created in subdirectories of a 'parent' output directory. In this example, the parent output directory is named "DB_output", which is created under the current directory.
 > - Each output-specific subdirectory has a name of the form "Run_nnn_yyyymmdd" where "nnn" is the run number, and "yyyymmdd" is the date of the run.
 > - The user may be prompted for a run description, based on a setting in the script. If a run description is provided it is saved as a text file in the output directory. All run numbers and run descriptions are also saved in a CSV file in the current directory named "DB_run_descriptions.csv".
-> - A substitution variable named "output_dir" is created that should be used in file/path names for output of the [EXPORT](metacommands.md#export) and [WRITE](metacommands.md#write) metacommands.
+> - A substitution variable named "output_dir" is created that should be used in file/path names for output of the [EXPORT](../reference/metacommands.md#export) and [WRITE](../reference/metacommands.md#write) metacommands.
 >
 > ``` sql
 > -- !x! config make_export_dirs Yes
@@ -1527,7 +1527,7 @@ This example is also incorporated into the SQL script template file *script_temp
 
 ## **Example 34:** Importing Multiple Worksheets
 
-This example illustrates commands to import multiple sheets from a workbook into staging tables. This uses the [IMPORT](metacommands.md#import) metacommand, and two of the system variables that are created when the SHEETS MATCHING clause is used. Each imported staging table is then displayed, and optionally upserted into corresponding base tables. The upsert operation is carried out using the [pg_upsert.sql], [md_upsert.sql], and [ss_upsert.sql] scripts that are distributed with *execsql*.
+This example illustrates commands to import multiple sheets from a workbook into staging tables. This uses the [IMPORT](../reference/metacommands.md#import) metacommand, and two of the system variables that are created when the SHEETS MATCHING clause is used. Each imported staging table is then displayed, and optionally upserted into corresponding base tables. The upsert operation is carried out using the [pg_upsert.sql], [md_upsert.sql], and [ss_upsert.sql] scripts that are distributed with *execsql*.
 
 This example illustrates import of a set of lookup tables from an OpenDocument workbook named "lookups.ods", where each lookup table is on a sheet with a name starting with "l_", and the sheet names match table names. The sheets are imported into tables in a staging schema named "stg".
 

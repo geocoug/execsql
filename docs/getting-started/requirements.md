@@ -2,7 +2,7 @@
 
 *execsql* requires Python 3.10 or later.
 
-*execsql* uses third-party Python libraries to communicate with different database and spreadsheet software. Only those libraries that are needed, based on the database type and [metacommands](metacommands.md#metacommands) in use, must be installed.
+*execsql* uses third-party Python libraries to communicate with different database and spreadsheet software. Only those libraries that are needed, based on the database type and [metacommands](../reference/metacommands.md#metacommands) in use, must be installed.
 
 The easiest way to install the required libraries is to use the optional dependency extras provided by the `execsql2` package:
 
@@ -67,4 +67,4 @@ Connections to SQLite databases use Python's standard library and require no add
 
 To use MS Access, SQL Server, or an ODBC DSN, an appropriate ODBC driver must be installed on the system (e.g., the [Microsoft Access Database Engine](https://www.microsoft.com/en-US/download/details.aspx?id=13255) for MS Access, or the [ODBC Driver for SQL Server](https://learn.microsoft.com/en-us/sql/connect/odbc/download-odbc-driver-for-sql-server)).
 
-If data are to be [imported](metacommands.md#import) from the [Parquet](https://parquet.apache.org/) file format, the [pandas](https://pypi.org/project/pandas/) library and either the *pyarrow* or *fastparquet* Python package must be installed.
+If data are to be [imported](../reference/metacommands.md#import) from the [Parquet](https://parquet.apache.org/) file format, the [pandas](https://pypi.org/project/pandas/) library and either the *pyarrow* or *fastparquet* Python package must be installed.

@@ -55,6 +55,58 @@ if TYPE_CHECKING:
     from execsql.utils.mail import MailSpec
     from execsql.utils.timer import Timer
 
+__all__ = [
+    # Configuration / encoding
+    "conf",
+    "logfile_encoding",
+    # Runtime state
+    "last_command",
+    "upass",
+    "varlike",
+    "err_halt_writespec",
+    "err_halt_email",
+    "err_halt_exec",
+    "cancel_halt_writespec",
+    "cancel_halt_mailspec",
+    "cancel_halt_exec",
+    "commandliststack",
+    "savedscripts",
+    "loopcommandstack",
+    "compiling_loop",
+    "endloop_rx",
+    "loop_rx",
+    "loop_nest_level",
+    "cmds_run",
+    "defer_rx",
+    "stringtypes",
+    "exec_log",
+    "subvars",
+    "status",
+    # Lazy singletons
+    "if_stack",
+    "counters",
+    "timer",
+    "output",
+    "dbs",
+    "tempfiles",
+    "export_metadata",
+    "metacommandlist",
+    "conditionallist",
+    "filewriter",
+    "gui_console",
+    "gui_manager_queue",
+    "gui_manager_thread",
+    # Version
+    "primary_vno",
+    "secondary_vno",
+    "tertiary_vno",
+    # Functions
+    "xcmd_test",
+    "endloop",
+    "reset",
+    "initialize",
+]
+
 # ---------------------------------------------------------------------------
 # Configuration / encoding
 # ---------------------------------------------------------------------------

@@ -55,6 +55,8 @@ from textual.widgets import (
     Static,
 )
 
+__all__ = ["TextualBackend"]
+
 
 # ---------------------------------------------------------------------------
 # Helpers

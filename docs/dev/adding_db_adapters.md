@@ -230,5 +230,5 @@ ______________________________________________________________________
 - [ ] CLI dispatch branch added in `src/execsql/cli.py`
 - [ ] Integration test added to `tests/db/`
 - [ ] `pytest` passes locally
-- [ ] New type code added to the `-t` flag table in [Syntax & Options](../syntax.md#db_types)
-- [ ] Library dependency added to `pyproject.toml` extras and documented in [Requirements](../requirements.md#libraries)
+- [ ] New type code added to the `-t` flag table in [Syntax & Options](../getting-started/syntax.md#db_types)
+- [ ] Library dependency added to `pyproject.toml` extras and documented in [Requirements](../getting-started/requirements.md#libraries)

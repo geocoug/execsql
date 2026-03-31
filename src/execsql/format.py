@@ -19,6 +19,8 @@ from pathlib import Path
 import sqlglot
 import sqlglot.errors
 
+__all__ = ["collect_paths", "format_file", "main", "parse_keyword"]
+
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
@@ -345,7 +347,7 @@ def main() -> None:
                 source = path.read_text(encoding="utf-8")
             except OSError as exc:
                 _err_console.print(f"[bold red]Error:[/bold red] reading {path}: {exc}")
-                raise typer.Exit(code=1)
+                raise typer.Exit(code=1) from None
 
             formatted = format_file(source, indent=indent, use_sql=use_sql)
 

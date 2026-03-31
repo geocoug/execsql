@@ -63,12 +63,12 @@ install-vscode:
 
 # Build documentation
 docs:
-    cp CHANGELOG.md docs/change_log.md
+    cp CHANGELOG.md docs/about/change_log.md
     uv run zensical build
 
 # Serve documentation locally
 docs-serve:
-    cp CHANGELOG.md docs/change_log.md
+    cp CHANGELOG.md docs/about/change_log.md
     uv run zensical serve
 
 

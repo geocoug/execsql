@@ -24,6 +24,20 @@ from execsql.cli.help import _console, _err_console, _print_encodings, _print_me
 from execsql.cli.run import _connect_initial_db, _run  # noqa: F401 — re-export
 from execsql.exceptions import ConfigError, ErrInfo
 
+__all__ = [
+    "_SCHEME_TO_DBTYPE",
+    "_connect_initial_db",
+    "_console",
+    "_err_console",
+    "_legacy_main",
+    "_parse_connection_string",
+    "_print_encodings",
+    "_print_metacommands",
+    "_run",
+    "app",
+    "main",
+]
+
 
 # ---------------------------------------------------------------------------
 # Typer app

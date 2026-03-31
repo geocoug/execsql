@@ -24,6 +24,8 @@ from execsql.script import SubVarSet, current_script_line, read_sqlfile, read_sq
 from execsql.utils.fileio import FileWriter, Logger, filewriter_end
 from execsql.utils.gui import gui_connect, gui_console_isrunning, gui_console_off, gui_console_on, gui_console_wait_user
 
+__all__ = ["_connect_initial_db", "_print_dry_run", "_run"]
+
 
 # ---------------------------------------------------------------------------
 # Dry-run helper
@@ -92,7 +94,7 @@ def _run(
     # Security note: ALL environment variables are exposed as &-prefixed
     # substitution variables.  Sensitive values (API keys, tokens) in the
     # process environment will be accessible to scripts.  See the
-    # "Environment Variables" section in docs/substitution_vars.md.
+    # "Environment Variables" section in docs/reference/substitution_vars.md.
     for k in os.environ:
         try:
             _state.subvars.add_substitution("&" + k, os.environ[k])
@@ -138,7 +140,7 @@ def _run(
             parsed_dsn = _parse_connection_string(dsn)
         except ConfigError as exc:
             _err_console.print(f"[bold red]Error:[/bold red] {exc}")
-            raise SystemExit(1)
+            raise SystemExit(1) from None
         db_type = db_type or parsed_dsn["db_type"]
         conf.db_type = db_type
         # DSN values override conf-file values — the CLI flag is explicit.

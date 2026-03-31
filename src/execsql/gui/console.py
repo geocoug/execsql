@@ -13,6 +13,8 @@ from typing import Any
 
 from execsql.gui.base import GuiBackend
 
+__all__ = ["ConsoleBackend"]
+
 
 def _print_table(headers: list, rows: list, file: Any = None) -> None:
     """Print a simple ASCII table to the given file (default stderr)."""

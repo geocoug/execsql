@@ -49,9 +49,9 @@ repos:
           (?x)^(
             \.claude/.*|
             docs/api/.*|
-            docs/metacommands\.md|
-            docs/documentation\.md|
-            docs/examples\.md
+            docs/reference/metacommands\.md|
+            docs/guides/documentation\.md|
+            docs/guides/examples\.md
           )$
   # Markdown lint
   - repo: https://github.com/igorshubovych/markdownlint-cli

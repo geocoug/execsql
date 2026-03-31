@@ -29,7 +29,7 @@ The second variant is useful when a database object name must be double-quoted w
 
 The `!!` dereferencing token causes the replacement string to be substituted for the match string without any modification.
 
-Substitution variable names may contain only letters, digits, and the underscore character (the first character may be different in some cases, as described in the following sections). Substitutions are processed in the order in which they are defined. Substitution variable definitions can themselves include substitution variables. SQL statements and metacommands may contain nested references to substitution variables, as illustrated in [Example 7](examples.md#example7). Complex expressions using substitution variables can be evaluated using SQL, as illustrated in [Example 16](examples.md#example16).
+Substitution variable names may contain only letters, digits, and the underscore character (the first character may be different in some cases, as described in the following sections). Substitutions are processed in the order in which they are defined. Substitution variable definitions can themselves include substitution variables. SQL statements and metacommands may contain nested references to substitution variables, as illustrated in [Example 7](../guides/examples.md#example7). Complex expressions using substitution variables can be evaluated using SQL, as illustrated in [Example 16](../guides/examples.md#example16).
 
 Substitution variables are global by default, but local substitution variables can also be created. The scope of local substitution variables is limited to the [SCRIPT](metacommands.md#beginscript) in which they are created. Local substitution variables must be prefixed with "~" when they are referenced.
 
@@ -47,7 +47,7 @@ The differences between types of substitution variables are summarized in the fo
 | Argument     | #      | SCRIPT where used                | R/O        |
 | Environment  | &      | Global                           | R/O        |
 
-The types of substitution variables are more fully described in the following sections. All of the substitution variables that are defined can be displayed with a [DEBUG](debugging.md#debugging) metacommand.
+The types of substitution variables are more fully described in the following sections. All of the substitution variables that are defined can be displayed with a [DEBUG](../guides/debugging.md#debugging) metacommand.
 
 ## Local Variables
 
@@ -55,7 +55,7 @@ Ordinary user-defined substitution variables, system variables, data variables, 
 
 If the variable name starts with a tilde (~), however, the variable will be local to the [script](metacommands.md#beginscript) in which it is defined, and will not be accessible in any other script. The same local variable name can be used in multiple scripts without the instances interfering with one another.
 
-In addition, within a [script](metacommands.md#beginscript), a plus (+) prefix may be used to refer to a local variable in an outer scope. Substitutions defined for a "+"-prefixed variable will be applied to the first (proceeding outward) local variable by the same name found in an enclosing script. The plus prefix may only be used to refer to an existing instance of an outer-scope local variable; it cannot be used to create a new instance. If no corresponding local variable exists in any outer scope, an error will be raised. A plus prefix may be used with the following metacommands: [SUB](metacommands.md#subcmd), [SUB_ADD](metacommands.md#sub_add), [SUB_APPEND](metacommands.md#sub_append), [SUB_DECRYPT](metacommands.md#sub_decrypt), [SUB_EMPTY](metacommands.md#sub_empty), [SUB_ENCRYPT](metacommands.md#sub_encrypt), [SUB_TEMPFILE](metacommands.md#sub_tempfile), and [SUBDATA](metacommands.md#subdata). [Example 24](examples.md#example24) illustrates use of the "+" prefix to assign a value to an outer-scope local variable.
+In addition, within a [script](metacommands.md#beginscript), a plus (+) prefix may be used to refer to a local variable in an outer scope. Substitutions defined for a "+"-prefixed variable will be applied to the first (proceeding outward) local variable by the same name found in an enclosing script. The plus prefix may only be used to refer to an existing instance of an outer-scope local variable; it cannot be used to create a new instance. If no corresponding local variable exists in any outer scope, an error will be raised. A plus prefix may be used with the following metacommands: [SUB](metacommands.md#subcmd), [SUB_ADD](metacommands.md#sub_add), [SUB_APPEND](metacommands.md#sub_append), [SUB_DECRYPT](metacommands.md#sub_decrypt), [SUB_EMPTY](metacommands.md#sub_empty), [SUB_ENCRYPT](metacommands.md#sub_encrypt), [SUB_TEMPFILE](metacommands.md#sub_tempfile), and [SUBDATA](metacommands.md#subdata). [Example 24](../guides/examples.md#example24) illustrates use of the "+" prefix to assign a value to an outer-scope local variable.
 
 The scope of [argument variables](#arg_vars) is also limited to the script in which they are defined, but no changes can be made to argument variables, whereas local variables can be freely created, modified, and removed.
 
@@ -64,7 +64,7 @@ The scope of [argument variables](#arg_vars) is also limited to the script in wh
 Several special substitutions (pairs of matching strings and replacement strings) are automatically defined and maintained by execsql. The names and definitions of these substitution variables are:
 
 $ARG_x
-:   The value of a substitution variable that has been assigned on the command line using the "-a" command-line option. The value of \<x> must be an integer greater than or equal to 1. See [Example 9](examples.md#example9) for an illustration of the use of "$ARG_x" variables.
+:   The value of a substitution variable that has been assigned on the command line using the "-a" command-line option. The value of \<x> must be an integer greater than or equal to 1. See [Example 9](../guides/examples.md#example9) for an illustration of the use of "$ARG_x" variables.
 
 $AUTOCOMMIT_STATE
 :   A value indicating whether or not execsql will automatically commit each SQL statement as it is executed. This will be either "ON" or "OFF". The autocommit state is database specific, and the value applies only to the database currently in [use](metacommands.md#use).
@@ -79,7 +79,7 @@ $CONSOLE_WAIT_WHEN_ERROR_STATE
 :   The value of the status flag that is set by the `console_wait_when_error_halt` configuration setting or by the [CONFIG CONSOLE WAIT_WHEN_ERROR](metacommands.md#console_wait_when_error) metacommand. The value of this variable is always either "ON" or "OFF".
 
 $COUNTER_x
-:   An integer value that is automatically incremented every time that it is referenced. As many counter variables as desired can be used. The value of *x* must be an integer that identifies the counter variable. Counter variable names do not have to be used sequentially. The first time that a counter variable is referenced, it returns the value 1. If a counter variable is referenced multiple times in one command, each reference will have the same value. The [RESET COUNTER](metacommands.md#reset_counter) metacommand can be used to re-initialize counter variables so that the next reference returns a value of 1. The [SET COUNTER](metacommands.md#set_counter) metacommand can be used to set a counter variable to a specified value. See examples [6](examples.md#example6), [7](examples.md#example7), [11](examples.md#example11), and [19](examples.md#example19) for illustrations of the use of counter variables.
+:   An integer value that is automatically incremented every time that it is referenced. As many counter variables as desired can be used. The value of *x* must be an integer that identifies the counter variable. Counter variable names do not have to be used sequentially. The first time that a counter variable is referenced, it returns the value 1. If a counter variable is referenced multiple times in one command, each reference will have the same value. The [RESET COUNTER](metacommands.md#reset_counter) metacommand can be used to re-initialize counter variables so that the next reference returns a value of 1. The [SET COUNTER](metacommands.md#set_counter) metacommand can be used to set a counter variable to a specified value. See examples [6](../guides/examples.md#example6), [7](../guides/examples.md#example7), [11](../guides/examples.md#example11), and [19](../guides/examples.md#example19) for illustrations of the use of counter variables.
 
 $CURRENT_ALIAS
 :   The alias of the database currently in use, as defined by the [CONNECT](metacommands.md#connect) metacommand, or "initial" if no CONNECT metacommand has been used. This value will change if a different database is [USEd](metacommands.md#use).
@@ -106,19 +106,19 @@ $CURRENT_SCRIPT_PATH
 :   The complete path of the script from which the current command originated, including a terminating path separator character. This value will change if a different script is [INCLUDEEd](metacommands.md#include).
 
 $CURRENT_TIME
-:   The date and time at which the current script line is run. See [Example 4](examples.md#example4) for an illustration of its use.
+:   The date and time at which the current script line is run. See [Example 4](../guides/examples.md#example4) for an illustration of its use.
 
 $CURRENT_TIME_UTC
 :   The date and time at which the current script line is run, in Universal Coordinated Time (UTC).
 
 $DATE_TAG
-:   The date on which execsql started processing the current script, in the format YYYYMMDD. This is intended to be a convenient short form of the date that can be used to apply sequential version indicators to directory names or file names (e.g., of exported data). See [Example 2](examples.md#example2) for an illustration of its use.
+:   The date on which execsql started processing the current script, in the format YYYYMMDD. This is intended to be a convenient short form of the date that can be used to apply sequential version indicators to directory names or file names (e.g., of exported data). See [Example 2](../guides/examples.md#example2) for an illustration of its use.
 
 $DATETIME_TAG
-:   The date and time at which execsql started processing the current script, in the format YYYYMMDD_hhmm. This is intended to be a convenient short form of the date and time that can be used to apply sequential versions to directory names or file names. See [Example 8](examples.md#example8) for an illustration of its use.
+:   The date and time at which execsql started processing the current script, in the format YYYYMMDD_hhmm. This is intended to be a convenient short form of the date and time that can be used to apply sequential versions to directory names or file names. See [Example 8](../guides/examples.md#example8) for an illustration of its use.
 
 $DATETIME_UTC_TAG
-:   The date and time at which execsql started processing the current script, in Universal Coordinated Time (UTC), in the format YYYYMMDD_hhmm. This is intended to be a convenient short form of the date and time that can be used to apply sequential versions to directory names or file names. See [Example 8](examples.md#example8) for an illustration of its use.
+:   The date and time at which execsql started processing the current script, in Universal Coordinated Time (UTC), in the format YYYYMMDD_hhmm. This is intended to be a convenient short form of the date and time that can be used to apply sequential versions to directory names or file names. See [Example 8](../guides/examples.md#example8) for an illustration of its use.
 
 $DB_NAME
 :   The name of the database currently in use, as specified on the command line or in a [CONNECT](metacommands.md#connect) metacommand. This will be the database name for server-based databases, and the file name for file-based databases.
@@ -216,12 +216,12 @@ $VERSION2
 $VERSION3
 :   Execsql's tertiary version number.
 
-The system variables can be used for conditional execution of different SQL commands or metacommands, and for [custom logging](documentation.md#documentation) of a script's actions.
+The system variables can be used for conditional execution of different SQL commands or metacommands, and for [custom logging](../guides/documentation.md#documentation) of a script's actions.
 
 ## Data Variables { #data_vars }
 
 Three metacommands, [SELECT_SUB](metacommands.md#select_sub), [PROMPT
-SELECT_SUB](metacommands.md#prompt_selsub), and [PROMPT ACTION](metacommands.md#prompt_action) will each create a set of substitution variables that correspond to the data values in a single row of a data table. The column names of the data table, prefixed with "@", will be automatically assigned as the names of these data variables. The prefix of "@" cannot be assigned using [SUB](metacommands.md#subcmd) or similar metacommands, and so will prevent data variables from overwriting any user-defined substitution variables that may have the same name as a data table column. See [Example 8](examples.md#example8) for an illustration of the use of a data variable. All assignments to data variables are automatically [logged](logging.md#logging).
+SELECT_SUB](metacommands.md#prompt_selsub), and [PROMPT ACTION](metacommands.md#prompt_action) will each create a set of substitution variables that correspond to the data values in a single row of a data table. The column names of the data table, prefixed with "@", will be automatically assigned as the names of these data variables. The prefix of "@" cannot be assigned using [SUB](metacommands.md#subcmd) or similar metacommands, and so will prevent data variables from overwriting any user-defined substitution variables that may have the same name as a data table column. See [Example 8](../guides/examples.md#example8) for an illustration of the use of a data variable. All assignments to data variables are automatically [logged](../guides/logging.md#logging).
 
 Note that if database column names contain characters that are invalid for substitution variable names (i.e., other than letters, digits, and the underscore), the data variables that are created will not be usable.
 

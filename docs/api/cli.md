@@ -5,7 +5,7 @@ Entry-point functions, argument parsing, and the main execution loop.
 !!! note
 
     The CLI options and positional arguments are documented in
-    [Syntax & Options](../syntax.md). This page covers the programmatic
+    [Syntax & Options](../getting-started/syntax.md). This page covers the programmatic
     Python interface only.
 
 ## Module overview

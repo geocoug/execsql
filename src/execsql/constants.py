@@ -17,6 +17,17 @@ Contains:
   colour+icon combinations.
 """
 
+__all__ = [
+    "bm_servers",
+    "cancel_xbm",
+    "color_names",
+    "custom_icons",
+    "expand_xbm",
+    "icon_xbm",
+    "wedge_sm_xbm",
+    "wedges_3_xbm",
+]
+
 # Tile servers for map basemap layers
 bm_servers: dict[str, str] = {
     "OpenStreetMap": "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png",

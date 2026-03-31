@@ -133,7 +133,6 @@ ignore = [
     # flake8-bugbear — not applicable
     "B008",  # typer.Option/typer.Argument must be in function defaults; this is the intended typer pattern
     "B027",  # empty-method-without-abstract-decorator — GuiBackend methods are intentional no-op defaults that backends optionally override
-    "B904",  # raise-without-from-inside-except — ErrInfo already captures exception via exception_desc(); needs dedicated refactor pass
     "B905",  # zip-without-explicit-strict — DB drivers always return matching column/row counts
     # pep8-naming — legacy/established API names
     "N801",  # class name should use CapWords — DT_Integer, DT_Varchar etc. use a deliberate namespace-prefix convention; renaming is a breaking API change

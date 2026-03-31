@@ -15,6 +15,8 @@ from typing import Any
 
 from execsql.exceptions import ErrInfo
 
+__all__ = ["CounterVars", "SubVarSet", "LocalSubVarSet", "ScriptArgSubVarSet"]
+
 
 # ---------------------------------------------------------------------------
 # CounterVars

@@ -8,6 +8,8 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     pass
 
+__all__ = ["GuiBackend"]
+
 
 class GuiBackend(ABC):
     """Abstract base for all GUI backends.

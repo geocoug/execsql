@@ -166,5 +166,5 @@ ______________________________________________________________________
 - [ ] `elif filefmt == "myformat":` branch added in the IMPORT handler
 - [ ] Test added to `tests/importers/`
 - [ ] `pytest` passes locally
-- [ ] New format string documented in [Metacommands — IMPORT](../metacommands.md#import)
-- [ ] New library dependency (if any) added to `pyproject.toml` extras and documented in [Requirements](../requirements.md#libraries)
+- [ ] New format string documented in [Metacommands — IMPORT](../reference/metacommands.md#import)
+- [ ] New library dependency (if any) added to `pyproject.toml` extras and documented in [Requirements](../getting-started/requirements.md#libraries)

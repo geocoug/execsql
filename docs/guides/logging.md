@@ -3,10 +3,10 @@
 *execsql* automatically logs certain actions, conditions, and errors that occur during the processing of a script file. Although a script file provides good documentation of database operations, there are circumstances in which a script file is not a definitive record of what operations were, or were not, carried out. These circumstances include:
 
 > - Errors
-> - Choices made by the user in response to a [PROMPT](metacommands.md#prompt) metacommand.
-> - Cancellation of the script in response to a [PAUSE](metacommands.md#pause) metacommand or password prompt from the [CONNECT](metacommands.md#connect) metacommand.
+> - Choices made by the user in response to a [PROMPT](../reference/metacommands.md#prompt) metacommand.
+> - Cancellation of the script in response to a [PAUSE](../reference/metacommands.md#pause) metacommand or password prompt from the [CONNECT](../reference/metacommands.md#connect) metacommand.
 
-Information is logged into a tab-delimited text file named `execsql.log`. By default, this file is located in the directory from which the script file was run. If either the "-l" command-line option or the "user_logfile" [configuration](configuration.md#configuration) option is used, this file will be located in the user's home directory.
+Information is logged into a tab-delimited text file named `execsql.log`. By default, this file is located in the directory from which the script file was run. If either the "-l" command-line option or the "user_logfile" [configuration](../reference/configuration.md#configuration) option is used, this file will be located in the user's home directory.
 
 !!! note
 
@@ -54,7 +54,7 @@ This file contains several different record types. The first value on each line 
 > >
 > > - Action type---One of the following values:
 > >
-> >     > - export---Execution of an [EXPORT](metacommands.md#export) metacommand.
+> >     > - export---Execution of an [EXPORT](../reference/metacommands.md#export) metacommand.
 > >     > - prompt_quit---The user's choice resulting from a [Prompt](PROMPT.md#PROMPT) metacommand.
 > >
 > > - Line number---The script line number where the action takes place.
@@ -86,7 +86,7 @@ This file contains several different record types. The first value on each line 
 > >
 > >     > - end_of_script---A normal exit; the entire script has been processed.
 > >     > - prompt_quit---The user chose to cancel the script in response to a PROMPT metacommand.
-> >     > - halt---A [HALT](metacommands.md#halt) metacommand was executed.
+> >     > - halt---A [HALT](../reference/metacommands.md#halt) metacommand was executed.
 > >     > - error---An error occurred.
 > >     > - exception---An exception occurred.
 > >
@@ -98,6 +98,6 @@ The messages for each run are appended to the end of the log file. The log file 
 
 Although logging is performed automatically by *execsql*, there are three ways to make use of the log file in custom scripts:
 
-> - The [LOG](metacommands.md#log) metacommand provides a way to write additional messages into the log file.
-> - The [LOG_WRITE_MESSAGES](metacommands.md#logwritemessages) metacommand causes the output of all [WRITE](metacommands.md#write) metacommands to be echoed to the log file.
-> - The $RUN_ID [system variable](substitution_vars.md#system_vars) provides a way to link other information (e.g., status or error messages) to the run that is identified in the log file.
+> - The [LOG](../reference/metacommands.md#log) metacommand provides a way to write additional messages into the log file.
+> - The [LOG_WRITE_MESSAGES](../reference/metacommands.md#logwritemessages) metacommand causes the output of all [WRITE](../reference/metacommands.md#write) metacommands to be echoed to the log file.
+> - The $RUN_ID [system variable](../reference/substitution_vars.md#system_vars) provides a way to link other information (e.g., status or error messages) to the run that is identified in the log file.

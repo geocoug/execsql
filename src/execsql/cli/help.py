@@ -11,6 +11,8 @@ from encodings.aliases import aliases as codec_dict
 from rich.console import Console
 from rich.table import Table
 
+__all__ = ["_console", "_err_console", "_print_encodings", "_print_metacommands"]
+
 _console = Console()
 _err_console = Console(stderr=True)
 

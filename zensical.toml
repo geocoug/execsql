@@ -7,29 +7,30 @@ repo_url = "https://github.com/geocoug/execsql2"
 repo_name = "geocoug/execsql2"
 docs_dir = "docs"
 copyright = "Copyright &copy; 2007-2025 R.Dreas Nielsen, 2026-present Caleb Grant"
-nav= [
+nav = [
     { "Home" = "index.md" },
     { "Getting Started" = [
-        { "Installation" = "installation.md" },
-        { "Requirements" = "requirements.md" },
-        { "Syntax & Options" = "syntax.md" }
+        { "Installation" = "getting-started/installation.md" },
+        { "Requirements" = "getting-started/requirements.md" },
+        { "Syntax & Options" = "getting-started/syntax.md" }
     ] },
     { "Reference" = [
-        { "Configuration" = "configuration.md" },
-        { "Substitution Variables" = "substitution_vars.md" },
-        { "Metacommands" = "metacommands.md" }
+        { "Configuration" = "reference/configuration.md" },
+        { "Substitution Variables" = "reference/substitution_vars.md" },
+        { "Metacommands" = "reference/metacommands.md" },
+        { "Security" = "reference/security.md" }
     ] },
     { "Guides" = [
-        { "Usage Notes" = "usage.md" },
-        { "SQL Syntax Notes" = "sql_syntax.md" },
-        { "Logging" = "logging.md" },
-        { "Character Encoding" = "encoding.md" },
-        { "Using Script Files" = "using_scripts.md" },
-        { "Documenting Script Actions" = "documentation.md" },
-        { "Debugging" = "debugging.md" },
-        { "execsql-format" = "formatter.md" }
+        { "Usage Notes" = "guides/usage.md" },
+        { "SQL Syntax Notes" = "guides/sql_syntax.md" },
+        { "Logging" = "guides/logging.md" },
+        { "Character Encoding" = "guides/encoding.md" },
+        { "Using Script Files" = "guides/using_scripts.md" },
+        { "Documenting Script Actions" = "guides/documentation.md" },
+        { "Debugging" = "guides/debugging.md" },
+        { "execsql-format" = "guides/formatter.md" },
+        { "Examples" = "guides/examples.md" }
     ] },
-    { "Examples" = "examples.md" },
     { "Contributing" = [
         { "Adding Metacommands" = "dev/adding_metacommands.md" },
         { "Adding Exporters" = "dev/adding_exporters.md" },
@@ -45,9 +46,9 @@ nav= [
         { "Metacommands" = "api/metacommands.md" }
     ] },
     { "About" = [
-        { "Copyright" = "copyright.md" },
-        { "Contributors" = "contributors.md" },
-        { "Change Log" = "change_log.md" }
+        { "Copyright" = "about/copyright.md" },
+        { "Contributors" = "about/contributors.md" },
+        { "Change Log" = "about/change_log.md" }
     ] }
 ]
 

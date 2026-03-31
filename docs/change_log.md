@@ -11,7 +11,288 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.4.5] - 2026-03-31
+
+### Fixed
+
+- `ON ERROR_HALT EXECUTE SCRIPT` and `ON CANCEL_HALT EXECUTE SCRIPT` metacommands were not recognized — handler functions existed but dispatch patterns were missing.
+- `EXTEND SCRIPT <X> WITH SCRIPT <Y>` metacommand was not recognized — only the `APPEND SCRIPT` synonym was ported from the upstream monolith.
+- `PROMPT ASK` with single-quoted (`'...'`) or bracket-delimited (`[...]`) questions, and with unquoted `HELP` arguments, were not recognized — only the double-quoted question with double-quoted help variant was ported.
+- `CONNECT TO SQLSERVER` with mixed quoting (e.g., quoted SERVER + unquoted DB) or quoted PASSWORD was not recognized — only the fully-unquoted and fully-quoted variants were ported.
+
+______________________________________________________________________
+
+## [2.4.4] - 2026-03-30
+
+______________________________________________________________________
+
+## [2.4.3] - 2026-03-30
+
 ### Added
+
+- Pre-commit hook for `execsql-format` — users can add the repo to their `.pre-commit-config.yaml` and pass `--check` or `--in-place` via `args`.
+
+______________________________________________________________________
+
+## [2.4.2] - 2026-03-30
+
+### Changed
+
+- Raised test coverage floor from 75% to 80% in `pyproject.toml`.
+
+______________________________________________________________________
+
+## [2.4.1] - 2026-03-30
+
+### Fixed
+
+- `--dsn` now correctly overrides connection settings from configuration files.
+- MySQL `LOAD DATA INFILE` encoding — map Python encoding names (e.g. `utf-8`) to MySQL charset names (e.g. `utf8mb4`).
+- Importer error reporting — replaced removed `exception_info()` with `exception_desc()`.
+
+### Changed
+
+- Integration tests moved to `tests/integration/` with a shared conftest and parallel CI execution.
+- CI no longer enforces the coverage threshold for integration tests.
+- Removed `docker-compose.yml` — CI uses GitHub Actions services directly.
+
+______________________________________________________________________
+
+## [2.4.0] - 2026-03-30
+
+### Changed
+
+- `Database` is now an abstract base class (ABC) with `open_db()` and `exec_cmd()` as `@abstractmethod`. Subclasses that omit either method will raise `TypeError` at instantiation time instead of `DatabaseNotImplementedError` at call time.
+- Cursor lifecycle management in `Database` — `execute()`, `select_data()`, `schema_exists()`, `table_exists()`, `column_exists()`, `table_columns()`, `view_exists()`, and `import_entire_file()` now use a context manager that guarantees cursor cleanup on exit.
+- Metacommand dispatch uses keyword-indexed lookup, reducing per-command dispatch from O(205) regex scans to O(K) where K is the number of patterns sharing the same leading keyword (typically 1–5).
+- Variable substitution uses a single combined regex to find tokens in one pass, then does a dict lookup for the value — reducing `substitute()` from O(V) to O(1) per call, where V is the number of defined variables.
+- Split `metacommands/__init__.py` (2,047 lines) — dispatch table registration moved to `metacommands/dispatch.py`; `__init__.py` reduced to constants and re-exports (256 lines).
+- Split `script.py` (1,210 lines) into `script/` package with `variables.py` (substitution vars), `control.py` (batch/IF state), and `engine.py` (execution, parsing). All imports via `from execsql.script import X` continue to work.
+- Converted `templates/READ_ME.rst` to `templates/README.md` (Markdown format).
+
+### Added
+
+- Python 3.14 support — added to CI matrix, tox environments, and PyPI classifiers.
+- `formats` extra included in `dev` dependencies so ODS/Excel/Jinja2 tests run without manual installation.
+- PostgreSQL integration tests (9 tests) — full lifecycle via `--dsn` connection strings.
+- MySQL/MariaDB integration tests (9 tests, 1 xfail for pre-existing import adapter bug).
+- `docker-compose.yml` for local PostgreSQL and MySQL test databases.
+- CI integration test job with GitHub Actions services (PostgreSQL 16, MySQL 8).
+- Roadmap items in `templates/README.md` for integrating execsql-compare and execsql-upsert documentation into the main docs site.
+
+### Fixed
+
+- Fix odfpy import — `import of` corrected to `import odf as of` in `exporters/ods.py` and test skip guards. ODS export was broken since the modular refactor.
+- Pass `--dsn` password through to all database backends (MySQL, SQL Server, Oracle, Firebird, DSN). Previously only PostgreSQL received the password from connection strings.
+- Fix importer error reporting — `exception_info()` (returns tuple) replaced with `exception_desc()` (returns string) in 6 call sites across `importers/base.py`, `importers/csv.py`, and `importers/feather.py`. This caused `AttributeError: 'tuple' has no attribute 'replace'` on any import failure.
+- Map Python encoding names to MySQL charset names in `LOAD DATA LOCAL INFILE` (e.g., `utf-8` → `utf8mb4`). Previously caused `Unknown character set` errors on MySQL imports.
+- `--dsn` now overrides conf-file connection settings (server, database, user, port). Previously conf-file values took precedence, silently ignoring the DSN.
+
+______________________________________________________________________
+
+## [2.3.0] - 2026-03-30
+
+### Added
+
+- `__all__` exports on 50 public modules for clean API surface and tooling support.
+- Docstrings on all public classes and key methods in `db/`, `exporters/`, `config.py`, and `script.py` (50%+ coverage target met).
+- Security documentation (`docs/security.md`) covering trust model, SHELL execution, credential handling, file system access, SMTP, and SQL variable substitution.
+
+### Fixed
+
+- Redact plaintext passwords (`Pwd=***`) from ODBC connection strings in log output for Access and SQL Server adapters.
+- Fix 2 ruff UP038 violations — use `X | Y` union syntax in `isinstance` calls.
+
+### Changed
+
+- Remove lazy import anti-pattern from 6 modules — stdlib imports (`json`, `base64`, `itertools`, `string`, `smtplib`, `email.*`) moved to module level; optional deps (`xlrd`, `openpyxl`, `jinja2`) use instance attributes instead of `global`.
+- Fix VS Code extension README paths and URLs.
+
+______________________________________________________________________
+
+## [2.2.1] - 2026-03-26
+
+### Fixed
+
+- Skip `TimerHandler` alarm tests on Windows where `signal.setitimer` is unavailable.
+- Fix `UnicodeDecodeError` in CLI subprocess tests on Windows by specifying UTF-8 encoding.
+
+______________________________________________________________________
+
+## [2.2.0] - 2026-03-26
+
+### Added
+
+- `py.typed` marker for PEP 561 downstream type checking.
+- 252 new tests (2,062 → 2,314) covering metacommands (`data`, `system`, `io_fileops`, `io_write`), utils (`auth`, `errors`, `fileio`, `timer`), and SQLite integration tests for JSON/HTML/LaTeX/TSV exports, DDL operations, WRITE-to-file, CONFIG metacommand, error handling, and inline commands; end-to-end CLI tests for `-c`, `--dsn sqlite://`, `-a` substitution, `--dry-run`, `--dump-keywords`, and `--version`. Coverage floor raised from 70% to 75%.
+- `ods` optional-dependency extra in `pyproject.toml` (`pip install execsql2[ods]`).
+- Keyring credential storage documentation in usage notes.
+- `--progress` CLI flag and `CONFIG SHOW_PROGRESS` metacommand to display a rich progress bar during long-running IMPORT operations. Also configurable via `show_progress` in `execsql.conf`. (FEAT-5)
+- Opt-in SQL query audit logging via `log_sql` config option and `CONFIG LOG_SQL` metacommand. When enabled, all executed SQL statements are written to the log file with a `sql` record type, database name, line number, and query text. (FEAT-6)
+- `--dump-keywords` CLI option: outputs all metacommand keywords, conditional functions, config options, export formats, database types, and variable patterns as structured JSON. Enables tooling (e.g., editor grammar generators) to consume keyword data directly from the dispatch table.
+- VS Code syntax highlighting extension colocated at `extras/vscode-execsql/`. The grammar (`execsql.tmLanguage.json`) is auto-generated from the dispatch table via `just generate-vscode-grammar`.
+- Keyword registry: `MetaCommand` and `MetaCommandList` now support `category` parameter. All `mcl.add()` calls are tagged with `description=` and `category=`, making the dispatch table the single source of truth for keyword metadata.
+- Export format constants (`QUERY_EXPORT_FORMATS`, `TABLE_EXPORT_FORMATS`, `SERVE_FORMATS`, etc.) centralized in `metacommands/__init__.py` and used in dispatch table regex construction.
+- `tests/test_registry.py`: keyword consistency tests validating `--dump-keywords` output, dispatch table categories, conditional table coverage, export format constants, and grammar synchronization.
+
+### Changed
+
+- CLI reorganized from flat `_cli_*.py` files into `cli/` subpackage (`cli/__init__.py`, `cli/run.py`, `cli/dsn.py`, `cli/help.py`). All existing `from execsql.cli import ...` paths preserved.
+- Exception hierarchy: `ErrInfo`, `DataTypeError`, `DbTypeError`, and `DatabaseNotImplementedError` now inherit from `ExecSqlError` base class instead of bare `Exception`.
+- Exception chaining: added `from e` to 115 `raise` statements across 38 files that previously discarded the original exception context.
+- README: replaced "not yet stable" warning with "maintained fork" note reflecting current project maturity.
+- Split `cli.py` (1245 lines) into `_cli_help.py`, `_cli_dsn.py`, and `_cli_run.py` with `cli.py` as a re-export façade. All existing import paths preserved. (REFAC-3)
+- Split `metacommands/io.py` (1304 lines) into `io_export.py`, `io_import.py`, `io_write.py`, and `io_fileops.py` with `io.py` as a re-export façade. All existing import paths preserved. (REFAC-4)
+
+### Fixed
+
+- `of` module typo throughout `exporters/ods.py`: all imports and references used `of` (e.g., `import of as of`, `of.table.Table`) instead of `of` (e.g., `import of as of`, `of.table.Table`). ODS export/import was completely broken when `odfpy` was installed. Same typo fixed in `tests/exporters/test_ods.py` and `tests/importers/test_ods_importer.py`.
+
+- Unclosed `ScriptFile` in `script.py`: `read_sqlfile()` iterated through the file but never closed it, leaking a file handle on every script load.
+
+- Unclosed CSV file handle in `exporters/delimited.py`: `evaluate_line_format()` opened a file for delimiter diagnosis but never closed it. `reader()` generator also leaked the file handle if not fully consumed or if an exception occurred mid-iteration. Both now use `try/finally`.
+
+- Unclosed `sqlite3.Connection` in test assertions: `with sqlite3.connect(...)` only commits/rolls back but does not close the connection. Fixed in `tests/exporters/test_sqlite_exporter.py` and `tests/metacommands/test_metacommands.py`.
+
+- File handle leaks in exporters: wrapped write operations in `try/finally` blocks to guarantee file handles are closed on error in `exporters/raw.py`, `exporters/xml.py`, `exporters/json.py`, `exporters/templates.py`, `exporters/values.py`, `exporters/pretty.py`, `exporters/html.py`, `exporters/latex.py`, `metacommands/debug.py`, `metacommands/control.py`, and `metacommands/prompt.py`. Previously, an exception during export could leak open file handles.
+
+- XML export injection: `exporters/xml.py` now escapes `<`, `>`, `&` in cell values using `xml.sax.saxutils.escape()` and sanitizes `--` in XML comments. Previously, data containing XML special characters produced malformed XML output.
+
+- HTML export XSS: `exporters/html.py` now escapes column headers and cell values using `html.escape()`. Previously, data containing `<script>` or other HTML markup was written directly to the output file.
+
+- JSON export injection: `exporters/json.py` now uses `json.dumps()` to properly escape the `description` field in JSON-TS exports. Previously, descriptions containing quotes or backslashes produced malformed JSON. Also added missing `import json` to `write_query_to_json_ts` which previously relied on a global set by `write_query_to_json`.
+
+- `JinjaTemplateReport.__repr__` incorrectly returned `StrTemplateReport(...)` instead of `JinjaTemplateReport(...)`.
+
+- `exporters/templates.py`: removed bare `except: raise` clause in `JinjaTemplateReport.write_report()` and added proper exception chaining (`from e`) to Jinja2 template errors.
+
+- `exporters/delimited.py`: `write_delimited_file()` now closes the output file handle via `try/finally`. Previously, the file was opened but never closed, leaking the handle on both success and error paths.
+
+- SQL injection in remaining database metadata queries: `role_exists()` in `db/mysql.py`, `db/sqlserver.py`, and `db/firebird.py`, `schema_exists()` in `db/sqlserver.py`, `table_exists()` and `view_exists()` in `db/access.py` and `db/firebird.py` now use parameterized queries instead of f-string interpolation. `column_exists()` and `table_columns()` in `db/access.py` and `db/firebird.py` now use `quote_identifier()` for SQL identifiers that cannot be parameterized.
+
+- SQL injection in `db/postgres.py`: `create_db()` now uses `quote_identifier()` for database name and encoding in `CREATE DATABASE` DDL. COPY command delimiter and quote character are now escaped/validated to prevent injection.
+
+- CPU busy-loop in `utils/fileio.py`: `FileWriter.run()` now uses blocking `queue.get(timeout=0.1)` instead of `get_nowait()` in a tight loop, eliminating unnecessary CPU consumption when the file writer subprocess is idle.
+
+- Substitution variable cycle detection in `script.py`: `substitute_vars()` now enforces a maximum of 100 iterations to prevent infinite loops when variables reference each other cyclically (e.g., `$A` expands to `!!$B!!` and `$B` expands to `!!$A!!`).
+
+- Jinja2 template injection: `exporters/templates.py` now uses `jinja2.sandbox.SandboxedEnvironment` instead of the default `jinja2.Template` constructor. Previously, a malicious template file could access Python internals and execute arbitrary code.
+
+- SQL injection in `import_entire_file()` across 6 database backends (`db/base.py`, `db/dsn.py`, `db/sqlite.py`, `db/sqlserver.py`, `db/postgres.py`, `db/access.py`): the `column_name` parameter is now quoted with `quote_identifier()` instead of being interpolated directly into the INSERT statement.
+
+- XML export malformed output: `exporters/xml.py` now sanitizes column headers and table names used as XML element names, replacing invalid XML name characters with underscores. Previously, column names containing `>`, `<`, or other XML metacharacters produced malformed XML.
+
+- `$SHEETS_TABLES_VALUES` SQL injection in `metacommands/io_import.py`: sheet names from ODS/XLS imports are now escaped (single quotes doubled) before embedding in SQL value expressions. Previously, a sheet name containing a single quote produced malformed or injectable SQL.
+
+- HTTP header injection in SERVE metacommand (`metacommands/io_fileops.py`): the `Content-Disposition` filename is now sanitized (newlines/carriage returns stripped, quotes escaped) to prevent HTTP response splitting.
+
+- Empty `dt_cast` type-cast mapping in `Database` base class (`db/base.py`): the monolith populated this dict with 8 type converters (int, float, str, bool, datetime, date, Decimal, bytearray) but the refactored version was initialized to `{}`. Now uses a lazy property that auto-populates on first access, ensuring all backends get the correct type casters even though none call `super().__init__()`.
+
+- `WriteSpec.write()` file descriptor leak (`exporters/base.py`): the one-liner `EncodedFile(...).open("a").write(msg)` opened a file, wrote, and discarded the handle without closing. Now properly closes the handle in a try/finally block.
+
+- Removed duplicate `x_halt_msg` function from `metacommands/prompt.py`. The canonical version in `metacommands/control.py` (used by the dispatch table) was the correct one; the prompt.py copy was dead code.
+
+- `read_sqlfile()` double-open file leak (`script.py`): `ScriptFile.__init__` already opens the file, but `read_sqlfile()` called `.open("r")` again, creating a second leaked handle. Now uses the ScriptFile directly.
+
+- Missing WRITE metacommand delimiter patterns in dispatch table (`metacommands/__init__.py`): added 5 missing delimiter variants (tilde, hash, backtick, bracket, single-quote) for WRITE and ON ERROR_HALT/ON CANCEL_HALT WRITE metacommands that were present in the monolith but missing from the refactored dispatch table.
+
+- Missing bare (non-CONFIG) settings aliases in dispatch table (`metacommands/__init__.py`): added 10 bare settings forms (e.g., `FEEDBACK ON` without the `CONFIG` prefix) that the monolith supported but the refactored dispatch table omitted.
+
+- `CONNECT TO DSN` metacommand unreachable (`metacommands/__init__.py`): the `x_connect_dsn` handler was imported but never registered with `mcl.add()`. DSN-based connections via metacommand were completely broken.
+
+- `PARQUET` missing from EXPORT format regex lists (`metacommands/__init__.py`): the export handler code supported Parquet output but the dispatch table regex didn't include `PARQUET` as a valid format, making `EXPORT ... AS PARQUET` unreachable. Added to both EXPORT QUERY and EXPORT table format lists.
+
+- Firebird error message typo (`db/firebird.py`): error message said "required to connect to MySQL" instead of "required to connect to Firebird".
+
+- Oracle default port in function signature (`db/oracle.py`): default port parameter was `5432` (PostgreSQL's port) instead of `1521` (Oracle's port). The body already corrected to 1521 but the signature was misleading.
+
+- Missing documentation for `show_progress` and `log_sql` config options in `docs/configuration.md`.
+
+- Backward compatibility for `TXT-AND` export format (`metacommands/__init__.py`, `metacommands/io_export.py`): the monolith used `TXT-AND`/`TEXT-AND` but the refactored code renamed it to `TXT-AND`/`TEXT-AND`. Added `TXT-AND` as a backward-compatible alias so existing scripts continue to work.
+
+- `docs/api/db.md` missing individual database adapter documentation — added all 9 adapters (postgres, sqlite, duckdb, sqlserver, mysql, oracle, firebird, access, dsn).
+
+- `docs/api/exporters.md` missing `latex` and `zip` module references — added both.
+
+______________________________________________________________________
+
+## [2.1.2] - 2026-03-25
+
+### Added
+
+- DuckDB integration tests: 15 end-to-end tests (`tests/test_integration_duckdb.py`) covering basic SQL, substitution variables, CSV export/import, conditional execution, WRITE metacommand, round-trip, and DuckDB-specific features (views, schemas, native types).
+
+### Changed
+
+- Added PyPI version, Python versions, license, and Read the Docs badges to `README.md`.
+
+### Fixed
+
+- Config parser now accepts `k` (DuckDB) as a valid `db_type` in `execsql.conf`. Previously only the CLI flag `-t k` worked; config file validation rejected it.
+
+- Read the Docs build: added `mkdocstrings-python` and editable project install to `.readthedocs.yaml` so `mkdocstrings` can resolve API references.
+
+- Fixed escaped underscore in `docs/api/cli.md` (`\_run` → `_run`) that caused `mkdocstrings` to fail resolving `execsql.cli._run`.
+
+- Excluded `docs/api/` from `mdformat` pre-commit hook to prevent it from re-escaping underscores in `mkdocstrings` `:::` directives.
+
+______________________________________________________________________
+
+## [2.1.1] - 2026-03-25
+
+### Added
+
+- Keyring credential retry on authentication failure: when a keyring-stored password is rejected by the database, the stale entry is automatically deleted, the user is re-prompted for the current password, and the connection is retried. The new password is then saved to the keyring. Applies to all database adapters (PostgreSQL, MySQL, Oracle, SQL Server, Firebird, DSN, MS Access). New public helpers `password_from_keyring()`, `clear_stored_password()`, and `skip_keyring` parameter on `get_password()` in `utils/auth.py`.
+
+- Tests for `utils/mail.py`: 14 tests covering `MailSpec` construction and `Mailer` config validation/SMTP connection setup (plain, SSL, TLS, auth, sendmail with text/HTML/attachments/multiple recipients) using mocked SMTP.
+
+- Parser edge case tests: 17 new tests for `NumericParser` and `CondParser` error paths (division by zero, unmatched/empty parens, empty/whitespace input, trailing/double operators, deeply nested expressions, non-numeric input).
+
+- Security warning in `docs/substitution_vars.md` about environment variable exposure via `&`-prefixed substitution variables, with guidance on mitigating secret disclosure.
+
+- Codecov integration: CI uploads coverage reports via `codecov/codecov-action@v5` (Ubuntu / Python 3.13 matrix leg) and a coverage badge in the README.
+
+- Automatic changelog versioning on `bump-my-version` runs: `CHANGELOG.md` is now a bumpversion-managed file — the `[Unreleased]` section is replaced with a dated version heading and a fresh `[Unreleased]` header is preserved for the next cycle.
+
+### Changed
+
+- Centered the logo and badges in `README.md`.
+
+### Fixed
+
+- `ExecSqlTimeoutError` now inherits from `ExecSqlError` instead of `Exception`, so generic `except ExecSqlError` handlers will catch timeouts. Accepts an optional message (defaults to `"Operation timed out"`), preserving compatibility with bare `raise ExecSqlTimeoutError`.
+
+- `exporters/ods.py`: Fixed broken ODS import/export — `import of as of` changed to `import of as of` to match the actual `odfpy` package module name. ODS support was silently non-functional.
+
+- ODS test skip guards: replaced `pytest.importorskip("of")` (confusing error message, wrong module name) with a proper `of.opendocument` availability check and clear skip reason.
+
+- Exception chaining: added `from e` to `raise ErrInfo(...)` in `exporters/delimited.py` and `utils/fileio.py` to preserve original tracebacks. Changed `raise e` to bare `raise` in `exporters/delimited.py:_colhdrs()`.
+
+- Security comment in `cli.py` documenting that all environment variables are exposed as `&`-prefixed substitution variables.
+
+- Python 3.10 compatibility: replaced `datetime.UTC` (3.11+) with `datetime.timezone.utc` in `cli.py` and `script.py`.
+
+- Windows test compatibility: replaced hardcoded Unix paths in `TestApplyOutputDir` tests with `tmp_path`-based platform-native paths, and added Windows-aware path for `TestMakeExportDirsErrors`.
+
+- SQLite connection leaks: `state.reset()` and the test `_reset_execsql_state` fixture now call `dbs.closeall()` before discarding the `DatabasePool`, and `export_sqlite()` uses `try/finally` to guarantee the connection is closed on error. Eliminates `ResourceWarning: unclosed database` warnings.
+
+______________________________________________________________________
+
+## [2.1.0]
+
+### Changed
+
+- Consolidated optional dependency extras: replaced individual `ods`, `excel`, `jinja`, `feather`, `parquet`, and `hdf5` extras with a single `formats` bundle. Renamed `keyring` extra to `auth`. Added `all-db` convenience group for all database drivers. The `all` extra now uses self-referential extras (`all-db`, `formats`, `auth`) instead of duplicating package lists.
+
+- Moved all metacommand test modules from `tests/` into a dedicated `tests/metacommands/` subdirectory, matching the existing pattern used by `tests/db/`, `tests/exporters/`, `tests/importers/`, `tests/utils/`, and `tests/gui/`.
+
+### Added
+
+- `EXPORT … FORMAT parquet` support: new `exporters/parquet.py` module writes query results to Apache Parquet files via `polars`. Mirrors the existing Feather export pattern. Parquet import already existed; export completes the round-trip. Included in the `formats` optional dependency extra.
+
+- OS keyring integration for database password storage (`utils/auth.py`): when the `keyring` package is installed, `get_password()` checks the OS credential store (macOS Keychain, Windows Credential Manager, Linux SecretService) before prompting. After a successful interactive prompt the password is stored in the keyring for future use. Controlled by the `use_keyring` config option (default `yes`). Included in the `auth` optional dependency extra.
 
 - `max_log_size_mb` config setting (default `0` = disabled): when set to a positive integer, the log file is rotated to `.1` before a new run appends to it if the file size exceeds the configured threshold. Controlled via `config.py` and implemented in `utils/fileio.py`.
 
@@ -31,11 +312,9 @@ ______________________________________________________________________
 
 - API reference section in the docs (`docs/api/`) covering `cli`, `db`, `exporters`, `importers`, and `metacommands`; wired `mkdocstrings-python` into `zensical.toml` via `[project.plugins.mkdocstrings]`.
 
-- `feather = ["pandas", "pyarrow"]` optional-dependency extra for Feather import/export support.
+- Feather import/export support (via `polars`, included in the `formats` extra).
 
-- `hdf5 = ["tables"]` optional-dependency extra for HDF5 export support.
-
-- Both extras are included in the `all` group.
+- HDF5 export support (via `tables`, included in the `formats` extra).
 
 - `state.reset()` utility function to reset all module-level runtime state to initial values; used by the test suite to ensure a clean slate between tests.
 
@@ -60,6 +339,8 @@ ______________________________________________________________________
 - Tests for DuckDB native temporal type mappings in `test_types.py`.
 
 - Tests for `SubVarSet` dict-based storage and pre-compiled regex patterns in `test_script.py`.
+
+- Increased test coverage from 68% to 70% (2003 tests, up from 1840) by adding targeted tests for uncovered branches in `types.py` (83%→96%), `models.py` (88%→96%), `config.py` error branches, `utils/errors.py` (exception_info, write_warning, exit_now), `exporters/` (base, templates, xls, values, pretty), `gui/` (backend fallback, manager dispatch), and `utils/fileio.py` (Logger, BOM detection). Raised `--cov-fail-under` threshold from 68 to 70.
 
 - Tests for `DT_Time_Oracle` subclass behavior (matches, from_data, lenspec, varlen) in `test_types.py`.
 
@@ -103,29 +384,64 @@ ______________________________________________________________________
 
 - DuckDB temporal type mappings (`DT_TimestampTZ`, `DT_Timestamp`, `DT_Date`, `DT_Time`) changed from `TEXT` to native DuckDB types (`TIMESTAMPTZ`, `TIMESTAMP`, `DATE`, `TIME`).
 
+- `db/base.py`: `raise e` in `execute()` changed to bare `raise` for cleaner traceback propagation.
+
+- `db/firebird.py`: `table_exists()` fixed `raise e` → `raise ErrInfo(...)` to correctly raise the constructed error instead of re-raising the original driver exception, and reordered rollback before raise.
+
+- `state.py`: Version-parse fallback changed from legacy `1.130.1` to `0.0.0` to avoid confusion with the v2.x series.
+
 ### Changed
 
+- `state.py`: Replaced 20+ `Any`-typed module globals with concrete types under `TYPE_CHECKING` guards (e.g. `IfLevels | None`, `DatabasePool | None`, `FileWriter | None`). Only `gui_console` remains `Any` (varies by backend).
+
+- All bare `except Exception: pass` blocks across 13 source files now have inline comments explaining why the exception is intentionally silenced (e.g. best-effort rollback, driver compatibility, GUI teardown).
+
+- `README.md`: Corrected import/export format lists to match actual implementation — removed false JSON/XML import claims, added Feather/Parquet imports, expanded export list to cover all 15+ formats.
+
+- Added `[tool.mypy]` configuration to `pyproject.toml` (Python 3.10 target, `warn_return_any`, `ignore_missing_imports`, excludes `_execsql/`).
+
 - Replaced all `os.path` calls with `pathlib.Path` equivalents across 21 source files (`config.py`, `cli.py`, `script.py`, `utils/fileio.py`, `utils/errors.py`, `utils/mail.py`, `metacommands/io.py`, `metacommands/conditions.py`, `metacommands/connect.py`, `metacommands/prompt.py`, `exporters/base.py`, `exporters/duckdb.py`, `exporters/html.py`, `exporters/latex.py`, `exporters/ods.py`, `exporters/sqlite.py`, `exporters/xls.py`, `db/access.py`, `db/duckdb.py`, `db/factory.py`, `importers/csv.py`). `os.path.expandvars()` is retained where used as it has no `pathlib` equivalent.
+
 - `MetaCommandList` in `script.py` refactored from a hand-rolled linked list (with a move-to-front performance heuristic) to a plain `list[MetaCommand]`. Command ordering is now stable and predictable; the `insert_node()` method and `next_node` attribute on `MetaCommand` have been removed.
+
 - `config.py`: All `raise ConfigError(...)` patterns now chain the original exception via `from e` for better debugging context.
+
 - `SubVarSet` in `script.py` refactored: internal storage changed from list-of-tuples to dict for O(1) variable lookups; regex patterns pre-compiled on `add_substitution()` instead of recompiled on every `substitute()` call.
+
 - `set_system_vars()` in `script.py`: `_state.dbs.current()` cached once instead of called 7+ times per invocation.
+
 - `DT_Time_Oracle` in `types.py` refactored to a thin subclass of `DT_Time`, overriding only `lenspec = True` and `varlen = True`; duplicated methods and attributes removed.
+
 - `PostgresDatabase` and `SQLiteDatabase` now accept connection timeout parameters (default 30 s) passed through to the underlying driver (`connect_timeout` for psycopg2, `timeout` for sqlite3). `Database.quote_identifier()` added for safe SQL identifier quoting.
+
 - `DT_Date` in `types.py`: date format deque (`date_fmts`) is now copied per-instance instead of mutated globally, eliminating thread-safety issues while retaining the most-recent-format-first performance optimization.
+
 - `utils/crypto.py`: Added prominent security warnings to module and `Encrypt` class docstrings documenting that XOR "encryption" is obfuscation only; keys are hardcoded and passwords are recoverable. `docs/configuration.md` updated with matching admonition.
+
 - `state.initialize()` is now called from `cli._run()` instead of individually assigning each singleton, making initialization order explicit and testable.
+
 - Exception hierarchy refactored: `DataTypeError`, `DbTypeError`, and `DatabaseNotImplementedError` now call `super().__init__()` so `str(exc)` and `exc.args` are populated.
+
 - All bare `except:` clauses replaced with `except Exception:` and bare `except ImportError:` / `except (ValueError, TypeError):` where appropriate, throughout exporters, `script.py`, `db/`, and utilities.
+
 - `isinstance()` checks replace `type(x) == type(...)` comparisons throughout `db/access.py`, `db/base.py`, `exporters/pretty.py`, `exporters/raw.py`, `types.py`, `utils/regex.py`, and `utils/gui.py` for correctness with subclasses.
+
 - `type(data) is T` used in place of `type(data) == T` for exact-type checks in `types.py`.
+
 - `of` imports in `exporters/ods.py` corrected: `import of as of` followed by explicit `import of.*` submodule imports, replacing the broken `import of.*` pattern.
+
 - `exception_info()` references in `exporters/duckdb.py`, `exporters/latex.py`, and `exporters/sqlite.py` corrected to the actual function name `exception_desc()`.
+
 - `FileWriter.write()` status check corrected from comparing to the bare constant `STATUS_OPEN` to `self.status == self.STATUS_OPEN`.
+
 - Unused variable assignments removed (`match_found` in `CounterVars.substitute` and `SubVarSet.substitute`; `enc_match` in `postgres.py`; shadow variable `l` renamed `line` in `ScriptFile.__next__`; unused `button_list` in `ConsoleBackend`; unused `conf` in `_apply_connect_result`; unused `close` in the dispatch-table builder; unused `errmsg` and `hdrs` in `x_subdata`).
+
 - `itertools` and `base64` imports in `utils/crypto.py` split onto separate lines.
+
 - `xml.py` local variable `uhdrs` renamed `str_hdrs` and loop corrected to iterate over the string-converted headers.
+
 - Test `conftest.py` updated to use `_state.reset()` before and after each test instead of manually saving and restoring `_state.conf`.
+
 - Deferred re-exports removed from `state.py` (was ~160 lines at the bottom of the module). All ~28 call-site modules now import names directly from their canonical source modules (`script`, `utils.fileio`, `utils.gui`, `parser`, etc.) rather than via `_state.X`. No behavior change; `state.py` reduced from ~488 to ~317 lines.
 
 ### Removed

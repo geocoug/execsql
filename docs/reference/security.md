@@ -8,18 +8,18 @@ execsql treats the script author as fully trusted. Scripts run with the same OS 
 
 **Do not run scripts from untrusted sources.**
 
-## SHELL Command Execution { #shell_execution }
+## SYSTEM_CMD Command Execution { #system_cmd }
 
-The [`SHELL`](metacommands.md#shell) metacommand executes arbitrary OS commands via Python's `subprocess`. No allowlist, blocklist, or command restriction exists.
+The [`SYSTEM_CMD`](metacommands.md#system_cmd) metacommand executes arbitrary OS commands via Python's `subprocess`. No allowlist, blocklist, or command restriction exists.
 
 Variable substitution is applied to the command string before execution, so any substitution variable (`!!VAR!!`) embedded in the command is expanded first. The subprocess is invoked using a list of arguments (not `shell=True`), which mitigates classic shell injection attacks — an attacker cannot inject shell operators like `;`, `|`, or `&&` through variable values alone. However, **argument injection is still possible** if a variable contains untrusted data and the target program interprets certain argument patterns as flags or paths.
 
 ```sql
 -- !x! sub outdir /safe/export/path
--- !x! SHELL pg_dump -Fc mydb -f !!outdir!!/backup.dump
+-- !x! SYSTEM_CMD (pg_dump -Fc mydb -f !!outdir!!/backup.dump)
 ```
 
-If `outdir` is derived from user input, validate or sanitize it before use in a `SHELL` command.
+If `outdir` is derived from user input, validate or sanitize it before use in a `SYSTEM_CMD` command.
 
 ## Credential Handling { #credentials }
 

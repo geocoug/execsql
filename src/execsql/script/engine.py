@@ -40,6 +40,25 @@ from execsql.script.variables import LocalSubVarSet, ScriptArgSubVarSet, SubVarS
 from execsql.utils.errors import exception_desc
 from execsql.utils.fileio import EncodedFile
 
+__all__ = [
+    "MetaCommand",
+    "MetaCommandList",
+    "SqlStmt",
+    "MetacommandStmt",
+    "ScriptCmd",
+    "CommandList",
+    "CommandListWhileLoop",
+    "CommandListUntilLoop",
+    "ScriptFile",
+    "ScriptExecSpec",
+    "set_system_vars",
+    "substitute_vars",
+    "runscripts",
+    "current_script_line",
+    "read_sqlfile",
+    "read_sqlstring",
+]
+
 
 # ---------------------------------------------------------------------------
 # MetaCommand / MetaCommandList
