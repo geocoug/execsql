@@ -39,11 +39,21 @@ ______________________________________________________________________
 
 ### Metacommands
 
-| Metacommand            | Description                                                                                                                                                           |
-| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ASSERT`               | Evaluate a condition and raise an error (halting the script) if it is false. Supports all IF conditions. Optional quoted failure message. Skipped in false IF blocks. |
-| `CONFIG SHOW_PROGRESS` | Enable the Rich progress bar for IMPORT operations at runtime.                                                                                                        |
-| `CONFIG LOG_SQL`       | Enable SQL query audit logging — writes executed SQL to the log file.                                                                                                 |
+| Metacommand            | Description                                                                                                                                                                    |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `ASSERT`               | Evaluate a condition and raise an error (halting the script) if it is false. Supports all IF conditions. Optional quoted failure message. Skipped in false IF blocks.          |
+| `BREAKPOINT`           | Pause script execution and drop into an interactive debug REPL. Inspect variables, run ad-hoc SQL, and step through the script. Silently skipped in non-TTY (CI) environments. |
+| `CONFIG SHOW_PROGRESS` | Enable the Rich progress bar for IMPORT operations at runtime.                                                                                                                 |
+| `CONFIG LOG_SQL`       | Enable SQL query audit logging — writes executed SQL to the log file.                                                                                                          |
+
+### Conditional Tests
+
+| Conditional               | Description                                                                                              |
+| ------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `ROW_COUNT_GT(table, N)`  | True if the number of rows in *table* is strictly greater than *N* (integer). Queries `SELECT count(*)`. |
+| `ROW_COUNT_GTE(table, N)` | True if the number of rows in *table* is greater than or equal to *N*.                                   |
+| `ROW_COUNT_EQ(table, N)`  | True if the number of rows in *table* is exactly equal to *N*.                                           |
+| `ROW_COUNT_LT(table, N)`  | True if the number of rows in *table* is strictly less than *N*.                                         |
 
 ### Configuration Options
 

@@ -93,7 +93,7 @@
     },
     "action-keywords": {
       "comment": "sub, write, execute script, export, etc.",
-      "match": "(?i)\\b(reset\\s+dialog_canceled|write\\s+create_table|export_metadata|sub_querystring|execute\\s+script|append\\s+script|extend\\s+script|reset\\s+counter|export\\s+query|sub_tempfile|write\\s+script|import_file|set\\s+counter|sub_decrypt|sub_encrypt|autocommit|copy\\s+query|disconnect|select_sub|sub_append|system_cmd|pg_vacuum|sub_empty|sub_local|connect|include|max_int|rm_file|subdata|sub_add|sub_ini|assert|export|import|rm_sub|debug|email|serve|write|copy|log|run|sub|use|zip|cd)\\b",
+      "match": "(?i)\\b(reset\\s+dialog_canceled|write\\s+create_table|export_metadata|sub_querystring|execute\\s+script|append\\s+script|extend\\s+script|reset\\s+counter|export\\s+query|sub_tempfile|write\\s+script|import_file|set\\s+counter|sub_decrypt|sub_encrypt|autocommit|breakpoint|copy\\s+query|disconnect|select_sub|sub_append|system_cmd|pg_vacuum|sub_empty|sub_local|connect|include|max_int|rm_file|subdata|sub_add|sub_ini|assert|export|import|rm_sub|debug|email|serve|write|copy|log|run|sub|use|zip|cd)\\b",
       "name": "keyword.other.execsql"
     },
     "config-event-keywords": {
@@ -108,7 +108,7 @@
     },
     "builtin-functions": {
       "comment": "Conditional test functions used in if/elseif",
-      "match": "(?i)\\b(metacommand_error|directory_exists|dialog_canceled|alias_defined|column_exists|database_name|schema_exists|script_exists|table_exists|file_exists|role_exists|starts_with|sub_defined|view_exists|console_on|newer_date|newer_file|ends_with|identical|sql_error|sub_empty|contains|is_false|hasrows|is_null|is_true|is_zero|is_gte|equal|is_gt|dbms|not|or)\\b",
+      "match": "(?i)\\b(metacommand_error|directory_exists|dialog_canceled|alias_defined|column_exists|database_name|row_count_gte|schema_exists|script_exists|row_count_eq|row_count_gt|row_count_lt|table_exists|file_exists|role_exists|starts_with|sub_defined|view_exists|console_on|newer_date|newer_file|ends_with|identical|sql_error|sub_empty|contains|is_false|hasrows|is_null|is_true|is_zero|is_gte|equal|is_gt|dbms|not|or)\\b",
       "name": "support.function.execsql"
     },
     "config-option-names": {

@@ -11,6 +11,14 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Added
+
+- **`BREAKPOINT` metacommand** — pauses script execution and drops into an interactive debug REPL. The prompt accepts `continue`/`c` to resume, `abort`/`q` to halt, `vars` to list substitution variables, `$VARNAME` to print a single variable, `SELECT ...;` to run ad-hoc SQL against the current database, `next`/`n` to step one statement at a time, `stack` to inspect the command-list stack, and `help` for a command summary. Silently skipped in non-TTY environments (CI, piped input) so automated pipelines are never blocked.
+
+- **`step_mode` on `RuntimeContext`** — internal boolean flag set by the REPL's `next` command; the script engine re-enters the debug REPL after each subsequent statement while step mode is active.
+
+- **`ROW_COUNT_GT(table, N)`**, **`ROW_COUNT_GTE(table, N)`**, **`ROW_COUNT_EQ(table, N)`**, **`ROW_COUNT_LT(table, N)`** conditional tests — compare the row count of any table or view against an integer threshold using `IF`, `ELSEIF`, or `ASSERT`. Each issues a `SELECT count(*)` query against the current database. An error is raised if the table does not exist or the threshold is not an integer.
+
 ______________________________________________________________________
 
 ## [2.9.0] - 2026-04-01

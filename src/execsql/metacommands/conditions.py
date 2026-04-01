@@ -71,6 +71,124 @@ def xf_hasrows(**kwargs: Any) -> bool:
     return nrows > 0
 
 
+def _row_count(queryname: str, sql_context: str, metacommandline: str) -> int:
+    """Return the number of rows in *queryname*, raising ErrInfo on failure.
+
+    Args:
+        queryname: Table or view name to count rows in.
+        sql_context: The SQL string to include in error messages.
+        metacommandline: The full metacommand line for error context.
+
+    Returns:
+        Integer row count.
+
+    Raises:
+        ErrInfo: If the query fails or the result is not numeric.
+    """
+    sql = f"select count(*) from {queryname};"
+    try:
+        _hdrs, rec = _state.dbs.current().select_data(sql)
+    except ErrInfo:
+        raise
+    except Exception as e:
+        raise ErrInfo("db", sql, exception_msg=exception_desc()) from e
+    try:
+        return int(rec[0][0])
+    except (IndexError, TypeError, ValueError) as e:
+        raise ErrInfo(
+            type="cmd",
+            command_text=metacommandline,
+            other_msg=f"Could not read row count for {queryname}.",
+        ) from e
+
+
+def _parse_row_count_n(raw: str, metacommandline: str) -> int:
+    """Parse and return the numeric threshold N from the matched group.
+
+    Args:
+        raw: The raw string captured by the regex group (``n``).
+        metacommandline: The full metacommand line for error context.
+
+    Returns:
+        Integer value of *raw*.
+
+    Raises:
+        ErrInfo: If *raw* cannot be parsed as an integer.
+    """
+    try:
+        return int(raw.strip())
+    except (ValueError, TypeError) as e:
+        raise ErrInfo(
+            type="cmd",
+            command_text=metacommandline,
+            other_msg=f"ROW_COUNT threshold must be an integer; got {raw!r}.",
+        ) from e
+
+
+def xf_row_count_gt(**kwargs: Any) -> bool:
+    """Return True if the row count of *queryname* is strictly greater than N.
+
+    Args:
+        **kwargs: Named groups from the regex match, plus ``metacommandline``.
+            Required keys: ``queryname``, ``n``.
+
+    Returns:
+        True if ``count(*) > N``.
+    """
+    queryname = kwargs["queryname"]
+    mcl = kwargs["metacommandline"]
+    n = _parse_row_count_n(kwargs["n"], mcl)
+    return _row_count(queryname, f"select count(*) from {queryname};", mcl) > n
+
+
+def xf_row_count_gte(**kwargs: Any) -> bool:
+    """Return True if the row count of *queryname* is greater than or equal to N.
+
+    Args:
+        **kwargs: Named groups from the regex match, plus ``metacommandline``.
+            Required keys: ``queryname``, ``n``.
+
+    Returns:
+        True if ``count(*) >= N``.
+    """
+    queryname = kwargs["queryname"]
+    mcl = kwargs["metacommandline"]
+    n = _parse_row_count_n(kwargs["n"], mcl)
+    return _row_count(queryname, f"select count(*) from {queryname};", mcl) >= n
+
+
+def xf_row_count_eq(**kwargs: Any) -> bool:
+    """Return True if the row count of *queryname* equals N exactly.
+
+    Args:
+        **kwargs: Named groups from the regex match, plus ``metacommandline``.
+            Required keys: ``queryname``, ``n``.
+
+    Returns:
+        True if ``count(*) == N``.
+    """
+    queryname = kwargs["queryname"]
+    mcl = kwargs["metacommandline"]
+    n = _parse_row_count_n(kwargs["n"], mcl)
+    return _row_count(queryname, f"select count(*) from {queryname};", mcl) == n
+
+
+def xf_row_count_lt(**kwargs: Any) -> bool:
+    """Return True if the row count of *queryname* is strictly less than N.
+
+    Args:
+        **kwargs: Named groups from the regex match, plus ``metacommandline``.
+            Required keys: ``queryname``, ``n``.
+
+    Returns:
+        True if ``count(*) < N``.
+    """
+    queryname = kwargs["queryname"]
+    mcl = kwargs["metacommandline"]
+    n = _parse_row_count_n(kwargs["n"], mcl)
+    return _row_count(queryname, f"select count(*) from {queryname};", mcl) < n
+
+
 def xf_sqlerror(**kwargs: Any) -> bool:
     return _state.status.sql_error
 
@@ -494,6 +612,36 @@ def build_conditional_table() -> Any:
     # HASROWS / HAS_ROWS
     mcl.add(r"^\s*HASROWS\((?P<queryname>[^)]+)\)", xf_hasrows, description="HASROWS", category="condition")
     mcl.add(r"^\s*HAS_ROWS\((?P<queryname>[^)]+)\)", xf_hasrows)
+
+    # ROW_COUNT comparisons — ROW_COUNT_GT/GTE/EQ/LT(table, N)
+    # Table name: unquoted, double-quoted, or single-quoted.  N: integer literal.
+    _rc_table = r"(?P<queryname>[A-Za-z0-9_.\"'\[\]]+)"
+    _rc_n = r"(?P<n>\d+)"
+    _rc_sep = r"\s*,\s*"
+    mcl.add(
+        rf"^\s*ROW_COUNT_GT\s*\(\s*{_rc_table}{_rc_sep}{_rc_n}\s*\)",
+        xf_row_count_gt,
+        description="ROW_COUNT_GT",
+        category="condition",
+    )
+    mcl.add(
+        rf"^\s*ROW_COUNT_GTE\s*\(\s*{_rc_table}{_rc_sep}{_rc_n}\s*\)",
+        xf_row_count_gte,
+        description="ROW_COUNT_GTE",
+        category="condition",
+    )
+    mcl.add(
+        rf"^\s*ROW_COUNT_EQ\s*\(\s*{_rc_table}{_rc_sep}{_rc_n}\s*\)",
+        xf_row_count_eq,
+        description="ROW_COUNT_EQ",
+        category="condition",
+    )
+    mcl.add(
+        rf"^\s*ROW_COUNT_LT\s*\(\s*{_rc_table}{_rc_sep}{_rc_n}\s*\)",
+        xf_row_count_lt,
+        description="ROW_COUNT_LT",
+        category="condition",
+    )
 
     # Status predicates
     mcl.add(r"^\s*sql_error\(\s*\)", xf_sqlerror, description="SQL_ERROR", category="condition")
