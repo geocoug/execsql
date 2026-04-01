@@ -151,8 +151,12 @@ def _print_var(varname: str) -> None:
     if subvars is None:
         _write(f"  {varname}: (substitution variables not initialised)\n")
         return
-    # varvalue() expects the name with its prefix (e.g. "$foo"); it lowercases internally.
+    # Try the name as typed first, then without the sigil prefix ($, &, @, #, ~).
+    # SUB creates variables without a prefix (e.g., "logfile"), but users
+    # naturally type "$logfile" at the prompt.
     value = subvars.varvalue(varname)
+    if value is None and len(varname) > 1 and varname[0] in "$&@#~":
+        value = subvars.varvalue(varname[1:])
     if value is None:
         _write(f"  {varname}: (undefined)\n")
     else:
