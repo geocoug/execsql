@@ -40,12 +40,12 @@ ______________________________________________________________________
 
 ### Metacommands
 
-| Metacommand            | Description                                                                                                                                                                    |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `ASSERT`               | Evaluate a condition and raise an error (halting the script) if it is false. Supports all IF conditions. Optional quoted failure message. Skipped in false IF blocks.          |
-| `BREAKPOINT`           | Pause script execution and drop into an interactive debug REPL. Inspect variables, run ad-hoc SQL, and step through the script. Silently skipped in non-TTY (CI) environments. |
-| `CONFIG SHOW_PROGRESS` | Enable the Rich progress bar for IMPORT operations at runtime.                                                                                                                 |
-| `CONFIG LOG_SQL`       | Enable SQL query audit logging — writes executed SQL to the log file.                                                                                                          |
+| Metacommand            | Description                                                                                                                                                           |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ASSERT`               | Evaluate a condition and raise an error (halting the script) if it is false. Supports all IF conditions. Optional quoted failure message. Skipped in false IF blocks. |
+| `BREAKPOINT`           | Pause script execution and drop into an interactive debug REPL. See [Debugging](#debugging) below for full details.                                                   |
+| `CONFIG SHOW_PROGRESS` | Enable the Rich progress bar for IMPORT operations at runtime.                                                                                                        |
+| `CONFIG LOG_SQL`       | Enable SQL query audit logging — writes executed SQL to the log file.                                                                                                 |
 
 ### Conditional Tests
 
@@ -105,6 +105,42 @@ New options in `execsql.conf`:
 | VS Code syntax highlighting | Auto-generated `tmLanguage.json` grammar from the dispatch table.                                               |
 | `py.typed` marker           | PEP 561 marker enabling downstream static type checking.                                                        |
 | Structured keyword registry | `--dump-keywords` introspects the dispatch table and outputs JSON used by the grammar generator and test suite. |
+
+### Debugging { #debugging }
+
+execsql2 adds a full interactive debugging system that has no equivalent in upstream execsql.
+
+**`BREAKPOINT` metacommand** — insert `-- !x! BREAKPOINT` anywhere in a script to pause execution and drop into a debug REPL. The REPL provides a `execsql debug>` prompt where you can inspect state and interact with the database before resuming.
+
+**`--debug` CLI flag** — start the script in step-through mode, pausing before every statement as if `BREAKPOINT` were inserted at the top with `.next` always active.
+
+**REPL commands** (all dot-prefixed to avoid collisions with variable names and SQL):
+
+| Command            | Description                                                               |
+| ------------------ | ------------------------------------------------------------------------- |
+| `.continue` / `.c` | Resume normal script execution                                            |
+| `.abort` / `.q`    | Halt the script with exit status 1                                        |
+| `.vars`            | List all user, system, local, and counter variables (grouped by type)     |
+| `.vars all`        | Include environment variables (`&`) in the listing                        |
+| `.next` / `.n`     | Execute the next statement, then pause again (step mode)                  |
+| `.stack`           | Show the command-list stack (script name, cursor position, nesting depth) |
+| `.help`            | Show available commands                                                   |
+
+**Non-prefixed input** is interpreted as either a variable lookup or ad-hoc SQL:
+
+| Input                          | Behavior                                                                         |
+| ------------------------------ | -------------------------------------------------------------------------------- |
+| `logfile`                      | Print the value of the `logfile` substitution variable                           |
+| `$ARG_1`                       | Print the value of a system/built-in variable                                    |
+| `SELECT count(*) FROM orders;` | Execute SQL against the current database and pretty-print the results in a table |
+
+**Key behaviors:**
+
+- **Non-interactive safety** — `BREAKPOINT` is silently skipped when `sys.stdin` is not a TTY (CI pipelines, piped input, cron). Scripts never hang in automation.
+- **Ad-hoc SQL** — any input ending with `;` is executed against the current database connection using the same cursor and transaction state as the script. Queries return a formatted table; DML statements (INSERT, UPDATE, DELETE) execute and commit/rollback according to the current autocommit and batch settings.
+- **Variable inspection** — bare names look up user-defined variables (e.g., `logfile`); sigil-prefixed names look up system (`$`), environment (`&`), local (`~`), or counter (`@`) variables. If a `$`-prefixed name isn't found, the REPL strips the sigil and retries (since `SUB` stores keys without a prefix).
+- **Step mode** — `.next` executes exactly one statement then re-enters the REPL. Combined with `.vars` and SQL queries, this allows line-by-line script debugging with full state visibility.
+- **Readline support** — on platforms where `readline` is available (macOS, Linux), the REPL supports arrow-key history navigation and line editing.
 
 ______________________________________________________________________
 
