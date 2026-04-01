@@ -272,9 +272,9 @@ ______________________________________________________________________
 
 ### v2.8 — Scripting Power Features
 
-- [ ] **`ASSERT` metacommand** — `-- !x! ASSERT <condition> "message"`. Data validation for CI pipelines and sanity checks.
-- [ ] **`--dry-run` improvements** — show SQL with substitution variables expanded, not just raw metacommands.
-- [ ] **Script profiling (`--profile`)** — per-statement execution times, summary report at end. Leverages existing `Timer` infrastructure.
+- [x] **`ASSERT` metacommand** — `-- !x! ASSERT <condition> "message"`. Reuses IF condition engine. 13 tests.
+- [x] **`--dry-run` improvements** — expands substitution variables populated at parse time. 4 new tests.
+- [x] **Script profiling (`--profile`)** — per-statement `perf_counter()` timing with sorted summary table. 19 tests.
 - [ ] **Parallel execution blocks** — `PARALLEL BEGIN ... PARALLEL END` for independent statements. See design notes below.
 
 ### v2.9 — Library API & Developer Experience
