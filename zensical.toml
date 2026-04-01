@@ -47,6 +47,7 @@ nav = [
         { "Metacommands" = "api/metacommands.md" }
     ] },
     { "About" = [
+        { "Divergence from Upstream" = "about/divergence.md" },
         { "Copyright" = "about/copyright.md" },
         { "Contributors" = "about/contributors.md" },
         { "Change Log" = "about/change_log.md" }

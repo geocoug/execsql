@@ -2,18 +2,21 @@
 Tests for execsql.state — global runtime state and utility functions.
 
 Covers: version variables, compiled regex defaults, mutable state defaults,
-and the endloop() utility function.  xcmd_test() is not covered here because
-it requires the full metacommand dispatch table (conditionallist) to be loaded,
-which only happens inside main().
+the endloop() utility function, and the RuntimeContext / module proxy.
+xcmd_test() is not covered here because it requires the full metacommand
+dispatch table (conditionallist) to be loaded, which only happens inside main().
 """
 
 from __future__ import annotations
+
+from unittest.mock import MagicMock
 
 import pytest
 
 import execsql.state as _state
 from execsql.exceptions import ErrInfo
 from execsql.script import CommandList
+from execsql.state import RuntimeContext, _CONTEXT_ATTRS
 
 
 # ---------------------------------------------------------------------------
@@ -189,3 +192,106 @@ class TestEndloop:
             _state.commandliststack.clear()
             _state.commandliststack.extend(saved_cmd)
             _state.compiling_loop = False
+
+
+# ---------------------------------------------------------------------------
+# RuntimeContext and module proxy
+# ---------------------------------------------------------------------------
+
+
+class TestRuntimeContext:
+    def test_get_context_returns_runtime_context(self):
+        ctx = _state.get_context()
+        assert isinstance(ctx, RuntimeContext)
+
+    def test_context_attrs_matches_slots(self):
+        """_CONTEXT_ATTRS and RuntimeContext.__slots__ must stay in sync."""
+        assert set(RuntimeContext.__slots__) == _CONTEXT_ATTRS
+
+    def test_runtime_context_defaults(self):
+        """A fresh RuntimeContext has the expected initial values."""
+        ctx = RuntimeContext()
+        assert ctx.conf is None
+        assert ctx.logfile_encoding == "utf8"
+        assert ctx.compiling_loop is False
+        assert ctx.loop_nest_level == 0
+        assert ctx.cmds_run == 0
+        assert ctx.commandliststack == []
+        assert ctx.savedscripts == {}
+        assert ctx.loopcommandstack == []
+        assert ctx.subvars is None
+        assert ctx.dbs is None
+        assert ctx.filewriter is None
+
+    def test_set_context_swaps_state(self):
+        """set_context() makes _state.foo resolve against the new context."""
+        original = _state.get_context()
+        new_ctx = RuntimeContext()
+        sentinel = object()
+        new_ctx.upass = sentinel
+
+        try:
+            _state.set_context(new_ctx)
+            assert _state.upass is sentinel
+            assert _state.get_context() is new_ctx
+        finally:
+            _state.set_context(original)
+
+    def test_proxy_read_write_roundtrip(self):
+        """Writing via _state.foo = val and reading via _state.foo works."""
+        original = _state.upass
+        try:
+            _state.upass = "test_password"
+            assert _state.upass == "test_password"
+            assert _state.get_context().upass == "test_password"
+        finally:
+            _state.upass = original
+
+    def test_proxy_hasattr(self):
+        """hasattr works for both context attrs and module-level constants."""
+        assert hasattr(_state, "conf")
+        assert hasattr(_state, "commandliststack")
+        assert hasattr(_state, "varlike")
+        assert hasattr(_state, "primary_vno")
+        assert not hasattr(_state, "nonexistent_attr_xyz")
+
+    def test_proxy_dir_includes_context_attrs(self):
+        """dir(_state) includes context attributes."""
+        d = dir(_state)
+        assert "conf" in d
+        assert "commandliststack" in d
+        assert "varlike" in d
+
+    def test_reset_preserves_filewriter(self):
+        """reset() keeps filewriter alive (atexit-managed subprocess)."""
+        sentinel = object()
+        _state.filewriter = sentinel
+        try:
+            _state.reset()
+            assert _state.filewriter is sentinel
+        finally:
+            _state.filewriter = None
+
+    def test_reset_closes_databases(self):
+        """reset() calls dbs.closeall() before discarding the pool."""
+        mock_dbs = MagicMock()
+        _state.dbs = mock_dbs
+        _state.reset()
+        mock_dbs.closeall.assert_called_once()
+        assert _state.dbs is None
+
+    def test_reset_produces_clean_defaults(self):
+        """After reset(), all context attrs are at their default values."""
+        _state.compiling_loop = True
+        _state.cmds_run = 42
+        _state.upass = "stale"
+        _state.reset()
+        assert _state.compiling_loop is False
+        assert _state.cmds_run == 0
+        assert _state.upass is None
+
+    def test_slots_prevent_typo_attrs(self):
+        """RuntimeContext.__slots__ prevents setting misspelled attributes."""
+        ctx = RuntimeContext()
+        with pytest.raises(AttributeError):
+            ctx.conff = "typo"  # noqa: B009

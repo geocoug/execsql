@@ -1,0 +1,168 @@
+# Divergence from Upstream
+
+execsql2 is a maintained fork of [execsql](https://execsql.readthedocs.io/)
+v1.130.1 by R. Dreas Nielsen. This page documents all user-visible changes
+since the fork was created: new features, changed behavior, security fixes,
+and removed functionality.
+
+For a chronological view, see the [Change Log](change_log.md).
+
+______________________________________________________________________
+
+## Added Features
+
+### CLI Options
+
+| Flag                            | Description                                                                                                                                                            |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--version`                     | Print version and exit (Rich-formatted).                                                                                                                               |
+| `-c` / `--command`              | Execute an inline SQL or metacommand string instead of a script file.                                                                                                  |
+| `--dsn` / `--connection-string` | Accept a standard database URL (e.g. `postgresql://user:pass@host/db`). Supports `postgresql`, `mysql`, `mssql`, `oracle`, `firebird`, `sqlite`, and `duckdb` schemes. |
+| `--output-dir`                  | Set a default base directory for export output files.                                                                                                                  |
+| `--progress`                    | Show a Rich progress bar during long-running IMPORT operations.                                                                                                        |
+| `--dump-keywords`               | Emit all metacommand keywords, conditionals, config options, and export formats as structured JSON.                                                                    |
+| `--gui-framework`               | Select GUI backend: `tkinter` (default) or `textual` (terminal UI).                                                                                                    |
+| `--dry-run`                     | Parse the script and print the full command list without connecting to a database or executing anything.                                                               |
+
+### Export Formats
+
+| Format    | Description                                                                     |
+| --------- | ------------------------------------------------------------------------------- |
+| `PARQUET` | Export query or table results to Apache Parquet via `polars`.                   |
+| `FEATHER` | Export to Apache Feather/IPC via `polars` + `pyarrow` (upstream used `pandas`). |
+
+### Metacommands
+
+| Metacommand            | Description                                                           |
+| ---------------------- | --------------------------------------------------------------------- |
+| `CONFIG SHOW_PROGRESS` | Enable the Rich progress bar for IMPORT operations at runtime.        |
+| `CONFIG LOG_SQL`       | Enable SQL query audit logging — writes executed SQL to the log file. |
+
+### Configuration Options
+
+New options in `execsql.conf`:
+
+| Option                     | Section     | Description                                                       |
+| -------------------------- | ----------- | ----------------------------------------------------------------- |
+| `use_keyring`              | `[connect]` | Use the OS keyring for credential storage (default: `yes`).       |
+| `show_progress`            | `[input]`   | Enable Rich progress bar for IMPORT (default: `no`).              |
+| `import_progress_interval` | `[input]`   | Log a status line every N rows during IMPORT (default: `0`).      |
+| `log_sql`                  | `[config]`  | Enable SQL audit logging (default: `no`).                         |
+| `max_log_size_mb`          | `[config]`  | Rotate the log file at this size in MB (default: `0` = disabled). |
+
+### Tools
+
+| Tool             | Description                                                                                                                                                                                    |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `execsql-format` | Standalone CLI for normalizing metacommand indentation and uppercasing SQL keywords. Supports `--check` and `--in-place` modes. Also available as a [pre-commit hook](../guides/formatter.md). |
+
+### GUI
+
+| Feature             | Description                                                                                                                                             |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Textual TUI backend | Full terminal-UI backend via the `textual` library. Provides all dialog types (password, pause, message, entry, compare, action, etc.) in the terminal. |
+| Console fallback    | Text-only backend that handles GUI calls in headless environments by printing to stdout.                                                                |
+
+### Authentication
+
+| Feature                       | Description                                                                                                                                                                    |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| OS keyring integration        | When the `keyring` package is installed, passwords are stored in and retrieved from the OS credential store (macOS Keychain, Windows Credential Manager, Linux SecretService). |
+| Keyring retry on auth failure | If a stored password is rejected, the stale entry is deleted, the user is re-prompted, and the new password is saved automatically.                                            |
+
+### Logging Enhancements
+
+| Feature                       | Description                                                                        |
+| ----------------------------- | ---------------------------------------------------------------------------------- |
+| Per-event ISO 8601 timestamps | `status`, `connect`, `action`, and `user_msg` log entries include a timestamp.     |
+| Run duration in exit record   | The `exit` log record includes elapsed wall-clock time.                            |
+| Run ID millisecond precision  | Run identifier format changed from `%Y%m%d_%H%M_%S` to `%Y%m%d_%H%M_%S_NNN`.       |
+| SQL audit log record          | New `sql` record type containing DB name, line number, and query text.             |
+| Import progress log           | Periodic row-count status lines during IMPORT when `import_progress_interval > 0`. |
+
+### Developer / Packaging
+
+| Feature                     | Description                                                                                                     |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| VS Code syntax highlighting | Auto-generated `tmLanguage.json` grammar from the dispatch table.                                               |
+| `py.typed` marker           | PEP 561 marker enabling downstream static type checking.                                                        |
+| Structured keyword registry | `--dump-keywords` introspects the dispatch table and outputs JSON used by the grammar generator and test suite. |
+
+______________________________________________________________________
+
+## Changed Behavior
+
+### CLI Interface
+
+The CLI framework changed from `optparse` to [Typer](https://typer.tiangolo.com/) with Rich-formatted help text. All original short flags (`-a` through `-z`) are preserved. The tool can be invoked as either `execsql` or `execsql2`.
+
+### Internal State Management
+
+All 33 mutable runtime globals in `state.py` have been consolidated into a `RuntimeContext` object. The module uses a transparent proxy so existing code is unaffected, but the architecture now supports isolated contexts for testing and future concurrent execution.
+
+### Substitution Variables
+
+- **Cycle detection** — `substitute_vars()` raises an error after 100 iterations to prevent infinite loops when variables reference each other cyclically. Upstream had no protection.
+- **O(1) substitution** — Variable substitution uses a single combined regex and dict lookup instead of O(V) per-variable regex passes. Behavior is identical; performance is improved.
+
+### Database Adapters
+
+- **`Database` is an ABC** — `open_db()` and `exec_cmd()` are abstract methods. Subclasses that omit them raise `TypeError` at instantiation instead of at call time.
+- **Connection timeouts** — PostgreSQL and SQLite adapters accept a connection timeout parameter (default 30 seconds).
+- **DuckDB temporal types** — `TIMESTAMPTZ`, `TIMESTAMP`, `DATE`, `TIME` now map to native DuckDB types instead of `TEXT`.
+
+### Error Handling
+
+- **Exception hierarchy** — All custom exceptions inherit from `ExecSqlError`, enabling `except ExecSqlError` to catch any execsql-originated error.
+- **Exception chaining** — All `raise` statements inside `except` blocks preserve the original traceback via `from`.
+
+______________________________________________________________________
+
+## Security and Correctness Fixes
+
+These are behavioral changes driven by security or correctness issues in the upstream code.
+
+### Injection Fixes
+
+| Area                         | Fix                                                                                                                                                                                                  |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Database metadata queries    | `schema_exists()`, `table_exists()`, `column_exists()`, `table_columns()`, `view_exists()`, `role_exists()` across all 9 adapters now use parameterized queries. Upstream used string interpolation. |
+| `import_entire_file()`       | Column names are quoted with `quote_identifier()` instead of interpolated into INSERT statements.                                                                                                    |
+| PostgreSQL `CREATE DATABASE` | Database name and encoding are quoted. COPY delimiter and quote character are validated.                                                                                                             |
+| `$SHEETS_TABLES_VALUES`      | Sheet names from ODS/XLS imports are escaped before embedding in SQL.                                                                                                                                |
+| HTTP `Content-Disposition`   | Filename is sanitized to prevent HTTP response splitting in SERVE.                                                                                                                                   |
+
+### Template and Export Safety
+
+| Area              | Fix                                                                                                    |
+| ----------------- | ------------------------------------------------------------------------------------------------------ |
+| Jinja2 sandboxing | Templates run in `SandboxedEnvironment` instead of the default `jinja2.Template`.                      |
+| HTML export       | Column headers and cell values are escaped with `html.escape()` to prevent XSS.                        |
+| XML export        | Values are escaped with `xml.sax.saxutils.escape()`. Invalid XML element name characters are replaced. |
+| JSON export       | The `description` field uses `json.dumps()` instead of string interpolation.                           |
+
+### Credential and Logging Safety
+
+| Area                         | Fix                                                                                        |
+| ---------------------------- | ------------------------------------------------------------------------------------------ |
+| ODBC password redaction      | Connection strings in log output have `Pwd=***` substituted before logging.                |
+| `enc_password` documentation | Prominent warnings that XOR encryption is obfuscation only — keys are hardcoded in source. |
+
+### Bug Fixes
+
+| Area                              | Fix                                                                                                        |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Oracle default port               | Corrected from `5432` (PostgreSQL) to `1521`.                                                              |
+| MySQL `LOAD DATA INFILE` encoding | Python encoding names are now mapped to MySQL charset names.                                               |
+| `dt_cast` type converters         | Base `Database` class auto-populates 8 type converters that were previously left empty after the refactor. |
+| `FileWriter` CPU busy-loop        | Uses blocking `queue.get(timeout=0.1)` instead of `get_nowait()` in a tight loop.                          |
+| Substitution variable cycles      | 100-iteration limit prevents infinite loops on cyclic variable references.                                 |
+
+______________________________________________________________________
+
+## Removed Features
+
+| Feature                     | Reason                                                                                                                                                                                  |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Airspeed template processor | The `airspeed` library (Velocity clone) is unmaintained since ~2018. Use `FORMAT jinja` instead. The `airspeed` value for `template_processor` in `execsql.conf` is no longer accepted. |
+| Python 2 compatibility      | All Python 2 constructs (`stringtypes`, `u""` literals, `optparse`, etc.) have been removed. execsql2 requires Python 3.10+.                                                            |

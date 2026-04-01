@@ -147,6 +147,10 @@ ignore = [
     "UP017",  # Use datetime.UTC alias (not available in Python 3.10)
 ]
 
+[tool.ruff.lint.per-file-ignores]
+# F822: context attrs are proxied via __getattr__/__setattr__ on the module class, not defined as module-level variables
+"src/execsql/state.py" = ["F822"]
+
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
