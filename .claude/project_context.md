@@ -289,10 +289,21 @@ ______________________________________________________________________
 #### Scripting & Reliability
 
 - [ ] **`ON ERROR RETRY N`** — retry a failed SQL statement N times with exponential backoff. Handles transient network blips and lock timeouts in ETL scripts.
-- [ ] **Resumable scripts** — checkpoint after each statement to a state file. `execsql --resume script.sql` picks up where it left off. Huge for long ETL pipelines that fail mid-way.
 - [ ] **`DIFF` metacommand** — compare two query results non-interactively and write differences to a file or set `$DIFF_COUNT`. Unlike `PROMPT COMPARE` (which is GUI/interactive), DIFF is headless and scriptable — designed for CI pipelines, automated validation, and audit trails. Supports arbitrary queries, not just table names.
 - [x] **Script linting (`--lint`)** — parse and report common issues without executing: unmatched IF/ENDIF, unmatched LOOP/END LOOP, undefined variable references, missing INCLUDE files. (shipped v2.8.x)
-- [ ] **Run numbering (`$RUN_NUMBER`)** — persistent per-script run counter. Stores the count externally (e.g., `.execsql_runs.json` or SQLite state DB alongside the script) and exposes it as `!!$RUN_NUMBER!!` for use inside scripts. Useful for audit trails, incremental file naming (`output_!!$RUN_NUMBER!!.csv`), and conditional logic (`IF IS_GT($RUN_NUMBER, 1)` — skip first-run-only setup).
+
+#### Persistent State (`~/.execsql/state.db`)
+
+A central SQLite database at `~/.execsql/state.db` that tracks per-script
+state across runs. Cross-platform via `Path.home()`. Created automatically
+on first use. All features below depend on this infrastructure.
+
+- [ ] **State DB infrastructure** — `StateDB` class, schema creation, `~/.execsql/` directory management. Foundation for everything below.
+- [ ] **Run numbering (`$RUN_NUMBER`, `$LAST_RUN_TIME`, `$FIRST_RUN_TIME`)** — persistent per-script run counter and timestamps. Always-on, incremented each invocation. `--reset-run-number` CLI flag to reset. Useful for audit trails, incremental file naming (`output_!!$RUN_NUMBER!!.csv`), conditional first-run logic.
+- [ ] **Resumable scripts (`--checkpoint`)** — checkpoint after each statement. Auto-resumes on next `--checkpoint` run if checkpoint exists and script hash matches. Saves position, variables, and DB alias. Deletes checkpoint on successful completion.
+- [ ] **Run history (`--history`)** — log each run (start time, duration, exit status, commands run, script path) to a `run_history` table. `execsql --history script.sql` shows past runs. Useful for auditing and debugging intermittent failures.
+- [ ] **Persistent variables (`PERSIST` / `RECALL`)** — save substitution variables across runs. `-- !x! PERSIST $last_watermark` saves to state DB; next run `-- !x! RECALL $last_watermark` restores it. Enables incremental ETL (remember the last-processed timestamp/ID without external bookkeeping).
+- [ ] **Script scheduling metadata** — store cron-like schedule info per script. `execsql --schedule "0 2 * * *" script.sql` records intent. `execsql --list-schedules` shows all. Doesn't execute (that's cron/Task Scheduler's job) — just a registry so you can answer "what runs when?" from one place.
 
 #### Notifications & Integrations
 
