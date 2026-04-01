@@ -11,9 +11,14 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Added
+
+- Textual TUI `console_save()` — writes console output to a file, matching Tkinter parity.
+- Keyboard shortcut hints on Textual TUI dialog screens — Escape to cancel, Enter to submit, with `Footer` widget on all major dialog screens.
+
 ______________________________________________________________________
 
-## [2.5.0] - 2026-03-31
+## [2.5.0] - 2026-04-01
 
 ### Added
 

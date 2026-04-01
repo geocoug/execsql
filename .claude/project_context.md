@@ -252,21 +252,120 @@ the foreseeable future.
 | GitHub issue/PR templates + SECURITY.md           | 2.5.0          | 2026-04 |
 | Database ABC already in place (verified)          | 2.5.0          | 2026-04 |
 | Dispatch optimization already in place (verified) | 2.5.0          | 2026-04 |
+| PostgreSQL integration tests (9 tests, CI Docker) | 2.5.0          | 2026-04 |
+| MySQL integration tests (9 tests, CI Docker)      | 2.5.0          | 2026-04 |
 
 ______________________________________________________________________
 
+### v2.6 — Architecture & Internal Quality
+
+- [ ] **`state.py` → `RuntimeContext` refactor** — replace 38 module-level mutable globals with a `RuntimeContext` object threaded through execution. Prerequisite for concurrent execution, library API, and easier testing.
+- [ ] **`noqa` cleanup in `metacommands/__init__.py`** — eliminate 180 bulk `# noqa` suppressions via re-export restructuring.
+- [ ] **Coverage push to 90%** — raise floor from 80% to 90%, focusing on parser, type inference, and metacommand handlers.
+
+### v2.7 — New Export/Import Formats
+
+- [ ] **Parquet import** — complement existing Parquet export and Feather import. Natural fit with DuckDB support.
+- [ ] **YAML export** — popular for config-generation workflows; rounds out the format matrix.
+- [ ] **Markdown (GFM) export** — GitHub-flavored markdown tables. Lightweight and useful for docs/reports.
+- [ ] **Excel (XLSX) multi-sheet export** — multiple queries → multiple named sheets in one workbook, with basic formatting.
+
+### v2.8 — Scripting Power Features
+
+- [ ] **`ASSERT` metacommand** — `-- !x! ASSERT <condition> "message"`. Data validation for CI pipelines and sanity checks.
+- [ ] **`--dry-run` improvements** — show SQL with substitution variables expanded, not just raw metacommands.
+- [ ] **Script profiling (`--profile`)** — per-statement execution times, summary report at end. Leverages existing `Timer` infrastructure.
+- [ ] **Parallel execution blocks** — `PARALLEL BEGIN ... PARALLEL END` for independent statements. See design notes below.
+
+### v2.9 — Library API & Developer Experience
+
+- [ ] **Programmatic Python API** — `execsql.run(script, db=...)` for notebook/pipeline usage. Depends on `RuntimeContext` refactor.
+- [ ] **TOML configuration** — `execsql.toml` as modern alternative to legacy INI format (coexist initially).
+
+### v2.10 — Testing & CI Hardening
+
+- [ ] **Property-based testing (Hypothesis)** — for parsers, type inference, substitution variables.
+- [ ] **Parser fuzzing** — `CondParser` and `NumericParser` handle arbitrary user input; fuzz for edge cases.
+- [ ] **Nightly CI against latest DB driver versions** — catch upstream breakage in psycopg2, pymysql, duckdb, etc.
+- [ ] **CI benchmarks** — track substitution variable and dispatch performance over time.
+
+### v2.11 — Documentation & Community
+
+- [ ] **Cookbook / recipes page** — real-world examples: ETL workflows, HTML reports, data validation pipelines.
+- [ ] **Migration guide from upstream execsql** — what changed, what's new, how to switch.
+- [ ] **Interactive tutorial** — guided walkthrough script against a bundled SQLite DB.
+
 ### v3.0+ — Future
 
-- **Plugin system** — allow external packages to register exporters, importers, or metacommands
+- [ ] **Plugin system** — entry points for `execsql.exporters`, `execsql.importers`, `execsql.metacommands` allowing external packages to register new handlers.
+- [ ] **LSP / language server** — for the VS Code extension: autocomplete metacommands, validate substitution variables, jump-to-definition for `INCLUDE`d scripts.
 
 ______________________________________________________________________
 
 ### Ongoing / No-milestone
 
-- PostgreSQL integration tests (requires external server — CI docker service)
-- MySQL integration tests (same)
-- `savedscripts` memory pruning
 - Textual TUI polish
+
+______________________________________________________________________
+
+### Design Notes: Parallel Execution Blocks
+
+**Concept:** Allow users to declare groups of independent SQL statements that
+can run concurrently, reducing wall-clock time for ETL scripts with
+independent work.
+
+**Syntax:**
+```sql
+-- !x! PARALLEL BEGIN [WORKERS=4]
+INSERT INTO summary_a SELECT ... FROM raw_data;
+INSERT INTO summary_b SELECT ... FROM raw_data;
+INSERT INTO summary_c SELECT ... FROM raw_data;
+-- !x! PARALLEL END
+```
+
+**How it would work in the engine:**
+
+1. When `runscripts()` encounters `PARALLEL BEGIN`, the engine enters a
+   "collecting" mode (similar to how `LOOP` compiles commands into a
+   `CommandList` before executing). Statements are accumulated but not run.
+
+2. On `PARALLEL END`, the collected statements are dispatched to a
+   `concurrent.futures.ThreadPoolExecutor` (or `ProcessPoolExecutor`).
+   Each statement gets its own database cursor (or connection from
+   `DatabasePool`).
+
+3. The main `runscripts()` loop blocks at the `PARALLEL END` until all
+   futures complete. Errors from any worker are collected and raised as
+   a combined `ErrInfo`.
+
+**Key constraints and design decisions:**
+
+- **No shared mutable state inside parallel blocks.** Substitution variable
+  writes (`SET`), `IF/ELSE`, `LOOP`, `INCLUDE`, and other control-flow
+  metacommands are **prohibited** inside `PARALLEL` blocks — only raw SQL
+  and simple export metacommands are allowed. The parser rejects anything
+  else at compile time.
+
+- **Connection handling.** Each parallel worker needs its own cursor or
+  connection. `DatabasePool` already exists in `db/base.py` but currently
+  manages one connection per named alias. This would need a pool-per-alias
+  model (e.g., min/max connections) or each worker opens a fresh connection
+  from the same DSN.
+
+- **Depends on `RuntimeContext` refactor.** The current `state.py` globals
+  (especially `commandliststack`, `if_stack`, `subvars`) are not
+  thread-safe. Workers would need isolated read-only snapshots of
+  substitution variables and their own cursor state. The `RuntimeContext`
+  work in v2.6 is a prerequisite.
+
+- **`WORKERS=N`** defaults to `min(len(statements), os.cpu_count())`.
+  Configurable via the metacommand or `execsql.toml`.
+
+- **Transaction semantics.** Each statement runs in its own implicit
+  transaction (autocommit). If the user needs atomicity across the whole
+  block, they wrap it in `BEGIN BATCH ... END BATCH` outside the parallel
+  block — but that negates parallelism for most backends, so this is
+  mainly useful for independent ETL loads.
 
 ______________________________________________________________________
 

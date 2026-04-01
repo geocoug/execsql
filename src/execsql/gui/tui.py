@@ -101,6 +101,10 @@ def _button_row(button_list: list) -> list[Button]:
 class _BaseDialog(ModalScreen):
     """Common infrastructure for all execsql dialog screens."""
 
+    BINDINGS = [
+        Binding("escape", "cancel", "Cancel", show=True),
+    ]
+
     DEFAULT_CSS = """
     _BaseDialog {
         align: center middle;
@@ -151,6 +155,11 @@ class _BaseDialog(ModalScreen):
     def result(self) -> dict:
         return self._result
 
+    def action_cancel(self) -> None:
+        """Dismiss the dialog as cancelled (triggered by Escape key)."""
+        self._result = {"button": None, "cancelled": True}
+        self.dismiss(self._result)
+
     @on(Button.Pressed, "#btn_cancel_exit")
     def _on_cancel_exit(self, event: Button.Pressed) -> None:
         """Universal Cancel handler — dismisses with cancelled=True so the sync queue can exit."""
@@ -167,6 +176,11 @@ class _BaseDialog(ModalScreen):
 class MsgScreen(_BaseDialog):
     """Simple message dialog with Continue and Cancel buttons."""
 
+    BINDINGS = [
+        *_BaseDialog.BINDINGS,
+        Binding("enter", "submit", "Continue", show=True),
+    ]
+
     def compose(self) -> ComposeResult:
         title = self.args.get("title", "Message")
         message = self.args.get("message", "")
@@ -176,6 +190,12 @@ class MsgScreen(_BaseDialog):
             with Horizontal(id="buttons"):
                 yield Button("Cancel", id="btn_cancel_exit", variant="warning")
                 yield Button("Continue", id="btn_close", variant="primary")
+            yield Footer()
+
+    def action_submit(self) -> None:
+        """Continue the dialog (triggered by Enter key)."""
+        self._result = {"button": 1}
+        self.dismiss(self._result)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "btn_close":
@@ -191,6 +211,11 @@ class MsgScreen(_BaseDialog):
 class PauseScreen(_BaseDialog):
     """Pause dialog with optional countdown and Continue/Cancel buttons."""
 
+    BINDINGS = [
+        *_BaseDialog.BINDINGS,
+        Binding("enter", "submit", "Continue", show=True),
+    ]
+
     def compose(self) -> ComposeResult:
         title = self.args.get("title", "Pause")
         message = self.args.get("message", "")
@@ -200,6 +225,7 @@ class PauseScreen(_BaseDialog):
             with Horizontal(id="buttons"):
                 yield Button("Cancel", id="btn_cancel_exit", variant="warning")
                 yield Button("Continue", id="btn_continue", variant="primary")
+            yield Footer()
 
     def on_mount(self) -> None:
         countdown = self.args.get("countdown")
@@ -207,6 +233,11 @@ class PauseScreen(_BaseDialog):
             self.set_timer(float(countdown), self._auto_continue)
 
     def _auto_continue(self) -> None:
+        self._result = {"quit": False}
+        self.dismiss(self._result)
+
+    def action_submit(self) -> None:
+        """Continue the dialog (triggered by Enter key)."""
         self._result = {"quit": False}
         self.dismiss(self._result)
 
@@ -223,6 +254,11 @@ class PauseScreen(_BaseDialog):
 
 class DisplayScreen(_BaseDialog):
     """Data display dialog: title, message, optional table, optional text entry, buttons."""
+
+    BINDINGS = [
+        *_BaseDialog.BINDINGS,
+        Binding("enter", "submit", "Submit", show=True),
+    ]
 
     def compose(self) -> ComposeResult:
         title = self.args.get("title", "")
@@ -251,6 +287,23 @@ class DisplayScreen(_BaseDialog):
                 )
             with Horizontal(id="buttons"):
                 yield from _button_row(button_list)
+            yield Footer()
+
+    def action_submit(self) -> None:
+        """Submit the first primary button value (triggered by Enter key)."""
+        button_list = self.args.get("button_list", [("Continue", 1)])
+        # Find the first non-cancel button value.
+        value = None
+        for btn in button_list:
+            if btn[1]:
+                value = btn[1]
+                break
+        if value is None:
+            return
+        text_input = self.query_one("#text_input", Input) if self.args.get("textentry") else None
+        return_value = text_input.value if text_input else None
+        self._result = {"button": value, "return_value": return_value}
+        self.dismiss(self._result)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         btn_id = event.button.id
@@ -271,6 +324,11 @@ class DisplayScreen(_BaseDialog):
 
 class EntryFormScreen(_BaseDialog):
     """Multi-field entry form dialog."""
+
+    BINDINGS = [
+        *_BaseDialog.BINDINGS,
+        Binding("enter", "submit", "OK", show=True),
+    ]
 
     DEFAULT_CSS = (
         _BaseDialog.DEFAULT_CSS
@@ -337,8 +395,25 @@ class EntryFormScreen(_BaseDialog):
             with Horizontal(id="buttons"):
                 yield Button("Cancel", id="btn_cancel_exit", variant="warning")
                 yield Button("OK", id="btn_ok", variant="primary")
+            yield Footer()
 
         self._specs = specs
+
+    def action_submit(self) -> None:
+        """Submit the form (triggered by Enter key)."""
+        for spec in self._specs:
+            widget = self._inputs.get(spec.varname)
+            if widget is None:
+                continue
+            etype = (spec.entry_type or "text").lower()
+            if etype == "checkbox":
+                spec.value = "True" if widget.value else "False"
+            elif etype in ("dropdown", "select"):
+                spec.value = str(widget.value) if widget.value is not None else ""
+            else:
+                spec.value = widget.value
+        self._result = {"button": 1, "return_value": self._specs}
+        self.dismiss(self._result)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "btn_ok":
@@ -364,6 +439,11 @@ class EntryFormScreen(_BaseDialog):
 
 class CompareScreen(_BaseDialog):
     """Side-by-side table comparison dialog."""
+
+    BINDINGS = [
+        *_BaseDialog.BINDINGS,
+        Binding("enter", "submit", "Continue", show=True),
+    ]
 
     DEFAULT_CSS = (
         _BaseDialog.DEFAULT_CSS
@@ -412,6 +492,7 @@ class CompareScreen(_BaseDialog):
                     yield _make_table_widget("table2", headers2, rows2)
             with Horizontal(id="buttons"):
                 yield from _button_row(button_list)
+            yield Footer()
 
     def on_mount(self) -> None:
         keylist = [str(k) for k in self.args.get("keylist", [])]
@@ -461,6 +542,15 @@ class CompareScreen(_BaseDialog):
         finally:
             self._syncing = False
 
+    def action_submit(self) -> None:
+        """Submit the first primary button value (triggered by Enter key)."""
+        button_list = self.args.get("button_list", [("Continue", 1)])
+        for btn in button_list:
+            if btn[1]:
+                self._result = {"button": btn[1]}
+                self.dismiss(self._result)
+                return
+
     def on_button_pressed(self, event: Button.Pressed) -> None:
         btn_id = event.button.id
         if btn_id and btn_id.startswith("btn_") and btn_id[4:].isdigit():
@@ -477,6 +567,11 @@ class CompareScreen(_BaseDialog):
 
 class SelectRowsScreen(_BaseDialog):
     """Row selection dialog: pick rows from source table and add to target."""
+
+    BINDINGS = [
+        *_BaseDialog.BINDINGS,
+        Binding("enter", "submit", "Continue", show=True),
+    ]
 
     DEFAULT_CSS = (
         _BaseDialog.DEFAULT_CSS
@@ -516,6 +611,7 @@ class SelectRowsScreen(_BaseDialog):
                     yield _make_table_widget("dest_table", headers2, rows2)
             with Horizontal(id="buttons"):
                 yield from _button_row(button_list)
+            yield Footer()
 
     def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
         if event.data_table.id == "source_table":
@@ -524,6 +620,15 @@ class SelectRowsScreen(_BaseDialog):
             src: DataTable = self.query_one("#source_table", DataTable)
             values = [src.get_cell(row_key, col) for col in src.columns]
             dest.add_row(*values)
+
+    def action_submit(self) -> None:
+        """Submit the first primary button value (triggered by Enter key)."""
+        button_list = self.args.get("button_list", [("Continue", 1)])
+        for btn in button_list:
+            if btn[1]:
+                self._result = {"button": btn[1]}
+                self.dismiss(self._result)
+                return
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         btn_id = event.button.id
@@ -588,6 +693,10 @@ class SelectSubScreen(_BaseDialog):
 class ActionScreen(_BaseDialog):
     """Action button grid dialog."""
 
+    BINDINGS = [
+        *_BaseDialog.BINDINGS,
+    ]
+
     def compose(self) -> ComposeResult:
         title = self.args.get("title", "Actions")
         message = self.args.get("message", "")
@@ -609,6 +718,7 @@ class ActionScreen(_BaseDialog):
                     yield Button(f"{spec.label} — {spec.prompt}", id=f"action_{i}", variant="primary")
                 if include_continue:
                     yield Button("Continue", id="action_continue", variant="default")
+            yield Footer()
 
         self._button_specs = button_specs
 
@@ -1045,6 +1155,7 @@ class ConsoleApp(App):
         self._script_thread: threading.Thread | None = None
         self._script_exception: BaseException | None = None
         self._screen_map: dict | None = None
+        self._console_lines: list[str] = []
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=False)
@@ -1118,10 +1229,18 @@ class ConsoleApp(App):
         self.call_from_thread(self._append_console, text)
 
     def _append_console(self, text: str) -> None:
+        self._console_lines.append(text)
         try:
             self.query_one("#console_log", RichLog).write(text)
         except Exception:
             pass  # Widget may not be mounted yet.
+
+    def save(self, outfile: str, append: bool = False) -> None:
+        """Save the console text contents to *outfile*."""
+        mode = "a" if append else "w"
+        with open(outfile, mode, encoding="utf-8") as fh:
+            for line in self._console_lines:
+                fh.write(line if line.endswith("\n") else line + "\n")
 
     def set_status(self, msg: str) -> None:
         """Thread-safe status bar update."""
@@ -1198,6 +1317,19 @@ class TextualBackend(GuiBackend):
         if self._console_app is not None:
             pct = (num / total * 100.0) if total else num
             self._console_app.set_progress(pct)
+
+    def console_save(self, outfile: str, append: bool = False) -> None:
+        """Save console text contents to *outfile*."""
+        if self._console_app is not None:
+            self._console_app.save(outfile, append)
+
+    def console_hide(self) -> None:
+        """Hide the console (minimize) — Textual has no window-level hide,
+        so this is a no-op in a terminal environment."""
+
+    def console_show(self) -> None:
+        """Show the console — Textual has no window-level show,
+        so this is a no-op in a terminal environment."""
 
     def console_wait_user(self, message: str = "") -> None:
         # ConsoleApp exits when the script is done; nothing extra needed here.
