@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Added
+
+- Docstrings on 183 public API symbols across `db/`, `exporters/`, `importers/`, `config.py`, `models.py`, `types.py`, and `parser.py` — public API docstring coverage raised from 40% to 81%.
+
 ### Fixed
 
 - Corrected repo URL in `zensical.toml` — was pointing to `execsql2` instead of `execsql`.

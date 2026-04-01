@@ -58,6 +58,7 @@ class SqlServerDatabase(Database):
         )
 
     def open_db(self) -> None:
+        """Open a connection to the SQL Server database via pyodbc."""
         import pyodbc
 
         if self.conn is None:
@@ -138,6 +139,7 @@ class SqlServerDatabase(Database):
             self.conn.commit()
 
     def exec_cmd(self, querycommand: str) -> None:
+        """Execute a stored procedure by name."""
         # The querycommand must be a stored procedure
         curs = self.cursor()
         cmd = f"execute {querycommand};"
@@ -149,6 +151,7 @@ class SqlServerDatabase(Database):
             raise
 
     def schema_exists(self, schema_name: str) -> bool:
+        """Return True if the named schema exists in the SQL Server database."""
         curs = self.cursor()
         curs.execute("select * from sys.schemas where name = ?;", (schema_name,))
         rows = curs.fetchall()
@@ -156,6 +159,7 @@ class SqlServerDatabase(Database):
         return len(rows) > 0
 
     def role_exists(self, rolename: str) -> bool:
+        """Return True if the named role or principal exists in the SQL Server database."""
         curs = self.cursor()
         curs.execute(
             "select name from sys.database_principals where type in ('R', 'S') and name = ?;",
@@ -166,6 +170,7 @@ class SqlServerDatabase(Database):
         return len(rows) > 0
 
     def drop_table(self, tablename: str) -> None:
+        """Drop the named table from the SQL Server database."""
         # SQL Server and Firebird will throw an error if there are foreign keys to the table.
         tablename = self.type.quoted(tablename)
         self.execute(f"drop table {tablename};")
@@ -177,6 +182,7 @@ class SqlServerDatabase(Database):
         column_name: str,
         file_name: str,
     ) -> None:
+        """Import an entire binary file into a single column of a table."""
         import pyodbc
 
         with open(file_name, "rb") as f:

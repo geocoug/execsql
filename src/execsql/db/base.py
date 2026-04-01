@@ -70,6 +70,7 @@ class Database(ABC):
         port: int | None = None,
         encoding: str | None = None,
     ) -> None:
+        """Initialize common connection attributes for a database backend."""
         self.type = None
         self.server_name = server_name
         self.db_name = db_name
@@ -84,6 +85,7 @@ class Database(ABC):
         self.autocommit = True
 
     def __repr__(self) -> str:
+        """Return a developer-friendly string representation of this connection."""
         return (
             f"Database({self.server_name!r}, {self.db_name!r}, {self.user!r}, "
             f"{self.need_passwd!r}, {self.port!r}, {self.encoding!r})"
@@ -637,12 +639,14 @@ class DatabasePool:
     and with the current and initial databases identified."""
 
     def __init__(self) -> None:
+        """Initialize an empty connection pool with no active database."""
         self.pool: dict[str, Database] = {}
         self.initial_db: str | None = None
         self.current_db: str | None = None
         self.do_rollback: bool = True
 
     def __repr__(self) -> str:
+        """Return a string representation of the pool."""
         return "DatabasePool()"
 
     def add(self, db_alias: str, db_obj: Database) -> None:

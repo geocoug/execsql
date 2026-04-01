@@ -70,6 +70,7 @@ class PostgresDatabase(Database):
         )
 
     def open_db(self) -> None:
+        """Open a connection to the PostgreSQL database."""
         import psycopg2
 
         def db_conn(db: PostgresDatabase, db_name: str):
@@ -145,6 +146,7 @@ class PostgresDatabase(Database):
             self.encoding = self.conn.encoding
 
     def exec_cmd(self, querycommand: str) -> None:
+        """Execute a stored function by name."""
         # The querycommand must be a stored function (/procedure)
         curs = self.cursor()
         cmd = f"select {querycommand}()"
@@ -156,6 +158,7 @@ class PostgresDatabase(Database):
             raise
 
     def role_exists(self, rolename: str) -> bool:
+        """Return True if the named role exists in the PostgreSQL cluster."""
         curs = self.cursor()
         curs.execute("select rolname from pg_roles where rolname = %s;", (rolename,))
         rows = curs.fetchall()
@@ -163,6 +166,7 @@ class PostgresDatabase(Database):
         return len(rows) > 0
 
     def table_exists(self, table_name: str, schema_name: str | None = None) -> bool:
+        """Return True if the named table exists in the PostgreSQL database."""
         curs = self.cursor()
         if schema_name is not None:
             params: list = [table_name]
@@ -195,6 +199,7 @@ class PostgresDatabase(Database):
         return len(rows) > 0
 
     def view_exists(self, view_name: str, schema_name: str | None = None) -> bool:
+        """Return True if the named view exists in the PostgreSQL database."""
         curs = self.cursor()
         if schema_name is not None:
             params: list = [view_name]
@@ -227,6 +232,7 @@ class PostgresDatabase(Database):
         return len(rows) > 0
 
     def vacuum(self, argstring: str) -> None:
+        """Run VACUUM with the given arguments in autocommit mode."""
         self.commit()
         self.conn.set_session(autocommit=True)
         self.conn.cursor().execute(f"VACUUM {argstring};")
@@ -239,6 +245,7 @@ class PostgresDatabase(Database):
         csv_file_obj: Any,
         skipheader: bool,
     ) -> None:
+        """Import a delimited file into a PostgreSQL table, using COPY when possible."""
         # Import a file to a table.  Columns must be compatible.
         sq_name = self.schema_qualified_table_name(schema_name, table_name)
         if not self.table_exists(table_name, schema_name):
@@ -440,6 +447,7 @@ class PostgresDatabase(Database):
         column_name: str,
         file_name: str,
     ) -> None:
+        """Import an entire binary file into a single column of a table."""
         import psycopg2
 
         with open(file_name, "rb") as f:

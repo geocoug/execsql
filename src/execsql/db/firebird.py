@@ -59,6 +59,7 @@ class FirebirdDatabase(Database):
         )
 
     def open_db(self) -> None:
+        """Open a connection to the Firebird database."""
         import fdb as firebird_lib
 
         def db_conn():
@@ -113,6 +114,7 @@ class FirebirdDatabase(Database):
                 raise ErrInfo(type="exception", exception_msg=exception_desc(), other_msg=msg) from e
 
     def exec_cmd(self, querycommand: str) -> None:
+        """Execute a stored procedure by name."""
         # The querycommand must be a stored function (/procedure)
         curs = self.cursor()
         cmd = f"execute procedure {querycommand};"
@@ -124,6 +126,7 @@ class FirebirdDatabase(Database):
         _state.subvars.add_substitution("$LAST_ROWCOUNT", curs.rowcount)
 
     def table_exists(self, table_name: str, schema_name: str | None = None) -> bool:
+        """Return True if the named table exists in the Firebird database."""
         curs = self.cursor()
         sql = (
             "SELECT RDB$RELATION_NAME FROM RDB$RELATIONS "
@@ -156,6 +159,7 @@ class FirebirdDatabase(Database):
         column_name: str,
         schema_name: str | None = None,
     ) -> bool:
+        """Return True if the named column exists in the given Firebird table."""
         curs = self.cursor()
         quoted_col = self.quote_identifier(column_name)
         quoted_tbl = self.quote_identifier(table_name)
@@ -167,6 +171,7 @@ class FirebirdDatabase(Database):
         return True
 
     def table_columns(self, table_name: str, schema_name: str | None = None) -> list[str]:
+        """Return a list of column names for the given Firebird table."""
         curs = self.cursor()
         quoted_tbl = self.quote_identifier(table_name)
         sql = f"select first 1 * from {quoted_tbl};"
@@ -185,6 +190,7 @@ class FirebirdDatabase(Database):
         return [d[0] for d in curs.description]
 
     def view_exists(self, view_name: str, schema_name: str | None = None) -> bool:
+        """Return True if the named view exists in the Firebird database."""
         curs = self.cursor()
         sql = "select distinct rdb$view_name from rdb$view_relations where rdb$view_name = ?;"
         try:
@@ -204,9 +210,11 @@ class FirebirdDatabase(Database):
         return len(rows) > 0
 
     def schema_exists(self, schema_name: str) -> bool:
+        """Return False; Firebird does not support schemas."""
         return False
 
     def role_exists(self, rolename: str) -> bool:
+        """Return True if the named role or user exists in the Firebird database."""
         curs = self.cursor()
         curs.execute(
             "SELECT DISTINCT USER FROM RDB$USER_PRIVILEGES WHERE USER = ? union "
@@ -218,6 +226,7 @@ class FirebirdDatabase(Database):
         return len(rows) > 0
 
     def drop_table(self, tablename: str) -> None:
+        """Drop the named table from the Firebird database."""
         # Firebird will thrown an error if there are foreign keys into the table.
         tablename = self.type.quoted(tablename)
         self.execute(f"DROP TABLE {tablename};")

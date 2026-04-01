@@ -99,5 +99,6 @@ def importxls(
     junk_header_rows: int,
     encoding: str | None,
 ) -> None:
+    """Import an XLS or XLSX worksheet into a new or existing database table."""
     hdrs, data = xls_data(filename, sheetname, junk_header_rows, encoding)
     import_data_table(db, schemaname, tablename, is_new, hdrs, data)

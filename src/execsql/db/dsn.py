@@ -59,6 +59,7 @@ class DsnDatabase(Database):
         return f"DsnDatabase({self.db_name!r}, {self.user!r}, {self.need_passwd!r}, {self.port!r}, {self.encoding!r})"
 
     def open_db(self) -> None:
+        """Open an ODBC connection using the configured DSN."""
         # Open an ODBC connection using a DSN.
         import pyodbc
 
@@ -118,6 +119,7 @@ class DsnDatabase(Database):
             _try_connect()
 
     def exec_cmd(self, querycommand: str) -> None:
+        """Execute a stored procedure by name."""
         # The querycommand must be a stored procedure
         curs = self.cursor()
         cmd = f"execute {querycommand};"
@@ -135,6 +137,7 @@ class DsnDatabase(Database):
         column_name: str,
         file_name: str,
     ) -> None:
+        """Import an entire binary file into a single column of a table."""
         import pyodbc
 
         with open(file_name, "rb") as f:

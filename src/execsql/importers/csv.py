@@ -32,6 +32,7 @@ def importtable(
     encoding: str | None = None,
     junk_header_lines: int = 0,
 ) -> None:
+    """Import a delimited text file into a new or existing database table."""
     from execsql.utils.errors import exception_desc
 
     conf = _state.conf
@@ -104,6 +105,7 @@ def importfile(
     columname: str,
     filename: str,
 ) -> None:
+    """Import an entire file as a single value into a table column."""
     from execsql.utils.errors import exception_desc
 
     if schemaname is not None:

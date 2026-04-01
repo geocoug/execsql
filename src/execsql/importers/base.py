@@ -28,6 +28,7 @@ def import_data_table(
     hdrs: list[str],
     data: list[Any],
 ) -> None:
+    """Create (if needed) and populate a database table from in-memory row data."""
     from execsql.utils.errors import exception_desc
 
     conf = _state.conf

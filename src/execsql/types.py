@@ -70,6 +70,8 @@ __all__ = [
 
 
 class DataType:
+    """Abstract base class for all data-type matchers used during column inference."""
+
     data_type_name = None
     data_type = None
     lenspec = False  # Is a length specification required for a (SQL) declaration of this data type?
@@ -83,9 +85,11 @@ class DataType:
         return f"DataType({self.data_type_name!r}, {self.data_type!r})"
 
     def is_null(self, data: object) -> bool:
+        """Return True if the data value is None."""
         return data is None
 
     def matches(self, data: object) -> bool:
+        """Return True if the non-null data value could be of this data type."""
         # Returns T/F indicating whether the given data value could be of this data type.
         # The data value should be non-null.
         if self.is_null(data):
@@ -93,6 +97,7 @@ class DataType:
         return self._is_match(data)
 
     def from_data(self, data: object) -> object:
+        """Coerce the data value to this type or raise DataTypeError."""
         # Returns the data value coerced to this type, or raises a DataTypeError exception.
         # The data value should be non-null.
         if self.is_null(data):
@@ -123,16 +128,22 @@ class DataType:
 
 
 class Tz(datetime.tzinfo):
+    """Fixed-offset timezone implementation for timestamp-with-timezone parsing."""
+
     def __init__(self, sign: int, hr: int, min: int) -> None:
+        """Store the UTC offset as sign, hours, and minutes."""
         self.sign = sign
         self.hr = hr
         self.min = min
 
     def utcoffset(self, dt: object) -> datetime.timedelta:
+        """Return the UTC offset as a timedelta."""
         return self.sign * datetime.timedelta(hours=self.hr, minutes=self.min)
 
 
 class DT_TimestampTZ(DataType):
+    """Timezone-aware timestamp data type."""
+
     data_type_name = "timestamptz"
     data_type = datetime.datetime
     # There is no distinct Python type corresponding to a timestamptz, so the data_type
@@ -166,6 +177,8 @@ class DT_TimestampTZ(DataType):
 
 
 class DT_Timestamp(DataType):
+    """Naive timestamp (datetime without timezone) data type."""
+
     data_type_name = "timestamp"
     data_type = datetime.datetime
 
@@ -207,10 +220,13 @@ date_fmts = collections.deque(
 
 
 class DT_Date(DataType):
+    """Calendar date data type with multiple format recognition."""
+
     data_type_name = "date"
     data_type = datetime.date
 
     def __init__(self) -> None:
+        """Initialise the date format deque for adaptive format matching."""
         self._date_fmts = collections.deque(date_fmts)
 
     def __repr__(self) -> str:
@@ -239,6 +255,8 @@ class DT_Date(DataType):
 
 
 class DT_Time(DataType):
+    """Time-of-day data type with multiple format recognition."""
+
     data_type_name = "time"
     data_type = datetime.time
     time_fmts = (
@@ -288,6 +306,8 @@ class DT_Time_Oracle(DT_Time):
 
 
 class DT_Boolean(DataType):
+    """Boolean data type recognising word and integer true/false forms."""
+
     data_type_name = "boolean"
     data_type = bool
 
@@ -295,6 +315,7 @@ class DT_Boolean(DataType):
         return "DT_Boolean()"
 
     def set_bool_matches(self) -> None:
+        """Populate the true/false match tuples from the current configuration."""
         import execsql.state as _state
 
         conf = _state.conf
@@ -342,6 +363,8 @@ class DT_Boolean(DataType):
 
 
 class DT_Integer(DataType):
+    """Small integer data type bounded by the configured max_int."""
+
     data_type_name = "integer"
     data_type = int
 
@@ -391,6 +414,8 @@ class DT_Integer(DataType):
 
 
 class DT_Long(DataType):
+    """Large integer (bigint) data type using Python int."""
+
     data_type_name = "long"
     data_type = int  # In Python 3, long is just int
 
@@ -425,6 +450,8 @@ class DT_Long(DataType):
 
 
 class DT_Float(DataType):
+    """IEEE double-precision floating-point data type."""
+
     data_type_name = "float"
     data_type = float
 
@@ -463,6 +490,8 @@ class DT_Float(DataType):
 
 
 class DT_Decimal(DataType):
+    """Exact decimal data type tracking precision and scale."""
+
     data_type_name = "decimal"
     data_type = Decimal
     precspec = True
@@ -471,6 +500,7 @@ class DT_Decimal(DataType):
         return "DT_Decimal()"
 
     def set_scale_prec(self, dec: Decimal) -> None:
+        """Compute and store the precision and scale from a Decimal value."""
         # 'dec' should be Decimal.
         x = dec.as_tuple()
         digits = len(x.digits)
@@ -501,6 +531,8 @@ class DT_Decimal(DataType):
 
 
 class DT_Character(DataType):
+    """Fixed-length string data type (up to 255 characters)."""
+
     data_type_name = "character"
     lenspec = True
 
@@ -530,6 +562,8 @@ class DT_Character(DataType):
 
 
 class DT_Varchar(DataType):
+    """Variable-length string data type (up to 255 characters)."""
+
     data_type_name = "varchar"
     lenspec = True
     varlen = True
@@ -558,6 +592,8 @@ class DT_Varchar(DataType):
 
 
 class DT_Text(DataType):
+    """Unbounded text string data type."""
+
     data_type_name = "character"
 
     def __repr__(self) -> str:
@@ -581,6 +617,8 @@ class DT_Text(DataType):
 
 
 class DT_Binary(DataType):
+    """Binary byte-array data type."""
+
     data_type_name = "binary"
     data_type = bytearray
 
@@ -589,7 +627,10 @@ class DT_Binary(DataType):
 
 
 class DbType:
+    """Map Python DataType subclasses to DBMS-specific SQL type names."""
+
     def __init__(self, DBMS_id: str, db_obj_quotes: str = '""') -> None:
+        """Initialise a DBMS dialect with its identifier and quoting characters."""
         # The DBMS_id is the name by which this DBMS is identified.
         # db_obj_quotechars is a string of two characters that are the opening and closing quotes
         # for identifiers (schema, table, and column names) that need to be quoted.
@@ -621,6 +662,7 @@ class DbType:
         precision: object = None,
         scale: object = None,
     ) -> None:
+        """Register a DBMS-specific SQL type name for a DataType class."""
         # data_type is a DataType class object.
         # dbms_name is the DBMS-specific name for this data type.
         # length_required indicates whether length information is required.
@@ -631,6 +673,7 @@ class DbType:
         self.dialect[data_type] = (dbms_name, length_required, casting_name, conv_mod_fn, precision, scale)
 
     def datatype_name(self, data_type: object) -> str:
+        """Return the DBMS-specific SQL type name for the given DataType class."""
         # A convenience function to simplify access to data type names.
         try:
             return self.dialect[data_type][0]
@@ -642,6 +685,7 @@ class DbType:
             ) from e
 
     def quoted(self, dbms_object: str) -> str:
+        """Quote a database identifier if it contains non-word characters."""
         if re.search(r"\W", dbms_object):
             if self.quotechars[0] == self.quotechars[1] and self.quotechars[0] in dbms_object:
                 dbms_object = dbms_object.replace(self.quotechars[0], self.quotechars[0] + self.quotechars[0])
@@ -649,6 +693,7 @@ class DbType:
         return dbms_object
 
     def spec_type(self, data_type: object) -> object:
+        """Return the translated data type, or the original if no translation exists."""
         # Returns a translated data type or the original if there is no translation.
         if data_type in self.dt_xlate:
             return self.dt_xlate[data_type]
@@ -663,6 +708,7 @@ class DbType:
         precision: object = None,
         scale: object = None,
     ) -> str:
+        """Return a column specification string suitable for a CREATE TABLE statement."""
         # Returns a column specification as it would be used in a CREATE TABLE statement.
         data_type = self.spec_type(data_type)
         try:

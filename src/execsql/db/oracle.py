@@ -61,6 +61,7 @@ class OracleDatabase(Database):
         )
 
     def open_db(self) -> None:
+        """Open a connection to the Oracle database."""
         import cx_Oracle
 
         def db_conn(db: OracleDatabase, db_name: str):
@@ -104,6 +105,7 @@ class OracleDatabase(Database):
                 raise ErrInfo(type="exception", exception_msg=exception_desc(), other_msg=msg) from e
 
     def execute(self, sql: Any, paramlist: list | None = None) -> None:
+        """Execute a SQL command, stripping any trailing semicolon for Oracle."""
         # Strip any semicolon off the end and pass to the parent method.
         if sql[-1:] == ";":
             super().execute(sql[:-1], paramlist)
@@ -111,29 +113,34 @@ class OracleDatabase(Database):
             super().execute(sql, paramlist)
 
     def select_data(self, sql: str) -> tuple[list[str], list]:
+        """Return column names and all rows from a SELECT statement."""
         if sql[-1:] == ";":
             return super().select_data(sql[:-1])
         else:
             return super().select_data(sql)
 
     def select_rowsource(self, sql: str) -> Any:
+        """Return column names and an iterable that yields rows one at a time."""
         if sql[-1:] == ";":
             return super().select_rowsource(sql[:-1])
         else:
             return super().select_rowsource(sql)
 
     def select_rowdict(self, sql: str) -> Any:
+        """Return column names and an iterable that yields rows as dictionaries."""
         if sql[-1:] == ";":
             return super().select_rowdict(sql[:-1])
         else:
             return super().select_rowdict(sql)
 
     def schema_exists(self, schema_name: str) -> bool:
+        """Raise DatabaseNotImplementedError; schema_exists is not supported for Oracle."""
         from execsql.exceptions import DatabaseNotImplementedError
 
         raise DatabaseNotImplementedError(self.name(), "schema_exists")
 
     def table_exists(self, table_name: str, schema_name: str | None = None) -> bool:
+        """Return True if the named table exists in the Oracle database."""
         curs = self.cursor()
         params = {"tname": table_name}
         owner_clause = ""
@@ -163,6 +170,7 @@ class OracleDatabase(Database):
         column_name: str,
         schema_name: str | None = None,
     ) -> bool:
+        """Return True if the named column exists in the given Oracle table."""
         curs = self.cursor()
         params = {"tname": table_name, "cname": column_name}
         owner_clause = ""
@@ -187,6 +195,7 @@ class OracleDatabase(Database):
         return len(rows) > 0
 
     def table_columns(self, table_name: str, schema_name: str | None = None) -> list[str]:
+        """Return a list of column names for the given Oracle table."""
         curs = self.cursor()
         params = {"tname": table_name}
         owner_clause = ""
@@ -211,6 +220,7 @@ class OracleDatabase(Database):
         return [row[0] for row in rows]
 
     def view_exists(self, view_name: str, schema_name: str | None = None) -> bool:
+        """Return True if the named view exists in the Oracle database."""
         curs = self.cursor()
         params = {"vname": view_name}
         owner_clause = ""
@@ -235,6 +245,7 @@ class OracleDatabase(Database):
         return len(rows) > 0
 
     def role_exists(self, rolename: str) -> bool:
+        """Return True if the named role or user exists in the Oracle database."""
         curs = self.cursor()
         curs.execute(
             "select role from dba_roles where role = :rname union "
@@ -246,13 +257,16 @@ class OracleDatabase(Database):
         return len(rows) > 0
 
     def drop_table(self, tablename: str) -> None:
+        """Drop the named table with cascade constraints."""
         tablename = self.type.quoted(tablename)
         self.execute(f"drop table {tablename} cascade constraints")
 
     def paramsubs(self, paramcount: int) -> str:
+        """Return Oracle-style positional parameter placeholders (:1, :2, ...)."""
         return ",".join(":" + str(d) for d in range(1, paramcount + 1))
 
     def exec_cmd(self, querycommand: str) -> None:
+        """Execute a stored function by name."""
         # The querycommand must be a stored function (/procedure)
         curs = self.cursor()
         cmd = f"select {querycommand}()"

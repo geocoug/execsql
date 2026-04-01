@@ -24,6 +24,7 @@ def import_feather(
     filename: str,
     is_new: Any,
 ) -> None:
+    """Import an Apache Arrow Feather (IPC) file into a database table."""
     from execsql.utils.errors import exception_desc
 
     try:
@@ -47,6 +48,7 @@ def import_parquet(
     filename: str,
     is_new: Any,
 ) -> None:
+    """Import a Parquet file into a database table."""
     from execsql.utils.errors import exception_desc
 
     try:

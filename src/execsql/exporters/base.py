@@ -39,6 +39,7 @@ class ExportRecord:
         zipfile: str | None = None,
         description: str | None = None,
     ) -> None:
+        """Record export details for the given query name and output file."""
         self.exported = False
         # Record is a list of: table_or_query_name, filename, zipfilename, file_path, user_description, script_name,
         # script_path, script_line_no, script_datetime, database_name, database_server, user_name.
@@ -87,6 +88,7 @@ class ExportMetadata:
     ]
 
     def __init__(self) -> None:
+        """Initialise an empty record collection."""
         self.recordlist: list[ExportRecord] = []
 
     def add(self, exp_record: ExportRecord) -> None:

@@ -39,20 +39,26 @@ __all__ = [
 
 
 class SourceString:
+    """Cursor-based scanner over a raw string for token matching."""
+
     def __init__(self, source_string: str) -> None:
+        """Initialise the scanner at position zero of the given string."""
         self.str = source_string
         self.currpos = 0
 
     def eoi(self) -> bool:
+        """Return True if the entire source string has been consumed."""
         # Returns True or False indicating whether or not there is any of
         # the source string left to be consumed.
         return self.currpos >= len(self.str)
 
     def eat_whitespace(self) -> None:
+        """Advance the cursor past any whitespace at the current position."""
         while not self.eoi() and self.str[self.currpos] in [" ", "\t", "\n"]:
             self.currpos += 1
 
     def match_str(self, str: str) -> str | None:
+        """Match a string case-insensitively at the current position and advance."""
         # Tries to match the 'str' argument at the current position in the
         # source string.  Matching is case-insensitive.  If matching succeeds,
         # the matched string is returned and the internal pointer is incremented.
@@ -70,6 +76,7 @@ class SourceString:
                 return None
 
     def match_regex(self, regex: Any) -> dict | None:
+        """Match a compiled regex at the current position and return named groups."""
         # Tries to match the 'regex' argument at the current position in the
         # source string.  If it succeeds, a dictionary of all of the named
         # groups is returned, and the internal pointer is incremented.
@@ -85,6 +92,7 @@ class SourceString:
                 return None
 
     def match_metacommand(self, commandlist: Any) -> tuple | None:
+        """Match a metacommand from the command list at the current position."""
         # Tries to match text at the current position to any metacommand
         # in the specified commandlist.
         # If it succeeds, the return value is a tuple of the MetaCommand object
@@ -102,6 +110,7 @@ class SourceString:
                 return None
 
     def remainder(self) -> str:
+        """Return the unconsumed portion of the source string."""
         return self.str[self.currpos :]
 
 
@@ -109,10 +118,14 @@ class SourceString:
 
 
 class CondTokens:
+    """Integer constants for conditional-expression AST node types."""
+
     AND, OR, NOT, CONDITIONAL = range(4)
 
 
 class NumTokens:
+    """Integer constants for numeric-expression AST node types."""
+
     MUL, DIV, ADD, SUB, NUMBER = range(5)
 
 
@@ -120,7 +133,10 @@ class NumTokens:
 
 
 class CondAstNode(CondTokens):
+    """AST node for boolean expressions supporting AND, OR, NOT, and leaf conditionals."""
+
     def __init__(self, type: int, cond1: Any, cond2: Any) -> None:
+        """Create a conditional AST node with the given operator type and children."""
         # 'type' should be one of the constants AND, OR, NOT, CONDITIONAL.
         # For AND and OR types, 'cond1' and 'cond2' should be a subtree (a CondAstNode)
         # For NOT type, 'cond1' should be a CondAstNode and 'cond2' should be None
@@ -134,6 +150,7 @@ class CondAstNode(CondTokens):
             self.right = None
 
     def eval(self) -> bool:
+        """Evaluate this subtree and return a boolean result."""
         # Evaluates the subtrees and/or conditional value for this node,
         # returning True or False.
         if self.type == self.CONDITIONAL:
@@ -157,7 +174,10 @@ class CondAstNode(CondTokens):
 
 
 class NumericAstNode(NumTokens):
+    """AST node for arithmetic expressions supporting MUL, DIV, ADD, SUB, and NUMBER."""
+
     def __init__(self, type: int, value1: Any, value2: Any) -> None:
+        """Create a numeric AST node with the given operator type and operands."""
         # 'type' should be one of the constants MUL, DIV, ADD, SUB, OR NUMBER.
         # 'value1' and 'value2' should each be either a subtree (a
         # NumericAstNode) or (only 'value1' should be) a number.
@@ -169,6 +189,7 @@ class NumericAstNode(NumTokens):
             self.right = None
 
     def eval(self) -> Any:
+        """Evaluate this subtree and return a numeric result."""
         # Evaluates the subtrees and/or numeric value for this node,
         # returning a numeric value.
         if self.type == self.NUMBER:
@@ -190,12 +211,16 @@ class NumericAstNode(NumTokens):
 
 
 class CondParser(CondTokens):
+    """Recursive-descent parser for boolean conditional expressions."""
+
     # Takes a conditional expression string.
     def __init__(self, condexpr: str) -> None:
+        """Initialise the parser with the conditional expression string."""
         self.condexpr = condexpr
         self.cond_expr = SourceString(condexpr)
 
     def match_not(self) -> int | None:
+        """Match a NOT operator and return its token type, or None."""
         # Try to match 'NOT' operator. If not found, return None
         m1 = self.cond_expr.match_str("NOT")
         if m1 is not None:
@@ -203,6 +228,7 @@ class CondParser(CondTokens):
         return None
 
     def match_andop(self) -> int | None:
+        """Match an AND operator and return its token type, or None."""
         # Try to match 'AND' operator. If not found, return None
         m1 = self.cond_expr.match_str("AND")
         if m1 is not None:
@@ -210,6 +236,7 @@ class CondParser(CondTokens):
         return None
 
     def match_orop(self) -> int | None:
+        """Match an OR operator and return its token type, or None."""
         # Try to match 'OR' operator. If not found, return None
         m1 = self.cond_expr.match_str("OR")
         if m1 is not None:
@@ -217,6 +244,7 @@ class CondParser(CondTokens):
         return None
 
     def factor(self) -> Any:
+        """Parse a factor: NOT, a parenthesised expression, or a metacommand leaf."""
         m1 = self.match_not()
         if m1 is not None:
             m1 = self.factor()
@@ -244,6 +272,7 @@ class CondParser(CondTokens):
                 )
 
     def term(self) -> Any:
+        """Parse a term: a factor optionally followed by AND and another term."""
         m1 = self.factor()
         andop = self.match_andop()
         if andop is not None:
@@ -253,6 +282,7 @@ class CondParser(CondTokens):
             return m1
 
     def expression(self) -> Any:
+        """Parse an expression: a term optionally followed by OR and another expression."""
         e1 = self.term()
         orop = self.match_orop()
         if orop is not None:
@@ -262,6 +292,7 @@ class CondParser(CondTokens):
             return e1
 
     def parse(self) -> Any:
+        """Parse the entire conditional expression and return the AST root."""
         exp = self.expression()
         if not self.cond_expr.eoi():
             raise CondParserError(
@@ -274,13 +305,17 @@ class CondParser(CondTokens):
 
 
 class NumericParser(NumTokens):
+    """Recursive-descent parser for arithmetic numeric expressions."""
+
     # Takes a numeric expression string
     def __init__(self, numexpr: str) -> None:
+        """Initialise the parser with the numeric expression string."""
         self.num_expr = SourceString(numexpr)
         self.rxint = re.compile(r"(?P<int_num>[+-]?[0-9]+)")
         self.rxfloat = re.compile(r"(?P<float_num>[+-]?(?:(?:[0-9]*\.[0-9]+)|(?:[0-9]+\.[0-9]*)))")
 
     def match_number(self) -> Any | None:
+        """Match a float or integer literal and return its numeric value, or None."""
         # Try to match a number in the source string.
         # Return it if matched, return None if unmatched.
         m1 = self.num_expr.match_regex(self.rxfloat)
@@ -293,6 +328,7 @@ class NumericParser(NumTokens):
         return None
 
     def match_mulop(self) -> int | None:
+        """Match a multiplication or division operator and return its token type, or None."""
         # Try to match a multiplication or division operator in the source string.
         # if found, return the matching operator type.  If not found, return None.
         m1 = self.num_expr.match_str("*")
@@ -305,6 +341,7 @@ class NumericParser(NumTokens):
         return None
 
     def match_addop(self) -> int | None:
+        """Match an addition or subtraction operator and return its token type, or None."""
         # Try to match an addition or subtraction operator in the source string.
         # if found, return the matching operator type.  If not found, return None.
         m1 = self.num_expr.match_str("+")
@@ -317,6 +354,7 @@ class NumericParser(NumTokens):
         return None
 
     def factor(self) -> Any:
+        """Parse a numeric factor: a number literal or a parenthesised expression."""
         # Parses a factor out of the source string and returns the
         # AST node that is created.
         m1 = self.match_number()
@@ -338,6 +376,7 @@ class NumericParser(NumTokens):
                 )
 
     def term(self) -> Any:
+        """Parse a term: a factor optionally followed by MUL/DIV and another term."""
         # Parses a term out of the source string and returns the
         # AST node that is created.
         m1 = self.factor()
@@ -349,6 +388,7 @@ class NumericParser(NumTokens):
             return m1
 
     def expression(self) -> Any:
+        """Parse an expression: a term optionally followed by ADD/SUB and another expression."""
         # Parses an expression out of the source string and returns the
         # AST node that is created.
         e1 = self.term()
@@ -362,6 +402,7 @@ class NumericParser(NumTokens):
             return e1
 
     def parse(self) -> Any:
+        """Parse the entire numeric expression and return the AST root."""
         exp = self.expression()
         if not self.num_expr.eoi():
             raise NumericParserError(

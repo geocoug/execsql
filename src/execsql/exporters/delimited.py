@@ -118,6 +118,7 @@ class CsvWriter:
         escchar: str | None,
         append: bool = False,
     ) -> None:
+        """Open a file and prepare a delimited writer with the given format settings."""
         mode = "wt" if not append else "at"
         if filename.lower() == "stdout":
             self.output = sys.stdout
@@ -184,9 +185,12 @@ class CsvFile(EncodedFile):
         self.lineformat_set = True
 
     class CsvLine:
+        """Represent a single CSV line for delimiter diagnosis and parsing."""
+
         escchar = "\\"
 
         def __init__(self, line_text: str) -> None:
+            """Store the raw line text and prepare delimiter-count storage."""
             self.text = line_text
             self.delim_counts = {}
             self.item_errors = []  # A list of error messages.
@@ -202,6 +206,7 @@ class CsvFile(EncodedFile):
             )
 
         def count_delim(self, delim: str) -> None:
+            """Count occurrences of the given delimiter in the line text."""
             # If the delimiter is a space, consider multiple spaces to be equivalent
             # to a single delimiter, split on the space(s), and consider the delimiter
             # count to be one fewer than the items returned.
@@ -211,6 +216,7 @@ class CsvFile(EncodedFile):
                 self.delim_counts[delim] = self.text.count(delim)
 
         def delim_count(self, delim: str) -> int:
+            """Return the previously counted occurrence total for the given delimiter."""
             return self.delim_counts[delim]
 
         def _well_quoted(self, element: str, qchar: str):
@@ -239,9 +245,11 @@ class CsvFile(EncodedFile):
             return (False, True, False)
 
         def record_format_error(self, pos_no: int, errmsg: str) -> None:
+            """Append a parse error message annotated with its character position."""
             self.item_errors.append(f"{errmsg} in position {pos_no}.")
 
         def items(self, delim: str | None, qchar: str | None) -> Any:
+            """Parse the line into a list of items, splitting on unquoted delimiters."""
             # Parses the line into a list of items, breaking it at delimiters that are not
             # within quoted stretches.
             self.item_errors = []
@@ -348,6 +356,7 @@ class CsvFile(EncodedFile):
             return elements
 
         def well_quoted_line(self, delim: str | None, qchar: str | None):
+            """Return a tuple of (all-well-quoted, quote-usage-count, uses-escape-char)."""
             # Returns a tuple of boolean, int, and boolean
             wq = [self._well_quoted(el, qchar) for el in self.items(delim, qchar)]
             return (all(b[0] for b in wq), sum([b[1] for b in wq]), any(b[2] for b in wq))
@@ -358,6 +367,7 @@ class CsvFile(EncodedFile):
         possible_delimiters: list[str] | None = None,
         possible_quotechars: list[str] | None = None,
     ):
+        """Analyse a line stream and return the detected (delimiter, quote char, escape char) tuple."""
         # Returns a tuple consisting of the delimiter, quote character, and escape
         # character for quote characters within elements of a line.  All may be None.
         conf = _state.conf

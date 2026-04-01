@@ -50,6 +50,7 @@ class SQLiteDatabase(Database):
         return f"SQLiteDatabase({self.db_name!r})"
 
     def open_db(self) -> None:
+        """Open a connection to the SQLite database file."""
         import sqlite3
 
         if self.conn is None:
@@ -67,6 +68,7 @@ class SQLiteDatabase(Database):
         self.encoding = pragma_data[0][0]
 
     def exec_cmd(self, querycommand: str) -> None:
+        """Execute a query command as a view selection, since SQLite lacks stored procedures."""
         # SQLite does not support stored functions or views, so the querycommand
         # is treated as (and therefore must be) a view.
         curs = self.cursor()
@@ -79,6 +81,7 @@ class SQLiteDatabase(Database):
             raise
 
     def table_exists(self, table_name: str, schema_name: str | None = None) -> bool:
+        """Return True if the named table exists in the SQLite database."""
         curs = self.cursor()
         sql = "select name from sqlite_master where type='table' and name=?;"
         try:
@@ -102,10 +105,12 @@ class SQLiteDatabase(Database):
         column_name: str,
         schema_name: str | None = None,
     ) -> bool:
+        """Return True if the named column exists in the given SQLite table."""
         cols = self.table_columns(table_name, schema_name)
         return column_name in cols
 
     def table_columns(self, table_name: str, schema_name: str | None = None) -> list[str]:
+        """Return a list of column names for the given SQLite table."""
         curs = self.cursor()
         quoted_tbl = self.quote_identifier(table_name)
         sql = f"select * from {quoted_tbl} where 1=0;"
@@ -124,6 +129,7 @@ class SQLiteDatabase(Database):
         return [d[0] for d in curs.description]
 
     def view_exists(self, view_name: str) -> bool:
+        """Return True if the named view exists in the SQLite database."""
         curs = self.cursor()
         sql = "select name from sqlite_master where type='view' and name=?;"
         try:
@@ -142,9 +148,11 @@ class SQLiteDatabase(Database):
         return len(rows) > 0
 
     def schema_exists(self, schema_name: str) -> bool:
+        """Return False; SQLite does not support schemas."""
         return False
 
     def drop_table(self, tablename: str) -> None:
+        """Drop the named table from the SQLite database if it exists."""
         tablename = self.type.quoted(tablename)
         self.execute(f"drop table if exists {tablename};")
 
@@ -156,6 +164,7 @@ class SQLiteDatabase(Database):
         column_list: list[str],
         tablespec_src: Any,
     ) -> None:
+        """Populate a SQLite table from a row source generator."""
         # The rowsource argument must be a generator yielding a list of values for the columns of the table.
         # The column_list argument must an iterable containing column names in the same order as produced by the rowsource.
         sq_name = self.schema_qualified_table_name(None, table_name)
@@ -233,6 +242,7 @@ class SQLiteDatabase(Database):
         column_name: str,
         file_name: str,
     ) -> None:
+        """Import an entire binary file into a single column of a table."""
         import sqlite3
 
         with open(file_name, "rb") as f:

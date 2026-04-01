@@ -88,6 +88,7 @@ class AccessDatabase(Database):
         return f"AccessDatabase({self.db_name}, {self.encoding})"
 
     def open_db(self) -> None:
+        """Open an ODBC connection to the Access database."""
         # Open an ODBC connection.
         import pyodbc
 
@@ -136,6 +137,7 @@ class AccessDatabase(Database):
             )
 
     def open_dao(self) -> None:
+        """Open a DAO connection to the Access database."""
         import win32com.client
 
         if self.dao_conn is not None:
@@ -186,6 +188,7 @@ class AccessDatabase(Database):
             )
 
     def exec_dao(self, querystring: str) -> None:
+        """Execute a query using the DAO connection."""
         # Execute a query using DAO.
         if self.dao_conn is None:
             self.open_dao()
@@ -193,6 +196,7 @@ class AccessDatabase(Database):
         self.last_dao_time = time.time()
 
     def close(self) -> None:
+        """Close both the DAO and ODBC connections."""
         if self.dao_conn:
             for qn in self.temp_query_names:
                 try:
@@ -206,10 +210,13 @@ class AccessDatabase(Database):
             self.conn = None
 
     def dao_flush_check(self) -> None:
+        """Wait if needed for Jet's read buffer to flush after a DAO command."""
         if time.time() - self.last_dao_time < 5.0:
             time.sleep(5 - (time.time() - self.last_dao_time))
 
     def execute(self, sqlcmd: Any, paramlist: list | None = None) -> None:
+        """Execute a SQL command, handling encoding, DAO flush, and temporary queries."""
+
         # A shortcut to self.cursor().execute() that handles encoding and that
         # ensures that at least 5 seconds have passed since the last DAO command,
         # to allow Jet's read buffer to be flushed (see https://support.microsoft.com/en-us/kb/225048).
@@ -254,9 +261,11 @@ class AccessDatabase(Database):
             exec1(sqlcmd, paramlist)
 
     def exec_cmd(self, querycommand: str) -> None:
+        """Execute a stored query command via DAO."""
         self.exec_dao(querycommand)
 
     def select_data(self, sql: str) -> tuple[list[str], list]:
+        """Return column names and all rows from a SELECT statement."""
         # Returns the results of the sql select statement.
         # The Access driver returns data as unicode, so no decoding is necessary.
         self.dao_flush_check()
@@ -266,6 +275,7 @@ class AccessDatabase(Database):
         return [d[0] for d in curs.description], rows
 
     def select_rowsource(self, sql: str) -> tuple[list[str], Any]:
+        """Return column names and an iterable that yields rows one at a time."""
         # Return 1) a list of column names, and 2) an iterable that yields rows.
         self.dao_flush_check()
         curs = self.cursor()
@@ -274,6 +284,7 @@ class AccessDatabase(Database):
         return [d[0] for d in curs.description], iter(curs.fetchone, None)
 
     def select_rowdict(self, sql: str) -> tuple[list[str], Any]:
+        """Return column names and an iterable that yields rows as dictionaries."""
         # Return an iterable that yields dictionaries of row data.
         self.dao_flush_check()
         curs = self.cursor()
@@ -295,6 +306,7 @@ class AccessDatabase(Database):
         return headers, iter(dict_row, None)
 
     def table_exists(self, table_name: str, schema_name: str | None = None) -> bool:
+        """Return True if the named table exists in the Access database."""
         self.dao_flush_check()
         curs = self.cursor()
         try:
@@ -318,6 +330,7 @@ class AccessDatabase(Database):
         column_name: str,
         schema_name: str | None = None,
     ) -> bool:
+        """Return True if the named column exists in the given Access table."""
         self.dao_flush_check()
         curs = self.cursor()
         quoted_col = self.quote_identifier(column_name)
@@ -330,6 +343,7 @@ class AccessDatabase(Database):
         return True
 
     def table_columns(self, table_name: str, schema_name: str | None = None) -> list[str]:
+        """Return a list of column names for the given Access table."""
         self.dao_flush_check()
         curs = self.cursor()
         quoted_tbl = self.quote_identifier(table_name)
@@ -337,6 +351,7 @@ class AccessDatabase(Database):
         return [d[0] for d in curs.description]
 
     def view_exists(self, view_name: str, schema_name: str | None = None) -> bool:
+        """Return True if the named view or query exists in the Access database."""
         self.dao_flush_check()
         curs = self.cursor()
         try:
@@ -355,14 +370,17 @@ class AccessDatabase(Database):
         return len(rows) > 0
 
     def schema_exists(self, schema_name: str) -> bool:
+        """Return False; Access does not support schemas."""
         return False
 
     def drop_table(self, tablename: str) -> None:
+        """Drop the named table from the Access database."""
         self.dao_flush_check()
         tablename = self.type.quoted(tablename)
         self.execute(f"drop table {tablename};")
 
     def as_datetime(self, val: Any) -> datetime.datetime | None:
+        """Convert a value to a datetime object suitable for Access."""
         from execsql.types import DT_Timestamp, DT_Date, DT_Time, DataTypeError
 
         if val is None or (isinstance(val, _state.stringtypes) and len(val) == 0):
@@ -393,6 +411,7 @@ class AccessDatabase(Database):
             return v
 
     def int_or_bool(self, val: Any) -> int | None:
+        """Convert a value to an integer, recognizing Access boolean values."""
         # Because Booleans are stored as integers in Access (at least, if execsql
         # creates the table), we have to recognize Boolean values as legitimate
         # integers.
@@ -420,6 +439,7 @@ class AccessDatabase(Database):
         column_name: str,
         file_name: str,
     ) -> None:
+        """Import an entire binary file into a single column of a table."""
         import pyodbc
 
         with open(file_name, "rb") as f:

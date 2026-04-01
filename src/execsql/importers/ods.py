@@ -78,5 +78,6 @@ def importods(
     sheetname: str,
     junk_header_rows: int,
 ) -> None:
+    """Import an ODS worksheet into a new or existing database table."""
     hdrs, data = ods_data(filename, sheetname, junk_header_rows)
     import_data_table(db, schemaname, tablename, is_new, hdrs, data)

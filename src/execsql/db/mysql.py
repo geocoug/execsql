@@ -73,6 +73,7 @@ class MySQLDatabase(Database):
         )
 
     def open_db(self) -> None:
+        """Open a connection to the MySQL or MariaDB server."""
         import pymysql as mysql_lib
 
         def db_conn():
@@ -130,6 +131,7 @@ class MySQLDatabase(Database):
                 raise ErrInfo(type="exception", exception_msg=exception_desc(), other_msg=msg) from e
 
     def exec_cmd(self, querycommand: str) -> None:
+        """Execute a stored procedure by name."""
         # The querycommand must be a stored function (/procedure)
         curs = self.cursor()
         cmd = f"call {querycommand}();"
@@ -141,9 +143,11 @@ class MySQLDatabase(Database):
             raise
 
     def schema_exists(self, schema_name: str) -> bool:
+        """Return False; MySQL does not support schemas in the execsql sense."""
         return False
 
     def role_exists(self, rolename: str) -> bool:
+        """Return True if the named role or user exists in the MySQL server."""
         curs = self.cursor()
         curs.execute(
             "select distinct user as role from mysql.user where user = %s"
@@ -162,6 +166,7 @@ class MySQLDatabase(Database):
         csv_file_obj: Any,
         skipheader: bool,
     ) -> None:
+        """Import a delimited file into a MySQL table."""
         # Import a file to a table.  Columns must be compatible.
         sq_name = self.schema_qualified_table_name(schema_name, table_name)
         if not self.table_exists(table_name, schema_name):

@@ -26,10 +26,14 @@ class XlsFile:
         return "XlsFile()"
 
     class XlsLog:
+        """Capture xlrd warning messages as a list of strings."""
+
         def __init__(self) -> None:
+            """Initialise an empty message list."""
             self.log_msgs = []
 
         def write(self, msg: str) -> None:
+            """Append a log message to the internal list."""
             self.log_msgs.append(msg)
 
     def __init__(self) -> None:
@@ -161,10 +165,14 @@ class XlsxFile:
         return "XlsxFile()"
 
     class XlsxLog:
+        """Capture openpyxl warning messages as a list of strings."""
+
         def __init__(self) -> None:
+            """Initialise an empty message list."""
             self.log_msgs = []
 
         def write(self, msg: str) -> None:
+            """Append a log message to the internal list."""
             self.log_msgs.append(msg)
 
     def __init__(self) -> None:

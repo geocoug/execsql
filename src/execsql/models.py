@@ -49,13 +49,18 @@ __all__ = [
 
 
 class Column:
+    """Compile data-type match statistics for a single column of imported data."""
+
     # Column objects are used to compile information about the data types that a set of data
     # values may match.  A Column object is intended to be used to identify the data type of a column
     # when scanning a data stream (such as a CSV file) to create a new data table.
 
     class Accum:
+        """Accumulate match counts and length statistics for a single data type."""
+
         # Accumulates the count of matches for each data type, plus the maximum length if appropriate.
         def __init__(self, data_type_obj: DataType) -> None:
+            """Initialise the accumulator for the given data type."""
             self.dt = data_type_obj
             self.failed = False
             self.count = 0
@@ -72,6 +77,7 @@ class Column:
             )
 
         def check(self, datavalue: Any) -> None:
+            """Test whether a non-null value matches this data type and update statistics."""
             # datavalue must be non-null
             if not self.failed:
                 is_match = self.dt.matches(datavalue)
@@ -105,6 +111,7 @@ class Column:
                     self.failed = True
 
     def __init__(self, colname: str) -> None:
+        """Create a column characteriser for the named column."""
         from execsql.exceptions import ErrInfo
         import execsql.state as _state
 
@@ -150,6 +157,7 @@ class Column:
         return f"Column({self.name!r})"
 
     def eval_types(self, column_value: Any) -> None:
+        """Evaluate which data types the value matches and update counters."""
         # Evaluate which data type(s) the value matches, and increment the appropriate counter(s).
         import execsql.state as _state
 
@@ -170,6 +178,7 @@ class Column:
             dt.check(column_value)
 
     def column_type(self) -> tuple:
+        """Return the inferred type of this column as a 6-tuple."""
         # Return the type of this column as a tuple of:
         #   column name, data type class, max length or None, bool for null values,
         #   precision or None, scale or None.
@@ -212,7 +221,10 @@ class Column:
 
 
 class DataTable:
+    """Scan a row source and infer column types for CREATE TABLE generation."""
+
     def __init__(self, column_names: list[str], rowsource: Any) -> None:
+        """Scan all rows from the source and infer a column type for each column."""
         import execsql.state as _state
 
         self.inputrows = 0  # Total number of rows in the row source.
@@ -264,6 +276,7 @@ class DataTable:
         return f"DataTable({[col.name for col in self.cols]!r}, rowsource)"
 
     def column_declarations(self, database_type: DbType) -> list[str]:
+        """Return a list of SQL column-declaration strings for the given DBMS."""
         # Returns a list of column specifications.
         spec = []
         for col in self.cols:
@@ -277,6 +290,7 @@ class DataTable:
         tablename: str,
         pretty: bool = False,
     ) -> str:
+        """Generate a CREATE TABLE statement for the given DBMS and table name."""
         tb = (
             f"{database_type.quoted(schemaname)}.{database_type.quoted(tablename)}"
             if schemaname
@@ -292,7 +306,10 @@ class DataTable:
 
 
 class JsonDatatype:
+    """Namespace mapping Python DataType subclasses to JSON Schema type strings."""
+
     def __init__(self) -> None:
+        """Create an empty JsonDatatype namespace instance."""
         pass
 
 

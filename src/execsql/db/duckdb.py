@@ -45,6 +45,7 @@ class DuckDBDatabase(Database):
         return f"DuckDBDatabase({self.db_name!r})"
 
     def open_db(self) -> None:
+        """Open a connection to the DuckDB database file."""
         import duckdb
 
         if self.conn is None:
@@ -60,6 +61,7 @@ class DuckDBDatabase(Database):
                 ) from e
 
     def exec_cmd(self, querycommand: str) -> None:
+        """Execute a query command as a view selection, since DuckDB lacks stored procedures."""
         # DuckDB does not support stored functions, so the querycommand
         # is treated as (and therefore must be) a view.
         curs = self.cursor()
@@ -72,10 +74,12 @@ class DuckDBDatabase(Database):
             raise
 
     def view_exists(self, view_name: str) -> bool:
+        """Return True if the named view exists in the DuckDB database."""
         # DuckDB information_schema has no 'views' table; views are listed in 'tables'
         return self.table_exists(view_name)
 
     def schema_exists(self, schema_name: str) -> bool:
+        """Return True if the named schema exists in the current DuckDB catalog."""
         # In DuckDB, the 'schemata' view is not limited to the current database.
         curs = self.cursor()
         curs.execute(
