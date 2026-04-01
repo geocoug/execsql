@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.7.1] - 2026-04-01
+
 ### Fixed
 
 - Fix `AttributeError: module 'execsql.state' has no attribute 'dedup_words'` when importing CSV files with `DEDUP_COL_HDRS` enabled — `dedup_words` is now correctly imported from `execsql.utils.strings` instead of accessed through the state module.
