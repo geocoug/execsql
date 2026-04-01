@@ -282,7 +282,7 @@ ______________________________________________________________________
 #### Quick Wins
 
 - [ ] **`--ping`** — test database connectivity and exit with a status message. Useful for CI health checks and connection debugging.
-- [ ] **`SUB_FILE` metacommand** — load substitution variables from a `.env` or YAML file. `-- !x! SUB_FILE vars.env`. Avoids long `-a` chains on the command line.
+- ~~`SUB_FILE`~~ — redundant with existing `SUB_INI` metacommand which already loads variables from INI-format files.
 - [ ] **`WRITE TABLE` metacommand** — pretty-print a query result to the console as a formatted table (like `psql` output). Quick debugging aid without needing a full EXPORT.
 - [ ] **`--env` / `--config` flag** — load a specific config file by path instead of relying on the search hierarchy. `execsql --env prod.conf script.sql`.
 
@@ -290,7 +290,7 @@ ______________________________________________________________________
 
 - [ ] **`ON ERROR RETRY N`** — retry a failed SQL statement N times with exponential backoff. Handles transient network blips and lock timeouts in ETL scripts.
 - [ ] **Resumable scripts** — checkpoint after each statement to a state file. `execsql --resume script.sql` picks up where it left off. Huge for long ETL pipelines that fail mid-way.
-- [ ] **`DIFF` metacommand** — compare two query results and report added/removed/changed rows. `-- !x! DIFF "SELECT * FROM staging" "SELECT * FROM prod" TO diff.csv`. Data validation and migration verification.
+- [ ] **`DIFF` metacommand** — compare two query results non-interactively and write differences to a file or set `$DIFF_COUNT`. Unlike `PROMPT COMPARE` (which is GUI/interactive), DIFF is headless and scriptable — designed for CI pipelines, automated validation, and audit trails. Supports arbitrary queries, not just table names.
 - [ ] **Script linting (`--lint`)** — parse and report common issues without executing: unmatched IF/ENDIF, unmatched LOOP/END LOOP, undefined variable references, missing INCLUDE files.
 
 #### Notifications & Integrations

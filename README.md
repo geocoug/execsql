@@ -111,6 +111,7 @@ execsql script.sql                          # read connection from config file
 | `-w`                                | Skip password prompt when a username is supplied                |
 | `--dsn URL`                         | Connection string (e.g. `postgresql://user:pass@host/db`)       |
 | `--dry-run`                         | Parse the script and report commands without executing          |
+| `--lint`                            | Static analysis: check structure and warn on issues (no DB)     |
 | `--progress`                        | Show a progress bar for long-running IMPORT operations          |
 | `--dump-keywords`                   | Print metacommand keywords as JSON and exit                     |
 | `--gui-framework {tkinter,textual}` | GUI framework for interactive prompts                           |
