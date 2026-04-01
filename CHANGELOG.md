@@ -14,6 +14,7 @@ ______________________________________________________________________
 ### Added
 
 - Docstrings on 183 public API symbols across `db/`, `exporters/`, `importers/`, `config.py`, `models.py`, `types.py`, and `parser.py` — public API docstring coverage raised from 40% to 81%.
+- Developer architecture guide (`docs/dev/architecture.md`) — high-level design overview with Mermaid diagrams covering execution flow, module map, command stack, metacommand dispatch, conditionals, substitution variables, database abstraction, export/import pipeline, GUI subsystem, and global state.
 
 ### Fixed
 

@@ -32,6 +32,7 @@ nav = [
         { "Examples" = "guides/examples.md" }
     ] },
     { "Contributing" = [
+        { "Architecture" = "dev/architecture.md" },
         { "Adding Metacommands" = "dev/adding_metacommands.md" },
         { "Adding Exporters" = "dev/adding_exporters.md" },
         { "Adding Database Adapters" = "dev/adding_db_adapters.md" },

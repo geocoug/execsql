@@ -4,6 +4,8 @@ The pages in this section are auto-generated from the source docstrings and show
 
 If you want to **extend** execsql — add a new exporter format, support a new database, or add an importer for a file type — start with the Contributing guides, which give you step-by-step walkthroughs and copy-paste skeletons. The API pages here serve as the detailed reference those guides link to.
 
+For a high-level overview of how all the pieces fit together, start with the [Architecture & Design Guide](../dev/architecture.md).
+
 | Extension type       | Guide                                                    | API reference                   |
 | -------------------- | -------------------------------------------------------- | ------------------------------- |
 | New export format    | [Adding Exporters](../dev/adding_exporters.md)           | [Exporters](exporters.md)       |
