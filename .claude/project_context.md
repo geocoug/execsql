@@ -277,25 +277,47 @@ ______________________________________________________________________
 - [x] **Script profiling (`--profile`)** — per-statement `perf_counter()` timing with sorted summary table. 19 tests.
 - ~~**Parallel execution blocks**~~ — deferred to v3.0+. See design notes and deferral rationale below.
 
-### v2.9 — Library API & Developer Experience
+### Candidate Features (unscheduled — pick and assign to milestones)
 
-- [ ] **Programmatic Python API** — `execsql.run(script, db=...)` for notebook/pipeline usage. Depends on `RuntimeContext` refactor.
+#### Quick Wins
+
+- [ ] **`--ping`** — test database connectivity and exit with a status message. Useful for CI health checks and connection debugging.
+- [ ] **`SUB_FILE` metacommand** — load substitution variables from a `.env` or YAML file. `-- !x! SUB_FILE vars.env`. Avoids long `-a` chains on the command line.
+- [ ] **`WRITE TABLE` metacommand** — pretty-print a query result to the console as a formatted table (like `psql` output). Quick debugging aid without needing a full EXPORT.
+- [ ] **`--env` / `--config` flag** — load a specific config file by path instead of relying on the search hierarchy. `execsql --env prod.conf script.sql`.
+
+#### Scripting & Reliability
+
+- [ ] **`ON ERROR RETRY N`** — retry a failed SQL statement N times with exponential backoff. Handles transient network blips and lock timeouts in ETL scripts.
+- [ ] **Resumable scripts** — checkpoint after each statement to a state file. `execsql --resume script.sql` picks up where it left off. Huge for long ETL pipelines that fail mid-way.
+- [ ] **`DIFF` metacommand** — compare two query results and report added/removed/changed rows. `-- !x! DIFF "SELECT * FROM staging" "SELECT * FROM prod" TO diff.csv`. Data validation and migration verification.
+- [ ] **Script linting (`--lint`)** — parse and report common issues without executing: unmatched IF/ENDIF, unmatched LOOP/END LOOP, undefined variable references, missing INCLUDE files.
+
+#### Notifications & Integrations
+
+- [ ] **Webhook notifications** — `ON ERROR_HALT WEBHOOK "https://..."` and `ON COMPLETE WEBHOOK "https://..."`. Like the existing `ON ERROR_HALT EMAIL` but for Slack/Teams/PagerDuty. More relevant than email in 2026.
+- [ ] **HTTP/REST export** — `EXPORT QUERY ... TO POST "https://api.example.com/data" AS JSON`. POST query results directly to a webhook or API endpoint.
+
+#### Developer Experience
+
+- [ ] **Programmatic Python API** — `execsql.run(script, db=...)` for notebook/pipeline usage. Each call gets its own isolated `RuntimeContext`.
 - [ ] **TOML configuration** — `execsql.toml` as modern alternative to legacy INI format (coexist initially).
+- [ ] **Colorized SQL in console output** — syntax-highlight SQL statements in WRITE, dry-run, and error output via Rich/Pygments.
 
-### v2.10 — Testing & CI Hardening
+#### Testing & CI Hardening
 
 - [ ] **Property-based testing (Hypothesis)** — for parsers, type inference, substitution variables.
 - [ ] **Parser fuzzing** — `CondParser` and `NumericParser` handle arbitrary user input; fuzz for edge cases.
 - [ ] **Nightly CI against latest DB driver versions** — catch upstream breakage in psycopg2, pymysql, duckdb, etc.
 - [ ] **CI benchmarks** — track substitution variable and dispatch performance over time.
 
-### v2.11 — Documentation & Community
+#### Documentation & Community
 
-- [ ] **Cookbook / recipes page** — real-world examples: ETL workflows, HTML reports, data validation pipelines.
+- [ ] **Cookbook / recipes page** — real-world examples: ETL workflows, HTML reports, data validation pipelines, CI integration.
 - [ ] **Migration guide from upstream execsql** — what changed, what's new, how to switch.
 - [ ] **Interactive tutorial** — guided walkthrough script against a bundled SQLite DB.
 
-### v3.0+ — Future
+#### v3.0+ — Major Features
 
 - [ ] **Parallel execution blocks** — `PARALLEL BEGIN ... PARALLEL END` for independent statements. See design notes and deferral rationale below.
 - [ ] **Plugin system** — entry points for `execsql.exporters`, `execsql.importers`, `execsql.metacommands` allowing external packages to register new handlers.
