@@ -133,14 +133,14 @@ class MySQLDatabase(Database):
     def exec_cmd(self, querycommand: str) -> None:
         """Execute a stored procedure by name."""
         # The querycommand must be a stored function (/procedure)
-        curs = self.cursor()
-        cmd = f"call {querycommand}();"
-        try:
-            curs.execute(cmd)
-            _state.subvars.add_substitution("$LAST_ROWCOUNT", curs.rowcount)
-        except Exception:
-            self.rollback()
-            raise
+        with self._cursor() as curs:
+            cmd = f"call {querycommand}();"
+            try:
+                curs.execute(cmd)
+                _state.subvars.add_substitution("$LAST_ROWCOUNT", curs.rowcount)
+            except Exception:
+                self.rollback()
+                raise
 
     def schema_exists(self, schema_name: str) -> bool:
         """Return False; MySQL does not support schemas in the execsql sense."""

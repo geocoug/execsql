@@ -64,14 +64,14 @@ class DuckDBDatabase(Database):
         """Execute a query command as a view selection, since DuckDB lacks stored procedures."""
         # DuckDB does not support stored functions, so the querycommand
         # is treated as (and therefore must be) a view.
-        curs = self.cursor()
-        cmd = f"select * from {querycommand};"
-        try:
-            curs.execute(cmd.encode(self.encoding))
-            _state.subvars.add_substitution("$LAST_ROWCOUNT", curs.rowcount)
-        except Exception:
-            self.rollback()
-            raise
+        with self._cursor() as curs:
+            cmd = f"select * from {querycommand};"
+            try:
+                curs.execute(cmd.encode(self.encoding))
+                _state.subvars.add_substitution("$LAST_ROWCOUNT", curs.rowcount)
+            except Exception:
+                self.rollback()
+                raise
 
     def view_exists(self, view_name: str) -> bool:
         """Return True if the named view exists in the DuckDB database."""

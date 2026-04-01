@@ -141,14 +141,14 @@ class SqlServerDatabase(Database):
     def exec_cmd(self, querycommand: str) -> None:
         """Execute a stored procedure by name."""
         # The querycommand must be a stored procedure
-        curs = self.cursor()
-        cmd = f"execute {querycommand};"
-        try:
-            curs.execute(cmd.encode(self.encoding))
-            _state.subvars.add_substitution("$LAST_ROWCOUNT", curs.rowcount)
-        except Exception:
-            self.rollback()
-            raise
+        with self._cursor() as curs:
+            cmd = f"execute {querycommand};"
+            try:
+                curs.execute(cmd.encode(self.encoding))
+                _state.subvars.add_substitution("$LAST_ROWCOUNT", curs.rowcount)
+            except Exception:
+                self.rollback()
+                raise
 
     def schema_exists(self, schema_name: str) -> bool:
         """Return True if the named schema exists in the SQL Server database."""

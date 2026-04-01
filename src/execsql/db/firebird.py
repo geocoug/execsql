@@ -116,14 +116,14 @@ class FirebirdDatabase(Database):
     def exec_cmd(self, querycommand: str) -> None:
         """Execute a stored procedure by name."""
         # The querycommand must be a stored function (/procedure)
-        curs = self.cursor()
-        cmd = f"execute procedure {querycommand};"
-        try:
-            curs.execute(cmd)
-        except Exception:
-            self.rollback()
-            raise
-        _state.subvars.add_substitution("$LAST_ROWCOUNT", curs.rowcount)
+        with self._cursor() as curs:
+            cmd = f"execute procedure {querycommand};"
+            try:
+                curs.execute(cmd)
+            except Exception:
+                self.rollback()
+                raise
+            _state.subvars.add_substitution("$LAST_ROWCOUNT", curs.rowcount)
 
     def table_exists(self, table_name: str, schema_name: str | None = None) -> bool:
         """Return True if the named table exists in the Firebird database."""

@@ -268,11 +268,11 @@ class OracleDatabase(Database):
     def exec_cmd(self, querycommand: str) -> None:
         """Execute a stored function by name."""
         # The querycommand must be a stored function (/procedure)
-        curs = self.cursor()
-        cmd = f"select {querycommand}()"
-        try:
-            curs.execute(cmd)
-            _state.subvars.add_substitution("$LAST_ROWCOUNT", curs.rowcount)
-        except Exception:
-            self.rollback()
-            raise
+        with self._cursor() as curs:
+            cmd = f"select {querycommand}()"
+            try:
+                curs.execute(cmd)
+                _state.subvars.add_substitution("$LAST_ROWCOUNT", curs.rowcount)
+            except Exception:
+                self.rollback()
+                raise

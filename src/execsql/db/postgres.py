@@ -148,14 +148,14 @@ class PostgresDatabase(Database):
     def exec_cmd(self, querycommand: str) -> None:
         """Execute a stored function by name."""
         # The querycommand must be a stored function (/procedure)
-        curs = self.cursor()
-        cmd = f"select {querycommand}()"
-        try:
-            curs.execute(cmd)
-            _state.subvars.add_substitution("$LAST_ROWCOUNT", curs.rowcount)
-        except Exception:
-            self.rollback()
-            raise
+        with self._cursor() as curs:
+            cmd = f"select {querycommand}()"
+            try:
+                curs.execute(cmd)
+                _state.subvars.add_substitution("$LAST_ROWCOUNT", curs.rowcount)
+            except Exception:
+                self.rollback()
+                raise
 
     def role_exists(self, rolename: str) -> bool:
         """Return True if the named role exists in the PostgreSQL cluster."""
@@ -235,7 +235,11 @@ class PostgresDatabase(Database):
         """Run VACUUM with the given arguments in autocommit mode."""
         self.commit()
         self.conn.set_session(autocommit=True)
-        self.conn.cursor().execute(f"VACUUM {argstring};")
+        curs = self.conn.cursor()
+        try:
+            curs.execute(f"VACUUM {argstring};")
+        finally:
+            curs.close()
         self.conn.set_session(autocommit=False)
 
     def import_tabular_file(

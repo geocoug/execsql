@@ -71,14 +71,14 @@ class SQLiteDatabase(Database):
         """Execute a query command as a view selection, since SQLite lacks stored procedures."""
         # SQLite does not support stored functions or views, so the querycommand
         # is treated as (and therefore must be) a view.
-        curs = self.cursor()
-        cmd = f"select * from {querycommand};"
-        try:
-            curs.execute(cmd.encode(self.encoding))
-            _state.subvars.add_substitution("$LAST_ROWCOUNT", curs.rowcount)
-        except Exception:
-            self.rollback()
-            raise
+        with self._cursor() as curs:
+            cmd = f"select * from {querycommand};"
+            try:
+                curs.execute(cmd.encode(self.encoding))
+                _state.subvars.add_substitution("$LAST_ROWCOUNT", curs.rowcount)
+            except Exception:
+                self.rollback()
+                raise
 
     def table_exists(self, table_name: str, schema_name: str | None = None) -> bool:
         """Return True if the named table exists in the SQLite database."""
