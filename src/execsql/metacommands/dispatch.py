@@ -107,6 +107,7 @@ from execsql.metacommands.io import (
     x_export_metadata,
     x_export_metadata_table,
     x_export_ods_multiple,
+    x_export_xlsx_multiple,
     x_export_query,
     x_export_query_with_template,
     x_export_row_buffer,
@@ -394,6 +395,16 @@ def build_dispatch_table() -> MetaCommandList:
             ),
         ),
         x_export_ods_multiple,
+    )
+    mcl.add(
+        ins_table_list_rxs(
+            r"^\s*EXPORT\s+",
+            ins_fn_rxs(
+                r"\s+(?P<tee>TEE\s+)?(?P<append>APPEND\s+)?TO\s+",
+                r'\s+AS\s+XLSX(?:\s+DESCRIP(?:TION)?\s+"(?P<description>[^"]*)")?\s*$',
+            ),
+        ),
+        x_export_xlsx_multiple,
     )
 
     # ------------------------------------------------------------------

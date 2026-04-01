@@ -118,7 +118,7 @@
     },
     "export-formats": {
       "comment": "Export/import format names",
-      "match": "(?i)\\b(json_tableschema|cgi-html|feather|json_ts|txt-and|unitsep|duckdb|sqlite|values|latex|plain|hdf5|html|json|tabq|tsvq|b64|csv|ods|raw|tab|tsv|txt|xml|us)\\b",
+      "match": "(?i)\\b(json_tableschema|cgi-html|markdown|feather|json_ts|txt-and|unitsep|duckdb|sqlite|values|latex|plain|hdf5|html|json|tabq|tsvq|xlsx|yaml|b64|csv|ods|raw|tab|tsv|txt|xml|md|us)\\b",
       "name": "support.constant.execsql"
     },
     "secondary-operators": {

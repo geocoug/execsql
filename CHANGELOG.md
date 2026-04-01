@@ -11,6 +11,12 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Added
+
+- **Markdown export** (`FORMAT MARKDOWN` / `FORMAT MD`) — GitHub-flavored pipe tables with column alignment, pipe/backslash escaping, and zip support. No dependencies required.
+- **YAML export** (`FORMAT YAML`) — list-of-dicts output via PyYAML with native type preservation (int, float, null). Requires `PyYAML` (included in `formats` extras).
+- **XLSX export** (`FORMAT XLSX`) — single-sheet and multi-sheet Excel export via openpyxl with bold headers, native type preservation, sheet name deduplication, and a "Datasheets" inventory sheet. Multi-sheet syntax: `EXPORT table1, table2 TO file.xlsx AS XLSX`.
+
 ______________________________________________________________________
 
 ## [2.6.0] - 2026-04-01

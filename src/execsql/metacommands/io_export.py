@@ -19,6 +19,7 @@ from execsql.exporters.html import write_query_to_cgi_html, write_query_to_html
 from execsql.exporters.json import write_query_to_json, write_query_to_json_ts
 from execsql.exporters.latex import write_query_to_latex
 from execsql.exporters.ods import write_queries_to_ods, write_query_to_ods
+from execsql.exporters.xlsx import write_queries_to_xlsx, write_query_to_xlsx
 from execsql.exporters.parquet import write_query_to_parquet
 from execsql.exporters.pretty import prettyprint_query, prettyprint_rowset
 from execsql.exporters.raw import write_query_b64, write_query_raw
@@ -26,6 +27,8 @@ from execsql.exporters.sqlite import write_query_to_sqlite
 from execsql.exporters.templates import report_query
 from execsql.exporters.values import write_query_to_values
 from execsql.exporters.xml import write_query_to_xml
+from execsql.exporters.markdown import write_query_to_markdown
+from execsql.exporters.yaml import write_query_to_yaml
 from execsql.importers.base import import_data_table
 from execsql.script import current_script_line
 from execsql.utils.errors import exception_desc
@@ -85,6 +88,8 @@ def x_export(**kwargs: Any) -> None:
             raise ErrInfo("error", other_msg="Cannot export to the HDF5 format within a zipfile.")
         if filefmt == "ods":
             raise ErrInfo("error", other_msg="Cannot export to an ODS workbook within a zipfile.")
+        if filefmt == "xlsx":
+            raise ErrInfo("error", other_msg="Cannot export to an XLSX workbook within a zipfile.")
     notype = bool(kwargs.get("notype"))
     if zipfilename is not None:
         check_dir(zipfilename)
@@ -113,6 +118,15 @@ def x_export(**kwargs: Any) -> None:
         )
     elif filefmt == "ods":
         write_query_to_ods(
+            select_stmt,
+            _state.dbs.current(),
+            outfile,
+            append,
+            sheetname=queryname,
+            desc=description,
+        )
+    elif filefmt == "xlsx":
+        write_query_to_xlsx(
             select_stmt,
             _state.dbs.current(),
             outfile,
@@ -191,6 +205,24 @@ def x_export(**kwargs: Any) -> None:
         )
     elif filefmt == "hdf5":
         write_query_to_hdf5(table, select_stmt, _state.dbs.current(), outfile, append, desc=description)
+    elif filefmt == "yaml":
+        write_query_to_yaml(
+            select_stmt,
+            _state.dbs.current(),
+            outfile,
+            append,
+            desc=description,
+            zipfile=zipfilename,
+        )
+    elif filefmt in ("markdown", "md"):
+        write_query_to_markdown(
+            select_stmt,
+            _state.dbs.current(),
+            outfile,
+            append,
+            desc=description,
+            zipfile=zipfilename,
+        )
     else:
         try:
             hdrs, rows = _state.dbs.current().select_rowsource(select_stmt)
@@ -237,6 +269,8 @@ def x_export_query(**kwargs: Any) -> None:
             raise ErrInfo("error", other_msg="Cannot export to the HDF5 format within a zipfile.")
         if filefmt == "ods":
             raise ErrInfo("error", other_msg="Cannot export to an ODS workbook within a zipfile.")
+        if filefmt == "xlsx":
+            raise ErrInfo("error", other_msg="Cannot export to an XLSX workbook within a zipfile.")
     notype = bool(kwargs.get("notype"))
     check_dir(outfile)
     if tee and outfile.lower() != "stdout":
@@ -263,6 +297,16 @@ def x_export_query(**kwargs: Any) -> None:
     elif filefmt == "ods":
         script_name, lno = current_script_line()
         write_query_to_ods(
+            select_stmt,
+            _state.dbs.current(),
+            outfile,
+            append,
+            sheetname=f"Query_{lno}",
+            desc=description,
+        )
+    elif filefmt == "xlsx":
+        script_name, lno = current_script_line()
+        write_query_to_xlsx(
             select_stmt,
             _state.dbs.current(),
             outfile,
@@ -318,6 +362,24 @@ def x_export_query(**kwargs: Any) -> None:
         )
     elif filefmt == "latex":
         write_query_to_latex(
+            select_stmt,
+            _state.dbs.current(),
+            outfile,
+            append,
+            desc=description,
+            zipfile=zipfilename,
+        )
+    elif filefmt == "yaml":
+        write_query_to_yaml(
+            select_stmt,
+            _state.dbs.current(),
+            outfile,
+            append,
+            desc=description,
+            zipfile=zipfilename,
+        )
+    elif filefmt in ("markdown", "md"):
+        write_query_to_markdown(
             select_stmt,
             _state.dbs.current(),
             outfile,
@@ -401,6 +463,19 @@ def x_export_ods_multiple(**kwargs: Any) -> None:
     append = append is not None
     check_dir(outfile)
     write_queries_to_ods(table_list, _state.dbs.current(), outfile, append, tee, desc=description)
+
+
+def x_export_xlsx_multiple(**kwargs: Any) -> None:
+    """Export multiple tables to separate worksheets in a single XLSX workbook."""
+    table_list = kwargs["tables"]
+    outfile = kwargs["filename"]
+    description = kwargs["description"]
+    tee = kwargs["tee"]
+    tee = bool(tee)
+    append = kwargs["append"]
+    append = append is not None
+    check_dir(outfile)
+    write_queries_to_xlsx(table_list, _state.dbs.current(), outfile, append, tee, desc=description)
 
 
 def x_export_metadata(**kwargs: Any) -> None:

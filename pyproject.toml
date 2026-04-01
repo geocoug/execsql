@@ -56,7 +56,7 @@ firebird = ["firebird-driver"]
 oracle = ["oracledb"]
 odbc = ["pyodbc"]
 # Feature bundles
-formats = ["odfpy", "xlrd", "openpyxl", "Jinja2", "polars", "tables"]
+formats = ["odfpy", "xlrd", "openpyxl", "Jinja2", "polars", "tables", "PyYAML"]
 auth = ["keyring"]
 # Convenience groups
 all-db = [

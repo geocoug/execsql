@@ -9,9 +9,9 @@ handlers can access them via ``_state.write_query_to_csv`` etc. without
 importing directly from here.
 
 Sub-modules: ``base``, ``delimited``, ``json``, ``xml``, ``html``,
-``latex``, ``ods``, ``xls``, ``zip``, ``raw``, ``pretty``, ``values``,
-``templates``, ``feather``, ``parquet``, ``duckdb``, ``sqlite``,
-``protocol``.
+``latex``, ``markdown``, ``ods``, ``xls``, ``zip``, ``raw``, ``pretty``,
+``values``, ``templates``, ``feather``, ``parquet``, ``duckdb``,
+``sqlite``, ``protocol``.
 """
 
 from execsql.exporters.protocol import QueryExporter, RowsetExporter

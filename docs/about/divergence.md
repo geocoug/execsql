@@ -26,10 +26,13 @@ ______________________________________________________________________
 
 ### Export Formats
 
-| Format    | Description                                                                     |
-| --------- | ------------------------------------------------------------------------------- |
-| `PARQUET` | Export query or table results to Apache Parquet via `polars`.                   |
-| `FEATHER` | Export to Apache Feather/IPC via `polars` + `pyarrow` (upstream used `pandas`). |
+| Format            | Description                                                                                                          |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `PARQUET`         | Export query or table results to Apache Parquet via `polars`.                                                        |
+| `FEATHER`         | Export to Apache Feather/IPC via `polars` + `pyarrow` (upstream used `pandas`).                                      |
+| `YAML`            | Export query or table results as a YAML sequence of mappings via `PyYAML`.                                           |
+| `MARKDOWN` / `MD` | Export query or table results as a GitHub-Flavored Markdown (GFM) pipe table. Pure Python, no optional dependencies. |
+| `XLSX`            | Export query or table results to an Excel XLSX workbook via `openpyxl` (single or multi-sheet).                      |
 
 ### Metacommands
 

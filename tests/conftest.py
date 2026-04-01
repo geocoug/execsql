@@ -78,6 +78,8 @@ def noop_filewriter_close():
         "execsql.exporters.templates.filewriter_close",
         "execsql.exporters.values.filewriter_close",
         "execsql.exporters.xml.filewriter_close",
+        "execsql.exporters.markdown.filewriter_close",
+        "execsql.exporters.yaml.filewriter_close",
     ]
     with contextlib.ExitStack() as stack:
         for target in targets:

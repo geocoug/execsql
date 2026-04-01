@@ -265,10 +265,10 @@ ______________________________________________________________________
 
 ### v2.7 — New Export/Import Formats
 
-- [ ] **Parquet import** — complement existing Parquet export and Feather import. Natural fit with DuckDB support.
-- [ ] **YAML export** — popular for config-generation workflows; rounds out the format matrix.
-- [ ] **Markdown (GFM) export** — GitHub-flavored markdown tables. Lightweight and useful for docs/reports.
-- [ ] **Excel (XLSX) multi-sheet export** — multiple queries → multiple named sheets in one workbook, with basic formatting.
+- [x] **Parquet import** — already existed as `IMPORT TO table FROM PARQUET file` (verified present).
+- [x] **YAML export** — `FORMAT YAML` via PyYAML, list-of-dicts with native type preservation.
+- [x] **Markdown (GFM) export** — `FORMAT MARKDOWN` / `MD`, pipe tables with alignment and escaping.
+- [x] **Excel (XLSX) multi-sheet export** — `FORMAT XLSX` single + multi-sheet via openpyxl, bold headers, inventory sheet, sheet name deduplication.
 
 ### v2.8 — Scripting Power Features
 

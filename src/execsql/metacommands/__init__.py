@@ -105,6 +105,7 @@ from execsql.metacommands.io import (
     x_export_query_with_template,
     x_export_with_template,
     x_export_ods_multiple,
+    x_export_xlsx_multiple,
     x_export_metadata,
     x_export_metadata_table,
     x_import,
@@ -303,6 +304,7 @@ __all__ = [
     "x_export_query_with_template",
     "x_export_with_template",
     "x_export_ods_multiple",
+    "x_export_xlsx_multiple",
     "x_export_metadata",
     "x_export_metadata_table",
     "x_import",
@@ -427,12 +429,31 @@ TEXT_FORMATS = ["TXT", "TXT-AND", "PLAIN"]
 JSON_VARIANT_FORMATS = ["JSON_TS", "JSON_TABLESCHEMA"]
 
 QUERY_EXPORT_FORMATS = (
-    DELIMITED_FORMATS + TEXT_FORMATS + ["ODS", "JSON", "HTML", "CGI-HTML", "VALUES", "LATEX", "RAW", "B64", "FEATHER"]
+    DELIMITED_FORMATS
+    + TEXT_FORMATS
+    + ["ODS", "XLSX", "JSON", "HTML", "CGI-HTML", "VALUES", "LATEX", "RAW", "B64", "FEATHER", "YAML", "MARKDOWN", "MD"]
 )
 TABLE_EXPORT_FORMATS = (
     DELIMITED_FORMATS
     + TEXT_FORMATS
-    + ["JSON", "XML", "VALUES", "HTML", "CGI-HTML", "SQLITE", "DUCKDB", "LATEX", "RAW", "B64", "FEATHER", "HDF5"]
+    + [
+        "JSON",
+        "XML",
+        "VALUES",
+        "HTML",
+        "CGI-HTML",
+        "SQLITE",
+        "DUCKDB",
+        "LATEX",
+        "RAW",
+        "B64",
+        "FEATHER",
+        "HDF5",
+        "XLSX",
+        "YAML",
+        "MARKDOWN",
+        "MD",
+    ]
 )
 SERVE_FORMATS = ["BINARY", "CSV", "TXT", "TEXT", "ODS", "JSON", "HTML", "PDF", "ZIP"]
 METADATA_FORMATS = ["CSV", "TAB", "TSV", "TABQ", "TSVQ", "TXT", "TEXT"]
