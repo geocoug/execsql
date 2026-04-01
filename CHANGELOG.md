@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.10.0] - 2026-04-01
+
 ### Added
 
 - **`BREAKPOINT` metacommand** — pauses script execution and drops into an interactive debug REPL. The prompt accepts `continue`/`c` to resume, `abort`/`q` to halt, `vars` to list substitution variables, `$VARNAME` to print a single variable, `SELECT ...;` to run ad-hoc SQL against the current database, `next`/`n` to step one statement at a time, `stack` to inspect the command-list stack, and `help` for a command summary. Silently skipped in non-TTY environments (CI, piped input) so automated pipelines are never blocked.
