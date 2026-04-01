@@ -223,6 +223,25 @@ def main(
         "--dry-run",
         help=("Parse the script and print the command list without connecting to a database or executing anything."),
     ),
+    lint: bool = typer.Option(
+        False,
+        "--lint",
+        help=(
+            "Parse the script and perform static analysis without connecting to a database or executing anything. "
+            "Reports unmatched IF/ENDIF/LOOP/BATCH blocks (errors), potentially undefined variables, "
+            "and missing INCLUDE files (warnings). Exits 0 if no errors, 1 if errors found."
+        ),
+    ),
+    ping: bool = typer.Option(
+        False,
+        "--ping",
+        help=(
+            "Test database connectivity and exit. "
+            "Prints connection details and the server version on success (exit 0), "
+            "or the error message on failure (exit 1). "
+            "No script file is required."
+        ),
+    ),
     dsn: str | None = typer.Option(
         None,
         "--dsn",
@@ -350,6 +369,10 @@ def main(
     positional = args or []
     if command is not None:
         script_name = None  # inline mode — no script file
+    elif ping:
+        # --ping does not require a script file; positional args are still
+        # available for server/db arguments if --dsn is not used.
+        script_name = None
     else:
         if not positional:
             _err_console.print(
@@ -421,6 +444,8 @@ def main(
         output_dir=output_dir,
         progress=progress,
         profile=profile,
+        ping=ping,
+        lint=lint,
     )
 
 

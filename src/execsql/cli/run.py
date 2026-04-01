@@ -24,7 +24,11 @@ from execsql.script import SubVarSet, current_script_line, read_sqlfile, read_sq
 from execsql.utils.fileio import FileWriter, Logger, filewriter_end
 from execsql.utils.gui import gui_connect, gui_console_isrunning, gui_console_off, gui_console_on, gui_console_wait_user
 
-__all__ = ["_connect_initial_db", "_print_dry_run", "_print_profile", "_run"]
+__all__ = ["_connect_initial_db", "_ping_db", "_print_dry_run", "_print_profile", "_run"]
+
+# Lint helper — imported lazily inside _run() to keep start-up cost low, but
+# re-exported here so that tests and callers can reach it via cli.run.
+from execsql.cli.lint import _lint_script, _print_lint_results  # noqa: F401 — re-export
 
 
 # ---------------------------------------------------------------------------
@@ -120,6 +124,64 @@ def _print_profile(profile_data: list[tuple]) -> None:
 
 
 # ---------------------------------------------------------------------------
+# --ping helper
+# ---------------------------------------------------------------------------
+
+
+def _ping_db(db) -> None:
+    """Test connectivity for *db*, print connection details, and exit.
+
+    Attempts to execute ``SELECT version()`` (or ``SELECT sqlite_version()``
+    for SQLite) to retrieve the server version string.  If the query fails the
+    connection is still reported as successful — only the version line is
+    omitted.  On success the function raises :class:`SystemExit` with code 0.
+
+    Args:
+        db: An open :class:`~execsql.db.base.Database` instance.
+    """
+    dbms_id: str = db.type.dbms_id if db.type else "unknown"
+
+    # Try to fetch a human-readable server version string.
+    version_str: str | None = None
+    _version_queries = [
+        "SELECT version()",
+        "SELECT sqlite_version()",
+        "SELECT @@VERSION",
+    ]
+    for sql in _version_queries:
+        try:
+            curs = db.cursor()
+            curs.execute(sql)
+            row = curs.fetchone()
+            curs.close()
+            if row and row[0]:
+                version_str = str(row[0]).split("\n")[0].strip()
+            break
+        except Exception:
+            continue
+
+    # Build the connection descriptor.
+    if db.server_name:
+        port_part = f":{db.port}" if db.port else ""
+        location = f"{db.server_name}{port_part}/{db.db_name or ''}"
+    else:
+        location = db.db_name or "<in-memory>"
+
+    if version_str:
+        _console.print(
+            f"[bold green]Connected[/bold green] to [bold]{dbms_id}[/bold] "
+            f"[dim]{version_str}[/dim] at [cyan]{location}[/cyan]",
+        )
+    else:
+        _console.print(
+            f"[bold green]Connected[/bold green] to [bold]{dbms_id}[/bold] at [cyan]{location}[/cyan]",
+        )
+
+    db.close()
+    raise SystemExit(0)
+
+
+# ---------------------------------------------------------------------------
 # Core execution (split from argument parsing for testability)
 # ---------------------------------------------------------------------------
 
@@ -150,6 +212,8 @@ def _run(
     output_dir: str | None = None,
     progress: bool = False,
     profile: bool = False,
+    ping: bool = False,
+    lint: bool = False,
 ) -> None:
     """Initialise state, connect to the database, load the script, and run it.
 
@@ -157,6 +221,17 @@ def _run(
     without going through the Typer CLI layer. All parameters mirror the
     corresponding CLI options; see [Syntax & Options](../syntax.md) for
     descriptions.
+
+    When *ping* is ``True``, the function connects to the database, prints
+    connection details (DBMS name, server version, and location), and calls
+    :func:`_ping_db` which raises ``SystemExit(0)``.  No script is loaded or
+    executed.  *script_name* and *command* may both be ``None`` in ping mode.
+
+    When *lint* is ``True``, the script is parsed and statically analysed for
+    structural issues (unmatched IF/ENDIF/LOOP/BATCH blocks, potentially
+    undefined variables, missing INCLUDE files, empty scripts) without
+    connecting to a database or executing anything.  Exits with code 0 if no
+    errors were found, or code 1 if errors were found.
     """
     import execsql.state as _state
 
@@ -286,10 +361,10 @@ def _run(
     if progress:
         conf.show_progress = True
 
-    # Positional arguments after the script name (or all positionals in inline mode)
+    # Positional arguments after the script name (or all positionals in inline/ping mode)
     # off=1: script file occupies positional[0]; connection args start at [1]
-    # off=0: no script file; all positionals are connection args
-    off = 0 if command is not None else 1
+    # off=0: no script file; all positionals are connection args (inline -c or --ping)
+    off = 0 if (command is not None or ping) else 1
     if len(positional) == off + 1:
         if conf.db_type in ("a", "l", "k"):
             conf.db_file = positional[off]
@@ -403,12 +478,13 @@ def _run(
             )
 
     # ------------------------------------------------------------------
-    # Load the SQL script
+    # Load the SQL script (skipped in --ping and --dry-run with no script)
     # ------------------------------------------------------------------
-    if command is not None:
-        read_sqlstring(command.replace("\\n", "\n").replace("\\t", "\t"), "<inline>")
-    else:
-        read_sqlfile(script_name)
+    if not ping:
+        if command is not None:
+            read_sqlstring(command.replace("\\n", "\n").replace("\\t", "\t"), "<inline>")
+        else:
+            read_sqlfile(script_name)
 
     # ------------------------------------------------------------------
     # Dry-run: print command list and exit without connecting to DB
@@ -416,6 +492,16 @@ def _run(
     if dry_run:
         _print_dry_run(_state.commandliststack[-1] if _state.commandliststack else None)
         raise SystemExit(0)
+
+    # ------------------------------------------------------------------
+    # Lint: static analysis without connecting to DB
+    # ------------------------------------------------------------------
+    if lint:
+        cmdlist = _state.commandliststack[-1] if _state.commandliststack else None
+        issues = _lint_script(cmdlist, script_name)
+        label = script_name or "<inline>"
+        exit_code = _print_lint_results(issues, label)
+        raise SystemExit(exit_code)
 
     # ------------------------------------------------------------------
     # Start GUI console if requested
@@ -445,6 +531,12 @@ def _run(
     _state.subvars.add_substitution("$CURRENT_DATABASE", db.name())
     _state.subvars.add_substitution("$DB_SERVER", db.server_name)
     _state.subvars.add_substitution("$SYSTEM_CMD_EXIT_STATUS", "0")
+
+    # ------------------------------------------------------------------
+    # --ping: report connection details and exit (no script executed)
+    # ------------------------------------------------------------------
+    if ping:
+        _ping_db(db)  # raises SystemExit(0) on success
 
     # ------------------------------------------------------------------
     # Execute the script

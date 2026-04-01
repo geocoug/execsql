@@ -196,6 +196,34 @@ Valid encoding names can be displayed with the `-y` option. See also [Character 
 
     Substitution variables that are already populated at parse time are expanded in the output: environment variables (`!!&ENV_VAR!!`), `--assign-arg` values (`!!$ARG_1!!`), and built-in start-time variables like `!!$SCRIPT_START_TIME!!` and `!!$USER!!`. Variables that are set during execution — such as `$CURRENT_TIME`, `$DB_NAME`, and `$TIMER` — remain unexpanded because no database connection is established in dry-run mode. Local `~`-prefixed script-scope variables are also left unexpanded.
 
+`--lint`
+
+:   Parse the script and perform static analysis without connecting to a database or executing anything. A complement to `--dry-run` focused on structural correctness rather than command display.
+
+    Checks performed:
+
+    - **Unmatched IF / ENDIF** — open IF blocks with no closing ENDIF, or orphan ENDIF with no IF (error).
+    - **Unmatched LOOP / END LOOP** — open LOOP with no END LOOP, or orphan END LOOP (error).
+    - **Unmatched BEGIN BATCH / END BATCH** — open batch with no close, or orphan END BATCH (error).
+    - **Potentially undefined variables** — `!!$VAR!!` references where `$VAR` is not a built-in variable, not `$ARG_N`, and was not defined by a preceding `SUB` metacommand in the same script (warning — may be a false-positive if the variable is set in a config file or via `-a`).
+    - **Missing INCLUDE files** — `INCLUDE` targets that do not exist on disk relative to the script's directory (warning; `INCLUDE IF EXISTS` targets are never checked).
+    - **Empty script** — no commands found (warning).
+
+    Exits 0 when no errors are found (warnings alone do not affect the exit code). Exits 1 when any errors are found.
+
+    ```bash
+    execsql --lint script.sql
+    ```
+
+`--ping`
+
+:   Test database connectivity and exit. Connects to the configured database, queries the server version if possible, and prints a one-line summary on success (exit 0). On failure, prints the error message and exits with code 1. No script file is required — `--ping` can be combined with `--dsn` or other connection flags without specifying a `.sql` file.
+
+    ```bash
+    execsql --ping --dsn postgresql://user:pass@host/db
+    execsql --ping --dsn sqlite:///mydb.sqlite
+    ```
+
 `--profile`
 
 :   Record the wall-clock execution time of each SQL statement and metacommand. After the script finishes, print a summary table to the console showing elapsed time, percentage of total time, source file and line number, command type, and a preview of the command text. Statements are sorted from slowest to fastest; the top 20 are displayed. Useful for identifying slow queries or metacommands in long-running scripts.

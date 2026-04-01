@@ -11,6 +11,11 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Added
+
+- **`--lint` flag** — parse a script and perform static analysis without connecting to a database or executing anything. Reports unmatched `IF`/`ENDIF`, `LOOP`/`END LOOP`, and `BEGIN BATCH`/`END BATCH` blocks as errors; potentially undefined `!!$VAR!!` variable references and missing `INCLUDE` file targets as warnings. Exits 0 if no errors are found (warnings alone do not affect the exit code); exits 1 if any errors are found. Works with both file scripts and inline `-c` scripts.
+- **`--ping` flag** — test database connectivity without running a script. `execsql --ping --dsn <URL>` connects to the database, queries the server version, prints a one-line success summary (DBMS name, version, and location), and exits 0. On failure it prints the error and exits 1. No script file argument is required when `--ping` is used.
+
 ______________________________________________________________________
 
 ## [2.8.0] - 2026-04-01
