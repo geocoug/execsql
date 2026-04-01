@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.7.0] - 2026-04-01
+
 ### Added
 
 - **Markdown export** (`FORMAT MARKDOWN` / `FORMAT MD`) — GitHub-flavored pipe tables with column alignment, pipe/backslash escaping, and zip support. No dependencies required.
