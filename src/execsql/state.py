@@ -96,6 +96,8 @@ __all__ = [
     "gui_manager_thread",
     # Profiling
     "profile_data",
+    # Debug REPL
+    "step_mode",
     # Version
     "primary_vno",
     "secondary_vno",
@@ -195,6 +197,8 @@ _CONTEXT_ATTRS: frozenset[str] = frozenset(
         "gui_manager_thread",
         # Profiling
         "profile_data",
+        # Debug REPL
+        "step_mode",
     },
 )
 
@@ -248,6 +252,8 @@ class RuntimeContext:
         "gui_manager_thread",
         # Profiling
         "profile_data",
+        # Debug REPL
+        "step_mode",
     )
 
     def __init__(self) -> None:
@@ -298,6 +304,9 @@ class RuntimeContext:
         # Profiling — None means profiling is disabled; a list means it is enabled.
         # Each entry: (source, line_no, command_type, elapsed_secs, command_text_preview)
         self.profile_data: list[tuple] | None = None
+
+        # Debug REPL — True after a ``next`` command; engine re-enters REPL after next statement.
+        self.step_mode: bool = False
 
 
 # ---------------------------------------------------------------------------

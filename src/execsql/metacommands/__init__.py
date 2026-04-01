@@ -100,6 +100,7 @@ from execsql.metacommands.debug import (
     x_debug_write_subvars,
     x_debug_write_config,
 )
+from execsql.metacommands.debug_repl import x_breakpoint
 from execsql.metacommands.io import (
     x_export,
     x_export_query,
@@ -300,6 +301,8 @@ __all__ = [
     "x_debug_log_config",
     "x_debug_write_subvars",
     "x_debug_write_config",
+    # debug repl handlers
+    "x_breakpoint",
     # io handlers
     "x_export",
     "x_export_query",

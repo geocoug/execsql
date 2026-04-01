@@ -506,6 +506,11 @@ class CommandList:
                         cmditem.command.commandline()[:100],
                     ),
                 )
+            if _state.step_mode:
+                _state.step_mode = False
+                from execsql.metacommands.debug_repl import _debug_repl
+
+                _debug_repl()
         self.cmdptr += 1
 
     def run_next(self) -> None:

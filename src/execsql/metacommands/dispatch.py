@@ -100,6 +100,7 @@ from execsql.metacommands.debug import (
     x_debug_write_odbc_drivers,
     x_debug_write_subvars,
 )
+from execsql.metacommands.debug_repl import x_breakpoint
 from execsql.metacommands.io import (
     x_cd,
     x_copy,
@@ -1686,6 +1687,17 @@ def build_dispatch_table() -> MetaCommandList:
         r"^\s*ASSERT\s+(?P<condtest>.+?)\s+(?P<message>(?:\"[^\"]*\"|'[^']*'))\s*$",
         x_assert,
         description="ASSERT",
+        category="action",
+        run_when_false=False,
+    )
+
+    # ------------------------------------------------------------------
+    # BREAKPOINT
+    # ------------------------------------------------------------------
+    mcl.add(
+        r"^\s*BREAKPOINT\s*$",
+        x_breakpoint,
+        description="BREAKPOINT",
         category="action",
         run_when_false=False,
     )
