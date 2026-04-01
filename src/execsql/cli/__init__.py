@@ -278,6 +278,11 @@ def main(
         "--profile",
         help="Record per-statement execution times and print a timing summary after the script completes.",
     ),
+    debug: bool = typer.Option(
+        False,
+        "--debug",
+        help="Start in step-through debug mode. The debug REPL pauses before each statement.",
+    ),
     version: bool | None = typer.Option(
         None,
         "--version",
@@ -446,6 +451,7 @@ def main(
         profile=profile,
         ping=ping,
         lint=lint,
+        debug=debug,
     )
 
 

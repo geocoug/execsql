@@ -224,6 +224,10 @@ Valid encoding names can be displayed with the `-y` option. See also [Character 
     execsql --ping --dsn sqlite:///mydb.sqlite
     ```
 
+`--debug`
+
+:   Start in step-through debug mode. The debug REPL pauses before each statement, as if a `BREAKPOINT` metacommand were inserted at the top of the script with `.next` always active. Type `.continue` or `.c` at the REPL prompt to resume normal execution, or `.next` / `.n` to step one statement at a time. Silently skipped in non-TTY environments.
+
 `--profile`
 
 :   Record the wall-clock execution time of each SQL statement and metacommand. After the script finishes, print a summary table to the console showing elapsed time, percentage of total time, source file and line number, command type, and a preview of the command text. Statements are sorted from slowest to fastest; the top 20 are displayed. Useful for identifying slow queries or metacommands in long-running scripts.

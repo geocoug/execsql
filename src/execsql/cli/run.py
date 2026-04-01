@@ -214,6 +214,7 @@ def _run(
     profile: bool = False,
     ping: bool = False,
     lint: bool = False,
+    debug: bool = False,
 ) -> None:
     """Initialise state, connect to the database, load the script, and run it.
 
@@ -546,6 +547,9 @@ def _run(
 
     if profile:
         _state.profile_data = []
+
+    if debug:
+        _state.step_mode = True
 
     _execute_script_direct(conf, profile=profile)
 

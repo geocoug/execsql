@@ -191,7 +191,7 @@ def _print_all_vars(*, include_env: bool = False) -> None:
         _write(f"  {label}:\n")
         max_name = max(len(n) for n, _ in group)
         for name, value in group:
-            _write(f"    {name:<{max_name}}  =  {value!r}\n")
+            _write(f"    {name:<{max_name}}  =  {value}\n")
 
     _print_group("User variables", user_vars)
     _print_group("System variables ($)", system_vars)
@@ -225,7 +225,7 @@ def _print_var(varname: str) -> None:
     if value is None:
         _write(f"  {varname}: (undefined)\n")
     else:
-        _write(f"  {varname} = {value!r}\n")
+        _write(f"  {varname} = {value}\n")
 
 
 def _print_stack() -> None:

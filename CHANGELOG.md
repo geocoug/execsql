@@ -11,6 +11,14 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Added
+
+- `--debug` CLI flag — starts the script in step-through debug mode. The debug REPL pauses before each statement, as if `BREAKPOINT` were inserted at the top with `.next` always active.
+
+### Changed
+
+- BREAKPOINT debug REPL now pauses **before** each statement instead of after, so the upcoming statement can be inspected before it runs.
+
 ### Fixed
 
 - BREAKPOINT REPL no longer wraps variable values in extra single quotes — values are now displayed exactly as defined.

@@ -493,6 +493,11 @@ class CommandList:
             _state.subvars.add_substitution("$CURRENT_SCRIPT_NAME", Path(cmditem.source).name)
             _state.subvars.add_substitution("$CURRENT_SCRIPT_LINE", str(cmditem.line_no))
             _state.subvars.add_substitution("$SCRIPT_LINE", str(cmditem.line_no))
+            if _state.step_mode:
+                _state.step_mode = False
+                from execsql.metacommands.debug_repl import _debug_repl
+
+                _debug_repl()
             _profiling = _state.profile_data is not None
             if _profiling:
                 import time as _time
@@ -510,11 +515,6 @@ class CommandList:
                         cmditem.command.commandline()[:100],
                     ),
                 )
-            if _state.step_mode:
-                _state.step_mode = False
-                from execsql.metacommands.debug_repl import _debug_repl
-
-                _debug_repl()
         self.cmdptr += 1
 
     def run_next(self) -> None:

@@ -163,6 +163,9 @@ SELECT count(*) FROM staging;
 
 BREAKPOINT is silently skipped inside a `False` [IF](#if_cmd) block.
 
+!!! tip
+    Use `execsql --debug script.sql` to start in step-through mode without adding a `BREAKPOINT` metacommand to your script. The REPL pauses before each statement.
+
 
 ## BEGIN BATCH and END BATCH { #batch }
 

@@ -113,6 +113,7 @@ execsql script.sql                          # read connection from config file
 | `--dry-run`                         | Parse the script and report commands without executing          |
 | `--lint`                            | Static analysis: check structure and warn on issues (no DB)     |
 | `--progress`                        | Show a progress bar for long-running IMPORT operations          |
+| `--debug`                           | Start in step-through debug mode (REPL pauses before each stmt) |
 | `--dump-keywords`                   | Print metacommand keywords as JSON and exit                     |
 | `--gui-framework {tkinter,textual}` | GUI framework for interactive prompts                           |
 
