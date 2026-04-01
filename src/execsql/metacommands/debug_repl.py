@@ -33,7 +33,8 @@ _HELP_TEXT = """\
 execsql debug REPL commands:
   continue  c        Resume script execution
   abort     q quit   Halt the script (exit 1)
-  vars               List all substitution variables and their values
+  vars               List user, system, local, and counter variables
+  vars all           Include environment variables (&) in the listing
   $VARNAME           Print a single variable's value  (also &VAR, @VAR)
   SELECT ...;        Run ad-hoc SQL against the current database
   next      n        Execute the next statement then pause again (step mode)
@@ -95,6 +96,8 @@ def _debug_repl() -> None:
             raise SystemExit(1)
         elif lower == "help":
             _write(_HELP_TEXT)
+        elif lower == "vars all":
+            _print_all_vars(include_env=True)
         elif lower == "vars":
             _print_all_vars()
         elif lower == "stack":
@@ -125,8 +128,8 @@ def _write(text: str) -> None:
         sys.stdout.flush()
 
 
-def _print_all_vars() -> None:
-    """Print all substitution variables and their current values."""
+def _print_all_vars(*, include_env: bool = False) -> None:
+    """Print substitution variables grouped by type."""
     subvars = _state.subvars
     if subvars is None:
         _write("  (no substitution variables defined)\n")
@@ -135,10 +138,46 @@ def _print_all_vars() -> None:
     if not items:
         _write("  (no substitution variables defined)\n")
         return
-    # Compute column width for aligned output.
-    max_name = max((len(name) for name, _ in items), default=0)
+
+    # Group by prefix.
+    user_vars: list[tuple[str, str]] = []
+    system_vars: list[tuple[str, str]] = []
+    counter_vars: list[tuple[str, str]] = []
+    local_vars: list[tuple[str, str]] = []
+    env_vars: list[tuple[str, str]] = []
+
     for name, value in sorted(items):
-        _write(f"  {name:<{max_name}}  =  {value!r}\n")
+        if name.startswith("&"):
+            env_vars.append((name, value))
+        elif name.startswith("~"):
+            local_vars.append((name, value))
+        elif name.startswith("@"):
+            counter_vars.append((name, value))
+        elif name.startswith("$"):
+            system_vars.append((name, value))
+        else:
+            user_vars.append((name, value))
+
+    def _print_group(label: str, group: list[tuple[str, str]]) -> None:
+        if not group:
+            return
+        _write(f"  {label}:\n")
+        max_name = max(len(n) for n, _ in group)
+        for name, value in group:
+            _write(f"    {name:<{max_name}}  =  {value!r}\n")
+
+    _print_group("User variables", user_vars)
+    _print_group("System variables ($)", system_vars)
+    _print_group("Local variables (~)", local_vars)
+    _print_group("Counter variables (@)", counter_vars)
+    if include_env:
+        _print_group("Environment variables (&)", env_vars)
+
+    if not any([user_vars, system_vars, local_vars, counter_vars]):
+        if env_vars:
+            _write("  (no script variables defined — use 'vars all' to see environment variables)\n")
+        else:
+            _write("  (no variables defined)\n")
 
 
 def _print_var(varname: str) -> None:
