@@ -275,7 +275,7 @@ ______________________________________________________________________
 - [x] **`ASSERT` metacommand** — `-- !x! ASSERT <condition> "message"`. Reuses IF condition engine. 13 tests.
 - [x] **`--dry-run` improvements** — expands substitution variables populated at parse time. 4 new tests.
 - [x] **Script profiling (`--profile`)** — per-statement `perf_counter()` timing with sorted summary table. 19 tests.
-- [ ] **Parallel execution blocks** — `PARALLEL BEGIN ... PARALLEL END` for independent statements. See design notes below.
+- ~~**Parallel execution blocks**~~ — deferred to v3.0+. See design notes and deferral rationale below.
 
 ### v2.9 — Library API & Developer Experience
 
@@ -297,6 +297,7 @@ ______________________________________________________________________
 
 ### v3.0+ — Future
 
+- [ ] **Parallel execution blocks** — `PARALLEL BEGIN ... PARALLEL END` for independent statements. See design notes and deferral rationale below.
 - [ ] **Plugin system** — entry points for `execsql.exporters`, `execsql.importers`, `execsql.metacommands` allowing external packages to register new handlers.
 - [ ] **LSP / language server** — for the VS Code extension: autocomplete metacommands, validate substitution variables, jump-to-definition for `INCLUDE`d scripts.
 
@@ -366,6 +367,30 @@ INSERT INTO summary_c SELECT ... FROM raw_data;
   block, they wrap it in `BEGIN BATCH ... END BATCH` outside the parallel
   block — but that negates parallelism for most backends, so this is
   mainly useful for independent ETL loads.
+
+**Deferral rationale (2026-04):** Moved from v2.8 to v3.0+. The
+complexity-to-value ratio is poor for the current user base:
+
+1. **Connection pooling does not exist.** `DatabasePool` holds one
+   connection per alias. Workers need their own connections, requiring
+   either a pool-per-alias model or fresh connections from the DSN —
+   significant infrastructure work.
+2. **Global state is not thread-safe.** Even with `RuntimeContext`, the
+   context is shared. Workers writing `$LAST_ROWCOUNT` or reading
+   `_state.subvars` would race. Per-worker read-only snapshots are needed.
+3. **Error semantics are complex.** Partial failure (2 of 4 workers fail)
+   requires decisions about cancellation, rollback, and error aggregation.
+4. **Narrow real-world benefit.** Most execsql users target a single DBMS.
+   Databases like PostgreSQL already parallelize queries internally.
+   Running concurrent INSERTTs against the same server often doesn't help
+   because they compete for locks, I/O, and CPU.
+5. **Better alternatives exist for orchestration.** Users with true
+   parallelism needs are better served by calling `execsql.run()` (v2.9
+   library API) from their own threading/async code, or by tools like
+   Airflow/dbt.
+
+Revisit if the library API (v2.9) reveals demand for in-script
+parallelism that can't be met by external orchestration.
 
 ______________________________________________________________________
 
