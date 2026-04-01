@@ -189,10 +189,10 @@ Triggered on: push to `main`, any tag `v*.*.*`, pull requests.
 
 ## Versioning
 
-`bump-my-version` manages versions. Current: `2.4.6`. Bump commands:
+`bump-my-version` manages versions. Current: `2.5.0`. Bump commands:
 
-- `just bump-patch` → 2.4.6 → 2.4.7
-- `just bump-minor` → 2.4.6 → 2.5.0
+- `just bump-patch` → 2.5.0 → 2.5.1
+- `just bump-minor` → 2.5.0 → 2.6.0
   Bumps commit + tag. Pre-commit hook runs `uv lock` + stages `uv.lock`.
 
 ## Ruff Config
@@ -243,26 +243,15 @@ the foreseeable future.
 | Docs reorganized (getting-started/reference/guides/about) | 2.4.6  | 2026-03 |
 | Pre-commit hook for `execsql-format`              | 2.4.3          | 2026-03 |
 | VS Code syntax highlighting extension             | 2.4.x          | 2026-03 |
-
-______________________________________________________________________
-
-### v2.5 — Remaining Code Quality
-
-Theme: Complete the remaining v2.2/v2.3 items and continue stabilization.
-
-- **Docstring coverage** — target 50%+ on public API (focus on `exporters/`, `db/`, `config.py`)
-
-______________________________________________________________________
-
-### v2.6 — Architecture & Performance
-
-Theme: Internal modernization. May include backward-incompatible internal API changes (public CLI behavior preserved).
-
-- **Database ABC with `@abstractmethod`** — replace runtime `DatabaseNotImplementedError` with true abstract methods
-- **Cursor context managers** — explicit cursor lifecycle in `execute()`, `select_data()`, `select_rowsource()`
-- **Metacommand dispatch optimization** — consider dict/trie lookup instead of O(N) regex scan
-- **Variable substitution optimization** — reduce O(V×D) complexity
-- **Exporter protocol** — define a `Protocol` or ABC for exporters with a common interface
+| Docstring coverage 81% on public API              | 2.5.0          | 2026-04 |
+| Developer architecture guide with Mermaid diagrams | 2.5.0          | 2026-04 |
+| Cursor context managers (exec_cmd + vacuum)       | 2.5.0          | 2026-04 |
+| Exporter Protocol types (QueryExporter, RowsetExporter) | 2.5.0   | 2026-04 |
+| SubVarSet.merge() optimization (O(1) vs O(V))    | 2.5.0          | 2026-04 |
+| GitHub Actions upgraded to Node.js 24             | 2.5.0          | 2026-04 |
+| GitHub issue/PR templates + SECURITY.md           | 2.5.0          | 2026-04 |
+| Database ABC already in place (verified)          | 2.5.0          | 2026-04 |
+| Dispatch optimization already in place (verified) | 2.5.0          | 2026-04 |
 
 ______________________________________________________________________
 
