@@ -34,6 +34,39 @@ from execsql.utils.fileio import EncodedFile, check_dir
 from execsql.utils.gui import GUI_HALT, GuiSpec, enable_gui, gui_console_isrunning
 
 
+def x_assert(**kwargs: Any) -> None:
+    """Evaluate a condition and raise ErrInfo if it is false.
+
+    Syntax::
+
+        -- !x! ASSERT <condition> ["message"]
+        -- !x! ASSERT <condition> ['message']
+        -- !x! ASSERT <condition>
+
+    Args:
+        **kwargs: Keyword arguments injected by the dispatch table.
+            ``condtest`` — the condition expression string.
+            ``message``  — optional user-supplied failure message; may be None.
+
+    Raises:
+        ErrInfo: When the condition evaluates to False (or raises internally
+            for an unrecognized condition).
+    """
+    condition: str = kwargs["condtest"].strip()
+    raw_message: str | None = kwargs.get("message")
+    if raw_message:
+        # Strip surrounding quotes that the regex captured
+        message: str = raw_message.strip("'\"")
+    else:
+        message = f"Assertion failed: {condition}"
+
+    result = _state.xcmd_test(condition)
+    if result:
+        _state.exec_log.log_user_msg(f"ASSERT passed: {condition}")
+    else:
+        raise ErrInfo(type="cmd", other_msg=message)
+
+
 def x_if(**kwargs: Any) -> None:
     tf_value = _state.xcmd_test(kwargs["condtest"])
     if tf_value:

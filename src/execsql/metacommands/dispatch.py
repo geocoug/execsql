@@ -36,6 +36,7 @@ from execsql.metacommands.connect import (
     x_use,
 )
 from execsql.metacommands.control import (
+    x_assert,
     x_begin_batch,
     x_break,
     x_end_batch,
@@ -1657,6 +1658,36 @@ def build_dispatch_table() -> MetaCommandList:
         x_sub_append,
         description="SUB_APPEND",
         category="action",
+    )
+
+    # ------------------------------------------------------------------
+    # ASSERT
+    # ------------------------------------------------------------------
+    # Two registrations; MetaCommandList.add() prepends, so register the
+    # broader (no-message) pattern first and the more specific (with-message)
+    # pattern second — the second registration wins because it is prepended
+    # last and therefore tried first during dispatch.
+    #
+    # with-message: the trailing quoted token is captured as `message`;
+    #   everything between ASSERT and the message becomes `condtest`.
+    #   This handles conditions that themselves contain quoted strings, e.g.:
+    #     ASSERT $VAR = 'expected' 'wrong value'
+    #   The non-greedy (.+?) stops before the LAST quoted token on the line.
+    #
+    # no-message: full remainder after ASSERT goes into `condtest`.
+    mcl.add(
+        r"^\s*ASSERT\s+(?P<condtest>.+?)\s*$",
+        x_assert,
+        description="ASSERT",
+        category="action",
+        run_when_false=False,
+    )
+    mcl.add(
+        r"^\s*ASSERT\s+(?P<condtest>.+?)\s+(?P<message>(?:\"[^\"]*\"|'[^']*'))\s*$",
+        x_assert,
+        description="ASSERT",
+        category="action",
+        run_when_false=False,
     )
 
     # ------------------------------------------------------------------

@@ -36,6 +36,7 @@ from execsql.metacommands.connect import (
     x_daoflushdelay,
 )
 from execsql.metacommands.control import (
+    x_assert,
     x_if,
     x_if_orif,
     x_if_andif,
@@ -238,6 +239,7 @@ __all__ = [
     "x_pg_vacuum",
     "x_daoflushdelay",
     # control handlers
+    "x_assert",
     "x_if",
     "x_if_orif",
     "x_if_andif",

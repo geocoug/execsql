@@ -36,10 +36,11 @@ ______________________________________________________________________
 
 ### Metacommands
 
-| Metacommand            | Description                                                           |
-| ---------------------- | --------------------------------------------------------------------- |
-| `CONFIG SHOW_PROGRESS` | Enable the Rich progress bar for IMPORT operations at runtime.        |
-| `CONFIG LOG_SQL`       | Enable SQL query audit logging — writes executed SQL to the log file. |
+| Metacommand            | Description                                                                                                                                                           |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ASSERT`               | Evaluate a condition and raise an error (halting the script) if it is false. Supports all IF conditions. Optional quoted failure message. Skipped in false IF blocks. |
+| `CONFIG SHOW_PROGRESS` | Enable the Rich progress bar for IMPORT operations at runtime.                                                                                                        |
+| `CONFIG LOG_SQL`       | Enable SQL query audit logging — writes executed SQL to the log file.                                                                                                 |
 
 ### Configuration Options
 

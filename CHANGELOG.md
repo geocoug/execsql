@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Added
+
+- **`ASSERT` metacommand** — evaluates any IF-compatible condition and raises an error (halting the script when `HALT_ON_METACOMMAND_ERROR` is `ON`) if the condition is false. Supports an optional quoted failure message; omitting the message produces `Assertion failed: <condition>`. A passing assertion is logged. ASSERT is silently skipped inside a false IF block.
+
 ______________________________________________________________________
 
 ## [2.7.1] - 2026-04-01

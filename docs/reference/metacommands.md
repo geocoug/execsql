@@ -48,6 +48,42 @@ Double quotes (as shown above), apostrophes, or square brackets can be used to d
 
 See the [PROMPT ASK](#prompt_ask) metacommand for a version of this command that uses a GUI window and that can display a data table with the prompt.
 
+## ASSERT { #assert }
+
+```
+ASSERT <condition>
+ASSERT <condition> "<failure message>"
+ASSERT <condition> '<failure message>'
+```
+
+Evaluates `<condition>` using the same expression engine as [IF](#if_cmd). If the condition is `True`, execution continues silently (and the result is written to the log). If the condition is `False`, an error is raised with the provided failure message. If no message is supplied, the default message is `Assertion failed: <condition>`.
+
+When [HALT_ON_METACOMMAND_ERROR](#config) is `ON` (the default), a failed assertion halts the script. When it is `OFF`, execution continues after the failure is logged.
+
+The `<condition>` supports all conditional tests available to `IF`, including:
+
+- `TABLE_EXISTS <table>` / `TABLE_NOT_EXISTS <table>`
+- `COLUMN_EXISTS <table> <column>` / `COLUMN_NOT_EXISTS <table> <column>`
+- `ROWCOUNT <op> <n>` (e.g. `ROWCOUNT > 0`)
+- Variable comparisons: `$varname = 'value'`, `$varname != 'value'`
+- Numeric comparisons: `$varname > <n>`, `$varname <= <n>`
+- `DATABASE_TYPE <type>` / `DATABASE_TYPE_NOT <type>`
+
+ASSERT is silently skipped inside a `False` [IF](#if_cmd) block.
+
+**Examples:**
+
+```sql
+-- Halt with a custom message if the staging table is missing.
+-- !x! ASSERT TABLE_EXISTS staging "staging table must exist before running this script"
+
+-- Halt with the default message if no rows were returned.
+-- !x! ASSERT ROWCOUNT > 0
+
+-- Verify a substitution variable has the expected value.
+-- !x! ASSERT $env = 'prod' 'expected production environment'
+```
+
 ## AUTOCOMMIT
 
 ```
