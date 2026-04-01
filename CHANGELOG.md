@@ -11,6 +11,24 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Fixed
+
+- `x_assert` crash when `exec_log` is None — added null guard on `log_user_msg()` call.
+- `--ping` version-query loop exiting prematurely — `break` was at wrong indentation, skipping fallback queries when the first query returned no rows.
+- `CONSOLE SET WIDTH/HEIGHT` crash — `gui_console_width()`/`gui_console_height()` restored as setter functions with GUI console propagation.
+- `$ERROR_MESSAGE` now contains full `errmsg()` (with script location and timestamp) for non-halting errors.
+- Non-halting SQL and metacommand errors now logged to exec_log.
+- `x_debug_log_subvars` log format — was printing full tuple instead of name/value for local variables.
+- Dead `endloop()` removed from `control.py` — `state.endloop()` is canonical.
+- YAML `append=True` now emits `---` document separator for valid multi-document streams.
+- REPL dot-command parsing consistency between dispatcher and exit-check.
+- `__delattr__` on state proxy uses cached `_DEFAULT_CTX` instead of allocating per call.
+- `write_query_to_xlsx` single-sheet now updates `export_metadata`.
+- `isinstance()` used instead of `type()` equality in `MetaCommandList.add()`.
+- Module docstrings in `conditions.py` and `control.py` moved before imports.
+- FEATHER divergence doc corrected — `polars` only, not `polars + pyarrow`.
+- README pre-commit rev updated to `v2.11.0`; options table completed.
+
 ______________________________________________________________________
 
 ## [2.11.0] - 2026-04-01
