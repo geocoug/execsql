@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.11.0] - 2026-04-01
+
 ### Added
 
 - `--debug` CLI flag — starts the script in step-through debug mode. The debug REPL pauses before each statement, as if `BREAKPOINT` were inserted at the top with `.next` always active.
