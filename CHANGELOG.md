@@ -16,6 +16,10 @@ ______________________________________________________________________
 - Docstrings on 183 public API symbols across `db/`, `exporters/`, `importers/`, `config.py`, `models.py`, `types.py`, and `parser.py` — public API docstring coverage raised from 40% to 81%.
 - Developer architecture guide (`docs/dev/architecture.md`) — high-level design overview with Mermaid diagrams covering execution flow, module map, command stack, metacommand dispatch, conditionals, substitution variables, database abstraction, export/import pipeline, GUI subsystem, and global state.
 
+### Changed
+
+- Upgraded GitHub Actions to Node.js 24-compatible versions: checkout v6, setup-python v6, cache v5, upload/download-artifact v7/v8, codecov v6.
+
 ### Fixed
 
 - Corrected repo URL in `zensical.toml` — was pointing to `execsql2` instead of `execsql`.
