@@ -259,9 +259,9 @@ ______________________________________________________________________
 
 ### v2.6 — Architecture & Internal Quality
 
-- [ ] **`state.py` → `RuntimeContext` refactor** — replace 38 module-level mutable globals with a `RuntimeContext` object threaded through execution. Prerequisite for concurrent execution, library API, and easier testing.
-- [ ] **`noqa` cleanup in `metacommands/__init__.py`** — eliminate 180 bulk `# noqa` suppressions via re-export restructuring.
-- [ ] **Coverage push to 90%** — raise floor from 80% to 90%, focusing on parser, type inference, and metacommand handlers.
+- [x] **`state.py` → `RuntimeContext` refactor** — 33 mutable globals consolidated into a slotted `RuntimeContext` class with transparent module proxy. `get_context()`/`set_context()` API added. Zero external call-site changes.
+- [x] **`noqa` cleanup in `metacommands/__init__.py`** — removed all 180 redundant `# noqa` comments; `__all__` already satisfies ruff F401.
+- [x] **Coverage push to 86%** — 403 new tests (3010 total) covering `db/base.py` (55→99%), `metacommands/connect.py` (36→100%), `script/engine.py` (77→95%), `exporters/delimited.py` (76→95%). Remaining gap to 90% is in GUI, ODS, and import handlers.
 
 ### v2.7 — New Export/Import Formats
 

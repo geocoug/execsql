@@ -15,6 +15,17 @@ ______________________________________________________________________
 
 - Textual TUI `console_save()` — writes console output to a file, matching Tkinter parity.
 - Keyboard shortcut hints on Textual TUI dialog screens — Escape to cancel, Enter to submit, with `Footer` widget on all major dialog screens.
+- `RuntimeContext` class in `state.py` — groups all 33 mutable runtime globals into a single slotted object. Enables isolated contexts for testing and future concurrent execution.
+- `get_context()` / `set_context()` public API for programmatic access to the active runtime context.
+- Divergence from Upstream documentation page (`docs/about/divergence.md`) listing all user-visible changes since the fork.
+- Test coverage raised from 80% to 86% — 403 new tests across `db/base.py`, `metacommands/connect.py`, `script/engine.py`, and `exporters/delimited.py`.
+
+### Changed
+
+- `state.py` module now uses a `types.ModuleType` subclass that transparently proxies attribute reads and writes to the active `RuntimeContext` instance. All existing `_state.foo` call sites continue working with zero changes.
+- `reset()` simplified from 40 lines with 7 `global` statements to a clean context replacement (preserving `filewriter`).
+- `initialize()` and `endloop()` rewritten to use `_ctx` directly instead of `global` statements.
+- Removed 180 redundant `# noqa` suppressions from `metacommands/__init__.py` — the existing `__all__` already satisfies ruff F401.
 
 ______________________________________________________________________
 
