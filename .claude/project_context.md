@@ -189,10 +189,10 @@ Triggered on: push to `main`, any tag `v*.*.*`, pull requests.
 
 ## Versioning
 
-`bump-my-version` manages versions. Current: `2.5.0`. Bump commands:
+`bump-my-version` manages versions. Current: `2.11.0`. Bump commands:
 
-- `just bump-patch` → 2.5.0 → 2.5.1
-- `just bump-minor` → 2.5.0 → 2.6.0
+- `just bump-patch` → 2.11.0 → 2.11.1
+- `just bump-minor` → 2.11.0 → 2.12.0
   Bumps commit + tag. Pre-commit hook runs `uv lock` + stages `uv.lock`.
 
 ## Ruff Config
@@ -254,16 +254,32 @@ the foreseeable future.
 | Dispatch optimization already in place (verified) | 2.5.0          | 2026-04 |
 | PostgreSQL integration tests (9 tests, CI Docker) | 2.5.0          | 2026-04 |
 | MySQL integration tests (9 tests, CI Docker)      | 2.5.0          | 2026-04 |
+| `RuntimeContext` refactor + module proxy           | 2.6.0          | 2026-04 |
+| `noqa` cleanup (180 suppressions removed)          | 2.6.0          | 2026-04 |
+| Coverage raised to 86% (3010 tests)                | 2.6.0          | 2026-04 |
+| Markdown, YAML, XLSX export formats                | 2.7.0          | 2026-04 |
+| `ASSERT` metacommand                               | 2.8.0          | 2026-04 |
+| `--dry-run` variable expansion                     | 2.8.0          | 2026-04 |
+| `--profile` per-statement timing                   | 2.8.0          | 2026-04 |
+| `--ping` connectivity test                         | 2.9.0          | 2026-04 |
+| `--lint` static script analysis                    | 2.9.0          | 2026-04 |
+| Configuration docs audit (6 fixes)                 | 2.9.0          | 2026-04 |
+| `ROW_COUNT_GT/GTE/EQ/LT` conditionals             | 2.10.0         | 2026-04 |
+| `BREAKPOINT` debug REPL with step mode             | 2.10.0         | 2026-04 |
+| Error messages restored (script location, command) | 2.11.0         | 2026-04 |
+| 16-item codebase analysis fix sweep                | 2.11.x         | 2026-04 |
 
 ______________________________________________________________________
 
-### v2.6 — Architecture & Internal Quality
+### Completed milestone detail (v2.6–v2.11)
 
-- [x] **`state.py` → `RuntimeContext` refactor** — 33 mutable globals consolidated into a slotted `RuntimeContext` class with transparent module proxy. `get_context()`/`set_context()` API added. Zero external call-site changes.
-- [x] **`noqa` cleanup in `metacommands/__init__.py`** — removed all 180 redundant `# noqa` comments; `__all__` already satisfies ruff F401.
-- [x] **Coverage push to 86%** — 403 new tests (3010 total) covering `db/base.py` (55→99%), `metacommands/connect.py` (36→100%), `script/engine.py` (77→95%), `exporters/delimited.py` (76→95%). Remaining gap to 90% is in GUI, ODS, and import handlers.
+#### v2.6 — Architecture & Internal Quality
 
-### v2.7 — New Export/Import Formats
+- [x] `state.py` → `RuntimeContext` refactor
+- [x] `noqa` cleanup in `metacommands/__init__.py`
+- [x] Coverage push to 86%
+
+#### v2.7 — New Export/Import Formats
 
 - [x] **Parquet import** — already existed as `IMPORT TO table FROM PARQUET file` (verified present).
 - [x] **YAML export** — `FORMAT YAML` via PyYAML, list-of-dicts with native type preservation.
