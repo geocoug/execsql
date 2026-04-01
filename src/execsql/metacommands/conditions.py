@@ -1,5 +1,4 @@
 from __future__ import annotations
-from execsql.exceptions import ErrInfo
 
 """
 Conditional test handler functions for execsql.
@@ -15,6 +14,7 @@ at registration time.
 """
 
 import os
+from execsql.exceptions import ErrInfo
 import time
 from pathlib import Path
 from typing import Any

@@ -82,6 +82,8 @@ def write_query_to_yaml(
         f = ZipWriter(zipfile, outfile, append)
 
     try:
+        if append:
+            f.write("---\n")
         f.write(yaml_text)
     finally:
         f.close()

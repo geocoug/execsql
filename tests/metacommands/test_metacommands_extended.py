@@ -866,11 +866,9 @@ class TestControlHandlers:
         assert len(_state.loopcommandstack) == 1
 
     def test_endloop_without_loop_raises(self):
-        from execsql.metacommands.control import endloop
-
         _state.loopcommandstack = []
         with pytest.raises(ErrInfo):
-            endloop()
+            _state.endloop()
 
 
 # ---------------------------------------------------------------------------

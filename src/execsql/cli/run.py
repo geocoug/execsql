@@ -156,7 +156,7 @@ def _ping_db(db) -> None:
             curs.close()
             if row and row[0]:
                 version_str = str(row[0]).split("\n")[0].strip()
-            break
+                break
         except Exception:
             continue
 

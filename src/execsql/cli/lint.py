@@ -194,7 +194,7 @@ def _lint_cmdlist(
     for cmd in cmdlist.cmdlist:
         src = cmd.source
         lno = cmd.line_no
-        stmt = cmd.command.statement if cmd.command_type == "sql" else cmd.command.statement
+        stmt = cmd.command.statement
 
         if cmd.command_type == "sql":
             # SQL statements: check for variable references only

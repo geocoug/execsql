@@ -358,13 +358,35 @@ def gui_console_wait_user(message: str = "") -> None:
         print(message, file=sys.stderr)
 
 
-def gui_console_width() -> int:
-    """Return the current console width in characters."""
+def gui_console_width(width: int | None = None) -> int:
+    """Get or set the console width in characters.
+
+    When *width* is provided, updates the active GUI console (if any).
+    Always returns the current width.
+    """
+    global _console_width
+    if width is not None:
+        import execsql.state as _state
+
+        _console_width = int(width)
+        if _state.gui_console is not None and hasattr(_state.gui_console, "set_width"):
+            _state.gui_console.set_width(_console_width)
     return _console_width
 
 
-def gui_console_height() -> int:
-    """Return the current console height in lines."""
+def gui_console_height(height: int | None = None) -> int:
+    """Get or set the console height in lines.
+
+    When *height* is provided, updates the active GUI console (if any).
+    Always returns the current height.
+    """
+    global _console_height
+    if height is not None:
+        import execsql.state as _state
+
+        _console_height = int(height)
+        if _state.gui_console is not None and hasattr(_state.gui_console, "set_height"):
+            _state.gui_console.set_height(_console_height)
     return _console_height
 
 

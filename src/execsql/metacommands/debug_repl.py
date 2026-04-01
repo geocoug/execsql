@@ -98,13 +98,14 @@ def _debug_repl() -> None:
 
         # Dot-prefixed → REPL command
         if line.startswith("."):
+            cmd = line[1:].strip().lower()
             _handle_dot_command(line)
-            if line.lower().lstrip(".") in ("continue", "c"):
+            if cmd in ("continue", "c"):
                 return
-            if line.lower().lstrip(".") in ("abort", "q", "quit"):
+            if cmd in ("abort", "q", "quit"):
                 # _handle_dot_command already raised SystemExit, but guard anyway
                 return
-            if line.lower().lstrip(".") in ("next", "n"):
+            if cmd in ("next", "n"):
                 return
             continue
 

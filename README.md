@@ -110,8 +110,11 @@ execsql script.sql                          # read connection from config file
 | `-v {0,1,2,3}`                      | GUI level (0=none, 1=password, 2=selection, 3=full)             |
 | `-w`                                | Skip password prompt when a username is supplied                |
 | `--dsn URL`                         | Connection string (e.g. `postgresql://user:pass@host/db`)       |
+| `--output-dir DIR`                  | Default base directory for EXPORT output files                  |
 | `--dry-run`                         | Parse the script and report commands without executing          |
 | `--lint`                            | Static analysis: check structure and warn on issues (no DB)     |
+| `--ping`                            | Test database connectivity and exit                             |
+| `--profile`                         | Show per-statement timing summary after execution               |
 | `--progress`                        | Show a progress bar for long-running IMPORT operations          |
 | `--debug`                           | Start in step-through debug mode (REPL pauses before each stmt) |
 | `--dump-keywords`                   | Print metacommand keywords as JSON and exit                     |
@@ -188,7 +191,7 @@ execsql-format --check scripts/
 ```yaml
 repos:
   - repo: https://github.com/geocoug/execsql
-    rev: v2.4.4
+    rev: v2.11.0
     hooks:
       - id: execsql-format
         args: [--in-place]

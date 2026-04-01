@@ -74,7 +74,7 @@ def x_debug_log_subvars(**kwargs: Any) -> None:
     local = kwargs["local"]
     user = kwargs["user"]
     for s in _state.commandliststack[-1].localvars.substitutions:
-        _state.exec_log.log_status_info(f"Substitution [{s}] = [{s}]")
+        _state.exec_log.log_status_info(f"Substitution [{s[0]}] = [{s[1]}]")
     if local is None:
         for s in _state.subvars.substitutions:
             if user is None or s[0][0].isalnum() or s[0][0] == "_":

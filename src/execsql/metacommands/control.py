@@ -1,5 +1,4 @@
 from __future__ import annotations
-from execsql.exceptions import ErrInfo
 
 """
 Control-flow metacommand handlers for execsql.
@@ -18,6 +17,8 @@ Implements the imperative ``x_*`` functions for script flow control:
 """
 
 import time
+
+from execsql.exceptions import ErrInfo
 from typing import Any
 
 import execsql.state as _state
@@ -62,7 +63,8 @@ def x_assert(**kwargs: Any) -> None:
 
     result = _state.xcmd_test(condition)
     if result:
-        _state.exec_log.log_user_msg(f"ASSERT passed: {condition}")
+        if _state.exec_log is not None:
+            _state.exec_log.log_user_msg(f"ASSERT passed: {condition}")
     else:
         raise ErrInfo(type="cmd", other_msg=message)
 
@@ -132,14 +134,6 @@ def x_loop(**kwargs: Any) -> None:
         _state.loopcommandstack.append(
             CommandListUntilLoop([], listname, paramnames=None, loopcondition=loopcond),
         )
-
-
-def endloop() -> None:
-    if len(_state.loopcommandstack) == 0:
-        raise ErrInfo("error", other_msg="END LOOP metacommand without a matching preceding LOOP metacommand.")
-    _state.compiling_loop = False
-    _state.commandliststack.append(_state.loopcommandstack[-1])
-    _state.loopcommandstack.pop()
 
 
 def x_halt(**kwargs: Any) -> None:
