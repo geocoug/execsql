@@ -123,6 +123,7 @@ Run `execsql --help` for the full option list, or `execsql -m` to list all metac
 - Export query results in 20+ formats including CSV, TSV, JSON, YAML, XML, HTML, Markdown, LaTeX, XLSX, OpenDocument, Feather, Parquet, HDF5, DuckDB, SQLite, plain text, and Jinja2 templates.
 - Copy data between databases, including across different DBMS types.
 - Conditionally execute SQL and metacommands using `IF`/`ELSE`/`ENDIF` based on data values, DBMS type, or user input.
+- Validate data with `ASSERT` — halt the script with a clear error message if a condition is false (ideal for CI pipelines).
 - Loop over blocks of SQL and metacommands using `LOOP`/`ENDLOOP`.
 - Use substitution variables (`SUB`, `$ARG_x`, built-in variables like `$date_tag`) to parameterize scripts.
 - Include or chain scripts with `INCLUDE` and `SCRIPT`.
