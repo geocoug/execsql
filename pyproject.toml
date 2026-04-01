@@ -182,7 +182,7 @@ addopts = [
     "--cov=execsql",
     "--cov-branch",
     "--cov-report=xml",
-    "--cov-fail-under=80",
+    "--cov-fail-under=85",
     "--strict-markers",
     "--strict-config",
     "--color=yes",
