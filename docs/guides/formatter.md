@@ -127,25 +127,21 @@ The following script has inconsistent metacommand casing, no indentation inside 
 **Before:**
 
 ```sql
--- !x! sub_add schema "public"
+-- !x! sub schema "public"
 
--- !x! if(!!schema!! = "public")
--- !x! write Checking public schema...
+-- !x! if(equal(!!schema!!, "public"))
+-- !x! write "Checking public schema..."
 select id,name,created_at from users where active = true order by name;
 -- !x! endif
-
--- !x! loop while !!count!! < 3
--- !x! sub_add count !!#count + 1!!
--- !x! endloop
 ```
 
 **After (`execsql-format myscript.sql`):**
 
 ```sql
--- !x! SUB_ADD schema "public"
+-- !x! SUB schema "public"
 
--- !x! IF(!!schema!! = "public")
-    -- !x! WRITE Checking public schema...
+-- !x! IF(EQUAL(!!schema!!, "public"))
+    -- !x! WRITE "Checking public schema..."
     SELECT
       id,
       name,
@@ -155,10 +151,6 @@ select id,name,created_at from users where active = true order by name;
       active = TRUE
     ORDER BY name;
 -- !x! ENDIF
-
--- !x! LOOP WHILE !!count!! < 3
-    -- !x! SUB_ADD count !!#count + 1!!
--- !x! END LOOP
 ```
 
 ## Pre-commit Hook { #pre-commit }

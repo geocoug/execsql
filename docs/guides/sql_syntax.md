@@ -39,22 +39,16 @@ If a schema name is used with the table specifications for the [IMPORT](../refer
 
 The version of SQL that is used by the Jet engine when accessed via DAO or ODBC, and thus that must be used in the script files executed with execsql, is generally equivalent to that used within Access itself, but is not identical, and is also not the same in all respects as standard SQL. There are also differences in the SQL syntax accepted by the DAO and ODBC interfaces. To help avoid inconsistencies and errors, here are a few points to keep in mind when creating SQL scripts for use with Access:
 
-> - The Jet engine can fail to correctly parse multi-table JOIN expressions. In these cases you will need to give it some help by parenthesizing parts of the JOIN expression. This means that you have some responsibility for constructing optimized (or at least acceptably good) SQL.
->
-> - Not all functions that you can use in Access are available via DAO or ODBC. Sometimes these can be worked around with slightly lengthier code. For example, the `Nz()` function is not available in an ODBC connection, but it can be replaced with an expression such as `If([Column] is null, 0, [Column])`. The list of ODBC functions that can be used is listed here: <https://msdn.microsoft.com/en-us/library/office/ff835353.aspx>. When creating (temporary) queries---i.e., when using DAO---the functions available are equivalent to those available in Access' GUI interface. A partial list of the differences between Access and ANSI SQL is here: <https://msdn.microsoft.com/en-us/library/bb208890%28v=office.12%29.aspx>
->
-> - The reserved words recognized by the ODBC connection are different than the reserved words recognized by Access' user interface. SQL statements that execute successfully in the user interface may fail when run using execsql if they contain an ODBC reserved word.
->
-> - Literal string values in SQL statements should be enclosed in single quotes, not double quotes. Although Access allows double quotes to be used, the ANSI SQL standard and the connector libraries used for execsql require that single quotes be used.
->
-> - Square brackets must be used around column names that contain embedded spaces when a temporary query is being used (i.e., DAO is used). At all other times, double quotes will work.
->
-> - Expressions that should produce a floating-point result ('Double') sometimes do not, with the output being truncated or rounded to an integer. A workaround is to multiply and then divide the expression by the same floating-point number; for example: '1.00000001 * \<expression> / 1.00000001'.
->
-> - The wildcard character to use with the LIKE expression, in a `CREATE [TEMPORARY] QUERY` statement, differs under different circumstances:
->
->     > - "\*" must be used in action queries (UPDATE, INSERT, DELETE).
->     > - "\*" must be used in simple SELECT queries.
->     > - "%" must be used in subqueries of SELECT queries.
->
->     These differences are due to the different syntaxes supported by the ODBC and DAO connections, and circumstances (such a subqueries) in which the text of a saved query is recompiled by the ODBC driver. When you are not creating a (temporary) query, "%" should always be used as the wildcard. In particular, avoid creating a query that will be used both directly and as a subquery in another query--this situation is very likely to result in errors. *Because of the potentially adverse consequences of improper interpretation of wildcards with Access databases, you should always test such statements very carefully.*
+- The Jet engine can fail to correctly parse multi-table JOIN expressions. In these cases you will need to give it some help by parenthesizing parts of the JOIN expression. This means that you have some responsibility for constructing optimized (or at least acceptably good) SQL.
+- Not all functions that you can use in Access are available via DAO or ODBC. Sometimes these can be worked around with slightly lengthier code. For example, the `Nz()` function is not available in an ODBC connection, but it can be replaced with an expression such as `If([Column] is null, 0, [Column])`. The list of ODBC functions that can be used is listed here: <https://msdn.microsoft.com/en-us/library/office/ff835353.aspx>. When creating (temporary) queries---i.e., when using DAO---the functions available are equivalent to those available in Access' GUI interface. A partial list of the differences between Access and ANSI SQL is here: <https://msdn.microsoft.com/en-us/library/bb208890%28v=office.12%29.aspx>
+- The reserved words recognized by the ODBC connection are different than the reserved words recognized by Access' user interface. SQL statements that execute successfully in the user interface may fail when run using execsql if they contain an ODBC reserved word.
+- Literal string values in SQL statements should be enclosed in single quotes, not double quotes. Although Access allows double quotes to be used, the ANSI SQL standard and the connector libraries used for execsql require that single quotes be used.
+- Square brackets must be used around column names that contain embedded spaces when a temporary query is being used (i.e., DAO is used). At all other times, double quotes will work.
+- Expressions that should produce a floating-point result ('Double') sometimes do not, with the output being truncated or rounded to an integer. A workaround is to multiply and then divide the expression by the same floating-point number; for example: '1.00000001 * \<expression> / 1.00000001'.
+- The wildcard character to use with the LIKE expression, in a `CREATE [TEMPORARY] QUERY` statement, differs under different circumstances:
+
+> - "\*" must be used in action queries (UPDATE, INSERT, DELETE).
+> - "\*" must be used in simple SELECT queries.
+> - "%" must be used in subqueries of SELECT queries.
+
+> These differences are due to the different syntaxes supported by the ODBC and DAO connections, and circumstances (such a subqueries) in which the text of a saved query is recompiled by the ODBC driver. When you are not creating a (temporary) query, "%" should always be used as the wildcard. In particular, avoid creating a query that will be used both directly and as a subquery in another query--this situation is very likely to result in errors. *Because of the potentially adverse consequences of improper interpretation of wildcards with Access databases, you should always test such statements very carefully.*

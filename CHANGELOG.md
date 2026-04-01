@@ -11,6 +11,12 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Fixed
+
+- Corrected repo URL in `zensical.toml` — was pointing to `execsql2` instead of `execsql`.
+- Fixed formatter before/after example in docs to use correct metacommand syntax.
+- Removed unnecessary blockquote nesting in SQL syntax notes and using scripts docs.
+
 ______________________________________________________________________
 
 ## [2.4.6] - 2026-03-31
