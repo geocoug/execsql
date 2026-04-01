@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.8.0] - 2026-04-01
+
 ### Added
 
 - **`--profile` flag** — records wall-clock time for each SQL and metacommand statement and prints a formatted timing summary after the script completes. The summary lists statements sorted by elapsed time descending (top 20 shown), with per-statement percentage of total time, source location, command type, and a preview of the command text.
