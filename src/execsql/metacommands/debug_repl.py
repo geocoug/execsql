@@ -35,7 +35,7 @@ execsql debug REPL commands:
   abort     q quit   Halt the script (exit 1)
   vars               List user, system, local, and counter variables
   vars all           Include environment variables (&) in the listing
-  $VARNAME           Print a single variable's value  (also &VAR, @VAR)
+  varname            Print a variable's value (e.g. logfile, $ARG_1, &HOME)
   SELECT ...;        Run ad-hoc SQL against the current database
   next      n        Execute the next statement then pause again (step mode)
   stack              Show the command-list stack (script name, line, depth)
@@ -105,10 +105,12 @@ def _debug_repl() -> None:
         elif lower in ("next", "n"):
             _enable_step_mode()
             return
-        elif line[0] in ("$", "&", "@"):
+        elif line[0] in ("$", "&", "@", "~", "#"):
             _print_var(line)
         elif line.rstrip().endswith(";"):
             _run_sql(line)
+        elif _is_known_var(line):
+            _print_var(line)
         else:
             _write(f"Unknown command: {line!r}. Type 'help' for available commands.\n")
 
@@ -116,6 +118,14 @@ def _debug_repl() -> None:
 # ---------------------------------------------------------------------------
 # REPL command implementations
 # ---------------------------------------------------------------------------
+
+
+def _is_known_var(name: str) -> bool:
+    """Return True if *name* matches a defined substitution variable."""
+    subvars = _state.subvars
+    if subvars is None:
+        return False
+    return subvars.varvalue(name.strip()) is not None
 
 
 def _write(text: str) -> None:
