@@ -186,15 +186,17 @@ class SubVarSet:
         return template_str.lower() in self._subs_dict
 
     def merge(self, other_subvars: SubVarSet | None) -> SubVarSet:
-        """Return a new SubVarSet with this object's variables merged with other_subvars."""
+        """Return a new SubVarSet with this object's variables merged with other_subvars.
+
+        Copies dictionaries and pre-compiled patterns directly instead of
+        re-adding variables one at a time, avoiding O(V) regex recompilation.
+        """
         if other_subvars is not None:
             newsubs = SubVarSet()
-            newsubs._subs_dict = dict(self._subs_dict)
-            newsubs._compiled_patterns = dict(self._compiled_patterns)
+            newsubs._subs_dict = {**self._subs_dict, **other_subvars._subs_dict}
+            newsubs._compiled_patterns = {**self._compiled_patterns, **other_subvars._compiled_patterns}
             newsubs.prefix_list = list(set(self.prefix_list + other_subvars.prefix_list))
             newsubs.compile_var_rx()
-            for varname, value in other_subvars._subs_dict.items():
-                newsubs.add_substitution(varname, value)
             return newsubs
         return self
 

@@ -21,6 +21,8 @@ ______________________________________________________________________
 
 - Cursor lifecycle in database adapters — all `exec_cmd()` methods and PostgreSQL `vacuum()` now use the `_cursor()` context manager to prevent cursor leaks.
 
+- Optimized `SubVarSet.merge()` — copies pre-compiled patterns directly instead of recompiling O(V) regex patterns per merge call. Eliminates the main variable substitution hotspot when local variables are in scope.
+
 - Upgraded GitHub Actions to Node.js 24-compatible versions: checkout v6, setup-python v6, cache v5, upload/download-artifact v7/v8, codecov v6.
 
 ### Fixed
