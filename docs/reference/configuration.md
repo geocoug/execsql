@@ -28,7 +28,7 @@ The section and property names that may be used in a configuration file are list
 :   The database server name. This is equivalent to the second command-line argument for client-server databases.
 
 `db`
-:   The database name. This is equivalent to the third command-line argument for client-server databases
+:   The database name. This is equivalent to the third command-line argument for client-server databases. The alias `database` is also accepted.
 
 `db_file`
 :   The name of the database file. This is equivalent to the second command-line argument for file-based databases.
@@ -132,9 +132,9 @@ The section and property names that may be used in a configuration file are list
 
 :   Controls how often row-count progress is written to the execution log during IMPORT operations. Set to a positive integer N to log a status line every N rows (e.g. `import_progress_interval = 10000`). The default is `0` (silent). When enabled, a final completion line (e.g. "IMPORT into schema.table complete: 1000000 rows imported.") is also written. Supported for all database adapters.
 
-`import_only_common_columns` { #import_only_common }
+`import_common_columns_only` { #import_only_common }
 
-:   Determines whether the [IMPORT](metacommands.md#import) metacommand will import data from a CSV file when the file has more data columns than the target table. The property value should be either "Yes" or "No". The default, "No", indicates that the target table must have all of the columns present in the CSV file; if the target table has fewer columns, an error will result. A property value of "Yes" will result in import of only the columns in common between the CSV file and the target table.
+:   Determines whether the [IMPORT](metacommands.md#import) metacommand will import data from a CSV file when the file has more data columns than the target table. The property value should be either "Yes" or "No". The default, "No", indicates that the target table must have all of the columns present in the CSV file; if the target table has fewer columns, an error will result. A property value of "Yes" will result in import of only the columns in common between the CSV file and the target table. The legacy alias `import_only_common_columns` is also accepted.
 
 `import_row_buffer`
 
@@ -171,7 +171,7 @@ The section and property names that may be used in a configuration file are list
 ## Section `output` { #config_output }
 
 `log_write_messages`
-:   Specifies whether output of the [WRITE](metacommands.md#write) metacommand will also be written to *execsql*'s log file. The property value should be either "Yes" or "No". This configuration property can also be controlled within a script with the [CONFIG LOG_WRITE_MESSAGES](metacommands.md#logwritemessages) metacommand.
+:   Specifies whether output of the [WRITE](metacommands.md#write) metacommand will also be written to *execsql*'s log file. The property value should be either "Yes" or "No". The default is "No". This configuration property can also be controlled within a script with the [CONFIG LOG_WRITE_MESSAGES](metacommands.md#logwritemessages) metacommand.
 
 `make_export_dirs`
 :   The output directories used in the [EXPORT](metacommands.md#export) and [WRITE](metacommands.md#write) metacommands will be automatically created if they do not exist (and the user has the necessary permission). The property value should be either "Yes" or "No". This is equivalent to the "-d" command-line option.
@@ -186,12 +186,12 @@ The section and property names that may be used in a configuration file are list
 :   The number of data rows to be buffered from the database when exporting data. Larger values result in faster exports, up to a point, and at a diminishing rate of return. Larger values also require more memory. The setting value must be a positive integer greater than zero. The default value is 1000 rows. This value cannot be customized when using DuckDB.
 
 `hdf5_text_len`
-:   The length to be assigned to columns that have the 'text' data type when data are exported in the HDF5 format.
+:   The length to be assigned to columns that have the 'text' data type when data are exported in the HDF5 format. The default is `1000`.
 
 `css_file`
 :   The URI of a CSS file to be included in the header of an HTML file created with the [EXPORT](metacommands.md#export) metacommand. If this is specified, it will replace the CSS styles that *execsql* would otherwise use.
 
-`css_style`
+`css_styles`
 :   A set of CSS style specifications to be included in the header of an HTML file created with the [EXPORT](metacommands.md#export) metacommand. If this is specified, it will replace the CSS styles that *execsql* would otherwise use. Both css_file and css_style may be specified; if they are, they will be included in the header of the HTML file in that order.
 
 `template_processor`
@@ -239,6 +239,10 @@ The section and property names that may be used in a configuration file are list
     - 1: Use GUI dialogs for password prompts and for the [PAUSE](metacommands.md#pause) metacommand.
     - 2: Also use a GUI dialog if a message is included with the [HALT](metacommands.md#halt) metacommand, and prompt for the initial database to use if no database connection parameters are specified in a configuration file or on the command line.
     - 3: Additionally, open a GUI console when *execsql* starts.
+
+`gui_framework` { #gui_framework }
+
+:   The GUI framework to use when `gui_level` is greater than 0. The property value must be either `tkinter` (the default) or `textual`. `tkinter` uses native desktop dialogs via Tk; `textual` provides a terminal-based UI that works in headless/SSH environments. This can also be set via the `--gui-framework` command-line option.
 
 ## Section `email`
 
@@ -305,7 +309,7 @@ The section and property names that may be used in a configuration file are list
 :   The full name or path to an additional configuration file to be read. If only a path is specified, the name of the configuration file should be `execsql.conf`. The configuration file specified will be read immediately following the configuration file in which it is named. No configuration file will be read more than once. If the name or path are invalid, this setting will be silently ignored. This setting may include [substitution variables](substitution_vars.md#substitution_vars); at the time that configuration files are read, however, only environment variables and system variables related to the script name and path are defined.
 
 `dao_flush_delay_secs`
-:   The number of seconds that *execsql* should wait between the time that a query is created in Access (which uses DAO) and the time that the next statement is executed using ODBC. This value must be greater than or equal to 5.0.
+:   The number of seconds that *execsql* should wait between the time that a query is created in Access (which uses DAO) and the time that the next statement is executed using ODBC. This value must be greater than or equal to 5.0. The default is `5.0`.
 
 `linux_config_file`
 :   The full name or path to an additional configuration file to be read if *execsql* is running on Linux. If only a path is specified, the name of the configuration file should be `execsql.conf`. The configuration file specified will be read immediately following the configuration file in which it is named. No configuration file will be read more than once. If the name or path are invalid, this setting will be silently ignored. This setting may include [substitution variables](substitution_vars.md#substitution_vars); at the time that configuration files are read, however, only environment variables and system variables related to the script name and path are defined.
