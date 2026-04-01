@@ -932,7 +932,22 @@ JSON_TS or JSON_TABLESCHEMA
 
 LATEX
 
-:   Input for the [LaTeΧ](https://www.latex-project.org/) typesetting system. If the "APPEND" keyword is not used, a complete document (of class article) will be written. If the "APPEND" keyword is used, only the table definition will be written to the output file. If the "APPEND" keyword is used and an existing output file contains an \\end directive, the table will be written before that directive rather than at the physical end of the file. Wide or long tables may exceed LaTeΧ's default page size. If the "DESCRIPTION" keyword is used, the given description will be used as the table's caption. Data exported in LaTeX format cannot be written into a zipfile.
+:   Input for the [LaTeX](https://www.latex-project.org/) typesetting system. If the "APPEND" keyword is not used, a complete document (of class article) will be written. If the "APPEND" keyword is used, only the table definition will be written to the output file. If the "APPEND" keyword is used and an existing output file contains an \\end directive, the table will be written before that directive rather than at the physical end of the file. Wide or long tables may exceed LaTeΧ's default page size. If the "DESCRIPTION" keyword is used, the given description will be used as the table's caption. Data exported in LaTeX format cannot be written into a zipfile.
+
+
+MARKDOWN or MD
+
+:   [GitHub-Flavored Markdown](https://github.github.com/gfm/) pipe table. Column values are aligned and pipe (`|`) and backslash (`\`) characters in data are escaped. If the "DESCRIPTION" keyword is used, the description is written as an HTML comment (`<!-- ... -->`) before the table. If the "APPEND" keyword is used, only the table is appended (no repeated headers). No optional dependencies required.
+
+
+XLSX
+
+:   [Excel](https://www.microsoft.com/en-us/microsoft-365/excel) workbook in the Office Open XML format. One or more tables (or views) can be exported to an XLSX workbook. Each table will be exported to a separate worksheet within the workbook, with the first row containing bold column headers. To export multiple tables, their names must be separated by commas. The "APPEND" keyword can be used to add worksheets to an existing workbook. The name of the view or table exported will be used as the worksheet name; if this conflicts with a sheet already in the workbook, a number will be appended to make the sheet name unique. A "Datasheets" inventory sheet is created with author, date, description, and source information for each data sheet. Data types are preserved natively (integers, floats, dates, datetimes, booleans). The `openpyxl` library must be installed (`pip install execsql2[excel]`). Data exported in XLSX format cannot be written into a zipfile.
+
+
+YAML
+
+:   [YAML](https://yaml.org/) sequence of mappings. Each row is represented as a mapping (dictionary) with column names as keys. Python data types are preserved — integers remain integers, floats remain floats, and `None` becomes YAML `null`. If the "APPEND" keyword is used, a new YAML document is appended to the file (multi-document stream). The `PyYAML` library must be installed (`pip install execsql2[formats]`). No description text is included in the output even if provided.
 
 
 SQLITE
