@@ -556,18 +556,12 @@ class TestCsvFile:
         assert hdrs == ["id", "name"]
 
     def test_colhdrs_dedup_col_hdrs(self, tmp_path, minimal_conf):
-        # Line 680: dedup_col_hdrs path — _state.dedup_words is called
-        # _state.dedup_words is not natively present; we mock it to verify the branch
-        from execsql.utils.strings import dedup_words
-
+        # Line 680: dedup_col_hdrs path — dedup_words is called
         minimal_conf.dedup_col_hdrs = True
         p = tmp_path / "data.csv"
         p.write_text("col,col\n1,2\n", encoding="utf-8")
         cf = CsvFile(str(p), "utf-8")
-        import execsql.state as _state_module
-
-        with patch.object(_state_module, "dedup_words", dedup_words, create=True):
-            hdrs = cf.column_headers()
+        hdrs = cf.column_headers()
         assert len(hdrs) == 2
         assert len(set(hdrs)) == 2  # dedup ensures uniqueness
 

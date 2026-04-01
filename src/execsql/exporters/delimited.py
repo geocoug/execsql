@@ -27,7 +27,7 @@ from execsql.exceptions import ErrInfo
 from execsql.models import DataTable
 from execsql.utils.errors import exception_desc
 from execsql.utils.fileio import filewriter_close
-from execsql.utils.strings import clean_words, fold_words
+from execsql.utils.strings import clean_words, dedup_words, fold_words
 
 __all__ = ["LineDelimiter", "CsvFile", "CsvWriter", "DelimitedWriter", "write_delimited_file"]
 
@@ -677,7 +677,7 @@ class CsvFile(EncodedFile):
         if conf.fold_col_hdrs != "no":
             colnames = fold_words(colnames, conf.fold_col_hdrs)
         if conf.dedup_col_hdrs:
-            colnames = _state.dedup_words(colnames)
+            colnames = dedup_words(colnames)
         return colnames
 
     def column_headers(self) -> list[str]:
