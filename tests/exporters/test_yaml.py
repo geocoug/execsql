@@ -28,7 +28,7 @@ def _make_db(headers, rows):
 
 
 def _read_yaml(path) -> list:
-    return yaml.safe_load(path.read_text())
+    return yaml.safe_load(path.read_text(encoding="utf-8"))
 
 
 # ---------------------------------------------------------------------------
