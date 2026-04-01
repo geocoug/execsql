@@ -20,11 +20,11 @@ from execsql.cli.dsn import _parse_connection_string
 from execsql.cli.help import _console, _err_console
 from execsql.config import ConfigData, StatObj
 from execsql.exceptions import ConfigError, ErrInfo
-from execsql.script import SubVarSet, current_script_line, read_sqlfile, read_sqlstring, runscripts
+from execsql.script import SubVarSet, current_script_line, read_sqlfile, read_sqlstring, runscripts, substitute_vars
 from execsql.utils.fileio import FileWriter, Logger, filewriter_end
 from execsql.utils.gui import gui_connect, gui_console_isrunning, gui_console_off, gui_console_on, gui_console_wait_user
 
-__all__ = ["_connect_initial_db", "_print_dry_run", "_run"]
+__all__ = ["_connect_initial_db", "_print_dry_run", "_print_profile", "_run"]
 
 
 # ---------------------------------------------------------------------------
@@ -33,7 +33,16 @@ __all__ = ["_connect_initial_db", "_print_dry_run", "_run"]
 
 
 def _print_dry_run(cmdlist: object) -> None:
-    """Print the parsed command list for --dry-run mode."""
+    """Print the parsed command list for --dry-run mode.
+
+    Substitution variables (``$VAR``, ``&ENV``, ``@COUNTER``) that are already
+    populated — from environment variables, ``--assign-arg`` values, or config —
+    are expanded in the displayed text.  System variables that are set at
+    execution time (e.g. ``$CURRENT_TIME``, ``$DB_NAME``, ``$TIMER``) will
+    appear unexpanded because ``set_system_vars()`` has not yet been called.
+    Local ``~``-prefixed script-scope variables are also not expanded (no script
+    execution context exists in dry-run mode).
+    """
     if cmdlist is None or not cmdlist.cmdlist:
         _console.print("[yellow]No commands found in script.[/yellow]")
         return
@@ -43,7 +52,71 @@ def _print_dry_run(cmdlist: object) -> None:
     for i, cmd in enumerate(cmdlist.cmdlist, 1):
         ctype = "SQL    " if cmd.command_type == "sql" else "METACMD"
         source_info = f"[dim]{cmd.source}:{cmd.line_no}[/dim]"
-        _console.print(f"  [dim]{i:>4}[/dim]  [bold green]{ctype}[/bold green]  {source_info}  {cmd.commandline()}")
+        raw = cmd.commandline()
+        try:
+            expanded = substitute_vars(raw)
+        except Exception:
+            # Cycle detection or other expansion errors — fall back to raw text.
+            expanded = raw
+        _console.print(f"  [dim]{i:>4}[/dim]  [bold green]{ctype}[/bold green]  {source_info}  {expanded}")
+
+
+# ---------------------------------------------------------------------------
+# Profile report helper
+# ---------------------------------------------------------------------------
+
+
+def _print_profile(profile_data: list[tuple]) -> None:
+    """Print a per-statement timing summary to stdout.
+
+    Args:
+        profile_data: List of ``(source, line_no, command_type, elapsed_secs,
+            command_text_preview)`` tuples collected during execution.
+    """
+    if not profile_data:
+        _console.print("[dim]Profile: no statements recorded.[/dim]")
+        return
+
+    total_secs = sum(row[3] for row in profile_data)
+    n = len(profile_data)
+
+    # Sort descending by elapsed time; show top 20 (or all if <= 20).
+    sorted_data = sorted(profile_data, key=lambda r: r[3], reverse=True)
+    display = sorted_data[:20]
+
+    _console.print()
+    _console.print(f"[bold cyan]Profile:[/bold cyan] {n} statement{'s' if n != 1 else ''} in {total_secs:.3f}s")
+    _console.print()
+
+    header = f"  {'Time (s)':<10}  {'Pct':<7}  {'Source:Line':<20}  {'Type':<7}  Command"
+    sep = f"  {'-' * 10}  {'-' * 7}  {'-' * 20}  {'-' * 7}  {'-' * 40}"
+    _console.print(f"[dim]{header}[/dim]")
+    _console.print(f"[dim]{sep}[/dim]")
+
+    for source, line_no, command_type, elapsed, preview in display:
+        pct = (elapsed / total_secs * 100) if total_secs > 0 else 0.0
+        source_col = f"{source}:{line_no}"
+        if len(source_col) > 20:
+            source_col = "..." + source_col[-17:]
+        ctype_label = "SQL    " if command_type == "sql" else "METACMD"
+        preview_short = preview[:50].replace("\n", " ").strip()
+        if len(preview) > 50:
+            preview_short += "..."
+        _console.print(
+            f"  [yellow]{elapsed:<10.3f}[/yellow]  "
+            f"[dim]{pct:<6.1f}%[/dim]  "
+            f"[cyan]{source_col:<20}[/cyan]  "
+            f"[green]{ctype_label:<7}[/green]  "
+            f"{preview_short}",
+        )
+
+    if len(sorted_data) > 20:
+        omitted = len(sorted_data) - 20
+        _console.print(
+            f"[dim]  ... {omitted} more statement{'s' if omitted != 1 else ''} not shown (top 20 by time)[/dim]",
+        )
+
+    _console.print()
 
 
 # ---------------------------------------------------------------------------
@@ -76,6 +149,7 @@ def _run(
     dsn: str | None = None,
     output_dir: str | None = None,
     progress: bool = False,
+    profile: bool = False,
 ) -> None:
     """Initialise state, connect to the database, load the script, and run it.
 
@@ -378,7 +452,10 @@ def _run(
     atexit.register(_state.dbs.closeall)
     _state.dbs.do_rollback = True
 
-    _execute_script_direct(conf)
+    if profile:
+        _state.profile_data = []
+
+    _execute_script_direct(conf, profile=profile)
 
 
 # ---------------------------------------------------------------------------
@@ -437,8 +514,15 @@ def _execute_script_textual_console(conf: ConfigData) -> None:
     _state.exec_log.log_exit_end()
 
 
-def _execute_script_direct(conf: ConfigData) -> None:
-    """Run runscripts() in the current (main) thread — used when Textual is not active."""
+def _execute_script_direct(conf: ConfigData, *, profile: bool = False) -> None:
+    """Run runscripts() in the current (main) thread — used when Textual is not active.
+
+    Args:
+        conf: The active configuration object.
+        profile: When ``True``, print a per-statement timing summary after the
+            script completes.  Timing data must already have been activated on
+            ``_state.profile_data`` before this function is called.
+    """
     import execsql.state as _state
     import execsql.utils.gui as _gui
 
@@ -463,6 +547,8 @@ def _execute_script_direct(conf: ConfigData) -> None:
             if gui_console_isrunning():
                 gui_console_off()
         _state.exec_log.log_status_info(f"{_state.cmds_run} commands run")
+        if profile and _state.profile_data is not None:
+            _print_profile(_state.profile_data)
         sys.exit(exc.code)
     except ConfigError:
         raise
@@ -489,6 +575,8 @@ def _execute_script_direct(conf: ConfigData) -> None:
         if gui_console_isrunning():
             gui_console_off()
     _state.exec_log.log_status_info(f"{_state.cmds_run} commands run")
+    if profile and _state.profile_data is not None:
+        _print_profile(_state.profile_data)
     _state.exec_log.log_exit_end()
 
 

@@ -13,7 +13,12 @@ ______________________________________________________________________
 
 ### Added
 
+- **`--profile` flag** — records wall-clock time for each SQL and metacommand statement and prints a formatted timing summary after the script completes. The summary lists statements sorted by elapsed time descending (top 20 shown), with per-statement percentage of total time, source location, command type, and a preview of the command text.
 - **`ASSERT` metacommand** — evaluates any IF-compatible condition and raises an error (halting the script when `HALT_ON_METACOMMAND_ERROR` is `ON`) if the condition is false. Supports an optional quoted failure message; omitting the message produces `Assertion failed: <condition>`. A passing assertion is logged. ASSERT is silently skipped inside a false IF block.
+
+### Changed
+
+- **`--dry-run` expands substitution variables** — the command list printed by `--dry-run` now shows resolved `!!$VAR!!` / `!!&ENV!!` tokens for variables that are already populated at parse time (environment variables, `--assign-arg` values, config-sourced variables, and built-in start-time variables like `$SCRIPT_START_TIME`). Variables that are set during execution (e.g. `$CURRENT_TIME`, `$DB_NAME`, `$TIMER`) remain unexpanded because the database connection has not yet been established. Local `~`-prefixed script-scope variables are also left unexpanded. If expansion fails (e.g. a cycle is detected), the raw token is displayed instead.
 
 ______________________________________________________________________
 

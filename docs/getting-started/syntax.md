@@ -175,21 +175,33 @@ Valid encoding names can be displayed with the `-y` option. See also [Character 
 ### Informational options
 
 `-m`, `--metacommands`
+
 :   List all metacommands and exit.
 
 `-o`, `--online-help`
+
 :   Open the online documentation in the default browser.
 
 `-y`, `--encodings`
+
 :   List all valid character encoding names and exit.
 
 `--dump-keywords`
+
 :   Dump all metacommand keywords, conditional functions, config options, and export formats as JSON and exit. Useful for tooling that consumes execsql's keyword registry (e.g., the VS Code grammar generator).
 
 `--dry-run`
+
 :   Parse the script (or inline `-c` command) and print the full command list — SQL statements and metacommands with source locations — without connecting to a database or executing anything. Useful for validating scripts.
 
+    Substitution variables that are already populated at parse time are expanded in the output: environment variables (`!!&ENV_VAR!!`), `--assign-arg` values (`!!$ARG_1!!`), and built-in start-time variables like `!!$SCRIPT_START_TIME!!` and `!!$USER!!`. Variables that are set during execution — such as `$CURRENT_TIME`, `$DB_NAME`, and `$TIMER` — remain unexpanded because no database connection is established in dry-run mode. Local `~`-prefixed script-scope variables are also left unexpanded.
+
+`--profile`
+
+:   Record the wall-clock execution time of each SQL statement and metacommand. After the script finishes, print a summary table to the console showing elapsed time, percentage of total time, source file and line number, command type, and a preview of the command text. Statements are sorted from slowest to fastest; the top 20 are displayed. Useful for identifying slow queries or metacommands in long-running scripts.
+
 `--version`
+
 :   Show the version number and exit.
 
 ## Configuration File Defaults { #config_defaults }

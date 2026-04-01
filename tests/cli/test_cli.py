@@ -380,6 +380,61 @@ class TestDryRun:
         )
         assert result.exit_code == 1
 
+    def test_dry_run_expands_assign_arg_variables(self, tmp_path):
+        """--assign-arg values ($ARG_1, $ARG_2, …) must appear expanded in dry-run output."""
+        script = tmp_path / "test.sql"
+        # Use !! delimiters — the canonical execsql substitution syntax.
+        script.write_text("SELECT * FROM !!$ARG_1!!;\n")
+        result = runner.invoke(
+            app,
+            ["--dry-run", "-a", "my_table", str(script)],
+            catch_exceptions=False,
+        )
+        assert result.exit_code == 0
+        assert "my_table" in result.output
+        # Raw token must NOT appear — expansion happened.
+        assert "!!$ARG_1!!" not in result.output
+
+    def test_dry_run_expands_multiple_assign_args(self, tmp_path):
+        """Multiple --assign-arg values are all expanded in dry-run output."""
+        script = tmp_path / "test.sql"
+        script.write_text("SELECT !!$ARG_1!!, !!$ARG_2!! FROM dual;\n")
+        result = runner.invoke(
+            app,
+            ["--dry-run", "-a", "col_a", "-a", "col_b", str(script)],
+            catch_exceptions=False,
+        )
+        assert result.exit_code == 0
+        assert "col_a" in result.output
+        assert "col_b" in result.output
+
+    def test_dry_run_expands_env_vars(self, tmp_path, monkeypatch):
+        """Environment variables exposed as &VAR are expanded in dry-run output."""
+        monkeypatch.setenv("DRY_RUN_TEST_VAR", "sentinel_value")
+        script = tmp_path / "test.sql"
+        script.write_text("SELECT '!!&DRY_RUN_TEST_VAR!!';\n")
+        result = runner.invoke(
+            app,
+            ["--dry-run", str(script)],
+            catch_exceptions=False,
+        )
+        assert result.exit_code == 0
+        assert "sentinel_value" in result.output
+
+    def test_dry_run_unexpanded_token_survives_gracefully(self, tmp_path):
+        """An unrecognised substitution token is left as-is (not an error)."""
+        script = tmp_path / "test.sql"
+        # $UNKNOWN_VAR is not defined — substitute_vars leaves it verbatim.
+        script.write_text("SELECT !!$UNKNOWN_XYZ_VAR!!;\n")
+        result = runner.invoke(
+            app,
+            ["--dry-run", str(script)],
+            catch_exceptions=False,
+        )
+        assert result.exit_code == 0
+        # The command is still displayed (token is left verbatim, not an error).
+        assert "SQL" in result.output
+
 
 # ---------------------------------------------------------------------------
 # _parse_connection_string
