@@ -13,6 +13,11 @@ The REPL allows the user to:
 - Step through the script one statement at a time.
 - Resume or abort execution.
 
+All REPL commands are dot-prefixed (``.continue``, ``.vars``, ``.next``)
+to avoid ambiguity with variable names and SQL.  Anything not starting
+with ``.`` is treated as either a variable lookup (if it matches a known
+variable) or SQL (if it ends with ``;``).
+
 In non-interactive environments (CI, piped input, ``sys.stdin.isatty()`` is
 ``False``) the metacommand is silently skipped so automated pipelines are not
 blocked.
@@ -30,16 +35,19 @@ __all__ = ["x_breakpoint"]
 # ---------------------------------------------------------------------------
 
 _HELP_TEXT = """\
-execsql debug REPL commands:
-  continue  c        Resume script execution
-  abort     q quit   Halt the script (exit 1)
-  vars               List user, system, local, and counter variables
-  vars all           Include environment variables (&) in the listing
-  varname            Print a variable's value (e.g. logfile, $ARG_1, &HOME)
-  SELECT ...;        Run ad-hoc SQL against the current database
-  next      n        Execute the next statement then pause again (step mode)
-  stack              Show the command-list stack (script name, line, depth)
-  help               Show this help text
+execsql debug REPL — all commands start with '.'
+
+  .continue  .c       Resume script execution
+  .abort     .q       Halt the script (exit 1)
+  .vars               List user, system, local, and counter variables
+  .vars all           Include environment variables (&) in the listing
+  .next      .n       Execute the next statement then pause again (step mode)
+  .stack              Show the command-list stack (script name, line, depth)
+  .help               Show this help text
+
+Everything else:
+  varname             Print a variable's value (e.g. logfile, $ARG_1, &HOME)
+  SELECT ...;         Run ad-hoc SQL against the current database
 """
 
 
@@ -65,7 +73,7 @@ def x_breakpoint(**kwargs: Any) -> None:
 def _debug_repl() -> None:
     """Interactive read-eval-print loop for script debugging.
 
-    Reads commands from stdin until the user types ``continue`` or ``abort``,
+    Reads commands from stdin until the user types ``.continue`` or ``.abort``,
     or until EOF / KeyboardInterrupt.
     """
     try:
@@ -73,7 +81,7 @@ def _debug_repl() -> None:
     except ImportError:
         pass  # readline not available on Windows; continue without it
 
-    _write("\n[Breakpoint] Script paused. Type 'help' for commands, 'continue' to resume.\n")
+    _write("\n[Breakpoint] Script paused. Type '.help' for commands, '.c' to resume.\n")
 
     while True:
         try:
@@ -88,44 +96,53 @@ def _debug_repl() -> None:
         if not line:
             continue
 
-        lower = line.lower()
+        # Dot-prefixed → REPL command
+        if line.startswith("."):
+            _handle_dot_command(line)
+            if line.lower().lstrip(".") in ("continue", "c"):
+                return
+            if line.lower().lstrip(".") in ("abort", "q", "quit"):
+                # _handle_dot_command already raised SystemExit, but guard anyway
+                return
+            if line.lower().lstrip(".") in ("next", "n"):
+                return
+            continue
 
-        if lower in ("continue", "c"):
-            return
-        elif lower in ("abort", "q", "quit"):
-            raise SystemExit(1)
-        elif lower == "help":
-            _write(_HELP_TEXT)
-        elif lower == "vars all":
-            _print_all_vars(include_env=True)
-        elif lower == "vars":
-            _print_all_vars()
-        elif lower == "stack":
-            _print_stack()
-        elif lower in ("next", "n"):
-            _enable_step_mode()
-            return
-        elif line[0] in ("$", "&", "@", "~", "#"):
-            _print_var(line)
-        elif line.rstrip().endswith(";"):
+        # SQL (ends with semicolon)
+        if line.rstrip().endswith(";"):
             _run_sql(line)
-        elif _is_known_var(line):
-            _print_var(line)
-        else:
-            _write(f"Unknown command: {line!r}. Type 'help' for available commands.\n")
+            continue
+
+        # Everything else → variable lookup
+        _print_var(line)
+
+
+def _handle_dot_command(line: str) -> None:
+    """Dispatch a dot-prefixed REPL command."""
+    # Strip the leading dot and normalize
+    cmd = line[1:].strip().lower()
+
+    if cmd in ("continue", "c"):
+        return  # caller checks and returns from _debug_repl
+    elif cmd in ("abort", "q", "quit"):
+        raise SystemExit(1)
+    elif cmd == "help":
+        _write(_HELP_TEXT)
+    elif cmd == "vars all":
+        _print_all_vars(include_env=True)
+    elif cmd == "vars":
+        _print_all_vars()
+    elif cmd == "stack":
+        _print_stack()
+    elif cmd in ("next", "n"):
+        _enable_step_mode()
+    else:
+        _write(f"  Unknown command: {line!r}. Type '.help' for available commands.\n")
 
 
 # ---------------------------------------------------------------------------
 # REPL command implementations
 # ---------------------------------------------------------------------------
-
-
-def _is_known_var(name: str) -> bool:
-    """Return True if *name* matches a defined substitution variable."""
-    subvars = _state.subvars
-    if subvars is None:
-        return False
-    return subvars.varvalue(name.strip()) is not None
 
 
 def _write(text: str) -> None:
@@ -185,7 +202,7 @@ def _print_all_vars(*, include_env: bool = False) -> None:
 
     if not any([user_vars, system_vars, local_vars, counter_vars]):
         if env_vars:
-            _write("  (no script variables defined — use 'vars all' to see environment variables)\n")
+            _write("  (no script variables defined — use '.vars all' to see environment variables)\n")
         else:
             _write("  (no variables defined)\n")
 
@@ -193,8 +210,7 @@ def _print_all_vars(*, include_env: bool = False) -> None:
 def _print_var(varname: str) -> None:
     """Print the value of a single substitution variable.
 
-    Args:
-        varname: The variable reference as typed by the user, e.g. ``$FOO``.
+    Tries the name as typed, then with the sigil prefix stripped.
     """
     subvars = _state.subvars
     if subvars is None:
@@ -202,7 +218,7 @@ def _print_var(varname: str) -> None:
         return
     # Try the name as typed first, then without the sigil prefix ($, &, @, #, ~).
     # SUB creates variables without a prefix (e.g., "logfile"), but users
-    # naturally type "$logfile" at the prompt.
+    # may type "$logfile" at the prompt.
     value = subvars.varvalue(varname)
     if value is None and len(varname) > 1 and varname[0] in "$&@#~":
         value = subvars.varvalue(varname[1:])
@@ -226,11 +242,7 @@ def _print_stack() -> None:
 
 
 def _run_sql(sql: str) -> None:
-    """Execute ad-hoc SQL against the current database and pretty-print the results.
-
-    Args:
-        sql: A complete SQL statement ending with a semicolon.
-    """
+    """Execute ad-hoc SQL against the current database and pretty-print the results."""
     dbs = _state.dbs
     if dbs is None:
         _write("  (no database connection is active)\n")

@@ -2,15 +2,16 @@
 
 Covers:
 - x_breakpoint is a no-op when sys.stdin is not a TTY
-- 'continue' / 'c' resumes execution
-- 'abort' / 'q' / 'quit' raises SystemExit(1)
-- 'vars' prints all substitution variables
-- '$VARNAME' prints a specific variable value
-- 'help' prints help text
-- 'stack' prints command-list stack info
+- '.continue' / '.c' resumes execution
+- '.abort' / '.q' raises SystemExit(1)
+- '.vars' prints grouped substitution variables
+- variable name prints its value (bare or sigil-prefixed)
+- '.help' prints help text
+- '.stack' prints command-list stack info
 - SQL ending with ';' executes and pretty-prints results
-- 'next' / 'n' enables step_mode and returns
-- Unknown command prints an error message
+- '.next' / '.n' enables step_mode and returns
+- Unknown dot-command prints an error message
+- Unknown bare word checks variable lookup before erroring
 - EOF (Ctrl-D) resumes execution
 - KeyboardInterrupt (Ctrl-C) resumes execution
 - _write falls back to stdout when _state.output is None
@@ -84,39 +85,39 @@ class TestXBreakpointTtyGate:
 
 
 # ---------------------------------------------------------------------------
-# _debug_repl — flow control commands
+# _debug_repl — dot-prefixed flow control commands
 # ---------------------------------------------------------------------------
 
 
 class TestDebugReplContinue:
-    """'continue' and 'c' resume execution immediately."""
+    """'.continue' and '.c' resume execution immediately."""
 
     def test_continue_returns(self) -> None:
         with (
-            patch("builtins.input", side_effect=["continue"]),
+            patch("builtins.input", side_effect=[".continue"]),
             patch("execsql.metacommands.debug_repl._write"),
         ):
             _debug_repl()  # should return normally
 
     def test_c_returns(self) -> None:
         with (
-            patch("builtins.input", side_effect=["c"]),
+            patch("builtins.input", side_effect=[".c"]),
             patch("execsql.metacommands.debug_repl._write"),
         ):
             _debug_repl()
 
     def test_continue_case_insensitive(self) -> None:
         with (
-            patch("builtins.input", side_effect=["CONTINUE"]),
+            patch("builtins.input", side_effect=[".CONTINUE"]),
             patch("execsql.metacommands.debug_repl._write"),
         ):
             _debug_repl()
 
 
 class TestDebugReplAbort:
-    """'abort', 'q', and 'quit' raise SystemExit(1)."""
+    """'.abort', '.q' raise SystemExit(1)."""
 
-    @pytest.mark.parametrize("cmd", ["abort", "q", "quit", "ABORT", "Q"])
+    @pytest.mark.parametrize("cmd", [".abort", ".q", ".quit", ".ABORT", ".Q"])
     def test_abort_raises_system_exit(self, cmd: str) -> None:
         with (
             patch("builtins.input", side_effect=[cmd]),
@@ -150,47 +151,87 @@ class TestDebugReplEmptyLine:
 
     def test_empty_then_continue(self) -> None:
         with (
-            patch("builtins.input", side_effect=["", "  ", "c"]),
+            patch("builtins.input", side_effect=["", "  ", ".c"]),
             patch("execsql.metacommands.debug_repl._write"),
         ):
             _debug_repl()
 
 
 # ---------------------------------------------------------------------------
-# _debug_repl — informational commands
+# _debug_repl — dot-prefixed informational commands
 # ---------------------------------------------------------------------------
 
 
 class TestDebugReplHelp:
-    """'help' writes the help text."""
+    """'.help' writes the help text."""
 
     def test_help_writes_text(self) -> None:
         written: list[str] = []
         with (
-            patch("builtins.input", side_effect=["help", "c"]),
+            patch("builtins.input", side_effect=[".help", ".c"]),
             patch("execsql.metacommands.debug_repl._write", side_effect=written.append),
         ):
             _debug_repl()
         combined = "".join(written)
-        assert "continue" in combined
-        assert "abort" in combined
-        assert "vars" in combined
-        assert "stack" in combined
+        assert ".continue" in combined
+        assert ".abort" in combined
+        assert ".vars" in combined
+        assert ".stack" in combined
 
 
-class TestDebugReplUnknownCommand:
-    """Unknown commands produce an error message."""
+class TestDebugReplUnknownDotCommand:
+    """Unknown dot-commands produce an error message."""
 
-    def test_unknown_command_prints_error(self) -> None:
+    def test_unknown_dot_command_prints_error(self) -> None:
         written: list[str] = []
         with (
-            patch("builtins.input", side_effect=["frobnicator", "c"]),
+            patch("builtins.input", side_effect=[".frobnicator", ".c"]),
             patch("execsql.metacommands.debug_repl._write", side_effect=written.append),
         ):
             _debug_repl()
         combined = "".join(written)
         assert "Unknown command" in combined
-        assert "frobnicator" in combined
+        assert ".frobnicator" in combined
+
+
+class TestDebugReplVariableLookup:
+    """Bare words that aren't dot-commands or SQL are treated as variable lookups."""
+
+    def test_known_var_prints_value(self) -> None:
+        sv = _make_subvars({"logfile": "testing.log"})
+        written: list[str] = []
+        with (
+            patch("builtins.input", side_effect=["logfile", ".c"]),
+            patch.object(_state, "subvars", sv),
+            patch("execsql.metacommands.debug_repl._write", side_effect=written.append),
+        ):
+            _debug_repl()
+        combined = "".join(written)
+        assert "testing.log" in combined
+
+    def test_unknown_bare_word_shows_undefined(self) -> None:
+        sv = _make_subvars({})
+        written: list[str] = []
+        with (
+            patch("builtins.input", side_effect=["nonexistent", ".c"]),
+            patch.object(_state, "subvars", sv),
+            patch("execsql.metacommands.debug_repl._write", side_effect=written.append),
+        ):
+            _debug_repl()
+        combined = "".join(written)
+        assert "undefined" in combined
+
+    def test_sigil_prefixed_var(self) -> None:
+        sv = _make_subvars({"$arg_1": "hello"})
+        written: list[str] = []
+        with (
+            patch("builtins.input", side_effect=["$ARG_1", ".c"]),
+            patch.object(_state, "subvars", sv),
+            patch("execsql.metacommands.debug_repl._write", side_effect=written.append),
+        ):
+            _debug_repl()
+        combined = "".join(written)
+        assert "hello" in combined
 
 
 # ---------------------------------------------------------------------------
@@ -199,7 +240,7 @@ class TestDebugReplUnknownCommand:
 
 
 class TestPrintAllVars:
-    """_print_all_vars lists variables or reports that none exist."""
+    """_print_all_vars lists variables grouped by type."""
 
     def test_no_subvars_reports_none(self) -> None:
         written: list[str] = []
@@ -231,8 +272,31 @@ class TestPrintAllVars:
         combined = "".join(written)
         assert "$foo" in combined
         assert "bar" in combined
-        assert "$baz" in combined
-        assert "qux" in combined
+        assert "System variables" in combined
+
+    def test_env_vars_hidden_by_default(self) -> None:
+        sv = _make_subvars({"&home": "/Users/me", "myvar": "val"})
+        written: list[str] = []
+        with (
+            patch.object(_state, "subvars", sv),
+            patch("execsql.metacommands.debug_repl._write", side_effect=written.append),
+        ):
+            _print_all_vars()
+        combined = "".join(written)
+        assert "myvar" in combined
+        assert "&home" not in combined
+
+    def test_env_vars_shown_with_include_env(self) -> None:
+        sv = _make_subvars({"&home": "/Users/me", "myvar": "val"})
+        written: list[str] = []
+        with (
+            patch.object(_state, "subvars", sv),
+            patch("execsql.metacommands.debug_repl._write", side_effect=written.append),
+        ):
+            _print_all_vars(include_env=True)
+        combined = "".join(written)
+        assert "&home" in combined
+        assert "Environment variables" in combined
 
 
 # ---------------------------------------------------------------------------
@@ -265,6 +329,17 @@ class TestPrintVar:
         assert "$myvar" in combined
         assert "hello" in combined
 
+    def test_sigil_stripped_fallback(self) -> None:
+        sv = _make_subvars({"logfile": "test.log"})
+        written: list[str] = []
+        with (
+            patch.object(_state, "subvars", sv),
+            patch("execsql.metacommands.debug_repl._write", side_effect=written.append),
+        ):
+            _print_var("$logfile")
+        combined = "".join(written)
+        assert "test.log" in combined
+
     def test_no_subvars_initialised(self) -> None:
         written: list[str] = []
         with (
@@ -273,18 +348,6 @@ class TestPrintVar:
         ):
             _print_var("$anything")
         assert any("not initialised" in s for s in written)
-
-    def test_var_printed_from_repl(self) -> None:
-        sv = _make_subvars({"$x": "42"})
-        written: list[str] = []
-        with (
-            patch("builtins.input", side_effect=["$x", "c"]),
-            patch.object(_state, "subvars", sv),
-            patch("execsql.metacommands.debug_repl._write", side_effect=written.append),
-        ):
-            _debug_repl()
-        combined = "".join(written)
-        assert "42" in combined
 
 
 # ---------------------------------------------------------------------------
@@ -404,7 +467,7 @@ class TestRunSql:
         dbs.current.return_value = db
         written: list[str] = []
         with (
-            patch("builtins.input", side_effect=["SELECT 7;", "c"]),
+            patch("builtins.input", side_effect=["SELECT 7;", ".c"]),
             patch.object(_state, "dbs", dbs),
             patch("execsql.metacommands.debug_repl._write", side_effect=written.append),
         ):
@@ -418,12 +481,10 @@ class TestRunSql:
 
 
 class TestStepMode:
-    """'next' / 'n' enable step_mode and return from the REPL."""
+    """'.next' / '.n' enable step_mode and return from the REPL."""
 
-    @pytest.mark.parametrize("cmd", ["next", "n", "NEXT", "N"])
+    @pytest.mark.parametrize("cmd", [".next", ".n", ".NEXT", ".N"])
     def test_next_enables_step_mode_and_returns(self, cmd: str) -> None:
-        # We cannot use patch.object to observe the final value after it restores.
-        # Instead, mock _enable_step_mode and check it was called.
         with (
             patch("builtins.input", side_effect=[cmd]),
             patch("execsql.metacommands.debug_repl._write"),
@@ -433,7 +494,6 @@ class TestStepMode:
         mock_enable.assert_called_once()
 
     def test_enable_step_mode_sets_flag(self) -> None:
-        # Save and restore manually so we don't rely on patch.object's restore.
         original = _state.step_mode
         try:
             _state.step_mode = False

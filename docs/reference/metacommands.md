@@ -127,20 +127,30 @@ Pauses script execution and drops into an interactive debug REPL (read-eval-prin
 
 **Non-interactive safety:** If `sys.stdin` is not a TTY (e.g. CI pipelines, piped input, batch execution) the metacommand is silently skipped. Scripts will never hang in automation.
 
-**REPL commands:**
+All REPL commands are dot-prefixed to avoid ambiguity with variable names and SQL. Anything without a dot prefix is treated as a variable lookup or SQL.
+
+**REPL commands (dot-prefixed):**
 
 | Command | Description |
 |---------|-------------|
-| `continue` or `c` | Resume script execution |
-| `abort`, `q`, or `quit` | Halt the script with exit status 1 |
-| `vars` | List all substitution variables and their current values |
-| `$VARNAME` | Print the value of a single variable (also `&VAR`, `@VAR`) |
-| `SELECT ...;` | Run an ad-hoc SQL query against the current database and pretty-print results |
-| `next` or `n` | Execute the next script statement, then pause again (step mode) |
-| `stack` | Show the command-list stack: script name, cursor index, and nesting depth |
-| `help` | Show the list of available REPL commands |
+| `.continue` or `.c` | Resume script execution |
+| `.abort` or `.q` | Halt the script with exit status 1 |
+| `.vars` | List user, system, local, and counter variables (grouped by type) |
+| `.vars all` | Include environment variables (`&`) in the listing |
+| `.next` or `.n` | Execute the next script statement, then pause again (step mode) |
+| `.stack` | Show the command-list stack: script name, cursor index, and nesting depth |
+| `.help` | Show the list of available REPL commands |
 
-Pressing Ctrl-D (EOF) or Ctrl-C (KeyboardInterrupt) at the `execsql debug>` prompt resumes execution, the same as typing `continue`.
+**Variable inspection and SQL (no dot prefix):**
+
+| Input | Description |
+|-------|-------------|
+| `logfile` | Print the value of the `logfile` variable |
+| `$ARG_1` | Print the value of a system/built-in variable |
+| `&HOME` | Print the value of an environment variable |
+| `SELECT ...;` | Run ad-hoc SQL against the current database and pretty-print results |
+
+Pressing Ctrl-D (EOF) or Ctrl-C (KeyboardInterrupt) at the `execsql debug>` prompt resumes execution, the same as typing `.continue`.
 
 **Example:**
 
