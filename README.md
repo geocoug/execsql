@@ -191,7 +191,7 @@ repos:
         args: [--in-place]
 ```
 
-See the [formatter documentation](https://execsql2.readthedocs.io/en/latest/formatter/) for all options.
+See the [formatter documentation](https://execsql2.readthedocs.io/en/latest/guides/formatter/) for all options.
 
 # VS Code Syntax Highlighting
 
