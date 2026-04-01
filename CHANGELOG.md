@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.10.1] - 2026-04-01
+
 ### Fixed
 
 - BREAKPOINT variable lookup — `$logfile` was showing `(undefined)` because `SUB` stores keys without a sigil prefix. The debug REPL now strips `$`, `&`, `@`, `#`, `~` prefixes and retries when the exact name isn't found.
