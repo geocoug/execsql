@@ -94,6 +94,8 @@ __all__ = [
     "gui_console",
     "gui_manager_queue",
     "gui_manager_thread",
+    # Profiling
+    "profile_data",
     # Version
     "primary_vno",
     "secondary_vno",
@@ -191,6 +193,8 @@ _CONTEXT_ATTRS: frozenset[str] = frozenset(
         "gui_console",
         "gui_manager_queue",
         "gui_manager_thread",
+        # Profiling
+        "profile_data",
     },
 )
 
@@ -242,6 +246,8 @@ class RuntimeContext:
         "gui_console",
         "gui_manager_queue",
         "gui_manager_thread",
+        # Profiling
+        "profile_data",
     )
 
     def __init__(self) -> None:
@@ -288,6 +294,10 @@ class RuntimeContext:
         self.gui_console: Any = None
         self.gui_manager_queue: _mp.Queue | None = None
         self.gui_manager_thread: _threading.Thread | None = None
+
+        # Profiling — None means profiling is disabled; a list means it is enabled.
+        # Each entry: (source, line_no, command_type, elapsed_secs, command_text_preview)
+        self.profile_data: list[tuple] | None = None
 
 
 # ---------------------------------------------------------------------------

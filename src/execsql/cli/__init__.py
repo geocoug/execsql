@@ -254,6 +254,11 @@ def main(
         "--dump-keywords",
         help="Dump all metacommand keywords as JSON and exit.",
     ),
+    profile: bool = typer.Option(
+        False,
+        "--profile",
+        help="Record per-statement execution times and print a timing summary after the script completes.",
+    ),
     version: bool | None = typer.Option(
         None,
         "--version",
@@ -415,6 +420,7 @@ def main(
         dsn=dsn,
         output_dir=output_dir,
         progress=progress,
+        profile=profile,
     )
 
 

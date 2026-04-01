@@ -489,7 +489,23 @@ class CommandList:
             _state.subvars.add_substitution("$CURRENT_SCRIPT_NAME", Path(cmditem.source).name)
             _state.subvars.add_substitution("$CURRENT_SCRIPT_LINE", str(cmditem.line_no))
             _state.subvars.add_substitution("$SCRIPT_LINE", str(cmditem.line_no))
+            _profiling = _state.profile_data is not None
+            if _profiling:
+                import time as _time
+
+                _t0 = _time.perf_counter()
             cmditem.command.run(self.localvars.merge(self.paramvals), not _state.status.batch.in_batch())
+            if _profiling:
+                _elapsed = _time.perf_counter() - _t0
+                _state.profile_data.append(
+                    (
+                        cmditem.source,
+                        cmditem.line_no,
+                        cmditem.command_type,
+                        _elapsed,
+                        cmditem.command.commandline()[:100],
+                    ),
+                )
         self.cmdptr += 1
 
     def run_next(self) -> None:
