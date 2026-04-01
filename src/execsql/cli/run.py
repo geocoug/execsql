@@ -653,7 +653,7 @@ def _execute_script_direct(conf: ConfigData, *, profile: bool = False) -> None:
         lno = strace[0][1]
         msg = f"{Path(sys.argv[0]).name}: Uncaught exception {sys.exc_info()[0]} ({sys.exc_info()[1]}) on line {lno}"
         script, slno = current_script_line()
-        if script is not None:
+        if script:
             msg += f" in script {script}, line {slno}"
         from execsql.utils.errors import exit_now
 

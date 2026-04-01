@@ -30,6 +30,7 @@ __all__ = [
     "exception_desc",
     "exit_now",
     "fatal_error",
+    "stamp_errinfo",
     "write_warning",
     "file_size_date",
     "chainfuncs",
@@ -70,9 +71,37 @@ def exception_desc() -> str:
     return f"{exc_type}: {exc_strval} in {exc_filename} on line {exc_lineno} of execsql."
 
 
+def stamp_errinfo(errinfo: ErrInfo) -> ErrInfo:
+    """Attach script location from ``_state.last_command`` to an :class:`~execsql.exceptions.ErrInfo`.
+
+    Reads the source file name, line number, command text, and command type from
+    the most-recently-executed :class:`~execsql.script.engine.ScriptCmd` and
+    populates any ``None`` fields on *errinfo*.  This ensures that error messages
+    include "Line N of script foo.sql" context even when the ErrInfo was originally
+    created deep inside a handler that had no access to execution state.
+
+    Args:
+        errinfo: The :class:`~execsql.exceptions.ErrInfo` to stamp.
+
+    Returns:
+        The same *errinfo* object, with location fields populated.
+    """
+    lc = _state.last_command
+    if lc is not None and errinfo.script_file is None:
+        errinfo.script_file = lc.source
+        errinfo.script_line_no = lc.line_no
+        if errinfo.cmd is None:
+            errinfo.cmd = lc.command.commandline() if hasattr(lc.command, "commandline") else None
+            errinfo.cmdtype = lc.command_type
+    return errinfo
+
+
 def exit_now(exit_status: int, errinfo: ErrInfo | None, logmsg: str | None = None) -> None:
     em = None
     if errinfo is not None:
+        stamp_errinfo(errinfo)
+        if _state.subvars is not None:
+            _state.subvars.add_substitution("$ERROR_MESSAGE", errinfo.errmsg())
         em = errinfo.write()
         if _state.err_halt_writespec is not None:
             try:
@@ -147,10 +176,20 @@ def fatal_error(error_msg: str | None = None) -> None:
     exit_now(1, ErrInfo("error", other_msg=error_msg))
 
 
-def write_warning(warning_msg: str) -> None:
+def write_warning(warning_msg: str, *, always: bool = False) -> None:
+    """Write a non-fatal warning message to the log and optionally to stderr.
+
+    Args:
+        warning_msg: The warning text to emit.
+        always: When ``True``, always write to stderr regardless of the
+            ``conf.write_warnings`` setting.  Use this for structural warnings
+            (e.g. IF-level mismatch, unsubstituted variables) that should always
+            be visible.  When ``False`` (default), stderr output is gated by
+            ``conf.write_warnings``.
+    """
     if _state.exec_log is not None:
         _state.exec_log.log_status_warning(warning_msg)
-    if _state.conf is not None and _state.conf.write_warnings and _state.output is not None:
+    if _state.output is not None and (always or (_state.conf is not None and _state.conf.write_warnings)):
         _state.output.write_err(f"**** Warning {warning_msg}")
 
 

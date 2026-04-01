@@ -306,6 +306,7 @@ class SqlStmt:
                 e = ErrInfo(type="exception", exception_msg=exception_desc())
             if e:
                 _state.subvars.add_substitution("$LAST_ERROR", cmd)
+                _state.subvars.add_substitution("$ERROR_MESSAGE", str(e))
                 _state.status.sql_error = True
                 if _state.status.halt_on_err:
                     from execsql.utils.errors import exit_now
@@ -350,8 +351,11 @@ class MetacommandStmt:
         if e:
             _state.status.metacommand_error = True
             _state.subvars.add_substitution("$LAST_ERROR", cmd)
+            _state.subvars.add_substitution("$ERROR_MESSAGE", str(e))
             if _state.status.halt_on_metacommand_err:
-                raise ErrInfo(type="cmd", command_text=cmd, other_msg=errmsg)
+                # Re-raise the original ErrInfo so its message is preserved, not
+                # replaced with the generic "Unknown metacommand" text.
+                raise e
         if _state.if_stack.all_true():
             # but nothing applies, because we got here.
             _state.status.metacommand_error = True

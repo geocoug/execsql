@@ -167,13 +167,17 @@ These are behavioral changes driven by security or correctness issues in the ups
 
 ### Bug Fixes
 
-| Area                              | Fix                                                                                                        |
-| --------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| Oracle default port               | Corrected from `5432` (PostgreSQL) to `1521`.                                                              |
-| MySQL `LOAD DATA INFILE` encoding | Python encoding names are now mapped to MySQL charset names.                                               |
-| `dt_cast` type converters         | Base `Database` class auto-populates 8 type converters that were previously left empty after the refactor. |
-| `FileWriter` CPU busy-loop        | Uses blocking `queue.get(timeout=0.1)` instead of `get_nowait()` in a tight loop.                          |
-| Substitution variable cycles      | 100-iteration limit prevents infinite loops on cyclic variable references.                                 |
+| Area                              | Fix                                                                                                                                                                                           |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Oracle default port               | Corrected from `5432` (PostgreSQL) to `1521`.                                                                                                                                                 |
+| MySQL `LOAD DATA INFILE` encoding | Python encoding names are now mapped to MySQL charset names.                                                                                                                                  |
+| `dt_cast` type converters         | Base `Database` class auto-populates 8 type converters that were previously left empty after the refactor.                                                                                    |
+| `FileWriter` CPU busy-loop        | Uses blocking `queue.get(timeout=0.1)` instead of `get_nowait()` in a tight loop.                                                                                                             |
+| Substitution variable cycles      | 100-iteration limit prevents infinite loops on cyclic variable references.                                                                                                                    |
+| Script location in error messages | `ErrInfo.script_file` and `script_line_no` are now populated via `stamp_errinfo()` so error output includes "Line N of script foo.sql" context — restoring behavior present in the monolith.  |
+| `$ERROR_MESSAGE` not updated      | `$ERROR_MESSAGE` is now set on every error path: `exit_now()`, non-halting SQL errors, and non-halting metacommand errors. Previously it was initialized to `""` and never changed.           |
+| Metacommand error message lost    | When `halt_on_metacommand_err` is `ON`, the original handler `ErrInfo` is now re-raised; the generic "Unknown metacommand" message no longer replaces the specific error from the handler.    |
+| Empty script name in error msg    | `_execute_script_direct()` and `_execute_script_textual_console()` no longer append "in script , line 0" to uncaught-exception messages when `current_script_line()` returns an empty string. |
 
 ______________________________________________________________________
 

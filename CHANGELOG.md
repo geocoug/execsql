@@ -11,6 +11,15 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Fixed
+
+- BREAKPOINT REPL no longer wraps variable values in extra single quotes — values are now displayed exactly as defined.
+- Error messages now include script file name and line number — `ErrInfo` fields `script_file` and `script_line_no` are populated via a new `stamp_errinfo()` helper called from `exit_now()` and metacommand error paths, restoring monolith-level "Line N of script foo.sql" context in all error output.
+- `$ERROR_MESSAGE` substitution variable is now updated on every error: in `exit_now()`, in non-halting SQL errors (`SqlStmt.run()`), and in non-halting metacommand errors (`MetacommandStmt.run()`). Previously it was initialized to `""` and never changed.
+- `MetacommandStmt.run()` now re-raises the original handler `ErrInfo` when `halt_on_metacommand_err` is True, instead of discarding it and raising a generic "Unknown metacommand" error.
+- `write_warning()` now accepts an `always=True` keyword argument that bypasses the `conf.write_warnings` gate, ensuring structural warnings (IF-level mismatch, unsubstituted variables) are always visible on stderr.
+- Uncaught-exception error message in `_execute_script_direct()` and `_execute_script_textual_console()` no longer appends "in script , line 0" when `current_script_line()` returns an empty string.
+
 ______________________________________________________________________
 
 ## [2.10.1] - 2026-04-01
