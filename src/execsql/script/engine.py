@@ -194,7 +194,7 @@ class MetaCommandList:
         patterns; each compiles into a separate :class:`MetaCommand` prepended to
         the dispatch list so that later registrations take priority.
         """
-        if type(matching_regexes) in (tuple, list):
+        if isinstance(matching_regexes, (tuple, list)):
             raw_patterns = list(matching_regexes)
             regexes = [re.compile(rx, re.I) for rx in raw_patterns]
         else:

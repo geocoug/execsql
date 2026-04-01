@@ -8,6 +8,7 @@ and drives the main execution loop.  Separated from argument parsing
 from __future__ import annotations
 
 import atexit
+from typing import Any
 import datetime
 import getpass
 import os
@@ -128,7 +129,7 @@ def _print_profile(profile_data: list[tuple]) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _ping_db(db) -> None:
+def _ping_db(db: Any) -> None:
     """Test connectivity for *db*, print connection details, and exit.
 
     Attempts to execute ``SELECT version()`` (or ``SELECT sqlite_version()``

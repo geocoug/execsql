@@ -178,6 +178,11 @@ def write_query_to_xlsx(
     wb.save(outfile)
     wb.close()
 
+    if _state.export_metadata is not None:
+        _state.export_metadata.add(
+            ExportRecord(queryname=select_stmt, outfile=outfile, zipfile=None, description=desc),
+        )
+
 
 def write_queries_to_xlsx(
     table_list: str,
