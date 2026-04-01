@@ -7,6 +7,10 @@ import os
 import subprocess
 import sys
 
+import pytest
+
+_IS_WINDOWS = sys.platform == "win32"
+
 # Force Rich/Typer to produce output even without a TTY (e.g. Windows CI).
 _SUBPROCESS_ENV = {**os.environ, "NO_COLOR": "1", "COLUMNS": "200", "TERM": "dumb"}
 
@@ -64,6 +68,7 @@ def test_help_exits_zero():
     assert result.returncode == 0
 
 
+@pytest.mark.skipif(_IS_WINDOWS, reason="Rich/Typer produces empty output in Windows CI without a TTY")
 def test_help_contains_usage():
     result = _run_execsql("--help")
     combined = (result.stdout or "") + (result.stderr or "")
@@ -243,6 +248,7 @@ def test_formatter_help_exits_zero():
     assert result.returncode == 0
 
 
+@pytest.mark.skipif(_IS_WINDOWS, reason="Rich/Typer produces empty output in Windows CI without a TTY")
 def test_formatter_help_contains_usage():
     result = _run_formatter("--help")
     combined = (result.stdout or "") + (result.stderr or "")
@@ -266,6 +272,7 @@ def test_formatter_stdout_output(tmp_path):
     assert "SUB" in result.stdout  # keywords should be uppercased
 
 
+@pytest.mark.skipif(_IS_WINDOWS, reason="Rich/Typer produces empty output in Windows CI without a TTY")
 def test_formatter_no_args_shows_usage():
     """Running with no arguments should show usage information."""
     result = _run_formatter()
