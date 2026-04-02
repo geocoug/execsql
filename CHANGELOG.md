@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.12.3] - 2026-04-02
+
 ### Changed
 
 - Performance: split `set_system_vars()` into static (once per script + on CONNECT/CHDIR) and dynamic (per statement) — eliminates ~14 redundant `add_substitution` calls and 2 `Path.resolve()` filesystem syscalls per statement.
