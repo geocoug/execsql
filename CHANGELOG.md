@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.12.1] - 2026-04-02
+
 ### Changed
 
 - Performance: removed dead `_compiled_patterns` dict from `SubVarSet` — eliminated 3 unused regex compilations per `add_substitution` call (~20 calls per statement in typical scripts).
