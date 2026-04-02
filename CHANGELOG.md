@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.12.0] - 2026-04-01
+
 ### Added
 
 - Debug REPL `.where` / `.w` command — shows current script file, line number, and the upcoming statement text (truncated to 120 chars). The entry banner now includes the location (`[Breakpoint] myscript.sql:42`) and `_print_where()` is called automatically on REPL entry via `BREAKPOINT` or step mode.
