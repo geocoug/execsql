@@ -83,6 +83,7 @@ class TestErrInfo:
         "err_type,expected_text",
         [
             ("db", "**** Error in SQL statement."),
+            ("assert", "**** Assertion failed."),
             ("cmd", "**** Error in metacommand."),
             ("log", "**** Error in logging."),
             ("error", "**** General error."),

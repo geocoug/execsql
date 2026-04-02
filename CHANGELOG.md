@@ -11,6 +11,14 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Added
+
+- Documentation: keyring setup guide for headless Linux servers (encrypted and plaintext file backends) in the Security reference page, with a cross-reference from the Installation page.
+
+### Changed
+
+- `ASSERT` failures now report `**** Assertion failed.` instead of `**** Error in metacommand.` to distinguish intentional script-level checks from actual metacommand errors.
+
 ______________________________________________________________________
 
 ## [2.12.1] - 2026-04-02

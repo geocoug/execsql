@@ -29,13 +29,71 @@ When execsql needs a database password and none is stored or configured, it prom
 
 ### OS credential store (keyring)
 
-When the optional `keyring` package is installed (`pip install execsql2[auth]`), execsql checks the OS credential store before prompting. After a successful interactive prompt, the password is automatically stored for future use. Supported stores are macOS Keychain, Windows Credential Manager, and Linux SecretService. Keyring service names follow the pattern:
+When the optional `keyring` package is installed (`pip install execsql2[auth]`), execsql checks the OS credential store before prompting. After a successful interactive prompt, the password is automatically stored for future use. Keyring service names follow the pattern:
 
 ```text
 execsql/<db_type>/<server>/<database>
 ```
 
 To disable keyring integration, set `use_keyring = No` in the `[connect]` section of `execsql.conf`.
+
+#### Platform setup { #keyring_setup }
+
+**macOS** — Works out of the box. Keyring uses the macOS Keychain automatically.
+
+**Windows** — Works out of the box. Keyring uses the Windows Credential Manager automatically.
+
+**Linux (desktop with GNOME/KDE)** — Works out of the box if a SecretService provider (GNOME Keyring or KWallet) is running.
+
+**Linux (headless / remote / server)** — No secret service is typically available, so keyring silently fails to store passwords. You need to configure a file-based backend. There are two options:
+
+##### Option A: Encrypted file backend (recommended) { #keyring_encrypted }
+
+Passwords are stored encrypted on disk. Requires a master password the first time keyring is used per session.
+
+```bash
+pip install keyrings.alt pycryptodome
+mkdir -p ~/.config/python_keyring
+cat > ~/.config/python_keyring/keyringrc.cfg << 'EOF'
+[backend]
+default-keyring=keyrings.alt.file.EncryptedKeyring
+EOF
+```
+
+The encrypted keyring file is stored at `~/.local/share/python_keyring/crypted_pass.cfg`. You will be prompted for a master password once per session (e.g., when you first run execsql after logging in).
+
+##### Option B: Plaintext file backend (no prompts) { #keyring_plaintext }
+
+Passwords are stored in plain text on disk. No master password is needed — execsql will never prompt for a password after the first successful entry.
+
+```bash
+pip install keyrings.alt
+mkdir -p ~/.config/python_keyring
+cat > ~/.config/python_keyring/keyringrc.cfg << 'EOF'
+[backend]
+default-keyring=keyrings.alt.file.PlaintextKeyring
+EOF
+```
+
+Passwords are stored at `~/.local/share/python_keyring/keyring_pass.cfg`. Restrict access to this file:
+
+```bash
+chmod 600 ~/.local/share/python_keyring/keyring_pass.cfg
+```
+
+!!! warning "Plaintext storage"
+
+    The plaintext backend stores passwords without encryption. Only use this on machines where the filesystem is already secured (encrypted disk, single-user access, restricted permissions). Prefer the encrypted backend when possible.
+
+##### Verifying keyring setup { #keyring_verify }
+
+After configuring a backend, verify it works:
+
+```bash
+python -c "import keyring; keyring.set_password('test', 'user', 'pw'); print(keyring.get_password('test', 'user'))"
+```
+
+This should print `pw` without errors. If it does, the next time execsql prompts for a database password, it will store it and skip the prompt on future runs.
 
 ### `enc_password` in execsql.conf
 

@@ -71,9 +71,22 @@ class TestXAssertRaisesOnFalseCondition:
         with (
             patch.object(_state, "xcmd_test", return_value=False),
             patch.object(_state, "exec_log", mock_log),
-            pytest.raises(ErrInfo),
+            pytest.raises(ErrInfo) as exc_info,
         ):
             x_assert(condtest="ROWCOUNT > 0", message=None, metacommandline="ASSERT ROWCOUNT > 0")
+        assert exc_info.value.type == "assert"
+
+    def test_false_condition_eval_err_says_assertion_failed(self) -> None:
+        mock_log = _make_exec_log()
+        with (
+            patch.object(_state, "xcmd_test", return_value=False),
+            patch.object(_state, "exec_log", mock_log),
+            pytest.raises(ErrInfo) as exc_info,
+        ):
+            x_assert(condtest="ROWCOUNT > 0", message='"expected rows"', metacommandline="ASSERT ROWCOUNT > 0")
+        err_msg = exc_info.value.eval_err()
+        assert err_msg.startswith("**** Assertion failed.")
+        assert "expected rows" in err_msg
 
     def test_false_condition_with_double_quoted_message(self) -> None:
         mock_log = _make_exec_log()

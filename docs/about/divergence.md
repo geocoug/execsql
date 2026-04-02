@@ -174,6 +174,7 @@ All 33 mutable runtime globals in `state.py` have been consolidated into a `Runt
 
 - **Exception hierarchy** — All custom exceptions inherit from `ExecSqlError`, enabling `except ExecSqlError` to catch any execsql-originated error.
 - **Exception chaining** — All `raise` statements inside `except` blocks preserve the original traceback via `from`.
+- **ASSERT error type** — `ASSERT` failures now use a dedicated `"assert"` error type that produces `**** Assertion failed.` instead of `**** Error in metacommand.`. This distinguishes intentional script-level checks from actual metacommand errors. Upstream did not have `ASSERT`.
 
 ______________________________________________________________________
 

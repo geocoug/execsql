@@ -66,7 +66,7 @@ def x_assert(**kwargs: Any) -> None:
         if _state.exec_log is not None:
             _state.exec_log.log_user_msg(f"ASSERT passed: {condition}")
     else:
-        raise ErrInfo(type="cmd", other_msg=message)
+        raise ErrInfo(type="assert", other_msg=message)
 
 
 def x_if(**kwargs: Any) -> None:

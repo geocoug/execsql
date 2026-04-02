@@ -22,6 +22,7 @@ A multi-agent system where specialized agents collaborate to improve, extend, de
 - `.claude/docs-drafts/` — Scribe's documentation drafts
 - `.claude/releases/` — Herald's release notes and changelog entries
 - `.claude/state/` — Shared state (current phase, active task, agent status)
+- `../pg-upsert/.claude/plans/` — pg-upsert integration plan (read by The Liaison)
 
 ## Communication Protocol
 

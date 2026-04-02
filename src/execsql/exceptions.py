@@ -132,6 +132,8 @@ class ErrInfo(ExecSqlError):
 
         if self.type == "db":
             self.error_message = "**** Error in SQL statement."
+        elif self.type == "assert":
+            self.error_message = "**** Assertion failed."
         elif self.type == "cmd":
             self.error_message = "**** Error in metacommand."
         elif self.type == "log":

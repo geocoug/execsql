@@ -91,6 +91,7 @@ execsql = "execsql.cli:_legacy_main"
 execsql-format = "execsql.format:main"
 
 [project.urls]
+Homepage = "https://execsql2.readthedocs.io"
 Repository = "https://github.com/geocoug/execsql"
 Issues = "https://github.com/geocoug/execsql/issues"
 

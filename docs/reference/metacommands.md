@@ -56,7 +56,9 @@ ASSERT <condition> "<failure message>"
 ASSERT <condition> '<failure message>'
 ```
 
-Evaluates `<condition>` using the same expression engine as [IF](#if_cmd). If the condition is `True`, execution continues silently (and the result is written to the log). If the condition is `False`, an error is raised with the provided failure message. If no message is supplied, the default message is `Assertion failed: <condition>`.
+Evaluates `<condition>` using the same expression engine as [IF](#if_cmd). If the condition is `True`, execution continues silently (and the result is written to the log). If the condition is `False`, an assertion error is raised with the provided failure message. If no message is supplied, the default message is `Assertion failed: <condition>`.
+
+A failed assertion produces `**** Assertion failed.` (not `**** Error in metacommand.`) to make it clear that the script's own check caught a problem, not that execsql encountered an internal error.
 
 When [HALT_ON_METACOMMAND_ERROR](#config) is `ON` (the default), a failed assertion halts the script. When it is `OFF`, execution continues after the failure is logged.
 

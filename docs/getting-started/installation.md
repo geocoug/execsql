@@ -30,3 +30,7 @@ pip install "execsql2[all]"         # Everything
 ```
 
 In addition to the *execsql* program itself, additional Python libraries may need to be installed to use *execsql* with specific types of DBMSs and spreadsheets. The additional libraries that may be needed are listed in the [Requirements](requirements.md#requirements) section.
+
+!!! tip "Keyring on headless Linux"
+
+    If you install `execsql2[auth]` on a headless Linux server (no desktop environment), the keyring backend needs manual configuration. See [Keyring Platform Setup](../reference/security.md#keyring_setup) for instructions.
