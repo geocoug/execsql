@@ -163,6 +163,12 @@ All 33 mutable runtime globals in `state.py` have been consolidated into a `Runt
 
 - **Cycle detection** — `substitute_vars()` raises an error after 100 iterations to prevent infinite loops when variables reference each other cyclically. Upstream had no protection.
 - **O(1) substitution** — Variable substitution uses a single combined regex and dict lookup instead of O(V) per-variable regex passes. Behavior is identical; performance is improved.
+- **Lazy `$RANDOM`/`$UUID`** — These system variables are now computed on first access rather than generated unconditionally for every statement. Behavior is identical when referenced; scripts that never reference them skip the computation entirely.
+- **Static/dynamic system var split** — System substitution variables are split into static (set once per script and refreshed on CONNECT/CHDIR) and dynamic (refreshed per statement). Eliminates redundant `Path.resolve()` syscalls and database pool lookups per statement.
+
+### CSV Import
+
+- **Fast-path CSV reader** — Standard delimited imports (comma, tab, semicolon, pipe with doubled-quote escaping) now use Python's `csv` module. Non-standard formats (space-delimiter collapsing, escape characters) fall back to the original character-at-a-time parser.
 
 ### Database Adapters
 

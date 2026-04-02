@@ -704,9 +704,45 @@ class ScriptExecSpec:
 # ---------------------------------------------------------------------------
 
 
-def set_system_vars() -> None:
-    """Refresh all built-in system substitution variables (``$CURRENT_TIME``, ``$DB_NAME``, etc.)."""
-    # (Re)define the system substitution variables that are not script-specific.
+def set_static_system_vars() -> None:
+    """Set system substitution variables that only change on CONNECT or CHDIR.
+
+    Called once before the execution loop.  These values are expensive to compute
+    (filesystem syscalls, database pool lookups) but rarely change — only on
+    ``CONNECT``, ``USE``, or ``CHDIR`` metacommands.  The ``runscripts()`` loop
+    calls this once up front; metacommand handlers that change the connection or
+    working directory should call it again afterward.
+    """
+    import random
+
+    cwd = str(Path(".").resolve())
+    _state.subvars.add_substitution("$CURRENT_DIR", cwd)
+    _state.subvars.add_substitution("$CURRENT_PATH", cwd + os.sep)
+    _state.subvars.add_substitution("$CURRENT_ALIAS", _state.dbs.current_alias())
+    db = _state.dbs.current()
+    _state.subvars.add_substitution("$DB_USER", db.user if db.user else "")
+    _state.subvars.add_substitution(
+        "$DB_SERVER",
+        db.server_name if db.server_name else "",
+    )
+    _state.subvars.add_substitution("$DB_NAME", db.db_name)
+    _state.subvars.add_substitution("$DB_NEED_PWD", "TRUE" if db.need_passwd else "FALSE")
+    _state.subvars.add_substitution("$VERSION1", str(_state.primary_vno))
+    _state.subvars.add_substitution("$VERSION2", str(_state.secondary_vno))
+    _state.subvars.add_substitution("$VERSION3", str(_state.tertiary_vno))
+    # Register lazy providers for $RANDOM and $UUID — computed only when referenced.
+    _state.subvars.register_lazy("$random", lambda: str(random.random()))
+    _state.subvars.register_lazy("$uuid", lambda: str(uuid.uuid4()))
+
+
+def set_dynamic_system_vars() -> None:
+    """Refresh system substitution variables that change every statement.
+
+    Called once per statement in the execution loop.  Includes cheap boolean-to-string
+    conversions for halt states and autocommit (which can change on any CONFIG or
+    AUTOCOMMIT metacommand) plus ``$TIMER`` and lazy-variable cache reset.
+    """
+    # Halt/config state vars — cheap to set, can change on any CONFIG metacommand.
     _state.subvars.add_substitution("$CANCEL_HALT_STATE", "ON" if _state.status.cancel_halt else "OFF")
     _state.subvars.add_substitution("$ERROR_HALT_STATE", "ON" if _state.status.halt_on_err else "OFF")
     _state.subvars.add_substitution(
@@ -718,27 +754,22 @@ def set_system_vars() -> None:
         "ON" if _state.conf.gui_wait_on_error_halt else "OFF",
     )
     _state.subvars.add_substitution("$CONSOLE_WAIT_WHEN_DONE_STATE", "ON" if _state.conf.gui_wait_on_exit else "OFF")
-    # $CURRENT_TIME is set per-statement in run_and_increment() for accuracy.
-    _state.subvars.add_substitution("$CURRENT_DIR", str(Path(".").resolve()))
-    _state.subvars.add_substitution("$CURRENT_PATH", str(Path(".").resolve()) + os.sep)
-    _state.subvars.add_substitution("$CURRENT_ALIAS", _state.dbs.current_alias())
     db = _state.dbs.current()
     _state.subvars.add_substitution("$AUTOCOMMIT_STATE", "ON" if db.autocommit else "OFF")
+    # $CURRENT_TIME is set per-statement in run_and_increment() for accuracy.
     _state.subvars.add_substitution("$TIMER", str(datetime.timedelta(seconds=_state.timer.elapsed())))
-    _state.subvars.add_substitution("$DB_USER", db.user if db.user else "")
-    _state.subvars.add_substitution(
-        "$DB_SERVER",
-        db.server_name if db.server_name else "",
-    )
-    _state.subvars.add_substitution("$DB_NAME", db.db_name)
-    _state.subvars.add_substitution("$DB_NEED_PWD", "TRUE" if db.need_passwd else "FALSE")
-    import random
+    _state.subvars.clear_lazy_cache()
 
-    _state.subvars.add_substitution("$RANDOM", str(random.random()))
-    _state.subvars.add_substitution("$UUID", str(uuid.uuid4()))
-    _state.subvars.add_substitution("$VERSION1", str(_state.primary_vno))
-    _state.subvars.add_substitution("$VERSION2", str(_state.secondary_vno))
-    _state.subvars.add_substitution("$VERSION3", str(_state.tertiary_vno))
+
+def set_system_vars() -> None:
+    """Refresh all built-in system substitution variables.
+
+    Convenience wrapper that calls both :func:`set_static_system_vars` and
+    :func:`set_dynamic_system_vars`.  Retained for backward compatibility with
+    tests and any external callers.
+    """
+    set_static_system_vars()
+    set_dynamic_system_vars()
 
 
 _MAX_SUBSTITUTION_DEPTH = 100
@@ -779,11 +810,12 @@ def substitute_vars(command_str: str, localvars: SubVarSet | None = None) -> str
 
 def runscripts() -> None:
     """Drive execution until the command-list stack is empty."""
-    # Repeatedly run the next statement from the script at the top of the
-    # command list stack until there are no more statements.
+    # Set static vars once before the loop; they are refreshed by metacommand
+    # handlers (CONNECT, CONFIG, AUTOCOMMIT, CHDIR) when state changes.
+    set_static_system_vars()
     while len(_state.commandliststack) > 0:
         current_cmds = _state.commandliststack[-1]
-        set_system_vars()
+        set_dynamic_system_vars()
         try:
             current_cmds.run_next()
         except StopIteration:

@@ -686,6 +686,13 @@ class DatabasePool:
             )
             self.pool[db_alias].close()
         self.pool[db_alias] = db_obj
+        # Refresh static system vars so $DB_NAME, $DB_USER, etc. reflect the new connection.
+        try:
+            from execsql.script.engine import set_static_system_vars
+
+            set_static_system_vars()
+        except Exception:
+            pass  # Engine not yet initialized (early startup).
 
     def aliases(self) -> list[str]:
         """Return a list of all currently registered database aliases."""

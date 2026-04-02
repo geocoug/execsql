@@ -616,12 +616,13 @@ class TestCsvFile:
         assert any("Alice" in str(r) for r in data_rows)
 
     def test_reader_reraises_errinfo_with_line_number(self, tmp_path):
-        # Line 609: reader() wraps ErrInfo with line number context
+        # Tests the slow reader path error handling (line number annotation).
+        # Use an escape char to force the slow reader path.
         p = tmp_path / "bad.csv"
         # Write a CSV that will parse, but mock read_and_parse_line to raise ErrInfo
         p.write_text("id,name\n1,Alice\n", encoding="utf-8")
         cf = CsvFile(str(p), "utf-8")
-        cf.lineformat(",", '"', None)
+        cf.lineformat(",", '"', "\\")
         with (
             patch.object(cf, "read_and_parse_line", side_effect=ErrInfo("error", other_msg="parse fail")),
             pytest.raises(ErrInfo) as exc_info,
@@ -899,7 +900,15 @@ class TestCsvLine:
 
 
 class TestReadAndParseLine:
-    """Tests for read_and_parse_line() via full CsvFile.reader() pipeline."""
+    """Tests for read_and_parse_line() via full CsvFile.reader() pipeline.
+
+    Forces the slow (character-at-a-time) reader by patching _can_use_fast_csv_reader
+    so that these tests exercise the state machine, not Python's csv module.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _force_slow_reader(self, monkeypatch):
+        monkeypatch.setattr(CsvFile, "_can_use_fast_csv_reader", lambda self: False)
 
     def _make_csvfile_from_content(self, content, tmp_path, delim=",", quote='"', escape=None):
         p = tmp_path / "test.csv"

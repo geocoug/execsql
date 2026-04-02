@@ -241,6 +241,10 @@ def x_cd(**kwargs: Any) -> None:
     os.chdir(new_dir)
     script, lno = current_script_line()
     _state.exec_log.log_status_info(f"Current directory changed to {new_dir} at line {lno} of {script}")
+    if _state.subvars is not None:
+        from execsql.script.engine import set_static_system_vars
+
+        set_static_system_vars()
     return None
 
 

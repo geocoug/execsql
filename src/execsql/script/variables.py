@@ -89,6 +89,7 @@ class SubVarSet:
     # compatibility with external code.
     def __init__(self) -> None:
         self._subs_dict: dict[str, Any] = {}
+        self._lazy_providers: dict[str, Any] = {}
         self.prefix_list: list[str] = ["$", "&", "@"]
         # Don't construct/compile on init because deepcopy() can't handle compiled regexes.
         self.var_rx = None
@@ -120,6 +121,30 @@ class SubVarSet:
         if not self.var_name_ok(varname.lower()):
             raise ErrInfo("error", other_msg=f"Invalid variable name ({varname}) in this context.")
 
+    def register_lazy(self, varname: str, provider: Any) -> None:
+        """Register a lazy variable whose value is computed on first access per cycle.
+
+        The *provider* callable is invoked only when the variable is actually
+        referenced (via :meth:`substitute`, :meth:`varvalue`, etc.).  The result
+        is cached in ``_subs_dict`` until :meth:`clear_lazy_cache` is called.
+        """
+        self.check_var_name(varname)
+        self._lazy_providers[varname.lower()] = provider
+
+    def clear_lazy_cache(self) -> None:
+        """Remove materialized lazy values so they regenerate on next access."""
+        for key in self._lazy_providers:
+            self._subs_dict.pop(key, None)
+
+    def _materialize_lazy(self, varname: str) -> str | None:
+        """If *varname* has a lazy provider, invoke it, cache the result, and return it."""
+        provider = self._lazy_providers.get(varname)
+        if provider is not None:
+            value = str(provider())
+            self._subs_dict[varname] = value
+            return value
+        return None
+
     def remove_substitution(self, template_str: str) -> None:
         """Remove the variable named *template_str* from the substitution pool."""
         self.check_var_name(template_str)
@@ -143,7 +168,11 @@ class SubVarSet:
     def varvalue(self, varname: str) -> str | None:
         """Return the value of *varname*, or ``None`` if it is not defined."""
         self.check_var_name(varname)
-        return self._subs_dict.get(varname.lower())
+        key = varname.lower()
+        val = self._subs_dict.get(key)
+        if val is None and key in self._lazy_providers:
+            return self._materialize_lazy(key)
+        return val
 
     def increment_by(self, varname: str, numeric_increment: Any) -> None:
         self.check_var_name(varname)
@@ -165,13 +194,15 @@ class SubVarSet:
     def sub_exists(self, template_str: str) -> bool:
         """Return True if the variable named *template_str* is defined."""
         self.check_var_name(template_str)
-        return template_str.lower() in self._subs_dict
+        key = template_str.lower()
+        return key in self._subs_dict or key in self._lazy_providers
 
     def merge(self, other_subvars: SubVarSet | None) -> SubVarSet:
         """Return a new SubVarSet with this object's variables merged with other_subvars."""
         if other_subvars is not None:
             newsubs = SubVarSet()
             newsubs._subs_dict = {**self._subs_dict, **other_subvars._subs_dict}
+            newsubs._lazy_providers = {**self._lazy_providers, **other_subvars._lazy_providers}
             newsubs.prefix_list = list(set(self.prefix_list + other_subvars.prefix_list))
             newsubs.compile_var_rx()
             return newsubs
@@ -201,6 +232,8 @@ class SubVarSet:
         m = self._TOKEN_RX.search(command_str)
         while m:
             varname = m.group("varname").lower()
+            if varname not in self._subs_dict and varname in self._lazy_providers:
+                self._materialize_lazy(varname)
             if varname in self._subs_dict:
                 sub = self._subs_dict[varname]
                 if sub is None:

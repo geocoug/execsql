@@ -63,6 +63,8 @@ from execsql.script.engine import (
     read_sqlfile,
     read_sqlstring,
     runscripts,
+    set_dynamic_system_vars,
+    set_static_system_vars,
     set_system_vars,
     substitute_vars,
 )
@@ -86,6 +88,8 @@ __all__ = [
     "CommandListUntilLoop",
     "ScriptFile",
     "ScriptExecSpec",
+    "set_dynamic_system_vars",
+    "set_static_system_vars",
     "set_system_vars",
     "substitute_vars",
     "runscripts",

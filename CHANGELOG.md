@@ -11,6 +11,13 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Changed
+
+- Performance: split `set_system_vars()` into static (once per script + on CONNECT/CHDIR) and dynamic (per statement) — eliminates ~14 redundant `add_substitution` calls and 2 `Path.resolve()` filesystem syscalls per statement.
+- Performance: `$RANDOM` and `$UUID` are now lazy — computed only when actually referenced in a statement, not generated unconditionally for every statement.
+- Performance: `LineDelimiter.delimited()` caches `quote_all_text` at construction time instead of reading `_state.conf` via module proxy on every row during export.
+- Performance: CSV/TSV import uses Python's `csv` module as a fast path for standard delimited formats (comma, tab, semicolon, pipe) with doubled-quote escaping. Falls back to the character-at-a-time parser for non-standard formats (space-delimiter collapsing, escape characters).
+
 ______________________________________________________________________
 
 ## [2.12.2] - 2026-04-02

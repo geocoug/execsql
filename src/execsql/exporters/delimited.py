@@ -40,6 +40,7 @@ class LineDelimiter:
         self.delimiter = delim
         self.joinchar = delim if delim else ""
         self.quotechar = quote
+        self.quote_all_text = _state.conf.quote_all_text if _state.conf else False
         if quote:
             if escchar:
                 self.quotedquote = escchar + quote
@@ -50,13 +51,12 @@ class LineDelimiter:
 
     def delimited(self, datarow: Any, add_newline: bool = True) -> str:
         """Format a sequence of values as a single delimited text line."""
-        conf = _state.conf
         if self.quotechar:
             d_row = []
             for e in datarow:
                 if isinstance(e, str):
                     if (
-                        conf.quote_all_text
+                        self.quote_all_text
                         or (self.quotechar in e)
                         or (self.delimiter is not None and self.delimiter in e)
                         or ("\n" in e)
@@ -609,10 +609,52 @@ class CsvFile(EncodedFile):
             raise ErrInfo("error", other_msg=", ".join(self.parse_errors))
         return elements
 
+    def _can_use_fast_csv_reader(self) -> bool:
+        """Return True if the detected format is compatible with Python's csv module."""
+        # The csv module handles comma/tab delimiters with doubled-quote escaping.
+        # It cannot handle: space-delimiter collapsing, escape chars, or no delimiter.
+        if self.delimiter is None or self.delimiter == " ":
+            return False
+        return self.escapechar is None
+
     def reader(self) -> Any:
         """Yield parsed rows from the file as lists of field values."""
         conf = _state.conf
         self.evaluate_line_format()
+        if self._can_use_fast_csv_reader():
+            yield from self._fast_reader(conf)
+        else:
+            yield from self._slow_reader(conf)
+
+    def _fast_reader(self, conf: Any) -> Any:
+        """Read using Python's csv module (fast path for standard delimited formats)."""
+        import csv
+
+        f = self.openclean("rt")
+        try:
+            csv_reader = csv.reader(
+                f,
+                delimiter=self.delimiter,
+                quotechar=self.quotechar,
+                doublequote=True,
+                strict=False,
+            )
+            for elements in csv_reader:
+                if len(elements) == 0:
+                    break
+                # Normalize empty strings to None for parity with the slow reader.
+                elements = [e if e != "" else None for e in elements]
+                if conf.del_empty_cols and len(self.blank_cols) > 0:
+                    blanks = copy.copy(self.blank_cols)
+                    while len(blanks) > 0:
+                        b = blanks.pop()
+                        del elements[b]
+                yield elements
+        finally:
+            f.close()
+
+    def _slow_reader(self, conf: Any) -> Any:
+        """Read using the character-at-a-time state machine (fallback for non-standard formats)."""
         f = self.openclean("rt")
         line_no = 0
         try:
