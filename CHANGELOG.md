@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.12.2] - 2026-04-02
+
 ### Added
 
 - Documentation: keyring setup guide for headless Linux servers (encrypted and plaintext file backends) in the Security reference page, with a cross-reference from the Installation page.
