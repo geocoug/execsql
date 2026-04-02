@@ -278,6 +278,11 @@ def main(
         "--profile",
         help="Record per-statement execution times and print a timing summary after the script completes.",
     ),
+    profile_limit: int = typer.Option(
+        20,
+        "--profile-limit",
+        help="Number of top statements to show in the --profile timing summary (default: 20).",
+    ),
     debug: bool = typer.Option(
         False,
         "--debug",
@@ -449,6 +454,7 @@ def main(
         output_dir=output_dir,
         progress=progress,
         profile=profile,
+        profile_limit=profile_limit,
         ping=ping,
         lint=lint,
         debug=debug,

@@ -899,3 +899,425 @@ class TestGuiPublicAPI:
             assert _gui.gui_console_isrunning() is False
         finally:
             _gui._active_backend = prev
+
+
+# ---------------------------------------------------------------------------
+# ConsoleBackend — extended coverage for uncovered branches
+# ---------------------------------------------------------------------------
+
+
+class TestConsoleBackendExtended:
+    """Extended tests targeting previously-uncovered branches in console.py."""
+
+    def setup_method(self):
+        from execsql.gui.console import ConsoleBackend
+
+        self.backend = ConsoleBackend()
+
+    # ------------------------------------------------------------------
+    # console_wait_user — prints message when non-empty (lines 77-78)
+    # ------------------------------------------------------------------
+
+    def test_console_wait_user_with_message_prints_to_stderr(self, capsys):
+        self.backend.console_wait_user("Please wait...")
+        captured = capsys.readouterr()
+        assert "Please wait..." in captured.err
+
+    def test_console_wait_user_empty_message_prints_nothing(self, capsys):
+        self.backend.console_wait_user("")
+        captured = capsys.readouterr()
+        assert captured.err == ""
+
+    def test_console_wait_user_no_arg_prints_nothing(self, capsys):
+        self.backend.console_wait_user()
+        captured = capsys.readouterr()
+        assert captured.err == ""
+
+    # ------------------------------------------------------------------
+    # show_halt — column_headers + rowset branch (lines 90-91)
+    # ------------------------------------------------------------------
+
+    def test_show_halt_with_table_data_prints_table(self, monkeypatch, capsys):
+        monkeypatch.setattr("builtins.input", lambda *a: "")
+        result = self.backend.show_halt(
+            {
+                "title": "HALT",
+                "message": "Check this data",
+                "column_headers": ["id", "name"],
+                "rowset": [(1, "Alice"), (2, "Bob")],
+            },
+        )
+        assert result["button"] == 1
+        captured = capsys.readouterr()
+        assert "id" in captured.err
+        assert "Alice" in captured.err
+
+    def test_show_halt_without_table_data_still_returns(self, monkeypatch):
+        """When column_headers/rowset are absent, show_halt still completes."""
+        monkeypatch.setattr("builtins.input", lambda *a: "")
+        result = self.backend.show_halt({"title": "HALT", "message": "msg"})
+        assert result["button"] == 1
+
+    # ------------------------------------------------------------------
+    # show_display — hidetext / getpass branch (lines 133-136)
+    # ------------------------------------------------------------------
+
+    def test_show_display_hidetext_uses_getpass(self, monkeypatch):
+        """When hidetext=True and textentry=True, getpass is used instead of input."""
+        import getpass
+
+        monkeypatch.setattr(getpass, "getpass", lambda *a: "s3cr3t")
+        # _prompt_buttons needs input; patch it to return a valid choice.
+        monkeypatch.setattr("builtins.input", lambda *a: "1")
+        result = self.backend.show_display(
+            {
+                "textentry": True,
+                "hidetext": True,
+                "button_list": [("OK", 1, "<Return>")],
+            },
+        )
+        assert result["return_value"] == "s3cr3t"
+        assert result["button"] == 1
+
+    def test_show_display_with_title_and_table(self, monkeypatch, capsys):
+        """show_display prints title and table when both are supplied."""
+        monkeypatch.setattr("builtins.input", lambda *a: "1")
+        self.backend.show_display(
+            {
+                "title": "My Title",
+                "column_headers": ["a", "b"],
+                "rowset": [(10, 20)],
+                "button_list": [("OK", 1, "<Return>")],
+            },
+        )
+        captured = capsys.readouterr()
+        assert "My Title" in captured.err
+        assert "a" in captured.err
+
+    # ------------------------------------------------------------------
+    # show_entry_form — title / message / table print branches (lines 153-158)
+    # ------------------------------------------------------------------
+
+    def test_show_entry_form_prints_title_and_message(self, monkeypatch, capsys):
+        inputs = iter(["val", "y"])
+        monkeypatch.setattr("builtins.input", lambda *a: next(inputs))
+        spec = EntrySpec("$X", "X label")
+        self.backend.show_entry_form(
+            {
+                "title": "My Form",
+                "message": "Fill in all fields",
+                "entry_specs": [spec],
+            },
+        )
+        captured = capsys.readouterr()
+        assert "My Form" in captured.err
+        assert "Fill in all fields" in captured.err
+
+    def test_show_entry_form_with_table_data(self, monkeypatch, capsys):
+        inputs = iter(["val", "y"])
+        monkeypatch.setattr("builtins.input", lambda *a: next(inputs))
+        spec = EntrySpec("$X", "X label")
+        self.backend.show_entry_form(
+            {
+                "entry_specs": [spec],
+                "column_headers": ["col1"],
+                "rowset": [("row_value",)],
+            },
+        )
+        captured = capsys.readouterr()
+        assert "col1" in captured.err
+
+    # ------------------------------------------------------------------
+    # show_entry_form — dropdown / select entry type (lines 166-179)
+    # ------------------------------------------------------------------
+
+    def test_show_entry_form_dropdown_by_number(self, monkeypatch):
+        """Dropdown entry accepts a numeric choice."""
+        spec = EntrySpec("$COLOR", "Color", entry_type="dropdown", lookup_list=["red", "green", "blue"])
+        # Input: choose option 2 ("green"), then submit.
+        inputs = iter(["2", "y"])
+        monkeypatch.setattr("builtins.input", lambda *a: next(inputs))
+        result = self.backend.show_entry_form({"entry_specs": [spec]})
+        assert result["button"] == 1
+        assert spec.value == "green"
+
+    def test_show_entry_form_dropdown_by_value(self, monkeypatch):
+        """Dropdown entry accepts a literal value match."""
+        spec = EntrySpec("$COLOR", "Color", entry_type="dropdown", lookup_list=["red", "green", "blue"])
+        inputs = iter(["blue", "y"])
+        monkeypatch.setattr("builtins.input", lambda *a: next(inputs))
+        self.backend.show_entry_form({"entry_specs": [spec]})
+        assert spec.value == "blue"
+
+    def test_show_entry_form_select_type_works_same_as_dropdown(self, monkeypatch):
+        """entry_type='select' is handled identically to 'dropdown'."""
+        spec = EntrySpec("$ITEM", "Item", entry_type="select", lookup_list=["alpha", "beta"])
+        inputs = iter(["1", "y"])
+        monkeypatch.setattr("builtins.input", lambda *a: next(inputs))
+        self.backend.show_entry_form({"entry_specs": [spec]})
+        assert spec.value == "alpha"
+
+    def test_show_entry_form_dropdown_invalid_then_valid(self, monkeypatch):
+        """show_entry_form loops until a valid dropdown choice is entered."""
+        spec = EntrySpec("$X", "X", entry_type="dropdown", lookup_list=["a", "b"])
+        # First input is invalid, second is valid, third is submit.
+        inputs = iter(["99", "a", "y"])
+        monkeypatch.setattr("builtins.input", lambda *a: next(inputs))
+        self.backend.show_entry_form({"entry_specs": [spec]})
+        assert spec.value == "a"
+
+    # ------------------------------------------------------------------
+    # show_select_sub — row selection (lines 236-245)
+    # ------------------------------------------------------------------
+
+    def test_show_select_sub_cancel_returns_none(self, monkeypatch):
+        """Blank input cancels; returns button=None, row=None."""
+        monkeypatch.setattr("builtins.input", lambda *a: "")
+        result = self.backend.show_select_sub(
+            {
+                "headers": ["id", "name"],
+                "rows": [(1, "Alice"), (2, "Bob")],
+            },
+        )
+        assert result["button"] is None
+        assert result["row"] is None
+
+    def test_show_select_sub_valid_row_returns_dict(self, monkeypatch):
+        """Valid row number returns the row as a header-keyed dict."""
+        monkeypatch.setattr("builtins.input", lambda *a: "2")
+        result = self.backend.show_select_sub(
+            {
+                "headers": ["id", "name"],
+                "rows": [(1, "Alice"), (2, "Bob")],
+            },
+        )
+        assert result["button"] == 1
+        assert result["row"] == {"id": 2, "name": "Bob"}
+
+    def test_show_select_sub_invalid_then_valid(self, monkeypatch):
+        """show_select_sub loops on invalid input until a valid row number is given."""
+        inputs = iter(["99", "1"])
+        monkeypatch.setattr("builtins.input", lambda *a: next(inputs))
+        result = self.backend.show_select_sub(
+            {
+                "headers": ["x"],
+                "rows": [("value_x",)],
+            },
+        )
+        assert result["button"] == 1
+        assert result["row"] == {"x": "value_x"}
+
+    def test_show_select_sub_no_rows_returns_none(self, monkeypatch):
+        """With no rows, show_select_sub immediately returns button=None."""
+        result = self.backend.show_select_sub({"headers": [], "rows": []})
+        assert result["button"] is None
+        assert result["row"] is None
+
+    def test_show_select_sub_prints_rows_to_stderr(self, monkeypatch, capsys):
+        """Row listing is printed to stderr."""
+        monkeypatch.setattr("builtins.input", lambda *a: "")
+        self.backend.show_select_sub(
+            {
+                "title": "Pick one",
+                "headers": ["id"],
+                "rows": [(42,)],
+            },
+        )
+        captured = capsys.readouterr()
+        assert "42" in captured.err
+
+    # ------------------------------------------------------------------
+    # show_action — include_continue_button branch (lines 269-276)
+    # ------------------------------------------------------------------
+
+    def test_show_action_no_button_specs_returns_1(self, monkeypatch):
+        """With no button_specs, show_action prompts for Enter and returns button=1."""
+        monkeypatch.setattr("builtins.input", lambda *a: "")
+        result = self.backend.show_action({"button_specs": []})
+        assert result["button"] == 1
+
+    def test_show_action_include_continue_button_zero_returns_1(self, monkeypatch):
+        """Choosing '0' when include_continue_button is set returns button=1."""
+        spec = ActionSpec("Run", "Run it", "run.sql")
+        inputs = iter(["0"])
+        monkeypatch.setattr("builtins.input", lambda *a: next(inputs))
+        result = self.backend.show_action(
+            {
+                "button_specs": [spec],
+                "include_continue_button": True,
+            },
+        )
+        assert result["button"] == 1
+
+    def test_show_action_include_continue_button_invalid_then_valid(self, monkeypatch):
+        """show_action loops on bad input; accepting '0' continues when include_continue_button."""
+        spec = ActionSpec("Run", "Run it", "run.sql")
+        inputs = iter(["bad", "0"])
+        monkeypatch.setattr("builtins.input", lambda *a: next(inputs))
+        result = self.backend.show_action(
+            {
+                "button_specs": [spec],
+                "include_continue_button": True,
+            },
+        )
+        assert result["button"] == 1
+
+    def test_show_action_with_table_data(self, monkeypatch, capsys):
+        """column_headers + rowset are printed when both are present."""
+        spec = ActionSpec("Go", "Go action", "go.sql")
+        monkeypatch.setattr("builtins.input", lambda *a: "1")
+        self.backend.show_action(
+            {
+                "button_specs": [spec],
+                "column_headers": ["col"],
+                "rowset": [("value",)],
+            },
+        )
+        captured = capsys.readouterr()
+        assert "col" in captured.err
+
+    # ------------------------------------------------------------------
+    # show_connect — message branch (line 346)
+    # ------------------------------------------------------------------
+
+    def test_show_connect_with_message_prints_to_stderr(self, monkeypatch, capsys):
+        """When message is set, show_connect prints it to stderr."""
+        inputs = iter(["p", "", "mydb", "", ""])
+        monkeypatch.setattr("builtins.input", lambda *a: next(inputs))
+        self.backend.show_connect({"message": "Please connect to the database"})
+        captured = capsys.readouterr()
+        assert "Please connect to the database" in captured.err
+
+    def test_show_connect_returns_typed_dict(self, monkeypatch):
+        """show_connect returns a dict with the expected keys."""
+        inputs = iter(["p", "localhost", "mydb", "", "admin"])
+        monkeypatch.setattr("builtins.input", lambda *a: next(inputs))
+        result = self.backend.show_connect({})
+        assert set(result.keys()) == {"db_type", "server", "database", "db_file", "username"}
+        assert result["db_type"] == "p"
+        assert result["server"] == "localhost"
+        assert result["database"] == "mydb"
+        assert result["db_file"] is None
+        assert result["username"] == "admin"
+
+    def test_show_connect_blank_fields_become_none(self, monkeypatch):
+        """Blank input for optional fields is stored as None."""
+        inputs = iter(["l", "", "", "/tmp/test.db", ""])
+        monkeypatch.setattr("builtins.input", lambda *a: next(inputs))
+        result = self.backend.show_connect({})
+        assert result["server"] is None
+        assert result["database"] is None
+        assert result["db_file"] == "/tmp/test.db"
+        assert result["username"] is None
+
+    def test_show_connect_no_message_no_extra_output(self, monkeypatch, capsys):
+        """No extra message is printed when message is empty."""
+        inputs = iter(["s", "", "", "", ""])
+        monkeypatch.setattr("builtins.input", lambda *a: next(inputs))
+        self.backend.show_connect({})
+        captured = capsys.readouterr()
+        # The db_types listing is always printed, but the optional message should not appear.
+        assert "Please" not in captured.err
+
+    # ------------------------------------------------------------------
+    # show_credentials — message branch (lines 334-336)
+    # ------------------------------------------------------------------
+
+    def test_show_credentials_with_message_prints_to_stderr(self, monkeypatch, capsys):
+        import getpass
+
+        monkeypatch.setattr("builtins.input", lambda *a: "bob")
+        monkeypatch.setattr(getpass, "getpass", lambda *a: "pass123")
+        self.backend.show_credentials({"message": "Enter your credentials"})
+        captured = capsys.readouterr()
+        assert "Enter your credentials" in captured.err
+
+    # ------------------------------------------------------------------
+    # show_map — lat/lon/label branch (lines 297-306)
+    # ------------------------------------------------------------------
+
+    def test_show_map_with_location_columns_prints_locations(self, monkeypatch, capsys):
+        """When lat_col, lon_col, and label_col are given, locations are printed."""
+        monkeypatch.setattr("builtins.input", lambda *a: "1")
+        self.backend.show_map(
+            {
+                "title": "Map",
+                "headers": ["lat", "lon", "name"],
+                "rows": [(37.77, -122.42, "SF"), (34.05, -118.24, "LA")],
+                "lat_col": "lat",
+                "lon_col": "lon",
+                "label_col": "name",
+                "button_list": [("Close", 1, "<Return>")],
+            },
+        )
+        captured = capsys.readouterr()
+        assert "37.77" in captured.err
+        assert "SF" in captured.err
+
+    def test_show_map_without_location_columns(self, monkeypatch, capsys):
+        """When lat/lon/label columns are absent, show_map still completes."""
+        monkeypatch.setattr("builtins.input", lambda *a: "1")
+        result = self.backend.show_map(
+            {
+                "headers": ["a"],
+                "rows": [(1,)],
+                "button_list": [("OK", 1, "<Return>")],
+            },
+        )
+        assert result["button"] == 1
+
+    def test_show_map_invalid_column_name_does_not_raise(self, monkeypatch):
+        """ValueError from headers.index is caught; show_map completes normally."""
+        monkeypatch.setattr("builtins.input", lambda *a: "1")
+        result = self.backend.show_map(
+            {
+                "headers": ["a", "b"],
+                "rows": [(1, 2)],
+                "lat_col": "nonexistent_lat",
+                "lon_col": "b",
+                "button_list": [("OK", 1, "<Return>")],
+            },
+        )
+        assert result["button"] == 1
+
+    # ------------------------------------------------------------------
+    # _print_table helper — None cell values are rendered as empty string
+    # ------------------------------------------------------------------
+
+    def test_print_table_none_cells_render_as_empty(self, capsys):
+        """_print_table handles None cell values without raising."""
+        from execsql.gui.console import _print_table
+
+        _print_table(["a", "b"], [(None, "x"), ("y", None)])
+        captured = capsys.readouterr()
+        assert "a" in captured.err
+        assert "x" in captured.err
+
+    def test_print_table_empty_headers_returns_immediately(self, capsys):
+        """_print_table with empty headers prints nothing."""
+        from execsql.gui.console import _print_table
+
+        _print_table([], [])
+        captured = capsys.readouterr()
+        assert captured.err == ""
+
+    # ------------------------------------------------------------------
+    # _prompt_buttons helper — empty button_list branch (line 40-41)
+    # ------------------------------------------------------------------
+
+    def test_prompt_buttons_empty_list_awaits_enter(self, monkeypatch):
+        """With an empty button_list, _prompt_buttons prompts for Enter and returns 1."""
+        from execsql.gui.console import _prompt_buttons
+
+        monkeypatch.setattr("builtins.input", lambda *a: "")
+        result = _prompt_buttons([])
+        assert result == 1
+
+    def test_prompt_buttons_invalid_then_valid_choice(self, monkeypatch):
+        """_prompt_buttons loops on invalid input until a recognised choice is entered."""
+        from execsql.gui.console import _prompt_buttons
+
+        inputs = iter(["99", "continue"])
+        monkeypatch.setattr("builtins.input", lambda *a: next(inputs))
+        result = _prompt_buttons([("Continue", 7, "<Return>")])
+        assert result == 7

@@ -3,12 +3,13 @@
 Covers:
 - ``_print_profile()`` formatting logic (empty data, single statement, multiple
   statements, truncation of long source paths, truncation of long command text,
-  "top 20" cap).
+  "top 20" cap, custom limit).
 - ``profile_data`` attribute on ``RuntimeContext`` defaults to ``None``.
 - Activating profiling sets ``_state.profile_data`` to an empty list before
   script execution.
 - Profile output appears after successful script execution when ``profile=True``.
 - The ``--profile`` flag is accepted by the Typer CLI (no parse error).
+- The ``--profile-limit`` flag is accepted by the Typer CLI (no parse error).
 """
 
 from __future__ import annotations
@@ -87,6 +88,40 @@ class TestPrintProfile:
         """More than 20 statements — only top 20 should be displayed, remainder noted."""
         data = [("s.sql", i, "sql", float(i), f"SELECT {i}") for i in range(1, 26)]
         _print_profile(data)  # must not raise; no assertion on Rich output
+
+    def test_custom_limit_shows_fewer_rows(self):
+        """limit=5 — only the top 5 statements appear; remaining count is shown."""
+        data = [("s.sql", i, "sql", float(i), f"SELECT {i}") for i in range(1, 11)]
+        captured = []
+        with patch("execsql.cli.run._console") as mock_console:
+            mock_console.print.side_effect = lambda *a, **kw: captured.append(str(a[0]) if a else "")
+            _print_profile(data, limit=5)
+        # The "... N more" line should mention 5 omitted
+        omit_lines = [line for line in captured if "not shown" in line]
+        assert len(omit_lines) == 1
+        assert "5" in omit_lines[0]
+
+    def test_custom_limit_message_includes_limit(self):
+        """The 'not shown' message should reference the custom limit value."""
+        data = [("s.sql", i, "sql", float(i), f"SELECT {i}") for i in range(1, 16)]
+        captured = []
+        with patch("execsql.cli.run._console") as mock_console:
+            mock_console.print.side_effect = lambda *a, **kw: captured.append(str(a[0]) if a else "")
+            _print_profile(data, limit=3)
+        omit_lines = [line for line in captured if "not shown" in line]
+        assert len(omit_lines) == 1
+        # Message should say "top 3 by time"
+        assert "3" in omit_lines[0]
+
+    def test_limit_larger_than_data_no_omit_line(self):
+        """When limit >= number of rows, no 'not shown' line should appear."""
+        data = [("s.sql", i, "sql", float(i), f"SELECT {i}") for i in range(1, 6)]
+        captured = []
+        with patch("execsql.cli.run._console") as mock_console:
+            mock_console.print.side_effect = lambda *a, **kw: captured.append(str(a[0]) if a else "")
+            _print_profile(data, limit=100)
+        omit_lines = [line for line in captured if "not shown" in line]
+        assert len(omit_lines) == 0
 
     def test_long_source_truncated(self):
         """Source paths longer than 20 chars should be truncated to '...'+suffix."""
@@ -280,3 +315,19 @@ class TestCliProfileFlag:
         result = runner.invoke(app, ["--profile"])
         # Should fail because no script is given, not because the flag is invalid.
         assert result.exit_code != 0
+
+    def test_profile_limit_flag_in_help(self):
+        """--profile-limit should appear in --help output."""
+        runner = CliRunner()
+        result = runner.invoke(app, ["--help"])
+        assert result.exit_code == 0
+        assert "--profile-limit" in result.output
+
+    def test_profile_limit_default_is_20(self):
+        """Default profile_limit should be 20 (verified by the default in _run signature)."""
+        from inspect import signature
+
+        from execsql.cli.run import _run
+
+        sig = signature(_run)
+        assert sig.parameters["profile_limit"].default == 20

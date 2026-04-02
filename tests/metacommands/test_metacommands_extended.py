@@ -1312,6 +1312,367 @@ class TestIoExportValidation:
                 zipfilename="out.zip",
             )
 
+
+# ---------------------------------------------------------------------------
+# Extended tests for metacommands/control.py -- uncovered lines
+# ---------------------------------------------------------------------------
+
+
+class TestControlHaltExtended:
+    """Tests for x_halt and x_halt_msg covering previously uncovered paths."""
+
+    def setup_method(self):
+        sv = _make_subvars()
+        _state.subvars = sv
+        _state.exec_log = MagicMock()
+        _state.output = MagicMock()
+        _state.status = MagicMock()
+        _state.status.halt_on_err = True
+        _state.status.batch = BatchLevels()
+        _state.if_stack = IfLevels()
+        _state.commandliststack = [_mock_commandlist()]
+        _state.loopcommandstack = []
+        _state.compiling_loop = False
+
+    def teardown_method(self):
+        _state.subvars = None
+        _state.exec_log = None
+        _state.output = None
+        _state.status = None
+        _state.if_stack = None
+        _state.commandliststack = []
+        _state.loopcommandstack = []
+        _state.compiling_loop = False
+
+    # --- x_halt: file output path (lines 147-152) ---
+
+    def test_x_halt_writes_message_to_file(self, tmp_path, minimal_conf):
+        """x_halt with a file destination writes the error message to disk."""
+        from execsql.metacommands.control import x_halt
+
+        minimal_conf.tee_write_log = False
+        outfile = tmp_path / "halt_out.txt"
+        with (
+            patch("execsql.metacommands.control.gui_console_isrunning", return_value=False),
+            patch("execsql.metacommands.control.exit_now") as mock_exit,
+            patch("execsql.metacommands.control.current_script_line", return_value=("t.sql", 1)),
+        ):
+            x_halt(
+                errmsg="halt message",
+                tee=None,
+                filename=str(outfile),
+                errorlevel=None,
+            )
+        assert outfile.exists()
+        assert "halt message" in outfile.read_text()
+        mock_exit.assert_called_once()
+
+    # --- x_halt: tee_write_log path (line 153-154) ---
+
+    def test_x_halt_logs_message_when_tee_write_log(self, minimal_conf):
+        """x_halt logs the error message to exec_log when tee_write_log is True."""
+        from execsql.metacommands.control import x_halt
+
+        minimal_conf.tee_write_log = True
+        with (
+            patch("execsql.metacommands.control.gui_console_isrunning", return_value=False),
+            patch("execsql.metacommands.control.exit_now"),
+            patch("execsql.metacommands.control.current_script_line", return_value=("t.sql", 1)),
+        ):
+            x_halt(
+                errmsg="tee message",
+                tee=None,
+                filename=None,
+                errorlevel=None,
+            )
+        _state.exec_log.log_user_msg.assert_called_with("tee message")
+
+    # --- x_halt: GUI running path delegates to x_halt_msg (lines 155-158) ---
+
+    def test_x_halt_delegates_to_halt_msg_when_gui_running(self, minimal_conf):
+        """x_halt calls x_halt_msg and returns early when GUI console is running."""
+        from execsql.metacommands.control import x_halt
+
+        minimal_conf.tee_write_log = False
+        minimal_conf.gui_level = 0
+        with (
+            patch("execsql.metacommands.control.gui_console_isrunning", return_value=True),
+            patch("execsql.metacommands.control.x_halt_msg") as mock_halt_msg,
+        ):
+            x_halt(
+                errmsg="gui message",
+                tee=None,
+                filename=None,
+                errorlevel=None,
+            )
+        mock_halt_msg.assert_called_once()
+
+    def test_x_halt_delegates_to_halt_msg_when_gui_level_gt_1(self, minimal_conf):
+        """x_halt calls x_halt_msg when gui_level > 1 even without GUI console."""
+        from execsql.metacommands.control import x_halt
+
+        minimal_conf.tee_write_log = False
+        minimal_conf.gui_level = 2
+        with (
+            patch("execsql.metacommands.control.gui_console_isrunning", return_value=False),
+            patch("execsql.metacommands.control.x_halt_msg") as mock_halt_msg,
+        ):
+            x_halt(
+                errmsg="highlevel message",
+                tee=None,
+                filename=None,
+                errorlevel=None,
+            )
+        mock_halt_msg.assert_called_once()
+
+    # --- x_halt: error level parsing (lines 159-162) ---
+
+    def test_x_halt_uses_explicit_error_level(self, minimal_conf):
+        """x_halt passes the explicit error level to exit_now."""
+        from execsql.metacommands.control import x_halt
+
+        minimal_conf.tee_write_log = False
+        with (
+            patch("execsql.metacommands.control.gui_console_isrunning", return_value=False),
+            patch("execsql.metacommands.control.exit_now") as mock_exit,
+            patch("execsql.metacommands.control.current_script_line", return_value=("t.sql", 1)),
+        ):
+            x_halt(
+                errmsg="",
+                tee=None,
+                filename=None,
+                errorlevel="5",
+            )
+        mock_exit.assert_called_once_with(5, None)
+
+    def test_x_halt_defaults_to_error_level_3(self, minimal_conf):
+        """x_halt defaults to error level 3 when no error level is provided."""
+        from execsql.metacommands.control import x_halt
+
+        minimal_conf.tee_write_log = False
+        with (
+            patch("execsql.metacommands.control.gui_console_isrunning", return_value=False),
+            patch("execsql.metacommands.control.exit_now") as mock_exit,
+            patch("execsql.metacommands.control.current_script_line", return_value=("t.sql", 1)),
+        ):
+            x_halt(
+                errmsg="",
+                tee=None,
+                filename=None,
+                errorlevel=None,
+            )
+        mock_exit.assert_called_once_with(3, None)
+
+    # --- x_halt: errmsg written to output (line 163-164) ---
+
+    def test_x_halt_writes_errmsg_to_output(self, minimal_conf):
+        """x_halt writes a non-empty errmsg to _state.output."""
+        from execsql.metacommands.control import x_halt
+
+        minimal_conf.tee_write_log = False
+        with (
+            patch("execsql.metacommands.control.gui_console_isrunning", return_value=False),
+            patch("execsql.metacommands.control.exit_now"),
+            patch("execsql.metacommands.control.current_script_line", return_value=("t.sql", 1)),
+        ):
+            x_halt(
+                errmsg="visible error",
+                tee=None,
+                filename=None,
+                errorlevel=None,
+            )
+        _state.output.write_err.assert_called_with("visible error")
+
+    # --- x_halt_msg: full function (lines 236-278) ---
+
+    def test_x_halt_msg_without_table_data(self, minimal_conf):
+        """x_halt_msg without table arg sends GUI_HALT to the manager queue."""
+        from execsql.metacommands.control import x_halt_msg
+
+        minimal_conf.tee_write_log = False
+        mock_queue = MagicMock()
+        _state.gui_manager_queue = mock_queue
+
+        # Simulate the return_queue.get() returning immediately
+        with (
+            patch("execsql.metacommands.control.enable_gui"),
+            patch("execsql.metacommands.control.exit_now"),
+            patch("execsql.metacommands.control.current_script_line", return_value=("t.sql", 1)),
+            patch("queue.Queue") as mock_q_cls,
+        ):
+            rq = MagicMock()
+            rq.get.return_value = None
+            mock_q_cls.return_value = rq
+            x_halt_msg(
+                errmsg="halt msg",
+                tee=None,
+                filename=None,
+                errorlevel=None,
+                schema=None,
+                table=None,
+            )
+        mock_queue.put.assert_called_once()
+        spec_arg = mock_queue.put.call_args[0][0]
+        assert spec_arg.gui_type == "halt"
+
+    def test_x_halt_msg_with_table_data(self, minimal_conf):
+        """x_halt_msg with a table queries the DB and includes headers/rows."""
+        from execsql.metacommands.control import x_halt_msg
+
+        minimal_conf.tee_write_log = False
+        mock_queue = MagicMock()
+        _state.gui_manager_queue = mock_queue
+
+        mock_db = MagicMock()
+        mock_db.schema_qualified_table_name.return_value = "myschema.mytable"
+        mock_db.select_data.return_value = (["col1", "col2"], [("a", "b")])
+        mock_dbs = MagicMock()
+        mock_dbs.current.return_value = mock_db
+        _state.dbs = mock_dbs
+
+        with (
+            patch("execsql.metacommands.control.enable_gui"),
+            patch("execsql.metacommands.control.exit_now"),
+            patch("execsql.metacommands.control.current_script_line", return_value=("t.sql", 1)),
+            patch("queue.Queue") as mock_q_cls,
+        ):
+            rq = MagicMock()
+            rq.get.return_value = None
+            mock_q_cls.return_value = rq
+            x_halt_msg(
+                errmsg="halt with table",
+                tee=None,
+                filename=None,
+                errorlevel="2",
+                schema="myschema",
+                table="mytable",
+            )
+        mock_queue.put.assert_called_once()
+        spec_arg = mock_queue.put.call_args[0][0]
+        assert spec_arg.args["column_headers"] == ["col1", "col2"]
+        assert spec_arg.args["rowset"] == [("a", "b")]
+
+    def test_x_halt_msg_writes_to_file(self, tmp_path, minimal_conf):
+        """x_halt_msg with filename writes errmsg to the file."""
+        from execsql.metacommands.control import x_halt_msg
+
+        minimal_conf.tee_write_log = False
+        mock_queue = MagicMock()
+        _state.gui_manager_queue = mock_queue
+        outfile = tmp_path / "haltmsg.txt"
+
+        with (
+            patch("execsql.metacommands.control.enable_gui"),
+            patch("execsql.metacommands.control.exit_now"),
+            patch("execsql.metacommands.control.current_script_line", return_value=("t.sql", 1)),
+            patch("queue.Queue") as mock_q_cls,
+        ):
+            rq = MagicMock()
+            rq.get.return_value = None
+            mock_q_cls.return_value = rq
+            x_halt_msg(
+                errmsg="written to file",
+                tee=None,
+                filename=str(outfile),
+                errorlevel=None,
+                schema=None,
+                table=None,
+            )
+        assert outfile.exists()
+        assert "written to file" in outfile.read_text()
+
+    def test_x_halt_msg_uses_explicit_error_level(self, minimal_conf):
+        """x_halt_msg forwards explicit errorlevel to exit_now."""
+        from execsql.metacommands.control import x_halt_msg
+
+        minimal_conf.tee_write_log = False
+        mock_queue = MagicMock()
+        _state.gui_manager_queue = mock_queue
+
+        with (
+            patch("execsql.metacommands.control.enable_gui"),
+            patch("execsql.metacommands.control.exit_now") as mock_exit,
+            patch("execsql.metacommands.control.current_script_line", return_value=("t.sql", 1)),
+            patch("queue.Queue") as mock_q_cls,
+        ):
+            rq = MagicMock()
+            rq.get.return_value = None
+            mock_q_cls.return_value = rq
+            x_halt_msg(
+                errmsg="error",
+                tee=None,
+                filename=None,
+                errorlevel="7",
+                schema=None,
+                table=None,
+            )
+        mock_exit.assert_called_once_with(7, None)
+
+    def test_x_halt_msg_defaults_error_level_to_3(self, minimal_conf):
+        """x_halt_msg defaults errorlevel to 3 when not provided."""
+        from execsql.metacommands.control import x_halt_msg
+
+        minimal_conf.tee_write_log = False
+        mock_queue = MagicMock()
+        _state.gui_manager_queue = mock_queue
+
+        with (
+            patch("execsql.metacommands.control.enable_gui"),
+            patch("execsql.metacommands.control.exit_now") as mock_exit,
+            patch("execsql.metacommands.control.current_script_line", return_value=("t.sql", 1)),
+            patch("queue.Queue") as mock_q_cls,
+        ):
+            rq = MagicMock()
+            rq.get.return_value = None
+            mock_q_cls.return_value = rq
+            x_halt_msg(
+                errmsg="error",
+                tee=None,
+                filename=None,
+                errorlevel=None,
+                schema=None,
+                table=None,
+            )
+        mock_exit.assert_called_once_with(3, None)
+
+    # --- x_wait_until: condition passes immediately (line 231) ---
+
+    def test_x_wait_until_condition_passes_immediately(self, minimal_conf):
+        """x_wait_until returns without sleeping when condition is true on first check."""
+        from execsql.metacommands.control import x_wait_until
+
+        with (
+            patch("execsql.state.xcmd_test", return_value=True),
+            patch("time.sleep") as mock_sleep,
+        ):
+            x_wait_until(seconds="5", condition="1 == 1", end="halt")
+        mock_sleep.assert_not_called()
+
+    def test_x_wait_until_exhausted_halts(self, minimal_conf):
+        """x_wait_until calls exit_now after countdown expires with end=halt."""
+        from execsql.metacommands.control import x_wait_until
+
+        with (
+            patch("execsql.state.xcmd_test", return_value=False),
+            patch("time.sleep"),
+            patch("execsql.metacommands.control.exit_now") as mock_exit,
+            patch("execsql.metacommands.control.current_script_line", return_value=("t.sql", 1)),
+        ):
+            x_wait_until(seconds="2", condition="always_false", end="halt")
+        mock_exit.assert_called_once_with(2, None)
+
+    def test_x_wait_until_exhausted_no_halt(self, minimal_conf):
+        """x_wait_until returns normally after countdown when end != halt."""
+        from execsql.metacommands.control import x_wait_until
+
+        with (
+            patch("execsql.state.xcmd_test", return_value=False),
+            patch("time.sleep"),
+            patch("execsql.metacommands.control.exit_now") as mock_exit,
+        ):
+            x_wait_until(seconds="2", condition="always_false", end="continue")
+        mock_exit.assert_not_called()
+
     def test_x_export_query_zipfile_ods_raises(self):
         from execsql.metacommands.io import x_export_query
 

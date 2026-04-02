@@ -11,6 +11,20 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Added
+
+- Debug REPL `.where` / `.w` command — shows current script file, line number, and the upcoming statement text (truncated to 120 chars). The entry banner now includes the location (`[Breakpoint] myscript.sql:42`) and `_print_where()` is called automatically on REPL entry via `BREAKPOINT` or step mode.
+- Debug REPL `.set VAR VAL` / `.s VAR VAL` command — sets or updates a substitution variable interactively during a `BREAKPOINT` session. Prints a confirmation line (`VAR = VAL`) on success; prints an error if substitution variables are not initialised.
+- Debug REPL ANSI color output — horizontal rule separators, colored labels ("Breakpoint"/"Step" in bold yellow, filename:line in cyan, type tags in dim green), cyan variable names, dim `=` signs, red error messages, bold SQL column headers, and dim row-count and table borders. Color is auto-detected via TTY and suppressed when `NO_COLOR` or `EXECSQL_NO_COLOR` environment variables are set. Falls back to plain text in non-interactive contexts (CI, piped output). Help text is also colorized with cyan command names and consistent column alignment.
+- Debug REPL shortcut aliases — `.h` for `.help`, `.v` for `.vars`, `.v all` for `.vars all`.
+- Debug REPL step mode banner — when the REPL is re-entered via `.next` / step mode, the entry banner now shows "Step" instead of "Breakpoint" to make it clear the pause is from stepping rather than an explicit `BREAKPOINT` metacommand.
+- `--profile-limit N` CLI option — controls how many top statements appear in the `--profile` timing summary (default: 20). The "not shown" footer message now includes the active limit for clarity.
+- Test coverage raised from 86% to 91% — 274 new tests across `metacommands/io_import.py`, `metacommands/io_export.py`, `metacommands/control.py`, `metacommands/data.py`, `importers/csv.py`, and `gui/console.py`. Coverage floor raised from 85% to 90% in `pyproject.toml`.
+
+### Changed
+
+- `execsql.debug.repl` is now a dedicated package (`src/execsql/debug/repl.py`); previously the REPL lived at `execsql.metacommands.debug_repl`. Internal import paths have been updated throughout. No public API change.
+
 ______________________________________________________________________
 
 ## [2.11.1] - 2026-04-01

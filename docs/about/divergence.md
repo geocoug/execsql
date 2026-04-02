@@ -24,7 +24,8 @@ ______________________________________________________________________
 | `--gui-framework`               | Select GUI backend: `tkinter` (default) or `textual` (terminal UI).                                                                                                                                                                                                                                                                     |
 | `--debug`                       | Start in step-through debug mode. The debug REPL pauses before each statement, as if `BREAKPOINT` were at the top with `.next` always active.                                                                                                                                                                                           |
 | `--dry-run`                     | Parse the script and print the full command list without connecting to a database or executing anything. Substitution variables already populated at parse time (env vars, `--assign-arg` values, built-in start-time vars) are expanded in the output; execution-time variables (`$DB_NAME`, `$CURRENT_TIME`, etc.) remain unexpanded. |
-| `--profile`                     | Record wall-clock time for each SQL and metacommand statement. After the script completes, print a summary table sorted by elapsed time (descending), showing time, percentage of total, source location, command type, and a command preview. Top 20 slowest statements are shown.                                                     |
+| `--profile`                     | Record wall-clock time for each SQL and metacommand statement. After the script completes, print a summary table sorted by elapsed time (descending), showing time, percentage of total, source location, command type, and a command preview.                                                                                          |
+| `--profile-limit N`             | Number of top statements to display in the `--profile` summary (default: 20). Remaining statements are counted and noted in the output footer.                                                                                                                                                                                          |
 | `--ping`                        | Test database connectivity and exit. Connects using the supplied connection parameters, queries for the server version, and prints a one-line success message (exit 0) or the error (exit 1). No script file argument is required.                                                                                                      |
 | `--lint`                        | Parse the script and perform static analysis without connecting to a database. Reports unmatched IF/ENDIF, LOOP/END LOOP, and BEGIN BATCH/END BATCH blocks (errors), potentially undefined `!!$VAR!!` references (warnings), and missing INCLUDE file targets (warnings). Exits 0 if no errors, 1 if errors found.                      |
 
@@ -116,15 +117,17 @@ execsql2 adds a full interactive debugging system that has no equivalent in upst
 
 **REPL commands** (all dot-prefixed to avoid collisions with variable names and SQL):
 
-| Command            | Description                                                               |
-| ------------------ | ------------------------------------------------------------------------- |
-| `.continue` / `.c` | Resume normal script execution                                            |
-| `.abort` / `.q`    | Halt the script with exit status 1                                        |
-| `.vars`            | List all user, system, local, and counter variables (grouped by type)     |
-| `.vars all`        | Include environment variables (`&`) in the listing                        |
-| `.next` / `.n`     | Execute the next statement, then pause again (step mode)                  |
-| `.stack`           | Show the command-list stack (script name, cursor position, nesting depth) |
-| `.help`            | Show available commands                                                   |
+| Command                | Description                                                               |
+| ---------------------- | ------------------------------------------------------------------------- |
+| `.continue` / `.c`     | Resume normal script execution                                            |
+| `.abort` / `.q`        | Halt the script with exit status 1                                        |
+| `.vars` / `.v`         | List all user, system, local, and counter variables (grouped by type)     |
+| `.vars all` / `.v all` | Include environment variables (`&`) in the listing                        |
+| `.next` / `.n`         | Execute the next statement, then pause again (step mode)                  |
+| `.where` / `.w`        | Show the current script file, line number, and upcoming statement text    |
+| `.stack`               | Show the command-list stack (script name, cursor position, nesting depth) |
+| `.set VAR VAL` / `.s`  | Set or update a substitution variable; prints confirmation on success     |
+| `.help` / `.h`         | Show available commands                                                   |
 
 **Non-prefixed input** is interpreted as either a variable lookup or ad-hoc SQL:
 
@@ -139,7 +142,9 @@ execsql2 adds a full interactive debugging system that has no equivalent in upst
 - **Non-interactive safety** — `BREAKPOINT` is silently skipped when `sys.stdin` is not a TTY (CI pipelines, piped input, cron). Scripts never hang in automation.
 - **Ad-hoc SQL** — any input ending with `;` is executed against the current database connection using the same cursor and transaction state as the script. Queries return a formatted table; DML statements (INSERT, UPDATE, DELETE) execute and commit/rollback according to the current autocommit and batch settings.
 - **Variable inspection** — bare names look up user-defined variables (e.g., `logfile`); sigil-prefixed names look up system (`$`), environment (`&`), local (`~`), or counter (`@`) variables. If a `$`-prefixed name isn't found, the REPL strips the sigil and retries (since `SUB` stores keys without a prefix).
-- **Step mode** — `.next` executes exactly one statement then re-enters the REPL. Combined with `.vars` and SQL queries, this allows line-by-line script debugging with full state visibility.
+- **Step mode** — `.next` executes exactly one statement then re-enters the REPL. When stepping, the entry banner shows "Step" instead of "Breakpoint" to distinguish stepping from an explicit `BREAKPOINT`. Combined with `.where`, `.vars`, and SQL queries, this allows line-by-line script debugging with full state visibility.
+- **Location display** — on entry to the REPL (via `BREAKPOINT` or step mode) the banner shows a horizontal rule with the label ("Breakpoint" or "Step"), the current filename and line number, and the upcoming statement. Use `.where` (or `.w`) at any time to re-display this information.
+- **ANSI color output** — the REPL uses ANSI color on TTY outputs: bold yellow for section labels, cyan for filenames and variable names, dim for separators and `=` signs, red for error messages, bold for SQL column headers, and dim italic for `NULL` values. Color is suppressed when `NO_COLOR` or `EXECSQL_NO_COLOR` environment variables are set, or when the output stream is not a TTY.
 - **Readline support** — on platforms where `readline` is available (macOS, Linux), the REPL supports arrow-key history navigation and line editing.
 
 ______________________________________________________________________

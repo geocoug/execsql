@@ -38,6 +38,47 @@ DEBUG WRITE <script_name> [[APPEND] TO <filename>]
 
 This is an alias for the [WRITE SCRIPT](../reference/metacommands.md#write_script) metacommand.
 
+# Interactive Debug REPL (BREAKPOINT)
+
+Insert `-- !x! BREAKPOINT` anywhere in a script to pause execution and drop into the interactive debug REPL:
+
+```sql
+-- !x! BREAKPOINT
+SELECT * FROM orders WHERE status = 'pending';
+```
+
+The REPL prints the current file name, line number, and the upcoming statement when it opens:
+
+```
+[Breakpoint] myscript.sql:42 — Script paused. Type '.help' for commands, '.c' to resume.
+  myscript.sql:42  (sql)
+  → SELECT * FROM orders WHERE status = 'pending';
+execsql debug>
+```
+
+**Available commands:**
+
+| Command        | Shortcut | Description                                                               |
+| -------------- | -------- | ------------------------------------------------------------------------- |
+| `.continue`    | `.c`     | Resume normal script execution                                            |
+| `.abort`       | `.q`     | Halt the script with exit status 1                                        |
+| `.vars`        | `.v`     | List user, system, local, and counter substitution variables              |
+| `.vars all`    | `.v all` | Include environment variables (`&`) in the listing                        |
+| `.next`        | `.n`     | Execute the next statement, then pause again (step mode)                  |
+| `.where`       | `.w`     | Re-display the current script location and upcoming statement             |
+| `.stack`       |          | Show the command-list stack (script name, cursor position, nesting depth) |
+| `.set VAR VAL` | `.s`     | Set or update a substitution variable                                     |
+| `.help`        | `.h`     | Show available commands                                                   |
+
+Anything not starting with `.` is treated as a variable lookup or SQL:
+
+- A bare name (e.g. `logfile`) prints the value of that substitution variable.
+- Any input ending with `;` is executed as SQL against the current database (expects columns returned, e.g. SELECT).
+
+The `--debug` CLI flag starts execution in step mode, pausing before every statement.
+
+In non-interactive environments (CI, piped input) `BREAKPOINT` is silently skipped so automated pipelines are never blocked.
+
 The ON ERROR_HALT metacommands allow custom reporting (or cleanup) actions to be taken when errors occur.
 
 Setting the configuration setting [write_warnings](../reference/configuration.md#write_warnings) to "Yes" can also assist with debugging by displaying conditions that may result from errors in the script.

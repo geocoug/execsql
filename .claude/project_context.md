@@ -67,6 +67,9 @@ src/execsql/               # active codebase — all new work goes here
   importers/
     __init__.py
     base.py / csv.py / ods.py / xls.py / feather.py
+  debug/
+    __init__.py            # debug package
+    repl.py                # x_breakpoint, _debug_repl, REPL helpers (BREAKPOINT metacommand)
   metacommands/
     __init__.py            # DISPATCH_TABLE, format/db constants, re-exports all handlers
     dispatch.py            # build_dispatch_table() — all mcl.add() regex registrations

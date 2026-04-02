@@ -71,12 +71,14 @@ def _print_dry_run(cmdlist: object) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _print_profile(profile_data: list[tuple]) -> None:
+def _print_profile(profile_data: list[tuple], limit: int = 20) -> None:
     """Print a per-statement timing summary to stdout.
 
     Args:
         profile_data: List of ``(source, line_no, command_type, elapsed_secs,
             command_text_preview)`` tuples collected during execution.
+        limit: Maximum number of top statements to display (default: 20).
+            All statements are included in totals regardless of this value.
     """
     if not profile_data:
         _console.print("[dim]Profile: no statements recorded.[/dim]")
@@ -85,9 +87,9 @@ def _print_profile(profile_data: list[tuple]) -> None:
     total_secs = sum(row[3] for row in profile_data)
     n = len(profile_data)
 
-    # Sort descending by elapsed time; show top 20 (or all if <= 20).
+    # Sort descending by elapsed time; show top `limit` (or all if <= limit).
     sorted_data = sorted(profile_data, key=lambda r: r[3], reverse=True)
-    display = sorted_data[:20]
+    display = sorted_data[:limit]
 
     _console.print()
     _console.print(f"[bold cyan]Profile:[/bold cyan] {n} statement{'s' if n != 1 else ''} in {total_secs:.3f}s")
@@ -115,10 +117,10 @@ def _print_profile(profile_data: list[tuple]) -> None:
             f"{preview_short}",
         )
 
-    if len(sorted_data) > 20:
-        omitted = len(sorted_data) - 20
+    if len(sorted_data) > limit:
+        omitted = len(sorted_data) - limit
         _console.print(
-            f"[dim]  ... {omitted} more statement{'s' if omitted != 1 else ''} not shown (top 20 by time)[/dim]",
+            f"[dim]  ... {omitted} more statement{'s' if omitted != 1 else ''} not shown (top {limit} by time)[/dim]",
         )
 
     _console.print()
@@ -213,6 +215,7 @@ def _run(
     output_dir: str | None = None,
     progress: bool = False,
     profile: bool = False,
+    profile_limit: int = 20,
     ping: bool = False,
     lint: bool = False,
     debug: bool = False,
@@ -552,7 +555,7 @@ def _run(
     if debug:
         _state.step_mode = True
 
-    _execute_script_direct(conf, profile=profile)
+    _execute_script_direct(conf, profile=profile, profile_limit=profile_limit)
 
 
 # ---------------------------------------------------------------------------
@@ -611,7 +614,7 @@ def _execute_script_textual_console(conf: ConfigData) -> None:
     _state.exec_log.log_exit_end()
 
 
-def _execute_script_direct(conf: ConfigData, *, profile: bool = False) -> None:
+def _execute_script_direct(conf: ConfigData, *, profile: bool = False, profile_limit: int = 20) -> None:
     """Run runscripts() in the current (main) thread — used when Textual is not active.
 
     Args:
@@ -619,6 +622,8 @@ def _execute_script_direct(conf: ConfigData, *, profile: bool = False) -> None:
         profile: When ``True``, print a per-statement timing summary after the
             script completes.  Timing data must already have been activated on
             ``_state.profile_data`` before this function is called.
+        profile_limit: Maximum number of top statements to display in the
+            profile summary (default: 20).
     """
     import execsql.state as _state
     import execsql.utils.gui as _gui
@@ -645,7 +650,7 @@ def _execute_script_direct(conf: ConfigData, *, profile: bool = False) -> None:
                 gui_console_off()
         _state.exec_log.log_status_info(f"{_state.cmds_run} commands run")
         if profile and _state.profile_data is not None:
-            _print_profile(_state.profile_data)
+            _print_profile(_state.profile_data, limit=profile_limit)
         sys.exit(exc.code)
     except ConfigError:
         raise
@@ -673,7 +678,7 @@ def _execute_script_direct(conf: ConfigData, *, profile: bool = False) -> None:
             gui_console_off()
     _state.exec_log.log_status_info(f"{_state.cmds_run} commands run")
     if profile and _state.profile_data is not None:
-        _print_profile(_state.profile_data)
+        _print_profile(_state.profile_data, limit=profile_limit)
     _state.exec_log.log_exit_end()
 
 

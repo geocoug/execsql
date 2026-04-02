@@ -379,3 +379,424 @@ class TestFlagSetters:
 
         x_trim_col_hdrs(which="BOTH")
         assert minimal_conf.trim_col_hdrs == "both"
+
+
+# ---------------------------------------------------------------------------
+# x_selectsub -- previously uncovered paths
+# ---------------------------------------------------------------------------
+
+
+class TestXSelectsubExtended:
+    """Extended tests for x_selectsub covering previously uncovered lines."""
+
+    def _setup_db(self, hdrs, rows):
+        mock_db = MagicMock()
+        mock_db.select_rowsource.return_value = (hdrs, iter(rows))
+        mock_dbs = MagicMock()
+        mock_dbs.current.return_value = mock_db
+        _state.dbs = mock_dbs
+        return mock_db
+
+    def _setup_base_state(self):
+        sv = SubVarSet()
+        _state.subvars = sv
+        mock_log = MagicMock()
+        _state.exec_log = mock_log
+        # Commandlist whose current_command() returns None so current_script_line
+        # falls back to (listname, len) — gives a valid 2-tuple without extra mocking.
+        mock_cl = MagicMock()
+        mock_cl.listname = "test_list"
+        mock_cl.cmdlist = []
+        mock_cl.current_command.return_value = None
+        mock_cl.localvars = SubVarSet()
+        _state.commandliststack = [mock_cl]
+        return sv, mock_log
+
+    def test_selectsub_non_errinfo_db_exception_wraps_as_errinfo(self, minimal_conf):
+        """A non-ErrInfo exception from select_rowsource is wrapped in ErrInfo."""
+        from execsql.metacommands.data import x_selectsub
+
+        sv, _ = self._setup_base_state()
+        minimal_conf.log_datavars = False
+        mock_db = MagicMock()
+        mock_db.select_rowsource.side_effect = RuntimeError("unexpected db error")
+        mock_dbs = MagicMock()
+        mock_dbs.current.return_value = mock_db
+        _state.dbs = mock_dbs
+
+        with pytest.raises(ErrInfo) as exc_info:
+            x_selectsub(datasource="badtable", metacommandline="SELECT SUB ...")
+        assert exc_info.value.type == "exception"
+
+    def test_selectsub_errinfo_db_exception_propagates(self, minimal_conf):
+        """An ErrInfo raised by select_rowsource propagates unchanged."""
+        from execsql.metacommands.data import x_selectsub
+
+        self._setup_base_state()
+        minimal_conf.log_datavars = False
+        original_err = ErrInfo(type="error", other_msg="original db error")
+        mock_db = MagicMock()
+        mock_db.select_rowsource.side_effect = original_err
+        mock_dbs = MagicMock()
+        mock_dbs.current.return_value = mock_db
+        _state.dbs = mock_dbs
+
+        with pytest.raises(ErrInfo) as exc_info:
+            x_selectsub(datasource="tbl", metacommandline="SELECT SUB ...")
+        assert exc_info.value is original_err
+
+    def test_selectsub_unexpected_exception_from_next_wraps_as_errinfo(self, minimal_conf):
+        """A non-StopIteration exception from next(rec) is wrapped in ErrInfo."""
+        from execsql.metacommands.data import x_selectsub
+
+        self._setup_base_state()
+        minimal_conf.log_datavars = False
+
+        def _bad_iter():
+            raise ValueError("iterator exploded")
+            yield  # make it a generator
+
+        mock_db = MagicMock()
+        mock_db.select_rowsource.return_value = (["col1"], _bad_iter())
+        mock_dbs = MagicMock()
+        mock_dbs.current.return_value = mock_db
+        _state.dbs = mock_dbs
+
+        with pytest.raises(ErrInfo) as exc_info:
+            x_selectsub(datasource="tbl", metacommandline="SELECT SUB ...")
+        assert exc_info.value.type == "exception"
+
+    def test_selectsub_log_datavars_logs_removal(self, minimal_conf):
+        """With log_datavars=True, removing an existing variable is logged."""
+        from execsql.metacommands.data import x_selectsub
+
+        sv, mock_log = self._setup_base_state()
+        minimal_conf.log_datavars = True
+        sv.add_substitution("@col1", "old_value")
+        self._setup_db(["col1"], [("new_value",)])
+
+        x_selectsub(datasource="tbl", metacommandline="SELECT SUB ...")
+        # log_status_info should be called for removal and then for the new assignment
+        assert mock_log.log_status_info.call_count >= 2
+
+    def test_selectsub_log_datavars_logs_assignment(self, minimal_conf):
+        """With log_datavars=True, setting a new variable is logged."""
+        from execsql.metacommands.data import x_selectsub
+
+        sv, mock_log = self._setup_base_state()
+        minimal_conf.log_datavars = True
+        self._setup_db(["name", "score"], [("Alice", 99)])
+
+        x_selectsub(datasource="tbl", metacommandline="SELECT SUB ...")
+        # Each column assignment should be logged
+        assert mock_log.log_status_info.call_count >= 2
+        logged_messages = [str(call) for call in mock_log.log_status_info.call_args_list]
+        assert any("@name" in m for m in logged_messages)
+        assert any("@score" in m for m in logged_messages)
+
+
+# ---------------------------------------------------------------------------
+# x_prompt_selectsub -- GUI-based row selection
+# ---------------------------------------------------------------------------
+
+
+class TestXPromptSelectsub:
+    """Tests for x_prompt_selectsub, mocking GUI interaction."""
+
+    def _setup_base_state(self):
+        sv = SubVarSet()
+        _state.subvars = sv
+        _state.exec_log = MagicMock()
+        _state.status = MagicMock()
+        _state.status.cancel_halt = False
+        mock_cl = MagicMock()
+        mock_cl.listname = "test_list"
+        mock_cl.cmdlist = []
+        mock_cl.current_command.return_value = None
+        mock_cl.localvars = SubVarSet()
+        _state.commandliststack = [mock_cl]
+        return sv
+
+    def _setup_db(self, sq_name, hdrs, rows):
+        mock_db = MagicMock()
+        mock_db.schema_qualified_table_name.return_value = sq_name
+        mock_db.select_data.return_value = (hdrs, rows)
+        mock_dbs = MagicMock()
+        mock_dbs.current.return_value = mock_db
+        _state.dbs = mock_dbs
+        return mock_db
+
+    def test_prompt_selectsub_empty_table_raises_errinfo(self, minimal_conf):
+        """An empty table raises ErrInfo before showing the GUI."""
+        from execsql.metacommands.data import x_prompt_selectsub
+
+        self._setup_base_state()
+        self._setup_db("dbo.empty", ["col1"], [])
+
+        with pytest.raises(ErrInfo) as exc_info:
+            x_prompt_selectsub(
+                schema="dbo",
+                table="empty",
+                msg="Pick one",
+                cont=None,
+                help=None,
+            )
+        assert "no rows" in exc_info.value.other.lower()
+
+    def test_prompt_selectsub_ok_sets_subvars(self, minimal_conf):
+        """Selecting a row with OK sets substitution variables for each column."""
+        from execsql.metacommands.data import x_prompt_selectsub
+
+        sv = self._setup_base_state()
+        minimal_conf.log_datavars = False
+        self._setup_db("public.people", ["name", "age"], [("Alice", "30"), ("Bob", "25")])
+        mock_queue = MagicMock()
+        _state.gui_manager_queue = mock_queue
+
+        with (
+            patch("execsql.metacommands.data.enable_gui"),
+            patch("execsql.metacommands.data.current_script_line", return_value=("t.sql", 1)),
+            patch("queue.Queue") as mock_q_cls,
+        ):
+            rq = MagicMock()
+            # User selected row index 0 with OK (button=1)
+            rq.get.return_value = {"button": 1, "return_value": [0]}
+            mock_q_cls.return_value = rq
+            x_prompt_selectsub(
+                schema="public",
+                table="people",
+                msg="Select a person",
+                cont=None,
+                help=None,
+            )
+        assert sv._subs_dict.get("@name") == "Alice"
+        assert sv._subs_dict.get("@age") == "30"
+
+    def test_prompt_selectsub_ok_with_continue_button(self, minimal_conf):
+        """The Continue button is added to the button list when cont is truthy."""
+        from execsql.metacommands.data import x_prompt_selectsub
+
+        self._setup_base_state()
+        minimal_conf.log_datavars = False
+        self._setup_db("dbo.items", ["item"], [("Widget",)])
+        mock_queue = MagicMock()
+        _state.gui_manager_queue = mock_queue
+
+        with (
+            patch("execsql.metacommands.data.enable_gui"),
+            patch("execsql.metacommands.data.current_script_line", return_value=("t.sql", 1)),
+            patch("queue.Queue") as mock_q_cls,
+        ):
+            rq = MagicMock()
+            rq.get.return_value = {"button": 1, "return_value": [0]}
+            mock_q_cls.return_value = rq
+            x_prompt_selectsub(
+                schema="dbo",
+                table="items",
+                msg="Pick item",
+                cont="continue",
+                help=None,
+            )
+        # The GUI spec args should include a Continue button
+        spec_arg = mock_queue.put.call_args[0][0]
+        button_labels = [b[0] for b in spec_arg.args["button_list"]]
+        assert "Continue" in button_labels
+
+    def test_prompt_selectsub_cancel_halt_on_none_button(self, minimal_conf):
+        """With cancel_halt=True, a None button value triggers exit_now."""
+        from execsql.metacommands.data import x_prompt_selectsub
+
+        self._setup_base_state()
+        minimal_conf.log_datavars = False
+        _state.status.cancel_halt = True
+        self._setup_db("dbo.items", ["item"], [("Widget",)])
+        mock_queue = MagicMock()
+        _state.gui_manager_queue = mock_queue
+
+        with (
+            patch("execsql.metacommands.data.enable_gui"),
+            patch("execsql.metacommands.data.current_script_line", return_value=("t.sql", 1)),
+            patch("execsql.metacommands.data.exit_now") as mock_exit,
+            patch("queue.Queue") as mock_q_cls,
+        ):
+            rq = MagicMock()
+            # User closed dialog without selecting
+            rq.get.return_value = {"button": None, "return_value": None}
+            mock_q_cls.return_value = rq
+            x_prompt_selectsub(
+                schema="dbo",
+                table="items",
+                msg="Pick item",
+                cont=None,
+                help=None,
+            )
+        mock_exit.assert_called_once_with(2, None)
+
+    def test_prompt_selectsub_no_cancel_halt_on_none_button(self, minimal_conf):
+        """With cancel_halt=False, a None button does not call exit_now."""
+        from execsql.metacommands.data import x_prompt_selectsub
+
+        self._setup_base_state()
+        minimal_conf.log_datavars = False
+        _state.status.cancel_halt = False
+        self._setup_db("dbo.items", ["item"], [("Widget",)])
+        mock_queue = MagicMock()
+        _state.gui_manager_queue = mock_queue
+
+        with (
+            patch("execsql.metacommands.data.enable_gui"),
+            patch("execsql.metacommands.data.current_script_line", return_value=("t.sql", 1)),
+            patch("execsql.metacommands.data.exit_now") as mock_exit,
+            patch("queue.Queue") as mock_q_cls,
+        ):
+            rq = MagicMock()
+            rq.get.return_value = {"button": None, "return_value": None}
+            mock_q_cls.return_value = rq
+            x_prompt_selectsub(
+                schema="dbo",
+                table="items",
+                msg="Pick item",
+                cont=None,
+                help=None,
+            )
+        mock_exit.assert_not_called()
+
+    def test_prompt_selectsub_gui_spec_includes_help_url(self, minimal_conf):
+        """The help_url field in the GUI spec is set from the help kwarg."""
+        from execsql.metacommands.data import x_prompt_selectsub
+
+        self._setup_base_state()
+        minimal_conf.log_datavars = False
+        self._setup_db("dbo.items", ["item"], [("Widget",)])
+        mock_queue = MagicMock()
+        _state.gui_manager_queue = mock_queue
+
+        with (
+            patch("execsql.metacommands.data.enable_gui"),
+            patch("execsql.metacommands.data.current_script_line", return_value=("t.sql", 1)),
+            patch("queue.Queue") as mock_q_cls,
+        ):
+            rq = MagicMock()
+            rq.get.return_value = {"button": 1, "return_value": [0]}
+            mock_q_cls.return_value = rq
+            x_prompt_selectsub(
+                schema="dbo",
+                table="items",
+                msg="Pick item",
+                cont=None,
+                help="https://example.com/help",
+            )
+        spec_arg = mock_queue.put.call_args[0][0]
+        assert spec_arg.args["help_url"] == "https://example.com/help"
+
+    def test_prompt_selectsub_none_value_becomes_empty_string(self, minimal_conf):
+        """None cell values in the selected row are converted to empty strings."""
+        from execsql.metacommands.data import x_prompt_selectsub
+
+        sv = self._setup_base_state()
+        minimal_conf.log_datavars = False
+        # Row contains a None value in the second column
+        self._setup_db("dbo.tbl", ["a", "b"], [("hello", None)])
+        mock_queue = MagicMock()
+        _state.gui_manager_queue = mock_queue
+
+        with (
+            patch("execsql.metacommands.data.enable_gui"),
+            patch("execsql.metacommands.data.current_script_line", return_value=("t.sql", 1)),
+            patch("queue.Queue") as mock_q_cls,
+        ):
+            rq = MagicMock()
+            rq.get.return_value = {"button": 1, "return_value": [0]}
+            mock_q_cls.return_value = rq
+            x_prompt_selectsub(
+                schema="dbo",
+                table="tbl",
+                msg="Pick row",
+                cont=None,
+                help=None,
+            )
+        assert sv._subs_dict.get("@a") == "hello"
+        assert sv._subs_dict.get("@b") == ""
+
+    def test_prompt_selectsub_log_datavars_logs_assignments(self, minimal_conf):
+        """With log_datavars=True, each selected column assignment is logged."""
+        from execsql.metacommands.data import x_prompt_selectsub
+
+        self._setup_base_state()
+        minimal_conf.log_datavars = True
+        self._setup_db("dbo.tbl", ["x"], [("val",)])
+        mock_queue = MagicMock()
+        _state.gui_manager_queue = mock_queue
+
+        with (
+            patch("execsql.metacommands.data.enable_gui"),
+            patch("execsql.metacommands.data.current_script_line", return_value=("t.sql", 1)),
+            patch("queue.Queue") as mock_q_cls,
+        ):
+            rq = MagicMock()
+            rq.get.return_value = {"button": 1, "return_value": [0]}
+            mock_q_cls.return_value = rq
+            x_prompt_selectsub(
+                schema="dbo",
+                table="tbl",
+                msg="Pick row",
+                cont=None,
+                help=None,
+            )
+        assert _state.exec_log.log_status_info.called
+
+    def test_prompt_selectsub_removes_existing_subvars(self, minimal_conf):
+        """Existing subvars matching column headers are removed before showing GUI."""
+        from execsql.metacommands.data import x_prompt_selectsub
+
+        sv = self._setup_base_state()
+        minimal_conf.log_datavars = False
+        sv.add_substitution("@col1", "stale_value")
+        self._setup_db("dbo.tbl", ["col1"], [("fresh_value",)])
+        mock_queue = MagicMock()
+        _state.gui_manager_queue = mock_queue
+
+        with (
+            patch("execsql.metacommands.data.enable_gui"),
+            patch("execsql.metacommands.data.current_script_line", return_value=("t.sql", 1)),
+            patch("queue.Queue") as mock_q_cls,
+        ):
+            rq = MagicMock()
+            rq.get.return_value = {"button": 1, "return_value": [0]}
+            mock_q_cls.return_value = rq
+            x_prompt_selectsub(
+                schema="dbo",
+                table="tbl",
+                msg="Pick row",
+                cont=None,
+                help=None,
+            )
+        assert sv._subs_dict.get("@col1") == "fresh_value"
+
+    def test_prompt_selectsub_continue_button_sets_no_subvars(self, minimal_conf):
+        """Clicking Continue (button=2) does not set substitution variables."""
+        from execsql.metacommands.data import x_prompt_selectsub
+
+        sv = self._setup_base_state()
+        minimal_conf.log_datavars = False
+        self._setup_db("dbo.tbl", ["col1"], [("value",)])
+        mock_queue = MagicMock()
+        _state.gui_manager_queue = mock_queue
+
+        with (
+            patch("execsql.metacommands.data.enable_gui"),
+            patch("execsql.metacommands.data.current_script_line", return_value=("t.sql", 1)),
+            patch("queue.Queue") as mock_q_cls,
+        ):
+            rq = MagicMock()
+            rq.get.return_value = {"button": 2, "return_value": None}
+            mock_q_cls.return_value = rq
+            x_prompt_selectsub(
+                schema="dbo",
+                table="tbl",
+                msg="Pick row",
+                cont="continue",
+                help=None,
+            )
+        # Continue button (btn_val=2) should not populate subvars
+        assert not sv.sub_exists("@col1")

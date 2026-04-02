@@ -505,9 +505,9 @@ class CommandList:
             _state.subvars.add_substitution("$SCRIPT_LINE", str(cmditem.line_no))
             if _state.step_mode:
                 _state.step_mode = False
-                from execsql.metacommands.debug_repl import _debug_repl
+                from execsql.debug.repl import _debug_repl
 
-                _debug_repl()
+                _debug_repl(step=True)
             _profiling = _state.profile_data is not None
             if _profiling:
                 import time as _time

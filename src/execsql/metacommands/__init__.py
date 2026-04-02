@@ -100,7 +100,7 @@ from execsql.metacommands.debug import (
     x_debug_write_subvars,
     x_debug_write_config,
 )
-from execsql.metacommands.debug_repl import x_breakpoint
+from execsql.debug.repl import x_breakpoint
 from execsql.metacommands.io import (
     x_export,
     x_export_query,

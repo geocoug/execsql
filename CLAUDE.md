@@ -37,13 +37,13 @@ A multi-agent system where specialized agents collaborate to improve, extend, de
 1. **Research** — Oracle investigates codebase, finds relevant code paths and impact
 1. **Plan** — DBA synthesizes research into implementation approach, aligns with human
 1. **Implement** — Patcher writes code, Oracle advises on architecture
-1. **Test** — QA writes/runs tests, verifies coverage stays above 80%
+1. **Test** — QA writes/runs tests, verifies coverage stays above 90%
 1. **Document** — Scribe updates docs, Herald updates changelog
 1. **Review** — Inspector does final code review before human merge
 
 ## Constraints
 
-- Coverage floor (80%) must be maintained — QA blocks any change that drops it
+- Coverage floor (90%) must be maintained — QA blocks any change that drops it
 - Backwards compatibility with upstream execsql v1.130.1 unless explicitly approved
 - No destructive git operations without human approval
 - Agents should always read `.claude/project_context.md` before starting work
