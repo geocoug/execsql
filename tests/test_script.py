@@ -471,59 +471,55 @@ class TestSubVarSet:
         sv.remove_substitution("$x")
         assert sv.sub_exists("$x") is False
 
-    # -- compiled regex patterns ---------------------------------------------
+    # -- substitution ---------------------------------------------------------
 
-    def test_compiled_patterns_created_on_add(self):
+    def test_add_stores_in_subs_dict(self):
         sv = SubVarSet()
         sv.add_substitution("$foo", "bar")
-        assert "$foo" in sv._compiled_patterns
-        pat, patq, patdq = sv._compiled_patterns["$foo"]
-        assert pat.search("!!$foo!!") is not None
-        assert patq.search("!'!$foo!'!") is not None
-        assert patdq.search('!"!$foo!"!') is not None
+        assert "$foo" in sv._subs_dict
 
-    def test_compiled_patterns_removed_on_remove(self):
+    def test_remove_clears_from_subs_dict(self):
         sv = SubVarSet()
         sv.add_substitution("$foo", "bar")
         sv.remove_substitution("$foo")
-        assert "$foo" not in sv._compiled_patterns
+        assert "$foo" not in sv._subs_dict
 
-    def test_substitute_uses_compiled_patterns(self):
+    def test_substitute_expands_token(self):
         sv = SubVarSet()
         sv.add_substitution("$x", "replaced")
         result, changed = sv.substitute("value is !!$x!!")
         assert changed is True
         assert result == "value is replaced"
 
-    def test_substitute_case_insensitive_with_compiled(self):
+    def test_substitute_case_insensitive(self):
         sv = SubVarSet()
         sv.add_substitution("$myvar", "val")
         result, changed = sv.substitute("!!$MYVAR!!")
         assert changed is True
         assert result == "val"
 
-    def test_substitute_single_quoted_with_compiled(self):
+    def test_substitute_single_quoted(self):
         sv = SubVarSet()
         sv.add_substitution("$v", "it's")
         result, changed = sv.substitute("!'!$v!'!")
         assert changed is True
         assert "it''s" in result
 
-    def test_substitute_double_quoted_with_compiled(self):
+    def test_substitute_double_quoted(self):
         sv = SubVarSet()
         sv.add_substitution("$v", "hello")
         result, changed = sv.substitute('!"!$v!"!')
         assert changed is True
         assert '"hello"' in result
 
-    def test_merge_preserves_compiled_patterns(self):
+    def test_merge_preserves_variables(self):
         sv1 = SubVarSet()
         sv1.add_substitution("$a", "1")
         sv2 = SubVarSet()
         sv2.add_substitution("$b", "2")
         merged = sv1.merge(sv2)
-        assert "$a" in merged._compiled_patterns
-        assert "$b" in merged._compiled_patterns
+        assert "$a" in merged._subs_dict
+        assert "$b" in merged._subs_dict
         result, changed = merged.substitute_all("!!$a!! !!$b!!")
         assert result == "1 2"
 

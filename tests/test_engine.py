@@ -706,7 +706,8 @@ class TestSetSystemVars:
         set_system_vars()
         assert _state.subvars.varvalue("$DB_USER") == "testuser"
 
-    def test_populates_current_time(self, engine_state):
+    def test_current_time_not_set_by_set_system_vars(self, engine_state):
+        """$CURRENT_TIME is set per-statement in run_and_increment, not in set_system_vars."""
         pool = MagicMock()
         pool.current.return_value = self._make_db()
         pool.current_alias.return_value = "main"
@@ -715,9 +716,7 @@ class TestSetSystemVars:
         mock_timer.elapsed.return_value = 0
         _state.timer = mock_timer
         set_system_vars()
-        t = _state.subvars.varvalue("$CURRENT_TIME")
-        assert t is not None
-        assert len(t) == 16  # "YYYY-MM-DD HH:MM"
+        assert _state.subvars.varvalue("$CURRENT_TIME") is None
 
     def test_populates_version_numbers(self, engine_state):
         pool = MagicMock()

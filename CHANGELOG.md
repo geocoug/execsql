@@ -11,6 +11,18 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Changed
+
+- Performance: removed dead `_compiled_patterns` dict from `SubVarSet` — eliminated 3 unused regex compilations per `add_substitution` call (~20 calls per statement in typical scripts).
+- Performance: cached `source_dir` and `source_name` on `ScriptCmd` at construction time — eliminated per-statement `Path.resolve()` filesystem calls.
+- Performance: `select_rowdict()` now uses batched `fetchmany()` instead of row-at-a-time `fetchone()`, matching `select_rowsource()` behavior for template exports.
+- Performance: removed redundant `$CURRENT_TIME` set in `set_system_vars()` — now set once per statement in `run_and_increment()`.
+- Performance: removed no-op `copy.copy()` on immutable string in `substitute_vars()`.
+
+### Fixed
+
+- Fixed cursor leak in `select_rowsource()` — generator now closes the cursor in a `finally` block when exhausted or abandoned.
+
 ______________________________________________________________________
 
 ## [2.12.0] - 2026-04-01

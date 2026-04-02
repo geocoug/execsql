@@ -397,6 +397,15 @@ class ScriptCmd:
         self.line_no = command_line_no
         self.command_type = command_type
         self.command = script_command
+        # MIGRATION NOTE: differs from monolith (execsql.py) — source_dir and source_name are
+        # resolved once at construction rather than on every statement execution.  For absolute
+        # paths (the common case) the result is identical.  For relative paths the value is
+        # anchored to the CWD at script-load time rather than at each statement's execution time;
+        # the original per-statement resolve could yield inconsistent values across statements of
+        # the same script if a CD metacommand ran between them.
+        _p = Path(command_source_name)
+        self.source_dir: str = str(_p.resolve().parent) + os.sep
+        self.source_name: str = _p.name
 
     def __repr__(self) -> str:
         return f"ScriptCmd({self.source!r}, {self.line_no!r}, {self.command_type!r}, {repr(self.command)!r})"
@@ -498,9 +507,9 @@ class CommandList:
             _state.subvars.add_substitution("$CURRENT_SCRIPT", cmditem.source)
             _state.subvars.add_substitution(
                 "$CURRENT_SCRIPT_PATH",
-                str(Path(cmditem.source).resolve().parent) + os.sep,
+                cmditem.source_dir,
             )
-            _state.subvars.add_substitution("$CURRENT_SCRIPT_NAME", Path(cmditem.source).name)
+            _state.subvars.add_substitution("$CURRENT_SCRIPT_NAME", cmditem.source_name)
             _state.subvars.add_substitution("$CURRENT_SCRIPT_LINE", str(cmditem.line_no))
             _state.subvars.add_substitution("$SCRIPT_LINE", str(cmditem.line_no))
             if _state.step_mode:
@@ -709,7 +718,7 @@ def set_system_vars() -> None:
         "ON" if _state.conf.gui_wait_on_error_halt else "OFF",
     )
     _state.subvars.add_substitution("$CONSOLE_WAIT_WHEN_DONE_STATE", "ON" if _state.conf.gui_wait_on_exit else "OFF")
-    _state.subvars.add_substitution("$CURRENT_TIME", datetime.datetime.now().strftime("%Y-%m-%d %H:%M"))
+    # $CURRENT_TIME is set per-statement in run_and_increment() for accuracy.
     _state.subvars.add_substitution("$CURRENT_DIR", str(Path(".").resolve()))
     _state.subvars.add_substitution("$CURRENT_PATH", str(Path(".").resolve()) + os.sep)
     _state.subvars.add_substitution("$CURRENT_ALIAS", _state.dbs.current_alias())
@@ -742,7 +751,7 @@ def substitute_vars(command_str: str, localvars: SubVarSet | None = None) -> str
         subs = _state.subvars.merge(localvars)
     else:
         subs = _state.subvars
-    cmdstr = copy.copy(command_str)
+    cmdstr = command_str
     subs_made = True
     iterations = 0
     while subs_made:

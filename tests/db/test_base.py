@@ -628,9 +628,9 @@ class TestSelectRowdictEncoding:
         mock_curs = MagicMock()
         mock_curs.description = [("name",)]
         mock_curs.rowcount = 1
-        mock_curs.fetchone.side_effect = [
-            (b"encoded value",),
-            None,
+        mock_curs.fetchmany.side_effect = [
+            [(b"encoded value",)],
+            [],
         ]
 
         with patch.object(db, "cursor", return_value=mock_curs):
@@ -648,7 +648,7 @@ class TestSelectRowdictEncoding:
         mock_curs = MagicMock()
         mock_curs.description = [("score",)]
         mock_curs.rowcount = 1
-        mock_curs.fetchone.side_effect = [(99,), None]
+        mock_curs.fetchmany.side_effect = [[(99,)], []]
 
         with patch.object(db, "cursor", return_value=mock_curs):
             _, it = db.select_rowdict("SELECT score FROM fake;")
@@ -664,7 +664,7 @@ class TestSelectRowdictEncoding:
         mock_curs = MagicMock()
         mock_curs.description = [("x",)]
         mock_curs.rowcount = 1
-        mock_curs.fetchone.side_effect = [("plain",), None]
+        mock_curs.fetchmany.side_effect = [[("plain",)], []]
 
         with patch.object(db, "cursor", return_value=mock_curs):
             _, it = db.select_rowdict("SELECT x FROM fake;")

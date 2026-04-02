@@ -234,18 +234,22 @@ class Database(ABC):
             pass  # Non-critical: some drivers lack rowcount support.
 
         def decode_row() -> Generator:
-            while True:
-                rows = curs.fetchmany()
-                if not rows:
-                    break
-                else:
-                    for row in rows:
-                        if self.encoding:
-                            yield [
-                                c.decode(self.encoding, "backslashreplace") if isinstance(c, bytes) else c for c in row
-                            ]
-                        else:
-                            yield row
+            try:
+                while True:
+                    rows = curs.fetchmany()
+                    if not rows:
+                        break
+                    else:
+                        for row in rows:
+                            if self.encoding:
+                                yield [
+                                    c.decode(self.encoding, "backslashreplace") if isinstance(c, bytes) else c
+                                    for c in row
+                                ]
+                            else:
+                                yield row
+            finally:
+                curs.close()
 
         return [d[0] for d in curs.description], decode_row()
 
@@ -253,6 +257,10 @@ class Database(ABC):
         """Execute *sql* and return ``(column_names, row_iterator)`` where each row is a ``dict``."""
         # Return an iterable that yields dictionaries of row data
         curs = self.cursor()
+        try:
+            curs.arraysize = _state.conf.export_row_buffer
+        except Exception:
+            pass  # Non-critical: not all drivers support arraysize.
         try:
             curs.execute(sql)
         except Exception:
@@ -264,18 +272,24 @@ class Database(ABC):
             pass  # Non-critical: some drivers lack rowcount support.
         hdrs = [d[0] for d in curs.description]
 
-        def dict_row() -> dict | None:
-            row = curs.fetchone()
-            if row:
-                if self.encoding:
-                    r = [c.decode(self.encoding, "backslashreplace") if isinstance(c, bytes) else c for c in row]
-                else:
-                    r = row
-                return dict(zip(hdrs, r))
-            else:
-                return None
+        def dict_rows() -> Generator:
+            try:
+                while True:
+                    rows = curs.fetchmany()
+                    if not rows:
+                        break
+                    for row in rows:
+                        if self.encoding:
+                            r = [
+                                c.decode(self.encoding, "backslashreplace") if isinstance(c, bytes) else c for c in row
+                            ]
+                        else:
+                            r = row
+                        yield dict(zip(hdrs, r))
+            finally:
+                curs.close()
 
-        return hdrs, iter(dict_row, None)
+        return hdrs, dict_rows()
 
     def schema_exists(self, schema_name: str) -> bool:
         """Return ``True`` if *schema_name* exists in this database."""

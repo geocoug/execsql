@@ -89,7 +89,6 @@ class SubVarSet:
     # compatibility with external code.
     def __init__(self) -> None:
         self._subs_dict: dict[str, Any] = {}
-        self._compiled_patterns: dict[str, tuple] = {}
         self.prefix_list: list[str] = ["$", "&", "@"]
         # Don't construct/compile on init because deepcopy() can't handle compiled regexes.
         self.var_rx = None
@@ -106,21 +105,6 @@ class SubVarSet:
             self._subs_dict = dict(value)
         else:
             self._subs_dict = dict(value)
-        self._rebuild_all_patterns()
-
-    def _compile_patterns_for(self, varname: str) -> tuple:
-        """Compile and return the three regex patterns (plain, single-quoted, double-quoted) for *varname*."""
-        match_escaped = "\\" + varname if varname[0] == "$" else varname
-        pat = re.compile(f"!!{match_escaped}!!", re.I)
-        patq = re.compile(f"!'!{match_escaped}!'!", re.I)
-        patdq = re.compile(f'!"!{match_escaped}!"!', re.I)
-        return (pat, patq, patdq)
-
-    def _rebuild_all_patterns(self) -> None:
-        """Rebuild compiled patterns for every variable currently stored."""
-        self._compiled_patterns = {}
-        for varname in self._subs_dict:
-            self._compiled_patterns[varname] = self._compile_patterns_for(varname)
 
     def compile_var_rx(self) -> None:
         """Compile the variable-name validation regex from the current prefix list."""
@@ -141,14 +125,12 @@ class SubVarSet:
         self.check_var_name(template_str)
         old_sub = template_str.lower()
         self._subs_dict.pop(old_sub, None)
-        self._compiled_patterns.pop(old_sub, None)
 
     def add_substitution(self, varname: str, repl_str: Any) -> None:
-        """Add or overwrite a substitution variable, compiling its match patterns."""
+        """Add or overwrite a substitution variable."""
         self.check_var_name(varname)
         varname = varname.lower()
         self._subs_dict[varname] = repl_str
-        self._compiled_patterns[varname] = self._compile_patterns_for(varname)
 
     def append_substitution(self, varname: str, repl_str: str) -> None:
         self.check_var_name(varname)
@@ -186,15 +168,10 @@ class SubVarSet:
         return template_str.lower() in self._subs_dict
 
     def merge(self, other_subvars: SubVarSet | None) -> SubVarSet:
-        """Return a new SubVarSet with this object's variables merged with other_subvars.
-
-        Copies dictionaries and pre-compiled patterns directly instead of
-        re-adding variables one at a time, avoiding O(V) regex recompilation.
-        """
+        """Return a new SubVarSet with this object's variables merged with other_subvars."""
         if other_subvars is not None:
             newsubs = SubVarSet()
             newsubs._subs_dict = {**self._subs_dict, **other_subvars._subs_dict}
-            newsubs._compiled_patterns = {**self._compiled_patterns, **other_subvars._compiled_patterns}
             newsubs.prefix_list = list(set(self.prefix_list + other_subvars.prefix_list))
             newsubs.compile_var_rx()
             return newsubs
