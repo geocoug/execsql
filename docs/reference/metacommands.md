@@ -2154,6 +2154,31 @@ For the full list of temporary objects and their schemas, see the [pg-upsert Tem
 -- Use substitution variables after upsert
 -- !x! PG_UPSERT FROM staging TO public TABLES books COMMIT
 -- !x! WRITE "Updated !!$PG_UPSERT_ROWS_UPDATED!! rows, inserted !!$PG_UPSERT_ROWS_INSERTED!! in !!$PG_UPSERT_DURATION!! seconds"
+
+-- Inspect pg-upsert's control table after a run
+-- !x! PG_UPSERT FROM staging TO public TABLES books, authors, genres COMMIT
+-- !x! EXPORT ups_control TO stdout AS txt
+
+-- Export QA results to a CSV file for review
+-- !x! PG_UPSERT QA FROM staging TO public TABLES books, authors
+-- !x! EXPORT ups_control TO "qa_results.csv" AS csv
+
+-- Check for type mismatches between schemas and display them
+-- !x! PG_UPSERT CHECK FROM staging TO public TABLES books, authors
+-- !x! EXPORT ups_type_mismatches TO stdout AS txt
+
+-- Conditional logic based on QA results
+-- !x! PG_UPSERT FROM staging TO public TABLES books, authors
+-- !x! IF !!$PG_UPSERT_QA_PASSED!! = TRUE
+-- !x!   WRITE "All QA checks passed — proceeding with commit"
+-- !x! ELSE
+-- !x!   WRITE "QA failed — inspect ups_control for details"
+-- !x!   EXPORT ups_control TO stdout AS txt
+-- !x! ENDIF
+
+-- Write the full JSON result using tilde delimiters (JSON contains " and [])
+-- !x! PG_UPSERT FROM staging TO public TABLES books COMMIT
+-- !x! WRITE ~!!$PG_UPSERT_RESULT_JSON!!~
 ```
 
 
