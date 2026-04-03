@@ -15,6 +15,10 @@ ______________________________________________________________________
 
 ## [2.12.5] - 2026-04-03
 
+### Fixed
+
+- Fixed CLI test `test_nonexistent_file_error_message_is_clear` failing with `ValueError: stderr not separately captured` when CliRunner mixes stderr into stdout.
+
 ______________________________________________________________________
 
 ## [2.12.4] - 2026-04-03
