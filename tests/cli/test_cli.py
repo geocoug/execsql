@@ -279,7 +279,12 @@ class TestRichOutput:
     def test_nonexistent_file_error_message_is_clear(self):
         result = runner.invoke(app, ["not_a_real_file.sql"], catch_exceptions=False)
         assert result.exit_code == 1
-        combined = result.output + (result.stderr or "")
+        # CliRunner mixes stderr into stdout by default; .stderr raises ValueError
+        try:
+            stderr = result.stderr or ""
+        except ValueError:
+            stderr = ""
+        combined = result.output + stderr
         assert "not_a_real_file.sql" in combined or "does not exist" in combined
 
 
