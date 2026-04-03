@@ -766,7 +766,7 @@ requires-dist = [
     { name = "openpyxl", marker = "extra == 'formats'" },
     { name = "oracledb", marker = "extra == 'all-db'" },
     { name = "oracledb", marker = "extra == 'oracle'" },
-    { name = "pg-upsert", marker = "extra == 'upsert'", specifier = ">=1.16.0" },
+    { name = "pg-upsert", marker = "extra == 'upsert'", specifier = ">=1.16.1" },
     { name = "polars", marker = "extra == 'formats'" },
     { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=3.5.0" },
     { name = "psycopg2-binary", marker = "extra == 'all-db'" },
@@ -1780,7 +1780,7 @@ wheels = [
 
 [[package]]
 name = "pg-upsert"
-version = "1.16.0"
+version = "1.16.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "psycopg2-binary" },
@@ -1788,9 +1788,9 @@ dependencies = [
     { name = "rich" },
     { name = "typer" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/e5/64/437ac9bc6e5f7a835ddb4a332718538ef04382de375c7d2b1ff8f8d3adc8/pg_upsert-1.16.0.tar.gz", hash = "sha256:959f4888158eb1952a61dd974e47ca920b21d16877323cd4bf11136c8a4e0049", size = 1442247, upload-time = "2026-04-03T13:22:02.701Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b8/ba/a2328ae12c155c85cd1aa2a49962e31012dfaa26b39a06020a259680ba6e/pg_upsert-1.16.1.tar.gz", hash = "sha256:b93e1fe8d8eaeadb9b8afc36ae769f1d7ae590f7d4b9875d66802f34998cb865", size = 1443757, upload-time = "2026-04-03T15:43:12.927Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/33/c0/4fec906f1b1e887256f9ef192cb21a2acf1f7ef7b5868c226f2326f29c5e/pg_upsert-1.16.0-py3-none-any.whl", hash = "sha256:031a8edf4e5eef42735e2eebd1325b400b552a4c4b65f800094253f9d3c3a90a", size = 78945, upload-time = "2026-04-03T13:22:01.475Z" },
+    { url = "https://files.pythonhosted.org/packages/9f/58/b09d9e0b1418b3974054cbe005a65741e5f2e3e5a446d886e3138ec21da5/pg_upsert-1.16.1-py3-none-any.whl", hash = "sha256:0b93bf2ec489e94c94daaedc6776ced62f581338ea260ea1914a26b524439b8e", size = 78968, upload-time = "2026-04-03T15:43:11.402Z" },
 ]
 
 [[package]]
