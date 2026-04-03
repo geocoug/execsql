@@ -26,21 +26,22 @@ from execsql.utils.errors import exception_desc
 
 _KW_METHOD = re.compile(r"\bMETHOD\s+(upsert|update|insert)\b", re.IGNORECASE)
 _KW_EXCLUDE = re.compile(
-    r"\bEXCLUDE\s+([\w\s,]+?)(?=\s+(?:METHOD|COMMIT|INTERACTIVE|COMPACT|EXCLUDE_NULL|LOGFILE)\b|\s*$)",
+    r"\bEXCLUDE\s+([\w\s,]+?)(?=\s+(?:METHOD|COMMIT|INTERACTIVE|COMPACT|EXCLUDE_NULL|LOGFILE|CLEANUP)\b|\s*$)",
     re.IGNORECASE,
 )
 _KW_EXCLUDE_NULL = re.compile(
-    r"\bEXCLUDE_NULL\s+([\w\s,]+?)(?=\s+(?:METHOD|COMMIT|INTERACTIVE|COMPACT|EXCLUDE|LOGFILE)\b|\s*$)",
+    r"\bEXCLUDE_NULL\s+([\w\s,]+?)(?=\s+(?:METHOD|COMMIT|INTERACTIVE|COMPACT|EXCLUDE|LOGFILE|CLEANUP)\b|\s*$)",
     re.IGNORECASE,
 )
 _KW_COMMIT = re.compile(r"\bCOMMIT\b", re.IGNORECASE)
 _KW_INTERACTIVE = re.compile(r"\bINTERACTIVE\b", re.IGNORECASE)
 _KW_COMPACT = re.compile(r"\bCOMPACT\b", re.IGNORECASE)
+_KW_CLEANUP = re.compile(r"\bCLEANUP\b", re.IGNORECASE)
 _KW_LOGFILE = re.compile(r"""\bLOGFILE\s+(?:"([^"]+)"|'([^']+)'|(\S+))""", re.IGNORECASE)
 
 # All recognized keywords — used to split table names from options.
 _ALL_KEYWORDS = re.compile(
-    r"\b(?:METHOD|COMMIT|INTERACTIVE|COMPACT|EXCLUDE_NULL|EXCLUDE|LOGFILE)\b",
+    r"\b(?:METHOD|COMMIT|INTERACTIVE|COMPACT|EXCLUDE_NULL|EXCLUDE|LOGFILE|CLEANUP)\b",
     re.IGNORECASE,
 )
 
@@ -98,6 +99,7 @@ def _parse_tables_and_options(tail: str) -> dict[str, Any]:
         "exclude_cols": exclude_cols,
         "exclude_null_check_cols": exclude_null,
         "logfile": logfile,
+        "cleanup": bool(_KW_CLEANUP.search(opts_part)),
     }
 
 
@@ -210,6 +212,22 @@ def _build_result_from_qa_errors(ups: Any) -> Any:
     )
 
 
+def _make_callback() -> Any:
+    """Return a pg-upsert pipeline callback that sets per-table subvars."""
+    from pg_upsert import CallbackEvent
+
+    def _on_event(event: Any) -> None:
+        sv = _state.subvars.add_substitution
+        sv("$PG_UPSERT_CURRENT_TABLE", event.table)
+        if event.event == CallbackEvent.QA_TABLE_COMPLETE:
+            sv("$PG_UPSERT_TABLE_QA_PASSED", str(event.qa_passed).upper())
+        elif event.event == CallbackEvent.UPSERT_TABLE_COMPLETE:
+            sv("$PG_UPSERT_TABLE_ROWS_UPDATED", str(event.rows_updated))
+            sv("$PG_UPSERT_TABLE_ROWS_INSERTED", str(event.rows_inserted))
+
+    return _on_event
+
+
 def _create_pgupsert(
     db: Any,
     staging_schema: str,
@@ -235,6 +253,7 @@ def _create_pgupsert(
         exclude_cols=opts["exclude_cols"],
         exclude_null_check_cols=opts["exclude_null_check_cols"],
         ui_mode=ui_mode,
+        callback=_make_callback(),
     )
     return ups
 
@@ -362,6 +381,8 @@ def x_pg_upsert(**kwargs: Any) -> None:
         _detach_log_handlers(loggers, handlers, prev_levels)
 
     _set_subvars(result)
+    if opts.get("cleanup"):
+        ups.cleanup()
 
     if not result.qa_passed:
         raise ErrInfo(
@@ -399,6 +420,8 @@ def x_pg_upsert_qa(**kwargs: Any) -> None:
 
     result = _build_result_from_qa_errors(ups)
     _set_subvars(result)
+    if opts.get("cleanup"):
+        ups.cleanup()
 
     if not result.qa_passed:
         raise ErrInfo(
@@ -439,6 +462,8 @@ def x_pg_upsert_check(**kwargs: Any) -> None:
 
     result = _build_result_from_qa_errors(ups)
     _set_subvars(result)
+    if opts.get("cleanup"):
+        ups.cleanup()
 
     if not result.qa_passed:
         raise ErrInfo(

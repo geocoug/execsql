@@ -230,7 +230,7 @@ class TestParseTablesAndOptions:
 
     def test_all_keywords_combined(self):
         result = _parse_tables_and_options(
-            'books, authors METHOD update EXCLUDE rev_time EXCLUDE_NULL created_at INTERACTIVE COMPACT LOGFILE "upsert.log" COMMIT',
+            'books, authors METHOD update EXCLUDE rev_time EXCLUDE_NULL created_at INTERACTIVE COMPACT LOGFILE "upsert.log" CLEANUP COMMIT',
         )
         assert result["tables"] == ["books", "authors"]
         assert result["method"] == "update"
@@ -240,6 +240,7 @@ class TestParseTablesAndOptions:
         assert result["compact"] is True
         assert result["commit"] is True
         assert result["logfile"] == "upsert.log"
+        assert result["cleanup"] is True
 
     def test_keyword_order_independent(self):
         r1 = _parse_tables_and_options("books COMPACT INTERACTIVE COMMIT")
@@ -995,3 +996,117 @@ class TestLoggerLevelRestoration:
 
         assert display_logger.level == orig_display
         assert main_logger.level == orig_main
+
+
+# ---------------------------------------------------------------------------
+# CLEANUP keyword tests
+# ---------------------------------------------------------------------------
+
+
+class TestCleanup:
+    def test_cleanup_keyword_parsed(self):
+        result = _parse_tables_and_options("books CLEANUP COMMIT")
+        assert result["cleanup"] is True
+
+    def test_no_cleanup_by_default(self):
+        result = _parse_tables_and_options("books COMMIT")
+        assert result["cleanup"] is False
+
+    def test_cleanup_calls_ups_cleanup(self, mock_state):
+        state, db = mock_state
+        fake_result = FakeUpsertResult(
+            tables=[FakeTableResult(table_name="books")],
+            staging_schema="staging",
+            base_schema="public",
+        )
+
+        with (
+            patch("execsql.metacommands.upsert._require_pg_upsert"),
+            patch("execsql.metacommands.upsert._create_pgupsert") as mock_create,
+        ):
+            mock_ups = mock_create.return_value
+            mock_ups.run.return_value = fake_result
+            x_pg_upsert(
+                staging_schema="staging",
+                base_schema="public",
+                tail="books CLEANUP COMMIT",
+                metacommandline="PG_UPSERT FROM staging TO public TABLES books CLEANUP COMMIT",
+            )
+            mock_ups.cleanup.assert_called_once()
+
+    def test_no_cleanup_without_keyword(self, mock_state):
+        state, db = mock_state
+        fake_result = FakeUpsertResult(
+            tables=[FakeTableResult(table_name="books")],
+            staging_schema="staging",
+            base_schema="public",
+        )
+
+        with (
+            patch("execsql.metacommands.upsert._require_pg_upsert"),
+            patch("execsql.metacommands.upsert._create_pgupsert") as mock_create,
+        ):
+            mock_ups = mock_create.return_value
+            mock_ups.run.return_value = fake_result
+            x_pg_upsert(
+                staging_schema="staging",
+                base_schema="public",
+                tail="books COMMIT",
+                metacommandline="PG_UPSERT FROM staging TO public TABLES books COMMIT",
+            )
+            mock_ups.cleanup.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# Callback per-table subvar tests
+# ---------------------------------------------------------------------------
+
+
+class TestCallback:
+    def test_callback_sets_qa_table_subvars(self, mock_state):
+        from execsql.metacommands.upsert import _make_callback
+
+        state, db = mock_state
+
+        # Create a fake QA_TABLE_COMPLETE event
+        mock_event = MagicMock()
+        mock_event.event = MagicMock()
+        mock_event.event.value = "qa_table_complete"
+        mock_event.table = "books"
+        mock_event.qa_passed = True
+
+        # We need the real CallbackEvent enum for comparison
+        # Patch _state so the callback can access subvars
+        with patch("execsql.metacommands.upsert._state", state):
+            cb = _make_callback()
+
+            # Simulate CallbackEvent.QA_TABLE_COMPLETE match
+            from pg_upsert import CallbackEvent
+
+            mock_event.event = CallbackEvent.QA_TABLE_COMPLETE
+            cb(mock_event)
+
+        calls = {c[0][0]: c[0][1] for c in state.subvars.add_substitution.call_args_list}
+        assert calls["$PG_UPSERT_CURRENT_TABLE"] == "books"
+        assert calls["$PG_UPSERT_TABLE_QA_PASSED"] == "TRUE"
+
+    def test_callback_sets_upsert_table_subvars(self, mock_state):
+        from execsql.metacommands.upsert import _make_callback
+        from pg_upsert import CallbackEvent
+
+        state, db = mock_state
+
+        mock_event = MagicMock()
+        mock_event.event = CallbackEvent.UPSERT_TABLE_COMPLETE
+        mock_event.table = "authors"
+        mock_event.rows_updated = 15
+        mock_event.rows_inserted = 3
+
+        with patch("execsql.metacommands.upsert._state", state):
+            cb = _make_callback()
+            cb(mock_event)
+
+        calls = {c[0][0]: c[0][1] for c in state.subvars.add_substitution.call_args_list}
+        assert calls["$PG_UPSERT_CURRENT_TABLE"] == "authors"
+        assert calls["$PG_UPSERT_TABLE_ROWS_UPDATED"] == "15"
+        assert calls["$PG_UPSERT_TABLE_ROWS_INSERTED"] == "3"

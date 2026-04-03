@@ -2099,6 +2099,7 @@ Keywords can appear in any order after the table list.
 | `INTERACTIVE` | Enable pg-upsert's interactive UI dialogs (tkinter or textual) for reviewing QA failures. Without it, runs non-interactively. |
 | `COMPACT` | Use compact grid format for QA summary instead of detailed per-table panels. |
 | `LOGFILE <path>` | Append pg-upsert's plain-text log output to the given file. Supports quoted paths for spaces: `LOGFILE "path/to/log.txt"`. |
+| `CLEANUP` | Drop all `ups_*` temporary tables and views after execution. Without it, temp objects persist for inspection (default). |
 
 ### Substitution variables
 
@@ -2118,6 +2119,10 @@ Set after every `PG_UPSERT` execution:
 | `$PG_UPSERT_STARTED_AT` | string | ISO 8601 start timestamp |
 | `$PG_UPSERT_FINISHED_AT` | string | ISO 8601 end timestamp |
 | `$PG_UPSERT_RESULT_JSON` | JSON string | Full result for detailed inspection |
+| `$PG_UPSERT_CURRENT_TABLE` | string | Last table processed (updated per table during execution) |
+| `$PG_UPSERT_TABLE_QA_PASSED` | TRUE/FALSE | QA result for the current table (updated per table) |
+| `$PG_UPSERT_TABLE_ROWS_UPDATED` | integer | Rows updated for the current table (updated per table) |
+| `$PG_UPSERT_TABLE_ROWS_INSERTED` | integer | Rows inserted for the current table (updated per table) |
 
 !!! note "Using `$PG_UPSERT_RESULT_JSON` with WRITE"
     The JSON value is stored as compact single-line JSON. Because it contains double quotes (`"`), square brackets (`[]`), and apostrophes may appear in data, use tilde or backtick delimiters with WRITE:
