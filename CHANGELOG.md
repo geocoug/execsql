@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.12.6] - 2026-04-03
+
 ### Added
 
 - `PG_UPSERT` now supports per-table progress via pg-upsert's callback API. New substitution variables `$PG_UPSERT_CURRENT_TABLE`, `$PG_UPSERT_TABLE_QA_PASSED`, `$PG_UPSERT_TABLE_ROWS_UPDATED`, and `$PG_UPSERT_TABLE_ROWS_INSERTED` are updated as each table is processed.
