@@ -58,7 +58,7 @@ odbc = ["pyodbc"]
 # Feature bundles
 formats = ["odfpy", "xlrd", "openpyxl", "Jinja2", "polars", "tables", "PyYAML"]
 auth = ["keyring"]
-upsert = ["pg-upsert>=1.16.1"]
+upsert = ["pg-upsert>=1.17.0"]
 # Convenience groups
 all-db = [
     "psycopg2-binary",
