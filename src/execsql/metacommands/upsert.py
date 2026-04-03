@@ -204,9 +204,9 @@ def _build_result_from_qa_errors(ups: Any) -> Any:
     return UpsertResult(
         tables=list(table_results.values()),
         committed=False,
-        staging_schema=ups._staging_schema,
-        base_schema=ups._base_schema,
-        upsert_method=ups._upsert_method,
+        staging_schema=ups.staging_schema,
+        base_schema=ups.base_schema,
+        upsert_method=ups.upsert_method,
     )
 
 

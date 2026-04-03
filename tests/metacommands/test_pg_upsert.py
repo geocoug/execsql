@@ -900,9 +900,9 @@ class TestBuildResultFromQAErrors:
             FakeQAError(table="authors", check_type="pk", details="id (2)"),
             FakeQAError(table="books", check_type="fk", details="pub_id (1)"),
         ]
-        mock_ups._staging_schema = "staging"
-        mock_ups._base_schema = "public"
-        mock_ups._upsert_method = "upsert"
+        mock_ups.staging_schema = "staging"
+        mock_ups.base_schema = "public"
+        mock_ups.upsert_method = "upsert"
 
         result = _build_result_from_qa_errors(mock_ups)
         assert result.staging_schema == "staging"
@@ -920,9 +920,9 @@ class TestBuildResultFromQAErrors:
         mock_ups = MagicMock()
         mock_ups.tables = ["books"]
         mock_ups.qa_errors = []
-        mock_ups._staging_schema = "staging"
-        mock_ups._base_schema = "public"
-        mock_ups._upsert_method = "upsert"
+        mock_ups.staging_schema = "staging"
+        mock_ups.base_schema = "public"
+        mock_ups.upsert_method = "upsert"
 
         result = _build_result_from_qa_errors(mock_ups)
         assert result.qa_passed
