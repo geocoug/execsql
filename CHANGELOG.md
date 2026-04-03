@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.12.4] - 2026-04-03
+
 ### Added
 
 - New `PG_UPSERT` metacommand for QA-checked, FK-dependency-ordered upserts from a staging schema to a base schema on PostgreSQL. Integrates [pg-upsert](https://pg-upsert.readthedocs.io/) as an optional dependency (`pip install execsql2[upsert]`). Three modes: full pipeline (`PG_UPSERT FROM ... TO ... TABLES ...`), QA-only (`PG_UPSERT QA ...`), and schema check (`PG_UPSERT CHECK ...`). Supports `METHOD`, `COMMIT`, `INTERACTIVE`, `COMPACT`, `EXCLUDE`, `EXCLUDE_NULL`, and `LOGFILE` keywords. Sets 12 `$PG_UPSERT_*` substitution variables after execution.
