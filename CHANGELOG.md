@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Fixed
+
+- Bump pg-upsert minimum to >=1.18.2 — fixes interactive FK check dialog only showing 1 violation row instead of all rows.
+
 ______________________________________________________________________
 
 ## [2.12.6] - 2026-04-03
