@@ -2066,6 +2066,97 @@ If the "HALT" action is taken, either as a result of user input or as a result o
 Double quotes (as shown above), apostrophes, or square brackets can be used to delimit the text.
 
 
+## PG_UPSERT { #pg_upsert }
+
+```
+PG_UPSERT FROM <staging_schema> TO <base_schema> TABLES <table1>, <table2> [options]
+PG_UPSERT QA FROM <staging_schema> TO <base_schema> TABLES <table1>, <table2> [options]
+PG_UPSERT CHECK FROM <staging_schema> TO <base_schema> TABLES <table1>, <table2>
+```
+
+Performs QA-checked, FK-dependency-ordered upserts from a staging schema to a base schema on PostgreSQL. Integrates [pg-upsert](https://pg-upsert.readthedocs.io/) as an optional dependency.
+
+**Requires:** `pip install execsql2[upsert]`
+
+**Requires:** A PostgreSQL connection. Raises an error if the current DBMS is not PostgreSQL.
+
+### Modes
+
+- **Full pipeline** (`PG_UPSERT FROM ... TO ... TABLES ...`): Runs all QA checks, then upserts data (update + insert by default), with optional commit.
+- **QA only** (`PG_UPSERT QA FROM ... TO ... TABLES ...`): Runs all QA checks without upserting. Never commits.
+- **Schema check** (`PG_UPSERT CHECK FROM ... TO ... TABLES ...`): Checks column existence and type compatibility only. Never commits.
+
+### Optional keywords
+
+Keywords can appear in any order after the table list.
+
+| Keyword | Description |
+|---------|-------------|
+| `METHOD upsert\|update\|insert` | Upsert strategy. `upsert` (default) updates existing + inserts new rows. `update` only updates. `insert` only inserts. Full mode only. |
+| `COMMIT` | Commit changes if QA passes. Without it, changes are rolled back (dry-run). Full mode only. |
+| `EXCLUDE col1, col2` | Columns to skip during upsert. |
+| `EXCLUDE_NULL col1, col2` | Columns to skip in null QA checks. |
+| `INTERACTIVE` | Enable pg-upsert's interactive UI dialogs (tkinter or textual) for reviewing QA failures. Without it, runs non-interactively. |
+| `COMPACT` | Use compact grid format for QA summary instead of detailed per-table panels. |
+| `LOGFILE <path>` | Append pg-upsert's plain-text log output to the given file. Supports quoted paths for spaces: `LOGFILE "path/to/log.txt"`. |
+
+### Substitution variables
+
+Set after every `PG_UPSERT` execution:
+
+| Variable | Type | Description |
+|----------|------|-------------|
+| `$PG_UPSERT_QA_PASSED` | TRUE/FALSE | Did all QA checks pass? |
+| `$PG_UPSERT_ROWS_UPDATED` | integer | Total rows updated across all tables |
+| `$PG_UPSERT_ROWS_INSERTED` | integer | Total rows inserted across all tables |
+| `$PG_UPSERT_COMMITTED` | TRUE/FALSE | Were changes committed? |
+| `$PG_UPSERT_STAGING_SCHEMA` | string | Staging schema name used |
+| `$PG_UPSERT_BASE_SCHEMA` | string | Base schema name used |
+| `$PG_UPSERT_TABLES` | string | Comma-separated list of table names processed |
+| `$PG_UPSERT_METHOD` | string | Upsert method used |
+| `$PG_UPSERT_DURATION` | float | Elapsed time in seconds |
+| `$PG_UPSERT_STARTED_AT` | string | ISO 8601 start timestamp |
+| `$PG_UPSERT_FINISHED_AT` | string | ISO 8601 end timestamp |
+| `$PG_UPSERT_RESULT_JSON` | JSON string | Full result for detailed inspection |
+
+!!! note "Using `$PG_UPSERT_RESULT_JSON` with WRITE"
+    The JSON value is stored as compact single-line JSON. Because it contains double quotes (`"`), square brackets (`[]`), and apostrophes may appear in data, use tilde or backtick delimiters with WRITE:
+
+    ```sql
+    -- !x! WRITE ~!!$PG_UPSERT_RESULT_JSON!!~
+    -- !x! WRITE `!!$PG_UPSERT_RESULT_JSON!!`
+    ```
+
+### Temporary objects
+
+pg-upsert creates temporary tables and views (all prefixed `ups_`) that persist after the metacommand completes. Users can query these for debugging and inspection — for example, `SELECT * FROM ups_control` shows per-table QA results and row counts.
+
+For the full list of temporary objects and their schemas, see the [pg-upsert Temporary Objects Reference](https://pg-upsert.readthedocs.io/en/latest/architecture/#temporary-objects-reference).
+
+### Examples
+
+```sql
+-- Full pipeline: QA + upsert + commit
+-- !x! PG_UPSERT FROM staging TO public TABLES books, authors COMMIT
+
+-- Dry run (no commit) with update-only method
+-- !x! PG_UPSERT FROM staging TO public TABLES books METHOD update
+
+-- QA only with interactive review
+-- !x! PG_UPSERT QA FROM staging TO public TABLES books, authors INTERACTIVE
+
+-- Schema check only
+-- !x! PG_UPSERT CHECK FROM staging TO public TABLES books, authors
+
+-- Log pg-upsert output to a file
+-- !x! PG_UPSERT FROM staging TO public TABLES books, authors LOGFILE "upsert.log" COMMIT
+
+-- Use substitution variables after upsert
+-- !x! PG_UPSERT FROM staging TO public TABLES books COMMIT
+-- !x! WRITE "Updated !!$PG_UPSERT_ROWS_UPDATED!! rows, inserted !!$PG_UPSERT_ROWS_INSERTED!! in !!$PG_UPSERT_DURATION!! seconds"
+```
+
+
 ## PG_VACUUM
 
 ```

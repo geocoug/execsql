@@ -25,6 +25,7 @@ pip install "execsql2[duckdb]"      # DuckDB
 pip install "execsql2[mssql]"       # MS SQL Server / ODBC
 pip install "execsql2[formats]"     # ODS, Excel, Jinja2, Feather, Parquet, HDF5
 pip install "execsql2[auth]"        # OS keyring integration
+pip install "execsql2[upsert]"      # PG_UPSERT metacommand (pg-upsert)
 pip install "execsql2[all-db]"      # All database drivers
 pip install "execsql2[all]"         # Everything
 ```

@@ -168,6 +168,11 @@ from execsql.metacommands.script_ext import (
     x_extendscript_sql,
     x_executescript,
 )
+from execsql.metacommands.upsert import (
+    x_pg_upsert,
+    x_pg_upsert_check,
+    x_pg_upsert_qa,
+)
 from execsql.metacommands.system import (
     x_system_cmd,
     x_email,
@@ -401,6 +406,10 @@ __all__ = [
     "x_write_warnings",
     "x_gui_level",
     "x_execute",
+    # upsert handlers
+    "x_pg_upsert",
+    "x_pg_upsert_check",
+    "x_pg_upsert_qa",
     # regex helpers
     "ins_rxs",
     "ins_quoted_rx",

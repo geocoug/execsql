@@ -41,12 +41,13 @@ ______________________________________________________________________
 
 ### Metacommands
 
-| Metacommand            | Description                                                                                                                                                           |
-| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ASSERT`               | Evaluate a condition and raise an error (halting the script) if it is false. Supports all IF conditions. Optional quoted failure message. Skipped in false IF blocks. |
-| `BREAKPOINT`           | Pause script execution and drop into an interactive debug REPL. See [Debugging](#debugging) below for full details.                                                   |
-| `CONFIG SHOW_PROGRESS` | Enable the Rich progress bar for IMPORT operations at runtime.                                                                                                        |
-| `CONFIG LOG_SQL`       | Enable SQL query audit logging — writes executed SQL to the log file.                                                                                                 |
+| Metacommand            | Description                                                                                                                                                                                                                      |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ASSERT`               | Evaluate a condition and raise an error (halting the script) if it is false. Supports all IF conditions. Optional quoted failure message. Skipped in false IF blocks.                                                            |
+| `BREAKPOINT`           | Pause script execution and drop into an interactive debug REPL. See [Debugging](#debugging) below for full details.                                                                                                              |
+| `CONFIG SHOW_PROGRESS` | Enable the Rich progress bar for IMPORT operations at runtime.                                                                                                                                                                   |
+| `CONFIG LOG_SQL`       | Enable SQL query audit logging — writes executed SQL to the log file.                                                                                                                                                            |
+| `PG_UPSERT`            | QA-checked, FK-dependency-ordered upserts from staging to base schema on PostgreSQL. Integrates [pg-upsert](https://pg-upsert.readthedocs.io/) as an optional dependency. Three modes: full pipeline, QA-only, and schema check. |
 
 ### Conditional Tests
 
