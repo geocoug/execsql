@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.13.0] - 2026-04-04
+
 ### Added
 
 - New `IMPORT … FROM JSON` metacommand — imports a JSON array of objects or newline-delimited JSON (NDJSON) file into a database table. Nested objects are flattened with dot-separated column names; nested arrays are stored as JSON strings. Missing keys across records become NULL.
