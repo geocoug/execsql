@@ -119,7 +119,10 @@ class FileWriter(multiprocessing.Process):
             self.close_after_write = False
 
         def __del__(self) -> None:
-            self.close()
+            try:
+                self.close()
+            except Exception:
+                pass  # Best-effort cleanup at interpreter shutdown.
 
         def write_queue(self) -> None:
             while len(self.output_queue) > 0:
@@ -215,7 +218,10 @@ class FileWriter(multiprocessing.Process):
         )
 
     def __del__(self) -> None:
-        self.close_all()
+        try:
+            self.close_all()
+        except Exception:
+            pass  # Best-effort cleanup at interpreter shutdown.
 
     def close_all(self) -> None:
         for fc in getattr(self, "files", {}).values():

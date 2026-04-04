@@ -29,21 +29,30 @@ def write_query_raw(
     if zipfile is None:
         filewriter_close(outfile)
         mode = "wb" if not append else "ab"
-        of = open(outfile, mode)  # noqa: SIM115
+        with open(outfile, mode) as of:
+            for row in rowsource:
+                for col in row:
+                    if isinstance(col, bytearray):
+                        of.write(col)
+                    else:
+                        if isinstance(col, str):
+                            of.write(bytes(col, db_encoding))
+                        else:
+                            of.write(bytes(str(col), db_encoding))
     else:
         of = ZipWriter(zipfile, outfile, append)
-    try:
-        for row in rowsource:
-            for col in row:
-                if isinstance(col, bytearray):
-                    of.write(col)
-                else:
-                    if isinstance(col, str):
-                        of.write(bytes(col, db_encoding))
+        try:
+            for row in rowsource:
+                for col in row:
+                    if isinstance(col, bytearray):
+                        of.write(col)
                     else:
-                        of.write(bytes(str(col), db_encoding))
-    finally:
-        of.close()
+                        if isinstance(col, str):
+                            of.write(bytes(col, db_encoding))
+                        else:
+                            of.write(bytes(str(col), db_encoding))
+        finally:
+            of.close()
 
 
 def write_query_b64(outfile: str, rowsource: Any, append: bool = False, zipfile: str | None = None) -> None:
@@ -51,12 +60,15 @@ def write_query_b64(outfile: str, rowsource: Any, append: bool = False, zipfile:
     if zipfile is None:
         filewriter_close(outfile)
         mode = "wb" if not append else "ab"
-        of = open(outfile, mode)  # noqa: SIM115
+        with open(outfile, mode) as of:
+            for row in rowsource:
+                for col in row:
+                    of.write(base64.standard_b64decode(col))
     else:
         of = ZipWriter(zipfile, outfile, append)
-    try:
-        for row in rowsource:
-            for col in row:
-                of.write(base64.standard_b64decode(col))
-    finally:
-        of.close()
+        try:
+            for row in rowsource:
+                for col in row:
+                    of.write(base64.standard_b64decode(col))
+        finally:
+            of.close()

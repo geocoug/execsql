@@ -118,6 +118,7 @@ from execsql.metacommands.io import (
     x_import,
     x_import_feather,
     x_import_file,
+    x_import_json,
     x_import_ods,
     x_import_ods_pattern,
     x_import_parquet,
@@ -538,6 +539,17 @@ def build_dispatch_table() -> MetaCommandList:
             ins_fn_rxs(r"\s+FROM\s+FEATHER\s+", r"\s*$"),
         ),
         x_import_feather,
+    )
+
+    # ------------------------------------------------------------------
+    # IMPORT JSON
+    # ------------------------------------------------------------------
+    mcl.add(
+        ins_table_rxs(
+            r"^\s*IMPORT\s+TO\s+(?:(?P<new>NEW|REPLACEMENT)\s+)?",
+            ins_fn_rxs(r"\s+FROM\s+JSON\s+", r"\s*$"),
+        ),
+        x_import_json,
     )
 
     # ------------------------------------------------------------------

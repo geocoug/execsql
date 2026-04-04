@@ -32,8 +32,18 @@ class WriteableZipfile:
         self.zf = zipfile.ZipFile(zipfile_name, mode=zmode, compression=comp, compresslevel=9)
         self.current_handle = None
 
-    def __del__(self) -> None:
+    def __enter__(self) -> WriteableZipfile:
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         self.close()
+        return None
+
+    def __del__(self) -> None:
+        try:
+            self.close()
+        except Exception:
+            pass  # Best-effort cleanup at interpreter shutdown.
 
     def member_file(self, member_filename: str) -> None:
         """Create a new member entry in the archive and open it for writing."""
@@ -97,11 +107,19 @@ class ZipWriter:
         self.zwriter = WriteableZipfile(self.zip_fname, append)
         self.member = self.zwriter.member_file(member_fname)
 
+    def __enter__(self) -> ZipWriter:
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        self.close()
+        return None
+
     def write(self, str_data: str) -> None:
         """Write a string to the current zip member."""
         self.zwriter.write(str_data)
 
     def close(self) -> None:
         """Close the zip member and finalise the archive."""
-        self.zwriter.close()
-        self.zwriter = None
+        if self.zwriter is not None:
+            self.zwriter.close()
+            self.zwriter = None

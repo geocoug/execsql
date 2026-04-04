@@ -154,8 +154,16 @@ def export_html(
             finally:
                 t.close()
                 f.close()
-            os.unlink(outfile)
-            os.rename(tempfname, outfile)
+            try:
+                os.unlink(outfile)
+                os.rename(tempfname, outfile)
+            except OSError:
+                # Clean up temp file if rename fails.
+                try:
+                    os.unlink(tempfname)
+                except OSError:
+                    pass
+                raise
 
 
 def export_cgi_html(

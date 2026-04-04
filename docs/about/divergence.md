@@ -48,6 +48,7 @@ ______________________________________________________________________
 | `CONFIG SHOW_PROGRESS` | Enable the Rich progress bar for IMPORT operations at runtime.                                                                                                                                                                   |
 | `CONFIG LOG_SQL`       | Enable SQL query audit logging — writes executed SQL to the log file.                                                                                                                                                            |
 | `PG_UPSERT`            | QA-checked, FK-dependency-ordered upserts from staging to base schema on PostgreSQL. Integrates [pg-upsert](https://pg-upsert.readthedocs.io/) as an optional dependency. Three modes: full pipeline, QA-only, and schema check. |
+| `IMPORT … FROM JSON`   | Import a JSON file (array of objects or NDJSON) into a database table. Nested objects are flattened with dot-separated column names; arrays are stored as JSON strings.                                                          |
 
 ### Conditional Tests
 
@@ -162,6 +163,7 @@ All 33 mutable runtime globals in `state.py` have been consolidated into a `Runt
 
 ### Substitution Variables
 
+- **`$SYSTEM_CMD_PID`** — New system variable set to the PID of the background process when `SHELL … CONTINUE` is used.
 - **Cycle detection** — `substitute_vars()` raises an error after 100 iterations to prevent infinite loops when variables reference each other cyclically. Upstream had no protection.
 - **O(1) substitution** — Variable substitution uses a single combined regex and dict lookup instead of O(V) per-variable regex passes. Behavior is identical; performance is improved.
 - **Lazy `$RANDOM`/`$UUID`** — These system variables are now computed on first access rather than generated unconditionally for every statement. Behavior is identical when referenced; scripts that never reference them skip the computation entirely.

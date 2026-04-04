@@ -124,7 +124,7 @@ Run `execsql --help` for the full option list, or `execsql -m` to list all metac
 
 # Features
 
-- Import data from CSV, TSV, Excel, OpenDocument, Feather, or Parquet files into a database table.
+- Import data from CSV, TSV, JSON, Excel, OpenDocument, Feather, or Parquet files into a database table.
 - Export query results in 20+ formats including CSV, TSV, JSON, YAML, XML, HTML, Markdown, LaTeX, XLSX, OpenDocument, Feather, Parquet, HDF5, DuckDB, SQLite, plain text, and Jinja2 templates.
 - Copy data between databases, including across different DBMS types.
 - Conditionally execute SQL and metacommands using `IF`/`ELSE`/`ENDIF` based on data values, DBMS type, or user input.

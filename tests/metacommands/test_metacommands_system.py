@@ -196,6 +196,73 @@ class TestXSystemCmd:
             x_system_cmd(command="echo hello", **{"continue": "CONTINUE"})
             mock_popen.assert_called_once()
 
+    def test_system_cmd_continue_sets_pid_subvar(self, minimal_conf):
+        """When continue is set, $SYSTEM_CMD_PID must be recorded as a substitution var."""
+        from execsql.metacommands.system import x_system_cmd
+
+        _setup_exec_log()
+        mock_sv = _setup_subvars()
+        _state.commandliststack = [MagicMock()]
+        _state.commandliststack[-1].current_command.return_value = SimpleNamespace(
+            current_script_line=lambda: ("test.sql", 10),
+        )
+
+        fake_proc = MagicMock()
+        fake_proc.pid = 54321
+
+        with (
+            patch("execsql.metacommands.system.subprocess.Popen", return_value=fake_proc),
+            patch("execsql.metacommands.system.filewriter_close_all_after_write"),
+        ):
+            x_system_cmd(command="sleep 5", **{"continue": "CONTINUE"})
+            mock_sv.add_substitution.assert_called_once_with("$SYSTEM_CMD_PID", "54321")
+
+    def test_system_cmd_continue_does_not_set_exit_status(self, minimal_conf):
+        """When continue is set, $SYSTEM_CMD_EXIT_STATUS must NOT be recorded."""
+        from execsql.metacommands.system import x_system_cmd
+
+        _setup_exec_log()
+        mock_sv = _setup_subvars()
+        _state.commandliststack = [MagicMock()]
+        _state.commandliststack[-1].current_command.return_value = SimpleNamespace(
+            current_script_line=lambda: ("test.sql", 11),
+        )
+
+        fake_proc = MagicMock()
+        fake_proc.pid = 99
+
+        with (
+            patch("execsql.metacommands.system.subprocess.Popen", return_value=fake_proc),
+            patch("execsql.metacommands.system.filewriter_close_all_after_write"),
+        ):
+            x_system_cmd(command="sleep 5", **{"continue": "CONTINUE"})
+            # Only one subvar call, and it must be for PID — not EXIT_STATUS
+            calls = mock_sv.add_substitution.call_args_list
+            assert len(calls) == 1
+            assert calls[0][0][0] == "$SYSTEM_CMD_PID"
+            assert "$SYSTEM_CMD_EXIT_STATUS" not in [c[0][0] for c in calls]
+
+    def test_system_cmd_sync_does_not_set_pid(self, minimal_conf):
+        """Without continue, $SYSTEM_CMD_PID must NOT be set."""
+        from execsql.metacommands.system import x_system_cmd
+
+        _setup_exec_log()
+        mock_sv = _setup_subvars()
+        _state.commandliststack = [MagicMock()]
+        _state.commandliststack[-1].current_command.return_value = SimpleNamespace(
+            current_script_line=lambda: ("test.sql", 12),
+        )
+
+        with (
+            patch("execsql.metacommands.system.subprocess.call", return_value=0),
+            patch("execsql.metacommands.system.filewriter_close_all_after_write"),
+        ):
+            x_system_cmd(command="echo hello", **{"continue": None})
+            calls = mock_sv.add_substitution.call_args_list
+            assert len(calls) == 1
+            assert calls[0][0][0] == "$SYSTEM_CMD_EXIT_STATUS"
+            assert "$SYSTEM_CMD_PID" not in [c[0][0] for c in calls]
+
     def test_system_cmd_nonzero_exit_status(self, minimal_conf):
         from execsql.metacommands.system import x_system_cmd
 

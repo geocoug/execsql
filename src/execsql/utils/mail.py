@@ -28,9 +28,24 @@ class Mailer:
     def __repr__(self) -> str:
         return "Mailer()"
 
-    def __del__(self) -> None:
+    def __enter__(self) -> Mailer:
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        self.close()
+        return None
+
+    def close(self) -> None:
         if hasattr(self, "smtpconn"):
-            self.smtpconn.quit()
+            try:
+                self.smtpconn.quit()
+            except Exception:
+                pass  # Best-effort; connection may already be closed.
+            finally:
+                del self.smtpconn
+
+    def __del__(self) -> None:
+        self.close()
 
     def __init__(self) -> None:
         conf = _state.conf
@@ -134,5 +149,6 @@ class MailSpec:
             content_filename = _state.subvars.substitute_all(content_filename)
             attach_filename = _state.commandliststack[-1].localvars.substitute_all(self.attach_filename)
             attach_filename = _state.subvars.substitute_all(attach_filename)
-            Mailer().sendmail(send_from, send_to, subject, msg_content, content_filename, attach_filename)
+            with Mailer() as m:
+                m.sendmail(send_from, send_to, subject, msg_content, content_filename, attach_filename)
         return None

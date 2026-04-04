@@ -1747,6 +1747,14 @@ The syntax for importing data from a data file in [Feather](https://arrow.apache
 IMPORT TO [NEW|REPLACEMENT] <table_name> FROM FEATHER <file_name>
 ```
 
+The syntax for importing data from a [JSON](https://www.json.org/) file is:
+
+```
+IMPORT TO [NEW|REPLACEMENT] <table_name> FROM JSON <file_name>
+```
+
+The JSON file must contain either a JSON array of objects (`[{…}, …]`) or newline-delimited JSON (NDJSON, one object per line). Nested objects are flattened with dot-separated column names (e.g., an object `{"address": {"city": "Portland"}}` produces column `address.city`). Nested arrays within objects are stored as JSON strings. Records with different keys produce a superset of columns — missing keys become NULL.
+
 Column names in the input must be valid for the DBMS in use.
 
 If the "WITH QUOTE \<quote_char\> DELIMITER \<delim_char\>" clause is not used with text files, *execsql* will scan the text file to determine the quote and delimiter characters that are used in the file. By default, the first 100 lines of the file will be scanned. You can control the number of lines scanned with the "-s" option on *execsql*'s command line and with the *scan_lines* setting in a [configuration file](configuration.md#scan_lines). If the "WITH\..." clause is used, the file will not be scanned to identify the quote and delimiter characters regardless of the setting of the "-s" option.
@@ -1766,7 +1774,7 @@ If neither the NEW or REPLACEMENT keywords are used, the table must exist, must 
 
 If a table is scanned to determine data types, any column that is completely empty (all null) will be created with the text data type. This provides the greatest flexibility for subsequent addition of data to the table. However, if that column ought to have a different data type, and a WHERE clause is applied to that column assuming a different data type, the DBMS may report an error because of incomparable data types.
 
-When data are imported from Parquet or Feather data formats, and either the NEW or REPLACEMENT keywords are used, these data will be scanned to identify data types to use in the table-creation statement, regardless of the data types identified in the input file.
+When data are imported from Parquet, Feather, or JSON data formats, and either the NEW or REPLACEMENT keywords are used, these data will be scanned to identify data types to use in the table-creation statement, regardless of the data types identified in the input file.
 
 The handling of Boolean data types when data are imported depends on the capabilities of the DBMS in use. See the relevant section of the [SQL syntax notes](../guides/sql_syntax.md#boolean_data_types).
 
@@ -2800,7 +2808,7 @@ On non-POSIX operating systems (specifically, Windows), any backslashes in the c
 
 The command line that is run will be automatically [logged](../guides/logging.md#logging) in `execsql.log`.
 
-The exit status of the command that is invoked will be stored in the [system variable](substitution_vars.md#system_vars) \$SYSTEM_CMD_EXIT_STATUS if the CONTINUE keyword has not been used.
+The exit status of the command that is invoked will be stored in the [system variable](substitution_vars.md#system_vars) \$SYSTEM_CMD_EXIT_STATUS if the CONTINUE keyword has not been used. When the CONTINUE keyword is used, the process ID of the background process is stored in \$SYSTEM_CMD_PID.
 
 
 ## TIMER

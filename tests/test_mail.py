@@ -236,3 +236,103 @@ class TestMailerSendmail:
         msg_str = mock_conn.sendmail.call_args[0][2]
         assert 'filename="data.csv"' in msg_str
         del m.smtpconn
+
+
+# ---------------------------------------------------------------------------
+# Mailer — context manager protocol
+# ---------------------------------------------------------------------------
+
+
+def _smtp_conf(conf):
+    """Add SMTP attributes to a minimal_conf namespace."""
+    conf.smtp_host = "localhost"
+    conf.smtp_port = None
+    conf.smtp_ssl = False
+    conf.smtp_tls = False
+    conf.smtp_username = None
+    conf.smtp_password = None
+
+
+class TestMailerContextManager:
+    @patch("smtplib.SMTP")
+    def test_context_manager_returns_mailer_instance(self, mock_smtp_cls, minimal_conf):
+        """__enter__ should return the Mailer itself."""
+        mock_smtp_cls.return_value = MagicMock()
+        _smtp_conf(minimal_conf)
+        with Mailer() as m:
+            assert isinstance(m, Mailer)
+
+    @patch("smtplib.SMTP")
+    def test_context_manager_exit_calls_close(self, mock_smtp_cls, minimal_conf):
+        """__exit__ must call close(), which removes smtpconn."""
+        mock_conn = MagicMock()
+        mock_smtp_cls.return_value = mock_conn
+        _smtp_conf(minimal_conf)
+        m = Mailer()
+        assert hasattr(m, "smtpconn")
+        m.__exit__(None, None, None)
+        assert not hasattr(m, "smtpconn")
+        mock_conn.quit.assert_called_once()
+
+    @patch("smtplib.SMTP")
+    def test_context_manager_exit_called_on_with_block_exit(self, mock_smtp_cls, minimal_conf):
+        """Leaving a `with` block must trigger __exit__ and remove smtpconn."""
+        mock_conn = MagicMock()
+        mock_smtp_cls.return_value = mock_conn
+        _smtp_conf(minimal_conf)
+        with Mailer() as m:
+            captured = m  # keep a reference for post-block inspection
+        # After the block, smtpconn should have been deleted via close()
+        assert not hasattr(captured, "smtpconn")
+
+    @patch("smtplib.SMTP")
+    def test_close_is_idempotent(self, mock_smtp_cls, minimal_conf):
+        """Calling close() twice must not raise."""
+        mock_smtp_cls.return_value = MagicMock()
+        _smtp_conf(minimal_conf)
+        m = Mailer()
+        m.close()
+        m.close()  # second call — must not raise
+
+    @patch("smtplib.SMTP")
+    def test_close_calls_quit_on_smtpconn(self, mock_smtp_cls, minimal_conf):
+        """close() should call smtpconn.quit() when a connection is open."""
+        mock_conn = MagicMock()
+        mock_smtp_cls.return_value = mock_conn
+        _smtp_conf(minimal_conf)
+        m = Mailer()
+        m.close()
+        mock_conn.quit.assert_called_once()
+
+    @patch("smtplib.SMTP")
+    def test_close_survives_quit_raising(self, mock_smtp_cls, minimal_conf):
+        """close() must not propagate exceptions from smtpconn.quit()."""
+        mock_conn = MagicMock()
+        mock_conn.quit.side_effect = OSError("connection already closed")
+        mock_smtp_cls.return_value = mock_conn
+        _smtp_conf(minimal_conf)
+        m = Mailer()
+        m.close()  # must not raise even though quit() raises
+
+    def test_del_does_not_raise_when_smtpconn_missing(self, minimal_conf):
+        """__del__ must be safe even if smtpconn was never set (e.g. init failed)."""
+        m = object.__new__(Mailer)  # bypass __init__ entirely
+        # No smtpconn attribute on m — __del__ should still be safe
+        m.__del__()  # must not raise
+
+    @patch("smtplib.SMTP")
+    def test_del_does_not_raise_on_normal_instance(self, mock_smtp_cls, minimal_conf):
+        """__del__ on a fully initialised (and already closed) Mailer must not raise."""
+        mock_smtp_cls.return_value = MagicMock()
+        _smtp_conf(minimal_conf)
+        m = Mailer()
+        m.close()
+        m.__del__()  # already closed — must not raise
+
+    @patch("smtplib.SMTP")
+    def test_context_manager_exit_suppresses_no_exceptions(self, mock_smtp_cls, minimal_conf):
+        """__exit__ returns None, so exceptions inside the block propagate normally."""
+        mock_smtp_cls.return_value = MagicMock()
+        _smtp_conf(minimal_conf)
+        with pytest.raises(ValueError, match="deliberate"), Mailer():
+            raise ValueError("deliberate")

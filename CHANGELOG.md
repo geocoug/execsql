@@ -11,6 +11,18 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Added
+
+- New `IMPORT … FROM JSON` metacommand — imports a JSON array of objects or newline-delimited JSON (NDJSON) file into a database table. Nested objects are flattened with dot-separated column names; nested arrays are stored as JSON strings. Missing keys across records become NULL.
+- `SHELL … CONTINUE` now sets `$SYSTEM_CMD_PID` substitution variable with the PID of the background process.
+
+### Fixed
+
+- `Mailer`, `WriteableZipfile`, `ZipWriter` now support context manager protocol (`with` statement) for reliable resource cleanup. `__del__` methods are guarded against exceptions during interpreter shutdown.
+- `FileWriter` and `FileControl` `__del__` methods no longer raise during interpreter shutdown.
+- Raw/base64 binary export now uses `with open(…)` context managers instead of bare `open()`.
+- HTML export append mode now cleans up temporary files if the final rename fails.
+
 ______________________________________________________________________
 
 ## [2.12.7] - 2026-04-03

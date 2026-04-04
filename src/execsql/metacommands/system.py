@@ -51,7 +51,8 @@ def x_system_cmd(**kwargs: Any) -> None:
         returncode = subprocess.call(cmdargs)
         _state.subvars.add_substitution("$SYSTEM_CMD_EXIT_STATUS", str(returncode))
     else:
-        subprocess.Popen(cmdargs)
+        proc = subprocess.Popen(cmdargs)
+        _state.subvars.add_substitution("$SYSTEM_CMD_PID", str(proc.pid))
     return None
 
 
@@ -62,8 +63,8 @@ def x_email(**kwargs: Any) -> None:
     msg = kwargs["msg"]
     msg_file = kwargs["msg_file"]
     att_file = kwargs["att_file"]
-    m = Mailer()
-    m.sendmail(from_addr, to_addr, subject, msg, msg_file, att_file)
+    with Mailer() as m:
+        m.sendmail(from_addr, to_addr, subject, msg, msg_file, att_file)
 
 
 def x_timer(**kwargs: Any) -> None:

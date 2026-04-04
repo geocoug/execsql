@@ -14,6 +14,7 @@ import execsql.state as _state
 from execsql.exceptions import ErrInfo
 from execsql.importers.csv import importfile, importtable
 from execsql.importers.feather import import_feather, import_parquet
+from execsql.importers.json import import_json
 from execsql.importers.ods import OdsFile, importods
 from execsql.exporters.xls import XlsFile, XlsxFile
 from execsql.importers.xls import importxls
@@ -384,6 +385,41 @@ def x_import_feather(**kwargs: Any) -> None:
             "exception",
             exception_msg=exception_desc(),
             other_msg=f"Can't import data from Feather data file {filename}",
+        ) from e
+    return None
+
+
+def x_import_json(**kwargs: Any) -> None:
+    newstr = kwargs["new"]
+    if newstr:
+        is_new = 1 + ["new", "replacement"].index(newstr.lower())
+    else:
+        is_new = 0
+    schemaname = kwargs["schema"]
+    tablename = kwargs["table"]
+    filename = kwargs["filename"]
+    if len(filename) > 1 and filename[0] == "~" and filename[1] == os.sep:
+        filename = str(Path.home() / filename[2:])
+    if not Path(filename).exists():
+        raise ErrInfo(
+            type="cmd",
+            command_text=kwargs["metacommandline"],
+            other_msg=f"Input file {filename} does not exist",
+        )
+    enc = kwargs.get("encoding")
+    from execsql.metacommands.conditions import file_size_date
+
+    sz, dt = file_size_date(filename)
+    _state.exec_log.log_status_info(f"IMPORTing from JSON file {filename} ({sz}, {dt})")
+    try:
+        import_json(_state.dbs.current(), schemaname, tablename, filename, is_new, encoding=enc)
+    except ErrInfo:
+        raise
+    except Exception as e:
+        raise ErrInfo(
+            "exception",
+            exception_msg=exception_desc(),
+            other_msg=f"Can't import data from JSON file {filename}",
         ) from e
     return None
 

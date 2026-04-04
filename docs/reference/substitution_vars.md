@@ -196,7 +196,10 @@ $STARTING_SCRIPT_REVTIME
 :   The date and time of the script specified on the command line when execsql is run.
 
 $SYSTEM_CMD_EXIT_STATUS
-:   The exit status of the command executed by the [SYSTEM_CMD](metacommands.md#system_cmd) metacommand. The value is "0" (zero) prior to the first use of the SYSTEM_CMD metacommand.
+:   The exit status of the command executed by the [SYSTEM_CMD](metacommands.md#system_cmd) metacommand. The value is "0" (zero) prior to the first use of the SYSTEM_CMD metacommand. Not set when the CONTINUE keyword is used.
+
+$SYSTEM_CMD_PID
+:   The process ID (PID) of the background process launched by `SHELL … CONTINUE`. Only set when the CONTINUE keyword is used.
 
 $TIMER
 :   The elapsed time of the script timer. If the [TIMER ON](metacommands.md#timer) command has never been used, this value will be zero. If the timer has been started but not stopped, this value will be the elapsed time since the timer was started. If the timer has been started and stopped, this value will be the elapsed time when the timer was stopped.

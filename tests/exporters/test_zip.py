@@ -132,3 +132,94 @@ class TestZipWriter:
         with _zipfile.ZipFile(zpath, "r") as zf:
             data = zf.read("joined.txt").decode("utf-8")
         assert data == "part1part2"
+
+    def test_context_manager_returns_zipwriter_instance(self, tmp_path):
+        """__enter__ returns the ZipWriter itself."""
+        zpath = str(tmp_path / "cm.zip")
+        with ZipWriter(zpath, "cm.txt") as zw:
+            assert isinstance(zw, ZipWriter)
+            zw.write("cm content")
+
+    def test_context_manager_produces_valid_zip(self, tmp_path):
+        """Data written inside a `with` block is flushed and the archive is valid."""
+        zpath = str(tmp_path / "cm_valid.zip")
+        with ZipWriter(zpath, "entry.txt") as zw:
+            zw.write("context manager data")
+        assert _zipfile.is_zipfile(zpath)
+        with _zipfile.ZipFile(zpath, "r") as zf:
+            data = zf.read("entry.txt").decode("utf-8")
+        assert data == "context manager data"
+
+    def test_context_manager_closes_on_exception(self, tmp_path):
+        """Even when an exception is raised inside the block, the archive is finalised."""
+        zpath = str(tmp_path / "cm_exc.zip")
+        try:
+            with ZipWriter(zpath, "partial.txt") as zw:
+                zw.write("before error")
+                raise RuntimeError("boom")
+        except RuntimeError:
+            pass
+        # Archive must still be a valid zip (close was called via __exit__)
+        assert _zipfile.is_zipfile(zpath)
+
+    def test_close_is_idempotent(self, tmp_path):
+        """Calling close() twice on ZipWriter must not raise."""
+        zpath = str(tmp_path / "idem.zip")
+        zw = ZipWriter(zpath, "f.txt")
+        zw.write("data")
+        zw.close()
+        zw.close()  # second close — must not raise
+
+    def test_close_sets_zwriter_to_none(self, tmp_path):
+        """After close(), zwriter is set to None to mark the writer as done."""
+        zpath = str(tmp_path / "closed.zip")
+        zw = ZipWriter(zpath, "f.txt")
+        zw.close()
+        assert zw.zwriter is None
+
+
+# ===========================================================================
+# WriteableZipfile — context manager and __del__ safety
+# ===========================================================================
+
+
+class TestWriteableZipfileContextManager:
+    def test_context_manager_returns_self(self, tmp_path):
+        """__enter__ returns the WriteableZipfile instance."""
+        zpath = str(tmp_path / "wz_cm.zip")
+        with WriteableZipfile(zpath) as wz:
+            assert isinstance(wz, WriteableZipfile)
+
+    def test_context_manager_produces_valid_zip(self, tmp_path):
+        """Data written via `with WriteableZipfile(...)` produces a valid archive."""
+        zpath = str(tmp_path / "wz_valid.zip")
+        with WriteableZipfile(zpath) as wz:
+            wz.member_file("content.txt")
+            wz.write("hello from context manager")
+        assert _zipfile.is_zipfile(zpath)
+        with _zipfile.ZipFile(zpath, "r") as zf:
+            data = zf.read("content.txt").decode("utf-8")
+        assert data == "hello from context manager"
+
+    def test_context_manager_closes_on_exception(self, tmp_path):
+        """__exit__ is called even when an exception escapes the block."""
+        zpath = str(tmp_path / "wz_exc.zip")
+        try:
+            with WriteableZipfile(zpath) as wz:
+                wz.member_file("partial.txt")
+                wz.write("before error")
+                raise RuntimeError("deliberate")
+        except RuntimeError:
+            pass
+        # Archive must still be a valid (possibly partial) zip file
+        assert _zipfile.is_zipfile(zpath)
+
+    def test_del_does_not_raise_on_already_closed_instance(self, tmp_path):
+        """__del__ must be silent even if the underlying ZipFile is already closed."""
+        zpath = str(tmp_path / "wz_del.zip")
+        wz = WriteableZipfile(zpath)
+        wz.member_file("del_test.txt")
+        wz.write("data")
+        wz.close()
+        # Manually call __del__ after close — must not raise
+        wz.__del__()

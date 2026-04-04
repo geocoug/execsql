@@ -242,6 +242,9 @@ class TestXEmail:
 
         with patch("execsql.metacommands.system.Mailer") as MockMailer:
             mock_mailer = MagicMock()
+            # x_email uses `with Mailer() as m:`, so __enter__ must return the mock
+            mock_mailer.__enter__ = MagicMock(return_value=mock_mailer)
+            mock_mailer.__exit__ = MagicMock(return_value=None)
             MockMailer.return_value = mock_mailer
             x_email(
                 **{
