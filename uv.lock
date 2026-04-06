@@ -648,7 +648,7 @@ wheels = [
 
 [[package]]
 name = "execsql2"
-version = "2.13.1"
+version = "2.13.2"
 source = { editable = "." }
 dependencies = [
     { name = "rich" },
