@@ -10,11 +10,18 @@ Checks performed
 2. **Unmatched LOOP / END LOOP** — mismatched nesting depth (error).
 3. **Unmatched BEGIN BATCH / END BATCH** — mismatched nesting depth (error).
 4. **Potentially undefined variables** — ``!!$VAR!!`` tokens not preceded by a
-   ``SUB`` metacommand in the same parsed command list and not in the set of
-   built-in variables (warning).
-5. **Missing INCLUDE files** — INCLUDE target does not exist on disk relative
+   ``SUB`` (or ``SUB_EMPTY``, ``SUB_ADD``, ``SUB_APPEND``, ``SUBDATA``)
+   metacommand in the same parsed command list and not in the set of built-in
+   variables (warning).  Note: ``SUB_INI`` and ``SELECT_SUB`` define variables
+   whose names are not statically knowable — those may produce false-positive
+   warnings.
+5. **EXECUTE SCRIPT flow analysis** — when an ``EXECUTE SCRIPT <name>``
+   metacommand is encountered, the linter descends into the named script
+   block (if found in ``_state.savedscripts``) and merges any variables it
+   defines back into the caller's scope.
+6. **Missing INCLUDE files** — INCLUDE target does not exist on disk relative
    to the script directory (warning).
-6. **Empty script** — no commands found (warning).
+7. **Empty script** — no commands found (warning).
 
 The function walks ``CommandList.cmdlist`` and also descends into any
 ``CommandList`` objects stored in ``_state.savedscripts`` (i.e. named scripts
@@ -67,6 +74,31 @@ _RX_END_BATCH = re.compile(r"^\s*END\s+BATCH\s*$", re.I)
 # SUB <varname> <value> — defines a substitution variable
 _RX_SUB = re.compile(r"^\s*SUB\s+(?P<name>[+~]?\w+)\s+", re.I)
 
+# SUB_EMPTY <varname> — defines a variable with empty string
+_RX_SUB_EMPTY = re.compile(r"^\s*SUB_EMPTY\s+(?P<name>[+~]?\w+)\s*$", re.I)
+
+# SUB_ADD <varname> <expr> — increments a variable (implies it exists)
+_RX_SUB_ADD = re.compile(r"^\s*SUB_ADD\s+(?P<name>[+~]?\w+)\s+", re.I)
+
+# SUB_APPEND <varname> <text> — appends to a variable (implies it exists)
+_RX_SUB_APPEND = re.compile(r"^\s*SUB_APPEND\s+(?P<name>[+~]?\w+)\s", re.I)
+
+# SUBDATA <varname> <datasource> — defines a variable from a query result
+_RX_SUBDATA = re.compile(r"^\s*SUBDATA\s+(?P<name>[+~]?\w+)\s+", re.I)
+
+# SUB_INI [FILE] <filename> [SECTION] <section> — bulk-defines variables from INI file
+_RX_SUB_INI = re.compile(
+    r'^\s*SUB_INI\s+(?:FILE\s+)?(?:"(?P<qfile>[^"]+)"|(?P<file>\S+))'
+    r"(?:\s+SECTION)?\s+(?P<section>\w+)\s*$",
+    re.I,
+)
+
+# EXECUTE SCRIPT / EXEC SCRIPT / RUN SCRIPT
+_RX_EXEC_SCRIPT = re.compile(
+    r"^\s*(?:EXEC(?:UTE)?|RUN)\s+SCRIPT(?:\s+IF\s+EXISTS)?\s+(?P<script_id>\w+)",
+    re.I,
+)
+
 # INCLUDE <file>
 _RX_INCLUDE = re.compile(
     r"^\s*INCLUDE(?:\s+IF\s+EXISTS?)?\s+(?P<path>\S+.*?)\s*$",
@@ -76,67 +108,41 @@ _RX_INCLUDE = re.compile(
 # Variable reference — !!name!! where name may start with $, @, &, ~, #, +
 _RX_VAR_REF = re.compile(r"!!([$@&~#+]?\w+)!!", re.I)
 
-# Built-in system variables that are always defined (populated by _run before
-# any script commands execute).  Variable names are stored without the leading
-# ``$`` for case-insensitive set membership tests.
-_BUILTIN_VARS: frozenset[str] = frozenset(
-    {
-        # Start-time / environment
-        "SCRIPT_START_TIME",
-        "SCRIPT_START_TIME_UTC",
-        "DATE_TAG",
-        "DATETIME_TAG",
-        "DATETIME_UTC_TAG",
-        "LAST_ROWCOUNT",
-        "LAST_SQL",
-        "LAST_ERROR",
-        "ERROR_MESSAGE",
-        "USER",
-        "STARTING_PATH",
-        "PATHSEP",
-        "OS",
-        "PYTHON_EXECUTABLE",
-        "STARTING_SCRIPT",
-        "STARTING_SCRIPT_NAME",
-        "STARTING_SCRIPT_REVTIME",
-        "RUN_ID",
-        # Execution-time (set during runscripts — not available in --dry-run
-        # but always defined before any script command can reference them)
-        "CURRENT_TIME",
-        "CURRENT_TIME_UTC",
-        "CURRENT_SCRIPT",
-        "CURRENT_SCRIPT_PATH",
-        "CURRENT_SCRIPT_NAME",
-        "CURRENT_SCRIPT_LINE",
-        "SCRIPT_LINE",
-        "CURRENT_DIR",
-        "CURRENT_PATH",
-        "CURRENT_ALIAS",
-        "AUTOCOMMIT_STATE",
-        "TIMER",
-        "DB_USER",
-        "DB_SERVER",
-        "DB_NAME",
-        "DB_NEED_PWD",
-        "RANDOM",
-        "UUID",
-        "VERSION1",
-        "VERSION2",
-        "VERSION3",
-        "CANCEL_HALT_STATE",
-        "ERROR_HALT_STATE",
-        "METACOMMAND_ERROR_HALT_STATE",
-        "CONSOLE_WAIT_WHEN_ERROR_HALT_STATE",
-        "CONSOLE_WAIT_WHEN_DONE_STATE",
-        "CURRENT_DBMS",
-        "CURRENT_DATABASE",
-        "SYSTEM_CMD_EXIT_STATUS",
-        # Connection-populated
-        "DB_FILE",
-        "DB_PORT",
-        # Counter variables (@@name) are always valid — skip validation
-    },
-)
+# Built-in system variables — extracted automatically from the installed
+# ``execsql`` source by scanning for ``add_substitution("$NAME", ...)`` and
+# ``register_lazy("$NAME", ...)`` calls.  This avoids maintaining a hand-
+# curated list that drifts out of sync when new system variables are added.
+# Variable names are stored upper-case without the leading ``$``.
+
+
+def _discover_builtin_vars() -> frozenset[str]:
+    """Scan the execsql package source for ``$VARNAME`` system variables."""
+    import importlib.util
+
+    _rx_add_sub = re.compile(r'(?:(?<!\w)add_substitution|(?<!\w)sv)\s*\(\s*["\'](\$\w+)["\']')
+    _rx_lazy = re.compile(r'register_lazy\s*\(\s*["\'](\$\w+)["\']')
+
+    names: set[str] = set()
+
+    spec = importlib.util.find_spec("execsql")
+    if spec is None or spec.submodule_search_locations is None:
+        return frozenset(names)
+
+    pkg_dir = Path(spec.submodule_search_locations[0])
+    for src_file in pkg_dir.rglob("*.py"):
+        try:
+            text = src_file.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        for m in _rx_add_sub.finditer(text):
+            names.add(m.group(1).lstrip("$").upper())
+        for m in _rx_lazy.finditer(text):
+            names.add(m.group(1).lstrip("$").upper())
+
+    return frozenset(names)
+
+
+_BUILTIN_VARS: frozenset[str] = _discover_builtin_vars()
 
 
 # ---------------------------------------------------------------------------
@@ -159,23 +165,90 @@ def _warning(source: str, line_no: int, message: str) -> _Issue:
 # ---------------------------------------------------------------------------
 
 
+def _collect_defined_vars(
+    cmdlist: CommandList,
+    script_dir: Path | None,
+    defined_vars: set[str],
+    *,
+    _savedscripts: dict | None = None,
+    _visited_scripts: set[str] | None = None,
+) -> None:
+    """Pass 1: walk *cmdlist* and collect all variable definitions into *defined_vars*.
+
+    This populates the set with every variable name that could be defined at
+    runtime — ``SUB``, ``SUB_EMPTY``, ``SUB_ADD``, ``SUB_APPEND``,
+    ``SUBDATA``, and ``SUB_INI`` (by reading the INI file on disk).  It also
+    descends into ``EXECUTE SCRIPT`` targets to collect their definitions.
+
+    No issues are reported; structural checks and variable-reference validation
+    happen in pass 2 (:func:`_lint_cmdlist`).
+    """
+    visited = _visited_scripts if _visited_scripts is not None else set()
+
+    for cmd in cmdlist.cmdlist:
+        if cmd.command_type == "sql":
+            continue
+        stmt = cmd.command.statement
+
+        # SUB <name> <value>
+        sub_m = _RX_SUB.match(stmt)
+        if sub_m:
+            defined_vars.add(sub_m.group("name").lstrip("+~").upper())
+
+        # SUB_EMPTY / SUB_ADD / SUB_APPEND / SUBDATA
+        for rx in (_RX_SUB_EMPTY, _RX_SUB_ADD, _RX_SUB_APPEND, _RX_SUBDATA):
+            m = rx.match(stmt)
+            if m:
+                defined_vars.add(m.group("name").lstrip("+~").upper())
+                break
+
+        # SUB_INI — read INI file keys
+        ini_m = _RX_SUB_INI.match(stmt)
+        if ini_m:
+            ini_file = ini_m.group("qfile") or ini_m.group("file")
+            ini_section = ini_m.group("section")
+            if ini_file and not _RX_VAR_REF.search(ini_file):
+                _read_ini_vars(ini_file, ini_section, script_dir, defined_vars)
+
+        # EXECUTE SCRIPT — descend into named script block
+        exec_m = _RX_EXEC_SCRIPT.match(stmt)
+        if exec_m and _savedscripts is not None:
+            script_id = exec_m.group("script_id").lower()
+            if script_id in _savedscripts and script_id not in visited:
+                visited.add(script_id)
+                _collect_defined_vars(
+                    _savedscripts[script_id],
+                    script_dir,
+                    defined_vars,
+                    _savedscripts=_savedscripts,
+                    _visited_scripts=visited,
+                )
+
+
 def _lint_cmdlist(
     cmdlist: CommandList,
     script_dir: Path | None,
     defined_vars: set[str],
+    *,
+    _savedscripts: dict | None = None,
+    _visited_scripts: set[str] | None = None,
 ) -> list[_Issue]:
-    """Lint a single :class:`CommandList` and return any issues found.
+    """Pass 2: lint a :class:`CommandList` for structural and variable issues.
 
     Args:
         cmdlist: The parsed command list to analyse.
         script_dir: Directory of the top-level script file, used for resolving
             relative INCLUDE paths.  ``None`` for inline (``-c``) scripts.
-        defined_vars: Mutable set of variable names (without sigil) that have
-            been defined by preceding ``SUB`` metacommands.  The caller passes
-            in the set from the outer scope so that variables defined before an
-            EXECUTE SCRIPT call are visible inside the script block when
-            analysing top-level scripts.  For named-script analysis the caller
-            passes a *copy* so that local definitions don't leak.
+        defined_vars: Set of variable names (without sigil) that have been
+            pre-collected by :func:`_collect_defined_vars`.  This includes
+            *all* top-level and script-block definitions so that ordering
+            does not matter.
+        _savedscripts: Dictionary of named script blocks (from
+            ``_state.savedscripts``).  Passed explicitly so the function can
+            descend into EXECUTE SCRIPT targets.
+        _visited_scripts: Set of script IDs already descended into, shared
+            across recursive calls to prevent infinite recursion from circular
+            EXECUTE SCRIPT references.
 
     Returns:
         List of ``(severity, source, line_no, message)`` issue tuples.
@@ -191,6 +264,10 @@ def _lint_cmdlist(
     batch_depth = 0
     batch_open_locs: list[tuple[str, int]] = []
 
+    # Track which EXECUTE SCRIPT targets we've already descended into to
+    # prevent infinite recursion from circular script references.
+    visited_scripts: set[str] = _visited_scripts if _visited_scripts is not None else set()
+
     for cmd in cmdlist.cmdlist:
         src = cmd.source
         lno = cmd.line_no
@@ -202,7 +279,7 @@ def _lint_cmdlist(
                 _check_var_ref(m.group(1), src, lno, defined_vars, issues)
             continue
 
-        # Metacommand checks
+        # Metacommand checks — variable references
         for m in _RX_VAR_REF.finditer(stmt):
             _check_var_ref(m.group(1), src, lno, defined_vars, issues)
 
@@ -247,11 +324,27 @@ def _lint_cmdlist(
                 batch_depth -= 1
                 batch_open_locs.pop()
 
-        # -- SUB variable definition --
-        sub_m = _RX_SUB.match(stmt)
-        if sub_m:
-            varname = sub_m.group("name").lstrip("+~")
-            defined_vars.add(varname.upper())
+        # -- EXECUTE SCRIPT — descend into named script block --
+        exec_m = _RX_EXEC_SCRIPT.match(stmt)
+        if exec_m and _savedscripts is not None:
+            script_id = exec_m.group("script_id").lower()
+            if script_id not in _savedscripts:
+                # Warn unless it's EXECUTE SCRIPT IF EXISTS
+                if not re.search(r"\bIF\s+EXISTS\b", stmt, re.I):
+                    issues.append(
+                        _warning(src, lno, f"EXECUTE SCRIPT target not found: '{script_id}'"),
+                    )
+            elif script_id not in visited_scripts:
+                visited_scripts.add(script_id)
+                sub_issues = _lint_cmdlist(
+                    _savedscripts[script_id],
+                    script_dir,
+                    defined_vars,
+                    _savedscripts=_savedscripts,
+                    _visited_scripts=visited_scripts,
+                )
+                for sev, ssrc, slno, msg in sub_issues:
+                    issues.append((sev, ssrc, slno, f"[script '{script_id}'] {msg}"))
 
         # -- INCLUDE file existence --
         inc_m = _RX_INCLUDE.match(stmt)
@@ -307,6 +400,10 @@ def _check_var_ref(
     if re.match(r"^ARG_\d+$", name, re.I):
         return
 
+    # $COUNTER_N is managed by CounterVars (@@counter metacommands)
+    if re.match(r"^COUNTER_\d+$", name, re.I):
+        return
+
     # Built-in system variables
     if name.upper() in _BUILTIN_VARS:
         return
@@ -323,6 +420,35 @@ def _check_var_ref(
             "(not defined by a preceding SUB; may be set by a config file or -a arg)",
         ),
     )
+
+
+def _read_ini_vars(
+    ini_file: str,
+    section: str,
+    script_dir: Path | None,
+    defined_vars: set[str],
+) -> None:
+    """Read an INI file and register its section keys as defined variables.
+
+    Mirrors what ``SUB_INI`` does at runtime: reads a
+    :class:`~configparser.ConfigParser` section and defines each key as a
+    substitution variable.  If the file does not exist or the section is
+    missing, silently does nothing (the runtime handler behaves the same way).
+    """
+    from configparser import ConfigParser
+
+    p = Path(ini_file)
+    if not p.is_absolute() and script_dir is not None:
+        p = script_dir / p
+
+    if not p.exists():
+        return
+
+    cp = ConfigParser()
+    cp.read(p)
+    if cp.has_section(section):
+        for key, _value in cp.items(section):
+            defined_vars.add(key.upper())
 
 
 def _check_include_path(
@@ -393,19 +519,68 @@ def _lint_script(
         return issues
 
     script_dir = Path(script_path).resolve().parent if script_path else None
+    savedscripts: dict = getattr(_state, "savedscripts", {})
 
-    # Shared set of variables defined in the top-level script via SUB.
-    # Named scripts get a fresh copy so their internal definitions don't bleed
-    # back into the top-level analysis.
-    top_defined: set[str] = set()
+    # ------------------------------------------------------------------
+    # Pass 1: collect all variable definitions from the top-level script
+    # and all reachable script blocks.  This ensures definition order does
+    # not matter — a script block executed early can reference variables
+    # defined later in the top-level script.
+    # ------------------------------------------------------------------
+    all_defined: set[str] = set()
+    collect_visited: set[str] = set()
+    _collect_defined_vars(
+        cmdlist,
+        script_dir,
+        all_defined,
+        _savedscripts=savedscripts,
+        _visited_scripts=collect_visited,
+    )
+    # Also collect from every saved script block (they may define vars
+    # referenced by other blocks).  Share the visited set so each block
+    # is only traversed once (O(N) instead of O(N²)).
+    for saved_cl in savedscripts.values():
+        _collect_defined_vars(
+            saved_cl,
+            script_dir,
+            all_defined,
+            _savedscripts=savedscripts,
+            _visited_scripts=collect_visited,
+        )
 
-    issues.extend(_lint_cmdlist(cmdlist, script_dir, top_defined))
+    # ------------------------------------------------------------------
+    # Pass 2: lint for structural issues and undefined-variable warnings
+    # using the complete variable set from pass 1.
+    # ------------------------------------------------------------------
+    # Shared visited-scripts tracker — prevents duplicate lint warnings
+    # when the same script block is reached via multiple paths.
+    visited: set[str] = set()
 
-    # Analyse each named SCRIPT block collected during parsing
-    for script_name, saved_cl in getattr(_state, "savedscripts", {}).items():
-        saved_issues = _lint_cmdlist(saved_cl, script_dir, set(top_defined))
+    issues.extend(
+        _lint_cmdlist(
+            cmdlist,
+            script_dir,
+            all_defined,
+            _savedscripts=savedscripts,
+            _visited_scripts=visited,
+        ),
+    )
+
+    # Analyse each named SCRIPT block that was NOT already visited via
+    # EXECUTE SCRIPT (standalone analysis catches structural issues like
+    # unmatched IF/ENDIF in script blocks that are never executed).
+    for script_name, saved_cl in savedscripts.items():
+        if script_name in visited:
+            continue
+        visited.add(script_name)
+        saved_issues = _lint_cmdlist(
+            saved_cl,
+            script_dir,
+            set(all_defined),
+            _savedscripts=savedscripts,
+            _visited_scripts=visited,
+        )
         for sev, src, lno, msg in saved_issues:
-            # Annotate with the script name if the source is the same file
             issues.append((sev, src, lno, f"[script '{script_name}'] {msg}"))
 
     return issues
@@ -440,12 +615,22 @@ def _print_lint_results(issues: list[_Issue], script_label: str) -> int:
         _console.print()
         return 0
 
-    for severity, source, line_no, message in issues:
-        loc = f"{source}:{line_no}" if line_no else source
+    # Sort: errors first, then warnings; within each group sort by line number.
+    _sev_order = {"error": 0, "warning": 1}
+    sorted_issues = sorted(issues, key=lambda i: (_sev_order.get(i[0], 9), i[2]))
+
+    # Compute the widest location string so columns align.
+    locs: list[str] = []
+    for _, source, line_no, _ in sorted_issues:
+        locs.append(f"{source}:{line_no}" if line_no else source)
+    loc_width = max(len(loc) for loc in locs) if locs else 0
+
+    for (severity, _source, _line_no, message), loc in zip(sorted_issues, locs):
+        pad = " " * (loc_width - len(loc))
         if severity == "error":
-            _console.print(f"  [bold red]ERROR  [/bold red]  [dim]{loc}[/dim]  {message}")
+            _console.print(f"  [bold red]ERROR  [/bold red]  [dim]{loc}[/dim]{pad}  {message}")
         else:
-            _console.print(f"  [bold yellow]WARNING[/bold yellow]  [dim]{loc}[/dim]  {message}")
+            _console.print(f"  [bold yellow]WARNING[/bold yellow]  [dim]{loc}[/dim]{pad}  {message}")
 
     _console.print()
     parts = []

@@ -205,9 +205,14 @@ Valid encoding names can be displayed with the `-y` option. See also [Character 
     - **Unmatched IF / ENDIF** — open IF blocks with no closing ENDIF, or orphan ENDIF with no IF (error).
     - **Unmatched LOOP / END LOOP** — open LOOP with no END LOOP, or orphan END LOOP (error).
     - **Unmatched BEGIN BATCH / END BATCH** — open batch with no close, or orphan END BATCH (error).
-    - **Potentially undefined variables** — `!!$VAR!!` references where `$VAR` is not a built-in variable, not `$ARG_N`, and was not defined by a preceding `SUB` metacommand in the same script (warning — may be a false-positive if the variable is set in a config file or via `-a`).
+    - **Potentially undefined variables** — `!!$VAR!!` references where `$VAR` is not a built-in system variable, not `$ARG_N`, not `$COUNTER_N`, and was not defined by a `SUB`, `SUB_EMPTY`, `SUB_ADD`, `SUB_APPEND`, `SUBDATA`, or `SUB_INI` metacommand anywhere in the script (warning — may be a false-positive if the variable is set in a config file or via `-a`).
     - **Missing INCLUDE files** — `INCLUDE` targets that do not exist on disk relative to the script's directory (warning; `INCLUDE IF EXISTS` targets are never checked).
+    - **Unknown EXECUTE SCRIPT target** — `EXECUTE SCRIPT` names a script block that was not defined in the file (warning; `EXECUTE SCRIPT IF EXISTS` targets are never warned about).
     - **Empty script** — no commands found (warning).
+
+    Variable analysis uses two passes: the first collects every variable definition across the entire script and all named script blocks; the second performs the checks. Variables may be referenced before their definition point without producing false warnings. The linter also descends into named script blocks (`BEGIN SCRIPT … END SCRIPT`) reached via `EXECUTE SCRIPT`, `EXEC SCRIPT`, or `RUN SCRIPT`, so variables defined inside a block are visible to the caller. `SUB_INI` INI files are read at lint time to register their section keys as defined variables.
+
+    Built-in system variables are discovered automatically from the installed execsql source, so new variables added in future releases are recognized without any linter changes.
 
     Exits 0 when no errors are found (warnings alone do not affect the exit code). Exits 1 when any errors are found.
 

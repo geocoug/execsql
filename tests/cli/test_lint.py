@@ -247,6 +247,14 @@ class TestBatchMatching:
 
 
 class TestUndefinedVariables:
+    def test_builtin_vars_discovered(self):
+        """_BUILTIN_VARS should be populated by scanning the source."""
+        from execsql.cli.lint import _BUILTIN_VARS
+
+        assert len(_BUILTIN_VARS) > 0
+        for expected in ("USER", "CURRENT_SCRIPT", "LAST_ROWCOUNT", "PATHSEP"):
+            assert expected in _BUILTIN_VARS, f"{expected} missing from _BUILTIN_VARS"
+
     def test_builtin_var_no_warning(self):
         cmds = [_make_metacmd("WRITE !!$USER!!", line_no=1)]
         issues = _lint_script(_make_cmdlist(cmds))
@@ -260,6 +268,16 @@ class TestUndefinedVariables:
         issues = _lint_script(_make_cmdlist(cmds))
         assert not issues
 
+    def test_forward_reference_no_warning(self):
+        """Variables referenced before their SUB definition should not warn."""
+        cmds = [
+            _make_metacmd("WRITE !!myvar!!", line_no=1),
+            _make_metacmd("SUB myvar hello", line_no=2),
+        ]
+        issues = _lint_script(_make_cmdlist(cmds))
+        warnings = [msg for s, _, _, msg in issues if s == "warning" and "myvar" in msg]
+        assert not warnings
+
     def test_undefined_var_raises_warning(self):
         cmds = [_make_metacmd("WRITE !!$UNDEFINED_CUSTOM_VAR!!", line_no=1)]
         issues = _lint_script(_make_cmdlist(cmds))
@@ -270,6 +288,12 @@ class TestUndefinedVariables:
     def test_arg_var_no_warning(self):
         """$ARG_N variables are set via -a; should not produce a warning."""
         cmds = [_make_metacmd("WRITE !!$ARG_1!!", line_no=1)]
+        issues = _lint_script(_make_cmdlist(cmds))
+        assert not issues
+
+    def test_counter_var_no_warning(self):
+        """$COUNTER_N variables are managed by CounterVars."""
+        cmds = [_make_metacmd("WRITE !!$COUNTER_1!!", line_no=1)]
         issues = _lint_script(_make_cmdlist(cmds))
         assert not issues
 
@@ -393,6 +417,227 @@ class TestMixedScenarios:
 
 
 # ---------------------------------------------------------------------------
+# SUB-family variable definitions
+# ---------------------------------------------------------------------------
+
+
+class TestSubFamilyVariables:
+    """SUB_EMPTY, SUB_ADD, SUB_APPEND, and SUBDATA should register variables."""
+
+    def test_sub_empty_defines_var(self):
+        cmds = [
+            _make_metacmd("SUB_EMPTY myvar", line_no=1),
+            _make_metacmd("WRITE !!myvar!!", line_no=2),
+        ]
+        issues = _lint_script(_make_cmdlist(cmds))
+        assert not issues
+
+    def test_sub_add_defines_var(self):
+        cmds = [
+            _make_metacmd("SUB_ADD counter 1", line_no=1),
+            _make_metacmd("WRITE !!counter!!", line_no=2),
+        ]
+        issues = _lint_script(_make_cmdlist(cmds))
+        assert not issues
+
+    def test_sub_append_defines_var(self):
+        cmds = [
+            _make_metacmd("SUB_APPEND mylist value", line_no=1),
+            _make_metacmd("WRITE !!mylist!!", line_no=2),
+        ]
+        issues = _lint_script(_make_cmdlist(cmds))
+        assert not issues
+
+    def test_subdata_defines_var(self):
+        cmds = [
+            _make_metacmd("SUBDATA myresult some_view", line_no=1),
+            _make_metacmd("WRITE !!myresult!!", line_no=2),
+        ]
+        issues = _lint_script(_make_cmdlist(cmds))
+        assert not issues
+
+    def test_sub_ini_reads_ini_file(self, tmp_path):
+        """SUB_INI should read the INI file and register section keys."""
+        ini = tmp_path / "config.ini"
+        ini.write_text("[vars]\nmy_setting = hello\nother_val = world\n")
+        script_path = str(tmp_path / "main.sql")
+        cmds = [
+            _make_metacmd(f"SUB_INI {ini.name} SECTION vars", source=script_path, line_no=1),
+            _make_metacmd("WRITE !!my_setting!!", source=script_path, line_no=2),
+            _make_metacmd("WRITE !!other_val!!", source=script_path, line_no=3),
+        ]
+        issues = _lint_script(_make_cmdlist(cmds), script_path=script_path)
+        assert not issues
+
+    def test_sub_ini_missing_file_no_crash(self):
+        """SUB_INI with a missing INI file should not crash."""
+        cmds = [
+            _make_metacmd("SUB_INI missing.conf SECTION vars", line_no=1),
+            _make_metacmd("WRITE !!unknown!!", line_no=2),
+        ]
+        issues = _lint_script(_make_cmdlist(cmds))
+        warnings = [msg for s, _, _, msg in issues if s == "warning" and "unknown" in msg]
+        assert warnings  # still warns since file doesn't exist
+
+    def test_sub_ini_with_file_keyword(self, tmp_path):
+        """SUB_INI FILE <path> SECTION <sect> form should work."""
+        ini = tmp_path / "db.conf"
+        ini.write_text("[run]\nrun_no = 5\n")
+        script_path = str(tmp_path / "main.sql")
+        cmds = [
+            _make_metacmd(f"SUB_INI FILE {ini.name} SECTION run", source=script_path, line_no=1),
+            _make_metacmd("WRITE !!run_no!!", source=script_path, line_no=2),
+        ]
+        issues = _lint_script(_make_cmdlist(cmds), script_path=script_path)
+        assert not issues
+
+    def test_sub_empty_with_prefix_defines_var(self):
+        """Variables with + or ~ prefix should still be tracked."""
+        cmds = [
+            _make_metacmd("SUB_EMPTY +myvar", line_no=1),
+            _make_metacmd("WRITE !!myvar!!", line_no=2),
+        ]
+        issues = _lint_script(_make_cmdlist(cmds))
+        assert not issues
+
+
+# ---------------------------------------------------------------------------
+# EXECUTE SCRIPT flow analysis
+# ---------------------------------------------------------------------------
+
+
+class TestExecuteScriptFlow:
+    """EXECUTE SCRIPT should descend into named script blocks."""
+
+    def _setup_savedscripts(self, script_cmds):
+        """Set up _state.savedscripts with a mock script block."""
+        import execsql.state as _state
+
+        saved_cl = _make_cmdlist(script_cmds)
+        original = getattr(_state, "savedscripts", {}).copy()
+        _state.savedscripts = {"myscript": saved_cl}
+        return original
+
+    def _restore_savedscripts(self, original):
+        import execsql.state as _state
+
+        _state.savedscripts = original
+
+    def test_execute_script_propagates_vars(self):
+        """Variables defined in a script block should be visible after EXECUTE SCRIPT."""
+        script_cmds = [
+            _make_metacmd("SUB run_tag 001", source="test.sql", line_no=10),
+        ]
+        original = self._setup_savedscripts(script_cmds)
+        try:
+            cmds = [
+                _make_metacmd("EXECUTE SCRIPT myscript", line_no=1),
+                _make_metacmd("WRITE !!run_tag!!", line_no=2),
+            ]
+            issues = _lint_script(_make_cmdlist(cmds))
+            warnings = [msg for s, _, _, msg in issues if s == "warning" and "run_tag" in msg]
+            assert not warnings
+        finally:
+            self._restore_savedscripts(original)
+
+    def test_execute_script_unknown_target_warns(self):
+        """EXECUTE SCRIPT targeting an unknown block should warn."""
+        cmds = [
+            _make_metacmd("EXECUTE SCRIPT nonexistent", line_no=1),
+        ]
+        issues = _lint_script(_make_cmdlist(cmds))
+        warnings = [msg for s, _, _, msg in issues if s == "warning" and "nonexistent" in msg]
+        assert warnings
+
+    def test_execute_script_if_exists_unknown_no_warning(self):
+        """EXECUTE SCRIPT IF EXISTS targeting unknown block should not warn."""
+        cmds = [
+            _make_metacmd("EXECUTE SCRIPT IF EXISTS nonexistent", line_no=1),
+        ]
+        issues = _lint_script(_make_cmdlist(cmds))
+        warnings = [msg for s, _, _, msg in issues if s == "warning" and "nonexistent" in msg]
+        assert not warnings
+
+    def test_execute_script_structural_issues_reported(self):
+        """Structural issues in the script block should be reported."""
+        script_cmds = [
+            _make_metacmd("IF (IS_TRUE x)", source="test.sql", line_no=10),
+            # Missing ENDIF
+        ]
+        original = self._setup_savedscripts(script_cmds)
+        try:
+            cmds = [
+                _make_metacmd("EXECUTE SCRIPT myscript", line_no=1),
+            ]
+            issues = _lint_script(_make_cmdlist(cmds))
+            errors = [msg for s, _, _, msg in issues if s == "error"]
+            assert errors
+            assert any("myscript" in msg for msg in errors)
+        finally:
+            self._restore_savedscripts(original)
+
+    def test_exec_script_shorthand(self):
+        """EXEC SCRIPT (shorthand) should also work."""
+        script_cmds = [
+            _make_metacmd("SUB myvar hello", source="test.sql", line_no=10),
+        ]
+        original = self._setup_savedscripts(script_cmds)
+        try:
+            cmds = [
+                _make_metacmd("EXEC SCRIPT myscript", line_no=1),
+                _make_metacmd("WRITE !!myvar!!", line_no=2),
+            ]
+            issues = _lint_script(_make_cmdlist(cmds))
+            warnings = [msg for s, _, _, msg in issues if s == "warning" and "myvar" in msg]
+            assert not warnings
+        finally:
+            self._restore_savedscripts(original)
+
+    def test_run_script_alias(self):
+        """RUN SCRIPT should also work."""
+        script_cmds = [
+            _make_metacmd("SUB myvar hello", source="test.sql", line_no=10),
+        ]
+        original = self._setup_savedscripts(script_cmds)
+        try:
+            cmds = [
+                _make_metacmd("RUN SCRIPT myscript", line_no=1),
+                _make_metacmd("WRITE !!myvar!!", line_no=2),
+            ]
+            issues = _lint_script(_make_cmdlist(cmds))
+            warnings = [msg for s, _, _, msg in issues if s == "warning" and "myvar" in msg]
+            assert not warnings
+        finally:
+            self._restore_savedscripts(original)
+
+    def test_circular_script_reference_no_infinite_loop(self):
+        """Circular EXECUTE SCRIPT references should not cause infinite recursion."""
+        import execsql.state as _state
+
+        # Script A executes script B, script B executes script A
+        script_a_cmds = [
+            _make_metacmd("EXECUTE SCRIPT script_b", source="test.sql", line_no=10),
+        ]
+        script_b_cmds = [
+            _make_metacmd("EXECUTE SCRIPT script_a", source="test.sql", line_no=20),
+        ]
+        original = getattr(_state, "savedscripts", {}).copy()
+        _state.savedscripts = {
+            "script_a": _make_cmdlist(script_a_cmds),
+            "script_b": _make_cmdlist(script_b_cmds),
+        }
+        try:
+            cmds = [
+                _make_metacmd("EXECUTE SCRIPT script_a", line_no=1),
+            ]
+            # Should not raise RecursionError
+            issues = _lint_script(_make_cmdlist(cmds))
+            assert isinstance(issues, list)
+        finally:
+            _state.savedscripts = original
+
+
+# ---------------------------------------------------------------------------
 # CLI integration (Typer runner)
 # ---------------------------------------------------------------------------
 
@@ -471,3 +716,28 @@ class TestLintCli:
         script.write_text("-- just a comment\n")
         result = CliRunner().invoke(app, ["--lint", str(script)], catch_exceptions=False)
         assert result.exit_code == 0
+
+    def test_lint_execute_script_propagates_vars(self, tmp_path):
+        """Variables set in a script block should not warn after EXECUTE SCRIPT."""
+        from typer.testing import CliRunner
+
+        from execsql.cli import app
+
+        script = tmp_path / "main.sql"
+        script.write_text(
+            textwrap.dedent(
+                """\
+                -- !x! sub myvar SomeValue
+                -- !x! execute script set_vars
+                -- !x! write "!!run_tag!!"
+                -- !x! write "Done"
+
+                -- !x! begin script set_vars
+                    -- !x! sub run_tag 001
+                -- !x! end script set_vars
+                """,
+            ),
+        )
+        result = CliRunner().invoke(app, ["--lint", str(script)], catch_exceptions=False)
+        assert result.exit_code == 0
+        assert "run_tag" not in result.output

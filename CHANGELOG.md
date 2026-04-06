@@ -11,6 +11,19 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Changed
+
+- `--lint` static analysis improvements:
+    - Track `SUB_EMPTY`, `SUB_ADD`, `SUB_APPEND`, and `SUBDATA` as variable definitions, eliminating false undefined-variable warnings.
+    - Descend into named script blocks via `EXECUTE SCRIPT` / `EXEC SCRIPT` / `RUN SCRIPT` so variables defined inside are visible to the caller.
+    - Two-pass variable collection: definition order no longer matters. Variables can be referenced before their SUB definition without false warnings.
+    - Read `SUB_INI` INI files at lint time and register section keys as defined variables.
+    - Auto-discover built-in system variables by scanning installed source instead of a hand-maintained list.
+    - Exclude `$COUNTER_N` variables from undefined-variable warnings.
+    - Warn when `EXECUTE SCRIPT` targets a non-existent script block (respects `IF EXISTS`).
+    - Eliminate duplicate warnings for script blocks reached via multiple execution paths.
+    - Sort errors before warnings, both by line number. Pad location columns for alignment.
+
 ______________________________________________________________________
 
 ## [2.13.1] - 2026-04-04
