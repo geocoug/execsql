@@ -242,16 +242,6 @@ class TestConsoleBackend:
         assert result["return_value"] == "my value"
         assert result["button"] == 1
 
-    def test_show_display_free_mode(self, monkeypatch):
-        monkeypatch.setattr("builtins.input", lambda *a: "")
-        result = self.backend.show_display(
-            {
-                "message": "Free display",
-                "free": True,
-            },
-        )
-        assert result["button"] == 1
-
     def test_show_open_file(self, monkeypatch):
         monkeypatch.setattr("builtins.input", lambda *a: "/tmp/myfile.csv")
         result = self.backend.show_open_file({"working_dir": "/tmp"})
@@ -299,7 +289,7 @@ class TestConsoleBackend:
         monkeypatch.setattr("builtins.input", lambda *a: next(inputs))
         result = self.backend.show_entry_form({"entry_specs": [spec]})
         assert result["button"] == 1
-        assert spec.value == "True"
+        assert spec.value == "1"
 
     def test_show_compare(self, monkeypatch):
         monkeypatch.setattr("builtins.input", lambda *a: "1")
@@ -1066,8 +1056,56 @@ class TestConsoleBackendExtended:
         self.backend.show_entry_form({"entry_specs": [spec]})
         assert spec.value == "a"
 
+    def test_show_entry_form_listbox(self, monkeypatch):
+        """Listbox returns comma-separated single-quoted values."""
+        spec = EntrySpec("$X", "X", entry_type="listbox", lookup_list=["a", "b", "c"])
+        inputs = iter(["1,3", "y"])
+        monkeypatch.setattr("builtins.input", lambda *a: next(inputs))
+        self.backend.show_entry_form({"entry_specs": [spec]})
+        assert spec.value == "'a','c'"
+
+    def test_show_entry_form_radiobuttons(self, monkeypatch):
+        """Radiobuttons returns the selected button number as a string."""
+        spec = EntrySpec("$X", "Choose;Red;Green;Blue", entry_type="radiobuttons")
+        inputs = iter(["2", "y"])
+        monkeypatch.setattr("builtins.input", lambda *a: next(inputs))
+        self.backend.show_entry_form({"entry_specs": [spec]})
+        assert spec.value == "2"
+
+    def test_show_entry_form_radiobuttons_invalid_then_valid(self, monkeypatch):
+        """Radiobuttons loops until a valid choice is entered."""
+        spec = EntrySpec("$X", "Choose;A;B", entry_type="radiobuttons")
+        inputs = iter(["99", "1", "y"])
+        monkeypatch.setattr("builtins.input", lambda *a: next(inputs))
+        self.backend.show_entry_form({"entry_specs": [spec]})
+        assert spec.value == "1"
+
+    def test_show_entry_form_textarea(self, monkeypatch):
+        """Textarea collects multi-line input until blank line."""
+        spec = EntrySpec("$X", "Notes", entry_type="textarea")
+        inputs = iter(["line1", "line2", "", "y"])
+        monkeypatch.setattr("builtins.input", lambda *a: next(inputs))
+        self.backend.show_entry_form({"entry_specs": [spec]})
+        assert spec.value == "line1\nline2"
+
+    def test_show_entry_form_inputfile(self, monkeypatch):
+        """Inputfile falls back to text input in console."""
+        spec = EntrySpec("$X", "File", entry_type="inputfile")
+        inputs = iter(["/tmp/test.csv", "y"])
+        monkeypatch.setattr("builtins.input", lambda *a: next(inputs))
+        self.backend.show_entry_form({"entry_specs": [spec]})
+        assert spec.value == "/tmp/test.csv"
+
+    def test_show_entry_form_outputfile(self, monkeypatch):
+        """Outputfile falls back to text input in console."""
+        spec = EntrySpec("$X", "Output", entry_type="outputfile")
+        inputs = iter(["/tmp/out.csv", "y"])
+        monkeypatch.setattr("builtins.input", lambda *a: next(inputs))
+        self.backend.show_entry_form({"entry_specs": [spec]})
+        assert spec.value == "/tmp/out.csv"
+
     # ------------------------------------------------------------------
-    # show_select_sub — row selection (lines 236-245)
+    # show_select_sub — row selection
     # ------------------------------------------------------------------
 
     def test_show_select_sub_cancel_returns_none(self, monkeypatch):

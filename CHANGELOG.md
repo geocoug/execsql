@@ -11,6 +11,27 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Added
+
+- Row count footer displayed below every table in GUI dialogs (Textual TUI, Tkinter desktop, and console fallback). Shows format like "3 rows" or "1 row" with comma-separated thousands for large counts.
+- Help URL button in all GUI dialogs that support the `HELP` keyword. Clicking the button opens the URL in the system browser. Console fallback prints the URL.
+- Diff summary line in compare dialogs showing matching, differing, and table-exclusive row counts (e.g., "3 matching | 1 differing | 2 only in Table 1").
+- "Highlight Diffs" toggle button in compare dialogs (Textual and Tkinter) that color-codes rows: green for matching, yellow for changed, red for rows only in one table.
+
+### Fixed
+
+- `CONFIG GUI_LEVEL` now accepts value `3` (open GUI console on start), matching the `gui_level` configuration file setting.
+- `PROMPT COMPARE` now respects the `AND` vs `BESIDE` keyword: `AND` stacks tables vertically, `BESIDE` displays them side-by-side. Previously both orientations displayed side-by-side.
+- `PROMPT ENTRY_FORM` now renders all documented `entry_type` values: `listbox` (multi-select list), `radiobuttons` (radio button group), `textarea` (multi-line text area), `inputfile` and `outputfile` (text field with file browser button). Previously only `checkbox` and `dropdown`/`select` were implemented; all others fell through to a plain text input.
+
+### Removed
+
+- `FREE` keyword from `PROMPT DISPLAY` metacommand. The non-blocking display behavior was only implemented in the console backend; Textual and Tkinter backends ignored it.
+
+- Tkinter dialog buttons are now right-aligned (matching the Textual TUI layout) instead of centered.
+
+- Tkinter dialog message text is now left-aligned instead of center-justified.
+
 ______________________________________________________________________
 
 ## [2.13.2] - 2026-04-06

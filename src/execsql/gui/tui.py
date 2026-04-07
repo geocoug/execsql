@@ -45,22 +45,32 @@ from textual.widgets import (
     Button,
     Checkbox,
     DataTable,
+    DirectoryTree,
     Footer,
     Header,
     Input,
     Label,
     ProgressBar,
+    RadioButton,
+    RadioSet,
     RichLog,
     Select,
+    SelectionList,
     Static,
 )
 
 __all__ = ["TextualBackend"]
 
+from execsql.gui.base import compare_stats as _compare_stats
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+
+def _row_count_text(n: int) -> str:
+    """Return a human-readable row count string, e.g. '3 rows' or '1 row'."""
+    return f"{n:,} row{'s' if n != 1 else ''}"
 
 
 def _make_table_widget(table_id: str, headers: list, rows: list) -> DataTable:
@@ -70,6 +80,13 @@ def _make_table_widget(table_id: str, headers: list, rows: list) -> DataTable:
     for row in rows:
         dt.add_row(*[str(c) if c is not None else "" for c in row])
     return dt
+
+
+def _help_button(url: str | None) -> Button | None:
+    """Return a Help button if *url* is truthy, otherwise None."""
+    if url:
+        return Button("Help", id="btn_help", variant="default")
+    return None
 
 
 def _button_row(button_list: list) -> list[Button]:
@@ -139,10 +156,19 @@ class _BaseDialog(ModalScreen):
     }
     DataTable {
         max-height: 15;
+        margin-bottom: 0;
+    }
+    .row-count {
+        color: $text-muted;
         margin-bottom: 1;
     }
     Input {
         margin-bottom: 1;
+    }
+    #btn_help {
+        dock: right;
+        margin: 0 0 1 1;
+        min-width: 8;
     }
     """
 
@@ -167,6 +193,16 @@ class _BaseDialog(ModalScreen):
         self._result = {"button": None, "cancelled": True}
         self.dismiss(self._result)
 
+    @on(Button.Pressed, "#btn_help")
+    def _on_help(self, event: Button.Pressed) -> None:
+        """Open the help URL in the system browser without dismissing the dialog."""
+        event.stop()
+        import webbrowser
+
+        url = self.args.get("help_url", "")
+        if url:
+            webbrowser.open(url)
+
 
 # ---------------------------------------------------------------------------
 # MSG dialog
@@ -190,7 +226,6 @@ class MsgScreen(_BaseDialog):
             with Horizontal(id="buttons"):
                 yield Button("Cancel", id="btn_cancel_exit", variant="warning")
                 yield Button("Continue", id="btn_close", variant="primary")
-            yield Footer()
 
     def action_submit(self) -> None:
         """Continue the dialog (triggered by Enter key)."""
@@ -225,7 +260,6 @@ class PauseScreen(_BaseDialog):
             with Horizontal(id="buttons"):
                 yield Button("Cancel", id="btn_cancel_exit", variant="warning")
                 yield Button("Continue", id="btn_continue", variant="primary")
-            yield Footer()
 
     def on_mount(self) -> None:
         countdown = self.args.get("countdown")
@@ -273,11 +307,15 @@ class DisplayScreen(_BaseDialog):
         with Container(id="dialog"):
             if title:
                 yield Label(title, id="title")
+            help_btn = _help_button(self.args.get("help_url"))
+            if help_btn:
+                yield help_btn
             if message:
                 yield Static(message, id="message")
             if headers and rows:
                 with ScrollableContainer(id="table_container"):
                     yield _make_table_widget("main_table", headers, rows)
+                yield Static(_row_count_text(len(rows)), classes="row-count")
             if textentry:
                 yield Input(
                     value=initial,
@@ -287,7 +325,6 @@ class DisplayScreen(_BaseDialog):
                 )
             with Horizontal(id="buttons"):
                 yield from _button_row(button_list)
-            yield Footer()
 
     def action_submit(self) -> None:
         """Submit the first primary button value (triggered by Enter key)."""
@@ -334,7 +371,8 @@ class EntryFormScreen(_BaseDialog):
         _BaseDialog.DEFAULT_CSS
         + """
     .field-row {
-        height: 3;
+        height: auto;
+        min-height: 3;
         margin-bottom: 1;
     }
     .field-label {
@@ -362,72 +400,166 @@ class EntryFormScreen(_BaseDialog):
         with Container(id="dialog"):
             if title:
                 yield Label(title, id="title")
+            help_btn = _help_button(self.args.get("help_url"))
+            if help_btn:
+                yield help_btn
             if message:
                 yield Static(message, id="message")
             if headers and rows:
                 with ScrollableContainer():
                     yield _make_table_widget("form_table", headers, rows)
+                yield Static(_row_count_text(len(rows)), classes="row-count")
             with ScrollableContainer(id="fields"):
                 for spec in specs:
                     etype = (spec.entry_type or "text").lower()
                     field_id = f"field_{spec.varname}"
-                    with Horizontal(classes="field-row"):
-                        yield Label(spec.label or spec.varname, classes="field-label")
-                        if etype == "checkbox":
-                            initial = (spec.initial_value or "").lower() in ("true", "1", "yes")
-                            cb = Checkbox(label="", value=initial, id=field_id)
-                            yield cb
-                            self._inputs[spec.varname] = cb
-                        elif etype in ("dropdown", "select") and spec.lookup_list:
-                            options = [(v, v) for v in spec.lookup_list]
-                            initial = spec.initial_value or (spec.lookup_list[0] if spec.lookup_list else "")
-                            sel = Select(options=options, value=initial, id=field_id)
-                            yield sel
-                            self._inputs[spec.varname] = sel
-                        else:
-                            inp = Input(
-                                value=spec.initial_value or "",
-                                id=field_id,
-                                classes="field-input",
-                            )
-                            yield inp
-                            self._inputs[spec.varname] = inp
+                    # Compute the display label (radiobuttons uses semicolon-delimited)
+                    if etype == "radiobuttons":
+                        parts = (spec.label or "").split(";")
+                        field_label = parts[0].strip() if parts else (spec.varname or "")
+                    else:
+                        field_label = spec.label or spec.varname or ""
+
+                    if etype == "listbox" and spec.lookup_list:
+                        # Multi-row widget — render label + SelectionList vertically
+                        yield Static(field_label, classes="row-count")
+                        height = spec.default_height or 4
+                        sl = SelectionList[str](
+                            *[(str(v), str(v), False) for v in spec.lookup_list if v is not None],
+                            id=field_id,
+                        )
+                        sl.styles.height = height + 2
+                        yield sl
+                        self._inputs[spec.varname] = sl
+                    elif etype == "radiobuttons":
+                        # Multi-row widget — render label + RadioSet vertically
+                        yield Static(field_label, classes="row-count")
+                        buttons = parts[1:] if len(parts) > 1 else ["Option"]
+                        rs = RadioSet(
+                            *[RadioButton(str(b).strip()) for b in buttons if b is not None],
+                            id=field_id,
+                        )
+                        yield rs
+                        self._inputs[spec.varname] = rs
+                    else:
+                        # Single-row widgets — render in a Horizontal row
+                        with Horizontal(classes="field-row"):
+                            yield Label(field_label, classes="field-label")
+                            if etype == "checkbox":
+                                initial = (spec.initial_value or "").lower() in ("true", "1", "yes")
+                                cb = Checkbox(label="", value=initial, id=field_id)
+                                yield cb
+                                self._inputs[spec.varname] = cb
+                            elif etype in ("dropdown", "select") and spec.lookup_list:
+                                # Input with placeholder (Select overlay crashes in modal dialogs)
+                                valid = ", ".join(str(v) for v in spec.lookup_list if v is not None)
+                                inp = Input(
+                                    value=spec.initial_value or str(spec.lookup_list[0] or ""),
+                                    id=field_id,
+                                    classes="field-input",
+                                    placeholder=f"Choose: {valid}",
+                                )
+                                yield inp
+                                self._inputs[spec.varname] = inp
+                            elif etype == "textarea":
+                                inp = Input(
+                                    value=str(spec.initial_value) if spec.initial_value else "",
+                                    id=field_id,
+                                    classes="field-input",
+                                    placeholder="Enter text",
+                                )
+                                yield inp
+                                self._inputs[spec.varname] = inp
+                            elif etype in ("inputfile", "outputfile"):
+                                inp = Input(
+                                    value=str(spec.initial_value) if spec.initial_value else "",
+                                    id=field_id,
+                                    classes="field-input",
+                                    placeholder="Enter file path or click Browse",
+                                )
+                                yield inp
+                                yield Button(
+                                    "Browse…",
+                                    id=f"browse_{spec.varname}",
+                                    variant="default",
+                                )
+                                self._inputs[spec.varname] = inp
+                            else:
+                                inp = Input(
+                                    value=str(spec.initial_value) if spec.initial_value else "",
+                                    id=field_id,
+                                    classes="field-input",
+                                )
+                                yield inp
+                                self._inputs[spec.varname] = inp
+            # File browser panel (hidden by default, shown when Browse is clicked)
+            dt = DirectoryTree(".", id="file_tree")
+            dt.styles.height = 10
+            dt.styles.display = "none"
+            yield dt
             with Horizontal(id="buttons"):
                 yield Button("Cancel", id="btn_cancel_exit", variant="warning")
                 yield Button("OK", id="btn_ok", variant="primary")
-            yield Footer()
 
         self._specs = specs
+        self._browse_target: str | None = None
 
-    def action_submit(self) -> None:
-        """Submit the form (triggered by Enter key)."""
+    def _on_browse_pressed(self, event: Button.Pressed) -> None:
+        """Show/hide the file browser when a Browse button is clicked."""
+        btn_id = event.button.id or ""
+        if not btn_id.startswith("browse_"):
+            return
+        event.stop()
+        varname = btn_id[len("browse_") :]
+        tree = self.query_one("#file_tree", DirectoryTree)
+        if tree.styles.display == "none":
+            self._browse_target = varname
+            tree.styles.display = "block"
+            tree.focus()
+        else:
+            tree.styles.display = "none"
+            self._browse_target = None
+
+    def on_directory_tree_file_selected(self, event: DirectoryTree.FileSelected) -> None:
+        """Populate the target Input with the selected file path."""
+        if self._browse_target and self._browse_target in self._inputs:
+            widget = self._inputs[self._browse_target]
+            widget.value = str(event.path)
+        tree = self.query_one("#file_tree", DirectoryTree)
+        tree.styles.display = "none"
+        self._browse_target = None
+
+    def _collect_values(self) -> None:
+        """Read widget values into the EntrySpec objects."""
         for spec in self._specs:
             widget = self._inputs.get(spec.varname)
             if widget is None:
                 continue
             etype = (spec.entry_type or "text").lower()
             if etype == "checkbox":
-                spec.value = "True" if widget.value else "False"
-            elif etype in ("dropdown", "select"):
-                spec.value = str(widget.value) if widget.value is not None else ""
+                spec.value = "1" if widget.value else "0"
+            elif etype == "listbox" and isinstance(widget, SelectionList):
+                selected = widget.selected
+                items = [str(widget.get_option_at_index(i).value) for i in selected]
+                spec.value = ",".join(f"'{v.replace(chr(39), chr(39) + chr(39))}'" for v in items)
+            elif etype == "radiobuttons" and isinstance(widget, RadioSet):
+                spec.value = str(widget.pressed_index + 1) if widget.pressed_index >= 0 else "1"
             else:
                 spec.value = widget.value
+
+    def action_submit(self) -> None:
+        """Submit the form (triggered by Enter key)."""
+        self._collect_values()
         self._result = {"button": 1, "return_value": self._specs}
         self.dismiss(self._result)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "btn_ok":
-            for spec in self._specs:
-                widget = self._inputs.get(spec.varname)
-                if widget is None:
-                    continue
-                etype = (spec.entry_type or "text").lower()
-                if etype == "checkbox":
-                    spec.value = "True" if widget.value else "False"
-                elif etype in ("dropdown", "select"):
-                    spec.value = str(widget.value) if widget.value is not None else ""
-                else:
-                    spec.value = widget.value
+        btn_id = event.button.id or ""
+        if btn_id.startswith("browse_"):
+            self._on_browse_pressed(event)
+            return
+        if btn_id == "btn_ok":
+            self._collect_values()
             self._result = {"button": 1, "return_value": self._specs}
             self.dismiss(self._result)
 
@@ -448,13 +580,29 @@ class CompareScreen(_BaseDialog):
     DEFAULT_CSS = (
         _BaseDialog.DEFAULT_CSS
         + """
-    #tables {
+    #tables_scroll {
         height: 1fr;
-        min-height: 10;
+        min-height: 8;
+    }
+    #tables {
+        height: auto;
     }
     .compare-table {
         width: 1fr;
+        height: auto;
         margin: 0 1;
+    }
+    .compare-table DataTable {
+        height: auto;
+        max-height: 10;
+    }
+    #diff_toolbar {
+        height: auto;
+        margin-bottom: 1;
+    }
+    #diff_legend {
+        color: $text-muted;
+        margin-bottom: 1;
     }
     """
     )
@@ -468,6 +616,9 @@ class CompareScreen(_BaseDialog):
         self._kv_to_ridx2: dict = {}
         self._col_keys1: list = []
         self._col_keys2: list = []
+        self._diff_on = False
+        self._original_cells1: dict = {}
+        self._original_cells2: dict = {}
 
     def compose(self) -> ComposeResult:
         title = self.args.get("title", "Compare")
@@ -477,22 +628,44 @@ class CompareScreen(_BaseDialog):
         headers2 = self.args.get("headers2", [])
         rows2 = self.args.get("rows2", [])
         button_list = self.args.get("button_list", [("Continue", 1)])
+        sidebyside = self.args.get("sidebyside", True)
+        tables_container = Horizontal if sidebyside else Vertical
 
         with Container(id="dialog"):
             if title:
                 yield Label(title, id="title")
+            help_btn = _help_button(self.args.get("help_url"))
+            if help_btn:
+                yield help_btn
             if message:
                 yield Static(message, id="message")
-            with Horizontal(id="tables"):
+            if self.args.get("keylist"):
+                with Horizontal(id="diff_toolbar"):
+                    yield Button("Highlight Diffs", id="btn_diff_toggle", variant="default")
+                    yield Static(
+                        "  [on #2d5a2d] Match [/]  [on #5a4b00] Changed [/]  [on #5a1a1a] Only in one [/]",
+                        id="diff_legend",
+                    )
+            with ScrollableContainer(id="tables_scroll"), tables_container(id="tables"):
                 with Vertical(classes="compare-table"):
                     yield Label("Table 1")
                     yield _make_table_widget("table1", headers1, rows1)
+                    yield Static(_row_count_text(len(rows1)), classes="row-count")
                 with Vertical(classes="compare-table"):
                     yield Label("Table 2")
                     yield _make_table_widget("table2", headers2, rows2)
+                    yield Static(_row_count_text(len(rows2)), classes="row-count")
+            summary = _compare_stats(
+                headers1,
+                rows1,
+                headers2,
+                rows2,
+                [str(k) for k in self.args.get("keylist", [])],
+            )
+            if summary:
+                yield Static(summary, classes="row-count")
             with Horizontal(id="buttons"):
                 yield from _button_row(button_list)
-            yield Footer()
 
     def on_mount(self) -> None:
         keylist = [str(k) for k in self.args.get("keylist", [])]
@@ -541,6 +714,71 @@ class CompareScreen(_BaseDialog):
             other.move_cursor(row=match_ridx, animate=False)
         finally:
             self._syncing = False
+
+    @on(Button.Pressed, "#btn_diff_toggle")
+    def _on_diff_toggle(self, event: Button.Pressed) -> None:
+        """Toggle row-level diff highlighting in both tables."""
+        event.stop()
+        from rich.text import Text
+
+        self._diff_on = not self._diff_on
+        t1: DataTable = self.query_one("#table1", DataTable)
+        t2: DataTable = self.query_one("#table2", DataTable)
+        rows1 = self.args.get("rows1", [])
+        rows2 = self.args.get("rows2", [])
+        row_keys1 = list(t1.rows.keys())
+        row_keys2 = list(t2.rows.keys())
+
+        if not self._diff_on:
+            # Restore original cell values
+            for (rk, ck), val in self._original_cells1.items():
+                t1.update_cell(rk, ck, val)
+            for (rk, ck), val in self._original_cells2.items():
+                t2.update_cell(rk, ck, val)
+            self._original_cells1.clear()
+            self._original_cells2.clear()
+            return
+
+        keys1_set = set(self._kv_to_ridx1.keys())
+        keys2_set = set(self._kv_to_ridx2.keys())
+        ridx_to_kv1 = {v: k for k, v in self._kv_to_ridx1.items()}
+        ridx_to_kv2 = {v: k for k, v in self._kv_to_ridx2.items()}
+        row_map1 = {k: rows1[i] for k, i in self._kv_to_ridx1.items()}
+        row_map2 = {k: rows2[i] for k, i in self._kv_to_ridx2.items()}
+
+        # Muted colors suitable for dark terminal themes
+        style_match = "on #2d5a2d"
+        style_changed = "on #5a4b00"
+        style_only = "on #5a1a1a"
+
+        def _style_table(
+            table: DataTable,
+            originals: dict,
+            row_keys: list,
+            col_keys: list,
+            data_rows: list,
+            ridx_to_kv: dict,
+            other_keys_set: set,
+            other_row_map: dict,
+        ) -> None:
+            for ridx in range(len(data_rows)):
+                kv = ridx_to_kv.get(ridx)
+                if kv is None:
+                    continue
+                rk = row_keys[ridx]
+                if kv not in other_keys_set:
+                    style = style_only
+                else:
+                    r_self = [str(v) if v is not None else "" for v in data_rows[ridx]]
+                    r_other = [str(v) if v is not None else "" for v in other_row_map[kv]]
+                    style = style_match if r_self == r_other else style_changed
+                for ck in col_keys:
+                    val = table.get_cell(rk, ck)
+                    originals[(rk, ck)] = val
+                    table.update_cell(rk, ck, Text(str(val), style=style))
+
+        _style_table(t1, self._original_cells1, row_keys1, self._col_keys1, rows1, ridx_to_kv1, keys2_set, row_map2)
+        _style_table(t2, self._original_cells2, row_keys2, self._col_keys2, rows2, ridx_to_kv2, keys1_set, row_map1)
 
     def action_submit(self) -> None:
         """Submit the first primary button value (triggered by Enter key)."""
@@ -599,6 +837,9 @@ class SelectRowsScreen(_BaseDialog):
         with Container(id="dialog"):
             if title:
                 yield Label(title, id="title")
+            help_btn = _help_button(self.args.get("help_url"))
+            if help_btn:
+                yield help_btn
             if message:
                 yield Static(message, id="message")
             yield Static("Double-click or press Enter on a row to add it to the right table.", id="hint")
@@ -606,12 +847,13 @@ class SelectRowsScreen(_BaseDialog):
                 with Vertical(classes="sel-table"):
                     yield Label("Source (select rows)")
                     yield _make_table_widget("source_table", headers1, rows1)
+                    yield Static(_row_count_text(len(rows1)), classes="row-count")
                 with Vertical(classes="sel-table"):
                     yield Label("Destination")
                     yield _make_table_widget("dest_table", headers2, rows2)
+                    yield Static(_row_count_text(len(rows2)), classes="row-count")
             with Horizontal(id="buttons"):
                 yield from _button_row(button_list)
-            yield Footer()
 
     def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
         if event.data_table.id == "source_table":
@@ -662,11 +904,15 @@ class SelectSubScreen(_BaseDialog):
         with Container(id="dialog"):
             if title:
                 yield Label(title, id="title")
+            help_btn = _help_button(self.args.get("help_url"))
+            if help_btn:
+                yield help_btn
             if message:
                 yield Static(message, id="message")
             yield Static("Click a row to select it.", id="hint")
             with ScrollableContainer():
                 yield _make_table_widget("sel_table", headers, rows)
+            yield Static(_row_count_text(len(rows)), classes="row-count")
             with Horizontal(id="buttons"):
                 yield from _button_row(button_list)
 
@@ -708,17 +954,20 @@ class ActionScreen(_BaseDialog):
         with Container(id="dialog"):
             if title:
                 yield Label(title, id="title")
+            help_btn = _help_button(self.args.get("help_url"))
+            if help_btn:
+                yield help_btn
             if message:
                 yield Static(message, id="message")
             if headers and rows:
                 with ScrollableContainer():
                     yield _make_table_widget("action_table", headers, rows)
+                yield Static(_row_count_text(len(rows)), classes="row-count")
             with Vertical(id="action_buttons"):
                 for i, spec in enumerate(button_specs):
                     yield Button(f"{spec.label} — {spec.prompt}", id=f"action_{i}", variant="primary")
                 if include_continue:
                     yield Button("Continue", id="action_continue", variant="default")
-            yield Footer()
 
         self._button_specs = button_specs
 
@@ -756,6 +1005,7 @@ class MapScreen(_BaseDialog):
             if headers and rows:
                 with ScrollableContainer():
                     yield _make_table_widget("map_table", headers, rows)
+                yield Static(_row_count_text(len(rows)), classes="row-count")
             with Horizontal(id="buttons"):
                 yield from _button_row(button_list)
 
@@ -907,6 +1157,9 @@ class ConnectScreen(_BaseDialog):
         message = self.args.get("message", "")
         with Container(id="dialog"):
             yield Label("Connect to Database", id="title")
+            help_btn = _help_button(self.args.get("help_url"))
+            if help_btn:
+                yield help_btn
             if message:
                 yield Static(message, id="message")
             with Horizontal(classes="field-row"):

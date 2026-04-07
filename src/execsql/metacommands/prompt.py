@@ -62,7 +62,6 @@ def x_prompt(**kwargs: Any) -> None:
     table = kwargs["table"]
     message = kwargs["message"]
     help_url = unquoted(kwargs["help"])
-    free = kwargs["free"] is not None
     sq_name = db.schema_qualified_table_name(schema, table)
     script, line_no = current_script_line()
     cmd = f"select * from {sq_name};"
@@ -76,16 +75,14 @@ def x_prompt(**kwargs: Any) -> None:
         "column_headers": colnames,
         "rowset": rows,
         "help_url": help_url,
-        "free": free,
     }
     _state.gui_manager_queue.put(GuiSpec(GUI_DISPLAY, gui_args, return_queue))
-    if not free:
-        user_response = return_queue.get(block=True)
-        btn = user_response["button"]
-        if not btn and _state.status.cancel_halt:
-            msg = f"Halted from display of {sq_name}"
-            _state.exec_log.log_exit_halt(script, line_no, msg)
-            exit_now(2, None)
+    user_response = return_queue.get(block=True)
+    btn = user_response["button"]
+    if not btn and _state.status.cancel_halt:
+        msg = f"Halted from display of {sq_name}"
+        _state.exec_log.log_exit_halt(script, line_no, msg)
+        exit_now(2, None)
     return None
 
 
@@ -119,7 +116,6 @@ def x_prompt_enter(**kwargs: Any) -> None:
         "textentrycase": textcase,
         "initialtext": initial,
         "help_url": help_url,
-        "free": False,
     }
     _state.gui_manager_queue.put(GuiSpec(GUI_DISPLAY, gui_args, return_queue))
     user_response = return_queue.get(block=True)
@@ -862,7 +858,6 @@ def x_ask(**kwargs: Any) -> None:
             "title": script,
             "message": kwargs["question"],
             "button_list": [("Yes", 1, "y"), ("No", 0, "n")],
-            "free": False,
         }
         _state.gui_manager_queue.put(GuiSpec(GUI_DISPLAY, gui_args, return_queue))
         user_response = return_queue.get(block=True)

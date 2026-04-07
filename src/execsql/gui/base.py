@@ -8,7 +8,58 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     pass
 
-__all__ = ["GuiBackend"]
+__all__ = ["GuiBackend", "compare_stats"]
+
+
+def compare_stats(
+    headers1: list,
+    rows1: list,
+    headers2: list,
+    rows2: list,
+    keylist: list,
+) -> str:
+    """Return a one-line diff summary for compare dialogs.
+
+    Computes matching rows, differing rows, and rows only in one table
+    based on the given key columns.  Returns an empty string when *keylist*
+    is empty (stats cannot be computed without keys).
+    """
+    if not keylist:
+        return ""
+    key_idx1 = [i for i, h in enumerate(headers1) if str(h) in keylist]
+    key_idx2 = [i for i, h in enumerate(headers2) if str(h) in keylist]
+    if not key_idx1 or not key_idx2:
+        return ""
+
+    def _kv(row: list | tuple, idxs: list) -> tuple:
+        return tuple(str(row[i]) if row[i] is not None else "" for i in idxs)
+
+    keys1 = {_kv(r, key_idx1) for r in rows1}
+    keys2 = {_kv(r, key_idx2) for r in rows2}
+    only1 = len(keys1 - keys2)
+    only2 = len(keys2 - keys1)
+    common_keys = keys1 & keys2
+    row_map1 = {_kv(r, key_idx1): r for r in rows1}
+    row_map2 = {_kv(r, key_idx2): r for r in rows2}
+    matching = 0
+    differing = 0
+    for k in common_keys:
+        r1 = [str(v) if v is not None else "" for v in row_map1[k]]
+        r2 = [str(v) if v is not None else "" for v in row_map2[k]]
+        if r1 == r2:
+            matching += 1
+        else:
+            differing += 1
+    parts: list[str] = []
+    if matching:
+        parts.append(f"{matching:,} matching")
+    if differing:
+        parts.append(f"{differing:,} differing")
+    if only1:
+        parts.append(f"{only1:,} only in Table 1")
+    if only2:
+        parts.append(f"{only2:,} only in Table 2")
+    return " | ".join(parts) if parts else "Tables are identical"
 
 
 class GuiBackend(ABC):

@@ -857,7 +857,7 @@ def build_dispatch_table() -> MetaCommandList:
         x_write_warnings,
     )
     mcl.add(
-        r"^\s*CONFIG\s+GUI_LEVEL\s+(?P<level>[0-2])\s*$",
+        r"^\s*CONFIG\s+GUI_LEVEL\s+(?P<level>[0-3])\s*$",
         x_gui_level,
         description="GUI_LEVEL",
         category="config_option",
@@ -1527,6 +1527,7 @@ def build_dispatch_table() -> MetaCommandList:
     # ------------------------------------------------------------------
     # PROMPT COMPARE / PROMPT ASK COMPARE
     # ------------------------------------------------------------------
+    # HELP before MESSAGE (documented order)
     mcl.add(
         ins_table_rxs(
             r"^\s*PROMPT\s+COMPARE\s+",
@@ -1549,6 +1550,33 @@ def build_dispatch_table() -> MetaCommandList:
                 r"(?:\s+IN\s+(?P<alias1>\w+))?\s+(?P<orient>AND|BESIDE)\s+",
                 r'(?:\s+IN\s+(?P<alias2>\w+))?\s+(?:PK|KEY)\s*\((?P<pks>(("[A-Z_0-9]+")|[A-Z_0-9]+)'
                 r'(\s*,\s*(("[A-Z_0-9]+")|[A-Z_0-9]+))*)\)(?:\s+HELP\s+"(?P<help>[^"]+)")?\s+MESSAGE\s+"(?P<msg>(.|\n)*)"\s*$',
+                suffix="2",
+            ),
+            suffix="1",
+        ),
+        x_prompt_compare,
+    )
+    # HELP after MESSAGE (alternate order)
+    mcl.add(
+        ins_table_rxs(
+            r"^\s*PROMPT\s+COMPARE\s+",
+            ins_table_rxs(
+                r"(?:\s+IN\s+(?P<alias1>\w+))?\s+(?P<orient>AND|BESIDE)\s+",
+                r'(?:\s+IN\s+(?P<alias2>\w+))?\s+(?:PK|KEY)\s*\((?P<pks>(("[A-Z_0-9]+")|[A-Z_0-9]+)'
+                r'(\s*,\s*(("[A-Z_0-9]+")|[A-Z_0-9]+))*)\)\s+MESSAGE\s+"(?P<msg>[^"]*)"\s+HELP\s+(?P<help>[^\s]+)\s*$',
+                suffix="2",
+            ),
+            suffix="1",
+        ),
+        x_prompt_compare,
+    )
+    mcl.add(
+        ins_table_rxs(
+            r"^\s*PROMPT\s+COMPARE\s+",
+            ins_table_rxs(
+                r"(?:\s+IN\s+(?P<alias1>\w+))?\s+(?P<orient>AND|BESIDE)\s+",
+                r'(?:\s+IN\s+(?P<alias2>\w+))?\s+(?:PK|KEY)\s*\((?P<pks>(("[A-Z_0-9]+")|[A-Z_0-9]+)'
+                r'(\s*,\s*(("[A-Z_0-9]+")|[A-Z_0-9]+))*)\)\s+MESSAGE\s+"(?P<msg>[^"]*)"\s+HELP\s+"(?P<help>[^"]+)"\s*$',
                 suffix="2",
             ),
             suffix="1",
@@ -2073,7 +2101,7 @@ def build_dispatch_table() -> MetaCommandList:
     mcl.add(
         ins_table_rxs(
             r'^\s*PROMPT\s+MESSAGE\s+"(?P<message>(.|\n)*)"\s+DISPLAY\s+',
-            r"(?:\s+HELP\s+(?P<help>[^\s]+))?(?:\s+(?P<free>FREE))?\s*$",
+            r"(?:\s+HELP\s+(?P<help>[^\s]+))?\s*$",
         ),
         x_prompt,
         description="PROMPT DISPLAY",
@@ -2082,21 +2110,36 @@ def build_dispatch_table() -> MetaCommandList:
     mcl.add(
         ins_table_rxs(
             r'^\s*PROMPT\s+MESSAGE\s+"(?P<message>(.|\n)*)"\s+DISPLAY\s+',
-            r'(?:\s+HELP\s+"(?P<help>[^"]+)")?(?:\s+(?P<free>FREE))?\s*$',
+            r'(?:\s+HELP\s+"(?P<help>[^"]+)")?\s*$',
         ),
         x_prompt,
     )
     mcl.add(
         ins_table_rxs(
             r"^\s*PROMPT\s+DISPLAY\s+",
-            r'\s+MESSAGE\s+"(?P<message>(.|\n)*)"(?:\s+HELP\s+(?P<help>[^\s]+))?(?:\s+(?P<free>FREE))?\s*$',
+            r'\s+MESSAGE\s+"(?P<message>(.|\n)*)"(?:\s+HELP\s+(?P<help>[^\s]+))?\s*$',
         ),
         x_prompt,
     )
     mcl.add(
         ins_table_rxs(
             r"^\s*PROMPT\s+DISPLAY\s+",
-            r'\s+MESSAGE\s+"(?P<message>(.|\n)*)"(?:\s+HELP\s+"(?P<help>[^"]+)")?(?:\s+(?P<free>FREE))?\s*$',
+            r'\s+MESSAGE\s+"(?P<message>(.|\n)*)"(?:\s+HELP\s+"(?P<help>[^"]+)")?\s*$',
+        ),
+        x_prompt,
+    )
+    # PROMPT DISPLAY with HELP after MESSAGE (non-greedy message to avoid capturing HELP)
+    mcl.add(
+        ins_table_rxs(
+            r"^\s*PROMPT\s+DISPLAY\s+",
+            r'\s+MESSAGE\s+"(?P<message>[^"]*)"\s+HELP\s+(?P<help>[^\s]+)\s*$',
+        ),
+        x_prompt,
+    )
+    mcl.add(
+        ins_table_rxs(
+            r"^\s*PROMPT\s+DISPLAY\s+",
+            r'\s+MESSAGE\s+"(?P<message>[^"]*)"\s+HELP\s+"(?P<help>[^"]+)"\s*$',
         ),
         x_prompt,
     )

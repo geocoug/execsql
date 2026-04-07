@@ -417,13 +417,14 @@ This setting is also applied to the conversion of spreadsheet names to table nam
 CONFIG GUI_LEVEL <n>
 ```
 
-The level of interaction with the user that should be carried out using GUI dialogs. The numeric value *n* must be 0, 1, or 2. The meanings of these values are:
+The level of interaction with the user that should be carried out using GUI dialogs. The numeric value *n* must be 0, 1, 2, or 3. The meanings of these values are:
 
 > - 0: Do not use any optional GUI dialogs.
 > - 1: Use GUI dialogs for password prompts and for the [PAUSE](#pause) metacommand.
 > - 2: Also use a GUI dialog if a message is included with the [HALT](#halt) metacommand, and prompt for the initial database to use if no database connection parameters are specified in a configuration file or on the command line.
+> - 3: Additionally, open a GUI console when *execsql* starts.
 
-This is equivalent to the `gui_level` [configuration setting](configuration.md#gui_level) except that the corresponding configuration setting also allows a value of 3.
+This is equivalent to the `gui_level` [configuration setting](configuration.md#gui_level).
 
 
 <a id="config_hdf5"></a>
@@ -2367,7 +2368,7 @@ The selection is [logged](../guides/logging.md#logging).
 
 ```
 PROMPT DISPLAY <table_or_view_name> MESSAGE "<text>"
-    [HELP <url>] [FREE]
+    [HELP <url>]
 ```
 
 Displays the selected view or table in a window with the specified message and both 'Continue' and 'Cancel' buttons. If the 'Continue' button is selected, the script will continue to run. If the 'Cancel' button is selected, the script will immediately halt unless [CANCEL_HALT](#cancel_halt) is set to OFF. The Enter key also carries out the action of the 'Continue' button, and the Escape key carries out the action of the 'Cancel' button.
@@ -2383,8 +2384,6 @@ Clicking on a column header will sort the data table by that column.
 If [CANCEL_HALT](#cancel_halt) is set to OFF, the [DIALOG_CANCELED](#dialog_canceled) conditional test can be used to determine whether or not the dialog was canceled.
 
 If a URL is provided with the HELP keyword, the dialog box will include a button that will open that URL when clicked. The URL must be double-quoted if it contains spaces.
-
-if the FREE keyword is used, the script will keep running when the data table is displayed. The display will have only a "Close" button. If the display is not closed manually, it will be closed automatically when *execsql* finishes processing the script.
 
 
 ## PROMPT ENTER_SUB { #prompt_enter }

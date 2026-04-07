@@ -79,10 +79,13 @@ New options in `execsql.conf`:
 
 ### GUI
 
-| Feature             | Description                                                                                                                                             |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Textual TUI backend | Full terminal-UI backend via the `textual` library. Provides all dialog types (password, pause, message, entry, compare, action, etc.) in the terminal. |
-| Console fallback    | Text-only backend that handles GUI calls in headless environments by printing to stdout.                                                                |
+| Feature              | Description                                                                                                                                             |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Textual TUI backend  | Full terminal-UI backend via the `textual` library. Provides all dialog types (password, pause, message, entry, compare, action, etc.) in the terminal. |
+| Console fallback     | Text-only backend that handles GUI calls in headless environments by printing to stdout.                                                                |
+| Table row counts     | All GUI backends (Tkinter, Textual, Console) display a row count footer below every table widget (e.g. "3 rows", "1 row").                              |
+| Help URL button      | Dialogs that accept the `HELP` keyword display a clickable Help button that opens the URL in the system browser.                                        |
+| Compare diff summary | The compare dialog shows a one-line summary of matching, differing, and table-exclusive rows when key columns are specified.                            |
 
 ### Authentication
 
@@ -235,7 +238,8 @@ ______________________________________________________________________
 
 ## Removed Features
 
-| Feature                     | Reason                                                                                                                                                                                  |
-| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Airspeed template processor | The `airspeed` library (Velocity clone) is unmaintained since ~2018. Use `FORMAT jinja` instead. The `airspeed` value for `template_processor` in `execsql.conf` is no longer accepted. |
-| Python 2 compatibility      | All Python 2 constructs (`stringtypes`, `u""` literals, `optparse`, etc.) have been removed. execsql2 requires Python 3.10+.                                                            |
+| Feature                            | Reason                                                                                                                                                                                  |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Airspeed template processor        | The `airspeed` library (Velocity clone) is unmaintained since ~2018. Use `FORMAT jinja` instead. The `airspeed` value for `template_processor` in `execsql.conf` is no longer accepted. |
+| Python 2 compatibility             | All Python 2 constructs (`stringtypes`, `u""` literals, `optparse`, etc.) have been removed. execsql2 requires Python 3.10+.                                                            |
+| `FREE` keyword on `PROMPT DISPLAY` | The non-blocking display behavior was only implemented in the console backend; the Textual and Tkinter GUI backends ignored it. Removed rather than partially supported.                |

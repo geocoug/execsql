@@ -50,6 +50,27 @@ def _center_window(win: tk.Tk | tk.Toplevel, width: int = 600, height: int = 400
     win.geometry(f"{width}x{height}+{x}+{y}")
 
 
+from execsql.gui.base import compare_stats as _compare_stats
+
+
+def _add_help_button(frame: tk.Frame, url: str | None) -> None:
+    """Add a Help button to the top-right of *frame* that opens *url* in the system browser.
+
+    Uses ``place()`` so the button overlays the top-right corner without
+    consuming vertical space in the pack/grid layout.
+    """
+    if url:
+        import webbrowser
+
+        btn = ttk.Button(frame, text="Help", command=lambda: webbrowser.open(url))
+        btn.place(relx=1.0, x=-4, y=4, anchor="ne")
+
+
+def _row_count_text(n: int) -> str:
+    """Return a human-readable row count string, e.g. '3 rows' or '1 row'."""
+    return f"{n:,} row{'s' if n != 1 else ''}"
+
+
 def _populate_treeview(tree: ttk.Treeview, headers: list, rows: list) -> None:
     """Fill a ttk.Treeview with column headers and data rows."""
     tree["columns"] = [str(h) for h in headers]
@@ -91,7 +112,10 @@ class MsgDialog:
         frame = ttk.Frame(win, padding=12)
         frame.pack(fill=tk.BOTH, expand=True)
 
-        ttk.Label(frame, text=args.get("message", ""), wraplength=480).pack(pady=(0, 12))
+        ttk.Label(frame, text=args.get("message", ""), wraplength=480, anchor="w", justify="left").pack(
+            anchor="w",
+            pady=(0, 12),
+        )
 
         headers = args.get("column_headers")
         rows = args.get("rowset")
@@ -102,9 +126,10 @@ class MsgDialog:
             tree.configure(yscrollcommand=vsb.set)
             tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
             vsb.pack(side=tk.RIGHT, fill=tk.Y)
+            ttk.Label(frame, text=_row_count_text(len(rows))).pack(anchor="w")
 
         btn_frame = ttk.Frame(frame)
-        btn_frame.pack(pady=8)
+        btn_frame.pack(pady=8, anchor="e")
         ttk.Button(btn_frame, text="Close", command=lambda: self._close(win, 1)).pack()
         win.bind("<Return>", lambda e: self._close(win, 1))
         win.bind("<Escape>", lambda e: self._close(win, 1))
@@ -133,7 +158,10 @@ class PauseDialog:
         frame = ttk.Frame(win, padding=12)
         frame.pack(fill=tk.BOTH, expand=True)
 
-        ttk.Label(frame, text=args.get("message", ""), wraplength=480).pack(pady=(0, 12))
+        ttk.Label(frame, text=args.get("message", ""), wraplength=480, anchor="w", justify="left").pack(
+            anchor="w",
+            pady=(0, 12),
+        )
 
         countdown = args.get("countdown")
         self._remaining = countdown
@@ -145,7 +173,7 @@ class PauseDialog:
         progress.pack(fill=tk.X, pady=4)
 
         btn_frame = ttk.Frame(frame)
-        btn_frame.pack(pady=8)
+        btn_frame.pack(pady=8, anchor="e")
         ttk.Button(btn_frame, text="Continue", command=lambda: self._close(win, False)).pack(side=tk.LEFT, padx=4)
         ttk.Button(btn_frame, text="Cancel", command=lambda: self._close(win, True)).pack(side=tk.LEFT, padx=4)
         win.bind("<Return>", lambda e: self._close(win, False))
@@ -192,10 +220,14 @@ class DisplayDialog:
 
         frame = ttk.Frame(win, padding=12)
         frame.pack(fill=tk.BOTH, expand=True)
+        _add_help_button(frame, args.get("help_url"))
 
         message = args.get("message", "")
         if message:
-            ttk.Label(frame, text=message, wraplength=580).pack(pady=(0, 8))
+            ttk.Label(frame, text=message, wraplength=580, anchor="w", justify="left").pack(
+                anchor="w",
+                pady=(0, 8),
+            )
 
         headers = args.get("column_headers")
         rows = args.get("rowset")
@@ -212,6 +244,7 @@ class DisplayDialog:
             hsb.grid(row=1, column=0, sticky="ew")
             table_frame.rowconfigure(0, weight=1)
             table_frame.columnconfigure(0, weight=1)
+            ttk.Label(frame, text=_row_count_text(len(rows))).pack(anchor="w")
 
         self._text_var = None
         textentry = args.get("textentry", False)
@@ -229,7 +262,7 @@ class DisplayDialog:
         no_cancel = args.get("no_cancel", False)
 
         btn_frame = ttk.Frame(frame)
-        btn_frame.pack(pady=8)
+        btn_frame.pack(pady=8, anchor="e")
         _add_buttons(btn_frame, button_list, lambda v: self._close(win, v))
         if not no_cancel:
             win.bind("<Escape>", lambda e: self._close(win, None))
@@ -262,17 +295,22 @@ class EntryFormDialog:
 
         main_frame = ttk.Frame(win, padding=12)
         main_frame.pack(fill=tk.BOTH, expand=True)
+        _add_help_button(main_frame, args.get("help_url"))
 
         message = args.get("message", "")
         if message:
-            ttk.Label(main_frame, text=message, wraplength=580).pack(pady=(0, 8))
+            ttk.Label(main_frame, text=message, wraplength=580, anchor="w", justify="left").pack(
+                anchor="w",
+                pady=(0, 8),
+            )
 
         headers = args.get("column_headers")
         rows = args.get("rowset")
         if headers and rows:
             tree = ttk.Treeview(main_frame, height=min(6, len(rows)))
             _populate_treeview(tree, headers, rows)
-            tree.pack(fill=tk.BOTH, expand=True, pady=(0, 8))
+            tree.pack(fill=tk.BOTH, expand=True, pady=(0, 4))
+            ttk.Label(main_frame, text=_row_count_text(len(rows))).pack(anchor="w", pady=(0, 8))
 
         specs = args.get("entry_specs", [])
         form_frame = ttk.Frame(main_frame)
@@ -280,10 +318,16 @@ class EntryFormDialog:
 
         for i, spec in enumerate(specs):
             etype = (spec.entry_type or "text").lower()
-            ttk.Label(form_frame, text=spec.label or spec.varname, anchor="e").grid(
+            # For radiobuttons, the label is semicolon-delimited: first part is the label
+            if etype == "radiobuttons":
+                parts = (spec.label or "").split(";")
+                field_label = parts[0].strip() if parts else spec.varname
+            else:
+                field_label = spec.label or spec.varname
+            ttk.Label(form_frame, text=field_label, anchor="e").grid(
                 row=i,
                 column=0,
-                sticky="e",
+                sticky="ne",
                 padx=4,
                 pady=2,
             )
@@ -297,6 +341,46 @@ class EntryFormDialog:
                 combo = ttk.Combobox(form_frame, textvariable=var, values=spec.lookup_list, state="readonly")
                 combo.grid(row=i, column=1, sticky="ew", pady=2)
                 self._widgets[spec.varname] = ("dropdown", var)
+            elif etype == "listbox" and spec.lookup_list:
+                height = spec.default_height or 4
+                lb = tk.Listbox(form_frame, selectmode=tk.MULTIPLE, height=height, exportselection=False)
+                for item in spec.lookup_list:
+                    lb.insert(tk.END, item)
+                lb.grid(row=i, column=1, sticky="ew", pady=2)
+                self._widgets[spec.varname] = ("listbox", lb)
+            elif etype == "radiobuttons":
+                buttons = parts[1:] if len(parts) > 1 else ["Option"]
+                var = tk.IntVar(value=0)
+                rb_frame = ttk.Frame(form_frame)
+                rb_frame.grid(row=i, column=1, sticky="w", pady=2)
+                for j, btn_label in enumerate(buttons):
+                    ttk.Radiobutton(rb_frame, text=btn_label.strip(), variable=var, value=j).pack(anchor="w")
+                self._widgets[spec.varname] = ("radiobuttons", var)
+            elif etype == "textarea":
+                height = spec.default_height or 5
+                ta = tk.Text(form_frame, width=40, height=height, wrap=tk.WORD)
+                if spec.initial_value:
+                    ta.insert("1.0", spec.initial_value)
+                ta.grid(row=i, column=1, sticky="ew", pady=2)
+                self._widgets[spec.varname] = ("textarea", ta)
+            elif etype in ("inputfile", "outputfile"):
+                file_frame = ttk.Frame(form_frame)
+                file_frame.grid(row=i, column=1, sticky="ew", pady=2)
+                var = tk.StringVar(value=spec.initial_value or "")
+                ttk.Entry(file_frame, textvariable=var, width=30).pack(side=tk.LEFT, fill=tk.X, expand=True)
+
+                def _browse(sv=var, mode=etype):
+                    from tkinter import filedialog
+
+                    if mode == "inputfile":
+                        fn = filedialog.askopenfilename()
+                    else:
+                        fn = filedialog.asksaveasfilename()
+                    if fn:
+                        sv.set(fn)
+
+                ttk.Button(file_frame, text="Browse…", command=_browse).pack(side=tk.LEFT, padx=(4, 0))
+                self._widgets[spec.varname] = ("file", var)
             else:
                 var = tk.StringVar(value=spec.initial_value or "")
                 entry = ttk.Entry(form_frame, textvariable=var, width=40)
@@ -305,14 +389,18 @@ class EntryFormDialog:
             form_frame.columnconfigure(1, weight=1)
 
         btn_frame = ttk.Frame(main_frame)
-        btn_frame.pack(pady=8)
+        btn_frame.pack(pady=8, anchor="e")
         ttk.Button(btn_frame, text="OK", command=lambda: self._close(win, specs, True)).pack(side=tk.LEFT, padx=4)
         ttk.Button(btn_frame, text="Cancel", command=lambda: self._close(win, specs, False)).pack(side=tk.LEFT, padx=4)
         win.bind("<Return>", lambda e: self._close(win, specs, True))
         win.bind("<Escape>", lambda e: self._close(win, specs, False))
 
         self._specs = specs
-        _center_window(win, 500, 120 + len(specs) * 32)
+        extra_height = sum(
+            (spec.default_height or 5) * 18 if (spec.entry_type or "").lower() in ("textarea", "listbox") else 0
+            for spec in specs
+        )
+        _center_window(win, 500, 120 + len(specs) * 32 + extra_height)
         root.wait_window(win)
 
     def _close(self, win: tk.Toplevel, specs: list, ok: bool) -> None:
@@ -323,7 +411,14 @@ class EntryFormDialog:
                     continue
                 kind, var = entry
                 if kind == "checkbox":
-                    spec.value = "True" if var.get() else "False"
+                    spec.value = "1" if var.get() else "0"
+                elif kind == "listbox":
+                    selected = [var.get(i) for i in var.curselection()]
+                    spec.value = ",".join(f"'{v.replace(chr(39), chr(39) + chr(39))}'" for v in selected)
+                elif kind == "radiobuttons":
+                    spec.value = str(var.get() + 1)
+                elif kind == "textarea":
+                    spec.value = var.get("1.0", tk.END).rstrip("\n")
                 else:
                     spec.value = var.get()
             self.result = {"button": 1, "return_value": specs}
@@ -348,29 +443,45 @@ class CompareDialog:
 
         frame = ttk.Frame(win, padding=12)
         frame.pack(fill=tk.BOTH, expand=True)
+        _add_help_button(frame, args.get("help_url"))
 
         message = args.get("message", "")
         if message:
-            ttk.Label(frame, text=message, wraplength=780).pack(pady=(0, 8))
+            ttk.Label(frame, text=message, wraplength=780, anchor="w", justify="left").pack(
+                anchor="w",
+                pady=(0, 8),
+            )
 
         headers1 = args.get("headers1", [])
         rows1 = args.get("rows1", [])
         headers2 = args.get("headers2", [])
         rows2 = args.get("rows2", [])
         keylist = [str(k) for k in args.get("keylist", [])]
+        sidebyside = args.get("sidebyside", True)
+
+        # Reserve a frame for the diff button (packed before tables, populated after)
+        diff_frame = ttk.Frame(frame) if keylist else None
+        if diff_frame:
+            diff_frame.pack(anchor="w", pady=(0, 4))
 
         tables_frame = ttk.Frame(frame)
         tables_frame.pack(fill=tk.BOTH, expand=True)
 
+        pack_side = tk.LEFT if sidebyside else tk.TOP
+        max_tree_height = 12 if sidebyside else 8
+
         def _add_tree(parent, label, headers, rows):
             lf = ttk.LabelFrame(parent, text=label)
-            lf.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=4)
-            tree = ttk.Treeview(lf, height=min(12, len(rows)))
+            lf.pack(side=pack_side, fill=tk.BOTH, expand=True, padx=4, pady=2)
+            tree_frame = ttk.Frame(lf)
+            tree_frame.pack(fill=tk.BOTH, expand=True)
+            tree = ttk.Treeview(tree_frame, height=min(max_tree_height, len(rows)))
             _populate_treeview(tree, headers, rows)
-            vsb = ttk.Scrollbar(lf, orient=tk.VERTICAL, command=tree.yview)
+            vsb = ttk.Scrollbar(tree_frame, orient=tk.VERTICAL, command=tree.yview)
             tree.configure(yscrollcommand=vsb.set)
             tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
             vsb.pack(side=tk.RIGHT, fill=tk.Y)
+            ttk.Label(lf, text=_row_count_text(len(rows))).pack(anchor="w")
             return tree
 
         tree1 = _add_tree(tables_frame, "Table 1", headers1, rows1)
@@ -414,13 +525,63 @@ class CompareDialog:
             tree1.bind("<ButtonRelease-1>", _on_click1)
             tree2.bind("<ButtonRelease-1>", _on_click2)
 
+        # --- Highlight Diffs button (populate the pre-created diff_frame) ---
+        if keylist and diff_frame is not None:
+            tree1.tag_configure("diff_match", background="#a3d9a5", foreground="#1a3a1a")
+            tree1.tag_configure("diff_changed", background="#f5d98e", foreground="#3a2e00")
+            tree1.tag_configure("diff_only", background="#f5a3a3", foreground="#3a0a0a")
+            tree2.tag_configure("diff_match", background="#a3d9a5", foreground="#1a3a1a")
+            tree2.tag_configure("diff_changed", background="#f5d98e", foreground="#3a2e00")
+            tree2.tag_configure("diff_only", background="#f5a3a3", foreground="#3a0a0a")
+            _diff_on = [False]
+
+            def _toggle_diffs():
+                _diff_on[0] = not _diff_on[0]
+                if not _diff_on[0]:
+                    for iid in tree1.get_children():
+                        tree1.item(iid, tags=())
+                    for iid in tree2.get_children():
+                        tree2.item(iid, tags=())
+                    return
+                keys1_set = set(iid_to_kv1.values())
+                keys2_set = set(iid_to_kv2.values())
+                for iid, kv in iid_to_kv1.items():
+                    if kv not in keys2_set:
+                        tree1.item(iid, tags=("diff_only",))
+                    else:
+                        r1 = [str(v) if v is not None else "" for v in rows1[list(iids1).index(iid)]]
+                        match_iid = kv_to_iid2.get(kv)
+                        if match_iid:
+                            r2 = [str(v) if v is not None else "" for v in rows2[list(iids2).index(match_iid)]]
+                            tree1.item(iid, tags=("diff_match",) if r1 == r2 else ("diff_changed",))
+                for iid, kv in iid_to_kv2.items():
+                    if kv not in keys1_set:
+                        tree2.item(iid, tags=("diff_only",))
+                    else:
+                        r2 = [str(v) if v is not None else "" for v in rows2[list(iids2).index(iid)]]
+                        match_iid = kv_to_iid1.get(kv)
+                        if match_iid:
+                            r1 = [str(v) if v is not None else "" for v in rows1[list(iids1).index(match_iid)]]
+                            tree2.item(iid, tags=("diff_match",) if r1 == r2 else ("diff_changed",))
+
+            ttk.Button(diff_frame, text="Highlight Diffs", command=_toggle_diffs).pack(side=tk.LEFT)
+            ttk.Label(diff_frame, text="  ").pack(side=tk.LEFT)
+            tk.Label(diff_frame, text=" Match ", bg="#a3d9a5", fg="#1a3a1a", padx=4).pack(side=tk.LEFT, padx=2)
+            tk.Label(diff_frame, text=" Changed ", bg="#f5d98e", fg="#3a2e00", padx=4).pack(side=tk.LEFT, padx=2)
+            tk.Label(diff_frame, text=" Only in one ", bg="#f5a3a3", fg="#3a0a0a", padx=4).pack(side=tk.LEFT, padx=2)
+
+        summary = _compare_stats(headers1, rows1, headers2, rows2, keylist)
+        if summary:
+            ttk.Label(frame, text=summary).pack(anchor="w", pady=(4, 0))
+
         button_list = args.get("button_list", [("Continue", 1, "<Return>")])
         btn_frame = ttk.Frame(frame)
-        btn_frame.pack(pady=8)
+        btn_frame.pack(pady=8, anchor="e")
         _add_buttons(btn_frame, button_list, lambda v: self._close(win, v))
         win.bind("<Escape>", lambda e: self._close(win, None))
 
-        _center_window(win, 900, 500)
+        win_height = 700 if not sidebyside else 500
+        _center_window(win, 900, win_height)
         root.wait_window(win)
 
     def _close(self, win: tk.Toplevel, value: int | None) -> None:
@@ -444,11 +605,18 @@ class SelectRowsDialog:
 
         frame = ttk.Frame(win, padding=12)
         frame.pack(fill=tk.BOTH, expand=True)
+        _add_help_button(frame, args.get("help_url"))
 
         message = args.get("message", "")
         if message:
-            ttk.Label(frame, text=message, wraplength=780).pack(pady=(0, 4))
-        ttk.Label(frame, text="Double-click a row to copy it to the destination table.").pack(pady=(0, 8))
+            ttk.Label(frame, text=message, wraplength=780, anchor="w", justify="left").pack(
+                anchor="w",
+                pady=(0, 4),
+            )
+        ttk.Label(frame, text="Double-click a row to copy it to the destination table.").pack(
+            anchor="w",
+            pady=(0, 8),
+        )
 
         headers1 = args.get("headers1", [])
         rows1 = args.get("rows1", [])
@@ -461,12 +629,15 @@ class SelectRowsDialog:
         def _add_tree_frame(parent, label, headers, rows):
             lf = ttk.LabelFrame(parent, text=label)
             lf.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=4)
-            tree = ttk.Treeview(lf, height=min(12, max(len(rows1), len(rows2))))
+            tree_frame = ttk.Frame(lf)
+            tree_frame.pack(fill=tk.BOTH, expand=True)
+            tree = ttk.Treeview(tree_frame, height=min(12, max(len(rows1), len(rows2))))
             _populate_treeview(tree, headers, rows)
-            vsb = ttk.Scrollbar(lf, orient=tk.VERTICAL, command=tree.yview)
+            vsb = ttk.Scrollbar(tree_frame, orient=tk.VERTICAL, command=tree.yview)
             tree.configure(yscrollcommand=vsb.set)
             tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
             vsb.pack(side=tk.RIGHT, fill=tk.Y)
+            ttk.Label(lf, text=_row_count_text(len(rows))).pack(anchor="w")
             return tree
 
         src_tree = _add_tree_frame(tables_frame, "Source", headers1, rows1)
@@ -484,7 +655,7 @@ class SelectRowsDialog:
 
         button_list = args.get("button_list", [("Continue", 1, "<Return>")])
         btn_frame = ttk.Frame(frame)
-        btn_frame.pack(pady=8)
+        btn_frame.pack(pady=8, anchor="e")
         _add_buttons(btn_frame, button_list, lambda v: self._close(win, v))
         win.bind("<Escape>", lambda e: self._close(win, None))
 
@@ -512,20 +683,27 @@ class SelectSubDialog:
 
         frame = ttk.Frame(win, padding=12)
         frame.pack(fill=tk.BOTH, expand=True)
+        _add_help_button(frame, args.get("help_url"))
 
         message = args.get("message", "")
         if message:
-            ttk.Label(frame, text=message, wraplength=580).pack(pady=(0, 8))
+            ttk.Label(frame, text=message, wraplength=580, anchor="w", justify="left").pack(
+                anchor="w",
+                pady=(0, 8),
+            )
 
         headers = args.get("headers", [])
         rows = args.get("rows", [])
 
-        tree = ttk.Treeview(frame, height=min(10, len(rows)))
+        tree_frame = ttk.Frame(frame)
+        tree_frame.pack(fill=tk.BOTH, expand=True)
+        tree = ttk.Treeview(tree_frame, height=min(10, len(rows)))
         _populate_treeview(tree, headers, rows)
-        vsb = ttk.Scrollbar(frame, orient=tk.VERTICAL, command=tree.yview)
+        vsb = ttk.Scrollbar(tree_frame, orient=tk.VERTICAL, command=tree.yview)
         tree.configure(yscrollcommand=vsb.set)
         tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         vsb.pack(side=tk.RIGHT, fill=tk.Y)
+        ttk.Label(frame, text=_row_count_text(len(rows))).pack(anchor="w")
 
         def _select():
             sel = tree.selection()
@@ -536,7 +714,7 @@ class SelectSubDialog:
                 win.destroy()
 
         btn_frame = ttk.Frame(frame)
-        btn_frame.pack(pady=8)
+        btn_frame.pack(pady=8, anchor="e")
         ttk.Button(btn_frame, text="OK", command=_select).pack(side=tk.LEFT, padx=4)
         ttk.Button(btn_frame, text="Cancel", command=lambda: self._close(win)).pack(side=tk.LEFT, padx=4)
         tree.bind("<Double-1>", lambda e: _select())
@@ -566,17 +744,22 @@ class ActionDialog:
 
         frame = ttk.Frame(win, padding=12)
         frame.pack(fill=tk.BOTH, expand=True)
+        _add_help_button(frame, args.get("help_url"))
 
         message = args.get("message", "")
         if message:
-            ttk.Label(frame, text=message, wraplength=580).pack(pady=(0, 8))
+            ttk.Label(frame, text=message, wraplength=580, anchor="w", justify="left").pack(
+                anchor="w",
+                pady=(0, 8),
+            )
 
         headers = args.get("column_headers")
         rows = args.get("rowset")
         if headers and rows:
             tree = ttk.Treeview(frame, height=min(6, len(rows)))
             _populate_treeview(tree, headers, rows)
-            tree.pack(fill=tk.BOTH, expand=True, pady=(0, 8))
+            tree.pack(fill=tk.BOTH, expand=True, pady=(0, 4))
+            ttk.Label(frame, text=_row_count_text(len(rows))).pack(anchor="w", pady=(0, 8))
 
         button_specs = args.get("button_specs", [])
         for i, spec in enumerate(button_specs):
@@ -619,22 +802,31 @@ class MapDialog:
 
         message = args.get("message", "")
         if message:
-            ttk.Label(frame, text=message, wraplength=580).pack(pady=(0, 4))
-        ttk.Label(frame, text="(Interactive map requires tkintermapview; showing tabular data)").pack(pady=(0, 8))
+            ttk.Label(frame, text=message, wraplength=580, anchor="w", justify="left").pack(
+                anchor="w",
+                pady=(0, 4),
+            )
+        ttk.Label(frame, text="(Interactive map requires tkintermapview; showing tabular data)").pack(
+            anchor="w",
+            pady=(0, 8),
+        )
 
         headers = args.get("headers", [])
         rows = args.get("rows", [])
         if headers and rows:
-            tree = ttk.Treeview(frame, height=min(12, len(rows)))
+            tree_frame = ttk.Frame(frame)
+            tree_frame.pack(fill=tk.BOTH, expand=True)
+            tree = ttk.Treeview(tree_frame, height=min(12, len(rows)))
             _populate_treeview(tree, headers, rows)
-            vsb = ttk.Scrollbar(frame, orient=tk.VERTICAL, command=tree.yview)
+            vsb = ttk.Scrollbar(tree_frame, orient=tk.VERTICAL, command=tree.yview)
             tree.configure(yscrollcommand=vsb.set)
             tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
             vsb.pack(side=tk.RIGHT, fill=tk.Y)
+            ttk.Label(frame, text=_row_count_text(len(rows))).pack(anchor="w")
 
         button_list = args.get("button_list", [("Continue", 1, "<Return>")])
         btn_frame = ttk.Frame(frame)
-        btn_frame.pack(pady=8)
+        btn_frame.pack(pady=8, anchor="e")
         _add_buttons(btn_frame, button_list, lambda v: self._close(win, v))
 
         _center_window(win, 600, 450)
@@ -661,10 +853,14 @@ class CredentialsDialog:
 
         frame = ttk.Frame(win, padding=12)
         frame.pack(fill=tk.BOTH, expand=True)
+        _add_help_button(frame, args.get("help_url"))
 
         message = args.get("message", "")
         if message:
-            ttk.Label(frame, text=message, wraplength=380).pack(pady=(0, 8))
+            ttk.Label(frame, text=message, wraplength=380, anchor="w", justify="left").pack(
+                anchor="w",
+                pady=(0, 8),
+            )
 
         user_var = tk.StringVar()
         pw_var = tk.StringVar()
@@ -677,7 +873,7 @@ class CredentialsDialog:
         frame.columnconfigure(1, weight=1)
 
         btn_frame = ttk.Frame(frame)
-        btn_frame.grid(row=2, column=0, columnspan=2, pady=8)
+        btn_frame.grid(row=2, column=0, columnspan=2, pady=8, sticky="e")
         ttk.Button(btn_frame, text="OK", command=lambda: self._close(win, user_var.get(), pw_var.get())).pack(
             side=tk.LEFT,
             padx=4,
@@ -722,10 +918,14 @@ class ConnectDialog:
 
         frame = ttk.Frame(win, padding=12)
         frame.pack(fill=tk.BOTH, expand=True)
+        _add_help_button(frame, args.get("help_url"))
 
         message = args.get("message", "")
         if message:
-            ttk.Label(frame, text=message, wraplength=480).pack(pady=(0, 8))
+            ttk.Label(frame, text=message, wraplength=480, anchor="w", justify="left").pack(
+                anchor="w",
+                pady=(0, 8),
+            )
 
         type_var = tk.StringVar(value="p")
         server_var = tk.StringVar()
@@ -756,7 +956,7 @@ class ConnectDialog:
         ttk.Entry(form, textvariable=user_var, width=35).grid(row=3, column=1, sticky="ew", pady=4)
 
         btn_frame = ttk.Frame(frame)
-        btn_frame.pack(pady=8)
+        btn_frame.pack(pady=8, anchor="e")
 
         def _on_connect():
             idx = type_combo.current()

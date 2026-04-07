@@ -11,9 +11,21 @@ import sys
 import time
 from typing import Any
 
-from execsql.gui.base import GuiBackend
+from execsql.gui.base import GuiBackend, compare_stats as _compare_stats
 
 __all__ = ["ConsoleBackend"]
+
+
+def _print_help_url(args: dict) -> None:
+    """Print the help URL if present in *args*."""
+    url = args.get("help_url")
+    if url:
+        print(f"  Help: {url}", file=sys.stderr)
+
+
+def _row_count_text(n: int) -> str:
+    """Return a human-readable row count string, e.g. '3 rows' or '1 row'."""
+    return f"{n:,} row{'s' if n != 1 else ''}"
 
 
 def _print_table(headers: list, rows: list, file: Any = None) -> None:
@@ -89,6 +101,7 @@ class ConsoleBackend(GuiBackend):
         rows = args.get("rowset")
         if headers and rows:
             _print_table(headers, rows)
+            print(f"  {_row_count_text(len(rows))}", file=sys.stderr)
         input("Press Enter to acknowledge...")
         return {"button": 1}
 
@@ -119,14 +132,14 @@ class ConsoleBackend(GuiBackend):
         textentry = args.get("textentry", False)
         hidetext = args.get("hidetext", False)
         initial = args.get("initialtext", "")
-        free = args.get("free", False)
-
         if title:
             print(f"\n=== {title} ===", file=sys.stderr)
         if message:
             print(message, file=sys.stderr)
+        _print_help_url(args)
         if headers and rows:
             _print_table(headers, rows)
+            print(f"  {_row_count_text(len(rows))}", file=sys.stderr)
 
         return_value = None
         if textentry:
@@ -136,9 +149,6 @@ class ConsoleBackend(GuiBackend):
                 return_value = getpass.getpass("Enter value: ")
             else:
                 return_value = input(f"Enter value [{initial}]: ").strip() or initial
-
-        if free:
-            return {"button": 1, "return_value": return_value}
 
         btn = _prompt_buttons(button_list)
         return {"button": btn, "return_value": return_value}
@@ -154,15 +164,17 @@ class ConsoleBackend(GuiBackend):
             print(f"\n=== {title} ===", file=sys.stderr)
         if message:
             print(message, file=sys.stderr)
+        _print_help_url(args)
         if headers and rows:
             _print_table(headers, rows)
+            print(f"  {_row_count_text(len(rows))}", file=sys.stderr)
 
         for spec in entry_specs:
             entry_type = (spec.entry_type or "text").lower()
             initial = spec.initial_value or ""
             if entry_type == "checkbox":
                 raw = input(f"{spec.label} [y/n, current={initial}]: ").strip().lower()
-                spec.value = "True" if raw in ("y", "yes", "true", "1") else "False"
+                spec.value = "1" if raw in ("y", "yes", "true", "1") else "0"
             elif entry_type in ("dropdown", "select") and spec.lookup_list:
                 choices = spec.lookup_list
                 print(f"{spec.label}:", file=sys.stderr)
@@ -177,6 +189,43 @@ class ConsoleBackend(GuiBackend):
                         spec.value = raw
                         break
                     print("Invalid choice.", file=sys.stderr)
+            elif entry_type == "listbox" and spec.lookup_list:
+                choices = spec.lookup_list
+                print(f"{spec.label} (enter numbers separated by commas):", file=sys.stderr)
+                for i, c in enumerate(choices, 1):
+                    print(f"  [{i}] {c}", file=sys.stderr)
+                raw = input("Selections: ").strip()
+                selected = []
+                for part in raw.split(","):
+                    part = part.strip()
+                    if part.isdigit() and 1 <= int(part) <= len(choices):
+                        selected.append(choices[int(part) - 1])
+                spec.value = ",".join(f"'{v.replace(chr(39), chr(39) + chr(39))}'" for v in selected)
+            elif entry_type == "radiobuttons":
+                parts = (spec.label or "").split(";")
+                label = parts[0] if parts else spec.label
+                buttons = parts[1:] if len(parts) > 1 else [spec.label or "Option"]
+                print(f"{label}:", file=sys.stderr)
+                for i, b in enumerate(buttons, 1):
+                    print(f"  [{i}] {b.strip()}", file=sys.stderr)
+                while True:
+                    raw = input("Choice number: ").strip()
+                    if raw.isdigit() and 1 <= int(raw) <= len(buttons):
+                        spec.value = raw
+                        break
+                    print("Invalid choice.", file=sys.stderr)
+            elif entry_type == "textarea":
+                print(f"{spec.label} (enter text, blank line to finish):", file=sys.stderr)
+                lines = []
+                while True:
+                    line = input()
+                    if not line:
+                        break
+                    lines.append(line)
+                spec.value = "\n".join(lines) or initial
+            elif entry_type in ("inputfile", "outputfile"):
+                raw = input(f"{spec.label} (file path) [{initial}]: ").strip()
+                spec.value = raw or initial
             else:
                 raw = input(f"{spec.label} [{initial}]: ").strip()
                 spec.value = raw or initial
@@ -199,10 +248,18 @@ class ConsoleBackend(GuiBackend):
         print(f"\n=== {title} ===", file=sys.stderr)
         if message:
             print(message, file=sys.stderr)
+        _print_help_url(args)
         print("\n--- Table 1 ---", file=sys.stderr)
         _print_table(headers1, rows1)
+        print(f"  {_row_count_text(len(rows1))}", file=sys.stderr)
         print("\n--- Table 2 ---", file=sys.stderr)
         _print_table(headers2, rows2)
+        print(f"  {_row_count_text(len(rows2))}", file=sys.stderr)
+
+        keylist = [str(k) for k in args.get("keylist", [])]
+        summary = _compare_stats(headers1, rows1, headers2, rows2, keylist)
+        if summary:
+            print(f"\n  {summary}", file=sys.stderr)
 
         btn = _prompt_buttons(button_list)
         return {"button": btn}
@@ -217,7 +274,9 @@ class ConsoleBackend(GuiBackend):
         print(f"\n=== {title} ===", file=sys.stderr)
         if message:
             print(message, file=sys.stderr)
+        _print_help_url(args)
         _print_table(headers1, rows1)
+        print(f"  {_row_count_text(len(rows1))}", file=sys.stderr)
         print("(Row selection requires a GUI backend; displaying source data only.)", file=sys.stderr)
 
         btn = _prompt_buttons(button_list)
@@ -255,8 +314,10 @@ class ConsoleBackend(GuiBackend):
         print(f"\n=== {title} ===", file=sys.stderr)
         if message:
             print(message, file=sys.stderr)
+        _print_help_url(args)
         if headers and rows:
             _print_table(headers, rows)
+            print(f"  {_row_count_text(len(rows))}", file=sys.stderr)
 
         if not button_specs:
             input("Press Enter to continue...")
@@ -293,6 +354,8 @@ class ConsoleBackend(GuiBackend):
             print(message, file=sys.stderr)
         print("(Interactive map requires a GUI backend; showing tabular data.)", file=sys.stderr)
         _print_table(headers, rows)
+        if rows:
+            print(f"  {_row_count_text(len(rows))}", file=sys.stderr)
 
         if lat_col and lon_col and headers and rows:
             try:
@@ -334,6 +397,7 @@ class ConsoleBackend(GuiBackend):
         message = args.get("message", "")
         if message:
             print(message, file=sys.stderr)
+        _print_help_url(args)
         username = input("Username: ").strip()
         import getpass
 
@@ -344,6 +408,7 @@ class ConsoleBackend(GuiBackend):
         message = args.get("message", "")
         if message:
             print(message, file=sys.stderr)
+        _print_help_url(args)
         db_types = {
             "p": "PostgreSQL",
             "s": "SQL Server",
