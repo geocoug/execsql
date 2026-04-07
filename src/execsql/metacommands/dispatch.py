@@ -1443,7 +1443,7 @@ def build_dispatch_table() -> MetaCommandList:
         ins_table_rxs(
             r'^\s*PROMPT\s+ENTER_SUB\s+(?P<match_str>~?\w+)\s+(?:(?P<password>PASSWORD)\s+)?MESSAGE\s+"(?P<message>([^"]|\n)*)"(?:\s+DISPLAY\s+',
             r")?(?:\s+TYPE\s+(?P<type>INT|FLOAT|BOOL|IDENT))?(?:\s+(?P<case>LCASE|UCASE))?"
-            r'(?:\s+INITIALLY\s+"(?P<initial>[^"]+)")?(?:\s+HELP\s+"(?P<help>[^+]+)")?\s*$',
+            r'(?:\s+INITIALLY\s+"(?P<initial>[^"]+)")?(?:\s+HELP\s+"(?P<help>[^"]+)")?\s*$',
         ),
         x_prompt_enter,
     )

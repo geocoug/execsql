@@ -53,6 +53,8 @@ def x_connect_pg(**kwargs: Any) -> None:
     mk_new = kwargs["new"]
     mk_new = unquoted2(mk_new).lower() == "new" if mk_new else False
     pw = kwargs["password"]
+    if pw:
+        pw = unquoted2(pw)
     enc = kwargs["encoding"]
     if enc:
         enc = unquoted2(enc)
@@ -160,7 +162,7 @@ def x_connect_user_ssvr(**kwargs: Any) -> None:
         new_db = SqlServerDatabase(
             server,
             db_name,
-            user,
+            user_name=user,
             need_passwd=pw is not None,
             port=portno,
             encoding=enc,
@@ -422,6 +424,8 @@ def x_connect_dsn(**kwargs: Any) -> None:
     if need_pwd:
         need_pwd = need_pwd.lower() == "true"
     pw = kwargs["password"]
+    if pw:
+        pw = unquoted2(pw)
     enc = kwargs["encoding"]
     if enc:
         new_db = DsnDatabase(kwargs["dsn"], kwargs["user"], need_passwd=need_pwd, encoding=enc, password=pw)

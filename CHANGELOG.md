@@ -23,13 +23,23 @@ ______________________________________________________________________
 - `CONFIG GUI_LEVEL` now accepts value `3` (open GUI console on start), matching the `gui_level` configuration file setting.
 - `PROMPT COMPARE` now respects the `AND` vs `BESIDE` keyword: `AND` stacks tables vertically, `BESIDE` displays them side-by-side. Previously both orientations displayed side-by-side.
 - `PROMPT ENTRY_FORM` now renders all documented `entry_type` values: `listbox` (multi-select list), `radiobuttons` (radio button group), `textarea` (multi-line text area), `inputfile` and `outputfile` (text field with file browser button). Previously only `checkbox` and `dropdown`/`select` were implemented; all others fell through to a plain text input.
+- `PROMPT ENTER_SUB` HELP URL regex typo: quoted HELP URLs containing `+` characters now match correctly (was using `[^+]` instead of `[^"]`).
+- PostgreSQL and DSN `CONNECT` handlers now unquote the PASSWORD parameter consistently with all other database handlers.
+- SQL Server `CONNECT` handler now uses consistent keyword argument `user_name=` in all code paths.
+
+### Changed
+
+- Documentation: added `CONFIG LOG_SQL` and `CONFIG SHOW_PROGRESS` sections to metacommands reference (were implemented but undocumented).
+- Documentation: DuckDB `CONNECT` syntax now shows the `NEW` keyword (was supported but undocumented).
+- Documentation: `EXPORT QUERY` format list now explicitly mentions PARQUET, FEATHER, YAML, MARKDOWN support.
+- Documentation: added alias notes for `EXEC SCRIPT` / `RUN SCRIPT` and `APPEND SCRIPT`.
+- Documentation: `RM_SUB` now documents `~` prefix for deleting local variables.
+- Documentation: fixed missing bracket in `WRITE CREATE_TABLE FROM EXCEL` syntax.
 
 ### Removed
 
 - `FREE` keyword from `PROMPT DISPLAY` metacommand. The non-blocking display behavior was only implemented in the console backend; Textual and Tkinter backends ignored it.
-
 - Tkinter dialog buttons are now right-aligned (matching the Textual TUI layout) instead of centered.
-
 - Tkinter dialog message text is now left-aligned instead of center-justified.
 
 ______________________________________________________________________

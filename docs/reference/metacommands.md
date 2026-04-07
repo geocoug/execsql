@@ -459,6 +459,13 @@ Controls whether data variables that are created by the [SELECT_SUB](#select_sub
 
 
 ```
+CONFIG LOG_SQL YES|NO
+```
+
+Enable or disable SQL query audit logging at runtime. When enabled, each SQL statement executed against the database is written to *execsql*'s [log file](../guides/logging.md#logging) as a `sql` record containing the database name, source line number, and query text. This is equivalent to the `log_sql` [configuration setting](configuration.md#config_logging). The default value is "No".
+
+
+```
 CONFIG LOG_WRITE_MESSAGES YES|NO
 ```
 
@@ -505,6 +512,13 @@ CONFIG SCAN_LINES <n>
 ```
 
 The number of lines of a data file to scan during [IMPORT](#import) to determine the quoting character and delimiter character used. This is equivalent to the "-s" command-line option and the `scan_lines` [configuration setting](configuration.md#scan_lines).
+
+
+```
+CONFIG SHOW_PROGRESS YES|NO
+```
+
+Enable or disable the Rich progress bar for [IMPORT](#import) operations at runtime. When enabled, a progress bar is displayed showing the number of rows imported. This is equivalent to the `show_progress` [configuration setting](configuration.md#config_input) and the `--progress` CLI option. The default value is "No".
 
 
 ```
@@ -636,7 +650,7 @@ CONNECT USER TO MARIADB(SERVER=<server_name>, DB=<database_name>
 For DuckDB:
 
 ```
-CONNECT TO DUCKDB(FILE=<database_file>) AS <alias_name>
+CONNECT TO DUCKDB(FILE=<database_file> [, NEW]) AS <alias_name>
 ```
 
 For Firebird:
@@ -687,7 +701,7 @@ If the command form with the "USER" keyword is used, the user name that is used 
 
 The alias name that is specified in this command can be used to refer to this database in the [USE](#use) and [COPY](#copy) metacommands. Alias names can consist only of letters, digits, and underscores, and must start with a letter. The alias name "initial" is reserved for the database that is used when *execsql* starts script processing, and cannot be used with the [CONNECT](#connect) metacommand. If you re-use an alias name, the connection to the database to which that name was previously assigned will be closed, and the database will no longer be available. Using the same alias for two different databases allows for mistakes wherein script statements are run on the wrong database, and so is not recommended.
 
-If the "NEW" keyword is used with PostgreSQL or SQLite, a new database of the given name will be created. There must be no existing database of that name, and (for Postgres) you must have permissions assigned that allow you to create databases.
+If the "NEW" keyword is used with PostgreSQL, SQLite, or DuckDB, a new database of the given name will be created. There must be no existing database of that name, and (for Postgres) you must have permissions assigned that allow you to create databases.
 
 
 ## CONSOLE
@@ -894,6 +908,8 @@ EXECUTE SCRIPT [IF EXISTS] <script_name>
                UNTIL (<conditional_expression>)
 ```
 
+
+`EXEC SCRIPT` and `RUN SCRIPT` are accepted as aliases for `EXECUTE SCRIPT`.
 
 This metacommand will execute the set of SQL statements and metacommands that was previously defined and named using the [BEGIN/END SCRIPT](#beginscript) metacommands.
 
@@ -1201,7 +1217,7 @@ EXPORT QUERY <<query>> [TEE] [APPEND] TO <filename>|stdout
 
 Exports data in the same manner as the [EXPORT](#export) metacommand, except that the data source is a SQL query statement that is contained in the metacommand rather than a database table or view. The SQL query statement must be terminated with a semicolon and enclosed in double angle brackets (i.e., literally "`<<`" and "`>>`").
 
-The EXPORT QUERY metacommand does not support export to XML or HDF5 because there is no table name specified. Export to ODS supports only a single query, rather than a list as for the [EXPORT](#export) metacommand.
+The EXPORT QUERY metacommand does not support export to XML, HDF5, SQLITE, or DUCKDB because there is no table name specified. It does support all other formats including PARQUET, FEATHER, YAML, and MARKDOWN. Export to ODS supports only a single query, rather than a list as for the [EXPORT](#export) metacommand.
 
 Like all metacommands, this metacommand must appear on a single line, although the SQL statement may be quite long. To facilitate readability, the SQL statement may be saved in a [substitution
 variable](substitution_vars.md#substitution_vars) and that substitution variable referenced in the EXPORT QUERY metacommand.
@@ -1234,6 +1250,8 @@ EXTEND SCRIPT <script_1> WITH SCRIPT <script_2>
 ```
 
 Merges two scripts, appending the lines of *script_2* to the end of *script_1*. Both scripts must have already been defined using the [BEGIN SCRIPT](#beginscript) metacommand. Parameters for *script_2* are also added to *script_1*.
+
+The alternative syntax `APPEND SCRIPT <script_2> TO <script_1>` is also accepted and performs the same operation.
 
 
 ## HALT
@@ -2626,7 +2644,7 @@ The file name provided may include wildcards to delete multiple files.
 RM_SUB <match_string>
 ```
 
-Deletes the specified user-created substitution variable.
+Deletes the specified user-created substitution variable. If the match string is prefixed with `~`, the local variable with that name is deleted from the current script scope instead of the global substitution variable set.
 
 
 ## SELECT_SUB
@@ -2883,7 +2901,7 @@ For data in an Excel spreadsheet:
 
 ```
 WRITE CREATE_TABLE <table_name> FROM EXCEL <file_name>
-    SHEET <sheet_name> [SKIP <rows>] ENCODING <encoding>]
+    SHEET <sheet_name> [SKIP <rows>] [ENCODING <encoding>]
     [COMMENT "<comment_text>"] [TO <output>]
 ```
 

@@ -460,7 +460,7 @@ def x_export_ods_multiple(**kwargs: Any) -> None:
     tee = kwargs["tee"]
     tee = bool(tee)
     append = kwargs["append"]
-    append = append is not None
+    append = bool(append)
     check_dir(outfile)
     write_queries_to_ods(table_list, _state.dbs.current(), outfile, append, tee, desc=description)
 
@@ -473,7 +473,7 @@ def x_export_xlsx_multiple(**kwargs: Any) -> None:
     tee = kwargs["tee"]
     tee = bool(tee)
     append = kwargs["append"]
-    append = append is not None
+    append = bool(append)
     check_dir(outfile)
     write_queries_to_xlsx(table_list, _state.dbs.current(), outfile, append, tee, desc=description)
 
