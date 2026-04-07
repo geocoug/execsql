@@ -489,6 +489,7 @@ class EntryFormScreen(_BaseDialog):
                                     value=str(spec.initial_value) if spec.initial_value else "",
                                     id=field_id,
                                     classes="field-input",
+                                    restrict=spec.validation_key_regex or None,
                                 )
                                 yield inp
                                 self._inputs[spec.varname] = inp
@@ -547,11 +548,33 @@ class EntryFormScreen(_BaseDialog):
             else:
                 spec.value = widget.value
 
-    def action_submit(self) -> None:
-        """Submit the form (triggered by Enter key)."""
+    def _validate(self) -> list[str]:
+        """Validate collected values. Returns list of error messages (empty = valid)."""
+        import re as _re
+
+        errors: list[str] = []
+        for spec in self._specs:
+            val = spec.value or ""
+            etype = (spec.entry_type or "text").lower()
+            if spec.required and not val and etype != "checkbox":
+                errors.append(f"{spec.label or spec.varname}: required")
+            if spec.validation_regex and val and not _re.fullmatch(spec.validation_regex, val):
+                errors.append(f"{spec.label or spec.varname}: does not match pattern")
+        return errors
+
+    def _submit_form(self) -> None:
+        """Collect, validate, and dismiss if valid."""
         self._collect_values()
+        errors = self._validate()
+        if errors:
+            self.notify("\n".join(errors), title="Validation Error", severity="error")
+            return
         self._result = {"button": 1, "return_value": self._specs}
         self.dismiss(self._result)
+
+    def action_submit(self) -> None:
+        """Submit the form (triggered by Enter key)."""
+        self._submit_form()
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         btn_id = event.button.id or ""
@@ -559,9 +582,7 @@ class EntryFormScreen(_BaseDialog):
             self._on_browse_pressed(event)
             return
         if btn_id == "btn_ok":
-            self._collect_values()
-            self._result = {"button": 1, "return_value": self._specs}
-            self.dismiss(self._result)
+            self._submit_form()
 
 
 # ---------------------------------------------------------------------------

@@ -384,6 +384,12 @@ class EntryFormDialog:
             else:
                 var = tk.StringVar(value=spec.initial_value or "")
                 entry = ttk.Entry(form_frame, textvariable=var, width=40)
+                if spec.validation_key_regex:
+                    import re as _re
+
+                    _pat = _re.compile(spec.validation_key_regex)
+                    vcmd = (win.register(lambda val, p=_pat: bool(p.match(val))), "%P")
+                    entry.configure(validate="key", validatecommand=vcmd)
                 entry.grid(row=i, column=1, sticky="ew", pady=2)
                 self._widgets[spec.varname] = ("text", var)
             form_frame.columnconfigure(1, weight=1)
@@ -405,6 +411,8 @@ class EntryFormDialog:
 
     def _close(self, win: tk.Toplevel, specs: list, ok: bool) -> None:
         if ok:
+            import re as _re
+
             for spec in specs:
                 entry = self._widgets.get(spec.varname)
                 if entry is None:
@@ -421,6 +429,20 @@ class EntryFormDialog:
                     spec.value = var.get("1.0", tk.END).rstrip("\n")
                 else:
                     spec.value = var.get()
+            # Validate required fields and validation_regex
+            errors = []
+            for spec in specs:
+                val = spec.value or ""
+                etype = (spec.entry_type or "text").lower()
+                if spec.required and not val and etype != "checkbox":
+                    errors.append(f"{spec.label or spec.varname}: required")
+                if spec.validation_regex and val and not _re.fullmatch(spec.validation_regex, val):
+                    errors.append(f"{spec.label or spec.varname}: does not match pattern")
+            if errors:
+                from tkinter import messagebox
+
+                messagebox.showerror("Validation Error", "\n".join(errors), parent=win)
+                return
             self.result = {"button": 1, "return_value": specs}
         else:
             self.result = {"button": None, "return_value": specs}

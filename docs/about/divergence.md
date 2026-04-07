@@ -86,6 +86,7 @@ New options in `execsql.conf`:
 | Table row counts     | All GUI backends (Tkinter, Textual, Console) display a row count footer below every table widget (e.g. "3 rows", "1 row").                              |
 | Help URL button      | Dialogs that accept the `HELP` keyword display a clickable Help button that opens the URL in the system browser.                                        |
 | Compare diff summary | The compare dialog shows a one-line summary of matching, differing, and table-exclusive rows when key columns are specified.                            |
+| Form validation      | `PROMPT ENTRY_FORM` enforces `validation_regex` (on submit) and `validation_key_regex` (per-keystroke) across all backends. Required fields validated.  |
 
 ### Authentication
 

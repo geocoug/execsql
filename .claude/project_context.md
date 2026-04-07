@@ -153,7 +153,7 @@ ______________________________________________________________________
 | `pre-commit`        | Git hooks                | gitleaks, uv-lock, ruff, mdformat, markdownlint, typos, validate-pyproject                              |
 | `zensical`          | Docs builder             | MkDocs-compatible, Material theme, configured via `zensical.toml`                                       |
 | `mkdocstrings`      | API docs from docstrings | Wired up — `docs/api/` pages auto-generate from source                                                  |
-| `pytest-cov`        | Coverage                 | `--cov-fail-under=80` enforced                                                                          |
+| `pytest-cov`        | Coverage                 | `--cov-fail-under=90` enforced (raised from 80% in v2.12)                                               |
 
 ## Package Layout Decision
 
@@ -192,7 +192,7 @@ Triggered on: push to `main`, any tag `v*.*.*`, pull requests.
 
 ## Versioning
 
-`bump-my-version` manages versions. Current: `2.11.0`. Bump commands:
+`bump-my-version` manages versions. Current: `2.13.2`. Bump commands:
 
 - `just bump-patch` → 2.11.0 → 2.11.1
 - `just bump-minor` → 2.11.0 → 2.12.0
@@ -271,6 +271,16 @@ the foreseeable future.
 | `BREAKPOINT` debug REPL with step mode             | 2.10.0         | 2026-04 |
 | Error messages restored (script location, command) | 2.11.0         | 2026-04 |
 | 16-item codebase analysis fix sweep                | 2.11.x         | 2026-04 |
+| pg-upsert integration (`PG_UPSERT` metacommand)   | 2.12.0         | 2026-04 |
+| Coverage floor raised to 90% (3,600+ tests)        | 2.12.x         | 2026-04 |
+| `--debug` step-through mode                        | 2.12.x         | 2026-04 |
+| `--lint` two-pass variables, EXECUTE SCRIPT flow   | 2.13.x         | 2026-04 |
+| GUI: row counts, help URL button, compare diffs    | unreleased     | 2026-04 |
+| GUI: PROMPT ENTRY_FORM all entry_type values       | unreleased     | 2026-04 |
+| GUI: PROMPT COMPARE AND/BESIDE orientation fix     | unreleased     | 2026-04 |
+| GUI: highlight diffs toggle (Tkinter + Textual)    | unreleased     | 2026-04 |
+| Metacommand audit: regex/doc/handler bug fixes     | unreleased     | 2026-04 |
+| Removed FREE keyword from PROMPT DISPLAY           | unreleased     | 2026-04 |
 
 ______________________________________________________________________
 
@@ -297,6 +307,11 @@ ______________________________________________________________________
 - ~~**Parallel execution blocks**~~ — deferred to v3.0+. See design notes and deferral rationale below.
 
 ### Candidate Features (unscheduled — pick and assign to milestones)
+
+#### GUI — Essential
+
+- [ ] **Textual console (`CONSOLE ON`)** — The Textual TUI backend has a stub `console_on()` that sets a flag but provides no actual GUI console. Tkinter has a full console window (ConsoleWindow) with output area, status bar, and progress bar. Textual needs an equivalent: a persistent RichLog-based panel that receives WRITE output, shows status, and progress. **This is a gap — users on `--gui-framework textual` with `CONFIG GUI_LEVEL 3` or `CONSOLE ON` get no console.**
+- [ ] **Form validation** — `EntrySpec` has `validation_regex` and `validation_key_regex` fields but no backend enforces them. Tkinter should validate on focus-loss (validation_regex) and per-keystroke (validation_key_regex). Textual should validate on submit. Console should validate before accepting.
 
 #### Quick Wins
 
@@ -359,6 +374,7 @@ ______________________________________________________________________
 ### Ongoing / No-milestone
 
 - Textual TUI polish
+- Coverage target: raise from 90% → 93% (in progress)
 
 ______________________________________________________________________
 

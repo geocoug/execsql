@@ -227,8 +227,20 @@ class ConsoleBackend(GuiBackend):
                 raw = input(f"{spec.label} (file path) [{initial}]: ").strip()
                 spec.value = raw or initial
             else:
-                raw = input(f"{spec.label} [{initial}]: ").strip()
-                spec.value = raw or initial
+                while True:
+                    raw = input(f"{spec.label} [{initial}]: ").strip()
+                    val = raw or initial
+                    if spec.required and not val:
+                        print("  (required)", file=sys.stderr)
+                        continue
+                    if spec.validation_regex and val:
+                        import re as _re
+
+                        if not _re.fullmatch(spec.validation_regex, val):
+                            print(f"  (must match: {spec.validation_regex})", file=sys.stderr)
+                            continue
+                    spec.value = val
+                    break
 
         print("", file=sys.stderr)
         raw = input("Submit? [y/n]: ").strip().lower()

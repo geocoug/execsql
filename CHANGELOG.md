@@ -16,6 +16,7 @@ ______________________________________________________________________
 - Row count footer displayed below every table in GUI dialogs (Textual TUI, Tkinter desktop, and console fallback). Shows format like "3 rows" or "1 row" with comma-separated thousands for large counts.
 - Help URL button in all GUI dialogs that support the `HELP` keyword. Clicking the button opens the URL in the system browser. Console fallback prints the URL.
 - Diff summary line in compare dialogs showing matching, differing, and table-exclusive row counts (e.g., "3 matching | 1 differing | 2 only in Table 1").
+- `PROMPT ENTRY_FORM` now enforces `validation_regex` (on submit) and `validation_key_regex` (per-keystroke) validation across all GUI backends. Required fields are also validated on submit. Tkinter shows a messagebox on validation failure; Textual shows a notification; Console re-prompts.
 - "Highlight Diffs" toggle button in compare dialogs (Textual and Tkinter) that color-codes rows: green for matching, yellow for changed, red for rows only in one table.
 
 ### Fixed
