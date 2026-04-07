@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.14.0] - 2026-04-07
+
 ### Added
 
 - Row count footer displayed below every table in GUI dialogs (Textual TUI, Tkinter desktop, and console fallback). Shows format like "3 rows" or "1 row" with comma-separated thousands for large counts.
