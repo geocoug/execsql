@@ -50,7 +50,7 @@ class TestWriteQueryToJsonZip:
         write_query_to_json("SELECT 1", db, zpath, zipfile=zpath)
         assert zipfile.is_zipfile(zpath)
         with zipfile.ZipFile(zpath) as zf:
-            content = zf.read(zpath).decode("utf-8")
+            content = zf.read(zf.namelist()[0]).decode("utf-8")
         data = json.loads(content)
         assert len(data) == 2
         assert data[0]["id"] == 1
@@ -60,7 +60,7 @@ class TestWriteQueryToJsonZip:
         db = _make_db(["id"], [])
         write_query_to_json("SELECT 1", db, zpath, zipfile=zpath)
         with zipfile.ZipFile(zpath) as zf:
-            content = zf.read(zpath).decode("utf-8")
+            content = zf.read(zf.namelist()[0]).decode("utf-8")
         data = json.loads(content)
         assert data == []
 
@@ -86,7 +86,7 @@ class TestWriteQueryToJsonTsZip:
         db = _make_db(["id", "name"], [[1, "Alice"]])
         write_query_to_json_ts("SELECT 1", db, zpath, zipfile=zpath, write_types=False)
         with zipfile.ZipFile(zpath) as zf:
-            content = zf.read(zpath).decode("utf-8")
+            content = zf.read(zf.namelist()[0]).decode("utf-8")
         assert '"fields"' in content
         assert "id" in content
 
@@ -95,7 +95,7 @@ class TestWriteQueryToJsonTsZip:
         db = _make_db(["x"], [[1]])
         write_query_to_json_ts("SELECT 1", db, zpath, zipfile=zpath, write_types=False, desc="A description")
         with zipfile.ZipFile(zpath) as zf:
-            content = zf.read(zpath).decode("utf-8")
+            content = zf.read(zf.namelist()[0]).decode("utf-8")
         assert "A description" in content
 
 

@@ -60,7 +60,7 @@ class TestStrTemplateReportZip:
         )
         assert zipfile.is_zipfile(zpath)
         with zipfile.ZipFile(zpath) as zf:
-            content = zf.read(zpath).decode("utf-8")
+            content = zf.read(zf.namelist()[0]).decode("utf-8")
         assert "hello" in content
         assert "world" in content
 
@@ -72,7 +72,7 @@ class TestStrTemplateReportZip:
         r.write_report(headers=["x"], data_dict_rows=[], output_dest=zpath, zipfile=zpath)
         assert zipfile.is_zipfile(zpath)
         with zipfile.ZipFile(zpath) as zf:
-            content = zf.read(zpath).decode("utf-8")
+            content = zf.read(zf.namelist()[0]).decode("utf-8")
         assert content == ""
 
 
@@ -104,7 +104,7 @@ class TestJinjaTemplateReportExtended:
         )
         assert zipfile.is_zipfile(zpath)
         with zipfile.ZipFile(zpath) as zf:
-            content = zf.read(zpath).decode("utf-8")
+            content = zf.read(zf.namelist()[0]).decode("utf-8")
         assert "Alice" in content
         assert "Bob" in content
 

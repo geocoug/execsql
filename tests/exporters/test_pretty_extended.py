@@ -81,7 +81,7 @@ class TestPrettyprintRowsetZip:
         prettyprint_rowset(["id", "name"], [(1, "Alice")], zpath, zipfile=zpath)
         assert zipfile.is_zipfile(zpath)
         with zipfile.ZipFile(zpath) as zf:
-            content = zf.read(zpath).decode("utf-8")
+            content = zf.read(zf.namelist()[0]).decode("utf-8")
         assert "id" in content
         assert "Alice" in content
 
@@ -96,5 +96,5 @@ class TestPrettyprintRowsetZip:
         zpath = str(tmp_path / "out.zip")
         prettyprint_rowset(["col"], [("v",)], zpath, desc="My Title", zipfile=zpath)
         with zipfile.ZipFile(zpath) as zf:
-            content = zf.read(zpath).decode("utf-8")
+            content = zf.read(zf.namelist()[0]).decode("utf-8")
         assert "My Title" in content

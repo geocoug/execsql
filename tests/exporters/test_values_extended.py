@@ -32,7 +32,7 @@ class TestExportValuesZip:
         export_values(zpath, ["id", "name"], [(1, "Alice"), (2, "Bob")], zipfile=zpath)
         assert zipfile.is_zipfile(zpath)
         with zipfile.ZipFile(zpath) as zf:
-            content = zf.read(zpath).decode("utf-8")
+            content = zf.read(zf.namelist()[0]).decode("utf-8")
         assert "INSERT INTO" in content
         assert "'Alice'" in content
 
@@ -40,21 +40,21 @@ class TestExportValuesZip:
         zpath = str(tmp_path / "out.zip")
         export_values(zpath, ["id", "val"], [(1, None)], zipfile=zpath)
         with zipfile.ZipFile(zpath) as zf:
-            content = zf.read(zpath).decode("utf-8")
+            content = zf.read(zf.namelist()[0]).decode("utf-8")
         assert "NULL" in content
 
     def test_desc_written_as_comment_in_zip(self, noop_filewriter_close, tmp_path):
         zpath = str(tmp_path / "out.zip")
         export_values(zpath, ["id"], [(1,)], desc="My table", zipfile=zpath)
         with zipfile.ZipFile(zpath) as zf:
-            content = zf.read(zpath).decode("utf-8")
+            content = zf.read(zf.namelist()[0]).decode("utf-8")
         assert "-- My table" in content
 
     def test_empty_rows_in_zip(self, noop_filewriter_close, tmp_path):
         zpath = str(tmp_path / "out.zip")
         export_values(zpath, ["id"], [], zipfile=zpath)
         with zipfile.ZipFile(zpath) as zf:
-            content = zf.read(zpath).decode("utf-8")
+            content = zf.read(zf.namelist()[0]).decode("utf-8")
         assert "INSERT INTO" in content
         assert "VALUES" in content
 

@@ -194,14 +194,14 @@ class TestExportCgiHtmlZip:
         export_cgi_html(zpath, ["id"], [(1,)], zipfile=zpath)
         assert zipfile.is_zipfile(zpath)
         with zipfile.ZipFile(zpath) as zf:
-            content = zf.read(zpath).decode("utf-8")
+            content = zf.read(zf.namelist()[0]).decode("utf-8")
         assert "Content-Type: text/html" in content
 
     def test_zip_contains_table_data(self, noop_state, tmp_path):
         zpath = str(tmp_path / "out.zip")
         export_cgi_html(zpath, ["val"], [(99,)], zipfile=zpath)
         with zipfile.ZipFile(zpath) as zf:
-            content = zf.read(zpath).decode("utf-8")
+            content = zf.read(zf.namelist()[0]).decode("utf-8")
         assert "<td>99</td>" in content
 
 
