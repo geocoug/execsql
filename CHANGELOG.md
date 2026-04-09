@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.15.0] - 2026-04-09
+
 ### Added
 
 - `PG_UPSERT` metacommand: new `EXPORT_FAILURES <dir>`, `EXPORT_FORMAT csv|json|xlsx`, and `EXPORT_MAX_ROWS <n>` keywords that write a "fix sheet" of failing QA rows — one row per unique violating staging row with a consolidated `_issues` column — to CSV, JSON, or XLSX. Works in all three modes (full pipeline, QA-only, schema check) and runs even when QA fails. New `$PG_UPSERT_EXPORT_PATH` substitution variable holds the directory written. A user-visible message reporting the export directory and format is emitted to both the console and the execsql log after every export.
