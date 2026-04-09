@@ -11,6 +11,18 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Added
+
+- `PG_UPSERT` metacommand: new `EXPORT_FAILURES <dir>`, `EXPORT_FORMAT csv|json|xlsx`, and `EXPORT_MAX_ROWS <n>` keywords that write a "fix sheet" of failing QA rows — one row per unique violating staging row with a consolidated `_issues` column — to CSV, JSON, or XLSX. Works in all three modes (full pipeline, QA-only, schema check) and runs even when QA fails. New `$PG_UPSERT_EXPORT_PATH` substitution variable holds the directory written. A user-visible message reporting the export directory and format is emitted to both the console and the execsql log after every export.
+
+### Changed
+
+- `[upsert]` extra now requires `pg-upsert>=1.21.0` (up from `>=1.20.0`) for the fix-sheet export feature.
+
+### Fixed
+
+- `PROMPT MESSAGE ... CREDENTIALS <user_var> <pw_var>` no longer crashes in console-fallback mode with `TypeError: get_password() missing 2 required positional arguments: 'database_name' and 'user_name'`. The fallback now uses `getpass.getpass()` to read the password, matching the intent (keyring-aware `auth.get_password()` is for CONNECT, not for bare credential prompts).
+
 ______________________________________________________________________
 
 ## [2.14.1] - 2026-04-07

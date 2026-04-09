@@ -73,6 +73,20 @@ class FakeUpsertResult:
     started_at: str = "2026-04-03T10:00:00"
     finished_at: str = "2026-04-03T10:00:05"
     duration_seconds: float = 5.0
+    export_calls: list[tuple[Any, str]] = field(default_factory=list)
+    export_return: Any = None
+
+    def export_failures(self, directory: Any, fmt: str = "csv") -> Any:
+        """Stand-in for pg_upsert.UpsertResult.export_failures.
+
+        Records call arguments so tests can assert on them, and returns
+        ``export_return`` (defaulting to the *directory* argument, mimicking
+        the real method's "return the directory written" behavior).
+        """
+        self.export_calls.append((directory, fmt))
+        if self.export_return is None:
+            return directory
+        return self.export_return
 
     @property
     def qa_passed(self) -> bool:
@@ -266,6 +280,102 @@ class TestParseTablesAndOptions:
     def test_no_logfile(self):
         result = _parse_tables_and_options("books COMMIT")
         assert result["logfile"] is None
+
+    def test_export_failures_defaults(self):
+        result = _parse_tables_and_options("books")
+        assert result["export_failures"] is None
+        assert result["export_format"] == "csv"
+        assert result["export_max_rows"] == 1000
+
+    def test_export_failures_unquoted_path(self):
+        result = _parse_tables_and_options("books EXPORT_FAILURES /tmp/fix")
+        assert result["export_failures"] == "/tmp/fix"
+        assert result["export_format"] == "csv"
+
+    def test_export_failures_double_quoted_path(self):
+        result = _parse_tables_and_options(
+            'books EXPORT_FAILURES "qa out/sheets"',
+        )
+        assert result["export_failures"] == "qa out/sheets"
+
+    def test_export_failures_single_quoted_path(self):
+        result = _parse_tables_and_options(
+            "books EXPORT_FAILURES 'qa out/sheets' COMMIT",
+        )
+        assert result["export_failures"] == "qa out/sheets"
+        assert result["commit"] is True
+
+    def test_export_format_csv(self):
+        result = _parse_tables_and_options(
+            "books EXPORT_FAILURES /tmp/fix EXPORT_FORMAT csv",
+        )
+        assert result["export_format"] == "csv"
+
+    def test_export_format_json(self):
+        result = _parse_tables_and_options(
+            "books EXPORT_FAILURES /tmp/fix EXPORT_FORMAT json",
+        )
+        assert result["export_format"] == "json"
+
+    def test_export_format_xlsx(self):
+        result = _parse_tables_and_options(
+            "books EXPORT_FAILURES /tmp/fix EXPORT_FORMAT xlsx",
+        )
+        assert result["export_format"] == "xlsx"
+
+    def test_export_format_case_insensitive(self):
+        result = _parse_tables_and_options(
+            "books EXPORT_FAILURES /tmp/fix EXPORT_FORMAT XLSX",
+        )
+        assert result["export_format"] == "xlsx"
+
+    def test_export_format_invalid_raises(self):
+        with pytest.raises(ErrInfo) as exc_info:
+            _parse_tables_and_options(
+                "books EXPORT_FAILURES /tmp/fix EXPORT_FORMAT yaml",
+            )
+        assert "EXPORT_FORMAT" in str(exc_info.value)
+        assert "yaml" in str(exc_info.value)
+
+    def test_export_max_rows(self):
+        result = _parse_tables_and_options(
+            "books EXPORT_FAILURES /tmp/fix EXPORT_MAX_ROWS 50",
+        )
+        assert result["export_max_rows"] == 50
+
+    def test_export_max_rows_default_when_unset(self):
+        result = _parse_tables_and_options("books EXPORT_FAILURES /tmp/fix")
+        assert result["export_max_rows"] == 1000
+
+    def test_export_max_rows_invalid_raises(self):
+        with pytest.raises(ErrInfo) as exc_info:
+            _parse_tables_and_options(
+                "books EXPORT_FAILURES /tmp/fix EXPORT_MAX_ROWS abc",
+            )
+        assert "EXPORT_MAX_ROWS" in str(exc_info.value)
+
+    def test_export_max_rows_zero_raises(self):
+        with pytest.raises(ErrInfo):
+            _parse_tables_and_options(
+                "books EXPORT_FAILURES /tmp/fix EXPORT_MAX_ROWS 0",
+            )
+
+    def test_export_keywords_with_exclude(self):
+        # Ensures EXCLUDE lookahead correctly stops at EXPORT_FAILURES.
+        result = _parse_tables_and_options(
+            "books EXCLUDE rev_time, note EXPORT_FAILURES /tmp/fix EXPORT_FORMAT json COMMIT",
+        )
+        assert result["exclude_cols"] == ["rev_time", "note"]
+        assert result["export_failures"] == "/tmp/fix"
+        assert result["export_format"] == "json"
+        assert result["commit"] is True
+
+    def test_export_keywords_with_exclude_null(self):
+        result = _parse_tables_and_options(
+            "books EXCLUDE_NULL rev_time EXPORT_FAILURES /tmp/fix",
+        )
+        assert result["exclude_null_check_cols"] == ["rev_time"]
+        assert result["export_failures"] == "/tmp/fix"
 
 
 # ---------------------------------------------------------------------------
@@ -1110,3 +1220,379 @@ class TestCallback:
         assert calls["$PG_UPSERT_CURRENT_TABLE"] == "authors"
         assert calls["$PG_UPSERT_TABLE_ROWS_UPDATED"] == "15"
         assert calls["$PG_UPSERT_TABLE_ROWS_INSERTED"] == "3"
+
+
+# ---------------------------------------------------------------------------
+# EXPORT_FAILURES handler wiring tests
+# ---------------------------------------------------------------------------
+
+
+class TestExportFailures:
+    def test_export_path_passed_to_capture_args(self, mock_state, mock_pg_upsert_module):
+        """Presence of EXPORT_FAILURES must enable capture_detail_rows on PgUpsert."""
+        state, db = mock_state
+        from execsql.metacommands.upsert import _create_pgupsert
+
+        with patch("execsql.metacommands.upsert._state", state):
+            _create_pgupsert(
+                db,
+                "staging",
+                "public",
+                {
+                    "tables": ["books"],
+                    "commit": False,
+                    "interactive": False,
+                    "compact": False,
+                    "method": "upsert",
+                    "exclude_cols": [],
+                    "exclude_null_check_cols": [],
+                    "export_failures": "/tmp/fix",
+                    "export_format": "csv",
+                    "export_max_rows": 250,
+                },
+            )
+            call_kwargs = mock_pg_upsert_module.PgUpsert.call_args[1]
+            assert call_kwargs["capture_detail_rows"] is True
+            assert call_kwargs["max_export_rows"] == 250
+
+    def test_no_export_omits_capture_args(self, mock_state, mock_pg_upsert_module):
+        """Without EXPORT_FAILURES the capture kwargs must not be passed."""
+        state, db = mock_state
+        from execsql.metacommands.upsert import _create_pgupsert
+
+        with patch("execsql.metacommands.upsert._state", state):
+            _create_pgupsert(
+                db,
+                "staging",
+                "public",
+                {
+                    "tables": ["books"],
+                    "commit": False,
+                    "interactive": False,
+                    "compact": False,
+                    "method": "upsert",
+                    "exclude_cols": [],
+                    "exclude_null_check_cols": [],
+                },
+            )
+            call_kwargs = mock_pg_upsert_module.PgUpsert.call_args[1]
+            assert "capture_detail_rows" not in call_kwargs
+            assert "max_export_rows" not in call_kwargs
+
+    def test_export_emits_user_visible_log_and_output(self, mock_state):
+        """On successful export, a user-facing message is logged AND
+        written to _state.output so it appears on the terminal."""
+        state, db = mock_state
+        fake_result = FakeUpsertResult(
+            tables=[FakeTableResult(table_name="books", rows_updated=1)],
+            staging_schema="staging",
+            base_schema="public",
+        )
+        state.output = MagicMock()
+        with (
+            patch("execsql.metacommands.upsert._require_pg_upsert"),
+            patch("execsql.metacommands.upsert._create_pgupsert") as mock_create,
+        ):
+            mock_create.return_value.run.return_value = fake_result
+            x_pg_upsert(
+                staging_schema="staging",
+                base_schema="public",
+                tail="books EXPORT_FAILURES /tmp/out EXPORT_FORMAT json",
+                metacommandline="PG_UPSERT FROM staging TO public TABLES books EXPORT_FAILURES /tmp/out EXPORT_FORMAT json",
+            )
+        logged = [
+            c.args[0]
+            for c in state.exec_log.log_user_msg.call_args_list
+            if c.args and "exported QA failures" in str(c.args[0])
+        ]
+        assert logged, "expected an exec_log user message about the export"
+        assert "/tmp/out" in logged[0]
+        assert "json" in logged[0]
+        written = [c.args[0] for c in state.output.write.call_args_list]
+        assert any("exported QA failures" in w for w in written)
+
+    def test_export_message_tees_to_logfile(self, mock_state):
+        """When LOGFILE is given alongside EXPORT_FAILURES, the export
+        notification must also be appended to the logfile."""
+        state, db = mock_state
+        fake_result = FakeUpsertResult(
+            tables=[FakeTableResult(table_name="books", rows_updated=1)],
+            staging_schema="staging",
+            base_schema="public",
+        )
+        with (
+            patch("execsql.metacommands.upsert._require_pg_upsert"),
+            patch("execsql.metacommands.upsert._create_pgupsert") as mock_create,
+            patch("execsql.utils.fileio.filewriter_write") as mock_fw,
+        ):
+            mock_create.return_value.run.return_value = fake_result
+            x_pg_upsert(
+                staging_schema="staging",
+                base_schema="public",
+                tail="books LOGFILE up.log EXPORT_FAILURES /tmp/out EXPORT_FORMAT xlsx",
+                metacommandline=(
+                    "PG_UPSERT FROM staging TO public TABLES books "
+                    "LOGFILE up.log EXPORT_FAILURES /tmp/out EXPORT_FORMAT xlsx"
+                ),
+            )
+        tee_writes = [
+            c
+            for c in mock_fw.call_args_list
+            if c.args and c.args[0] == "up.log" and "exported QA failures" in c.args[1]
+        ]
+        assert tee_writes, "expected export notification teed to logfile"
+        assert "/tmp/out" in tee_writes[0].args[1]
+        assert "xlsx" in tee_writes[0].args[1]
+
+    def test_export_message_not_teed_without_logfile(self, mock_state):
+        state, db = mock_state
+        fake_result = FakeUpsertResult(
+            tables=[FakeTableResult(table_name="books", rows_updated=1)],
+            staging_schema="staging",
+            base_schema="public",
+        )
+        with (
+            patch("execsql.metacommands.upsert._require_pg_upsert"),
+            patch("execsql.metacommands.upsert._create_pgupsert") as mock_create,
+            patch("execsql.utils.fileio.filewriter_write") as mock_fw,
+        ):
+            mock_create.return_value.run.return_value = fake_result
+            x_pg_upsert(
+                staging_schema="staging",
+                base_schema="public",
+                tail="books EXPORT_FAILURES /tmp/out",
+                metacommandline="PG_UPSERT FROM staging TO public TABLES books EXPORT_FAILURES /tmp/out",
+            )
+        assert mock_fw.call_count == 0
+
+    def test_empty_export_emits_skip_message(self, mock_state):
+        state, db = mock_state
+        fake_result = FakeUpsertResult(
+            tables=[FakeTableResult(table_name="books")],
+            staging_schema="staging",
+            base_schema="public",
+        )
+        fake_result.export_return = False
+        state.output = MagicMock()
+        with (
+            patch("execsql.metacommands.upsert._require_pg_upsert"),
+            patch("execsql.metacommands.upsert._create_pgupsert") as mock_create,
+        ):
+            mock_create.return_value.run.return_value = fake_result
+            x_pg_upsert(
+                staging_schema="staging",
+                base_schema="public",
+                tail="books EXPORT_FAILURES /tmp/out",
+                metacommandline="PG_UPSERT FROM staging TO public TABLES books EXPORT_FAILURES /tmp/out",
+            )
+        logged = [
+            c.args[0]
+            for c in state.exec_log.log_user_msg.call_args_list
+            if c.args and "no QA failures to export" in str(c.args[0])
+        ]
+        assert logged
+
+    def test_full_mode_exports_on_success(self, mock_state):
+        state, db = mock_state
+        fake_result = FakeUpsertResult(
+            tables=[FakeTableResult(table_name="books", rows_updated=1)],
+            staging_schema="staging",
+            base_schema="public",
+        )
+        with (
+            patch("execsql.metacommands.upsert._require_pg_upsert"),
+            patch("execsql.metacommands.upsert._create_pgupsert") as mock_create,
+        ):
+            mock_create.return_value.run.return_value = fake_result
+            x_pg_upsert(
+                staging_schema="staging",
+                base_schema="public",
+                tail="books EXPORT_FAILURES /tmp/out EXPORT_FORMAT xlsx",
+                metacommandline="PG_UPSERT FROM staging TO public TABLES books EXPORT_FAILURES /tmp/out EXPORT_FORMAT xlsx",
+            )
+        assert fake_result.export_calls == [("/tmp/out", "xlsx")]
+        calls = {c[0][0]: c[0][1] for c in state.subvars.add_substitution.call_args_list}
+        assert calls["$PG_UPSERT_EXPORT_PATH"] == "/tmp/out"
+
+    def test_full_mode_exports_even_on_qa_failure(self, mock_state):
+        """The whole point of the fix sheet — export even when QA fails."""
+        state, db = mock_state
+        fake_result = FakeUpsertResult(
+            tables=[
+                FakeTableResult(
+                    table_name="books",
+                    qa_errors=[FakeQAError(table="books", check_type="null", details="col1")],
+                ),
+            ],
+            staging_schema="staging",
+            base_schema="public",
+        )
+        with (
+            patch("execsql.metacommands.upsert._require_pg_upsert"),
+            patch("execsql.metacommands.upsert._create_pgupsert") as mock_create,
+        ):
+            mock_create.return_value.run.return_value = fake_result
+            with pytest.raises(ErrInfo):
+                x_pg_upsert(
+                    staging_schema="staging",
+                    base_schema="public",
+                    tail="books EXPORT_FAILURES /tmp/out",
+                    metacommandline="PG_UPSERT FROM staging TO public TABLES books EXPORT_FAILURES /tmp/out",
+                )
+        # Export MUST have happened before the ErrInfo was raised.
+        assert fake_result.export_calls == [("/tmp/out", "csv")]
+
+    def test_no_export_when_keyword_absent(self, mock_state):
+        state, db = mock_state
+        fake_result = FakeUpsertResult(
+            tables=[FakeTableResult(table_name="books")],
+            staging_schema="staging",
+            base_schema="public",
+        )
+        with (
+            patch("execsql.metacommands.upsert._require_pg_upsert"),
+            patch("execsql.metacommands.upsert._create_pgupsert") as mock_create,
+        ):
+            mock_create.return_value.run.return_value = fake_result
+            x_pg_upsert(
+                staging_schema="staging",
+                base_schema="public",
+                tail="books",
+                metacommandline="PG_UPSERT FROM staging TO public TABLES books",
+            )
+        assert fake_result.export_calls == []
+        calls = {c[0][0]: c[0][1] for c in state.subvars.add_substitution.call_args_list}
+        # Subvar is still initialized to empty.
+        assert calls["$PG_UPSERT_EXPORT_PATH"] == ""
+
+    def test_export_path_empty_when_nothing_to_export(self, mock_state):
+        """If pg-upsert's export_failures returns None (no violations), the
+        subvar is the empty string."""
+        state, db = mock_state
+        fake_result = FakeUpsertResult(
+            tables=[FakeTableResult(table_name="books")],
+            staging_schema="staging",
+            base_schema="public",
+        )
+        fake_result.export_return = False  # falsy -> empty string subvar
+        # ^ use False so the helper's `if exported` branch hits the empty path
+        with (
+            patch("execsql.metacommands.upsert._require_pg_upsert"),
+            patch("execsql.metacommands.upsert._create_pgupsert") as mock_create,
+        ):
+            mock_create.return_value.run.return_value = fake_result
+            x_pg_upsert(
+                staging_schema="staging",
+                base_schema="public",
+                tail="books EXPORT_FAILURES /tmp/out",
+                metacommandline="PG_UPSERT FROM staging TO public TABLES books EXPORT_FAILURES /tmp/out",
+            )
+        calls = {c[0][0]: c[0][1] for c in state.subvars.add_substitution.call_args_list}
+        assert calls["$PG_UPSERT_EXPORT_PATH"] == ""
+
+    def test_export_failure_wrapped_in_errinfo(self, mock_state):
+        """Exceptions from pg-upsert's export_failures become ErrInfo."""
+        state, db = mock_state
+
+        class _BoomResult(FakeUpsertResult):
+            def export_failures(self, directory, fmt="csv"):
+                raise RuntimeError("openpyxl not installed")
+
+        fake_result = _BoomResult(
+            tables=[FakeTableResult(table_name="books")],
+            staging_schema="staging",
+            base_schema="public",
+        )
+        with (
+            patch("execsql.metacommands.upsert._require_pg_upsert"),
+            patch("execsql.metacommands.upsert._create_pgupsert") as mock_create,
+        ):
+            mock_create.return_value.run.return_value = fake_result
+            with pytest.raises(ErrInfo) as exc_info:
+                x_pg_upsert(
+                    staging_schema="staging",
+                    base_schema="public",
+                    tail="books EXPORT_FAILURES /tmp/out EXPORT_FORMAT xlsx",
+                    metacommandline=(
+                        "PG_UPSERT FROM staging TO public TABLES books EXPORT_FAILURES /tmp/out EXPORT_FORMAT xlsx"
+                    ),
+                )
+            assert "failed to export failure sheet" in str(exc_info.value)
+
+    def test_qa_mode_exports(self, mock_state):
+        """QA-only mode must honor EXPORT_FAILURES."""
+        state, db = mock_state
+        with (
+            patch("execsql.metacommands.upsert._require_pg_upsert"),
+            patch("execsql.metacommands.upsert._create_pgupsert") as mock_create,
+        ):
+            mock_ups = mock_create.return_value
+            mock_ups.tables = ["books"]
+            mock_ups.qa_errors = []
+            mock_ups.staging_schema = "staging"
+            mock_ups.base_schema = "public"
+            mock_ups.upsert_method = "upsert"
+            captured: list[Any] = []
+
+            def _fake_build(ups):
+                r = FakeUpsertResult(
+                    tables=[FakeTableResult(table_name="books")],
+                    staging_schema="staging",
+                    base_schema="public",
+                )
+                captured.append(r)
+                return r
+
+            with patch(
+                "execsql.metacommands.upsert._build_result_from_qa_errors",
+                side_effect=_fake_build,
+            ):
+                x_pg_upsert_qa(
+                    staging_schema="staging",
+                    base_schema="public",
+                    tail="books EXPORT_FAILURES /tmp/qa",
+                    metacommandline="PG_UPSERT QA FROM staging TO public TABLES books EXPORT_FAILURES /tmp/qa",
+                )
+        assert captured and captured[0].export_calls == [("/tmp/qa", "csv")]
+
+    def test_check_mode_exports(self, mock_state):
+        """CHECK mode must honor EXPORT_FAILURES for schema issues."""
+        state, db = mock_state
+        with (
+            patch("execsql.metacommands.upsert._require_pg_upsert"),
+            patch("execsql.metacommands.upsert._create_pgupsert") as mock_create,
+        ):
+            mock_ups = mock_create.return_value
+            mock_ups.tables = ["books"]
+            mock_ups.qa_errors = []
+            mock_ups.staging_schema = "staging"
+            mock_ups.base_schema = "public"
+            mock_ups.upsert_method = "upsert"
+            # qa_column_existence().qa_type_mismatch() chain
+            mock_ups.qa_column_existence.return_value = mock_ups
+            mock_ups.qa_type_mismatch.return_value = mock_ups
+            captured: list[Any] = []
+
+            def _fake_build(ups):
+                r = FakeUpsertResult(
+                    tables=[FakeTableResult(table_name="books")],
+                    staging_schema="staging",
+                    base_schema="public",
+                )
+                captured.append(r)
+                return r
+
+            with patch(
+                "execsql.metacommands.upsert._build_result_from_qa_errors",
+                side_effect=_fake_build,
+            ):
+                x_pg_upsert_check(
+                    staging_schema="staging",
+                    base_schema="public",
+                    tail="books EXPORT_FAILURES /tmp/chk EXPORT_FORMAT json",
+                    metacommandline=(
+                        "PG_UPSERT CHECK FROM staging TO public TABLES books "
+                        "EXPORT_FAILURES /tmp/chk EXPORT_FORMAT json"
+                    ),
+                )
+        assert captured and captured[0].export_calls == [("/tmp/chk", "json")]

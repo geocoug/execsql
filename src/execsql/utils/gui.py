@@ -498,10 +498,10 @@ def gui_credentials(
     cmd:
         The originating metacommand line (for logging only).
     """
+    import getpass as _getpass
     import queue as _queue
 
     import execsql.state as _state
-    from execsql.utils.auth import get_password
 
     gui_level = _state.conf.gui_level if _state.conf else 0
     if gui_level > 0 and _state.gui_manager_thread is not None and _state.gui_manager_thread.is_alive():
@@ -515,7 +515,7 @@ def gui_credentials(
         if message:
             print(message, file=sys.stderr)
         uname = input("Username: ")
-        passwd = get_password(f"Password for {uname}: ")
+        passwd = _getpass.getpass(f"Password for {uname}: ")
 
     if username:
         _state.subvars.add_substitution(username, uname)

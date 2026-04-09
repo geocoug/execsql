@@ -808,6 +808,34 @@ class TestGuiPublicAPI:
         monkeypatch.setattr("builtins.input", lambda *a: next(inputs))
         assert get_yn("?") is False
 
+    def test_gui_credentials_console_fallback(self, monkeypatch):
+        """gui_credentials must not call auth.get_password (which needs
+        dbms/database/user kwargs). Regression for the
+        'get_password() missing 2 required positional arguments' bug.
+        """
+        from unittest.mock import MagicMock
+
+        import execsql.state as _state
+        from execsql.utils.gui import gui_credentials
+
+        # Force the fallback branch: no GUI manager thread.
+        monkeypatch.setattr(_state, "gui_manager_thread", None)
+        conf = MagicMock()
+        conf.gui_level = 0
+        monkeypatch.setattr(_state, "conf", conf)
+
+        subvars = MagicMock()
+        monkeypatch.setattr(_state, "subvars", subvars)
+
+        monkeypatch.setattr("builtins.input", lambda *a: "alice")
+        monkeypatch.setattr("getpass.getpass", lambda *a, **kw: "s3cret")
+
+        gui_credentials(message="Log in", username="$U", pwtext="$P")
+
+        calls = {c[0][0]: c[0][1] for c in subvars.add_substitution.call_args_list}
+        assert calls["$U"] == "alice"
+        assert calls["$P"] == "s3cret"
+
     def test_pause_no_countdown(self, monkeypatch):
         from execsql.utils.gui import pause
 

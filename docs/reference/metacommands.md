@@ -2127,6 +2127,9 @@ Keywords can appear in any order after the table list.
 | `COMPACT` | Use compact grid format for QA summary instead of detailed per-table panels. |
 | `LOGFILE <path>` | Append pg-upsert's plain-text log output to the given file. Supports quoted paths for spaces: `LOGFILE "path/to/log.txt"`. |
 | `CLEANUP` | Drop all `ups_*` temporary tables and views after execution. Without it, temp objects persist for inspection (default). |
+| `EXPORT_FAILURES <dir>` | Write a "fix sheet" of failing QA rows into `<dir>` (directory is created if missing). One row per unique violating staging row, with an `_issues` column summarizing every problem on that row. Supports quoted paths for spaces. Export runs even when QA fails — that is the whole point. A confirmation message (`PG_UPSERT: exported QA failures to <dir> (<format>)`) is written to the terminal, the execsql log, and the `LOGFILE` target if one is given. |
+| `EXPORT_FORMAT csv\|json\|xlsx` | Fix sheet format when `EXPORT_FAILURES` is given. `csv` (default) writes one file per table; `json` writes a single nested file; `xlsx` writes a single workbook with one sheet per table (requires `openpyxl`). |
+| `EXPORT_MAX_ROWS <n>` | Maximum rows to capture per check per table for the fix sheet. Default `1000`. Only meaningful with `EXPORT_FAILURES`. |
 
 ### Substitution variables
 
@@ -2150,6 +2153,7 @@ Set after every `PG_UPSERT` execution:
 | `$PG_UPSERT_TABLE_QA_PASSED` | TRUE/FALSE | QA result for the current table (updated per table) |
 | `$PG_UPSERT_TABLE_ROWS_UPDATED` | integer | Rows updated for the current table (updated per table) |
 | `$PG_UPSERT_TABLE_ROWS_INSERTED` | integer | Rows inserted for the current table (updated per table) |
+| `$PG_UPSERT_EXPORT_PATH` | string | Directory path that the QA fix sheet was written to, or empty if `EXPORT_FAILURES` was not given or nothing was exported. |
 
 !!! note "Using `$PG_UPSERT_RESULT_JSON` with WRITE"
     The JSON value is stored as compact single-line JSON. Because it contains double quotes (`"`), square brackets (`[]`), and apostrophes may appear in data, use tilde or backtick delimiters with WRITE:
@@ -2211,6 +2215,13 @@ For the full list of temporary objects and their schemas, see the [pg-upsert Tem
 -- Write the full JSON result using tilde delimiters (JSON contains " and [])
 -- !x! PG_UPSERT FROM staging TO public TABLES books COMMIT
 -- !x! WRITE ~!!$PG_UPSERT_RESULT_JSON!!~
+
+-- Export failing QA rows to an Excel fix sheet (one sheet per table)
+-- !x! PG_UPSERT QA FROM staging TO public TABLES books, authors EXPORT_FAILURES "qa_failures/" EXPORT_FORMAT xlsx
+
+-- Full pipeline with a CSV fix sheet cap of 50 rows per check per table
+-- !x! PG_UPSERT FROM staging TO public TABLES books, authors EXPORT_FAILURES /tmp/fix EXPORT_MAX_ROWS 50 COMMIT
+-- !x! WRITE "Fix sheet: !!$PG_UPSERT_EXPORT_PATH!!"
 ```
 
 

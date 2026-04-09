@@ -26,11 +26,11 @@ from execsql.utils.errors import exception_desc
 
 _KW_METHOD = re.compile(r"\bMETHOD\s+(upsert|update|insert)\b", re.IGNORECASE)
 _KW_EXCLUDE = re.compile(
-    r"\bEXCLUDE\s+([\w\s,]+?)(?=\s+(?:METHOD|COMMIT|INTERACTIVE|COMPACT|EXCLUDE_NULL|LOGFILE|CLEANUP)\b|\s*$)",
+    r"\bEXCLUDE\s+([\w\s,]+?)(?=\s+(?:METHOD|COMMIT|INTERACTIVE|COMPACT|EXCLUDE_NULL|LOGFILE|CLEANUP|EXPORT_FAILURES|EXPORT_FORMAT|EXPORT_MAX_ROWS)\b|\s*$)",
     re.IGNORECASE,
 )
 _KW_EXCLUDE_NULL = re.compile(
-    r"\bEXCLUDE_NULL\s+([\w\s,]+?)(?=\s+(?:METHOD|COMMIT|INTERACTIVE|COMPACT|EXCLUDE|LOGFILE|CLEANUP)\b|\s*$)",
+    r"\bEXCLUDE_NULL\s+([\w\s,]+?)(?=\s+(?:METHOD|COMMIT|INTERACTIVE|COMPACT|EXCLUDE|LOGFILE|CLEANUP|EXPORT_FAILURES|EXPORT_FORMAT|EXPORT_MAX_ROWS)\b|\s*$)",
     re.IGNORECASE,
 )
 _KW_COMMIT = re.compile(r"\bCOMMIT\b", re.IGNORECASE)
@@ -38,12 +38,20 @@ _KW_INTERACTIVE = re.compile(r"\bINTERACTIVE\b", re.IGNORECASE)
 _KW_COMPACT = re.compile(r"\bCOMPACT\b", re.IGNORECASE)
 _KW_CLEANUP = re.compile(r"\bCLEANUP\b", re.IGNORECASE)
 _KW_LOGFILE = re.compile(r"""\bLOGFILE\s+(?:"([^"]+)"|'([^']+)'|(\S+))""", re.IGNORECASE)
+_KW_EXPORT_FAILURES = re.compile(
+    r"""\bEXPORT_FAILURES\s+(?:"([^"]+)"|'([^']+)'|(\S+))""",
+    re.IGNORECASE,
+)
+_KW_EXPORT_FORMAT = re.compile(r"\bEXPORT_FORMAT\s+(\S+)", re.IGNORECASE)
+_KW_EXPORT_MAX_ROWS = re.compile(r"\bEXPORT_MAX_ROWS\s+(\S+)", re.IGNORECASE)
 
 # All recognized keywords — used to split table names from options.
 _ALL_KEYWORDS = re.compile(
-    r"\b(?:METHOD|COMMIT|INTERACTIVE|COMPACT|EXCLUDE_NULL|EXCLUDE|LOGFILE|CLEANUP)\b",
+    r"\b(?:METHOD|COMMIT|INTERACTIVE|COMPACT|EXCLUDE_NULL|EXCLUDE|LOGFILE|CLEANUP|EXPORT_FAILURES|EXPORT_FORMAT|EXPORT_MAX_ROWS)\b",
     re.IGNORECASE,
 )
+
+_VALID_EXPORT_FORMATS = ("csv", "json", "xlsx")
 
 
 def _parse_tables_and_options(tail: str) -> dict[str, Any]:
@@ -90,6 +98,40 @@ def _parse_tables_and_options(tail: str) -> dict[str, Any]:
     if m:
         logfile = m.group(1) or m.group(2) or m.group(3)
 
+    export_failures: str | None = None
+    m = _KW_EXPORT_FAILURES.search(opts_part)
+    if m:
+        export_failures = m.group(1) or m.group(2) or m.group(3)
+
+    export_format = "csv"
+    m = _KW_EXPORT_FORMAT.search(opts_part)
+    if m:
+        fmt = m.group(1).lower()
+        if fmt not in _VALID_EXPORT_FORMATS:
+            raise ErrInfo(
+                "cmd",
+                other_msg=(
+                    f"PG_UPSERT: unsupported EXPORT_FORMAT {m.group(1)!r}. "
+                    f"Supported: {', '.join(_VALID_EXPORT_FORMATS)}"
+                ),
+            )
+        export_format = fmt
+
+    export_max_rows = 1000
+    m = _KW_EXPORT_MAX_ROWS.search(opts_part)
+    if m:
+        raw = m.group(1)
+        try:
+            val = int(raw)
+            if val <= 0:
+                raise ValueError
+        except ValueError as exc:
+            raise ErrInfo(
+                "cmd",
+                other_msg=(f"PG_UPSERT: EXPORT_MAX_ROWS must be a positive integer, got {raw!r}"),
+            ) from exc
+        export_max_rows = val
+
     return {
         "tables": tables,
         "method": method,
@@ -100,6 +142,9 @@ def _parse_tables_and_options(tail: str) -> dict[str, Any]:
         "exclude_null_check_cols": exclude_null,
         "logfile": logfile,
         "cleanup": bool(_KW_CLEANUP.search(opts_part)),
+        "export_failures": export_failures,
+        "export_format": export_format,
+        "export_max_rows": export_max_rows,
     }
 
 
@@ -157,6 +202,9 @@ def _set_subvars(result: Any) -> None:
     sv("$PG_UPSERT_STARTED_AT", result.started_at)
     sv("$PG_UPSERT_FINISHED_AT", result.finished_at)
     sv("$PG_UPSERT_RESULT_JSON", json.dumps(result.to_dict(), separators=(",", ":")))
+    # Default export path subvar to empty; _export_failures_if_requested
+    # will overwrite it with the actual path if an export was produced.
+    sv("$PG_UPSERT_EXPORT_PATH", "")
 
 
 def _qa_failure_msg(result: Any) -> str:
@@ -241,20 +289,26 @@ def _create_pgupsert(
     if _state.conf:
         ui_mode = _state.conf.gui_framework
 
-    ups = PgUpsert(
-        conn=db.conn,
-        staging_schema=staging_schema,
-        base_schema=base_schema,
-        tables=opts["tables"],
-        do_commit=opts["commit"],
-        interactive=opts["interactive"],
-        compact=opts["compact"],
-        upsert_method=opts["method"],
-        exclude_cols=opts["exclude_cols"],
-        exclude_null_check_cols=opts["exclude_null_check_cols"],
-        ui_mode=ui_mode,
-        callback=_make_callback(),
-    )
+    kwargs: dict[str, Any] = {
+        "conn": db.conn,
+        "staging_schema": staging_schema,
+        "base_schema": base_schema,
+        "tables": opts["tables"],
+        "do_commit": opts["commit"],
+        "interactive": opts["interactive"],
+        "compact": opts["compact"],
+        "upsert_method": opts["method"],
+        "exclude_cols": opts["exclude_cols"],
+        "exclude_null_check_cols": opts["exclude_null_check_cols"],
+        "ui_mode": ui_mode,
+        "callback": _make_callback(),
+    }
+    # Only pass fix-sheet capture args when an export was requested, so the
+    # metacommand stays compatible with any pg-upsert build that lacks them.
+    if opts.get("export_failures"):
+        kwargs["capture_detail_rows"] = True
+        kwargs["max_export_rows"] = opts.get("export_max_rows", 1000)
+    ups = PgUpsert(**kwargs)
     return ups
 
 
@@ -328,6 +382,57 @@ def _run_with_autocommit_guard(db: Any, fn: Any) -> Any:
             db.autocommit_on()
 
 
+def _export_failures_if_requested(
+    result: Any,
+    opts: dict[str, Any],
+    metacommandline: str | None,
+) -> None:
+    """Export a QA fix sheet if EXPORT_FAILURES was given in the metacommand.
+
+    Always called after ``_set_subvars(result)`` so ``$PG_UPSERT_EXPORT_PATH``
+    is initialized to empty first, then overwritten here on a successful
+    export.  Called even when QA failed — that's the whole point of the
+    fix sheet.
+    """
+    path = opts.get("export_failures")
+    if not path:
+        return
+    fmt = opts["export_format"]
+    try:
+        exported = result.export_failures(path, fmt=fmt)
+    except Exception as exc:
+        raise ErrInfo(
+            "exception",
+            exception_msg=exception_desc(),
+            other_msg=(f"PG_UPSERT failed to export failure sheet to {path}"),
+        ) from exc
+    _state.subvars.add_substitution(
+        "$PG_UPSERT_EXPORT_PATH",
+        str(exported) if exported else "",
+    )
+    if exported:
+        msg = f"PG_UPSERT: exported QA failures to {exported} ({fmt})"
+    else:
+        msg = f"PG_UPSERT: no QA failures to export (EXPORT_FAILURES {path} skipped)"
+    _state.exec_log.log_user_msg(msg)
+    try:
+        _state.output.write(msg + "\n")
+    except Exception:
+        # Output sink may be unavailable in some contexts (e.g. tests);
+        # the log message above is sufficient in that case.
+        pass
+    # Tee to the LOGFILE keyword target if one was given, matching how the
+    # pg-upsert display output is routed there via _FileWriterHandler.
+    logfile = opts.get("logfile")
+    if logfile:
+        try:
+            from execsql.utils.fileio import filewriter_write
+
+            filewriter_write(logfile, msg + "\n")
+        except Exception:
+            pass
+
+
 def _handle_pg_upsert_errors(fn: Any, metacommandline: str | None) -> Any:
     """Run *fn*, translating pg-upsert exceptions to ErrInfo."""
     from pg_upsert import UserCancelledError
@@ -381,6 +486,7 @@ def x_pg_upsert(**kwargs: Any) -> None:
         _detach_log_handlers(loggers, handlers, prev_levels)
 
     _set_subvars(result)
+    _export_failures_if_requested(result, opts, metacommandline)
     if opts.get("cleanup"):
         ups.cleanup()
 
@@ -420,6 +526,7 @@ def x_pg_upsert_qa(**kwargs: Any) -> None:
 
     result = _build_result_from_qa_errors(ups)
     _set_subvars(result)
+    _export_failures_if_requested(result, opts, metacommandline)
     if opts.get("cleanup"):
         ups.cleanup()
 
@@ -462,6 +569,7 @@ def x_pg_upsert_check(**kwargs: Any) -> None:
 
     result = _build_result_from_qa_errors(ups)
     _set_subvars(result)
+    _export_failures_if_requested(result, opts, metacommandline)
     if opts.get("cleanup"):
         ups.cleanup()
 
