@@ -50,7 +50,7 @@ def _center_window(win: tk.Tk | tk.Toplevel, width: int = 600, height: int = 400
     win.geometry(f"{width}x{height}+{x}+{y}")
 
 
-from execsql.gui.base import compare_stats as _compare_stats
+from execsql.gui.base import DIFF_MARKER, compare_stats as _compare_stats, compute_row_diffs
 
 
 def _add_help_button(frame: tk.Frame, url: str | None) -> None:
@@ -516,6 +516,10 @@ class CompareDialog:
             key_idx1 = [i for i, h in enumerate(headers1_str) if h in keylist]
             key_idx2 = [i for i, h in enumerate(headers2_str) if h in keylist]
 
+            # Syncing uses display-consistent string normalization (treeview
+            # values are strings).  The diff engine in base.py has its own
+            # _pk_tuple with native-equality semantics — it does not share
+            # these maps.
             def _kv(row, idxs):
                 return tuple(str(row[i]) if row[i] is not None else "" for i in idxs)
 
@@ -523,8 +527,15 @@ class CompareDialog:
             iids2 = tree2.get_children()
             iid_to_kv1 = {iid: _kv(rows1[i], key_idx1) for i, iid in enumerate(iids1)}
             iid_to_kv2 = {iid: _kv(rows2[i], key_idx2) for i, iid in enumerate(iids2)}
-            kv_to_iid1 = {v: k for k, v in iid_to_kv1.items()}
-            kv_to_iid2 = {v: k for k, v in iid_to_kv2.items()}
+            # First occurrence wins for duplicate PKs (consistent with compute_row_diffs).
+            kv_to_iid1: dict[tuple, str] = {}
+            for iid, kv in iid_to_kv1.items():
+                if kv not in kv_to_iid1:
+                    kv_to_iid1[kv] = iid
+            kv_to_iid2: dict[tuple, str] = {}
+            for iid, kv in iid_to_kv2.items():
+                if kv not in kv_to_iid2:
+                    kv_to_iid2[kv] = iid
 
             def _on_click1(event):
                 sel_item = tree1.focus()
@@ -556,35 +567,66 @@ class CompareDialog:
             tree2.tag_configure("diff_changed", background="#f5d98e", foreground="#3a2e00")
             tree2.tag_configure("diff_only", background="#f5a3a3", foreground="#3a0a0a")
             _diff_on = [False]
+            _diff_result = compute_row_diffs(headers1, rows1, headers2, rows2, keylist)
+            _original_values1: dict[str, tuple] = {}
+            _original_values2: dict[str, tuple] = {}
+
+            def _apply_diffs(
+                tree: ttk.Treeview,
+                iids: tuple,
+                row_states: list[str],
+                changed_cols: list[set[str]],
+                headers_str: list[str],
+                originals: dict[str, tuple],
+                turn_on: bool,
+            ) -> None:
+                iids_list = list(iids)
+                if not turn_on:
+                    for iid in iids:
+                        tree.item(iid, tags=())
+                        if iid in originals:
+                            tree.item(iid, values=originals[iid])
+                    originals.clear()
+                    return
+                for iid in iids:
+                    ridx = iids_list.index(iid)
+                    state = row_states[ridx]
+                    if state == "only_t1" or state == "only_t2":
+                        tree.item(iid, tags=("diff_only",))
+                    elif state == "match":
+                        tree.item(iid, tags=("diff_match",))
+                    elif state == "changed":
+                        tree.item(iid, tags=("diff_changed",))
+                        originals[iid] = tree.item(iid, "values")
+                        vals = list(tree.item(iid, "values"))
+                        diff_set = changed_cols[ridx]
+                        for ci, col_name in enumerate(headers_str):
+                            if col_name in diff_set and ci < len(vals):
+                                vals[ci] = f"{DIFF_MARKER}{vals[ci]}"
+                        tree.item(iid, values=vals)
 
             def _toggle_diffs():
                 _diff_on[0] = not _diff_on[0]
-                if not _diff_on[0]:
-                    for iid in tree1.get_children():
-                        tree1.item(iid, tags=())
-                    for iid in tree2.get_children():
-                        tree2.item(iid, tags=())
+                if _diff_result is None:
                     return
-                keys1_set = set(iid_to_kv1.values())
-                keys2_set = set(iid_to_kv2.values())
-                for iid, kv in iid_to_kv1.items():
-                    if kv not in keys2_set:
-                        tree1.item(iid, tags=("diff_only",))
-                    else:
-                        r1 = [str(v) if v is not None else "" for v in rows1[list(iids1).index(iid)]]
-                        match_iid = kv_to_iid2.get(kv)
-                        if match_iid:
-                            r2 = [str(v) if v is not None else "" for v in rows2[list(iids2).index(match_iid)]]
-                            tree1.item(iid, tags=("diff_match",) if r1 == r2 else ("diff_changed",))
-                for iid, kv in iid_to_kv2.items():
-                    if kv not in keys1_set:
-                        tree2.item(iid, tags=("diff_only",))
-                    else:
-                        r2 = [str(v) if v is not None else "" for v in rows2[list(iids2).index(iid)]]
-                        match_iid = kv_to_iid1.get(kv)
-                        if match_iid:
-                            r1 = [str(v) if v is not None else "" for v in rows1[list(iids1).index(match_iid)]]
-                            tree2.item(iid, tags=("diff_match",) if r1 == r2 else ("diff_changed",))
+                _apply_diffs(
+                    tree1,
+                    iids1,
+                    _diff_result.table1_row_states,
+                    _diff_result.table1_changed_cols,
+                    [str(h) for h in headers1],
+                    _original_values1,
+                    _diff_on[0],
+                )
+                _apply_diffs(
+                    tree2,
+                    iids2,
+                    _diff_result.table2_row_states,
+                    _diff_result.table2_changed_cols,
+                    [str(h) for h in headers2],
+                    _original_values2,
+                    _diff_on[0],
+                )
 
             ttk.Button(diff_frame, text="Highlight Diffs", command=_toggle_diffs).pack(side=tk.LEFT)
             ttk.Label(diff_frame, text="  ").pack(side=tk.LEFT)

@@ -11,7 +11,7 @@ import sys
 import time
 from typing import Any
 
-from execsql.gui.base import GuiBackend, compare_stats as _compare_stats
+from execsql.gui.base import DIFF_MARKER, GuiBackend, compare_stats as _compare_stats, compute_row_diffs
 
 __all__ = ["ConsoleBackend"]
 
@@ -28,22 +28,47 @@ def _row_count_text(n: int) -> str:
     return f"{n:,} row{'s' if n != 1 else ''}"
 
 
-def _print_table(headers: list, rows: list, file: Any = None) -> None:
-    """Print a simple ASCII table to the given file (default stderr)."""
+def _print_table(
+    headers: list,
+    rows: list,
+    file: Any = None,
+    row_states: list[str] | None = None,
+    changed_cols: list[set[str]] | None = None,
+) -> None:
+    """Print a simple ASCII table to the given file (default stderr).
+
+    When *row_states* and *changed_cols* are provided, cells that differ in
+    ``"changed"`` rows are prefixed with the diff marker (``"● "``).
+    """
     if file is None:
         file = sys.stderr
     if not headers:
         return
-    col_widths = [len(str(h)) for h in headers]
-    for row in rows:
-        for i, cell in enumerate(row):
-            col_widths[i] = max(col_widths[i], len(str(cell) if cell is not None else ""))
+    headers_str = [str(h) for h in headers]
+
+    # Pre-compute display values so column widths account for markers.
+    display_rows: list[list[str]] = []
+    for ridx, row in enumerate(rows):
+        cells: list[str] = []
+        state = row_states[ridx] if row_states and ridx < len(row_states) else ""
+        diff_set = changed_cols[ridx] if changed_cols and ridx < len(changed_cols) else set()
+        for ci, cell in enumerate(row):
+            val = str(cell) if cell is not None else ""
+            if state == "changed" and ci < len(headers_str) and headers_str[ci] in diff_set:
+                val = f"{DIFF_MARKER}{val}"
+            cells.append(val)
+        display_rows.append(cells)
+
+    col_widths = [len(h) for h in headers_str]
+    for cells in display_rows:
+        for i, cell in enumerate(cells):
+            col_widths[i] = max(col_widths[i], len(cell))
     fmt = "  " + "  ".join(f"{{:<{w}}}" for w in col_widths)
     sep = "  " + "  ".join("-" * w for w in col_widths)
-    print(fmt.format(*[str(h) for h in headers]), file=file)
+    print(fmt.format(*headers_str), file=file)
     print(sep, file=file)
-    for row in rows:
-        print(fmt.format(*[str(c) if c is not None else "" for c in row]), file=file)
+    for cells in display_rows:
+        print(fmt.format(*cells), file=file)
 
 
 def _prompt_buttons(button_list: list) -> int | None:
@@ -256,19 +281,31 @@ class ConsoleBackend(GuiBackend):
         headers2 = args.get("headers2", [])
         rows2 = args.get("rows2", [])
         button_list = args.get("button_list", [("Continue", 1, "<Return>")])
+        keylist = [str(k) for k in args.get("keylist", [])]
+
+        diff = compute_row_diffs(headers1, rows1, headers2, rows2, keylist) if keylist else None
 
         print(f"\n=== {title} ===", file=sys.stderr)
         if message:
             print(message, file=sys.stderr)
         _print_help_url(args)
         print("\n--- Table 1 ---", file=sys.stderr)
-        _print_table(headers1, rows1)
+        _print_table(
+            headers1,
+            rows1,
+            row_states=diff.table1_row_states if diff else None,
+            changed_cols=diff.table1_changed_cols if diff else None,
+        )
         print(f"  {_row_count_text(len(rows1))}", file=sys.stderr)
         print("\n--- Table 2 ---", file=sys.stderr)
-        _print_table(headers2, rows2)
+        _print_table(
+            headers2,
+            rows2,
+            row_states=diff.table2_row_states if diff else None,
+            changed_cols=diff.table2_changed_cols if diff else None,
+        )
         print(f"  {_row_count_text(len(rows2))}", file=sys.stderr)
 
-        keylist = [str(k) for k in args.get("keylist", [])]
         summary = _compare_stats(headers1, rows1, headers2, rows2, keylist)
         if summary:
             print(f"\n  {summary}", file=sys.stderr)

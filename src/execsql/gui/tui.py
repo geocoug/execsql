@@ -61,7 +61,7 @@ from textual.widgets import (
 
 __all__ = ["TextualBackend"]
 
-from execsql.gui.base import compare_stats as _compare_stats
+from execsql.gui.base import DIFF_MARKER, compare_stats as _compare_stats, compute_row_diffs
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -638,6 +638,7 @@ class CompareScreen(_BaseDialog):
         self._col_keys1: list = []
         self._col_keys2: list = []
         self._diff_on = False
+        self._diff_result = None
         self._original_cells1: dict = {}
         self._original_cells2: dict = {}
 
@@ -700,16 +701,30 @@ class CompareScreen(_BaseDialog):
         self._key_idx1 = [i for i, h in enumerate(headers1) if h in keylist]
         self._key_idx2 = [i for i, h in enumerate(headers2) if h in keylist]
 
+        # Syncing uses display-consistent string normalization (DataTable
+        # cells are strings).  The diff engine in base.py has its own
+        # _pk_tuple with native-equality semantics — it does not share
+        # these maps.
         def _kv(row: list, idxs: list) -> tuple:
             return tuple(str(row[i]) if row[i] is not None else "" for i in idxs)
 
-        self._kv_to_ridx1 = {_kv(r, self._key_idx1): i for i, r in enumerate(rows1)}
-        self._kv_to_ridx2 = {_kv(r, self._key_idx2): i for i, r in enumerate(rows2)}
+        # First occurrence wins for duplicate PKs (consistent with compute_row_diffs).
+        self._kv_to_ridx1 = {}
+        for i, r in enumerate(rows1):
+            k = _kv(r, self._key_idx1)
+            if k not in self._kv_to_ridx1:
+                self._kv_to_ridx1[k] = i
+        self._kv_to_ridx2 = {}
+        for i, r in enumerate(rows2):
+            k = _kv(r, self._key_idx2)
+            if k not in self._kv_to_ridx2:
+                self._kv_to_ridx2[k] = i
 
         t1: DataTable = self.query_one("#table1", DataTable)
         t2: DataTable = self.query_one("#table2", DataTable)
         self._col_keys1 = list(t1.columns.keys())
         self._col_keys2 = list(t2.columns.keys())
+        self._diff_result = compute_row_diffs(headers1, rows1, headers2, rows2, keylist)
 
     def on_data_table_row_highlighted(self, event: DataTable.RowHighlighted) -> None:
         if self._syncing or not self._key_idx1:
@@ -738,20 +753,17 @@ class CompareScreen(_BaseDialog):
 
     @on(Button.Pressed, "#btn_diff_toggle")
     def _on_diff_toggle(self, event: Button.Pressed) -> None:
-        """Toggle row-level diff highlighting in both tables."""
+        """Toggle row-level diff highlighting with cell-level markers."""
         event.stop()
         from rich.text import Text
 
         self._diff_on = not self._diff_on
         t1: DataTable = self.query_one("#table1", DataTable)
         t2: DataTable = self.query_one("#table2", DataTable)
-        rows1 = self.args.get("rows1", [])
-        rows2 = self.args.get("rows2", [])
         row_keys1 = list(t1.rows.keys())
         row_keys2 = list(t2.rows.keys())
 
         if not self._diff_on:
-            # Restore original cell values
             for (rk, ck), val in self._original_cells1.items():
                 t1.update_cell(rk, ck, val)
             for (rk, ck), val in self._original_cells2.items():
@@ -760,46 +772,59 @@ class CompareScreen(_BaseDialog):
             self._original_cells2.clear()
             return
 
-        keys1_set = set(self._kv_to_ridx1.keys())
-        keys2_set = set(self._kv_to_ridx2.keys())
-        ridx_to_kv1 = {v: k for k, v in self._kv_to_ridx1.items()}
-        ridx_to_kv2 = {v: k for k, v in self._kv_to_ridx2.items()}
-        row_map1 = {k: rows1[i] for k, i in self._kv_to_ridx1.items()}
-        row_map2 = {k: rows2[i] for k, i in self._kv_to_ridx2.items()}
+        if self._diff_result is None:
+            return
 
-        # Muted colors suitable for dark terminal themes
         style_match = "on #2d5a2d"
         style_changed = "on #5a4b00"
         style_only = "on #5a1a1a"
+        state_style = {"match": style_match, "changed": style_changed, "only_t1": style_only, "only_t2": style_only}
 
         def _style_table(
             table: DataTable,
             originals: dict,
             row_keys: list,
             col_keys: list,
-            data_rows: list,
-            ridx_to_kv: dict,
-            other_keys_set: set,
-            other_row_map: dict,
+            headers: list[str],
+            row_states: list[str],
+            changed_cols: list[set[str]],
         ) -> None:
-            for ridx in range(len(data_rows)):
-                kv = ridx_to_kv.get(ridx)
-                if kv is None:
+            for ridx, rk in enumerate(row_keys):
+                if ridx >= len(row_states):
                     continue
-                rk = row_keys[ridx]
-                if kv not in other_keys_set:
-                    style = style_only
-                else:
-                    r_self = [str(v) if v is not None else "" for v in data_rows[ridx]]
-                    r_other = [str(v) if v is not None else "" for v in other_row_map[kv]]
-                    style = style_match if r_self == r_other else style_changed
-                for ck in col_keys:
+                state = row_states[ridx]
+                style = state_style.get(state)
+                if not style:
+                    continue
+                diff_set = changed_cols[ridx] if state == "changed" else set()
+                for ci, ck in enumerate(col_keys):
                     val = table.get_cell(rk, ck)
                     originals[(rk, ck)] = val
-                    table.update_cell(rk, ck, Text(str(val), style=style))
+                    display = str(val)
+                    if diff_set and ci < len(headers) and headers[ci] in diff_set:
+                        display = f"{DIFF_MARKER}{display}"
+                    table.update_cell(rk, ck, Text(display, style=style))
 
-        _style_table(t1, self._original_cells1, row_keys1, self._col_keys1, rows1, ridx_to_kv1, keys2_set, row_map2)
-        _style_table(t2, self._original_cells2, row_keys2, self._col_keys2, rows2, ridx_to_kv2, keys1_set, row_map1)
+        headers1 = [str(h) for h in self.args.get("headers1", [])]
+        headers2 = [str(h) for h in self.args.get("headers2", [])]
+        _style_table(
+            t1,
+            self._original_cells1,
+            row_keys1,
+            self._col_keys1,
+            headers1,
+            self._diff_result.table1_row_states,
+            self._diff_result.table1_changed_cols,
+        )
+        _style_table(
+            t2,
+            self._original_cells2,
+            row_keys2,
+            self._col_keys2,
+            headers2,
+            self._diff_result.table2_row_states,
+            self._diff_result.table2_changed_cols,
+        )
 
     def action_submit(self) -> None:
         """Submit the first primary button value (triggered by Enter key)."""

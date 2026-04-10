@@ -3,12 +3,189 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     pass
 
-__all__ = ["GuiBackend", "compare_stats"]
+__all__ = ["DiffResult", "GuiBackend", "compare_stats", "compute_row_diffs"]
+
+DIFF_MARKER = "● "
+
+
+# ---------------------------------------------------------------------------
+# Value comparison helpers
+# ---------------------------------------------------------------------------
+
+
+def _values_equal(a: Any, b: Any) -> bool:
+    """Compare two cell values using native equality.
+
+    Rules:
+    - ``None == None`` → True
+    - ``None`` vs any non-None → False  (NULL is distinct from empty string)
+    - Numeric types are compared numerically (``int(1) == float(1.0)``,
+      ``Decimal("10.00") == Decimal("10.0")``)
+    - All other types use ``==``
+    - Falls back to ``repr()`` comparison for exotic types that raise on ``==``
+    """
+    if a is None and b is None:
+        return True
+    if a is None or b is None:
+        return False
+    try:
+        return bool(a == b)
+    except (TypeError, ValueError):
+        return repr(a) == repr(b)
+
+
+def _pk_tuple(row: list | tuple, pk_indices: list[int]) -> tuple:
+    """Extract a PK value tuple from *row*.
+
+    PK values are stringified so that type differences in key columns
+    (e.g. ``int(1)`` vs ``str("1")``) still match rows correctly.
+    ``None`` is preserved as-is so distinct NULL-keyed rows are not
+    collapsed (in practice PK columns are NOT NULL).
+    """
+    return tuple(str(row[i]) if row[i] is not None else None for i in pk_indices)
+
+
+# ---------------------------------------------------------------------------
+# DiffResult and compute_row_diffs
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class DiffResult:
+    """Per-row diff state for compare dialogs.
+
+    Attributes:
+        table1_row_states: ``"match"`` / ``"changed"`` / ``"only_t1"`` per row.
+        table2_row_states: Same for table 2.
+        table1_changed_cols: For each table-1 row, set of column names that differ.
+        table2_changed_cols: Same for table 2.
+        summary: Human-readable summary string.
+    """
+
+    table1_row_states: list[str] = field(default_factory=list)
+    table2_row_states: list[str] = field(default_factory=list)
+    table1_changed_cols: list[set[str]] = field(default_factory=list)
+    table2_changed_cols: list[set[str]] = field(default_factory=list)
+    summary: str = ""
+
+
+def compute_row_diffs(
+    headers1: list,
+    rows1: list,
+    headers2: list,
+    rows2: list,
+    keylist: list,
+) -> DiffResult | None:
+    """Compare two tables row-by-row and return per-cell diff information.
+
+    Rows are matched by the key columns in *keylist*, not by position.
+    Columns are matched by header name, not index — headers may differ in
+    order or membership.  Only columns present in **both** headers (minus
+    key columns) are compared for cell-level diffs.
+
+    Values are compared with native Python equality via :func:`_values_equal`:
+    numeric types compare numerically, ``None`` is distinct from ``""``,
+    and exotic types fall back to ``repr()``.
+
+    When duplicate PK values exist in a table, the **first** row with that
+    key is kept and later duplicates are ignored.
+
+    Returns ``None`` when *keylist* is empty or a key column is missing
+    from either header.
+    """
+    if not keylist:
+        return None
+    headers1_str = [str(h) for h in headers1]
+    headers2_str = [str(h) for h in headers2]
+    key_idx1 = [i for i, h in enumerate(headers1_str) if h in keylist]
+    key_idx2 = [i for i, h in enumerate(headers2_str) if h in keylist]
+    if not key_idx1 or not key_idx2:
+        return None
+
+    # Build PK -> row-index maps (first occurrence wins for duplicates).
+    pk_map1: dict[tuple, int] = {}
+    for i, r in enumerate(rows1):
+        k = _pk_tuple(r, key_idx1)
+        if k not in pk_map1:
+            pk_map1[k] = i
+    pk_map2: dict[tuple, int] = {}
+    for i, r in enumerate(rows2):
+        k = _pk_tuple(r, key_idx2)
+        if k not in pk_map2:
+            pk_map2[k] = i
+
+    keys1 = set(pk_map1)
+    keys2 = set(pk_map2)
+    common = keys1 & keys2
+
+    # Shared non-key columns eligible for cell comparison.
+    key_set = set(keylist)
+    h1_idx = {h: i for i, h in enumerate(headers1_str)}
+    h2_idx = {h: i for i, h in enumerate(headers2_str)}
+    shared_cols = [h for h in headers1_str if h in h2_idx and h not in key_set]
+
+    # Initialise result lists.
+    t1_states: list[str] = [""] * len(rows1)
+    t2_states: list[str] = [""] * len(rows2)
+    t1_changed: list[set[str]] = [set() for _ in rows1]
+    t2_changed: list[set[str]] = [set() for _ in rows2]
+
+    for k in keys1 - keys2:
+        t1_states[pk_map1[k]] = "only_t1"
+    for k in keys2 - keys1:
+        t2_states[pk_map2[k]] = "only_t2"
+
+    matching = 0
+    differing = 0
+    for k in common:
+        i1 = pk_map1[k]
+        i2 = pk_map2[k]
+        changed: set[str] = set()
+        for col in shared_cols:
+            if not _values_equal(rows1[i1][h1_idx[col]], rows2[i2][h2_idx[col]]):
+                changed.add(col)
+        if changed:
+            t1_states[i1] = "changed"
+            t2_states[i2] = "changed"
+            t1_changed[i1] = changed
+            t2_changed[i2] = set(changed)
+            differing += 1
+        else:
+            t1_states[i1] = "match"
+            t2_states[i2] = "match"
+            matching += 1
+
+    only1 = len(keys1 - keys2)
+    only2 = len(keys2 - keys1)
+    parts: list[str] = []
+    if matching:
+        parts.append(f"{matching:,} matching")
+    if differing:
+        parts.append(f"{differing:,} differing")
+    if only1:
+        parts.append(f"{only1:,} only in Table 1")
+    if only2:
+        parts.append(f"{only2:,} only in Table 2")
+    summary = " | ".join(parts) if parts else "Tables are identical"
+
+    return DiffResult(
+        table1_row_states=t1_states,
+        table2_row_states=t2_states,
+        table1_changed_cols=t1_changed,
+        table2_changed_cols=t2_changed,
+        summary=summary,
+    )
+
+
+# ---------------------------------------------------------------------------
+# compare_stats — delegates to compute_row_diffs for consistency
+# ---------------------------------------------------------------------------
 
 
 def compare_stats(
@@ -20,46 +197,14 @@ def compare_stats(
 ) -> str:
     """Return a one-line diff summary for compare dialogs.
 
-    Computes matching rows, differing rows, and rows only in one table
-    based on the given key columns.  Returns an empty string when *keylist*
-    is empty (stats cannot be computed without keys).
+    Delegates to :func:`compute_row_diffs` so that the summary and the
+    cell-level diff always agree.  Returns an empty string when *keylist*
+    is empty or key columns are missing.
     """
-    if not keylist:
+    result = compute_row_diffs(headers1, rows1, headers2, rows2, keylist)
+    if result is None:
         return ""
-    key_idx1 = [i for i, h in enumerate(headers1) if str(h) in keylist]
-    key_idx2 = [i for i, h in enumerate(headers2) if str(h) in keylist]
-    if not key_idx1 or not key_idx2:
-        return ""
-
-    def _kv(row: list | tuple, idxs: list) -> tuple:
-        return tuple(str(row[i]) if row[i] is not None else "" for i in idxs)
-
-    keys1 = {_kv(r, key_idx1) for r in rows1}
-    keys2 = {_kv(r, key_idx2) for r in rows2}
-    only1 = len(keys1 - keys2)
-    only2 = len(keys2 - keys1)
-    common_keys = keys1 & keys2
-    row_map1 = {_kv(r, key_idx1): r for r in rows1}
-    row_map2 = {_kv(r, key_idx2): r for r in rows2}
-    matching = 0
-    differing = 0
-    for k in common_keys:
-        r1 = [str(v) if v is not None else "" for v in row_map1[k]]
-        r2 = [str(v) if v is not None else "" for v in row_map2[k]]
-        if r1 == r2:
-            matching += 1
-        else:
-            differing += 1
-    parts: list[str] = []
-    if matching:
-        parts.append(f"{matching:,} matching")
-    if differing:
-        parts.append(f"{differing:,} differing")
-    if only1:
-        parts.append(f"{only1:,} only in Table 1")
-    if only2:
-        parts.append(f"{only2:,} only in Table 2")
-    return " | ".join(parts) if parts else "Tables are identical"
+    return result.summary
 
 
 class GuiBackend(ABC):

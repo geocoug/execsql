@@ -1,13 +1,14 @@
 """
 Tests for execsql.gui.base.compare_stats.
 
-compare_stats is a pure function — it takes two tables (headers + rows)
-and a list of key column names, and returns a one-line diff summary string.
-No database, GUI, or file I/O involved.
+compare_stats delegates to compute_row_diffs and returns the summary string.
+It takes two tables (headers + rows) and a list of key column names, and
+returns a one-line diff summary string.  No database, GUI, or file I/O.
 """
 
 from __future__ import annotations
 
+from decimal import Decimal
 
 from execsql.gui.base import compare_stats
 
@@ -258,8 +259,8 @@ class TestCompareStatsMixed:
 
 
 class TestCompareStatsNullValues:
-    def test_none_in_non_key_column_treated_as_empty_string_for_comparison(self):
-        """None values in non-key columns are stringified as '' for comparison."""
+    def test_none_in_non_key_column_both_none_is_match(self):
+        """None vs None → match (both are NULL)."""
         result = compare_stats(
             ["id", "val"],
             [(1, None)],
@@ -267,7 +268,6 @@ class TestCompareStatsNullValues:
             [(1, None)],
             keylist=["id"],
         )
-        # Both rows have the same key and same None value — counted as matching
         assert "1 matching" in result
         assert "differing" not in result
 
@@ -281,8 +281,19 @@ class TestCompareStatsNullValues:
         )
         assert "differing" in result
 
-    def test_none_in_key_column_treated_as_empty_string_key(self):
-        """None in key columns is normalized to '' — two None-keyed rows match."""
+    def test_none_vs_empty_string_causes_diff(self):
+        """NULL is semantically different from empty string."""
+        result = compare_stats(
+            ["id", "val"],
+            [(1, None)],
+            ["id", "val"],
+            [(1, "")],
+            keylist=["id"],
+        )
+        assert "differing" in result
+
+    def test_none_in_key_column_both_none_match(self):
+        """None PK in both tables should match each other."""
         result = compare_stats(
             ["id", "val"],
             [(None, "a")],
@@ -290,7 +301,6 @@ class TestCompareStatsNullValues:
             [(None, "a")],
             keylist=["id"],
         )
-        # None key maps to "" — same key in both tables → 1 matching row
         assert "1 matching" in result
 
     def test_none_key_vs_string_key_results_in_only_in_each(self):
@@ -394,3 +404,53 @@ class TestCompareStatsRowOrderIndependence:
         )
         assert "1 differing" in result
         assert "1 matching" in result
+
+
+# ---------------------------------------------------------------------------
+# Column order independence (compare_stats delegates to compute_row_diffs)
+# ---------------------------------------------------------------------------
+
+
+class TestCompareStatsColumnOrder:
+    def test_different_column_order_same_data_matches(self):
+        """Columns are matched by name, not position."""
+        result = compare_stats(
+            ["id", "a", "b"],
+            [(1, "x", "y")],
+            ["id", "b", "a"],
+            [(1, "y", "x")],
+            keylist=["id"],
+        )
+        assert "1 matching" in result
+        assert "differing" not in result
+
+
+# ---------------------------------------------------------------------------
+# Numeric type equality
+# ---------------------------------------------------------------------------
+
+
+class TestCompareStatsNumericEquality:
+    def test_int_vs_float_match(self):
+        """int(1) and float(1.0) are equal → match."""
+        result = compare_stats(
+            ["id", "val"],
+            [(1, 42)],
+            ["id", "val"],
+            [(1, 42.0)],
+            keylist=["id"],
+        )
+        assert "1 matching" in result
+        assert "differing" not in result
+
+    def test_decimal_scale_match(self):
+        """Decimal('10.00') and Decimal('10.0') are equal."""
+        result = compare_stats(
+            ["id", "val"],
+            [(1, Decimal("10.00"))],
+            ["id", "val"],
+            [(1, Decimal("10.0"))],
+            keylist=["id"],
+        )
+        assert "1 matching" in result
+        assert "differing" not in result
