@@ -28,6 +28,7 @@ All tests use tmp_path so no permanent files are created.
 from __future__ import annotations
 
 import os
+import sys
 import textwrap
 
 import pytest
@@ -784,14 +785,25 @@ class TestConfigDataConfigFile:
 
 
 # ---------------------------------------------------------------------------
-# linux_config_file (posix only) (lines 474-484)
+# OS-specific config file options
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.skipif(os.name != "posix", reason="posix only")
-class TestConfigDataLinuxConfigFile:
-    def test_linux_config_file_loads_secondary_conf(self, tmp_path):
-        secondary_dir = tmp_path / "linux_secondary"
+def _os_config_key() -> str:
+    """Return the config key for the current platform."""
+    if sys.platform == "linux":
+        return "linux_config_file"
+    if sys.platform == "darwin":
+        return "macos_config_file"
+    if os.name == "nt":
+        return "win_config_file"
+    return "linux_config_file"  # fallback for other posix
+
+
+class TestConfigDataOsSpecificConfigFile:
+    def test_os_config_file_loads_secondary_conf(self, tmp_path):
+        key = _os_config_key()
+        secondary_dir = tmp_path / "os_secondary"
         secondary_dir.mkdir()
         secondary_conf = secondary_dir / "execsql.conf"
         secondary_conf.write_text(
@@ -808,25 +820,58 @@ class TestConfigDataLinuxConfigFile:
             str(tmp_path),
             f"""
             [config]
-            linux_config_file = {secondary_conf}
+            {key} = {secondary_conf}
             """,
         )
         cd = ConfigData(str(tmp_path), vp)
         assert cd.db_type == "s"
 
-    def test_nonexistent_linux_config_file_silently_ignored(self, tmp_path):
+    def test_nonexistent_os_config_file_silently_ignored(self, tmp_path):
+        key = _os_config_key()
         vp = _FakeVarPool()
-        vp.substitute = lambda s: ("/nonexistent/linux.conf", False)
+        vp.substitute = lambda s: ("/nonexistent/os.conf", False)
 
         _write_conf(
             str(tmp_path),
-            """
+            f"""
             [config]
-            linux_config_file = /nonexistent/linux.conf
+            {key} = /nonexistent/os.conf
             """,
         )
         cd = ConfigData(str(tmp_path), vp)
         assert cd is not None
+
+    def test_wrong_os_config_file_ignored(self, tmp_path):
+        """A config key for a different OS should be silently ignored."""
+        if sys.platform == "linux":
+            wrong_key = "macos_config_file"
+        elif sys.platform == "darwin":
+            wrong_key = "linux_config_file"
+        else:
+            wrong_key = "linux_config_file"
+        secondary_dir = tmp_path / "wrong_os"
+        secondary_dir.mkdir()
+        secondary_conf = secondary_dir / "execsql.conf"
+        secondary_conf.write_text(
+            textwrap.dedent("""
+            [connect]
+            db_type = s
+            """),
+            encoding="utf-8",
+        )
+        vp = _FakeVarPool()
+        vp.substitute = lambda s: (str(secondary_conf), False)
+
+        _write_conf(
+            str(tmp_path),
+            f"""
+            [config]
+            {wrong_key} = {secondary_conf}
+            """,
+        )
+        cd = ConfigData(str(tmp_path), vp)
+        # Should still have default db_type, not "s" from secondary conf
+        assert cd.db_type == "a"
 
 
 # ---------------------------------------------------------------------------
