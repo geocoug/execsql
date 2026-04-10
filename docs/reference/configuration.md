@@ -312,7 +312,10 @@ The section and property names that may be used in a configuration file are list
 :   The number of seconds that *execsql* should wait between the time that a query is created in Access (which uses DAO) and the time that the next statement is executed using ODBC. This value must be greater than or equal to 5.0. The default is `5.0`.
 
 `linux_config_file`
-:   The full name or path to an additional configuration file to be read if *execsql* is running on Linux. If only a path is specified, the name of the configuration file should be `execsql.conf`. The configuration file specified will be read immediately following the configuration file in which it is named. No configuration file will be read more than once. If the name or path are invalid, this setting will be silently ignored. This setting may include [substitution variables](substitution_vars.md#substitution_vars); at the time that configuration files are read, however, only environment variables and system variables related to the script name and path are defined.
+:   The full name or path to an additional configuration file to be read if *execsql* is running on Linux (`sys.platform == "linux"`). If only a path is specified, the name of the configuration file should be `execsql.conf`. The configuration file specified will be read immediately following the configuration file in which it is named. No configuration file will be read more than once. If the name or path are invalid, this setting will be silently ignored. This setting may include [substitution variables](substitution_vars.md#substitution_vars); at the time that configuration files are read, however, only environment variables and system variables related to the script name and path are defined.
+
+`macos_config_file`
+:   The full name or path to an additional configuration file to be read if *execsql* is running on macOS (`sys.platform == "darwin"`). Behaves identically to `linux_config_file` but is only active on macOS. Tilde expansion (`~`) is supported.
 
 `log_sql` { #log_sql }
 :   When set to "Yes", all executed SQL statements are written to the log file with a `sql` record type, including the database name, line number, and query text. The property value should be either "Yes" or "No". The default is "No". This can also be enabled via the `CONFIG LOG_SQL` metacommand.

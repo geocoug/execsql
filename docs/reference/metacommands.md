@@ -2342,6 +2342,8 @@ The 'Show mismatches' button will highlight all the rows in each table that have
 
 ![Display of unmatched data with the PROMPT COMPARE metacommand](../images/unmatched.png)
 
+The "Highlight Diffs" button toggles row-level coloring (green for matching rows, yellow for changed rows, red for rows only in one table) and cell-level markers — individual cells that differ within a changed row are prefixed with a bullet marker so you can see exactly which columns have different values. A one-line summary of matching, differing, and table-exclusive row counts is shown below the tables. Cell-level diff marking works across all backends (Tkinter, Textual, and console).
+
 If the 'Continue' button is selected, the script will continue to run. If the 'Cancel' button is selected, the script will immediately halt unless [CANCEL_HALT](#cancel_halt) is set to OFF. The Enter key also carries out the action of the 'Continue' button, and the Escape key carries out the action of the 'Cancel' button.
 
 If a URL is provided with the HELP keyword, the dialog box will include a button that will open that URL when clicked. The URL must be double-quoted if it contains spaces.

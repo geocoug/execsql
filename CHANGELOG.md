@@ -11,6 +11,28 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Added
+
+- Cell-level diff marking in `PROMPT COMPARE` dialog — when "Highlight Diffs" is toggled, differing cells within changed rows are prefixed with a bullet marker so users can see exactly which columns differ. Works across all three backends (Tkinter, Textual, and console).
+- `macos_config_file` option in `execsql.conf` `[config]` section — specifies an additional configuration file to read on macOS (`sys.platform == "darwin"`). Behaves identically to `linux_config_file` with tilde expansion support.
+
+### Changed
+
+- `linux_config_file` config option now only applies on Linux (`sys.platform == "linux"`), not all POSIX systems. macOS users should use the new `macos_config_file` option instead.
+- Date/time parsing now uses `python-dateutil` instead of 231 hardcoded `strptime` format strings. Handles ISO 8601 with `T` separator, microseconds, `Z` suffix, and named timezones that the old format list could not parse.
+- Refactored `ConfigData` to use private helper methods (`_get_str`, `_get_enum`, `_get_bool`, `_get_int`, `_get_float`) — reduces ~370 lines of repetitive option parsing to ~80 lines with identical behavior.
+
+### Fixed
+
+- `PROMPT COMPARE` diff logic now uses native Python equality instead of string comparison — `int(1)` vs `float(1.0)`, `Decimal("10.00")` vs `Decimal("10.0")`, and `True` vs `1` are correctly treated as equal instead of producing false diffs.
+- `PROMPT COMPARE` diff logic now treats `None` (SQL NULL) as distinct from empty string `""`. Previously both were normalized to `""` and compared as equal.
+- `PROMPT COMPARE` summary stats now match by column name instead of position — tables with the same columns in different order no longer produce false diffs.
+- `PROMPT COMPARE` summary stats no longer include key columns in the diff comparison — only non-key shared columns are compared, consistent with the cell-level diff engine.
+- `PROMPT COMPARE` diff engine now keeps the first row when duplicate PK values exist, instead of silently using the last.
+- `compare_stats()` now delegates to `compute_row_diffs()` so the summary line and cell-level highlighting always agree.
+- `PG_UPSERT` metacommand no longer writes pg-upsert output to `execsql.log`. Logging now only goes to the file specified by the `LOGFILE` keyword.
+- `win_config_file` config option now works on Windows. Previously checked `os.name == "windows"` which is never true (Python returns `"nt"`). Inherited from upstream.
+
 ______________________________________________________________________
 
 ## [2.15.0] - 2026-04-09

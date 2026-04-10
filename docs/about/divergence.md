@@ -63,13 +63,15 @@ ______________________________________________________________________
 
 New options in `execsql.conf`:
 
-| Option                     | Section     | Description                                                       |
-| -------------------------- | ----------- | ----------------------------------------------------------------- |
-| `use_keyring`              | `[connect]` | Use the OS keyring for credential storage (default: `yes`).       |
-| `show_progress`            | `[input]`   | Enable Rich progress bar for IMPORT (default: `no`).              |
-| `import_progress_interval` | `[input]`   | Log a status line every N rows during IMPORT (default: `0`).      |
-| `log_sql`                  | `[config]`  | Enable SQL audit logging (default: `no`).                         |
-| `max_log_size_mb`          | `[config]`  | Rotate the log file at this size in MB (default: `0` = disabled). |
+| Option                     | Section       | Description                                                       |
+| -------------------------- | ------------- | ----------------------------------------------------------------- |
+| `use_keyring`              | `[connect]`   | Use the OS keyring for credential storage (default: `yes`).       |
+| `show_progress`            | `[input]`     | Enable Rich progress bar for IMPORT (default: `no`).              |
+| `import_progress_interval` | `[input]`     | Log a status line every N rows during IMPORT (default: `0`).      |
+| `gui_framework`            | `[interface]` | GUI backend: `tkinter` (default) or `textual` (terminal UI).      |
+| `log_sql`                  | `[config]`    | Enable SQL audit logging (default: `no`).                         |
+| `max_log_size_mb`          | `[config]`    | Rotate the log file at this size in MB (default: `0` = disabled). |
+| `macos_config_file`        | `[config]`    | Additional config file path, active only on macOS.                |
 
 ### Tools
 
@@ -79,14 +81,15 @@ New options in `execsql.conf`:
 
 ### GUI
 
-| Feature              | Description                                                                                                                                             |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Textual TUI backend  | Full terminal-UI backend via the `textual` library. Provides all dialog types (password, pause, message, entry, compare, action, etc.) in the terminal. |
-| Console fallback     | Text-only backend that handles GUI calls in headless environments by printing to stdout.                                                                |
-| Table row counts     | All GUI backends (Tkinter, Textual, Console) display a row count footer below every table widget (e.g. "3 rows", "1 row").                              |
-| Help URL button      | Dialogs that accept the `HELP` keyword display a clickable Help button that opens the URL in the system browser.                                        |
-| Compare diff summary | The compare dialog shows a one-line summary of matching, differing, and table-exclusive rows when key columns are specified.                            |
-| Form validation      | `PROMPT ENTRY_FORM` enforces `validation_regex` (on submit) and `validation_key_regex` (per-keystroke) across all backends. Required fields validated.  |
+| Feature              | Description                                                                                                                                                            |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Textual TUI backend  | Full terminal-UI backend via the `textual` library. Provides all dialog types (password, pause, message, entry, compare, action, etc.) in the terminal.                |
+| Console fallback     | Text-only backend that handles GUI calls in headless environments by printing to stdout.                                                                               |
+| Table row counts     | All GUI backends (Tkinter, Textual, Console) display a row count footer below every table widget (e.g. "3 rows", "1 row").                                             |
+| Help URL button      | Dialogs that accept the `HELP` keyword display a clickable Help button that opens the URL in the system browser.                                                       |
+| Compare diff summary | The compare dialog shows a one-line summary of matching, differing, and table-exclusive rows when key columns are specified.                                           |
+| Compare cell markers | When diff highlighting is active, individual cells that differ within a changed row are prefixed with a bullet marker across all backends (Tkinter, Textual, console). |
+| Form validation      | `PROMPT ENTRY_FORM` enforces `validation_regex` (on submit) and `validation_key_regex` (per-keystroke) across all backends. Required fields validated.                 |
 
 ### Authentication
 
@@ -107,11 +110,12 @@ New options in `execsql.conf`:
 
 ### Developer / Packaging
 
-| Feature                     | Description                                                                                                     |
-| --------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| VS Code syntax highlighting | Auto-generated `tmLanguage.json` grammar from the dispatch table.                                               |
-| `py.typed` marker           | PEP 561 marker enabling downstream static type checking.                                                        |
-| Structured keyword registry | `--dump-keywords` introspects the dispatch table and outputs JSON used by the grammar generator and test suite. |
+| Feature                      | Description                                                                                                                                                                                  |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| VS Code syntax highlighting  | Auto-generated `tmLanguage.json` grammar from the dispatch table.                                                                                                                            |
+| `py.typed` marker            | PEP 561 marker enabling downstream static type checking.                                                                                                                                     |
+| Structured keyword registry  | `--dump-keywords` introspects the dispatch table and outputs JSON used by the grammar generator and test suite.                                                                              |
+| `python-dateutil` dependency | Date/time parsing delegates to `dateutil.parser.parse()` instead of 231 hardcoded `strptime` format strings. Handles ISO 8601 `T` separators, microseconds, `Z` suffix, and named timezones. |
 
 ### Debugging { #debugging }
 
@@ -160,6 +164,10 @@ ______________________________________________________________________
 ### CLI Interface
 
 The CLI framework changed from `optparse` to [Typer](https://typer.tiangolo.com/) with Rich-formatted help text. All original short flags (`-a` through `-z`) are preserved. The tool can be invoked as either `execsql` or `execsql2`.
+
+### Configuration
+
+- **`linux_config_file`** — now only active on Linux (`sys.platform == "linux"`). Upstream applied it to all POSIX systems, including macOS. A new `macos_config_file` option handles macOS specifically.
 
 ### Internal State Management
 
@@ -223,17 +231,19 @@ These are behavioral changes driven by security or correctness issues in the ups
 
 ### Bug Fixes
 
-| Area                              | Fix                                                                                                                                                                                           |
-| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Oracle default port               | Corrected from `5432` (PostgreSQL) to `1521`.                                                                                                                                                 |
-| MySQL `LOAD DATA INFILE` encoding | Python encoding names are now mapped to MySQL charset names.                                                                                                                                  |
-| `dt_cast` type converters         | Base `Database` class auto-populates 8 type converters that were previously left empty after the refactor.                                                                                    |
-| `FileWriter` CPU busy-loop        | Uses blocking `queue.get(timeout=0.1)` instead of `get_nowait()` in a tight loop.                                                                                                             |
-| Substitution variable cycles      | 100-iteration limit prevents infinite loops on cyclic variable references.                                                                                                                    |
-| Script location in error messages | `ErrInfo.script_file` and `script_line_no` are now populated via `stamp_errinfo()` so error output includes "Line N of script foo.sql" context — restoring behavior present in the monolith.  |
-| `$ERROR_MESSAGE` not updated      | `$ERROR_MESSAGE` is now set on every error path: `exit_now()`, non-halting SQL errors, and non-halting metacommand errors. Previously it was initialized to `""` and never changed.           |
-| Metacommand error message lost    | When `halt_on_metacommand_err` is `ON`, the original handler `ErrInfo` is now re-raised; the generic "Unknown metacommand" message no longer replaces the specific error from the handler.    |
-| Empty script name in error msg    | `_execute_script_direct()` and `_execute_script_textual_console()` no longer append "in script , line 0" to uncaught-exception messages when `current_script_line()` returns an empty string. |
+| Area                              | Fix                                                                                                                                                                                                                                                                                                    |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Oracle default port               | Corrected from `5432` (PostgreSQL) to `1521`.                                                                                                                                                                                                                                                          |
+| MySQL `LOAD DATA INFILE` encoding | Python encoding names are now mapped to MySQL charset names.                                                                                                                                                                                                                                           |
+| `dt_cast` type converters         | Base `Database` class auto-populates 8 type converters that were previously left empty after the refactor.                                                                                                                                                                                             |
+| `FileWriter` CPU busy-loop        | Uses blocking `queue.get(timeout=0.1)` instead of `get_nowait()` in a tight loop.                                                                                                                                                                                                                      |
+| Substitution variable cycles      | 100-iteration limit prevents infinite loops on cyclic variable references.                                                                                                                                                                                                                             |
+| Script location in error messages | `ErrInfo.script_file` and `script_line_no` are now populated via `stamp_errinfo()` so error output includes "Line N of script foo.sql" context — restoring behavior present in the monolith.                                                                                                           |
+| `$ERROR_MESSAGE` not updated      | `$ERROR_MESSAGE` is now set on every error path: `exit_now()`, non-halting SQL errors, and non-halting metacommand errors. Previously it was initialized to `""` and never changed.                                                                                                                    |
+| Metacommand error message lost    | When `halt_on_metacommand_err` is `ON`, the original handler `ErrInfo` is now re-raised; the generic "Unknown metacommand" message no longer replaces the specific error from the handler.                                                                                                             |
+| Empty script name in error msg    | `_execute_script_direct()` and `_execute_script_textual_console()` no longer append "in script , line 0" to uncaught-exception messages when `current_script_line()` returns an empty string.                                                                                                          |
+| `PROMPT COMPARE` diff comparison  | Diff engine uses native Python equality instead of string comparison — numeric types, Decimals, and booleans compare correctly. `None` is distinguished from empty string. Columns are matched by name (not position), key columns are excluded from comparison, and duplicate PKs keep the first row. |
+| `win_config_file` broken          | Checked `os.name == "windows"` which Python never returns (correct value is `"nt"`). Fixed to `os.name == "nt"`. Inherited from upstream.                                                                                                                                                              |
 
 ______________________________________________________________________
 
