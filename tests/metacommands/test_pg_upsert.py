@@ -16,7 +16,6 @@ import pytest
 
 from execsql.exceptions import ErrInfo
 from execsql.metacommands.upsert import (
-    _ExecLogHandler,
     _FileWriterHandler,
     _build_result_from_qa_errors,
     _parse_tables_and_options,
@@ -888,25 +887,6 @@ class TestQAFailureMessage:
 
 
 class TestLoggingBridge:
-    def test_exec_log_handler_routes_to_exec_log(self):
-        mock_log = MagicMock()
-        handler = _ExecLogHandler(mock_log)
-
-        import logging
-
-        record = logging.LogRecord(
-            name="pg_upsert.display",
-            level=logging.INFO,
-            pathname="",
-            lineno=0,
-            msg="QA check passed for table books",
-            args=(),
-            exc_info=None,
-        )
-        handler.emit(record)
-        mock_log.log_user_msg.assert_called_once()
-        assert "QA check passed" in mock_log.log_user_msg.call_args[0][0]
-
     def test_filewriter_handler_routes_to_filewriter(self):
         import logging
 
@@ -1279,9 +1259,9 @@ class TestExportFailures:
             assert "capture_detail_rows" not in call_kwargs
             assert "max_export_rows" not in call_kwargs
 
-    def test_export_emits_user_visible_log_and_output(self, mock_state):
-        """On successful export, a user-facing message is logged AND
-        written to _state.output so it appears on the terminal."""
+    def test_export_emits_user_visible_output(self, mock_state):
+        """On successful export, a user-facing message is written to
+        _state.output so it appears on the terminal (not to execsql.log)."""
         state, db = mock_state
         fake_result = FakeUpsertResult(
             tables=[FakeTableResult(table_name="books", rows_updated=1)],
@@ -1300,16 +1280,12 @@ class TestExportFailures:
                 tail="books EXPORT_FAILURES /tmp/out EXPORT_FORMAT json",
                 metacommandline="PG_UPSERT FROM staging TO public TABLES books EXPORT_FAILURES /tmp/out EXPORT_FORMAT json",
             )
-        logged = [
-            c.args[0]
-            for c in state.exec_log.log_user_msg.call_args_list
-            if c.args and "exported QA failures" in str(c.args[0])
-        ]
-        assert logged, "expected an exec_log user message about the export"
-        assert "/tmp/out" in logged[0]
-        assert "json" in logged[0]
         written = [c.args[0] for c in state.output.write.call_args_list]
         assert any("exported QA failures" in w for w in written)
+        assert any("/tmp/out" in w for w in written)
+        assert any("json" in w for w in written)
+        # Must NOT write to execsql.log
+        state.exec_log.log_user_msg.assert_not_called()
 
     def test_export_message_tees_to_logfile(self, mock_state):
         """When LOGFILE is given alongside EXPORT_FAILURES, the export
@@ -1385,12 +1361,8 @@ class TestExportFailures:
                 tail="books EXPORT_FAILURES /tmp/out",
                 metacommandline="PG_UPSERT FROM staging TO public TABLES books EXPORT_FAILURES /tmp/out",
             )
-        logged = [
-            c.args[0]
-            for c in state.exec_log.log_user_msg.call_args_list
-            if c.args and "no QA failures to export" in str(c.args[0])
-        ]
-        assert logged
+        written = [c.args[0] for c in state.output.write.call_args_list]
+        assert any("no QA failures to export" in w for w in written)
 
     def test_full_mode_exports_on_success(self, mock_state):
         state, db = mock_state

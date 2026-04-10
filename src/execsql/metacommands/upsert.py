@@ -149,19 +149,8 @@ def _parse_tables_and_options(tail: str) -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
-# Logging bridge: pg_upsert.display → execsql exec_log
+# Logging bridge: pg_upsert → LOGFILE (when specified)
 # ---------------------------------------------------------------------------
-
-
-class _ExecLogHandler(logging.Handler):
-    """Route pg_upsert's plain-text file logger to execsql's exec_log."""
-
-    def __init__(self, exec_log: Any) -> None:
-        super().__init__()
-        self._exec_log = exec_log
-
-    def emit(self, record: logging.LogRecord) -> None:
-        self._exec_log.log_user_msg(self.format(record))
 
 
 class _FileWriterHandler(logging.Handler):
@@ -317,38 +306,34 @@ def _attach_log_handlers(
 ) -> tuple[list[logging.Logger], list[logging.Handler], dict[str, int]]:
     """Attach logging handlers to pg_upsert loggers.
 
-    Always attaches the exec_log bridge to ``pg_upsert.display``.
-    If *logfile* is given, also attaches a FileHandler (append mode) to both
-    ``pg_upsert`` and ``pg_upsert.display`` — matching pg-upsert CLI behavior.
+    Only attaches handlers when *logfile* is given — pg-upsert output should
+    go to the user-specified LOGFILE, not to ``execsql.log``.
 
-    Returns (loggers, handlers) so the caller can detach in a finally block.
+    Returns (loggers, handlers, prev_levels) so the caller can detach in a
+    finally block.
     """
-    display_logger = logging.getLogger("pg_upsert.display")
-    # pg-upsert's display logger has propagate=False and level=NOTSET, which
-    # gives it an effective level of WARNING (inherited from root).  Its messages
-    # are logged at INFO, so we must explicitly lower the level.
-    prev_display_level = display_logger.level
-    if display_logger.getEffectiveLevel() > logging.INFO:
-        display_logger.setLevel(logging.INFO)
-
-    exec_handler = _ExecLogHandler(_state.exec_log)
-    display_logger.addHandler(exec_handler)
-
-    loggers: list[logging.Logger] = [display_logger]
-    handlers: list[logging.Handler] = [exec_handler]
-    prev_levels: dict[str, int] = {"pg_upsert.display": prev_display_level}
+    loggers: list[logging.Logger] = []
+    handlers: list[logging.Handler] = []
+    prev_levels: dict[str, int] = {}
 
     if logfile:
         file_handler = _FileWriterHandler(logfile)
         file_handler.setFormatter(logging.Formatter("%(message)s"))
-        # Attach to both loggers, same as pg-upsert CLI does
+
+        display_logger = logging.getLogger("pg_upsert.display")
+        prev_levels["pg_upsert.display"] = display_logger.level
+        if display_logger.getEffectiveLevel() > logging.INFO:
+            display_logger.setLevel(logging.INFO)
+        display_logger.addHandler(file_handler)
+        loggers.append(display_logger)
+
         main_logger = logging.getLogger("pg_upsert")
         prev_levels["pg_upsert"] = main_logger.level
         if main_logger.getEffectiveLevel() > logging.INFO:
             main_logger.setLevel(logging.INFO)
         main_logger.addHandler(file_handler)
-        display_logger.addHandler(file_handler)
         loggers.append(main_logger)
+
         handlers.append(file_handler)
 
     return loggers, handlers, prev_levels
@@ -414,7 +399,6 @@ def _export_failures_if_requested(
         msg = f"PG_UPSERT: exported QA failures to {exported} ({fmt})"
     else:
         msg = f"PG_UPSERT: no QA failures to export (EXPORT_FAILURES {path} skipped)"
-    _state.exec_log.log_user_msg(msg)
     try:
         _state.output.write(msg + "\n")
     except Exception:
