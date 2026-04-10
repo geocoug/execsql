@@ -651,6 +651,7 @@ name = "execsql2"
 version = "2.15.0"
 source = { editable = "." }
 dependencies = [
+    { name = "python-dateutil" },
     { name = "rich" },
     { name = "sqlglot" },
     { name = "textual" },
@@ -777,6 +778,7 @@ requires-dist = [
     { name = "pyodbc", marker = "extra == 'mssql'" },
     { name = "pyodbc", marker = "extra == 'odbc'" },
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=5.0.0" },
+    { name = "python-dateutil", specifier = ">=2.8" },
     { name = "pyyaml", marker = "extra == 'formats'" },
     { name = "rich", specifier = ">=13.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.4" },
