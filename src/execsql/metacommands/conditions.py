@@ -18,7 +18,6 @@ from execsql.exceptions import ErrInfo
 import time
 from pathlib import Path
 from typing import Any
-from collections.abc import Callable
 
 import execsql.state as _state
 from execsql.utils.regex import ins_fn_rxs
@@ -844,26 +843,3 @@ def xcmd_test(teststr: str) -> bool:
         return result
     else:
         raise ErrInfo(type="cmd", command_text=teststr, other_msg="Unrecognized conditional")
-
-
-def file_size_date(filename: str) -> tuple[int, str]:
-    """Returns the file size and date (as string) of the given file."""
-    s_file = str(Path(filename).resolve())
-    f_stat = os.stat(s_file)
-    return f_stat.st_size, time.strftime("%Y-%m-%d %H:%M", time.gmtime(f_stat.st_mtime))
-
-
-def chainfuncs(*funcs: Callable) -> Callable:
-    funclist = funcs
-
-    def execchain(*args: Any) -> None:
-        for f in funclist:
-            f()
-
-    return execchain
-
-
-def as_none(item: Any) -> Any:
-    if isinstance(item, str) and len(item) == 0 or isinstance(item, int) and item == 0:
-        return None
-    return item

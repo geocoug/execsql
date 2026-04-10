@@ -20,7 +20,6 @@ import sys
 import time
 import traceback
 from pathlib import Path
-from typing import Any
 
 import execsql.state as _state
 from execsql.exceptions import ErrInfo
@@ -33,8 +32,6 @@ __all__ = [
     "stamp_errinfo",
     "write_warning",
     "file_size_date",
-    "chainfuncs",
-    "as_none",
 ]
 
 
@@ -198,19 +195,3 @@ def file_size_date(filename: str) -> tuple:
     s_file = str(Path(filename).resolve())
     f_stat = os.stat(s_file)
     return f_stat.st_size, time.strftime("%Y-%m-%d %H:%M", time.gmtime(f_stat.st_mtime))
-
-
-def chainfuncs(*funcs: Any) -> Any:
-    funclist = funcs
-
-    def execchain(*args: Any) -> None:
-        for f in funclist:
-            f()
-
-    return execchain
-
-
-def as_none(item: Any) -> Any:
-    if isinstance(item, str) and len(item) == 0 or isinstance(item, int) and item == 0:
-        return None
-    return item

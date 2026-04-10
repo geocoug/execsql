@@ -1149,56 +1149,6 @@ class TestConditions:
 # ---------------------------------------------------------------------------
 
 
-class TestConditionsUtilities:
-    """Unit tests for xcmd_test(), chainfuncs(), and as_none()."""
-
-    def test_as_none_empty_string(self):
-        from execsql.metacommands.conditions import as_none
-
-        assert as_none("") is None
-
-    def test_as_none_nonempty_string(self):
-        from execsql.metacommands.conditions import as_none
-
-        assert as_none("hello") == "hello"
-
-    def test_as_none_zero_int(self):
-        from execsql.metacommands.conditions import as_none
-
-        assert as_none(0) is None
-
-    def test_as_none_nonzero_int(self):
-        from execsql.metacommands.conditions import as_none
-
-        assert as_none(42) == 42
-
-    def test_as_none_other_type(self):
-        from execsql.metacommands.conditions import as_none
-
-        assert as_none(3.14) == 3.14
-
-    def test_chainfuncs_calls_all(self):
-        from execsql.metacommands.conditions import chainfuncs
-
-        calls = []
-
-        def f1():
-            calls.append(1)
-
-        def f2():
-            calls.append(2)
-
-        chain = chainfuncs(f1, f2)
-        chain()
-        assert calls == [1, 2]
-
-    def test_chainfuncs_returns_callable(self):
-        from execsql.metacommands.conditions import chainfuncs
-
-        chain = chainfuncs(lambda: None)
-        assert callable(chain)
-
-
 class TestConditionsErrorPaths:
     """Error-path coverage for xf_* predicates that raise ErrInfo."""
 

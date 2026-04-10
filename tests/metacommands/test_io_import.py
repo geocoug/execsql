@@ -82,7 +82,7 @@ class TestXImport:
 
         with (
             patch("execsql.metacommands.io_import.importtable") as mock_imp,
-            patch("execsql.metacommands.conditions.file_size_date", return_value=("1KB", "2024-01-01")),
+            patch("execsql.utils.errors.file_size_date", return_value=("1KB", "2024-01-01")),
         ):
             x_import(**self._base_kwargs(str(csv)))
             mock_imp.assert_called_once()
@@ -109,7 +109,7 @@ class TestXImport:
         with (
             patch("execsql.metacommands.io_import.Path") as mock_path_cls,
             patch("execsql.metacommands.io_import.importtable"),
-            patch("execsql.metacommands.conditions.file_size_date", return_value=("1KB", "2024-01-01")),
+            patch("execsql.utils.errors.file_size_date", return_value=("1KB", "2024-01-01")),
         ):
             # Make Path(filename).exists() return True
             mock_path_instance = MagicMock()
@@ -136,7 +136,7 @@ class TestXImport:
 
         with (
             patch("execsql.metacommands.io_import.importtable", side_effect=capture_importtable),
-            patch("execsql.metacommands.conditions.file_size_date", return_value=("1KB", "2024")),
+            patch("execsql.utils.errors.file_size_date", return_value=("1KB", "2024")),
         ):
             x_import(**self._base_kwargs(str(csv), new="replacement"))
             assert captured["is_new"] == 2
@@ -156,7 +156,7 @@ class TestXImport:
 
         with (
             patch("execsql.metacommands.io_import.importtable", side_effect=capture_importtable),
-            patch("execsql.metacommands.conditions.file_size_date", return_value=("1KB", "2024")),
+            patch("execsql.utils.errors.file_size_date", return_value=("1KB", "2024")),
         ):
             x_import(**self._base_kwargs(str(csv), new="new"))
             assert captured["is_new"] == 1
@@ -176,7 +176,7 @@ class TestXImport:
 
         with (
             patch("execsql.metacommands.io_import.importtable", side_effect=capture),
-            patch("execsql.metacommands.conditions.file_size_date", return_value=("1KB", "2024")),
+            patch("execsql.utils.errors.file_size_date", return_value=("1KB", "2024")),
         ):
             x_import(**self._base_kwargs(str(tsv), delimchar="tab"))
             assert captured["delimchar"] == chr(9)
@@ -196,7 +196,7 @@ class TestXImport:
 
         with (
             patch("execsql.metacommands.io_import.importtable", side_effect=capture),
-            patch("execsql.metacommands.conditions.file_size_date", return_value=("1KB", "2024")),
+            patch("execsql.utils.errors.file_size_date", return_value=("1KB", "2024")),
         ):
             x_import(**self._base_kwargs(str(f), delimchar="us"))
             assert captured["delimchar"] == chr(31)
@@ -216,7 +216,7 @@ class TestXImport:
 
         with (
             patch("execsql.metacommands.io_import.importtable", side_effect=capture),
-            patch("execsql.metacommands.conditions.file_size_date", return_value=("1KB", "2024")),
+            patch("execsql.utils.errors.file_size_date", return_value=("1KB", "2024")),
         ):
             x_import(**self._base_kwargs(str(f), delimchar="unitsep"))
             assert captured["delimchar"] == chr(31)
@@ -236,7 +236,7 @@ class TestXImport:
 
         with (
             patch("execsql.metacommands.io_import.importtable", side_effect=capture),
-            patch("execsql.metacommands.conditions.file_size_date", return_value=("1KB", "2024")),
+            patch("execsql.utils.errors.file_size_date", return_value=("1KB", "2024")),
         ):
             x_import(**self._base_kwargs(str(csv), skip="2"))
             assert captured["junk"] == 2
@@ -251,7 +251,7 @@ class TestXImport:
 
         with (
             patch("execsql.metacommands.io_import.importtable", side_effect=RuntimeError("boom")),
-            patch("execsql.metacommands.conditions.file_size_date", return_value=("1KB", "2024")),
+            patch("execsql.utils.errors.file_size_date", return_value=("1KB", "2024")),
             pytest.raises(ErrInfo),
         ):
             x_import(**self._base_kwargs(str(csv)))
@@ -268,7 +268,7 @@ class TestXImport:
 
         with (
             patch("execsql.metacommands.io_import.importtable", side_effect=inner),
-            patch("execsql.metacommands.conditions.file_size_date", return_value=("1KB", "2024")),
+            patch("execsql.utils.errors.file_size_date", return_value=("1KB", "2024")),
         ):
             with pytest.raises(ErrInfo) as exc_info:
                 x_import(**self._base_kwargs(str(csv)))
@@ -290,7 +290,7 @@ class TestXImport:
 
         with (
             patch("execsql.metacommands.io_import.importtable", side_effect=capture),
-            patch("execsql.metacommands.conditions.file_size_date", return_value=("1KB", "2024")),
+            patch("execsql.utils.errors.file_size_date", return_value=("1KB", "2024")),
         ):
             x_import(**self._base_kwargs(str(csv), quotechar="DOUBLE"))
             assert captured["quotechar"] == "double"
@@ -305,7 +305,7 @@ class TestXImport:
 
         with (
             patch("execsql.metacommands.io_import.importtable"),
-            patch("execsql.metacommands.conditions.file_size_date", return_value=("1KB", "2024")),
+            patch("execsql.utils.errors.file_size_date", return_value=("1KB", "2024")),
         ):
             result = x_import(**self._base_kwargs(str(csv)))
             assert result is None
@@ -340,7 +340,7 @@ class TestXImportFile:
 
         with (
             patch("execsql.metacommands.io_import.importfile") as mock_imp,
-            patch("execsql.metacommands.conditions.file_size_date", return_value=("3B", "2024-01-01")),
+            patch("execsql.utils.errors.file_size_date", return_value=("3B", "2024-01-01")),
         ):
             x_import_file(**self._base_kwargs(str(f)))
             mock_imp.assert_called_once()
@@ -363,7 +363,7 @@ class TestXImportFile:
 
         with (
             patch("execsql.metacommands.io_import.importfile", side_effect=RuntimeError("boom")),
-            patch("execsql.metacommands.conditions.file_size_date", return_value=("4B", "2024")),
+            patch("execsql.utils.errors.file_size_date", return_value=("4B", "2024")),
             pytest.raises(ErrInfo),
         ):
             x_import_file(**self._base_kwargs(str(f)))
@@ -380,7 +380,7 @@ class TestXImportFile:
 
         with (
             patch("execsql.metacommands.io_import.importfile", side_effect=inner),
-            patch("execsql.metacommands.conditions.file_size_date", return_value=("4B", "2024")),
+            patch("execsql.utils.errors.file_size_date", return_value=("4B", "2024")),
         ):
             with pytest.raises(ErrInfo) as exc_info:
                 x_import_file(**self._base_kwargs(str(f)))
@@ -396,7 +396,7 @@ class TestXImportFile:
 
         with (
             patch("execsql.metacommands.io_import.importfile"),
-            patch("execsql.metacommands.conditions.file_size_date", return_value=("10B", "2024")),
+            patch("execsql.utils.errors.file_size_date", return_value=("10B", "2024")),
         ):
             x_import_file(**self._base_kwargs(str(f)))
             mock_log.log_status_info.assert_called_once()
@@ -411,7 +411,7 @@ class TestXImportFile:
 
         with (
             patch("execsql.metacommands.io_import.importfile"),
-            patch("execsql.metacommands.conditions.file_size_date", return_value=("1B", "2024")),
+            patch("execsql.utils.errors.file_size_date", return_value=("1B", "2024")),
         ):
             result = x_import_file(**self._base_kwargs(str(f)))
             assert result is None
@@ -1214,7 +1214,7 @@ class TestXImportParquet:
 
         with (
             patch("execsql.metacommands.io_import.import_parquet") as mock_imp,
-            patch("execsql.metacommands.conditions.file_size_date", return_value=("4B", "2024")),
+            patch("execsql.utils.errors.file_size_date", return_value=("4B", "2024")),
         ):
             x_import_parquet(**self._base_kwargs(str(f)))
             mock_imp.assert_called_once()
@@ -1237,7 +1237,7 @@ class TestXImportParquet:
         with (
             patch("execsql.metacommands.io_import.Path") as mock_path_cls,
             patch("execsql.metacommands.io_import.import_parquet"),
-            patch("execsql.metacommands.conditions.file_size_date", return_value=("4B", "2024")),
+            patch("execsql.utils.errors.file_size_date", return_value=("4B", "2024")),
         ):
             mock_path_instance = MagicMock()
             mock_path_instance.exists.return_value = True
@@ -1262,7 +1262,7 @@ class TestXImportParquet:
 
         with (
             patch("execsql.metacommands.io_import.import_parquet", side_effect=capture),
-            patch("execsql.metacommands.conditions.file_size_date", return_value=("4B", "2024")),
+            patch("execsql.utils.errors.file_size_date", return_value=("4B", "2024")),
         ):
             x_import_parquet(**self._base_kwargs(str(f), new="replacement"))
             assert captured["is_new"] == 2
@@ -1277,7 +1277,7 @@ class TestXImportParquet:
 
         with (
             patch("execsql.metacommands.io_import.import_parquet", side_effect=RuntimeError("crash")),
-            patch("execsql.metacommands.conditions.file_size_date", return_value=("4B", "2024")),
+            patch("execsql.utils.errors.file_size_date", return_value=("4B", "2024")),
             pytest.raises(ErrInfo),
         ):
             x_import_parquet(**self._base_kwargs(str(f)))
@@ -1293,7 +1293,7 @@ class TestXImportParquet:
 
         with (
             patch("execsql.metacommands.io_import.import_parquet", side_effect=inner),
-            patch("execsql.metacommands.conditions.file_size_date", return_value=("4B", "2024")),
+            patch("execsql.utils.errors.file_size_date", return_value=("4B", "2024")),
         ):
             with pytest.raises(ErrInfo) as exc_info:
                 x_import_parquet(**self._base_kwargs(str(f)))
@@ -1309,7 +1309,7 @@ class TestXImportParquet:
 
         with (
             patch("execsql.metacommands.io_import.import_parquet"),
-            patch("execsql.metacommands.conditions.file_size_date", return_value=("4B", "2024")),
+            patch("execsql.utils.errors.file_size_date", return_value=("4B", "2024")),
         ):
             x_import_parquet(**self._base_kwargs(str(f)))
             mock_log.log_status_info.assert_called_once()
@@ -1324,7 +1324,7 @@ class TestXImportParquet:
 
         with (
             patch("execsql.metacommands.io_import.import_parquet"),
-            patch("execsql.metacommands.conditions.file_size_date", return_value=("4B", "2024")),
+            patch("execsql.utils.errors.file_size_date", return_value=("4B", "2024")),
         ):
             result = x_import_parquet(**self._base_kwargs(str(f)))
             assert result is None
@@ -1359,7 +1359,7 @@ class TestXImportFeather:
 
         with (
             patch("execsql.metacommands.io_import.import_feather") as mock_imp,
-            patch("execsql.metacommands.conditions.file_size_date", return_value=("7B", "2024")),
+            patch("execsql.utils.errors.file_size_date", return_value=("7B", "2024")),
         ):
             x_import_feather(**self._base_kwargs(str(f)))
             mock_imp.assert_called_once()
@@ -1382,7 +1382,7 @@ class TestXImportFeather:
         with (
             patch("execsql.metacommands.io_import.Path") as mock_path_cls,
             patch("execsql.metacommands.io_import.import_feather"),
-            patch("execsql.metacommands.conditions.file_size_date", return_value=("7B", "2024")),
+            patch("execsql.utils.errors.file_size_date", return_value=("7B", "2024")),
         ):
             mock_path_instance = MagicMock()
             mock_path_instance.exists.return_value = True
@@ -1407,7 +1407,7 @@ class TestXImportFeather:
 
         with (
             patch("execsql.metacommands.io_import.import_feather", side_effect=capture),
-            patch("execsql.metacommands.conditions.file_size_date", return_value=("7B", "2024")),
+            patch("execsql.utils.errors.file_size_date", return_value=("7B", "2024")),
         ):
             x_import_feather(**self._base_kwargs(str(f), new="new"))
             assert captured["is_new"] == 1
@@ -1422,7 +1422,7 @@ class TestXImportFeather:
 
         with (
             patch("execsql.metacommands.io_import.import_feather", side_effect=RuntimeError("crash")),
-            patch("execsql.metacommands.conditions.file_size_date", return_value=("7B", "2024")),
+            patch("execsql.utils.errors.file_size_date", return_value=("7B", "2024")),
             pytest.raises(ErrInfo),
         ):
             x_import_feather(**self._base_kwargs(str(f)))
@@ -1438,7 +1438,7 @@ class TestXImportFeather:
 
         with (
             patch("execsql.metacommands.io_import.import_feather", side_effect=inner),
-            patch("execsql.metacommands.conditions.file_size_date", return_value=("7B", "2024")),
+            patch("execsql.utils.errors.file_size_date", return_value=("7B", "2024")),
         ):
             with pytest.raises(ErrInfo) as exc_info:
                 x_import_feather(**self._base_kwargs(str(f)))
@@ -1454,7 +1454,7 @@ class TestXImportFeather:
 
         with (
             patch("execsql.metacommands.io_import.import_feather"),
-            patch("execsql.metacommands.conditions.file_size_date", return_value=("7B", "2024")),
+            patch("execsql.utils.errors.file_size_date", return_value=("7B", "2024")),
         ):
             x_import_feather(**self._base_kwargs(str(f)))
             mock_log.log_status_info.assert_called_once()
@@ -1469,7 +1469,7 @@ class TestXImportFeather:
 
         with (
             patch("execsql.metacommands.io_import.import_feather"),
-            patch("execsql.metacommands.conditions.file_size_date", return_value=("7B", "2024")),
+            patch("execsql.utils.errors.file_size_date", return_value=("7B", "2024")),
         ):
             result = x_import_feather(**self._base_kwargs(str(f)))
             assert result is None

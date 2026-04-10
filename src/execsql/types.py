@@ -41,7 +41,6 @@ from execsql.utils.numeric import leading_zero_num
 
 __all__ = [
     "DataType",
-    "Tz",
     "DT_TimestampTZ",
     "DT_Timestamp",
     "DT_Date",
@@ -125,20 +124,6 @@ class DataType:
         except Exception as e:
             raise DataTypeError(self.data_type_name, self._CONV_ERR % data) from e
         return i
-
-
-class Tz(datetime.tzinfo):
-    """Fixed-offset timezone implementation for timestamp-with-timezone parsing."""
-
-    def __init__(self, sign: int, hr: int, min: int) -> None:
-        """Store the UTC offset as sign, hours, and minutes."""
-        self.sign = sign
-        self.hr = hr
-        self.min = min
-
-    def utcoffset(self, dt: object) -> datetime.timedelta:
-        """Return the UTC offset as a timedelta."""
-        return self.sign * datetime.timedelta(hours=self.hr, minutes=self.min)
 
 
 class DT_TimestampTZ(DataType):

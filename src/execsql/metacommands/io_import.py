@@ -54,7 +54,7 @@ def x_import(**kwargs: Any) -> None:
         junk_hdrs = 0
     else:
         junk_hdrs = int(junk_hdrs)
-    from execsql.metacommands.conditions import file_size_date
+    from execsql.utils.errors import file_size_date
 
     sz, dt = file_size_date(filename)
     _state.exec_log.log_status_info(f"IMPORTing {filename} ({sz}, {dt})")
@@ -93,7 +93,7 @@ def x_import_file(**kwargs: Any) -> None:
             command_text=kwargs["metacommandline"],
             other_msg=f"Input file {filename} does not exist",
         )
-    from execsql.metacommands.conditions import file_size_date
+    from execsql.utils.errors import file_size_date
 
     sz, dt = file_size_date(filename)
     _state.exec_log.log_status_info(f"IMPORTing_FILE {filename} ({sz}, {dt})")
@@ -338,7 +338,7 @@ def x_import_parquet(**kwargs: Any) -> None:
             command_text=kwargs["metacommandline"],
             other_msg=f"Input file {filename} does not exist",
         )
-    from execsql.metacommands.conditions import file_size_date
+    from execsql.utils.errors import file_size_date
 
     sz, dt = file_size_date(filename)
     _state.exec_log.log_status_info(f"IMPORTing from Parquet file {filename} ({sz}, {dt})")
@@ -372,7 +372,7 @@ def x_import_feather(**kwargs: Any) -> None:
             command_text=kwargs["metacommandline"],
             other_msg=f"Input file {filename} does not exist",
         )
-    from execsql.metacommands.conditions import file_size_date
+    from execsql.utils.errors import file_size_date
 
     sz, dt = file_size_date(filename)
     _state.exec_log.log_status_info(f"IMPORTing from Feather file {filename} ({sz}, {dt})")
@@ -407,7 +407,7 @@ def x_import_json(**kwargs: Any) -> None:
             other_msg=f"Input file {filename} does not exist",
         )
     enc = kwargs.get("encoding")
-    from execsql.metacommands.conditions import file_size_date
+    from execsql.utils.errors import file_size_date
 
     sz, dt = file_size_date(filename)
     _state.exec_log.log_status_info(f"IMPORTing from JSON file {filename} ({sz}, {dt})")

@@ -15,6 +15,14 @@ ______________________________________________________________________
 
 - Cell-level diff marking in `PROMPT COMPARE` dialog — when "Highlight Diffs" is toggled, differing cells within changed rows are prefixed with a bullet marker so users can see exactly which columns differ. Works across all three backends (Tkinter, Textual, and console).
 - `macos_config_file` option in `execsql.conf` `[config]` section — specifies an additional configuration file to read on macOS (`sys.platform == "darwin"`). Behaves identically to `linux_config_file` with tilde expansion support.
+- EXPORT operations now log structured `action` records to `execsql.log` with the query name, output file, and source line number.
+
+### Removed
+
+- `Logger.log_action_prompt_quit()` — dead code inherited from upstream, never called. Prompt halt events are already captured by `log_exit_halt()`.
+- `constants.py` — 370 lines of map tile servers, XBM bitmaps, and X11 color names never imported by any module. Vestigial from the upstream monolith.
+- `Tz` class in `types.py` — custom `tzinfo` subclass orphaned by the `python-dateutil` migration.
+- Duplicate `file_size_date()`, `chainfuncs()`, and `as_none()` definitions in `conditions.py` — canonical versions in `utils/errors.py`. `chainfuncs()` and `as_none()` were also removed from `utils/errors.py` as they had zero callers.
 
 ### Changed
 
