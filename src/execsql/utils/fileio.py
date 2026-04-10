@@ -528,14 +528,6 @@ class Logger:
         msg = f"action\t{self.run_id}\t{self.seq_no}\t{self._ts()}\texport\t{line_no}\tQuery {query_name} exported to {export_file_name}\n"
         self.writelog(msg)
 
-    def log_action_prompt_quit(self, line_no: int, do_quit: bool, msg: str | None) -> None:
-        # 'do_quit' is Boolean: True to quit, False if not.
-        msg = None if not msg else msg.replace("\n", "")
-        self.seq_no += 1
-        descrip = '{} after prompt "{}"'.format("Quitting" if do_quit else "Continuing", msg)
-        wmsg = f"action\t{self.run_id}\t{self.seq_no}\t{self._ts()}\tprompt_quit\t{str(line_no) or ''}\t{descrip}\n"
-        self.writelog(wmsg)
-
     def log_status_exception(self, msg: str | None) -> None:
         msg = None if not msg else msg.replace("\n", "")
         self.seq_no += 1

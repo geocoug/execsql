@@ -241,6 +241,9 @@ def x_export(**kwargs: Any) -> None:
         else:
             write_delimited_file(outfile, filefmt, hdrs, rows, _state.conf.output_encoding, append, zipfilename)
     _state.export_metadata.add(ExportRecord(queryname, outfile, zipfilename, description))
+    if _state.exec_log:
+        _, line_no = current_script_line()
+        _state.exec_log.log_action_export(line_no, queryname, outfile)
     return None
 
 
@@ -413,6 +416,9 @@ def x_export_query(**kwargs: Any) -> None:
                 zipfile=zipfilename,
             )
     _state.export_metadata.add(ExportRecord(select_stmt, outfile, zipfilename, description))
+    if _state.exec_log:
+        _, line_no = current_script_line()
+        _state.exec_log.log_action_export(line_no, select_stmt[:80], outfile)
     return None
 
 

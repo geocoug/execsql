@@ -40,10 +40,6 @@ class TestLoggerMethods:
         logger.log_action_export(42, "qry1", "output.csv")
         assert logger.seq_no == 1
 
-    def test_log_action_prompt_quit(self, logger):
-        logger.log_action_prompt_quit(10, True, "Are you sure?")
-        assert logger.seq_no == 1
-
     def test_log_status_exception(self, logger):
         logger.log_status_exception("something broke")
         assert logger.seq_no == 1
