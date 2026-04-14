@@ -33,12 +33,8 @@ coverage.xml
 .tox/
 htmlcov/
 execsql.log
-scripts/execsql.conf
-scripts/*.csv
-scripts/test_import_sqlite.sql
-scripts/test_script.sql
-scripts/test.db
-scripts/*.log
+!scripts/generate_vscode_grammar.py
+scripts/
 
 # Distribution
 *.whl
@@ -48,5 +44,6 @@ scripts/*.log
 _execsql/
 
 # Claude
-.claude/settings.local.json
+.claude/
 ANALYSIS.md
+FINDINGS.md
