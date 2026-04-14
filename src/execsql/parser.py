@@ -151,8 +151,6 @@ class CondAstNode(CondTokens):
 
     def eval(self) -> bool:
         """Evaluate this subtree and return a boolean result."""
-        # Evaluates the subtrees and/or conditional value for this node,
-        # returning True or False.
         if self.type == self.CONDITIONAL:
             exec_fn = self.left[0].exec_fn
             cmdargs = self.left[1]
@@ -168,6 +166,7 @@ class CondAstNode(CondTokens):
             if lcond:
                 return True
             return self.right.eval()
+        raise CondParserError(f"Unknown conditional node type: {self.type}")
 
 
 # AST for numeric expressions
@@ -200,6 +199,8 @@ class NumericAstNode(NumTokens):
             if self.type == self.MUL:
                 return lnum * rnum
             elif self.type == self.DIV:
+                if rnum == 0:
+                    raise NumericParserError("Division by zero.")
                 return lnum / rnum
             elif self.type == self.ADD:
                 return lnum + rnum

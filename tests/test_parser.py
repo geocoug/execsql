@@ -299,7 +299,7 @@ class TestNumericParserEdgeCases:
         return NumericParser(expr).parse().eval()
 
     def test_division_by_zero(self):
-        with pytest.raises(ZeroDivisionError):
+        with pytest.raises(NumericParserError, match="Division by zero"):
             self._eval("1 / 0")
 
     def test_unmatched_open_paren(self):
@@ -338,7 +338,7 @@ class TestNumericParserEdgeCases:
         assert self._eval(expr) == 50
 
     def test_float_division_by_zero(self):
-        with pytest.raises(ZeroDivisionError):
+        with pytest.raises(NumericParserError, match="Division by zero"):
             self._eval("1.0 / 0.0")
 
     def test_unmatched_close_paren(self):

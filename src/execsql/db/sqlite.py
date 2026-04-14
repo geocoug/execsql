@@ -82,21 +82,21 @@ class SQLiteDatabase(Database):
 
     def table_exists(self, table_name: str, schema_name: str | None = None) -> bool:
         """Return True if the named table exists in the SQLite database."""
-        curs = self.cursor()
-        sql = "select name from sqlite_master where type='table' and name=?;"
-        try:
-            curs.execute(sql, (table_name,))
-        except ErrInfo:
-            raise
-        except Exception as e:
-            self.rollback()
-            raise ErrInfo(
-                type="db",
-                command_text=sql,
-                exception_msg=exception_desc(),
-                other_msg=f'Failed test for existence of SQLite table "{table_name}";',
-            ) from e
-        rows = curs.fetchall()
+        with self._cursor() as curs:
+            sql = "select name from sqlite_master where type='table' and name=?;"
+            try:
+                curs.execute(sql, (table_name,))
+            except ErrInfo:
+                raise
+            except Exception as e:
+                self.rollback()
+                raise ErrInfo(
+                    type="db",
+                    command_text=sql,
+                    exception_msg=exception_desc(),
+                    other_msg=f'Failed test for existence of SQLite table "{table_name}";',
+                ) from e
+            rows = curs.fetchall()
         return len(rows) > 0
 
     def column_exists(
@@ -111,40 +111,40 @@ class SQLiteDatabase(Database):
 
     def table_columns(self, table_name: str, schema_name: str | None = None) -> list[str]:
         """Return a list of column names for the given SQLite table."""
-        curs = self.cursor()
-        quoted_tbl = self.quote_identifier(table_name)
-        sql = f"select * from {quoted_tbl} where 1=0;"
-        try:
-            curs.execute(sql)
-        except ErrInfo:
-            raise
-        except Exception as e:
-            self.rollback()
-            raise ErrInfo(
-                type="db",
-                command_text=sql,
-                exception_msg=exception_desc(),
-                other_msg=f"Failed to get column names for table {table_name} of {self.name()}",
-            ) from e
-        return [d[0] for d in curs.description]
+        with self._cursor() as curs:
+            quoted_tbl = self.quote_identifier(table_name)
+            sql = f"select * from {quoted_tbl} where 1=0;"
+            try:
+                curs.execute(sql)
+            except ErrInfo:
+                raise
+            except Exception as e:
+                self.rollback()
+                raise ErrInfo(
+                    type="db",
+                    command_text=sql,
+                    exception_msg=exception_desc(),
+                    other_msg=f"Failed to get column names for table {table_name} of {self.name()}",
+                ) from e
+            return [d[0] for d in curs.description]
 
     def view_exists(self, view_name: str) -> bool:
         """Return True if the named view exists in the SQLite database."""
-        curs = self.cursor()
-        sql = "select name from sqlite_master where type='view' and name=?;"
-        try:
-            curs.execute(sql, (view_name,))
-        except ErrInfo:
-            raise
-        except Exception as e:
-            self.rollback()
-            raise ErrInfo(
-                type="db",
-                command_text=sql,
-                exception_msg=exception_desc(),
-                other_msg=f'Failed test for existence of SQLite view "{view_name}";',
-            ) from e
-        rows = curs.fetchall()
+        with self._cursor() as curs:
+            sql = "select name from sqlite_master where type='view' and name=?;"
+            try:
+                curs.execute(sql, (view_name,))
+            except ErrInfo:
+                raise
+            except Exception as e:
+                self.rollback()
+                raise ErrInfo(
+                    type="db",
+                    command_text=sql,
+                    exception_msg=exception_desc(),
+                    other_msg=f'Failed test for existence of SQLite view "{view_name}";',
+                ) from e
+            rows = curs.fetchall()
         return len(rows) > 0
 
     def schema_exists(self, schema_name: str) -> bool:

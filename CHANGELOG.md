@@ -11,6 +11,20 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Changed
+
+- `DT_Integer`, `DT_Float`, and `DT_Decimal` data type matchers now use pre-compiled regex class attributes instead of recompiling on every call — reduces overhead during large imports.
+- `DT_Boolean` match tuples are now cached and only rebuilt when the `boolean_words`/`boolean_int` config changes, instead of on every `_is_match()`/`_from_data()` call.
+- SQLite and DuckDB adapter methods (`table_exists`, `table_columns`, `view_exists`, `schema_exists`) now use the `_cursor()` context manager to prevent cursor leaks on exceptions.
+
+### Fixed
+
+- `DT_Text.data_type_name` corrected from `"character"` to `"text"` — error messages now correctly identify the text data type instead of showing "character".
+- `DT_Varchar._from_data()` now converts non-string data to string and enforces the 255-character length limit. Previously, non-string values passed through without conversion or length check.
+- `WriteHooks.write_err()` no longer crashes on empty string input.
+- `CondAstNode.eval()` now raises `CondParserError` for unknown node types instead of silently returning `None`.
+- `NumericAstNode.eval()` now raises `NumericParserError` on division by zero instead of an unhandled `ZeroDivisionError`.
+
 ______________________________________________________________________
 
 ## [2.15.1] - 2026-04-14

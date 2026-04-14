@@ -81,11 +81,10 @@ class DuckDBDatabase(Database):
     def schema_exists(self, schema_name: str) -> bool:
         """Return True if the named schema exists in the current DuckDB catalog."""
         # In DuckDB, the 'schemata' view is not limited to the current database.
-        curs = self.cursor()
-        curs.execute(
-            "SELECT schema_name FROM information_schema.schemata WHERE schema_name = ? and catalog_name = ?;",
-            (schema_name, self.catalog_name),
-        )
-        rows = curs.fetchall()
-        curs.close()
+        with self._cursor() as curs:
+            curs.execute(
+                "SELECT schema_name FROM information_schema.schemata WHERE schema_name = ? and catalog_name = ?;",
+                (schema_name, self.catalog_name),
+            )
+            rows = curs.fetchall()
         return len(rows) > 0

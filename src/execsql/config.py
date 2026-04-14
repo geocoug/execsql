@@ -569,7 +569,7 @@ class WriteHooks:
 
     def write_err(self, strval: str) -> None:
         """Write an error string to the error-output hook, or to sys.stderr if unset."""
-        if strval[-1] != "\n":
+        if not strval.endswith("\n"):
             strval += "\n"
         if self.err_func:
             self.err_func(strval)

@@ -296,14 +296,24 @@ class DT_Boolean(DataType):
     data_type_name = "boolean"
     data_type = bool
 
+    def __init__(self) -> None:
+        """Initialise with empty match caches; populated on first use."""
+        self.true: tuple = ()
+        self.false: tuple = ()
+        self.bool_repr: tuple = ()
+        self._cache_key: tuple | None = None
+
     def __repr__(self) -> str:
         return "DT_Boolean()"
 
-    def set_bool_matches(self) -> None:
-        """Populate the true/false match tuples from the current configuration."""
+    def _ensure_bool_matches(self) -> None:
+        """Rebuild true/false match tuples only when the config has changed."""
         import execsql.state as _state
 
         conf = _state.conf
+        key = (conf.boolean_words, conf.boolean_int)
+        if key == self._cache_key:
+            return
         self.true = ("yes", "true")
         self.false = ("no", "false")
         if not conf.boolean_words:
@@ -313,6 +323,7 @@ class DT_Boolean(DataType):
             self.true += ("1",)
             self.false += ("0",)
         self.bool_repr = self.true + self.false
+        self._cache_key = key
 
     def _is_match(self, data: object) -> bool:
         import execsql.state as _state
@@ -320,7 +331,7 @@ class DT_Boolean(DataType):
         conf = _state.conf
         if data is None:
             return False
-        self.set_bool_matches()
+        self._ensure_bool_matches()
         return bool(
             isinstance(data, bool)
             or conf.boolean_int
@@ -336,7 +347,7 @@ class DT_Boolean(DataType):
         conf = _state.conf
         if data is None:
             raise DataTypeError(self.data_type_name, self._CONV_ERR % "NULL")
-        self.set_bool_matches()
+        self._ensure_bool_matches()
         if isinstance(data, bool):
             return data
         elif conf.boolean_int and type(data) is int and data in (0, 1):
@@ -352,6 +363,7 @@ class DT_Integer(DataType):
 
     data_type_name = "integer"
     data_type = int
+    _INT_RX = re.compile(r"^\s*[+-]?\d+\s*$")
 
     def __repr__(self) -> str:
         return "DT_Integer()"
@@ -367,7 +379,7 @@ class DT_Integer(DataType):
         elif isinstance(data, str):
             if leading_zero_num(data):
                 return False
-            if not re.match(r"^\s*[+-]?\d+\s*$", data):
+            if not self._INT_RX.match(data):
                 return False
             try:
                 i = int(data)
@@ -387,7 +399,7 @@ class DT_Integer(DataType):
                 return int(data)
             else:
                 raise DataTypeError(self.data_type_name, self._CONV_ERR % data)
-        if isinstance(data, str) and not re.match(r"^\s*[+-]?\d+\s*$", data):
+        if isinstance(data, str) and not self._INT_RX.match(data):
             raise DataTypeError(self.data_type_name, self._CONV_ERR % data)
         try:
             i = int(data)
@@ -439,6 +451,7 @@ class DT_Float(DataType):
 
     data_type_name = "float"
     data_type = float
+    _FLOAT_RX = re.compile(r"^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$")
 
     def __repr__(self) -> str:
         return "DT_Float()"
@@ -450,7 +463,7 @@ class DT_Float(DataType):
             return True
         if leading_zero_num(data):
             return False
-        if isinstance(data, str) and not re.match(r"^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$", data):
+        if isinstance(data, str) and not self._FLOAT_RX.match(data):
             return False
         try:
             float(data)
@@ -465,7 +478,7 @@ class DT_Float(DataType):
             return data
         if leading_zero_num(data):
             raise DataTypeError(self.data_type_name, self._CONV_ERR % data)
-        if isinstance(data, str) and not re.match(r"^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$", data):
+        if isinstance(data, str) and not self._FLOAT_RX.match(data):
             raise DataTypeError(self.data_type_name, self._CONV_ERR % data)
         try:
             i = float(data)
@@ -480,6 +493,7 @@ class DT_Decimal(DataType):
     data_type_name = "decimal"
     data_type = Decimal
     precspec = True
+    _DECIMAL_RX = re.compile(r"^[+-]?(\d+(\.\d*)?|\.\d+)$")
 
     def __repr__(self) -> str:
         return "DT_Decimal()"
@@ -504,7 +518,7 @@ class DT_Decimal(DataType):
             self.set_scale_prec(data)
             return data
         elif isinstance(data, str):
-            if not re.match(r"^[+-]?(\d+(\.\d*)?|\.\d+)$", data):
+            if not self._DECIMAL_RX.match(data):
                 raise DataTypeError(self.data_type_name, self._CONV_ERR % data)
             try:
                 dec = Decimal(data)
@@ -565,21 +579,20 @@ class DT_Varchar(DataType):
         # This varchar data type is the same as the character data type.
         if data is None:
             raise DataTypeError(self.data_type_name, self._CONV_ERR % "NULL")
-        data_type = str
-        if isinstance(data, str):
+        if not isinstance(data, str):
             try:
-                data = data_type(data)
+                data = str(data)
             except ValueError as e:
                 raise DataTypeError(self.data_type_name, self._CONV_ERR % data) from e
-            if len(data) > 255:
-                raise DataTypeError(self.data_type_name, self._CONV_ERR % data)
+        if len(data) > 255:
+            raise DataTypeError(self.data_type_name, self._CONV_ERR % data)
         return data
 
 
 class DT_Text(DataType):
     """Unbounded text string data type."""
 
-    data_type_name = "character"
+    data_type_name = "text"
 
     def __repr__(self) -> str:
         return "DT_Text()"
