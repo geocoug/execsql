@@ -9,6 +9,8 @@ end-to-end conditional tests belong in integration tests.
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import pytest
 
 from execsql.exceptions import CondParserError, NumericParserError
@@ -365,3 +367,80 @@ class TestCondParserEdgeCases:
     def test_only_whitespace_raises(self):
         with pytest.raises(CondParserError):
             CondParser("   ").parse()
+
+
+# ---------------------------------------------------------------------------
+# NumericParser — additional edge cases (left-associativity, chaining, etc.)
+# ---------------------------------------------------------------------------
+
+
+class TestNumericParserAssociativity:
+    """Verify left-to-right evaluation for subtraction and division."""
+
+    def _eval(self, expr: str):
+        return NumericParser(expr).parse().eval()
+
+    def test_subtraction_left_assoc(self):
+        # 10 - 3 - 2 should be (10 - 3) - 2 = 5, not 10 - (3 - 2) = 9
+        assert self._eval("10 - 3 - 2") == 5
+
+    def test_division_left_assoc(self):
+        # 12 / 3 / 2 should be (12 / 3) / 2 = 2, not 12 / (3 / 2) = 8
+        assert self._eval("12 / 3 / 2") == 2.0
+
+    def test_chained_subtraction_three(self):
+        assert self._eval("100 - 20 - 30 - 10") == 40
+
+    def test_chained_division_three(self):
+        assert abs(self._eval("120 / 2 / 3 / 4") - 5.0) < 1e-9
+
+    def test_mixed_add_sub_chain(self):
+        assert self._eval("10 + 5 - 3 + 2 - 1") == 13
+
+    def test_mixed_mul_div_chain(self):
+        assert abs(self._eval("2 * 3 / 2 * 4") - 12.0) < 1e-9
+
+    def test_precedence_mul_over_add_left_assoc(self):
+        # 2 + 3 * 4 - 1 should be 2 + 12 - 1 = 13
+        assert self._eval("2 + 3 * 4 - 1") == 13
+
+    def test_precedence_div_over_sub(self):
+        # 10 - 6 / 2 should be 10 - 3 = 7
+        assert self._eval("10 - 6 / 2") == 7.0
+
+    def test_negative_result(self):
+        assert self._eval("3 - 5") == -2
+
+    def test_parentheses_override_precedence(self):
+        assert self._eval("(2 + 3) * (4 - 1)") == 15
+
+    def test_deeply_nested_arithmetic(self):
+        assert self._eval("((10 - 3) * 2 + (4 / 2))") == 16.0
+
+    def test_single_zero(self):
+        assert self._eval("0") == 0
+
+    def test_add_negative_numbers(self):
+        assert self._eval("-3 + -2") == -5
+
+    def test_multiply_negative(self):
+        assert self._eval("-3 * 4") == -12
+
+    def test_float_precision(self):
+        result = self._eval("0.1 + 0.2")
+        assert abs(result - 0.3) < 1e-9
+
+
+# ---------------------------------------------------------------------------
+# CondAstNode — unknown type raises
+# ---------------------------------------------------------------------------
+
+
+class TestCondAstNodeUnknownType:
+    def test_unknown_type_raises(self):
+        # type=999 is unknown; left must be non-None so the node reaches the
+        # fallthrough guard after the AND/OR branches (which call left.eval()).
+        dummy_leaf = CondAstNode(CondAstNode.CONDITIONAL, (SimpleNamespace(exec_fn=lambda **kw: True), {}), None)
+        node = CondAstNode(999, dummy_leaf, dummy_leaf)
+        with pytest.raises(CondParserError, match="Unknown conditional node type"):
+            node.eval()

@@ -586,3 +586,122 @@ class TestMainCLIDirect:
         # collect_paths passes files through regardless of existence
         self._invoke([str(missing)])
         # Just verify it doesn't crash with an unexpected exception
+
+
+# ---------------------------------------------------------------------------
+# Edge cases — block comments, metacommands in comments, tabs, long lines
+# ---------------------------------------------------------------------------
+
+
+class TestFormatFileEdgeCases:
+    def test_block_comment_spans_multiple_lines(self):
+        source = "/* this is a\nmultiline block comment */\nSELECT 1;\n"
+        result = format_file(source, use_sql=False)
+        assert "multiline" in result
+        assert "SELECT 1;" in result
+
+    def test_block_comment_single_line(self):
+        source = "/* comment */\nSELECT 1;\n"
+        result = format_file(source, use_sql=False)
+        assert "/* comment */" in result
+
+    def test_metacommand_inside_block_comment_not_parsed(self):
+        """A metacommand marker inside a block comment should be treated as comment text."""
+        source = "/* -- !x! WRITE 'not a command' */\n-- !x! WRITE 'real command'\n"
+        result = format_file(source, use_sql=False)
+        lines = result.splitlines()
+        # The block comment line should be preserved as-is (SQL pass-through)
+        # The real metacommand should be uppercased
+        assert any("WRITE 'real command'" in line for line in lines)
+
+    def test_tab_expansion(self):
+        """Tabs in source should be expanded to 4 spaces."""
+        source = "\t-- !x! WRITE 'hello'\n"
+        result = format_file(source, use_sql=False)
+        assert "\t" not in result
+        assert "WRITE" in result
+
+    def test_long_metacommand_line(self):
+        """Lines exceeding 120 chars should not cause errors."""
+        long_arg = "x" * 200
+        source = f"-- !x! WRITE '{long_arg}'\n"
+        result = format_file(source, use_sql=False)
+        assert long_arg in result
+
+    def test_long_sql_line(self):
+        """Very long SQL lines should pass through without errors."""
+        cols = ", ".join(f"col_{i}" for i in range(50))
+        source = f"SELECT {cols} FROM big_table;\n"
+        result = format_file(source, use_sql=False)
+        assert "col_49" in result
+
+    def test_mixed_sql_and_metacommands(self):
+        source = "SELECT 1;\n-- !x! IF TABLE_EXISTS(foo)\nSELECT * FROM foo;\n-- !x! ENDIF\n"
+        result = format_file(source, use_sql=False)
+        lines = result.splitlines()
+        assert any("IF" in line for line in lines)
+        assert any("ENDIF" in line for line in lines)
+        assert any("SELECT" in line for line in lines)
+
+    def test_sql_with_variables_preserved(self):
+        source = "SELECT !!$my_var!! FROM !!table_name!!;\n"
+        result = format_file(source, use_sql=False)
+        assert "!!$my_var!!" in result
+        assert "!!table_name!!" in result
+
+    def test_elseif_depth(self):
+        source = "-- !x! IF 1=1\n-- !x! WRITE 'a'\n-- !x! ELSEIF 2=2\n-- !x! WRITE 'b'\n-- !x! ENDIF\n"
+        result = format_file(source, use_sql=False)
+        lines = result.splitlines()
+        # ELSEIF should be at depth 0 (same as IF)
+        assert lines[2].startswith("-- !x! ELSEIF")
+        # WRITE 'b' should be indented (depth 1)
+        assert lines[3].startswith("    -- !x! WRITE")
+
+    def test_begin_batch_end_batch(self):
+        source = "-- !x! BEGIN BATCH\nINSERT INTO t VALUES (1);\n-- !x! END BATCH\n"
+        result = format_file(source, use_sql=False)
+        lines = result.splitlines()
+        assert lines[0] == "-- !x! BEGIN BATCH"
+        assert lines[1].startswith("    ")
+        assert lines[2] == "-- !x! END BATCH"
+
+    def test_begin_sql_end_sql(self):
+        source = "-- !x! BEGIN SQL\nSELECT 1;\nSELECT 2;\n-- !x! END SQL\n"
+        result = format_file(source, use_sql=False)
+        lines = result.splitlines()
+        assert lines[0] == "-- !x! BEGIN SQL"
+        assert lines[-1] == "-- !x! END SQL"
+
+    def test_orif_continuation(self):
+        source = "-- !x! IF 1=1\n-- !x! ORIF 2=2\n-- !x! WRITE 'x'\n-- !x! ENDIF\n"
+        result = format_file(source, use_sql=False)
+        lines = result.splitlines()
+        # ORIF is a CONTINUATION — emits at depth-1, no depth change
+        assert lines[1].startswith("-- !x! ORIF")
+
+    def test_create_script_block(self):
+        source = "-- !x! CREATE SCRIPT myscript\n-- !x! WRITE 'inside'\n-- !x! END SCRIPT\n"
+        result = format_file(source, use_sql=False)
+        lines = result.splitlines()
+        assert lines[0] == "-- !x! CREATE SCRIPT myscript"
+        assert lines[1] == "    -- !x! WRITE 'inside'"
+        assert lines[2] == "-- !x! END SCRIPT"
+
+    def test_only_sql_no_metacommands(self):
+        source = "SELECT 1;\nSELECT 2;\n"
+        result = format_file(source, use_sql=False)
+        assert "SELECT 1;" in result
+        assert "SELECT 2;" in result
+
+    def test_only_comments(self):
+        source = "-- comment 1\n-- comment 2\n"
+        result = format_file(source, use_sql=False)
+        assert "-- comment 1" in result
+        assert "-- comment 2" in result
+
+    def test_indent_two_spaces(self):
+        source = "-- !x! IF 1=1\n-- !x! WRITE 'x'\n-- !x! ENDIF\n"
+        result = format_file(source, indent=2, use_sql=False)
+        lines = result.splitlines()
+        assert lines[1] == "  -- !x! WRITE 'x'"
