@@ -328,22 +328,15 @@ class TestPopulateTableEmptyRows:
 # ---------------------------------------------------------------------------
 # populate_table() — string processing
 #
-# NOTE: In the SQLite implementation, ``linedata`` is extracted from ``line``
-# as a shallow list-comprehension copy (line 188) BEFORE the string
-# processing loop mutates ``line[i]`` (lines 192-197).  Because strings are
-# immutable in Python, reassigning ``line[i]`` does NOT update ``linedata[i]``.
-# This means the processing affects ``line`` only; ``linedata`` — which is
-# what actually gets passed to the INSERT — retains the original values.
-#
-# The tests below document this current behavior and ensure the code paths
-# are exercised (the processing block is entered, no exceptions are raised).
+# String processing (trim, replace_newlines, empty_strings) is applied to
+# ``line`` BEFORE ``linedata`` is extracted, so the INSERT receives the
+# processed values.
 # ---------------------------------------------------------------------------
 
 
 class TestPopulateTableStringProcessing:
-    def test_trim_strings_branch_entered_no_exception(self, db_with_table, minimal_conf):
-        """trim_strings=True causes the processing branch to be entered (line 192);
-        because linedata is a copy, the stored value retains original whitespace."""
+    def test_trim_strings_applied_to_inserted_data(self, db_with_table, minimal_conf):
+        """trim_strings=True strips whitespace from string values before INSERT."""
         minimal_conf.trim_strings = True
         minimal_conf.replace_newlines = False
         minimal_conf.empty_strings = True
@@ -358,13 +351,11 @@ class TestPopulateTableStringProcessing:
             tablespec_src=tablespec_src,
         )
         _, result = db_with_table.select_data("SELECT name FROM items;")
-        # The row was inserted without error; value is original (linedata copy)
         assert len(result) == 1
-        assert result[0][0] == "  hello  "
+        assert result[0][0] == "hello"
 
-    def test_replace_newlines_branch_entered_no_exception(self, db_with_table, minimal_conf):
-        """replace_newlines=True causes the processing branch to be entered (line 194);
-        stored value retains original newlines because linedata was copied first."""
+    def test_replace_newlines_applied_to_inserted_data(self, db_with_table, minimal_conf):
+        """replace_newlines=True collapses newlines to spaces before INSERT."""
         minimal_conf.trim_strings = False
         minimal_conf.replace_newlines = True
         minimal_conf.empty_strings = True
@@ -380,11 +371,10 @@ class TestPopulateTableStringProcessing:
         )
         _, result = db_with_table.select_data("SELECT name FROM items;")
         assert len(result) == 1
-        # Processing branch ran without error; original value in linedata
-        assert "line1" in result[0][0]
+        assert result[0][0] == "line1 line2"
 
-    def test_empty_strings_false_branch_entered_no_exception(self, db_with_table, minimal_conf):
-        """empty_strings=False triggers the branch (line 196); linedata copy is unaffected."""
+    def test_empty_strings_false_nullifies_whitespace_only(self, db_with_table, minimal_conf):
+        """empty_strings=False converts whitespace-only strings to NULL before INSERT."""
         minimal_conf.trim_strings = False
         minimal_conf.replace_newlines = False
         minimal_conf.empty_strings = False
@@ -400,8 +390,7 @@ class TestPopulateTableStringProcessing:
         )
         _, result = db_with_table.select_data("SELECT name FROM items;")
         assert len(result) == 1
-        # linedata captured "   " before the line[i]=None mutation
-        assert result[0][0] == "   "
+        assert result[0][0] is None
 
     def test_none_strings_left_alone_during_processing(self, db_with_table, minimal_conf):
         """None string values must not cause AttributeError during string processing."""

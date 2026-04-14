@@ -727,6 +727,8 @@ def set_static_system_vars() -> None:
     )
     _state.subvars.add_substitution("$DB_NAME", db.db_name)
     _state.subvars.add_substitution("$DB_NEED_PWD", "TRUE" if db.need_passwd else "FALSE")
+    _state.subvars.add_substitution("$CURRENT_DBMS", db.type.dbms_id)
+    _state.subvars.add_substitution("$CURRENT_DATABASE", db.name())
     _state.subvars.add_substitution("$VERSION1", str(_state.primary_vno))
     _state.subvars.add_substitution("$VERSION2", str(_state.secondary_vno))
     _state.subvars.add_substitution("$VERSION3", str(_state.tertiary_vno))

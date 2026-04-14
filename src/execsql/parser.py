@@ -376,30 +376,28 @@ class NumericParser(NumTokens):
                 )
 
     def term(self) -> Any:
-        """Parse a term: a factor optionally followed by MUL/DIV and another term."""
-        # Parses a term out of the source string and returns the
-        # AST node that is created.
-        m1 = self.factor()
-        mulop = self.match_mulop()
-        if mulop is not None:
-            m2 = self.term()
-            return NumericAstNode(mulop, m1, m2)
-        else:
-            return m1
+        """Parse a term: a factor followed by zero or more MUL/DIV operators (left-associative)."""
+        node = self.factor()
+        while True:
+            mulop = self.match_mulop()
+            if mulop is None:
+                break
+            right = self.factor()
+            node = NumericAstNode(mulop, node, right)
+        return node
 
     def expression(self) -> Any:
-        """Parse an expression: a term optionally followed by ADD/SUB and another expression."""
-        # Parses an expression out of the source string and returns the
-        # AST node that is created.
-        e1 = self.term()
-        if e1 is None:
+        """Parse an expression: a term followed by zero or more ADD/SUB operators (left-associative)."""
+        node = self.term()
+        if node is None:
             return
-        addop = self.match_addop()
-        if addop is not None:
-            e2 = self.expression()
-            return NumericAstNode(addop, e1, e2)
-        else:
-            return e1
+        while True:
+            addop = self.match_addop()
+            if addop is None:
+                break
+            right = self.term()
+            node = NumericAstNode(addop, node, right)
+        return node
 
     def parse(self) -> Any:
         """Parse the entire numeric expression and return the AST root."""

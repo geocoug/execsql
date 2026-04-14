@@ -194,7 +194,6 @@ class SQLiteDatabase(Database):
                         type="error",
                         other_msg=f"Too few values on data line {datalineno} of input.",
                     )
-                linedata = [line[ix] for ix in data_indexes]
                 if _state.conf.trim_strings or _state.conf.replace_newlines or not _state.conf.empty_strings:
                     for i in range(len(line)):
                         if line[i] is not None and isinstance(line[i], _state.stringtypes):
@@ -204,6 +203,7 @@ class SQLiteDatabase(Database):
                                 line[i] = re.sub(r"[\s\t]*[\r\n]+[\s\t]*", " ", line[i])
                             if not _state.conf.empty_strings and line[i].strip() == "":
                                 line[i] = None
+                linedata = [line[ix] for ix in data_indexes]
                 # Convert datetime, time, and Decimal values to strings.
                 for i in range(len(linedata)):
                     if type(linedata[i]) in (datetime.datetime, datetime.time, Decimal):

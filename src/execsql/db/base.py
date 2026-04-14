@@ -505,7 +505,6 @@ class Database(ABC):
                                             and isinstance(line[cno], _state.stringtypes)
                                             and len(line[cno].strip()) == 0
                                         )
-                                        and _state.conf.del_empty_cols
                                     ):
                                         any_non_empty = True
                                         break

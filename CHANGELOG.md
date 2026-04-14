@@ -32,6 +32,11 @@ ______________________________________________________________________
 
 ### Fixed
 
+- `NumericParser` now uses left-associative parsing for arithmetic operators. Previously, right-recursive descent caused `10 - 3 - 2` to evaluate as `10 - (3 - 2) = 9` instead of the correct `(10 - 3) - 2 = 5`. Same fix for division.
+- Operator precedence bug in `DataTable` and `Database.populate_table()` empty-column check — a redundant `and conf.del_empty_cols` inside an already-guarded block caused incorrect short-circuit evaluation due to Python operator precedence.
+- SQLite `populate_table()` now applies `trim_strings`, `replace_newlines`, and `empty_strings` processing before extracting column data. Previously, processing was applied after the insert data was copied, so trimming and null-conversion never took effect.
+- `$CURRENT_DATABASE` and `$CURRENT_DBMS` system variables now refresh on `USE` metacommand. Previously they were only set at startup and on `CONNECT`, becoming stale after switching the active database with `USE`.
+- Documentation: `$CONSOLE_WAIT_WHEN_ERROR_HALT_STATE` variable name corrected in substitution variables reference (was incorrectly documented as `$CONSOLE_WAIT_WHEN_ERROR_STATE`).
 - `PROMPT COMPARE` diff logic now uses native Python equality instead of string comparison — `int(1)` vs `float(1.0)`, `Decimal("10.00")` vs `Decimal("10.0")`, and `True` vs `1` are correctly treated as equal instead of producing false diffs.
 - `PROMPT COMPARE` diff logic now treats `None` (SQL NULL) as distinct from empty string `""`. Previously both were normalized to `""` and compared as equal.
 - `PROMPT COMPARE` summary stats now match by column name instead of position — tables with the same columns in different order no longer produce false diffs.

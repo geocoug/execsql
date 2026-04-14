@@ -259,7 +259,6 @@ class DataTable:
                                         and isinstance(column_value, str)
                                         and len(column_value.strip()) == 0
                                     )
-                                    and conf.del_empty_cols
                                 ):
                                     any_non_empty = True
                                     break

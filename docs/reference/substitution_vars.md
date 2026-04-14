@@ -75,7 +75,7 @@ $CANCEL_HALT_STATE
 $CONSOLE_WAIT_WHEN_DONE_STATE
 :   The value of the status flag that is set by the `console_wait_when_done` configuration setting or by the [CONFIG CONSOLE WAIT_WHEN_DONE](metacommands.md#console_wait_when_done) metacommand. The value of this variable is always either "ON" or "OFF".
 
-$CONSOLE_WAIT_WHEN_ERROR_STATE
+$CONSOLE_WAIT_WHEN_ERROR_HALT_STATE
 :   The value of the status flag that is set by the `console_wait_when_error_halt` configuration setting or by the [CONFIG CONSOLE WAIT_WHEN_ERROR](metacommands.md#console_wait_when_error) metacommand. The value of this variable is always either "ON" or "OFF".
 
 $COUNTER_x

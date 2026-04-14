@@ -657,7 +657,9 @@ class TestSetSystemVars:
             server_name="localhost",
             db_name="mydb",
             need_passwd=False,
+            type=SimpleNamespace(dbms_id="TestDB"),
         )
+        db.name = lambda: "TestDB(server localhost; database mydb)"
         return db
 
     def test_populates_cancel_halt_state(self, engine_state):
@@ -1149,7 +1151,9 @@ class TestRunscripts:
             server_name="s",
             db_name="d",
             need_passwd=False,
+            type=SimpleNamespace(dbms_id="TestDB"),
         )
+        db.name = lambda: "TestDB(server s; database d)"
         pool = MagicMock()
         pool.current.return_value = db
         pool.current_alias.return_value = "main"
@@ -1168,7 +1172,9 @@ class TestRunscripts:
             server_name="s",
             db_name="d",
             need_passwd=False,
+            type=SimpleNamespace(dbms_id="TestDB"),
         )
+        db.name = lambda: "TestDB(server s; database d)"
         pool = MagicMock()
         pool.current.return_value = db
         pool.current_alias.return_value = "main"
@@ -1204,7 +1210,9 @@ class TestRunscripts:
             server_name="s",
             db_name="d",
             need_passwd=False,
+            type=SimpleNamespace(dbms_id="TestDB"),
         )
+        db.name = lambda: "TestDB(server s; database d)"
         pool = MagicMock()
         pool.current.return_value = db
         pool.current_alias.return_value = "main"
@@ -1230,7 +1238,9 @@ class TestRunscripts:
             server_name="s",
             db_name="d",
             need_passwd=False,
+            type=SimpleNamespace(dbms_id="TestDB"),
         )
+        db.name = lambda: "TestDB(server s; database d)"
         pool = MagicMock()
         pool.current.return_value = db
         pool.current_alias.return_value = "main"
@@ -1253,7 +1263,9 @@ class TestRunscripts:
             server_name="s",
             db_name="d",
             need_passwd=False,
+            type=SimpleNamespace(dbms_id="TestDB"),
         )
+        db.name = lambda: "TestDB(server s; database d)"
         pool = MagicMock()
         pool.current.return_value = db
         pool.current_alias.return_value = "main"
