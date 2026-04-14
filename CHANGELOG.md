@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.15.2] - 2026-04-14
+
 ### Changed
 
 - `DT_Integer`, `DT_Float`, and `DT_Decimal` data type matchers now use pre-compiled regex class attributes instead of recompiling on every call — reduces overhead during large imports.
