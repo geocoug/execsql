@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.15.1] - 2026-04-14
+
 ### Added
 
 - Cell-level diff marking in `PROMPT COMPARE` dialog — when "Highlight Diffs" is toggled, differing cells within changed rows are prefixed with a bullet marker so users can see exactly which columns differ. Works across all three backends (Tkinter, Textual, and console).
