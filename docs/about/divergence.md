@@ -253,6 +253,7 @@ These are behavioral changes driven by security or correctness issues in the ups
 | `WriteHooks.write_err()` crash on empty string      | `strval[-1]` raised `IndexError` on empty input. Fixed to use `str.endswith()`. Inherited from upstream.                                                                                                                                                                                               |
 | `NumericParser` division by zero                    | `NumericAstNode.eval()` raised unhandled `ZeroDivisionError`. Now raises `NumericParserError` with a clear message. Inherited from upstream.                                                                                                                                                           |
 | `CondAstNode.eval()` could return `None`            | Missing fallthrough for unknown node types silently returned `None`. Now raises `CondParserError`. Inherited from upstream.                                                                                                                                                                            |
+| `DT_Timestamp` claims time-only values              | `dateutil.parser.parse()` silently fills in today's date for bare time strings like `"13:15:45"`, so `DT_Timestamp` matched before `DT_Time` in the inference order. `parse_datetime()` now rejects time-only strings. Inherited from upstream.                                                        |
 
 ______________________________________________________________________
 

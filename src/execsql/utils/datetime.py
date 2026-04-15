@@ -25,10 +25,20 @@ __all__ = ["parse_datetime", "parse_datetimetz"]
 # misidentified as timestamps.
 _NUMERIC_ONLY = re.compile(r"^[+-]?\d+\.?\d*$")
 
+# Match time-only strings like "13:15:45", "9:30", "1:15:45.123", "09:30 AM".
+# dateutil parses these by filling in today's date, which causes DT_Timestamp
+# to claim the column before DT_Time gets a chance.
+_TIME_ONLY = re.compile(r"^\d{1,2}:\d{2}(?::\d{2}(?:\.\d+)?)?\s*(?:[AaPp][Mm])?$")
+
 
 def _looks_numeric(s: str) -> bool:
     """Return True if *s* is a bare number that should not be parsed as a date."""
     return bool(_NUMERIC_ONLY.match(s.strip()))
+
+
+def _looks_time_only(s: str) -> bool:
+    """Return True if *s* is a time-only string (no date component)."""
+    return bool(_TIME_ONLY.match(s.strip()))
 
 
 def parse_datetime(datestr: Any) -> datetime.datetime | None:
@@ -52,6 +62,8 @@ def parse_datetime(datestr: Any) -> datetime.datetime | None:
         except Exception:
             return None
     if _looks_numeric(datestr):
+        return None
+    if _looks_time_only(datestr):
         return None
     try:
         return _dateutil_parser.parse(datestr)

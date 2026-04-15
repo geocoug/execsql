@@ -124,6 +124,21 @@ class TestParseDatetimeExtended:
     def test_empty_string_returns_none(self):
         assert parse_datetime("") is None
 
+    def test_time_only_strings_rejected(self):
+        """Time-only values must not be parsed as timestamps (GH: type inference bug)."""
+        assert parse_datetime("13:15:45") is None
+        assert parse_datetime("9:30") is None
+        assert parse_datetime("1:15:45.123") is None
+        assert parse_datetime("09:30 AM") is None
+        assert parse_datetime("11:00 pm") is None
+
+    def test_datetime_with_time_still_parses(self):
+        """Strings with both date and time components must still work."""
+        result = parse_datetime("2026-02-25 13:15:45")
+        assert isinstance(result, datetime.datetime)
+        assert result.hour == 13
+        assert result.minute == 15
+
 
 # ---------------------------------------------------------------------------
 # parse_datetimetz
