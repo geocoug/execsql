@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.15.4] - 2026-04-15
+
 ### Fixed
 
 - Fixed typo in `test_latin1_encoding` test data (`calf\xe9` → `calf\xe9`) that caused assertion failure on Windows CI.
