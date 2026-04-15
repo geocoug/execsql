@@ -233,6 +233,8 @@ hel = "hel"
 fo = "fo"
 # odfpy package imports as 'odf', not 'of'
 odf = "odf"
+# Latin-1 test data: b"caf\xe9" decodes to "café"
+caf = "caf"
 
 [tool.tox]
 required = ["tox-uv"]

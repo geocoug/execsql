@@ -164,7 +164,7 @@ class TestLongFields:
 class TestEncodingOverride:
     def test_latin1_encoding(self, db, tmp_path):
         csv = tmp_path / "latin1.csv"
-        csv.write_bytes(b"id,name\n1,calf\xe9\n")
+        csv.write_bytes(b"id,name\n1,caf\xe9\n")
         importtable(db, None, "lat_tbl", str(csv), is_new=1, encoding="latin-1")
         _, rows = db.select_data("SELECT name FROM lat_tbl;")
         assert rows[0][0] == "café"
