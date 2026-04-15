@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.15.5] - 2026-04-15
+
 ### Fixed
 
 - `DT_Timestamp` type inference no longer claims time-only values (e.g. `13:15:45`). `dateutil.parser.parse()` silently fills in today's date for bare time strings, causing `DT_Timestamp` to match before `DT_Time` and generating PostgreSQL `InvalidDatetimeFormat` errors on CSV import. Time-only strings are now rejected by `parse_datetime()`.
