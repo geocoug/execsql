@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Added
+
+- New optional dependency extras `auth-plaintext` and `auth-encrypted` for headless Linux keyring backends. `pip install execsql2[auth-plaintext]` installs `keyring` + `keyrings.alt`; `pip install execsql2[auth-encrypted]` adds `pycryptodome` for the encrypted file backend.
+
 ______________________________________________________________________
 
 ## [2.15.2] - 2026-04-14

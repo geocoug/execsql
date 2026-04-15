@@ -52,7 +52,9 @@ pip install execsql2[odbc]        # ODBC DSN (pyodbc)
 
 # Feature bundles
 pip install execsql2[formats]    # ODS, Excel, Jinja2, Feather, Parquet, HDF5
-pip install execsql2[auth]       # OS keyring integration
+pip install execsql2[auth]            # OS keyring integration
+pip install execsql2[auth-plaintext]  # Keyring + plaintext file backend (headless Linux)
+pip install execsql2[auth-encrypted]  # Keyring + encrypted file backend (headless Linux)
 
 # Convenience
 pip install execsql2[all-db]     # All database drivers

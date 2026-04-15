@@ -52,7 +52,7 @@ To disable keyring integration, set `use_keyring = No` in the `[connect]` sectio
 Passwords are stored encrypted on disk. Requires a master password the first time keyring is used per session.
 
 ```bash
-pip install keyrings.alt pycryptodome
+pip install execsql2[auth-encrypted]
 mkdir -p ~/.config/python_keyring
 cat > ~/.config/python_keyring/keyringrc.cfg << 'EOF'
 [backend]
@@ -67,7 +67,7 @@ The encrypted keyring file is stored at `~/.local/share/python_keyring/crypted_p
 Passwords are stored in plain text on disk. No master password is needed — execsql will never prompt for a password after the first successful entry.
 
 ```bash
-pip install keyrings.alt
+pip install execsql2[auth-plaintext]
 mkdir -p ~/.config/python_keyring
 cat > ~/.config/python_keyring/keyringrc.cfg << 'EOF'
 [backend]
