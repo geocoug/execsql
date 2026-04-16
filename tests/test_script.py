@@ -666,6 +666,97 @@ class TestSubVarSetTokenOptimization:
         assert changed is True
         assert result == "resolved"
 
+    def test_nested_variable_name_basic(self):
+        """Inner !!VAR!! inside an outer token name resolves correctly."""
+        sv = SubVarSet()
+        sv.add_substitution("check_group", "Initial")
+        sv.add_substitution("n_initial_checks", "12")
+        result, changed = sv.substitute_all("!!N_!!CHECK_GROUP!!_CHECKS!!")
+        assert changed is True
+        assert result == "12"
+
+    def test_nested_variable_name_dollar_prefix(self):
+        """Nested name with $-prefixed variables."""
+        sv = SubVarSet()
+        sv.add_substitution("$prefix", "Initial")
+        sv.add_substitution("$n_initial_checks", "42")
+        result, changed = sv.substitute_all("!!$N_!!$PREFIX!!_CHECKS!!")
+        assert changed is True
+        assert result == "42"
+
+    def test_nested_variable_name_at_prefix(self):
+        """Nested name with @-prefixed variables."""
+        sv = SubVarSet()
+        sv.add_substitution("@group", "east")
+        sv.add_substitution("@region_east_id", "99")
+        result, changed = sv.substitute_all("!!@REGION_!!@GROUP!!_ID!!")
+        assert changed is True
+        assert result == "99"
+
+    def test_nested_variable_name_no_prefix(self):
+        """Nested name with unprefixed variables."""
+        sv = SubVarSet()
+        sv.add_substitution("part", "mid")
+        sv.add_substitution("sec_mid_val", "xyz")
+        result, changed = sv.substitute_all("!!SEC_!!PART!!_VAL!!")
+        assert changed is True
+        assert result == "xyz"
+
+    def test_nested_variable_name_mixed_context(self):
+        """Nested name alongside a normal variable in the same string."""
+        sv = SubVarSet()
+        sv.add_substitution("idx", "3")
+        sv.add_substitution("col_3_name", "addr")
+        sv.add_substitution("table", "users")
+        result, changed = sv.substitute_all("SELECT !!COL_!!IDX!!_NAME!! FROM !!TABLE!!")
+        assert changed is True
+        assert result == "SELECT addr FROM users"
+
+    def test_nested_variable_name_ampersand_prefix(self):
+        """Nested name with &-prefixed variables."""
+        sv = SubVarSet()
+        sv.add_substitution("&slot", "A")
+        sv.add_substitution("&val_a_out", "done")
+        result, changed = sv.substitute_all("!!&VAL_!!&SLOT!!_OUT!!")
+        assert changed is True
+        assert result == "done"
+
+    def test_nested_variable_name_single_quote_form(self):
+        """Nested name inside single-quoted form applies apostrophe escaping."""
+        sv = SubVarSet()
+        sv.add_substitution("group", "east")
+        sv.add_substitution("n_east_val", "it's done")
+        result, changed = sv.substitute_all("!'!N_!!GROUP!!_VAL!'!")
+        assert changed is True
+        assert result == "it''s done"
+
+    def test_nested_variable_name_double_quote_form(self):
+        """Nested name inside double-quoted form wraps value in quotes."""
+        sv = SubVarSet()
+        sv.add_substitution("group", "east")
+        sv.add_substitution("n_east_val", "hello")
+        result, changed = sv.substitute_all('!"!N_!!GROUP!!_VAL!"!')
+        assert changed is True
+        assert result == '"hello"'
+
+    def test_nested_variable_name_undefined_inner(self):
+        """Nested name with undefined inner variable stays unchanged."""
+        sv = SubVarSet()
+        sv.add_substitution("n_something_x", "12")
+        result, changed = sv.substitute_all("!!N_!!UNDEFINED!!_X!!")
+        assert changed is False
+        assert result == "!!N_!!UNDEFINED!!_X!!"
+
+    def test_nested_variable_name_triple(self):
+        """Triple nesting resolves inside-out."""
+        sv = SubVarSet()
+        sv.add_substitution("c", "X")
+        sv.add_substitution("b_x_d", "Y")
+        sv.add_substitution("a_y_e", "final")
+        result, changed = sv.substitute_all("!!A_!!B_!!C!!_D!!_E!!")
+        assert changed is True
+        assert result == "final"
+
     def test_non_string_input_returns_unchanged(self):
         sv = SubVarSet()
         sv.add_substitution("$x", "val")

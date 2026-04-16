@@ -224,6 +224,11 @@ class SubVarSet:
         dict.  This is O(1) per call instead of O(V) where V is the number of
         defined variables.
 
+        Falls back to a per-variable substring scan when ``_TOKEN_RX`` finds no
+        match — this handles nested variable names like
+        ``!!N_!!CHECK_GROUP!!_CHECKS!!`` where the inner ``!!CHECK_GROUP!!``
+        must be resolved first.
+
         Returns ``(modified_string, True)`` if a substitution was made, or
         ``(original_string, False)`` if no variable pattern matched.
         """
@@ -249,6 +254,37 @@ class SubVarSet:
                 return command_str[: m.start()] + sub + command_str[m.end() :], True
             # Token found but variable not defined — skip it and keep searching.
             m = self._TOKEN_RX.search(command_str, m.end())
+        # Fallback: per-variable substring scan for nested tokens like
+        # !!N_!!CHECK_GROUP!!_CHECKS!! where _TOKEN_RX cannot find the inner
+        # variable.  Matches original monolith behavior.
+        return self._substitute_nested(command_str)
+
+    def _substitute_nested(self, command_str: str) -> tuple:
+        """Scan for any defined variable as a substring — handles nested tokens."""
+        for varname, sub in self._subs_dict.items():
+            if sub is None:
+                sub = ""
+            sub = str(sub)
+            if os.name != "posix":
+                sub = sub.replace("\\", "\\\\")
+            pat = re.compile(re.escape(f"!!{varname}!!"), re.I)
+            m = pat.search(command_str)
+            if m:
+                return command_str[: m.start()] + sub + command_str[m.end() :], True
+            patq = re.compile(re.escape(f"!'!{varname}!'!"), re.I)
+            mq = patq.search(command_str)
+            if mq:
+                return (
+                    command_str[: mq.start()] + sub.replace("'", "''") + command_str[mq.end() :],
+                    True,
+                )
+            patdq = re.compile(re.escape(f'!"!{varname}!"!'), re.I)
+            mdq = patdq.search(command_str)
+            if mdq:
+                return (
+                    command_str[: mdq.start()] + '"' + sub + '"' + command_str[mdq.end() :],
+                    True,
+                )
         return command_str, False
 
     def substitute_all(self, any_text: str) -> tuple:

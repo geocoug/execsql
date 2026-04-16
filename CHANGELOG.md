@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Fixed
+
+- Nested substitution variable names (e.g., `!!N_!!CHECK_GROUP!!_CHECKS!!`) now resolve correctly, matching original execsql behavior. The single-pass token regex introduced in 2.15.0 could not find inner `!!var!!` tokens embedded within an outer variable name; a per-variable substring fallback now handles this edge case.
+
 ______________________________________________________________________
 
 ## [2.15.5] - 2026-04-15
