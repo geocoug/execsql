@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.15.7] - 2026-04-20
+
 ### Fixed
 
 - `CounterVars.substitute` now correctly searches the full string. `re.I` was mistakenly passed as the `pos` argument to `re.search`, causing the first two characters of every string to be skipped when looking for counter variable references.
