@@ -111,15 +111,20 @@ def write_query_to_json_ts(
             for i, h in enumerate(hdrs):
                 qcomma = "," if i < max_col_idx else ""
                 c = [col for col in tbl_desc.cols if col.name == h][0]
+                jname = json.dumps(c.name)
+                jtitle = json.dumps(c.name.capitalize().replace("_", " "))
+                jtype = json.dumps(_state.to_json_type[c.dt[1]])
                 f.write(
-                    f'    {{\n      "name": "{c.name}",\n      "title": "{c.name.capitalize().replace("_", " ")}",\n      "type": "{_state.to_json_type[c.dt[1]]}"\n    }}{qcomma}\n',
+                    f'    {{\n      "name": {jname},\n      "title": {jtitle},\n      "type": {jtype}\n    }}{qcomma}\n',
                 )
         else:
             # Write the column descriptions to the header.
             for i, h in enumerate(hdrs):
                 qcomma = "," if i < max_col_idx else ""
+                jname = json.dumps(h)
+                jtitle = json.dumps(h.capitalize().replace("_", " "))
                 f.write(
-                    f'    {{\n      "name": "{h}",\n      "title": "{h.capitalize().replace("_", " ")}"\n    }}{qcomma}\n',
+                    f'    {{\n      "name": {jname},\n      "title": {jtitle}\n    }}{qcomma}\n',
                 )
         f.write("  ]\n}\n")
     finally:

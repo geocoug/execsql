@@ -622,8 +622,9 @@ class TempFileMgr:
         atexit.register(self.remove_all)
 
     def new_temp_fn(self) -> str:
-        # Get a file object, get its name, and throw away the object
-        fn = tempfile.NamedTemporaryFile().name  # noqa: SIM115
+        # Create a temp file securely via mkstemp (avoids TOCTOU race).
+        fd, fn = tempfile.mkstemp()
+        os.close(fd)
         self.temp_file_names.append(fn)
         return fn
 

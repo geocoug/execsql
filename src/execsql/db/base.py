@@ -460,7 +460,6 @@ class Database(ABC):
         paramspec = self.paramsubs(len(columns))
         sql = f"insert into {sq_name} ({colspec}) values ({paramspec});"
         rows = iter(rowsource)
-        curs = self.cursor()
         eof = False
         total_rows = 0
 
@@ -483,7 +482,7 @@ class Database(ABC):
             except ImportError:
                 use_progress = False
 
-        def _import_loop() -> int:
+        def _import_loop(curs) -> int:
             nonlocal eof, total_rows, task_id
             while True:
                 b = []
@@ -575,12 +574,13 @@ class Database(ABC):
                     break
             return total_rows
 
-        if use_progress and progress_ctx is not None:
-            with progress_ctx:
-                task_id = progress_ctx.add_task(sq_name, total=None)
-                _import_loop()
-        else:
-            _import_loop()
+        with self._cursor() as curs:
+            if use_progress and progress_ctx is not None:
+                with progress_ctx:
+                    task_id = progress_ctx.add_task(sq_name, total=None)
+                    _import_loop(curs)
+            else:
+                _import_loop(curs)
 
         if _state.exec_log:
             _state.exec_log.log_status_info(

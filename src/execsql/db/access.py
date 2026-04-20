@@ -243,16 +243,16 @@ class AccessDatabase(Database):
                     self.temp_query_names.append(qn)
             else:
                 self.dao_flush_check()
-                curs = self.cursor()
-                if self.jet4:
-                    encoded_sql = str(sql)
-                else:
-                    encoded_sql = str(sql).encode(self.encoding)
-                if paramlist is None:
-                    curs.execute(encoded_sql)
-                else:
-                    curs.execute(encoded_sql, paramlist)
-                _state.subvars.add_substitution("$LAST_ROWCOUNT", curs.rowcount)
+                with self._cursor() as curs:
+                    if self.jet4:
+                        encoded_sql = str(sql)
+                    else:
+                        encoded_sql = str(sql).encode(self.encoding)
+                    if paramlist is None:
+                        curs.execute(encoded_sql)
+                    else:
+                        curs.execute(encoded_sql, paramlist)
+                    _state.subvars.add_substitution("$LAST_ROWCOUNT", curs.rowcount)
 
         if type(sqlcmd) in (list, tuple):
             for sql in sqlcmd:
@@ -269,10 +269,10 @@ class AccessDatabase(Database):
         # Returns the results of the sql select statement.
         # The Access driver returns data as unicode, so no decoding is necessary.
         self.dao_flush_check()
-        curs = self.cursor()
-        curs.execute(sql)
-        rows = curs.fetchall()
-        return [d[0] for d in curs.description], rows
+        with self._cursor() as curs:
+            curs.execute(sql)
+            rows = curs.fetchall()
+            return [d[0] for d in curs.description], rows
 
     def select_rowsource(self, sql: str) -> tuple[list[str], Any]:
         """Return column names and an iterable that yields rows one at a time."""
@@ -308,20 +308,20 @@ class AccessDatabase(Database):
     def table_exists(self, table_name: str, schema_name: str | None = None) -> bool:
         """Return True if the named table exists in the Access database."""
         self.dao_flush_check()
-        curs = self.cursor()
-        try:
-            sql = "select Name from MSysObjects where Name=? And Type In (1,4,6);"
-            curs.execute(sql, (table_name,))
-        except ErrInfo:
-            raise
-        except Exception as e:
-            raise ErrInfo(
-                type="db",
-                command_text=sql,
-                exception_msg=exception_desc(),
-                other_msg=f"Failure on test for existence of Access table {table_name}",
-            ) from e
-        rows = curs.fetchall()
+        sql = "select Name from MSysObjects where Name=? And Type In (1,4,6);"
+        with self._cursor() as curs:
+            try:
+                curs.execute(sql, (table_name,))
+            except ErrInfo:
+                raise
+            except Exception as e:
+                raise ErrInfo(
+                    type="db",
+                    command_text=sql,
+                    exception_msg=exception_desc(),
+                    other_msg=f"Failure on test for existence of Access table {table_name}",
+                ) from e
+            rows = curs.fetchall()
         return len(rows) > 0
 
     def column_exists(
@@ -332,41 +332,41 @@ class AccessDatabase(Database):
     ) -> bool:
         """Return True if the named column exists in the given Access table."""
         self.dao_flush_check()
-        curs = self.cursor()
         quoted_col = self.quote_identifier(column_name)
         quoted_tbl = self.quote_identifier(table_name)
         sql = f"select top 1 {quoted_col} from {quoted_tbl};"
-        try:
-            curs.execute(sql)
-        except Exception:
-            return False
+        with self._cursor() as curs:
+            try:
+                curs.execute(sql)
+            except Exception:
+                return False
         return True
 
     def table_columns(self, table_name: str, schema_name: str | None = None) -> list[str]:
         """Return a list of column names for the given Access table."""
         self.dao_flush_check()
-        curs = self.cursor()
         quoted_tbl = self.quote_identifier(table_name)
-        curs.execute(f"select top 1 * from {quoted_tbl};")
-        return [d[0] for d in curs.description]
+        with self._cursor() as curs:
+            curs.execute(f"select top 1 * from {quoted_tbl};")
+            return [d[0] for d in curs.description]
 
     def view_exists(self, view_name: str, schema_name: str | None = None) -> bool:
         """Return True if the named view or query exists in the Access database."""
         self.dao_flush_check()
-        curs = self.cursor()
-        try:
-            sql = "select Name from MSysObjects where Name=? And Type = 5;"
-            curs.execute(sql, (view_name,))
-        except ErrInfo:
-            raise
-        except Exception as e:
-            raise ErrInfo(
-                type="db",
-                command_text=sql,
-                exception_msg=exception_desc(),
-                other_msg=f"Test for existence of Access view/query {view_name}",
-            ) from e
-        rows = curs.fetchall()
+        sql = "select Name from MSysObjects where Name=? And Type = 5;"
+        with self._cursor() as curs:
+            try:
+                curs.execute(sql, (view_name,))
+            except ErrInfo:
+                raise
+            except Exception as e:
+                raise ErrInfo(
+                    type="db",
+                    command_text=sql,
+                    exception_msg=exception_desc(),
+                    other_msg=f"Test for existence of Access view/query {view_name}",
+                ) from e
+            rows = curs.fetchall()
         return len(rows) > 0
 
     def schema_exists(self, schema_name: str) -> bool:
@@ -447,4 +447,5 @@ class AccessDatabase(Database):
         sq_name = self.schema_qualified_table_name(schema_name, table_name)
         quoted_col = self.quote_identifier(column_name)
         sql = f"insert into {sq_name} ({quoted_col}) values ({self.paramsubs(1)});"
-        self.cursor().execute(sql, (pyodbc.Binary(filedata),))
+        with self._cursor() as curs:
+            curs.execute(sql, (pyodbc.Binary(filedata),))

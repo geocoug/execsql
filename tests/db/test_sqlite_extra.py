@@ -144,15 +144,15 @@ class TestExecCmd:
         with pytest.raises((sqlite3.OperationalError, Exception)):  # noqa: B017
             db.exec_cmd("nonexistent_view_xyz")
 
-    def test_exec_cmd_raises_on_encode_due_to_sqlite3_bytes_limitation(self, db):
-        """exec_cmd() encodes the command to bytes; sqlite3 requires a str — this
-        documents the current behavior where exec_cmd always raises because
-        sqlite3.Cursor.execute() rejects bytes arguments."""
+    def test_exec_cmd_succeeds_on_valid_view(self, db):
+        """exec_cmd() passes a str to sqlite3.Cursor.execute() and succeeds."""
+        import execsql.state as _state
+        from execsql.script.variables import SubVarSet
+
+        _state.subvars = SubVarSet()
         db.execute("CREATE TABLE t (x INTEGER);")
         db.execute("CREATE VIEW v AS SELECT x FROM t;")
-        # sqlite3 in CPython 3.x raises ProgrammingError when execute() is given bytes
-        with pytest.raises((sqlite3.ProgrammingError, Exception)):  # noqa: B017
-            db.exec_cmd("v")
+        db.exec_cmd("v")  # Should not raise
 
 
 # ---------------------------------------------------------------------------

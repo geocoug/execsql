@@ -453,7 +453,7 @@ class CommandList:
     def set_paramvals(self, paramvals: SubVarSet) -> None:
         self.paramvals = paramvals
         if self.paramnames is not None:
-            passed_paramnames = [p[0][1:] if p[0][0] == "#" else p[0][1:] for p in paramvals.substitutions]
+            passed_paramnames = [p[0].lstrip("#") for p in paramvals.substitutions]
             if not all(p in passed_paramnames for p in self.paramnames):
                 raise ErrInfo(
                     "error",
@@ -822,6 +822,7 @@ def runscripts() -> None:
             current_cmds.run_next()
         except StopIteration:
             _state.commandliststack.pop()
+            continue
         except SystemExit:
             raise
         except ErrInfo:

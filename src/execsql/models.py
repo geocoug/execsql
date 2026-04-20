@@ -318,7 +318,6 @@ JsonDatatype.string = "string"
 JsonDatatype.date = "date"
 JsonDatatype.datetime = "datetime"
 JsonDatatype.time = "time"
-JsonDatatype.integer = "integer"
 JsonDatatype.number = "number"
 JsonDatatype.boolean = "boolean"
 

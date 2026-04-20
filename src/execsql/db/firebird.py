@@ -127,30 +127,29 @@ class FirebirdDatabase(Database):
 
     def table_exists(self, table_name: str, schema_name: str | None = None) -> bool:
         """Return True if the named table exists in the Firebird database."""
-        curs = self.cursor()
         sql = (
             "SELECT RDB$RELATION_NAME FROM RDB$RELATIONS "
             "WHERE RDB$SYSTEM_FLAG=0 AND RDB$VIEW_BLR IS NULL "
             "AND RDB$RELATION_NAME=?;"
         )
-        try:
-            curs.execute(sql, (table_name.upper(),))
-        except ErrInfo:
-            raise
-        except Exception as e:
+        with self._cursor() as curs:
             try:
-                self.rollback()
-            except Exception:
-                pass  # Rollback is best-effort after a failed query.
-            raise ErrInfo(
-                type="db",
-                command_text=sql,
-                exception_msg=exception_desc(),
-                other_msg=f"Failed test for existence of Firebird table {table_name}",
-            ) from e
-        rows = curs.fetchall()
+                curs.execute(sql, (table_name.upper(),))
+            except ErrInfo:
+                raise
+            except Exception as e:
+                try:
+                    self.rollback()
+                except Exception:
+                    pass  # Rollback is best-effort after a failed query.
+                raise ErrInfo(
+                    type="db",
+                    command_text=sql,
+                    exception_msg=exception_desc(),
+                    other_msg=f"Failed test for existence of Firebird table {table_name}",
+                ) from e
+            rows = curs.fetchall()
         self.conn.commit()
-        curs.close()
         return len(rows) > 0
 
     def column_exists(
@@ -160,53 +159,52 @@ class FirebirdDatabase(Database):
         schema_name: str | None = None,
     ) -> bool:
         """Return True if the named column exists in the given Firebird table."""
-        curs = self.cursor()
         quoted_col = self.quote_identifier(column_name)
         quoted_tbl = self.quote_identifier(table_name)
         sql = f"select first 1 {quoted_col} from {quoted_tbl};"
-        try:
-            curs.execute(sql)
-        except Exception:
-            return False
+        with self._cursor() as curs:
+            try:
+                curs.execute(sql)
+            except Exception:
+                return False
         return True
 
     def table_columns(self, table_name: str, schema_name: str | None = None) -> list[str]:
         """Return a list of column names for the given Firebird table."""
-        curs = self.cursor()
         quoted_tbl = self.quote_identifier(table_name)
         sql = f"select first 1 * from {quoted_tbl};"
-        try:
-            curs.execute(sql)
-        except ErrInfo:
-            raise
-        except Exception as e:
-            self.rollback()
-            raise ErrInfo(
-                type="db",
-                command_text=sql,
-                exception_msg=exception_desc(),
-                other_msg=f"Failed to get column names for table {table_name} of {self.name()}",
-            ) from e
-        return [d[0] for d in curs.description]
+        with self._cursor() as curs:
+            try:
+                curs.execute(sql)
+            except ErrInfo:
+                raise
+            except Exception as e:
+                self.rollback()
+                raise ErrInfo(
+                    type="db",
+                    command_text=sql,
+                    exception_msg=exception_desc(),
+                    other_msg=f"Failed to get column names for table {table_name} of {self.name()}",
+                ) from e
+            return [d[0] for d in curs.description]
 
     def view_exists(self, view_name: str, schema_name: str | None = None) -> bool:
         """Return True if the named view exists in the Firebird database."""
-        curs = self.cursor()
         sql = "select distinct rdb$view_name from rdb$view_relations where rdb$view_name = ?;"
-        try:
-            curs.execute(sql, (view_name,))
-        except ErrInfo:
-            raise
-        except Exception as e:
-            self.rollback()
-            raise ErrInfo(
-                type="db",
-                command_text=sql,
-                exception_msg=exception_desc(),
-                other_msg=f"Failed test for existence of Firebird view {view_name}",
-            ) from e
-        rows = curs.fetchall()
-        curs.close()
+        with self._cursor() as curs:
+            try:
+                curs.execute(sql, (view_name,))
+            except ErrInfo:
+                raise
+            except Exception as e:
+                self.rollback()
+                raise ErrInfo(
+                    type="db",
+                    command_text=sql,
+                    exception_msg=exception_desc(),
+                    other_msg=f"Failed test for existence of Firebird view {view_name}",
+                ) from e
+            rows = curs.fetchall()
         return len(rows) > 0
 
     def schema_exists(self, schema_name: str) -> bool:
@@ -215,14 +213,13 @@ class FirebirdDatabase(Database):
 
     def role_exists(self, rolename: str) -> bool:
         """Return True if the named role or user exists in the Firebird database."""
-        curs = self.cursor()
-        curs.execute(
-            "SELECT DISTINCT USER FROM RDB$USER_PRIVILEGES WHERE USER = ? union "
-            " SELECT DISTINCT RDB$ROLE_NAME FROM RDB$ROLES WHERE RDB$ROLE_NAME = ?;",
-            (rolename, rolename),
-        )
-        rows = curs.fetchall()
-        curs.close()
+        with self._cursor() as curs:
+            curs.execute(
+                "SELECT DISTINCT USER FROM RDB$USER_PRIVILEGES WHERE USER = ? union "
+                " SELECT DISTINCT RDB$ROLE_NAME FROM RDB$ROLES WHERE RDB$ROLE_NAME = ?;",
+                (rolename, rolename),
+            )
+            rows = curs.fetchall()
         return len(rows) > 0
 
     def drop_table(self, tablename: str) -> None:

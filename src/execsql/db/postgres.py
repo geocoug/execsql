@@ -102,9 +102,12 @@ class PostgresDatabase(Database):
             conn = db_conn(db, "postgres")
             conn.autocommit = True
             curs = conn.cursor()
-            quoted_name = db.quote_identifier(db.db_name)
-            quoted_enc = db.quote_identifier(db.encoding)
-            curs.execute(f"create database {quoted_name} encoding {quoted_enc};")
+            try:
+                quoted_name = db.quote_identifier(db.db_name)
+                quoted_enc = db.quote_identifier(db.encoding)
+                curs.execute(f"create database {quoted_name} encoding {quoted_enc};")
+            finally:
+                curs.close()
             conn.close()
 
         if self.conn is None:
@@ -159,15 +162,13 @@ class PostgresDatabase(Database):
 
     def role_exists(self, rolename: str) -> bool:
         """Return True if the named role exists in the PostgreSQL cluster."""
-        curs = self.cursor()
-        curs.execute("select rolname from pg_roles where rolname = %s;", (rolename,))
-        rows = curs.fetchall()
-        curs.close()
+        with self._cursor() as curs:
+            curs.execute("select rolname from pg_roles where rolname = %s;", (rolename,))
+            rows = curs.fetchall()
         return len(rows) > 0
 
     def table_exists(self, table_name: str, schema_name: str | None = None) -> bool:
         """Return True if the named table exists in the PostgreSQL database."""
-        curs = self.cursor()
         if schema_name is not None:
             params: list = [table_name]
             schema_clause = ""
@@ -182,25 +183,24 @@ class PostgresDatabase(Database):
                      union
                      select trim(unnest(string_to_array(replace(setting, '"$user"', CURRENT_USER), ',')))
                      from pg_settings where name = 'search_path');"""
-        try:
-            curs.execute(sql, params)
-        except ErrInfo:
-            raise
-        except Exception as e:
-            self.rollback()
-            raise ErrInfo(
-                type="db",
-                command_text=sql,
-                exception_msg=exception_desc(),
-                other_msg=f"Failed test for existence of table {table_name} in {self.name()}",
-            ) from e
-        rows = curs.fetchall()
-        curs.close()
+        with self._cursor() as curs:
+            try:
+                curs.execute(sql, params)
+            except ErrInfo:
+                raise
+            except Exception as e:
+                self.rollback()
+                raise ErrInfo(
+                    type="db",
+                    command_text=sql,
+                    exception_msg=exception_desc(),
+                    other_msg=f"Failed test for existence of table {table_name} in {self.name()}",
+                ) from e
+            rows = curs.fetchall()
         return len(rows) > 0
 
     def view_exists(self, view_name: str, schema_name: str | None = None) -> bool:
         """Return True if the named view exists in the PostgreSQL database."""
-        curs = self.cursor()
         if schema_name is not None:
             params: list = [view_name]
             schema_clause = ""
@@ -215,24 +215,30 @@ class PostgresDatabase(Database):
                      union
                      select trim(unnest(string_to_array(replace(setting, '"$user"', CURRENT_USER), ',')))
                      from pg_settings where name = 'search_path');"""
-        try:
-            curs.execute(sql, params)
-        except ErrInfo:
-            raise
-        except Exception as e:
-            self.rollback()
-            raise ErrInfo(
-                type="db",
-                command_text=sql,
-                exception_msg=exception_desc(),
-                other_msg=f"Failed test for existence of view {view_name} in {self.name()}",
-            ) from e
-        rows = curs.fetchall()
-        curs.close()
+        with self._cursor() as curs:
+            try:
+                curs.execute(sql, params)
+            except ErrInfo:
+                raise
+            except Exception as e:
+                self.rollback()
+                raise ErrInfo(
+                    type="db",
+                    command_text=sql,
+                    exception_msg=exception_desc(),
+                    other_msg=f"Failed test for existence of view {view_name} in {self.name()}",
+                ) from e
+            rows = curs.fetchall()
         return len(rows) > 0
 
     def vacuum(self, argstring: str) -> None:
-        """Run VACUUM with the given arguments in autocommit mode."""
+        """Run VACUUM with the given arguments in autocommit mode.
+
+        Note: ``argstring`` is interpolated directly into SQL because VACUUM
+        is DDL and does not accept parameterized arguments.  This is safe in
+        execsql's trust model (the script author already has full SQL access),
+        but should not be exposed to untrusted input.
+        """
         self.commit()
         self.conn.set_session(autocommit=True)
         curs = self.conn.cursor()
@@ -240,7 +246,7 @@ class PostgresDatabase(Database):
             curs.execute(f"VACUUM {argstring};")
         finally:
             curs.close()
-        self.conn.set_session(autocommit=False)
+            self.conn.set_session(autocommit=False)
 
     def import_tabular_file(
         self,
@@ -312,7 +318,6 @@ class PostgresDatabase(Database):
             and not _state.conf.replace_newlines
         ):
             # Use Postgres' COPY FROM method via psycopg2's copy_expert() method.
-            curs = self.cursor()
             rf = csv_file_obj.open("rt")
             if skipheader:
                 next(rf)
@@ -336,17 +341,18 @@ class PostgresDatabase(Database):
             _state.exec_log.log_status_info(
                 f"IMPORTing {csv_file_obj.csvfname} using Postgres' fast file reading routine",
             )
-            try:
-                curs.copy_expert(copy_cmd, rf, _state.conf.import_buffer)
-            except ErrInfo:
-                raise
-            except Exception as e:
-                self.rollback()
-                raise ErrInfo(
-                    type="exception",
-                    exception_msg=exception_desc(),
-                    other_msg=f"Can't import from file to table {sq_name}",
-                ) from e
+            with self._cursor() as curs:
+                try:
+                    curs.copy_expert(copy_cmd, rf, _state.conf.import_buffer)
+                except ErrInfo:
+                    raise
+                except Exception as e:
+                    self.rollback()
+                    raise ErrInfo(
+                        type="exception",
+                        exception_msg=exception_desc(),
+                        other_msg=f"Can't import from file to table {sq_name}",
+                    ) from e
         else:
             data_indexes = [csv_file_cols_q.index(col) for col in import_cols]
             paramspec = ",".join(["%s"] * len(import_cols))
@@ -354,91 +360,91 @@ class PostgresDatabase(Database):
             f = csv_file_obj.reader()
             if skipheader:
                 next(f)
-            curs = self.cursor()
             eof = False
             total_rows = 0
-            while True:
-                b: list = []
-                for _j in range(_state.conf.import_row_buffer):
-                    try:
-                        line = next(f)
-                    except StopIteration:
-                        eof = True
-                    else:
-                        if len(line) > len(csv_file_cols):
-                            extra_err = True
-                            if _state.conf.del_empty_cols:
-                                any_non_empty = False
-                                for cno in range(len(csv_file_cols), len(line)):
-                                    if not (
-                                        line[cno] is None
-                                        or (
-                                            not _state.conf.empty_strings
-                                            and isinstance(line[cno], _state.stringtypes)
-                                            and len(line[cno].strip()) == 0
-                                        )
-                                        and _state.conf.del_empty_cols
-                                    ):
-                                        any_non_empty = True
-                                        break
-                                extra_err = any_non_empty
-                            if extra_err:
-                                raise ErrInfo(
-                                    type="error",
-                                    other_msg=f"Too many data columns on line {{{line}}}",
-                                )
-                            else:
-                                line = line[: len(csv_file_cols)]
-                        if not (len(line) == 1 and line[0] is None):
-                            if (
-                                _state.conf.trim_strings
-                                or _state.conf.replace_newlines
-                                or not _state.conf.empty_strings
-                            ):
-                                for i in range(len(line)):
-                                    if line[i] is not None and isinstance(
-                                        line[i],
-                                        _state.stringtypes,
-                                    ):
-                                        if _state.conf.trim_strings:
-                                            line[i] = line[i].strip()
-                                        if _state.conf.replace_newlines:
-                                            line[i] = re.sub(
-                                                r"[\s\t]*[\r\n]+[\s\t]*",
-                                                " ",
-                                                line[i],
+            with self._cursor() as curs:
+                while True:
+                    b: list = []
+                    for _j in range(_state.conf.import_row_buffer):
+                        try:
+                            line = next(f)
+                        except StopIteration:
+                            eof = True
+                        else:
+                            if len(line) > len(csv_file_cols):
+                                extra_err = True
+                                if _state.conf.del_empty_cols:
+                                    any_non_empty = False
+                                    for cno in range(len(csv_file_cols), len(line)):
+                                        if not (
+                                            line[cno] is None
+                                            or (
+                                                not _state.conf.empty_strings
+                                                and isinstance(line[cno], _state.stringtypes)
+                                                and len(line[cno].strip()) == 0
                                             )
-                                        if not _state.conf.empty_strings and line[i].strip() == "":
-                                            line[i] = None
-                            # Pad short line with nulls
-                            line.extend([None] * (len(import_cols) - len(line)))
-                            linedata = [line[ix] for ix in data_indexes]
-                            add_line = True
-                            if not _state.conf.empty_rows:
-                                add_line = not all(c is None for c in linedata)
-                            if add_line:
-                                b.append(linedata)
-                if len(b) > 0:
-                    try:
-                        curs.executemany(sql_template, b)
-                    except ErrInfo:
-                        raise
-                    except Exception as e:
-                        self.rollback()
-                        raise ErrInfo(
-                            type="db",
-                            command_text=sql_template,
-                            exception_msg=exception_desc(),
-                            other_msg=f"Can't load data into table {sq_name} of {self.name()} from line {{{line}}}",
-                        ) from e
-                    total_rows += len(b)
-                    interval = _state.conf.import_progress_interval
-                    if _state.exec_log and interval > 0 and total_rows % interval == 0:
-                        _state.exec_log.log_status_info(
-                            f"IMPORT into {sq_name}: {total_rows} rows imported so far.",
-                        )
-                if eof:
-                    break
+                                            and _state.conf.del_empty_cols
+                                        ):
+                                            any_non_empty = True
+                                            break
+                                    extra_err = any_non_empty
+                                if extra_err:
+                                    raise ErrInfo(
+                                        type="error",
+                                        other_msg=f"Too many data columns on line {{{line}}}",
+                                    )
+                                else:
+                                    line = line[: len(csv_file_cols)]
+                            if not (len(line) == 1 and line[0] is None):
+                                if (
+                                    _state.conf.trim_strings
+                                    or _state.conf.replace_newlines
+                                    or not _state.conf.empty_strings
+                                ):
+                                    for i in range(len(line)):
+                                        if line[i] is not None and isinstance(
+                                            line[i],
+                                            _state.stringtypes,
+                                        ):
+                                            if _state.conf.trim_strings:
+                                                line[i] = line[i].strip()
+                                            if _state.conf.replace_newlines:
+                                                line[i] = re.sub(
+                                                    r"[\s\t]*[\r\n]+[\s\t]*",
+                                                    " ",
+                                                    line[i],
+                                                )
+                                            if not _state.conf.empty_strings and line[i].strip() == "":
+                                                line[i] = None
+                                # Pad short line with nulls
+                                line.extend([None] * (len(import_cols) - len(line)))
+                                linedata = [line[ix] for ix in data_indexes]
+                                add_line = True
+                                if not _state.conf.empty_rows:
+                                    add_line = not all(c is None for c in linedata)
+                                if add_line:
+                                    b.append(linedata)
+                    if len(b) > 0:
+                        try:
+                            curs.executemany(sql_template, b)
+                        except ErrInfo:
+                            raise
+                        except Exception as e:
+                            self.rollback()
+                            raise ErrInfo(
+                                type="db",
+                                command_text=sql_template,
+                                exception_msg=exception_desc(),
+                                other_msg=f"Can't load data into table {sq_name} of {self.name()} from line {{{line}}}",
+                            ) from e
+                        total_rows += len(b)
+                        interval = _state.conf.import_progress_interval
+                        if _state.exec_log and interval > 0 and total_rows % interval == 0:
+                            _state.exec_log.log_status_info(
+                                f"IMPORT into {sq_name}: {total_rows} rows imported so far.",
+                            )
+                    if eof:
+                        break
             if _state.exec_log:
                 _state.exec_log.log_status_info(
                     f"IMPORT into {sq_name} complete: {total_rows} rows imported.",
@@ -459,4 +465,5 @@ class PostgresDatabase(Database):
         sq_name = self.schema_qualified_table_name(schema_name, table_name)
         quoted_col = self.quote_identifier(column_name)
         sql = f"insert into {sq_name} ({quoted_col}) values ({self.paramsubs(1)});"
-        self.cursor().execute(sql, (psycopg2.Binary(filedata),))
+        with self._cursor() as curs:
+            curs.execute(sql, (psycopg2.Binary(filedata),))

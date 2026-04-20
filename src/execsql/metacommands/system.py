@@ -42,8 +42,7 @@ def x_system_cmd(**kwargs: Any) -> None:
     _state.exec_log.log_user_msg(f"System command on line {lno} of script {script}: {syscmd}")
     filewriter_close_all_after_write()
     if os.name != "posix":
-        syscmd = syscmd.replace("\\", "\\\\")
-        cmdlist = shlex.split(syscmd)
+        cmdlist = shlex.split(syscmd, posix=False)
     else:
         cmdlist = shlex.split(syscmd, posix=True)
     cmdargs = ['"' + cmd + '"' if "&" in cmd and not is_doublequoted(cmd) else cmd for cmd in cmdlist]

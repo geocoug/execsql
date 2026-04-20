@@ -79,15 +79,17 @@ def export_html(
                 descrip = (
                     f"From database {_state.dbs.current().name()} in script {str(Path(script).resolve())}, line {lno}"
                 )
-            f.write(f'<meta name="description" content="{descrip}" />\n')
+            f.write(f'<meta name="description" content="{html_mod.escape(descrip, quote=True)}" />\n')
             datecontent = datetime.datetime.now().strftime("%Y-%m-%d")
             f.write(f'<meta name="created" content="{datecontent}" />\n')
             f.write(f'<meta name="revised" content="{datecontent}" />\n')
-            f.write(f'<meta name="author" content="{getpass.getuser()}" />\n')
+            f.write(f'<meta name="author" content="{html_mod.escape(getpass.getuser(), quote=True)}" />\n')
             f.write("<title>Data Table</title>\n")
             if conf.css_file or conf.css_styles:
                 if conf.css_file:
-                    f.write(f'<link rel="stylesheet" type="text/css" href="{conf.css_file}">')
+                    f.write(
+                        f'<link rel="stylesheet" type="text/css" href="{html_mod.escape(conf.css_file, quote=True)}">',
+                    )
                 if conf.css_styles:
                     f.write(f'<style type="text/css">\n{conf.css_styles}\n</style>')
             else:

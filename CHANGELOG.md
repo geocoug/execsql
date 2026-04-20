@@ -11,6 +11,26 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Fixed
+
+- `CounterVars.substitute` now correctly searches the full string. `re.I` was mistakenly passed as the `pos` argument to `re.search`, causing the first two characters of every string to be skipped when looking for counter variable references.
+- `DataTypeError`, `DbTypeError`, and `DatabaseNotImplementedError` now call `super().__init__()` instead of bypassing the MRO with `Exception.__init__(self, ...)`, fixing `repr()` crashes for these exception types.
+- SQL injection in MySQL `LOAD DATA INFILE`: file path, field delimiter, and quote character are now escaped before being interpolated into the import SQL statement.
+- SQLite and DuckDB `exec_cmd` no longer encodes the SQL string to bytes before passing it to `execute()`, which always raised `TypeError` in Python 3.
+- Substitution variable token matching in `_substitute_nested` now uses `str.find()` on a lower-cased copy of the string instead of compiling a new regex per variable per call, eliminating unnecessary regex compilation on every substitution.
+- Cursor leaks across all database adapters (PostgreSQL, MySQL, SQLite, DuckDB, Firebird, Access, SQL Server, Oracle) — call sites that manually opened cursors now use the `with self._cursor()` context manager so cursors are always closed, including on exceptions.
+- `__delattr__` in `state.py` now instantiates a fresh `RuntimeContext()` when resetting an attribute to its default, rather than reading from a cached `_DEFAULT_CTX` instance. This prevents mutable defaults (lists, dicts) from being shared across resets.
+- `cmds_run` counter no longer overcounts: the `StopIteration` branch in `runscripts()` now calls `continue` after popping the command list stack, preventing the increment that follows from executing.
+- Config file chaining is now capped at 20 files to prevent an infinite loop when `config_file` entries form a cycle.
+- Temp file creation in `TempFileMgr` now uses `tempfile.mkstemp()` instead of `tempfile.NamedTemporaryFile().name`, eliminating the TOCTOU race where another process could claim the name between creation and use.
+- JSON export now serializes column names with `json.dumps()` instead of bare f-string interpolation, preventing malformed JSON when column names contain quotes, backslashes, or other special characters.
+- PostgreSQL `VACUUM` autocommit session state is now restored in a `finally` block, ensuring the connection returns to non-autocommit mode even if the vacuum statement raises an exception.
+- HTML export now HTML-escapes the description, author, and CSS href meta tag values, preventing malformed HTML when these values contain `<`, `>`, `"`, or `&` characters.
+- `shlex.split` on Windows is now called with `posix=False` instead of pre-escaping backslashes, which produced incorrect splits for paths with consecutive backslashes.
+- Duplicate `JsonDatatype.integer = "integer"` assignment in `models.py` removed; `JsonDatatype.number` is the correct attribute and was already present.
+- MySQL adapter constructor no longer coerces `None` arguments to the string `"None"` for `server_name`, `db_name`, and `user_name`; `None` values are now preserved as `None`.
+- `importfile()` parameter renamed from `columname` to `column_name`, matching the internal variable name used throughout the function body.
+
 ______________________________________________________________________
 
 ## [2.15.6] - 2026-04-16

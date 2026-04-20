@@ -210,6 +210,7 @@ These are behavioral changes driven by security or correctness issues in the ups
 | Database metadata queries    | `schema_exists()`, `table_exists()`, `column_exists()`, `table_columns()`, `view_exists()`, `role_exists()` across all 9 adapters now use parameterized queries. Upstream used string interpolation. |
 | `import_entire_file()`       | Column names are quoted with `quote_identifier()` instead of interpolated into INSERT statements.                                                                                                    |
 | PostgreSQL `CREATE DATABASE` | Database name and encoding are quoted. COPY delimiter and quote character are validated.                                                                                                             |
+| MySQL `LOAD DATA INFILE`     | File path, delimiter, and quotechar are now escaped with `replace("'", "''")` before interpolation into the SQL statement.                                                                           |
 | `$SHEETS_TABLES_VALUES`      | Sheet names from ODS/XLS imports are escaped before embedding in SQL.                                                                                                                                |
 | HTTP `Content-Disposition`   | Filename is sanitized to prevent HTTP response splitting in SERVE.                                                                                                                                   |
 
@@ -220,7 +221,7 @@ These are behavioral changes driven by security or correctness issues in the ups
 | Jinja2 sandboxing | Templates run in `SandboxedEnvironment` instead of the default `jinja2.Template`.                      |
 | HTML export       | Column headers and cell values are escaped with `html.escape()` to prevent XSS.                        |
 | XML export        | Values are escaped with `xml.sax.saxutils.escape()`. Invalid XML element name characters are replaced. |
-| JSON export       | The `description` field uses `json.dumps()` instead of string interpolation.                           |
+| JSON export       | The `description` field and all column names use `json.dumps()` instead of string interpolation.       |
 
 ### Credential and Logging Safety
 
@@ -254,6 +255,14 @@ These are behavioral changes driven by security or correctness issues in the ups
 | `NumericParser` division by zero                    | `NumericAstNode.eval()` raised unhandled `ZeroDivisionError`. Now raises `NumericParserError` with a clear message. Inherited from upstream.                                                                                                                                                           |
 | `CondAstNode.eval()` could return `None`            | Missing fallthrough for unknown node types silently returned `None`. Now raises `CondParserError`. Inherited from upstream.                                                                                                                                                                            |
 | `DT_Timestamp` claims time-only values              | `dateutil.parser.parse()` silently fills in today's date for bare time strings like `"13:15:45"`, so `DT_Timestamp` matched before `DT_Time` in the inference order. `parse_datetime()` now rejects time-only strings. Inherited from upstream.                                                        |
+| `CounterVars.substitute` skipped pos 0–1            | `re.I` was passed as the positional `pos` argument, skipping the first 2 characters of every string during counter variable expansion. Counter variables at the very start of a line were never matched. Inherited from upstream.                                                                      |
+| `exec_cmd` (SQLite/DuckDB) always raised TypeError  | Passed bytes to `curs.execute()` via `.encode()`, which Python 3 `sqlite3`/`duckdb` reject. `EXECUTE PROCEDURE` metacommand was non-functional on these backends. Inherited from upstream.                                                                                                             |
+| MySQL `LOAD DATA INFILE` injection                  | File path, delimiter, and quotechar were interpolated without escaping. Now single-quotes are escaped consistent with the PostgreSQL COPY path. Inherited from upstream.                                                                                                                               |
+| Config file chain infinite loop                     | The `config_file` directive could chain config files without limit. A circular reference (via symlinks or different relative paths) caused an infinite loop at startup. Now capped at 20 files. Inherited from upstream.                                                                               |
+| Cursor leaks in database adapters                   | ~15 methods across all adapters used `curs = self.cursor()` / `curs.close()` without `try/finally`. If the query raised, the cursor leaked. Converted to `with self._cursor() as curs:`. Inherited from upstream.                                                                                      |
+| JSON export malformed on special column names       | Column names containing `"` or `\` produced invalid JSON. Now uses `json.dumps()` for all field names. Inherited from upstream.                                                                                                                                                                        |
+| Temp file creation TOCTOU race                      | `TempFileMgr.new_temp_fn()` discarded the `NamedTemporaryFile` handle, creating a race window. Now uses `tempfile.mkstemp()` for secure creation. Inherited from upstream.                                                                                                                             |
+| `shlex.split` on Windows incorrect mode             | Called without `posix=False` on Windows, mishandling backslash-heavy paths in SHELL commands. Inherited from upstream.                                                                                                                                                                                 |
 
 ______________________________________________________________________
 

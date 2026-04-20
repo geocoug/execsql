@@ -49,7 +49,7 @@ class CounterVars:
     def substitute(self, command_str: str) -> tuple:
         # Substitutes any counter variable references with the counter value and
         # returns the modified command string and a flag indicating replacements.
-        m = self._COUNTER_RX.search(command_str, re.I)
+        m = self._COUNTER_RX.search(command_str)
         if m:
             ctr_id = m.group(1).lower()
             if ctr_id not in self.counters:
@@ -260,29 +260,37 @@ class SubVarSet:
         return self._substitute_nested(command_str)
 
     def _substitute_nested(self, command_str: str) -> tuple:
-        """Scan for any defined variable as a substring — handles nested tokens."""
+        """Scan for any defined variable as a substring — handles nested tokens.
+
+        Uses case-insensitive string search instead of per-variable regex
+        compilation to avoid O(N) ``re.compile`` calls on every invocation.
+        """
+        cmd_lower = command_str.lower()
         for varname, sub in self._subs_dict.items():
             if sub is None:
                 sub = ""
             sub = str(sub)
             if os.name != "posix":
                 sub = sub.replace("\\", "\\\\")
-            pat = re.compile(re.escape(f"!!{varname}!!"), re.I)
-            m = pat.search(command_str)
-            if m:
-                return command_str[: m.start()] + sub + command_str[m.end() :], True
-            patq = re.compile(re.escape(f"!'!{varname}!'!"), re.I)
-            mq = patq.search(command_str)
-            if mq:
+            # Standard token: !!varname!!
+            token = f"!!{varname}!!"
+            idx = cmd_lower.find(token)
+            if idx != -1:
+                return command_str[:idx] + sub + command_str[idx + len(token) :], True
+            # Single-quote-escaped token: !'!varname!'!
+            tokenq = f"!'!{varname}!'!"
+            idxq = cmd_lower.find(tokenq)
+            if idxq != -1:
                 return (
-                    command_str[: mq.start()] + sub.replace("'", "''") + command_str[mq.end() :],
+                    command_str[:idxq] + sub.replace("'", "''") + command_str[idxq + len(tokenq) :],
                     True,
                 )
-            patdq = re.compile(re.escape(f'!"!{varname}!"!'), re.I)
-            mdq = patdq.search(command_str)
-            if mdq:
+            # Double-quote-wrapped token: !"!varname!"!
+            tokendq = f'!"!{varname}!"!'
+            idxdq = cmd_lower.find(tokendq)
+            if idxdq != -1:
                 return (
-                    command_str[: mdq.start()] + '"' + sub + '"' + command_str[mdq.end() :],
+                    command_str[:idxdq] + '"' + sub + '"' + command_str[idxdq + len(tokendq) :],
                     True,
                 )
         return command_str, False

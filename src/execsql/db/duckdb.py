@@ -67,7 +67,7 @@ class DuckDBDatabase(Database):
         with self._cursor() as curs:
             cmd = f"select * from {querycommand};"
             try:
-                curs.execute(cmd.encode(self.encoding))
+                curs.execute(cmd)
                 _state.subvars.add_substitution("$LAST_ROWCOUNT", curs.rowcount)
             except Exception:
                 self.rollback()

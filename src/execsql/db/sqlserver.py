@@ -152,21 +152,19 @@ class SqlServerDatabase(Database):
 
     def schema_exists(self, schema_name: str) -> bool:
         """Return True if the named schema exists in the SQL Server database."""
-        curs = self.cursor()
-        curs.execute("select * from sys.schemas where name = ?;", (schema_name,))
-        rows = curs.fetchall()
-        curs.close()
+        with self._cursor() as curs:
+            curs.execute("select * from sys.schemas where name = ?;", (schema_name,))
+            rows = curs.fetchall()
         return len(rows) > 0
 
     def role_exists(self, rolename: str) -> bool:
         """Return True if the named role or principal exists in the SQL Server database."""
-        curs = self.cursor()
-        curs.execute(
-            "select name from sys.database_principals where type in ('R', 'S') and name = ?;",
-            (rolename,),
-        )
-        rows = curs.fetchall()
-        curs.close()
+        with self._cursor() as curs:
+            curs.execute(
+                "select name from sys.database_principals where type in ('R', 'S') and name = ?;",
+                (rolename,),
+            )
+            rows = curs.fetchall()
         return len(rows) > 0
 
     def drop_table(self, tablename: str) -> None:
@@ -190,4 +188,5 @@ class SqlServerDatabase(Database):
         sq_name = self.schema_qualified_table_name(schema_name, table_name)
         quoted_col = self.quote_identifier(column_name)
         sql = f"insert into {sq_name} ({quoted_col}) values ({self.paramsubs(1)});"
-        self.cursor().execute(sql, (pyodbc.Binary(filedata),))
+        with self._cursor() as curs:
+            curs.execute(sql, (pyodbc.Binary(filedata),))

@@ -141,27 +141,26 @@ class OracleDatabase(Database):
 
     def table_exists(self, table_name: str, schema_name: str | None = None) -> bool:
         """Return True if the named table exists in the Oracle database."""
-        curs = self.cursor()
         params = {"tname": table_name}
         owner_clause = ""
         if schema_name:
             owner_clause = " and owner = :owner"
             params["owner"] = schema_name
         sql = f"select table_name from sys.all_tables where table_name = :tname{owner_clause}"
-        try:
-            curs.execute(sql, params)
-        except ErrInfo:
-            raise
-        except Exception as e:
-            self.rollback()
-            raise ErrInfo(
-                type="db",
-                command_text=sql,
-                exception_msg=exception_desc(),
-                other_msg=f"Failed test for existence of table {table_name} in {self.name()}",
-            ) from e
-        rows = curs.fetchall()
-        curs.close()
+        with self._cursor() as curs:
+            try:
+                curs.execute(sql, params)
+            except ErrInfo:
+                raise
+            except Exception as e:
+                self.rollback()
+                raise ErrInfo(
+                    type="db",
+                    command_text=sql,
+                    exception_msg=exception_desc(),
+                    other_msg=f"Failed test for existence of table {table_name} in {self.name()}",
+                ) from e
+            rows = curs.fetchall()
         return len(rows) > 0
 
     def column_exists(
@@ -171,89 +170,85 @@ class OracleDatabase(Database):
         schema_name: str | None = None,
     ) -> bool:
         """Return True if the named column exists in the given Oracle table."""
-        curs = self.cursor()
         params = {"tname": table_name, "cname": column_name}
         owner_clause = ""
         if schema_name:
             owner_clause = " and owner = :owner"
             params["owner"] = schema_name
         sql = f"select column_name from all_tab_columns where table_name=:tname{owner_clause} and column_name=:cname"
-        try:
-            curs.execute(sql, params)
-        except ErrInfo:
-            raise
-        except Exception as e:
-            self.rollback()
-            raise ErrInfo(
-                type="db",
-                command_text=sql,
-                exception_msg=exception_desc(),
-                other_msg=f"Failed test for existence of column {column_name} in table {table_name} of {self.name()}",
-            ) from e
-        rows = curs.fetchall()
-        curs.close()
+        with self._cursor() as curs:
+            try:
+                curs.execute(sql, params)
+            except ErrInfo:
+                raise
+            except Exception as e:
+                self.rollback()
+                raise ErrInfo(
+                    type="db",
+                    command_text=sql,
+                    exception_msg=exception_desc(),
+                    other_msg=f"Failed test for existence of column {column_name} in table {table_name} of {self.name()}",
+                ) from e
+            rows = curs.fetchall()
         return len(rows) > 0
 
     def table_columns(self, table_name: str, schema_name: str | None = None) -> list[str]:
         """Return a list of column names for the given Oracle table."""
-        curs = self.cursor()
         params = {"tname": table_name}
         owner_clause = ""
         if schema_name:
             owner_clause = " and owner=:owner"
             params["owner"] = schema_name
         sql = f"select column_name from all_tab_columns where table_name=:tname{owner_clause} order by column_id"
-        try:
-            curs.execute(sql, params)
-        except ErrInfo:
-            raise
-        except Exception as e:
-            self.rollback()
-            raise ErrInfo(
-                type="db",
-                command_text=sql,
-                exception_msg=exception_desc(),
-                other_msg=f"Failed to get column names for table {table_name} of {self.name()}",
-            ) from e
-        rows = curs.fetchall()
-        curs.close()
+        with self._cursor() as curs:
+            try:
+                curs.execute(sql, params)
+            except ErrInfo:
+                raise
+            except Exception as e:
+                self.rollback()
+                raise ErrInfo(
+                    type="db",
+                    command_text=sql,
+                    exception_msg=exception_desc(),
+                    other_msg=f"Failed to get column names for table {table_name} of {self.name()}",
+                ) from e
+            rows = curs.fetchall()
         return [row[0] for row in rows]
 
     def view_exists(self, view_name: str, schema_name: str | None = None) -> bool:
         """Return True if the named view exists in the Oracle database."""
-        curs = self.cursor()
         params = {"vname": view_name}
         owner_clause = ""
         if schema_name:
             owner_clause = " and owner = :owner"
             params["owner"] = schema_name
         sql = f"select view_name from sys.all_views where view_name = :vname{owner_clause}"
-        try:
-            curs.execute(sql, params)
-        except ErrInfo:
-            raise
-        except Exception as e:
-            self.rollback()
-            raise ErrInfo(
-                type="db",
-                command_text=sql,
-                exception_msg=exception_desc(),
-                other_msg=f"Failed test for existence of view {view_name} in {self.name()}",
-            ) from e
-        rows = curs.fetchall()
-        curs.close()
+        with self._cursor() as curs:
+            try:
+                curs.execute(sql, params)
+            except ErrInfo:
+                raise
+            except Exception as e:
+                self.rollback()
+                raise ErrInfo(
+                    type="db",
+                    command_text=sql,
+                    exception_msg=exception_desc(),
+                    other_msg=f"Failed test for existence of view {view_name} in {self.name()}",
+                ) from e
+            rows = curs.fetchall()
         return len(rows) > 0
 
     def role_exists(self, rolename: str) -> bool:
         """Return True if the named role or user exists in the Oracle database."""
-        curs = self.cursor()
-        curs.execute(
-            "select role from dba_roles where role = :rname union "
-            " select username from all_users where username = :rname",
-            {"rname": rolename},
-        )
-        rows = curs.fetchall()
-        curs.close()
+        with self._cursor() as curs:
+            curs.execute(
+                "select role from dba_roles where role = :rname union "
+                " select username from all_users where username = :rname",
+                {"rname": rolename},
+            )
+            rows = curs.fetchall()
         return len(rows) > 0
 
     def drop_table(self, tablename: str) -> None:

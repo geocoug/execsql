@@ -336,7 +336,10 @@ class _StateModule(types.ModuleType):
             # via setattr (local) or delattr (non-local).  Since context
             # attrs live on _ctx, not __dict__, patch takes the delattr
             # path.  We reset to the default rather than truly deleting.
-            setattr(self.__dict__["_ctx"], name, getattr(_DEFAULT_CTX, name))
+            # Instantiate a fresh context each time to avoid sharing
+            # mutable defaults (lists/dicts) with a cached snapshot.
+            fresh = RuntimeContext()
+            setattr(self.__dict__["_ctx"], name, getattr(fresh, name))
         else:
             super().__delattr__(name)
 

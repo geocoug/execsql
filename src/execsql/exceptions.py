@@ -176,7 +176,7 @@ class DataTypeError(ExecSqlError):
     def __init__(self, data_type_name: str, error_msg: str) -> None:
         self.data_type_name = data_type_name or "Unspecified data type"
         self.error_msg = error_msg or "Unspecified error"
-        Exception.__init__(self, str(self))
+        super().__init__(str(self))
 
     def __repr__(self) -> str:
         return f"DataTypeError({self.data_type_name!r}, {self.error_msg!r})"
@@ -190,7 +190,7 @@ class DbTypeError(ExecSqlError):
         self.dbms_id = dbms_id
         self.data_type = data_type
         self.error_msg = error_msg or "Unspecified error"
-        Exception.__init__(self, str(self))
+        super().__init__(str(self))
 
     def __repr__(self) -> str:
         return f"DbTypeError({self.dbms_id!r}, {self.data_type!r}, {self.error_msg!r})"
@@ -214,7 +214,7 @@ class DatabaseNotImplementedError(ExecSqlError):
     def __init__(self, db_name: str, method: str) -> None:
         self.db_name = db_name
         self.method = method
-        Exception.__init__(self, str(self))
+        super().__init__(str(self))
 
     def __repr__(self) -> str:
         return f"DatabaseNotImplementedError({self.db_name!r}, {self.method!r})"

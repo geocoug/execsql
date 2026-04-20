@@ -290,8 +290,11 @@ class ConfigData:
             config_files = [sys_config_file, user_config_file, script_config_file, startdir_config_file]
         else:
             config_files = [sys_config_file, user_config_file, startdir_config_file]
+        _MAX_CONFIG_CHAIN = 20  # Guard against circular config_file references.
         self.files_read: list = []
         for ix, configfile in enumerate(config_files):
+            if len(self.files_read) >= _MAX_CONFIG_CHAIN:
+                break
             if configfile not in self.files_read and Path(configfile).is_file():
                 self.files_read.append(configfile)
                 cp = ConfigParser()

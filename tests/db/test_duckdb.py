@@ -278,7 +278,7 @@ class TestDuckDBExecCmd:
 
         mock_cursor.execute.assert_called_once()
         call_args = mock_cursor.execute.call_args[0][0]
-        assert b"myview" in call_args  # encoded bytes contain the view name
+        assert "myview" in call_args  # string (not bytes) contains the view name
 
     def test_exec_cmd_on_nonexistent_view_raises(self, db):
         """exec_cmd() propagates the exception for a non-existent view."""

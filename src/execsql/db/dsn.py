@@ -145,4 +145,5 @@ class DsnDatabase(Database):
         sq_name = self.schema_qualified_table_name(schema_name, table_name)
         quoted_col = self.quote_identifier(column_name)
         sql = f"insert into {sq_name} ({quoted_col}) values ({self.paramsubs(1)});"
-        self.cursor().execute(sql, (pyodbc.Binary(filedata),))
+        with self._cursor() as curs:
+            curs.execute(sql, (pyodbc.Binary(filedata),))

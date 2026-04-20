@@ -102,7 +102,7 @@ def importfile(
     db: Database,
     schemaname: str | None,
     tablename: str,
-    columname: str,
+    column_name: str,
     filename: str,
 ) -> None:
     """Import an entire file as a single value into a table column."""
@@ -121,7 +121,7 @@ def importfile(
                 other_msg=f"Non-existent table name ({tablename}) used with the IMPORT_FILE metacommand",
             )
     try:
-        db.import_entire_file(schemaname, tablename, columname, filename)
+        db.import_entire_file(schemaname, tablename, column_name, filename)
         db.commit()
     except ErrInfo:
         raise

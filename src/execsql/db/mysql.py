@@ -53,9 +53,9 @@ class MySQLDatabase(Database):
         from execsql.types import dbt_mysql
 
         self.type = dbt_mysql
-        self.server_name = str(server_name)
-        self.db_name = str(db_name)
-        self.user = str(user_name)
+        self.server_name = str(server_name) if server_name is not None else None
+        self.db_name = str(db_name) if db_name is not None else None
+        self.user = str(user_name) if user_name is not None else None
         self.need_passwd = need_passwd
         self.password = password
         self.port = port if port else 3306
@@ -148,15 +148,14 @@ class MySQLDatabase(Database):
 
     def role_exists(self, rolename: str) -> bool:
         """Return True if the named role or user exists in the MySQL server."""
-        curs = self.cursor()
-        curs.execute(
-            "select distinct user as role from mysql.user where user = %s"
-            " union select distinct role_name as role from information_schema.applicable_roles"
-            " where role_name = %s",
-            (rolename, rolename),
-        )
-        rows = curs.fetchall()
-        curs.close()
+        with self._cursor() as curs:
+            curs.execute(
+                "select distinct user as role from mysql.user where user = %s"
+                " union select distinct role_name as role from information_schema.applicable_roles"
+                " where role_name = %s",
+                (rolename, rolename),
+            )
+            rows = curs.fetchall()
         return len(rows) > 0
 
     def import_tabular_file(
@@ -205,16 +204,19 @@ class MySQLDatabase(Database):
             and not _state.conf.trim_strings
             and not _state.conf.replace_newlines
         ):
-            import_sql = f"load data local infile '{csv_file_obj.csvfname}' into table {sq_name}"
+            safe_fname = csv_file_obj.csvfname.replace("'", "''")
+            import_sql = f"load data local infile '{safe_fname}' into table {sq_name}"
             if csv_file_obj.encoding:
                 charset = _PYTHON_TO_MYSQL_CHARSET.get(csv_file_obj.encoding.lower(), csv_file_obj.encoding)
                 import_sql = f"{import_sql} character set {charset}"
             if csv_file_obj.delimiter or csv_file_obj.quotechar:
                 import_sql = import_sql + " columns"
                 if csv_file_obj.delimiter:
-                    import_sql = f"{import_sql} terminated by '{csv_file_obj.delimiter}'"
+                    safe_delim = csv_file_obj.delimiter.replace("'", "''")
+                    import_sql = f"{import_sql} terminated by '{safe_delim}'"
                 if csv_file_obj.quotechar:
-                    import_sql = f"{import_sql} optionally enclosed by '{csv_file_obj.quotechar}'"
+                    safe_quote = csv_file_obj.quotechar.replace("'", "''")
+                    import_sql = f"{import_sql} optionally enclosed by '{safe_quote}'"
             import_sql = f"{import_sql} ignore {1 + csv_file_obj.junk_header_lines} lines"
             import_sql = f"{import_sql} ({input_col_list});"
             _state.exec_log.log_status_info(
@@ -228,91 +230,91 @@ class MySQLDatabase(Database):
             f = csv_file_obj.reader()
             if skipheader:
                 next(f)
-            curs = self.cursor()
             eof = False
             total_rows = 0
-            while True:
-                b: list = []
-                for _j in range(_state.conf.import_row_buffer):
-                    try:
-                        line = next(f)
-                    except StopIteration:
-                        eof = True
-                    else:
-                        if len(line) > len(csv_file_cols):
-                            extra_err = True
-                            if _state.conf.del_empty_cols:
-                                any_non_empty = False
-                                for cno in range(len(csv_file_cols), len(line)):
-                                    if not (
-                                        line[cno] is None
-                                        or (
-                                            not _state.conf.empty_strings
-                                            and isinstance(line[cno], _state.stringtypes)
-                                            and len(line[cno].strip()) == 0
-                                        )
-                                        and _state.conf.del_empty_cols
-                                    ):
-                                        any_non_empty = True
-                                        break
-                                extra_err = any_non_empty
-                            if extra_err:
-                                raise ErrInfo(
-                                    type="error",
-                                    other_msg=f"Too many data columns on line {{{line}}}",
-                                )
-                            else:
-                                line = line[: len(csv_file_cols)]
-                        if not (len(line) == 1 and line[0] is None):
-                            if (
-                                _state.conf.trim_strings
-                                or _state.conf.replace_newlines
-                                or not _state.conf.empty_strings
-                            ):
-                                for i in range(len(line)):
-                                    if line[i] is not None and isinstance(
-                                        line[i],
-                                        _state.stringtypes,
-                                    ):
-                                        if _state.conf.trim_strings:
-                                            line[i] = line[i].strip()
-                                        if _state.conf.replace_newlines:
-                                            line[i] = re.sub(
-                                                r"[\s\t]*[\r\n]+[\s\t]*",
-                                                " ",
-                                                line[i],
+            with self._cursor() as curs:
+                while True:
+                    b: list = []
+                    for _j in range(_state.conf.import_row_buffer):
+                        try:
+                            line = next(f)
+                        except StopIteration:
+                            eof = True
+                        else:
+                            if len(line) > len(csv_file_cols):
+                                extra_err = True
+                                if _state.conf.del_empty_cols:
+                                    any_non_empty = False
+                                    for cno in range(len(csv_file_cols), len(line)):
+                                        if not (
+                                            line[cno] is None
+                                            or (
+                                                not _state.conf.empty_strings
+                                                and isinstance(line[cno], _state.stringtypes)
+                                                and len(line[cno].strip()) == 0
                                             )
-                                        if not _state.conf.empty_strings and line[i].strip() == "":
-                                            line[i] = None
-                            # Pad short line with nulls
-                            line.extend([None] * (len(import_cols) - len(line)))
-                            linedata = [line[ix] for ix in data_indexes]
-                            add_line = True
-                            if not _state.conf.empty_rows:
-                                add_line = not all(c is None for c in linedata)
-                            if add_line:
-                                b.append(linedata)
-                if len(b) > 0:
-                    try:
-                        curs.executemany(sql_template, b)
-                    except ErrInfo:
-                        raise
-                    except Exception as e:
-                        self.rollback()
-                        raise ErrInfo(
-                            type="db",
-                            command_text=sql_template,
-                            exception_msg=exception_desc(),
-                            other_msg=f"Import from file into table {sq_name}, line {{{line}}}",
-                        ) from e
-                    total_rows += len(b)
-                    interval = _state.conf.import_progress_interval
-                    if _state.exec_log and interval > 0 and total_rows % interval == 0:
-                        _state.exec_log.log_status_info(
-                            f"IMPORT into {sq_name}: {total_rows} rows imported so far.",
-                        )
-                if eof:
-                    break
+                                            and _state.conf.del_empty_cols
+                                        ):
+                                            any_non_empty = True
+                                            break
+                                    extra_err = any_non_empty
+                                if extra_err:
+                                    raise ErrInfo(
+                                        type="error",
+                                        other_msg=f"Too many data columns on line {{{line}}}",
+                                    )
+                                else:
+                                    line = line[: len(csv_file_cols)]
+                            if not (len(line) == 1 and line[0] is None):
+                                if (
+                                    _state.conf.trim_strings
+                                    or _state.conf.replace_newlines
+                                    or not _state.conf.empty_strings
+                                ):
+                                    for i in range(len(line)):
+                                        if line[i] is not None and isinstance(
+                                            line[i],
+                                            _state.stringtypes,
+                                        ):
+                                            if _state.conf.trim_strings:
+                                                line[i] = line[i].strip()
+                                            if _state.conf.replace_newlines:
+                                                line[i] = re.sub(
+                                                    r"[\s\t]*[\r\n]+[\s\t]*",
+                                                    " ",
+                                                    line[i],
+                                                )
+                                            if not _state.conf.empty_strings and line[i].strip() == "":
+                                                line[i] = None
+                                # Pad short line with nulls
+                                line.extend([None] * (len(import_cols) - len(line)))
+                                linedata = [line[ix] for ix in data_indexes]
+                                add_line = True
+                                if not _state.conf.empty_rows:
+                                    add_line = not all(c is None for c in linedata)
+                                if add_line:
+                                    b.append(linedata)
+                    if len(b) > 0:
+                        try:
+                            curs.executemany(sql_template, b)
+                        except ErrInfo:
+                            raise
+                        except Exception as e:
+                            self.rollback()
+                            raise ErrInfo(
+                                type="db",
+                                command_text=sql_template,
+                                exception_msg=exception_desc(),
+                                other_msg=f"Import from file into table {sq_name}, line {{{line}}}",
+                            ) from e
+                        total_rows += len(b)
+                        interval = _state.conf.import_progress_interval
+                        if _state.exec_log and interval > 0 and total_rows % interval == 0:
+                            _state.exec_log.log_status_info(
+                                f"IMPORT into {sq_name}: {total_rows} rows imported so far.",
+                            )
+                    if eof:
+                        break
             if _state.exec_log:
                 _state.exec_log.log_status_info(
                     f"IMPORT into {sq_name} complete: {total_rows} rows imported.",
