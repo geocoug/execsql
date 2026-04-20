@@ -17,7 +17,7 @@ import pytest
 from execsql.exceptions import ErrInfo
 from execsql.metacommands.upsert import (
     _FileWriterHandler,
-    _build_result_from_qa_errors,
+    _build_result_from_qa_findings,
     _parse_tables_and_options,
     _qa_failure_msg,
     x_pg_upsert,
@@ -46,11 +46,19 @@ class FakeTableResult:
     table_name: str = ""
     rows_updated: int = 0
     rows_inserted: int = 0
-    qa_errors: list[Any] = field(default_factory=list)
+    _qa_findings: list[Any] = field(default_factory=list)
 
     @property
     def qa_passed(self) -> bool:
         return len(self.qa_errors) == 0
+
+    @property
+    def qa_errors(self) -> list[Any]:
+        return [f for f in self._qa_findings if getattr(f, "severity", "ERROR") == "ERROR"]
+
+    @property
+    def qa_warnings(self) -> list[Any]:
+        return [f for f in self._qa_findings if getattr(f, "severity", "ERROR") == "WARNING"]
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -59,6 +67,7 @@ class FakeTableResult:
             "rows_inserted": self.rows_inserted,
             "qa_passed": self.qa_passed,
             "qa_errors": [e.to_dict() for e in self.qa_errors],
+            "qa_warnings": [e.to_dict() for e in self.qa_warnings],
         }
 
 
@@ -230,6 +239,20 @@ class TestParseTablesAndOptions:
     def test_compact_keyword(self):
         result = _parse_tables_and_options("books COMPACT")
         assert result["compact"] is True
+
+    def test_strict_columns_keyword(self):
+        result = _parse_tables_and_options("books STRICT_COLUMNS")
+        assert result["strict_columns"] is True
+
+    def test_strict_columns_default_false(self):
+        result = _parse_tables_and_options("books")
+        assert result["strict_columns"] is False
+
+    def test_strict_columns_with_other_keywords(self):
+        result = _parse_tables_and_options("books STRICT_COLUMNS COMMIT METHOD update")
+        assert result["strict_columns"] is True
+        assert result["commit"] is True
+        assert result["method"] == "update"
 
     def test_exclude_cols(self):
         result = _parse_tables_and_options("books EXCLUDE rev_time, created_at COMMIT")
@@ -524,7 +547,7 @@ class TestFullMode:
             tables=[
                 FakeTableResult(
                     table_name="books",
-                    qa_errors=[FakeQAError(table="books", check_type="null", details="col1 (5)")],
+                    _qa_findings=[FakeQAError(table="books", check_type="null", details="col1 (5)")],
                 ),
             ],
             staging_schema="staging",
@@ -606,7 +629,7 @@ class TestQAMode:
         with (
             patch("execsql.metacommands.upsert._require_pg_upsert"),
             patch("execsql.metacommands.upsert._create_pgupsert") as mock_create,
-            patch("execsql.metacommands.upsert._build_result_from_qa_errors") as mock_build,
+            patch("execsql.metacommands.upsert._build_result_from_qa_findings") as mock_build,
         ):
             mock_ups = mock_create.return_value
             mock_ups.qa_all.return_value = mock_ups
@@ -629,7 +652,7 @@ class TestQAMode:
         with (
             patch("execsql.metacommands.upsert._require_pg_upsert"),
             patch("execsql.metacommands.upsert._create_pgupsert") as mock_create,
-            patch("execsql.metacommands.upsert._build_result_from_qa_errors") as mock_build,
+            patch("execsql.metacommands.upsert._build_result_from_qa_findings") as mock_build,
         ):
             mock_ups = mock_create.return_value
             mock_ups.qa_all.return_value = mock_ups
@@ -661,7 +684,7 @@ class TestCheckMode:
         with (
             patch("execsql.metacommands.upsert._require_pg_upsert"),
             patch("execsql.metacommands.upsert._create_pgupsert") as mock_create,
-            patch("execsql.metacommands.upsert._build_result_from_qa_errors") as mock_build,
+            patch("execsql.metacommands.upsert._build_result_from_qa_findings") as mock_build,
         ):
             mock_ups = mock_create.return_value
             mock_ups.qa_column_existence.return_value = mock_ups
@@ -856,12 +879,12 @@ class TestQAFailureMessage:
             tables=[
                 FakeTableResult(
                     table_name="books",
-                    qa_errors=[FakeQAError(table="books", check_type="null", details="title (3)")],
+                    _qa_findings=[FakeQAError(table="books", check_type="null", details="title (3)")],
                 ),
                 FakeTableResult(table_name="authors"),  # passes
                 FakeTableResult(
                     table_name="genres",
-                    qa_errors=[FakeQAError(table="genres", check_type="fk", details="parent_id (5)")],
+                    _qa_findings=[FakeQAError(table="genres", check_type="fk", details="parent_id (5)")],
                 ),
             ],
         )
@@ -873,7 +896,7 @@ class TestQAFailureMessage:
             tables=[
                 FakeTableResult(
                     table_name="books",
-                    qa_errors=[FakeQAError(table="books", check_type="pk", details="id (2)")],
+                    _qa_findings=[FakeQAError(table="books", check_type="pk", details="id (2)")],
                 ),
             ],
         )
@@ -918,7 +941,7 @@ class TestQAModeFailure:
             tables=[
                 FakeTableResult(
                     table_name="books",
-                    qa_errors=[FakeQAError(table="books", check_type="null", details="col1 (5)")],
+                    _qa_findings=[FakeQAError(table="books", check_type="null", details="col1 (5)")],
                 ),
             ],
             staging_schema="staging",
@@ -928,7 +951,7 @@ class TestQAModeFailure:
         with (
             patch("execsql.metacommands.upsert._require_pg_upsert"),
             patch("execsql.metacommands.upsert._create_pgupsert") as mock_create,
-            patch("execsql.metacommands.upsert._build_result_from_qa_errors") as mock_build,
+            patch("execsql.metacommands.upsert._build_result_from_qa_findings") as mock_build,
         ):
             mock_ups = mock_create.return_value
             mock_ups.qa_all.return_value = mock_ups
@@ -951,7 +974,7 @@ class TestCheckModeFailure:
             tables=[
                 FakeTableResult(
                     table_name="books",
-                    qa_errors=[FakeQAError(table="books", check_type="column", details="missing_col")],
+                    _qa_findings=[FakeQAError(table="books", check_type="column", details="missing_col")],
                 ),
             ],
             staging_schema="staging",
@@ -961,7 +984,7 @@ class TestCheckModeFailure:
         with (
             patch("execsql.metacommands.upsert._require_pg_upsert"),
             patch("execsql.metacommands.upsert._create_pgupsert") as mock_create,
-            patch("execsql.metacommands.upsert._build_result_from_qa_errors") as mock_build,
+            patch("execsql.metacommands.upsert._build_result_from_qa_findings") as mock_build,
         ):
             mock_ups = mock_create.return_value
             mock_ups.qa_column_existence.return_value = mock_ups
@@ -978,7 +1001,7 @@ class TestCheckModeFailure:
 
 
 # ---------------------------------------------------------------------------
-# _build_result_from_qa_errors direct test
+# _build_result_from_qa_findings direct test
 # ---------------------------------------------------------------------------
 
 
@@ -986,7 +1009,7 @@ class TestBuildResultFromQAErrors:
     def test_groups_errors_by_table(self):
         mock_ups = MagicMock()
         mock_ups.tables = ["books", "authors"]
-        mock_ups.qa_errors = [
+        mock_ups.qa_findings = [
             FakeQAError(table="books", check_type="null", details="title (3)"),
             FakeQAError(table="authors", check_type="pk", details="id (2)"),
             FakeQAError(table="books", check_type="fk", details="pub_id (1)"),
@@ -995,7 +1018,7 @@ class TestBuildResultFromQAErrors:
         mock_ups.base_schema = "public"
         mock_ups.upsert_method = "upsert"
 
-        result = _build_result_from_qa_errors(mock_ups)
+        result = _build_result_from_qa_findings(mock_ups)
         assert result.staging_schema == "staging"
         assert result.base_schema == "public"
         assert result.upsert_method == "upsert"
@@ -1010,12 +1033,12 @@ class TestBuildResultFromQAErrors:
     def test_no_errors_means_passed(self):
         mock_ups = MagicMock()
         mock_ups.tables = ["books"]
-        mock_ups.qa_errors = []
+        mock_ups.qa_findings = []
         mock_ups.staging_schema = "staging"
         mock_ups.base_schema = "public"
         mock_ups.upsert_method = "upsert"
 
-        result = _build_result_from_qa_errors(mock_ups)
+        result = _build_result_from_qa_findings(mock_ups)
         assert result.qa_passed
 
 
@@ -1393,7 +1416,7 @@ class TestExportFailures:
             tables=[
                 FakeTableResult(
                     table_name="books",
-                    qa_errors=[FakeQAError(table="books", check_type="null", details="col1")],
+                    _qa_findings=[FakeQAError(table="books", check_type="null", details="col1")],
                 ),
             ],
             staging_schema="staging",
@@ -1500,7 +1523,7 @@ class TestExportFailures:
         ):
             mock_ups = mock_create.return_value
             mock_ups.tables = ["books"]
-            mock_ups.qa_errors = []
+            mock_ups.qa_findings = []
             mock_ups.staging_schema = "staging"
             mock_ups.base_schema = "public"
             mock_ups.upsert_method = "upsert"
@@ -1516,7 +1539,7 @@ class TestExportFailures:
                 return r
 
             with patch(
-                "execsql.metacommands.upsert._build_result_from_qa_errors",
+                "execsql.metacommands.upsert._build_result_from_qa_findings",
                 side_effect=_fake_build,
             ):
                 x_pg_upsert_qa(
@@ -1536,7 +1559,7 @@ class TestExportFailures:
         ):
             mock_ups = mock_create.return_value
             mock_ups.tables = ["books"]
-            mock_ups.qa_errors = []
+            mock_ups.qa_findings = []
             mock_ups.staging_schema = "staging"
             mock_ups.base_schema = "public"
             mock_ups.upsert_method = "upsert"
@@ -1555,7 +1578,7 @@ class TestExportFailures:
                 return r
 
             with patch(
-                "execsql.metacommands.upsert._build_result_from_qa_errors",
+                "execsql.metacommands.upsert._build_result_from_qa_findings",
                 side_effect=_fake_build,
             ):
                 x_pg_upsert_check(

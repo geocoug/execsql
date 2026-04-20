@@ -11,6 +11,21 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Added
+
+- `PG_UPSERT` / `PG_UPSERT QA` / `PG_UPSERT CHECK` now support the `STRICT_COLUMNS` keyword. When present, all missing columns in staging tables are treated as errors (not just PK and NOT NULL/no-default columns). Maps to pg-upsert's `strict_columns=True` parameter.
+- New substitution variable `$PG_UPSERT_QA_WARNINGS` — a comma-separated list of table names that received WARNING-level QA findings. Scripts can use this to react to warnings without parsing `$PG_UPSERT_RESULT_JSON`.
+
+### Changed
+
+- `$PG_UPSERT_RESULT_JSON` now includes a `qa_warnings` array per table (previously only `qa_errors` was present). This reflects pg-upsert v1.22's severity-aware QA model.
+- Minimum pg-upsert version bumped from `>=1.21.0` to `>=1.22.0`.
+
+### Fixed
+
+- `PG_UPSERT QA` and `PG_UPSERT CHECK` now capture all QA findings (errors + warnings) instead of only errors, so `$PG_UPSERT_RESULT_JSON` includes the full picture.
+- Fixed compatibility with pg-upsert v1.22.0 where `TableResult.qa_errors` became a read-only property (now writes to `_qa_findings` field).
+
 ______________________________________________________________________
 
 ## [2.15.7] - 2026-04-20

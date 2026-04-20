@@ -26,11 +26,11 @@ from execsql.utils.errors import exception_desc
 
 _KW_METHOD = re.compile(r"\bMETHOD\s+(upsert|update|insert)\b", re.IGNORECASE)
 _KW_EXCLUDE = re.compile(
-    r"\bEXCLUDE\s+([\w\s,]+?)(?=\s+(?:METHOD|COMMIT|INTERACTIVE|COMPACT|EXCLUDE_NULL|LOGFILE|CLEANUP|EXPORT_FAILURES|EXPORT_FORMAT|EXPORT_MAX_ROWS)\b|\s*$)",
+    r"\bEXCLUDE\s+([\w\s,]+?)(?=\s+(?:METHOD|COMMIT|INTERACTIVE|COMPACT|EXCLUDE_NULL|LOGFILE|CLEANUP|EXPORT_FAILURES|EXPORT_FORMAT|EXPORT_MAX_ROWS|STRICT_COLUMNS)\b|\s*$)",
     re.IGNORECASE,
 )
 _KW_EXCLUDE_NULL = re.compile(
-    r"\bEXCLUDE_NULL\s+([\w\s,]+?)(?=\s+(?:METHOD|COMMIT|INTERACTIVE|COMPACT|EXCLUDE|LOGFILE|CLEANUP|EXPORT_FAILURES|EXPORT_FORMAT|EXPORT_MAX_ROWS)\b|\s*$)",
+    r"\bEXCLUDE_NULL\s+([\w\s,]+?)(?=\s+(?:METHOD|COMMIT|INTERACTIVE|COMPACT|EXCLUDE|LOGFILE|CLEANUP|EXPORT_FAILURES|EXPORT_FORMAT|EXPORT_MAX_ROWS|STRICT_COLUMNS)\b|\s*$)",
     re.IGNORECASE,
 )
 _KW_COMMIT = re.compile(r"\bCOMMIT\b", re.IGNORECASE)
@@ -44,10 +44,11 @@ _KW_EXPORT_FAILURES = re.compile(
 )
 _KW_EXPORT_FORMAT = re.compile(r"\bEXPORT_FORMAT\s+(\S+)", re.IGNORECASE)
 _KW_EXPORT_MAX_ROWS = re.compile(r"\bEXPORT_MAX_ROWS\s+(\S+)", re.IGNORECASE)
+_KW_STRICT_COLUMNS = re.compile(r"\bSTRICT_COLUMNS\b", re.IGNORECASE)
 
 # All recognized keywords — used to split table names from options.
 _ALL_KEYWORDS = re.compile(
-    r"\b(?:METHOD|COMMIT|INTERACTIVE|COMPACT|EXCLUDE_NULL|EXCLUDE|LOGFILE|CLEANUP|EXPORT_FAILURES|EXPORT_FORMAT|EXPORT_MAX_ROWS)\b",
+    r"\b(?:METHOD|COMMIT|INTERACTIVE|COMPACT|EXCLUDE_NULL|EXCLUDE|LOGFILE|CLEANUP|EXPORT_FAILURES|EXPORT_FORMAT|EXPORT_MAX_ROWS|STRICT_COLUMNS)\b",
     re.IGNORECASE,
 )
 
@@ -145,6 +146,7 @@ def _parse_tables_and_options(tail: str) -> dict[str, Any]:
         "export_failures": export_failures,
         "export_format": export_format,
         "export_max_rows": export_max_rows,
+        "strict_columns": bool(_KW_STRICT_COLUMNS.search(opts_part)),
     }
 
 
@@ -191,6 +193,9 @@ def _set_subvars(result: Any) -> None:
     sv("$PG_UPSERT_STARTED_AT", result.started_at)
     sv("$PG_UPSERT_FINISHED_AT", result.finished_at)
     sv("$PG_UPSERT_RESULT_JSON", json.dumps(result.to_dict(), separators=(",", ":")))
+    # Warnings: tables with WARNING-level findings (still qa_passed=True).
+    warned_tables = [t.table_name for t in result.tables if t.qa_warnings]
+    sv("$PG_UPSERT_QA_WARNINGS", ", ".join(warned_tables) if warned_tables else "")
     # Default export path subvar to empty; _export_failures_if_requested
     # will overwrite it with the actual path if an export was produced.
     sv("$PG_UPSERT_EXPORT_PATH", "")
@@ -230,16 +235,20 @@ def _require_postgres(db: Any, metacommandline: str | None) -> None:
         )
 
 
-def _build_result_from_qa_errors(ups: Any) -> Any:
-    """Build an UpsertResult from ``ups.qa_errors`` after a QA/CHECK run."""
+def _build_result_from_qa_findings(ups: Any) -> Any:
+    """Build an UpsertResult from ``ups.qa_findings`` after a QA/CHECK run.
+
+    Uses ``qa_findings`` (all findings: errors + warnings) so that
+    ``$PG_UPSERT_RESULT_JSON`` includes both severity levels.
+    """
     from pg_upsert.models import TableResult, UpsertResult
 
     table_results: dict[str, Any] = {}
     for table_name in ups.tables:
         table_results[table_name] = TableResult(table_name=table_name)
-    for err in ups.qa_errors:
-        if err.table in table_results:
-            table_results[err.table].qa_errors.append(err)
+    for finding in ups.qa_findings:
+        if finding.table in table_results:
+            table_results[finding.table]._qa_findings.append(finding)
     return UpsertResult(
         tables=list(table_results.values()),
         committed=False,
@@ -289,6 +298,7 @@ def _create_pgupsert(
         "upsert_method": opts["method"],
         "exclude_cols": opts["exclude_cols"],
         "exclude_null_check_cols": opts["exclude_null_check_cols"],
+        "strict_columns": opts.get("strict_columns", False),
         "ui_mode": ui_mode,
         "callback": _make_callback(),
     }
@@ -508,7 +518,7 @@ def x_pg_upsert_qa(**kwargs: Any) -> None:
     finally:
         _detach_log_handlers(loggers, handlers, prev_levels)
 
-    result = _build_result_from_qa_errors(ups)
+    result = _build_result_from_qa_findings(ups)
     _set_subvars(result)
     _export_failures_if_requested(result, opts, metacommandline)
     if opts.get("cleanup"):
@@ -551,7 +561,7 @@ def x_pg_upsert_check(**kwargs: Any) -> None:
     finally:
         _detach_log_handlers(loggers, handlers, prev_levels)
 
-    result = _build_result_from_qa_errors(ups)
+    result = _build_result_from_qa_findings(ups)
     _set_subvars(result)
     _export_failures_if_requested(result, opts, metacommandline)
     if opts.get("cleanup"):
