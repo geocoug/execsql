@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.15.8] - 2026-04-20
+
 ### Added
 
 - `PG_UPSERT` / `PG_UPSERT QA` / `PG_UPSERT CHECK` now support the `STRICT_COLUMNS` keyword. When present, all missing columns in staging tables are treated as errors (not just PK and NOT NULL/no-default columns). Maps to pg-upsert's `strict_columns=True` parameter.
