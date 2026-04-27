@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.15.9] - 2026-04-27
+
 ### Added
 
 - Textual TUI now displays a progress bar and remaining-time countdown for `PROMPT PAUSE` and `PAUSE` dialogs when the `CONTINUE AFTER` or `HALT AFTER` keywords specify a timed duration (matching existing Tkinter behavior).
