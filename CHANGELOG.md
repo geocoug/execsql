@@ -11,6 +11,17 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Added
+
+- Textual TUI now displays a progress bar and remaining-time countdown for `PROMPT PAUSE` and `PAUSE` dialogs when the `CONTINUE AFTER` or `HALT AFTER` keywords specify a timed duration (matching existing Tkinter behavior).
+
+### Fixed
+
+- `PAUSE` metacommand in console mode (no `-v`) now responds to single keypresses (Enter to continue, Esc to quit) instead of requiring Enter after every key. Uses raw-mode terminal reading on POSIX and `msvcrt` polling on Windows.
+- `PAUSE` with `CONTINUE AFTER`/`HALT AFTER` in console mode now displays a live SIGALRM-driven progress bar showing time remaining, matching the documented behavior and terminal screenshot.
+- `PAUSE` progress bar output no longer bleeds into subsequent script output — the progress line is cleared before returning.
+- Fixed double minutes-to-seconds conversion in the console `PAUSE` path that caused a 1-minute pause to sleep for 60 minutes.
+
 ______________________________________________________________________
 
 ## [2.15.8] - 2026-04-20

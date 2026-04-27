@@ -544,30 +544,95 @@ def get_yn_win(prompt: str) -> bool:
     return get_yn(prompt)
 
 
+def _clear_progress_line() -> None:
+    """Erase the SIGALRM progress bar line and move to the next line."""
+    # \r returns to column 0, the spaces overwrite the bar, then \n advances.
+    sys.stdout.write("\r" + " " * 50 + "\r\n")
+    sys.stdout.flush()
+
+
 def pause(
     text: str,
     action: str | None = None,
     countdown: float | None = None,
     timeunit: str | None = None,
 ) -> int:
-    """Display a pause message and wait for the user.
+    """Display a pause message and wait for the user (POSIX).
 
-    Returns 0 (user continued), 1 (user quit), or 2 (timed out).
-    In headless mode, prints the message and continues immediately unless
-    countdown/action is set, in which case it sleeps then returns 2.
+    Returns 0 (user continued), 1 (user quit/ESC), or 2 (timed out).
+
+    Uses raw-mode terminal reading so that single keypresses (Enter, Esc)
+    are detected without requiring the user to press Enter first.  When
+    *countdown* is set, a SIGALRM-based progress bar is displayed via
+    :class:`~execsql.utils.timer.TimerHandler`.
+
+    Note: *countdown* is expected in **seconds** — the caller (``x_pause``)
+    has already converted minutes to seconds, so *timeunit* is not used here.
     """
-    import time
+    import signal
+    import termios
+    import tty
+
+    from execsql.exceptions import ExecSqlTimeoutError
+    from execsql.utils.timer import TimerHandler
 
     print(f"\n{text}", file=sys.stderr)
-    if countdown is not None and action is not None:
-        seconds = float(countdown)
-        if timeunit and timeunit.upper() == "MINUTES":
-            seconds *= 60
-        time.sleep(seconds)
-        return 2  # timed out
-    else:
-        input("Press Enter to continue...")
-    return 0
+
+    # When stdin is not a real TTY (pytest, piped input, etc.), fall back to
+    # simple blocking behaviour so we don't crash on fileno()/tcgetattr().
+    if not hasattr(sys.stdin, "fileno") or not sys.stdin.isatty():
+        if countdown is not None and action is not None:
+            import time
+
+            time.sleep(float(countdown))
+            return 2
+        try:
+            input("Press Enter to continue...")
+        except EOFError:
+            pass
+        return 0
+
+    if countdown is None or action is None:
+        sys.stderr.write("Press Enter to continue, Esc to quit...\n")
+        sys.stderr.flush()
+
+    fd = sys.stdin.fileno()
+    old_settings = termios.tcgetattr(fd)
+
+    timer_handler: TimerHandler | None = None
+    old_alarm = signal.SIG_DFL
+
+    try:
+        tty.setraw(fd)
+
+        if countdown is not None and action is not None:
+            seconds = float(countdown)
+            timer_handler = TimerHandler(seconds)
+            old_alarm = signal.signal(signal.SIGALRM, timer_handler.alarm_handler)
+            signal.setitimer(signal.ITIMER_REAL, 0.01, 0.01)
+
+        has_bar = countdown is not None and action is not None
+
+        while True:
+            try:
+                ch = sys.stdin.read(1)
+            except ExecSqlTimeoutError:
+                # TimerHandler raised — countdown expired.
+                _clear_progress_line()
+                return 2  # timed out
+            if ch in ("\r", "\n"):
+                if has_bar:
+                    _clear_progress_line()
+                return 0  # user continued
+            if ch == "\x1b":
+                if has_bar:
+                    _clear_progress_line()
+                return 1  # user quit (ESC)
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+        if timer_handler is not None:
+            signal.setitimer(signal.ITIMER_REAL, 0)
+            signal.signal(signal.SIGALRM, old_alarm)
 
 
 def pause_win(
@@ -576,5 +641,59 @@ def pause_win(
     countdown: float | None = None,
     timeunit: str | None = None,
 ) -> int:
-    """GUI pause dialog — falls back to terminal in headless mode."""
-    return pause(text, action=action, countdown=countdown, timeunit=timeunit)
+    """Display a pause message and wait for the user (Windows).
+
+    Returns 0 (user continued), 1 (user quit/ESC), or 2 (timed out).
+
+    Uses ``msvcrt.kbhit()``/``msvcrt.getwch()`` for non-blocking single-char
+    reads with a polling loop that renders a text-mode progress bar when
+    *countdown* is set.  Falls back to :func:`pause` on non-Windows platforms.
+
+    Note: *countdown* is expected in **seconds** — the caller (``x_pause``)
+    has already converted minutes to seconds, so *timeunit* is not used here.
+    """
+    try:
+        import msvcrt
+    except ImportError:
+        # Not on Windows — delegate to the POSIX implementation.
+        return pause(text, action=action, countdown=countdown, timeunit=timeunit)
+
+    import time
+
+    print(f"\n{text}", file=sys.stderr)
+
+    if countdown is not None and action is not None:
+        seconds = float(countdown)
+        start = time.time()
+        bar_len = 30
+        while True:
+            elapsed = time.time() - start
+            remaining = max(0.0, seconds - elapsed)
+            if remaining <= 0:
+                _clear_progress_line()
+                return 2  # timed out
+            bar_left = int(round(bar_len * remaining / seconds, 0))
+            sys.stdout.write(
+                "{:8.1f}  |{}{}|\r".format(remaining, "+" * bar_left, "-" * (bar_len - bar_left)),
+            )
+            sys.stdout.flush()
+            if msvcrt.kbhit():
+                ch = msvcrt.getwch()
+                if ch in ("\r", "\n"):
+                    _clear_progress_line()
+                    return 0
+                if ch == "\x1b":
+                    _clear_progress_line()
+                    return 1
+            time.sleep(0.01)
+    else:
+        sys.stderr.write("Press Enter to continue, Esc to quit...\n")
+        sys.stderr.flush()
+        while True:
+            if msvcrt.kbhit():
+                ch = msvcrt.getwch()
+                if ch in ("\r", "\n"):
+                    return 0
+                if ch == "\x1b":
+                    return 1
+            time.sleep(0.01)

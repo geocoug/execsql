@@ -244,7 +244,31 @@ class MsgScreen(_BaseDialog):
 
 
 class PauseScreen(_BaseDialog):
-    """Pause dialog with optional countdown and Continue/Cancel buttons."""
+    """Pause dialog with optional countdown progress bar and Continue/Cancel buttons."""
+
+    DEFAULT_CSS = (
+        _BaseDialog.DEFAULT_CSS
+        + """
+    #countdown-container {
+        height: auto;
+        margin: 1 0;
+    }
+    #countdown-container ProgressBar {
+        width: 1fr;
+    }
+    #countdown-container Bar {
+        width: 1fr;
+        &> .bar--bar {
+            background: $primary 30%;
+        }
+    }
+    #countdown-container .countdown-label {
+        text-align: center;
+        color: $text-muted;
+        width: 1fr;
+    }
+    """
+    )
 
     BINDINGS = [
         *_BaseDialog.BINDINGS,
@@ -254,17 +278,50 @@ class PauseScreen(_BaseDialog):
     def compose(self) -> ComposeResult:
         title = self.args.get("title", "Pause")
         message = self.args.get("message", "")
+        countdown = self.args.get("countdown")
         with Container(id="dialog"):
             yield Label(title, id="title")
             yield Static(message, id="message")
+            if countdown is not None:
+                with Vertical(id="countdown-container"):
+                    yield ProgressBar(
+                        total=float(countdown),
+                        show_percentage=False,
+                        show_eta=False,
+                        id="countdown-bar",
+                    )
+                    yield Static("", classes="countdown-label")
             with Horizontal(id="buttons"):
                 yield Button("Cancel", id="btn_cancel_exit", variant="warning")
                 yield Button("Continue", id="btn_continue", variant="primary")
 
     def on_mount(self) -> None:
+        import time
+
         countdown = self.args.get("countdown")
         if countdown is not None:
-            self.set_timer(float(countdown), self._auto_continue)
+            self._countdown_total = float(countdown)
+            self._countdown_start = time.time()
+            self._tick_interval = self.set_interval(0.2, self._tick)
+
+    def _tick(self) -> None:
+        import time
+
+        elapsed = time.time() - self._countdown_start
+        remaining = max(0.0, self._countdown_total - elapsed)
+        progress = min(self._countdown_total, elapsed)
+        bar = self.query_one("#countdown-bar", ProgressBar)
+        bar.update(progress=progress)
+        label = self.query_one(".countdown-label", Static)
+        if remaining >= 60:
+            mins = int(remaining) // 60
+            secs = int(remaining) % 60
+            label.update(f"{mins}m {secs:02d}s remaining")
+        else:
+            label.update(f"{remaining:.0f}s remaining")
+        if remaining <= 0:
+            self._tick_interval.stop()
+            self._auto_continue()
 
     def _auto_continue(self) -> None:
         self._result = {"quit": False}
