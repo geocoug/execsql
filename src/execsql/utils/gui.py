@@ -571,9 +571,10 @@ def pause(
     """
     print(f"\n{text}", file=sys.stderr)
 
-    # When stdin is not a real TTY (pytest, piped input, Windows, etc.),
-    # fall back to simple blocking behaviour.
-    if not hasattr(sys.stdin, "fileno") or not sys.stdin.isatty():
+    # When stdin is not a real TTY (pytest, piped input, etc.) or the
+    # platform lacks POSIX terminal APIs (Windows), fall back to simple
+    # blocking behaviour.
+    if sys.platform == "win32" or not hasattr(sys.stdin, "fileno") or not sys.stdin.isatty():
         if countdown is not None and action is not None:
             import time
 
