@@ -747,4 +747,7 @@ class DatabasePool:
                     _state.exec_log.log_status_error(
                         f"Can't close database {nm} aliased as {alias}",
                     )
-        self.__init__()
+        self.pool = {}
+        self.initial_db = None
+        self.current_db = None
+        self.do_rollback = True

@@ -35,6 +35,7 @@ htmlcov/
 execsql.log
 !scripts/generate_vscode_grammar.py
 scripts/
+!tests/scripts
 
 # Distribution
 *.whl

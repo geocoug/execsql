@@ -569,17 +569,10 @@ def pause(
     Note: *countdown* is expected in **seconds** — the caller (``x_pause``)
     has already converted minutes to seconds, so *timeunit* is not used here.
     """
-    import signal
-    import termios
-    import tty
-
-    from execsql.exceptions import ExecSqlTimeoutError
-    from execsql.utils.timer import TimerHandler
-
     print(f"\n{text}", file=sys.stderr)
 
-    # When stdin is not a real TTY (pytest, piped input, etc.), fall back to
-    # simple blocking behaviour so we don't crash on fileno()/tcgetattr().
+    # When stdin is not a real TTY (pytest, piped input, Windows, etc.),
+    # fall back to simple blocking behaviour.
     if not hasattr(sys.stdin, "fileno") or not sys.stdin.isatty():
         if countdown is not None and action is not None:
             import time
@@ -591,6 +584,15 @@ def pause(
         except EOFError:
             pass
         return 0
+
+    # POSIX-only imports — guarded by the isatty() check above so this
+    # function can still be called safely on Windows (falls back above).
+    import signal
+    import termios
+    import tty
+
+    from execsql.exceptions import ExecSqlTimeoutError
+    from execsql.utils.timer import TimerHandler
 
     if countdown is None or action is None:
         sys.stderr.write("Press Enter to continue, Esc to quit...\n")

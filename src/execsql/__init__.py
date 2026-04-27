@@ -1,9 +1,10 @@
 """
 execsql — a maintained fork of the execsql SQL scripting tool.
 
-This package provides the ``execsql2`` CLI (entry point ``execsql2``) and the
-``execsql`` importable module.  The top-level package exposes only the package
-version; all public functionality lives in sub-modules.
+This package provides the ``execsql`` CLI command (distributed as the
+``execsql2`` package on PyPI) and the ``execsql`` importable module.
+The top-level package exposes only the package version; all public
+functionality lives in sub-modules.
 """
 
 from __future__ import annotations

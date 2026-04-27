@@ -30,6 +30,24 @@ from execsql.utils.gui import gui_console_isrunning
 from execsql.utils.strings import unquoted
 
 
+def _quote_table_name(name: str) -> str:
+    """Quote a potentially schema-qualified table name for safe SQL interpolation.
+
+    Splits on ``.`` and quotes each component with standard SQL double-quoting
+    (embedded double-quotes are escaped to ``""``).
+
+    Examples::
+
+        >>> _quote_table_name("books")
+        '"books"'
+        >>> _quote_table_name("staging.books")
+        '"staging"."books"'
+        >>> _quote_table_name('my"table')
+        '"my""table"'
+    """
+    return ".".join('"' + part.replace('"', '""') + '"' for part in name.split("."))
+
+
 def xf_contains(**kwargs: Any) -> bool:
     s1 = kwargs["string1"]
     s2 = kwargs["string2"]
@@ -59,7 +77,7 @@ def xf_endswith(**kwargs: Any) -> bool:
 
 def xf_hasrows(**kwargs: Any) -> bool:
     queryname = kwargs["queryname"]
-    sql = f"select count(*) from {queryname};"
+    sql = f"select count(*) from {_quote_table_name(queryname)};"
     try:
         hdrs, rec = _state.dbs.current().select_data(sql)
     except ErrInfo:
@@ -84,7 +102,7 @@ def _row_count(queryname: str, sql_context: str, metacommandline: str) -> int:
     Raises:
         ErrInfo: If the query fails or the result is not numeric.
     """
-    sql = f"select count(*) from {queryname};"
+    sql = f"select count(*) from {_quote_table_name(queryname)};"
     try:
         _hdrs, rec = _state.dbs.current().select_data(sql)
     except ErrInfo:

@@ -45,23 +45,39 @@ _YELLOW = "\033[33m"
 _CYAN = "\033[36m"
 
 
+_color_cache: bool | None = None
+
+
 def _use_color() -> bool:
     """Return True if the output stream supports ANSI color.
 
     Checks ``NO_COLOR`` and ``EXECSQL_NO_COLOR`` environment variables first
     (either set → color off).  Then tests whether the active output stream
     reports itself as a TTY.
+
+    The result is cached after the first call; call ``_reset_color_cache()``
+    to force re-evaluation (e.g. when entering the REPL).
     """
-    if os.environ.get("NO_COLOR") is not None:
-        return False
-    if os.environ.get("EXECSQL_NO_COLOR") is not None:
-        return False
-    output = _state.output
-    if output is not None and hasattr(output, "isatty"):
-        return output.isatty()
-    # WriteHooks (the default _state.output) has no isatty — fall through
-    # to check the underlying stream it would write to.
-    return sys.stdout.isatty()
+    global _color_cache  # noqa: PLW0603
+    if _color_cache is not None:
+        return _color_cache
+    if os.environ.get("NO_COLOR") is not None or os.environ.get("EXECSQL_NO_COLOR") is not None:
+        _color_cache = False
+    else:
+        output = _state.output
+        if output is not None and hasattr(output, "isatty"):
+            _color_cache = output.isatty()
+        else:
+            # WriteHooks (the default _state.output) has no isatty — fall through
+            # to check the underlying stream it would write to.
+            _color_cache = sys.stdout.isatty()
+    return _color_cache
+
+
+def _reset_color_cache() -> None:
+    """Clear the cached color decision so it is re-evaluated on next use."""
+    global _color_cache  # noqa: PLW0603
+    _color_cache = None
 
 
 def _c(code: str, text: str) -> str:
@@ -169,6 +185,7 @@ def _debug_repl(*, step: bool = False) -> None:
         step: When ``True``, the entry banner says "Step" instead of
             "Breakpoint" to indicate the REPL was re-entered via step mode.
     """
+    _reset_color_cache()
     try:
         import readline as _readline  # noqa: F401 — side-effect: enables history/arrow keys
     except ImportError:
