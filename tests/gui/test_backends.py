@@ -891,11 +891,22 @@ class TestGuiPublicAPI:
             _gui._active_backend = prev_backend
             _gui._console_running = prev_flag
 
-    def test_pause_win_is_alias_for_pause(self, monkeypatch):
-        from execsql.utils.gui import pause, pause_win
+    def test_pause_win_delegates_to_pause_on_non_windows(self):
+        from unittest.mock import patch as _patch
 
-        monkeypatch.setattr("builtins.input", lambda *a: "")
-        assert pause_win("msg") == pause("msg")
+        from execsql.utils.gui import pause_win
+
+        # pause_win tries ``import msvcrt``; when that fails (non-Windows)
+        # it delegates to pause().  On Windows msvcrt succeeds and the
+        # function reads the keyboard directly — that path cannot be safely
+        # tested without real console I/O, so we skip.
+        with (
+            _patch("execsql.utils.gui.pause", return_value=0) as mock_pause,
+            _patch.dict("sys.modules", {"msvcrt": None}),
+        ):
+            result = pause_win("msg")
+        mock_pause.assert_called_once()
+        assert result == 0
 
     def test_get_yn_win_is_alias_for_get_yn(self, monkeypatch):
         from execsql.utils.gui import get_yn_win
