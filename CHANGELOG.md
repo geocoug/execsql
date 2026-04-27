@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Fixed
+
+- `PAUSE` console-mode fallback now checks `sys.platform` before attempting POSIX terminal imports, preventing hangs on Windows when stdin reports as a TTY.
+
 ______________________________________________________________________
 
 ## [2.15.10] - 2026-04-27
