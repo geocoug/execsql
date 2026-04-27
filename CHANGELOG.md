@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.15.10] - 2026-04-27
+
 ### Added
 
 - `--config FILE` CLI flag to specify an explicit configuration file. The file is loaded after the implicit search paths (system, user, script-dir, working-dir) so its values take precedence, while CLI arguments still override everything.
