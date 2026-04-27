@@ -34,6 +34,7 @@ from execsql.debug.repl import (
     _print_where,
     _run_sql,
     _set_var,
+    _reset_color_cache,
     _use_color,
     x_breakpoint,
 )
@@ -88,6 +89,12 @@ def last_command():
 
 
 class TestUseColor:
+    @pytest.fixture(autouse=True)
+    def _clear_cache(self):
+        _reset_color_cache()
+        yield
+        _reset_color_cache()
+
     def test_no_color_env_disables(self, capture):
         with patch.dict(os.environ, {"NO_COLOR": "1"}):
             assert _use_color() is False

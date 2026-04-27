@@ -42,6 +42,7 @@ from execsql.debug.repl import (
     _print_where,
     _run_sql,
     _set_var,
+    _reset_color_cache,
     _use_color,
     _write,
     _write_rule,
@@ -862,6 +863,12 @@ class TestSetDotCommand:
 
 class TestUseColor:
     """_use_color() returns False for non-TTY output and when env vars are set."""
+
+    @pytest.fixture(autouse=True)
+    def _clear_cache(self):
+        _reset_color_cache()
+        yield
+        _reset_color_cache()
 
     def test_false_when_no_color_env(self) -> None:
         with patch.dict(os.environ, {"NO_COLOR": "1"}):

@@ -17,7 +17,7 @@ from __future__ import annotations
 import pytest
 
 from execsql.db.sqlite import SQLiteDatabase
-from execsql.exceptions import ErrInfo
+from execsql.exceptions import DataTableError, ErrInfo
 from execsql.importers.csv import importtable
 
 
@@ -207,3 +207,99 @@ class TestAppendEdgeCases:
         csv.write_text("x\n1\n", encoding="utf-8")
         with pytest.raises(ErrInfo, match="Non-existent table"):
             importtable(db, None, "no_such", str(csv), is_new=False)
+
+
+# ===========================================================================
+# Inconsistent column counts
+# ===========================================================================
+
+
+class TestInconsistentColumns:
+    def test_extra_columns_in_data_row(self, db, tmp_path):
+        """A data row with more columns than the header raises an error.
+
+        During type inference (evaluate_column_types called with is_new=1),
+        DataTable.__init__ scans every data row and enforces that no row has
+        more fields than the header declares.  When del_empty_cols is False
+        and the extra field is non-empty, DataTableError("Too many columns
+        (N) on data row M") is raised before any INSERT is attempted.
+        """
+        csv_file = tmp_path / "extra_cols.csv"
+        csv_file.write_text("id,name\n1,Alice,extra_value\n2,Bob\n", encoding="utf-8")
+        with pytest.raises(DataTableError, match="Too many columns"):
+            importtable(db, None, "extra_tbl", str(csv_file), is_new=1)
+
+    def test_fewer_columns_in_data_row(self, db, tmp_path):
+        """A data row with fewer columns than the header should raise ErrInfo.
+
+        populate_table enforces ``len(line) < len(columns)`` and raises
+        ErrInfo("Too few values on data line ...") when a row is short.
+        Row 1 (id=1, name=Alice) is missing the 'value' column — this
+        triggers the error before any rows are committed.
+        """
+        csv_file = tmp_path / "fewer_cols.csv"
+        csv_file.write_text("id,name,value\n1,Alice\n2,Bob,42\n", encoding="utf-8")
+        with pytest.raises(ErrInfo):
+            importtable(db, None, "short_tbl", str(csv_file), is_new=1)
+
+
+# ===========================================================================
+# Encoding errors
+# ===========================================================================
+
+
+class TestEncodingErrors:
+    def test_binary_data_with_utf8_encoding(self, db, tmp_path, importer_conf):
+        """Raw bytes that are invalid UTF-8 must not be silently swallowed.
+
+        EncodedFile.open() passes ``errors=conf.enc_err_disposition`` to the
+        built-in ``open()``.  When enc_err_disposition is None (the default),
+        Python's open() uses strict error handling and raises
+        UnicodeDecodeError on the invalid bytes, which the importer wraps into
+        ErrInfo.
+        """
+        csv_file = tmp_path / "binary.csv"
+        # \x80, \x81, \x82 are invalid in UTF-8 (they are continuation bytes
+        # with no preceding start byte).
+        csv_file.write_bytes(b"id,val\n1,\x80\x81\x82\n")
+        importer_conf.enc_err_disposition = None  # strict: raises on bad bytes
+        with pytest.raises((ErrInfo, UnicodeDecodeError)):
+            importtable(db, None, "bin_tbl", str(csv_file), is_new=1, encoding="utf-8")
+
+    def test_encoding_error_with_replace_disposition(self, db, tmp_path, importer_conf):
+        """With enc_err_disposition='replace', invalid bytes are substituted.
+
+        Python's 'replace' error handler replaces each un-decodable byte with
+        the Unicode replacement character (U+FFFD).  The import should
+        complete without raising, and the stored value should contain the
+        replacement character rather than the raw bytes.
+        """
+        csv_file = tmp_path / "binary_replace.csv"
+        csv_file.write_bytes(b"id,val\n1,\x80\x81\x82\n")
+        importer_conf.enc_err_disposition = "replace"
+        importtable(db, None, "rep_tbl", str(csv_file), is_new=1, encoding="utf-8")
+        _, rows = db.select_data("SELECT val FROM rep_tbl WHERE id = 1;")
+        assert len(rows) == 1
+        # The replacement character U+FFFD should appear in the stored value.
+        stored = rows[0][0]
+        assert stored is not None
+        assert "\ufffd" in stored
+
+
+# ===========================================================================
+# Zero-byte file
+# ===========================================================================
+
+
+class TestZeroByteFile:
+    def test_zero_byte_file(self, db, tmp_path):
+        """A zero-byte file has no header line; diagnosis should raise ErrInfo.
+
+        CsvFile.diagnose_delim() reads up to scan_lines lines from the file.
+        If the file is empty it reads zero lines and raises
+        ErrInfo("CSV diagnosis error: no lines read").
+        """
+        csv_file = tmp_path / "empty.csv"
+        csv_file.write_bytes(b"")
+        with pytest.raises(ErrInfo):
+            importtable(db, None, "zero_tbl", str(csv_file), is_new=1)

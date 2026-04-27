@@ -705,3 +705,186 @@ class TestFormatFileEdgeCases:
         result = format_file(source, indent=2, use_sql=False)
         lines = result.splitlines()
         assert lines[1] == "  -- !x! WRITE 'x'"
+
+
+# ---------------------------------------------------------------------------
+# _is_comment_line — edge cases
+# ---------------------------------------------------------------------------
+
+
+class TestIsCommentLineEdgeCases:
+    """Unit tests for _is_comment_line(line, in_block) -> (is_comment, new_in_block).
+
+    Implementation notes (from reading format.py):
+      - in_block=True  → always (True, "*/" not in line).  No re-open detection.
+      - in_block=False, empty → (False, False)
+      - in_block=False, starts "--" → (True, False)
+      - in_block=False, starts "/*" → (True, "*/" not in s[2:])
+      - in_block=False, other → (False, False)
+    """
+
+    def test_open_and_close_on_same_line_not_in_block(self):
+        # "/* comment */" starts with /*, and "*/" appears in s[2:] → not left in block
+        is_comment, new_in_block = _is_comment_line("/* comment */", False)
+        assert is_comment is True
+        assert new_in_block is False
+
+    def test_open_on_line_already_in_block(self):
+        # We are already in a block; the implementation returns (True, "*/" not in line).
+        # "*/" IS present, so the block closes — new_in_block=False.
+        # The inner "/*" is irrelevant: the implementation does not re-open after close.
+        is_comment, new_in_block = _is_comment_line("/* nested */", True)
+        assert is_comment is True
+        assert new_in_block is False
+
+    def test_close_marker_when_not_in_block(self):
+        # "still here */" does not start with "--" or "/*" when in_block=False.
+        # The implementation returns (False, False) — it is not a comment line.
+        is_comment, new_in_block = _is_comment_line("still here */", False)
+        assert is_comment is False
+        assert new_in_block is False
+
+    def test_open_without_close(self):
+        # Starts with "/*"; "*/" does NOT appear in s[2:] → open block, stay in block.
+        is_comment, new_in_block = _is_comment_line("/* start of block", False)
+        assert is_comment is True
+        assert new_in_block is True
+
+    def test_close_without_open_in_block(self):
+        # in_block=True; "*/" IS in the line → block closes.
+        is_comment, new_in_block = _is_comment_line("end of block */", True)
+        assert is_comment is True
+        assert new_in_block is False
+
+    def test_multiple_opens_and_closes(self):
+        # "/* a */ /* b */" starts with "/*"; "*/" appears in s[2:] = " a */ /* b */".
+        # The implementation only checks whether "*/" is present anywhere after the
+        # opening "/*" — it does not re-track the second "/*"/"*/".  End state: not
+        # in block because "*/" was found.
+        is_comment, new_in_block = _is_comment_line("/* a */ /* b */", False)
+        assert is_comment is True
+        assert new_in_block is False
+
+    def test_empty_line_not_in_block(self):
+        # Empty string, not in a block → strip() is falsy → (False, False).
+        is_comment, new_in_block = _is_comment_line("", False)
+        assert is_comment is False
+        assert new_in_block is False
+
+    def test_empty_line_in_block(self):
+        # Empty string, inside a block → (True, True): still commented, still in block.
+        is_comment, new_in_block = _is_comment_line("", True)
+        assert is_comment is True
+        assert new_in_block is True
+
+    def test_dash_dash_comment_not_in_block(self):
+        # Simple single-line SQL comment while not in a block.
+        is_comment, new_in_block = _is_comment_line("-- a regular comment", False)
+        assert is_comment is True
+        assert new_in_block is False
+
+    def test_plain_sql_not_in_block(self):
+        # Non-comment line, not in a block.
+        is_comment, new_in_block = _is_comment_line("SELECT 1;", False)
+        assert is_comment is False
+        assert new_in_block is False
+
+    def test_plain_sql_in_block(self):
+        # Any line inside a block comment is treated as commented regardless of content.
+        is_comment, new_in_block = _is_comment_line("SELECT 1;", True)
+        assert is_comment is True
+        assert new_in_block is True
+
+
+# ---------------------------------------------------------------------------
+# _is_comment_line — nested block comment behavior
+# ---------------------------------------------------------------------------
+
+
+class TestNestedBlockComments:
+    """Verify that SQL's non-nesting block comment semantics are implemented correctly.
+
+    SQL block comments do not nest: the first '*/' closes the block regardless
+    of any inner '/*'.  The implementation reflects this.
+    """
+
+    def test_nested_open_does_not_extend_block(self):
+        # in_block=True, line contains both "/*" and "*/".
+        # The implementation checks only whether "*/" appears → block closes.
+        # The inner "/*" is not treated as re-opening a new level.
+        is_comment, new_in_block = _is_comment_line("/* inner /* nested */", True)
+        assert is_comment is True
+        assert new_in_block is False
+
+    def test_outer_close_after_nested_open(self):
+        # Process three lines simulating a "nested" block comment scenario.
+        # Line 1: open a block.
+        _, in_block = _is_comment_line("/* outer", False)
+        assert in_block is True
+
+        # Line 2: while in the block, a line that contains both "/*" and "*/".
+        # The first "*/" closes the block — in_block becomes False.
+        is_comment, in_block = _is_comment_line("/* inner */", in_block)
+        assert is_comment is True
+        assert in_block is False
+
+        # Line 3: block is already closed; this line is NOT a comment.
+        # It does not start with "--" or "/*" so it is treated as SQL.
+        is_comment, in_block = _is_comment_line("still in comment? */", in_block)
+        assert is_comment is False
+        assert in_block is False
+
+    def test_format_file_with_nested_block_comment(self):
+        # Feed format_file a script that has a "nested comment" pattern.
+        # The formatter processes lines one at a time via format_sql_block /
+        # _is_comment_line.  Because SQL block comments do not nest, line 3
+        # ("this is NOT a comment */") is seen as plain SQL once line 2 closes
+        # the block with its "*/".  SELECT 1; therefore also appears as SQL.
+        source = "/* outer comment\n/* inner comment */\nthis is NOT a comment */\nSELECT 1;\n"
+        result = format_file(source, use_sql=False)
+        # SELECT 1; must be present — it is never inside a block comment.
+        assert "SELECT 1;" in result
+        # The outer opening line is part of the accumulator fed to format_sql_block.
+        assert "outer comment" in result
+
+
+# ---------------------------------------------------------------------------
+# Metacommand detection in SQL context
+# ---------------------------------------------------------------------------
+
+
+class TestMetacommandInSqlContext:
+    """Verify metacommand detection (METACOMMAND_RE) only fires on lines whose
+    leading content (after optional whitespace) is '--  !x!'.
+
+    The regex is: r'^\\s*--\\s*!x!\\s*(.*)' with re.IGNORECASE.
+    """
+
+    def test_sql_with_metacommand_marker_in_where(self):
+        # The '-- !x!' substring appears inside a string literal, not at the
+        # start of the line.  METACOMMAND_RE does not match, so the line flows
+        # into sql_acc and is passed through unchanged.
+        source = "SELECT * FROM t WHERE comment LIKE '-- !x! %';\n"
+        result = format_file(source, use_sql=False)
+        # The WHERE clause content must survive intact.
+        assert "LIKE '-- !x! %'" in result
+
+    def test_sql_with_double_dash_comment_above_metacommand(self):
+        # A plain SQL comment (not a metacommand) followed by a real metacommand.
+        # The comment line goes to sql_acc; the metacommand is dispatched normally.
+        source = '-- this is a comment\n-- !x! WRITE "hello"\nSELECT 1;\n'
+        result = format_file(source, use_sql=False)
+        lines = result.splitlines()
+        # The plain SQL comment is preserved.
+        assert any("this is a comment" in line for line in lines)
+        # The metacommand keyword must be uppercased and present.
+        assert any(line.strip() == '-- !x! WRITE "hello"' for line in lines)
+
+    def test_metacommand_marker_not_at_line_start(self):
+        # METACOMMAND_RE uses '^\\s*' so leading spaces do NOT prevent a match.
+        # An indented '-- !x! WRITE ...' is still detected as a metacommand.
+        source = '    -- !x! WRITE "test"\n'
+        result = format_file(source, use_sql=False)
+        lines = result.splitlines()
+        # After formatting, depth=0 so the line is emitted at column 0.
+        assert any('-- !x! WRITE "test"' in line for line in lines)
