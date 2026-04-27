@@ -118,6 +118,7 @@ execsql script.sql                          # read connection from config file
 | `--ping`                            | Test database connectivity and exit                             |
 | `--profile`                         | Show per-statement timing summary after execution               |
 | `--progress`                        | Show a progress bar for long-running IMPORT operations          |
+| `--config FILE`                     | Load an explicit config file (highest priority after CLI args)  |
 | `--debug`                           | Start in step-through debug mode (REPL pauses before each stmt) |
 | `--dump-keywords`                   | Print metacommand keywords as JSON and exit                     |
 | `--gui-framework {tkinter,textual}` | GUI framework for interactive prompts                           |

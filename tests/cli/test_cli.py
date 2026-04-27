@@ -950,3 +950,54 @@ class TestLegacyMain:
         expected_name = Path(sys.argv[0]).name
         errinfo = captured["errinfo"]
         assert expected_name in (errinfo.exception or "")
+
+
+# ---------------------------------------------------------------------------
+# --config flag
+# ---------------------------------------------------------------------------
+
+
+class TestConfigFlag:
+    """Tests for the ``--config FILE`` CLI option."""
+
+    def test_missing_config_file_exits_2(self, tmp_path):
+        script = tmp_path / "s.sql"
+        script.write_text("-- empty")
+        result = runner.invoke(
+            app,
+            ["--config", "/no/such/file.conf", str(script)],
+            catch_exceptions=False,
+        )
+        assert result.exit_code == 2
+        assert "does not exist" in result.output
+
+    def test_config_flag_accepted(self, tmp_path):
+        """``--config`` with a valid file should not produce a parse error."""
+        script = tmp_path / "s.sql"
+        script.write_text("-- empty")
+        conf = tmp_path / "test.conf"
+        conf.write_text("[connect]\ndb_type = p\n")
+        with patch("execsql.cli._run", return_value=None) as mock_run:
+            result = runner.invoke(
+                app,
+                ["--config", str(conf), str(script)],
+                catch_exceptions=False,
+            )
+        assert result.exit_code == 0
+        # Verify config_file was passed through to _run
+        _, kwargs = mock_run.call_args
+        assert kwargs["config_file"] == str(conf)
+
+    def test_config_flag_without_value_errors(self):
+        result = runner.invoke(app, ["--config"], catch_exceptions=False)
+        assert result.exit_code != 0
+
+    def test_config_flag_missing_file_before_script_check(self, tmp_path):
+        """--config validation should fire even when no script file is given."""
+        result = runner.invoke(
+            app,
+            ["--config", "/no/such/file.conf"],
+            catch_exceptions=False,
+        )
+        assert result.exit_code == 2
+        assert "does not exist" in result.output

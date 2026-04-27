@@ -1693,3 +1693,64 @@ class TestConfigDataIncludes:
         )
         cd = _make_conf(str(tmp_path))
         assert str(inc) in cd.include_opt
+
+
+# ---------------------------------------------------------------------------
+# Explicit --config file (config_file kwarg)
+# ---------------------------------------------------------------------------
+
+
+class TestConfigFileKwarg:
+    """Tests for the ``config_file`` keyword argument added for ``--config``."""
+
+    def test_explicit_config_file_is_loaded(self, tmp_path):
+        """An explicit config file should be read even with no implicit configs."""
+        conf = tmp_path / "custom.conf"
+        conf.write_text("[connect]\ndb_type = p\n")
+        cd = ConfigData(str(tmp_path), None, config_file=str(conf))
+        assert cd.db_type == "p"
+        assert str(conf.resolve()) in cd.files_read
+
+    def test_explicit_config_file_not_given(self, tmp_path):
+        """When config_file is None, behaviour is unchanged."""
+        cd = ConfigData(str(tmp_path), None, config_file=None)
+        assert cd.db_type == "a"  # default
+
+    def test_explicit_config_overrides_cwd_config(self, tmp_path):
+        """The --config file is loaded after the working-dir config, so it wins."""
+        # Write a CWD config that sets db_type=s
+        _write_conf(str(tmp_path), "[connect]\ndb_type = s\n")
+        # Write an explicit config that sets db_type=p
+        explicit = tmp_path / "override.conf"
+        explicit.write_text("[connect]\ndb_type = p\n")
+        cd = ConfigData(str(tmp_path), None, config_file=str(explicit))
+        assert cd.db_type == "p"
+
+    def test_explicit_config_overrides_cwd_partial(self, tmp_path):
+        """Explicit config overrides only the keys it sets; others survive."""
+        _write_conf(str(tmp_path), "[connect]\ndb_type = s\nserver = oldhost\n")
+        explicit = tmp_path / "override.conf"
+        explicit.write_text("[connect]\ndb_type = p\n")
+        cd = ConfigData(str(tmp_path), None, config_file=str(explicit))
+        assert cd.db_type == "p"
+        assert cd.server == "oldhost"  # not overridden
+
+    def test_explicit_config_chains_additional_files(self, tmp_path):
+        """An explicit config file can chain further configs via [config] section."""
+
+        class FakePool:
+            def substitute(self, s):
+                return (s,)
+
+        chained = tmp_path / "chained.conf"
+        chained.write_text("[connect]\nport = 9999\n")
+        explicit = tmp_path / "main.conf"
+        explicit.write_text(f"[config]\nconfig_file = {chained}\n")
+        cd = ConfigData(str(tmp_path), FakePool(), config_file=str(explicit))
+        assert cd.port == 9999
+
+    def test_explicit_config_recorded_in_files_read(self, tmp_path):
+        conf = tmp_path / "tracked.conf"
+        conf.write_text("[connect]\ndb_type = l\n")
+        cd = ConfigData(str(tmp_path), None, config_file=str(conf))
+        assert str(conf.resolve()) in cd.files_read

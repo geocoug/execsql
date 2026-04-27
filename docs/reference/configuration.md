@@ -13,6 +13,8 @@ The name of the configuration file, in all locations, is `execsql.conf`.
 
 Configuration data is read from these files in the order listed above. Information in later files may augment or replace information in earlier files. Options and arguments specified on the command line will further augment or override information specified in the configuration files.
 
+An explicit configuration file can also be specified with the `--config FILE` command-line option. This file is loaded **after** all four implicit search paths, so its values take precedence over system, user, script-directory, and working-directory config files. CLI arguments still override everything. The `--config` file may chain additional configs via its `[config]` section, just like any other config file.
+
 In addition, *execsql* will read additional configuration files if they are specified in any of the standard configuration files ([see below](#config_config)).
 
 Configuration files use the [INI](https://en.wikipedia.org/wiki/INI_file) file format. Section names are case sensitive and must be all in lowercase. Property names are not case sensitive. Property values are read as-is and may or may not be case sensitive, depending on their use. Comments can be included in configuration files; each comment line must start with the "#" character.
@@ -199,6 +201,10 @@ The section and property names that may be used in a configuration file are list
 
 `zip_buffer_mb` { #zip_buffer_mb }
 :   The size of the internal buffer used when the [EXPORT](metacommands.md#export) metacommand exports data to a zipfile, in Mb. The default value is 10. The buffer should be at least as large as the largest data row to be exported. This value typically has little effect on performance, and only affects memory usage.
+
+!!! note "CLI-only output options"
+
+    The [`--output-dir`](../getting-started/syntax.md) option sets a default base directory for EXPORT output files. Relative paths in EXPORT metacommands are automatically joined to this directory; absolute paths and `stdout` are unaffected. This option is **only available on the command line** — there is no equivalent configuration file setting.
 
 ## Section `interface`
 

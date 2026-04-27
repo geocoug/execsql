@@ -12,6 +12,7 @@ from typing import Any
 import datetime
 import getpass
 import os
+import platform
 import sys
 import traceback
 from pathlib import Path
@@ -219,6 +220,7 @@ def _run(
     ping: bool = False,
     lint: bool = False,
     debug: bool = False,
+    config_file: str | None = None,
 ) -> None:
     """Initialise state, connect to the database, load the script, and run it.
 
@@ -276,13 +278,14 @@ def _run(
     elif osys.startswith("win"):
         osys = "windows"
     _state.subvars.add_substitution("$OS", osys)
+    _state.subvars.add_substitution("$HOSTNAME", platform.node())
     _state.subvars.add_substitution("$PYTHON_EXECUTABLE", sys.executable)
 
     # ------------------------------------------------------------------
     # Read configuration file
     # ------------------------------------------------------------------
     script_path = str(Path(script_name).resolve().parent) if script_name else os.getcwd()
-    _state.conf = ConfigData(script_path, _state.subvars)
+    _state.conf = ConfigData(script_path, _state.subvars, config_file=config_file)
     conf = _state.conf
 
     # ------------------------------------------------------------------

@@ -283,6 +283,16 @@ def main(
         "--profile-limit",
         help="Number of top statements to show in the --profile timing summary (default: 20).",
     ),
+    config_file: str | None = typer.Option(
+        None,
+        "--config",
+        metavar="FILE",
+        help=(
+            "Path to an execsql configuration file. "
+            "Loaded after the implicit search paths so its values take precedence. "
+            "The file may chain additional configs via its [cyan][config][/cyan] section."
+        ),
+    ),
     debug: bool = typer.Option(
         False,
         "--debug",
@@ -376,6 +386,12 @@ def main(
         webbrowser.open("https://execsql2.readthedocs.io/en/latest/", new=2, autoraise=True)
         raise typer.Exit()
 
+    if config_file and not Path(config_file).is_file():
+        _err_console.print(
+            f"[bold red]Error:[/bold red] Config file [cyan]{config_file!r}[/cyan] does not exist.",
+        )
+        raise typer.Exit(code=2)
+
     positional = args or []
     if command is not None:
         script_name = None  # inline mode — no script file
@@ -458,6 +474,7 @@ def main(
         ping=ping,
         lint=lint,
         debug=debug,
+        config_file=config_file,
     )
 
 

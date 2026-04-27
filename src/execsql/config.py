@@ -198,7 +198,13 @@ class ConfigData:
                 raise ConfigError(f"Invalid {key}: {val}; must be >= {min_val}.")
             setattr(self, attr, val)
 
-    def __init__(self, script_path: str, variable_pool: object) -> None:
+    def __init__(
+        self,
+        script_path: str,
+        variable_pool: object,
+        *,
+        config_file: str | None = None,
+    ) -> None:
         """Load and merge all discoverable execsql.conf files for the given script path.
 
         Args:
@@ -207,6 +213,10 @@ class ConfigData:
             variable_pool: Substitution-variable registry used to expand
                 ``config_file`` path values and to populate ``[variables]``
                 sections.
+            config_file: Optional explicit config file path (from ``--config``).
+                Loaded after the implicit search paths so its values take
+                precedence over system, user, script, and working-directory
+                config files.
         """
         self.db_type = "a"
         self.server = None
@@ -290,9 +300,15 @@ class ConfigData:
             config_files = [sys_config_file, user_config_file, script_config_file, startdir_config_file]
         else:
             config_files = [sys_config_file, user_config_file, startdir_config_file]
+        if config_file:
+            config_files.append(str(Path(config_file).resolve()))
+        from collections import deque
+
         _MAX_CONFIG_CHAIN = 20  # Guard against circular config_file references.
+        config_queue: deque[str] = deque(config_files)
         self.files_read: list = []
-        for ix, configfile in enumerate(config_files):
+        while config_queue:
+            configfile = config_queue.popleft()
             if len(self.files_read) >= _MAX_CONFIG_CHAIN:
                 break
             if configfile not in self.files_read and Path(configfile).is_file():
@@ -425,7 +441,7 @@ class ConfigData:
                         conffile = str(Path(conffile) / self.config_file_name)
                     if Path(conffile).is_file():
                         # Silently ignore a non-existent file, for cross-OS compatibility.
-                        config_files.insert(ix + 1, conffile)
+                        config_queue.appendleft(conffile)
                 # OS-specific additional config files.
                 _os_config_key: str | None = None
                 if sys.platform == "linux" and cp.has_option(self._CONFIG_SECTION, "linux_config_file"):
@@ -445,7 +461,7 @@ class ConfigData:
                     if not Path(conffile).is_file():
                         conffile = str(Path(conffile) / self.config_file_name)
                     if Path(conffile).is_file():
-                        config_files.insert(ix + 1, conffile)
+                        config_queue.appendleft(conffile)
                 self._get_bool(cp, self._CONFIG_SECTION, "user_logfile", "user_logfile")
                 # dao_flush_delay_secs has a specific error message — keep inline
                 if cp.has_option(self._CONFIG_SECTION, "dao_flush_delay_secs"):

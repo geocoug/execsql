@@ -11,6 +11,21 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Added
+
+- `--config FILE` CLI flag to specify an explicit configuration file. The file is loaded after the implicit search paths (system, user, script-dir, working-dir) so its values take precedence, while CLI arguments still override everything.
+- `$HOSTNAME` system substitution variable — the network name of the machine running execsql, useful for log messages and environment detection.
+
+### Fixed
+
+- Config file chaining no longer mutates a list during iteration; uses a deque for safe, predictable processing order.
+- REPL `_use_color()` result is now cached instead of re-checking environment variables and TTY status on every colorized output.
+- `DatabasePool.closeall()` no longer calls `self.__init__()` to reset state; fields are reset directly to avoid the re-initialization anti-pattern.
+- `PAUSE` console mode no longer crashes on Windows CI due to unconditional `import termios`; POSIX-only imports are now guarded by the TTY fallback check.
+- `HAS_ROWS()`, `ROW_COUNT_GT()`, `ROW_COUNT_GTE()`, `ROW_COUNT_EQ()`, and `ROW_COUNT_LT()` condition predicates now quote table names with standard SQL identifier quoting, preventing potential SQL injection when table names originate from substitution variables.
+- Corrected `__init__.py` module docstring that incorrectly described the CLI entry point as `execsql2` (the command is `execsql`).
+- Added note to configuration reference clarifying that `--output-dir` is a CLI-only option with no equivalent configuration file setting.
+
 ______________________________________________________________________
 
 ## [2.15.9] - 2026-04-27
