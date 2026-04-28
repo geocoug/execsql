@@ -293,6 +293,14 @@ def main(
             "The file may chain additional configs via its [cyan][config][/cyan] section."
         ),
     ),
+    parse_tree: bool = typer.Option(
+        False,
+        "--parse-tree",
+        help=(
+            "Parse the script into an abstract syntax tree and print the tree structure. "
+            "Does not connect to a database or execute anything."
+        ),
+    ),
     debug: bool = typer.Option(
         False,
         "--debug",
@@ -440,6 +448,31 @@ def main(
             f"[bold red]Error:[/bold red] Invalid --boolean-int value [cyan]{boolean_int!r}[/cyan].",
         )
         raise typer.Exit(code=2)
+
+    # ------------------------------------------------------------------
+    # Parse tree: parse script into AST and print tree structure
+    # ------------------------------------------------------------------
+    if parse_tree:
+        from execsql.script.ast import format_tree
+        from execsql.script.parser import parse_script, parse_string
+
+        try:
+            if command is not None:
+                tree = parse_string(command.replace("\\n", "\n").replace("\\t", "\t"), "<inline>")
+            elif script_name is not None:
+                encoding = script_encoding or "utf-8"
+                tree = parse_script(script_name, encoding=encoding)
+            else:
+                _err_console.print(
+                    "[bold red]Error:[/bold red] --parse-tree requires a script file or -c command.",
+                )
+                raise typer.Exit(code=1)
+        except ErrInfo as exc:
+            _err_console.print(f"[bold red]Parse error:[/bold red] {exc.errmsg()}")
+            raise typer.Exit(code=1) from exc
+
+        _console.print(format_tree(tree))
+        raise typer.Exit()
 
     # ------------------------------------------------------------------
     # Delegate to the real main implementation

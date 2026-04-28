@@ -1,0 +1,616 @@
+"""AST-producing parser for execsql scripts.
+
+Converts raw ``.sql`` script text into a :class:`~execsql.script.ast.Script`
+tree.  This is intended to eventually replace ``_parse_script_lines()`` in
+:mod:`execsql.script.engine` — during the transition both paths coexist and
+can be compared for correctness.
+
+The parser is a single-pass, line-oriented state machine that tracks:
+
+- **Block comment state** — inside ``/* ... */``
+- **SQL accumulation** — multi-line SQL statements terminated by ``;``
+- **BEGIN SQL** mode — all lines become SQL regardless of ``;``
+- **Block nesting** — IF/LOOP/BATCH/SCRIPT blocks are pushed onto a stack
+  and popped when the closing metacommand is encountered.
+
+Usage::
+
+    from execsql.script.parser import parse_script, parse_string
+
+    # From a file
+    script = parse_script("pipeline.sql", encoding="utf-8")
+
+    # From an inline string
+    script = parse_string("SELECT 1;", source_name="<inline>")
+"""
+
+from __future__ import annotations
+
+import re
+from collections.abc import Iterable
+
+from execsql.exceptions import ErrInfo
+from execsql.script.ast import (
+    BatchBlock,
+    ConditionModifier,
+    ElseIfClause,
+    IfBlock,
+    IncludeDirective,
+    LoopBlock,
+    MetaCommandStatement,
+    Node,
+    Script,
+    ScriptBlock,
+    SourceSpan,
+    SqlBlock,
+    SqlStatement,
+)
+
+__all__ = [
+    "parse_script",
+    "parse_string",
+]
+
+
+# ---------------------------------------------------------------------------
+# Compiled regexes (module-level for reuse)
+# ---------------------------------------------------------------------------
+
+_BEGIN_SCRIPT_RX = re.compile(
+    r"^\s*(?:BEGIN|CREATE)\s+SCRIPT\s+(?P<name>\w+)(?P<paramexpr>\s+.+)?$",
+    re.I,
+)
+_END_SCRIPT_RX = re.compile(
+    r"^\s*END\s+SCRIPT(?:\s+(?P<name>\w+))?\s*$",
+    re.I,
+)
+_BEGIN_SQL_RX = re.compile(r"^\s*BEGIN\s+SQL\s*$", re.I)
+_END_SQL_RX = re.compile(r"^\s*END\s+SQL\s*$", re.I)
+_BEGIN_BATCH_RX = re.compile(r"^\s*BEGIN\s+BATCH\s*$", re.I)
+_END_BATCH_RX = re.compile(r"^\s*END\s+BATCH\s*$", re.I)
+
+_IF_BLOCK_RX = re.compile(r"^\s*IF\s*\(\s*(?P<cond>.+)\s*\)\s*$", re.I)
+_IF_INLINE_RX = re.compile(
+    r"^\s*IF\s*\(\s*(?P<cond>.+)\s*\)\s*{\s*(?P<cmd>.+)\s*}\s*$",
+    re.I,
+)
+_ELSEIF_RX = re.compile(r"^\s*ELSEIF\s*\(\s*(?P<cond>.+)\s*\)\s*$", re.I)
+_ORIF_RX = re.compile(r"^\s*ORIF\s*\(\s*(?P<cond>.+)\s*\)\s*$", re.I)
+_ANDIF_RX = re.compile(r"^\s*ANDIF\s*\(\s*(?P<cond>.+)\s*\)\s*$", re.I)
+_ELSE_RX = re.compile(r"^\s*ELSE\s*$", re.I)
+_ENDIF_RX = re.compile(r"^\s*ENDIF\s*$", re.I)
+
+_LOOP_RX = re.compile(
+    r"^\s*LOOP\s+(?P<looptype>WHILE|UNTIL)\s*\(\s*(?P<loopcond>.+)\s*\)\s*$",
+    re.I,
+)
+_ENDLOOP_RX = re.compile(r"^\s*END\s*LOOP\s*$", re.I)
+
+_INCLUDE_RX = re.compile(
+    r"^\s*INCLUDE(?P<exists>\s+IF\s+EXISTS?)?\s+(?P<target>.+)\s*$",
+    re.I,
+)
+
+_EXEC_SCRIPT_RX = re.compile(
+    r"^\s*(?:EXEC(?:UTE)?|RUN)\s+SCRIPT"
+    r"(?P<exists>\s+IF\s+EXISTS)?"
+    r"\s+(?P<script_id>\w+)"
+    r"(?:(?:\s+WITH)?(?:\s+ARG(?:UMENT)?S?)?\s*\(\s*(?P<argexp>.+?)\s*\))?"
+    r"(?:\s+(?P<looptype>WHILE|UNTIL)\s*\(\s*(?P<loopcond>.+)\s*\))?"
+    r"\s*$",
+    re.I,
+)
+
+_WITH_PARAMS_RX = re.compile(
+    r"(?:\s+WITH)?(?:\s+PARAM(?:ETER)?S)?\s*\(\s*(?P<params>\w+(?:\s*,\s*\w+)*)\s*\)\s*$",
+    re.I,
+)
+
+# Line classification
+_EXEC_LINE_RX = re.compile(r"^\s*--\s*!x!\s*(?P<cmd>.+)$", re.I)
+_COMMENT_LINE_RX = re.compile(r"^\s*--")
+
+
+# ---------------------------------------------------------------------------
+# Block stack frame
+# ---------------------------------------------------------------------------
+
+
+class _BlockFrame:
+    """Tracks an open block during parsing.
+
+    Each frame holds the partially-constructed AST node and metadata needed
+    to close the block correctly.
+    """
+
+    __slots__ = ("node", "kind", "start_line", "source", "_in_else", "_in_elseif")
+
+    def __init__(self, node: Node, kind: str, start_line: int, source: str) -> None:
+        self.node = node
+        self.kind = kind  # "if", "loop", "batch", "script", "sqlblock"
+        self.start_line = start_line
+        self.source = source
+        self._in_else = False
+        self._in_elseif = False
+
+
+# ---------------------------------------------------------------------------
+# Parser implementation
+# ---------------------------------------------------------------------------
+
+
+def _parse_lines(lines: Iterable[str], source_name: str) -> Script:
+    """Core parsing logic: convert an iterable of lines into a Script AST."""
+    body: list[Node] = []
+    block_stack: list[_BlockFrame] = []
+    in_block_comment = False
+    in_sql_block = False  # inside BEGIN SQL ... END SQL
+    sql_accum = ""  # multi-line SQL accumulator
+    sql_start_line = 0
+
+    def _current_body() -> list[Node]:
+        """Return the body list that new nodes should be appended to."""
+        if not block_stack:
+            return body
+        frame = block_stack[-1]
+        node = frame.node
+        if isinstance(node, IfBlock):
+            # Determine which branch we're currently appending to
+            if frame._in_else:
+                return node.else_body
+            if node.elseif_clauses and frame._in_elseif:
+                return node.elseif_clauses[-1].body
+            return node.body
+        if isinstance(node, (LoopBlock, BatchBlock, ScriptBlock, SqlBlock)):
+            return node.body
+        return body  # pragma: no cover — defensive fallback
+
+    def _flush_sql(line_no: int) -> None:
+        """If there's accumulated SQL text, emit a SqlStatement node."""
+        nonlocal sql_accum, sql_start_line
+        if sql_accum:
+            stmt = SqlStatement(
+                span=SourceSpan(source_name, sql_start_line, line_no),
+                text=sql_accum.strip(),
+            )
+            _current_body().append(stmt)
+            sql_accum = ""
+
+    for file_lineno, raw_line in enumerate(lines, 1):
+        line = raw_line.rstrip()
+
+        # --- Block comment tracking ---
+        if not line:
+            continue
+
+        if in_block_comment:
+            if len(line) > 1 and line.rstrip().endswith("*/"):
+                in_block_comment = False
+            continue
+
+        stripped = line.strip()
+        if len(stripped) > 1 and stripped.startswith("/*"):
+            in_block_comment = True
+            if stripped.endswith("*/"):
+                in_block_comment = False
+            continue
+
+        # --- Metacommand or comment classification ---
+        metacommand_match = _EXEC_LINE_RX.match(line)
+        comment_match = _COMMENT_LINE_RX.match(line)
+
+        if comment_match and not metacommand_match and not in_sql_block:
+            # It's a plain comment line — skip (not preserved in current parser either).
+            # Inside a BEGIN SQL block, comments are part of the SQL text.
+            continue
+
+        # --- Metacommand handling ---
+        if metacommand_match:
+            cmd_text = metacommand_match.group("cmd").strip()
+
+            # -- BEGIN SQL --
+            if _BEGIN_SQL_RX.match(cmd_text):
+                _flush_sql(file_lineno)
+                in_sql_block = True
+                block_stack.append(
+                    _BlockFrame(
+                        SqlBlock(span=SourceSpan(source_name, file_lineno)),
+                        kind="sqlblock",
+                        start_line=file_lineno,
+                        source=source_name,
+                    ),
+                )
+                continue
+
+            # -- END SQL --
+            if _END_SQL_RX.match(cmd_text):
+                _flush_sql(file_lineno)
+                in_sql_block = False
+                if not block_stack or block_stack[-1].kind != "sqlblock":
+                    raise ErrInfo(
+                        type="cmd",
+                        command_text=line,
+                        other_msg=f"Unmatched END SQL on line {file_lineno} of {source_name}.",
+                    )
+                frame = block_stack.pop()
+                frame.node.span = SourceSpan(source_name, frame.start_line, file_lineno)
+                _current_body().append(frame.node)
+                continue
+
+            # Inside a SQL block, non-END SQL metacommands are silently
+            # ignored (matching the original parser behavior).
+            if in_sql_block:
+                continue
+
+            # Flush any pending SQL before processing a metacommand
+            if sql_accum:
+                from execsql.utils.errors import write_warning
+
+                write_warning(
+                    f"Incomplete SQL statement starting on line {sql_start_line} "
+                    f"at metacommand on line {file_lineno} of {source_name}.",
+                )
+                sql_accum = ""
+
+            # -- BEGIN SCRIPT --
+            m = _BEGIN_SCRIPT_RX.match(cmd_text)
+            if m:
+                name = m.group("name").lower()
+                paramexpr = m.group("paramexpr")
+                param_names = None
+                if paramexpr:
+                    wp = _WITH_PARAMS_RX.match(paramexpr)
+                    if not wp:
+                        raise ErrInfo(
+                            type="cmd",
+                            command_text=line,
+                            other_msg=f"Invalid BEGIN SCRIPT metacommand on line {file_lineno} of file {source_name}.",
+                        )
+                    param_rx = re.compile(r"\w+", re.I)
+                    param_names = re.findall(param_rx, wp.group("params"))
+                block_stack.append(
+                    _BlockFrame(
+                        ScriptBlock(
+                            span=SourceSpan(source_name, file_lineno),
+                            name=name,
+                            param_names=param_names,
+                        ),
+                        kind="script",
+                        start_line=file_lineno,
+                        source=source_name,
+                    ),
+                )
+                continue
+
+            # -- END SCRIPT --
+            m = _END_SCRIPT_RX.match(cmd_text)
+            if m:
+                end_name = m.group("name")
+                if end_name is not None:
+                    end_name = end_name.lower()
+                if not block_stack or block_stack[-1].kind != "script":
+                    raise ErrInfo(
+                        type="cmd",
+                        command_text=line,
+                        other_msg=f"Unmatched END SCRIPT metacommand on line {file_lineno} of file {source_name}.",
+                    )
+                frame = block_stack[-1]
+                script_node = frame.node
+                if end_name is not None and end_name != script_node.name:  # type: ignore[union-attr]
+                    raise ErrInfo(
+                        type="cmd",
+                        command_text=line,
+                        other_msg=f"Mismatched script name in the END SCRIPT metacommand on line {file_lineno} of file {source_name}.",
+                    )
+                if sql_accum:
+                    raise ErrInfo(
+                        type="cmd",
+                        command_text=line,
+                        other_msg=(
+                            f"Incomplete SQL statement\n  ({sql_accum})\n"
+                            f"at END SCRIPT metacommand on line {file_lineno} of file {source_name}."
+                        ),
+                    )
+                frame = block_stack.pop()
+                frame.node.span = SourceSpan(source_name, frame.start_line, file_lineno)
+                _current_body().append(frame.node)
+                continue
+
+            # -- IF (block form) --
+            m = _IF_BLOCK_RX.match(cmd_text)
+            if m:
+                block_stack.append(
+                    _BlockFrame(
+                        IfBlock(
+                            span=SourceSpan(source_name, file_lineno),
+                            condition=m.group("cond").strip(),
+                        ),
+                        kind="if",
+                        start_line=file_lineno,
+                        source=source_name,
+                    ),
+                )
+                continue
+
+            # -- IF (inline form): IF (cond) { cmd } --
+            m = _IF_INLINE_RX.match(cmd_text)
+            if m:
+                inner = MetaCommandStatement(
+                    span=SourceSpan(source_name, file_lineno),
+                    command=m.group("cmd").strip(),
+                )
+                if_node = IfBlock(
+                    span=SourceSpan(source_name, file_lineno),
+                    condition=m.group("cond").strip(),
+                    body=[inner],
+                )
+                _current_body().append(if_node)
+                continue
+
+            # -- ELSEIF --
+            m = _ELSEIF_RX.match(cmd_text)
+            if m:
+                if not block_stack or block_stack[-1].kind != "if":
+                    raise ErrInfo(
+                        type="cmd",
+                        command_text=line,
+                        other_msg=f"ELSEIF without matching IF on line {file_lineno} of {source_name}.",
+                    )
+                frame = block_stack[-1]
+                frame._in_else = False
+                frame._in_elseif = True
+                if_node = frame.node
+                if_node.elseif_clauses.append(  # type: ignore[union-attr]
+                    ElseIfClause(
+                        condition=m.group("cond").strip(),
+                        span=SourceSpan(source_name, file_lineno),
+                    ),
+                )
+                continue
+
+            # -- ANDIF --
+            m = _ANDIF_RX.match(cmd_text)
+            if m:
+                if not block_stack or block_stack[-1].kind != "if":
+                    raise ErrInfo(
+                        type="cmd",
+                        command_text=line,
+                        other_msg=f"ANDIF without matching IF on line {file_lineno} of {source_name}.",
+                    )
+                if_node = block_stack[-1].node
+                if_node.condition_modifiers.append(  # type: ignore[union-attr]
+                    ConditionModifier(
+                        kind="AND",
+                        condition=m.group("cond").strip(),
+                        span=SourceSpan(source_name, file_lineno),
+                    ),
+                )
+                continue
+
+            # -- ORIF --
+            m = _ORIF_RX.match(cmd_text)
+            if m:
+                if not block_stack or block_stack[-1].kind != "if":
+                    raise ErrInfo(
+                        type="cmd",
+                        command_text=line,
+                        other_msg=f"ORIF without matching IF on line {file_lineno} of {source_name}.",
+                    )
+                if_node = block_stack[-1].node
+                if_node.condition_modifiers.append(  # type: ignore[union-attr]
+                    ConditionModifier(
+                        kind="OR",
+                        condition=m.group("cond").strip(),
+                        span=SourceSpan(source_name, file_lineno),
+                    ),
+                )
+                continue
+
+            # -- ELSE --
+            m = _ELSE_RX.match(cmd_text)
+            if m:
+                if not block_stack or block_stack[-1].kind != "if":
+                    raise ErrInfo(
+                        type="cmd",
+                        command_text=line,
+                        other_msg=f"ELSE without matching IF on line {file_lineno} of {source_name}.",
+                    )
+                frame = block_stack[-1]
+                frame._in_else = True
+                frame._in_elseif = False
+                frame.node.else_span = SourceSpan(source_name, file_lineno)  # type: ignore[union-attr]
+                continue
+
+            # -- ENDIF --
+            m = _ENDIF_RX.match(cmd_text)
+            if m:
+                if not block_stack or block_stack[-1].kind != "if":
+                    raise ErrInfo(
+                        type="cmd",
+                        command_text=line,
+                        other_msg=f"ENDIF without matching IF on line {file_lineno} of {source_name}.",
+                    )
+                frame = block_stack.pop()
+                frame.node.span = SourceSpan(source_name, frame.start_line, file_lineno)
+                _current_body().append(frame.node)
+                continue
+
+            # -- LOOP --
+            m = _LOOP_RX.match(cmd_text)
+            if m:
+                block_stack.append(
+                    _BlockFrame(
+                        LoopBlock(
+                            span=SourceSpan(source_name, file_lineno),
+                            loop_type=m.group("looptype").upper(),
+                            condition=m.group("loopcond").strip(),
+                        ),
+                        kind="loop",
+                        start_line=file_lineno,
+                        source=source_name,
+                    ),
+                )
+                continue
+
+            # -- ENDLOOP --
+            m = _ENDLOOP_RX.match(cmd_text)
+            if m:
+                if not block_stack or block_stack[-1].kind != "loop":
+                    raise ErrInfo(
+                        type="cmd",
+                        command_text=line,
+                        other_msg=f"ENDLOOP without matching LOOP on line {file_lineno} of {source_name}.",
+                    )
+                frame = block_stack.pop()
+                frame.node.span = SourceSpan(source_name, frame.start_line, file_lineno)
+                _current_body().append(frame.node)
+                continue
+
+            # -- BEGIN BATCH --
+            m = _BEGIN_BATCH_RX.match(cmd_text)
+            if m:
+                block_stack.append(
+                    _BlockFrame(
+                        BatchBlock(span=SourceSpan(source_name, file_lineno)),
+                        kind="batch",
+                        start_line=file_lineno,
+                        source=source_name,
+                    ),
+                )
+                continue
+
+            # -- END BATCH --
+            m = _END_BATCH_RX.match(cmd_text)
+            if m:
+                if not block_stack or block_stack[-1].kind != "batch":
+                    raise ErrInfo(
+                        type="cmd",
+                        command_text=line,
+                        other_msg=f"END BATCH without matching BEGIN BATCH on line {file_lineno} of {source_name}.",
+                    )
+                frame = block_stack.pop()
+                frame.node.span = SourceSpan(source_name, frame.start_line, file_lineno)
+                _current_body().append(frame.node)
+                continue
+
+            # -- INCLUDE --
+            m = _INCLUDE_RX.match(cmd_text)
+            if m:
+                _current_body().append(
+                    IncludeDirective(
+                        span=SourceSpan(source_name, file_lineno),
+                        target=m.group("target").strip(),
+                        if_exists=m.group("exists") is not None,
+                    ),
+                )
+                continue
+
+            # -- EXECUTE SCRIPT / RUN SCRIPT --
+            m = _EXEC_SCRIPT_RX.match(cmd_text)
+            if m:
+                _current_body().append(
+                    IncludeDirective(
+                        span=SourceSpan(source_name, file_lineno),
+                        target=m.group("script_id"),
+                        is_execute_script=True,
+                        if_exists=m.group("exists") is not None,
+                        arguments=m.group("argexp"),
+                        loop_type=m.group("looptype").upper() if m.group("looptype") else None,
+                        loop_condition=m.group("loopcond"),
+                    ),
+                )
+                continue
+
+            # -- All other metacommands (flat) --
+            _current_body().append(
+                MetaCommandStatement(
+                    span=SourceSpan(source_name, file_lineno),
+                    command=cmd_text,
+                ),
+            )
+            continue
+
+        # --- SQL line ---
+        # Not a comment, not a metacommand — part of a SQL statement.
+        if in_sql_block:
+            if sql_accum == "":
+                sql_start_line = file_lineno
+                sql_accum = line
+            else:
+                sql_accum = f"{sql_accum} \n{line}"
+            continue
+
+        # Line continuation with backslash
+        actual_line = line
+        if actual_line.endswith("\\"):
+            actual_line = actual_line[:-1].strip()
+
+        cmd_end = line.rstrip().endswith(";")
+
+        if sql_accum == "":
+            sql_start_line = file_lineno
+            sql_accum = actual_line
+        else:
+            sql_accum = f"{sql_accum} \n{actual_line}"
+
+        if cmd_end:
+            _flush_sql(file_lineno)
+
+    # --- End of file checks ---
+
+    # Unclosed blocks
+    if block_stack:
+        frame = block_stack[-1]
+        raise ErrInfo(
+            type="error",
+            other_msg=f"Unmatched {frame.kind.upper()} block starting on line {frame.start_line} at end of file {source_name}.",
+        )
+
+    # Trailing SQL without semicolon
+    if sql_accum:
+        raise ErrInfo(
+            type="error",
+            other_msg=(
+                f"Incomplete SQL statement starting on line {sql_start_line} at end of file {source_name}."
+                + (" Metacommands must be prefixed with '-- !x!'." if source_name == "<inline>" else "")
+            ),
+        )
+
+    return Script(source=source_name, body=body)
+
+
+# ---------------------------------------------------------------------------
+# Public API
+# ---------------------------------------------------------------------------
+
+
+def parse_script(filename: str, encoding: str = "utf-8") -> Script:
+    """Parse a ``.sql`` file and return a :class:`Script` AST.
+
+    Reads the file directly (no dependency on runtime state) so it can be
+    used in early-exit CLI modes like ``--parse-tree``.
+
+    Args:
+        filename: Path to the SQL script file.
+        encoding: File encoding (default ``utf-8``).
+
+    Returns:
+        A :class:`Script` tree representing the parsed file.
+    """
+    from pathlib import Path
+
+    text = Path(filename).read_text(encoding=encoding)
+    return _parse_lines(text.splitlines(), filename)
+
+
+def parse_string(content: str, source_name: str = "<inline>") -> Script:
+    """Parse an inline script string and return a :class:`Script` AST.
+
+    Args:
+        content: The script content as a string.
+        source_name: Name to use in source spans (default ``"<inline>"``).
+
+    Returns:
+        A :class:`Script` tree representing the parsed content.
+    """
+    return _parse_lines(content.splitlines(), source_name)
