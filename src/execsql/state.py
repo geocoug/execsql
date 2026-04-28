@@ -416,10 +416,9 @@ class active_context:
 
     def __init__(self, ctx: RuntimeContext) -> None:
         self._ctx = ctx
-        self._prev: RuntimeContext | None = None
+        self._prev: RuntimeContext = get_context()
 
     def __enter__(self) -> RuntimeContext:
-        self._prev = get_context()
         set_context(self._ctx)
         return self._ctx
 

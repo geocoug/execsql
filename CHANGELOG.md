@@ -16,6 +16,8 @@ ______________________________________________________________________
 - `--parse-tree` CLI flag: parse a script into an Abstract Syntax Tree and print a visual tree structure showing block nesting (IF/LOOP/BATCH/SCRIPT), source line ranges, compound conditions (ANDIF/ORIF), and all metacommands. Requires no database connection or configuration.
 - AST parser module (`execsql.script.parser`) with `parse_script()` and `parse_string()` entry points. Produces a structured `Script` tree with typed nodes for all block constructs (IfBlock, LoopBlock, BatchBlock, ScriptBlock, SqlBlock, IncludeDirective).
 - AST node definitions (`execsql.script.ast`) with `format_tree()` for human-readable tree output.
+- `--ast` CLI flag (experimental): execute scripts using the new AST-based engine instead of the legacy flat command-list engine. Produces identical results for all tested scripts; useful for validating the new engine during the transition.
+- `active_context()` context manager in `execsql.state` for installing an isolated `RuntimeContext` as the active global context within a `with` block.
 
 ### Changed
 

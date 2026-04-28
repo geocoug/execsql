@@ -88,6 +88,7 @@ _LOOP_RX = re.compile(
 )
 _ENDLOOP_RX = re.compile(r"^\s*END\s*LOOP\s*$", re.I)
 
+# EXIST (without trailing S) is an accepted legacy alias for EXISTS
 _INCLUDE_RX = re.compile(
     r"^\s*INCLUDE(?P<exists>\s+IF\s+EXISTS?)?\s+(?P<target>.+)\s*$",
     re.I,
@@ -266,8 +267,7 @@ def _parse_lines(lines: Iterable[str], source_name: str) -> Script:
                             command_text=line,
                             other_msg=f"Invalid BEGIN SCRIPT metacommand on line {file_lineno} of file {source_name}.",
                         )
-                    param_rx = re.compile(r"\w+", re.I)
-                    param_names = re.findall(param_rx, wp.group("params"))
+                    param_names = re.findall(r"\w+", wp.group("params"))
                 block_stack.append(
                     _BlockFrame(
                         ScriptBlock(

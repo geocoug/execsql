@@ -34,6 +34,7 @@ Usage::
 
 from __future__ import annotations
 
+import copy
 import datetime
 import os
 import re
@@ -218,7 +219,8 @@ def _exec_metacommand(
             ctx.exec_log.log_status_info(f"Metacommand error: {e.errmsg()}")
         if ctx.status.halt_on_metacommand_err:
             raise e
-    # Unknown metacommand
+        return None
+    # No handler matched — truly unknown metacommand
     ctx.status.metacommand_error = True
     raise ErrInfo(type="cmd", command_text=cmd, other_msg="Unknown metacommand")
 
@@ -437,6 +439,17 @@ def _flatten_for_legacy(nodes: list[Node], source: str) -> list:
                     MetacommandStmt(f"IF ({node.condition})"),
                 ),
             )
+            # Emit ANDIF/ORIF condition modifiers after the IF
+            for mod in node.condition_modifiers:
+                keyword = "ANDIF" if mod.kind == "AND" else "ORIF"
+                result.append(
+                    ScriptCmd(
+                        mod.span.file,
+                        mod.span.start_line,
+                        "cmd",
+                        MetacommandStmt(f"{keyword} ({mod.condition})"),
+                    ),
+                )
             result.extend(_flatten_for_legacy(node.body, source))
             for clause in node.elseif_clauses:
                 result.append(
@@ -571,8 +584,6 @@ def _execute_script_native(
     localvars: SubVarSet | None = None,
 ) -> None:
     """Execute a SCRIPT block natively through the AST executor."""
-    import copy
-
     from execsql.script.variables import ScriptArgSubVarSet
     from execsql.utils.strings import wo_quotes
 
@@ -618,9 +629,12 @@ def _execute_script_native(
         _execute_nodes(ctx, body, script_block.span.file, merged, in_loop=False)
 
     # Handle WHILE/UNTIL loops
+    # Convert deferred vars once — node.loop_condition is immutable after parsing
+    if node.loop_type is not None:
+        condition = _convert_deferred_vars(node.loop_condition)
+
     if node.loop_type == "WHILE":
         while True:
-            condition = _convert_deferred_vars(node.loop_condition)
             expanded = substitute_vars(condition, ctx=ctx)
             if not xcmd_test(expanded):
                 break
@@ -634,7 +648,6 @@ def _execute_script_native(
                 _run_body()
             except _BreakLoop:
                 break
-            condition = _convert_deferred_vars(node.loop_condition)
             expanded = substitute_vars(condition, ctx=ctx)
             if xcmd_test(expanded):
                 break
