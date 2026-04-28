@@ -118,7 +118,15 @@ def _discover_builtin_vars() -> frozenset[str]:
     return frozenset(names)
 
 
-_BUILTIN_VARS: frozenset[str] = _discover_builtin_vars()
+_BUILTIN_VARS: frozenset[str] | None = None
+
+
+def _get_builtin_vars() -> frozenset[str]:
+    """Return the cached set of built-in variable names, discovering on first call."""
+    global _BUILTIN_VARS
+    if _BUILTIN_VARS is None:
+        _BUILTIN_VARS = _discover_builtin_vars()
+    return _BUILTIN_VARS
 
 
 # ---------------------------------------------------------------------------
@@ -255,7 +263,7 @@ def _check_var_ref(
         return
 
     # Built-in system variables
-    if name.upper() in _BUILTIN_VARS:
+    if name.upper() in _get_builtin_vars():
         return
 
     # User-defined via SUB

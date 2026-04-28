@@ -403,6 +403,13 @@ class active_context:
     the given context.  The previous context is restored on exit, even if
     an exception occurs.
 
+    .. warning::
+
+        **Not thread-safe.**  ``set_context()`` modifies a module-level
+        variable.  If two threads call ``execute()`` concurrently, they
+        will overwrite each other's context.  For thread-level isolation,
+        use thread-local storage (a future enhancement for PARALLEL blocks).
+
     Usage::
 
         from execsql.state import RuntimeContext, active_context
@@ -494,6 +501,12 @@ def initialize(
     _ctx.export_metadata = _exporters_base.ExportMetadata()
     _ctx.metacommandlist = dispatch_table
     _ctx.conditionallist = conditional_table
+
+    # Discover and register metacommand plugins via entry points.
+    # Runs here (not at import time) to avoid I/O side effects during import.
+    from execsql.plugins import discover_metacommand_plugins
+
+    discover_metacommand_plugins(dispatch_table)
 
 
 # ---------------------------------------------------------------------------

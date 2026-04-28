@@ -59,7 +59,7 @@ from execsql.script.ast import (
 from execsql.script.engine import set_dynamic_system_vars, set_static_system_vars, substitute_vars
 from execsql.script.variables import SubVarSet
 from execsql.state import RuntimeContext, active_context, get_context, xcmd_test
-from execsql.utils.errors import exception_desc
+from execsql.utils.errors import exception_desc, exit_now, stamp_errinfo
 
 __all__ = ["execute"]
 
@@ -163,8 +163,6 @@ def _exec_sql(
     except Exception:
         e = ErrInfo(type="exception", exception_msg=exception_desc())
     if e:
-        from execsql.utils.errors import stamp_errinfo
-
         stamp_errinfo(e)
         ctx.subvars.add_substitution("$LAST_ERROR", cmd)
         ctx.subvars.add_substitution("$ERROR_MESSAGE", e.errmsg())
@@ -172,8 +170,6 @@ def _exec_sql(
         if ctx.exec_log is not None:
             ctx.exec_log.log_status_info(f"SQL error: {e.errmsg()}")
         if ctx.status.halt_on_err:
-            from execsql.utils.errors import exit_now
-
             exit_now(1, e)
         return
     ctx.subvars.add_substitution("$LAST_SQL", cmd)
@@ -209,8 +205,6 @@ def _exec_metacommand(
     except Exception:
         e = ErrInfo(type="exception", exception_msg=exception_desc())
     if e:
-        from execsql.utils.errors import stamp_errinfo
-
         stamp_errinfo(e)
         ctx.status.metacommand_error = True
         ctx.subvars.add_substitution("$LAST_ERROR", cmd)
@@ -282,8 +276,7 @@ def _execute_node(
             text = _convert_deferred_vars(text)
         # Deduplicate trailing semicolons (matches SqlStmt.__init__)
         text = re.sub(r"\s*;(\s*;\s*)+$", ";", text)
-        if node.span.file != "<inline>":
-            ctx.last_command = _FakeScriptCmd(node)
+        ctx.last_command = _FakeScriptCmd(node)
         _exec_sql(
             ctx,
             text,
@@ -786,4 +779,10 @@ def execute(script: Script, *, ctx: RuntimeContext | None = None) -> None:
     with active_context(ctx):
         _ast_scripts.clear()
         set_static_system_vars(ctx)
-        _execute_nodes(ctx, script.body, script.source)
+        try:
+            _execute_nodes(ctx, script.body, script.source)
+        except _BreakLoop as exc:
+            raise ErrInfo(
+                type="cmd",
+                other_msg="BREAK metacommand outside of a LOOP block.",
+            ) from exc

@@ -30,7 +30,7 @@ __all__ = ["_connect_initial_db", "_ping_db", "_print_dry_run", "_print_profile"
 
 # Lint helper — imported lazily inside _run() to keep start-up cost low, but
 # re-exported here so that tests and callers can reach it via cli.run.
-from execsql.cli.lint import _lint_script, _print_lint_results  # noqa: F401 — re-export
+from execsql.cli.lint import _print_lint_results  # noqa: F401 — re-export (used by cli/__init__.py)
 
 
 # ---------------------------------------------------------------------------
@@ -515,14 +515,9 @@ def _run(
         raise SystemExit(0)
 
     # ------------------------------------------------------------------
-    # Lint: static analysis without connecting to DB
+    # NOTE: --lint is handled as an early exit in cli/__init__.py (AST
+    # linter) before _run() is called.  No lint code path here.
     # ------------------------------------------------------------------
-    if lint:
-        cmdlist = _state.commandliststack[-1] if _state.commandliststack else None
-        issues = _lint_script(cmdlist, script_name)
-        label = script_name or "<inline>"
-        exit_code = _print_lint_results(issues, label)
-        raise SystemExit(exit_code)
 
     # ------------------------------------------------------------------
     # Start GUI console if requested
