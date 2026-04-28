@@ -95,9 +95,6 @@ dev = [
 execsql = "execsql.cli:_legacy_main"
 execsql-format = "execsql.format:main"
 
-[project.entry-points."execsql.metacommands"]
-pg_upsert = "execsql.metacommands.upsert:register"
-
 [project.urls]
 Homepage = "https://execsql2.readthedocs.io"
 Repository = "https://github.com/geocoug/execsql"

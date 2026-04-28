@@ -187,8 +187,7 @@ class TestDiscovery:
 
 
 class TestListPluginsCli:
-    def test_list_plugins_shows_builtin(self):
-        """PG_UPSERT is registered as a built-in plugin via entry points."""
+    def test_list_plugins_no_plugins(self):
         from typer.testing import CliRunner
 
         from execsql.cli import app
@@ -196,7 +195,7 @@ class TestListPluginsCli:
         runner = CliRunner()
         result = runner.invoke(app, ["--list-plugins"], catch_exceptions=False)
         assert result.exit_code == 0
-        assert "pg_upsert" in result.output
+        assert "No plugins found" in result.output
 
     def test_list_plugins_with_metacommand_plugin(self):
         from typer.testing import CliRunner
