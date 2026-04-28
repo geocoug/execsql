@@ -493,7 +493,15 @@ DATABASE_TYPES = [
 
 # ---------------------------------------------------------------------------
 # Module-level DISPATCH_TABLE — built once at import time.
+# Metacommand plugins (if any) are discovered and registered after the
+# built-in table is constructed.
 # ---------------------------------------------------------------------------
 from execsql.metacommands.dispatch import build_dispatch_table
 
 DISPATCH_TABLE = build_dispatch_table()
+
+# Discover and register metacommand plugins via entry points.
+# This runs at import time so plugins are available before any script runs.
+from execsql.plugins import discover_metacommand_plugins
+
+discover_metacommand_plugins(DISPATCH_TABLE)

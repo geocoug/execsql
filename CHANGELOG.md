@@ -18,6 +18,8 @@ ______________________________________________________________________
 - AST node definitions (`execsql.script.ast`) with `format_tree()` for human-readable tree output.
 - `--ast` CLI flag (experimental): execute scripts using the new AST-based engine instead of the legacy flat command-list engine. Produces identical results for all tested scripts; useful for validating the new engine during the transition.
 - `active_context()` context manager in `execsql.state` for installing an isolated `RuntimeContext` as the active global context within a `with` block.
+- Plugin system (`execsql.plugins`) for extending execsql with custom metacommands, export formats, and import formats via Python entry points. Entry point groups: `execsql.metacommands`, `execsql.exporters`, `execsql.importers`. Plugins are discovered automatically at startup.
+- `--list-plugins` CLI flag to show all discovered plugins and exit.
 
 ### Changed
 

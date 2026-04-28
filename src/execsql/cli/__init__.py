@@ -273,6 +273,11 @@ def main(
         "--dump-keywords",
         help="Dump all metacommand keywords as JSON and exit.",
     ),
+    list_plugins: bool = typer.Option(
+        False,
+        "--list-plugins",
+        help="List all discovered plugins (metacommands, exporters, importers) and exit.",
+    ),
     profile: bool = typer.Option(
         False,
         "--profile",
@@ -394,6 +399,44 @@ def main(
             },
         }
         _console.print_json(_json.dumps(data, indent=2))
+        raise typer.Exit()
+
+    if list_plugins:
+        from execsql.plugins import (
+            EXPORTER_GROUP,
+            IMPORTER_GROUP,
+            METACOMMAND_GROUP,
+            _load_entry_points,
+        )
+
+        _console.print("\n[bold cyan]Installed plugins:[/bold cyan]\n")
+
+        mc_plugins = _load_entry_points(METACOMMAND_GROUP)
+        ex_plugins = _load_entry_points(EXPORTER_GROUP)
+        im_plugins = _load_entry_points(IMPORTER_GROUP)
+
+        if not mc_plugins and not ex_plugins and not im_plugins:
+            _console.print("  [dim]No plugins found.[/dim]")
+            _console.print()
+            _console.print(
+                "  Plugins are discovered via Python entry points.\n"
+                "  See the execsql documentation for how to create plugins.",
+            )
+        else:
+            if mc_plugins:
+                _console.print(f"  [bold]Metacommands[/bold] ({len(mc_plugins)}):")
+                for name, _ in mc_plugins:
+                    _console.print(f"    - {name}")
+            if ex_plugins:
+                _console.print(f"  [bold]Exporters[/bold] ({len(ex_plugins)}):")
+                for name, _ in ex_plugins:
+                    _console.print(f"    - {name}")
+            if im_plugins:
+                _console.print(f"  [bold]Importers[/bold] ({len(im_plugins)}):")
+                for name, _ in im_plugins:
+                    _console.print(f"    - {name}")
+
+        _console.print()
         raise typer.Exit()
 
     if online_help:
