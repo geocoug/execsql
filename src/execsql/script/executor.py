@@ -7,15 +7,16 @@ the AST parser.
 Design:
     - **The executor owns control flow.**  IF conditions, LOOP iteration,
       and BATCH boundaries are driven by the tree structure — no
-      ``_state.if_stack`` or ``_state.compiling_loop`` needed.
+      ``if_stack`` or ``compiling_loop`` needed.
     - **SQL and metacommands delegate to the existing runtime.**  SQL is
       executed via the current database connection; metacommands are
-      dispatched through ``_state.metacommandlist.eval()``.  This means
-      all 200+ metacommand handlers work unchanged.
+      dispatched through ``ctx.metacommandlist.eval()``.  All 200+
+      metacommand handlers work unchanged.
     - **Variable substitution** uses the existing ``substitute_vars()``.
-    - **_state is still used** for database connections, substitution
-      variables, output, logging, config, etc.  The Phase 2 refactor
-      (instance-based RuntimeContext) will replace this.
+    - **RuntimeContext is passed explicitly** as ``ctx`` — the first
+      module migrated to instance-based context (Phase 2).  The public
+      ``execute()`` function defaults to ``get_context()`` if no ``ctx``
+      is provided, so callers that haven't migrated yet work unchanged.
 
 Usage::
 
@@ -23,7 +24,12 @@ Usage::
     from execsql.script.parser import parse_script
 
     tree = parse_script("pipeline.sql")
-    execute(tree)
+    execute(tree)  # uses global context
+
+    # Or with an explicit context:
+    from execsql.state import RuntimeContext, get_context
+    ctx = get_context()
+    execute(tree, ctx=ctx)
 """
 
 from __future__ import annotations
@@ -35,7 +41,6 @@ import time as _time
 from pathlib import Path
 from typing import Any
 
-import execsql.state as _state
 from execsql.exceptions import ErrInfo
 from execsql.script.ast import (
     BatchBlock,
@@ -52,6 +57,7 @@ from execsql.script.ast import (
 )
 from execsql.script.engine import substitute_vars
 from execsql.script.variables import SubVarSet
+from execsql.state import RuntimeContext, get_context, xcmd_test
 from execsql.utils.errors import exception_desc
 
 __all__ = ["execute"]
@@ -63,6 +69,9 @@ __all__ = ["execute"]
 
 # Regex for deferred variable conversion: !{$VAR}! → !!$VAR!!
 _DEFER_RX = re.compile(r"!\{([$@&~#+]?\w+)\}!")
+
+# Compiled regex to match prefixed variables (for unsubstituted-var warnings)
+_VARLIKE = re.compile(r"!![$@&~#]?\w+!!", re.I)
 
 
 def _convert_deferred_vars(text: str) -> str:
@@ -79,15 +88,15 @@ def _eval_condition(condition: str, modifiers: list[ConditionModifier] | None = 
     """Evaluate a condition string with optional ANDIF/ORIF modifiers.
 
     The condition is first expanded via ``substitute_vars()``, then parsed
-    and evaluated via ``_state.xcmd_test()``.
+    and evaluated via ``xcmd_test()``.
     """
     expanded = substitute_vars(condition)
-    result = _state.xcmd_test(expanded)
+    result = xcmd_test(expanded)
 
     if modifiers:
         for mod in modifiers:
             mod_expanded = substitute_vars(mod.condition)
-            mod_result = _state.xcmd_test(mod_expanded)
+            mod_result = xcmd_test(mod_expanded)
             if mod.kind == "AND":
                 result = result and mod_result
             else:  # OR
@@ -96,19 +105,19 @@ def _eval_condition(condition: str, modifiers: list[ConditionModifier] | None = 
     return result
 
 
-def _set_command_vars(source: str, line_no: int) -> None:
+def _set_command_vars(ctx: RuntimeContext, source: str, line_no: int) -> None:
     """Set per-command system variables (current script, line, time)."""
     now = datetime.datetime.now()
-    _state.subvars.add_substitution("$CURRENT_TIME", now.strftime("%Y-%m-%d %H:%M"))
-    _state.subvars.add_substitution("$CURRENT_DATE", now.strftime("%Y-%m-%d"))
+    ctx.subvars.add_substitution("$CURRENT_TIME", now.strftime("%Y-%m-%d %H:%M"))
+    ctx.subvars.add_substitution("$CURRENT_DATE", now.strftime("%Y-%m-%d"))
     utcnow = datetime.datetime.now(tz=datetime.timezone.utc)
-    _state.subvars.add_substitution("$CURRENT_TIME_UTC", utcnow.strftime("%Y-%m-%d %H:%M"))
+    ctx.subvars.add_substitution("$CURRENT_TIME_UTC", utcnow.strftime("%Y-%m-%d %H:%M"))
     _p = Path(source)
-    _state.subvars.add_substitution("$CURRENT_SCRIPT", source)
-    _state.subvars.add_substitution("$CURRENT_SCRIPT_PATH", str(_p.resolve().parent) + os.sep)
-    _state.subvars.add_substitution("$CURRENT_SCRIPT_NAME", _p.name)
-    _state.subvars.add_substitution("$CURRENT_SCRIPT_LINE", str(line_no))
-    _state.subvars.add_substitution("$SCRIPT_LINE", str(line_no))
+    ctx.subvars.add_substitution("$CURRENT_SCRIPT", source)
+    ctx.subvars.add_substitution("$CURRENT_SCRIPT_PATH", str(_p.resolve().parent) + os.sep)
+    ctx.subvars.add_substitution("$CURRENT_SCRIPT_NAME", _p.name)
+    ctx.subvars.add_substitution("$CURRENT_SCRIPT_LINE", str(line_no))
+    ctx.subvars.add_substitution("$SCRIPT_LINE", str(line_no))
 
 
 # ---------------------------------------------------------------------------
@@ -117,30 +126,27 @@ def _set_command_vars(source: str, line_no: int) -> None:
 
 
 def _exec_sql(
+    ctx: RuntimeContext,
     text: str,
     source: str,
     line_no: int,
     localvars: SubVarSet | None = None,
     commit: bool = True,
 ) -> None:
-    """Execute a SQL statement against the current database.
-
-    This replicates ``SqlStmt.run()`` but without the ``if_stack.all_true()``
-    gate — the AST executor handles control flow via tree structure.
-    """
-    _state.status.sql_error = False
-    if _state.status.batch.in_batch():
-        _state.status.batch.using_db(_state.dbs.current())
+    """Execute a SQL statement against the current database."""
+    ctx.status.sql_error = False
+    if ctx.status.batch.in_batch():
+        ctx.status.batch.using_db(ctx.dbs.current())
     cmd = substitute_vars(text, localvars)
-    if _state.varlike.search(cmd):
-        _state.output.write(
+    if _VARLIKE.search(cmd):
+        ctx.output.write(
             f"Warning: There is a potential un-substituted variable in the command\n     {cmd}\n",
         )
     e = None
     try:
-        db = _state.dbs.current()
-        if _state.conf.log_sql and _state.exec_log:
-            _state.exec_log.log_sql_query(cmd, db.name(), line_no)
+        db = ctx.dbs.current()
+        if ctx.conf.log_sql and ctx.exec_log:
+            ctx.exec_log.log_sql_query(cmd, db.name(), line_no)
         db.execute(cmd)
         if commit:
             db.commit()
@@ -154,17 +160,17 @@ def _exec_sql(
         from execsql.utils.errors import stamp_errinfo
 
         stamp_errinfo(e)
-        _state.subvars.add_substitution("$LAST_ERROR", cmd)
-        _state.subvars.add_substitution("$ERROR_MESSAGE", e.errmsg())
-        _state.status.sql_error = True
-        if _state.exec_log is not None:
-            _state.exec_log.log_status_info(f"SQL error: {e.errmsg()}")
-        if _state.status.halt_on_err:
+        ctx.subvars.add_substitution("$LAST_ERROR", cmd)
+        ctx.subvars.add_substitution("$ERROR_MESSAGE", e.errmsg())
+        ctx.status.sql_error = True
+        if ctx.exec_log is not None:
+            ctx.exec_log.log_status_info(f"SQL error: {e.errmsg()}")
+        if ctx.status.halt_on_err:
             from execsql.utils.errors import exit_now
 
             exit_now(1, e)
         return
-    _state.subvars.add_substitution("$LAST_SQL", cmd)
+    ctx.subvars.add_substitution("$LAST_SQL", cmd)
 
 
 # ---------------------------------------------------------------------------
@@ -173,29 +179,21 @@ def _exec_sql(
 
 
 def _exec_metacommand(
+    ctx: RuntimeContext,
     command: str,
     source: str,
     line_no: int,
     localvars: SubVarSet | None = None,
 ) -> Any:
-    """Dispatch a metacommand through the dispatch table.
-
-    This replicates ``MetacommandStmt.run()`` but without the
-    ``if_stack.all_true()`` gate.
-    """
+    """Dispatch a metacommand through the dispatch table."""
     cmd = substitute_vars(command, localvars)
-    if _state.varlike.search(cmd):
-        _state.output.write(
+    if _VARLIKE.search(cmd):
+        ctx.output.write(
             f"Warning: There is a potential un-substituted variable in the command\n     {cmd}\n",
         )
     e = None
     try:
-        # Force dispatch by temporarily ensuring the if_stack is all-true.
-        # Some metacommand handlers check if_stack internally (e.g., the
-        # dispatch table's eval() method checks run_when_false).  Since
-        # the AST executor already handles branching, we need dispatch to
-        # always run the handler.
-        applies, result = _state.metacommandlist.eval(cmd)
+        applies, result = ctx.metacommandlist.eval(cmd)
         if applies:
             return result
     except ErrInfo as errinfo:
@@ -208,15 +206,15 @@ def _exec_metacommand(
         from execsql.utils.errors import stamp_errinfo
 
         stamp_errinfo(e)
-        _state.status.metacommand_error = True
-        _state.subvars.add_substitution("$LAST_ERROR", cmd)
-        _state.subvars.add_substitution("$ERROR_MESSAGE", e.errmsg())
-        if _state.exec_log is not None:
-            _state.exec_log.log_status_info(f"Metacommand error: {e.errmsg()}")
-        if _state.status.halt_on_metacommand_err:
+        ctx.status.metacommand_error = True
+        ctx.subvars.add_substitution("$LAST_ERROR", cmd)
+        ctx.subvars.add_substitution("$ERROR_MESSAGE", e.errmsg())
+        if ctx.exec_log is not None:
+            ctx.exec_log.log_status_info(f"Metacommand error: {e.errmsg()}")
+        if ctx.status.halt_on_metacommand_err:
             raise e
     # Unknown metacommand
-    _state.status.metacommand_error = True
+    ctx.status.metacommand_error = True
     raise ErrInfo(type="cmd", command_text=cmd, other_msg="Unknown metacommand")
 
 
@@ -226,53 +224,47 @@ def _exec_metacommand(
 
 
 def _execute_nodes(
+    ctx: RuntimeContext,
     nodes: list[Node],
     source: str,
     localvars: SubVarSet | None = None,
     *,
     in_loop: bool = False,
 ) -> None:
-    """Execute a list of AST nodes sequentially.
-
-    Args:
-        nodes: The nodes to execute.
-        source: Source file name (for system variable updates).
-        localvars: Local/parameter variable overlay for SCRIPT blocks.
-        in_loop: True if we're inside a LOOP body — enables deferred
-            variable conversion.
-    """
+    """Execute a list of AST nodes sequentially."""
     from execsql.script.engine import set_dynamic_system_vars
 
     for node in nodes:
         set_dynamic_system_vars()
-        _set_command_vars(node.span.file, node.span.start_line)
+        _set_command_vars(ctx, node.span.file, node.span.start_line)
 
         # Debug step mode
-        if _state.step_mode:
-            _state.step_mode = False
+        if ctx.step_mode:
+            ctx.step_mode = False
             from execsql.debug.repl import _debug_repl
 
             _debug_repl(step=True)
 
         # Profiling
-        profiling = _state.profile_data is not None
+        profiling = ctx.profile_data is not None
         if profiling:
             t0 = _time.perf_counter()
 
-        _execute_node(node, localvars, in_loop=in_loop)
+        _execute_node(ctx, node, localvars, in_loop=in_loop)
 
         if profiling:
             elapsed = _time.perf_counter() - t0
             cmd_type = _node_cmd_type(node)
             cmd_text = _node_cmd_text(node)[:100]
-            _state.profile_data.append(
+            ctx.profile_data.append(
                 (node.span.file, node.span.start_line, cmd_type, elapsed, cmd_text),
             )
 
-        _state.cmds_run += 1
+        ctx.cmds_run += 1
 
 
 def _execute_node(
+    ctx: RuntimeContext,
     node: Node,
     localvars: SubVarSet | None = None,
     *,
@@ -286,13 +278,14 @@ def _execute_node(
         # Deduplicate trailing semicolons (matches SqlStmt.__init__)
         text = re.sub(r"\s*;(\s*;\s*)+$", ";", text)
         if node.span.file != "<inline>":
-            _state.last_command = _FakeScriptCmd(node)
+            ctx.last_command = _FakeScriptCmd(node)
         _exec_sql(
+            ctx,
             text,
             node.span.file,
             node.span.start_line,
             localvars,
-            commit=not _state.status.batch.in_batch(),
+            commit=not ctx.status.batch.in_batch(),
         )
 
     elif isinstance(node, MetaCommandStatement):
@@ -303,26 +296,26 @@ def _execute_node(
         expanded = substitute_vars(command, localvars)
         if _BREAK_RX.match(expanded):
             raise _BreakLoop
-        _state.last_command = _FakeScriptCmd(node)
-        _exec_metacommand(command, node.span.file, node.span.start_line, localvars)
+        ctx.last_command = _FakeScriptCmd(node)
+        _exec_metacommand(ctx, command, node.span.file, node.span.start_line, localvars)
 
     elif isinstance(node, IfBlock):
-        _execute_if(node, localvars, in_loop=in_loop)
+        _execute_if(ctx, node, localvars, in_loop=in_loop)
 
     elif isinstance(node, LoopBlock):
-        _execute_loop(node, localvars)
+        _execute_loop(ctx, node, localvars)
 
     elif isinstance(node, BatchBlock):
-        _execute_batch(node, localvars, in_loop=in_loop)
+        _execute_batch(ctx, node, localvars, in_loop=in_loop)
 
     elif isinstance(node, ScriptBlock):
-        _register_script_block(node)
+        _register_script_block(ctx, node)
 
     elif isinstance(node, SqlBlock):
-        _execute_sql_block(node, localvars, in_loop=in_loop)
+        _execute_sql_block(ctx, node, localvars, in_loop=in_loop)
 
     elif isinstance(node, IncludeDirective):
-        _execute_include(node, localvars)
+        _execute_include(ctx, node, localvars)
 
 
 # ---------------------------------------------------------------------------
@@ -331,6 +324,7 @@ def _execute_node(
 
 
 def _execute_if(
+    ctx: RuntimeContext,
     node: IfBlock,
     localvars: SubVarSet | None = None,
     *,
@@ -338,22 +332,23 @@ def _execute_if(
 ) -> None:
     """Evaluate an IF block and execute the matching branch."""
     if _eval_condition(node.condition, node.condition_modifiers):
-        _execute_nodes(node.body, node.span.file, localvars, in_loop=in_loop)
+        _execute_nodes(ctx, node.body, node.span.file, localvars, in_loop=in_loop)
         return
 
     # Try ELSEIF clauses
     for clause in node.elseif_clauses:
         expanded = substitute_vars(clause.condition)
-        if _state.xcmd_test(expanded):
-            _execute_nodes(clause.body, node.span.file, localvars, in_loop=in_loop)
+        if xcmd_test(expanded):
+            _execute_nodes(ctx, clause.body, node.span.file, localvars, in_loop=in_loop)
             return
 
     # ELSE branch
     if node.else_body:
-        _execute_nodes(node.else_body, node.span.file, localvars, in_loop=in_loop)
+        _execute_nodes(ctx, node.else_body, node.span.file, localvars, in_loop=in_loop)
 
 
 def _execute_loop(
+    ctx: RuntimeContext,
     node: LoopBlock,
     localvars: SubVarSet | None = None,
 ) -> None:
@@ -364,53 +359,46 @@ def _execute_loop(
     if node.loop_type == "WHILE":
         while True:
             expanded = substitute_vars(condition)
-            if not _state.xcmd_test(expanded):
+            if not xcmd_test(expanded):
                 break
             try:
-                _execute_nodes(node.body, node.span.file, localvars, in_loop=True)
+                _execute_nodes(ctx, node.body, node.span.file, localvars, in_loop=True)
             except _BreakLoop:
                 break
     else:  # UNTIL
         while True:
             try:
-                _execute_nodes(node.body, node.span.file, localvars, in_loop=True)
+                _execute_nodes(ctx, node.body, node.span.file, localvars, in_loop=True)
             except _BreakLoop:
                 break
             expanded = substitute_vars(condition)
-            if _state.xcmd_test(expanded):
+            if xcmd_test(expanded):
                 break
 
 
 def _execute_batch(
+    ctx: RuntimeContext,
     node: BatchBlock,
     localvars: SubVarSet | None = None,
     *,
     in_loop: bool = False,
 ) -> None:
     """Execute a BEGIN BATCH / END BATCH block."""
-    _state.status.batch.new_batch()
+    ctx.status.batch.new_batch()
     try:
-        _execute_nodes(node.body, node.span.file, localvars, in_loop=in_loop)
+        _execute_nodes(ctx, node.body, node.span.file, localvars, in_loop=in_loop)
     finally:
-        # END BATCH commits; if an error occurred, the batch handler
-        # manages rollback via the existing BatchLevels logic.
-        if _state.status.batch.in_batch():
-            _state.status.batch.end_batch()
+        if ctx.status.batch.in_batch():
+            ctx.status.batch.end_batch()
 
 
-def _register_script_block(node: ScriptBlock) -> None:
-    """Register a named SCRIPT block in _state.savedscripts.
-
-    The block is stored as a CommandList for compatibility with the
-    existing EXECUTE SCRIPT dispatch handler.
-    """
+def _register_script_block(ctx: RuntimeContext, node: ScriptBlock) -> None:
+    """Register a named SCRIPT block in ctx.savedscripts."""
     from execsql.script.engine import CommandList
 
-    # Convert AST nodes back to ScriptCmd objects for compatibility
-    # with the existing ScriptExecSpec.execute() handler.
     cmdlist = _flatten_for_legacy(node.body, node.span.file)
     cl = CommandList(cmdlist, node.name, node.param_names)
-    _state.savedscripts[node.name] = cl
+    ctx.savedscripts[node.name] = cl
 
 
 def _flatten_for_legacy(nodes: list[Node], source: str) -> list:
@@ -429,7 +417,6 @@ def _flatten_for_legacy(nodes: list[Node], source: str) -> list:
                 ScriptCmd(node.span.file, node.span.start_line, "cmd", MetacommandStmt(node.command)),
             )
         elif isinstance(node, IfBlock):
-            # Flatten IF/ELSE/ENDIF back to flat metacommands for legacy
             result.append(
                 ScriptCmd(
                     node.span.file,
@@ -494,7 +481,6 @@ def _flatten_for_legacy(nodes: list[Node], source: str) -> list:
                 ScriptCmd(node.span.file, node.span.effective_end_line, "cmd", MetacommandStmt("END BATCH")),
             )
         elif isinstance(node, SqlBlock):
-            # Flatten SQL block contents
             result.extend(_flatten_for_legacy(node.body, source))
         elif isinstance(node, IncludeDirective):
             if node.is_execute_script:
@@ -518,31 +504,26 @@ def _flatten_for_legacy(nodes: list[Node], source: str) -> list:
 
 
 def _execute_sql_block(
+    ctx: RuntimeContext,
     node: SqlBlock,
     localvars: SubVarSet | None = None,
     *,
     in_loop: bool = False,
 ) -> None:
     """Execute a BEGIN SQL / END SQL block."""
-    # SQL blocks contain one or more SqlStatements; execute them normally.
-    _execute_nodes(node.body, node.span.file, localvars, in_loop=in_loop)
+    _execute_nodes(ctx, node.body, node.span.file, localvars, in_loop=in_loop)
 
 
 def _execute_include(
+    ctx: RuntimeContext,
     node: IncludeDirective,
     localvars: SubVarSet | None = None,
 ) -> None:
     """Execute an INCLUDE or EXECUTE SCRIPT directive.
 
-    Both INCLUDE and EXECUTE SCRIPT are dispatched through the metacommand
-    table, which pushes new CommandList objects onto ``_state.commandliststack``.
-    After dispatch, we drain the stack by calling ``runscripts()``, which
-    executes the pushed commands using the legacy engine.
-
-    This hybrid approach is necessary because INCLUDE resolution involves
-    complex file path logic and EXECUTE SCRIPT handles argument parsing,
-    parameter binding, and loop wrapping — all implemented in the dispatch
-    handlers.
+    Both are dispatched through the metacommand table, which may push new
+    CommandList objects onto ``ctx.commandliststack``.  After dispatch, we
+    drain the stack via ``runscripts()`` (legacy engine).
     """
     from execsql.script.engine import runscripts
 
@@ -556,17 +537,17 @@ def _execute_include(
         if node.loop_type:
             parts.append(f"{node.loop_type} ({node.loop_condition})")
         cmd = " ".join(parts)
-        _state.last_command = _FakeScriptCmd(node)
-        _exec_metacommand(cmd, node.span.file, node.span.start_line, localvars)
+        ctx.last_command = _FakeScriptCmd(node)
+        _exec_metacommand(ctx, cmd, node.span.file, node.span.start_line, localvars)
     else:
         prefix = "INCLUDE IF EXISTS" if node.if_exists else "INCLUDE"
         cmd = f"{prefix} {node.target}"
-        _state.last_command = _FakeScriptCmd(node)
-        _exec_metacommand(cmd, node.span.file, node.span.start_line, localvars)
+        ctx.last_command = _FakeScriptCmd(node)
+        _exec_metacommand(ctx, cmd, node.span.file, node.span.start_line, localvars)
 
     # The dispatch handler may have pushed commands onto the stack.
     # Drain them using the legacy engine.
-    if _state.commandliststack:
+    if ctx.commandliststack:
         runscripts()
 
 
@@ -583,12 +564,12 @@ _BREAK_RX = re.compile(r"^\s*BREAK\s*$", re.I)
 
 
 # ---------------------------------------------------------------------------
-# Fake ScriptCmd for _state.last_command compatibility
+# Fake ScriptCmd for ctx.last_command compatibility
 # ---------------------------------------------------------------------------
 
 
 class _FakeScriptCmd:
-    """Minimal stand-in for ScriptCmd to satisfy _state.last_command readers."""
+    """Minimal stand-in for ScriptCmd to satisfy ctx.last_command readers."""
 
     __slots__ = ("source", "line_no", "source_dir", "source_name", "command", "command_type")
 
@@ -653,17 +634,18 @@ def _node_cmd_text(node: Node) -> str:
 # ---------------------------------------------------------------------------
 
 
-def execute(script: Script) -> None:
+def execute(script: Script, *, ctx: RuntimeContext | None = None) -> None:
     """Execute an AST-parsed script.
-
-    Requires that ``_state`` has been fully initialised (database connected,
-    config loaded, metacommand dispatch table built, etc.).  This is
-    typically done by ``_run()`` in ``execsql.cli.run``.
 
     Args:
         script: The parsed :class:`Script` tree to execute.
+        ctx: The :class:`RuntimeContext` to use.  Defaults to the global
+            context via :func:`get_context` if not provided.
     """
+    if ctx is None:
+        ctx = get_context()
+
     from execsql.script.engine import set_static_system_vars
 
     set_static_system_vars()
-    _execute_nodes(script.body, script.source)
+    _execute_nodes(ctx, script.body, script.source)
