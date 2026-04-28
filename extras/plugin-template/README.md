@@ -50,6 +50,20 @@ entry points. No configuration needed.
     twine upload dist/*
     ```
 
+## Testing
+
+Example tests are in `tests/test_plugin.py` with two approaches:
+
+- **Unit tests**: Mock `execsql.state`, call your handler function directly.
+    Fast, no database needed.
+- **Integration tests**: Run a real script via `subprocess` with the plugin
+    installed. Verifies regex matching and full dispatch pipeline.
+
+```bash
+pip install -e .   # install plugin in dev mode
+pytest tests/      # run tests
+```
+
 ## Plugin types
 
 - **Metacommands**: Add new `-- !x! COMMAND` syntax. Edit `register_metacommands()`.
