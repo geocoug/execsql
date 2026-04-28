@@ -57,7 +57,7 @@ from execsql.script.ast import (
 )
 from execsql.script.engine import set_dynamic_system_vars, set_static_system_vars, substitute_vars
 from execsql.script.variables import SubVarSet
-from execsql.state import RuntimeContext, get_context, xcmd_test
+from execsql.state import RuntimeContext, active_context, get_context, xcmd_test
 from execsql.utils.errors import exception_desc
 
 __all__ = ["execute"]
@@ -766,6 +766,11 @@ def execute(script: Script, *, ctx: RuntimeContext | None = None) -> None:
     if ctx is None:
         ctx = get_context()
 
-    _ast_scripts.clear()
-    set_static_system_vars(ctx)
-    _execute_nodes(ctx, script.body, script.source)
+    # Activate this context so all _state.foo accesses in metacommand
+    # handlers, database adapters, and other legacy code resolve against
+    # it.  This gives full isolation without modifying 200+ handler
+    # function signatures.
+    with active_context(ctx):
+        _ast_scripts.clear()
+        set_static_system_vars(ctx)
+        _execute_nodes(ctx, script.body, script.source)

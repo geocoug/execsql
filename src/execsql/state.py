@@ -111,6 +111,7 @@ __all__ = [
     "RuntimeContext",
     "get_context",
     "set_context",
+    "active_context",
 ]
 
 # ---------------------------------------------------------------------------
@@ -393,6 +394,37 @@ def set_context(ctx: RuntimeContext) -> None:
     """
     global _ctx
     _ctx = ctx
+
+
+class active_context:
+    """Context manager that installs a :class:`RuntimeContext` as active.
+
+    All ``_state.foo`` accesses within the ``with`` block resolve against
+    the given context.  The previous context is restored on exit, even if
+    an exception occurs.
+
+    Usage::
+
+        from execsql.state import RuntimeContext, active_context
+
+        ctx = RuntimeContext()
+        with active_context(ctx):
+            # all _state.foo accesses use ctx
+            ...
+        # previous context is restored
+    """
+
+    def __init__(self, ctx: RuntimeContext) -> None:
+        self._ctx = ctx
+        self._prev: RuntimeContext | None = None
+
+    def __enter__(self) -> RuntimeContext:
+        self._prev = get_context()
+        set_context(self._ctx)
+        return self._ctx
+
+    def __exit__(self, *exc: Any) -> None:
+        set_context(self._prev)
 
 
 # ---------------------------------------------------------------------------
