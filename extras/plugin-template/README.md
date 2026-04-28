@@ -52,7 +52,7 @@ entry points. No configuration needed.
 
 ## Testing
 
-Example tests are in `tests/test_plugin.py` with two approaches:
+Example tests are in `tests/test_plugin.py.example` with two approaches:
 
 - **Unit tests**: Mock `execsql.state`, call your handler function directly.
     Fast, no database needed.
