@@ -205,6 +205,8 @@ omit = [
     "*/execsql/gui/desktop.py",
     "*/execsql/gui/tui.py",
     "*/execsql/metacommands/prompt.py",
+    # AST executor — tested via subprocess integration tests (test_executor.py)
+    "*/execsql/script/executor.py",
     # DB adapters that require external servers or platform-specific drivers
     "*/execsql/db/postgres.py",
     "*/execsql/db/mysql.py",
