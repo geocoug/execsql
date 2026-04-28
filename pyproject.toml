@@ -95,6 +95,9 @@ dev = [
 execsql = "execsql.cli:_legacy_main"
 execsql-format = "execsql.format:main"
 
+[project.entry-points."execsql.metacommands"]
+pg_upsert = "execsql.metacommands.upsert:register"
+
 [project.urls]
 Homepage = "https://execsql2.readthedocs.io"
 Repository = "https://github.com/geocoug/execsql"
@@ -109,6 +112,7 @@ packages = ["src/execsql"]
 [tool.ruff]
 target-version = "py310"  # must match requires-python minimum, not newest supported
 line-length = 120
+extend-exclude = ["extras/plugin-template"]
 
 [tool.ruff.lint]
 select = [

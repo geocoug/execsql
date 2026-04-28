@@ -169,11 +169,6 @@ from execsql.metacommands.script_ext import (
     x_extendscript_metacommand,
     x_extendscript_sql,
 )
-from execsql.metacommands.upsert import (
-    x_pg_upsert,
-    x_pg_upsert_check,
-    x_pg_upsert_qa,
-)
 from execsql.metacommands.system import (
     x_cancel_halt,
     x_cancel_halt_email,
@@ -2203,29 +2198,9 @@ def build_dispatch_table() -> MetaCommandList:
     )
 
     # ------------------------------------------------------------------
-    # PG_UPSERT — pg-upsert integration (optional dependency)
+    # PG_UPSERT — registered via plugin system (execsql.metacommands entry point)
+    # See: src/execsql/metacommands/upsert.py:register()
     # ------------------------------------------------------------------
-    # Order matters: CHECK and QA patterns must precede the general pattern
-    # so that "PG_UPSERT CHECK ..." and "PG_UPSERT QA ..." are matched
-    # before "PG_UPSERT FROM ...".
-    mcl.add(
-        r"^\s*PG_UPSERT\s+CHECK\s+FROM\s+(?P<staging_schema>\S+)\s+TO\s+(?P<base_schema>\S+)\s+TABLES\s+(?P<tail>.+)$",
-        x_pg_upsert_check,
-        description="PG_UPSERT CHECK",
-        category="action",
-    )
-    mcl.add(
-        r"^\s*PG_UPSERT\s+QA\s+FROM\s+(?P<staging_schema>\S+)\s+TO\s+(?P<base_schema>\S+)\s+TABLES\s+(?P<tail>.+)$",
-        x_pg_upsert_qa,
-        description="PG_UPSERT QA",
-        category="action",
-    )
-    mcl.add(
-        r"^\s*PG_UPSERT\s+FROM\s+(?P<staging_schema>\S+)\s+TO\s+(?P<base_schema>\S+)\s+TABLES\s+(?P<tail>.+)$",
-        x_pg_upsert,
-        description="PG_UPSERT",
-        category="action",
-    )
 
     # ------------------------------------------------------------------
     # SUB (top-level variable assignment — kept near end so more specific
