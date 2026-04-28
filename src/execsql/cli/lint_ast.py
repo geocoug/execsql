@@ -70,12 +70,6 @@ _RX_SUB_QUERYSTRING = re.compile(r"^\s*SUB_QUERYSTRING\s+(?P<name>\w+)\s+", re.I
 
 _RX_VAR_REF = re.compile(r"!!([$@&~#+]?\w+)!!", re.I)
 
-# INCLUDE path extraction (for file-existence check)
-_RX_INCLUDE_PATH = re.compile(
-    r"^\s*INCLUDE(?:\s+IF\s+EXISTS?)?\s+(?P<path>\S+.*?)\s*$",
-    re.I,
-)
-
 
 # ---------------------------------------------------------------------------
 # Issue tuple helpers
@@ -144,6 +138,7 @@ def _collect_script_blocks(script: Script) -> dict[str, ScriptBlock]:
 def _collect_defined_vars_from_nodes(
     nodes: list[Node],
     script_blocks: dict[str, ScriptBlock],
+    script_dir: Path | None,
     defined: set[str],
     visited: set[str] | None = None,
 ) -> None:
@@ -153,24 +148,7 @@ def _collect_defined_vars_from_nodes(
 
     for node in nodes:
         if isinstance(node, MetaCommandStatement):
-            _extract_var_definition(node.command, defined)
-
-            # Descend into EXECUTE SCRIPT targets
-            exec_m = re.match(
-                r"^\s*(?:EXEC(?:UTE)?|RUN)\s+SCRIPT(?:\s+IF\s+EXISTS)?\s+(?P<id>\w+)",
-                node.command,
-                re.I,
-            )
-            if exec_m:
-                target = exec_m.group("id").lower()
-                if target in script_blocks and target not in visited:
-                    visited.add(target)
-                    _collect_defined_vars_from_nodes(
-                        script_blocks[target].body,
-                        script_blocks,
-                        defined,
-                        visited,
-                    )
+            _extract_var_definition(node.command, script_dir, defined)
 
         elif isinstance(node, IncludeDirective) and node.is_execute_script:
             target = node.target.lower()
@@ -179,6 +157,7 @@ def _collect_defined_vars_from_nodes(
                 _collect_defined_vars_from_nodes(
                     script_blocks[target].body,
                     script_blocks,
+                    script_dir,
                     defined,
                     visited,
                 )
@@ -188,12 +167,17 @@ def _collect_defined_vars_from_nodes(
             _collect_defined_vars_from_nodes(
                 list(node.children()),
                 script_blocks,
+                script_dir,
                 defined,
                 visited,
             )
 
 
-def _extract_var_definition(command: str, defined: set[str]) -> None:
+def _extract_var_definition(
+    command: str,
+    script_dir: Path | None,
+    defined: set[str],
+) -> None:
     """Extract variable name from a SUB-family metacommand into *defined*."""
     for rx in (
         _RX_SUB,
@@ -212,8 +196,36 @@ def _extract_var_definition(command: str, defined: set[str]) -> None:
             defined.add(m.group("name").lstrip("+~").upper())
             return
 
-    # SUB_INI bulk-defines from INI file — names not statically knowable
-    # SELECTSUB defines a variable whose name is not statically knowable
+    # SUB_INI bulk-defines from INI file — read keys at lint time
+    ini_m = _RX_SUB_INI.match(command)
+    if ini_m:
+        ini_file = ini_m.group("qfile") or ini_m.group("file")
+        ini_section = ini_m.group("section")
+        if ini_file and not _RX_VAR_REF.search(ini_file):
+            _read_ini_vars(ini_file, ini_section, script_dir, defined)
+
+
+def _read_ini_vars(
+    ini_file: str,
+    section: str,
+    script_dir: Path | None,
+    defined_vars: set[str],
+) -> None:
+    """Read an INI file and register its section keys as defined variables."""
+    from configparser import ConfigParser
+
+    p = Path(ini_file)
+    if not p.is_absolute() and script_dir is not None:
+        p = script_dir / p
+
+    if not p.exists():
+        return
+
+    cp = ConfigParser()
+    cp.read(p)
+    if cp.has_section(section):
+        for key, _value in cp.items(section):
+            defined_vars.add(key.upper())
 
 
 def _check_var_ref(
@@ -405,7 +417,7 @@ def lint_ast(
 
     # Pass 1: collect all variable definitions
     all_defined: set[str] = set()
-    _collect_defined_vars_from_nodes(script.body, script_blocks, all_defined)
+    _collect_defined_vars_from_nodes(script.body, script_blocks, script_dir, all_defined)
 
     # Pass 2: lint for variable and include issues
     _lint_nodes(

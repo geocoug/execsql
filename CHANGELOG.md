@@ -11,6 +11,16 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Added
+
+- `--parse-tree` CLI flag: parse a script into an Abstract Syntax Tree and print a visual tree structure showing block nesting (IF/LOOP/BATCH/SCRIPT), source line ranges, compound conditions (ANDIF/ORIF), and all metacommands. Requires no database connection or configuration.
+- AST parser module (`execsql.script.parser`) with `parse_script()` and `parse_string()` entry points. Produces a structured `Script` tree with typed nodes for all block constructs (IfBlock, LoopBlock, BatchBlock, ScriptBlock, SqlBlock, IncludeDirective).
+- AST node definitions (`execsql.script.ast`) with `format_tree()` for human-readable tree output.
+
+### Changed
+
+- `--lint` now uses the AST parser for structural validation. Unmatched IF/LOOP/BATCH/SCRIPT blocks are caught at parse time with precise source line ranges. No database connection or runtime state initialization is required. All prior lint checks (variable analysis, INCLUDE file existence, EXECUTE SCRIPT resolution, SUB_INI reading) are preserved.
+
 ______________________________________________________________________
 
 ## [2.15.11] - 2026-04-27

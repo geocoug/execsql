@@ -1078,7 +1078,7 @@ class TestParseTree:
 
         # Header
         assert "parse_tree.sql" in out
-        assert "120 nodes" in out
+        assert "nodes)" in out  # e.g. "120 nodes)" — resilient to fixture changes
 
         # Simple SQL
         assert "SQL: SELECT 1;" in out

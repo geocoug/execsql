@@ -28,8 +28,10 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterable
+from pathlib import Path
 
 from execsql.exceptions import ErrInfo
+from execsql.utils.errors import write_warning
 from execsql.script.ast import (
     BatchBlock,
     ConditionModifier,
@@ -244,8 +246,6 @@ def _parse_lines(lines: Iterable[str], source_name: str) -> Script:
 
             # Flush any pending SQL before processing a metacommand
             if sql_accum:
-                from execsql.utils.errors import write_warning
-
                 write_warning(
                     f"Incomplete SQL statement starting on line {sql_start_line} "
                     f"at metacommand on line {file_lineno} of {source_name}.",
@@ -597,8 +597,6 @@ def parse_script(filename: str, encoding: str = "utf-8") -> Script:
     Returns:
         A :class:`Script` tree representing the parsed file.
     """
-    from pathlib import Path
-
     text = Path(filename).read_text(encoding=encoding)
     return _parse_lines(text.splitlines(), filename)
 

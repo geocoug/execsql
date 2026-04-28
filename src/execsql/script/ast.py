@@ -100,7 +100,7 @@ class SourceSpan:
 
 @dataclass
 class Node:
-    """Abstract base class for all AST nodes.
+    """Base class for all AST nodes.
 
     Every node carries a :attr:`span` indicating where it appeared in the
     source file.  Subclasses that contain child nodes must override

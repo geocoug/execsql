@@ -68,6 +68,24 @@ from execsql.script.engine import (
     set_system_vars,
     substitute_vars,
 )
+from execsql.script.ast import (
+    BatchBlock,
+    Comment,
+    ConditionModifier,
+    ElseIfClause,
+    IfBlock,
+    IncludeDirective,
+    LoopBlock,
+    MetaCommandStatement as AstMetaCommand,
+    Node,
+    Script,
+    ScriptBlock,
+    SourceSpan,
+    SqlBlock,
+    SqlStatement as AstSqlStatement,
+    format_tree,
+)
+from execsql.script.parser import parse_script, parse_string
 from execsql.script.variables import CounterVars, LocalSubVarSet, ScriptArgSubVarSet, SubVarSet
 
 __all__ = [
@@ -96,4 +114,22 @@ __all__ = [
     "current_script_line",
     "read_sqlfile",
     "read_sqlstring",
+    # AST nodes and parser
+    "Node",
+    "SourceSpan",
+    "AstSqlStatement",
+    "AstMetaCommand",
+    "Comment",
+    "ConditionModifier",
+    "ElseIfClause",
+    "IfBlock",
+    "LoopBlock",
+    "BatchBlock",
+    "ScriptBlock",
+    "SqlBlock",
+    "IncludeDirective",
+    "Script",
+    "format_tree",
+    "parse_script",
+    "parse_string",
 ]
