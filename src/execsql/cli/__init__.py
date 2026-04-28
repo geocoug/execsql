@@ -475,6 +475,36 @@ def main(
         raise typer.Exit()
 
     # ------------------------------------------------------------------
+    # Lint: AST-based static analysis (no DB connection needed)
+    # ------------------------------------------------------------------
+    if lint:
+        from execsql.cli.lint import _print_lint_results
+        from execsql.cli.lint_ast import lint_ast
+        from execsql.script.parser import parse_script, parse_string
+
+        label = script_name or "<inline>"
+        try:
+            if command is not None:
+                tree = parse_string(command.replace("\\n", "\n").replace("\\t", "\t"), "<inline>")
+            elif script_name is not None:
+                encoding = script_encoding or "utf-8"
+                tree = parse_script(script_name, encoding=encoding)
+            else:
+                _err_console.print(
+                    "[bold red]Error:[/bold red] --lint requires a script file or -c command.",
+                )
+                raise typer.Exit(code=1)
+        except ErrInfo as exc:
+            # Parse failure IS a lint error — report it
+            issues = [("error", label, 0, f"Parse error: {exc.errmsg()}")]
+            exit_code = _print_lint_results(issues, label)
+            raise typer.Exit(code=exit_code) from exc
+
+        issues = lint_ast(tree, script_path=script_name)
+        exit_code = _print_lint_results(issues, label)
+        raise typer.Exit(code=exit_code)
+
+    # ------------------------------------------------------------------
     # Delegate to the real main implementation
     # ------------------------------------------------------------------
     _run(
