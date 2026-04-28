@@ -21,12 +21,11 @@ At import time, `src/execsql/metacommands/__init__.py` calls `build_dispatch_tab
 
 ### MetaCommandList / MetaCommand
 
-`MetaCommandList` is a singly-linked list of `MetaCommand` objects (defined in `src/execsql/script.py`). Each `MetaCommand` holds one compiled regex and one handler function. When `MetaCommandList.eval()` is called on a line of SQL script:
+`MetaCommandList` is an ordered list of `MetaCommand` objects with keyword-indexed dispatch (defined in `src/execsql/script/engine.py`). Each `MetaCommand` holds one compiled regex and one handler function. When `MetaCommandList.eval()` is called on a line of SQL script:
 
-1. It walks the linked list until a regex matches.
+1. It extracts the leading keyword and narrows candidates to matching entries (keyword index), falling back to the full list if no keyword match is found.
 1. It checks `_state.if_stack.all_true()` (skips execution when inside a false conditional branch, unless `run_when_false=True`).
 1. It calls the handler, passing all named regex groups plus `"metacommandline"` as keyword arguments.
-1. On success, it moves the matched node to the head of the list (LRU optimisation).
 
 ### Handler naming conventions
 
