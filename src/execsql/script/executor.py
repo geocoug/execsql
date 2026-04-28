@@ -55,7 +55,7 @@ from execsql.script.ast import (
     SqlBlock,
     SqlStatement,
 )
-from execsql.script.engine import substitute_vars
+from execsql.script.engine import set_dynamic_system_vars, set_static_system_vars, substitute_vars
 from execsql.script.variables import SubVarSet
 from execsql.state import RuntimeContext, get_context, xcmd_test
 from execsql.utils.errors import exception_desc
@@ -84,18 +84,18 @@ def _convert_deferred_vars(text: str) -> str:
     return _DEFER_RX.sub(r"!!\1!!", text)
 
 
-def _eval_condition(condition: str, modifiers: list[ConditionModifier] | None = None) -> bool:
-    """Evaluate a condition string with optional ANDIF/ORIF modifiers.
-
-    The condition is first expanded via ``substitute_vars()``, then parsed
-    and evaluated via ``xcmd_test()``.
-    """
-    expanded = substitute_vars(condition)
+def _eval_condition(
+    ctx: RuntimeContext,
+    condition: str,
+    modifiers: list[ConditionModifier] | None = None,
+) -> bool:
+    """Evaluate a condition string with optional ANDIF/ORIF modifiers."""
+    expanded = substitute_vars(condition, ctx=ctx)
     result = xcmd_test(expanded)
 
     if modifiers:
         for mod in modifiers:
-            mod_expanded = substitute_vars(mod.condition)
+            mod_expanded = substitute_vars(mod.condition, ctx=ctx)
             mod_result = xcmd_test(mod_expanded)
             if mod.kind == "AND":
                 result = result and mod_result
@@ -137,7 +137,7 @@ def _exec_sql(
     ctx.status.sql_error = False
     if ctx.status.batch.in_batch():
         ctx.status.batch.using_db(ctx.dbs.current())
-    cmd = substitute_vars(text, localvars)
+    cmd = substitute_vars(text, localvars, ctx=ctx)
     if _VARLIKE.search(cmd):
         ctx.output.write(
             f"Warning: There is a potential un-substituted variable in the command\n     {cmd}\n",
@@ -186,7 +186,7 @@ def _exec_metacommand(
     localvars: SubVarSet | None = None,
 ) -> Any:
     """Dispatch a metacommand through the dispatch table."""
-    cmd = substitute_vars(command, localvars)
+    cmd = substitute_vars(command, localvars, ctx=ctx)
     if _VARLIKE.search(cmd):
         ctx.output.write(
             f"Warning: There is a potential un-substituted variable in the command\n     {cmd}\n",
@@ -232,10 +232,8 @@ def _execute_nodes(
     in_loop: bool = False,
 ) -> None:
     """Execute a list of AST nodes sequentially."""
-    from execsql.script.engine import set_dynamic_system_vars
-
     for node in nodes:
-        set_dynamic_system_vars()
+        set_dynamic_system_vars(ctx)
         _set_command_vars(ctx, node.span.file, node.span.start_line)
 
         # Debug step mode
@@ -293,7 +291,7 @@ def _execute_node(
         if in_loop:
             command = _convert_deferred_vars(command)
         # Intercept BREAK before dispatch — it controls loop flow
-        expanded = substitute_vars(command, localvars)
+        expanded = substitute_vars(command, localvars, ctx=ctx)
         if _BREAK_RX.match(expanded):
             raise _BreakLoop
         ctx.last_command = _FakeScriptCmd(node)
@@ -331,13 +329,13 @@ def _execute_if(
     in_loop: bool = False,
 ) -> None:
     """Evaluate an IF block and execute the matching branch."""
-    if _eval_condition(node.condition, node.condition_modifiers):
+    if _eval_condition(ctx, node.condition, node.condition_modifiers):
         _execute_nodes(ctx, node.body, node.span.file, localvars, in_loop=in_loop)
         return
 
     # Try ELSEIF clauses
     for clause in node.elseif_clauses:
-        expanded = substitute_vars(clause.condition)
+        expanded = substitute_vars(clause.condition, ctx=ctx)
         if xcmd_test(expanded):
             _execute_nodes(ctx, clause.body, node.span.file, localvars, in_loop=in_loop)
             return
@@ -358,7 +356,7 @@ def _execute_loop(
 
     if node.loop_type == "WHILE":
         while True:
-            expanded = substitute_vars(condition)
+            expanded = substitute_vars(condition, ctx=ctx)
             if not xcmd_test(expanded):
                 break
             try:
@@ -371,7 +369,7 @@ def _execute_loop(
                 _execute_nodes(ctx, node.body, node.span.file, localvars, in_loop=True)
             except _BreakLoop:
                 break
-            expanded = substitute_vars(condition)
+            expanded = substitute_vars(condition, ctx=ctx)
             if xcmd_test(expanded):
                 break
 
@@ -645,7 +643,5 @@ def execute(script: Script, *, ctx: RuntimeContext | None = None) -> None:
     if ctx is None:
         ctx = get_context()
 
-    from execsql.script.engine import set_static_system_vars
-
-    set_static_system_vars()
+    set_static_system_vars(ctx)
     _execute_nodes(ctx, script.body, script.source)
