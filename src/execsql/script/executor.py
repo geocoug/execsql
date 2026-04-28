@@ -73,6 +73,11 @@ _DEFER_RX = re.compile(r"!\{([$@&~#+]?\w+)\}!")
 # Compiled regex to match prefixed variables (for unsubstituted-var warnings)
 _VARLIKE = re.compile(r"!![$@&~#]?\w+!!", re.I)
 
+# Module-level registry of ScriptBlock AST nodes for native EXECUTE SCRIPT.
+# Keyed by lowercased script name. Populated by _register_script_block(),
+# consumed by _execute_include().
+_ast_scripts: dict[str, ScriptBlock] = {}
+
 
 def _convert_deferred_vars(text: str) -> str:
     """Convert deferred substitution variables to regular ones.
@@ -391,9 +396,18 @@ def _execute_batch(
 
 
 def _register_script_block(ctx: RuntimeContext, node: ScriptBlock) -> None:
-    """Register a named SCRIPT block in ctx.savedscripts."""
+    """Register a named SCRIPT block.
+
+    Stores the AST node in ``_ast_scripts`` for native execution, and also
+    builds a legacy ``CommandList`` in ``ctx.savedscripts`` so that dispatch
+    table handlers (e.g., ON ERROR_HALT EXECUTE SCRIPT) still work.
+    """
     from execsql.script.engine import CommandList
 
+    # AST-native registry
+    _ast_scripts[node.name] = node
+
+    # Legacy compatibility — flatten to CommandList for dispatch table
     cmdlist = _flatten_for_legacy(node.body, node.span.file)
     cl = CommandList(cmdlist, node.name, node.param_names)
     ctx.savedscripts[node.name] = cl
@@ -519,10 +533,121 @@ def _execute_include(
 ) -> None:
     """Execute an INCLUDE or EXECUTE SCRIPT directive.
 
-    Both are dispatched through the metacommand table, which may push new
-    CommandList objects onto ``ctx.commandliststack``.  After dispatch, we
-    drain the stack via ``runscripts()`` (legacy engine).
+    EXECUTE SCRIPT is handled natively when the target is in ``_ast_scripts``:
+    arguments are parsed, a local variable overlay is created, and the body
+    is executed through the AST executor.  WHILE/UNTIL loops are handled
+    natively too.
+
+    INCLUDE and unresolved EXECUTE SCRIPT targets fall back to the dispatch
+    table + legacy engine.
     """
+    if node.is_execute_script:
+        target = node.target.lower()
+
+        # Native path: target is in our AST registry
+        if target in _ast_scripts:
+            _execute_script_native(ctx, node, _ast_scripts[target], localvars)
+            return
+
+        # Target not in AST registry — might be defined in an INCLUDE'd file
+        # that hasn't been loaded yet.  Fall through to dispatch table.
+        if not node.if_exists and target not in ctx.savedscripts:
+            raise ErrInfo(
+                "cmd",
+                other_msg=f"There is no SCRIPT named {node.target}.",
+            )
+        if node.if_exists and target not in ctx.savedscripts:
+            return  # IF EXISTS — skip silently
+
+    # Fallback: dispatch through metacommand table (INCLUDE, or EXECUTE
+    # SCRIPT for targets not in AST registry)
+    _execute_include_legacy(ctx, node, localvars)
+
+
+def _execute_script_native(
+    ctx: RuntimeContext,
+    node: IncludeDirective,
+    script_block: ScriptBlock,
+    localvars: SubVarSet | None = None,
+) -> None:
+    """Execute a SCRIPT block natively through the AST executor."""
+    import copy
+
+    from execsql.script.variables import ScriptArgSubVarSet
+    from execsql.utils.strings import wo_quotes
+
+    # Parse arguments (replicates ScriptExecSpec logic)
+    script_localvars = None
+    if node.arguments is not None:
+        args_rx = re.compile(
+            r'(?P<param>#?\w+)\s*=\s*(?P<arg>(?:(?:[^"\'\[][^,\)]*)|(?:"[^"]*")|(?:\'[^\']*\')|(?:\[[^\]]*\])))',
+            re.I,
+        )
+        all_args = re.findall(args_rx, node.arguments)
+        all_cleaned_args = [(ae[0], wo_quotes(ae[1])) for ae in all_args]
+        all_prepared_args = [(ae[0] if ae[0][0] == "#" else "#" + ae[0], ae[1]) for ae in all_cleaned_args]
+        scriptvarset = ScriptArgSubVarSet()
+        for param, arg in all_prepared_args:
+            scriptvarset.add_substitution(param, arg)
+
+        # Validate parameter names match
+        if script_block.param_names is not None:
+            passed_names = [p[0].lstrip("#") for p in all_prepared_args]
+            if not all(p in passed_names for p in script_block.param_names):
+                raise ErrInfo(
+                    "error",
+                    other_msg=f"Formal and actual parameter name mismatch in call to {script_block.name}.",
+                )
+        script_localvars = scriptvarset
+    else:
+        if script_block.param_names is not None:
+            raise ErrInfo(
+                "error",
+                other_msg=(
+                    f"Missing expected parameters ({', '.join(script_block.param_names)}) "
+                    f"in call to {script_block.name}."
+                ),
+            )
+
+    # Merge script-local vars with any existing local vars
+    merged = script_localvars
+
+    def _run_body() -> None:
+        # Deep-copy the body to avoid mutation across iterations
+        body = copy.deepcopy(script_block.body)
+        _execute_nodes(ctx, body, script_block.span.file, merged, in_loop=False)
+
+    # Handle WHILE/UNTIL loops
+    if node.loop_type == "WHILE":
+        while True:
+            condition = _convert_deferred_vars(node.loop_condition)
+            expanded = substitute_vars(condition, ctx=ctx)
+            if not xcmd_test(expanded):
+                break
+            try:
+                _run_body()
+            except _BreakLoop:
+                break
+    elif node.loop_type == "UNTIL":
+        while True:
+            try:
+                _run_body()
+            except _BreakLoop:
+                break
+            condition = _convert_deferred_vars(node.loop_condition)
+            expanded = substitute_vars(condition, ctx=ctx)
+            if xcmd_test(expanded):
+                break
+    else:
+        _run_body()
+
+
+def _execute_include_legacy(
+    ctx: RuntimeContext,
+    node: IncludeDirective,
+    localvars: SubVarSet | None = None,
+) -> None:
+    """Fallback: dispatch INCLUDE or EXECUTE SCRIPT through the metacommand table."""
     from execsql.script.engine import runscripts
 
     if node.is_execute_script:
@@ -535,16 +660,14 @@ def _execute_include(
         if node.loop_type:
             parts.append(f"{node.loop_type} ({node.loop_condition})")
         cmd = " ".join(parts)
-        ctx.last_command = _FakeScriptCmd(node)
-        _exec_metacommand(ctx, cmd, node.span.file, node.span.start_line, localvars)
     else:
         prefix = "INCLUDE IF EXISTS" if node.if_exists else "INCLUDE"
         cmd = f"{prefix} {node.target}"
-        ctx.last_command = _FakeScriptCmd(node)
-        _exec_metacommand(ctx, cmd, node.span.file, node.span.start_line, localvars)
+
+    ctx.last_command = _FakeScriptCmd(node)
+    _exec_metacommand(ctx, cmd, node.span.file, node.span.start_line, localvars)
 
     # The dispatch handler may have pushed commands onto the stack.
-    # Drain them using the legacy engine.
     if ctx.commandliststack:
         runscripts()
 
@@ -643,5 +766,6 @@ def execute(script: Script, *, ctx: RuntimeContext | None = None) -> None:
     if ctx is None:
         ctx = get_context()
 
+    _ast_scripts.clear()
     set_static_system_vars(ctx)
     _execute_nodes(ctx, script.body, script.source)

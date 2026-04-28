@@ -344,6 +344,40 @@ class TestScriptBlocks:
         assert result.returncode == 0
         assert _query_db(tmp_path, "SELECT x FROM t") == [(42,)]
 
+    def test_script_with_args(self, tmp_path):
+        result = _run_ast(
+            "-- !x! BEGIN SCRIPT insert_row (tbl, val)\n"
+            "INSERT INTO !!#tbl!! VALUES (!!#val!!);\n"
+            "-- !x! END SCRIPT\n"
+            "CREATE TABLE t (x INT);\n"
+            "-- !x! EXECUTE SCRIPT insert_row WITH ARGS (tbl=t, val=99)\n"
+            "-- !x! EXEC SCRIPT insert_row (tbl=t, val=77)",
+            tmp_path,
+        )
+        assert result.returncode == 0
+        rows = _query_db(tmp_path, "SELECT x FROM t ORDER BY x")
+        assert rows == [(77,), (99,)]
+
+    def test_execute_script_if_exists_missing(self, tmp_path):
+        result = _run_ast(
+            "CREATE TABLE t (x INT);\nINSERT INTO t VALUES (1);\n-- !x! EXECUTE SCRIPT IF EXISTS nonexistent_proc",
+            tmp_path,
+        )
+        assert result.returncode == 0
+        assert _query_db(tmp_path, "SELECT x FROM t") == [(1,)]
+
+    def test_run_script_alias(self, tmp_path):
+        result = _run_ast(
+            "-- !x! BEGIN SCRIPT proc1\n"
+            "CREATE TABLE t (x INT);\n"
+            "INSERT INTO t VALUES (1);\n"
+            "-- !x! END SCRIPT\n"
+            "-- !x! RUN SCRIPT proc1",
+            tmp_path,
+        )
+        assert result.returncode == 0
+        assert _query_db(tmp_path, "SELECT x FROM t") == [(1,)]
+
 
 # ---------------------------------------------------------------------------
 # ERROR_HALT OFF/ON
