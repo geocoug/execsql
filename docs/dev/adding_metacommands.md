@@ -2,6 +2,15 @@
 
 This guide walks through every step required to add a new metacommand to execsql. The process involves four files in a fixed sequence: write the handler, register the regex, export the handler, and add tests.
 
+!!! tip "Plugin alternative"
+
+    If your metacommand is self-contained and could benefit from being distributed
+    as a separate package, consider creating it as a **plugin** instead of adding it
+    to the core codebase. Plugins use Python entry points to register metacommands
+    at startup — no changes to execsql source required. See
+    `extras/plugin-template/` for a ready-to-use starting point, or run
+    `execsql --list-plugins` to see installed plugins.
+
 ______________________________________________________________________
 
 ## Background: How Metacommands Work
