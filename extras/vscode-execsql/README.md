@@ -1,8 +1,29 @@
-# execsql Syntax Highlighting for VSCode
+# execsql for VS Code
 
-Adds syntax highlighting for [execsql](https://execsql2.readthedocs.io/) metacommands in `.sql` files.
+Syntax highlighting and language server support for [execsql](https://execsql2.readthedocs.io/) metacommands in `.sql` files.
 Standard SQL highlighting is preserved — execsql `-- !x!` lines and variable substitutions get
 distinct custom colors layered on top.
+
+## Language Server Features
+
+When `execsql2[lsp]` is installed, the extension provides:
+
+- **Diagnostics** — real-time lint errors and warnings (unmatched blocks, undefined variables, missing INCLUDEEs)
+- **Hover** — documentation for metacommand keywords, condition predicates, and substitution variables
+- **Go-to-definition** — jump to INCLUDE target files and SCRIPT block definitions
+- **Autocomplete** — metacommand keywords, condition predicates (in IF/LOOP context), and substitution variables
+- **Document symbols** — outline view showing SCRIPT blocks, IF/LOOP/BATCH structure
+
+To enable: `pip install execsql2[lsp]` — the extension auto-detects and starts the server.
+
+Configure via VS Code settings:
+
+| Setting                  | Default    | Description                             |
+| ------------------------ | ---------- | --------------------------------------- |
+| `execsql.lsp.enabled`    | `true`     | Enable the language server              |
+| `execsql.lsp.pythonPath` | `"python"` | Python interpreter with `execsql2[lsp]` |
+
+## Syntax Highlighting
 
 ## What gets highlighted
 

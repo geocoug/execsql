@@ -1,15 +1,20 @@
 {
   "name": "execsql-syntax",
-  "displayName": "execsql Syntax Highlighting",
-  "description": "Syntax highlighting for execsql metacommands in SQL files",
-  "version": "0.1.0",
+  "displayName": "execsql",
+  "description": "Syntax highlighting and language server for execsql metacommands in SQL files",
+  "version": "0.2.0",
   "publisher": "geocoug",
   "engines": {
     "vscode": "^1.74.0"
   },
   "categories": [
-    "Programming Languages"
+    "Programming Languages",
+    "Linters"
   ],
+  "activationEvents": [
+    "onLanguage:sql"
+  ],
+  "main": "./out/extension.js",
   "contributes": {
     "grammars": [
       {
@@ -19,6 +24,33 @@
           "source.sql"
         ]
       }
-    ]
+    ],
+    "configuration": {
+      "title": "execsql",
+      "properties": {
+        "execsql.lsp.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable the execsql language server for diagnostics, hover, and completions."
+        },
+        "execsql.lsp.pythonPath": {
+          "type": "string",
+          "default": "python",
+          "description": "Path to the Python interpreter with execsql2[lsp] installed."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.74.0",
+    "typescript": "^5.0.0",
+    "vscode-languageclient": "^9.0.0"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.0"
   }
 }
