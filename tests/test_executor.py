@@ -28,7 +28,7 @@ def _run_ast(
     *,
     extra_args: list[str] | None = None,
 ) -> subprocess.CompletedProcess:
-    """Write *script_content* to a temp file and run it with ``--ast``."""
+    """Write *script_content* to a temp file and run it via the AST executor."""
     script = tmp_path / "test.sql"
     script.write_text(script_content)
     db = tmp_path / "test.db"
@@ -78,7 +78,7 @@ def _query_db(tmp_path: Path, sql: str) -> list:
 
 
 # ---------------------------------------------------------------------------
-# Fixture scripts: run all .sql fixtures with --ast
+# Fixture scripts: run all .sql fixtures via the AST executor
 # ---------------------------------------------------------------------------
 
 
@@ -409,7 +409,7 @@ class TestAssert:
 
 
 # ---------------------------------------------------------------------------
-# Profiling with --ast
+# Profiling
 # ---------------------------------------------------------------------------
 
 
@@ -424,7 +424,7 @@ class TestProfiling:
 
 
 # ---------------------------------------------------------------------------
-# Behavioral equivalence: compare --ast vs legacy on same script
+# Behavioral equivalence: AST executor vs legacy engine output comparison
 # ---------------------------------------------------------------------------
 
 

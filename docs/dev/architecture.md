@@ -117,11 +117,11 @@ In addition to the legacy flat command-list engine, execsql2 includes an AST-bas
 - **`script/executor.py`** -- `execute(script, ctx=)` walks the AST tree. IF conditions, LOOP iteration, and BATCH boundaries are driven by tree structure rather than runtime state flags (`if_stack`, `compiling_loop`). SQL and metacommands delegate to the existing dispatch table. INCLUDE'd files are parsed by the AST parser and executed natively (no fallback to the legacy engine). Circular INCLUDE references are detected and reported. Named SCRIPT blocks are stored on `ctx.ast_scripts` (instance-scoped, not module-level). ON ERROR_HALT / ON CANCEL_HALT EXECUTE SCRIPT deferred scripts execute natively through the AST executor.
 - **`cli/lint_ast.py`** -- AST-based linter that walks the tree for variable and INCLUDE checks. Structural validation (unmatched blocks) is handled by the parser itself.
 
-The AST path is activated via `--ast`. The legacy engine remains the default. Use `--parse-tree` to visualize the AST without executing.
+The AST executor is the only execution engine. Use `--parse-tree` to visualize the AST without executing.
 
 ### RuntimeContext Isolation
 
-The executor accepts an explicit `RuntimeContext` parameter (`ctx`). The `active_context()` context manager in `state.py` installs a context as the active global so all legacy code (metacommand handlers, database adapters) automatically resolves against it. This enables isolated execution for the library API. The RuntimeContext now carries AST-specific state: `ast_scripts` (script block registry), `include_chain` (circular include detection), and `use_ast` (AST mode flag).
+The executor accepts an explicit `RuntimeContext` parameter (`ctx`). The `active_context()` context manager in `state.py` installs a context as the active global so all metacommand handlers and database adapters automatically resolve against it. This enables isolated execution for the library API. The RuntimeContext carries AST-specific state: `ast_scripts` (script block registry) and `include_chain` (circular include detection).
 
 ______________________________________________________________________
 

@@ -223,11 +223,13 @@ All 33 mutable runtime globals in `state.py` have been consolidated into a `Runt
 - **Connection timeouts** — PostgreSQL and SQLite adapters accept a connection timeout parameter (default 30 seconds).
 - **DuckDB temporal types** — `TIMESTAMPTZ`, `TIMESTAMP`, `DATE`, `TIME` now map to native DuckDB types instead of `TEXT`.
 
-### AST Executor (`--ast`)
+### Execution Engine
 
-- **Native INCLUDE handling** — The AST executor parses INCLUDE'd files with the AST parser and executes them through the tree-walking executor. Control flow structures (IF/LOOP/BATCH/SCRIPT) in included files are fully tree-driven, with correct deferred variable handling and source-span error reporting. The legacy engine parses included files separately and pushes them onto a flat command-list stack.
-- **Circular INCLUDE detection** — The AST executor tracks the full include chain and detects circular references (e.g. A includes B includes A), reporting the full chain in the error message. The legacy engine has no such detection.
-- **Deferred error/cancel script execution** — When `ON ERROR_HALT EXECUTE SCRIPT` or `ON CANCEL_HALT EXECUTE SCRIPT` triggers during AST execution, the deferred script runs natively through the AST executor instead of falling back to the legacy engine.
+The legacy flat command-list engine (`_parse_script_lines` / `runscripts` / `CommandList.run_next()`) has been replaced by an AST-based execution engine. Scripts are parsed into a tree of typed nodes, then the tree is walked for execution. This change is transparent to users — all metacommands, SQL, and control flow work identically.
+
+- **Native INCLUDE handling** — The AST executor parses INCLUDE'd files with the AST parser and executes them through the tree-walking executor. Control flow structures (IF/LOOP/BATCH/SCRIPT) in included files are fully tree-driven, with correct deferred variable handling and source-span error reporting.
+- **Circular INCLUDE detection** — The executor tracks the full include chain and detects circular references (e.g. A includes B includes A), reporting the full chain in the error message. Upstream has no such detection.
+- **BREAK outside LOOP is an error** — `BREAK` outside a loop block now raises an error (exit 1) instead of being silently ignored. This catches script bugs that upstream would not report.
 - **Instance-scoped script registry** — Named SCRIPT blocks are stored on the `RuntimeContext` instance instead of a module-level dict, preventing cross-execution contamination.
 
 ### Error Handling

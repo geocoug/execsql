@@ -116,7 +116,6 @@ execsql script.sql                          # read connection from config file
 | `--dry-run`                         | Parse the script and report commands without executing          |
 | `--lint`                            | Static analysis: check structure and warn on issues (no DB)     |
 | `--parse-tree`                      | Print the script's AST structure and exit (no DB)               |
-| `--ast`                             | Use the AST execution engine (experimental)                     |
 | `--list-plugins`                    | List discovered plugins and exit                                |
 | `--ping`                            | Test database connectivity and exit                             |
 | `--profile`                         | Show per-statement timing summary after execution               |
