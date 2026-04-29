@@ -185,7 +185,7 @@ print(result.variables)     # final substitution variable state
 - **DSN or connection** — pass a DSN string (`dsn="sqlite:///my.db"`) or a pre-existing `Database` object (`connection=conn`).
 - **Substitution variables** — pass a `variables` dict; keys are automatically `$`-prefixed.
 - **Error control** — `halt_on_error=True` (default) stops on the first error; `halt_on_error=False` captures errors and continues.
-- **Isolation** — each `run()` call uses an isolated `RuntimeContext`. Multiple calls do not share state.
+- **Isolation** — each `run()` call uses an isolated `RuntimeContext` stored in thread-local storage. Multiple calls do not share state, and concurrent calls from different threads are safe.
 - **Result object** — `ScriptResult` is a frozen dataclass with `success`, `commands_run`, `elapsed`, `errors`, and `variables`.
 - **Exception convenience** — call `result.raise_on_error()` to raise `ExecSqlError` if the script failed.
 

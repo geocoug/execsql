@@ -24,6 +24,30 @@ result: ScriptResult = run(
 
 See the [README](https://github.com/geocoug/execsql#library-api) for full examples.
 
+### Thread Safety
+
+`run()` is **thread-safe**. Each call creates an isolated `RuntimeContext` stored in thread-local storage, so concurrent calls from different threads do not share database connections, substitution variables, or execution state.
+
+```python
+import threading
+from execsql import run
+
+def etl_worker(script, dsn):
+    result = run(script=script, dsn=dsn)
+    print(f"{script}: {'OK' if result.success else 'FAIL'}")
+
+threads = [
+    threading.Thread(target=etl_worker, args=("load_us.sql", "postgresql://host/us_db")),
+    threading.Thread(target=etl_worker, args=("load_eu.sql", "postgresql://host/eu_db")),
+]
+for t in threads:
+    t.start()
+for t in threads:
+    t.join()
+```
+
+Each thread gets its own database connections, IF/LOOP stacks, substitution variables, and error state. No locking is required.
+
 ## Extension Guides
 
 | Extension type       | Guide                                                    | API reference                   |
