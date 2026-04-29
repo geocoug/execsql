@@ -573,3 +573,43 @@ def x_pg_upsert_check(**kwargs: Any) -> None:
             command_text=metacommandline,
             other_msg=_qa_failure_msg(result),
         )
+
+
+# ---------------------------------------------------------------------------
+# Plugin registration
+# ---------------------------------------------------------------------------
+
+_PG_UPSERT_RX = r"^\s*PG_UPSERT\s+FROM\s+(?P<staging_schema>\S+)\s+TO\s+(?P<base_schema>\S+)\s+TABLES\s+(?P<tail>.+)$"
+_PG_UPSERT_CHECK_RX = (
+    r"^\s*PG_UPSERT\s+CHECK\s+FROM\s+(?P<staging_schema>\S+)\s+TO\s+(?P<base_schema>\S+)\s+TABLES\s+(?P<tail>.+)$"
+)
+_PG_UPSERT_QA_RX = (
+    r"^\s*PG_UPSERT\s+QA\s+FROM\s+(?P<staging_schema>\S+)\s+TO\s+(?P<base_schema>\S+)\s+TABLES\s+(?P<tail>.+)$"
+)
+
+
+def register(mcl: Any) -> None:
+    """Register PG_UPSERT metacommands as a plugin.
+
+    Called by execsql's plugin discovery via the ``execsql.metacommands``
+    entry point.  The CHECK and QA variants are registered first so their
+    more-specific regexes take priority over the general form.
+    """
+    mcl.add(
+        _PG_UPSERT_CHECK_RX,
+        x_pg_upsert_check,
+        description="PG_UPSERT CHECK",
+        category="action",
+    )
+    mcl.add(
+        _PG_UPSERT_QA_RX,
+        x_pg_upsert_qa,
+        description="PG_UPSERT QA",
+        category="action",
+    )
+    mcl.add(
+        _PG_UPSERT_RX,
+        x_pg_upsert,
+        description="PG_UPSERT",
+        category="action",
+    )

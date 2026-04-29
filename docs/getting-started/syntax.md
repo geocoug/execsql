@@ -229,6 +229,30 @@ Valid encoding names can be displayed with the `-y` option. See also [Character 
     execsql --ping --dsn sqlite:///mydb.sqlite
     ```
 
+`--parse-tree`
+
+:   Parse the script into an Abstract Syntax Tree and print a visual tree showing block nesting (IF/LOOP/BATCH/SCRIPT), source line ranges, compound conditions (ANDIF/ORIF), and all metacommands. Does not connect to a database or execute anything. Useful for understanding script structure.
+
+    ```bash
+    execsql --parse-tree script.sql
+    ```
+
+`--ast`
+
+:   Execute the script using the new AST-based engine instead of the legacy flat command-list engine. Experimental — validates that the new engine produces identical results. The AST engine parses scripts into a tree of typed nodes, then walks the tree for execution. Control flow (IF/LOOP/BATCH) is driven by tree structure rather than runtime state flags.
+
+    ```bash
+    execsql --ast script.sql mydb.sqlite -t l
+    ```
+
+`--list-plugins`
+
+:   List all discovered plugins (metacommands, exporters, importers) and exit. Plugins are Python packages that register extensions via entry points. See the [Plugin System](#plugin-system) section in the developer guide.
+
+    ```bash
+    execsql --list-plugins
+    ```
+
 `--debug`
 
 :   Start in step-through debug mode. The debug REPL pauses before each statement, as if a `BREAKPOINT` metacommand were inserted at the top of the script with `.next` always active. Type `.continue` or `.c` at the REPL prompt to resume normal execution, or `.next` / `.n` to step one statement at a time. Silently skipped in non-TTY environments.

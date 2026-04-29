@@ -1001,3 +1001,164 @@ class TestConfigFlag:
         )
         assert result.exit_code == 2
         assert "does not exist" in result.output
+
+
+# ---------------------------------------------------------------------------
+# --parse-tree
+# ---------------------------------------------------------------------------
+
+
+class TestParseTree:
+    def test_parse_tree_simple_script(self, tmp_path):
+        script = tmp_path / "test.sql"
+        script.write_text("SELECT 1;\nSELECT 2;\n")
+        result = invoke("--parse-tree", str(script))
+        assert result.exit_code == 0
+        assert "Script:" in result.output
+        assert "SQL: SELECT 1;" in result.output
+        assert "SQL: SELECT 2;" in result.output
+
+    def test_parse_tree_if_block(self, tmp_path):
+        script = tmp_path / "test.sql"
+        script.write_text(
+            "-- !x! IF (HAS_ROWS)\nSELECT 1;\n-- !x! ELSE\nSELECT 2;\n-- !x! ENDIF\n",
+        )
+        result = invoke("--parse-tree", str(script))
+        assert result.exit_code == 0
+        assert "IF (HAS_ROWS)" in result.output
+        assert "ELSE" in result.output
+
+    def test_parse_tree_inline_command(self):
+        result = invoke("--parse-tree", "-c", "SELECT 1;")
+        assert result.exit_code == 0
+        assert "Script: <inline>" in result.output
+        assert "SQL: SELECT 1;" in result.output
+
+    def test_parse_tree_loop(self, tmp_path):
+        script = tmp_path / "test.sql"
+        script.write_text(
+            "-- !x! LOOP WHILE (HAS_ROWS)\nDELETE FROM t LIMIT 100;\n-- !x! ENDLOOP\n",
+        )
+        result = invoke("--parse-tree", str(script))
+        assert result.exit_code == 0
+        assert "LOOP WHILE" in result.output
+
+    def test_parse_tree_error_handling(self, tmp_path):
+        script = tmp_path / "bad.sql"
+        script.write_text("-- !x! IF (HAS_ROWS)\nSELECT 1;\n")  # missing ENDIF
+        result = runner.invoke(app, ["--parse-tree", str(script)])
+        assert result.exit_code == 1
+
+    def test_parse_tree_no_script_errors(self):
+        result = runner.invoke(app, ["--parse-tree"])
+        # Should error because no script file specified
+        assert result.exit_code != 0
+
+    def test_parse_tree_empty_script(self, tmp_path):
+        script = tmp_path / "empty.sql"
+        script.write_text("-- just a comment\n")
+        result = invoke("--parse-tree", str(script))
+        assert result.exit_code == 0
+        assert "0 nodes" in result.output
+
+    def test_parse_tree_script_block(self, tmp_path):
+        script = tmp_path / "test.sql"
+        script.write_text(
+            "-- !x! BEGIN SCRIPT loader (tbl)\nSELECT * FROM !!#tbl!!;\n-- !x! END SCRIPT\n",
+        )
+        result = invoke("--parse-tree", str(script))
+        assert result.exit_code == 0
+        assert "SCRIPT loader" in result.output
+
+    def test_parse_tree_comprehensive_fixture(self):
+        """Run --parse-tree against the comprehensive fixture and spot-check output."""
+        result = invoke("--parse-tree", "tests/scripts/fixtures/parse_only/parse_tree.sql")
+        assert result.exit_code == 0
+        out = result.output
+
+        # Header
+        assert "parse_tree.sql" in out
+        assert "nodes)" in out  # e.g. "120 nodes)" — resilient to fixture changes
+
+        # Simple SQL
+        assert "SQL: SELECT 1;" in out
+
+        # Flat metacommands
+        assert "SUB myvar hello_world" in out
+        assert "LOG" in out
+
+        # IF / ELSE with line numbers
+        assert "IF (FALSE)" in out
+        assert "ELSE" in out
+        assert "ENDIF" not in out  # ENDIF is not a node, it closes the block
+
+        # IF / ELSEIF / ELSE (multiple branches)
+        assert "ELSEIF (EQUALS(!!tier!!, gold))" in out
+        assert "ELSEIF (EQUALS(!!tier!!, silver))" in out
+
+        # Compound conditions
+        assert "ANDIF (EQUALS(!!active!!, 1))" in out
+        assert "ORIF (EQUALS(!!y!!, 1))" in out
+        # Multiple modifiers on one IF (may wrap across lines in Rich output)
+        assert "ANDIF" in out
+        assert "ORIF" in out
+
+        # Inline IF
+        assert "IF (TRUE)" in out
+        assert 'LOG "inline if fired"' in out
+
+        # LOOP WHILE / UNTIL
+        assert "LOOP WHILE" in out
+        assert "LOOP UNTIL" in out
+
+        # BREAK
+        assert "BREAK" in out
+
+        # BATCH
+        assert "BEGIN BATCH" in out
+        assert "ROLLBACK BATCH" in out
+        assert "ROLLBACK" in out
+
+        # SCRIPT blocks
+        assert "SCRIPT simple_proc" in out
+        assert "SCRIPT parameterized (tbl, col)" in out
+        assert "SCRIPT short_params (x, y, z)" in out
+        assert "SCRIPT created_proc" in out
+
+        # EXECUTE SCRIPT variants
+        assert "EXECUTE SCRIPT simple_proc" in out
+        assert "EXECUTE SCRIPT simple_proc WHILE (HAS_ROWS)" in out
+        assert "EXECUTE SCRIPT simple_proc UNTIL (ROW_COUNT_EQ(0))" in out
+
+        # IF EXISTS
+        assert "EXECUTE SCRIPT IF EXISTS maybe_missing" in out
+        assert "INCLUDE IF EXISTS optional_setup.sql" in out
+        assert "INCLUDE helpers.sql" in out
+
+        # BEGIN SQL
+        assert "BEGIN SQL" in out
+
+        # ON ERROR/CANCEL_HALT handlers (flat metacommands)
+        assert "ON ERROR_HALT EXECUTE SCRIPT" in out
+        assert "ON CANCEL_HALT EXECUTE SCRIPT" in out
+
+        # ASSERT
+        assert "ASSERT TRUE" in out
+
+        # WAIT_UNTIL
+        assert "WAIT_UNTIL" in out
+
+        # Nesting: LOOP > IF > BATCH
+        assert "LOOP WHILE (COND_A)" in out
+
+        # CONFIG
+        assert "CONFIG MAKE_EXPORT_DIRS Yes" in out
+        assert "TIMER ON" in out
+
+        # CONNECT
+        assert 'CONNECT TO SQLITE "test.db" AS testdb' in out
+        assert "USE testdb" in out
+
+        # EXPORT / IMPORT
+        assert "EXPORT QUERY" in out
+        assert "IMPORT TO NEW TABLE" in out

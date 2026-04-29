@@ -273,6 +273,11 @@ def main(
         "--dump-keywords",
         help="Dump all metacommand keywords as JSON and exit.",
     ),
+    list_plugins: bool = typer.Option(
+        False,
+        "--list-plugins",
+        help="List all discovered plugins (metacommands, exporters, importers) and exit.",
+    ),
     profile: bool = typer.Option(
         False,
         "--profile",
@@ -291,6 +296,22 @@ def main(
             "Path to an execsql configuration file. "
             "Loaded after the implicit search paths so its values take precedence. "
             "The file may chain additional configs via its [cyan][config][/cyan] section."
+        ),
+    ),
+    parse_tree: bool = typer.Option(
+        False,
+        "--parse-tree",
+        help=(
+            "Parse the script into an abstract syntax tree and print the tree structure. "
+            "Does not connect to a database or execute anything."
+        ),
+    ),
+    use_ast: bool = typer.Option(
+        False,
+        "--ast",
+        help=(
+            "Use the AST-based execution engine instead of the legacy flat command-list engine. "
+            "Experimental — validates that the new engine produces identical results."
         ),
     ),
     debug: bool = typer.Option(
@@ -380,6 +401,44 @@ def main(
         _console.print_json(_json.dumps(data, indent=2))
         raise typer.Exit()
 
+    if list_plugins:
+        from execsql.plugins import (
+            EXPORTER_GROUP,
+            IMPORTER_GROUP,
+            METACOMMAND_GROUP,
+            _load_entry_points,
+        )
+
+        _console.print("\n[bold cyan]Installed plugins:[/bold cyan]\n")
+
+        mc_plugins = _load_entry_points(METACOMMAND_GROUP)
+        ex_plugins = _load_entry_points(EXPORTER_GROUP)
+        im_plugins = _load_entry_points(IMPORTER_GROUP)
+
+        if not mc_plugins and not ex_plugins and not im_plugins:
+            _console.print("  [dim]No plugins found.[/dim]")
+            _console.print()
+            _console.print(
+                "  Plugins are discovered via Python entry points.\n"
+                "  See the execsql documentation for how to create plugins.",
+            )
+        else:
+            if mc_plugins:
+                _console.print(f"  [bold]Metacommands[/bold] ({len(mc_plugins)}):")
+                for name, _ in mc_plugins:
+                    _console.print(f"    - {name}")
+            if ex_plugins:
+                _console.print(f"  [bold]Exporters[/bold] ({len(ex_plugins)}):")
+                for name, _ in ex_plugins:
+                    _console.print(f"    - {name}")
+            if im_plugins:
+                _console.print(f"  [bold]Importers[/bold] ({len(im_plugins)}):")
+                for name, _ in im_plugins:
+                    _console.print(f"    - {name}")
+
+        _console.print()
+        raise typer.Exit()
+
     if online_help:
         import webbrowser
 
@@ -442,6 +501,61 @@ def main(
         raise typer.Exit(code=2)
 
     # ------------------------------------------------------------------
+    # Parse tree: parse script into AST and print tree structure
+    # ------------------------------------------------------------------
+    if parse_tree:
+        from execsql.script.ast import format_tree
+        from execsql.script.parser import parse_script, parse_string
+
+        try:
+            if command is not None:
+                tree = parse_string(command.replace("\\n", "\n").replace("\\t", "\t"), "<inline>")
+            elif script_name is not None:
+                encoding = script_encoding or "utf-8"
+                tree = parse_script(script_name, encoding=encoding)
+            else:
+                _err_console.print(
+                    "[bold red]Error:[/bold red] --parse-tree requires a script file or -c command.",
+                )
+                raise typer.Exit(code=1)
+        except ErrInfo as exc:
+            _err_console.print(f"[bold red]Parse error:[/bold red] {exc.errmsg()}")
+            raise typer.Exit(code=1) from exc
+
+        _console.print(format_tree(tree))
+        raise typer.Exit()
+
+    # ------------------------------------------------------------------
+    # Lint: AST-based static analysis (no DB connection needed)
+    # ------------------------------------------------------------------
+    if lint:
+        from execsql.cli.lint import _print_lint_results
+        from execsql.cli.lint_ast import lint_ast
+        from execsql.script.parser import parse_script, parse_string
+
+        label = script_name or "<inline>"
+        try:
+            if command is not None:
+                tree = parse_string(command.replace("\\n", "\n").replace("\\t", "\t"), "<inline>")
+            elif script_name is not None:
+                encoding = script_encoding or "utf-8"
+                tree = parse_script(script_name, encoding=encoding)
+            else:
+                _err_console.print(
+                    "[bold red]Error:[/bold red] --lint requires a script file or -c command.",
+                )
+                raise typer.Exit(code=1)
+        except ErrInfo as exc:
+            # Parse failure IS a lint error — report it
+            issues = [("error", label, 0, f"Parse error: {exc.errmsg()}")]
+            exit_code = _print_lint_results(issues, label)
+            raise typer.Exit(code=exit_code) from exc
+
+        issues = lint_ast(tree, script_path=script_name)
+        exit_code = _print_lint_results(issues, label)
+        raise typer.Exit(code=exit_code)
+
+    # ------------------------------------------------------------------
     # Delegate to the real main implementation
     # ------------------------------------------------------------------
     _run(
@@ -475,6 +589,7 @@ def main(
         lint=lint,
         debug=debug,
         config_file=config_file,
+        use_ast=use_ast,
     )
 
 

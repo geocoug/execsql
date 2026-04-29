@@ -111,6 +111,7 @@ __all__ = [
     "RuntimeContext",
     "get_context",
     "set_context",
+    "active_context",
 ]
 
 # ---------------------------------------------------------------------------
@@ -395,6 +396,43 @@ def set_context(ctx: RuntimeContext) -> None:
     _ctx = ctx
 
 
+class active_context:
+    """Context manager that installs a :class:`RuntimeContext` as active.
+
+    All ``_state.foo`` accesses within the ``with`` block resolve against
+    the given context.  The previous context is restored on exit, even if
+    an exception occurs.
+
+    .. warning::
+
+        **Not thread-safe.**  ``set_context()`` modifies a module-level
+        variable.  If two threads call ``execute()`` concurrently, they
+        will overwrite each other's context.  For thread-level isolation,
+        use thread-local storage (a future enhancement for PARALLEL blocks).
+
+    Usage::
+
+        from execsql.state import RuntimeContext, active_context
+
+        ctx = RuntimeContext()
+        with active_context(ctx):
+            # all _state.foo accesses use ctx
+            ...
+        # previous context is restored
+    """
+
+    def __init__(self, ctx: RuntimeContext) -> None:
+        self._ctx = ctx
+        self._prev: RuntimeContext = get_context()
+
+    def __enter__(self) -> RuntimeContext:
+        set_context(self._ctx)
+        return self._ctx
+
+    def __exit__(self, *exc: Any) -> None:
+        set_context(self._prev)
+
+
 # ---------------------------------------------------------------------------
 # Initialization and reset
 # ---------------------------------------------------------------------------
@@ -463,6 +501,12 @@ def initialize(
     _ctx.export_metadata = _exporters_base.ExportMetadata()
     _ctx.metacommandlist = dispatch_table
     _ctx.conditionallist = conditional_table
+
+    # Discover and register metacommand plugins via entry points.
+    # Runs here (not at import time) to avoid I/O side effects during import.
+    from execsql.plugins import discover_metacommand_plugins
+
+    discover_metacommand_plugins(dispatch_table)
 
 
 # ---------------------------------------------------------------------------

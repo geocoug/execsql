@@ -1,0 +1,22 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "execsql-plugin-YOURNAME"
+version = "0.1.0"
+description = "TODO: describe your plugin"
+requires-python = ">=3.10"
+dependencies = ["execsql2"]
+
+# Register your plugin with execsql.
+# Uncomment the entry point groups you need:
+
+[project.entry-points."execsql.metacommands"]
+YOURNAME = "execsql_plugin_YOURNAME:register_metacommands"
+
+# [project.entry-points."execsql.exporters"]
+# YOURNAME = "execsql_plugin_YOURNAME:register_exporters"
+
+# [project.entry-points."execsql.importers"]
+# YOURNAME = "execsql_plugin_YOURNAME:register_importers"

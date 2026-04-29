@@ -104,6 +104,37 @@ flowchart LR
 | `types.py`      | `DataType` subclasses and `DbType` per-DBMS type dialect mappings                                |
 | `models.py`     | `Column`, `DataTable`, `JsonDatatype`                                                            |
 | `exceptions.py` | `ExecSqlError` base, `ErrInfo`, `ConfigError`, `DataTypeError`, `DbTypeError`, etc.              |
+| `plugins.py`    | Entry-point plugin discovery for metacommands, exporters, and importers                          |
+
+______________________________________________________________________
+
+## AST Parser and Executor
+
+In addition to the legacy flat command-list engine, execsql2 includes an AST-based parser and executor:
+
+- **`script/ast.py`** -- Defines 11 AST node types (`SqlStatement`, `MetaCommandStatement`, `IfBlock`, `LoopBlock`, `BatchBlock`, `ScriptBlock`, `SqlBlock`, `IncludeDirective`, `Comment`) plus `SourceSpan` for source locations and `ConditionModifier` for ANDIF/ORIF.
+- **`script/parser.py`** -- `parse_script()` / `parse_string()` produce a `Script` tree. Unlike the legacy parser, all block structures (IF/LOOP/BATCH/SCRIPT/SQL) are resolved at parse time into nested nodes.
+- **`script/executor.py`** -- `execute(script, ctx=)` walks the AST tree. IF conditions, LOOP iteration, and BATCH boundaries are driven by tree structure rather than runtime state flags (`if_stack`, `compiling_loop`). SQL and metacommands delegate to the existing dispatch table.
+- **`cli/lint_ast.py`** -- AST-based linter that walks the tree for variable and INCLUDE checks. Structural validation (unmatched blocks) is handled by the parser itself.
+
+The AST path is activated via `--ast`. The legacy engine remains the default. Use `--parse-tree` to visualize the AST without executing.
+
+### RuntimeContext Isolation
+
+The executor accepts an explicit `RuntimeContext` parameter (`ctx`). The `active_context()` context manager in `state.py` installs a context as the active global so all legacy code (metacommand handlers, database adapters) automatically resolves against it. This enables isolated execution for the planned library API.
+
+______________________________________________________________________
+
+## Plugin System
+
+execsql supports plugins via Python entry points. Plugins can register custom metacommands, export formats, and import formats.
+
+- **Entry point groups**: `execsql.metacommands`, `execsql.exporters`, `execsql.importers`
+- **Discovery**: `plugins.discover_metacommand_plugins()` is called during `state.initialize()`. Exporter/importer plugins are discovered via `discover_exporter_plugins()` / `discover_importer_plugins()`.
+- **Error handling**: Broken plugins are logged and skipped -- they cannot prevent execsql from starting.
+- **Template**: `extras/plugin-template/` provides a starting point for creating plugins.
+
+See `--list-plugins` to view discovered plugins.
 
 ______________________________________________________________________
 

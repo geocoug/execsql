@@ -30,7 +30,7 @@ __all__ = ["_connect_initial_db", "_ping_db", "_print_dry_run", "_print_profile"
 
 # Lint helper — imported lazily inside _run() to keep start-up cost low, but
 # re-exported here so that tests and callers can reach it via cli.run.
-from execsql.cli.lint import _lint_script, _print_lint_results  # noqa: F401 — re-export
+from execsql.cli.lint import _print_lint_results  # noqa: F401 — re-export (used by cli/__init__.py)
 
 
 # ---------------------------------------------------------------------------
@@ -221,6 +221,7 @@ def _run(
     lint: bool = False,
     debug: bool = False,
     config_file: str | None = None,
+    use_ast: bool = False,
 ) -> None:
     """Initialise state, connect to the database, load the script, and run it.
 
@@ -488,11 +489,23 @@ def _run(
     # ------------------------------------------------------------------
     # Load the SQL script (skipped in --ping and --dry-run with no script)
     # ------------------------------------------------------------------
+    _ast_tree = None
     if not ping:
-        if command is not None:
-            read_sqlstring(command.replace("\\n", "\n").replace("\\t", "\t"), "<inline>")
+        if use_ast:
+            from execsql.script.parser import parse_script, parse_string
+
+            if command is not None:
+                _ast_tree = parse_string(
+                    command.replace("\\n", "\n").replace("\\t", "\t"),
+                    "<inline>",
+                )
+            else:
+                _ast_tree = parse_script(script_name, encoding=conf.script_encoding)
         else:
-            read_sqlfile(script_name)
+            if command is not None:
+                read_sqlstring(command.replace("\\n", "\n").replace("\\t", "\t"), "<inline>")
+            else:
+                read_sqlfile(script_name)
 
     # ------------------------------------------------------------------
     # Dry-run: print command list and exit without connecting to DB
@@ -502,14 +515,9 @@ def _run(
         raise SystemExit(0)
 
     # ------------------------------------------------------------------
-    # Lint: static analysis without connecting to DB
+    # NOTE: --lint is handled as an early exit in cli/__init__.py (AST
+    # linter) before _run() is called.  No lint code path here.
     # ------------------------------------------------------------------
-    if lint:
-        cmdlist = _state.commandliststack[-1] if _state.commandliststack else None
-        issues = _lint_script(cmdlist, script_name)
-        label = script_name or "<inline>"
-        exit_code = _print_lint_results(issues, label)
-        raise SystemExit(exit_code)
 
     # ------------------------------------------------------------------
     # Start GUI console if requested
@@ -558,12 +566,70 @@ def _run(
     if debug:
         _state.step_mode = True
 
-    _execute_script_direct(conf, profile=profile, profile_limit=profile_limit)
+    if use_ast and _ast_tree is not None:
+        _execute_script_ast(_ast_tree, conf, profile=profile, profile_limit=profile_limit)
+    else:
+        _execute_script_direct(conf, profile=profile, profile_limit=profile_limit)
 
 
 # ---------------------------------------------------------------------------
 # Script execution helpers
 # ---------------------------------------------------------------------------
+
+
+def _execute_script_ast(
+    tree: Any,
+    conf: ConfigData,
+    *,
+    profile: bool = False,
+    profile_limit: int = 20,
+) -> None:
+    """Execute a script using the AST executor.
+
+    Same error handling and lifecycle as :func:`_execute_script_direct`.
+    """
+    import execsql.state as _state
+
+    from execsql.script.executor import execute
+
+    try:
+        execute(tree)
+    except SystemExit as exc:
+        if gui_console_isrunning() and conf.gui_wait_on_exit:
+            gui_console_wait_user(
+                "Script complete; close the console window to exit execsql.",
+            )
+            if gui_console_isrunning():
+                gui_console_off()
+        _state.exec_log.log_status_info(f"{_state.cmds_run} commands run")
+        if profile and _state.profile_data is not None:
+            _print_profile(_state.profile_data, limit=profile_limit)
+        sys.exit(exc.code)
+    except ConfigError:
+        raise
+    except ErrInfo as exc:
+        from execsql.utils.errors import exit_now
+
+        exit_now(1, exc)
+    except Exception:
+        strace = traceback.extract_tb(sys.exc_info()[2])[-1:]
+        lno = strace[0][1]
+        msg = f"{Path(sys.argv[0]).name}: Uncaught exception {sys.exc_info()[0]} ({sys.exc_info()[1]}) on line {lno}"
+        from execsql.utils.errors import exit_now
+
+        exit_now(1, ErrInfo("exception", exception_msg=msg))
+
+    _state.dbs.do_rollback = False
+    if gui_console_isrunning() and conf.gui_wait_on_exit:
+        gui_console_wait_user(
+            "Script complete; close the console window to exit execsql.",
+        )
+        if gui_console_isrunning():
+            gui_console_off()
+    _state.exec_log.log_status_info(f"{_state.cmds_run} commands run")
+    if profile and _state.profile_data is not None:
+        _print_profile(_state.profile_data, limit=profile_limit)
+    _state.exec_log.log_exit_end()
 
 
 def _execute_script_textual_console(conf: ConfigData) -> None:

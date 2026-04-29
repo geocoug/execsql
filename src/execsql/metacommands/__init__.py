@@ -497,3 +497,6 @@ DATABASE_TYPES = [
 from execsql.metacommands.dispatch import build_dispatch_table
 
 DISPATCH_TABLE = build_dispatch_table()
+
+# Plugin discovery is deferred to state.initialize() so it does not run
+# at import time.  See execsql.plugins.discover_metacommand_plugins().
