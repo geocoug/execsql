@@ -9,6 +9,8 @@ dispatch table (conditionallist) to be loaded, which only happens inside main().
 
 from __future__ import annotations
 
+import threading
+import time
 from unittest.mock import MagicMock
 
 import pytest
@@ -16,7 +18,7 @@ import pytest
 import execsql.state as _state
 from execsql.exceptions import ErrInfo
 from execsql.script import CommandList
-from execsql.state import RuntimeContext, _CONTEXT_ATTRS
+from execsql.state import RuntimeContext, _CONTEXT_ATTRS, active_context
 
 
 # ---------------------------------------------------------------------------
@@ -295,3 +297,108 @@ class TestRuntimeContext:
         ctx = RuntimeContext()
         with pytest.raises(AttributeError):
             ctx.conff = "typo"  # noqa: B009
+
+
+# ---------------------------------------------------------------------------
+# Thread safety (threading.local isolation)
+# ---------------------------------------------------------------------------
+
+
+class TestThreadSafety:
+    def test_thread_isolation_set_context(self):
+        """Two threads with different contexts don't interfere."""
+        original = _state.get_context()
+        results = {}
+        barrier = threading.Barrier(2)
+
+        def worker(name: str, value: str):
+            ctx = RuntimeContext()
+            ctx.upass = value
+            _state.set_context(ctx)
+            barrier.wait(timeout=5)
+            # After both threads have set their context, read back
+            time.sleep(0.01)
+            results[name] = _state.get_context().upass
+
+        t1 = threading.Thread(target=worker, args=("t1", "pass_one"))
+        t2 = threading.Thread(target=worker, args=("t2", "pass_two"))
+        t1.start()
+        t2.start()
+        t1.join(timeout=10)
+        t2.join(timeout=10)
+
+        assert results["t1"] == "pass_one"
+        assert results["t2"] == "pass_two"
+        # Main thread context unaffected
+        assert _state.get_context() is original
+
+    def test_thread_isolation_proxy(self):
+        """_state.foo proxy is thread-isolated."""
+        original = _state.get_context()
+        results = {}
+        barrier = threading.Barrier(2)
+
+        def worker(name: str, value: str):
+            ctx = RuntimeContext()
+            _state.set_context(ctx)
+            _state.upass = value
+            barrier.wait(timeout=5)
+            time.sleep(0.01)
+            results[name] = _state.upass
+
+        t1 = threading.Thread(target=worker, args=("t1", "alpha"))
+        t2 = threading.Thread(target=worker, args=("t2", "beta"))
+        t1.start()
+        t2.start()
+        t1.join(timeout=10)
+        t2.join(timeout=10)
+
+        assert results["t1"] == "alpha"
+        assert results["t2"] == "beta"
+        assert _state.get_context() is original
+
+    def test_new_thread_gets_fresh_context(self):
+        """A new thread without set_context() gets a fresh RuntimeContext."""
+        result = {}
+
+        def worker():
+            ctx = _state.get_context()
+            result["is_runtime_context"] = isinstance(ctx, RuntimeContext)
+            result["upass_is_none"] = ctx.upass is None
+
+        t = threading.Thread(target=worker)
+        t.start()
+        t.join(timeout=10)
+
+        assert result["is_runtime_context"] is True
+        assert result["upass_is_none"] is True
+
+    def test_active_context_restores_previous(self):
+        """active_context restores the previous context on exit."""
+        original = _state.get_context()
+        new_ctx = RuntimeContext()
+        new_ctx.upass = "temp"
+
+        with active_context(new_ctx) as ctx:
+            assert ctx is new_ctx
+            assert _state.upass == "temp"
+
+        assert _state.get_context() is original
+
+    def test_active_context_thread_isolated(self):
+        """active_context in a child thread doesn't affect the main thread."""
+        main_ctx = _state.get_context()
+        main_upass = main_ctx.upass
+
+        def worker():
+            child_ctx = RuntimeContext()
+            child_ctx.upass = "child_only"
+            with active_context(child_ctx):
+                pass  # Just install and restore
+
+        t = threading.Thread(target=worker)
+        t.start()
+        t.join(timeout=10)
+
+        assert _state.get_context() is main_ctx
+        assert _state.upass == main_upass

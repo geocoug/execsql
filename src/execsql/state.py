@@ -13,16 +13,15 @@ inside function/method bodies — never at class-definition time — to avoid
 circular-import issues at load time.
 
 Internally, all mutable state lives on a :class:`RuntimeContext` instance
-(``_ctx``).  The module's ``__class__`` is swapped to a custom
+stored in a :class:`threading.local` so that each thread has its own
+isolated context.  The module's ``__class__`` is swapped to a custom
 :class:`types.ModuleType` subclass that transparently proxies attribute
-reads and writes to the active context.  This means:
+reads and writes to the active thread's context via :func:`_get_ctx`.
 
 - External code continues to use ``_state.conf``, ``_state.subvars = ...``,
   etc. with zero changes.
-- Functions *within* this module use ``_ctx.conf``, ``_ctx.subvars``, etc.
-  directly, because Python's ``LOAD_GLOBAL`` / ``STORE_GLOBAL`` bytecodes
-  access ``__dict__`` directly and do not trigger ``__getattr__`` /
-  ``__setattr__`` on the module class.
+- Functions *within* this module use ``_get_ctx()`` to obtain the active
+  context, ensuring thread-safe access.
 
 Use :func:`get_context` / :func:`set_context` to obtain or replace the
 active context programmatically.
@@ -30,12 +29,12 @@ active context programmatically.
 
 import re
 import sys
+import threading
 import types
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     import multiprocessing as _mp
-    import threading as _threading
 
     from execsql.config import ConfigData, StatObj, WriteHooks
     from execsql.db.base import DatabasePool
@@ -306,7 +305,7 @@ class RuntimeContext:
         # GUI
         self.gui_console: Any = None
         self.gui_manager_queue: _mp.Queue | None = None
-        self.gui_manager_thread: _threading.Thread | None = None
+        self.gui_manager_thread: threading.Thread | None = None
 
         # Profiling — None means profiling is disabled; a list means it is enabled.
         # Each entry: (source, line_no, command_type, elapsed_secs, command_text_preview)
@@ -330,12 +329,12 @@ class _StateModule(types.ModuleType):
 
     def __getattr__(self, name: str) -> Any:
         if name in _CONTEXT_ATTRS:
-            return getattr(self.__dict__["_ctx"], name)
+            return getattr(_get_ctx(), name)
         raise AttributeError(f"module {self.__name__!r} has no attribute {name!r}")
 
     def __setattr__(self, name: str, value: Any) -> None:
         if name in _CONTEXT_ATTRS:
-            setattr(self.__dict__["_ctx"], name, value)
+            setattr(_get_ctx(), name, value)
         else:
             super().__setattr__(name, value)
 
@@ -345,12 +344,12 @@ class _StateModule(types.ModuleType):
             # unittest.mock.patch compatibility: patch checks
             # ``name in target.__dict__`` to decide whether to restore
             # via setattr (local) or delattr (non-local).  Since context
-            # attrs live on _ctx, not __dict__, patch takes the delattr
-            # path.  We reset to the default rather than truly deleting.
-            # Instantiate a fresh context each time to avoid sharing
-            # mutable defaults (lists/dicts) with a cached snapshot.
+            # attrs live on the RuntimeContext, not __dict__, patch takes
+            # the delattr path.  We reset to the default rather than truly
+            # deleting.  Instantiate a fresh context each time to avoid
+            # sharing mutable defaults (lists/dicts) with a cached snapshot.
             fresh = RuntimeContext()
-            setattr(self.__dict__["_ctx"], name, getattr(fresh, name))
+            setattr(_get_ctx(), name, getattr(fresh, name))
         else:
             super().__delattr__(name)
 
@@ -359,7 +358,7 @@ class _StateModule(types.ModuleType):
 
 
 # ---------------------------------------------------------------------------
-# Utility functions — use _ctx directly (LOAD_GLOBAL bypasses the proxy)
+# Utility functions
 # ---------------------------------------------------------------------------
 
 
@@ -378,11 +377,12 @@ def endloop() -> None:
     """Complete the current loop being compiled and push it onto the command stack."""
     import execsql.exceptions as _exc
 
-    if len(_ctx.loopcommandstack) == 0:
+    ctx = _get_ctx()
+    if len(ctx.loopcommandstack) == 0:
         raise _exc.ErrInfo("error", other_msg="END LOOP metacommand without a matching preceding LOOP metacommand.")
-    _ctx.compiling_loop = False
-    _ctx.commandliststack.append(_ctx.loopcommandstack[-1])
-    _ctx.loopcommandstack.pop()
+    ctx.compiling_loop = False
+    ctx.commandliststack.append(ctx.loopcommandstack[-1])
+    ctx.loopcommandstack.pop()
 
 
 # ---------------------------------------------------------------------------
@@ -391,19 +391,18 @@ def endloop() -> None:
 
 
 def get_context() -> RuntimeContext:
-    """Return the active :class:`RuntimeContext`."""
-    return _ctx
+    """Return the active :class:`RuntimeContext` for the current thread."""
+    return _get_ctx()
 
 
 def set_context(ctx: RuntimeContext) -> None:
-    """Replace the active :class:`RuntimeContext`.
+    """Replace the active :class:`RuntimeContext` for the current thread.
 
     Args:
         ctx: The new context to install.  All subsequent ``_state.foo``
-            accesses will resolve against this instance.
+            accesses **in this thread** will resolve against this instance.
     """
-    global _ctx
-    _ctx = ctx
+    _tls.ctx = ctx
 
 
 class active_context:
@@ -413,12 +412,9 @@ class active_context:
     the given context.  The previous context is restored on exit, even if
     an exception occurs.
 
-    .. warning::
-
-        **Not thread-safe.**  ``set_context()`` modifies a module-level
-        variable.  If two threads call ``execute()`` concurrently, they
-        will overwrite each other's context.  For thread-level isolation,
-        use thread-local storage (a future enhancement for PARALLEL blocks).
+    Thread-safe: each thread has its own context via :data:`threading.local`,
+    so concurrent ``active_context`` blocks in different threads do not
+    interfere with each other.
 
     Usage::
 
@@ -433,14 +429,15 @@ class active_context:
 
     def __init__(self, ctx: RuntimeContext) -> None:
         self._ctx = ctx
-        self._prev: RuntimeContext = get_context()
+        self._prev: RuntimeContext | None = None
 
     def __enter__(self) -> RuntimeContext:
-        set_context(self._ctx)
+        self._prev = _get_ctx()
+        _tls.ctx = self._ctx
         return self._ctx
 
     def __exit__(self, *exc: Any) -> None:
-        set_context(self._prev)
+        _tls.ctx = self._prev
 
 
 # ---------------------------------------------------------------------------
@@ -455,20 +452,21 @@ def reset() -> None:
     preserving only the ``filewriter`` subprocess (which is ``atexit``-managed
     and must not be discarded while alive).
     """
-    global _ctx
+    ctx = _get_ctx()
 
     # Preserve filewriter — it's atexit-managed and must survive resets.
-    old_fw = _ctx.filewriter
+    old_fw = ctx.filewriter
 
     # Close open database connections before discarding the pool.
-    if _ctx.dbs is not None:
+    if ctx.dbs is not None:
         try:
-            _ctx.dbs.closeall()
+            ctx.dbs.closeall()
         except Exception:
             pass
 
-    _ctx = RuntimeContext()
-    _ctx.filewriter = old_fw
+    new_ctx = RuntimeContext()
+    new_ctx.filewriter = old_fw
+    _tls.ctx = new_ctx
 
 
 def initialize(
@@ -502,15 +500,16 @@ def initialize(
     import execsql.utils.fileio as _fileio_mod
     import execsql.utils.timer as _timer_mod
 
-    _ctx.conf = config
-    _ctx.if_stack = _script.IfLevels()
-    _ctx.counters = _script.CounterVars()
-    _ctx.timer = _timer_mod.Timer()
-    _ctx.dbs = _db_base.DatabasePool()
-    _ctx.tempfiles = _fileio_mod.TempFileMgr()
-    _ctx.export_metadata = _exporters_base.ExportMetadata()
-    _ctx.metacommandlist = dispatch_table
-    _ctx.conditionallist = conditional_table
+    ctx = _get_ctx()
+    ctx.conf = config
+    ctx.if_stack = _script.IfLevels()
+    ctx.counters = _script.CounterVars()
+    ctx.timer = _timer_mod.Timer()
+    ctx.dbs = _db_base.DatabasePool()
+    ctx.tempfiles = _fileio_mod.TempFileMgr()
+    ctx.export_metadata = _exporters_base.ExportMetadata()
+    ctx.metacommandlist = dispatch_table
+    ctx.conditionallist = conditional_table
 
     # Discover and register metacommand plugins via entry points.
     # Runs here (not at import time) to avoid I/O side effects during import.
@@ -520,8 +519,30 @@ def initialize(
 
 
 # ---------------------------------------------------------------------------
+# Thread-local storage and context helper
+# ---------------------------------------------------------------------------
+
+_tls = threading.local()
+
+
+def _get_ctx() -> RuntimeContext:
+    """Return the current thread's :class:`RuntimeContext`, creating one if needed.
+
+    Each thread gets its own isolated context via :data:`threading.local`.
+    The first access in a new thread lazily creates a fresh
+    :class:`RuntimeContext` so that code which reads ``_state.foo`` never
+    encounters an ``AttributeError``.
+    """
+    ctx = getattr(_tls, "ctx", None)
+    if ctx is None:
+        ctx = RuntimeContext()
+        _tls.ctx = ctx
+    return ctx
+
+
+# ---------------------------------------------------------------------------
 # Bootstrap — create the initial context and swap the module class
 # ---------------------------------------------------------------------------
 
-_ctx = RuntimeContext()
+_tls.ctx = RuntimeContext()
 sys.modules[__name__].__class__ = _StateModule

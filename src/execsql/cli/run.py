@@ -192,6 +192,312 @@ def _ping_db(db: Any) -> None:
 
 
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Extracted phases — pure computation, no global state coupling
+# ---------------------------------------------------------------------------
+
+
+def _seed_early_subvars() -> SubVarSet:
+    """Create and populate the initial substitution variable pool.
+
+    Seeds environment variables (filtering secrets), timestamps, system info,
+    and placeholder variables.  Called once at the start of :func:`_run`.
+    """
+    subvars = SubVarSet()
+
+    _SENSITIVE_SUBSTRINGS = ("SECRET", "TOKEN", "PASSWORD", "PASSWD", "PRIVATE_KEY", "CREDENTIAL")
+    for k in os.environ:
+        if any(s in k.upper() for s in _SENSITIVE_SUBSTRINGS):
+            continue
+        try:
+            subvars.add_substitution("&" + k, os.environ[k])
+        except Exception:
+            pass  # Skip env vars with names that can't be substitution keys.
+    subvars.add_substitution("$LAST_ROWCOUNT", None)
+
+    dt_now = datetime.datetime.now()
+    dt_now_utc = datetime.datetime.now(tz=datetime.timezone.utc)
+
+    subvars.add_substitution("$SCRIPT_START_TIME", dt_now.strftime("%Y-%m-%d %H:%M"))
+    subvars.add_substitution("$SCRIPT_START_TIME_UTC", dt_now_utc.strftime("%Y-%m-%d %H:%M"))
+    subvars.add_substitution("$DATE_TAG", dt_now.strftime("%Y%m%d"))
+    subvars.add_substitution("$DATETIME_TAG", dt_now.strftime("%Y%m%d_%H%M"))
+    subvars.add_substitution("$DATETIME_UTC_TAG", dt_now_utc.strftime("%Y%m%d_%H%M"))
+    subvars.add_substitution("$LAST_SQL", "")
+    subvars.add_substitution("$LAST_ERROR", "")
+    subvars.add_substitution("$ERROR_MESSAGE", "")
+    subvars.add_substitution("$USER", getpass.getuser())
+    subvars.add_substitution("$STARTING_PATH", os.getcwd() + os.sep)
+    subvars.add_substitution("$PATHSEP", os.sep)
+    osys = sys.platform
+    if osys.startswith("linux"):
+        osys = "linux"
+    elif osys.startswith("win"):
+        osys = "windows"
+    subvars.add_substitution("$OS", osys)
+    subvars.add_substitution("$HOSTNAME", platform.node())
+    subvars.add_substitution("$PYTHON_EXECUTABLE", sys.executable)
+    return subvars
+
+
+def _load_config(
+    script_name: str | None,
+    subvars: SubVarSet,
+    config_file: str | None,
+) -> ConfigData:
+    """Load and merge configuration files for the given script.
+
+    Returns a fully populated :class:`ConfigData` instance.
+    """
+    script_path = str(Path(script_name).resolve().parent) if script_name else os.getcwd()
+    return ConfigData(script_path, subvars, config_file=config_file)
+
+
+def _seed_script_subvars(subvars: SubVarSet, script_name: str | None) -> None:
+    """Add substitution variables that depend on the script path."""
+    from execsql.utils.errors import file_size_date
+
+    if script_name is not None:
+        subvars.add_substitution("$STARTING_SCRIPT", script_name)
+        subvars.add_substitution("$STARTING_SCRIPT_NAME", Path(script_name).name)
+        subvars.add_substitution("$STARTING_SCRIPT_REVTIME", file_size_date(script_name)[1])
+    else:
+        subvars.add_substitution("$STARTING_SCRIPT", "<inline>")
+        subvars.add_substitution("$STARTING_SCRIPT_NAME", "<inline>")
+        subvars.add_substitution("$STARTING_SCRIPT_REVTIME", "")
+
+
+def _load_script(
+    command: str | None,
+    script_name: str | None,
+    encoding: str,
+) -> Any:
+    """Parse the SQL script (or inline command) into an AST.
+
+    Returns the AST tree, or ``None`` if no script is provided.
+    """
+    from execsql.script.parser import parse_script, parse_string
+
+    if command is not None:
+        return parse_string(
+            command.replace("\\n", "\n").replace("\\t", "\t"),
+            "<inline>",
+        )
+    return parse_script(script_name, encoding=encoding)
+
+
+def _apply_dsn(dsn: str, conf: ConfigData, db_type: str | None) -> tuple[str | None, str | None, int | None]:
+    """Parse a DSN connection string and apply overrides to *conf*.
+
+    Returns ``(db_type, user_override, port_override)`` — values extracted
+    from the DSN that must also be applied to CLI-level variables in the
+    caller.
+    """
+    try:
+        parsed = _parse_connection_string(dsn)
+    except ConfigError as exc:
+        _err_console.print(f"[bold red]Error:[/bold red] {exc}")
+        raise SystemExit(1) from None
+    db_type = db_type or parsed["db_type"]
+    conf.db_type = db_type
+    if parsed["server"]:
+        conf.server = parsed["server"]
+    if parsed["db"]:
+        conf.db = parsed["db"]
+    if parsed["db_file"]:
+        conf.db_file = parsed["db_file"]
+    user = parsed["user"]  # may be None
+    if parsed["password"]:
+        conf.db_password = parsed["password"]
+        conf.passwd_prompt = False
+    port = parsed["port"]  # may be None
+    return db_type, user, port
+
+
+def _apply_cli_options(
+    conf: ConfigData,
+    *,
+    user: str | None,
+    no_passwd: bool,
+    database_encoding: str | None,
+    script_encoding: str | None,
+    output_encoding: str | None,
+    import_encoding: str | None,
+    import_buffer: int | None,
+    make_dirs: str | None,
+    boolean_int: str | None,
+    scanlines: int | None,
+    use_gui: str | None,
+    gui_framework: str | None,
+    db_type: str | None,
+    user_logfile: bool,
+    port: int | None,
+    new_db: bool,
+    output_dir: str | None,
+    progress: bool,
+) -> None:
+    """Merge CLI flags into *conf*, overriding config-file values."""
+    if user:
+        conf.username = user
+    if no_passwd:
+        conf.passwd_prompt = False
+    if database_encoding:
+        conf.db_encoding = database_encoding
+    if script_encoding:
+        conf.script_encoding = script_encoding
+    if not conf.script_encoding:
+        conf.script_encoding = "utf8"
+    if output_encoding:
+        conf.output_encoding = output_encoding
+    if not conf.output_encoding:
+        conf.output_encoding = "utf8"
+    if import_encoding:
+        conf.import_encoding = import_encoding
+    if not conf.import_encoding:
+        conf.import_encoding = "utf8"
+    if import_buffer:
+        conf.import_buffer = import_buffer * 1024
+    if make_dirs:
+        conf.make_export_dirs = make_dirs in ("1", "t", "T", "y", "Y")
+    if boolean_int:
+        conf.boolean_int = boolean_int in ("1", "t", "T", "y", "Y")
+    if scanlines is not None:
+        conf.scan_lines = scanlines
+    if conf.scan_lines is None:
+        conf.scan_lines = 100
+    if use_gui:
+        conf.gui_level = int(use_gui)
+    if conf.gui_level is None:
+        conf.gui_level = 0
+    elif conf.gui_level not in range(4):
+        raise ConfigError(f"Invalid GUI level specification: {conf.gui_level}")
+    if gui_framework:
+        conf.gui_framework = gui_framework.lower()
+    if db_type:
+        conf.db_type = db_type
+    if conf.db_type is None:
+        conf.db_type = "l"
+    if user_logfile:
+        conf.user_logfile = True
+    if port:
+        conf.port = port
+    if conf.db_type == "a" and user:
+        conf.access_username = user
+    if new_db:
+        conf.new_db = True
+    if output_dir:
+        conf.export_output_dir = str(Path(output_dir).resolve())
+    if progress:
+        conf.show_progress = True
+
+
+def _route_positionals(
+    positional: list,
+    conf: ConfigData,
+    *,
+    command: str | None,
+    ping: bool,
+) -> None:
+    """Apply remaining positional CLI arguments to *conf* as server/db/db_file."""
+    off = 0 if (command is not None or ping) else 1
+    if len(positional) == off + 1:
+        if conf.db_type in ("a", "l", "k"):
+            conf.db_file = positional[off]
+        elif conf.db_type == "d":
+            conf.db = positional[off]
+        else:
+            if conf.server and not conf.db:
+                conf.db = positional[off]
+            else:
+                conf.server = positional[off]
+    elif len(positional) == off + 2:
+        conf.server = positional[off]
+        conf.db = positional[off + 1]
+    elif len(positional) > off + 2:
+        from execsql.utils.errors import fatal_error
+
+        fatal_error("Incorrect number of command-line arguments.")
+
+
+def _setup_logging(
+    conf: ConfigData,
+    subvars: SubVarSet,
+    script_name: str | None,
+    sub_vars: list[str] | None,
+    *,
+    boolean_int: str | None,
+    make_dirs: str | None,
+    database_encoding: str | None,
+    script_encoding: str | None,
+    output_encoding: str | None,
+    import_encoding: str | None,
+    user_logfile: bool,
+    new_db: bool,
+    port: int | None,
+    scanlines: int | None,
+    db_type: str | None,
+    user: str | None,
+    use_gui: str | None,
+    no_passwd: bool,
+    import_buffer: int | None,
+) -> Logger:
+    """Create the execution logger, log initial info, and seed ``$RUN_ID``."""
+    from execsql.utils.errors import file_size_date
+
+    opts_dict = {
+        k: v
+        for k, v in {
+            "sub_vars": sub_vars,
+            "boolean_int": boolean_int,
+            "make_dirs": make_dirs,
+            "database_encoding": database_encoding,
+            "script_encoding": script_encoding,
+            "output_encoding": output_encoding,
+            "import_encoding": import_encoding,
+            "user_logfile": user_logfile,
+            "new_db": new_db,
+            "port": port,
+            "scanlines": scanlines,
+            "db_type": db_type,
+            "user": user,
+            "use_gui": use_gui,
+            "no_passwd": no_passwd,
+            "import_buffer": import_buffer,
+        }.items()
+        if v
+    }
+    logger = Logger(
+        script_name or "<inline>",
+        conf.db,
+        conf.server,
+        opts_dict,
+        conf.user_logfile,
+    )
+    logger.log_status_info(
+        f"Python version {sys.version_info[0]}.{sys.version_info[1]}.{sys.version_info[2]} {sys.version_info[3]}",
+    )
+    logger.log_status_info(f"execsql version {__version__}")
+    logger.log_status_info(f"System user: {getpass.getuser()}")
+    for configfile in conf.files_read:
+        sz, dt = file_size_date(configfile)
+        logger.log_status_info(
+            f"Read configuration file {configfile} (size: {sz}, date: {dt}).",
+        )
+
+    subvars.add_substitution("$RUN_ID", logger.run_id)
+
+    if sub_vars:
+        for n, repl in enumerate(sub_vars):
+            var = f"$ARG_{n + 1}"
+            subvars.add_substitution(var, repl)
+            logger.log_status_info(
+                f"Command-line substitution variable assignment: {var} set to {{{repl}}}",
+            )
+
+    return logger
+
+
+# ---------------------------------------------------------------------------
 # Core execution (split from argument parsing for testability)
 # ---------------------------------------------------------------------------
 
@@ -249,51 +555,14 @@ def _run(
     import execsql.state as _state
 
     # ------------------------------------------------------------------
-    # Early setup: substitution variables seeded before arg parsing
+    # Early setup: substitution variables seeded before config loading
     # ------------------------------------------------------------------
-    _state.subvars = SubVarSet()
-
-    # Environment variables are exposed as &-prefixed substitution variables.
-    # Variables whose names contain common secret-indicating substrings are
-    # excluded to reduce accidental credential leakage into scripts and logs.
-    _SENSITIVE_SUBSTRINGS = ("SECRET", "TOKEN", "PASSWORD", "PASSWD", "PRIVATE_KEY", "CREDENTIAL")
-    for k in os.environ:
-        if any(s in k.upper() for s in _SENSITIVE_SUBSTRINGS):
-            continue
-        try:
-            _state.subvars.add_substitution("&" + k, os.environ[k])
-        except Exception:
-            pass  # Skip env vars with names that can't be substitution keys.
-    _state.subvars.add_substitution("$LAST_ROWCOUNT", None)
-
-    dt_now = datetime.datetime.now()
-    dt_now_utc = datetime.datetime.now(tz=datetime.timezone.utc)
-
-    _state.subvars.add_substitution("$SCRIPT_START_TIME", dt_now.strftime("%Y-%m-%d %H:%M"))
-    _state.subvars.add_substitution("$SCRIPT_START_TIME_UTC", dt_now_utc.strftime("%Y-%m-%d %H:%M"))
-    _state.subvars.add_substitution("$DATE_TAG", dt_now.strftime("%Y%m%d"))
-    _state.subvars.add_substitution("$DATETIME_TAG", dt_now.strftime("%Y%m%d_%H%M"))
-    _state.subvars.add_substitution("$DATETIME_UTC_TAG", dt_now_utc.strftime("%Y%m%d_%H%M"))
-    _state.subvars.add_substitution("$LAST_SQL", "")
-    _state.subvars.add_substitution("$LAST_ERROR", "")
-    _state.subvars.add_substitution("$ERROR_MESSAGE", "")
-    _state.subvars.add_substitution("$USER", getpass.getuser())
-    _state.subvars.add_substitution("$STARTING_PATH", os.getcwd() + os.sep)
-    _state.subvars.add_substitution("$PATHSEP", os.sep)
-    osys = sys.platform
-    if osys.startswith("linux"):
-        osys = "linux"
-    elif osys.startswith("win"):
-        osys = "windows"
-    _state.subvars.add_substitution("$OS", osys)
-    _state.subvars.add_substitution("$HOSTNAME", platform.node())
-    _state.subvars.add_substitution("$PYTHON_EXECUTABLE", sys.executable)
+    _state.subvars = _seed_early_subvars()
 
     # ------------------------------------------------------------------
     # Read configuration file
     # ------------------------------------------------------------------
-    script_path = str(Path(script_name).resolve().parent) if script_name else os.getcwd()
-    _state.conf = ConfigData(script_path, _state.subvars, config_file=config_file)
+    _state.conf = _load_config(script_name, _state.subvars, config_file)
     conf = _state.conf
 
     # ------------------------------------------------------------------
@@ -301,117 +570,46 @@ def _run(
     # and positional server/db args when provided.
     # ------------------------------------------------------------------
     if dsn:
-        try:
-            parsed_dsn = _parse_connection_string(dsn)
-        except ConfigError as exc:
-            _err_console.print(f"[bold red]Error:[/bold red] {exc}")
-            raise SystemExit(1) from None
-        db_type = db_type or parsed_dsn["db_type"]
-        conf.db_type = db_type
-        # DSN values override conf-file values — the CLI flag is explicit.
-        if parsed_dsn["server"]:
-            conf.server = parsed_dsn["server"]
-        if parsed_dsn["db"]:
-            conf.db = parsed_dsn["db"]
-        if parsed_dsn["db_file"]:
-            conf.db_file = parsed_dsn["db_file"]
-        if parsed_dsn["user"]:
-            user = parsed_dsn["user"]
-        if parsed_dsn["password"]:
-            conf.db_password = parsed_dsn["password"]
-            conf.passwd_prompt = False
-        if parsed_dsn["port"]:
-            port = parsed_dsn["port"]
+        db_type, dsn_user, dsn_port = _apply_dsn(dsn, conf, db_type)
+        if dsn_user:
+            user = dsn_user
+        if dsn_port:
+            port = dsn_port
 
-    # Apply CLI options over config-file values
-    if user:
-        conf.username = user
-    if no_passwd:
-        conf.passwd_prompt = False
-    if database_encoding:
-        conf.db_encoding = database_encoding
-    if script_encoding:
-        conf.script_encoding = script_encoding
-    if not conf.script_encoding:
-        conf.script_encoding = "utf8"
-    if output_encoding:
-        conf.output_encoding = output_encoding
-    if not conf.output_encoding:
-        conf.output_encoding = "utf8"
-    if import_encoding:
-        conf.import_encoding = import_encoding
-    if not conf.import_encoding:
-        conf.import_encoding = "utf8"
-    if import_buffer:
-        conf.import_buffer = import_buffer * 1024
-    if make_dirs:
-        conf.make_export_dirs = make_dirs in ("1", "t", "T", "y", "Y")
-    if boolean_int:
-        conf.boolean_int = boolean_int in ("1", "t", "T", "y", "Y")
-    if scanlines is not None:
-        conf.scan_lines = scanlines
-    if conf.scan_lines is None:
-        conf.scan_lines = 100
-    if use_gui:
-        conf.gui_level = int(use_gui)
-    if conf.gui_level is None:
-        conf.gui_level = 0
-    elif conf.gui_level not in range(4):
-        raise ConfigError(f"Invalid GUI level specification: {conf.gui_level}")
-    if gui_framework:
-        conf.gui_framework = gui_framework.lower()
-    if db_type:
-        conf.db_type = db_type
-    if conf.db_type is None:
-        conf.db_type = "l"
-    if user_logfile:
-        conf.user_logfile = True
-    if port:
-        conf.port = port
-    if conf.db_type == "a" and user:
-        conf.access_username = user
-    if new_db:
-        conf.new_db = True
-    if output_dir:
-        conf.export_output_dir = str(Path(output_dir).resolve())
-    if progress:
-        conf.show_progress = True
+    # ------------------------------------------------------------------
+    # Merge CLI options over config-file values
+    # ------------------------------------------------------------------
+    _apply_cli_options(
+        conf,
+        user=user,
+        no_passwd=no_passwd,
+        database_encoding=database_encoding,
+        script_encoding=script_encoding,
+        output_encoding=output_encoding,
+        import_encoding=import_encoding,
+        import_buffer=import_buffer,
+        make_dirs=make_dirs,
+        boolean_int=boolean_int,
+        scanlines=scanlines,
+        use_gui=use_gui,
+        gui_framework=gui_framework,
+        db_type=db_type,
+        user_logfile=user_logfile,
+        port=port,
+        new_db=new_db,
+        output_dir=output_dir,
+        progress=progress,
+    )
 
-    # Positional arguments after the script name (or all positionals in inline/ping mode)
-    # off=1: script file occupies positional[0]; connection args start at [1]
-    # off=0: no script file; all positionals are connection args (inline -c or --ping)
-    off = 0 if (command is not None or ping) else 1
-    if len(positional) == off + 1:
-        if conf.db_type in ("a", "l", "k"):
-            conf.db_file = positional[off]
-        elif conf.db_type == "d":
-            conf.db = positional[off]
-        else:
-            if conf.server and not conf.db:
-                conf.db = positional[off]
-            else:
-                conf.server = positional[off]
-    elif len(positional) == off + 2:
-        conf.server = positional[off]
-        conf.db = positional[off + 1]
-    elif len(positional) > off + 2:
-        from execsql.utils.errors import fatal_error
-
-        fatal_error("Incorrect number of command-line arguments.")
+    # ------------------------------------------------------------------
+    # Positional arguments → server/db/db_file
+    # ------------------------------------------------------------------
+    _route_positionals(positional, conf, command=command, ping=ping)
 
     # ------------------------------------------------------------------
     # Script substitution variables that depend on the script path
     # ------------------------------------------------------------------
-    from execsql.utils.errors import file_size_date
-
-    if script_name is not None:
-        _state.subvars.add_substitution("$STARTING_SCRIPT", script_name)
-        _state.subvars.add_substitution("$STARTING_SCRIPT_NAME", Path(script_name).name)
-        _state.subvars.add_substitution("$STARTING_SCRIPT_REVTIME", file_size_date(script_name)[1])
-    else:
-        _state.subvars.add_substitution("$STARTING_SCRIPT", "<inline>")
-        _state.subvars.add_substitution("$STARTING_SCRIPT_NAME", "<inline>")
-        _state.subvars.add_substitution("$STARTING_SCRIPT_REVTIME", "")
+    _seed_script_subvars(_state.subvars, script_name)
 
     # ------------------------------------------------------------------
     # Initialise state objects
@@ -443,70 +641,32 @@ def _run(
     # ------------------------------------------------------------------
     # Logging
     # ------------------------------------------------------------------
-    opts_dict = {
-        k: v
-        for k, v in {
-            "sub_vars": sub_vars,
-            "boolean_int": boolean_int,
-            "make_dirs": make_dirs,
-            "database_encoding": database_encoding,
-            "script_encoding": script_encoding,
-            "output_encoding": output_encoding,
-            "import_encoding": import_encoding,
-            "user_logfile": user_logfile,
-            "new_db": new_db,
-            "port": port,
-            "scanlines": scanlines,
-            "db_type": db_type,
-            "user": user,
-            "use_gui": use_gui,
-            "no_passwd": no_passwd,
-            "import_buffer": import_buffer,
-        }.items()
-        if v
-    }
-    _state.exec_log = Logger(
-        script_name or "<inline>",
-        conf.db,
-        conf.server,
-        opts_dict,
-        conf.user_logfile,
+    _state.exec_log = _setup_logging(
+        conf,
+        _state.subvars,
+        script_name,
+        sub_vars,
+        boolean_int=boolean_int,
+        make_dirs=make_dirs,
+        database_encoding=database_encoding,
+        script_encoding=script_encoding,
+        output_encoding=output_encoding,
+        import_encoding=import_encoding,
+        user_logfile=user_logfile,
+        new_db=new_db,
+        port=port,
+        scanlines=scanlines,
+        db_type=db_type,
+        user=user,
+        use_gui=use_gui,
+        no_passwd=no_passwd,
+        import_buffer=import_buffer,
     )
-    _state.exec_log.log_status_info(
-        f"Python version {sys.version_info[0]}.{sys.version_info[1]}.{sys.version_info[2]} {sys.version_info[3]}",
-    )
-    _state.exec_log.log_status_info(f"execsql version {__version__}")
-    _state.exec_log.log_status_info(f"System user: {getpass.getuser()}")
-    for configfile in conf.files_read:
-        sz, dt = file_size_date(configfile)
-        _state.exec_log.log_status_info(
-            f"Read configuration file {configfile} (size: {sz}, date: {dt}).",
-        )
-
-    _state.subvars.add_substitution("$RUN_ID", _state.exec_log.run_id)
-
-    if sub_vars:
-        for n, repl in enumerate(sub_vars):
-            var = f"$ARG_{n + 1}"
-            _state.subvars.add_substitution(var, repl)
-            _state.exec_log.log_status_info(
-                f"Command-line substitution variable assignment: {var} set to {{{repl}}}",
-            )
 
     # ------------------------------------------------------------------
-    # Load the SQL script (skipped in --ping and --dry-run with no script)
+    # Load the SQL script (skipped in --ping mode)
     # ------------------------------------------------------------------
-    _ast_tree = None
-    if not ping:
-        from execsql.script.parser import parse_script, parse_string
-
-        if command is not None:
-            _ast_tree = parse_string(
-                command.replace("\\n", "\n").replace("\\t", "\t"),
-                "<inline>",
-            )
-        else:
-            _ast_tree = parse_script(script_name, encoding=conf.script_encoding)
+    _ast_tree = None if ping else _load_script(command, script_name, conf.script_encoding)
 
     # ------------------------------------------------------------------
     # Dry-run: print command list and exit without connecting to DB

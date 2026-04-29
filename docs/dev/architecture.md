@@ -100,7 +100,7 @@ flowchart LR
 | --------------- | ------------------------------------------------------------------------------------------------ |
 | `cli/`          | Typer app, `_run()` orchestration, DSN URL parsing, Rich help output                             |
 | `config.py`     | `ConfigData` (INI merging), `StatObj` (runtime flags), `WriteHooks` (stdout/stderr redirection)  |
-| `state.py`      | Module-level global runtime store -- all shared mutable state lives here                         |
+| `state.py`      | Thread-local runtime store -- all shared mutable state lives here, isolated per-thread           |
 | `script/`       | `CommandList`, `MetaCommandList`, `SubVarSet`, `ScriptFile`, `runscripts()`                      |
 | `metacommands/` | `build_dispatch_table()`, all `x_*` handlers, `build_conditional_table()`, all `xf_*` predicates |
 | `db/`           | `Database` ABC, `DatabasePool`, 9 adapter modules (postgres, sqlite, duckdb, mysql, etc.)        |
@@ -133,7 +133,7 @@ The AST executor is the only execution engine. Use `--parse-tree` to visualize t
 
 ### RuntimeContext Isolation
 
-The executor accepts an explicit `RuntimeContext` parameter (`ctx`). The `active_context()` context manager in `state.py` installs a context as the active global so all metacommand handlers and database adapters automatically resolve against it. This enables isolated execution for the library API. The RuntimeContext carries AST-specific state: `ast_scripts` (script block registry) and `include_chain` (circular include detection).
+The executor accepts an explicit `RuntimeContext` parameter (`ctx`). The `active_context()` context manager in `state.py` installs a context as the active thread-local so all metacommand handlers and database adapters automatically resolve against it. Each thread gets its own isolated context via `threading.local()`, enabling concurrent `from execsql import run` calls and future PARALLEL blocks. The RuntimeContext carries AST-specific state: `ast_scripts` (script block registry) and `include_chain` (circular include detection).
 
 ______________________________________________________________________
 
@@ -364,13 +364,13 @@ ______________________________________________________________________
 
 ## Global State
 
-`state.py` is the shared mutable state store for the entire runtime. All other modules access it via:
+`state.py` is the thread-local mutable state store for the runtime. All other modules access it via:
 
 ```python
 import execsql.state as _state
 ```
 
-This import pattern (always as `_state`, always accessed inside function/method bodies) avoids circular imports at load time. The module declares all globals at the top level and provides two management functions:
+This import pattern (always as `_state`, always accessed inside function/method bodies) avoids circular imports at load time. The module stores all mutable state in a `threading.local()` instance, so each thread gets its own isolated `RuntimeContext`. The module provides two management functions:
 
 - **`initialize(config, dispatch_table, conditional_table)`** -- Called once from `_run()` to create runtime singletons (`DatabasePool`, `IfLevels`, `CounterVars`, etc.).
 - **`reset()`** -- Tears down all state for test isolation.

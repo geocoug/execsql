@@ -207,7 +207,7 @@ The default database type (`-t`) changed from Access (`a`) to SQLite (`l`). Upst
 
 ### Internal State Management
 
-All 33 mutable runtime globals in `state.py` have been consolidated into a `RuntimeContext` object. The module uses a transparent proxy so existing code is unaffected, but the architecture now supports isolated contexts for testing and future concurrent execution.
+All 33 mutable runtime globals in `state.py` have been consolidated into a `RuntimeContext` object stored in `threading.local()`. The module uses a transparent proxy so existing code is unaffected. Each thread gets its own isolated context, enabling concurrent `from execsql import run` calls and future PARALLEL blocks.
 
 ### Substitution Variables
 

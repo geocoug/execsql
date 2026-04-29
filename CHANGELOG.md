@@ -11,6 +11,11 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Changed
+
+- `RuntimeContext` is now stored in `threading.local()` instead of a module-level global, making `_state.foo` access thread-safe. Each thread gets its own isolated context via lazy initialization. The `active_context` context manager is now safe for concurrent use across threads. Enables future PARALLEL blocks and concurrent `from execsql import run` calls.
+- `_run()` in `cli/run.py` decomposed into 8 standalone functions: `_seed_early_subvars()`, `_load_config()`, `_seed_script_subvars()`, `_load_script()`, `_apply_dsn()`, `_apply_cli_options()`, `_route_positionals()`, and `_setup_logging()`. Reduces `_run()` from ~380 lines to ~150 lines of orchestration with zero behavioral change.
+
 ______________________________________________________________________
 
 ## [2.16.0] - 2026-04-29
