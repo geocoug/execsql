@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.16.0] - 2026-04-29
+
 ### Added
 
 - `--parse-tree` CLI flag: parse a script into an Abstract Syntax Tree and print a visual tree structure showing block nesting (IF/LOOP/BATCH/SCRIPT), source line ranges, compound conditions (ANDIF/ORIF), and all metacommands. Requires no database connection or configuration.
