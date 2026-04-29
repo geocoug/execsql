@@ -66,43 +66,16 @@ def _load_docs() -> dict[str, str]:
 def _format_section(heading: str, lines: list[str]) -> str:
     """Format a documentation section for hover display.
 
-    Keeps the first paragraph of prose and all code blocks (syntax examples).
-    Truncates to avoid overwhelming the hover popup.
+    Includes the full section content. VS Code hover popups handle
+    long Markdown content with scrolling.
     """
     result_lines: list[str] = [f"**{heading}**", ""]
-    in_code_block = False
-    prose_paragraphs = 0
-    max_prose = 2  # Keep first 2 paragraphs of prose
-    max_lines = 30  # Hard limit on total lines
 
     for line in lines:
-        if len(result_lines) >= max_lines:
-            result_lines.append("*...continued in documentation*")
-            break
-
-        if line.startswith("```"):
-            in_code_block = not in_code_block
-            result_lines.append(line)
+        # Skip blockquotes (bulleted overview lists) and images
+        if line.startswith(">") or line.startswith("!["):
             continue
-
-        if in_code_block:
-            result_lines.append(line)
-            continue
-
-        # Track prose paragraphs
-        if line.strip() == "":
-            if result_lines and result_lines[-1].strip() != "":
-                prose_paragraphs += 1
-            if prose_paragraphs > max_prose:
-                result_lines.append("")
-                result_lines.append("*...continued in documentation*")
-                break
-            result_lines.append(line)
-        else:
-            # Skip markdown links to other sections, images, etc.
-            if line.startswith(">") or line.startswith("!["):
-                continue
-            result_lines.append(line)
+        result_lines.append(line)
 
     return "\n".join(result_lines).strip()
 
