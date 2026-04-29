@@ -54,18 +54,9 @@ def get_hover(line_text: str, col: int, analysis: AnalysisResult | None = None) 
 
 def _hover_metacommand(cmd_text: str) -> str | None:
     """Look up hover docs for a metacommand keyword."""
-    upper = cmd_text.upper().strip()
-
-    # Try multi-word match first (e.g., "EXPORT QUERY", "BEGIN BATCH")
-    # Then fall back to single-word
-    for length in (3, 2, 1):
-        words = upper.split(None, length)
-        candidate = " ".join(words[:length])
-        doc = get_metacommand_doc(candidate)
-        if doc:
-            return doc
-
-    return None
+    # Pass the full command text — get_metacommand_doc finds the longest
+    # matching doc key (e.g., "PROMPT COMPARE" beats "PROMPT ACTION").
+    return get_metacommand_doc(cmd_text.strip())
 
 
 def _hover_condition(cmd_text: str, offset: int) -> str | None:

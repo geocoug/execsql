@@ -101,10 +101,18 @@ def get_metacommand_doc(keyword: str) -> str | None:
         if key.upper() == upper:
             return content
 
-    # Prefix match (e.g., "EXPORT QUERY" matches "EXPORT QUERY")
+    # Find the longest doc key that the command starts with.
+    # Sort by key length descending so "PROMPT COMPARE" matches before "PROMPT".
+    best_match = None
+    best_len = 0
     for key, content in docs.items():
-        if key.upper().startswith(upper):
-            return content
+        key_upper = key.upper()
+        if upper.startswith(key_upper) and len(key_upper) > best_len:
+            best_match = content
+            best_len = len(key_upper)
+
+    if best_match:
+        return best_match
 
     # Try matching the first word (e.g., "EXPORT" matches "EXPORT")
     first_word = upper.split(None, 1)[0] if upper else ""

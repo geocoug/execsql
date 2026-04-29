@@ -210,12 +210,19 @@ def create_server() -> LanguageServer:
 
         items = []
         for item in items_data:
+            doc = None
+            if "documentation" in item:
+                doc = lsp.MarkupContent(
+                    kind=lsp.MarkupKind.Markdown,
+                    value=item["documentation"],
+                )
             items.append(
                 lsp.CompletionItem(
                     label=item["label"],
                     kind=_KIND_MAP.get(item.get("kind", ""), lsp.CompletionItemKind.Text),
                     detail=item.get("detail", ""),
                     insert_text=item.get("insert_text"),
+                    documentation=doc,
                 ),
             )
 

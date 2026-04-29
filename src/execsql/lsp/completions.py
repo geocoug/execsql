@@ -1,12 +1,13 @@
 """Completion provider for the execsql language server.
 
-Generates autocomplete candidates for metacommand keywords, substitution
-variables, and condition predicates.
+Generates autocomplete candidates for metacommand keywords with full
+syntax patterns, substitution variables, and condition predicates.
 """
 
 from __future__ import annotations
 
 import re
+from functools import lru_cache
 
 from execsql.lsp.analysis import AnalysisResult
 from execsql.lsp.keywords import get_all_conditions_flat, get_all_keywords_flat, get_builtin_vars
@@ -16,6 +17,7 @@ __all__ = ["get_completions"]
 _EXEC_PREFIX_RX = re.compile(r"^\s*--\s*!x!\s*", re.I)
 _COND_CONTEXT_RX = re.compile(r"\b(?:IF|ELSEIF|LOOP\s+(?:WHILE|UNTIL)|ASSERT)\s*\(\s*$", re.I)
 _VAR_TRIGGER_RX = re.compile(r"!!\$?$")
+_CODE_BLOCK_RX = re.compile(r"```\s*\n(.*?)```", re.DOTALL)
 
 
 def get_completions(
@@ -26,12 +28,7 @@ def get_completions(
     """Return completion items for the given cursor position.
 
     Each item is a dict with ``label``, ``kind``, ``detail``, and
-    optionally ``insert_text``.
-
-    Args:
-        line_text: Full text of the line.
-        col: 0-based column position.
-        analysis: Current document analysis (for variable definitions).
+    optionally ``insert_text`` and ``documentation``.
     """
     items: list[dict] = []
 
@@ -53,19 +50,68 @@ def get_completions(
         items.extend(_condition_completions())
         return items
 
-    # Metacommand keyword completions
+    # Metacommand keyword completions with syntax patterns
     items.extend(_keyword_completions(cmd_so_far.strip()))
     return items
 
 
-def _keyword_completions(prefix: str) -> list[dict]:
-    """Return metacommand keyword completions matching the prefix."""
-    all_kw = get_all_keywords_flat()
-    prefix_upper = prefix.upper()
+@lru_cache(maxsize=1)
+def _build_syntax_completions() -> list[dict]:
+    """Build completion items from docs and dispatch table.
 
+    Extracts code blocks from documentation to show real syntax patterns
+    as completion detail text.
+    """
+    from execsql.lsp.docs import _load_docs
+
+    docs = _load_docs()
+    all_kw = get_all_keywords_flat()
     items = []
+    seen_labels = set()
+
+    # Build from docs — these have rich syntax
+    for heading, content in docs.items():
+        # Extract first code block as the primary syntax
+        code_blocks = _CODE_BLOCK_RX.findall(content)
+        if code_blocks:
+            syntax = code_blocks[0].strip()
+            # Use first line of syntax as the detail
+            first_line = syntax.split("\n")[0].strip()
+        else:
+            first_line = heading
+
+        label = heading.split(" and ")[0].strip()  # "BEGIN BATCH and END BATCH" → "BEGIN BATCH"
+        if label not in seen_labels:
+            seen_labels.add(label)
+            items.append(
+                {
+                    "label": label,
+                    "kind": "keyword",
+                    "detail": first_line,
+                    "documentation": content,
+                },
+            )
+
+        # Add additional syntax variants as separate completions
+        for _i, block in enumerate(code_blocks[1:], 1):
+            variant_syntax = block.strip().split("\n")[0].strip()
+            variant_label = variant_syntax.split("(")[0].split("<")[0].strip()
+            # Only add if it starts differently from the main label
+            if variant_label and variant_label.upper() != label.upper() and variant_label not in seen_labels:
+                seen_labels.add(variant_label)
+                items.append(
+                    {
+                        "label": variant_label,
+                        "kind": "keyword",
+                        "detail": variant_syntax,
+                        "documentation": content,
+                    },
+                )
+
+    # Add dispatch table keywords not in docs
     for kw in all_kw:
-        if kw.upper().startswith(prefix_upper):
+        if kw not in seen_labels:
+            seen_labels.add(kw)
             items.append(
                 {
                     "label": kw,
@@ -73,7 +119,19 @@ def _keyword_completions(prefix: str) -> list[dict]:
                     "detail": "execsql metacommand",
                 },
             )
-    return items
+
+    return sorted(items, key=lambda x: x["label"])
+
+
+def _keyword_completions(prefix: str) -> list[dict]:
+    """Return metacommand keyword completions matching the prefix."""
+    all_items = _build_syntax_completions()
+    prefix_upper = prefix.upper()
+
+    if not prefix_upper:
+        return all_items
+
+    return [item for item in all_items if item["label"].upper().startswith(prefix_upper)]
 
 
 def _condition_completions() -> list[dict]:
