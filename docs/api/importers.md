@@ -14,6 +14,8 @@ Each module below implements one or more import formats.
 
 ::: execsql.importers.csv
 
+::: execsql.importers.json
+
 ::: execsql.importers.ods
 
 ::: execsql.importers.xls

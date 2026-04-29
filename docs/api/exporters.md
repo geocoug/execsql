@@ -28,9 +28,15 @@ Each module below implements one or more output formats. Every writer follows th
 
 ::: execsql.exporters.latex
 
+::: execsql.exporters.markdown
+
 ::: execsql.exporters.ods
 
 ::: execsql.exporters.xls
+
+::: execsql.exporters.xlsx
+
+::: execsql.exporters.yaml
 
 ::: execsql.exporters.feather
 

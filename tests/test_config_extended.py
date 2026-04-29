@@ -871,7 +871,7 @@ class TestConfigDataOsSpecificConfigFile:
         )
         cd = ConfigData(str(tmp_path), vp)
         # Should still have default db_type, not "s" from secondary conf
-        assert cd.db_type == "a"
+        assert cd.db_type == "l"
 
 
 # ---------------------------------------------------------------------------

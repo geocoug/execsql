@@ -243,14 +243,18 @@ Any environment variable names that contain characters other than letters, digit
 
 !!! warning "Security consideration"
 
-    **All** environment variables present at startup are exposed as substitution
-    variables. This includes any sensitive values such as API keys, tokens, or
-    credentials that may be set in the process environment. If a script is
-    shared, logged, or produces output that includes substitution variable
-    expansions, those secret values could be disclosed. To reduce risk, avoid
-    storing secrets in environment variables that will be present when execsql
-    runs, or use the `$ENV:` prefix in configuration files instead of
-    referencing `&`-prefixed variables in scripts.
+    Environment variables whose names contain any of the following substrings
+    (case-insensitive) are silently excluded and will not be available as
+    substitution variables: `SECRET`, `TOKEN`, `PASSWORD`, `PASSWD`,
+    `PRIVATE_KEY`, `CREDENTIAL`. No error or warning is raised for excluded
+    variables — they simply will not exist as `!!&VARNAME!!`.
+
+    All other environment variables present at startup are exposed as
+    substitution variables. If a script is shared, logged, or produces output
+    that includes substitution variable expansions, values from those variables
+    could be disclosed. To pass a sensitive value into a script without exposing
+    it as an environment variable, use the `-a`/`--assign-arg` CLI flag or the
+    [SUB](metacommands.md#subcmd) metacommand to set it explicitly at runtime.
 
 ## Metacommands to Assign Substitution Variables
 

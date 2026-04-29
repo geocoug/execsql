@@ -63,7 +63,8 @@ execsql script.sql
 
 ## Database Types { #db_types }
 
-The `-t` option specifies the database type using a single-character code:
+The `-t` option specifies the database type using a single-character code.
+When `-t` is not specified, the default is SQLite (`l`).
 
 | Flag | Database        |
 | ---- | --------------- |

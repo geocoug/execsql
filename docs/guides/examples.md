@@ -3,7 +3,7 @@
 The following examples illustrate some of the features of execsql.
 
 
-## **Example 1:** A Simple Illustration of Metacommands and Substitution Variables
+## **Example 1:** A Simple Illustration of Metacommands and Substitution Variables { #example1 }
 
 The following code illustrates the use of metacommands and substitution variables. Lines starting with "-- !x!" are metacommands that implement *execsql*-specific features. Identifiers enclosed in pairs of exclamation points (!!) are substitution variables that have been defined with the SUB metacommand. The "$date_tag" variable is a [substitution variable](../reference/substitution_vars.md#substitution_vars) that is defined by *execsql* itself rather than by the user.
 
@@ -42,7 +42,7 @@ The [IMPORT](../reference/metacommands.md#import) metacommand reads the specifie
 ![GUI produced by the PROMPT DISPLAY metacommand for the 'fatals' view.](../images/fatals.png)
 
 
-## **Example 2:** Use Temporary Queries to Select and Summarize Data in Access
+## **Example 2:** Use Temporary Queries to Select and Summarize Data in Access { #example2 }
 
 This example illustrates a script that makes use of several temporary queries to select and summarize data, and a final query that prepares the data for export or further use. The SQL in this example is specific to MS-Access.
 
@@ -152,7 +152,7 @@ where  e_partyproprel.property_rel is null;
 ```
 
 
-## **Example 4:** Execute a Set of QA Queries and Display the Results with a Prompt
+## **Example 4:** Execute a Set of QA Queries and Display the Results with a Prompt { #example4 }
 
 This example illustrates a script that compiles the results of several QA queries into a single temporary table, then displays the temporary table if it has any rows (i.e., any errors were found), and prompts the user to cancel or continue the script.
 
@@ -212,7 +212,7 @@ where  e_partyproprel.property_rel is null;
 ```
 
 
-## **Example 5:** Include a File if a Table Exists
+## **Example 5:** Include a File if a Table Exists { #example5 }
 
 This example illustrates how a script file can be included if a database table exists. This might be used when carrying out quality assurance checks of data sets that have optional components. In this case, if an optional component has been loaded into a staging table, the script to check that component will be included.
 
@@ -247,7 +247,7 @@ In this example, the commands to be repeated are contained in a script file name
 
 The IF statement on the last line controls whether the loop is repeated or exited. In this case, termination of the loop is controlled by the user's response to the prompt. Termination of the loop can also be controlled by some data condition instead of by an interactive prompt to the user. For example, you could loop for as many times as there are rows in a table by using the [SUBDATA](../reference/metacommands.md#subdata) metacommand to get a count of all of the rows in a table, and then use the [IF(EQUALS())](../reference/metacommands.md#equals) conditional test to terminate the loop when a counter variable equals the number of rows in the table.
 
-## **Example 7:** Nested Variable Evaluation
+## **Example 7:** Nested Variable Evaluation { #example7 }
 
 This example illustrates nested evaluation of substitution variables, using scripts that print out all of the substitution variables that are assigned with the "-a" command-line option.
 
@@ -303,7 +303,7 @@ This example also illustrates that, because the text ("txt") output format of th
 This example also illustrates how substitution variables can be used to parameterize code to support modularization and code re-use. In this example the substitution variable data_table is assigned a value at the beginning of the script. Alternatively, this variable might be assigned different values at different locations in a main script, and the commands in the remainder of this example placed in a second script that is INCLUDEEd where appropriate to allow the export and display of several different data tables or views. [Example 10](#example10) illustrates this usage.
 
 
-## **Example 9.** Using Command-Line Substitution Variables
+## **Example 9.** Using Command-Line Substitution Variables { #example9 }
 
 This example illustrates how substitution variables that are assigned on the command line using the "-a" option can be used in a script.
 
@@ -362,7 +362,7 @@ The `choose_view.sql` script can be seen in [Example 8](#example8).
 The CONTINUE keyword of the [PROMPT SELECT_SUB](../reference/metacommands.md#prompt_selsub) metacommand can also be used to close the dialog without canceling the script.
 
 
-## **Example 11:** Output Numbering with Counters
+## **Example 11:** Output Numbering with Counters { #example11 }
 
 This example illustrates how counter variables can be used to automatically number items. This example shows automatic numbering of components of a Markdown document, but the technique can also be used to number database objects such as tables and views.
 
@@ -398,7 +398,7 @@ A script like this one could be [INCLUDEEd](../reference/metacommands.md#include
 This example also illustrates how the value of a counter variable can be preserved for repeated use by assigning it to a user-defined substitution variable.
 
 
-## **Example 12:** Customize the Table Structure for Data to be Imported
+## **Example 12:** Customize the Table Structure for Data to be Imported { #example12 }
 
 This example illustrates how the structure of a table that would be created by the [IMPORT](../reference/metacommands.md#import) metacommand can be customized during the import process. Customization may be necessary because the data types that are automatically selected for the columns of the new table need to be modified. This may occur when:
 
@@ -426,7 +426,7 @@ Although this example shows this process applied to only a single file/table, mu
 This example illustrates the use of a temporary file for the CREATE TABLE statement, although you may wish to save the edited form of this statement in a permanent file to keep a record of all data-handling operations.
 
 
-## **Example 13:** Import All the CSV Files in a Directory
+## **Example 13:** Import All the CSV Files in a Directory { #example13 }
 
 When a group of related data files are to be loaded together into a database, they can all be loaded automatically with this script if they are first placed in the same directory. This example script operates by:
 
@@ -477,7 +477,7 @@ The 'import_csv' script looks like this:
 This example is designed to run on a Linux system with PostgreSQL, but the technique can be applied in other environments and with other DBMSs.
 
 
-## **Example 14:** Run a Script from a Library Database
+## **Example 14:** Run a Script from a Library Database { #example14 }
 
 Despite the advantages of storing scripts on the file system, in some cases storing a set of scripts in a library database may be appropriate. Consider a table named scriptlib that is used to store SQL scripts, and that has the following columns:
 
@@ -502,7 +502,7 @@ This technique could be combined with a prompt for the script to run, using the 
 This technique can be extended to export all scripts with the same script_group value, and then to run the master script for that group. To use this approach, the filename used with the [IMPORT](../reference/metacommands.md#import) metacommand in each script must be a substitution variable that is to be replaced with the name of a temporary file created with the [SUB_TEMPFILE](../reference/metacommands.md#sub_tempfile) metacommand.
 
 
-## **Example 15:** Prompt for Multiple Values
+## **Example 15:** Prompt for Multiple Values { #example15 }
 
 The [PROMPT SELECT_SUB](../reference/metacommands.md#prompt_selsub) metacommand allows the selection of only one row of data at a time. Multiple selections can be obtained, however, by using the [PROMPT SELECT_SUB](../reference/metacommands.md#prompt_selsub) metacommand in a loop and accumulating the results in another variable or variables.
 
@@ -556,7 +556,7 @@ Another approach to handling multiple selection is to reassign each selected val
 ```
 
 
-## **Example 16:** Evaluating Complex Expressions with Substitution Variables
+## **Example 16:** Evaluating Complex Expressions with Substitution Variables { #example16 }
 
 Although execsql does not itself process mathematical expressions or other similar operations on substitution variables, all of the functions of SQL and the underlying DBMS can be used to evaluate complex expressions that use substitution variables. For example:
 
@@ -571,7 +571,7 @@ select cast(right('!!var2!!', 2) as integer) + !!var1!! as x;
 This will assign the result of the expression to the substitution variable "sum". Any mathematical, string, date, or other functions supported by the DBMS in use can be applied to substitution variables in this way.
 
 
-## **Example 17:** Displaying Summary and Detailed Information
+## **Example 17:** Displaying Summary and Detailed Information { #example17 }
 
 A set of QA checks performed on data may be summarized as a list of all of the checks that failed; however, there may also be detailed information about those results that the user would like to see---such as a list of all the data rows that failed. Assuming that a view has been created for each QA check, and that the QA check failures have been compiled into a table of this form (see also [Example 3](#example3)):
 
@@ -604,7 +604,7 @@ Where the qa_detail.sql script is as follows:
 The user can cancel further script processing using the "Cancel" button on either the summary dialog box or any of the detail displays. If the "Continue" button is chosen on the summary dialog box, script processing will resume.
 
 
-## **Example 18:** Creating a Simple Entry Form
+## **Example 18:** Creating a Simple Entry Form { #example18 }
 
 This example illustrates the creation of a simple data entry form using the [PROMPT ENTRY_FORM](../reference/metacommands.md#prompt_entry) metacommand. In this example, the form is used to get a numeric value and a recognized set of units for that value, and then display that value converted to all compatible units in the database.
 
@@ -685,7 +685,7 @@ where sub_var = 'comment';
 The unit_conv2.sql script will continue to display conversions for as long as either the value or the unit is changed.
 
 
-## **Example 19:** Dynamically Altering a Table Structure to Fit Data
+## **Example 19:** Dynamically Altering a Table Structure to Fit Data { #example19 }
 
 *Example contributed by E. Shea.*
 
@@ -744,7 +744,7 @@ where
 ```
 
 
-## **Example 20:** Logging Data Quality Issues
+## **Example 20:** Logging Data Quality Issues { #example20 }
 
 This example illustrates how data quality issues that are encountered during data loading or cleaning operations can be logged for later evaluation and resolution. Issues are logged in a SQLite database in the working directory. This database is named issue_log.sqlite and is automatically created if necessary. The database contains one table named issue_log in which all issues are recorded. The issue log database may also contain additional tables that provide data to illustrate the issues. Each of these additional tables has a name that starts with "issue_", followed by an automatically-assigned issue number.
 
@@ -875,7 +875,7 @@ create or replace temporary view allsampdups as
 ```
 
 
-## **Example 21:** Updating Multiple Databases with a Cross-Database Transaction
+## **Example 21:** Updating Multiple Databases with a Cross-Database Transaction { #example21 }
 
 This example illustrates how the same SQL script can be applied to multiple databases, and the changes committed only if they were successful for all databases. This makes use of the looping technique illustrated in [Example 6](#example6), but using sub-scripts defined with [BEGIN/END SCRIPT](../reference/metacommands.md#beginscript) metacommands instead of [INCLUDE](../reference/metacommands.md#include) metacommands. The same approach, of committing changes only if there were no errors in any database, could also be done without looping, simply by unrolling the loops to apply the updates to each database in turn. This latter approach would be necessary when different changes were to be made to each database---though even in that case, the commit statements could all be executed in a loop.
 
@@ -972,7 +972,7 @@ update dblist set updated=False;
 ```
 
 
-## **Example 22:** Exporting with a Template to Create a Wikipedia Table
+## **Example 22:** Exporting with a Template to Create a Wikipedia Table { #example22 }
 
 This example illustrates how the [EXPORT](../reference/metacommands.md#export) metacommand can be used with the Jinja2 template processor to create a simple [Wikipedia table](https://en.wikipedia.org/wiki/Help:Table#Simple_straightforward_tables). To run this example, Jinja2 must be specified as the template processor to use; the [configuration file](../reference/configuration.md#configuration) must contain the following lines:
 
@@ -1001,7 +1001,7 @@ The output produced using this template will look like:
 This template will work with any exported data table.
 
 
-## **Example 23:** Validation of PROMPT ENTRY_FORM Entries
+## **Example 23:** Validation of PROMPT ENTRY_FORM Entries { #example23 }
 
 *Example contributed by E. Shea.*
 
@@ -1054,7 +1054,7 @@ values
 ```
 
 
-## **Example 24:** Use the Plus (+) Prefix to Assign Values to Outer-Scope Local Variables
+## **Example 24:** Use the Plus (+) Prefix to Assign Values to Outer-Scope Local Variables { #example24 }
 
 *Example contributed by E. Shea.*
 
@@ -1236,12 +1236,12 @@ where row_num=(select max(row_num) from agg);
 This example illustrates the use of substitution variables and metacommands to dynamically construct SQL statements, process the results of those statements, and direct the course of data loading through the use of SQL 'update' and 'insert' statements. Not strictly an example, this illustration consists of full working execsql scripts to perform these 'upsert' operations in Postgres, MariaDB/MySQL, and MS-SQL Server. The code is in the 'upsert' scripts that are distributed with *execsql*: [pg_upsert.sql], [md_upsert.sql], and [ss_upsert.sql].
 
 
-## **Example 26:** Creating a Glossary to Accompany a Data Summary
+## **Example 26:** Creating a Glossary to Accompany a Data Summary { #example26 }
 
 Data summaries or tables that are exported from a database may have column names or other types of information that are abbreviated, and possibly unclear or ambiguous. Definitions of those terms can be helpful to users of the data. One way of providing those definitions is to produce a custom glossary to accompany each data export. Execsql scripts to simplify the creation of such a custom glossary table are distributed with *execsql* as [pg_glossary.sql], [md_glossary.sql], and [ss_glossary.sql].
 
 
-## **Example 27:** Managing a Task List with the PROMPT ACTION Metacommand
+## **Example 27:** Managing a Task List with the PROMPT ACTION Metacommand { #example27 }
 
 This example illustrates the creation of a simple interface that allows interactive editing of data in a table. For this example, the table (named "tasks") is a list of tasks to be completed, including priorities and due dates.
 
@@ -1313,12 +1313,12 @@ The resulting dialog will look like this, with an item selected:
 
 ![Compact task list display produced by the PROMPT ACTION metacommand](../images/actions2.png)
 
-## **Example 28:** Ordering Tables by Foreign Key Dependencies
+## **Example 28:** Ordering Tables by Foreign Key Dependencies { #example28 }
 
 An execsql script to convert a table of parent:child dependencies into a list of tables ordered by dependency is posted at [Splinter of the Singularity](http://splinterofthesingularity.blogspot.com/2017/12/ordering-database-tables-by-foreign-key.html).
 
 
-## **Example 29:** Writing and Running Batch Files from execsql
+## **Example 29:** Writing and Running Batch Files from execsql { #example29 }
 
 Although *execsql* is designed so that it can be used as part of a toolchain that is controlled by a shell script (on Linux) or a batch file (on Windows), this approach can also be inverted: execsql can create and run a system script, for example to pre- or post-process data.
 
@@ -1357,7 +1357,7 @@ insert into tt_allresults ....
 Any error message produced by *xtab.py* is written to a text file, but that file does not have a column name on the first line, as required by the [IMPORT](../reference/metacommands.md#import) metacommand, so following steps append the error message to another text file that contains a column name. An alternate approach would be to use the IMPORT_FILE metacommand to import the error message file just as it was created by *xtab.py*.
 
 
-## **Example 30:** Simple Creation of Checkbox Prompts
+## **Example 30:** Simple Creation of Checkbox Prompts { #example30 }
 
 A SQL script may have several sections, each of which can be run separately, and it may be useful to choose which sections to run each time the script is run. A set of checkboxes created with a [PROMPT ENTRY_FORM](../reference/metacommands.md#prompt_entry) metacommand is a convenient way to interactively select which sections to run. If this technique is used repeatedly, the work to create the specification table for the entry form can be delegated to the following [SCRIPT](../reference/metacommands.md#beginscript).
 
@@ -1406,7 +1406,7 @@ This will produce the following entry form:
 Instead of using a long string of variable names and prompts directly in the EXECUTE SCRIPT metacommand, the string could be created in a substitution variable with a series of [SUB](../reference/metacommands.md#subcmd) and [SUB_APPEND](../reference/metacommands.md#sub_append) metacommands.
 
 
-## **Example 31:** Generating SQL to Compare Staging and Base Tables
+## **Example 31:** Generating SQL to Compare Staging and Base Tables { #example31 }
 
 When data sets containing new or revised values are to be added to a database, comparing the incoming data to the existing data may be an appropriate quality assurance step prior to adding those data to the base tables. If incoming data are prepared for addition in staging tables (e.g., prior to upserting them as illustrated in [Example 25](#example25)), the equivalent structure of staging and base tables can be used to simplify the creation of SQL statements that will compare data values in corresponding tables.
 
@@ -1420,7 +1420,7 @@ Full working examples of such scripts are in the [pg_compare.sql], [md_compare.s
 - All values of the base table's primary key that are present in the staging table, plus all primary key values in the base table that are not in the staging table (i.e., a left outer join of the base table to the staging table), and a column indicating whether any of the attributes in the base table are different in the staging table.
 
 
-## **Example 32:** Interactive Querying
+## **Example 32:** Interactive Querying { #example32 }
 
 Although execsql is designed to execute SQL scripts, its features can also be used to create simple interfaces to allow interactive querying. Two different approaches are illustrated in the following code snippets.
 
@@ -1495,7 +1495,7 @@ values
 ```
 
 
-## **Example 33:** Sequential Numbering of Script Output
+## **Example 33:** Sequential Numbering of Script Output { #example33 }
 
 Unique numbering of script output is useful when a script is to be run repeatedly, when it will produce different output each time, and when all of the output files are to be retained.
 
@@ -1525,7 +1525,7 @@ The "output_dir" variable that is created by this script can be used in the foll
 This example is also incorporated into the SQL script template file *script_template.sql* that is distributed with *execsql*. The script template also uses the run number for custom logfiles.
 
 
-## **Example 34:** Importing Multiple Worksheets
+## **Example 34:** Importing Multiple Worksheets { #example34 }
 
 This example illustrates commands to import multiple sheets from a workbook into staging tables. This uses the [IMPORT](../reference/metacommands.md#import) metacommand, and two of the system variables that are created when the SHEETS MATCHING clause is used. Each imported staging table is then displayed, and optionally upserted into corresponding base tables. The upsert operation is carried out using the [pg_upsert.sql], [md_upsert.sql], and [ss_upsert.sql] scripts that are distributed with *execsql*.
 

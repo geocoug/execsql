@@ -61,17 +61,25 @@ flowchart LR
     CONFIG["config.py<br/>ConfigData,<br/>StatObj,<br/>WriteHooks"]
     STATE["state.py<br/>Global runtime<br/>singletons"]
     SCRIPT["script/<br/>engine, control,<br/>variables"]
-    META["metacommands/<br/>Dispatch table,<br/>~200 handlers"]
+    META["metacommands/<br/>Dispatch table,<br/>~225 handlers"]
     DB["db/<br/>Database ABC,<br/>9 adapters,<br/>DatabasePool"]
-    EXPORT["exporters/<br/>15+ output<br/>formats"]
+    EXPORT["exporters/<br/>20+ output<br/>formats"]
     IMPORT["importers/<br/>CSV, ODS,<br/>XLS, Feather"]
     GUI["gui/<br/>Tkinter, Textual,<br/>Console backends"]
     UTILS["utils/<br/>auth, crypto,<br/>fileio, mail,<br/>regex, strings"]
     PARSER["parser.py<br/>CondParser,<br/>NumericParser"]
+    DEBUG["debug/<br/>REPL debugger"]
+    NOTEBOOK["notebook/<br/>Jupyter integration"]
+    SERVER["server/<br/>Daemon"]
+    LSP["lsp/<br/>Language Server<br/>Protocol"]
 
     CLI --> CONFIG
     CLI --> STATE
     CLI --> SCRIPT
+    CLI --> DEBUG
+    CLI --> NOTEBOOK
+    CLI --> SERVER
+    CLI --> LSP
     SCRIPT --> STATE
     SCRIPT --> META
     META --> STATE
@@ -96,7 +104,7 @@ flowchart LR
 | `script/`       | `CommandList`, `MetaCommandList`, `SubVarSet`, `ScriptFile`, `runscripts()`                      |
 | `metacommands/` | `build_dispatch_table()`, all `x_*` handlers, `build_conditional_table()`, all `xf_*` predicates |
 | `db/`           | `Database` ABC, `DatabasePool`, 9 adapter modules (postgres, sqlite, duckdb, mysql, etc.)        |
-| `exporters/`    | `ExportRecord`, `ExportMetadata`, `WriteSpec`, 15+ format writers (CSV, JSON, XML, HTML, etc.)   |
+| `exporters/`    | `ExportRecord`, `ExportMetadata`, `WriteSpec`, 20+ format writers (CSV, JSON, XML, HTML, etc.)   |
 | `importers/`    | `CsvFile`, `OdsFile`, `XlsFile`, `FeatherFile` -- data import backends                           |
 | `gui/`          | `GuiBackend` ABC, `TkinterBackend`, `TextualBackend`, `ConsoleBackend`                           |
 | `utils/`        | Shared utilities: file I/O, encryption, mail, regex helpers, string manipulation, timers         |
@@ -105,6 +113,10 @@ flowchart LR
 | `models.py`     | `Column`, `DataTable`, `JsonDatatype`                                                            |
 | `exceptions.py` | `ExecSqlError` base, `ErrInfo`, `ConfigError`, `DataTypeError`, `DbTypeError`, etc.              |
 | `plugins.py`    | Entry-point plugin discovery for metacommands, exporters, and importers                          |
+| `debug/`        | Interactive REPL debugger for stepping through script execution                                  |
+| `notebook/`     | Jupyter notebook integration -- run execsql scripts from notebook cells                          |
+| `server/`       | Daemon mode -- run execsql as a long-lived process accepting script requests                     |
+| `lsp/`          | Language Server Protocol server -- powers editor features such as hover docs and autocomplete    |
 
 ______________________________________________________________________
 
@@ -199,12 +211,12 @@ ______________________________________________________________________
 
 ## Metacommand Dispatch
 
-Metacommands are lines in SQL scripts prefixed with `-- !x!`. At import time, `metacommands/__init__.py` calls `build_dispatch_table()`, which populates a `MetaCommandList` with all `mcl.add()` registrations (~205 regex patterns). This singleton is stored as `_state.metacommandlist`.
+Metacommands are lines in SQL scripts prefixed with `-- !x!`. At import time, `metacommands/__init__.py` calls `build_dispatch_table()`, which populates a `MetaCommandList` with all `mcl.add()` registrations (~225 regex patterns). This singleton is stored as `_state.metacommandlist`.
 
 ### How dispatch works
 
 1. `MetacommandStmt.run()` calls `_state.metacommandlist.eval(cmd_str)`.
-1. `MetaCommandList.eval()` extracts the leading keyword from the command string and looks up candidate `MetaCommand` entries via a keyword index (reducing the search space from ~205 to typically 1-5 entries).
+1. `MetaCommandList.eval()` extracts the leading keyword from the command string and looks up candidate `MetaCommand` entries via a keyword index (reducing the search space from ~225 to typically 1-5 entries).
 1. Each candidate's compiled regex is tested against the full command string.
 1. On a match, the handler function is called with all named regex groups as keyword arguments, plus `metacommandline` (the original unmodified line).
 1. On success, the matched entry's hit counter is incremented.

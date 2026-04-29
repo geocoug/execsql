@@ -197,6 +197,10 @@ ______________________________________________________________________
 
 The CLI framework changed from `optparse` to [Typer](https://typer.tiangolo.com/) with Rich-formatted help text. All original short flags (`-a` through `-z`) are preserved. The tool can be invoked as either `execsql` or `execsql2`.
 
+### Default Database Type
+
+The default database type (`-t`) changed from Access (`a`) to SQLite (`l`). Upstream defaulted to Access, which requires Windows and pyodbc. SQLite is cross-platform, ships with Python, and is the most common use case. Users targeting Access databases should pass `-t a` explicitly.
+
 ### Configuration
 
 - **`linux_config_file`** — now only active on Linux (`sys.platform == "linux"`). Upstream applied it to all POSIX systems, including macOS. A new `macos_config_file` option handles macOS specifically.

@@ -55,7 +55,7 @@ This file contains several different record types. The first value on each line 
 > > - Action type---One of the following values:
 > >
 > >     > - export---Execution of an [EXPORT](../reference/metacommands.md#export) metacommand.
-> >     > - prompt_quit---The user's choice resulting from a [Prompt](PROMPT.md#PROMPT) metacommand.
+> >     > - prompt_quit---The user's choice resulting from a [PROMPT](../reference/metacommands.md#prompt) metacommand.
 > >
 > > - Line number---The script line number where the action takes place.
 > >

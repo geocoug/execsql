@@ -42,16 +42,20 @@ ______________________________________________________________________
 
 Add the handler to whichever sibling module fits best:
 
-| Module          | Handles                                               |
-| --------------- | ----------------------------------------------------- |
-| `connect.py`    | Database connections, `USE`, `DISCONNECT`             |
-| `control.py`    | Control flow: `IF`, `LOOP`, `BREAK`, `HALT`, batch    |
-| `data.py`       | Variable manipulation: `SUB`, `SUBDATA`, counters     |
-| `io.py`         | File I/O: `EXPORT`, `IMPORT`, `INCLUDE`, `WRITE`      |
-| `prompt.py`     | User interaction: `PROMPT`, `ASK`, `PAUSE`, `MSG`     |
-| `system.py`     | OS interaction: `SYSTEM_CMD`, `LOG`, `EMAIL`, console |
-| `debug.py`      | Debug output                                          |
-| `script_ext.py` | Script extensions                                     |
+| Module          | Handles                                                                |
+| --------------- | ---------------------------------------------------------------------- |
+| `connect.py`    | Database connections, `USE`, `DISCONNECT`                              |
+| `control.py`    | Control flow: `IF`, `LOOP`, `BREAK`, `HALT`, batch                     |
+| `data.py`       | Variable manipulation: `SUB`, `SUBDATA`, counters                      |
+| `io.py`         | Re-export façade only -- imports and re-exports from the modules below |
+| `io_export.py`  | `EXPORT` handlers                                                      |
+| `io_import.py`  | `IMPORT` handlers                                                      |
+| `io_write.py`   | `WRITE` and `WRITESCRIPT` handlers                                     |
+| `io_fileops.py` | `INCLUDE`, `ZIP`, `CD`, `SERVE`, and other file operations             |
+| `prompt.py`     | User interaction: `PROMPT`, `ASK`, `PAUSE`, `MSG`                      |
+| `system.py`     | OS interaction: `SYSTEM_CMD`, `LOG`, `EMAIL`, console                  |
+| `debug.py`      | Debug output                                                           |
+| `script_ext.py` | Script extensions                                                      |
 
 If none of these fit, create a new module and follow the same structure.
 

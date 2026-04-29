@@ -363,7 +363,7 @@ def _run(
     if db_type:
         conf.db_type = db_type
     if conf.db_type is None:
-        conf.db_type = "a"
+        conf.db_type = "l"
     if user_logfile:
         conf.user_logfile = True
     if port:

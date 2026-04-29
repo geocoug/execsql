@@ -37,6 +37,7 @@ ______________________________________________________________________
 - `--lint` now uses the AST parser for structural validation. Unmatched IF/LOOP/BATCH/SCRIPT blocks are caught at parse time with precise source line ranges. No database connection or runtime state initialization is required. All prior lint checks (variable analysis, INCLUDE file existence, EXECUTE SCRIPT resolution, SUB_INI reading) are preserved.
 - Export format dispatch logic (`EXPORT` and `EXPORT QUERY` metacommands) refactored from duplicated ~180-line if/elif chains into shared `_dispatch_format()` function, eliminating code duplication and fixing missing zip-compatibility checks for `EXPORT QUERY`.
 - `MailSpec.send()` refactored: extracted `_expand()` helper to replace 12 repetitive substitution lines.
+- Default database type changed from Access (`-t a`) to SQLite (`-t l`). Upstream defaulted to Access, which requires Windows and pyodbc. Users targeting Access databases should pass `-t a` explicitly.
 
 ### Fixed
 
@@ -54,6 +55,19 @@ ______________________________________________________________________
 - `Encrypt.ky` key table is now an immutable `MappingProxyType` instead of a mutable class-level dict.
 - `JsonDatatype` attributes are now declared as class variables in the class body instead of assigned externally after class definition.
 - `minimal_conf` test fixture expanded with commonly needed attributes (`import_encoding`, `script_encoding`, `export_output_dir`, `write_prefix`, `write_suffix`, `fold_col_hdrs`, `trim_col_hdrs`, etc.) to reduce ad-hoc attribute additions in individual tests.
+
+### Documentation
+
+- Fixed false `$ENV:` prefix claim in substitution variables reference — feature does not exist.
+- Documented environment variable filtering (SECRET, TOKEN, PASSWORD, etc.) in substitution variables reference.
+- Added missing exporter API docs (markdown, yaml, xlsx) and importer API docs (json).
+- Added 8 missing CLI flags to README Options table (-b, -e, -g, -i, -o, -s, -y, -z).
+- Added missing installation extras ([upsert], [firebird], [oracle]) to README and installation guide.
+- Fixed broken `PROMPT.md` link in logging guide.
+- Added explicit `{ #exampleN }` anchors to all 34 examples for reliable cross-referencing.
+- Updated architecture doc: corrected metacommand count (~225), export format count (20+), added debug/notebook/server/lsp packages to module map.
+- Updated metacommand developer guide to reflect io.py split into io_export.py, io_import.py, io_write.py, io_fileops.py.
+- Noted SQLite as the default database type in syntax reference.
 
 ### Removed
 

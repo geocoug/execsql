@@ -218,7 +218,7 @@ class ConfigData:
                 precedence over system, user, script, and working-directory
                 config files.
         """
-        self.db_type = "a"
+        self.db_type = "l"
         self.server = None
         self.port = None
         self.db = None

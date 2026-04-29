@@ -49,7 +49,7 @@ class TestConfigDataDefaults:
 
     def test_default_db_type(self, tmp_path):
         cd = _make_conf(str(tmp_path))
-        assert cd.db_type == "a"
+        assert cd.db_type == "l"
 
     def test_default_server_none(self, tmp_path):
         cd = _make_conf(str(tmp_path))
@@ -1714,7 +1714,7 @@ class TestConfigFileKwarg:
     def test_explicit_config_file_not_given(self, tmp_path):
         """When config_file is None, behaviour is unchanged."""
         cd = ConfigData(str(tmp_path), None, config_file=None)
-        assert cd.db_type == "a"  # default
+        assert cd.db_type == "l"  # default
 
     def test_explicit_config_overrides_cwd_config(self, tmp_path):
         """The --config file is loaded after the working-dir config, so it wins."""
