@@ -7,6 +7,7 @@ import pytest
 from execsql.exceptions import ErrInfo
 from execsql.script.ast import (
     BatchBlock,
+    Comment,
     IfBlock,
     IncludeDirective,
     LoopBlock,
@@ -53,11 +54,17 @@ class TestEmpty:
 
     def test_comments_only(self):
         s = parse_string("-- comment 1\n-- comment 2\n")
-        assert s.body == []
+        assert len(s.body) == 1
+        assert isinstance(s.body[0], Comment)
+        assert s.body[0].text == "-- comment 1\n-- comment 2"
+        assert s.body[0].span.start_line == 1
+        assert s.body[0].span.end_line == 2
 
     def test_block_comment_only(self):
         s = parse_string("/* block comment */\n")
-        assert s.body == []
+        assert len(s.body) == 1
+        assert isinstance(s.body[0], Comment)
+        assert s.body[0].text == "/* block comment */"
 
 
 # ---------------------------------------------------------------------------
@@ -90,8 +97,10 @@ class TestSqlStatements:
 
     def test_statement_after_comment(self):
         nodes = _body("-- setup\nSELECT 1;")
-        assert len(nodes) == 1
-        assert isinstance(nodes[0], SqlStatement)
+        assert len(nodes) == 2
+        assert isinstance(nodes[0], Comment)
+        assert nodes[0].text == "-- setup"
+        assert isinstance(nodes[1], SqlStatement)
 
     def test_semicolon_deduplication_not_done(self):
         # The AST parser preserves raw text; dedup is the executor's job
@@ -111,14 +120,19 @@ class TestSqlStatements:
         with pytest.raises(ErrInfo, match="Metacommands must be prefixed"):
             parse_string("SELECT 1")
 
-    def test_block_comment_skipped(self):
+    def test_block_comment_preserved(self):
         nodes = _body("/* comment */\nSELECT 1;")
-        assert len(nodes) == 1
-        assert isinstance(nodes[0], SqlStatement)
+        assert len(nodes) == 2
+        assert isinstance(nodes[0], Comment)
+        assert nodes[0].text == "/* comment */"
+        assert isinstance(nodes[1], SqlStatement)
 
     def test_multi_line_block_comment(self):
         nodes = _body("/*\n  multi-line\n  comment\n*/\nSELECT 1;")
-        assert len(nodes) == 1
+        assert len(nodes) == 2
+        assert isinstance(nodes[0], Comment)
+        assert "multi-line" in nodes[0].text
+        assert isinstance(nodes[1], SqlStatement)
 
 
 # ---------------------------------------------------------------------------
@@ -501,11 +515,12 @@ class TestComplex:
             "DROP TABLE !!$table!!;\n"
         )
         nodes = _body(script)
-        assert len(nodes) == 4
-        assert isinstance(nodes[0], MetaCommandStatement)  # SUB
-        assert isinstance(nodes[1], SqlStatement)  # CREATE TABLE
-        assert isinstance(nodes[2], IfBlock)  # IF block
-        assert isinstance(nodes[3], SqlStatement)  # DROP TABLE
+        assert len(nodes) == 5
+        assert isinstance(nodes[0], Comment)  # -- Setup
+        assert isinstance(nodes[1], MetaCommandStatement)  # SUB
+        assert isinstance(nodes[2], SqlStatement)  # CREATE TABLE
+        assert isinstance(nodes[3], IfBlock)  # IF block
+        assert isinstance(nodes[4], SqlStatement)  # DROP TABLE
 
     def test_if_inside_loop(self):
         script = (
@@ -580,16 +595,55 @@ class TestComplex:
 class TestBlockComments:
     def test_single_line_block_comment(self):
         nodes = _body("/* comment */\nSELECT 1;")
-        assert len(nodes) == 1
+        assert len(nodes) == 2
+        assert isinstance(nodes[0], Comment)
+        assert isinstance(nodes[1], SqlStatement)
 
     def test_multi_line_block_comment(self):
         nodes = _body("/*\n  line 1\n  line 2\n*/\nSELECT 1;")
-        assert len(nodes) == 1
+        assert len(nodes) == 2
+        assert isinstance(nodes[0], Comment)
+        assert nodes[0].span.start_line == 1
+        assert nodes[0].span.end_line == 4
+        assert isinstance(nodes[1], SqlStatement)
 
     def test_sql_after_block_comment(self):
         nodes = _body("/* skip this */\nSELECT 42;")
-        assert len(nodes) == 1
-        assert nodes[0].text == "SELECT 42;"
+        assert len(nodes) == 2
+        assert isinstance(nodes[0], Comment)
+        assert nodes[0].text == "/* skip this */"
+        assert nodes[1].text == "SELECT 42;"
+
+    def test_consecutive_line_comments_grouped(self):
+        """Multiple consecutive -- lines produce a single Comment node."""
+        nodes = _body("-- line 1\n-- line 2\n-- line 3\nSELECT 1;")
+        assert len(nodes) == 2
+        assert isinstance(nodes[0], Comment)
+        assert nodes[0].text == "-- line 1\n-- line 2\n-- line 3"
+        assert nodes[0].span.start_line == 1
+        assert nodes[0].span.end_line == 3
+        assert isinstance(nodes[1], SqlStatement)
+
+    def test_blank_line_splits_comment_groups(self):
+        """A blank line between -- comments produces two separate Comment nodes."""
+        nodes = _body("-- group 1\n\n-- group 2\nSELECT 1;")
+        assert len(nodes) == 3
+        assert isinstance(nodes[0], Comment)
+        assert nodes[0].text == "-- group 1"
+        assert isinstance(nodes[1], Comment)
+        assert nodes[1].text == "-- group 2"
+        assert isinstance(nodes[2], SqlStatement)
+
+    def test_metacommand_splits_comment_groups(self):
+        """A metacommand between -- comments produces separate Comment nodes."""
+        nodes = _body("-- header\n-- !x! SUB x = 1\n-- footer\nSELECT 1;")
+        assert len(nodes) == 4
+        assert isinstance(nodes[0], Comment)
+        assert nodes[0].text == "-- header"
+        assert isinstance(nodes[1], MetaCommandStatement)
+        assert isinstance(nodes[2], Comment)
+        assert nodes[2].text == "-- footer"
+        assert isinstance(nodes[3], SqlStatement)
 
 
 # ---------------------------------------------------------------------------

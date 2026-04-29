@@ -45,7 +45,7 @@ def x_write(**kwargs: Any) -> None:
         except ConsoleUIError as e:
             _state.output.reset()
             _state.exec_log.log_status_info(f"Console UI write failed (message {{{e.value}}}); output reset to stdout.")
-            _state.output.write(msg.encode(_state.conf.output_encoding))
+            _state.output.write(msg)
     if _state.conf.tee_write_log:
         _state.exec_log.log_user_msg(msg)
     return None

@@ -45,6 +45,7 @@ from typing import Any
 from execsql.exceptions import ErrInfo
 from execsql.script.ast import (
     BatchBlock,
+    Comment,
     ConditionModifier,
     IfBlock,
     IncludeDirective,
@@ -234,6 +235,8 @@ def _execute_nodes(
 ) -> None:
     """Execute a list of AST nodes sequentially."""
     for node in nodes:
+        if isinstance(node, Comment):
+            continue  # Comments have no runtime semantics
         set_dynamic_system_vars(ctx)
         _set_command_vars(ctx, node.span.file, node.span.start_line)
 

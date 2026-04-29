@@ -514,5 +514,4 @@ def initialize(
 # ---------------------------------------------------------------------------
 
 _ctx = RuntimeContext()
-_DEFAULT_CTX = RuntimeContext()  # Cached defaults for __delattr__ reset
 sys.modules[__name__].__class__ = _StateModule

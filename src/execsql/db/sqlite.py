@@ -72,7 +72,7 @@ class SQLiteDatabase(Database):
         # SQLite does not support stored functions or views, so the querycommand
         # is treated as (and therefore must be) a view.
         with self._cursor() as curs:
-            cmd = f"select * from {querycommand};"
+            cmd = f"select * from {self.quote_identifier(querycommand)};"
             try:
                 curs.execute(cmd)
                 _state.subvars.add_substitution("$LAST_ROWCOUNT", curs.rowcount)

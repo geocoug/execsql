@@ -21,10 +21,28 @@ ______________________________________________________________________
 - Plugin system (`execsql.plugins`) for extending execsql with custom metacommands, export formats, and import formats via Python entry points. Entry point groups: `execsql.metacommands`, `execsql.exporters`, `execsql.importers`. Plugins are discovered automatically at startup.
 - `--list-plugins` CLI flag to show all discovered plugins and exit.
 - Python library API: `from execsql import run` for programmatic script execution from notebooks, pipelines, and applications. Returns a `ScriptResult` with success/failure, command count, timing, errors, and final variable state. Supports DSN connection strings, pre-existing connections, substitution variables, and error control. Full RuntimeContext isolation between calls.
+- AST `Comment` node: the parser now preserves SQL comments in the tree. Consecutive single-line `--` comments are grouped into one node; `/* */` block comments are captured as single nodes. The `--parse-tree` output includes `<CMT>` tagged comment nodes.
+- `--parse-tree` visual improvements: color-coded type tags (`<SQL>`, `<CMD>`, `<CMT>`, `<IF>`, `<LOOP>`, etc.), dimmed line numbers, and content truncation for cleaner output.
+- Deprecation warning emitted when `enc_password` is used in config files, advising users to switch to keyring or environment variables.
+- Sensitive environment variables (`*SECRET*`, `*TOKEN*`, `*PASSWORD*`, etc.) are now filtered from automatic substitution variable exposure.
 
 ### Changed
 
 - `--lint` now uses the AST parser for structural validation. Unmatched IF/LOOP/BATCH/SCRIPT blocks are caught at parse time with precise source line ranges. No database connection or runtime state initialization is required. All prior lint checks (variable analysis, INCLUDE file existence, EXECUTE SCRIPT resolution, SUB_INI reading) are preserved.
+- Export format dispatch logic (`EXPORT` and `EXPORT QUERY` metacommands) refactored from duplicated ~180-line if/elif chains into shared `_dispatch_format()` function, eliminating code duplication and fixing missing zip-compatibility checks for `EXPORT QUERY`.
+- `MailSpec.send()` refactored: extracted `_expand()` helper to replace 12 repetitive substitution lines.
+
+### Fixed
+
+- **[Critical]** `WriteSpec.write()` and `MailSpec.send()` error-recovery paths crashed because `SubVarSet.substitute_all()` returns `(str, bool)` but callers treated the return as a plain string. All 14 call sites now unpack the tuple correctly.
+- **[Critical]** Error-recovery fallback in `WriteSpec.write()` and `io_write` called `.encode()` producing bytes passed to `sys.stdout.write()` which expects `str`. Removed the `.encode()` calls.
+- `WriteSpec.write()` no longer crashes with `IndexError` when `commandliststack` is empty during early initialization errors.
+- SQL injection vector in `exec_cmd()` across all 8 database adapters — stored procedure/function/view names are now quoted with `quote_identifier()`.
+- `DSN` and `SQL Server` adapters no longer encode SQL strings to bytes before execution.
+- Duplicate tuple entries in export format checks (`"txt-and"` and `"text-and"` each appeared twice).
+- Database adapters now clear `self.password` after successful connection, reducing credential exposure window.
+- Removed unused `_DEFAULT_CTX = RuntimeContext()` allocation in `state.py`.
+- Version bump commits no longer skip pre-commit hooks (`--no-verify` removed from bumpversion config).
 
 ______________________________________________________________________
 

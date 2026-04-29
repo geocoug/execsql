@@ -429,7 +429,7 @@ class TestFormatTree:
         sql = SqlStatement(span=_span(1), text="SELECT 1;")
         script = Script(source="test.sql", body=[sql])
         result = format_tree(script)
-        assert "SQL: SELECT 1;" in result
+        assert "SELECT 1;" in result
         assert "[1]" in result
 
     def test_metacommand(self):
@@ -451,7 +451,7 @@ class TestFormatTree:
         script = Script(source="test.sql", body=[if_block])
         result = format_tree(script)
         assert "IF (HAS_ROWS)" in result
-        assert "[3] ELSE" in result
+        assert "ELSE" in result
         assert "SELECT 1;" in result
         assert "SELECT 2;" in result
 
@@ -482,7 +482,7 @@ class TestFormatTree:
         )
         script = Script(source="test.sql", body=[loop])
         result = format_tree(script)
-        assert "LOOP WHILE (HAS_ROWS)" in result
+        assert "WHILE (HAS_ROWS)" in result
         assert "DELETE FROM t;" in result
 
     def test_batch_tree(self):
@@ -497,7 +497,7 @@ class TestFormatTree:
         sb = ScriptBlock(span=_span(1, 3), name="my_proc", param_names=["x", "y"], body=[sql])
         script = Script(source="test.sql", body=[sb])
         result = format_tree(script)
-        assert "SCRIPT my_proc (x, y)" in result
+        assert "my_proc (x, y)" in result
 
     def test_include_tree(self):
         inc = IncludeDirective(span=_span(1), target="helpers.sql")

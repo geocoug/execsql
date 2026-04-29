@@ -21,6 +21,11 @@
 -- !x! sub result wrong_platinum
 -- !x! elseif (equals(!!tier!!, gold))
 
+    /*
+        This is a test comment block
+        It is multiple lines.
+    */
+
     -- Level 2: nested inside gold branch
     -- !x! sub discount 20
     -- !x! if (is_gt(!!discount!!, 10))

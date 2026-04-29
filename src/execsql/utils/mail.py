@@ -134,21 +134,24 @@ class MailSpec:
         self.repeatable = repeatable
         self.sent = False
 
+    @staticmethod
+    def _expand(text: str) -> str:
+        """Expand local and global substitution variables in *text*."""
+        result = text
+        if _state.commandliststack:
+            result, _ = _state.commandliststack[-1].localvars.substitute_all(result)
+        result, _ = _state.subvars.substitute_all(result)
+        return result
+
     def send(self) -> None:
         if self.repeatable or not self.sent:
             self.sent = True
-            send_from = _state.commandliststack[-1].localvars.substitute_all(self.send_from)
-            send_from = _state.subvars.substitute_all(send_from)
-            send_to = _state.commandliststack[-1].localvars.substitute_all(self.send_to)
-            send_to = _state.subvars.substitute_all(send_to)
-            subject = _state.commandliststack[-1].localvars.substitute_all(self.subject)
-            subject = _state.subvars.substitute_all(subject)
-            msg_content = _state.commandliststack[-1].localvars.substitute_all(self.msg_content)
-            msg_content = _state.subvars.substitute_all(msg_content)
-            content_filename = _state.commandliststack[-1].localvars.substitute_all(self.content_filename)
-            content_filename = _state.subvars.substitute_all(content_filename)
-            attach_filename = _state.commandliststack[-1].localvars.substitute_all(self.attach_filename)
-            attach_filename = _state.subvars.substitute_all(attach_filename)
+            send_from = self._expand(self.send_from)
+            send_to = self._expand(self.send_to)
+            subject = self._expand(self.subject)
+            msg_content = self._expand(self.msg_content)
+            content_filename = self._expand(self.content_filename)
+            attach_filename = self._expand(self.attach_filename)
             with Mailer() as m:
                 m.sendmail(send_from, send_to, subject, msg_content, content_filename, attach_filename)
         return None

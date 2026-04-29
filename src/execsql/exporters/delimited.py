@@ -31,6 +31,8 @@ from execsql.utils.strings import clean_words, dedup_words, fold_words
 
 __all__ = ["LineDelimiter", "CsvFile", "CsvWriter", "DelimitedWriter", "write_delimited_file"]
 
+_SPACE_DELIM_RX = re.compile(r" +")
+
 
 class LineDelimiter:
     """Encapsulates delimiter, quote character, and escape rules for a single line format."""
@@ -211,7 +213,7 @@ class CsvFile(EncodedFile):
             # to a single delimiter, split on the space(s), and consider the delimiter
             # count to be one fewer than the items returned.
             if delim == " ":
-                self.delim_counts[delim] = max(0, len(re.split(r" +", self.text)) - 1)
+                self.delim_counts[delim] = max(0, len(_SPACE_DELIM_RX.split(self.text)) - 1)
             else:
                 self.delim_counts[delim] = self.text.count(delim)
 
@@ -798,10 +800,11 @@ def write_delimited_file(
         if not (filefmt.lower() == "plain" or (append and zipfile is None)):
             datarow = line_delimiter.delimited(column_headers)
             ofile.write(datarow)
+        buf: list[str] = []
+        flush_every = getattr(_state.conf, "export_row_buffer", 1000) if _state.conf else 1000
         for rec in rowsource:
             try:
-                datarow = line_delimiter.delimited(rec)
-                ofile.write(datarow)
+                buf.append(line_delimiter.delimited(rec))
             except ErrInfo:
                 raise
             except Exception as e:
@@ -810,5 +813,10 @@ def write_delimited_file(
                     exception_msg=exception_desc(),
                     other_msg=f"Can't write output to file {fdesc}.",
                 ) from e
+            if len(buf) >= flush_every:
+                ofile.write("".join(buf))
+                buf.clear()
+        if buf:
+            ofile.write("".join(buf))
     finally:
         ofile.close()

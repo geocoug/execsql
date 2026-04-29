@@ -51,6 +51,7 @@ class FirebirdDatabase(Database):
         self.conn = None
         self.autocommit = True
         self.open_db()
+        self.password = None  # Clear cleartext password after successful connection
 
     def __repr__(self) -> str:
         return (
@@ -117,7 +118,7 @@ class FirebirdDatabase(Database):
         """Execute a stored procedure by name."""
         # The querycommand must be a stored function (/procedure)
         with self._cursor() as curs:
-            cmd = f"execute procedure {querycommand};"
+            cmd = f"execute procedure {self.quote_identifier(querycommand)};"
             try:
                 curs.execute(cmd)
             except Exception:

@@ -480,45 +480,83 @@ def _format_if_block(node: IfBlock, lines: list[str], prefix: str) -> None:
 
 
 def _format_location(span: SourceSpan) -> str:
-    """Format a source span as a bracket-enclosed location prefix."""
+    """Format a source span as a dim, bracket-enclosed location prefix."""
     end = span.effective_end_line
     if end == span.start_line:
-        return f"[{span.start_line}] "
-    return f"[{span.start_line}-{end}] "
+        return f"[dim]\\[{span.start_line}][/dim] "
+    return f"[dim]\\[{span.start_line}-{end}][/dim] "
+
+
+def _tag(name: str) -> str:
+    """Return a Rich-colored type tag for parse-tree output."""
+    # Color scheme: SQL=cyan, CMD=green, CMT=dim, blocks=yellow, includes=magenta
+    _COLORS = {
+        "SQL": "bold cyan",
+        "CMD": "bold green",
+        "CMT": "dim",
+        "IF": "bold yellow",
+        "LOOP": "bold yellow",
+        "BATCH": "bold yellow",
+        "SCRIPT": "bold yellow",
+        "SQL_BLK": "bold yellow",
+        "INC": "bold magenta",
+    }
+    color = _COLORS.get(name, "")
+    if color:
+        return f"[{color}]<{name}>[/{color}]"
+    return f"<{name}>"
+
+
+_PREVIEW_LEN = 60
+
+
+def _truncate(text: str, maxlen: int = _PREVIEW_LEN) -> str:
+    """Truncate *text* to *maxlen* characters, appending ``...`` if clipped."""
+    if len(text) <= maxlen:
+        return text
+    return text[:maxlen] + "..."
 
 
 def _node_label(node: Node) -> str:
-    """Return a concise label for a node."""
+    """Return a concise label for a node.
+
+    Each label is prefixed with a Rich-colored ``<TAG>`` indicating the
+    node type: ``<SQL>``, ``<CMD>``, ``<CMT>``, ``<IF>``, ``<LOOP>``,
+    ``<BATCH>``, ``<SCRIPT>``, ``<SQL_BLK>``, ``<INC>``.
+    """
     if isinstance(node, SqlStatement):
-        preview = node.text.replace("\n", " ")[:80]
-        return f"SQL: {preview}"
+        preview = _truncate(node.text.replace("\n", " "))
+        return f"{_tag('SQL')} {preview}"
     if isinstance(node, MetaCommandStatement):
-        preview = node.command[:80]
-        return preview
+        preview = _truncate(node.command)
+        return f"{_tag('CMD')} {preview}"
     if isinstance(node, Comment):
-        preview = node.text[:80]
-        return f"# {preview}"
+        lines = node.text.split("\n")
+        first = _truncate(lines[0].strip())
+        if len(lines) > 1:
+            return f"{_tag('CMT')} {first} (+{len(lines) - 1} lines)"
+        return f"{_tag('CMT')} {first}"
     if isinstance(node, IfBlock):
         parts = [f"IF ({node.condition})"]
         for mod in node.condition_modifiers:
             keyword = "ANDIF" if mod.kind == "AND" else "ORIF"
             parts.append(f"{keyword} ({mod.condition})")
-        return " ".join(parts)
+        return f"{_tag('IF')} {' '.join(parts)}"
     if isinstance(node, LoopBlock):
-        return f"LOOP {node.loop_type} ({node.condition})"
+        return f"{_tag('LOOP')} {node.loop_type} ({node.condition})"
     if isinstance(node, BatchBlock):
-        return "BEGIN BATCH"
+        return f"{_tag('BATCH')} BEGIN BATCH"
     if isinstance(node, ScriptBlock):
         params = f" ({', '.join(node.param_names)})" if node.param_names else ""
-        return f"SCRIPT {node.name}{params}"
+        return f"{_tag('SCRIPT')} {node.name}{params}"
     if isinstance(node, SqlBlock):
-        return "BEGIN SQL"
+        return f"{_tag('SQL_BLK')} BEGIN SQL"
     if isinstance(node, IncludeDirective):
         exists = " IF EXISTS" if node.if_exists else ""
         if node.is_execute_script:
             extra = ""
             if node.loop_type:
                 extra = f" {node.loop_type} ({node.loop_condition})"
-            return f"EXECUTE SCRIPT{exists} {node.target}{extra}"
-        return f"INCLUDE{exists} {node.target}"
+            return f"{_tag('INC')} EXECUTE SCRIPT{exists} {node.target}{extra}"
+        return f"{_tag('INC')} INCLUDE{exists} {node.target}"
     return repr(node)  # pragma: no cover

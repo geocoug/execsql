@@ -248,11 +248,13 @@ def _run(
     # ------------------------------------------------------------------
     _state.subvars = SubVarSet()
 
-    # Security note: ALL environment variables are exposed as &-prefixed
-    # substitution variables.  Sensitive values (API keys, tokens) in the
-    # process environment will be accessible to scripts.  See the
-    # "Environment Variables" section in docs/reference/substitution_vars.md.
+    # Environment variables are exposed as &-prefixed substitution variables.
+    # Variables whose names contain common secret-indicating substrings are
+    # excluded to reduce accidental credential leakage into scripts and logs.
+    _SENSITIVE_SUBSTRINGS = ("SECRET", "TOKEN", "PASSWORD", "PASSWD", "PRIVATE_KEY", "CREDENTIAL")
     for k in os.environ:
+        if any(s in k.upper() for s in _SENSITIVE_SUBSTRINGS):
+            continue
         try:
             _state.subvars.add_substitution("&" + k, os.environ[k])
         except Exception:

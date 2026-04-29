@@ -221,14 +221,16 @@ def _make_write_state(msg_passthrough: str = None):
         make_export_dirs=False,
     )
 
-    # localvars.substitute_all(msg) → return msg unchanged (no local vars)
-    fake_localvars = SimpleNamespace(substitute_all=lambda s: s if msg_passthrough is None else msg_passthrough)
+    # localvars.substitute_all(msg) → return (msg, False) unchanged (no local vars)
+    fake_localvars = SimpleNamespace(
+        substitute_all=lambda s: (s, False) if msg_passthrough is None else (msg_passthrough, True),
+    )
 
     # commandliststack[-1].localvars
     fake_cmd = SimpleNamespace(localvars=fake_localvars)
 
-    # subvars.substitute_all(msg) → return msg unchanged
-    fake_subvars = SimpleNamespace(substitute_all=lambda s: s)
+    # subvars.substitute_all(msg) → return (msg, False) unchanged
+    fake_subvars = SimpleNamespace(substitute_all=lambda s: (s, False))
 
     # output.write() captures bytes
     written_bytes = []
@@ -270,8 +272,8 @@ class TestWriteSpecWrite:
     # Console-only path (no outfile)
     # ------------------------------------------------------------------
 
-    def test_write_to_console_emits_encoded_bytes(self):
-        """write() with no outfile passes encoded bytes to _state.output.write."""
+    def test_write_to_console_emits_string(self):
+        """write() with no outfile passes a string to _state.output.write."""
         fake_conf, fake_subvars, fake_cmd, fake_output, fake_exec_log = _make_write_state()
         try:
             with self._patch_state(fake_conf, fake_subvars, fake_cmd, fake_output, fake_exec_log):
@@ -279,7 +281,7 @@ class TestWriteSpecWrite:
                 ws.write()
         finally:
             self._cleanup_stack()
-        assert fake_output._written == [b"hello world"]
+        assert fake_output._written == ["hello world"]
 
     def test_write_marks_written_true(self):
         """write() sets self.written = True after the first call."""
@@ -371,7 +373,7 @@ class TestWriteSpecWrite:
         # File was written
         assert (tmp_path / "tee.txt").read_text(encoding="utf-8") == "teed"
         # Console also received the bytes
-        assert b"teed" in fake_output._written
+        assert "teed" in fake_output._written
 
     # ------------------------------------------------------------------
     # Substitution variable expansion
@@ -381,26 +383,26 @@ class TestWriteSpecWrite:
         """write() expands localvars.substitute_all before writing."""
         fake_conf, fake_subvars, fake_cmd, fake_output, fake_exec_log = _make_write_state()
         # Override localvars to perform a substitution
-        fake_cmd.localvars = SimpleNamespace(substitute_all=lambda s: s.replace("!!$NAME!!", "World"))
+        fake_cmd.localvars = SimpleNamespace(substitute_all=lambda s: (s.replace("!!$NAME!!", "World"), True))
         try:
             with self._patch_state(fake_conf, fake_subvars, fake_cmd, fake_output, fake_exec_log):
                 ws = WriteSpec("Hello !!$NAME!!")
                 ws.write()
         finally:
             self._cleanup_stack()
-        assert b"Hello World" in fake_output._written
+        assert "Hello World" in fake_output._written
 
     def test_write_applies_global_subvar_substitution(self):
         """write() passes localvars-expanded text through subvars.substitute_all."""
         fake_conf, fake_subvars, fake_cmd, fake_output, fake_exec_log = _make_write_state()
-        fake_subvars.substitute_all = lambda s: s.replace("!!$GLOBAL!!", "earth")
+        fake_subvars.substitute_all = lambda s: (s.replace("!!$GLOBAL!!", "earth"), True)
         try:
             with self._patch_state(fake_conf, fake_subvars, fake_cmd, fake_output, fake_exec_log):
                 ws = WriteSpec("!!$GLOBAL!!")
                 ws.write()
         finally:
             self._cleanup_stack()
-        assert b"earth" in fake_output._written
+        assert "earth" in fake_output._written
 
     # ------------------------------------------------------------------
     # tee_write_log path
@@ -473,7 +475,7 @@ class TestWriteSpecWrite:
         # output.reset() was called to recover
         fake_output.reset.assert_called_once()
         # The message was re-emitted after reset
-        assert b"recovery msg" in recovered_bytes
+        assert "recovery msg" in recovered_bytes
 
     def test_write_logs_status_info_after_console_ui_error(self):
         """ConsoleUIError recovery logs a status message via exec_log."""

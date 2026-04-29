@@ -254,8 +254,7 @@ class TestDsnDatabaseExecCmd:
         db.exec_cmd("my_proc")
         curs = db.conn.cursor.return_value
         executed_sql = curs.execute.call_args[0][0]
-        # The SQL should be the encoded form of "execute my_proc;"
-        assert b"execute my_proc;" in executed_sql
+        assert executed_sql == 'execute "my_proc";'
 
     def test_exec_cmd_updates_last_rowcount(self):
         db = self._make_connected(rowcount=42)
@@ -274,15 +273,15 @@ class TestDsnDatabaseExecCmd:
 
         db.conn.rollback.assert_called_once()
 
-    def test_exec_cmd_encodes_with_encoding(self):
-        """The SQL passed to curs.execute is bytes encoded in the adapter's encoding."""
+    def test_exec_cmd_passes_string_not_bytes(self):
+        """exec_cmd() passes a str (not bytes) to curs.execute()."""
         db = self._make_connected()
         db.encoding = "latin1"
         db.exec_cmd("stored_proc")
         curs = db.conn.cursor.return_value
         executed_arg = curs.execute.call_args[0][0]
-        assert isinstance(executed_arg, bytes)
-        assert executed_arg == "execute stored_proc;".encode("latin1")
+        assert isinstance(executed_arg, str)
+        assert executed_arg == 'execute "stored_proc";'
 
 
 # ---------------------------------------------------------------------------

@@ -83,6 +83,7 @@ class AccessDatabase(Database):
         self.open_dao()
         # Create the ODBC connection
         self.open_db()
+        self.password = None  # Clear cleartext password after successful connection
 
     def __repr__(self) -> str:
         return f"AccessDatabase({self.db_name}, {self.encoding})"
