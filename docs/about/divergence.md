@@ -162,6 +162,34 @@ execsql2 adds a full interactive debugging system that has no equivalent in upst
 - **ANSI color output** — the REPL uses ANSI color on TTY outputs: bold yellow for section labels, cyan for filenames and variable names, dim for separators and `=` signs, red for error messages, bold for SQL column headers, and dim italic for `NULL` values. Color is suppressed when `NO_COLOR` or `EXECSQL_NO_COLOR` environment variables are set, or when the output stream is not a TTY.
 - **Readline support** — on platforms where `readline` is available (macOS, Linux), the REPL supports arrow-key history navigation and line editing.
 
+### Library API
+
+execsql2 provides a Python library API for programmatic script execution — no CLI needed. The upstream execsql has no equivalent.
+
+```python
+from execsql import run
+
+result = run(
+    script="pipeline.sql",
+    dsn="postgresql://user:pass@host/db",
+    variables={"SCHEMA": "public"},
+)
+
+print(result.success)       # True/False
+print(result.commands_run)  # number of statements executed
+print(result.errors)        # list of ScriptError objects
+print(result.variables)     # final substitution variable state
+```
+
+**Key features:**
+
+- **DSN or connection** — pass a DSN string (`dsn="sqlite:///my.db"`) or a pre-existing `Database` object (`connection=conn`).
+- **Substitution variables** — pass a `variables` dict; keys are automatically `$`-prefixed.
+- **Error control** — `halt_on_error=True` (default) stops on the first error; `halt_on_error=False` captures errors and continues.
+- **Isolation** — each `run()` call uses an isolated `RuntimeContext`. Multiple calls do not share state.
+- **Result object** — `ScriptResult` is a frozen dataclass with `success`, `commands_run`, `elapsed`, `errors`, and `variables`.
+- **Exception convenience** — call `result.raise_on_error()` to raise `ExecSqlError` if the script failed.
+
 ______________________________________________________________________
 
 ## Changed Behavior

@@ -4,7 +4,27 @@ The pages in this section are auto-generated from the source docstrings and show
 
 If you want to **extend** execsql — add a new exporter format, support a new database, or add an importer for a file type — start with the Contributing guides, which give you step-by-step walkthroughs and copy-paste skeletons. The API pages here serve as the detailed reference those guides link to.
 
-For a high-level overview of how all the pieces fit together, start with the [Architecture & Design Guide](../dev/architecture.md).
+For programmatic use, see the [Library API](#library-api) section below. For a high-level overview of how all the pieces fit together, start with the [Architecture & Design Guide](../dev/architecture.md).
+
+## Library API
+
+The primary public API is `execsql.run()`:
+
+```python
+from execsql import run, ScriptResult, ScriptError, ExecSqlError
+
+result: ScriptResult = run(
+    script="pipeline.sql",       # or sql="SELECT 1;"
+    dsn="sqlite:///my.db",       # or connection=existing_db_object
+    variables={"KEY": "value"},  # optional substitution variables
+    halt_on_error=True,          # stop on first error (default)
+    new_db=False,                # create DB if missing
+)
+```
+
+See the [README](https://github.com/geocoug/execsql#library-api) for full examples.
+
+## Extension Guides
 
 | Extension type       | Guide                                                    | API reference                   |
 | -------------------- | -------------------------------------------------------- | ------------------------------- |
