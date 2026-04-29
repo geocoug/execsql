@@ -632,7 +632,7 @@ class ScriptFile(EncodedFile):
         self.f = self.open("r")
 
     def __repr__(self) -> str:
-        return f"ScriptFile({super().filename!r}, {super().encoding!r})"
+        return f"ScriptFile({self.filename!r}, {self.encoding!r})"
 
     def __iter__(self) -> Any:
         return self

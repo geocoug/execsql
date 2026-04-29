@@ -146,7 +146,7 @@ try:
     primary_vno: int = int(_vparts[0]) if len(_vparts) > 0 else 0
     secondary_vno: int = int(_vparts[1]) if len(_vparts) > 1 else 0
     tertiary_vno: int = int(_vparts[2]) if len(_vparts) > 2 else 0
-except Exception:
+except (ImportError, ValueError, IndexError):
     primary_vno = 0
     secondary_vno = 0
     tertiary_vno = 0
