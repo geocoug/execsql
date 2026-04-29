@@ -20,7 +20,7 @@ import typer
 
 from execsql import __version__
 from execsql.cli.dsn import _parse_connection_string, _SCHEME_TO_DBTYPE  # noqa: F401 — re-export
-from execsql.cli.help import _console, _err_console, _print_encodings, _print_metacommands  # noqa: F401 — re-export
+from execsql.cli.help import _console, _err_console, _print_encodings  # noqa: F401 — re-export
 from execsql.cli.run import _connect_initial_db, _run  # noqa: F401 — re-export
 from execsql.exceptions import ConfigError, ErrInfo
 
@@ -32,7 +32,6 @@ __all__ = [
     "_legacy_main",
     "_parse_connection_string",
     "_print_encodings",
-    "_print_metacommands",
     "_run",
     "app",
     "main",
@@ -128,7 +127,7 @@ def main(
         False,
         "-m",
         "--metacommands",
-        help="List metacommands and exit.",
+        help="Open the metacommand reference documentation and exit.",
     ),
     new_db: bool = typer.Option(
         False,
@@ -341,7 +340,11 @@ def main(
     # Early exits (no script file needed)
     # ------------------------------------------------------------------
     if metacommands:
-        _print_metacommands()
+        import webbrowser
+
+        url = "https://execsql2.readthedocs.io/en/latest/reference/metacommands/"
+        _console.print(f"Opening metacommand reference: [cyan]{url}[/cyan]")
+        webbrowser.open(url, new=2, autoraise=True)
         raise typer.Exit()
 
     if encodings:
