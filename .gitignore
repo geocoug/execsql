@@ -46,6 +46,7 @@ _execsql/
 
 # Claude
 .claude/
-ANALYSIS.md
-FINDINGS.md
 CLAUDE.md
+AUDIT.md
+DOC_AUDIT.md
+PROMPTS.md

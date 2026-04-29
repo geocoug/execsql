@@ -2,7 +2,6 @@
 
 The following examples illustrate some of the features of execsql.
 
-
 ## **Example 1:** A Simple Illustration of Metacommands and Substitution Variables { #example1 }
 
 The following code illustrates the use of metacommands and substitution variables. Lines starting with "-- !x!" are metacommands that implement *execsql*-specific features. Identifiers enclosed in pairs of exclamation points (!!) are substitution variables that have been defined with the SUB metacommand. The "$date_tag" variable is a [substitution variable](../reference/substitution_vars.md#substitution_vars) that is defined by *execsql* itself rather than by the user.
@@ -40,7 +39,6 @@ drop table if exists staging.errorlog cascade;
 The [IMPORT](../reference/metacommands.md#import) metacommand reads the specified file of error messages and loads the data into the target (staging) table, automatically choosing appropriate data types for each column. The [EXPORT](../reference/metacommands.md#export) metacommand saves the data in a CSV file that can be used by other applications. The [PROMPT](../reference/metacommands.md#prompt) metacommand produces a GUI display of the data like the following:
 
 ![GUI produced by the PROMPT DISPLAY metacommand for the 'fatals' view.](../images/fatals.png)
-
 
 ## **Example 2:** Use Temporary Queries to Select and Summarize Data in Access { #example2 }
 
@@ -108,7 +106,6 @@ from
 
 During the execution of this script with Access, the temporary queries will be created in the database. When the script concludes, the temporary queries will be removed. Nothing except the data itself need be kept in the database to use a script like this one.
 
-
 ## **Example 3:** Execute a Set of QA Queries and Capture the Results { #example3 }
 
 This example illustrates a script that creates several temporary queries to check the codes that are used in a set of staging tables against the appropriate dictionary tables, and, if there are unrecognized codes, writes them out to a text file.
@@ -150,7 +147,6 @@ where  e_partyproprel.property_rel is null;
 -- !x!   export qa_partyprop1 append to Staging_QA_!!$DATE_TAG!!.txt as tab
 -- !x! endif
 ```
-
 
 ## **Example 4:** Execute a Set of QA Queries and Display the Results with a Prompt { #example4 }
 
@@ -211,7 +207,6 @@ where  e_partyproprel.property_rel is null;
 -- !x! if(hasrows(qa_results))
 ```
 
-
 ## **Example 5:** Include a File if a Table Exists { #example5 }
 
 This example illustrates how a script file can be included if a database table exists. This might be used when carrying out quality assurance checks of data sets that have optional components. In this case, if an optional component has been loaded into a staging table, the script to check that component will be included.
@@ -219,7 +214,6 @@ This example illustrates how a script file can be included if a database table e
 ``` sql
 -- !x! if(table_exists(staging.bioaccum_samp))
 ```
-
 
 ## **Example 6:** Looping Using Tail Recursion { #example6 }
 
@@ -269,7 +263,6 @@ The script that is called, `arg_vars_loop.sql`, is:
 
 On line 3 of this script the substitution variable argvar is first evaluated to generate a name for a command-line variable, consuming the inner pair of exclamation points. The resulting variable (which will take on values of "\$ARG_1", "\$ARG_2", etc.) will then be evaluated, yielding the value of the command-line variable assignment.
 
-
 ## **Example 8:** Prompt the User to Choose an Option { #example8 }
 
 This example illustrates how the [PROMPT SELECT_SUB](../reference/metacommands.md#prompt_selsub) metacommand can be used to prompt the user to select among several options. In this example, the options allow the user to choose a format in which to (export and) view a data table or view. For this example, there must be a data table or view in the database named some_data.
@@ -302,7 +295,6 @@ This example also illustrates that, because the text ("txt") output format of th
 
 This example also illustrates how substitution variables can be used to parameterize code to support modularization and code re-use. In this example the substitution variable data_table is assigned a value at the beginning of the script. Alternatively, this variable might be assigned different values at different locations in a main script, and the commands in the remainder of this example placed in a second script that is INCLUDEEd where appropriate to allow the export and display of several different data tables or views. [Example 10](#example10) illustrates this usage.
 
-
 ## **Example 9.** Using Command-Line Substitution Variables { #example9 }
 
 This example illustrates how substitution variables that are assigned on the command line using the "-a" option can be used in a script.
@@ -323,7 +315,6 @@ This script can be used with a command line like:
 ``` sql
 execsql -tl -a "Share your dog food" -a 2015-11-21 add.sql todo.db
 ```
-
 
 ## **Example 10:** Using CANCEL_HALT to Control Looping with Dialogs { #example10 }
 
@@ -361,7 +352,6 @@ The `choose_view.sql` script can be seen in [Example 8](#example8).
 
 The CONTINUE keyword of the [PROMPT SELECT_SUB](../reference/metacommands.md#prompt_selsub) metacommand can also be used to close the dialog without canceling the script.
 
-
 ## **Example 11:** Output Numbering with Counters { #example11 }
 
 This example illustrates how counter variables can be used to automatically number items. This example shows automatic numbering of components of a Markdown document, but the technique can also be used to number database objects such as tables and views.
@@ -397,7 +387,6 @@ A script like this one could be [INCLUDEEd](../reference/metacommands.md#include
 
 This example also illustrates how the value of a counter variable can be preserved for repeated use by assigning it to a user-defined substitution variable.
 
-
 ## **Example 12:** Customize the Table Structure for Data to be Imported { #example12 }
 
 This example illustrates how the structure of a table that would be created by the [IMPORT](../reference/metacommands.md#import) metacommand can be customized during the import process. Customization may be necessary because the data types that are automatically selected for the columns of the new table need to be modified. This may occur when:
@@ -424,7 +413,6 @@ Changes to data types that are incompatible with the data to be loaded will resu
 Although this example shows this process applied to only a single file/table, multiple CREATE TABLE statements can be written into a single file and edited all at once.
 
 This example illustrates the use of a temporary file for the CREATE TABLE statement, although you may wish to save the edited form of this statement in a permanent file to keep a record of all data-handling operations.
-
 
 ## **Example 13:** Import All the CSV Files in a Directory { #example13 }
 
@@ -476,7 +464,6 @@ The 'import_csv' script looks like this:
 
 This example is designed to run on a Linux system with PostgreSQL, but the technique can be applied in other environments and with other DBMSs.
 
-
 ## **Example 14:** Run a Script from a Library Database { #example14 }
 
 Despite the advantages of storing scripts on the file system, in some cases storing a set of scripts in a library database may be appropriate. Consider a table named scriptlib that is used to store SQL scripts, and that has the following columns:
@@ -500,7 +487,6 @@ where script_name = 'check_sdg';
 This technique could be combined with a prompt for the script to run, using the method illustrated in [Example 8](#example8), to create a tool that allows interactive selection and execution of SQL scripts.
 
 This technique can be extended to export all scripts with the same script_group value, and then to run the master script for that group. To use this approach, the filename used with the [IMPORT](../reference/metacommands.md#import) metacommand in each script must be a substitution variable that is to be replaced with the name of a temporary file created with the [SUB_TEMPFILE](../reference/metacommands.md#sub_tempfile) metacommand.
-
 
 ## **Example 15:** Prompt for Multiple Values { #example15 }
 
@@ -555,7 +541,6 @@ Another approach to handling multiple selection is to reassign each selected val
 -- !x!     sub description_!!selections!! !!@description!!
 ```
 
-
 ## **Example 16:** Evaluating Complex Expressions with Substitution Variables { #example16 }
 
 Although execsql does not itself process mathematical expressions or other similar operations on substitution variables, all of the functions of SQL and the underlying DBMS can be used to evaluate complex expressions that use substitution variables. For example:
@@ -569,7 +554,6 @@ select cast(right('!!var2!!', 2) as integer) + !!var1!! as x;
 ```
 
 This will assign the result of the expression to the substitution variable "sum". Any mathematical, string, date, or other functions supported by the DBMS in use can be applied to substitution variables in this way.
-
 
 ## **Example 17:** Displaying Summary and Detailed Information { #example17 }
 
@@ -602,7 +586,6 @@ Where the qa_detail.sql script is as follows:
 ```
 
 The user can cancel further script processing using the "Cancel" button on either the summary dialog box or any of the detail displays. If the "Continue" button is chosen on the summary dialog box, script processing will resume.
-
 
 ## **Example 18:** Creating a Simple Entry Form { #example18 }
 
@@ -684,7 +667,6 @@ where sub_var = 'comment';
 
 The unit_conv2.sql script will continue to display conversions for as long as either the value or the unit is changed.
 
-
 ## **Example 19:** Dynamically Altering a Table Structure to Fit Data { #example19 }
 
 *Example contributed by E. Shea.*
@@ -742,7 +724,6 @@ where
 
 --!x! if(is_gt(!!point_len!!, !!point_number!!))
 ```
-
 
 ## **Example 20:** Logging Data Quality Issues { #example20 }
 
@@ -874,7 +855,6 @@ create or replace temporary view allsampdups as
 -- !x! endif
 ```
 
-
 ## **Example 21:** Updating Multiple Databases with a Cross-Database Transaction { #example21 }
 
 This example illustrates how the same SQL script can be applied to multiple databases, and the changes committed only if they were successful for all databases. This makes use of the looping technique illustrated in [Example 6](#example6), but using sub-scripts defined with [BEGIN/END SCRIPT](../reference/metacommands.md#beginscript) metacommands instead of [INCLUDE](../reference/metacommands.md#include) metacommands. The same approach, of committing changes only if there were no errors in any database, could also be done without looping, simply by unrolling the loops to apply the updates to each database in turn. This latter approach would be necessary when different changes were to be made to each database---though even in that case, the commit statements could all be executed in a loop.
@@ -971,7 +951,6 @@ update dblist set updated=False;
 -- =========================================================
 ```
 
-
 ## **Example 22:** Exporting with a Template to Create a Wikipedia Table { #example22 }
 
 This example illustrates how the [EXPORT](../reference/metacommands.md#export) metacommand can be used with the Jinja2 template processor to create a simple [Wikipedia table](https://en.wikipedia.org/wiki/Help:Table#Simple_straightforward_tables). To run this example, Jinja2 must be specified as the template processor to use; the [configuration file](../reference/configuration.md#configuration) must contain the following lines:
@@ -999,7 +978,6 @@ The output produced using this template will look like:
 ```
 
 This template will work with any exported data table.
-
 
 ## **Example 23:** Validation of PROMPT ENTRY_FORM Entries { #example23 }
 
@@ -1052,7 +1030,6 @@ values
 
 -- !x! end script
 ```
-
 
 ## **Example 24:** Use the Plus (+) Prefix to Assign Values to Outer-Scope Local Variables { #example24 }
 
@@ -1230,16 +1207,13 @@ where row_num=(select max(row_num) from agg);
 -- --------------------------------------------------------------------
 ```
 
-
 ## **Example 25:** Dynamically Constructing SQL for Upsert Operations { #example25 }
 
 This example illustrates the use of substitution variables and metacommands to dynamically construct SQL statements, process the results of those statements, and direct the course of data loading through the use of SQL 'update' and 'insert' statements. Not strictly an example, this illustration consists of full working execsql scripts to perform these 'upsert' operations in Postgres, MariaDB/MySQL, and MS-SQL Server. The code is in the 'upsert' scripts that are distributed with *execsql*: [pg_upsert.sql], [md_upsert.sql], and [ss_upsert.sql].
 
-
 ## **Example 26:** Creating a Glossary to Accompany a Data Summary { #example26 }
 
 Data summaries or tables that are exported from a database may have column names or other types of information that are abbreviated, and possibly unclear or ambiguous. Definitions of those terms can be helpful to users of the data. One way of providing those definitions is to produce a custom glossary to accompany each data export. Execsql scripts to simplify the creation of such a custom glossary table are distributed with *execsql* as [pg_glossary.sql], [md_glossary.sql], and [ss_glossary.sql].
-
 
 ## **Example 27:** Managing a Task List with the PROMPT ACTION Metacommand { #example27 }
 
@@ -1317,7 +1291,6 @@ The resulting dialog will look like this, with an item selected:
 
 An execsql script to convert a table of parent:child dependencies into a list of tables ordered by dependency is posted at [Splinter of the Singularity](http://splinterofthesingularity.blogspot.com/2017/12/ordering-database-tables-by-foreign-key.html).
 
-
 ## **Example 29:** Writing and Running Batch Files from execsql { #example29 }
 
 Although *execsql* is designed so that it can be used as part of a toolchain that is controlled by a shell script (on Linux) or a batch file (on Windows), this approach can also be inverted: execsql can create and run a system script, for example to pre- or post-process data.
@@ -1355,7 +1328,6 @@ insert into tt_allresults ....
 ```
 
 Any error message produced by *xtab.py* is written to a text file, but that file does not have a column name on the first line, as required by the [IMPORT](../reference/metacommands.md#import) metacommand, so following steps append the error message to another text file that contains a column name. An alternate approach would be to use the IMPORT_FILE metacommand to import the error message file just as it was created by *xtab.py*.
-
 
 ## **Example 30:** Simple Creation of Checkbox Prompts { #example30 }
 
@@ -1405,7 +1377,6 @@ This will produce the following entry form:
 
 Instead of using a long string of variable names and prompts directly in the EXECUTE SCRIPT metacommand, the string could be created in a substitution variable with a series of [SUB](../reference/metacommands.md#subcmd) and [SUB_APPEND](../reference/metacommands.md#sub_append) metacommands.
 
-
 ## **Example 31:** Generating SQL to Compare Staging and Base Tables { #example31 }
 
 When data sets containing new or revised values are to be added to a database, comparing the incoming data to the existing data may be an appropriate quality assurance step prior to adding those data to the base tables. If incoming data are prepared for addition in staging tables (e.g., prior to upserting them as illustrated in [Example 25](#example25)), the equivalent structure of staging and base tables can be used to simplify the creation of SQL statements that will compare data values in corresponding tables.
@@ -1418,7 +1389,6 @@ Full working examples of such scripts are in the [pg_compare.sql], [md_compare.s
 - All values of the base table's primary key that are present in both the base and staging tables (i.e., an inner join of the tables), and two columns for each attribute that show the old value (from the base table) and the new value (from the staging table).
 - All values of the base table's primary key that are present in the staging table, plus all new primary key values in the staging table (i.e., a left outer join of the staging table to the base table), and a column indicating whether any of the attributes in the staging table are different from those in the base table.
 - All values of the base table's primary key that are present in the staging table, plus all primary key values in the base table that are not in the staging table (i.e., a left outer join of the base table to the staging table), and a column indicating whether any of the attributes in the base table are different in the staging table.
-
 
 ## **Example 32:** Interactive Querying { #example32 }
 
@@ -1494,27 +1464,75 @@ values
 -- !x! end loop
 ```
 
-
 ## **Example 33:** Sequential Numbering of Script Output { #example33 }
 
 Unique numbering of script output is useful when a script is to be run repeatedly, when it will produce different output each time, and when all of the output files are to be retained.
 
 This example illustrates one way in which this can be done. The features of this process are:
 
-> - All output is created in subdirectories of a 'parent' output directory. In this example, the parent output directory is named "DB_output", which is created under the current directory.
-> - Each output-specific subdirectory has a name of the form "Run_nnn_yyyymmdd" where "nnn" is the run number, and "yyyymmdd" is the date of the run.
-> - The user may be prompted for a run description, based on a setting in the script. If a run description is provided it is saved as a text file in the output directory. All run numbers and run descriptions are also saved in a CSV file in the current directory named "DB_run_descriptions.csv".
-> - A substitution variable named "output_dir" is created that should be used in file/path names for output of the [EXPORT](../reference/metacommands.md#export) and [WRITE](../reference/metacommands.md#write) metacommands.
->
-> ``` sql
-> -- !x! config make_export_dirs Yes
-> ```
->
-> -- The "output_dir" variable will be set to a run-specific directory name -- that is dynamically created and is different for each run of this -- script. The run-specific output directories will be created underneath -- a parent directory. The path to that parent directory is specified -- here. By default, the parent directory is named "DB_output" and is -- under the current directory. -- !x! sub output_parent DB_output
->
-> -- Create a unique number for every run, with corresponding output -- directories and optionally a narrative descriptions. -- !x! sub do_run_numbering True -- Prompt for a run description? -- !x! sub get_run_description True
->
-> -- Set up the run number and optionally get a run description and save it. -- A run number is always assigned, but it is used for the output -- directory only if the 'do_run_numbering' option is True. -- !x! if(file_exists(DB_run.conf)) -- !x! sub_ini file DB_run.conf section run -- !x! endif -- !x! if(not sub_defined(run_no)) -- !x! sub run_no 0 -- !x! endif -- !x! sub_add run_no 1 -- !x! rm_file DB_run.conf -- !x! write "# Automatically-generated database run number setting. Do not edit." to DB_run.conf -- !x! write "[run]" to DB_run.conf -- !x! write "run_no=!!run_no!!" to DB_run.conf -- !x! sub run_tag !!run_no!! -- !x! if(not is_gt(!!run_no!!, 9)) -- !x! sub run_tag 0!!run_tag!! -- !x! endif -- !x! if(not is_gt(!!run_no!!, 99)) -- !x! sub run_tag 0!!run_tag!! -- !x! endif -- !x! if(!!do_run_numbering!!) -- !x! sub output_dir !!output_parent!!!!\$pathsep!!Run_!!run_tag!!_!!\$date_tag!! -- !x! if(!!get_run_description!!) -- !x! prompt enter_sub run_description message "Please enter a description for this run (!!run_tag!!). Do not use apostrophes." -- !x! if(not sub_empty(run_description)) -- !x! write "!!run_description!!" to !!output_dir!!!!\$pathsep!!run_description.txt -- !x! export query \<\<select !!run_no!! as "Run_no", '!!run_description!!' as "Description";\>\> append to DB_run_descriptions.csv as csv -- !x! endif -- !x! endif -- !x! else -- Use just a date-tagged directory name for "output_dir". -- !x! sub output_dir !!output_parent!!!!\$pathsep!!!!\$date_tag!! -- !x! endif
+- All output is created in subdirectories of a "parent" output directory. In this example, the parent output directory is named "DB_output", which is created under the current directory.
+- Each output-specific subdirectory has a name of the form "Run_nnn_yyyymmdd" where "nnn" is the run number, and "yyyymmdd" is the date of the run.
+- The user may be prompted for a run description, based on a setting in the script. If a run description is provided it is saved as a text file in the output directory. All run numbers and run descriptions are also saved in a CSV file in the current directory named "DB_run_descriptions.csv".
+- A substitution variable named "output_dir" is created that should be used in file/path names for output of the [EXPORT](../reference/metacommands.md#export) and [WRITE](../reference/metacommands.md#write) metacommands.
+
+``` sql
+-- !x! CONFIG MAKE_EXPORT_DIRS Yes
+
+-- The "output_dir" variable will be set to a run-specific directory name
+-- that is dynamically created and is different for each run of this
+-- script. The run-specific output directories will be created underneath
+-- a parent directory. The path to that parent directory is specified
+-- here. By default, the parent directory is named "DB_output" and is
+-- under the current directory.
+-- !x! SUB output_parent DB_output
+
+-- Create a unique number for every run, with corresponding output
+-- directories and optionally a narrative description.
+-- !x! SUB do_run_numbering True
+-- Prompt for a run description?
+-- !x! SUB get_run_description True
+
+-- Set up the run number and optionally get a run description and
+-- save it. A run number is always assigned, but it is used for the
+-- output directory only if the 'do_run_numbering' option is True.
+-- !x! IF(FILE_EXISTS(DB_run.conf))
+    -- !x! SUB_INI FILE DB_run.conf SECTION run
+-- !x! ENDIF
+-- !x! IF(NOT SUB_DEFINED(run_no))
+    -- !x! SUB run_no 0
+-- !x! ENDIF
+-- !x! SUB_ADD run_no 1
+
+-- Rewrite the config file with the new run number.
+-- !x! RM_FILE DB_run.conf
+-- !x! WRITE "# Automatically-generated database run number setting. Do not edit." TO DB_run.conf
+-- !x! WRITE "[run]" TO DB_run.conf
+-- !x! WRITE "run_no=!!run_no!!" TO DB_run.conf
+
+-- Zero-pad the run number to 3 digits for the directory name.
+-- !x! SUB run_tag !!run_no!!
+-- !x! IF(NOT IS_GT(!!run_no!!, 9))
+    -- !x! SUB run_tag 0!!run_tag!!
+-- !x! ENDIF
+-- !x! IF(NOT IS_GT(!!run_no!!, 99))
+    -- !x! SUB run_tag 0!!run_tag!!
+-- !x! ENDIF
+
+-- Build the output directory path.
+-- !x! IF(!!do_run_numbering!!)
+    -- !x! SUB output_dir !!output_parent!!!!$pathsep!!Run_!!run_tag!!_!!$date_tag!!
+    -- !x! IF(!!get_run_description!!)
+        -- !x! PROMPT ENTER_SUB run_description MESSAGE "Please enter a description for this run (!!run_tag!!). Do not use apostrophes."
+        -- !x! IF(NOT SUB_EMPTY(run_description))
+            -- !x! WRITE "!!run_description!!" TO !!output_dir!!!!$pathsep!!run_description.txt
+            -- !x! EXPORT QUERY <<select !!run_no!! as "Run_no", '!!run_description!!' as "Description";>> APPEND TO DB_run_descriptions.csv AS CSV
+        -- !x! ENDIF
+    -- !x! ENDIF
+-- !x! ELSE
+    -- Use just a date-tagged directory name for "output_dir".
+    -- !x! SUB output_dir !!output_parent!!!!$pathsep!!!!$date_tag!!
+-- !x! ENDIF
+```
 
 The "output_dir" variable that is created by this script can be used in the following way:
 
@@ -1524,12 +1542,221 @@ The "output_dir" variable that is created by this script can be used in the foll
 
 This example is also incorporated into the SQL script template file *script_template.sql* that is distributed with *execsql*. The script template also uses the run number for custom logfiles.
 
-
 ## **Example 34:** Importing Multiple Worksheets { #example34 }
 
-This example illustrates commands to import multiple sheets from a workbook into staging tables. This uses the [IMPORT](../reference/metacommands.md#import) metacommand, and two of the system variables that are created when the SHEETS MATCHING clause is used. Each imported staging table is then displayed, and optionally upserted into corresponding base tables. The upsert operation is carried out using the [pg_upsert.sql], [md_upsert.sql], and [ss_upsert.sql] scripts that are distributed with *execsql*.
+This example illustrates commands to import multiple sheets from a workbook into staging tables. This uses the [IMPORT](../reference/metacommands.md#import) metacommand and the system variables that are created when the SHEETS MATCHING clause is used. Each imported staging table is then displayed, and optionally upserted into corresponding base tables. The upsert operation is carried out using the pg_upsert.sql, md_upsert.sql, and ss_upsert.sql scripts that are distributed with *execsql*.
 
-This example illustrates import of a set of lookup tables from an OpenDocument workbook named "lookups.ods", where each lookup table is on a sheet with a name starting with "l_", and the sheet names match table names. The sheets are imported into tables in a staging schema named "stg".
+This example illustrates import of a set of lookup tables from an OpenDocument workbook named "lookups.ods", where each lookup table is on a sheet with a name starting with "l\_", and the sheet names match table names. The sheets are imported into tables in a staging schema named "stg".
 
+``` sql
+-- !x! IMPORT TO REPLACEMENT stg SHEETS MATCHING "l_*" FROM lookups.ods
+
+-- Display each imported table.
+-- !x! LOOP WHILE (NOT IS_GTE(!{$COUNTER_1}!, !!$IMPORT_SHEET_COUNT!!))
+    -- !x! EXPORT !!$IMPORT_TABLE_NAME!! TO stdout AS TXT
+-- !x! END LOOP
 ```
+
+## **Example 35:** Assertions for Data Validation { #example35 }
+
+The [ASSERT](../reference/metacommands.md#assert) metacommand evaluates a condition and halts the script with an error if the condition is false. It accepts any condition that `IF` accepts, and takes an optional quoted failure message. Use it to encode data quality contracts directly in the script so violations surface as explicit errors rather than silent bad data.
+
+This example loads a staging table from a CSV file and then verifies structural and content assumptions before proceeding with the load.
+
+``` sql
+-- Load staging data.
+-- !x! SUB source_file data/customers_!!$DATE_TAG!!.csv
+-- !x! IMPORT TO REPLACEMENT staging.customers FROM !!source_file!!
+
+-- Verify the staging table was created successfully.
+-- !x! ASSERT TABLE_EXISTS(staging.customers) "Customer staging table was not created"
+
+-- Count the rows loaded and store in a substitution variable.
+create temporary view vw_count as
+    select count(*) as n from staging.customers;
+-- !x! SUBDATA row_count vw_count
+
+-- Require at least one row.
+-- !x! ASSERT ROW_COUNT_EQ(staging.customers, !!row_count!!) "Row count mismatch after import"
+-- !x! ASSERT IS_GT(!!row_count!!, 0) "Source file !!source_file!! contains no rows"
+
+-- Verify a required configuration variable was set before calling this script.
+-- !x! ASSERT EQUALS(!!environment!!, production) "Variable 'environment' must be set to 'production'"
+
+-- If all assertions pass, proceed with the production load.
+-- !x! WRITE "All assertions passed. Loading !!row_count!! rows."
+insert into production.customers
+    select * from staging.customers;
 ```
+
+ASSERT uses the same condition engine as [IF](../reference/metacommands.md#if_cmd), so any condition available for IF — `TABLE_EXISTS`, `HASROWS`, `ROW_COUNT_EQ`, `EQUALS`, `IS_GT`, `FILE_EXISTS`, and all others — is valid. When a condition fails, the failure message is reported in the error output and the script halts with exit code 1.
+
+## **Example 36:** Interactive Debugging with BREAKPOINT { #example36 }
+
+The [BREAKPOINT](../reference/metacommands.md#breakpoint) metacommand pauses script execution and drops into an interactive debug REPL. Insert it anywhere in a script to inspect variable state, run ad-hoc SQL, and step through subsequent statements.
+
+In non-interactive environments (CI pipelines, piped input) `BREAKPOINT` is silently skipped so automated runs are not blocked. The `--debug` CLI flag starts the entire script in step-through mode — no `BREAKPOINT` metacommand is needed.
+
+``` sql
+-- !x! SUB report_dir /tmp/reports/!!$DATE_TAG!!
+-- !x! SUB batch_size 500
+
+-- Load data in batches.
+create temporary view pending as
+    select * from orders where processed = false limit !!batch_size!!;
+
+-- Pause here to inspect the pending view before processing begins.
+-- !x! BREAKPOINT
+
+-- !x! LOOP WHILE (HASROWS(pending))
+    update orders
+    set processed = true
+    where order_id in (select order_id from pending);
+    -- !x! EXPORT pending APPEND TO !!report_dir!!/processed.csv AS CSV
+-- !x! END LOOP
+```
+
+When the REPL opens, it prints the current file name and line number. The following commands are available:
+
+| Command | Shortcut | Description |
+|---------|----------|-------------|
+| `.continue` | `.c` | Resume script execution |
+| `.next` | `.n` | Execute the next statement, then pause again |
+| `.vars` | `.v` | List user, system, local, and counter variables |
+| `.vars all` | `.v all` | Include environment (`&`) variables |
+| `.set VAR VAL` | `.s` | Set or update a substitution variable |
+| `.where` | `.w` | Show the current script location and upcoming statement |
+| `.stack` | | Show the command-list stack (script name, line, depth) |
+| `.abort` | `.q` | Halt the script (exit 1) |
+| `.help` | `.h` | Show the command reference |
+
+At the REPL prompt, typing a variable name (e.g. `report_dir` or `$DATE_TAG`) prints its value. Typing any SQL ending with `;` runs it against the current database and displays the results as a table.
+
+To start in step-through mode from the command line without inserting any `BREAKPOINT` metacommands:
+
+``` bash
+execsql --debug myscript.sql mydb.sqlite
+```
+
+## **Example 37:** Static Analysis with --lint { #example37 }
+
+The `--lint` flag parses a script and performs static analysis without connecting to a database or executing anything. It reports structural errors (unmatched `IF`/`ENDIF`, `LOOP`/`END LOOP`, `BEGIN BATCH`/`END BATCH`) and warnings (potentially undefined variable references, missing `INCLUDE` files, empty scripts). The linter requires no database connection and is safe to run in CI.
+
+Consider a script with a typo: the variable `!!output_path!!` is used but never defined by a `SUB` metacommand.
+
+``` sql
+-- validate_orders.sql
+-- !x! SUB report_dir /tmp/reports
+
+create temporary view stale_orders as
+    select order_id, created_at
+    from orders
+    where created_at < current_date - interval '90 days';
+
+-- !x! IF(HASROWS(stale_orders))
+    -- !x! EXPORT stale_orders TO !!output_path!!/stale.csv AS CSV
+-- !x! ENDIF
+```
+
+Running the linter:
+
+``` bash
+execsql --lint validate_orders.sql
+```
+
+Produces output similar to:
+
+``` text
+Lint: validate_orders.sql
+
+  WARNING  validate_orders.sql:10  Potentially undefined variable: !!output_path!!
+                                   (not defined by a preceding SUB; may be set by a
+                                   config file or -a arg)
+
+  1 warning
+```
+
+Errors appear as `ERROR` and cause `--lint` to exit with code 1. Warnings exit with code 0. This makes it straightforward to gate a CI step on `execsql --lint` — the step fails only when there is a structural error, not for warnings.
+
+The linter performs a two-pass analysis: it first collects all variable definitions across the entire script (including `BEGIN SCRIPT` blocks), then checks all references. This means a variable defined after its first use is not flagged as undefined.
+
+## **Example 38:** Visualizing Script Structure with --parse-tree { #example38 }
+
+The `--parse-tree` flag parses a script into an abstract syntax tree and prints the tree structure. No database connection is required. Use it to understand how execsql has parsed a script, diagnose conditional nesting, or verify that complex loop and branch structures are interpreted as intended.
+
+Consider a script with nested `IF` and `LOOP` blocks:
+
+``` sql
+-- pipeline.sql
+-- !x! SUB batch_size 1000
+
+-- !x! IF(TABLE_EXISTS(staging.raw))
+    -- !x! LOOP WHILE (HASROWS(staging.raw))
+        insert into production.data
+            select * from staging.raw limit !!batch_size!!;
+
+        delete from staging.raw
+        where ctid in (
+            select ctid from staging.raw limit !!batch_size!!
+        );
+    -- !x! END LOOP
+-- !x! ELSE
+    -- !x! WRITE "Staging table does not exist. Skipping load."
+-- !x! ENDIF
+```
+
+Running:
+
+``` bash
+execsql --parse-tree pipeline.sql
+```
+
+Prints a tree like:
+
+``` text
+Script: pipeline.sql (2 nodes)
+├── [1] <CMD> SUB batch_size 1000
+└── [3-12] <IF> IF (TABLE_EXISTS(staging.raw))
+    ├── [4-10] <LOOP> WHILE (HASROWS(staging.raw))
+    │   ├── [5-7] <SQL> insert into production.data ...
+    │   └── [9-11] <SQL> delete from staging.raw ...
+    [12]ELSE
+    └── [13] <CMD> WRITE "Staging table does not exist. Skipping load."
+```
+
+Each node is labeled with its line number (or range), a type tag (`<SQL>`, `<CMD>`, `<IF>`, `<LOOP>`, `<BATCH>`, `<SCRIPT>`, `<INC>`, `<CMT>`), and a preview of the content. Block nodes nest their children underneath with tree-drawing connectors.
+
+## **Example 39:** Performance Profiling with --profile { #example39 }
+
+The `--profile` flag records per-statement execution time and prints a timing summary after the script completes. Use it to find the statements that consume the most wall-clock time in a long-running ETL script.
+
+``` bash
+execsql --profile --profile-limit 10 etl_pipeline.sql myserver mydb
+```
+
+After the script finishes, execsql prints a table sorted by elapsed time, showing the top statements by duration:
+
+``` text
+Profile: 47 statements in 12.841s
+
+  Time (s)    Pct      Source:Line           Type     Command
+  ----------  -------  --------------------  -------  ----------------------------------------
+  4.203       32.7%    etl_pipeline.sql:88   SQL      insert into production.fact select ...
+  3.118       24.3%    etl_pipeline.sql:42   SQL      create index idx_orders_date on orders...
+  1.847       14.4%    etl_pipeline.sql:61   SQL      update production.dim_customer set ...
+  0.934        7.3%    etl_pipeline.sql:29   SQL      delete from staging.temp where ...
+  0.701        5.5%    etl_pipeline.sql:17   METACMD  IMPORT TO REPLACEMENT staging.raw ...
+  ...
+```
+
+Each row shows:
+
+- **Time (s)** — elapsed seconds for that statement
+- **Pct** — percentage of total script wall time
+- **Source:Line** — script file and line number
+- **Type** — `SQL` for SQL statements, `METACMD` for metacommands
+- **Command** — a preview of the statement text (truncated at 50 characters)
+
+`--profile-limit N` controls how many rows appear in the table (default: 20). All statements contribute to the totals regardless of the limit. Combine `--profile` with `--profile-limit 0` to see every statement.
+
+The `--profile` flag has no effect on `--dry-run` or `--lint` (neither executes statements).

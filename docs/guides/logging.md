@@ -1,103 +1,106 @@
 # Logging
 
-*execsql* automatically logs certain actions, conditions, and errors that occur during the processing of a script file. Although a script file provides good documentation of database operations, there are circumstances in which a script file is not a definitive record of what operations were, or were not, carried out. These circumstances include:
+*execsql* automatically logs actions, conditions, and errors during script processing. A script file alone is not a definitive record of what happened when:
 
-> - Errors
-> - Choices made by the user in response to a [PROMPT](../reference/metacommands.md#prompt) metacommand.
-> - Cancellation of the script in response to a [PAUSE](../reference/metacommands.md#pause) metacommand or password prompt from the [CONNECT](../reference/metacommands.md#connect) metacommand.
+- Errors occurred
+- The user made choices in response to a [PROMPT](../reference/metacommands.md#prompt) metacommand
+- The script was cancelled via a [PAUSE](../reference/metacommands.md#pause) metacommand or password prompt from [CONNECT](../reference/metacommands.md#connect)
 
-Information is logged into a tab-delimited text file named `execsql.log`. By default, this file is located in the directory from which the script file was run. If either the "-l" command-line option or the "user_logfile" [configuration](../reference/configuration.md#configuration) option is used, this file will be located in the user's home directory.
+## Log file location
 
-!!! note
+Log entries are written to a tab-delimited text file named `execsql.log` in the directory from which the script was run. If the `-l` flag or the `user_logfile` [configuration](../reference/configuration.md#configuration) option is used, the file is written to the user's home directory instead.
 
-    Prior to version 1.28.0.5 (2018-09-10), the log file was created in the directory of the starting script.
+Messages for each run are appended to the end of the log file. The log file is set to read-only when *execsql* exits.
 
-This file contains several different record types. The first value on each line of the file identifies the record type. The second value on each line is a run identifier. All records that are logged during a single run of *execsql* have the same run identifier. The run identifier is a compact representation of the date and time at which the run started. The record types and the values that each record of that type contains are:
+## Record types
 
-> **run**---Information about the run as a whole:
->
-> > - Record type
-> > - Run identifier
-> > - Script name
-> > - Script path
-> > - Script file revision date
-> > - Script file size in bytes
-> > - User name
-> > - Command-line options
->
-> **run_db_file**---Information about the file-based database used (Access or SQLite):
->
-> > - Record type
-> > - Run identifier
-> > - Database file name with full path
->
-> **run_db_server**---Information about the server-based database used (Postgres, MySQL, MariaDB, Firebird, or SQL Server):
->
-> > - Record type
-> > - Run identifier
-> > - Server name
-> > - Database name
->
-> **connect**---The type and name of a database to which a connection has been established; this may be either a client-server or file-based database:
->
-> > - Record type
-> > - Run identifier
-> > - DBMS type and database identifiers
->
-> **action**---Significant actions carried out by the script, primarily those that affect the results.
->
-> > - Record type
-> >
-> > - Run identifier
-> >
-> > - Sequence number---The order of actions, status messages, and errors. Automatically generated.
-> >
-> > - Action type---One of the following values:
-> >
-> >     > - export---Execution of an [EXPORT](../reference/metacommands.md#export) metacommand.
-> >     > - prompt_quit---The user's choice resulting from a [PROMPT](../reference/metacommands.md#prompt) metacommand.
-> >
-> > - Line number---The script line number where the action takes place.
-> >
-> > - Description---Free text describing the action.
->
-> **status**---Status messages; frequently these are errors
->
-> > - Record type
-> >
-> > - Run identifier
-> >
-> > - Sequence number---The order of actions, status messages, and errors. Automatically generated.
-> >
-> > - Status type---One of the following values:
-> >
-> >     > - exception
-> >     > - error
-> >
-> > - Description---Free text describing the status.
->
-> **exit**---Program status at exit.
->
-> > - Record type
-> >
-> > - Run identifier
-> >
-> > - Exit type---One of the following values:
-> >
-> >     > - end_of_script---A normal exit; the entire script has been processed.
-> >     > - prompt_quit---The user chose to cancel the script in response to a PROMPT metacommand.
-> >     > - halt---A [HALT](../reference/metacommands.md#halt) metacommand was executed.
-> >     > - error---An error occurred.
-> >     > - exception---An exception occurred.
-> >
-> > - Line number---The script line number from which the exit was triggered (may be null).
-> >
-> > - Description---Free text describing the exit condition.
+Each line starts with a record type, followed by a run identifier (a compact date-time representation shared by all records from the same run). The remaining fields depend on the record type:
 
-The messages for each run are appended to the end of the log file. The log file is set to read-only when *execsql* exits.
+### `run`
 
-Although logging is performed automatically by *execsql*, there are three ways to make use of the log file in custom scripts:
+Information about the run as a whole.
 
-> - The [LOG](../reference/metacommands.md#log) metacommand provides a way to write additional messages into the log file.
-> - The [LOG_WRITE_MESSAGES](../reference/metacommands.md#logwritemessages) metacommand causes the output of all [WRITE](../reference/metacommands.md#write) metacommands to be echoed to the log file.
-> - The $RUN_ID [system variable](../reference/substitution_vars.md#system_vars) provides a way to link other information (e.g., status or error messages) to the run that is identified in the log file.
+| Field          | Description                  |
+| -------------- | ---------------------------- |
+| Record type    | `run`                        |
+| Run identifier | Compact date-time string     |
+| Script name    | Name of the script file      |
+| Script path    | Full path to the script file |
+| Revision date  | Script file revision date    |
+| File size      | Script file size in bytes    |
+| User name      | OS user who ran the script   |
+| Options        | Command-line options used    |
+
+### `run_db_file`
+
+File-based database used (Access, SQLite, or DuckDB).
+
+| Field          | Description                    |
+| -------------- | ------------------------------ |
+| Record type    | `run_db_file`                  |
+| Run identifier | Compact date-time string       |
+| Database file  | Full path to the database file |
+
+### `run_db_server`
+
+Server-based database used (PostgreSQL, MySQL, MariaDB, Firebird, Oracle, or SQL Server).
+
+| Field          | Description              |
+| -------------- | ------------------------ |
+| Record type    | `run_db_server`          |
+| Run identifier | Compact date-time string |
+| Server name    | Database server hostname |
+| Database name  | Name of the database     |
+
+### `connect`
+
+A database connection was established (file-based or client-server).
+
+| Field          | Description                        |
+| -------------- | ---------------------------------- |
+| Record type    | `connect`                          |
+| Run identifier | Compact date-time string           |
+| Database info  | DBMS type and database identifiers |
+
+### `action`
+
+Significant actions carried out by the script.
+
+| Field           | Description                                                                                                                                         |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Record type     | `action`                                                                                                                                            |
+| Run identifier  | Compact date-time string                                                                                                                            |
+| Sequence number | Auto-generated order of actions, status messages, and errors                                                                                        |
+| Action type     | `export` ([EXPORT](../reference/metacommands.md#export) executed) or `prompt_quit` (user choice from [PROMPT](../reference/metacommands.md#prompt)) |
+| Line number     | Script line where the action occurred                                                                                                               |
+| Description     | Free text                                                                                                                                           |
+
+### `status`
+
+Status messages, typically errors.
+
+| Field           | Description              |
+| --------------- | ------------------------ |
+| Record type     | `status`                 |
+| Run identifier  | Compact date-time string |
+| Sequence number | Auto-generated order     |
+| Status type     | `exception` or `error`   |
+| Description     | Free text                |
+
+### `exit`
+
+Program status at exit.
+
+| Field          | Description                                                                                                                   |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Record type    | `exit`                                                                                                                        |
+| Run identifier | Compact date-time string                                                                                                      |
+| Exit type      | `end_of_script` (normal), `prompt_quit`, `halt` ([HALT](../reference/metacommands.md#halt) executed), `error`, or `exception` |
+| Line number    | Script line that triggered the exit (may be null)                                                                             |
+| Description    | Free text                                                                                                                     |
+
+## Custom logging
+
+- The [LOG](../reference/metacommands.md#log) metacommand writes additional messages to the log file.
+- The [LOG_WRITE_MESSAGES](../reference/metacommands.md#logwritemessages) metacommand echoes all [WRITE](../reference/metacommands.md#write) output to the log file.
+- The `$RUN_ID` [system variable](../reference/substitution_vars.md#system_vars) links other output to the run recorded in the log file.
