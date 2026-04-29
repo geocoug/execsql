@@ -73,6 +73,9 @@ def db_SQLite(
     encoding: str | None = None,
 ) -> SQLiteDatabase:
     """Open a SQLite database file via the standard-library sqlite3 module."""
+    if sqlite_fn == ":memory:":
+        # In-memory databases always exist — skip file checks
+        return SQLiteDatabase(sqlite_fn)
     if new_db:
         from execsql.utils.fileio import check_dir
 
