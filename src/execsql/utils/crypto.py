@@ -24,6 +24,7 @@ The monolith (line 2301) called this "SIMPLE ENCRYPTION".
 import base64
 import itertools
 import random
+import types
 import uuid
 
 __all__ = ["Encrypt"]
@@ -45,16 +46,19 @@ class Encrypt:
        stores or environment variables instead.
     """
 
-    ky: dict = {}
-    ky["0"] = "6f2bba010bdf450a99c1c324ace5d765"
-    ky["3"] = "4a69dd15b6304ed491f10d0ebc7498cf"
-    ky["9"] = "c06d0798e55a4ea2822cf6e3f0d32520"
-    ky["e"] = "1ab984b7c7574c18a5eee2be92236f19"
-    ky["g"] = "ee66e201ca9c4b55b7037eb5f94be9e4"
-    ky["n"] = "63fad3d6c81c4668b89533b9af182aa1"
-    ky["p"] = "647ff4e2bfec48b9a7a8ca4e4878769e"
-    ky["w"] = "5274bb5b1421406fa57c4863321dd111"
-    ky["z"] = "624b1d0835fb45caa2d0664c103179f3"
+    ky = types.MappingProxyType(
+        {
+            "0": "6f2bba010bdf450a99c1c324ace5d765",
+            "3": "4a69dd15b6304ed491f10d0ebc7498cf",
+            "9": "c06d0798e55a4ea2822cf6e3f0d32520",
+            "e": "1ab984b7c7574c18a5eee2be92236f19",
+            "g": "ee66e201ca9c4b55b7037eb5f94be9e4",
+            "n": "63fad3d6c81c4668b89533b9af182aa1",
+            "p": "647ff4e2bfec48b9a7a8ca4e4878769e",
+            "w": "5274bb5b1421406fa57c4863321dd111",
+            "z": "624b1d0835fb45caa2d0664c103179f3",
+        },
+    )
 
     def __repr__(self) -> str:
         return "Encrypt()"

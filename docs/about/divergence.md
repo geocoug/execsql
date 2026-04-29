@@ -96,10 +96,11 @@ New options in `execsql.conf`:
 
 ### Authentication
 
-| Feature                       | Description                                                                                                                                                                    |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| OS keyring integration        | When the `keyring` package is installed, passwords are stored in and retrieved from the OS credential store (macOS Keychain, Windows Credential Manager, Linux SecretService). |
-| Keyring retry on auth failure | If a stored password is rejected, the stale entry is deleted, the user is re-prompted, and the new password is saved automatically.                                            |
+| Feature                        | Description                                                                                                                                                                                       |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| OS keyring integration         | When the `keyring` package is installed, passwords are stored in and retrieved from the OS credential store (macOS Keychain, Windows Credential Manager, Linux SecretService).                    |
+| Keyring retry on auth failure  | If a stored password is rejected, the stale entry is deleted, the user is re-prompted, and the new password is saved automatically.                                                               |
+| Keyring auto-store in GUI mode | When a password is entered via a GUI prompt (Tkinter or Textual), it is stored to the OS keyring automatically without an explicit confirmation prompt. CLI password prompts behave the same way. |
 
 ### Logging Enhancements
 
@@ -222,6 +223,7 @@ All 33 mutable runtime globals in `state.py` have been consolidated into a `Runt
 - **`Database` is an ABC** — `open_db()` and `exec_cmd()` are abstract methods. Subclasses that omit them raise `TypeError` at instantiation instead of at call time.
 - **Connection timeouts** — PostgreSQL and SQLite adapters accept a connection timeout parameter (default 30 seconds).
 - **DuckDB temporal types** — `TIMESTAMPTZ`, `TIMESTAMP`, `DATE`, `TIME` now map to native DuckDB types instead of `TEXT`.
+- **SQLite `DT_Long` mapping** — `DT_Long` maps to `"hugeint"` in the SQLite type table. SQLite does not have a native `HUGEINT` type; the value receives `TEXT` affinity. In practice this is harmless because SQLite's type affinity system handles large integers transparently, but the mapping name differs from upstream.
 
 ### Execution Engine
 
@@ -231,6 +233,7 @@ The legacy flat command-list engine (`_parse_script_lines` / `runscripts` / `Com
 - **Circular INCLUDE detection** — The executor tracks the full include chain and detects circular references (e.g. A includes B includes A), reporting the full chain in the error message. Upstream has no such detection.
 - **BREAK outside LOOP is an error** — `BREAK` outside a loop block now raises an error (exit 1) instead of being silently ignored. This catches script bugs that upstream would not report.
 - **Instance-scoped script registry** — Named SCRIPT blocks are stored on the `RuntimeContext` instance instead of a module-level dict, preventing cross-execution contamination.
+- **Script source directory resolution** — `ScriptCmd` resolves `source_dir` at construction time (when the command is parsed) rather than per-statement at execution time. This is functionally equivalent for all normal usage since the script file does not move between parse and execution.
 
 ### Error Handling
 

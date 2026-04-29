@@ -307,19 +307,15 @@ class DataTable:
 class JsonDatatype:
     """Namespace mapping Python DataType subclasses to JSON Schema type strings."""
 
-    def __init__(self) -> None:
-        """Create an empty JsonDatatype namespace instance."""
-        pass
+    any = "any"
+    integer = "integer"
+    string = "string"
+    date = "date"
+    datetime = "datetime"
+    time = "time"
+    number = "number"
+    boolean = "boolean"
 
-
-JsonDatatype.any = "any"
-JsonDatatype.integer = "integer"
-JsonDatatype.string = "string"
-JsonDatatype.date = "date"
-JsonDatatype.datetime = "datetime"
-JsonDatatype.time = "time"
-JsonDatatype.number = "number"
-JsonDatatype.boolean = "boolean"
 
 # Types without a JSON type equivalent are converted
 # to strings via the "default=str" argument of 'json.dumps()'.

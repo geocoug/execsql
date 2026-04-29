@@ -41,13 +41,28 @@ def minimal_conf():
         trim_strings=False,
         replace_newlines=False,
         empty_strings=True,
+        empty_rows=True,
         del_empty_cols=False,
+        create_col_hdrs=False,
+        trim_col_hdrs="none",
+        clean_col_hdrs=False,
+        fold_col_hdrs="no",
+        dedup_col_hdrs=False,
         # File I/O / exporters
         output_encoding="utf-8",
+        import_encoding="utf-8",
+        script_encoding="utf8",
         make_export_dirs=False,
+        export_output_dir=None,
         enc_err_disposition=None,
-        # Warnings
+        quote_all_text=False,
+        # Write hooks
         write_warnings=False,
+        write_prefix=None,
+        write_suffix=None,
+        # CSS
+        css_file=None,
+        css_styles=None,
         # GUI
         gui_level=0,
         gui_framework="tkinter",

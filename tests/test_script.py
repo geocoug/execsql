@@ -807,6 +807,14 @@ class TestSubVarSetTokenOptimization:
         assert "plain=it's" in result
         assert "quoted=it''s" in result
 
+    def test_substitute_all_cycle_raises(self):
+        """Cyclic variable references raise RuntimeError after max iterations."""
+        sv = SubVarSet()
+        sv.add_substitution("$a", "!!$b!!")
+        sv.add_substitution("$b", "!!$a!!")
+        with pytest.raises(RuntimeError, match="cycle detected"):
+            sv.substitute_all("!!$a!!")
+
 
 # ---------------------------------------------------------------------------
 # LocalSubVarSet

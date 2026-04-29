@@ -295,17 +295,28 @@ class SubVarSet:
                 )
         return command_str, False
 
+    _MAX_SUBSTITUTE_ALL_DEPTH = 100
+
     def substitute_all(self, any_text: str) -> tuple:
         """Repeatedly apply :meth:`substitute` until no more substitutions remain.
 
         Returns ``(fully_expanded_string, any_substitution_made)``.
+
+        Raises :class:`RuntimeError` after 100 iterations to prevent infinite
+        loops from cyclic variable references.
         """
         subbed = True
         any_subbed = False
+        iterations = 0
         while subbed:
             any_text, subbed = self.substitute(any_text)
             if subbed:
                 any_subbed = True
+                iterations += 1
+                if iterations >= self._MAX_SUBSTITUTE_ALL_DEPTH:
+                    raise RuntimeError(
+                        f"Substitution variable cycle detected after {iterations} iterations",
+                    )
         return any_text, any_subbed
 
 

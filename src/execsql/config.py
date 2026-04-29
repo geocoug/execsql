@@ -286,6 +286,7 @@ class ConfigData:
         self.email_css = None
         self.include_req: list = []
         self.include_opt: list = []
+        self.export_output_dir: str | None = None
         self.dao_flush_delay_secs = 5.0
         self.zip_buffer_mb = 10
         if os.name == "posix":

@@ -34,12 +34,6 @@ ______________________________________________________________________
 - Export format dispatch logic (`EXPORT` and `EXPORT QUERY` metacommands) refactored from duplicated ~180-line if/elif chains into shared `_dispatch_format()` function, eliminating code duplication and fixing missing zip-compatibility checks for `EXPORT QUERY`.
 - `MailSpec.send()` refactored: extracted `_expand()` helper to replace 12 repetitive substitution lines.
 
-### Removed
-
-- `--ast` / `--no-ast` CLI flag — the AST executor is now the only execution engine; no opt-out.
-- Legacy flat command-list execution engine (`_parse_script_lines`, `read_sqlfile`, `read_sqlstring`, `runscripts`, `ScriptFile`, `CommandListWhileLoop`, `CommandListUntilLoop`, `ScriptExecSpec.execute()`).
-- Legacy `_execute_script_direct()` function and `_execute_include_legacy()` fallback path.
-
 ### Fixed
 
 - **[Critical]** `WriteSpec.write()` and `MailSpec.send()` error-recovery paths crashed because `SubVarSet.substitute_all()` returns `(str, bool)` but callers treated the return as a plain string. All 14 call sites now unpack the tuple correctly.
@@ -51,6 +45,17 @@ ______________________________________________________________________
 - Database adapters now clear `self.password` after successful connection, reducing credential exposure window.
 - Removed unused `_DEFAULT_CTX = RuntimeContext()` allocation in `state.py`.
 - Version bump commits no longer skip pre-commit hooks (`--no-verify` removed from bumpversion config).
+- `SubVarSet.substitute_all()` now enforces a 100-iteration depth limit to prevent infinite loops from cyclic variable references. The per-statement guard in the executor already had this protection, but direct callers (e.g. config loading) did not.
+- `ConfigData.export_output_dir` is now declared in `__init__` with a default of `None` instead of being dynamically added in the CLI entry point.
+- `Encrypt.ky` key table is now an immutable `MappingProxyType` instead of a mutable class-level dict.
+- `JsonDatatype` attributes are now declared as class variables in the class body instead of assigned externally after class definition.
+- `minimal_conf` test fixture expanded with commonly needed attributes (`import_encoding`, `script_encoding`, `export_output_dir`, `write_prefix`, `write_suffix`, `fold_col_hdrs`, `trim_col_hdrs`, etc.) to reduce ad-hoc attribute additions in individual tests.
+
+### Removed
+
+- `--ast` / `--no-ast` CLI flag — the AST executor is now the only execution engine; no opt-out.
+- Legacy flat command-list execution engine (`_parse_script_lines`, `read_sqlfile`, `read_sqlstring`, `runscripts`, `ScriptFile`, `CommandListWhileLoop`, `CommandListUntilLoop`, `ScriptExecSpec.execute()`).
+- Legacy `_execute_script_direct()` function and `_execute_include_legacy()` fallback path.
 
 ______________________________________________________________________
 
