@@ -73,8 +73,9 @@ def x_debug_write_odbc_drivers(**kwargs: Any) -> None:
 def x_debug_log_subvars(**kwargs: Any) -> None:
     local = kwargs["local"]
     user = kwargs["user"]
-    for s in _state.commandliststack[-1].localvars.substitutions:
-        _state.exec_log.log_status_info(f"Substitution [{s[0]}] = [{s[1]}]")
+    if _state.commandliststack:
+        for s in _state.commandliststack[-1].localvars.substitutions:
+            _state.exec_log.log_status_info(f"Substitution [{s[0]}] = [{s[1]}]")
     if local is None:
         for s in _state.subvars.substitutions:
             if user is None or s[0][0].isalnum() or s[0][0] == "_":
@@ -142,8 +143,9 @@ def x_debug_write_subvars(**kwargs: Any) -> None:
         else:
             filewriter_write(output_dest, txt)
 
-    for s in _state.commandliststack[-1].localvars.substitutions:
-        write(f"Substitution [{s[0]}] = [{s[1]}]\n")
+    if _state.commandliststack:
+        for s in _state.commandliststack[-1].localvars.substitutions:
+            write(f"Substitution [{s[0]}] = [{s[1]}]\n")
     if local is None:
         for s in _state.subvars.substitutions:
             if user is None or s[0][0].isalnum() or s[0][0] == "_":

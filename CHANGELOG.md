@@ -16,15 +16,41 @@ ______________________________________________________________________
 - `--parse-tree` CLI flag: parse a script into an Abstract Syntax Tree and print a visual tree structure showing block nesting (IF/LOOP/BATCH/SCRIPT), source line ranges, compound conditions (ANDIF/ORIF), and all metacommands. Requires no database connection or configuration.
 - AST parser module (`execsql.script.parser`) with `parse_script()` and `parse_string()` entry points. Produces a structured `Script` tree with typed nodes for all block constructs (IfBlock, LoopBlock, BatchBlock, ScriptBlock, SqlBlock, IncludeDirective).
 - AST node definitions (`execsql.script.ast`) with `format_tree()` for human-readable tree output.
-- `--ast` CLI flag (experimental): execute scripts using the new AST-based engine instead of the legacy flat command-list engine. Produces identical results for all tested scripts; useful for validating the new engine during the transition.
+- AST-based execution engine is now the default (and only) engine. Scripts are parsed into a tree of typed nodes, then walked for execution. INCLUDE'd files are parsed and executed natively with circular-include detection. Control flow (IF/LOOP/BATCH) is driven by tree structure.
 - `active_context()` context manager in `execsql.state` for installing an isolated `RuntimeContext` as the active global context within a `with` block.
 - Plugin system (`execsql.plugins`) for extending execsql with custom metacommands, export formats, and import formats via Python entry points. Entry point groups: `execsql.metacommands`, `execsql.exporters`, `execsql.importers`. Plugins are discovered automatically at startup.
 - `--list-plugins` CLI flag to show all discovered plugins and exit.
 - Python library API: `from execsql import run` for programmatic script execution from notebooks, pipelines, and applications. Returns a `ScriptResult` with success/failure, command count, timing, errors, and final variable state. Supports DSN connection strings, pre-existing connections, substitution variables, and error control. Full RuntimeContext isolation between calls.
+- AST `Comment` node: the parser now preserves SQL comments in the tree. Consecutive single-line `--` comments are grouped into one node; `/* */` block comments are captured as single nodes. The `--parse-tree` output includes `<CMT>` tagged comment nodes.
+- `--parse-tree` visual improvements: color-coded type tags (`<SQL>`, `<CMD>`, `<CMT>`, `<IF>`, `<LOOP>`, etc.), dimmed line numbers, and content truncation for cleaner output.
+- Deprecation warning emitted when `enc_password` is used in config files, advising users to switch to keyring or environment variables.
+- Sensitive environment variables (`*SECRET*`, `*TOKEN*`, `*PASSWORD*`, etc.) are now filtered from automatic substitution variable exposure.
 
 ### Changed
 
+- **Execution engine replaced.** The legacy flat command-list engine has been replaced by the AST-based executor. Scripts are now parsed into a tree of typed nodes and executed by walking the tree. INCLUDE'd files are parsed and executed natively with circular-include detection. All metacommands, SQL, and control flow work identically. This change is transparent to users.
+- **BREAK outside LOOP is now an error.** `BREAK` outside a loop block now raises an error (exit 1) instead of being silently ignored. This catches script bugs that were previously unreported.
 - `--lint` now uses the AST parser for structural validation. Unmatched IF/LOOP/BATCH/SCRIPT blocks are caught at parse time with precise source line ranges. No database connection or runtime state initialization is required. All prior lint checks (variable analysis, INCLUDE file existence, EXECUTE SCRIPT resolution, SUB_INI reading) are preserved.
+- Export format dispatch logic (`EXPORT` and `EXPORT QUERY` metacommands) refactored from duplicated ~180-line if/elif chains into shared `_dispatch_format()` function, eliminating code duplication and fixing missing zip-compatibility checks for `EXPORT QUERY`.
+- `MailSpec.send()` refactored: extracted `_expand()` helper to replace 12 repetitive substitution lines.
+
+### Removed
+
+- `--ast` / `--no-ast` CLI flag — the AST executor is now the only execution engine; no opt-out.
+- Legacy flat command-list execution engine (`_parse_script_lines`, `read_sqlfile`, `read_sqlstring`, `runscripts`, `ScriptFile`, `CommandListWhileLoop`, `CommandListUntilLoop`, `ScriptExecSpec.execute()`).
+- Legacy `_execute_script_direct()` function and `_execute_include_legacy()` fallback path.
+
+### Fixed
+
+- **[Critical]** `WriteSpec.write()` and `MailSpec.send()` error-recovery paths crashed because `SubVarSet.substitute_all()` returns `(str, bool)` but callers treated the return as a plain string. All 14 call sites now unpack the tuple correctly.
+- **[Critical]** Error-recovery fallback in `WriteSpec.write()` and `io_write` called `.encode()` producing bytes passed to `sys.stdout.write()` which expects `str`. Removed the `.encode()` calls.
+- `WriteSpec.write()` no longer crashes with `IndexError` when `commandliststack` is empty during early initialization errors.
+- SQL injection vector in `exec_cmd()` across all 8 database adapters — stored procedure/function/view names are now quoted with `quote_identifier()`.
+- `DSN` and `SQL Server` adapters no longer encode SQL strings to bytes before execution.
+- Duplicate tuple entries in export format checks (`"txt-and"` and `"text-and"` each appeared twice).
+- Database adapters now clear `self.password` after successful connection, reducing credential exposure window.
+- Removed unused `_DEFAULT_CTX = RuntimeContext()` allocation in `state.py`.
+- Version bump commits no longer skip pre-commit hooks (`--no-verify` removed from bumpversion config).
 
 ______________________________________________________________________
 

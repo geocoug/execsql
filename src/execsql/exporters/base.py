@@ -146,8 +146,10 @@ class WriteSpec:
         subvars = _state.subvars
         if self.repeatable or not self.written:
             self.written = True
-            msg = _state.commandliststack[-1].localvars.substitute_all(self.msg)
-            msg = subvars.substitute_all(msg)
+            msg = self.msg
+            if _state.commandliststack:
+                msg, _ = _state.commandliststack[-1].localvars.substitute_all(msg)
+            msg, _ = subvars.substitute_all(msg)
             if self.outfile:
                 from execsql.utils.fileio import EncodedFile
 
@@ -159,13 +161,13 @@ class WriteSpec:
                     fh.close()
             if (not self.outfile) or self.tee:
                 try:
-                    _state.output.write(msg.encode(conf.output_encoding))
+                    _state.output.write(msg)
                 except ConsoleUIError as e:
                     _state.output.reset()
                     _state.exec_log.log_status_info(
                         f"Console UI write failed (message {{{e.value}}}); output reset to stdout.",
                     )
-                    _state.output.write(msg.encode(conf.output_encoding))
+                    _state.output.write(msg)
             if conf.tee_write_log:
                 _state.exec_log.log_user_msg(msg)
         return None

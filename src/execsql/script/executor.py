@@ -45,6 +45,7 @@ from typing import Any
 from execsql.exceptions import ErrInfo
 from execsql.script.ast import (
     BatchBlock,
+    Comment,
     ConditionModifier,
     IfBlock,
     IncludeDirective,
@@ -74,10 +75,9 @@ _DEFER_RX = re.compile(r"!\{([$@&~#+]?\w+)\}!")
 # Compiled regex to match prefixed variables (for unsubstituted-var warnings)
 _VARLIKE = re.compile(r"!![$@&~#]?\w+!!", re.I)
 
-# Module-level registry of ScriptBlock AST nodes for native EXECUTE SCRIPT.
-# Keyed by lowercased script name. Populated by _register_script_block(),
-# consumed by _execute_include().
-_ast_scripts: dict[str, ScriptBlock] = {}
+
+# Legacy module-level alias — ``_ast_scripts`` is now ``ctx.ast_scripts``
+# on the RuntimeContext.  Kept as a comment for grep-ability.
 
 
 def _convert_deferred_vars(text: str) -> str:
@@ -234,6 +234,8 @@ def _execute_nodes(
 ) -> None:
     """Execute a list of AST nodes sequentially."""
     for node in nodes:
+        if isinstance(node, Comment):
+            continue  # Comments have no runtime semantics
         set_dynamic_system_vars(ctx)
         _set_command_vars(ctx, node.span.file, node.span.start_line)
 
@@ -393,14 +395,14 @@ def _execute_batch(
 def _register_script_block(ctx: RuntimeContext, node: ScriptBlock) -> None:
     """Register a named SCRIPT block.
 
-    Stores the AST node in ``_ast_scripts`` for native execution, and also
+    Stores the AST node in ``ctx.ast_scripts`` for native execution, and also
     builds a legacy ``CommandList`` in ``ctx.savedscripts`` so that dispatch
     table handlers (e.g., ON ERROR_HALT EXECUTE SCRIPT) still work.
     """
     from execsql.script.engine import CommandList
 
     # AST-native registry
-    _ast_scripts[node.name] = node
+    ctx.ast_scripts[node.name] = node
 
     # Legacy compatibility — flatten to CommandList for dispatch table
     cmdlist = _flatten_for_legacy(node.body, node.span.file)
@@ -539,24 +541,25 @@ def _execute_include(
 ) -> None:
     """Execute an INCLUDE or EXECUTE SCRIPT directive.
 
-    EXECUTE SCRIPT is handled natively when the target is in ``_ast_scripts``:
-    arguments are parsed, a local variable overlay is created, and the body
-    is executed through the AST executor.  WHILE/UNTIL loops are handled
-    natively too.
+    **INCLUDE** is handled natively: the target file is parsed by the AST
+    parser and executed through the AST executor with circular-include
+    detection.
 
-    INCLUDE and unresolved EXECUTE SCRIPT targets fall back to the dispatch
-    table + legacy engine.
+    **EXECUTE SCRIPT** is handled natively when the target is in
+    ``ctx.ast_scripts``: arguments are parsed, a local variable overlay
+    is created, and the body is executed through the AST executor.
+    WHILE/UNTIL loops are handled natively too.
     """
     if node.is_execute_script:
         target = node.target.lower()
 
         # Native path: target is in our AST registry
-        if target in _ast_scripts:
-            _execute_script_native(ctx, node, _ast_scripts[target], localvars)
+        if target in ctx.ast_scripts:
+            _execute_script_native(ctx, node, ctx.ast_scripts[target], localvars)
             return
 
         # Target not in AST registry — might be defined in an INCLUDE'd file
-        # that hasn't been loaded yet.  Fall through to dispatch table.
+        # that hasn't been loaded yet.  Fall through to legacy dispatch.
         if not node.if_exists and target not in ctx.savedscripts:
             raise ErrInfo(
                 "cmd",
@@ -565,9 +568,16 @@ def _execute_include(
         if node.if_exists and target not in ctx.savedscripts:
             return  # IF EXISTS — skip silently
 
-    # Fallback: dispatch through metacommand table (INCLUDE, or EXECUTE
-    # SCRIPT for targets not in AST registry)
-    _execute_include_legacy(ctx, node, localvars)
+        # Target is in savedscripts but not ast_scripts — this shouldn't
+        # happen when the AST executor is the only engine, but handle it
+        # gracefully by raising an error.
+        raise ErrInfo(
+            "cmd",
+            other_msg=f"SCRIPT {node.target} is not registered in the AST executor.",
+        )
+
+    # --- INCLUDE (file inclusion) — parse and execute natively ---
+    _execute_include_native(ctx, node, localvars)
 
 
 def _execute_script_native(
@@ -648,34 +658,62 @@ def _execute_script_native(
         _run_body()
 
 
-def _execute_include_legacy(
+def _execute_include_native(
     ctx: RuntimeContext,
     node: IncludeDirective,
     localvars: SubVarSet | None = None,
 ) -> None:
-    """Fallback: dispatch INCLUDE or EXECUTE SCRIPT through the metacommand table."""
-    from execsql.script.engine import runscripts
+    """Parse an INCLUDE'd file with the AST parser and execute it natively.
 
-    if node.is_execute_script:
-        parts = ["EXECUTE SCRIPT"]
-        if node.if_exists:
-            parts.append("IF EXISTS")
-        parts.append(node.target)
-        if node.arguments:
-            parts.append(f"WITH ARGS ({node.arguments})")
-        if node.loop_type:
-            parts.append(f"{node.loop_type} ({node.loop_condition})")
-        cmd = " ".join(parts)
+    Handles tilde expansion, IF EXISTS, logging, and circular-include
+    detection via ``ctx.include_chain``.
+    """
+    from execsql.script.parser import parse_script
+    from execsql.utils.errors import file_size_date
+
+    # Substitute variables in the target path
+    target = substitute_vars(node.target, localvars, ctx=ctx).strip()
+
+    # Tilde expansion (matches x_include legacy handler)
+    if len(target) > 1 and target[0] == "~" and target[1] == os.sep:
+        target = str(Path.home() / target[2:])
+
+    target_path = Path(target)
+
+    # IF EXISTS handling
+    if node.if_exists:
+        if not target_path.is_file():
+            return
     else:
-        prefix = "INCLUDE IF EXISTS" if node.if_exists else "INCLUDE"
-        cmd = f"{prefix} {node.target}"
+        if not target_path.is_file():
+            raise ErrInfo(type="error", other_msg=f"File {target} does not exist.")
 
-    ctx.last_command = _FakeScriptCmd(node)
-    _exec_metacommand(ctx, cmd, node.span.file, node.span.start_line, localvars)
+    # Resolve to absolute for consistent circular-include detection
+    resolved = str(target_path.resolve())
 
-    # The dispatch handler may have pushed commands onto the stack.
-    if ctx.commandliststack:
-        runscripts()
+    # Circular include detection
+    if resolved in ctx.include_chain:
+        chain = " → ".join(ctx.include_chain + [resolved])
+        raise ErrInfo(
+            type="error",
+            other_msg=f"Circular INCLUDE detected: {chain}",
+        )
+
+    # Log the include (matching legacy read_sqlfile behavior)
+    if ctx.exec_log:
+        sz, dt = file_size_date(target)
+        ctx.exec_log.log_status_info(f"Reading script file {target} (size: {sz}; date: {dt})")
+
+    # Parse with AST parser
+    encoding = ctx.conf.script_encoding if ctx.conf else "utf-8"
+    included_tree = parse_script(target, encoding=encoding)
+
+    # Execute with include-chain tracking
+    ctx.include_chain.append(resolved)
+    try:
+        _execute_nodes(ctx, included_tree.body, included_tree.source, localvars)
+    finally:
+        ctx.include_chain.pop()
 
 
 # ---------------------------------------------------------------------------
@@ -777,7 +815,14 @@ def execute(script: Script, *, ctx: RuntimeContext | None = None) -> None:
     # it.  This gives full isolation without modifying 200+ handler
     # function signatures.
     with active_context(ctx):
-        _ast_scripts.clear()
+        ctx.ast_scripts.clear()
+        ctx.include_chain.clear()
+        # Seed the include chain with the main script to catch self-includes.
+        if script.source != "<inline>":
+            try:
+                ctx.include_chain.append(str(Path(script.source).resolve()))
+            except (OSError, ValueError):
+                ctx.include_chain.append(script.source)
         set_static_system_vars(ctx)
         try:
             _execute_nodes(ctx, script.body, script.source)

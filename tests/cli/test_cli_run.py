@@ -23,7 +23,7 @@ import pytest
 
 import execsql.state as _state
 from execsql.cli.run import _connect_initial_db, _print_dry_run, _run
-from execsql.exceptions import ConfigError, ErrInfo
+from execsql.exceptions import ConfigError
 
 
 # ---------------------------------------------------------------------------
@@ -55,7 +55,7 @@ def _make_sql_file(tmp_path, content="SELECT 1;"):
 # database connections, and the async FileWriter never actually start.
 _RUN_PATCHES = {
     "db": "execsql.cli.run._connect_initial_db",
-    "runscripts": "execsql.cli.run.runscripts",
+    "execute": "execsql.script.executor.execute",
     "filewriter_cls": "execsql.cli.run.FileWriter",
     "filewriter_end": "execsql.cli.run.filewriter_end",
     "atexit": "execsql.cli.run.atexit",
@@ -307,7 +307,7 @@ class TestSubstitutionVarSetup:
 
         with (
             patch("execsql.cli.run._connect_initial_db", return_value=mock_db),
-            patch("execsql.cli.run.runscripts"),
+            patch("execsql.script.executor.execute"),
             patch("execsql.cli.run.FileWriter", return_value=mock_fw),
             patch("execsql.cli.run.filewriter_end"),
             patch("execsql.cli.run.atexit"),
@@ -366,7 +366,7 @@ class TestSubstitutionVarSetup:
 
         with (
             patch("execsql.cli.run._connect_initial_db", return_value=mock_db),
-            patch("execsql.cli.run.runscripts"),
+            patch("execsql.script.executor.execute"),
             patch("execsql.cli.run.FileWriter", return_value=mock_fw),
             patch("execsql.cli.run.filewriter_end"),
             patch("execsql.cli.run.atexit"),
@@ -434,7 +434,7 @@ class TestOsPlatformBranches:
 
         with (
             patch("execsql.cli.run._connect_initial_db", return_value=mock_db),
-            patch("execsql.cli.run.runscripts"),
+            patch("execsql.script.executor.execute"),
             patch("execsql.cli.run.FileWriter", return_value=mock_fw),
             patch("execsql.cli.run.filewriter_end"),
             patch("execsql.cli.run.atexit"),
@@ -526,7 +526,7 @@ class TestConfigMerging:
 
         with (
             patch("execsql.cli.run._connect_initial_db", return_value=mock_db),
-            patch("execsql.cli.run.runscripts"),
+            patch("execsql.script.executor.execute"),
             patch("execsql.cli.run.FileWriter", return_value=mock_fw),
             patch("execsql.cli.run.filewriter_end"),
             patch("execsql.cli.run.atexit"),
@@ -634,7 +634,7 @@ class TestConfigMerging:
         mock_fw.is_alive.return_value = False
         with (
             patch("execsql.cli.run._connect_initial_db", return_value=mock_db),
-            patch("execsql.cli.run.runscripts"),
+            patch("execsql.script.executor.execute"),
             patch("execsql.cli.run.FileWriter", return_value=mock_fw),
             patch("execsql.cli.run.filewriter_end"),
             patch("execsql.cli.run.atexit"),
@@ -712,7 +712,7 @@ class TestDsnMerging:
 
         with (
             patch("execsql.cli.run._connect_initial_db", return_value=mock_db),
-            patch("execsql.cli.run.runscripts"),
+            patch("execsql.script.executor.execute"),
             patch("execsql.cli.run.FileWriter", return_value=mock_fw),
             patch("execsql.cli.run.filewriter_end"),
             patch("execsql.cli.run.atexit"),
@@ -815,7 +815,7 @@ class TestPositionalArgRouting:
 
         with (
             patch("execsql.cli.run._connect_initial_db", return_value=mock_db),
-            patch("execsql.cli.run.runscripts"),
+            patch("execsql.script.executor.execute"),
             patch("execsql.cli.run.FileWriter", return_value=mock_fw),
             patch("execsql.cli.run.filewriter_end"),
             patch("execsql.cli.run.atexit"),
@@ -862,7 +862,7 @@ class TestPositionalArgRouting:
         mock_fw.is_alive.return_value = False
         with (
             patch("execsql.cli.run._connect_initial_db", return_value=mock_db),
-            patch("execsql.cli.run.runscripts"),
+            patch("execsql.script.executor.execute"),
             patch("execsql.cli.run.FileWriter", return_value=mock_fw),
             patch("execsql.cli.run.filewriter_end"),
             patch("execsql.cli.run.atexit"),
@@ -902,7 +902,7 @@ class TestPositionalArgRouting:
         mock_fw.is_alive.return_value = False
         with (
             patch("execsql.cli.run._connect_initial_db", return_value=mock_db),
-            patch("execsql.cli.run.runscripts"),
+            patch("execsql.script.executor.execute"),
             patch("execsql.cli.run.FileWriter", return_value=mock_fw),
             patch("execsql.cli.run.filewriter_end"),
             patch("execsql.cli.run.atexit"),
@@ -977,7 +977,7 @@ class TestPositionalArgRouting:
         mock_fw.is_alive.return_value = False
         with (
             patch("execsql.cli.run._connect_initial_db", return_value=mock_db),
-            patch("execsql.cli.run.runscripts"),
+            patch("execsql.script.executor.execute"),
             patch("execsql.cli.run.FileWriter", return_value=mock_fw),
             patch("execsql.cli.run.filewriter_end"),
             patch("execsql.cli.run.atexit"),
@@ -1017,7 +1017,7 @@ class TestPositionalArgRouting:
         mock_fw.is_alive.return_value = False
         with (
             patch("execsql.cli.run._connect_initial_db", return_value=mock_db),
-            patch("execsql.cli.run.runscripts"),
+            patch("execsql.script.executor.execute"),
             patch("execsql.cli.run.FileWriter", return_value=mock_fw),
             patch("execsql.cli.run.filewriter_end"),
             patch("execsql.cli.run.atexit"),
@@ -1144,141 +1144,8 @@ class TestNoDatabaseSpecified:
             mock_fatal.assert_called_once()
 
 
-# ---------------------------------------------------------------------------
-# _execute_script_direct — error handling in the execution loop
-# ---------------------------------------------------------------------------
-
-
-class TestExecuteScriptDirect:
-    """Tests for _execute_script_direct() error handling."""
-
-    from execsql.cli.run import _execute_script_direct
-
-    def _run_execute_direct(self, runscripts_side_effect):
-        """Call _execute_script_direct with a mocked runscripts that raises."""
-        from execsql.cli.run import _execute_script_direct
-        import execsql.state as _state
-        from execsql.config import StatObj, WriteHooks
-        from execsql.script import SubVarSet
-        from execsql.db.base import DatabasePool
-
-        _state.reset()
-        # Provide minimal state
-        _state.subvars = SubVarSet()
-        _state.subvars.add_substitution("$LAST_ROWCOUNT", None)
-        _state.cmds_run = 0
-        _state.status = StatObj()
-        _state.output = WriteHooks()
-        _state.dbs = DatabasePool()
-
-        # Mock the logger
-        mock_log = MagicMock()
-        _state.exec_log = mock_log
-
-        conf = SimpleNamespace(
-            gui_level=0,
-            gui_wait_on_exit=False,
-            gui_framework="tkinter",
-            gui_wait_on_error_halt=False,
-        )
-
-        with (
-            patch("execsql.cli.run.runscripts", side_effect=runscripts_side_effect),
-            patch("execsql.cli.run.gui_console_isrunning", return_value=False),
-            patch("execsql.cli.run.gui_console_off"),
-            patch("execsql.cli.run.gui_console_wait_user"),
-        ):
-            _execute_script_direct(conf)
-
-    def test_system_exit_propagates_exit_code(self):
-        with pytest.raises(SystemExit) as exc_info:
-            self._run_execute_direct(SystemExit(42))
-        assert exc_info.value.code == 42
-
-    def test_config_error_re_raised(self):
-        with pytest.raises(ConfigError):
-            self._run_execute_direct(ConfigError("bad config"))
-
-    def _minimal_state(self):
-        """Set up minimal _state for _execute_script_direct tests."""
-        from execsql.config import StatObj, WriteHooks
-        from execsql.script import SubVarSet
-        from execsql.db.base import DatabasePool
-
-        _state.reset()
-        _state.subvars = SubVarSet()
-        _state.subvars.add_substitution("$LAST_ROWCOUNT", None)
-        _state.cmds_run = 0
-        _state.status = StatObj()
-        _state.output = WriteHooks()
-        _state.dbs = DatabasePool()
-        _state.exec_log = MagicMock()
-
-    def test_errinfo_calls_exit_now(self):
-        from execsql.cli.run import _execute_script_direct
-
-        err = ErrInfo("db", exception_msg="test db error")
-        self._minimal_state()
-        conf = SimpleNamespace(
-            gui_level=0,
-            gui_wait_on_exit=False,
-            gui_framework="tkinter",
-            gui_wait_on_error_halt=False,
-        )
-        with (
-            patch("execsql.cli.run.runscripts", side_effect=err),
-            patch("execsql.cli.run.gui_console_isrunning", return_value=False),
-            patch("execsql.utils.errors.exit_now") as mock_exit_now,
-        ):
-            mock_exit_now.side_effect = SystemExit(1)
-            with pytest.raises(SystemExit):
-                _execute_script_direct(conf)
-        mock_exit_now.assert_called_once()
-
-    def test_generic_exception_calls_exit_now(self):
-        from execsql.cli.run import _execute_script_direct
-
-        self._minimal_state()
-        conf = SimpleNamespace(
-            gui_level=0,
-            gui_wait_on_exit=False,
-            gui_framework="tkinter",
-            gui_wait_on_error_halt=False,
-        )
-        with (
-            patch("execsql.cli.run.runscripts", side_effect=RuntimeError("boom")),
-            patch("execsql.cli.run.gui_console_isrunning", return_value=False),
-            patch("execsql.utils.errors.exit_now") as mock_exit_now,
-        ):
-            mock_exit_now.side_effect = SystemExit(1)
-            with pytest.raises(SystemExit):
-                _execute_script_direct(conf)
-        mock_exit_now.assert_called_once()
-
-    def test_successful_run_logs_commands_run(self):
-        """On success, _execute_script_direct logs the command count."""
-        from execsql.cli.run import _execute_script_direct
-
-        self._minimal_state()
-        _state.cmds_run = 7
-        mock_log = MagicMock()
-        _state.exec_log = mock_log
-
-        conf = SimpleNamespace(
-            gui_level=0,
-            gui_wait_on_exit=False,
-            gui_framework="tkinter",
-            gui_wait_on_error_halt=False,
-        )
-        with (
-            patch("execsql.cli.run.runscripts"),
-            patch("execsql.cli.run.gui_console_isrunning", return_value=False),
-        ):
-            _execute_script_direct(conf)
-
-        # Check that log_status_info was called with something containing "7"
-        calls = [str(c) for c in mock_log.log_status_info.call_args_list]
-        assert any("7" in c for c in calls), f"Expected '7 commands run' in log calls: {calls}"
+# TestExecuteScriptDirect removed — _execute_script_direct was deleted
+# when the AST executor became the only execution engine.
 
 
 # ---------------------------------------------------------------------------
@@ -1297,7 +1164,7 @@ class TestDefaultEncodings:
 
         with (
             patch("execsql.cli.run._connect_initial_db", return_value=mock_db),
-            patch("execsql.cli.run.runscripts"),
+            patch("execsql.script.executor.execute"),
             patch("execsql.cli.run.FileWriter", return_value=mock_fw),
             patch("execsql.cli.run.filewriter_end"),
             patch("execsql.cli.run.atexit"),
@@ -1357,7 +1224,7 @@ class TestRunIdSubvar:
 
         with (
             patch("execsql.cli.run._connect_initial_db", return_value=mock_db),
-            patch("execsql.cli.run.runscripts"),
+            patch("execsql.script.executor.execute"),
             patch("execsql.cli.run.FileWriter", return_value=mock_fw),
             patch("execsql.cli.run.filewriter_end"),
             patch("execsql.cli.run.atexit"),
@@ -1410,7 +1277,7 @@ class TestPositionalNetworkRouting:
 
         with (
             patch("execsql.cli.run._connect_initial_db", return_value=mock_db),
-            patch("execsql.cli.run.runscripts"),
+            patch("execsql.script.executor.execute"),
             patch("execsql.cli.run.FileWriter", return_value=mock_fw),
             patch("execsql.cli.run.filewriter_end"),
             patch("execsql.cli.run.atexit"),

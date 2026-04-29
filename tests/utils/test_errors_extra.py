@@ -142,10 +142,10 @@ class TestExitNowHaltSpecs:
         with (
             patch("execsql.utils.errors.sys.exit"),
             patch("execsql.utils.fileio.filewriter_end"),
-            patch("execsql.script.runscripts"),
+            patch("execsql.utils.errors._run_deferred_script") as mock_run,
         ):
             exit_now(1, errinfo)
-            mock_exec.execute.assert_called_once()
+            mock_run.assert_called_once_with(mock_exec)
 
     def test_cancel_halt_exec_runs_script(self):
         mock_exec = MagicMock()
@@ -155,10 +155,10 @@ class TestExitNowHaltSpecs:
         with (
             patch("execsql.utils.errors.sys.exit"),
             patch("execsql.utils.fileio.filewriter_end"),
-            patch("execsql.script.runscripts"),
+            patch("execsql.utils.errors._run_deferred_script") as mock_run,
         ):
             exit_now(2, None)
-            mock_exec.execute.assert_called_once()
+            mock_run.assert_called_once_with(mock_exec)
 
     def test_gui_console_wait_on_error(self):
         _state.output = MagicMock()

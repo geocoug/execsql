@@ -237,14 +237,6 @@ Valid encoding names can be displayed with the `-y` option. See also [Character 
     execsql --parse-tree script.sql
     ```
 
-`--ast`
-
-:   Execute the script using the new AST-based engine instead of the legacy flat command-list engine. Experimental — validates that the new engine produces identical results. The AST engine parses scripts into a tree of typed nodes, then walks the tree for execution. Control flow (IF/LOOP/BATCH) is driven by tree structure rather than runtime state flags.
-
-    ```bash
-    execsql --ast script.sql mydb.sqlite -t l
-    ```
-
 `--list-plugins`
 
 :   List all discovered plugins (metacommands, exporters, importers) and exit. Plugins are Python packages that register extensions via entry points. See the [Plugin System](#plugin-system) section in the developer guide.

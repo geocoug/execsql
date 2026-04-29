@@ -308,30 +308,14 @@ class TestXHdf5TextLen:
 
 
 class TestXInclude:
-    """Tests for the INCLUDE metacommand handler."""
+    """Tests for the INCLUDE metacommand handler (now handled by AST executor)."""
 
-    def test_include_missing_file_raises(self, minimal_conf, tmp_path):
+    def test_x_include_raises_in_ast_mode(self, minimal_conf):
+        """x_include raises because INCLUDE is handled by the AST executor."""
         from execsql.metacommands.io import x_include
 
-        with pytest.raises(ErrInfo):
-            x_include(filename=str(tmp_path / "nosuch.sql"), exists=None)
-
-    def test_include_if_exists_missing_is_noop(self, minimal_conf, tmp_path):
-        from execsql.metacommands.io import x_include
-
-        # When exists is set and file doesn't exist, should not raise
-        result = x_include(filename=str(tmp_path / "nosuch.sql"), exists="IF EXISTS")
-        assert result is None
-
-    def test_include_existing_file(self, minimal_conf, tmp_path):
-        from execsql.metacommands.io import x_include
-
-        sql_file = tmp_path / "script.sql"
-        sql_file.write_text("SELECT 1;")
-
-        with patch("execsql.metacommands.io_fileops.read_sqlfile") as mock_read:
-            x_include(filename=str(sql_file), exists=None)
-            mock_read.assert_called_once_with(str(sql_file))
+        with pytest.raises(ErrInfo, match="AST executor"):
+            x_include(filename="anything.sql", exists=None)
 
 
 # ---------------------------------------------------------------------------

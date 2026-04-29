@@ -160,7 +160,7 @@ class TestPrintProfile:
 
 _RUN_PATCHES = {
     "db": "execsql.cli.run._connect_initial_db",
-    "runscripts": "execsql.cli.run.runscripts",
+    "runscripts": "execsql.script.executor.execute",
     "filewriter_cls": "execsql.cli.run.FileWriter",
     "filewriter_end": "execsql.cli.run.filewriter_end",
     "atexit": "execsql.cli.run.atexit",
@@ -228,7 +228,7 @@ def _invoke_run(tmp_path, *, profile: bool = False, runscripts_side_effect=None)
 
     patches = [
         patch("execsql.cli.run._connect_initial_db", return_value=mock_db),
-        patch("execsql.cli.run.runscripts", side_effect=runscripts_side_effect),
+        patch("execsql.script.executor.execute", side_effect=runscripts_side_effect),
         patch("execsql.cli.run.FileWriter", return_value=mock_fw),
         patch("execsql.cli.run.filewriter_end"),
         patch("execsql.cli.run.atexit"),
@@ -242,7 +242,7 @@ class TestProfilingActivation:
     def test_profile_data_set_to_list_when_profile_true(self, tmp_path):
         captured = []
 
-        def fake_runscripts():
+        def fake_runscripts(*_args, **_kwargs):
             captured.append(_state.profile_data)
 
         _run, kwargs, patches = _invoke_run(tmp_path, profile=True, runscripts_side_effect=fake_runscripts)
@@ -262,7 +262,7 @@ class TestProfilingActivation:
     def test_profile_data_not_set_when_profile_false(self, tmp_path):
         captured = []
 
-        def fake_runscripts():
+        def fake_runscripts(*_args, **_kwargs):
             captured.append(_state.profile_data)
 
         _run, kwargs, patches = _invoke_run(tmp_path, profile=False, runscripts_side_effect=fake_runscripts)

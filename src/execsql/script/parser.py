@@ -34,6 +34,7 @@ from execsql.exceptions import ErrInfo
 from execsql.utils.errors import write_warning
 from execsql.script.ast import (
     BatchBlock,
+    Comment,
     ConditionModifier,
     ElseIfClause,
     IfBlock,
@@ -147,6 +148,10 @@ def _parse_lines(lines: Iterable[str], source_name: str) -> Script:
     body: list[Node] = []
     block_stack: list[_BlockFrame] = []
     in_block_comment = False
+    block_comment_start = 0  # line where /* was found
+    block_comment_lines: list[str] = []  # accumulated block-comment text
+    line_comment_start = 0  # line where a consecutive -- run began
+    line_comment_lines: list[str] = []  # accumulated consecutive -- lines
     in_sql_block = False  # inside BEGIN SQL ... END SQL
     sql_accum = ""  # multi-line SQL accumulator
     sql_start_line = 0
@@ -179,32 +184,73 @@ def _parse_lines(lines: Iterable[str], source_name: str) -> Script:
             _current_body().append(stmt)
             sql_accum = ""
 
+    def _flush_line_comments() -> None:
+        """If there are accumulated consecutive ``--`` comment lines, emit a single Comment node."""
+        nonlocal line_comment_lines, line_comment_start
+        if line_comment_lines:
+            end = line_comment_start + len(line_comment_lines) - 1
+            _current_body().append(
+                Comment(
+                    span=SourceSpan(source_name, line_comment_start, end),
+                    text="\n".join(line_comment_lines),
+                ),
+            )
+            line_comment_lines = []
+
     for file_lineno, raw_line in enumerate(lines, 1):
         line = raw_line.rstrip()
 
         # --- Block comment tracking ---
         if not line:
+            _flush_line_comments()
             continue
 
         if in_block_comment:
+            block_comment_lines.append(line)
             if len(line) > 1 and line.rstrip().endswith("*/"):
                 in_block_comment = False
+                _flush_sql(file_lineno)
+                _current_body().append(
+                    Comment(
+                        span=SourceSpan(source_name, block_comment_start, file_lineno),
+                        text="\n".join(block_comment_lines),
+                    ),
+                )
+                block_comment_lines = []
             continue
 
-        stripped = line.strip()
-        if len(stripped) > 1 and stripped.startswith("/*"):
-            in_block_comment = True
-            if stripped.endswith("*/"):
-                in_block_comment = False
-            continue
-
-        # --- Metacommand or comment classification ---
+        # --- Single-line comment classification ---
         metacommand_match = _EXEC_LINE_RX.match(line)
         comment_match = _COMMENT_LINE_RX.match(line)
 
         if comment_match and not metacommand_match and not in_sql_block:
-            # It's a plain comment line — skip (not preserved in current parser either).
-            # Inside a BEGIN SQL block, comments are part of the SQL text.
+            # Accumulate consecutive -- comment lines into a single Comment node.
+            # Inside a BEGIN SQL block, comments are part of the SQL text (not emitted separately).
+            _flush_sql(file_lineno)
+            if not line_comment_lines:
+                line_comment_start = file_lineno
+            line_comment_lines.append(line.rstrip())
+            continue
+
+        # Non-comment line — flush any accumulated -- comment group before proceeding.
+        _flush_line_comments()
+
+        # --- Block comment opening (/* ... */) ---
+        stripped = line.strip()
+        if len(stripped) > 1 and stripped.startswith("/*"):
+            block_comment_start = file_lineno
+            block_comment_lines = [line]
+            in_block_comment = True
+            if stripped.endswith("*/"):
+                in_block_comment = False
+                _flush_sql(file_lineno)
+                _current_body().append(
+                    Comment(
+                        span=SourceSpan(source_name, file_lineno),
+                        text=line,
+                    ),
+                )
+                block_comment_lines = []
             continue
 
         # --- Metacommand handling ---
@@ -557,6 +603,9 @@ def _parse_lines(lines: Iterable[str], source_name: str) -> Script:
             _flush_sql(file_lineno)
 
     # --- End of file checks ---
+
+    # Flush any trailing consecutive -- comments
+    _flush_line_comments()
 
     # Unclosed blocks
     if block_stack:

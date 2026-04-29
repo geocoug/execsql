@@ -54,6 +54,7 @@ class DsnDatabase(Database):
         self.conn = None
         self.autocommit = True
         self.open_db()
+        self.password = None  # Clear cleartext password after successful connection
 
     def __repr__(self) -> str:
         return f"DsnDatabase({self.db_name!r}, {self.user!r}, {self.need_passwd!r}, {self.port!r}, {self.encoding!r})"
@@ -122,9 +123,9 @@ class DsnDatabase(Database):
         """Execute a stored procedure by name."""
         # The querycommand must be a stored procedure
         with self._cursor() as curs:
-            cmd = f"execute {querycommand};"
+            cmd = f"execute {self.quote_identifier(querycommand)};"
             try:
-                curs.execute(cmd.encode(self.encoding))
+                curs.execute(cmd)
                 _state.subvars.add_substitution("$LAST_ROWCOUNT", curs.rowcount)
             except Exception:
                 self.rollback()

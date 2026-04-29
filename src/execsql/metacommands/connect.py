@@ -1,5 +1,4 @@
 from __future__ import annotations
-from execsql.db.access import AccessDatabase
 
 """
 Database connection metacommand handlers for execsql.
@@ -24,6 +23,7 @@ from pathlib import Path
 from typing import Any
 
 import execsql.state as _state
+from execsql.db.access import AccessDatabase  # noqa: F401 — used in x_connect_access; module-level for test patchability
 from execsql.db.dsn import DsnDatabase
 from execsql.db.duckdb import DuckDBDatabase
 from execsql.db.firebird import FirebirdDatabase

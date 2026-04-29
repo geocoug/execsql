@@ -20,6 +20,7 @@ import sys
 import time
 import traceback
 from pathlib import Path
+from typing import Any
 
 import execsql.state as _state
 from execsql.exceptions import ErrInfo
@@ -93,6 +94,34 @@ def stamp_errinfo(errinfo: ErrInfo) -> ErrInfo:
     return errinfo
 
 
+def _run_deferred_script(spec: Any) -> None:
+    """Execute a deferred ScriptExecSpec (ON ERROR_HALT / ON CANCEL_HALT EXECUTE SCRIPT).
+
+    Executes the target script natively through the AST executor.
+    """
+    from execsql.script.ast import IncludeDirective, SourceSpan
+    from execsql.script.executor import _execute_script_native
+    from execsql.state import get_context
+
+    script_id = spec.script_id.lower() if hasattr(spec, "script_id") else None
+    ctx = get_context()
+    if script_id and script_id in ctx.ast_scripts:
+        node = IncludeDirective(
+            span=SourceSpan("<error-halt>", 0),
+            target=spec.script_id,
+            is_execute_script=True,
+            arguments=spec.arg_exp,
+            loop_type=spec.looptype,
+            loop_condition=spec.loopcond,
+        )
+        _execute_script_native(ctx, node, ctx.ast_scripts[script_id])
+    else:
+        raise ErrInfo(
+            type="error",
+            other_msg=f"ON ERROR_HALT/CANCEL_HALT EXECUTE SCRIPT: no SCRIPT named {spec.script_id}.",
+        )
+
+
 def exit_now(exit_status: int, errinfo: ErrInfo | None, logmsg: str | None = None) -> None:
     em = None
     if errinfo is not None:
@@ -133,13 +162,10 @@ def exit_now(exit_status: int, errinfo: ErrInfo | None, logmsg: str | None = Non
             if _state.exec_log is not None:
                 _state.exec_log.log_status_error("Failed to send the ON ERROR_HALT EMAIL message.")
     if errinfo is not None and _state.err_halt_exec is not None:
-        from execsql.script import runscripts  # deferred: errors.py ↔ script.py circular dep
-
         errexec = _state.err_halt_exec
         _state.err_halt_exec = None
         _state.commandliststack = []
-        errexec.execute()
-        runscripts()
+        _run_deferred_script(errexec)
     if exit_status == 2 and _state.cancel_halt_mailspec is not None:
         try:
             _state.cancel_halt_mailspec.send()
@@ -147,13 +173,10 @@ def exit_now(exit_status: int, errinfo: ErrInfo | None, logmsg: str | None = Non
             if _state.exec_log is not None:
                 _state.exec_log.log_status_error("Failed to send the ON CANCEL_HALT EMAIL message.")
     if exit_status == 2 and _state.cancel_halt_exec is not None:
-        from execsql.script import runscripts  # deferred: errors.py ↔ script.py circular dep
-
         cancelexec = _state.cancel_halt_exec
         _state.cancel_halt_exec = None
         _state.commandliststack = []
-        cancelexec.execute()
-        runscripts()
+        _run_deferred_script(cancelexec)
     if exit_status > 0 and _state.exec_log:
         if logmsg:
             _state.exec_log.log_exit_error(logmsg)

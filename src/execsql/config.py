@@ -480,6 +480,14 @@ class ConfigData:
                 self._get_str(cp, self._EMAIL_SECTION, "password", "smtp_password")
                 # enc_password has special decryption logic — keep inline
                 if cp.has_option(self._EMAIL_SECTION, "enc_password"):
+                    import warnings
+
+                    warnings.warn(
+                        "enc_password provides obfuscation only, not encryption. "
+                        "Use keyring or environment variables for credential storage.",
+                        DeprecationWarning,
+                        stacklevel=1,
+                    )
                     self.smtp_password = Encrypt().decrypt(cp.get(self._EMAIL_SECTION, "enc_password"))
                 self._get_bool(cp, self._EMAIL_SECTION, "use_ssl", "smtp_ssl")
                 self._get_bool(cp, self._EMAIL_SECTION, "use_tls", "smtp_tls")

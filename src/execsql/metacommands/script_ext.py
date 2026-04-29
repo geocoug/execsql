@@ -14,7 +14,7 @@ from typing import Any
 
 import execsql.state as _state
 from execsql.exceptions import ErrInfo
-from execsql.script import MetacommandStmt, ScriptCmd, ScriptExecSpec, SqlStmt, current_script_line
+from execsql.script import MetacommandStmt, ScriptCmd, SqlStmt, current_script_line
 
 
 def x_extendscript(**kwargs: Any) -> None:
@@ -57,7 +57,10 @@ def x_extendscript_sql(**kwargs: Any) -> None:
 
 
 def x_executescript(**kwargs: Any) -> None:
-    exists = kwargs["exists"]
-    script_id = kwargs["script_id"].lower()
-    if exists is None or (exists is not None and script_id in _state.savedscripts):
-        ScriptExecSpec(**kwargs).execute()
+    # EXECUTE SCRIPT is now handled natively by the AST executor
+    # (_execute_include / _execute_script_native). This handler exists only
+    # for dispatch table registration compatibility.
+    raise ErrInfo(
+        "cmd",
+        other_msg="EXECUTE SCRIPT should be handled by the AST executor, not the dispatch table.",
+    )

@@ -56,15 +56,6 @@ def prettyprint_rowset(
     rcols = range(len(colhdrs))
     rrows = range(len(rows))
     colwidths = [max(0, len(colhdrs[j]), *(len(as_ucode(rows[i][j])) for i in rrows)) for j in rcols]
-    names = " " + " | ".join([colhdrs[j].ljust(colwidths[j]) for j in rcols])
-    sep = "|".join(["-" * (colwidths[j] + 2) for j in rcols])
-    rows = [names, sep] + [
-        " "
-        + " | ".join(
-            [as_ucode(rows[i][j]).ljust(colwidths[j]) for j in rcols],
-        )
-        for i in rrows
-    ]
     if output_dest == "stdout":
         ofile = _state.output
         margin = "    "
@@ -83,9 +74,15 @@ def prettyprint_rowset(
     try:
         if desc is not None:
             ofile.write(f"{desc}\n")
-        for row in rows:
-            ln = f"{margin}{row}\n"
-            ofile.write(ln)
+        names = " " + " | ".join([colhdrs[j].ljust(colwidths[j]) for j in rcols])
+        sep = "|".join(["-" * (colwidths[j] + 2) for j in rcols])
+        ofile.write(f"{margin}{names}\n")
+        ofile.write(f"{margin}{sep}\n")
+        for i in rrows:
+            line = " " + " | ".join(
+                [as_ucode(rows[i][j]).ljust(colwidths[j]) for j in rcols],
+            )
+            ofile.write(f"{margin}{line}\n")
     finally:
         if output_dest != "stdout":
             ofile.close()

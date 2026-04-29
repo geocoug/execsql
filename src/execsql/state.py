@@ -146,7 +146,7 @@ try:
     primary_vno: int = int(_vparts[0]) if len(_vparts) > 0 else 0
     secondary_vno: int = int(_vparts[1]) if len(_vparts) > 1 else 0
     tertiary_vno: int = int(_vparts[2]) if len(_vparts) > 2 else 0
-except Exception:
+except (ImportError, ValueError, IndexError):
     primary_vno = 0
     secondary_vno = 0
     tertiary_vno = 0
@@ -200,6 +200,9 @@ _CONTEXT_ATTRS: frozenset[str] = frozenset(
         "profile_data",
         # Debug REPL
         "step_mode",
+        # AST executor
+        "ast_scripts",
+        "include_chain",
     },
 )
 
@@ -255,6 +258,9 @@ class RuntimeContext:
         "profile_data",
         # Debug REPL
         "step_mode",
+        # AST executor
+        "ast_scripts",
+        "include_chain",
     )
 
     def __init__(self) -> None:
@@ -308,6 +314,10 @@ class RuntimeContext:
 
         # Debug REPL — True after a ``next`` command; engine re-enters REPL after next statement.
         self.step_mode: bool = False
+
+        # AST executor — script block registry and include-chain tracking.
+        self.ast_scripts: dict = {}
+        self.include_chain: list[str] = []
 
 
 # ---------------------------------------------------------------------------
@@ -514,5 +524,4 @@ def initialize(
 # ---------------------------------------------------------------------------
 
 _ctx = RuntimeContext()
-_DEFAULT_CTX = RuntimeContext()  # Cached defaults for __delattr__ reset
 sys.modules[__name__].__class__ = _StateModule

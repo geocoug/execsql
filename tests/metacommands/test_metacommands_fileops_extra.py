@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -17,27 +16,12 @@ from execsql.exceptions import ErrInfo
 
 
 class TestXIncludeHomeExpansion:
-    def test_include_tilde_expansion(self, minimal_conf, tmp_path):
+    def test_x_include_raises_in_ast_mode(self, minimal_conf):
+        """x_include raises because INCLUDE is handled by the AST executor."""
         from execsql.metacommands.io_fileops import x_include
 
-        sql_file = tmp_path / "home_script.sql"
-        sql_file.write_text("SELECT 1;")
-
-        tilde_path = f"~{os.sep}{sql_file.name}"
-
-        with (
-            patch("execsql.metacommands.io_fileops.Path") as MockPath,
-            patch("execsql.metacommands.io_fileops.read_sqlfile") as mock_read,
-        ):
-            # Make Path.home() return tmp_path
-            MockPath.home.return_value = tmp_path
-            # Make Path(expanded).is_file() return True for the resolved path
-            mock_path_instance = MagicMock()
-            mock_path_instance.is_file.return_value = True
-            MockPath.return_value = mock_path_instance
-
-            x_include(filename=tilde_path, exists=None)
-            mock_read.assert_called_once()
+        with pytest.raises(ErrInfo, match="AST executor"):
+            x_include(filename="anything.sql", exists=None)
 
 
 # ---------------------------------------------------------------------------

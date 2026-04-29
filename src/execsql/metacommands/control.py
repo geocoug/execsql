@@ -24,8 +24,6 @@ from typing import Any
 import execsql.state as _state
 from execsql.script import (
     CommandList,
-    CommandListUntilLoop,
-    CommandListWhileLoop,
     MetacommandStmt,
     ScriptCmd,
     current_script_line,
@@ -122,18 +120,14 @@ def x_if_end(**kwargs: Any) -> None:
 
 
 def x_loop(**kwargs: Any) -> None:
-    _state.compiling_loop = True
-    looptype = kwargs["looptype"].upper()
-    loopcond = kwargs["loopcond"]
-    listname = "loop" + str(len(_state.loopcommandstack) + 1)
-    if looptype == "WHILE":
-        _state.loopcommandstack.append(
-            CommandListWhileLoop([], listname, paramnames=None, loopcondition=loopcond),
-        )
-    else:
-        _state.loopcommandstack.append(
-            CommandListUntilLoop([], listname, paramnames=None, loopcondition=loopcond),
-        )
+    # LOOP is now handled natively by the AST executor (_execute_loop).
+    # This handler exists only for dispatch table registration compatibility.
+    from execsql.exceptions import ErrInfo
+
+    raise ErrInfo(
+        type="cmd",
+        other_msg="LOOP should be handled by the AST executor, not the dispatch table.",
+    )
 
 
 def x_halt(**kwargs: Any) -> None:

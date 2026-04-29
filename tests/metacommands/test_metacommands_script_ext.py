@@ -179,17 +179,11 @@ class TestXExtendScriptSql:
 
 
 class TestXExecuteScript:
-    """Tests for the EXECUTE SCRIPT handler."""
+    """Tests for the EXECUTE SCRIPT handler (now handled by AST executor)."""
 
-    def test_executescript_missing_with_exists_guard(self, minimal_conf):
+    def test_x_executescript_raises_in_ast_mode(self, minimal_conf):
+        """x_executescript raises because EXECUTE SCRIPT is handled by the AST executor."""
         from execsql.metacommands.script_ext import x_executescript
 
-        # When exists="IF EXISTS" is specified and script doesn't exist,
-        # it should be a no-op (not raise)
-        result = x_executescript(
-            exists="IF EXISTS",
-            script_id="nosuch",
-            script1=None,
-            script2=None,
-        )
-        assert result is None
+        with pytest.raises(ErrInfo, match="AST executor"):
+            x_executescript(exists=None, script_id="anything")

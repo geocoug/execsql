@@ -148,7 +148,7 @@ class TestOracleDatabase:
 
         curs = conn.cursor.return_value
         sql = curs.execute.call_args[0][0]
-        assert sql == "select do_work()"
+        assert sql == 'select "do_work"()'
 
     def test_exec_cmd_updates_last_rowcount(self):
         db = _make_oracle()
@@ -258,8 +258,7 @@ class TestSqlServerDatabase:
 
         curs = conn.cursor.return_value
         raw_arg = curs.execute.call_args[0][0]
-        # The SQL is encoded as bytes using the adapter's encoding.
-        assert raw_arg == "execute run_etl;".encode("latin1")
+        assert raw_arg == 'execute "run_etl";'
 
     def test_exec_cmd_updates_last_rowcount(self):
         db = _make_sqlserver()
@@ -373,7 +372,7 @@ class TestFirebirdDatabase:
 
         curs = conn.cursor.return_value
         sql_arg = curs.execute.call_args[0][0]
-        assert sql_arg == "execute procedure update_stats;"
+        assert sql_arg == 'execute procedure "update_stats";'
 
     def test_exec_cmd_updates_last_rowcount(self):
         db = _make_firebird()
