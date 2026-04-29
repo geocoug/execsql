@@ -59,7 +59,9 @@ def create_server() -> LanguageServer:
                     source="execsql",
                 ),
             )
-        server.publish_diagnostics(uri, diagnostics)
+        server.text_document_publish_diagnostics(
+            lsp.PublishDiagnosticsParams(uri=uri, diagnostics=diagnostics),
+        )
 
     @server.feature(lsp.TEXT_DOCUMENT_DID_OPEN)
     def did_open(params: lsp.DidOpenTextDocumentParams) -> None:
@@ -83,7 +85,9 @@ def create_server() -> LanguageServer:
     def did_close(params: lsp.DidCloseTextDocumentParams) -> None:
         uri = params.text_document.uri
         _analysis_cache.pop(uri, None)
-        server.publish_diagnostics(uri, [])
+        server.text_document_publish_diagnostics(
+            lsp.PublishDiagnosticsParams(uri=uri, diagnostics=[]),
+        )
 
     # ------------------------------------------------------------------
     # Hover
