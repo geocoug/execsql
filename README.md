@@ -37,8 +37,8 @@
 ```sql
 -- Process multiple data files in a loop
 -- !x! SUB file_num 1
--- !x! LOOP WHILE (NOT IS_GT(!{file_num}!, 5))
-    -- !x! IMPORT TO REPLACEMENT staging FROM "data/batch_!{file_num}!.csv" WITH QUOTE " DELIMITER ,
+-- !x! LOOP WHILE (NOT IS_GT(!!file_num!!, 5))
+    -- !x! IMPORT TO REPLACEMENT staging FROM "data/batch_!!file_num!!.csv" WITH QUOTE " DELIMITER ,
     INSERT INTO prod.users SELECT * FROM staging WHERE valid = 1;
     -- !x! SUB_ADD file_num 1
 -- !x! END LOOP
@@ -55,7 +55,7 @@ DROP TABLE staging;
 ```
 
 ```bash
-execsql pipeline.sql mydb -t p -u admin
+execsql -t l pipeline.sql mydb.sqlite
 ```
 
 # Installation
