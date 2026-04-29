@@ -7,7 +7,6 @@ import sqlite3
 import pytest
 
 from execsql import ExecSqlError, run
-from execsql.exceptions import ErrInfo
 
 
 # ---------------------------------------------------------------------------
@@ -158,13 +157,20 @@ class TestErrorHandling:
             result.raise_on_error()
         assert exc_info.value.result is result
 
-    def test_parse_error(self):
-        # Unmatched IF should produce a parse error
-        with pytest.raises(ErrInfo):
-            run(
-                sql="-- !x! IF (TRUE)\nSELECT 1;",
-                dsn="sqlite:///:memory:",
-            )
+    def test_parse_error_returns_result(self):
+        # Unmatched IF produces a failed ScriptResult, not an exception
+        result = run(
+            sql="-- !x! IF (TRUE)\nSELECT 1;",
+            dsn="sqlite:///:memory:",
+        )
+        assert result.success is False
+        assert len(result.errors) == 1
+        assert "IF" in result.errors[0].message
+
+    def test_incomplete_sql_returns_result(self):
+        result = run(sql="SELE", dsn="sqlite:///:memory:")
+        assert result.success is False
+        assert "Incomplete SQL" in result.errors[0].message
 
 
 # ---------------------------------------------------------------------------

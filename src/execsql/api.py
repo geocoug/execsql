@@ -365,10 +365,19 @@ def run(
     # ------------------------------------------------------------------
     from execsql.script.parser import parse_script, parse_string
 
-    if script is not None:
-        tree = parse_script(str(script), encoding=encoding)
-    else:
-        tree = parse_string(sql, source_name="<inline>")
+    try:
+        if script is not None:
+            tree = parse_script(str(script), encoding=encoding)
+        else:
+            tree = parse_string(sql, source_name="<inline>")
+    except ErrInfo as exc:
+        return ScriptResult(
+            success=False,
+            commands_run=0,
+            elapsed=0.0,
+            errors=[ScriptError(message=exc.errmsg(), source=str(script) if script else "<inline>")],
+            variables={},
+        )
 
     # ------------------------------------------------------------------
     # Build an isolated RuntimeContext
