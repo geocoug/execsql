@@ -32,32 +32,6 @@
 
 *execsql* runs SQL scripts against PostgreSQL, MySQL/MariaDB, SQLite, DuckDB, MS-SQL-Server, MS-Access, Firebird, Oracle, or an ODBC DSN. In addition to standard SQL, it supports a set of metacommands (embedded in SQL comments) for importing and exporting data, copying data between databases, conditional execution, looping, substitution variables, and interactive prompts. Because metacommands live in SQL comments, scripts remain valid SQL and are ignored by other tools such as `psql` or `sqlcmd`.
 
-## Quick Example
-
-```sql
--- Process multiple data files in a loop
--- !x! SUB file_num 1
--- !x! LOOP WHILE (NOT IS_GT(!!file_num!!, 5))
-    -- !x! IMPORT TO REPLACEMENT staging FROM "data/batch_!!file_num!!.csv" WITH QUOTE " DELIMITER ,
-    INSERT INTO prod.users SELECT * FROM staging WHERE valid = 1;
-    -- !x! SUB_ADD file_num 1
--- !x! END LOOP
-
--- Validate
--- !x! ASSERT TABLE_EXISTS(prod.users) "No data loaded"
--- !x! ASSERT ROW_COUNT_GT(prod.users, 0) "No rows imported"
-
--- Export results
--- !x! EXPORT prod.users TO CSV "output/users.csv"
-
--- Clean up
-DROP TABLE staging;
-```
-
-```bash
-execsql -t l pipeline.sql mydb.sqlite
-```
-
 # Installation
 
 ```bash
@@ -167,6 +141,61 @@ Run `execsql --help` for the full option list, or `execsql -m` to list all metac
 - Display query results in a GUI dialog; optionally prompt the user to select a row, enter a value, or submit a form.
 - Write status messages or tabular output to the console or a file during execution.
 - Automatically log each run, recording databases used, scripts executed, and user responses.
+- Extend with custom metacommands, exporters, and importers via the plugin system.
+
+# Library API
+
+execsql can be used as a Python library for programmatic script execution:
+
+```python
+from execsql import run
+
+# Execute a script file
+result = run(script="pipeline.sql", dsn="postgresql://user:pass@host/db")
+
+# Execute inline SQL
+result = run(
+    sql="CREATE TABLE t (id INT);\nINSERT INTO t VALUES (1);",
+    dsn="sqlite:///my.db",
+    new_db=True,
+)
+
+# With substitution variables
+result = run(
+    script="etl.sql",
+    dsn="sqlite:///data.db",
+    variables={"SCHEMA": "public", "DATE": "2026-01-01"},
+)
+
+# Check results
+print(result.success)       # True
+print(result.commands_run)  # 2
+print(result.elapsed)       # 0.003 (seconds)
+print(result.variables)     # {"SCHEMA": "public", ...}
+```
+
+Error handling:
+
+```python
+result = run(sql="SELECT * FROM nonexistent;", dsn="sqlite:///:memory:")
+if not result.success:
+    for err in result.errors:
+        print(f"{err.source}:{err.line}: {err.message}")
+
+# Or raise on failure
+result.raise_on_error()  # raises ExecSqlError
+```
+
+Use a pre-existing database connection instead of a DSN:
+
+```python
+from execsql.db.factory import db_SQLite
+conn = db_SQLite("my.db", new_db=True)
+result = run(sql="SELECT 1;", connection=conn)
+# run() does NOT close this connection — you manage its lifecycle
+```
+
+Each call to `run()` uses an isolated `RuntimeContext`, so multiple calls do not share state.
 
 # An Illustration
 

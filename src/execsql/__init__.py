@@ -15,3 +15,7 @@ try:
     __version__ = version("execsql2")
 except PackageNotFoundError:
     __version__ = "unknown"
+
+from execsql.api import ExecSqlError, ScriptError, ScriptResult, run
+
+__all__ = ["__version__", "run", "ScriptResult", "ScriptError", "ExecSqlError"]

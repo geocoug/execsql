@@ -20,6 +20,7 @@ ______________________________________________________________________
 - `active_context()` context manager in `execsql.state` for installing an isolated `RuntimeContext` as the active global context within a `with` block.
 - Plugin system (`execsql.plugins`) for extending execsql with custom metacommands, export formats, and import formats via Python entry points. Entry point groups: `execsql.metacommands`, `execsql.exporters`, `execsql.importers`. Plugins are discovered automatically at startup.
 - `--list-plugins` CLI flag to show all discovered plugins and exit.
+- Python library API: `from execsql import run` for programmatic script execution from notebooks, pipelines, and applications. Returns a `ScriptResult` with success/failure, command count, timing, errors, and final variable state. Supports DSN connection strings, pre-existing connections, substitution variables, and error control. Full RuntimeContext isolation between calls.
 
 ### Changed
 
