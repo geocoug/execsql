@@ -568,10 +568,13 @@ def _execute_include(
         if node.if_exists and target not in ctx.savedscripts:
             return  # IF EXISTS — skip silently
 
-        # Fall back to legacy dispatch for scripts registered only in
-        # savedscripts (e.g. from a previous legacy INCLUDE).
-        _execute_include_legacy(ctx, node, localvars)
-        return
+        # Target is in savedscripts but not ast_scripts — this shouldn't
+        # happen when the AST executor is the only engine, but handle it
+        # gracefully by raising an error.
+        raise ErrInfo(
+            "cmd",
+            other_msg=f"SCRIPT {node.target} is not registered in the AST executor.",
+        )
 
     # --- INCLUDE (file inclusion) — parse and execute natively ---
     _execute_include_native(ctx, node, localvars)
@@ -713,36 +716,6 @@ def _execute_include_native(
         ctx.include_chain.pop()
 
 
-def _execute_include_legacy(
-    ctx: RuntimeContext,
-    node: IncludeDirective,
-    localvars: SubVarSet | None = None,
-) -> None:
-    """Fallback: dispatch INCLUDE or EXECUTE SCRIPT through the metacommand table."""
-    from execsql.script.engine import runscripts
-
-    if node.is_execute_script:
-        parts = ["EXECUTE SCRIPT"]
-        if node.if_exists:
-            parts.append("IF EXISTS")
-        parts.append(node.target)
-        if node.arguments:
-            parts.append(f"WITH ARGS ({node.arguments})")
-        if node.loop_type:
-            parts.append(f"{node.loop_type} ({node.loop_condition})")
-        cmd = " ".join(parts)
-    else:
-        prefix = "INCLUDE IF EXISTS" if node.if_exists else "INCLUDE"
-        cmd = f"{prefix} {node.target}"
-
-    ctx.last_command = _FakeScriptCmd(node)
-    _exec_metacommand(ctx, cmd, node.span.file, node.span.start_line, localvars)
-
-    # The dispatch handler may have pushed commands onto the stack.
-    if ctx.commandliststack:
-        runscripts()
-
-
 # ---------------------------------------------------------------------------
 # BREAK support
 # ---------------------------------------------------------------------------
@@ -842,7 +815,6 @@ def execute(script: Script, *, ctx: RuntimeContext | None = None) -> None:
     # it.  This gives full isolation without modifying 200+ handler
     # function signatures.
     with active_context(ctx):
-        ctx.use_ast = True
         ctx.ast_scripts.clear()
         ctx.include_chain.clear()
         # Seed the include chain with the main script to catch self-includes.

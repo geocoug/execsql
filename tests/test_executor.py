@@ -1,11 +1,8 @@
 """Integration tests for the AST-based executor.
 
-Each test runs a self-verifying SQL script with the ``--ast`` flag against
-a fresh SQLite database.  Scripts use ``ASSERT`` metacommands internally,
-so a non-zero exit code means the executor produced incorrect results.
-
-Tests also compare ``--ast`` output against the legacy engine to verify
-behavioral equivalence.
+Each test runs a self-verifying SQL script against a fresh SQLite database.
+Scripts use ``ASSERT`` metacommands internally, so a non-zero exit code
+means the executor produced incorrect results.
 """
 
 from __future__ import annotations
@@ -39,7 +36,6 @@ def _run_ast(
         sys.executable,
         "-m",
         "execsql",
-        "--ast",
         str(script),
         str(db),
         "-t",
@@ -95,18 +91,17 @@ _SQL_SCRIPTS = sorted(_FIXTURES.glob("*.sql"))
     ids=[s.stem for s in _SQL_SCRIPTS],
 )
 def test_fixture_scripts_with_ast(tmp_path: Path, sql_script: Path) -> None:
-    """Execute each self-verifying fixture with --ast and assert exit-code 0."""
+    """Execute each self-verifying fixture and assert exit-code 0."""
     db = tmp_path / "test.db"
     result = subprocess.run(
-        [sys.executable, "-m", "execsql", "--ast", str(sql_script), str(db), "-t", "l", "-n"],
+        [sys.executable, "-m", "execsql", str(sql_script), str(db), "-t", "l", "-n"],
         cwd=str(tmp_path),
         capture_output=True,
         text=True,
         timeout=60,
     )
     assert result.returncode == 0, (
-        f"Script {sql_script.name} failed with --ast (rc={result.returncode}).\n"
-        f"STDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
+        f"Script {sql_script.name} failed (rc={result.returncode}).\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
     )
 
 
@@ -676,7 +671,7 @@ class TestInclude:
         )
         db = tmp_path / "test.db"
         result = subprocess.run(
-            [sys.executable, "-m", "execsql", "--ast", str(script_file), str(db), "-t", "l", "-n"],
+            [sys.executable, "-m", "execsql", str(script_file), str(db), "-t", "l", "-n"],
             cwd=str(tmp_path),
             capture_output=True,
             text=True,

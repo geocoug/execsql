@@ -203,7 +203,6 @@ _CONTEXT_ATTRS: frozenset[str] = frozenset(
         # AST executor
         "ast_scripts",
         "include_chain",
-        "use_ast",
     },
 )
 
@@ -262,7 +261,6 @@ class RuntimeContext:
         # AST executor
         "ast_scripts",
         "include_chain",
-        "use_ast",
     )
 
     def __init__(self) -> None:
@@ -317,10 +315,9 @@ class RuntimeContext:
         # Debug REPL — True after a ``next`` command; engine re-enters REPL after next statement.
         self.step_mode: bool = False
 
-        # AST executor — script block registry, include-chain tracking, and mode flag.
+        # AST executor — script block registry and include-chain tracking.
         self.ast_scripts: dict = {}
         self.include_chain: list[str] = []
-        self.use_ast: bool = False
 
 
 # ---------------------------------------------------------------------------

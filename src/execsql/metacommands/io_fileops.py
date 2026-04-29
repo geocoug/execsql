@@ -16,7 +16,7 @@ from typing import Any
 import execsql.state as _state
 from execsql.exceptions import ErrInfo
 from execsql.models import DataTable
-from execsql.script import current_script_line, read_sqlfile
+from execsql.script import current_script_line
 from execsql.types import dbt_firebird
 from execsql.utils.errors import exception_desc
 from execsql.utils.fileio import filewriter_close
@@ -24,18 +24,12 @@ from execsql.utils.strings import unquoted
 
 
 def x_include(**kwargs: Any) -> None:
-    filename = kwargs["filename"]
-    if len(filename) > 1 and filename[0] == "~" and filename[1] == os.sep:
-        filename = str(Path.home() / filename[2:])
-    exists = kwargs["exists"]
-    if exists is not None:
-        if Path(filename).is_file():
-            read_sqlfile(filename)
-    else:
-        if not Path(filename).is_file():
-            raise ErrInfo(type="error", other_msg=f"File {filename} does not exist.")
-        read_sqlfile(filename)
-    return None
+    # INCLUDE is now handled natively by the AST executor (_execute_include_native).
+    # This handler exists only for dispatch table registration compatibility.
+    raise ErrInfo(
+        type="cmd",
+        other_msg="INCLUDE should be handled by the AST executor, not the dispatch table.",
+    )
 
 
 def x_copy(**kwargs: Any) -> None:

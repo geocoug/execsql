@@ -16,7 +16,7 @@ ______________________________________________________________________
 - `--parse-tree` CLI flag: parse a script into an Abstract Syntax Tree and print a visual tree structure showing block nesting (IF/LOOP/BATCH/SCRIPT), source line ranges, compound conditions (ANDIF/ORIF), and all metacommands. Requires no database connection or configuration.
 - AST parser module (`execsql.script.parser`) with `parse_script()` and `parse_string()` entry points. Produces a structured `Script` tree with typed nodes for all block constructs (IfBlock, LoopBlock, BatchBlock, ScriptBlock, SqlBlock, IncludeDirective).
 - AST node definitions (`execsql.script.ast`) with `format_tree()` for human-readable tree output.
-- `--ast` CLI flag: execute scripts using the AST-based engine instead of the legacy flat command-list engine. The AST engine parses scripts into a tree of typed nodes, then walks the tree for execution. INCLUDE'd files are parsed and executed natively with circular-include detection. Control flow (IF/LOOP/BATCH) is driven by tree structure.
+- AST-based execution engine is now the default (and only) engine. Scripts are parsed into a tree of typed nodes, then walked for execution. INCLUDE'd files are parsed and executed natively with circular-include detection. Control flow (IF/LOOP/BATCH) is driven by tree structure.
 - `active_context()` context manager in `execsql.state` for installing an isolated `RuntimeContext` as the active global context within a `with` block.
 - Plugin system (`execsql.plugins`) for extending execsql with custom metacommands, export formats, and import formats via Python entry points. Entry point groups: `execsql.metacommands`, `execsql.exporters`, `execsql.importers`. Plugins are discovered automatically at startup.
 - `--list-plugins` CLI flag to show all discovered plugins and exit.
@@ -35,6 +35,12 @@ ______________________________________________________________________
 - `--lint` now uses the AST parser for structural validation. Unmatched IF/LOOP/BATCH/SCRIPT blocks are caught at parse time with precise source line ranges. No database connection or runtime state initialization is required. All prior lint checks (variable analysis, INCLUDE file existence, EXECUTE SCRIPT resolution, SUB_INI reading) are preserved.
 - Export format dispatch logic (`EXPORT` and `EXPORT QUERY` metacommands) refactored from duplicated ~180-line if/elif chains into shared `_dispatch_format()` function, eliminating code duplication and fixing missing zip-compatibility checks for `EXPORT QUERY`.
 - `MailSpec.send()` refactored: extracted `_expand()` helper to replace 12 repetitive substitution lines.
+
+### Removed
+
+- `--ast` / `--no-ast` CLI flag — the AST executor is now the only execution engine; no opt-out.
+- Legacy flat command-list execution engine (`_parse_script_lines`, `read_sqlfile`, `read_sqlstring`, `runscripts`, `ScriptFile`, `CommandListWhileLoop`, `CommandListUntilLoop`, `ScriptExecSpec.execute()`).
+- Legacy `_execute_script_direct()` function and `_execute_include_legacy()` fallback path.
 
 ### Fixed
 

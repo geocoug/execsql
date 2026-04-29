@@ -851,19 +851,12 @@ class TestControlHandlers:
         x_break()
         assert len(_state.commandliststack) == 1
 
-    def test_x_loop_while(self):
+    def test_x_loop_raises_in_ast_mode(self):
+        """x_loop raises because LOOP is handled by the AST executor."""
         from execsql.metacommands.control import x_loop
 
-        x_loop(looptype="WHILE", loopcond="1 == 1")
-        assert _state.compiling_loop is True
-        assert len(_state.loopcommandstack) == 1
-
-    def test_x_loop_until(self):
-        from execsql.metacommands.control import x_loop
-
-        x_loop(looptype="UNTIL", loopcond="1 == 1")
-        assert _state.compiling_loop is True
-        assert len(_state.loopcommandstack) == 1
+        with pytest.raises(ErrInfo, match="AST executor"):
+            x_loop(looptype="WHILE", loopcond="1 == 1")
 
     def test_endloop_without_loop_raises(self):
         _state.loopcommandstack = []
@@ -1088,34 +1081,12 @@ class TestScriptExtHandlers:
         with pytest.raises(ErrInfo):
             x_extendscript_sql(script="missing", sql="select 1;")
 
-    def test_x_executescript_missing_id_no_exists(self):
+    def test_x_executescript_raises_in_ast_mode(self):
+        """x_executescript raises because EXECUTE SCRIPT is handled by the AST executor."""
         from execsql.metacommands.script_ext import x_executescript
 
-        with patch("execsql.metacommands.script_ext.ScriptExecSpec") as mock_spec_cls:
-            mock_spec = MagicMock()
-            mock_spec_cls.return_value = mock_spec
-            x_executescript(exists=None, script_id="nonexistent")
-        mock_spec.execute.assert_called_once()
-
-    def test_x_executescript_exists_flag_and_script_present(self):
-        from execsql.metacommands.script_ext import x_executescript
-
-        self._make_saved_script("existing")
-        with patch("execsql.metacommands.script_ext.ScriptExecSpec") as mock_spec_cls:
-            mock_spec = MagicMock()
-            mock_spec_cls.return_value = mock_spec
-            x_executescript(exists="exists", script_id="existing")
-        mock_spec.execute.assert_called_once()
-
-    def test_x_executescript_exists_flag_and_script_absent(self):
-        from execsql.metacommands.script_ext import x_executescript
-
-        with patch("execsql.metacommands.script_ext.ScriptExecSpec") as mock_spec_cls:
-            mock_spec = MagicMock()
-            mock_spec_cls.return_value = mock_spec
-            x_executescript(exists="exists", script_id="doesnotexist")
-        # Should NOT execute because script not in savedscripts
-        mock_spec.execute.assert_not_called()
+        with pytest.raises(ErrInfo, match="AST executor"):
+            x_executescript(exists=None, script_id="anything")
 
 
 # ---------------------------------------------------------------------------

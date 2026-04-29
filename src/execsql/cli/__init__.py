@@ -306,16 +306,6 @@ def main(
             "Does not connect to a database or execute anything."
         ),
     ),
-    use_ast: bool = typer.Option(
-        False,
-        "--ast",
-        help=(
-            "Use the AST-based execution engine instead of the legacy flat command-list engine. "
-            "The AST engine parses scripts into a tree of typed nodes, then walks the tree for "
-            "execution. INCLUDE'd files are parsed and executed natively with circular-include "
-            "detection. Control flow (IF/LOOP/BATCH) is driven by tree structure."
-        ),
-    ),
     debug: bool = typer.Option(
         False,
         "--debug",
@@ -591,7 +581,6 @@ def main(
         lint=lint,
         debug=debug,
         config_file=config_file,
-        use_ast=use_ast,
     )
 
 

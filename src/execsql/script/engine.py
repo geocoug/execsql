@@ -26,7 +26,6 @@ Functions:
 - :func:`read_sqlstring` — parses an inline script string into a new :class:`CommandList`.
 """
 
-import copy
 import datetime
 import os
 import re
@@ -36,9 +35,8 @@ from typing import Any
 
 import execsql.state as _state
 from execsql.exceptions import ErrInfo
-from execsql.script.variables import LocalSubVarSet, ScriptArgSubVarSet, SubVarSet
+from execsql.script.variables import LocalSubVarSet, SubVarSet
 from execsql.utils.errors import exception_desc
-from execsql.utils.fileio import EncodedFile
 
 __all__ = [
     "MetaCommand",
@@ -47,16 +45,10 @@ __all__ = [
     "MetacommandStmt",
     "ScriptCmd",
     "CommandList",
-    "CommandListWhileLoop",
-    "CommandListUntilLoop",
-    "ScriptFile",
     "ScriptExecSpec",
     "set_system_vars",
     "substitute_vars",
-    "runscripts",
     "current_script_line",
-    "read_sqlfile",
-    "read_sqlstring",
 ]
 
 
@@ -556,93 +548,6 @@ class CommandList:
         return scriptcmd
 
 
-class CommandListWhileLoop(CommandList):
-    """A :class:`CommandList` that repeats its commands while a condition evaluates to true."""
-
-    # Subclass of CommandList that loops WHILE a condition is met.
-    def __init__(
-        self,
-        cmdlist: list[ScriptCmd],
-        listname: str,
-        paramnames: list[str] | None,
-        loopcondition: str,
-    ) -> None:
-        super().__init__(cmdlist, listname, paramnames)
-        self.loopcondition = loopcondition
-
-    def run_next(self) -> None:
-        if self.cmdptr == 0:
-            self.init_if_level = len(_state.if_stack.if_levels)
-            from execsql.parser import CondParser
-
-            if not CondParser(substitute_vars(self.loopcondition)).parse().eval():
-                raise StopIteration
-        if self.cmdptr > len(self.cmdlist) - 1:
-            self.check_iflevels()
-            self.cmdptr = 0
-        else:
-            self.run_and_increment()
-
-
-class CommandListUntilLoop(CommandList):
-    """A :class:`CommandList` that repeats its commands until a condition evaluates to true."""
-
-    # Subclass of CommandList that loops UNTIL a condition is met.
-    def __init__(
-        self,
-        cmdlist: list[ScriptCmd],
-        listname: str,
-        paramnames: list[str] | None,
-        loopcondition: str,
-    ) -> None:
-        super().__init__(cmdlist, listname, paramnames)
-        self.loopcondition = loopcondition
-
-    def run_next(self) -> None:
-        if self.cmdptr == 0:
-            self.init_if_level = len(_state.if_stack.if_levels)
-        if self.cmdptr > len(self.cmdlist) - 1:
-            self.check_iflevels()
-            from execsql.parser import CondParser
-
-            if CondParser(substitute_vars(self.loopcondition)).parse().eval():
-                raise StopIteration
-            self.cmdptr = 0
-        else:
-            self.run_and_increment()
-
-
-# ---------------------------------------------------------------------------
-# ScriptFile
-# ---------------------------------------------------------------------------
-
-
-class ScriptFile(EncodedFile):
-    """An iterable file reader that tracks the current line number.
-
-    Wraps :class:`~execsql.utils.fileio.EncodedFile` and increments
-    :attr:`lno` on each ``next()`` call so that callers always know which
-    source line is being processed.
-    """
-
-    # A file reader that returns lines and records the line number.
-    def __init__(self, scriptfname: str, file_encoding: str) -> None:
-        super().__init__(scriptfname, file_encoding)
-        self.lno = 0
-        self.f = self.open("r")
-
-    def __repr__(self) -> str:
-        return f"ScriptFile({self.filename!r}, {self.encoding!r})"
-
-    def __iter__(self) -> Any:
-        return self
-
-    def __next__(self) -> str:
-        line = next(self.f)
-        self.lno += 1
-        return line
-
-
 # ---------------------------------------------------------------------------
 # ScriptExecSpec
 # ---------------------------------------------------------------------------
@@ -651,16 +556,11 @@ class ScriptFile(EncodedFile):
 class ScriptExecSpec:
     """Deferred execution specification for a named SCRIPT block.
 
-    Parses argument expressions and loop-type flags at construction time;
-    call :meth:`execute` to push the resolved :class:`CommandList` onto the
-    execution stack.
+    Stores the script ID, argument expression, and loop-type flags at
+    construction time.  Used by ON ERROR_HALT / ON CANCEL_HALT EXECUTE
+    SCRIPT handlers to capture the specification; actual execution is
+    handled by the AST executor via :func:`_run_deferred_script`.
     """
-
-    # Stores specifications for executing a SCRIPT, for later use.
-    args_rx = re.compile(
-        r'(?P<param>#?\w+)\s*=\s*(?P<arg>(?:(?:[^"\'\[][^,\)]*)|(?:"[^"]*")|(?:\'[^\']*\')|(?:\[[^\]]*\])))',
-        re.I,
-    )
 
     def __init__(self, **kwargs: Any) -> None:
         self.script_id = kwargs["script_id"].lower()
@@ -669,34 +569,6 @@ class ScriptExecSpec:
         self.arg_exp = kwargs["argexp"]
         self.looptype = kwargs["looptype"].upper() if "looptype" in kwargs and kwargs["looptype"] is not None else None
         self.loopcond = kwargs.get("loopcond")
-
-    def execute(self) -> None:
-        # Copy the saved script to avoid erasing saved script commands during execution.
-        cl = copy.deepcopy(_state.savedscripts[self.script_id])
-        # If looping is specified, redirect to appropriate CommandList subclass.
-        if self.looptype is not None:
-            if self.looptype == "WHILE":
-                cl = CommandListWhileLoop(cl.cmdlist, cl.listname, cl.paramnames, self.loopcond)
-            else:
-                cl = CommandListUntilLoop(cl.cmdlist, cl.listname, cl.paramnames, self.loopcond)
-        # If there are any argument expressions, parse the arguments.
-        if self.arg_exp is not None:
-            all_args = re.findall(self.args_rx, self.arg_exp)
-            from execsql.utils.strings import wo_quotes
-
-            all_cleaned_args = [(ae[0], wo_quotes(ae[1])) for ae in all_args]
-            all_prepared_args = [(ae[0] if ae[0][0] == "#" else "#" + ae[0], ae[1]) for ae in all_cleaned_args]
-            scriptvarset = ScriptArgSubVarSet()
-            for param, arg in all_prepared_args:
-                scriptvarset.add_substitution(param, arg)
-            cl.set_paramvals(scriptvarset)
-        else:
-            if cl.paramnames is not None:
-                raise ErrInfo(
-                    "error",
-                    other_msg=f"Missing expected parameters ({', '.join(cl.paramnames)}) in call to {cl.listname}.",
-                )
-        _state.commandliststack.append(cl)
 
 
 # ---------------------------------------------------------------------------
@@ -827,28 +699,6 @@ def substitute_vars(command_str: str, localvars: SubVarSet | None = None, ctx: A
     return cmdstr
 
 
-def runscripts() -> None:
-    """Drive execution until the command-list stack is empty."""
-    # Set static vars once before the loop; they are refreshed by metacommand
-    # handlers (CONNECT, CONFIG, AUTOCOMMIT, CHDIR) when state changes.
-    set_static_system_vars()
-    while len(_state.commandliststack) > 0:
-        current_cmds = _state.commandliststack[-1]
-        set_dynamic_system_vars()
-        try:
-            current_cmds.run_next()
-        except StopIteration:
-            _state.commandliststack.pop()
-            continue
-        except SystemExit:
-            raise
-        except ErrInfo:
-            raise
-        except Exception as e:
-            raise ErrInfo(type="exception", exception_msg=exception_desc()) from e
-        _state.cmds_run += 1
-
-
 def current_script_line() -> tuple:
     """Return ``(source_name, line_number)`` for the command currently executing."""
     if len(_state.commandliststack) > 0:
@@ -859,179 +709,3 @@ def current_script_line() -> tuple:
             return (f"script '{current_cmds.listname}'", len(current_cmds.cmdlist))
     else:
         return ("", 0)
-
-
-def _parse_script_lines(lines_iter: Any, source_name: str) -> list:
-    # Parse an iterable of lines into a list of ScriptCmd objects.
-    from execsql.utils.errors import write_warning
-
-    beginscript = re.compile(
-        r"^\s*--\s*!x!\s*(?:BEGIN|CREATE)\s+SCRIPT\s+(?P<scriptname>\w+)(?:(?P<paramexpr>\s*\S+.*))?$",
-        re.I,
-    )
-    endscript = re.compile(r"^\s*--\s*!x!\s*END\s+SCRIPT(?:\s+(?P<scriptname>\w+))?\s*$", re.I)
-    beginsql = re.compile(r"^\s*--\s*!x!\s*BEGIN\s+SQL\s*$", re.I)
-    endsql = re.compile(r"^\s*--\s*!x!\s*END\s+SQL\s*$", re.I)
-    execline = re.compile(r"^\s*--\s*!x!\s*(?P<cmd>.+)$", re.I)
-    cmtline = re.compile(r"^\s*--")
-    in_block_cmt = False
-    in_block_sql = False
-    sqllist: list[ScriptCmd] = []
-    sqlline = 0
-    subscript_stack: list[CommandList] = []
-    currcmd = ""
-    scriptname = ""
-    for file_lineno, line in enumerate(lines_iter, 1):
-        # Remove trailing whitespace but not leading whitespace.
-        line = line.rstrip()
-        is_comment_line = False
-        comment_match = cmtline.match(line)
-        metacommand_match = execline.match(line)
-        if len(line) > 0:
-            if in_block_cmt:
-                is_comment_line = True
-                if len(line) > 1 and line[-2:] == "*/":
-                    in_block_cmt = False
-            else:
-                # Not in block comment
-                if len(line.strip()) > 1 and line.strip()[0:2] == "/*":
-                    in_block_cmt = True
-                    is_comment_line = True
-                    if line.strip()[-2:] == "*/":
-                        in_block_cmt = False
-                else:
-                    if comment_match:
-                        is_comment_line = not metacommand_match
-            if not is_comment_line:
-                if metacommand_match:
-                    if beginsql.match(line):
-                        in_block_sql = True
-                    if in_block_sql:
-                        if endsql.match(line):
-                            in_block_sql = False
-                            if len(currcmd) > 0:
-                                cmd = ScriptCmd(source_name, sqlline, "sql", SqlStmt(currcmd))
-                                if len(subscript_stack) == 0:
-                                    sqllist.append(cmd)
-                                else:
-                                    subscript_stack[-1].add(cmd)
-                                currcmd = ""
-                    else:
-                        if len(currcmd) > 0:
-                            write_warning(
-                                f"Incomplete SQL statement starting on line {sqlline} at metacommand on line {file_lineno} of {source_name}.",
-                            )
-                        begs = beginscript.match(line)
-                        if not begs:
-                            ends = endscript.match(line)
-                        if begs:
-                            # This is a BEGIN SCRIPT metacommand.
-                            scriptname = begs.group("scriptname").lower()
-                            paramnames = None
-                            paramexpr = begs.group("paramexpr")
-                            if paramexpr:
-                                withparams = re.compile(
-                                    r"(?:\s+WITH)?(?:\s+PARAM(?:ETER)?S)?\s*\(\s*(?P<params>\w+(?:\s*,\s*\w+)*)\s*\)\s*$",
-                                    re.I,
-                                )
-                                wp = withparams.match(paramexpr)
-                                if not wp:
-                                    raise ErrInfo(
-                                        type="cmd",
-                                        command_text=line,
-                                        other_msg=f"Invalid BEGIN SCRIPT metacommand on line {file_lineno} of file {source_name}.",
-                                    )
-                                else:
-                                    param_rx = re.compile(r"\w+", re.I)
-                                    paramnames = re.findall(param_rx, wp.group("params"))
-                            subscript_stack.append(CommandList([], scriptname, paramnames))
-                        elif ends:
-                            # This is an END SCRIPT metacommand.
-                            endscriptname = ends.group("scriptname")
-                            if endscriptname is not None:
-                                endscriptname = endscriptname.lower()
-                            if len(subscript_stack) == 0:
-                                raise ErrInfo(
-                                    type="cmd",
-                                    command_text=line,
-                                    other_msg=f"Unmatched END SCRIPT metacommand on line {file_lineno} of file {source_name}.",
-                                )
-                            if len(currcmd) > 0:
-                                raise ErrInfo(
-                                    type="cmd",
-                                    command_text=line,
-                                    other_msg=f"Incomplete SQL statement\n  ({currcmd})\nat END SCRIPT metacommand on line {file_lineno} of file {source_name}.",
-                                )
-                            if endscriptname is not None and endscriptname != scriptname:
-                                raise ErrInfo(
-                                    type="cmd",
-                                    command_text=line,
-                                    other_msg=f"Mismatched script name in the END SCRIPT metacommand on line {file_lineno} of file {source_name}.",
-                                )
-                            sub_script = subscript_stack.pop()
-                            _state.savedscripts[sub_script.listname] = sub_script
-                        else:
-                            # This is a non-IMMEDIATE metacommand.
-                            cmd = ScriptCmd(
-                                source_name,
-                                file_lineno,
-                                "cmd",
-                                MetacommandStmt(metacommand_match.group("cmd").strip()),
-                            )
-                            if len(subscript_stack) == 0:
-                                sqllist.append(cmd)
-                            else:
-                                subscript_stack[-1].add(cmd)
-                else:
-                    # This line is not a comment and not a metacommand; part of a SQL statement.
-                    cmd_end = line[-1] == ";"
-                    if line[-1] == "\\":
-                        line = line[:-1].strip()
-                    if currcmd == "":
-                        sqlline = file_lineno
-                        currcmd = line
-                    else:
-                        currcmd = f"{currcmd} \n{line}"
-                    if cmd_end and not in_block_sql:
-                        cmd = ScriptCmd(source_name, sqlline, "sql", SqlStmt(currcmd.strip()))
-                        if len(subscript_stack) == 0:
-                            sqllist.append(cmd)
-                        else:
-                            subscript_stack[-1].add(cmd)
-                        currcmd = ""
-    if len(subscript_stack) > 0:
-        raise ErrInfo(type="error", other_msg=f"Unmatched BEGIN SCRIPT metacommand at end of file {source_name}.")
-    if len(currcmd) > 0:
-        raise ErrInfo(
-            type="error",
-            other_msg=(
-                f"Incomplete SQL statement starting on line {sqlline} at end of file {source_name}."
-                + (" Metacommands must be prefixed with '-- !x!'." if source_name == "<inline>" else "")
-            ),
-        )
-    return sqllist
-
-
-def read_sqlfile(sql_file_name: str) -> None:
-    """Parse a ``.sql`` file and push the resulting :class:`CommandList` onto the execution stack."""
-    # Read lines from the given script file, create a list of ScriptCmd objects,
-    # and append the list to the top of the stack of script commands.
-    from execsql.utils.errors import file_size_date
-
-    sz, dt = file_size_date(sql_file_name)
-    _state.exec_log.log_status_info(f"Reading script file {sql_file_name} (size: {sz}; date: {dt})")
-    scriptfile_obj = ScriptFile(sql_file_name, _state.conf.script_encoding)
-    try:
-        sqllist = _parse_script_lines(scriptfile_obj, sql_file_name)
-    finally:
-        scriptfile_obj.close()
-    if sqllist:
-        _state.commandliststack.append(CommandList(sqllist, Path(sql_file_name).name))
-
-
-def read_sqlstring(content: str, source_name: str = "<inline>") -> None:
-    """Parse an inline script string and push it onto the command stack."""
-    _state.exec_log.log_status_info(f"Reading inline script ({source_name})")
-    sqllist = _parse_script_lines(content.splitlines(), source_name)
-    if sqllist:
-        _state.commandliststack.append(CommandList(sqllist, source_name))

@@ -22,7 +22,7 @@ from execsql.cli.dsn import _parse_connection_string
 from execsql.cli.help import _console, _err_console
 from execsql.config import ConfigData, StatObj
 from execsql.exceptions import ConfigError, ErrInfo
-from execsql.script import SubVarSet, current_script_line, read_sqlfile, read_sqlstring, runscripts, substitute_vars
+from execsql.script import SubVarSet, current_script_line, substitute_vars
 from execsql.utils.fileio import FileWriter, Logger, filewriter_end
 from execsql.utils.gui import gui_connect, gui_console_isrunning, gui_console_off, gui_console_on, gui_console_wait_user
 
@@ -38,31 +38,37 @@ from execsql.cli.lint import _print_lint_results  # noqa: F401 — re-export (us
 # ---------------------------------------------------------------------------
 
 
-def _print_dry_run(cmdlist: object) -> None:
-    """Print the parsed command list for --dry-run mode.
+def _print_dry_run(tree: object) -> None:
+    """Print the parsed AST for --dry-run mode.
 
-    Substitution variables (``$VAR``, ``&ENV``, ``@COUNTER``) that are already
-    populated — from environment variables, ``--assign-arg`` values, or config —
-    are expanded in the displayed text.  System variables that are set at
-    execution time (e.g. ``$CURRENT_TIME``, ``$DB_NAME``, ``$TIMER``) will
-    appear unexpanded because ``set_system_vars()`` has not yet been called.
-    Local ``~``-prefixed script-scope variables are also not expanded (no script
-    execution context exists in dry-run mode).
+    Walks the AST tree and prints each SQL statement and metacommand with
+    source location. Variables already populated at parse time are expanded;
+    execution-time variables remain unexpanded.
     """
-    if cmdlist is None or not cmdlist.cmdlist:
+    from execsql.script.ast import MetaCommandStatement, SqlStatement
+
+    if tree is None:
         _console.print("[yellow]No commands found in script.[/yellow]")
         return
-    n = len(cmdlist.cmdlist)
-    _console.print(f"[bold cyan]Dry Run[/bold cyan] — [dim]{n} command(s) parsed[/dim]")
+    nodes = list(tree.walk())
+    # Count only executable nodes (SQL and metacommands)
+    executable = [n for n in nodes if isinstance(n, (SqlStatement, MetaCommandStatement))]
+    if not executable:
+        _console.print("[yellow]No commands found in script.[/yellow]")
+        return
+    _console.print(f"[bold cyan]Dry Run[/bold cyan] — [dim]{len(executable)} command(s) parsed[/dim]")
     _console.print()
-    for i, cmd in enumerate(cmdlist.cmdlist, 1):
-        ctype = "SQL    " if cmd.command_type == "sql" else "METACMD"
-        source_info = f"[dim]{cmd.source}:{cmd.line_no}[/dim]"
-        raw = cmd.commandline()
+    for i, node in enumerate(executable, 1):
+        if isinstance(node, SqlStatement):
+            ctype = "SQL    "
+            raw = node.text
+        else:
+            ctype = "METACMD"
+            raw = "-- !x! " + node.command
+        source_info = f"[dim]{node.span.file}:{node.span.start_line}[/dim]"
         try:
             expanded = substitute_vars(raw)
         except Exception:
-            # Cycle detection or other expansion errors — fall back to raw text.
             expanded = raw
         _console.print(f"  [dim]{i:>4}[/dim]  [bold green]{ctype}[/bold green]  {source_info}  {expanded}")
 
@@ -221,7 +227,6 @@ def _run(
     lint: bool = False,
     debug: bool = False,
     config_file: str | None = None,
-    use_ast: bool = False,
 ) -> None:
     """Initialise state, connect to the database, load the script, and run it.
 
@@ -493,27 +498,21 @@ def _run(
     # ------------------------------------------------------------------
     _ast_tree = None
     if not ping:
-        if use_ast:
-            from execsql.script.parser import parse_script, parse_string
+        from execsql.script.parser import parse_script, parse_string
 
-            if command is not None:
-                _ast_tree = parse_string(
-                    command.replace("\\n", "\n").replace("\\t", "\t"),
-                    "<inline>",
-                )
-            else:
-                _ast_tree = parse_script(script_name, encoding=conf.script_encoding)
+        if command is not None:
+            _ast_tree = parse_string(
+                command.replace("\\n", "\n").replace("\\t", "\t"),
+                "<inline>",
+            )
         else:
-            if command is not None:
-                read_sqlstring(command.replace("\\n", "\n").replace("\\t", "\t"), "<inline>")
-            else:
-                read_sqlfile(script_name)
+            _ast_tree = parse_script(script_name, encoding=conf.script_encoding)
 
     # ------------------------------------------------------------------
     # Dry-run: print command list and exit without connecting to DB
     # ------------------------------------------------------------------
     if dry_run:
-        _print_dry_run(_state.commandliststack[-1] if _state.commandliststack else None)
+        _print_dry_run(_ast_tree)
         raise SystemExit(0)
 
     # ------------------------------------------------------------------
@@ -568,10 +567,8 @@ def _run(
     if debug:
         _state.step_mode = True
 
-    if use_ast and _ast_tree is not None:
+    if _ast_tree is not None:
         _execute_script_ast(_ast_tree, conf, profile=profile, profile_limit=profile_limit)
-    else:
-        _execute_script_direct(conf, profile=profile, profile_limit=profile_limit)
 
 
 # ---------------------------------------------------------------------------
@@ -586,13 +583,22 @@ def _execute_script_ast(
     profile: bool = False,
     profile_limit: int = 20,
 ) -> None:
-    """Execute a script using the AST executor.
-
-    Same error handling and lifecycle as :func:`_execute_script_direct`.
-    """
+    """Execute a script using the AST executor."""
     import execsql.state as _state
+    import execsql.utils.gui as _gui
 
     from execsql.script.executor import execute
+
+    # For Textual + gui_level 3, run in background thread with ConsoleApp.
+    if conf.gui_level > 2:
+        try:
+            from execsql.gui.tui import TextualBackend
+
+            if isinstance(_gui._active_backend, TextualBackend):
+                _execute_script_textual_console(tree, conf)
+                return
+        except ImportError:
+            pass
 
     try:
         execute(tree)
@@ -634,17 +640,19 @@ def _execute_script_ast(
     _state.exec_log.log_exit_end()
 
 
-def _execute_script_textual_console(conf: ConfigData) -> None:
+def _execute_script_textual_console(tree: Any, conf: ConfigData) -> None:
     """Run the script in a background thread while ConsoleApp runs in the main thread."""
     import execsql.state as _state
     import execsql.utils.gui as _gui
     from execsql.gui.tui import ConsoleApp, _ConsoleDialogQueue
 
+    from execsql.script.executor import execute
+
     dialog_queue = _ConsoleDialogQueue()
     _state.gui_manager_queue = dialog_queue
 
     app = ConsoleApp(
-        script_runner=runscripts,
+        script_runner=lambda: execute(tree),
         dialog_queue=dialog_queue,
         wait_on_exit=conf.gui_wait_on_exit,
     )
@@ -682,74 +690,6 @@ def _execute_script_textual_console(conf: ConfigData) -> None:
 
     _state.dbs.do_rollback = False
     _state.exec_log.log_status_info(f"{_state.cmds_run} commands run")
-    _state.exec_log.log_exit_end()
-
-
-def _execute_script_direct(conf: ConfigData, *, profile: bool = False, profile_limit: int = 20) -> None:
-    """Run runscripts() in the current (main) thread — used when Textual is not active.
-
-    Args:
-        conf: The active configuration object.
-        profile: When ``True``, print a per-statement timing summary after the
-            script completes.  Timing data must already have been activated on
-            ``_state.profile_data`` before this function is called.
-        profile_limit: Maximum number of top statements to display in the
-            profile summary (default: 20).
-    """
-    import execsql.state as _state
-    import execsql.utils.gui as _gui
-
-    # For Textual + gui_level 3, use the persistent ConsoleApp architecture.
-    if conf.gui_level > 2:
-        try:
-            from execsql.gui.tui import TextualBackend
-
-            if isinstance(_gui._active_backend, TextualBackend):
-                _execute_script_textual_console(conf)
-                return
-        except ImportError:
-            pass
-
-    try:
-        runscripts()
-    except SystemExit as exc:
-        if gui_console_isrunning() and conf.gui_wait_on_exit:
-            gui_console_wait_user(
-                "Script complete; close the console window to exit execsql.",
-            )
-            if gui_console_isrunning():
-                gui_console_off()
-        _state.exec_log.log_status_info(f"{_state.cmds_run} commands run")
-        if profile and _state.profile_data is not None:
-            _print_profile(_state.profile_data, limit=profile_limit)
-        sys.exit(exc.code)
-    except ConfigError:
-        raise
-    except ErrInfo as exc:
-        from execsql.utils.errors import exit_now
-
-        exit_now(1, exc)
-    except Exception:
-        strace = traceback.extract_tb(sys.exc_info()[2])[-1:]
-        lno = strace[0][1]
-        msg = f"{Path(sys.argv[0]).name}: Uncaught exception {sys.exc_info()[0]} ({sys.exc_info()[1]}) on line {lno}"
-        script, slno = current_script_line()
-        if script:
-            msg += f" in script {script}, line {slno}"
-        from execsql.utils.errors import exit_now
-
-        exit_now(1, ErrInfo("exception", exception_msg=msg))
-
-    _state.dbs.do_rollback = False
-    if gui_console_isrunning() and conf.gui_wait_on_exit:
-        gui_console_wait_user(
-            "Script complete; close the console window to exit execsql.",
-        )
-        if gui_console_isrunning():
-            gui_console_off()
-    _state.exec_log.log_status_info(f"{_state.cmds_run} commands run")
-    if profile and _state.profile_data is not None:
-        _print_profile(_state.profile_data, limit=profile_limit)
     _state.exec_log.log_exit_end()
 
 

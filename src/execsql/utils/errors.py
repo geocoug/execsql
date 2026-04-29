@@ -97,16 +97,15 @@ def stamp_errinfo(errinfo: ErrInfo) -> ErrInfo:
 def _run_deferred_script(spec: Any) -> None:
     """Execute a deferred ScriptExecSpec (ON ERROR_HALT / ON CANCEL_HALT EXECUTE SCRIPT).
 
-    When the AST executor is active (``_state.use_ast``) and the target
-    script is in the AST registry, execute natively through the AST
-    executor.  Otherwise fall back to the legacy path (push CommandList
-    onto the stack and call ``runscripts()``).
+    Executes the target script natively through the AST executor.
     """
-    script_id = spec.script_id.lower() if hasattr(spec, "script_id") else None
-    if _state.use_ast and script_id and script_id in _state.ast_scripts:
-        from execsql.script.ast import IncludeDirective, SourceSpan
-        from execsql.script.executor import _execute_script_native
+    from execsql.script.ast import IncludeDirective, SourceSpan
+    from execsql.script.executor import _execute_script_native
+    from execsql.state import get_context
 
+    script_id = spec.script_id.lower() if hasattr(spec, "script_id") else None
+    ctx = get_context()
+    if script_id and script_id in ctx.ast_scripts:
         node = IncludeDirective(
             span=SourceSpan("<error-halt>", 0),
             target=spec.script_id,
@@ -115,15 +114,12 @@ def _run_deferred_script(spec: Any) -> None:
             loop_type=spec.looptype,
             loop_condition=spec.loopcond,
         )
-        from execsql.state import get_context
-
-        ctx = get_context()
         _execute_script_native(ctx, node, ctx.ast_scripts[script_id])
     else:
-        from execsql.script import runscripts
-
-        spec.execute()
-        runscripts()
+        raise ErrInfo(
+            type="error",
+            other_msg=f"ON ERROR_HALT/CANCEL_HALT EXECUTE SCRIPT: no SCRIPT named {spec.script_id}.",
+        )
 
 
 def exit_now(exit_status: int, errinfo: ErrInfo | None, logmsg: str | None = None) -> None:
