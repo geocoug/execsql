@@ -16,7 +16,7 @@ ______________________________________________________________________
 - `--parse-tree` CLI flag: parse a script into an Abstract Syntax Tree and print a visual tree structure showing block nesting (IF/LOOP/BATCH/SCRIPT), source line ranges, compound conditions (ANDIF/ORIF), and all metacommands. Requires no database connection or configuration.
 - AST parser module (`execsql.script.parser`) with `parse_script()` and `parse_string()` entry points. Produces a structured `Script` tree with typed nodes for all block constructs (IfBlock, LoopBlock, BatchBlock, ScriptBlock, SqlBlock, IncludeDirective).
 - AST node definitions (`execsql.script.ast`) with `format_tree()` for human-readable tree output.
-- `--ast` CLI flag (experimental): execute scripts using the new AST-based engine instead of the legacy flat command-list engine. Produces identical results for all tested scripts; useful for validating the new engine during the transition.
+- `--ast` CLI flag: execute scripts using the AST-based engine instead of the legacy flat command-list engine. The AST engine parses scripts into a tree of typed nodes, then walks the tree for execution. INCLUDE'd files are parsed and executed natively with circular-include detection. Control flow (IF/LOOP/BATCH) is driven by tree structure.
 - `active_context()` context manager in `execsql.state` for installing an isolated `RuntimeContext` as the active global context within a `with` block.
 - Plugin system (`execsql.plugins`) for extending execsql with custom metacommands, export formats, and import formats via Python entry points. Entry point groups: `execsql.metacommands`, `execsql.exporters`, `execsql.importers`. Plugins are discovered automatically at startup.
 - `--list-plugins` CLI flag to show all discovered plugins and exit.
@@ -28,6 +28,10 @@ ______________________________________________________________________
 
 ### Changed
 
+- **AST executor: native INCLUDE handling.** The `--ast` executor now parses INCLUDE'd files with the AST parser and executes them natively through the AST executor, instead of falling back to the legacy flat-command engine. This means control flow structures (IF/LOOP/BATCH/SCRIPT) in included files are fully tree-driven, with correct deferred variable handling and source-span error reporting.
+- **AST executor: circular INCLUDE detection.** The AST executor now tracks the include chain and detects circular INCLUDE references (A includes B includes A), reporting a clear error message with the full include chain. The legacy engine has no such detection.
+- **AST executor: script block registry moved to RuntimeContext.** Named SCRIPT blocks registered during AST execution are now stored on the `RuntimeContext` instance (`ctx.ast_scripts`) instead of a module-level dict. This prevents cross-execution contamination and enables future concurrent execution support.
+- **AST executor: ON ERROR_HALT / ON CANCEL_HALT EXECUTE SCRIPT.** When the AST executor is active and a deferred error/cancel script is triggered, the script is now executed natively through the AST executor instead of falling back to the legacy `ScriptExecSpec.execute()` + `runscripts()` path.
 - `--lint` now uses the AST parser for structural validation. Unmatched IF/LOOP/BATCH/SCRIPT blocks are caught at parse time with precise source line ranges. No database connection or runtime state initialization is required. All prior lint checks (variable analysis, INCLUDE file existence, EXECUTE SCRIPT resolution, SUB_INI reading) are preserved.
 - Export format dispatch logic (`EXPORT` and `EXPORT QUERY` metacommands) refactored from duplicated ~180-line if/elif chains into shared `_dispatch_format()` function, eliminating code duplication and fixing missing zip-compatibility checks for `EXPORT QUERY`.
 - `MailSpec.send()` refactored: extracted `_expand()` helper to replace 12 repetitive substitution lines.
