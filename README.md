@@ -32,6 +32,38 @@
 
 *execsql* runs SQL scripts against PostgreSQL, MySQL/MariaDB, SQLite, DuckDB, MS-SQL-Server, MS-Access, Firebird, Oracle, or an ODBC DSN. In addition to standard SQL, it supports a set of metacommands (embedded in SQL comments) for importing and exporting data, copying data between databases, conditional execution, looping, substitution variables, and interactive prompts. Because metacommands live in SQL comments, scripts remain valid SQL and are ignored by other tools such as `psql` or `sqlcmd`.
 
+## Quick Example
+
+```sql
+-- Import a CSV into a staging table
+-- !x! IMPORT TO NEW TABLE staging FROM CSV "data/users.csv"
+
+-- Validate the import
+-- !x! ASSERT TABLE_EXISTS(staging) "Import failed"
+-- !x! ASSERT ROW_COUNT_GT(staging, 0) "No rows imported"
+
+-- Merge into production with conditional logic
+-- !x! IF (HAS_ROWS)
+    INSERT INTO users SELECT * FROM staging WHERE valid = 1;
+    -- !x! SUB rejected_count 0
+    -- !x! LOOP WHILE (HAS_ROWS)
+        DELETE FROM staging WHERE valid = 0 LIMIT 100;
+        -- !x! SUB_ADD rejected_count 1
+    -- !x! END LOOP
+-- !x! ENDIF
+
+-- Export results
+-- !x! EXPORT QUERY <<SELECT * FROM users>> TO CSV "output/users.csv"
+-- !x! EXPORT QUERY <<SELECT * FROM users>> TO JSON "output/users.json"
+
+-- Clean up
+DROP TABLE staging;
+```
+
+```bash
+execsql pipeline.sql mydb.sqlite -t l -n
+```
+
 # Installation
 
 ```bash
