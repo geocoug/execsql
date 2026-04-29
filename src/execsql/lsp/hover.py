@@ -9,11 +9,10 @@ from __future__ import annotations
 import re
 
 from execsql.lsp.analysis import AnalysisResult
+from execsql.lsp.docs import get_metacommand_doc
 from execsql.lsp.keywords import (
     get_all_conditions_flat,
-    get_all_keywords_flat,
     get_builtin_vars,
-    get_syntax_help,
 )
 
 __all__ = ["get_hover"]
@@ -55,21 +54,16 @@ def get_hover(line_text: str, col: int, analysis: AnalysisResult | None = None) 
 
 def _hover_metacommand(cmd_text: str) -> str | None:
     """Look up hover docs for a metacommand keyword."""
-    syntax = get_syntax_help()
-    all_kw = get_all_keywords_flat()
+    upper = cmd_text.upper().strip()
 
-    # Try matching against known keywords (longest match first)
-    upper = cmd_text.upper()
-    for kw in sorted(syntax.keys(), key=len, reverse=True):
-        if upper.startswith(kw):
-            display_name, syntax_hint = syntax[kw]
-            hint = f" `{syntax_hint}`" if syntax_hint else ""
-            return f"**{display_name}**{hint}\n\nexecsql metacommand"
-
-    # Fall back to dispatch table keywords
-    first_word = upper.split(None, 1)[0] if upper else ""
-    if first_word in all_kw:
-        return f"**{first_word}**\n\nexecsql metacommand"
+    # Try multi-word match first (e.g., "EXPORT QUERY", "BEGIN BATCH")
+    # Then fall back to single-word
+    for length in (3, 2, 1):
+        words = upper.split(None, length)
+        candidate = " ".join(words[:length])
+        doc = get_metacommand_doc(candidate)
+        if doc:
+            return doc
 
     return None
 
