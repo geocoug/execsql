@@ -35,33 +35,27 @@
 ## Quick Example
 
 ```sql
--- Import a CSV into a staging table
--- !x! IMPORT TO NEW TABLE staging FROM CSV "data/users.csv"
+-- Process multiple data files in a loop
+-- !x! SUB file_num 1
+-- !x! LOOP WHILE (NOT IS_GT(!{file_num}!, 5))
+    -- !x! IMPORT TO REPLACEMENT staging FROM "data/batch_!{file_num}!.csv" WITH QUOTE " DELIMITER ,
+    INSERT INTO prod.users SELECT * FROM staging WHERE valid = 1;
+    -- !x! SUB_ADD file_num 1
+-- !x! END LOOP
 
--- Validate the import
--- !x! ASSERT TABLE_EXISTS(staging) "Import failed"
--- !x! ASSERT ROW_COUNT_GT(staging, 0) "No rows imported"
-
--- Merge into production with conditional logic
--- !x! IF (HAS_ROWS)
-    INSERT INTO users SELECT * FROM staging WHERE valid = 1;
-    -- !x! SUB rejected_count 0
-    -- !x! LOOP WHILE (HAS_ROWS)
-        DELETE FROM staging WHERE valid = 0 LIMIT 100;
-        -- !x! SUB_ADD rejected_count 1
-    -- !x! END LOOP
--- !x! ENDIF
+-- Validate
+-- !x! ASSERT TABLE_EXISTS(prod.users) "No data loaded"
+-- !x! ASSERT ROW_COUNT_GT(prod.users, 0) "No rows imported"
 
 -- Export results
--- !x! EXPORT QUERY <<SELECT * FROM users>> TO CSV "output/users.csv"
--- !x! EXPORT QUERY <<SELECT * FROM users>> TO JSON "output/users.json"
+-- !x! EXPORT prod.users TO CSV "output/users.csv"
 
 -- Clean up
 DROP TABLE staging;
 ```
 
 ```bash
-execsql pipeline.sql mydb.sqlite -t l -n
+execsql pipeline.sql mydb -t p -u admin
 ```
 
 # Installation
