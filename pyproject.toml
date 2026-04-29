@@ -62,6 +62,7 @@ auth = ["keyring"]
 auth-plaintext = ["keyring", "keyrings.alt"]
 auth-encrypted = ["keyring", "keyrings.alt", "pycryptodome"]
 upsert = ["pg-upsert>=1.22.0"]
+lsp = ["pygls>=1.3.0"]
 # Convenience groups
 all-db = [
     "psycopg2-binary",
@@ -208,6 +209,8 @@ omit = [
     "*/execsql/metacommands/prompt.py",
     # AST executor — tested via subprocess integration tests (test_executor.py)
     "*/execsql/script/executor.py",
+    # LSP server — requires pygls and a running language client to test
+    "*/execsql/lsp/*",
     # DB adapters that require external servers or platform-specific drivers
     "*/execsql/db/postgres.py",
     "*/execsql/db/mysql.py",

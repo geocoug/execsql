@@ -20,6 +20,7 @@ ______________________________________________________________________
 - `active_context()` context manager in `execsql.state` for installing an isolated `RuntimeContext` as the active global context within a `with` block.
 - Plugin system (`execsql.plugins`) for extending execsql with custom metacommands, export formats, and import formats via Python entry points. Entry point groups: `execsql.metacommands`, `execsql.exporters`, `execsql.importers`. Plugins are discovered automatically at startup.
 - `--list-plugins` CLI flag to show all discovered plugins and exit.
+- Language Server Protocol (LSP) implementation for IDE integration (`pip install execsql2[lsp]`, run with `python -m execsql.lsp`). Provides real-time diagnostics, hover documentation, go-to-definition, autocomplete, and document symbols.
 
 ### Changed
 
