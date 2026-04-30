@@ -448,6 +448,33 @@ def _execute_batch(
             ctx.status.batch.end_batch()
 
 
+def _pre_register_scripts(ctx: RuntimeContext, nodes: list[Node]) -> None:
+    """Pre-scan AST nodes and register all ScriptBlock definitions.
+
+    The legacy engine used a two-pass approach — parse first (registering all
+    BEGIN SCRIPT blocks), then execute.  The AST executor walks the tree in a
+    single pass, so forward references (EXECUTE SCRIPT before BEGIN SCRIPT)
+    would fail.  This pre-scan restores compatibility by registering all script
+    blocks before execution begins.
+
+    Only scans the top level and inside IF/ELSE blocks — SCRIPT blocks inside
+    LOOPs or other SCRIPTs are not pre-registered (matching legacy behavior
+    where nested definitions weren't visible until the enclosing block ran).
+    """
+    for node in nodes:
+        if isinstance(node, ScriptBlock):
+            _register_script_block(ctx, node)
+        elif isinstance(node, IfBlock):
+            # Scripts defined inside IF branches should be registered too,
+            # since the legacy parser registered them unconditionally at
+            # parse time regardless of the IF condition.
+            _pre_register_scripts(ctx, node.body)
+            for clause in node.elseif_clauses:
+                _pre_register_scripts(ctx, clause.body)
+            if node.else_body:
+                _pre_register_scripts(ctx, node.else_body)
+
+
 def _register_script_block(ctx: RuntimeContext, node: ScriptBlock) -> None:
     """Register a named SCRIPT block.
 
@@ -799,6 +826,9 @@ def _execute_include_native(
     encoding = ctx.conf.script_encoding if ctx.conf else "utf-8"
     included_tree = parse_script(target, encoding=encoding)
 
+    # Pre-register SCRIPT blocks in the included file so forward references work.
+    _pre_register_scripts(ctx, included_tree.body)
+
     # Execute with include-chain tracking
     ctx.include_chain.append(resolved)
     try:
@@ -915,6 +945,10 @@ def execute(script: Script, *, ctx: RuntimeContext | None = None) -> None:
             except (OSError, ValueError):
                 ctx.include_chain.append(script.source)
         set_static_system_vars(ctx)
+        # Pre-register all SCRIPT blocks so forward references work.
+        # The legacy engine registered scripts at parse time (two-pass);
+        # the AST executor must do an explicit pre-scan.
+        _pre_register_scripts(ctx, script.body)
         # Push a root frame so commandliststack is never empty during AST
         # execution.  This ensures get_subvarset(), current_script_line(),
         # xf_sub_defined(), the REPL, and all other commandliststack readers

@@ -353,6 +353,32 @@ class TestScriptBlocks:
         rows = _query_db(tmp_path, "SELECT x FROM t ORDER BY x")
         assert rows == [(77,), (99,)]
 
+    def test_forward_reference_script(self, tmp_path):
+        """EXECUTE SCRIPT before BEGIN SCRIPT (forward reference) works."""
+        result = _run_ast(
+            "CREATE TABLE t (x INT);\n"
+            "-- !x! EXECUTE SCRIPT make_row\n"
+            "-- !x! BEGIN SCRIPT make_row\n"
+            "INSERT INTO t VALUES (42);\n"
+            "-- !x! END SCRIPT\n",
+            tmp_path,
+        )
+        assert result.returncode == 0, result.stderr
+        assert _query_db(tmp_path, "SELECT x FROM t") == [(42,)]
+
+    def test_forward_reference_in_include(self, tmp_path):
+        """Forward reference works inside INCLUDE'd files."""
+        lib = tmp_path / "lib.sql"
+        lib.write_text(
+            "-- !x! EXECUTE SCRIPT helper\n-- !x! BEGIN SCRIPT helper\nINSERT INTO t VALUES (99);\n-- !x! END SCRIPT\n",
+        )
+        result = _run_ast(
+            "CREATE TABLE t (x INT);\n-- !x! INCLUDE lib.sql",
+            tmp_path,
+        )
+        assert result.returncode == 0, result.stderr
+        assert _query_db(tmp_path, "SELECT x FROM t") == [(99,)]
+
     def test_execute_script_if_exists_missing(self, tmp_path):
         result = _run_ast(
             "CREATE TABLE t (x INT);\nINSERT INTO t VALUES (1);\n-- !x! EXECUTE SCRIPT IF EXISTS nonexistent_proc",
