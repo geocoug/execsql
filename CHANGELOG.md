@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.16.5] - 2026-04-30
+
 ### Fixed
 
 - Debug REPL `.vars` now shows `~` local and `#` param variables from the current stack frame, not just global variables. `.vars ~myvar` and `.set ~myvar value` also correctly read/write the stack frame's local scope instead of the global pool.
