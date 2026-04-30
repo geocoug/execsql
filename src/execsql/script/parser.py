@@ -163,6 +163,7 @@ def _parse_lines(lines: Iterable[str], source_name: str) -> Script:
     in_sql_block = False  # inside BEGIN SQL ... END SQL
     sql_accum = ""  # multi-line SQL accumulator
     sql_start_line = 0
+    sql_accum_at_block_comment = False  # was sql_accum non-empty when /* started?
 
     def _current_body() -> list[Node]:
         """Return the body list that new nodes should be appended to."""
@@ -217,14 +218,21 @@ def _parse_lines(lines: Iterable[str], source_name: str) -> Script:
             block_comment_lines.append(line)
             if len(line) > 1 and line.rstrip().endswith("*/"):
                 in_block_comment = False
-                _flush_sql(file_lineno)
-                _current_body().append(
-                    Comment(
-                        span=SourceSpan(source_name, block_comment_start, file_lineno),
-                        text="\n".join(block_comment_lines),
-                    ),
-                )
+                comment_text = "\n".join(block_comment_lines)
+                if sql_accum_at_block_comment:
+                    # Block comment started inside a SQL statement — fold it
+                    # back into sql_accum so the statement isn't split.
+                    sql_accum += "\n" + comment_text
+                else:
+                    _flush_sql(file_lineno)
+                    _current_body().append(
+                        Comment(
+                            span=SourceSpan(source_name, block_comment_start, file_lineno),
+                            text=comment_text,
+                        ),
+                    )
                 block_comment_lines = []
+                sql_accum_at_block_comment = False
             continue
 
         # --- Single-line comment classification ---
@@ -232,12 +240,17 @@ def _parse_lines(lines: Iterable[str], source_name: str) -> Script:
         comment_match = _COMMENT_LINE_RX.match(line)
 
         if comment_match and not metacommand_match and not in_sql_block:
-            # Accumulate consecutive -- comment lines into a single Comment node.
-            # Inside a BEGIN SQL block, comments are part of the SQL text (not emitted separately).
-            _flush_sql(file_lineno)
-            if not line_comment_lines:
-                line_comment_start = file_lineno
-            line_comment_lines.append(line.rstrip())
+            if sql_accum:
+                # Inside a multi-line SQL statement — keep the comment as part
+                # of the SQL text so that commented-out columns, WHERE clauses,
+                # etc. don't split the statement.
+                sql_accum += "\n" + line.rstrip()
+            else:
+                # Standalone comment (not inside a SQL statement) — accumulate
+                # consecutive -- lines into a single Comment node.
+                if not line_comment_lines:
+                    line_comment_start = file_lineno
+                line_comment_lines.append(line.rstrip())
             continue
 
         # Non-comment line — flush any accumulated -- comment group before proceeding.
@@ -248,17 +261,24 @@ def _parse_lines(lines: Iterable[str], source_name: str) -> Script:
         if len(stripped) > 1 and stripped.startswith("/*"):
             block_comment_start = file_lineno
             block_comment_lines = [line]
+            # Remember whether we were inside a SQL statement when the block
+            # comment started, so we can fold it back on close.
+            sql_accum_at_block_comment = bool(sql_accum)
             in_block_comment = True
             if stripped.endswith("*/"):
                 in_block_comment = False
-                _flush_sql(file_lineno)
-                _current_body().append(
-                    Comment(
-                        span=SourceSpan(source_name, file_lineno),
-                        text=line,
-                    ),
-                )
+                if sql_accum_at_block_comment:
+                    sql_accum += "\n" + line.rstrip()
+                else:
+                    _flush_sql(file_lineno)
+                    _current_body().append(
+                        Comment(
+                            span=SourceSpan(source_name, file_lineno),
+                            text=line,
+                        ),
+                    )
                 block_comment_lines = []
+                sql_accum_at_block_comment = False
             continue
 
         # --- Metacommand handling ---
