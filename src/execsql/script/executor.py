@@ -57,7 +57,7 @@ from execsql.script.ast import (
     SqlBlock,
     SqlStatement,
 )
-from execsql.script.engine import set_dynamic_system_vars, set_static_system_vars, substitute_vars
+from execsql.script.engine import CommandList, set_dynamic_system_vars, set_static_system_vars, substitute_vars
 from execsql.script.variables import SubVarSet
 from execsql.state import RuntimeContext, active_context, get_context, xcmd_test
 from execsql.utils.errors import exception_desc, exit_now, stamp_errinfo
@@ -80,6 +80,50 @@ _VARLIKE = re.compile(r"!![$@&~#]?\w+!!", re.I)
 # on the RuntimeContext.  Kept as a comment for grep-ability.
 
 
+def _stack_localvars(ctx: RuntimeContext) -> SubVarSet | None:
+    """Build the merged local+param variable overlay from the current stack frame.
+
+    Returns ``frame.localvars.merge(frame.paramvals)`` for the top frame on
+    ``ctx.commandliststack``, or ``None`` if the stack is empty.  This mirrors
+    the legacy ``CommandList.run_and_increment()`` pattern (line 517 of
+    engine.py) so that both ``substitute_vars`` and ``get_subvarset`` (used by
+    ``x_sub``, ``x_rm_sub``, etc.) operate on the same scope.
+    """
+    if ctx.commandliststack:
+        frame = ctx.commandliststack[-1]
+        return frame.localvars.merge(frame.paramvals)
+    return None
+
+
+def _push_frame(
+    ctx: RuntimeContext,
+    name: str,
+    source: str,
+    line_no: int = 0,
+    *,
+    paramnames: list[str] | None = None,
+) -> CommandList:
+    """Push a synthetic CommandList frame onto the command-list stack.
+
+    Creates a minimal frame with a sentinel :class:`ScriptCmd` so that
+    ``current_script_line()`` and ``get_subvarset()`` work correctly.
+    Returns the frame so the caller can set ``paramvals`` or pre-populate
+    ``localvars``.
+    """
+    from execsql.script.engine import MetacommandStmt, ScriptCmd
+
+    sentinel = ScriptCmd(source, line_no, "cmd", MetacommandStmt(f"BEGIN SCRIPT {name}"))
+    frame = CommandList([sentinel], name, paramnames)
+    ctx.commandliststack.append(frame)
+    return frame
+
+
+def _pop_frame(ctx: RuntimeContext) -> None:
+    """Pop the top frame from the command-list stack."""
+    if ctx.commandliststack:
+        ctx.commandliststack.pop()
+
+
 def _convert_deferred_vars(text: str) -> str:
     """Convert deferred substitution variables to regular ones.
 
@@ -96,12 +140,13 @@ def _eval_condition(
     modifiers: list[ConditionModifier] | None = None,
 ) -> bool:
     """Evaluate a condition string with optional ANDIF/ORIF modifiers."""
-    expanded = substitute_vars(condition, ctx=ctx)
+    effective_locals = _stack_localvars(ctx)
+    expanded = substitute_vars(condition, effective_locals, ctx=ctx)
     result = xcmd_test(expanded)
 
     if modifiers:
         for mod in modifiers:
-            mod_expanded = substitute_vars(mod.condition, ctx=ctx)
+            mod_expanded = substitute_vars(mod.condition, effective_locals, ctx=ctx)
             mod_result = xcmd_test(mod_expanded)
             if mod.kind == "AND":
                 result = result and mod_result
@@ -143,7 +188,12 @@ def _exec_sql(
     ctx.status.sql_error = False
     if ctx.status.batch.in_batch():
         ctx.status.batch.using_db(ctx.dbs.current())
-    cmd = substitute_vars(text, localvars, ctx=ctx)
+    # Build localvars from the command-list stack frame so that ~ and # vars
+    # written by x_sub/get_subvarset are visible.  The stack frame is the
+    # canonical source; the `localvars` parameter is kept for backward compat
+    # but superseded when the stack is populated.
+    effective_locals = _stack_localvars(ctx) or localvars
+    cmd = substitute_vars(text, effective_locals, ctx=ctx)
     if _VARLIKE.search(cmd):
         ctx.output.write(
             f"Warning: There is a potential un-substituted variable in the command\n     {cmd}\n",
@@ -188,7 +238,9 @@ def _exec_metacommand(
     localvars: SubVarSet | None = None,
 ) -> Any:
     """Dispatch a metacommand through the dispatch table."""
-    cmd = substitute_vars(command, localvars, ctx=ctx)
+    # Build localvars from the command-list stack frame (see _exec_sql comment).
+    effective_locals = _stack_localvars(ctx) or localvars
+    cmd = substitute_vars(command, effective_locals, ctx=ctx)
     if _VARLIKE.search(cmd):
         ctx.output.write(
             f"Warning: There is a potential un-substituted variable in the command\n     {cmd}\n",
@@ -293,7 +345,8 @@ def _execute_node(
         if in_loop:
             command = _convert_deferred_vars(command)
         # Intercept BREAK before dispatch — it controls loop flow
-        expanded = substitute_vars(command, localvars, ctx=ctx)
+        effective_locals = _stack_localvars(ctx) or localvars
+        expanded = substitute_vars(command, effective_locals, ctx=ctx)
         if _BREAK_RX.match(expanded):
             raise _BreakLoop
         ctx.last_command = _FakeScriptCmd(node)
@@ -337,7 +390,8 @@ def _execute_if(
 
     # Try ELSEIF clauses
     for clause in node.elseif_clauses:
-        expanded = substitute_vars(clause.condition, ctx=ctx)
+        effective_locals = _stack_localvars(ctx)
+        expanded = substitute_vars(clause.condition, effective_locals, ctx=ctx)
         if xcmd_test(expanded):
             _execute_nodes(ctx, clause.body, node.span.file, localvars, in_loop=in_loop)
             return
@@ -358,7 +412,8 @@ def _execute_loop(
 
     if node.loop_type == "WHILE":
         while True:
-            expanded = substitute_vars(condition, ctx=ctx)
+            effective_locals = _stack_localvars(ctx)
+            expanded = substitute_vars(condition, effective_locals, ctx=ctx)
             if not xcmd_test(expanded):
                 break
             try:
@@ -371,7 +426,8 @@ def _execute_loop(
                 _execute_nodes(ctx, node.body, node.span.file, localvars, in_loop=True)
             except _BreakLoop:
                 break
-            expanded = substitute_vars(condition, ctx=ctx)
+            effective_locals = _stack_localvars(ctx)
+            expanded = substitute_vars(condition, effective_locals, ctx=ctx)
             if xcmd_test(expanded):
                 break
 
@@ -586,23 +642,35 @@ def _execute_script_native(
     script_block: ScriptBlock,
     localvars: SubVarSet | None = None,
 ) -> None:
-    """Execute a SCRIPT block natively through the AST executor."""
+    """Execute a SCRIPT block natively through the AST executor.
+
+    Pushes a :class:`CommandList` frame onto ``ctx.commandliststack`` so that
+    legacy metacommand handlers (``x_sub``, ``x_rm_sub``, ``xf_sub_defined``,
+    prompt handlers, etc.) can access ``~`` local variables and ``#`` script
+    arguments via ``get_subvarset()`` / ``commandliststack[-1]``.  The frame
+    is popped on exit (including on error) via ``try/finally``.
+    """
     from execsql.script.variables import ScriptArgSubVarSet
     from execsql.utils.strings import wo_quotes
 
     # Parse arguments (replicates ScriptExecSpec logic)
-    script_localvars = None
+    # Expand the argument string in the *caller's* scope so that references
+    # like val=!!#parent_param!! or val=!!~parent_local!! resolve correctly
+    # before we push a new scope for this script.
+    paramvals: ScriptArgSubVarSet | None = None
     if node.arguments is not None:
+        caller_locals = _stack_localvars(ctx)
+        expanded_args = substitute_vars(node.arguments, caller_locals, ctx=ctx)
         args_rx = re.compile(
             r'(?P<param>#?\w+)\s*=\s*(?P<arg>(?:(?:[^"\'\[][^,\)]*)|(?:"[^"]*")|(?:\'[^\']*\')|(?:\[[^\]]*\])))',
             re.I,
         )
-        all_args = re.findall(args_rx, node.arguments)
+        all_args = re.findall(args_rx, expanded_args)
         all_cleaned_args = [(ae[0], wo_quotes(ae[1])) for ae in all_args]
         all_prepared_args = [(ae[0] if ae[0][0] == "#" else "#" + ae[0], ae[1]) for ae in all_cleaned_args]
-        scriptvarset = ScriptArgSubVarSet()
+        paramvals = ScriptArgSubVarSet()
         for param, arg in all_prepared_args:
-            scriptvarset.add_substitution(param, arg)
+            paramvals.add_substitution(param, arg)
 
         # Validate parameter names match
         if script_block.param_names is not None:
@@ -612,7 +680,6 @@ def _execute_script_native(
                     "error",
                     other_msg=f"Formal and actual parameter name mismatch in call to {script_block.name}.",
                 )
-        script_localvars = scriptvarset
     else:
         if script_block.param_names is not None:
             raise ErrInfo(
@@ -623,39 +690,57 @@ def _execute_script_native(
                 ),
             )
 
-    # Merge script-local vars with any existing local vars
-    merged = script_localvars
+    # Push a CommandList frame onto the stack so that:
+    #   - get_subvarset() can find ~local and +outer-scope variables
+    #   - xf_sub_defined/xf_sub_empty can check ~local and #param variables
+    #   - current_script_line() returns meaningful source location
+    #   - REPL .vars/.stack commands show the correct scope
+    frame = _push_frame(
+        ctx,
+        script_block.name,
+        script_block.span.file,
+        script_block.span.start_line,
+        paramnames=script_block.param_names,
+    )
+    if paramvals is not None:
+        frame.paramvals = paramvals
 
-    def _run_body() -> None:
-        # Deep-copy the body to avoid mutation across iterations
-        body = copy.deepcopy(script_block.body)
-        _execute_nodes(ctx, body, script_block.span.file, merged, in_loop=False)
+    try:
 
-    # Handle WHILE/UNTIL loops
-    # Convert deferred vars once — node.loop_condition is immutable after parsing
-    if node.loop_type is not None:
-        condition = _convert_deferred_vars(node.loop_condition)
+        def _run_body() -> None:
+            # Deep-copy the body to avoid mutation across iterations
+            body = copy.deepcopy(script_block.body)
+            _execute_nodes(ctx, body, script_block.span.file, in_loop=False)
 
-    if node.loop_type == "WHILE":
-        while True:
-            expanded = substitute_vars(condition, ctx=ctx)
-            if not xcmd_test(expanded):
-                break
-            try:
-                _run_body()
-            except _BreakLoop:
-                break
-    elif node.loop_type == "UNTIL":
-        while True:
-            try:
-                _run_body()
-            except _BreakLoop:
-                break
-            expanded = substitute_vars(condition, ctx=ctx)
-            if xcmd_test(expanded):
-                break
-    else:
-        _run_body()
+        # Handle WHILE/UNTIL loops
+        # Convert deferred vars once — node.loop_condition is immutable after parsing
+        if node.loop_type is not None:
+            condition = _convert_deferred_vars(node.loop_condition)
+
+        if node.loop_type == "WHILE":
+            while True:
+                effective_locals = _stack_localvars(ctx)
+                expanded = substitute_vars(condition, effective_locals, ctx=ctx)
+                if not xcmd_test(expanded):
+                    break
+                try:
+                    _run_body()
+                except _BreakLoop:
+                    break
+        elif node.loop_type == "UNTIL":
+            while True:
+                try:
+                    _run_body()
+                except _BreakLoop:
+                    break
+                effective_locals = _stack_localvars(ctx)
+                expanded = substitute_vars(condition, effective_locals, ctx=ctx)
+                if xcmd_test(expanded):
+                    break
+        else:
+            _run_body()
+    finally:
+        _pop_frame(ctx)
 
 
 def _execute_include_native(
@@ -672,7 +757,8 @@ def _execute_include_native(
     from execsql.utils.errors import file_size_date
 
     # Substitute variables in the target path
-    target = substitute_vars(node.target, localvars, ctx=ctx).strip()
+    effective_locals = _stack_localvars(ctx) or localvars
+    target = substitute_vars(node.target, effective_locals, ctx=ctx).strip()
 
     # Tilde expansion (matches x_include legacy handler)
     if len(target) > 1 and target[0] == "~" and target[1] == os.sep:
@@ -824,6 +910,11 @@ def execute(script: Script, *, ctx: RuntimeContext | None = None) -> None:
             except (OSError, ValueError):
                 ctx.include_chain.append(script.source)
         set_static_system_vars(ctx)
+        # Push a root frame so commandliststack is never empty during AST
+        # execution.  This ensures get_subvarset(), current_script_line(),
+        # xf_sub_defined(), the REPL, and all other commandliststack readers
+        # work correctly even at the top level.
+        _push_frame(ctx, "<main>", script.source)
         try:
             _execute_nodes(ctx, script.body, script.source)
         except _BreakLoop as exc:
@@ -831,3 +922,5 @@ def execute(script: Script, *, ctx: RuntimeContext | None = None) -> None:
                 type="cmd",
                 other_msg="BREAK metacommand outside of a LOOP block.",
             ) from exc
+        finally:
+            _pop_frame(ctx)

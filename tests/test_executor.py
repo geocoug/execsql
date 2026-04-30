@@ -937,3 +937,192 @@ class TestDeferredVariables:
         assert result.returncode == 0
         rows = _query_db(tmp_path, "SELECT a, b FROM t ORDER BY a, b")
         assert rows == [(1, 1), (1, 2), (2, 1), (2, 2), (3, 1), (3, 2)]
+
+
+# ---------------------------------------------------------------------------
+# Local (~) and argument (#) variable scoping in scripts
+# ---------------------------------------------------------------------------
+
+
+class TestLocalVarScoping:
+    """Tests for ~ local variables and # argument variables in SCRIPT blocks.
+
+    These test the commandliststack bridging added to the AST executor so that
+    x_sub, x_rm_sub, xf_sub_defined, and other legacy handlers that access
+    commandliststack[-1] work correctly.
+    """
+
+    def test_tilde_var_in_script(self, tmp_path):
+        """~ vars set inside a SCRIPT body are visible to SQL in that script."""
+        script = (
+            "-- !x! BEGIN SCRIPT proc1 WITH PARAMETERS (val)\n"
+            "-- !x! SUB ~myvar !!#val!!\n"
+            "INSERT INTO t VALUES (!!~myvar!!);\n"
+            "-- !x! END SCRIPT\n"
+            "CREATE TABLE t (x INT);\n"
+            "-- !x! EXECUTE SCRIPT proc1(val=42)"
+        )
+        result = _run_ast(script, tmp_path)
+        assert result.returncode == 0, result.stderr
+        assert _query_db(tmp_path, "SELECT x FROM t") == [(42,)]
+
+    def test_tilde_var_no_unsub_warning(self, tmp_path):
+        """~ vars should not produce un-substituted variable warnings."""
+        script = (
+            "-- !x! BEGIN SCRIPT proc1 WITH PARAMETERS (val)\n"
+            "-- !x! SUB ~myvar !!#val!!\n"
+            "INSERT INTO t VALUES (!!~myvar!!);\n"
+            "-- !x! END SCRIPT\n"
+            "CREATE TABLE t (x INT);\n"
+            "-- !x! EXECUTE SCRIPT proc1(val=1)"
+        )
+        result = _run_ast(script, tmp_path)
+        assert result.returncode == 0
+        assert "un-substituted" not in result.stdout
+        assert "un-substituted" not in result.stderr
+
+    def test_tilde_var_scoped_to_script(self, tmp_path):
+        """~ vars set in one script should not leak to the caller scope."""
+        script = (
+            "-- !x! BEGIN SCRIPT inner\n"
+            "-- !x! SUB ~inner_only hello\n"
+            "CREATE TABLE t1 (x TEXT);\n"
+            "INSERT INTO t1 VALUES ('!!~inner_only!!');\n"
+            "-- !x! END SCRIPT\n"
+            "-- !x! EXECUTE SCRIPT inner\n"
+            "-- !x! IF (SUB_DEFINED(~inner_only))\n"
+            "CREATE TABLE leaked (x INT);\n"
+            "-- !x! ENDIF\n"
+        )
+        result = _run_ast(script, tmp_path)
+        assert result.returncode == 0
+        assert _query_db(tmp_path, "SELECT x FROM t1") == [("hello",)]
+        # Table 'leaked' should not exist — the ~inner_only var should be gone
+        with pytest.raises(sqlite3.OperationalError):
+            _query_db(tmp_path, "SELECT * FROM leaked")
+
+    def test_hash_param_in_conditions(self, tmp_path):
+        """#param variables are visible to IF(SUB_DEFINED()) inside scripts."""
+        script = (
+            "-- !x! BEGIN SCRIPT proc1 WITH PARAMETERS (val)\n"
+            "-- !x! IF (SUB_DEFINED(#val))\n"
+            "INSERT INTO t VALUES (!!#val!!);\n"
+            "-- !x! ENDIF\n"
+            "-- !x! END SCRIPT\n"
+            "CREATE TABLE t (x INT);\n"
+            "-- !x! EXECUTE SCRIPT proc1(val=55)"
+        )
+        result = _run_ast(script, tmp_path)
+        assert result.returncode == 0, result.stderr
+        assert _query_db(tmp_path, "SELECT x FROM t") == [(55,)]
+
+    def test_tilde_var_in_loop_inside_script(self, tmp_path):
+        """~ vars work correctly in a loop inside a SCRIPT block."""
+        script = (
+            "-- !x! BEGIN SCRIPT inserter WITH PARAMETERS (count)\n"
+            "-- !x! SUB ~i 0\n"
+            "-- !x! LOOP WHILE (NOT IS_GTE(!{~i}!, !!#count!!))\n"
+            "-- !x! SUB_ADD ~i 1\n"
+            "INSERT INTO t VALUES (!!~i!!);\n"
+            "-- !x! END LOOP\n"
+            "-- !x! END SCRIPT\n"
+            "CREATE TABLE t (x INT);\n"
+            "-- !x! EXECUTE SCRIPT inserter(count=3)"
+        )
+        result = _run_ast(script, tmp_path)
+        assert result.returncode == 0, result.stderr
+        rows = _query_db(tmp_path, "SELECT x FROM t ORDER BY x")
+        assert rows == [(1,), (2,), (3,)]
+
+    def test_nested_scripts_separate_scopes(self, tmp_path):
+        """Nested EXECUTE SCRIPT calls have independent ~ scopes."""
+        script = (
+            "-- !x! BEGIN SCRIPT inner WITH PARAMETERS (v)\n"
+            "-- !x! SUB ~local !!#v!!\n"
+            "INSERT INTO t VALUES ('!!~local!!');\n"
+            "-- !x! END SCRIPT\n"
+            "-- !x! BEGIN SCRIPT outer WITH PARAMETERS (a, b)\n"
+            "-- !x! SUB ~local outer_val\n"
+            "-- !x! EXECUTE SCRIPT inner(v=!!#a!!)\n"
+            "-- !x! EXECUTE SCRIPT inner(v=!!#b!!)\n"
+            "INSERT INTO t VALUES ('!!~local!!');\n"
+            "-- !x! END SCRIPT\n"
+            "CREATE TABLE t (x TEXT);\n"
+            "-- !x! EXECUTE SCRIPT outer(a=first, b=second)"
+        )
+        result = _run_ast(script, tmp_path)
+        assert result.returncode == 0, result.stderr
+        rows = _query_db(tmp_path, "SELECT x FROM t ORDER BY x")
+        assert rows == [("first",), ("outer_val",), ("second",)]
+
+    def test_sub_local_metacommand(self, tmp_path):
+        """SUB_LOCAL metacommand writes to ~ scope via commandliststack."""
+        script = (
+            "-- !x! BEGIN SCRIPT proc1\n"
+            "-- !x! SUB_LOCAL myvar 99\n"
+            "INSERT INTO t VALUES (!!~myvar!!);\n"
+            "-- !x! END SCRIPT\n"
+            "CREATE TABLE t (x INT);\n"
+            "-- !x! EXECUTE SCRIPT proc1"
+        )
+        result = _run_ast(script, tmp_path)
+        assert result.returncode == 0, result.stderr
+        assert _query_db(tmp_path, "SELECT x FROM t") == [(99,)]
+
+    def test_rm_sub_tilde(self, tmp_path):
+        """RM_SUB works for ~ variables inside a SCRIPT."""
+        script = (
+            "-- !x! BEGIN SCRIPT proc1\n"
+            "-- !x! SUB ~myvar hello\n"
+            "-- !x! RM_SUB ~myvar\n"
+            "-- !x! IF (NOT SUB_DEFINED(~myvar))\n"
+            "INSERT INTO t VALUES (1);\n"
+            "-- !x! ENDIF\n"
+            "-- !x! END SCRIPT\n"
+            "CREATE TABLE t (x INT);\n"
+            "-- !x! EXECUTE SCRIPT proc1"
+        )
+        result = _run_ast(script, tmp_path)
+        assert result.returncode == 0, result.stderr
+        assert _query_db(tmp_path, "SELECT x FROM t") == [(1,)]
+
+    def test_tilde_var_in_included_script(self, tmp_path):
+        """~ vars work in a SCRIPT defined in an INCLUDE'd file."""
+        lib = tmp_path / "lib.sql"
+        lib.write_text(
+            "-- !x! BEGIN SCRIPT insert_val WITH PARAMETERS (v)\n"
+            "-- !x! SUB ~x !!#v!!\n"
+            "INSERT INTO t VALUES (!!~x!!);\n"
+            "-- !x! END SCRIPT\n",
+        )
+        script = "-- !x! INCLUDE lib.sql\nCREATE TABLE t (x INT);\n-- !x! EXECUTE SCRIPT insert_val(v=7)"
+        result = _run_ast(script, tmp_path)
+        assert result.returncode == 0, result.stderr
+        assert _query_db(tmp_path, "SELECT x FROM t") == [(7,)]
+
+    def test_top_level_tilde_var(self, tmp_path):
+        """~ vars set at top level (outside any SCRIPT) work correctly."""
+        script = "CREATE TABLE t (x INT);\n-- !x! SUB ~topvar 100\nINSERT INTO t VALUES (!!~topvar!!);\n"
+        result = _run_ast(script, tmp_path)
+        assert result.returncode == 0, result.stderr
+        assert _query_db(tmp_path, "SELECT x FROM t") == [(100,)]
+
+    def test_sub_defined_tilde_in_if(self, tmp_path):
+        """SUB_DEFINED(~var) works inside IF conditions in scripts."""
+        script = (
+            "-- !x! BEGIN SCRIPT proc1\n"
+            "-- !x! IF (NOT SUB_DEFINED(~undefined_var))\n"
+            "INSERT INTO t VALUES (1);\n"
+            "-- !x! ENDIF\n"
+            "-- !x! SUB ~defined_var yes\n"
+            "-- !x! IF (SUB_DEFINED(~defined_var))\n"
+            "INSERT INTO t VALUES (2);\n"
+            "-- !x! ENDIF\n"
+            "-- !x! END SCRIPT\n"
+            "CREATE TABLE t (x INT);\n"
+            "-- !x! EXECUTE SCRIPT proc1"
+        )
+        result = _run_ast(script, tmp_path)
+        assert result.returncode == 0, result.stderr
+        rows = _query_db(tmp_path, "SELECT x FROM t ORDER BY x")
+        assert rows == [(1,), (2,)]

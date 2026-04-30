@@ -11,6 +11,11 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Fixed
+
+- AST executor now correctly handles `~` (local) and `+` (outer-scope) substitution variables inside SCRIPT blocks. Previously, `-- !x! SUB ~var value` inside a SCRIPT body would write to a disconnected scope, causing the variable to be invisible to subsequent SQL statements and producing spurious "potential un-substituted variable" warnings. The fix pushes proper `CommandList` frames onto `commandliststack` at script and top-level boundaries, bridging the AST executor with the legacy metacommand handlers (`x_sub`, `x_rm_sub`, `xf_sub_defined`, `SUB_LOCAL`, prompt handlers, REPL `.vars`/`.stack`, etc.).
+- EXECUTE SCRIPT argument expressions (e.g., `val=!!#parent_param!!`) are now expanded in the caller's scope before the child script frame is created, fixing nested script calls that pass `~` or `#` variables as arguments.
+
 ### Changed
 
 - `RuntimeContext` is now stored in `threading.local()` instead of a module-level global, making `_state.foo` access thread-safe. Each thread gets its own isolated context via lazy initialization. The `active_context` context manager is now safe for concurrent use across threads. Enables future PARALLEL blocks and concurrent `from execsql import run` calls.
