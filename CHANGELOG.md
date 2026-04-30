@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.16.4] - 2026-04-30
+
 ### Fixed
 
 - Forward references in SCRIPT blocks now work: `EXECUTE SCRIPT foo` can appear before `BEGIN SCRIPT foo` in the same file or INCLUDE'd file. The AST executor now pre-scans for all SCRIPT block definitions before execution begins, matching the legacy engine's two-pass behavior.
