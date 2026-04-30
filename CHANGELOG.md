@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.16.8] - 2026-04-30
+
 ### Fixed
 
 - SQL comments (`--` and `/* */`) inside multi-line SQL statements no longer split the statement. Previously, a comment like `-- col2,` between SELECT columns would cause the parser to flush the accumulated SQL at the comment line, sending an incomplete statement to the database. Comments inside SQL are now preserved as part of the statement text.
