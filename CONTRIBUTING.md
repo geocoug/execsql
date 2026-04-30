@@ -24,26 +24,6 @@ uv tool install rust-just  # via uv
 
 Run `just` with no arguments to list all available recipes.
 
-```
-just sync          # Sync dependencies from lockfile
-just update-hooks  # Update pre-commit hooks to latest versions
-
-just lint          # Run ruff linter + formatter
-just pre-commit    # Run all pre-commit hooks against every file
-just test          # Run tests against the active Python version
-just test-all      # Run tests across all supported Python versions (3.10–3.13)
-just clean         # Remove build artifacts and caches
-
-just docs          # Build the documentation site
-just docs-serve    # Serve docs locally at http://127.0.0.1:8000
-
-just bump          # Show available version bumps from current version
-just bump-patch    # Bump patch version  (e.g. 2.0.0 → 2.0.1)
-just bump-minor    # Bump minor version  (e.g. 2.0.0 → 2.1.0)
-just bump-major    # Bump major version  (e.g. 2.0.0 → 3.0.0)
-just bump-pre 2.0.0a1  # Tag a specific pre-release version
-```
-
 ## Code Quality
 
 Linting and formatting are handled by [ruff](https://docs.astral.sh/ruff/):

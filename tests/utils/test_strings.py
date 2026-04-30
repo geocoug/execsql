@@ -222,3 +222,8 @@ class TestEncodingsMatch:
 
     def test_koi8r_aliases(self):
         assert encodings_match("koi8-r", "koi8r") is True
+
+    def test_leading_zero_normalization_matches(self):
+        # iso-8859-01 and iso-8859-1 differ only in a leading zero — the
+        # numeric-leading-zero stripping pass (line 133-137 in run.py) makes them equal.
+        assert encodings_match("iso-8859-01", "iso-8859-1") is True

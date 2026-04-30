@@ -22,7 +22,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 import execsql.state as _state
-from execsql.cli.run import _connect_initial_db, _print_dry_run, _run
+from execsql.cli.run import _apply_cli_options, _connect_initial_db, _print_dry_run, _run, _seed_early_subvars
 from execsql.exceptions import ConfigError
 
 
@@ -1312,3 +1312,175 @@ class TestPositionalNetworkRouting:
             )
         # server set by DSN, positional should go to db
         assert _state.conf.db == "extra_db"
+
+
+# ---------------------------------------------------------------------------
+# _seed_early_subvars — unit tests for exception/filter branches
+# ---------------------------------------------------------------------------
+
+
+class TestSeedEarlySubvars:
+    """Unit tests for _seed_early_subvars() covering the sensitive-key filter
+    and the exception-swallowing branch for invalid env-var names."""
+
+    def test_sensitive_key_filtered_out(self):
+        """Env vars whose names contain a sensitive substring are not seeded.
+
+        This exercises the ``continue`` branch (line 211 in run.py) where a key
+        such as ``MY_SECRET_KEY`` is skipped before ``add_substitution`` is called.
+        """
+        with patch.dict("os.environ", {"MY_SECRET_KEY": "s3cr3t"}, clear=False):
+            subvars = _seed_early_subvars()
+        # The sensitive var must not appear with the & prefix.
+        assert subvars.varvalue("&MY_SECRET_KEY") is None
+        assert subvars.varvalue("&my_secret_key") is None
+
+    def test_invalid_env_var_name_is_silently_skipped(self):
+        """An env var whose name produces an invalid substitution key does not raise.
+
+        Keys that contain characters outside word-character range (e.g. a hyphen)
+        produce a variable name like ``&MY-VAR`` which fails SubVarSet.check_var_name().
+        The ``except Exception: pass`` block (lines 214-215) swallows the error.
+        """
+        # Use a key containing a hyphen — illegal in an execsql variable name.
+        with patch.dict("os.environ", {"EXECSQL-INVALID-KEY": "value"}, clear=False):
+            # Must not raise even though add_substitution will raise ErrInfo.
+            subvars = _seed_early_subvars()
+        # The variable should simply be absent from the internal dict rather than
+        # causing a crash.  Check the internal dict directly to avoid calling
+        # varvalue() with an invalid key (which would itself raise).
+        assert "&execsql-invalid-key" not in subvars._subs_dict
+
+
+# ---------------------------------------------------------------------------
+# _apply_cli_options — unit tests for default-fallback branches
+# ---------------------------------------------------------------------------
+
+
+class TestApplyCliOptionsDefaults:
+    """Unit tests for _apply_cli_options() that exercise the default-value
+    fallback branches.  These branches are only reachable when conf fields are
+    ``None`` (i.e. not set by ConfigData defaults), which never happens when
+    going through _run() — hence these tests call _apply_cli_options() directly
+    with a hand-crafted SimpleNamespace conf.
+    """
+
+    def _conf(self, **kwargs):
+        """Return a minimal SimpleNamespace conf with all relevant fields set to
+        ``None`` so that every default-fallback branch in _apply_cli_options()
+        becomes reachable."""
+        defaults = {
+            "username": None,
+            "passwd_prompt": True,
+            "db_encoding": None,
+            "script_encoding": None,
+            "output_encoding": None,
+            "import_encoding": None,
+            "import_buffer": None,
+            "make_export_dirs": None,
+            "boolean_int": None,
+            "scan_lines": None,
+            "gui_level": None,
+            "gui_framework": None,
+            "db_type": None,
+            "user_logfile": False,
+            "port": None,
+            "access_username": None,
+            "new_db": False,
+            "export_output_dir": None,
+            "show_progress": False,
+        }
+        defaults.update(kwargs)
+        return SimpleNamespace(**defaults)
+
+    def _call(self, conf, **kwargs):
+        """Invoke _apply_cli_options() with the supplied conf and kwargs,
+        filling in None/False defaults for any omitted parameters."""
+        defaults = {
+            "user": None,
+            "no_passwd": False,
+            "database_encoding": None,
+            "script_encoding": None,
+            "output_encoding": None,
+            "import_encoding": None,
+            "import_buffer": None,
+            "make_dirs": None,
+            "boolean_int": None,
+            "scanlines": None,
+            "use_gui": None,
+            "gui_framework": None,
+            "db_type": None,
+            "user_logfile": False,
+            "port": None,
+            "new_db": False,
+            "output_dir": None,
+            "progress": False,
+        }
+        defaults.update(kwargs)
+        _apply_cli_options(conf, **defaults)
+
+    def test_script_encoding_defaults_to_utf8_when_conf_is_none(self):
+        """When conf.script_encoding is None and no CLI flag is given, default to 'utf8'."""
+        conf = self._conf(script_encoding=None)
+        self._call(conf, script_encoding=None)
+        assert conf.script_encoding == "utf8"
+
+    def test_output_encoding_defaults_to_utf8_when_conf_is_none(self):
+        """When conf.output_encoding is None and no CLI flag is given, default to 'utf8'."""
+        conf = self._conf(output_encoding=None)
+        self._call(conf, output_encoding=None)
+        assert conf.output_encoding == "utf8"
+
+    def test_import_encoding_defaults_to_utf8_when_conf_is_none(self):
+        """When conf.import_encoding is None and no CLI flag is given, default to 'utf8'."""
+        conf = self._conf(import_encoding=None)
+        self._call(conf, import_encoding=None)
+        assert conf.import_encoding == "utf8"
+
+    def test_scan_lines_defaults_to_100_when_conf_is_none(self):
+        """When conf.scan_lines is None and scanlines CLI arg is None, default to 100."""
+        conf = self._conf(scan_lines=None)
+        self._call(conf, scanlines=None)
+        assert conf.scan_lines == 100
+
+    def test_db_type_defaults_to_l_when_conf_is_none(self):
+        """When conf.db_type is None and db_type CLI arg is None, default to 'l' (SQLite)."""
+        conf = self._conf(db_type=None)
+        self._call(conf, db_type=None)
+        assert conf.db_type == "l"
+
+    def test_gui_level_out_of_range_raises_config_error(self):
+        """A gui_level value outside 0-3 raises ConfigError after being set by use_gui."""
+        conf = self._conf(gui_level=None)
+        with pytest.raises(ConfigError, match="Invalid GUI level"):
+            self._call(conf, use_gui="5")
+
+    def test_cli_script_encoding_overrides_none_conf(self):
+        """A CLI-supplied script_encoding wins over None in conf."""
+        conf = self._conf(script_encoding=None)
+        self._call(conf, script_encoding="latin-1")
+        assert conf.script_encoding == "latin-1"
+
+    def test_cli_output_encoding_overrides_none_conf(self):
+        """A CLI-supplied output_encoding wins over None in conf."""
+        conf = self._conf(output_encoding=None)
+        self._call(conf, output_encoding="cp1252")
+        assert conf.output_encoding == "cp1252"
+
+    def test_cli_import_encoding_overrides_none_conf(self):
+        """A CLI-supplied import_encoding wins over None in conf."""
+        conf = self._conf(import_encoding=None)
+        self._call(conf, import_encoding="utf-16")
+        assert conf.import_encoding == "utf-16"
+
+    def test_cli_scanlines_overrides_none_conf(self):
+        """A CLI-supplied scanlines wins over None in conf (no default applied)."""
+        conf = self._conf(scan_lines=None)
+        self._call(conf, scanlines=500)
+        assert conf.scan_lines == 500
+
+    def test_cli_db_type_overrides_none_conf(self):
+        """A CLI-supplied db_type wins over None in conf."""
+        conf = self._conf(db_type=None)
+        self._call(conf, db_type="p")
+        assert conf.db_type == "p"

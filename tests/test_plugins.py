@@ -11,9 +11,12 @@ from execsql.plugins import (
     ImporterEntry,
     ImporterRegistry,
     _load_entry_points,
+    discover_all_plugins,
     discover_exporter_plugins,
     discover_importer_plugins,
     discover_metacommand_plugins,
+    get_exporter_registry,
+    get_importer_registry,
 )
 
 
@@ -211,3 +214,122 @@ class TestListPluginsCli:
             result = runner.invoke(app, ["--list-plugins"], catch_exceptions=False)
             assert result.exit_code == 0
             assert "my_awesome_plugin" in result.output
+
+
+# ---------------------------------------------------------------------------
+# ImporterRegistry — untested methods
+# ---------------------------------------------------------------------------
+
+
+class TestImporterRegistryMethods:
+    def test_formats_returns_sorted_uppercase(self):
+        reg = ImporterRegistry()
+        reg.add("zebra", import_fn=lambda: None)
+        reg.add("alpha", import_fn=lambda: None)
+        assert reg.formats() == ["ALPHA", "ZEBRA"]
+
+    def test_entries_returns_all(self):
+        reg = ImporterRegistry()
+        reg.add("a", import_fn=lambda: None)
+        reg.add("b", import_fn=lambda: None)
+        assert len(reg.entries()) == 2
+
+
+# ---------------------------------------------------------------------------
+# Module-level singletons
+# ---------------------------------------------------------------------------
+
+
+class TestRegistrySingletons:
+    def test_get_exporter_registry_returns_instance(self):
+        import execsql.plugins as _plugins
+
+        # Reset global to ensure we exercise the None-branch.
+        original = _plugins._exporter_registry
+        _plugins._exporter_registry = None
+        try:
+            reg = get_exporter_registry()
+            assert isinstance(reg, ExporterRegistry)
+            # Second call returns the same singleton.
+            assert get_exporter_registry() is reg
+        finally:
+            _plugins._exporter_registry = original
+
+    def test_get_importer_registry_returns_instance(self):
+        import execsql.plugins as _plugins
+
+        original = _plugins._importer_registry
+        _plugins._importer_registry = None
+        try:
+            reg = get_importer_registry()
+            assert isinstance(reg, ImporterRegistry)
+            assert get_importer_registry() is reg
+        finally:
+            _plugins._importer_registry = original
+
+
+# ---------------------------------------------------------------------------
+# _load_entry_points — error branch when entry_points() itself raises
+# ---------------------------------------------------------------------------
+
+
+class TestLoadEntryPointsError:
+    def test_entry_points_query_failure_returns_empty(self):
+        """If entry_points() raises, _load_entry_points should return []."""
+        with patch("execsql.plugins.entry_points", side_effect=RuntimeError("registry broken")):
+            result = _load_entry_points(METACOMMAND_GROUP)
+            assert result == []
+
+
+# ---------------------------------------------------------------------------
+# discover_all_plugins
+# ---------------------------------------------------------------------------
+
+
+class TestDiscoverAllPlugins:
+    def test_discover_all_plugins_without_mcl_skips_metacommands(self):
+        """When mcl is None, metacommand plugins are not attempted."""
+        with patch("execsql.plugins.entry_points", return_value=[]):
+            result = discover_all_plugins(mcl=None)
+        # Key for metacommand group must be absent since mcl is None.
+        from execsql.plugins import METACOMMAND_GROUP
+
+        assert METACOMMAND_GROUP not in result
+        # Exporter and importer counts are present.
+        from execsql.plugins import EXPORTER_GROUP, IMPORTER_GROUP
+
+        assert EXPORTER_GROUP in result
+        assert IMPORTER_GROUP in result
+
+    def test_discover_all_plugins_with_mcl_includes_metacommands(self):
+        """When mcl is provided, all three plugin types are discovered."""
+        mock_mcl = MagicMock()
+        with patch("execsql.plugins.entry_points", return_value=[]):
+            result = discover_all_plugins(mcl=mock_mcl)
+        from execsql.plugins import EXPORTER_GROUP, IMPORTER_GROUP, METACOMMAND_GROUP
+
+        assert METACOMMAND_GROUP in result
+        assert EXPORTER_GROUP in result
+        assert IMPORTER_GROUP in result
+
+    def test_discover_exporter_plugin_registration_error_handled(self):
+        """A plugin whose register function raises does not crash discover_exporter_plugins."""
+        mock_register = MagicMock(side_effect=ValueError("bad exporter"))
+        mock_ep = MagicMock()
+        mock_ep.name = "broken_exp"
+        mock_ep.load.return_value = mock_register
+
+        with patch("execsql.plugins.entry_points", return_value=[mock_ep]):
+            count = discover_exporter_plugins()
+        assert count == 0
+
+    def test_discover_importer_plugin_registration_error_handled(self):
+        """A plugin whose register function raises does not crash discover_importer_plugins."""
+        mock_register = MagicMock(side_effect=ValueError("bad importer"))
+        mock_ep = MagicMock()
+        mock_ep.name = "broken_imp"
+        mock_ep.load.return_value = mock_register
+
+        with patch("execsql.plugins.entry_points", return_value=[mock_ep]):
+            count = discover_importer_plugins()
+        assert count == 0
