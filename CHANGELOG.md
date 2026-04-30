@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.16.7] - 2026-04-30
+
 ### Fixed
 
 - ANDIF/ORIF conditions now short-circuit: `IF (sub_defined(x)) ANDIF (not sub_empty(x))` no longer evaluates `sub_empty` when `sub_defined` returns false. Previously all modifiers were evaluated unconditionally, causing `sub_empty` to throw "Unrecognized substitution variable" on undefined variables.
