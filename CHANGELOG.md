@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.16.2] - 2026-04-30
+
 ### Fixed
 
 - INCLUDE with quoted paths (e.g., `-- !x! INCLUDE "!!path!!/file.sql"`) now strips the surrounding quotes before resolving the file path. The AST parser captured the full target text including quotes, but the legacy dispatch regex stripped them — quoted INCLUDE paths would fail with "File does not exist" even when the file was present on disk.
