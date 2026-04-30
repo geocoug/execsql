@@ -60,7 +60,7 @@ __all__ = [
 # ---------------------------------------------------------------------------
 
 _BEGIN_SCRIPT_RX = re.compile(
-    r"^\s*(?:BEGIN|CREATE)\s+SCRIPT\s+(?P<name>\w+)(?P<paramexpr>\s+.+)?$",
+    r"^\s*(?:BEGIN|CREATE)\s+SCRIPT\s+(?P<name>\w+)(?P<paramexpr>\s*.+)?$",
     re.I,
 )
 _END_SCRIPT_RX = re.compile(

@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Fixed
+
+- `BEGIN SCRIPT name(params)` without a space before the opening parenthesis now parses correctly. The AST parser regex required whitespace between the script name and parameter list, causing `BEGIN SCRIPT` to be silently ignored and the matching `END SCRIPT` to fail with "Unmatched END SCRIPT metacommand."
+
 ______________________________________________________________________
 
 ## [2.16.2] - 2026-04-30
