@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.16.1] - 2026-04-30
+
 ### Fixed
 
 - AST executor now correctly handles `~` (local) and `+` (outer-scope) substitution variables inside SCRIPT blocks. Previously, `-- !x! SUB ~var value` inside a SCRIPT body would write to a disconnected scope, causing the variable to be invisible to subsequent SQL statements and producing spurious "potential un-substituted variable" warnings. The fix pushes proper `CommandList` frames onto `commandliststack` at script and top-level boundaries, bridging the AST executor with the legacy metacommand handlers (`x_sub`, `x_rm_sub`, `xf_sub_defined`, `SUB_LOCAL`, prompt handlers, REPL `.vars`/`.stack`, etc.).
