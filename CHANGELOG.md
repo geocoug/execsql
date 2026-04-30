@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.16.6] - 2026-04-30
+
 ### Fixed
 
 - `execsql-format` no longer corrupts PL/pgSQL function bodies inside `$$`-delimited blocks. sqlglot does not understand PL/pgSQL and was rewriting `IF NOT EXISTS ... END IF`, `IF ... THEN RETURN ... END IF`, and similar constructs as `COMMIT;`. The formatter now tracks `$$` boundaries and skips sqlglot formatting for any SQL block containing dollar-quoted content.
