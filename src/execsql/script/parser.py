@@ -95,6 +95,14 @@ _INCLUDE_RX = re.compile(
     re.I,
 )
 
+
+def _strip_quotes(s: str) -> str:
+    """Strip a matching pair of surrounding quotes from *s*."""
+    if len(s) >= 2 and s[0] in ('"', "'") and s[-1] == s[0]:
+        return s[1:-1]
+    return s
+
+
 _EXEC_SCRIPT_RX = re.compile(
     r"^\s*(?:EXEC(?:UTE)?|RUN)\s+SCRIPT"
     r"(?P<exists>\s+IF\s+EXISTS)?"
@@ -545,7 +553,7 @@ def _parse_lines(lines: Iterable[str], source_name: str) -> Script:
                 _current_body().append(
                     IncludeDirective(
                         span=SourceSpan(source_name, file_lineno),
-                        target=m.group("target").strip(),
+                        target=_strip_quotes(m.group("target").strip()),
                         if_exists=m.group("exists") is not None,
                     ),
                 )

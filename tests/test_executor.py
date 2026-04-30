@@ -616,6 +616,26 @@ class TestInclude:
         assert result.returncode == 0
         assert _query_db(tmp_path, "SELECT x FROM t") == [(99,)]
 
+    def test_include_quoted_path(self, tmp_path):
+        """INCLUDE with double-quoted path strips quotes correctly."""
+        included = tmp_path / "helper.sql"
+        included.write_text("INSERT INTO t VALUES (7);")
+        script = 'CREATE TABLE t (x INT);\n-- !x! INCLUDE "helper.sql"'
+        result = _run_ast(script, tmp_path)
+        assert result.returncode == 0, result.stderr
+        assert _query_db(tmp_path, "SELECT x FROM t") == [(7,)]
+
+    def test_include_quoted_path_with_vars(self, tmp_path):
+        """INCLUDE with quoted path containing substitution variables."""
+        subdir = tmp_path / "lib"
+        subdir.mkdir()
+        included = subdir / "helper.sql"
+        included.write_text("INSERT INTO t VALUES (8);")
+        script = f'-- !x! SUB mylib {subdir}\nCREATE TABLE t (x INT);\n-- !x! INCLUDE "!!mylib!!!!$pathsep!!helper.sql"'
+        result = _run_ast(script, tmp_path)
+        assert result.returncode == 0, result.stderr
+        assert _query_db(tmp_path, "SELECT x FROM t") == [(8,)]
+
     def test_include_if_exists_missing(self, tmp_path):
         """INCLUDE IF EXISTS silently skips missing files."""
         script = "CREATE TABLE t (x INT);\nINSERT INTO t VALUES (1);\n-- !x! INCLUDE IF EXISTS no_such_file.sql"

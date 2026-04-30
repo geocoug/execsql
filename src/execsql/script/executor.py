@@ -760,6 +760,11 @@ def _execute_include_native(
     effective_locals = _stack_localvars(ctx) or localvars
     target = substitute_vars(node.target, effective_locals, ctx=ctx).strip()
 
+    # Strip surrounding quotes — the AST parser captures the full target
+    # including any quotes, but the legacy dispatch regex stripped them.
+    if len(target) >= 2 and target[0] in ('"', "'") and target[-1] == target[0]:
+        target = target[1:-1]
+
     # Tilde expansion (matches x_include legacy handler)
     if len(target) > 1 and target[0] == "~" and target[1] == os.sep:
         target = str(Path.home() / target[2:])
