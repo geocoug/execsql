@@ -139,13 +139,24 @@ def _eval_condition(
     condition: str,
     modifiers: list[ConditionModifier] | None = None,
 ) -> bool:
-    """Evaluate a condition string with optional ANDIF/ORIF modifiers."""
+    """Evaluate a condition string with optional ANDIF/ORIF modifiers.
+
+    Short-circuits ANDIF (stops on first False) and ORIF (stops on first True)
+    so that patterns like ``IF (sub_defined(x)) ANDIF (not sub_empty(x))``
+    don't evaluate ``sub_empty`` when ``x`` is undefined.
+    """
     effective_locals = _stack_localvars(ctx)
     expanded = substitute_vars(condition, effective_locals, ctx=ctx)
     result = xcmd_test(expanded)
 
     if modifiers:
         for mod in modifiers:
+            # Short-circuit: AND with False can't become True,
+            # OR with True can't become False.
+            if mod.kind == "AND" and not result:
+                continue
+            if mod.kind == "OR" and result:
+                continue
             mod_expanded = substitute_vars(mod.condition, effective_locals, ctx=ctx)
             mod_result = xcmd_test(mod_expanded)
             if mod.kind == "AND":
@@ -353,9 +364,11 @@ def _execute_node(
         _exec_metacommand(ctx, command, node.span.file, node.span.start_line, localvars)
 
     elif isinstance(node, IfBlock):
+        ctx.last_command = _FakeScriptCmd(node)
         _execute_if(ctx, node, localvars, in_loop=in_loop)
 
     elif isinstance(node, LoopBlock):
+        ctx.last_command = _FakeScriptCmd(node)
         _execute_loop(ctx, node, localvars)
 
     elif isinstance(node, BatchBlock):
@@ -368,6 +381,7 @@ def _execute_node(
         _execute_sql_block(ctx, node, localvars, in_loop=in_loop)
 
     elif isinstance(node, IncludeDirective):
+        ctx.last_command = _FakeScriptCmd(node)
         _execute_include(ctx, node, localvars)
 
 

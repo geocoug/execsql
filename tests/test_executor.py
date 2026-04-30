@@ -435,6 +435,41 @@ class TestAssert:
 
 
 # ---------------------------------------------------------------------------
+# Short-circuit ANDIF/ORIF
+# ---------------------------------------------------------------------------
+
+
+class TestShortCircuit:
+    def test_andif_short_circuits(self, tmp_path):
+        """ANDIF does not evaluate sub_empty when sub_defined is false."""
+        script = (
+            "CREATE TABLE t (x INT);\n"
+            "-- !x! IF (sub_defined(undefined_var))\n"
+            "-- !x! ANDIF (not sub_empty(undefined_var))\n"
+            "INSERT INTO t VALUES (1);\n"
+            "-- !x! ELSE\n"
+            "INSERT INTO t VALUES (2);\n"
+            "-- !x! ENDIF\n"
+        )
+        result = _run_ast(script, tmp_path)
+        assert result.returncode == 0, result.stderr
+        assert _query_db(tmp_path, "SELECT x FROM t") == [(2,)]
+
+    def test_orif_short_circuits(self, tmp_path):
+        """ORIF does not evaluate when first condition is already true."""
+        script = (
+            "CREATE TABLE t (x INT);\n"
+            "-- !x! IF (TRUE)\n"
+            "-- !x! ORIF (not sub_empty(undefined_var))\n"
+            "INSERT INTO t VALUES (1);\n"
+            "-- !x! ENDIF\n"
+        )
+        result = _run_ast(script, tmp_path)
+        assert result.returncode == 0, result.stderr
+        assert _query_db(tmp_path, "SELECT x FROM t") == [(1,)]
+
+
+# ---------------------------------------------------------------------------
 # Profiling
 # ---------------------------------------------------------------------------
 

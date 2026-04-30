@@ -11,6 +11,11 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Fixed
+
+- ANDIF/ORIF conditions now short-circuit: `IF (sub_defined(x)) ANDIF (not sub_empty(x))` no longer evaluates `sub_empty` when `sub_defined` returns false. Previously all modifiers were evaluated unconditionally, causing `sub_empty` to throw "Unrecognized substitution variable" on undefined variables.
+- Error reports for IF, LOOP, and INCLUDE nodes now show the correct source line and metacommand text instead of the previous command's location.
+
 ______________________________________________________________________
 
 ## [2.16.6] - 2026-04-30
