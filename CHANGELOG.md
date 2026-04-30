@@ -11,6 +11,11 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Fixed
+
+- `execsql-format` no longer corrupts PL/pgSQL function bodies inside `$$`-delimited blocks. sqlglot does not understand PL/pgSQL and was rewriting `IF NOT EXISTS ... END IF`, `IF ... THEN RETURN ... END IF`, and similar constructs as `COMMIT;`. The formatter now tracks `$$` boundaries and skips sqlglot formatting for any SQL block containing dollar-quoted content.
+- Debug REPL `.vars` now shows `~` local and `#` param variables from the current stack frame, not just global variables. `.vars ~myvar` and `.set ~myvar value` also correctly read/write the stack frame's local scope instead of the global pool.
+
 ______________________________________________________________________
 
 ## [2.16.5] - 2026-04-30

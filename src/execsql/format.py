@@ -242,16 +242,27 @@ def format_file(source: str, indent: int = 4, use_sql: bool = True) -> str:
     sql_acc: list[str] = []
     output: list[str] = []
 
+    in_dollar_quote = False
+
     def flush_sql() -> None:
+        nonlocal in_dollar_quote
         if sql_acc:
-            output.extend(format_sql_block(sql_acc, depth, indent, use_sql))
+            # If any line in the accumulated block is inside a $$-delimited
+            # region, skip sqlglot formatting entirely.  PL/pgSQL function
+            # bodies contain IF/END IF, LOOP, RETURN, etc. that sqlglot does
+            # not understand and will corrupt (e.g., rewriting to COMMIT).
+            safe_for_sqlglot = use_sql and not in_dollar_quote
+            output.extend(format_sql_block(sql_acc, depth, indent, safe_for_sqlglot))
             sql_acc.clear()
 
     for raw_line in source.expandtabs(4).splitlines():
         m = METACOMMAND_RE.match(raw_line)
 
         if not raw_line.strip():
-            flush_sql()
+            if not in_dollar_quote:
+                flush_sql()
+            else:
+                sql_acc.append(raw_line)
             output.append("")
 
         elif m:
@@ -279,6 +290,9 @@ def format_file(source: str, indent: int = 4, use_sql: bool = True) -> str:
                 output.append(format_metacommand(payload, depth, indent))
 
         else:
+            # Track $$ boundaries to prevent sqlglot from mangling PL/pgSQL
+            if "$$" in raw_line and raw_line.count("$$") % 2 == 1:
+                in_dollar_quote = not in_dollar_quote
             sql_acc.append(raw_line)
 
     flush_sql()
