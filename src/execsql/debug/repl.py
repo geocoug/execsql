@@ -336,7 +336,13 @@ def _print_all_vars(*, include_env: bool = False) -> None:
     if subvars is None:
         _write("  (no substitution variables defined)\n\n")
         return
-    items = subvars.substitutions  # list of (name, value) tuples
+    items = list(subvars.substitutions)  # list of (name, value) tuples
+    # Include ~local and #param variables from the current stack frame.
+    if _state.commandliststack:
+        frame = _state.commandliststack[-1]
+        items.extend(frame.localvars.substitutions)
+        if frame.paramvals is not None:
+            items.extend(frame.paramvals.substitutions)
     if not items:
         _write("  (no substitution variables defined)\n\n")
         return
@@ -389,6 +395,7 @@ def _print_var(varname: str) -> None:
     """Print the value of a single substitution variable.
 
     Tries the name as typed, then with the sigil prefix stripped.
+    Checks both global subvars and the current stack frame's local/param vars.
     """
     subvars = _state.subvars
     if subvars is None:
@@ -400,6 +407,12 @@ def _print_var(varname: str) -> None:
     value = subvars.varvalue(varname)
     if value is None and len(varname) > 1 and varname[0] in "$&@#~":
         value = subvars.varvalue(varname[1:])
+    # Check stack frame for ~local and #param variables.
+    if value is None and _state.commandliststack:
+        frame = _state.commandliststack[-1]
+        value = frame.localvars.varvalue(varname)
+        if value is None and frame.paramvals is not None:
+            value = frame.paramvals.varvalue(varname)
     if value is None:
         _write(f"  {_c(_CYAN, varname)}: {_c(_DIM, '(undefined)')}\n")
     else:
@@ -477,13 +490,20 @@ def _enable_step_mode() -> None:
 def _set_var(varname: str, value: str) -> None:
     """Set or update a substitution variable in the current session.
 
+    Routes ~local variables to the current stack frame's localvars (matching
+    the behavior of ``x_sub`` / ``get_subvarset``).  All other variables go
+    to the global subvars pool.
+
     Args:
-        varname: The variable name (without sigil prefix for user variables).
+        varname: The variable name (with optional sigil prefix).
         value: The value to assign to the variable.
     """
     subvars = _state.subvars
     if subvars is None:
         _write("  Error: substitution variables are not initialised.\n")
         return
-    subvars.add_substitution(varname, value)
+    if varname.startswith("~") and _state.commandliststack:
+        _state.commandliststack[-1].localvars.add_substitution(varname, value)
+    else:
+        subvars.add_substitution(varname, value)
     _write(f"  {_c(_CYAN, varname)} {_c(_DIM, '=')} {value}\n")
