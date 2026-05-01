@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.16.10] - 2026-05-01
+
 ### Fixed
 
 - EXECUTE SCRIPT with a variable-substituted target name (e.g., `EXECUTE SCRIPT !!#script_name!!`) now works correctly. Previously, the parser's regex only accepted literal word characters as the script identifier, causing variable targets to fall through to the dispatch table and fail with "EXECUTE SCRIPT should be handled by the AST executor." The parser now recognizes `!!var!!` substitution patterns as valid script identifiers.
