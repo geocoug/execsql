@@ -276,7 +276,7 @@ def _parse_lines(lines: Iterable[str], source_name: str) -> Script:
         # --- Docstring collection for SCRIPT blocks ---
         # Comments immediately following BEGIN SCRIPT are captured as the
         # docstring.  A blank line terminates the doc.
-        if block_stack and block_stack[-1].collecting_doc:
+        if block_stack and block_stack[-1].collecting_doc and not in_block_comment:
             frame = block_stack[-1]
             if not line:
                 # Blank line terminates doc collection

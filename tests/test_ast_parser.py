@@ -423,6 +423,69 @@ class TestScriptBlock:
         with pytest.raises(ErrInfo, match="Invalid BEGIN SCRIPT"):
             parse_string("-- !x! BEGIN SCRIPT foo INVALID SYNTAX\nSELECT 1;\n-- !x! END SCRIPT")
 
+    def test_default_params(self):
+        script = "-- !x! BEGIN SCRIPT loader(schema, batch=1000)\nSELECT 1;\n-- !x! END SCRIPT"
+        node = _first(script)
+        assert isinstance(node, ScriptBlock)
+        assert node.param_names == ["schema", "batch"]
+        assert node.param_defs[0].default is None
+        assert node.param_defs[1].default == "1000"
+
+    def test_all_optional_params(self):
+        script = "-- !x! BEGIN SCRIPT loader(a=x, b=y)\nSELECT 1;\n-- !x! END SCRIPT"
+        node = _first(script)
+        assert node.param_defs[0].default == "x"
+        assert node.param_defs[1].default == "y"
+
+    def test_required_after_optional_raises(self):
+        with pytest.raises(ErrInfo, match="Required parameter|required parameter"):
+            parse_string("-- !x! BEGIN SCRIPT bad(a=1, b)\nSELECT 1;\n-- !x! END SCRIPT")
+
+    def test_docstring_single_line(self):
+        script = "-- !x! BEGIN SCRIPT proc\n-- This is the doc.\n\nSELECT 1;\n-- !x! END SCRIPT"
+        node = _first(script)
+        assert node.doc == "This is the doc."
+
+    def test_docstring_multi_line(self):
+        script = "-- !x! BEGIN SCRIPT proc\n-- Line one.\n-- Line two.\n\nSELECT 1;\n-- !x! END SCRIPT"
+        node = _first(script)
+        assert node.doc == "Line one.\nLine two."
+
+    def test_docstring_blank_line_terminates(self):
+        script = "-- !x! BEGIN SCRIPT proc\n-- Doc line.\n\n-- Not doc.\nSELECT 1;\n-- !x! END SCRIPT"
+        node = _first(script)
+        assert node.doc == "Doc line."
+
+    def test_docstring_metacommand_terminates(self):
+        script = "-- !x! BEGIN SCRIPT proc\n-- !x! SUB ~x 1\nSELECT 1;\n-- !x! END SCRIPT"
+        node = _first(script)
+        assert node.doc is None
+
+    def test_no_docstring(self):
+        script = "-- !x! BEGIN SCRIPT proc\nSELECT 1;\n-- !x! END SCRIPT"
+        node = _first(script)
+        assert node.doc is None
+
+    def test_docstring_block_comment(self):
+        script = "-- !x! BEGIN SCRIPT proc\n/* Block comment doc. */\n\nSELECT 1;\n-- !x! END SCRIPT"
+        node = _first(script)
+        assert node.doc == "Block comment doc."
+
+    def test_docstring_multi_line_block_comment(self):
+        script = "-- !x! BEGIN SCRIPT proc\n/* Line one\n   Line two */\n\nSELECT 1;\n-- !x! END SCRIPT"
+        node = _first(script)
+        assert "Line one" in node.doc
+        assert "Line two" in node.doc
+
+    def test_docstring_empty_comment_lines(self):
+        """Bare -- lines act as paragraph separators in docstrings."""
+        script = "-- !x! BEGIN SCRIPT proc\n-- Paragraph one.\n--\n-- Paragraph two.\n\nSELECT 1;\n-- !x! END SCRIPT"
+        node = _first(script)
+        assert "Paragraph one." in node.doc
+        assert "Paragraph two." in node.doc
+        lines = node.doc.split("\n")
+        assert lines[1] == ""  # empty separator
+
 
 # ---------------------------------------------------------------------------
 # BEGIN SQL / END SQL
