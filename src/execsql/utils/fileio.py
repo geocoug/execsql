@@ -284,7 +284,7 @@ class FileWriter(multiprocessing.Process):
         self.active = False
         self.close_all()
 
-    def run(self) -> None:
+    def run(self) -> None:  # pragma: no cover – runs in a subprocess
         # Ignore SIGINT in the child process — the parent owns Ctrl+C handling
         # and will shut us down via CMD_SHUTDOWN on the queue.  Without this,
         # KeyboardInterrupt races through queue.get() and close_all(), producing

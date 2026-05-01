@@ -441,6 +441,18 @@ class TestScriptBlock:
         with pytest.raises(ErrInfo, match="Required parameter|required parameter"):
             parse_string("-- !x! BEGIN SCRIPT bad(a=1, b)\nSELECT 1;\n-- !x! END SCRIPT")
 
+    def test_default_with_with_params_syntax(self):
+        script = "-- !x! BEGIN SCRIPT loader WITH PARAMETERS (a, b=100)\nSELECT 1;\n-- !x! END SCRIPT"
+        node = _first(script)
+        assert node.param_defs[1].default == "100"
+
+    def test_docstring_with_params_and_defaults(self):
+        script = "-- !x! BEGIN SCRIPT proc(a, b=10)\n-- The docstring.\n\nSELECT 1;\n-- !x! END SCRIPT"
+        node = _first(script)
+        assert node.doc == "The docstring."
+        assert node.param_defs[0].required is True
+        assert node.param_defs[1].default == "10"
+
     def test_docstring_single_line(self):
         script = "-- !x! BEGIN SCRIPT proc\n-- This is the doc.\n\nSELECT 1;\n-- !x! END SCRIPT"
         node = _first(script)
