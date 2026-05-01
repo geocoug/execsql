@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.16.9] - 2026-05-01
+
 ### Added
 
 - `SHOW SCRIPTS` metacommand lists all registered SCRIPT definitions with parameter signatures and source locations.
