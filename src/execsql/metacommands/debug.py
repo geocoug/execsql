@@ -1,5 +1,4 @@
 from __future__ import annotations
-from execsql.utils.errors import fatal_error
 
 """
 Debug metacommand handlers for execsql.
@@ -7,11 +6,16 @@ Debug metacommand handlers for execsql.
 Provides ``x_debug_write_metacommands``, which implements the
 ``WRITE METACOMMANDS`` debug metacommand that prints the full registered
 metacommand list to the log/console for troubleshooting.
+
+Also provides ``x_show_scripts`` and ``x_show_script`` for runtime
+introspection of registered SCRIPT blocks.
 """
 
+from pathlib import Path
 from typing import Any
 
 import execsql.state as _state
+from execsql.utils.errors import fatal_error
 from execsql.utils.fileio import EncodedFile, filewriter_open_as_new, filewriter_write
 
 
@@ -173,3 +177,87 @@ def x_debug_write_config(**kwargs: Any) -> None:
 
     for line in lines:
         write(f"{line}\n")
+
+
+# ---------------------------------------------------------------------------
+# Helpers for SCRIPT introspection (shared by metacommands and REPL)
+# ---------------------------------------------------------------------------
+
+
+def _format_script_signature(name: str, param_defs: Any) -> str:
+    """Return ``name(param1, param2, opt=default)`` or ``name()``.
+
+    *param_defs* may be a list of :class:`ParamDef` objects (preferred) or
+    a plain list of strings (backward compat).
+    """
+    if not param_defs:
+        return f"{name}()"
+    parts: list[str] = []
+    for p in param_defs:
+        if hasattr(p, "default") and p.default is not None:
+            parts.append(f"{p.name}={p.default}")
+        elif hasattr(p, "name"):
+            parts.append(p.name)
+        else:
+            parts.append(str(p))
+    return f"{name}({', '.join(parts)})"
+
+
+def _format_script_source(span: Any) -> str:
+    """Return ``file:start-end`` from a SourceSpan."""
+    filename = Path(span.file).name if span and span.file else "<unknown>"
+    if span and span.start_line is not None:
+        if span.end_line is not None and span.end_line != span.start_line:
+            return f"{filename}:{span.start_line}-{span.end_line}"
+        return f"{filename}:{span.start_line}"
+    return filename
+
+
+# ---------------------------------------------------------------------------
+# SHOW SCRIPTS / SHOW SCRIPT metacommand handlers
+# ---------------------------------------------------------------------------
+
+
+def x_show_scripts(**kwargs: Any) -> None:
+    """List all registered SCRIPT definitions with parameters and source location."""
+    scripts = _state.ast_scripts
+    if not scripts:
+        _state.output.write("No scripts registered.\n")
+        return
+    _state.output.write(f"Registered scripts ({len(scripts)}):\n\n")
+    # Compute column width for alignment
+    sigs = {name: _format_script_signature(name, block.param_defs) for name, block in scripts.items()}
+    max_sig = max(len(s) for s in sigs.values())
+    for name, block in scripts.items():
+        sig = sigs[name]
+        src = _format_script_source(block.span)
+        _state.output.write(f"  {sig:<{max_sig}}  {src}\n")
+    _state.output.write("\n")
+
+
+def x_show_script(**kwargs: Any) -> None:
+    """Show detail for a single registered SCRIPT definition."""
+    script_name = kwargs.get("script_id", "").lower()
+    scripts = _state.ast_scripts
+    if script_name not in scripts:
+        _state.output.write(f"No script named '{script_name}' is registered.\n")
+        return
+    block = scripts[script_name]
+    sig = _format_script_signature(block.name, block.param_defs)
+    src = _format_script_source(block.span)
+    _state.output.write(f"Script: {sig}\n")
+    _state.output.write(f"Source: {src}\n")
+    if block.param_defs:
+        _state.output.write("Parameters:\n")
+        max_name = max(len(p.name) for p in block.param_defs)
+        for p in block.param_defs:
+            if p.default is not None:
+                _state.output.write(f"  {p.name:<{max_name}}  (optional, default: {p.default})\n")
+            else:
+                _state.output.write(f"  {p.name:<{max_name}}  (required)\n")
+    else:
+        _state.output.write("Parameters: (none)\n")
+    if block.doc:
+        _state.output.write("\n")
+        for doc_line in block.doc.split("\n"):
+            _state.output.write(f"  {doc_line}\n")

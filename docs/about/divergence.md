@@ -52,6 +52,15 @@ ______________________________________________________________________
 | `CONFIG LOG_SQL`       | Enable SQL query audit logging — writes executed SQL to the log file.                                                                                                                                                                                                                                                                                                                                                    |
 | `PG_UPSERT`            | QA-checked, FK-dependency-ordered upserts from staging to base schema on PostgreSQL. Integrates [pg-upsert](https://pg-upsert.readthedocs.io/) as an optional dependency. Three modes: full pipeline, QA-only, and schema check. Supports `EXPORT_FAILURES`, `EXPORT_FORMAT`, `EXPORT_MAX_ROWS`, and `STRICT_COLUMNS` keywords. `STRICT_COLUMNS` forces all missing columns to be errors (requires `pg-upsert>=1.22.0`). |
 | `IMPORT … FROM JSON`   | Import a JSON file (array of objects or NDJSON) into a database table. Nested objects are flattened with dot-separated column names; arrays are stored as JSON strings.                                                                                                                                                                                                                                                  |
+| `SHOW SCRIPTS`         | List all registered SCRIPT definitions with parameter signatures and source locations. Includes scripts from INCLUDEEd files.                                                                                                                                                                                                                                                                                            |
+| `SHOW SCRIPT <name>`   | Show detail for a single registered SCRIPT: name, parameters (with defaults), source file/line range, and docstring.                                                                                                                                                                                                                                                                                                     |
+
+### SCRIPT Enhancements
+
+| Feature            | Description                                                                                                                                                                                                    |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Default parameters | `BEGIN SCRIPT load(schema, table, batch=1000)` — parameters with defaults can be omitted at call site. Required parameters must precede optional parameters.                                                   |
+| Docstrings         | Comments (`--` or `/* */`) immediately following `BEGIN SCRIPT` are captured as documentation. A blank line terminates the docstring. Displayed by `SHOW SCRIPT`, `SHOW SCRIPTS`, and `.scripts` REPL command. |
 
 ### Conditional Tests
 
@@ -131,17 +140,19 @@ execsql2 adds a full interactive debugging system that has no equivalent in upst
 
 **REPL commands** (all dot-prefixed to avoid collisions with variable names and SQL):
 
-| Command                | Description                                                               |
-| ---------------------- | ------------------------------------------------------------------------- |
-| `.continue` / `.c`     | Resume normal script execution                                            |
-| `.abort` / `.q`        | Halt the script with exit status 1                                        |
-| `.vars` / `.v`         | List all user, system, local, and counter variables (grouped by type)     |
-| `.vars all` / `.v all` | Include environment variables (`&`) in the listing                        |
-| `.next` / `.n`         | Execute the next statement, then pause again (step mode)                  |
-| `.where` / `.w`        | Show the current script file, line number, and upcoming statement text    |
-| `.stack`               | Show the command-list stack (script name, cursor position, nesting depth) |
-| `.set VAR VAL` / `.s`  | Set or update a substitution variable; prints confirmation on success     |
-| `.help` / `.h`         | Show available commands                                                   |
+| Command                | Description                                                                 |
+| ---------------------- | --------------------------------------------------------------------------- |
+| `.continue` / `.c`     | Resume normal script execution                                              |
+| `.abort` / `.q`        | Halt the script with exit status 1                                          |
+| `.vars` / `.v`         | List all user, system, local, and counter variables (grouped by type)       |
+| `.vars all` / `.v all` | Include environment variables (`&`) in the listing                          |
+| `.next` / `.n`         | Execute the next statement, then pause again (step mode)                    |
+| `.where` / `.w`        | Show the current script file, line number, and upcoming statement text      |
+| `.stack`               | Show the command-list stack (script name, cursor position, nesting depth)   |
+| `.set VAR VAL` / `.s`  | Set or update a substitution variable; prints confirmation on success       |
+| `.scripts`             | List all registered SCRIPT definitions with parameters and source locations |
+| `.scripts NAME`        | Show detail for a specific SCRIPT (parameters, source file/line range)      |
+| `.help` / `.h`         | Show available commands                                                     |
 
 **Non-prefixed input** is interpreted as either a variable lookup or ad-hoc SQL:
 

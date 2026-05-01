@@ -713,23 +713,35 @@ def _execute_script_native(
         for param, arg in all_prepared_args:
             paramvals.add_substitution(param, arg)
 
-        # Validate parameter names match
-        if script_block.param_names is not None:
+        # Validate parameter names match — with default parameter support
+        if script_block.param_defs is not None:
             passed_names = [p[0].lstrip("#") for p in all_prepared_args]
-            if not all(p in passed_names for p in script_block.param_names):
+            required = [p.name for p in script_block.param_defs if p.required]
+            missing = [p for p in required if p not in passed_names]
+            if missing:
                 raise ErrInfo(
                     "error",
-                    other_msg=f"Formal and actual parameter name mismatch in call to {script_block.name}.",
+                    other_msg=(f"Missing required parameter(s) ({', '.join(missing)}) in call to {script_block.name}."),
                 )
+            # Inject defaults for optional params not provided
+            for pdef in script_block.param_defs:
+                if pdef.default is not None and pdef.name not in passed_names:
+                    paramvals.add_substitution(f"#{pdef.name}", pdef.default)
     else:
-        if script_block.param_names is not None:
-            raise ErrInfo(
-                "error",
-                other_msg=(
-                    f"Missing expected parameters ({', '.join(script_block.param_names)}) "
-                    f"in call to {script_block.name}."
-                ),
-            )
+        if script_block.param_defs is not None:
+            required = [p.name for p in script_block.param_defs if p.required]
+            if required:
+                raise ErrInfo(
+                    "error",
+                    other_msg=(
+                        f"Missing required parameter(s) ({', '.join(required)}) in call to {script_block.name}."
+                    ),
+                )
+            # No args provided but all params have defaults — inject them all
+            paramvals = ScriptArgSubVarSet()
+            for pdef in script_block.param_defs:
+                if pdef.default is not None:
+                    paramvals.add_substitution(f"#{pdef.name}", pdef.default)
 
     # Push a CommandList frame onto the stack so that:
     #   - get_subvarset() can find ~local and +outer-scope variables

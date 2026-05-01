@@ -14,6 +14,7 @@ from execsql.script.ast import (
     LoopBlock,
     MetaCommandStatement,
     Node,
+    ParamDef,
     Script,
     ScriptBlock,
     SourceSpan,
@@ -245,10 +246,22 @@ class TestScriptBlock:
         node = ScriptBlock(
             span=_span(1, 5),
             name="load_data",
-            param_names=["table_name", "file_path"],
+            param_defs=[ParamDef("table_name"), ParamDef("file_path")],
             body=[],
         )
         assert node.param_names == ["table_name", "file_path"]
+
+    def test_with_defaults(self):
+        node = ScriptBlock(
+            span=_span(1, 5),
+            name="load_data",
+            param_defs=[ParamDef("schema"), ParamDef("batch", "1000")],
+            body=[],
+        )
+        assert node.param_names == ["schema", "batch"]
+        assert node.param_defs[0].required is True
+        assert node.param_defs[1].required is False
+        assert node.param_defs[1].default == "1000"
 
     def test_repr(self):
         node = ScriptBlock(span=_span(1, 3), name="my_proc", body=[])
@@ -257,7 +270,12 @@ class TestScriptBlock:
         assert "ScriptBlock" in r
 
     def test_repr_with_params(self):
-        node = ScriptBlock(span=_span(1, 3), name="x", param_names=["a", "b"], body=[])
+        node = ScriptBlock(
+            span=_span(1, 3),
+            name="x",
+            param_defs=[ParamDef("a"), ParamDef("b")],
+            body=[],
+        )
         assert "params=" in repr(node)
 
 
@@ -494,7 +512,12 @@ class TestFormatTree:
 
     def test_script_block_tree(self):
         sql = SqlStatement(span=_span(2), text="SELECT 1;")
-        sb = ScriptBlock(span=_span(1, 3), name="my_proc", param_names=["x", "y"], body=[sql])
+        sb = ScriptBlock(
+            span=_span(1, 3),
+            name="my_proc",
+            param_defs=[ParamDef("x"), ParamDef("y")],
+            body=[sql],
+        )
         script = Script(source="test.sql", body=[sb])
         result = format_tree(script)
         assert "my_proc (x, y)" in result

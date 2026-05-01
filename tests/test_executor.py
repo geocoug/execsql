@@ -1207,3 +1207,345 @@ class TestLocalVarScoping:
         assert result.returncode == 0, result.stderr
         rows = _query_db(tmp_path, "SELECT x FROM t ORDER BY x")
         assert rows == [(1,), (2,)]
+
+
+# ---------------------------------------------------------------------------
+# SHOW SCRIPTS / SHOW SCRIPT metacommand
+# ---------------------------------------------------------------------------
+
+
+class TestShowScripts:
+    """Tests for the SHOW SCRIPTS / SHOW SCRIPT introspection metacommands."""
+
+    def test_show_scripts_empty(self, tmp_path):
+        """SHOW SCRIPTS when no scripts are defined prints 'No scripts registered'."""
+        result = _run_ast(
+            "CREATE TABLE t (x INT);\n-- !x! SHOW SCRIPTS\n",
+            tmp_path,
+        )
+        assert result.returncode == 0, result.stderr
+        assert "No scripts registered" in result.stdout
+
+    def test_show_scripts_lists_all(self, tmp_path):
+        """SHOW SCRIPTS lists all registered scripts with params."""
+        result = _run_ast(
+            "-- !x! BEGIN SCRIPT proc1 WITH PARAMETERS (a, b)\n"
+            "SELECT 1;\n"
+            "-- !x! END SCRIPT\n"
+            "-- !x! BEGIN SCRIPT proc2\n"
+            "SELECT 2;\n"
+            "-- !x! END SCRIPT\n"
+            "CREATE TABLE t (x INT);\n"
+            "-- !x! SHOW SCRIPTS\n",
+            tmp_path,
+        )
+        assert result.returncode == 0, result.stderr
+        assert "proc1(a, b)" in result.stdout
+        assert "proc2()" in result.stdout
+        assert "Registered scripts (2)" in result.stdout
+
+    def test_show_script_detail(self, tmp_path):
+        """SHOW SCRIPT <name> shows detail for one script."""
+        result = _run_ast(
+            "-- !x! BEGIN SCRIPT my_proc WITH PARAMETERS (schema, table)\n"
+            "SELECT 1;\n"
+            "-- !x! END SCRIPT\n"
+            "CREATE TABLE t (x INT);\n"
+            "-- !x! SHOW SCRIPT my_proc\n",
+            tmp_path,
+        )
+        assert result.returncode == 0, result.stderr
+        assert "my_proc(schema, table)" in result.stdout
+        assert "schema" in result.stdout and "(required)" in result.stdout
+        assert "table" in result.stdout
+
+    def test_show_script_not_found(self, tmp_path):
+        """SHOW SCRIPT with unknown name prints error."""
+        result = _run_ast(
+            "CREATE TABLE t (x INT);\n-- !x! SHOW SCRIPT nonexistent\n",
+            tmp_path,
+        )
+        assert result.returncode == 0, result.stderr
+        assert "No script named 'nonexistent' is registered" in result.stdout
+
+    def test_show_script_no_params(self, tmp_path):
+        """SHOW SCRIPT for a script without parameters shows (none)."""
+        result = _run_ast(
+            "-- !x! BEGIN SCRIPT simple_proc\n"
+            "SELECT 1;\n"
+            "-- !x! END SCRIPT\n"
+            "CREATE TABLE t (x INT);\n"
+            "-- !x! SHOW SCRIPT simple_proc\n",
+            tmp_path,
+        )
+        assert result.returncode == 0, result.stderr
+        assert "Parameters: (none)" in result.stdout
+
+    def test_show_scripts_from_include(self, tmp_path):
+        """SHOW SCRIPTS includes scripts defined in INCLUDEEd files."""
+        lib = tmp_path / "lib.sql"
+        lib.write_text(
+            "-- !x! BEGIN SCRIPT helper WITH PARAMETERS (val)\nSELECT 1;\n-- !x! END SCRIPT\n",
+        )
+        result = _run_ast(
+            "-- !x! BEGIN SCRIPT main_proc\n"
+            "SELECT 2;\n"
+            "-- !x! END SCRIPT\n"
+            "CREATE TABLE t (x INT);\n"
+            "-- !x! INCLUDE lib.sql\n"
+            "-- !x! SHOW SCRIPTS\n",
+            tmp_path,
+        )
+        assert result.returncode == 0, result.stderr
+        assert "main_proc()" in result.stdout
+        assert "helper(val)" in result.stdout
+
+
+# ---------------------------------------------------------------------------
+# Default parameters
+# ---------------------------------------------------------------------------
+
+
+class TestDefaultParameters:
+    """Tests for optional SCRIPT parameters with default values."""
+
+    def test_default_param_used(self, tmp_path):
+        """Optional param gets its default when not provided at call site."""
+        result = _run_ast(
+            "-- !x! BEGIN SCRIPT proc1(schema, batch=1000)\n"
+            "INSERT INTO t VALUES (!!#batch!!);\n"
+            "-- !x! END SCRIPT\n"
+            "CREATE TABLE t (x INT);\n"
+            "-- !x! EXECUTE SCRIPT proc1(schema=public)\n",
+            tmp_path,
+        )
+        assert result.returncode == 0, result.stderr
+        assert _query_db(tmp_path, "SELECT x FROM t") == [(1000,)]
+
+    def test_default_param_overridden(self, tmp_path):
+        """Optional param is overridden when provided at call site."""
+        result = _run_ast(
+            "-- !x! BEGIN SCRIPT proc1(schema, batch=1000)\n"
+            "INSERT INTO t VALUES (!!#batch!!);\n"
+            "-- !x! END SCRIPT\n"
+            "CREATE TABLE t (x INT);\n"
+            "-- !x! EXECUTE SCRIPT proc1(schema=public, batch=500)\n",
+            tmp_path,
+        )
+        assert result.returncode == 0, result.stderr
+        assert _query_db(tmp_path, "SELECT x FROM t") == [(500,)]
+
+    def test_missing_required_param_fails(self, tmp_path):
+        """Omitting a required param raises an error."""
+        result = _run_ast(
+            "-- !x! BEGIN SCRIPT proc1(schema, table, batch=1000)\n"
+            "SELECT 1;\n"
+            "-- !x! END SCRIPT\n"
+            "CREATE TABLE t (x INT);\n"
+            "-- !x! EXECUTE SCRIPT proc1(schema=public)\n",
+            tmp_path,
+        )
+        assert result.returncode != 0 or "Missing required" in result.stderr
+
+    def test_all_optional_no_args(self, tmp_path):
+        """Script with all-optional params can be called with no args."""
+        result = _run_ast(
+            "-- !x! BEGIN SCRIPT proc1(batch=1000, mode=fast)\n"
+            "INSERT INTO t VALUES (!!#batch!!);\n"
+            "-- !x! END SCRIPT\n"
+            "CREATE TABLE t (x INT);\n"
+            "-- !x! EXECUTE SCRIPT proc1\n",
+            tmp_path,
+        )
+        assert result.returncode == 0, result.stderr
+        assert _query_db(tmp_path, "SELECT x FROM t") == [(1000,)]
+
+    def test_multiple_defaults(self, tmp_path):
+        """Multiple optional params all get their defaults."""
+        result = _run_ast(
+            "-- !x! BEGIN SCRIPT proc1(a=10, b=20, c=30)\n"
+            "INSERT INTO t VALUES (!!#a!! + !!#b!! + !!#c!!);\n"
+            "-- !x! END SCRIPT\n"
+            "CREATE TABLE t (x INT);\n"
+            "-- !x! EXECUTE SCRIPT proc1\n",
+            tmp_path,
+        )
+        assert result.returncode == 0, result.stderr
+        assert _query_db(tmp_path, "SELECT x FROM t") == [(60,)]
+
+    def test_required_after_optional_parse_error(self, tmp_path):
+        """Required param after optional param is a parse error."""
+        result = _run_ast(
+            "-- !x! BEGIN SCRIPT bad(schema, batch=1000, table)\n"
+            "SELECT 1;\n"
+            "-- !x! END SCRIPT\n"
+            "CREATE TABLE t (x INT);\n",
+            tmp_path,
+        )
+        assert result.returncode != 0
+        assert "Required parameter" in result.stderr or "required parameter" in result.stderr.lower()
+
+    def test_show_script_with_defaults(self, tmp_path):
+        """SHOW SCRIPT displays default values."""
+        result = _run_ast(
+            "-- !x! BEGIN SCRIPT load(schema, table, batch=1000)\n"
+            "SELECT 1;\n"
+            "-- !x! END SCRIPT\n"
+            "CREATE TABLE t (x INT);\n"
+            "-- !x! SHOW SCRIPT load\n",
+            tmp_path,
+        )
+        assert result.returncode == 0, result.stderr
+        assert "load(schema, table, batch=1000)" in result.stdout
+        assert "(required)" in result.stdout
+        assert "(optional, default: 1000)" in result.stdout
+
+    def test_show_scripts_with_defaults(self, tmp_path):
+        """SHOW SCRIPTS shows defaults in signatures."""
+        result = _run_ast(
+            "-- !x! BEGIN SCRIPT load(schema, batch=1000)\n"
+            "SELECT 1;\n"
+            "-- !x! END SCRIPT\n"
+            "CREATE TABLE t (x INT);\n"
+            "-- !x! SHOW SCRIPTS\n",
+            tmp_path,
+        )
+        assert result.returncode == 0, result.stderr
+        assert "load(schema, batch=1000)" in result.stdout
+
+
+# ---------------------------------------------------------------------------
+# Docstrings
+# ---------------------------------------------------------------------------
+
+
+class TestDocstrings:
+    """Tests for automatic docstring extraction from comments after BEGIN SCRIPT."""
+
+    def test_single_line_doc(self, tmp_path):
+        """Single -- comment after BEGIN SCRIPT becomes the docstring."""
+        result = _run_ast(
+            "-- !x! BEGIN SCRIPT proc1\n"
+            "-- This is the docstring.\n"
+            "\n"
+            "SELECT 1;\n"
+            "-- !x! END SCRIPT\n"
+            "CREATE TABLE t (x INT);\n"
+            "-- !x! SHOW SCRIPT proc1\n",
+            tmp_path,
+        )
+        assert result.returncode == 0, result.stderr
+        assert "This is the docstring." in result.stdout
+
+    def test_multi_line_doc(self, tmp_path):
+        """Multiple -- comments become a multi-line docstring."""
+        result = _run_ast(
+            "-- !x! BEGIN SCRIPT proc1\n"
+            "-- Load data from staging.\n"
+            "-- Parameters:\n"
+            "--   schema - Target schema\n"
+            "\n"
+            "SELECT 1;\n"
+            "-- !x! END SCRIPT\n"
+            "CREATE TABLE t (x INT);\n"
+            "-- !x! SHOW SCRIPT proc1\n",
+            tmp_path,
+        )
+        assert result.returncode == 0, result.stderr
+        assert "Load data from staging." in result.stdout
+        assert "schema - Target schema" in result.stdout
+
+    def test_blank_line_terminates_doc(self, tmp_path):
+        """A blank line stops doc collection — later comments are not doc."""
+        result = _run_ast(
+            "-- !x! BEGIN SCRIPT proc1\n"
+            "-- This is the doc.\n"
+            "\n"
+            "-- This is NOT the doc.\n"
+            "SELECT 1;\n"
+            "-- !x! END SCRIPT\n"
+            "CREATE TABLE t (x INT);\n"
+            "-- !x! SHOW SCRIPT proc1\n",
+            tmp_path,
+        )
+        assert result.returncode == 0, result.stderr
+        assert "This is the doc." in result.stdout
+        assert "This is NOT the doc." not in result.stdout
+
+    def test_no_doc(self, tmp_path):
+        """Script without comments after BEGIN SCRIPT has no docstring."""
+        result = _run_ast(
+            "-- !x! BEGIN SCRIPT proc1\n"
+            "SELECT 1;\n"
+            "-- !x! END SCRIPT\n"
+            "CREATE TABLE t (x INT);\n"
+            "-- !x! SHOW SCRIPT proc1\n",
+            tmp_path,
+        )
+        assert result.returncode == 0, result.stderr
+        # Output should just have Script/Source/Parameters, no doc text
+        lines = [ln for ln in result.stdout.strip().split("\n") if ln.strip()]
+        assert len(lines) == 3  # Script, Source, Parameters
+
+    def test_metacommand_stops_doc(self, tmp_path):
+        """A metacommand immediately after BEGIN SCRIPT stops doc collection."""
+        result = _run_ast(
+            "-- !x! BEGIN SCRIPT proc1\n"
+            "-- !x! SUB ~x 1\n"
+            "INSERT INTO t VALUES (!!~x!!);\n"
+            "-- !x! END SCRIPT\n"
+            "CREATE TABLE t (x INT);\n"
+            "-- !x! EXECUTE SCRIPT proc1\n",
+            tmp_path,
+        )
+        assert result.returncode == 0, result.stderr
+        assert _query_db(tmp_path, "SELECT x FROM t") == [(1,)]
+
+    def test_block_comment_doc(self, tmp_path):
+        """A /* */ block comment after BEGIN SCRIPT becomes the docstring."""
+        result = _run_ast(
+            "-- !x! BEGIN SCRIPT proc1\n"
+            "/* This is a block comment doc. */\n"
+            "\n"
+            "SELECT 1;\n"
+            "-- !x! END SCRIPT\n"
+            "CREATE TABLE t (x INT);\n"
+            "-- !x! SHOW SCRIPT proc1\n",
+            tmp_path,
+        )
+        assert result.returncode == 0, result.stderr
+        assert "This is a block comment doc." in result.stdout
+
+    def test_show_scripts_no_doc_in_list(self, tmp_path):
+        """SHOW SCRIPTS does NOT show docstrings in the list view."""
+        result = _run_ast(
+            "-- !x! BEGIN SCRIPT proc1\n"
+            "-- Load data from staging.\n"
+            "\n"
+            "SELECT 1;\n"
+            "-- !x! END SCRIPT\n"
+            "CREATE TABLE t (x INT);\n"
+            "-- !x! SHOW SCRIPTS\n",
+            tmp_path,
+        )
+        assert result.returncode == 0, result.stderr
+        assert "proc1()" in result.stdout
+        assert "Load data from staging." not in result.stdout
+
+    def test_doc_with_defaults(self, tmp_path):
+        """Doc and defaults work together."""
+        result = _run_ast(
+            "-- !x! BEGIN SCRIPT load(schema, batch=1000)\n"
+            "-- Load data into the target schema.\n"
+            "\n"
+            "INSERT INTO t VALUES (!!#batch!!);\n"
+            "-- !x! END SCRIPT\n"
+            "CREATE TABLE t (x INT);\n"
+            "-- !x! EXECUTE SCRIPT load(schema=public)\n"
+            "-- !x! SHOW SCRIPT load\n",
+            tmp_path,
+        )
+        assert result.returncode == 0, result.stderr
+        assert _query_db(tmp_path, "SELECT x FROM t") == [(1000,)]
+        assert "Load data into the target schema." in result.stdout
+        assert "load(schema, batch=1000)" in result.stdout

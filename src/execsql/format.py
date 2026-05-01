@@ -73,6 +73,8 @@ MULTIWORD_KEYWORDS = [
     "PROMPT ASK",
     "WITH TEMPLATE",
     "IN ZIPFILE",
+    "SHOW SCRIPTS",
+    "SHOW SCRIPT",
 ]
 
 # Depth-tracking sets

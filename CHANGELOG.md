@@ -11,6 +11,14 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Added
+
+- `SHOW SCRIPTS` metacommand lists all registered SCRIPT definitions with parameter signatures and source locations.
+- `SHOW SCRIPT <name>` metacommand shows detail for a single SCRIPT (parameters, source file and line range, docstring).
+- `.scripts` REPL command lists all registered scripts; `.scripts <name>` shows detail for one script.
+- Default parameter values for SCRIPT definitions: `BEGIN SCRIPT load(schema, table, batch=1000)`. Parameters with defaults can be omitted at call site; the default value is used automatically. Required parameters must precede optional parameters (like Python).
+- Automatic docstring extraction for SCRIPT blocks. Comments (`--` or `/* */`) immediately following `BEGIN SCRIPT` are captured as documentation. A blank line terminates the docstring. Docstrings are displayed by `SHOW SCRIPT`, `SHOW SCRIPTS`, and `.scripts` in the debug REPL.
+
 ______________________________________________________________________
 
 ## [2.16.8] - 2026-04-30

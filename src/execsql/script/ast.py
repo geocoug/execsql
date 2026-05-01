@@ -52,6 +52,7 @@ __all__ = [
     "IfBlock",
     "LoopBlock",
     "BatchBlock",
+    "ParamDef",
     "ScriptBlock",
     "SqlBlock",
     "IncludeDirective",
@@ -290,6 +291,24 @@ class BatchBlock(Node):
         return f"BatchBlock({self.span}, body={len(self.body)})"
 
 
+@dataclass(frozen=True, slots=True)
+class ParamDef:
+    """A single SCRIPT parameter definition with an optional default value.
+
+    Attributes:
+        name: The parameter name (as declared, without ``#`` prefix).
+        default: The default value string, or ``None`` for required parameters.
+    """
+
+    name: str
+    default: str | None = None
+
+    @property
+    def required(self) -> bool:
+        """Return ``True`` if this parameter has no default value."""
+        return self.default is None
+
+
 @dataclass
 class ScriptBlock(Node):
     """A BEGIN SCRIPT name ... END SCRIPT structure.
@@ -299,20 +318,31 @@ class ScriptBlock(Node):
 
     Attributes:
         name: The script block name (lowercased).
-        param_names: Optional list of formal parameter names.
+        param_defs: Optional list of :class:`ParamDef` parameter definitions.
+        doc: Optional docstring extracted from comments immediately following
+            the BEGIN SCRIPT line.
         body: Nodes within the script block.
     """
 
     name: str
-    param_names: list[str] | None = None
+    param_defs: list[ParamDef] | None = None
+    doc: str | None = None
     body: list[Node] = field(default_factory=list)
+
+    @property
+    def param_names(self) -> list[str] | None:
+        """Return parameter names only (backward compatibility)."""
+        if self.param_defs is None:
+            return None
+        return [p.name for p in self.param_defs]
 
     def children(self) -> Iterator[Node]:
         yield from self.body
 
     def __repr__(self) -> str:
-        params = f", params={self.param_names}" if self.param_names else ""
-        return f"ScriptBlock({self.span}, name={self.name!r}{params}, body={len(self.body)})"
+        params = f", params={self.param_names}" if self.param_defs else ""
+        doc_tag = ", doc=True" if self.doc else ""
+        return f"ScriptBlock({self.span}, name={self.name!r}{params}{doc_tag}, body={len(self.body)})"
 
 
 @dataclass
@@ -547,8 +577,15 @@ def _node_label(node: Node) -> str:
     if isinstance(node, BatchBlock):
         return f"{_tag('BATCH')} BEGIN BATCH"
     if isinstance(node, ScriptBlock):
-        params = f" ({', '.join(node.param_names)})" if node.param_names else ""
-        return f"{_tag('SCRIPT')} {node.name}{params}"
+        if node.param_defs:
+            parts = []
+            for p in node.param_defs:
+                parts.append(f"{p.name}={p.default}" if p.default is not None else p.name)
+            params = f" ({', '.join(parts)})"
+        else:
+            params = ""
+        doc_tag = " [doc]" if node.doc else ""
+        return f"{_tag('SCRIPT')} {node.name}{params}{doc_tag}"
     if isinstance(node, SqlBlock):
         return f"{_tag('SQL_BLK')} BEGIN SQL"
     if isinstance(node, IncludeDirective):

@@ -111,6 +111,8 @@ _HELP_COMMANDS = [
     (".where", ".w", "Show the current script location and upcoming statement"),
     (".stack", "", "Show the command-list stack (script name, line, depth)"),
     (".set VAR VAL", ".s", "Set or update a substitution variable"),
+    (".scripts", "", "List all registered SCRIPT definitions"),
+    (".scripts NAME", "", "Show detail for a specific SCRIPT"),
     (".help", ".h", "Show this help text"),
 ]
 
@@ -290,6 +292,12 @@ def _handle_dot_command(line: str) -> None:
             varname = parts[0]
             value = parts[1] if len(parts) > 1 else ""
             _set_var(varname, value)
+    elif cmd.startswith("scripts"):
+        rest = cmd[7:].strip()
+        if rest:
+            _print_script_detail(rest)
+        else:
+            _print_scripts()
     else:
         _write(f"  {_c(_RED, 'Unknown command:')} {line!r}. Type '.help' for available commands.\n")
 
@@ -507,3 +515,54 @@ def _set_var(varname: str, value: str) -> None:
     else:
         subvars.add_substitution(varname, value)
     _write(f"  {_c(_CYAN, varname)} {_c(_DIM, '=')} {value}\n")
+
+
+def _print_scripts() -> None:
+    """Print all registered SCRIPT definitions."""
+    from execsql.metacommands.debug import _format_script_signature, _format_script_source
+
+    scripts = _state.ast_scripts
+    if not scripts:
+        _write("  (no scripts registered)\n\n")
+        return
+    _write_rule(f" {_c(_BOLD + _YELLOW, 'Scripts')} {_c(_DIM, f'({len(scripts)})')} ")
+    sigs = {name: _format_script_signature(name, block.param_defs) for name, block in scripts.items()}
+    max_sig = max(len(s) for s in sigs.values())
+    for name, block in scripts.items():
+        sig = sigs[name]
+        src = _format_script_source(block.span)
+        _write(f"  {_c(_CYAN, sig):<{max_sig + len(_CYAN) + len(_RESET)}}  {_c(_DIM, src)}\n")
+    _write("\n")
+
+
+def _print_script_detail(name: str) -> None:
+    """Print detail for a single SCRIPT definition."""
+    from execsql.metacommands.debug import _format_script_signature, _format_script_source
+
+    script_name = name.lower()
+    scripts = _state.ast_scripts
+    if script_name not in scripts:
+        _write(f"  {_c(_RED, 'No script named')} {_c(_CYAN, repr(script_name))} {_c(_RED, 'is registered.')}\n")
+        return
+    block = scripts[script_name]
+    sig = _format_script_signature(block.name, block.param_defs)
+    src = _format_script_source(block.span)
+    _write_rule(f" {_c(_BOLD + _YELLOW, 'Script')} {_c(_DIM, '──')} {_c(_CYAN, sig)} ")
+    _write(f"  {_c(_BOLD, 'Source:')}     {src}\n")
+    if block.param_defs:
+        _write(f"  {_c(_BOLD, 'Parameters:')}\n")
+        max_name = max(len(p.name) for p in block.param_defs)
+        for p in block.param_defs:
+            if p.default is not None:
+                _write(
+                    f"    {_c(_CYAN, p.name):<{max_name + len(_CYAN) + len(_RESET)}}  {_c(_DIM, f'(optional, default: {p.default})')}\n",
+                )
+            else:
+                _write(f"    {_c(_CYAN, p.name):<{max_name + len(_CYAN) + len(_RESET)}}  {_c(_DIM, '(required)')}\n")
+    else:
+        _write(f"  {_c(_BOLD, 'Parameters:')} (none)\n")
+    if block.doc:
+        _write("\n")
+        for doc_line in block.doc.split("\n"):
+            _write(f"  {_c(_DIM, doc_line)}\n")
+    _write("\n")

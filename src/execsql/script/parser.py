@@ -42,6 +42,7 @@ from execsql.script.ast import (
     LoopBlock,
     MetaCommandStatement,
     Node,
+    ParamDef,
     Script,
     ScriptBlock,
     SourceSpan,
@@ -114,9 +115,51 @@ _EXEC_SCRIPT_RX = re.compile(
 )
 
 _WITH_PARAMS_RX = re.compile(
-    r"(?:\s+WITH)?(?:\s+PARAM(?:ETER)?S)?\s*\(\s*(?P<params>\w+(?:\s*,\s*\w+)*)\s*\)\s*$",
+    r"(?:\s+WITH)?(?:\s+PARAM(?:ETER)?S)?\s*\(\s*(?P<params>"
+    r"\w+(?:\s*=\s*\S+)?(?:\s*,\s*\w+(?:\s*=\s*\S+)?)*"
+    r")\s*\)\s*$",
     re.I,
 )
+
+_PARAM_TOKEN_RX = re.compile(r"(\w+)(?:\s*=\s*(\S+))?")
+
+
+def _parse_param_defs(
+    params_str: str,
+    lineno: int,
+    source: str,
+) -> list[ParamDef]:
+    """Parse ``'a, b, c=100, d=false'`` into a list of :class:`ParamDef`.
+
+    Required parameters (no default) must precede optional parameters
+    (with default).  Raises :class:`ErrInfo` if ordering is violated.
+    """
+    tokens = [t.strip() for t in params_str.split(",")]
+    defs: list[ParamDef] = []
+    seen_optional: str | None = None  # name of first optional param
+    for token in tokens:
+        m = _PARAM_TOKEN_RX.match(token.strip())
+        if not m:
+            raise ErrInfo(
+                type="cmd",
+                other_msg=(f"Invalid parameter token '{token}' on line {lineno} of {source}."),
+            )
+        name, default = m.group(1), m.group(2)
+        if default is not None:
+            if seen_optional is None:
+                seen_optional = name
+        elif seen_optional is not None:
+            raise ErrInfo(
+                type="cmd",
+                other_msg=(
+                    f"Required parameter '{name}' after optional parameter "
+                    f"'{seen_optional}' on line {lineno} of {source}. "
+                    f"Required parameters must precede optional parameters."
+                ),
+            )
+        defs.append(ParamDef(name=name, default=default))
+    return defs
+
 
 # Line classification
 _EXEC_LINE_RX = re.compile(r"^\s*--\s*!x!\s*(?P<cmd>.+)$", re.I)
@@ -135,7 +178,16 @@ class _BlockFrame:
     to close the block correctly.
     """
 
-    __slots__ = ("node", "kind", "start_line", "source", "_in_else", "_in_elseif")
+    __slots__ = (
+        "node",
+        "kind",
+        "start_line",
+        "source",
+        "_in_else",
+        "_in_elseif",
+        "collecting_doc",
+        "doc_lines",
+    )
 
     def __init__(self, node: Node, kind: str, start_line: int, source: str) -> None:
         self.node = node
@@ -144,6 +196,8 @@ class _BlockFrame:
         self.source = source
         self._in_else = False
         self._in_elseif = False
+        self.collecting_doc: bool = kind == "script"  # auto-collect doc after BEGIN SCRIPT
+        self.doc_lines: list[str] = []
 
 
 # ---------------------------------------------------------------------------
@@ -206,8 +260,66 @@ def _parse_lines(lines: Iterable[str], source_name: str) -> Script:
             )
             line_comment_lines = []
 
+    def _stop_doc_collection() -> None:
+        """Stop collecting docstring lines and finalize the doc on the script node."""
+        if block_stack and block_stack[-1].collecting_doc:
+            frame = block_stack[-1]
+            frame.collecting_doc = False
+            if frame.doc_lines:
+                doc_text = "\n".join(frame.doc_lines).strip()
+                if doc_text and isinstance(frame.node, ScriptBlock):
+                    frame.node.doc = doc_text
+
     for file_lineno, raw_line in enumerate(lines, 1):
         line = raw_line.rstrip()
+
+        # --- Docstring collection for SCRIPT blocks ---
+        # Comments immediately following BEGIN SCRIPT are captured as the
+        # docstring.  A blank line terminates the doc.
+        if block_stack and block_stack[-1].collecting_doc:
+            frame = block_stack[-1]
+            if not line:
+                # Blank line terminates doc collection
+                _stop_doc_collection()
+                _flush_line_comments()
+                continue
+            # Check for block comment opening
+            stripped = line.lstrip()
+            if stripped.startswith("/*"):
+                # Collect block comment as doc lines
+                comment_body = stripped[2:]
+                if comment_body.rstrip().endswith("*/"):
+                    # Single-line block comment: /* text */
+                    comment_body = comment_body.rstrip()[:-2].strip()
+                    if comment_body:
+                        frame.doc_lines.append(comment_body)
+                    continue
+                # Multi-line block comment — collect until */
+                if comment_body.strip():
+                    frame.doc_lines.append(comment_body.rstrip())
+                # Let the block comment tracker handle the rest, but mark
+                # that we're collecting doc inside a block comment.
+                in_block_comment = True
+                block_comment_lines = [line]
+                block_comment_start = file_lineno
+                sql_accum_at_block_comment = False
+                # We'll handle the doc finalization when */ is found below.
+                # For now, mark doc as still collecting.
+                continue
+            # Check for single-line comment (not metacommand)
+            metacommand_match_doc = _EXEC_LINE_RX.match(line)
+            if not metacommand_match_doc and _COMMENT_LINE_RX.match(line):
+                # Strip -- prefix and optional leading space
+                text = stripped
+                if text.startswith("--"):
+                    text = text[2:]
+                    if text.startswith(" "):
+                        text = text[1:]
+                frame.doc_lines.append(text.rstrip())
+                continue
+            # Non-comment line (metacommand or SQL) — stop doc collection
+            _stop_doc_collection()
+            # Fall through to normal processing
 
         # --- Block comment tracking ---
         if not line:
@@ -219,6 +331,23 @@ def _parse_lines(lines: Iterable[str], source_name: str) -> Script:
             if len(line) > 1 and line.rstrip().endswith("*/"):
                 in_block_comment = False
                 comment_text = "\n".join(block_comment_lines)
+                # If we were collecting doc lines when the block comment opened,
+                # feed the content into the docstring instead of creating a node.
+                if block_stack and block_stack[-1].collecting_doc:
+                    frame = block_stack[-1]
+                    # Extract text between /* and */, stripping delimiters
+                    for bc_line in block_comment_lines:
+                        stripped_bc = bc_line.strip()
+                        if stripped_bc.startswith("/*"):
+                            stripped_bc = stripped_bc[2:]
+                        if stripped_bc.endswith("*/"):
+                            stripped_bc = stripped_bc[:-2]
+                        stripped_bc = stripped_bc.strip()
+                        if stripped_bc:
+                            frame.doc_lines.append(stripped_bc)
+                    block_comment_lines = []
+                    sql_accum_at_block_comment = False
+                    continue
                 if sql_accum_at_block_comment:
                     # Block comment started inside a SQL statement — fold it
                     # back into sql_accum so the statement isn't split.
@@ -332,7 +461,7 @@ def _parse_lines(lines: Iterable[str], source_name: str) -> Script:
             if m:
                 name = m.group("name").lower()
                 paramexpr = m.group("paramexpr")
-                param_names = None
+                param_defs = None
                 if paramexpr:
                     wp = _WITH_PARAMS_RX.match(paramexpr)
                     if not wp:
@@ -341,13 +470,13 @@ def _parse_lines(lines: Iterable[str], source_name: str) -> Script:
                             command_text=line,
                             other_msg=f"Invalid BEGIN SCRIPT metacommand on line {file_lineno} of file {source_name}.",
                         )
-                    param_names = re.findall(r"\w+", wp.group("params"))
+                    param_defs = _parse_param_defs(wp.group("params"), file_lineno, source_name)
                 block_stack.append(
                     _BlockFrame(
                         ScriptBlock(
                             span=SourceSpan(source_name, file_lineno),
                             name=name,
-                            param_names=param_names,
+                            param_defs=param_defs,
                         ),
                         kind="script",
                         start_line=file_lineno,

@@ -141,6 +141,8 @@ All REPL commands are dot-prefixed to avoid ambiguity with variable names and SQ
 | `.vars all` | Include environment variables (`&`) in the listing |
 | `.next` or `.n` | Execute the next script statement, then pause again (step mode) |
 | `.stack` | Show the command-list stack: script name, cursor index, and nesting depth |
+| `.scripts` | List all registered SCRIPT definitions with parameters and source locations |
+| `.scripts NAME` | Show detail for a specific SCRIPT (parameters, source file/line range) |
 | `.help` | Show the list of available REPL commands |
 
 **Variable inspection and SQL (no dot prefix):**
@@ -220,6 +222,10 @@ BEGIN SCRIPT <script_name> WITH PARAMETERS (param1[, param2[,..]])
 ```
 
 ```
+BEGIN SCRIPT <script_name>(param1, param2=default_value)
+```
+
+```
 END SCRIPT [script_name]
 ```
 
@@ -231,6 +237,56 @@ The statements within the BEGIN/END SCRIPT block are not executed within the nor
 If the WITH PARAMETERS clause is used, the parameter names specified must be assigned values within a WITH ARGUMENTS clause of any [EXECUTE SCRIPT](#executescript) metacommand that runs this script.
 
 The "WITH" and "PARAMETERS" keywords are both optional.
+
+### Default parameter values
+
+Parameters can have default values using `param=value` syntax. Parameters with defaults are optional at the call site — if omitted, the default value is used. Required parameters (no default) must precede optional parameters.
+
+```sql
+-- !x! BEGIN SCRIPT load_data(schema, table, batch_size=1000, dry_run=false)
+INSERT INTO !!#table!! SELECT * FROM staging LIMIT !!#batch_size!!;
+-- !x! END SCRIPT
+
+-- All of these are valid:
+-- !x! EXECUTE SCRIPT load_data(schema=public, table=users)
+-- !x! EXECUTE SCRIPT load_data(schema=public, table=users, batch_size=500)
+-- !x! EXECUTE SCRIPT load_data(schema=public, table=users, batch_size=500, dry_run=true)
+```
+
+A required parameter after an optional parameter is a parse error:
+
+```sql
+-- Parse error: required parameter 'table' after optional parameter 'batch'
+-- !x! BEGIN SCRIPT bad(schema, batch=1000, table)
+```
+
+### Docstrings
+
+Comments (`--` or `/* */`) immediately following the BEGIN SCRIPT line are captured as the script's docstring. A blank line terminates the docstring. Docstrings are displayed by [SHOW SCRIPT](#show_script), [SHOW SCRIPTS](#show_scripts), and the `.scripts` REPL command.
+
+```sql
+-- !x! BEGIN SCRIPT load_data(schema, table)
+-- Load data from staging into the target table.
+-- Parameters:
+--   schema - Target schema name
+--   table  - Target table name
+
+-- !x! SUB ~batch 1000
+INSERT INTO !!#table!! SELECT * FROM staging;
+-- !x! END SCRIPT
+```
+
+Block comments are also valid:
+
+```sql
+-- !x! BEGIN SCRIPT load_data(schema, table)
+/* Load data from staging into the target table. */
+
+INSERT INTO !!#table!! SELECT * FROM staging;
+-- !x! END SCRIPT
+```
+
+### Other notes
 
 If a script name is provided with the END SCRIPT metacommand, it must match the name used in the corresponding BEGIN SCRIPT metacommand. If it does not, *execsql* will halt with an error message.
 
@@ -2695,6 +2751,61 @@ SET COUNTER <counter_no> TO <numeric_expression>
 Assigns the value of the specified numeric expression to the counter. The next time that this counter is referenced, the value returned will be one larger than the value to which it is set by this metacommand.
 
 The numeric expression may consist of the simple algebraic operations of addition, subtraction, multiplication, and division. Parentheses may be used to control evaluation order. Numeric values used in the expression may be integers or floating-point numbers, but the result will be reduced to an integer before assignment to the counter variable.
+
+
+## SHOW SCRIPTS { #show_scripts }
+
+```
+SHOW SCRIPTS
+```
+
+Lists all registered SCRIPT definitions with their parameter signatures and source locations. This is useful for discovering what scripts are available at runtime, especially when scripts are loaded from INCLUDEEd files whose paths are determined dynamically.
+
+**Example output:**
+
+```
+Registered scripts (3):
+
+  load_data(schema, table, batch_size=1000)    pipeline.sql:15-42
+  cleanup()                                    init.sql:10-25
+  validate(schema, table)                      pipeline.sql:62-80
+```
+
+Default parameter values are shown in the signature. Use `SHOW SCRIPT <name>` for full detail including docstrings.
+
+If no scripts are registered, prints `No scripts registered.`
+
+## SHOW SCRIPT { #show_script }
+
+```
+SHOW SCRIPT <name>
+```
+
+Shows detail for a single registered SCRIPT definition, including its parameter list (with required/optional status and defaults), source file/line range, and docstring.
+
+**Example:**
+
+```sql
+-- !x! SHOW SCRIPT load_data
+```
+
+**Example output:**
+
+```
+Script: load_data(schema, table, batch_size=1000)
+Source: pipeline.sql:15-42
+Parameters:
+  schema      (required)
+  table       (required)
+  batch_size  (optional, default: 1000)
+
+Load data from staging into the target table.
+```
+
+If the script is not found, prints `No script named '<name>' is registered.`
+
+!!! tip
+    In the debug REPL, use `.scripts` to list all scripts or `.scripts <name>` to show detail for one script.
 
 
 ## SUB { #subcmd }
