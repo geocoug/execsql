@@ -106,10 +106,9 @@ def x_copy(**kwargs: Any) -> None:
     try:
         db2.populate_table(schema2, table2, rows, hdrs, get_ts)
         db2.commit()
-    except ErrInfo:
+    except BaseException:
+        rows.close()
         raise
-    except Exception as e:
-        raise ErrInfo("db", select_stmt, exception_msg=exception_desc()) from e
 
 
 def x_copy_query(**kwargs: Any) -> None:
@@ -181,10 +180,9 @@ def x_copy_query(**kwargs: Any) -> None:
     try:
         db2.populate_table(schema2, table2, rows, hdrs, get_ts)
         db2.commit()
-    except ErrInfo:
+    except BaseException:
+        rows.close()
         raise
-    except Exception as e:
-        raise ErrInfo("db", select_stmt, exception_msg=exception_desc()) from e
 
 
 def x_zip(**kwargs: Any) -> None:

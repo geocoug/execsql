@@ -295,6 +295,62 @@ class TestIfBlock:
         assert node.condition_modifiers[1].kind == "OR"
         assert len(node.body) == 1
 
+    def test_elseif_andif_modifier(self):
+        """ANDIF after ELSEIF is stored on the ElseIfClause, not the IfBlock."""
+        script = "-- !x! IF (COND_A)\nSELECT 1;\n-- !x! ELSEIF (COND_B)\n-- !x! ANDIF (COND_C)\nSELECT 2;\n-- !x! ENDIF"
+        node = _first(script)
+        assert isinstance(node, IfBlock)
+        assert len(node.condition_modifiers) == 0
+        assert len(node.elseif_clauses) == 1
+        clause = node.elseif_clauses[0]
+        assert clause.condition == "COND_B"
+        assert len(clause.condition_modifiers) == 1
+        assert clause.condition_modifiers[0].kind == "AND"
+        assert clause.condition_modifiers[0].condition == "COND_C"
+        assert len(clause.body) == 1
+
+    def test_elseif_orif_modifier(self):
+        """ORIF after ELSEIF is stored on the ElseIfClause."""
+        script = "-- !x! IF (COND_A)\nSELECT 1;\n-- !x! ELSEIF (COND_B)\n-- !x! ORIF (COND_C)\nSELECT 2;\n-- !x! ENDIF"
+        node = _first(script)
+        assert isinstance(node, IfBlock)
+        assert len(node.condition_modifiers) == 0
+        clause = node.elseif_clauses[0]
+        assert len(clause.condition_modifiers) == 1
+        assert clause.condition_modifiers[0].kind == "OR"
+        assert clause.condition_modifiers[0].condition == "COND_C"
+
+    def test_elseif_multiple_modifiers(self):
+        """Multiple ANDIF/ORIF after ELSEIF."""
+        script = (
+            "-- !x! IF (COND_A)\nSELECT 1;\n"
+            "-- !x! ELSEIF (COND_B)\n-- !x! ANDIF (COND_C)\n-- !x! ORIF (COND_D)\nSELECT 2;\n"
+            "-- !x! ENDIF"
+        )
+        node = _first(script)
+        clause = node.elseif_clauses[0]
+        assert len(clause.condition_modifiers) == 2
+        assert clause.condition_modifiers[0].kind == "AND"
+        assert clause.condition_modifiers[0].condition == "COND_C"
+        assert clause.condition_modifiers[1].kind == "OR"
+        assert clause.condition_modifiers[1].condition == "COND_D"
+
+    def test_if_andif_then_elseif_andif(self):
+        """ANDIF on IF stays on IF; ANDIF on ELSEIF stays on ELSEIF."""
+        script = (
+            "-- !x! IF (COND_A)\n-- !x! ANDIF (COND_B)\nSELECT 1;\n"
+            "-- !x! ELSEIF (COND_C)\n-- !x! ANDIF (COND_D)\nSELECT 2;\n"
+            "-- !x! ENDIF"
+        )
+        node = _first(script)
+        assert isinstance(node, IfBlock)
+        assert len(node.condition_modifiers) == 1
+        assert node.condition_modifiers[0].condition == "COND_B"
+        assert len(node.elseif_clauses) == 1
+        clause = node.elseif_clauses[0]
+        assert len(clause.condition_modifiers) == 1
+        assert clause.condition_modifiers[0].condition == "COND_D"
+
     def test_andif_without_if_raises(self):
         with pytest.raises(ErrInfo, match="ANDIF without matching IF"):
             parse_string("-- !x! ANDIF (COND)")

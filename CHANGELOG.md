@@ -11,6 +11,12 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Fixed
+
+- ELSEIF conditions now support ANDIF/ORIF modifiers. Previously, ANDIF/ORIF after an ELSEIF were silently attached to the parent IF condition instead of the ELSEIF clause, meaning the compound condition was never evaluated correctly. ELSEIF + ANDIF/ORIF now works the same way as IF + ANDIF/ORIF.
+- Unknown AST node types now raise an error instead of being silently ignored during execution.
+- Cursor leak in `select_rowsource()` and `select_rowdict()`: cursor is now closed on query execution failure. High-traffic callers (EXPORT, COPY) now explicitly close the row generator on error instead of relying on garbage collection.
+
 ______________________________________________________________________
 
 ## [2.16.13] - 2026-05-01

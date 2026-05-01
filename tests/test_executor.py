@@ -238,6 +238,81 @@ class TestIfBlock:
         assert result.returncode == 0
         assert _query_db(tmp_path, "SELECT x FROM t") == [(1,)]
 
+    def test_elseif_andif(self, tmp_path):
+        """ELSEIF with ANDIF modifier — both conditions must be true."""
+        result = _run_ast(
+            "-- !x! SUB a 1\n"
+            "-- !x! SUB b 2\n"
+            "CREATE TABLE t (x INT);\n"
+            "-- !x! IF (EQUALS(!!a!!, 99))\n"
+            "INSERT INTO t VALUES (1);\n"
+            "-- !x! ELSEIF (EQUALS(!!a!!, 1))\n"
+            "-- !x! ANDIF (EQUALS(!!b!!, 2))\n"
+            "INSERT INTO t VALUES (2);\n"
+            "-- !x! ELSE\n"
+            "INSERT INTO t VALUES (3);\n"
+            "-- !x! ENDIF",
+            tmp_path,
+        )
+        assert result.returncode == 0
+        assert _query_db(tmp_path, "SELECT x FROM t") == [(2,)]
+
+    def test_elseif_andif_false(self, tmp_path):
+        """ELSEIF with ANDIF where the ANDIF is false — should fall to ELSE."""
+        result = _run_ast(
+            "-- !x! SUB a 1\n"
+            "-- !x! SUB b 2\n"
+            "CREATE TABLE t (x INT);\n"
+            "-- !x! IF (EQUALS(!!a!!, 99))\n"
+            "INSERT INTO t VALUES (1);\n"
+            "-- !x! ELSEIF (EQUALS(!!a!!, 1))\n"
+            "-- !x! ANDIF (EQUALS(!!b!!, 99))\n"
+            "INSERT INTO t VALUES (2);\n"
+            "-- !x! ELSE\n"
+            "INSERT INTO t VALUES (3);\n"
+            "-- !x! ENDIF",
+            tmp_path,
+        )
+        assert result.returncode == 0
+        assert _query_db(tmp_path, "SELECT x FROM t") == [(3,)]
+
+    def test_elseif_orif(self, tmp_path):
+        """ELSEIF with ORIF modifier — either condition true enters the branch."""
+        result = _run_ast(
+            "-- !x! SUB a 1\n"
+            "-- !x! SUB b 2\n"
+            "CREATE TABLE t (x INT);\n"
+            "-- !x! IF (EQUALS(!!a!!, 99))\n"
+            "INSERT INTO t VALUES (1);\n"
+            "-- !x! ELSEIF (EQUALS(!!a!!, 99))\n"
+            "-- !x! ORIF (EQUALS(!!b!!, 2))\n"
+            "INSERT INTO t VALUES (2);\n"
+            "-- !x! ELSE\n"
+            "INSERT INTO t VALUES (3);\n"
+            "-- !x! ENDIF",
+            tmp_path,
+        )
+        assert result.returncode == 0
+        assert _query_db(tmp_path, "SELECT x FROM t") == [(2,)]
+
+    def test_elseif_orif_both_false(self, tmp_path):
+        """ELSEIF with ORIF where both are false — should fall to ELSE."""
+        result = _run_ast(
+            "-- !x! SUB a 1\n"
+            "CREATE TABLE t (x INT);\n"
+            "-- !x! IF (EQUALS(!!a!!, 99))\n"
+            "INSERT INTO t VALUES (1);\n"
+            "-- !x! ELSEIF (EQUALS(!!a!!, 88))\n"
+            "-- !x! ORIF (EQUALS(!!a!!, 77))\n"
+            "INSERT INTO t VALUES (2);\n"
+            "-- !x! ELSE\n"
+            "INSERT INTO t VALUES (3);\n"
+            "-- !x! ENDIF",
+            tmp_path,
+        )
+        assert result.returncode == 0
+        assert _query_db(tmp_path, "SELECT x FROM t") == [(3,)]
+
     def test_inline_if(self, tmp_path):
         result = _run_ast(
             "-- !x! SUB found no\n"

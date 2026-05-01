@@ -209,11 +209,14 @@ class ElseIfClause:
     Attributes:
         condition: The condition expression text (e.g. ``"HAS_ROWS"``).
         span: Source location of the ELSEIF line itself.
+        condition_modifiers: ANDIF/ORIF modifiers that compound the ELSEIF
+            condition, evaluated left-to-right at runtime.
         body: Nodes executed when this condition is true.
     """
 
     condition: str
     span: SourceSpan
+    condition_modifiers: list[ConditionModifier] = field(default_factory=list)
     body: list[Node] = field(default_factory=list)
 
 

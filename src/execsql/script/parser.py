@@ -580,14 +580,17 @@ def _parse_lines(lines: Iterable[str], source_name: str) -> Script:
                         command_text=line,
                         other_msg=f"ANDIF without matching IF on line {file_lineno} of {source_name}.",
                     )
-                if_node = block_stack[-1].node
-                if_node.condition_modifiers.append(  # type: ignore[union-attr]
-                    ConditionModifier(
-                        kind="AND",
-                        condition=m.group("cond").strip(),
-                        span=SourceSpan(source_name, file_lineno),
-                    ),
+                modifier = ConditionModifier(
+                    kind="AND",
+                    condition=m.group("cond").strip(),
+                    span=SourceSpan(source_name, file_lineno),
                 )
+                frame = block_stack[-1]
+                if_node = frame.node
+                if frame._in_elseif and if_node.elseif_clauses:  # type: ignore[union-attr]
+                    if_node.elseif_clauses[-1].condition_modifiers.append(modifier)  # type: ignore[union-attr]
+                else:
+                    if_node.condition_modifiers.append(modifier)  # type: ignore[union-attr]
                 continue
 
             # -- ORIF --
@@ -599,14 +602,17 @@ def _parse_lines(lines: Iterable[str], source_name: str) -> Script:
                         command_text=line,
                         other_msg=f"ORIF without matching IF on line {file_lineno} of {source_name}.",
                     )
-                if_node = block_stack[-1].node
-                if_node.condition_modifiers.append(  # type: ignore[union-attr]
-                    ConditionModifier(
-                        kind="OR",
-                        condition=m.group("cond").strip(),
-                        span=SourceSpan(source_name, file_lineno),
-                    ),
+                modifier = ConditionModifier(
+                    kind="OR",
+                    condition=m.group("cond").strip(),
+                    span=SourceSpan(source_name, file_lineno),
                 )
+                frame = block_stack[-1]
+                if_node = frame.node
+                if frame._in_elseif and if_node.elseif_clauses:  # type: ignore[union-attr]
+                    if_node.elseif_clauses[-1].condition_modifiers.append(modifier)  # type: ignore[union-attr]
+                else:
+                    if_node.condition_modifiers.append(modifier)  # type: ignore[union-attr]
                 continue
 
             # -- ELSE --

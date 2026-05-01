@@ -384,6 +384,12 @@ def _execute_node(
         ctx.last_command = _FakeScriptCmd(node)
         _execute_include(ctx, node, localvars)
 
+    else:
+        raise ErrInfo(
+            type="error",
+            other_msg=f"Unhandled AST node type: {type(node).__name__} at {node.span}",
+        )
+
 
 # ---------------------------------------------------------------------------
 # Block executors
@@ -404,9 +410,7 @@ def _execute_if(
 
     # Try ELSEIF clauses
     for clause in node.elseif_clauses:
-        effective_locals = _stack_localvars(ctx)
-        expanded = substitute_vars(clause.condition, effective_locals, ctx=ctx)
-        if xcmd_test(expanded):
+        if _eval_condition(ctx, clause.condition, clause.condition_modifiers):
             _execute_nodes(ctx, clause.body, node.span.file, localvars, in_loop=in_loop)
             return
 

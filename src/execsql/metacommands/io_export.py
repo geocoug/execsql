@@ -136,16 +136,20 @@ def _dispatch_format(
             raise
         except Exception as e:
             raise ErrInfo("db", select_stmt, exception_msg=exception_desc()) from e
-        if filefmt == "raw":
-            write_query_raw(outfile, rows, db.encoding, append, zipfile=zipfilename)
-        elif filefmt == "b64":
-            write_query_b64(outfile, rows, append, zipfile=zipfilename)
-        elif filefmt == "feather":
-            write_query_to_feather(outfile, hdrs, rows)
-        elif filefmt == "parquet":
-            write_query_to_parquet(outfile, hdrs, rows)
-        else:
-            write_delimited_file(outfile, filefmt, hdrs, rows, _state.conf.output_encoding, append, zipfilename)
+        try:
+            if filefmt == "raw":
+                write_query_raw(outfile, rows, db.encoding, append, zipfile=zipfilename)
+            elif filefmt == "b64":
+                write_query_b64(outfile, rows, append, zipfile=zipfilename)
+            elif filefmt == "feather":
+                write_query_to_feather(outfile, hdrs, rows)
+            elif filefmt == "parquet":
+                write_query_to_parquet(outfile, hdrs, rows)
+            else:
+                write_delimited_file(outfile, filefmt, hdrs, rows, _state.conf.output_encoding, append, zipfilename)
+        except BaseException:
+            rows.close()
+            raise
 
 
 # ---------------------------------------------------------------------------

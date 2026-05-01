@@ -1372,7 +1372,7 @@ ENDIF
 
 Multiple ELSEIF clauses can be used within a single multi-line IF metacommand. An ELSE clause can be used in combination with ELSEIF clauses, but this is not recommended because the results are not likely to be what you expect---the ELSE keyword only inverts the current truth state, it does not provide an alternative to all preceding ELSEIF clauses. To achieve the effect of a case or switch statement, use only ELSEIF clauses without a final ELSE clause.
 
-The ANDIF metacommand allows you to test for the conjunction of two conditional expressions using two separate metacommands instead of one. This may be beneficial for clarity. The simplest form of usage of the ANDIF clause is:
+The ANDIF metacommand allows you to test for the conjunction of two conditional expressions using two separate metacommands instead of one. This may be beneficial for clarity. ANDIF and ORIF can follow either an IF or an ELSEIF metacommand. The simplest form of usage of the ANDIF clause is:
 
 ```
 IF(<conditional expression>)
@@ -1381,13 +1381,24 @@ ANDIF(<conditional expression>)
 ENDIF
 ```
 
-The ANDIF metacommand does not have to immediately follow the IF metacommand. It could instead follow an ELSE statement, or appear anywhere at all within a multi-line IF metacommand. Usage patterns other than that illustrated above may be difficult to interpret, however, and nested IF metacommands may be preferable to complex uses of the ANDIF clause.
+The ANDIF metacommand does not have to immediately follow the IF metacommand. It could instead follow an ELSEIF statement. Usage patterns other than those illustrated here may be difficult to interpret, however, and nested IF metacommands may be preferable to complex uses of the ANDIF clause.
 
 The ORIF metacommand is similar to the ANDIF clause, but allows you to test for the disjunction of two conditional expressions using two different metacommands. The simplest form of usage of the ORIF clause is:
 
 ```
 IF(<conditional expression>)
 ORIF(<conditional expression>)
+    <SQL statements and metacommands>
+ENDIF
+```
+
+ANDIF and ORIF can also compound an ELSEIF condition:
+
+```
+IF(<conditional expression>)
+    <SQL statements and metacommands>
+ELSEIF(<conditional expression>)
+ANDIF(<conditional expression>)
     <SQL statements and metacommands>
 ENDIF
 ```

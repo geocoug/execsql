@@ -226,6 +226,7 @@ class Database(ABC):
         try:
             curs.execute(sql)
         except Exception:
+            curs.close()
             self.rollback()
             raise
         try:
@@ -264,6 +265,7 @@ class Database(ABC):
         try:
             curs.execute(sql)
         except Exception:
+            curs.close()
             self.rollback()
             raise
         try:
