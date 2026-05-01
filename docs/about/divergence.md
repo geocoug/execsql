@@ -93,9 +93,9 @@ New options in `execsql.conf`:
 
 ### Tools
 
-| Tool             | Description                                                                                                                                                                                    |
-| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `execsql-format` | Standalone CLI for normalizing metacommand indentation and uppercasing SQL keywords. Supports `--check` and `--in-place` modes. Also available as a [pre-commit hook](../guides/formatter.md). |
+| Tool             | Description                                                                                                                                                                                                                                                                                                 |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `execsql-format` | Standalone CLI for normalizing metacommand indentation and uppercasing SQL keywords. Supports `--check`, `--in-place`, `--indent N` (controls both metacommand and SQL indentation), and `--leading-comma` (commas at start of lines) modes. Also available as a [pre-commit hook](../guides/formatter.md). |
 
 ### GUI
 

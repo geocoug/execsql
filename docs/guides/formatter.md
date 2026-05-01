@@ -24,13 +24,14 @@ By default, formatted output is written to stdout. Use `--in-place` to overwrite
 
 ### Options { #options }
 
-| Option             | Default  | Description                                                                                         |
-| ------------------ | -------- | --------------------------------------------------------------------------------------------------- |
-| `FILE_OR_DIR`      | required | One or more files or directories to format. Directories are searched recursively for `*.sql` files. |
-| `--check`          | off      | Exit with code 1 if any file would be reformatted. Does not write any changes. Useful in CI.        |
-| `-i`, `--in-place` | off      | Modify files in place instead of writing to stdout.                                                 |
-| `--no-sql`         | off      | Skip SQL reformatting via sqlglot. Only normalizes metacommand indentation and keyword casing.      |
-| `--indent N`       | `4`      | Number of spaces per indent level.                                                                  |
+| Option             | Default  | Description                                                                                                    |
+| ------------------ | -------- | -------------------------------------------------------------------------------------------------------------- |
+| `FILE_OR_DIR`      | required | One or more files or directories to format. Directories are searched recursively for `*.sql` files.            |
+| `--check`          | off      | Exit with code 1 if any file would be reformatted. Does not write any changes. Useful in CI.                   |
+| `-i`, `--in-place` | off      | Modify files in place instead of writing to stdout.                                                            |
+| `--no-sql`         | off      | Skip SQL reformatting via sqlglot. Only normalizes metacommand indentation and keyword casing.                 |
+| `--indent N`       | `4`      | Spaces per indent level. Controls both metacommand block depth and SQL indentation (columns, subqueries, etc). |
+| `--leading-comma`  | off      | Place commas at the start of lines instead of the end (e.g. `  , col2` instead of `col1,`).                    |
 
 ## What Gets Formatted { #what-gets-formatted }
 
@@ -64,11 +65,28 @@ Metacommands that open a block (`IF`, `LOOP`, `BEGIN SCRIPT`, `BEGIN BATCH`, `BE
 
 ### SQL block formatting { #sql-formatting }
 
-SQL statements between metacommands are re-indented to match the current block depth and reformatted using [sqlglot](https://sqlglot.com/) in PostgreSQL dialect with pretty-printing enabled. Comment-only lines (single-line `--` and block `/* */` comments) are passed through without being sent to sqlglot.
+SQL statements between metacommands are re-indented to match the current block depth and reformatted using [sqlglot](https://sqlglot.com/) in PostgreSQL dialect with pretty-printing enabled.
 
-execsql substitution variables (`!!varname!!`, `!{varname}!`) are replaced with valid SQL identifiers before formatting, then restored afterward, so the formatter does not corrupt them.
+The `--indent` flag controls SQL indentation in addition to metacommand depth. For example, `--indent 4` (the default) produces 4-space indented column lists, subqueries, and CASE branches. `--indent 2` gives a more compact style.
 
-If sqlglot cannot parse a SQL statement, the original text is preserved unchanged.
+#### Comment handling
+
+Comments interleaved within SQL statements (e.g. `--` comments between SELECT columns, or inside CASE expressions) are preserved through formatting using a marker-based round-trip:
+
+1. Each comment line is replaced with a unique inline marker attached to the next SQL line.
+1. sqlglot formats the complete statement (no fragmentation).
+1. Markers are restored to their original `--` comment style and position.
+1. Comments that sqlglot's AST drops (e.g. inside CASE WHEN) are detected and re-inserted at the best matching position.
+
+Block comments (`/* */`) that contain `-- !x!` metacommand markers (e.g. commented-out code blocks) are recognized and passed through without metacommand processing.
+
+#### Variable preservation
+
+execsql substitution variables (`!!varname!!`, `!{varname}!`) are replaced with valid SQL identifiers before formatting, then restored afterward, so the formatter does not corrupt them — including in schema-qualified names (`!!staging!!.!!table!!`), CASE expressions, JOIN conditions, and string concatenation.
+
+#### Fallback behavior
+
+If sqlglot cannot parse a SQL statement, or if safety checks detect that formatting would corrupt the SQL (e.g. statement count changes, significant content loss), the original text is preserved unchanged.
 
 Use `--no-sql` to skip SQL reformatting entirely and only normalize metacommands.
 
@@ -112,6 +130,22 @@ Exit code is `0` if all files are already formatted, `1` if any file would chang
 execsql-format --indent 2 --in-place myscript.sql
 ```
 
+### Use leading commas
+
+```bash
+execsql-format --leading-comma --in-place myscript.sql
+```
+
+This places commas at the start of each line instead of the end:
+
+```sql
+SELECT
+    a
+    , b
+    , c
+FROM t;
+```
+
 ### Skip SQL reformatting
 
 Format only metacommand indentation and casing, leaving SQL statements untouched:
@@ -143,13 +177,14 @@ select id,name,created_at from users where active = true order by name;
 -- !x! IF(EQUAL(!!schema!!, "public"))
     -- !x! WRITE "Checking public schema..."
     SELECT
-      id,
-      name,
-      created_at
+        id,
+        name,
+        created_at
     FROM users
     WHERE
-      active = TRUE
-    ORDER BY name;
+        active = TRUE
+    ORDER BY
+        name;
 -- !x! ENDIF
 ```
 
@@ -180,6 +215,10 @@ The hook runs on `*.sql` files. Pass any CLI options via `args`:
 # Custom indent width
 - id: execsql-format
   args: [--in-place, --indent, "2"]
+
+# Leading commas
+- id: execsql-format
+  args: [--in-place, --leading-comma]
 ```
 
 ## Exit Codes { #exit-codes }
