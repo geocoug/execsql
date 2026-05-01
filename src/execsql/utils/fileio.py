@@ -285,6 +285,14 @@ class FileWriter(multiprocessing.Process):
         self.close_all()
 
     def run(self) -> None:
+        # Ignore SIGINT in the child process — the parent owns Ctrl+C handling
+        # and will shut us down via CMD_SHUTDOWN on the queue.  Without this,
+        # KeyboardInterrupt races through queue.get() and close_all(), producing
+        # ugly tracebacks on stderr.
+        import signal
+
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
+
         # Messages in the input queue consist of a 2-tuple, of which the first element
         # is a command and the second is a tuple of arguments for the function indicated
         # by that command.
