@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.16.13] - 2026-05-01
+
 ### Added
 
 - `execsql-format`: The `--indent` flag now controls SQL indentation in addition to metacommand indentation. Previously only metacommand depth was affected; now sqlglot's `pad` and `indent` parameters follow the same value (default 4).
