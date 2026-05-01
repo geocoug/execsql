@@ -399,6 +399,22 @@ class TestScriptBlocks:
         assert result.returncode == 0
         assert _query_db(tmp_path, "SELECT x FROM t") == [(1,)]
 
+    def test_execute_script_variable_target(self, tmp_path):
+        """EXECUTE SCRIPT with a variable-substituted target name works."""
+        result = _run_ast(
+            "-- !x! BEGIN SCRIPT proc1\n"
+            "CREATE TABLE t (x INT);\n"
+            "INSERT INTO t VALUES (42);\n"
+            "-- !x! END SCRIPT\n"
+            "-- !x! BEGIN SCRIPT runner WITH PARAMETERS (script_name)\n"
+            "-- !x! EXECUTE SCRIPT !!#script_name!!\n"
+            "-- !x! END SCRIPT\n"
+            "-- !x! EXECUTE SCRIPT runner(script_name=proc1)\n",
+            tmp_path,
+        )
+        assert result.returncode == 0, result.stderr
+        assert _query_db(tmp_path, "SELECT x FROM t") == [(42,)]
+
 
 # ---------------------------------------------------------------------------
 # ERROR_HALT OFF/ON

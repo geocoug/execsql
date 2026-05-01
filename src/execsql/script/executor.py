@@ -648,7 +648,10 @@ def _execute_include(
     WHILE/UNTIL loops are handled natively too.
     """
     if node.is_execute_script:
-        target = node.target.lower()
+        # Substitute variables in the target — the script name may be passed
+        # as a parameter (e.g., EXECUTE SCRIPT !!#script_name!!).
+        effective_locals = _stack_localvars(ctx) or localvars
+        target = substitute_vars(node.target, effective_locals, ctx=ctx).strip().lower()
 
         # Native path: target is in our AST registry
         if target in ctx.ast_scripts:

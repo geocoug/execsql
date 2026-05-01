@@ -62,6 +62,12 @@ ______________________________________________________________________
 | Default parameters | `BEGIN SCRIPT load(schema, table, batch=1000)` — parameters with defaults can be omitted at call site. Required parameters must precede optional parameters.                                                   |
 | Docstrings         | Comments (`--` or `/* */`) immediately following `BEGIN SCRIPT` are captured as documentation. A blank line terminates the docstring. Displayed by `SHOW SCRIPT`, `SHOW SCRIPTS`, and `.scripts` REPL command. |
 
+### Bug Fixes
+
+| Fix                             | Description                                                                                                                                               |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Variable EXECUTE SCRIPT targets | `EXECUTE SCRIPT !!#var!!` now works — the parser accepts substitution variable patterns as script identifiers, and the executor resolves them at runtime. |
+
 ### Conditional Tests
 
 | Conditional               | Description                                                                                              |

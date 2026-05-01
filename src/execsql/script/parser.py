@@ -107,7 +107,7 @@ def _strip_quotes(s: str) -> str:
 _EXEC_SCRIPT_RX = re.compile(
     r"^\s*(?:EXEC(?:UTE)?|RUN)\s+SCRIPT"
     r"(?P<exists>\s+IF\s+EXISTS)?"
-    r"\s+(?P<script_id>\w+)"
+    r"\s+(?P<script_id>(?:\w+|!(?:['\"]?)![^!]+!(?:['\"]?)!))"
     r"(?:(?:\s+WITH)?(?:\s+ARG(?:UMENT)?S?)?\s*\(\s*(?P<argexp>.+?)\s*\))?"
     r"(?:\s+(?P<looptype>WHILE|UNTIL)\s*\(\s*(?P<loopcond>.+)\s*\))?"
     r"\s*$",
