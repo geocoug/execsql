@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.16.14] - 2026-05-01
+
 ### Fixed
 
 - ELSEIF conditions now support ANDIF/ORIF modifiers. Previously, ANDIF/ORIF after an ELSEIF were silently attached to the parent IF condition instead of the ELSEIF clause, meaning the compound condition was never evaluated correctly. ELSEIF + ANDIF/ORIF now works the same way as IF + ANDIF/ORIF.
