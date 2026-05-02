@@ -186,50 +186,53 @@ class SQLiteDatabase(Database):
         sql = f"insert into {sq_name} ({colspec}) values ({paramspec});"
         curs = self.cursor()
         total_rows = 0
-        for datalineno, line in enumerate(rowsource):
-            # Skip empty rows.
-            if not (len(line) == 1 and line[0] is None):
-                if len(line) < len(columns):
-                    raise ErrInfo(
-                        type="error",
-                        other_msg=f"Too few values on data line {datalineno} of input.",
-                    )
-                if _state.conf.trim_strings or _state.conf.replace_newlines or not _state.conf.empty_strings:
-                    for i in range(len(line)):
-                        if line[i] is not None and isinstance(line[i], _state.stringtypes):
-                            if _state.conf.trim_strings:
-                                line[i] = line[i].strip()
-                            if _state.conf.replace_newlines:
-                                line[i] = re.sub(r"[\s\t]*[\r\n]+[\s\t]*", " ", line[i])
-                            if not _state.conf.empty_strings and line[i].strip() == "":
-                                line[i] = None
-                linedata = [line[ix] for ix in data_indexes]
-                # Convert datetime, time, and Decimal values to strings.
-                for i in range(len(linedata)):
-                    if type(linedata[i]) in (datetime.datetime, datetime.time, Decimal):
-                        linedata[i] = str(linedata[i])
-                add_line = True
-                if not _state.conf.empty_rows:
-                    add_line = not all(c is None for c in linedata)
-                if add_line:
-                    try:
-                        curs.execute(sql, linedata)
-                    except ErrInfo:
-                        raise
-                    except Exception as e:
-                        self.rollback()
+        try:
+            for datalineno, line in enumerate(rowsource):
+                # Skip empty rows.
+                if not (len(line) == 1 and line[0] is None):
+                    if len(line) < len(columns):
                         raise ErrInfo(
-                            type="db",
-                            command_text=sql,
-                            exception_msg=exception_desc(),
-                            other_msg=f"Can't load data into table {sq_name} from line {{{line}}}",
-                        ) from e
-                    total_rows += 1
-                    interval = getattr(_state.conf, "import_progress_interval", 0)
-                    if _state.exec_log and interval > 0 and total_rows % interval == 0:
-                        _state.exec_log.log_status_info(
-                            f"IMPORT into {sq_name}: {total_rows} rows imported so far.",
+                            type="error",
+                            other_msg=f"Too few values on data line {datalineno} of input.",
                         )
+                    if _state.conf.trim_strings or _state.conf.replace_newlines or not _state.conf.empty_strings:
+                        for i in range(len(line)):
+                            if line[i] is not None and isinstance(line[i], _state.stringtypes):
+                                if _state.conf.trim_strings:
+                                    line[i] = line[i].strip()
+                                if _state.conf.replace_newlines:
+                                    line[i] = re.sub(r"[\s\t]*[\r\n]+[\s\t]*", " ", line[i])
+                                if not _state.conf.empty_strings and line[i].strip() == "":
+                                    line[i] = None
+                    linedata = [line[ix] for ix in data_indexes]
+                    # Convert datetime, time, and Decimal values to strings.
+                    for i in range(len(linedata)):
+                        if type(linedata[i]) in (datetime.datetime, datetime.time, Decimal):
+                            linedata[i] = str(linedata[i])
+                    add_line = True
+                    if not _state.conf.empty_rows:
+                        add_line = not all(c is None for c in linedata)
+                    if add_line:
+                        try:
+                            curs.execute(sql, linedata)
+                        except ErrInfo:
+                            raise
+                        except Exception as e:
+                            self.rollback()
+                            raise ErrInfo(
+                                type="db",
+                                command_text=sql,
+                                exception_msg=exception_desc(),
+                                other_msg=f"Can't load data into table {sq_name} from line {{{line}}}",
+                            ) from e
+                        total_rows += 1
+                        interval = getattr(_state.conf, "import_progress_interval", 0)
+                        if _state.exec_log and interval > 0 and total_rows % interval == 0:
+                            _state.exec_log.log_status_info(
+                                f"IMPORT into {sq_name}: {total_rows} rows imported so far.",
+                            )
+        finally:
+            curs.close()
         if _state.exec_log:
             _state.exec_log.log_status_info(
                 f"IMPORT into {sq_name} complete: {total_rows} rows imported.",
@@ -250,4 +253,5 @@ class SQLiteDatabase(Database):
         sq_name = self.schema_qualified_table_name(schema_name, table_name)
         quoted_col = self.quote_identifier(column_name)
         sql = f"insert into {sq_name} ({quoted_col}) values ({self.paramsubs(1)});"
-        self.cursor().execute(sql, (sqlite3.Binary(filedata),))
+        with self._cursor() as curs:
+            curs.execute(sql, (sqlite3.Binary(filedata),))
