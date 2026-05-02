@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Changed
+
+- Merged `SHOW SCRIPTS` and `SHOW SCRIPT <name>` into a single `SHOW SCRIPTS [<name>]` metacommand. Without a name, lists all registered scripts; with a name, shows detail for that script.
+
 ______________________________________________________________________
 
 ## [2.16.14] - 2026-05-01

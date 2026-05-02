@@ -2767,12 +2767,18 @@ The numeric expression may consist of the simple algebraic operations of additio
 ## SHOW SCRIPTS { #show_scripts }
 
 ```
-SHOW SCRIPTS
+SHOW SCRIPTS [<name>]
 ```
 
-Lists all registered SCRIPT definitions with their parameter signatures and source locations. This is useful for discovering what scripts are available at runtime, especially when scripts are loaded from INCLUDEEd files whose paths are determined dynamically.
+Without a name, lists all registered SCRIPT definitions with their parameter signatures and source locations. With a name, shows detail for that script including parameters, source file/line range, and docstring.
 
-**Example output:**
+This is useful for discovering what scripts are available at runtime, especially when scripts are loaded from INCLUDEEd files whose paths are determined dynamically.
+
+**List all scripts:**
+
+```sql
+-- !x! SHOW SCRIPTS
+```
 
 ```
 Registered scripts (3):
@@ -2782,25 +2788,11 @@ Registered scripts (3):
   validate(schema, table)                      pipeline.sql:62-80
 ```
 
-Default parameter values are shown in the signature. Use `SHOW SCRIPT <name>` for full detail including docstrings.
-
-If no scripts are registered, prints `No scripts registered.`
-
-## SHOW SCRIPT { #show_script }
-
-```
-SHOW SCRIPT <name>
-```
-
-Shows detail for a single registered SCRIPT definition, including its parameter list (with required/optional status and defaults), source file/line range, and docstring.
-
-**Example:**
+**Show detail for one script:**
 
 ```sql
--- !x! SHOW SCRIPT load_data
+-- !x! SHOW SCRIPTS load_data
 ```
-
-**Example output:**
 
 ```
 Script: load_data(schema, table, batch_size=1000)
@@ -2813,7 +2805,7 @@ Parameters:
 Load data from staging into the target table.
 ```
 
-If the script is not found, prints `No script named '<name>' is registered.`
+If no scripts are registered, prints `No scripts registered.` If the named script is not found, prints `No script named '<name>' is registered.`
 
 !!! tip
     In the debug REPL, use `.scripts` to list all scripts or `.scripts <name>` to show detail for one script.

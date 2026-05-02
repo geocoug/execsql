@@ -93,7 +93,7 @@
     },
     "action-keywords": {
       "comment": "sub, write, execute script, export, etc.",
-      "match": "(?i)\\b(reset\\s+dialog_canceled|write\\s+create_table|export_metadata|pg_upsert\\s+check|sub_querystring|execute\\s+script|append\\s+script|extend\\s+script|reset\\s+counter|export\\s+query|pg_upsert\\s+qa|show\\s+scripts|sub_tempfile|write\\s+script|import_file|set\\s+counter|show\\s+script|sub_decrypt|sub_encrypt|autocommit|breakpoint|copy\\s+query|disconnect|select_sub|sub_append|system_cmd|pg_upsert|pg_vacuum|sub_empty|sub_local|connect|include|max_int|rm_file|subdata|sub_add|sub_ini|assert|export|import|rm_sub|debug|email|serve|write|copy|log|run|sub|use|zip|cd)\\b",
+      "match": "(?i)\\b(reset\\s+dialog_canceled|write\\s+create_table|export_metadata|pg_upsert\\s+check|sub_querystring|execute\\s+script|append\\s+script|extend\\s+script|reset\\s+counter|export\\s+query|pg_upsert\\s+qa|show\\s+scripts|sub_tempfile|write\\s+script|import_file|set\\s+counter|sub_decrypt|sub_encrypt|autocommit|breakpoint|copy\\s+query|disconnect|select_sub|sub_append|system_cmd|pg_upsert|pg_vacuum|sub_empty|sub_local|connect|include|max_int|rm_file|subdata|sub_add|sub_ini|assert|export|import|rm_sub|debug|email|serve|write|copy|log|run|sub|use|zip|cd)\\b",
       "name": "keyword.other.execsql"
     },
     "config-event-keywords": {

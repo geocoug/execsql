@@ -1,4 +1,4 @@
-"""Unit tests for SHOW SCRIPTS / SHOW SCRIPT metacommand handlers and helpers."""
+"""Unit tests for SHOW SCRIPTS metacommand handler and helpers."""
 
 from __future__ import annotations
 
@@ -10,7 +10,6 @@ import pytest
 from execsql.metacommands.debug import (
     _format_script_signature,
     _format_script_source,
-    x_show_script,
     x_show_scripts,
 )
 from execsql.script.ast import ParamDef, ScriptBlock, SourceSpan
@@ -93,7 +92,9 @@ def mock_state(monkeypatch):
     return state
 
 
-class TestShowScriptsHandler:
+class TestShowScriptsListAll:
+    """SHOW SCRIPTS with no name argument lists all scripts."""
+
     def test_empty(self, mock_state):
         x_show_scripts(metacommandline="SHOW SCRIPTS")
         assert "No scripts registered" in mock_state.output.getvalue()
@@ -117,14 +118,16 @@ class TestShowScriptsHandler:
         assert "load(schema, batch=1000)" in mock_state.output.getvalue()
 
 
-class TestShowScriptHandler:
+class TestShowScriptsDetail:
+    """SHOW SCRIPTS <name> shows detail for one script."""
+
     def test_not_found(self, mock_state):
-        x_show_script(script_id="nonexistent", metacommandline="SHOW SCRIPT nonexistent")
+        x_show_scripts(script_id="nonexistent", metacommandline="SHOW SCRIPTS nonexistent")
         assert "No script named" in mock_state.output.getvalue()
 
     def test_detail_no_params(self, mock_state):
         mock_state.ast_scripts = {"proc": _make_script("proc")}
-        x_show_script(script_id="proc", metacommandline="SHOW SCRIPT proc")
+        x_show_scripts(script_id="proc", metacommandline="SHOW SCRIPTS proc")
         output = mock_state.output.getvalue()
         assert "proc()" in output
         assert "Parameters: (none)" in output
@@ -133,7 +136,7 @@ class TestShowScriptHandler:
         mock_state.ast_scripts = {
             "load": _make_script("load", [ParamDef("schema"), ParamDef("batch", "1000")]),
         }
-        x_show_script(script_id="load", metacommandline="SHOW SCRIPT load")
+        x_show_scripts(script_id="load", metacommandline="SHOW SCRIPTS load")
         output = mock_state.output.getvalue()
         assert "load(schema, batch=1000)" in output
         assert "(required)" in output
@@ -143,12 +146,19 @@ class TestShowScriptHandler:
         mock_state.ast_scripts = {
             "proc": _make_script("proc", doc="This is the docstring.\nSecond line."),
         }
-        x_show_script(script_id="proc", metacommandline="SHOW SCRIPT proc")
+        x_show_scripts(script_id="proc", metacommandline="SHOW SCRIPTS proc")
         output = mock_state.output.getvalue()
         assert "This is the docstring." in output
         assert "Second line." in output
 
     def test_case_insensitive_lookup(self, mock_state):
         mock_state.ast_scripts = {"myproc": _make_script("myproc")}
-        x_show_script(script_id="MYPROC", metacommandline="SHOW SCRIPT MYPROC")
+        x_show_scripts(script_id="MYPROC", metacommandline="SHOW SCRIPTS MYPROC")
         assert "myproc()" in mock_state.output.getvalue()
+
+    def test_no_script_id_kwarg_lists_all(self, mock_state):
+        """When script_id is not provided at all, list all scripts."""
+        mock_state.ast_scripts = {"proc": _make_script("proc")}
+        x_show_scripts(metacommandline="SHOW SCRIPTS")
+        output = mock_state.output.getvalue()
+        assert "Registered scripts (1)" in output

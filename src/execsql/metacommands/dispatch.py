@@ -99,7 +99,6 @@ from execsql.metacommands.debug import (
     x_debug_write_metacommands,
     x_debug_write_odbc_drivers,
     x_debug_write_subvars,
-    x_show_script,
     x_show_scripts,
 )
 from execsql.debug.repl import x_breakpoint
@@ -1750,18 +1749,12 @@ def build_dispatch_table() -> MetaCommandList:
     )
 
     # ------------------------------------------------------------------
-    # SHOW SCRIPTS / SHOW SCRIPT
+    # SHOW SCRIPTS [<name>]
     # ------------------------------------------------------------------
     mcl.add(
-        r"^\s*SHOW\s+SCRIPTS\s*$",
+        r"^\s*SHOW\s+SCRIPTS\s*(?P<script_id>\w+)?\s*$",
         x_show_scripts,
         description="SHOW SCRIPTS",
-        category="action",
-    )
-    mcl.add(
-        r"^\s*SHOW\s+SCRIPT\s+(?P<script_id>\w+)\s*$",
-        x_show_script,
-        description="SHOW SCRIPT",
         category="action",
     )
 

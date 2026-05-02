@@ -1301,12 +1301,12 @@ class TestLocalVarScoping:
 
 
 # ---------------------------------------------------------------------------
-# SHOW SCRIPTS / SHOW SCRIPT metacommand
+# SHOW SCRIPTS metacommand
 # ---------------------------------------------------------------------------
 
 
 class TestShowScripts:
-    """Tests for the SHOW SCRIPTS / SHOW SCRIPT introspection metacommands."""
+    """Tests for the SHOW SCRIPTS introspection metacommands."""
 
     def test_show_scripts_empty(self, tmp_path):
         """SHOW SCRIPTS when no scripts are defined prints 'No scripts registered'."""
@@ -1336,13 +1336,13 @@ class TestShowScripts:
         assert "Registered scripts (2)" in result.stdout
 
     def test_show_script_detail(self, tmp_path):
-        """SHOW SCRIPT <name> shows detail for one script."""
+        """SHOW SCRIPTS<name> shows detail for one script."""
         result = _run_ast(
             "-- !x! BEGIN SCRIPT my_proc WITH PARAMETERS (schema, table)\n"
             "SELECT 1;\n"
             "-- !x! END SCRIPT\n"
             "CREATE TABLE t (x INT);\n"
-            "-- !x! SHOW SCRIPT my_proc\n",
+            "-- !x! SHOW SCRIPTS my_proc\n",
             tmp_path,
         )
         assert result.returncode == 0, result.stderr
@@ -1351,22 +1351,22 @@ class TestShowScripts:
         assert "table" in result.stdout
 
     def test_show_script_not_found(self, tmp_path):
-        """SHOW SCRIPT with unknown name prints error."""
+        """SHOW SCRIPTS with unknown name prints error."""
         result = _run_ast(
-            "CREATE TABLE t (x INT);\n-- !x! SHOW SCRIPT nonexistent\n",
+            "CREATE TABLE t (x INT);\n-- !x! SHOW SCRIPTS nonexistent\n",
             tmp_path,
         )
         assert result.returncode == 0, result.stderr
         assert "No script named 'nonexistent' is registered" in result.stdout
 
     def test_show_script_no_params(self, tmp_path):
-        """SHOW SCRIPT for a script without parameters shows (none)."""
+        """SHOW SCRIPTS for a script without parameters shows (none)."""
         result = _run_ast(
             "-- !x! BEGIN SCRIPT simple_proc\n"
             "SELECT 1;\n"
             "-- !x! END SCRIPT\n"
             "CREATE TABLE t (x INT);\n"
-            "-- !x! SHOW SCRIPT simple_proc\n",
+            "-- !x! SHOW SCRIPTS simple_proc\n",
             tmp_path,
         )
         assert result.returncode == 0, result.stderr
@@ -1477,13 +1477,13 @@ class TestDefaultParameters:
         assert "Required parameter" in result.stderr or "required parameter" in result.stderr.lower()
 
     def test_show_script_with_defaults(self, tmp_path):
-        """SHOW SCRIPT displays default values."""
+        """SHOW SCRIPTS displays default values."""
         result = _run_ast(
             "-- !x! BEGIN SCRIPT load(schema, table, batch=1000)\n"
             "SELECT 1;\n"
             "-- !x! END SCRIPT\n"
             "CREATE TABLE t (x INT);\n"
-            "-- !x! SHOW SCRIPT load\n",
+            "-- !x! SHOW SCRIPTS load\n",
             tmp_path,
         )
         assert result.returncode == 0, result.stderr
@@ -1522,7 +1522,7 @@ class TestDocstrings:
             "SELECT 1;\n"
             "-- !x! END SCRIPT\n"
             "CREATE TABLE t (x INT);\n"
-            "-- !x! SHOW SCRIPT proc1\n",
+            "-- !x! SHOW SCRIPTS proc1\n",
             tmp_path,
         )
         assert result.returncode == 0, result.stderr
@@ -1539,7 +1539,7 @@ class TestDocstrings:
             "SELECT 1;\n"
             "-- !x! END SCRIPT\n"
             "CREATE TABLE t (x INT);\n"
-            "-- !x! SHOW SCRIPT proc1\n",
+            "-- !x! SHOW SCRIPTS proc1\n",
             tmp_path,
         )
         assert result.returncode == 0, result.stderr
@@ -1556,7 +1556,7 @@ class TestDocstrings:
             "SELECT 1;\n"
             "-- !x! END SCRIPT\n"
             "CREATE TABLE t (x INT);\n"
-            "-- !x! SHOW SCRIPT proc1\n",
+            "-- !x! SHOW SCRIPTS proc1\n",
             tmp_path,
         )
         assert result.returncode == 0, result.stderr
@@ -1570,7 +1570,7 @@ class TestDocstrings:
             "SELECT 1;\n"
             "-- !x! END SCRIPT\n"
             "CREATE TABLE t (x INT);\n"
-            "-- !x! SHOW SCRIPT proc1\n",
+            "-- !x! SHOW SCRIPTS proc1\n",
             tmp_path,
         )
         assert result.returncode == 0, result.stderr
@@ -1601,7 +1601,7 @@ class TestDocstrings:
             "SELECT 1;\n"
             "-- !x! END SCRIPT\n"
             "CREATE TABLE t (x INT);\n"
-            "-- !x! SHOW SCRIPT proc1\n",
+            "-- !x! SHOW SCRIPTS proc1\n",
             tmp_path,
         )
         assert result.returncode == 0, result.stderr
@@ -1633,7 +1633,7 @@ class TestDocstrings:
             "-- !x! END SCRIPT\n"
             "CREATE TABLE t (x INT);\n"
             "-- !x! EXECUTE SCRIPT load(schema=public)\n"
-            "-- !x! SHOW SCRIPT load\n",
+            "-- !x! SHOW SCRIPTS load\n",
             tmp_path,
         )
         assert result.returncode == 0, result.stderr

@@ -74,7 +74,6 @@ MULTIWORD_KEYWORDS = [
     "WITH TEMPLATE",
     "IN ZIPFILE",
     "SHOW SCRIPTS",
-    "SHOW SCRIPT",
 ]
 
 # Depth-tracking sets
