@@ -11,7 +11,7 @@ from encodings.aliases import aliases as codec_dict
 from rich.console import Console
 from rich.table import Table
 
-__all__ = ["_console", "_err_console", "_print_encodings", "_print_metacommands"]
+__all__ = ["_console", "_err_console", "_init_config", "_print_encodings", "_print_metacommands"]
 
 _console = Console()
 _err_console = Console(stderr=True)
@@ -75,6 +75,15 @@ _SKIP_FROM_DISPATCH = {
     "BEGIN SCRIPT",
     "BEGIN SQL",
 }
+
+
+def _init_config() -> None:
+    """Print the default execsql.conf template to stdout."""
+    import importlib.resources
+    import sys
+
+    template = importlib.resources.files("execsql.data").joinpath("execsql.conf.template").read_text(encoding="utf-8")
+    sys.stdout.write(template)
 
 
 def _print_metacommands() -> None:

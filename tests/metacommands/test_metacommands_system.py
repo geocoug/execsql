@@ -160,6 +160,14 @@ class TestXTimer:
 class TestXSystemCmd:
     """Tests for the SYSTEM_CMD / SHELL metacommand handler."""
 
+    def test_system_cmd_blocked_when_disabled(self, minimal_conf):
+        """SYSTEM_CMD raises ErrInfo when allow_system_cmd is False."""
+        from execsql.metacommands.system import x_system_cmd
+
+        minimal_conf.allow_system_cmd = False
+        with pytest.raises(ErrInfo, match="disabled"):
+            x_system_cmd(command="echo hello", **{"continue": None}, metacommandline="SYSTEM_CMD (echo hello)")
+
     def test_system_cmd_runs_subprocess(self, minimal_conf):
         from execsql.metacommands.system import x_system_cmd
 
@@ -170,12 +178,13 @@ class TestXSystemCmd:
             current_script_line=lambda: ("test.sql", 1),
         )
 
+        mock_result = SimpleNamespace(returncode=0)
         with (
-            patch("execsql.metacommands.system.subprocess.call", return_value=0) as mock_call,
+            patch("execsql.metacommands.system.subprocess.run", return_value=mock_result) as mock_run,
             patch("execsql.metacommands.system.filewriter_close_all_after_write"),
         ):
             x_system_cmd(command="echo hello", **{"continue": None})
-            mock_call.assert_called_once()
+            mock_run.assert_called_once()
             # The exit status should be recorded as a substitution variable
             mock_sv.add_substitution.assert_called_once_with("$SYSTEM_CMD_EXIT_STATUS", "0")
 
@@ -253,8 +262,9 @@ class TestXSystemCmd:
             current_script_line=lambda: ("test.sql", 12),
         )
 
+        mock_result = SimpleNamespace(returncode=0)
         with (
-            patch("execsql.metacommands.system.subprocess.call", return_value=0),
+            patch("execsql.metacommands.system.subprocess.run", return_value=mock_result),
             patch("execsql.metacommands.system.filewriter_close_all_after_write"),
         ):
             x_system_cmd(command="echo hello", **{"continue": None})
@@ -273,8 +283,9 @@ class TestXSystemCmd:
             current_script_line=lambda: ("test.sql", 3),
         )
 
+        mock_result = SimpleNamespace(returncode=1)
         with (
-            patch("execsql.metacommands.system.subprocess.call", return_value=1),
+            patch("execsql.metacommands.system.subprocess.run", return_value=mock_result),
             patch("execsql.metacommands.system.filewriter_close_all_after_write"),
         ):
             x_system_cmd(command="false", **{"continue": None})

@@ -61,6 +61,30 @@ class TestInfoFlags:
         result = invoke("--encodings", "dummy.sql")
         assert result.exit_code == 0
 
+    def test_init_config_flag(self):
+        result = invoke("--init-config")
+        assert result.exit_code == 0
+        assert "[connect]" in result.output
+        assert "[encoding]" in result.output
+        assert "[input]" in result.output
+        assert "[output]" in result.output
+        assert "[interface]" in result.output
+        assert "[email]" in result.output
+        assert "[config]" in result.output
+
+    def test_init_config_matches_template(self):
+        """Bundled template is identical to templates/execsql.conf."""
+        import importlib.resources
+        from pathlib import Path
+
+        bundled = (
+            importlib.resources.files("execsql.data").joinpath("execsql.conf.template").read_text(encoding="utf-8")
+        )
+        source = (Path(__file__).resolve().parents[2] / "templates" / "execsql.conf").read_text(
+            encoding="utf-8",
+        )
+        assert bundled == source
+
     def test_help_flag(self):
         result = runner.invoke(app, ["--help"])
         assert result.exit_code == 0

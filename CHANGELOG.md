@@ -11,6 +11,21 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Added
+
+- `--init-config` CLI flag to print a default `execsql.conf` template (with all options commented out and documented) to stdout. Use `execsql --init-config > execsql.conf` to bootstrap a configuration file.
+- `--no-system-cmd` CLI flag to disable SYSTEM_CMD/SHELL metacommand execution. Scripts that use SHELL will fail with a clear error when this flag is active. Also configurable via `allow_system_cmd = No` in `execsql.conf` `[config]` section. The library API exposes the same control via `allow_system_cmd=False`.
+
+### Changed
+
+- CLI `--help` output now logically groups related options: connection, encoding, import/export, execution, GUI, configuration, and information.
+- SYSTEM_CMD now uses `subprocess.run()` instead of the deprecated `subprocess.call()`.
+- `execsql.conf` template updated: added missing options (`use_keyring`, `gui_framework`, `allow_system_cmd`, `log_sql`, `max_log_size_mb`, `show_progress`, `import_progress_interval`, `macos_config_file`), fixed incorrect defaults (`password_prompt`, `new_db`, `scan_lines`), added DuckDB (`k`) to database types, modernized all comments.
+
+### Fixed
+
+- SYSTEM_CMD no longer wraps arguments containing `&` in spurious double quotes. The previous behavior (a Windows `cmd.exe` workaround inherited from the upstream monolith) injected literal `"` characters into subprocess arguments, which could cause commands to fail or behave unexpectedly on non-`cmd.exe` targets.
+
 ______________________________________________________________________
 
 ## [2.16.15] - 2026-05-02

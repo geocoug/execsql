@@ -68,6 +68,8 @@ def minimal_conf():
         gui_framework="tkinter",
         gui_wait_on_exit=False,
         gui_wait_on_error_halt=False,
+        # Security
+        allow_system_cmd=True,
     )
     yield _state.conf
     _state.reset()

@@ -48,6 +48,7 @@ repos:
         exclude: |
           (?x)^(
             \.claude/.*|
+            AUDIT\.md|
             docs/api/.*|
             docs/reference/metacommands\.md|
             docs/guides/documentation\.md|

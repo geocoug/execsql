@@ -21,6 +21,36 @@ Variable substitution is applied to the command string before execution, so any 
 
 If `outdir` is derived from user input, validate or sanitize it before use in a `SYSTEM_CMD` command.
 
+!!! note "Windows `.bat`/`.cmd` files"
+
+    On Windows, when the target of a `SYSTEM_CMD` is a `.bat` or `.cmd` file, Windows may invoke `cmd.exe` to interpret it. In this case, the `&` character in arguments can be interpreted as a command separator by `cmd.exe`, even though the subprocess is not launched with `shell=True`. Avoid passing untrusted data containing `&` to batch files on Windows.
+
+### Disabling SYSTEM_CMD { #disable_system_cmd }
+
+To prevent scripts from executing OS commands entirely, use the `--no-system-cmd` CLI flag:
+
+```bash
+execsql --no-system-cmd script.sql mydb
+```
+
+Any script that uses `SYSTEM_CMD` or `SHELL` will fail with an error. This is useful for CI pipelines, shared execution environments, or running semi-trusted scripts where shell access is not appropriate.
+
+The same restriction can be set permanently in `execsql.conf`:
+
+```ini
+[config]
+allow_system_cmd = No
+```
+
+The library API provides the same control:
+
+```python
+import execsql
+result = execsql.run("script.sql", dsn="sqlite:///my.db", allow_system_cmd=False)
+```
+
+The `--no-system-cmd` CLI flag always takes precedence — if the flag is passed, `SYSTEM_CMD` is disabled regardless of the config file setting.
+
 ## Credential Handling { #credentials }
 
 ### Interactive password prompts

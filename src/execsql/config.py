@@ -288,6 +288,7 @@ class ConfigData:
         self.include_opt: list = []
         self.export_output_dir: str | None = None
         self.dao_flush_delay_secs = 5.0
+        self.allow_system_cmd = True
         self.zip_buffer_mb = 10
         if os.name == "posix":
             sys_config_file = str(Path("/etc") / self.config_file_name)
@@ -474,6 +475,7 @@ class ConfigData:
                 self._get_bool(cp, self._CONFIG_SECTION, "log_datavars", "log_datavars")
                 self._get_bool(cp, self._CONFIG_SECTION, "log_sql", "log_sql")
                 self._get_int(cp, self._CONFIG_SECTION, "max_log_size_mb", "max_log_size_mb")
+                self._get_bool(cp, self._CONFIG_SECTION, "allow_system_cmd", "allow_system_cmd")
                 # --- [email] ---
                 self._get_str(cp, self._EMAIL_SECTION, "host", "smtp_host")
                 self._get_int(cp, self._EMAIL_SECTION, "port", "smtp_port")

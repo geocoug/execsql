@@ -532,6 +532,7 @@ def _run(
     ping: bool = False,
     lint: bool = False,
     debug: bool = False,
+    no_system_cmd: bool = False,
     config_file: str | None = None,
 ) -> None:
     """Initialise state, connect to the database, load the script, and run it.
@@ -726,6 +727,9 @@ def _run(
 
     if debug:
         _state.step_mode = True
+
+    if no_system_cmd:
+        conf.allow_system_cmd = False
 
     if _ast_tree is not None:
         _execute_script_ast(_ast_tree, conf, profile=profile, profile_limit=profile_limit)

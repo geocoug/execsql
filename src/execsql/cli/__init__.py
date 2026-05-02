@@ -20,7 +20,7 @@ import typer
 
 from execsql import __version__
 from execsql.cli.dsn import _parse_connection_string, _SCHEME_TO_DBTYPE  # noqa: F401 — re-export
-from execsql.cli.help import _console, _err_console, _print_encodings, _print_metacommands  # noqa: F401 — re-export
+from execsql.cli.help import _console, _err_console, _init_config, _print_encodings, _print_metacommands  # noqa: F401 — re-export
 from execsql.cli.run import _connect_initial_db, _run  # noqa: F401 — re-export
 from execsql.exceptions import ConfigError, ErrInfo
 
@@ -29,6 +29,7 @@ __all__ = [
     "_connect_initial_db",
     "_console",
     "_err_console",
+    "_init_config",
     "_legacy_main",
     "_parse_connection_string",
     "_print_encodings",
@@ -72,28 +73,55 @@ def main(
             "name (client-server DBs) or a database file path (file-based DBs)."
         ),
     ),
-    # Named options — grouped to mirror the original argparse interface
-    sub_vars: list[str] | None = typer.Option(
+    # -- Connection --------------------------------------------------------
+    db_type: str | None = typer.Option(
         None,
-        "-a",
-        "--assign-arg",
-        metavar="VALUE",
-        help="Define the replacement string for a substitution variable [cyan]\\$ARG_x[/cyan].",
+        "-t",
+        "--type",
+        metavar="{a,d,p,s,l,m,k,o,f}",
+        help=(
+            "Database type: [bold]a[/bold]=MS-Access, [bold]p[/bold]=PostgreSQL, "
+            "[bold]s[/bold]=SQL Server, [bold]l[/bold]=SQLite, [bold]m[/bold]=MySQL/MariaDB, "
+            "[bold]k[/bold]=DuckDB, [bold]o[/bold]=Oracle, [bold]f[/bold]=Firebird, "
+            "[bold]d[/bold]=DSN."
+        ),
     ),
-    boolean_int: str | None = typer.Option(
+    dsn: str | None = typer.Option(
         None,
-        "-b",
-        "--boolean-int",
-        metavar="{0,1,t,f,y,n}",
-        help="Treat integers 0 and 1 as boolean values.",
+        "--dsn",
+        "--connection-string",
+        metavar="URL",
+        help=(
+            "Database connection URL, e.g. [cyan]postgresql://user:pass@host:5432/db[/cyan]. "
+            "Supported schemes: postgresql, mysql, mssql, oracle, firebird, sqlite, duckdb. "
+            "Overrides [cyan]-t[/cyan]/[cyan]-u[/cyan]/[cyan]-p[/cyan] and positional server/db args."
+        ),
     ),
-    make_dirs: str | None = typer.Option(
+    user: str | None = typer.Option(
         None,
-        "-d",
-        "--directories",
-        metavar="{0,1,t,f,y,n}",
-        help="Auto-create directories for EXPORT metacommand. [dim]n=no (default), y=yes[/dim]",
+        "-u",
+        "--user",
+        help="Database user name.",
     ),
+    port: int | None = typer.Option(
+        None,
+        "-p",
+        "--port",
+        help="Database server port.",
+    ),
+    no_passwd: bool = typer.Option(
+        False,
+        "-w",
+        "--no-passwd",
+        help="Skip password prompt when user is specified.",
+    ),
+    new_db: bool = typer.Option(
+        False,
+        "-n",
+        "--new-db",
+        help="Create a new SQLite or Postgres database if it does not exist.",
+    ),
+    # -- Encoding ----------------------------------------------------------
     database_encoding: str | None = typer.Option(
         None,
         "-e",
@@ -118,35 +146,13 @@ def main(
         "--import-encoding",
         help="Encoding for data files used with IMPORT.",
     ),
-    user_logfile: bool = typer.Option(
-        False,
-        "-l",
-        "--user-logfile",
-        help="Write a log file to [cyan]~/execsql.log[/cyan].",
-    ),
-    metacommands: bool = typer.Option(
-        False,
-        "-m",
-        "--metacommands",
-        help="List metacommands and exit.",
-    ),
-    new_db: bool = typer.Option(
-        False,
-        "-n",
-        "--new-db",
-        help="Create a new SQLite or Postgres database if it does not exist.",
-    ),
-    online_help: bool = typer.Option(
-        False,
-        "-o",
-        "--online-help",
-        help="Open the online documentation in the default browser.",
-    ),
-    port: int | None = typer.Option(
+    # -- Import/Export -----------------------------------------------------
+    import_buffer: int | None = typer.Option(
         None,
-        "-p",
-        "--port",
-        help="Database server port.",
+        "-z",
+        "--import-buffer",
+        metavar="KB",
+        help="Import buffer size in KB. [dim]Default: 32[/dim]",
     ),
     scanlines: int | None = typer.Option(
         None,
@@ -155,103 +161,19 @@ def main(
         metavar="N",
         help="Lines to scan for IMPORT format detection. [dim]0 = scan entire file.[/dim]",
     ),
-    db_type: str | None = typer.Option(
+    boolean_int: str | None = typer.Option(
         None,
-        "-t",
-        "--type",
-        metavar="{a,d,p,s,l,m,k,o,f}",
-        help=(
-            "Database type: [bold]a[/bold]=MS-Access, [bold]p[/bold]=PostgreSQL, "
-            "[bold]s[/bold]=SQL Server, [bold]l[/bold]=SQLite, [bold]m[/bold]=MySQL/MariaDB, "
-            "[bold]k[/bold]=DuckDB, [bold]o[/bold]=Oracle, [bold]f[/bold]=Firebird, "
-            "[bold]d[/bold]=DSN."
-        ),
+        "-b",
+        "--boolean-int",
+        metavar="{0,1,t,f,y,n}",
+        help="Treat integers 0 and 1 as boolean values.",
     ),
-    user: str | None = typer.Option(
+    make_dirs: str | None = typer.Option(
         None,
-        "-u",
-        "--user",
-        help="Database user name.",
-    ),
-    use_gui: str | None = typer.Option(
-        None,
-        "-v",
-        "--visible-prompts",
-        metavar="{0,1,2,3}",
-        help=(
-            "GUI level: [bold]0[/bold]=none (default), [bold]1[/bold]=GUI for password/pause, "
-            "[bold]2[/bold]=GUI for password/pause + DB selection, [bold]3[/bold]=full GUI console."
-        ),
-    ),
-    gui_framework: str | None = typer.Option(
-        None,
-        "--gui-framework",
-        metavar="{tkinter,textual}",
-        help="GUI framework to use with [cyan]--visible-prompts[/cyan]. [dim]Default: tkinter[/dim]",
-    ),
-    no_passwd: bool = typer.Option(
-        False,
-        "-w",
-        "--no-passwd",
-        help="Skip password prompt when user is specified.",
-    ),
-    encodings: bool = typer.Option(
-        False,
-        "-y",
-        "--encodings",
-        help="List available encoding names and exit.",
-    ),
-    import_buffer: int | None = typer.Option(
-        None,
-        "-z",
-        "--import-buffer",
-        metavar="KB",
-        help="Import buffer size in KB. [dim]Default: 32[/dim]",
-    ),
-    command: str | None = typer.Option(
-        None,
-        "-c",
-        "--command",
-        metavar="SCRIPT",
-        help=(
-            "Execute an inline SQL/metacommand script string instead of a script file. "
-            "Use shell [cyan]$'line1\\nline2'[/cyan] syntax for multi-line scripts."
-        ),
-    ),
-    dry_run: bool = typer.Option(
-        False,
-        "--dry-run",
-        help=("Parse the script and print the command list without connecting to a database or executing anything."),
-    ),
-    lint: bool = typer.Option(
-        False,
-        "--lint",
-        help=(
-            "Parse the script and perform static analysis without connecting to a database or executing anything. "
-            "Reports unmatched IF/ENDIF/LOOP/BATCH blocks (errors), potentially undefined variables, "
-            "and missing INCLUDE files (warnings). Exits 0 if no errors, 1 if errors found."
-        ),
-    ),
-    ping: bool = typer.Option(
-        False,
-        "--ping",
-        help=(
-            "Test database connectivity and exit. "
-            "Prints connection details and the server version on success (exit 0), "
-            "or the error message on failure (exit 1). "
-            "No script file is required."
-        ),
-    ),
-    dsn: str | None = typer.Option(
-        None,
-        "--dsn",
-        "--connection-string",
-        metavar="URL",
-        help=(
-            "Database connection URL, e.g. [cyan]postgresql://user:pass@host:5432/db[/cyan]. "
-            "Supported schemes: postgresql, mysql, mssql, oracle, firebird, sqlite, duckdb. "
-            "Overrides [cyan]-t[/cyan]/[cyan]-u[/cyan]/[cyan]-p[/cyan] and positional server/db args."
-        ),
+        "-d",
+        "--directories",
+        metavar="{0,1,t,f,y,n}",
+        help="Auto-create directories for EXPORT metacommand. [dim]n=no (default), y=yes[/dim]",
     ),
     output_dir: str | None = typer.Option(
         None,
@@ -268,34 +190,29 @@ def main(
         "--progress",
         help="Show a progress bar for long-running IMPORT operations.",
     ),
-    dump_keywords: bool = typer.Option(
-        False,
-        "--dump-keywords",
-        help="Dump all metacommand keywords as JSON and exit.",
-    ),
-    list_plugins: bool = typer.Option(
-        False,
-        "--list-plugins",
-        help="List all discovered plugins (metacommands, exporters, importers) and exit.",
-    ),
-    profile: bool = typer.Option(
-        False,
-        "--profile",
-        help="Record per-statement execution times and print a timing summary after the script completes.",
-    ),
-    profile_limit: int = typer.Option(
-        20,
-        "--profile-limit",
-        help="Number of top statements to show in the --profile timing summary (default: 20).",
-    ),
-    config_file: str | None = typer.Option(
+    # -- Execution ---------------------------------------------------------
+    command: str | None = typer.Option(
         None,
-        "--config",
-        metavar="FILE",
+        "-c",
+        "--command",
+        metavar="SCRIPT",
         help=(
-            "Path to an execsql configuration file. "
-            "Loaded after the implicit search paths so its values take precedence. "
-            "The file may chain additional configs via its [cyan][config][/cyan] section."
+            "Execute an inline SQL/metacommand script string instead of a script file. "
+            "Use shell [cyan]$'line1\\nline2'[/cyan] syntax for multi-line scripts."
+        ),
+    ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Parse the script and print the command list without connecting to a database or executing anything.",
+    ),
+    lint: bool = typer.Option(
+        False,
+        "--lint",
+        help=(
+            "Parse the script and perform static analysis without connecting to a database or executing anything. "
+            "Reports unmatched IF/ENDIF/LOOP/BATCH blocks (errors), potentially undefined variables, "
+            "and missing INCLUDE files (warnings). Exits 0 if no errors, 1 if errors found."
         ),
     ),
     parse_tree: bool = typer.Option(
@@ -310,6 +227,106 @@ def main(
         False,
         "--debug",
         help="Start in step-through debug mode. The debug REPL pauses before each statement.",
+    ),
+    no_system_cmd: bool = typer.Option(
+        False,
+        "--no-system-cmd",
+        help="Disable the SYSTEM_CMD (SHELL) metacommand. Scripts that use SHELL will fail with an error.",
+    ),
+    profile: bool = typer.Option(
+        False,
+        "--profile",
+        help="Record per-statement execution times and print a timing summary after the script completes.",
+    ),
+    profile_limit: int = typer.Option(
+        20,
+        "--profile-limit",
+        help="Number of top statements to show in the --profile timing summary (default: 20).",
+    ),
+    # -- GUI ---------------------------------------------------------------
+    use_gui: str | None = typer.Option(
+        None,
+        "-v",
+        "--visible-prompts",
+        metavar="{0,1,2,3}",
+        help=(
+            "GUI level: [bold]0[/bold]=none (default), [bold]1[/bold]=GUI for password/pause, "
+            "[bold]2[/bold]=GUI for password/pause + DB selection, [bold]3[/bold]=full GUI console."
+        ),
+    ),
+    gui_framework: str | None = typer.Option(
+        None,
+        "--gui-framework",
+        metavar="{tkinter,textual}",
+        help="GUI framework to use with [cyan]--visible-prompts[/cyan]. [dim]Default: tkinter[/dim]",
+    ),
+    # -- Configuration -----------------------------------------------------
+    config_file: str | None = typer.Option(
+        None,
+        "--config",
+        metavar="FILE",
+        help=(
+            "Path to an execsql configuration file. "
+            "Loaded after the implicit search paths so its values take precedence. "
+            "The file may chain additional configs via its [cyan][config][/cyan] section."
+        ),
+    ),
+    init_config: bool = typer.Option(
+        False,
+        "--init-config",
+        help="Print a default [cyan]execsql.conf[/cyan] template to stdout and exit.",
+    ),
+    sub_vars: list[str] | None = typer.Option(
+        None,
+        "-a",
+        "--assign-arg",
+        metavar="VALUE",
+        help="Define the replacement string for a substitution variable [cyan]\\$ARG_x[/cyan].",
+    ),
+    user_logfile: bool = typer.Option(
+        False,
+        "-l",
+        "--user-logfile",
+        help="Write a log file to [cyan]~/execsql.log[/cyan].",
+    ),
+    # -- Information -------------------------------------------------------
+    metacommands: bool = typer.Option(
+        False,
+        "-m",
+        "--metacommands",
+        help="List metacommands and exit.",
+    ),
+    encodings: bool = typer.Option(
+        False,
+        "-y",
+        "--encodings",
+        help="List available encoding names and exit.",
+    ),
+    dump_keywords: bool = typer.Option(
+        False,
+        "--dump-keywords",
+        help="Dump all metacommand keywords as JSON and exit.",
+    ),
+    list_plugins: bool = typer.Option(
+        False,
+        "--list-plugins",
+        help="List all discovered plugins (metacommands, exporters, importers) and exit.",
+    ),
+    ping: bool = typer.Option(
+        False,
+        "--ping",
+        help=(
+            "Test database connectivity and exit. "
+            "Prints connection details and the server version on success (exit 0), "
+            "or the error message on failure (exit 1). "
+            "No script file is required."
+        ),
+    ),
+    online_help: bool = typer.Option(
+        False,
+        "-o",
+        "--online-help",
+        help="Open the online documentation in the default browser.",
     ),
     version: bool | None = typer.Option(
         None,
@@ -338,6 +355,10 @@ def main(
 
     if encodings:
         _print_encodings()
+        raise typer.Exit()
+
+    if init_config:
+        _init_config()
         raise typer.Exit()
 
     if dump_keywords:
@@ -580,6 +601,7 @@ def main(
         ping=ping,
         lint=lint,
         debug=debug,
+        no_system_cmd=no_system_cmd,
         config_file=config_file,
     )
 

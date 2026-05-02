@@ -15,6 +15,12 @@ Configuration data is read from these files in the order listed above. Informati
 
 An explicit configuration file can also be specified with the `--config FILE` command-line option. This file is loaded **after** all four implicit search paths, so its values take precedence over system, user, script-directory, and working-directory config files. CLI arguments still override everything. The `--config` file may chain additional configs via its `[config]` section, just like any other config file.
 
+To generate a starter configuration file with all options commented out and documented, use:
+
+```bash
+execsql --init-config > execsql.conf
+```
+
 In addition, *execsql* will read additional configuration files if they are specified in any of the standard configuration files ([see below](#config_config)).
 
 Configuration files use the [INI](https://en.wikipedia.org/wiki/INI_file) file format. Section names are case sensitive and must be all in lowercase. Property names are not case sensitive. Property values are read as-is and may or may not be case sensitive, depending on their use. Comments can be included in configuration files; each comment line must start with the "#" character.
@@ -328,6 +334,9 @@ The section and property names that may be used in a configuration file are list
 
 `max_log_size_mb` { #max_log_size_mb }
 :   Maximum size of the log file in megabytes before it is rotated. When set to a positive integer, the log file is rotated to `.1` before a new run appends to it if the file size exceeds the configured threshold. The default is `0` (disabled — no rotation).
+
+`allow_system_cmd` { #allow_system_cmd }
+:   When set to "No", the `SYSTEM_CMD` (SHELL) metacommand is disabled. Any script that attempts to execute an OS command will fail with an error. The default is "Yes". This can also be set via the `--no-system-cmd` CLI flag or `allow_system_cmd=False` in the library API. See [Security — Disabling SYSTEM_CMD](security.md#disable_system_cmd) for details.
 
 `log_datavars` { #conf_log_datavars }
 :   A value of 'Yes' or 'No' to control whether data variables that are created by the [SELECT_SUB](metacommands.md#select_sub), [PROMPT SELECT_SUB](metacommands.md#prompt_selsub) and [PROMPT ACTION](metacommands.md#prompt_action) metacommands are written to *execsql*'s [log file](../guides/logging.md#logging). By default, this is set to 'Yes', so that all data variable assignments are logged. The performance of scripts that make extensive use of these metacommands (e.g., [Example 27](../guides/examples.md#example27)) can be improved by setting this to 'No'.

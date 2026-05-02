@@ -316,6 +316,7 @@ def run(
     encoding: str = "utf-8",
     halt_on_error: bool = True,
     new_db: bool = False,
+    allow_system_cmd: bool = True,
 ) -> ScriptResult:
     """Execute a SQL script and return the result.
 
@@ -337,6 +338,8 @@ def run(
             error.  If ``False``, capture errors and continue.
         new_db: If ``True``, create the database if it does not exist
             (SQLite, PostgreSQL, DuckDB).
+        allow_system_cmd: If ``False``, the SYSTEM_CMD (SHELL) metacommand
+            is disabled and will raise an error if encountered.
 
     Returns:
         A :class:`ScriptResult` with execution outcome, timing, errors,
@@ -434,6 +437,7 @@ def run(
     ctx.subvars = subvars
     ctx.status = StatObj()
     ctx.status.halt_on_err = halt_on_error
+    conf.allow_system_cmd = allow_system_cmd
     ctx.conf = conf
 
     # Capture output to a buffer (suppress stdout/stderr)

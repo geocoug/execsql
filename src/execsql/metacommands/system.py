@@ -32,25 +32,26 @@ from execsql.utils.gui import (
     gui_console_width,
 )
 from execsql.utils.mail import MailSpec, Mailer
-from execsql.utils.strings import is_doublequoted
 
 
 def x_system_cmd(**kwargs: Any) -> None:
+    if not _state.conf.allow_system_cmd:
+        raise ErrInfo(
+            type="cmd",
+            command_text=kwargs.get("metacommandline", "SYSTEM_CMD"),
+            other_msg="SYSTEM_CMD is disabled (--no-system-cmd flag is active).",
+        )
     syscmd = kwargs["command"]
     cont = kwargs["continue"]
     script, lno = current_script_line()
     _state.exec_log.log_user_msg(f"System command on line {lno} of script {script}: {syscmd}")
     filewriter_close_all_after_write()
-    if os.name != "posix":
-        cmdlist = shlex.split(syscmd, posix=False)
-    else:
-        cmdlist = shlex.split(syscmd, posix=True)
-    cmdargs = ['"' + cmd + '"' if "&" in cmd and not is_doublequoted(cmd) else cmd for cmd in cmdlist]
+    cmdlist = shlex.split(syscmd, posix=(os.name == "posix"))
     if cont is None:
-        returncode = subprocess.call(cmdargs)
-        _state.subvars.add_substitution("$SYSTEM_CMD_EXIT_STATUS", str(returncode))
+        result = subprocess.run(cmdlist)
+        _state.subvars.add_substitution("$SYSTEM_CMD_EXIT_STATUS", str(result.returncode))
     else:
-        proc = subprocess.Popen(cmdargs)
+        proc = subprocess.Popen(cmdlist)
         _state.subvars.add_substitution("$SYSTEM_CMD_PID", str(proc.pid))
     return None
 
