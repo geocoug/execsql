@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.16.16] - 2026-05-02
+
 ### Added
 
 - `--init-config` CLI flag to print a default `execsql.conf` template (with all options commented out and documented) to stdout. Use `execsql --init-config > execsql.conf` to bootstrap a configuration file.
