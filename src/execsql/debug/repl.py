@@ -546,7 +546,7 @@ def _print_script_detail(name: str) -> None:
         return
     block = scripts[script_name]
     sig = _format_script_signature(block.name, block.param_defs)
-    src = _format_script_source(block.span)
+    src = _format_script_source(block.span, full_path=True)
     _write_rule(f" {_c(_BOLD + _YELLOW, 'Script')} {_c(_DIM, '──')} {_c(_CYAN, sig)} ")
     _write(f"  {_c(_BOLD, 'Source:')}     {src}\n")
     if block.param_defs:

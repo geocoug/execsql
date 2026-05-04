@@ -2770,7 +2770,7 @@ The numeric expression may consist of the simple algebraic operations of additio
 SHOW SCRIPTS [<name>]
 ```
 
-Without a name, lists all registered SCRIPT definitions with their parameter signatures and source locations. With a name, shows detail for that script including parameters, source file/line range, and docstring.
+Without a name, lists all registered SCRIPT definitions with their parameter signatures and source locations (basename only, for compact column-aligned output). With a name, shows detail for that script including parameters, full source path, line range, and docstring.
 
 This is useful for discovering what scripts are available at runtime, especially when scripts are loaded from INCLUDEEd files whose paths are determined dynamically.
 
@@ -2796,7 +2796,7 @@ Registered scripts (3):
 
 ```
 Script: load_data(schema, table, batch_size=1000)
-Source: pipeline.sql:15-42
+Source: /home/user/etl/pipeline.sql:15-42
 Parameters:
   schema      (required)
   table       (required)
@@ -2804,6 +2804,8 @@ Parameters:
 
 Load data from staging into the target table.
 ```
+
+The detail view (`SHOW SCRIPTS <name>`) shows the full source path so the file can be located unambiguously when multiple scripts share a basename. Scripts loaded inline via `execsql -c '<command>'` show `<inline>` as the source.
 
 If no scripts are registered, prints `No scripts registered.` If the named script is not found, prints `No script named '<name>' is registered.`
 

@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Changed
+
+- `SHOW SCRIPTS <name>` metacommand and `.scripts <name>` debug REPL command now display the full source path to the script's source file (including `<inline>` for scripts loaded via `execsql -c`). The list views (`SHOW SCRIPTS` and `.scripts` without a name) continue to show the basename for compact column-aligned output.
+
 ______________________________________________________________________
 
 ## [2.16.17] - 2026-05-04

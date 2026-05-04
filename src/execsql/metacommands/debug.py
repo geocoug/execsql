@@ -203,9 +203,19 @@ def _format_script_signature(name: str, param_defs: Any) -> str:
     return f"{name}({', '.join(parts)})"
 
 
-def _format_script_source(span: Any) -> str:
-    """Return ``file:start-end`` from a SourceSpan."""
-    filename = Path(span.file).name if span and span.file else "<unknown>"
+def _format_script_source(span: Any, *, full_path: bool = False) -> str:
+    """Return ``file:start-end`` from a SourceSpan.
+
+    By default the filename is the basename, suitable for compact list-view
+    output.  Pass ``full_path=True`` to retain the full source path (used by
+    detail views like ``SHOW SCRIPTS <name>`` and ``.scripts <name>``).
+    """
+    if not span or not span.file:
+        filename = "<unknown>"
+    elif full_path:
+        filename = span.file
+    else:
+        filename = Path(span.file).name
     if span and span.start_line is not None:
         if span.end_line is not None and span.end_line != span.start_line:
             return f"{filename}:{span.start_line}-{span.end_line}"
@@ -235,7 +245,7 @@ def x_show_scripts(**kwargs: Any) -> None:
             return
         block = scripts[script_name]
         sig = _format_script_signature(block.name, block.param_defs)
-        src = _format_script_source(block.span)
+        src = _format_script_source(block.span, full_path=True)
         _state.output.write(f"Script: {sig}\n")
         _state.output.write(f"Source: {src}\n")
         if block.param_defs:

@@ -453,6 +453,56 @@ class TestHandleDotCommand:
             _handle_dot_command(".stack")
         assert "empty" in capture.getvalue()
 
+    def test_scripts_detail_shows_full_path(self, capture):
+        """.scripts <name> renders the full source path, not just the basename."""
+        from execsql.script.ast import ScriptBlock, SourceSpan
+
+        _state.ast_scripts = {
+            "proc": ScriptBlock(
+                span=SourceSpan("/home/user/etl/lib/load.sql", 12, 30),
+                name="proc",
+                param_defs=None,
+                doc=None,
+            ),
+        }
+        with patch("execsql.debug.repl._use_color", return_value=False):
+            _handle_dot_command(".scripts proc")
+        assert "/home/user/etl/lib/load.sql:12-30" in capture.getvalue()
+
+    def test_scripts_detail_inline_source(self, capture):
+        """.scripts <name> for an `execsql -c <command>` script renders <inline>."""
+        from execsql.script.ast import ScriptBlock, SourceSpan
+
+        _state.ast_scripts = {
+            "proc": ScriptBlock(
+                span=SourceSpan("<inline>", 1, 4),
+                name="proc",
+                param_defs=None,
+                doc=None,
+            ),
+        }
+        with patch("execsql.debug.repl._use_color", return_value=False):
+            _handle_dot_command(".scripts proc")
+        assert "<inline>:1-4" in capture.getvalue()
+
+    def test_scripts_list_uses_basename(self, capture):
+        """.scripts (no name) keeps basename for compact column-aligned output."""
+        from execsql.script.ast import ScriptBlock, SourceSpan
+
+        _state.ast_scripts = {
+            "proc": ScriptBlock(
+                span=SourceSpan("/home/user/etl/lib/load.sql", 12, 30),
+                name="proc",
+                param_defs=None,
+                doc=None,
+            ),
+        }
+        with patch("execsql.debug.repl._use_color", return_value=False):
+            _handle_dot_command(".scripts")
+        output = capture.getvalue()
+        assert "load.sql:12-30" in output
+        assert "/home/user/etl/lib/" not in output
+
 
 # ---------------------------------------------------------------------------
 # x_breakpoint — public entry point

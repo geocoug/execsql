@@ -65,6 +65,27 @@ class TestFormatScriptSource:
         span = SourceSpan("test.sql", None)
         assert _format_script_source(span) == "test.sql"
 
+    def test_full_path_keeps_directory(self):
+        span = SourceSpan("/long/path/to/script.sql", 1, 10)
+        assert _format_script_source(span, full_path=True) == "/long/path/to/script.sql:1-10"
+
+    def test_full_path_single_line(self):
+        span = SourceSpan("/abs/lib.sql", 7)
+        assert _format_script_source(span, full_path=True) == "/abs/lib.sql:7"
+
+    def test_full_path_unknown_file(self):
+        assert _format_script_source(None, full_path=True) == "<unknown>"
+
+    def test_full_path_inline_source(self):
+        """`execsql -c <command>` parses with source_name='<inline>'."""
+        span = SourceSpan("<inline>", 1, 5)
+        assert _format_script_source(span, full_path=True) == "<inline>:1-5"
+
+    def test_basename_inline_source(self):
+        """List-view rendering of an inline source is unchanged."""
+        span = SourceSpan("<inline>", 1, 5)
+        assert _format_script_source(span) == "<inline>:1-5"
+
 
 # ---------------------------------------------------------------------------
 # Handler tests (mock _state)
@@ -162,3 +183,46 @@ class TestShowScriptsDetail:
         x_show_scripts(metacommandline="SHOW SCRIPTS")
         output = mock_state.output.getvalue()
         assert "Registered scripts (1)" in output
+
+    def test_detail_shows_full_path(self, mock_state):
+        """SHOW SCRIPTS <name> renders the full source path, not just the basename."""
+        block = ScriptBlock(
+            span=SourceSpan("/home/user/etl/lib/load.sql", 12, 30),
+            name="proc",
+            param_defs=None,
+            doc=None,
+        )
+        mock_state.ast_scripts = {"proc": block}
+        x_show_scripts(script_id="proc", metacommandline="SHOW SCRIPTS proc")
+        output = mock_state.output.getvalue()
+        assert "Source: /home/user/etl/lib/load.sql:12-30" in output
+
+    def test_detail_inline_source(self, mock_state):
+        """`execsql -c <command>` registers scripts with span.file == '<inline>'."""
+        block = ScriptBlock(
+            span=SourceSpan("<inline>", 1, 4),
+            name="proc",
+            param_defs=None,
+            doc=None,
+        )
+        mock_state.ast_scripts = {"proc": block}
+        x_show_scripts(script_id="proc", metacommandline="SHOW SCRIPTS proc")
+        output = mock_state.output.getvalue()
+        assert "Source: <inline>:1-4" in output
+
+
+class TestShowScriptsListBasenamePreserved:
+    """List view (no <name>) keeps basename — column-aligned output stays scannable."""
+
+    def test_list_uses_basename_for_long_paths(self, mock_state):
+        block = ScriptBlock(
+            span=SourceSpan("/home/user/etl/lib/load.sql", 12, 30),
+            name="proc",
+            param_defs=None,
+            doc=None,
+        )
+        mock_state.ast_scripts = {"proc": block}
+        x_show_scripts(metacommandline="SHOW SCRIPTS")
+        output = mock_state.output.getvalue()
+        assert "load.sql:12-30" in output
+        assert "/home/user/etl/lib/" not in output
