@@ -688,6 +688,107 @@ class TestFormatFileEdgeCases:
         assert lines[1] == "    -- !x! WRITE 'inside'"
         assert lines[2] == "-- !x! END SCRIPT"
 
+    # ---- Inline IF (no ENDIF) — must not increment depth ---------------
+
+    def test_inline_if_does_not_indent_following_lines(self):
+        """Inline `IF (cond) { cmd }` is self-contained; subsequent lines stay at the same depth."""
+        source = "-- !x! IF (1=1) { halt message \"stop\" }\n-- !x! WRITE 'after'\n"
+        result = format_file(source, use_sql=False)
+        lines = result.splitlines()
+        assert lines[0].startswith("-- !x! IF (1=1)")
+        assert lines[1] == "-- !x! WRITE 'after'"
+
+    def test_inline_if_with_substitution_vars(self):
+        """Reproduces the user-reported case with substitution variables in the inline body."""
+        source = (
+            "-- !x! IF (not hasrows(cmp_primary_key_columns)) { "
+            'halt message "Table !!#table!! has no primary key columns." }\n'
+            "-- !x! WRITE 'after'\n"
+        )
+        result = format_file(source, use_sql=False)
+        lines = result.splitlines()
+        assert "IF (not hasrows" in lines[0]
+        assert "!!#table!!" in lines[0]
+        assert lines[1] == "-- !x! WRITE 'after'"
+
+    def test_inline_if_inside_block(self):
+        """An inline IF nested inside a block-form IF emits at the current depth and does not push deeper."""
+        source = "-- !x! IF 1=1\n-- !x! IF (cond) { halt message \"x\" }\n-- !x! WRITE 'still inside'\n-- !x! ENDIF\n"
+        result = format_file(source, use_sql=False)
+        lines = result.splitlines()
+        assert lines[0] == "-- !x! IF 1=1"
+        assert lines[1].startswith("    -- !x! IF (cond)")
+        assert lines[2] == "    -- !x! WRITE 'still inside'"
+        assert lines[3] == "-- !x! ENDIF"
+
+    def test_block_if_paren_form_still_indents(self):
+        """Block-form `IF (cond)` (parens, no brace) still opens an indented block."""
+        source = "-- !x! IF (1=1)\n-- !x! WRITE 'yes'\n-- !x! ENDIF\n"
+        result = format_file(source, use_sql=False)
+        lines = result.splitlines()
+        assert lines[0] == "-- !x! IF (1=1)"
+        assert lines[1] == "    -- !x! WRITE 'yes'"
+        assert lines[2] == "-- !x! ENDIF"
+
+    # ---- BEGIN SQL / BEGIN BATCH — blank lines must not escape ---------
+
+    def test_begin_sql_blank_line_after_does_not_escape(self):
+        """A blank line right after `-- !x! BEGIN SQL` must not be emitted flush-left."""
+        source = "-- !x! BEGIN SQL\n\nSELECT 1;\n-- !x! END SQL\n"
+        result = format_file(source)  # default use_sql=True; sqlglot collapses leading blank
+        lines = result.splitlines()
+        assert lines[0] == "-- !x! BEGIN SQL"
+        assert lines[-1] == "-- !x! END SQL"
+        middle = lines[1:-1]
+        assert "" not in middle, f"Flush-left blank inside BEGIN SQL block: {middle!r}"
+        select_lines = [line for line in middle if "SELECT" in line.upper()]
+        assert len(select_lines) == 1
+        assert select_lines[0].startswith("    ")
+
+    def test_begin_batch_blank_line_after_does_not_escape(self):
+        """Same fix applies to BEGIN BATCH (also a guaranteed-SQL body)."""
+        source = "-- !x! BEGIN BATCH\n\nINSERT INTO t VALUES (1);\n-- !x! END BATCH\n"
+        result = format_file(source)
+        lines = result.splitlines()
+        assert lines[0] == "-- !x! BEGIN BATCH"
+        assert lines[-1] == "-- !x! END BATCH"
+        middle = lines[1:-1]
+        assert "" not in middle, f"Flush-left blank inside BEGIN BATCH block: {middle!r}"
+
+    def test_begin_sql_blank_line_between_statements_collapsed(self):
+        """With sqlglot enabled, blanks between SQL statements inside BEGIN SQL are consumed
+        by pretty-print rather than escaping as flush-left blanks that split the block."""
+        source = "-- !x! BEGIN SQL\nSELECT 1;\n\nSELECT 2;\n-- !x! END SQL\n"
+        result = format_file(source)
+        lines = result.splitlines()
+        middle = lines[1:-1]
+        assert "" not in middle, f"Flush-left blank inside BEGIN SQL block: {middle!r}"
+        # sqlglot may pretty-print `SELECT 1` across multiple lines; check the
+        # body as a whole rather than per-line.
+        body = "\n".join(middle)
+        assert "SELECT" in body.upper()
+        assert "1;" in body and "2;" in body
+
+    def test_blank_lines_outside_explicit_sql_block_unchanged(self):
+        """Regression guard: blanks outside BEGIN SQL/BATCH (top-level, or inside IF) still emit flush-left."""
+        # Top-level blank between metacommands
+        source = "-- !x! WRITE 'a'\n\n-- !x! WRITE 'b'\n"
+        result = format_file(source, use_sql=False)
+        lines = result.splitlines()
+        assert lines[0] == "-- !x! WRITE 'a'"
+        assert lines[1] == ""
+        assert lines[2] == "-- !x! WRITE 'b'"
+
+        # Blank between metacommands inside an IF block — still flush-left
+        source = "-- !x! IF 1=1\n-- !x! WRITE 'a'\n\n-- !x! WRITE 'b'\n-- !x! ENDIF\n"
+        result = format_file(source, use_sql=False)
+        lines = result.splitlines()
+        assert lines[0] == "-- !x! IF 1=1"
+        assert lines[1] == "    -- !x! WRITE 'a'"
+        assert lines[2] == ""
+        assert lines[3] == "    -- !x! WRITE 'b'"
+        assert lines[4] == "-- !x! ENDIF"
+
     def test_only_sql_no_metacommands(self):
         source = "SELECT 1;\nSELECT 2;\n"
         result = format_file(source, use_sql=False)

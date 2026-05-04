@@ -11,6 +11,11 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Fixed
+
+- Formatter no longer treats inline `IF (cond) { command }` metacommands as block openers. Previously every line below an inline `IF` was indented one extra level forever, since the formatter incremented its block depth as if the inline form required an `ENDIF`.
+- Formatter no longer escapes blank lines that appear inside `-- !x! BEGIN SQL` / `-- !x! BEGIN BATCH` blocks. Blanks immediately after `BEGIN SQL` (and between SQL statements inside the block) were emitted flush-left, visually severing the block; they are now held with the SQL accumulator and consumed by the SQL pretty-printer.
+
 ______________________________________________________________________
 
 ## [2.16.16] - 2026-05-02

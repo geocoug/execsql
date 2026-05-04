@@ -82,6 +82,14 @@ BLOCK_CLOSE = frozenset({"ENDIF", "END LOOP", "ENDLOOP", "END SCRIPT", "END BATC
 PIVOT = frozenset({"ELSE", "ELSEIF"})  # decrease depth before emit, increase after
 CONTINUATION = frozenset({"ANDIF", "ORIF"})  # emit at depth-1, no depth change
 
+# Inline IF: "IF (cond) { command }" — self-contained, no ENDIF, no depth change.
+# Mirrors src/execsql/cli/lint.py:_RX_IF_INLINE so formatter and linter agree.
+_IF_INLINE_RE = re.compile(r"^\s*IF\s*\(\s*.+\s*\)\s*\{.+\}\s*$", re.I)
+# BLOCK_OPEN keywords whose bodies are guaranteed-SQL (not metacommand-driven).
+# Blank lines inside these belong to the SQL accumulator, not the output stream.
+_SQL_BODY_BLOCKS = frozenset({"BEGIN SQL", "BEGIN BATCH"})
+_SQL_BODY_BLOCK_CLOSES = frozenset({"END SQL", "END BATCH"})
+
 
 # ---------------------------------------------------------------------------
 # Keyword parsing
@@ -488,6 +496,10 @@ def format_file(source: str, indent: int = 4, use_sql: bool = True, leading_comm
     # the accumulator — doing so would split a single statement into
     # fragments that sqlglot cannot parse.
     in_sql_statement = False
+    # True between BEGIN SQL/BATCH and END SQL/BATCH.  Blank lines inside
+    # these blocks belong to the SQL accumulator so they re-emit at the
+    # block's indent depth, not flush-left in the output stream.
+    in_explicit_sql_block = False
 
     def flush_sql() -> None:
         nonlocal in_dollar_quote, in_sql_statement
@@ -520,12 +532,13 @@ def format_file(source: str, indent: int = 4, use_sql: bool = True, leading_comm
         m = METACOMMAND_RE.match(raw_line)
 
         if not stripped_line:
-            if not in_dollar_quote and not in_sql_statement:
+            if not in_dollar_quote and not in_sql_statement and not in_explicit_sql_block:
                 flush_sql()
                 output.append("")
             else:
-                # Mid-statement blank line stays in the accumulator and
-                # will appear in the output when the block is formatted.
+                # Mid-statement OR mid-explicit-SQL-block blank line stays in
+                # the accumulator and will appear in the output at the block's
+                # indent depth when the SQL is formatted.
                 sql_acc.append(raw_line)
 
         elif m:
@@ -536,6 +549,8 @@ def format_file(source: str, indent: int = 4, use_sql: bool = True, leading_comm
             if keyword in BLOCK_CLOSE:
                 depth = max(0, depth - 1)
                 output.append(format_metacommand(payload, depth, indent))
+                if keyword in _SQL_BODY_BLOCK_CLOSES:
+                    in_explicit_sql_block = False
 
             elif keyword in PIVOT:
                 depth = max(0, depth - 1)
@@ -547,7 +562,10 @@ def format_file(source: str, indent: int = 4, use_sql: bool = True, leading_comm
 
             elif keyword in BLOCK_OPEN:
                 output.append(format_metacommand(payload, depth, indent))
-                depth += 1
+                if not (keyword == "IF" and _IF_INLINE_RE.match(payload)):
+                    depth += 1
+                if keyword in _SQL_BODY_BLOCKS:
+                    in_explicit_sql_block = True
 
             else:
                 output.append(format_metacommand(payload, depth, indent))
