@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.16.17] - 2026-05-04
+
 ### Fixed
 
 - Formatter no longer treats inline `IF (cond) { command }` metacommands as block openers. Previously every line below an inline `IF` was indented one extra level forever, since the formatter incremented its block depth as if the inline form required an `ENDIF`.
