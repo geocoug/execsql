@@ -11,9 +11,14 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Fixed
+
+- `BEGIN SCRIPT` parameter defaults now correctly strip surrounding quotes when stored, mirroring the quote-handling already applied to passed arguments at the call site. Previously a default written as `default_unit_set="Default"` bound the literal string `"Default"` (with quotes intact), so a body like `WRITE "!!#default_unit_set!!"` produced `WRITE ""Default""` and failed. Defaults and passed arguments now resolve to the same value for the same source token.
+
 ### Changed
 
 - `SHOW SCRIPTS <name>` metacommand and `.scripts <name>` debug REPL command now display the full source path to the script's source file (including `<inline>` for scripts loaded via `execsql -c`). The list views (`SHOW SCRIPTS` and `.scripts` without a name) continue to show the basename for compact column-aligned output.
+- `BEGIN SCRIPT WITH PARAMETERS (...)` now accepts quoted default values containing spaces, commas, and other special characters — e.g. `proc(msg="hello, world", path="/var/log/app.log")`. Both single and double quotes are supported. Unquoted values continue to be accepted but cannot start with a quote character; an unterminated quoted value is now rejected as malformed instead of being silently stored as an unquoted literal.
 
 ______________________________________________________________________
 

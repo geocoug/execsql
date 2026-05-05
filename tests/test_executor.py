@@ -1504,6 +1504,72 @@ class TestDefaultParameters:
         assert result.returncode == 0, result.stderr
         assert "load(schema, batch=1000)" in result.stdout
 
+    def test_quoted_default_strips_quotes_at_substitution(self, tmp_path):
+        """`name="Default"` binds the value `Default`, not `"Default"`.
+
+        Regression for a parser bug where quoted defaults preserved their
+        surrounding quotes — diverging from passed-args which strip them via
+        ``wo_quotes`` — so ``write "!!default_unit_set!!"`` produced
+        ``write ""Default""`` (a syntax error) instead of ``write "Default"``.
+        """
+        result = _run_ast(
+            '-- !x! BEGIN SCRIPT proc1(default_unit_set="Default")\n'
+            "INSERT INTO t VALUES ('!!#default_unit_set!!');\n"
+            "-- !x! END SCRIPT\n"
+            "CREATE TABLE t (x TEXT);\n"
+            "-- !x! EXECUTE SCRIPT proc1\n",
+            tmp_path,
+        )
+        assert result.returncode == 0, result.stderr
+        assert _query_db(tmp_path, "SELECT x FROM t") == [("Default",)]
+
+    def test_quoted_default_with_spaces(self, tmp_path):
+        """Quoted defaults with embedded spaces are preserved verbatim."""
+        result = _run_ast(
+            '-- !x! BEGIN SCRIPT proc1(msg="hello world")\n'
+            "INSERT INTO t VALUES ('!!#msg!!');\n"
+            "-- !x! END SCRIPT\n"
+            "CREATE TABLE t (x TEXT);\n"
+            "-- !x! EXECUTE SCRIPT proc1\n",
+            tmp_path,
+        )
+        assert result.returncode == 0, result.stderr
+        assert _query_db(tmp_path, "SELECT x FROM t") == [("hello world",)]
+
+    def test_quoted_default_with_special_chars(self, tmp_path):
+        """Path-like values with slashes survive parsing."""
+        result = _run_ast(
+            '-- !x! BEGIN SCRIPT proc1(logfile="/tmp/run.log")\n'
+            "INSERT INTO t VALUES ('!!#logfile!!');\n"
+            "-- !x! END SCRIPT\n"
+            "CREATE TABLE t (x TEXT);\n"
+            "-- !x! EXECUTE SCRIPT proc1\n",
+            tmp_path,
+        )
+        assert result.returncode == 0, result.stderr
+        assert _query_db(tmp_path, "SELECT x FROM t") == [("/tmp/run.log",)]
+
+    def test_quoted_default_passed_arg_consistency(self, tmp_path):
+        """A quoted default and a quoted passed-arg produce the same value.
+
+        Both code paths should resolve to the same unquoted value — this is
+        the consistency guarantee the parser fix establishes.
+        """
+        result = _run_ast(
+            '-- !x! BEGIN SCRIPT proc1(label="alpha")\n'
+            "INSERT INTO t VALUES ('!!#label!!');\n"
+            "-- !x! END SCRIPT\n"
+            "CREATE TABLE t (x TEXT);\n"
+            "-- !x! EXECUTE SCRIPT proc1\n"
+            '-- !x! EXECUTE SCRIPT proc1(label="alpha")\n',
+            tmp_path,
+        )
+        assert result.returncode == 0, result.stderr
+        assert _query_db(tmp_path, "SELECT x FROM t ORDER BY rowid") == [
+            ("alpha",),
+            ("alpha",),
+        ]
+
 
 # ---------------------------------------------------------------------------
 # Docstrings

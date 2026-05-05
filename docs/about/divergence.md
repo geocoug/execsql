@@ -58,16 +58,18 @@ ______________________________________________________________________
 
 ### SCRIPT Enhancements
 
-| Feature            | Description                                                                                                                                                                                                  |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Default parameters | `BEGIN SCRIPT load(schema, table, batch=1000)` — parameters with defaults can be omitted at call site. Required parameters must precede optional parameters.                                                 |
-| Docstrings         | Comments (`--` or `/* */`) immediately following `BEGIN SCRIPT` are captured as documentation. A blank line terminates the docstring. Displayed by `SHOW SCRIPTS <name>` and `.scripts <name>` REPL command. |
+| Feature            | Description                                                                                                                                                                                                                                                                                                                                            |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Default parameters | `BEGIN SCRIPT load(schema, table, batch=1000)` — parameters with defaults can be omitted at call site. Required parameters must precede optional parameters.                                                                                                                                                                                           |
+| Quoted defaults    | Default values may be quoted with single or double quotes to embed spaces, commas, or other special characters: `BEGIN SCRIPT proc(msg="hello, world", path="/var/log/app.log")`. Surrounding quotes are stripped at parse time so the bound substitution variable holds the value itself, matching the call-site quote-handling for passed arguments. |
+| Docstrings         | Comments (`--` or `/* */`) immediately following `BEGIN SCRIPT` are captured as documentation. A blank line terminates the docstring. Displayed by `SHOW SCRIPTS <name>` and `.scripts <name>` REPL command.                                                                                                                                           |
 
 ### Bug Fixes
 
-| Fix                             | Description                                                                                                                                               |
-| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Variable EXECUTE SCRIPT targets | `EXECUTE SCRIPT !!#var!!` now works — the parser accepts substitution variable patterns as script identifiers, and the executor resolves them at runtime. |
+| Fix                             | Description                                                                                                                                                                                                                                                                                                              |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Variable EXECUTE SCRIPT targets | `EXECUTE SCRIPT !!#var!!` now works — the parser accepts substitution variable patterns as script identifiers, and the executor resolves them at runtime.                                                                                                                                                                |
+| Quoted parameter defaults       | `BEGIN SCRIPT proc(name="value")` previously stored the literal `"value"` (with surrounding quotes), causing substitutions like `WRITE "!!#name!!"` to expand to `WRITE ""value""` and fail. Defaults now strip surrounding quotes at parse time, matching the `wo_quotes` handling already applied to passed arguments. |
 
 ### Conditional Tests
 

@@ -114,14 +114,48 @@ _EXEC_SCRIPT_RX = re.compile(
     re.I,
 )
 
+# A parameter default value is either a double-quoted string, a single-quoted
+# string (both may contain spaces, commas, and other special characters), or
+# a bare run of non-whitespace characters.  Unquoted values must not begin
+# with a quote — that catches mismatched / unterminated quoted values
+# (e.g. ``name="value``) instead of silently treating them as literals.
+_PARAM_VALUE = r'(?:"[^"]*"|\'[^\']*\'|[^\s\'"]\S*)'
+
 _WITH_PARAMS_RX = re.compile(
     r"(?:\s+WITH)?(?:\s+PARAM(?:ETER)?S)?\s*\(\s*(?P<params>"
-    r"\w+(?:\s*=\s*\S+)?(?:\s*,\s*\w+(?:\s*=\s*\S+)?)*"
+    rf"\w+(?:\s*=\s*{_PARAM_VALUE})?(?:\s*,\s*\w+(?:\s*=\s*{_PARAM_VALUE})?)*"
     r")\s*\)\s*$",
     re.I,
 )
 
-_PARAM_TOKEN_RX = re.compile(r"(\w+)(?:\s*=\s*(\S+))?")
+_PARAM_TOKEN_RX = re.compile(rf"(\w+)(?:\s*=\s*({_PARAM_VALUE}))?\s*\Z")
+
+
+def _split_param_tokens(params_str: str) -> list[str]:
+    """Split a parameter list on commas, respecting quoted values.
+
+    Quoted segments (``"..."`` or ``'...'``) are kept intact so that commas
+    inside quotes do not split the token.  Each returned token is stripped
+    of surrounding whitespace.
+    """
+    tokens: list[str] = []
+    current: list[str] = []
+    in_quote: str | None = None
+    for ch in params_str:
+        if in_quote is not None:
+            current.append(ch)
+            if ch == in_quote:
+                in_quote = None
+        elif ch in ('"', "'"):
+            current.append(ch)
+            in_quote = ch
+        elif ch == ",":
+            tokens.append("".join(current))
+            current = []
+        else:
+            current.append(ch)
+    tokens.append("".join(current))
+    return [t.strip() for t in tokens]
 
 
 def _parse_param_defs(
@@ -129,16 +163,21 @@ def _parse_param_defs(
     lineno: int,
     source: str,
 ) -> list[ParamDef]:
-    """Parse ``'a, b, c=100, d=false'`` into a list of :class:`ParamDef`.
+    """Parse ``'a, b, c=100, d="hello world"'`` into a list of :class:`ParamDef`.
+
+    Defaults may be unquoted (``key=value``), double-quoted (``key="v a l"``),
+    or single-quoted (``key='v,a,l'``).  Surrounding quotes are stripped so
+    that ``ParamDef.default`` always holds the resolved value, mirroring the
+    quote-handling done at the call site for passed arguments.
 
     Required parameters (no default) must precede optional parameters
     (with default).  Raises :class:`ErrInfo` if ordering is violated.
     """
-    tokens = [t.strip() for t in params_str.split(",")]
+    tokens = _split_param_tokens(params_str)
     defs: list[ParamDef] = []
     seen_optional: str | None = None  # name of first optional param
     for token in tokens:
-        m = _PARAM_TOKEN_RX.match(token.strip())
+        m = _PARAM_TOKEN_RX.match(token)
         if not m:
             raise ErrInfo(
                 type="cmd",
@@ -146,6 +185,7 @@ def _parse_param_defs(
             )
         name, default = m.group(1), m.group(2)
         if default is not None:
+            default = _strip_quotes(default)
             if seen_optional is None:
                 seen_optional = name
         elif seen_optional is not None:

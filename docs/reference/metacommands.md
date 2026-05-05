@@ -260,6 +260,24 @@ A required parameter after an optional parameter is a parse error:
 -- !x! BEGIN SCRIPT bad(schema, batch=1000, table)
 ```
 
+Default values may be quoted with single or double quotes when they contain spaces, commas, or other special characters. Surrounding quotes are stripped at parse time, so the bound substitution variable holds the value itself, not the quoted source token. This matches the quote-handling already applied to passed arguments at the call site:
+
+```sql
+-- !x! BEGIN SCRIPT std_chem_units (
+--     selected_lr_rows,
+--     output_table="std_chem",
+--     default_unit_set="Default",
+--     logfile="/tmp/run.log",
+--     description="hello, world"
+-- )
+-- !!#default_unit_set!! resolves to: Default   (no surrounding quotes)
+-- !!#description!!     resolves to: hello, world
+-- !x! WRITE "Unit set: !!#default_unit_set!!"
+-- !x! END SCRIPT
+```
+
+Unquoted default values cannot contain whitespace and must not begin with a quote character. An unterminated quoted value (e.g. `name="value`) is rejected as a parse error rather than being silently stored as a literal.
+
 ### Docstrings
 
 Comments (`--` or `/* */`) immediately following the BEGIN SCRIPT line are captured as the script's docstring. A blank line terminates the docstring. Docstrings are displayed by [SHOW SCRIPT](#show_script), [SHOW SCRIPTS](#show_scripts), and the `.scripts` REPL command.
