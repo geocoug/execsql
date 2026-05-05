@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.16.18] - 2026-05-05
+
 ### Fixed
 
 - `BEGIN SCRIPT` parameter defaults now correctly strip surrounding quotes when stored, mirroring the quote-handling already applied to passed arguments at the call site. Previously a default written as `default_unit_set="Default"` bound the literal string `"Default"` (with quotes intact), so a body like `WRITE "!!#default_unit_set!!"` produced `WRITE ""Default""` and failed. Defaults and passed arguments now resolve to the same value for the same source token.
