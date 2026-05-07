@@ -201,14 +201,6 @@ def _set_subvars(result: Any) -> None:
     sv("$PG_UPSERT_EXPORT_PATH", "")
 
 
-def _qa_failure_msg(result: Any) -> str:
-    """Build a concise QA failure message listing which tables failed."""
-    failed = [t.table_name for t in result.tables if not t.qa_passed]
-    if failed:
-        return f"PG_UPSERT QA failed for: {', '.join(failed)}"
-    return "PG_UPSERT QA checks failed."
-
-
 # ---------------------------------------------------------------------------
 # Import guard + helpers
 # ---------------------------------------------------------------------------
@@ -484,13 +476,6 @@ def x_pg_upsert(**kwargs: Any) -> None:
     if opts.get("cleanup"):
         ups.cleanup()
 
-    if not result.qa_passed:
-        raise ErrInfo(
-            "cmd",
-            command_text=metacommandline,
-            other_msg=_qa_failure_msg(result),
-        )
-
 
 def x_pg_upsert_qa(**kwargs: Any) -> None:
     """PG_UPSERT QA FROM <staging> TO <base> TABLES <t1>, <t2> [options]
@@ -523,13 +508,6 @@ def x_pg_upsert_qa(**kwargs: Any) -> None:
     _export_failures_if_requested(result, opts, metacommandline)
     if opts.get("cleanup"):
         ups.cleanup()
-
-    if not result.qa_passed:
-        raise ErrInfo(
-            "cmd",
-            command_text=metacommandline,
-            other_msg=_qa_failure_msg(result),
-        )
 
 
 def x_pg_upsert_check(**kwargs: Any) -> None:
@@ -566,13 +544,6 @@ def x_pg_upsert_check(**kwargs: Any) -> None:
     _export_failures_if_requested(result, opts, metacommandline)
     if opts.get("cleanup"):
         ups.cleanup()
-
-    if not result.qa_passed:
-        raise ErrInfo(
-            "cmd",
-            command_text=metacommandline,
-            other_msg=_qa_failure_msg(result),
-        )
 
 
 # ---------------------------------------------------------------------------

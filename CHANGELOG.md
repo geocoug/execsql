@@ -11,6 +11,14 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Changed
+
+- **Behavior change.** `PG_UPSERT`, `PG_UPSERT QA`, and `PG_UPSERT CHECK` no longer raise a metacommand error when QA checks fail. The outcome is reported via `$PG_UPSERT_QA_PASSED` (and the per-table `$PG_UPSERT_TABLE_QA_PASSED`) along with `$PG_UPSERT_RESULT_JSON`, so the script controls flow with `IF` or `ASSERT` instead of being forced into execsql's halt-on-error path. `EXPORT_FAILURES` still runs on QA failure, and the upsert is still skipped (no commit). Scripts that previously relied on a hard halt should add `ASSERT !!$PG_UPSERT_QA_PASSED!! = TRUE` (or branch via `IF`) at the call site.
+
+### Fixed
+
+- `!!$COUNTER_N!!` references inside metacommands (e.g. `WRITE`, `IF`, `SUB`) now return the documented sequence `1, 2, 3, …` starting at 1. The AST executor was calling `substitute_vars()` twice per metacommand — once to detect a `BREAK` token before dispatch, then again inside the dispatch handler — which double-incremented every counter reference so the first read returned 2 and subsequent reads stepped by 2. Counter references in plain SQL statements were unaffected (they already substituted exactly once). The duplicate substitution also re-rolled `!!$RANDOM!!` and `!!$UUID!!` for any metacommand that referenced them, so those values are now stable across BREAK detection and dispatch as well.
+
 ______________________________________________________________________
 
 ## [2.16.18] - 2026-05-05

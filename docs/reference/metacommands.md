@@ -2248,6 +2248,24 @@ Set after every `PG_UPSERT` execution:
     -- !x! WRITE `!!$PG_UPSERT_RESULT_JSON!!`
     ```
 
+### QA failure behavior
+
+`PG_UPSERT`, `PG_UPSERT QA`, and `PG_UPSERT CHECK` do **not** raise an error when QA checks fail. The outcome is reported via `$PG_UPSERT_QA_PASSED` (and the per-table `$PG_UPSERT_TABLE_QA_PASSED`), so the script controls flow with `IF` or with execsql's standard error-halt configuration. When QA fails, the metacommand still runs `EXPORT_FAILURES`, populates all `$PG_UPSERT_*` substitution variables, and skips the upsert (no commit). Pair with `ASSERT` to halt explicitly:
+
+```sql
+-- Soft failure: branch on the result, keep running.
+-- !x! PG_UPSERT FROM staging TO public TABLES books, authors EXPORT_FAILURES "qa/"
+-- !x! IF !!$PG_UPSERT_QA_PASSED!! = TRUE
+-- !x!   PG_UPSERT FROM staging TO public TABLES books, authors COMMIT
+-- !x! ELSE
+-- !x!   WRITE "QA failed — fix sheet at !!$PG_UPSERT_EXPORT_PATH!!"
+-- !x! ENDIF
+
+-- Hard failure: halt the script when QA fails.
+-- !x! PG_UPSERT QA FROM staging TO public TABLES books, authors
+-- !x! ASSERT !!$PG_UPSERT_QA_PASSED!! = TRUE "Pre-load QA failed; aborting."
+```
+
 ### Temporary objects
 
 pg-upsert creates temporary tables and views (all prefixed `ups_`) that persist after the metacommand completes. Users can query these for debugging and inspection — for example, `SELECT * FROM ups_control` shows per-table QA results and row counts.

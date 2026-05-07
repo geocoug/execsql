@@ -19,7 +19,6 @@ from execsql.metacommands.upsert import (
     _FileWriterHandler,
     _build_result_from_qa_findings,
     _parse_tables_and_options,
-    _qa_failure_msg,
     x_pg_upsert,
     x_pg_upsert_check,
     x_pg_upsert_qa,
@@ -541,7 +540,9 @@ class TestFullMode:
         assert "$PG_UPSERT_FINISHED_AT" in calls
         assert "$PG_UPSERT_RESULT_JSON" in calls
 
-    def test_qa_failure_raises_errinfo(self, mock_state):
+    def test_qa_failure_does_not_raise(self, mock_state):
+        """QA failure surfaces via $PG_UPSERT_QA_PASSED; the user's own IF /
+        ON ERROR HALT decides control flow."""
         state, db = mock_state
         fake_result = FakeUpsertResult(
             tables=[
@@ -559,17 +560,15 @@ class TestFullMode:
             patch("execsql.metacommands.upsert._create_pgupsert") as mock_create,
         ):
             mock_create.return_value.run.return_value = fake_result
-            with pytest.raises(ErrInfo) as exc_info:
-                x_pg_upsert(
-                    staging_schema="staging",
-                    base_schema="public",
-                    tail="books",
-                    metacommandline="PG_UPSERT FROM staging TO public TABLES books",
-                )
-        err_msg = str(exc_info.value)
-        assert "QA failed for: books" in err_msg
-        # Subvars should still be set before the error
-        assert state.subvars.add_substitution.called
+            x_pg_upsert(
+                staging_schema="staging",
+                base_schema="public",
+                tail="books",
+                metacommandline="PG_UPSERT FROM staging TO public TABLES books",
+            )
+        calls = {c[0][0]: c[0][1] for c in state.subvars.add_substitution.call_args_list}
+        assert calls["$PG_UPSERT_QA_PASSED"] == "FALSE"
+        assert calls["$PG_UPSERT_COMMITTED"] == "FALSE"
 
     def test_commit_keyword_passed(self, mock_state):
         state, db = mock_state
@@ -869,42 +868,6 @@ class TestUserCancelled:
 
 
 # ---------------------------------------------------------------------------
-# Logging bridge test
-# ---------------------------------------------------------------------------
-
-
-class TestQAFailureMessage:
-    def test_lists_failed_tables(self):
-        result = FakeUpsertResult(
-            tables=[
-                FakeTableResult(
-                    table_name="books",
-                    _qa_findings=[FakeQAError(table="books", check_type="null", details="title (3)")],
-                ),
-                FakeTableResult(table_name="authors"),  # passes
-                FakeTableResult(
-                    table_name="genres",
-                    _qa_findings=[FakeQAError(table="genres", check_type="fk", details="parent_id (5)")],
-                ),
-            ],
-        )
-        msg = _qa_failure_msg(result)
-        assert msg == "PG_UPSERT QA failed for: books, genres"
-
-    def test_single_failed_table(self):
-        result = FakeUpsertResult(
-            tables=[
-                FakeTableResult(
-                    table_name="books",
-                    _qa_findings=[FakeQAError(table="books", check_type="pk", details="id (2)")],
-                ),
-            ],
-        )
-        msg = _qa_failure_msg(result)
-        assert msg == "PG_UPSERT QA failed for: books"
-
-
-# ---------------------------------------------------------------------------
 # Logging bridge tests
 # ---------------------------------------------------------------------------
 
@@ -934,7 +897,7 @@ class TestLoggingBridge:
 
 
 class TestQAModeFailure:
-    def test_qa_failure_raises_errinfo(self, mock_state):
+    def test_qa_failure_does_not_raise(self, mock_state):
         state, db = mock_state
 
         failed_result = FakeUpsertResult(
@@ -956,18 +919,19 @@ class TestQAModeFailure:
             mock_ups = mock_create.return_value
             mock_ups.qa_all.return_value = mock_ups
             mock_build.return_value = failed_result
-            with pytest.raises(ErrInfo) as exc_info:
-                x_pg_upsert_qa(
-                    staging_schema="staging",
-                    base_schema="public",
-                    tail="books",
-                    metacommandline="PG_UPSERT QA FROM staging TO public TABLES books",
-                )
-            assert "QA failed for: books" in str(exc_info.value)
+            x_pg_upsert_qa(
+                staging_schema="staging",
+                base_schema="public",
+                tail="books",
+                metacommandline="PG_UPSERT QA FROM staging TO public TABLES books",
+            )
+        calls = {c[0][0]: c[0][1] for c in state.subvars.add_substitution.call_args_list}
+        assert calls["$PG_UPSERT_QA_PASSED"] == "FALSE"
+        assert calls["$PG_UPSERT_COMMITTED"] == "FALSE"
 
 
 class TestCheckModeFailure:
-    def test_check_failure_raises_errinfo(self, mock_state):
+    def test_check_failure_does_not_raise(self, mock_state):
         state, db = mock_state
 
         failed_result = FakeUpsertResult(
@@ -990,14 +954,14 @@ class TestCheckModeFailure:
             mock_ups.qa_column_existence.return_value = mock_ups
             mock_ups.qa_type_mismatch.return_value = mock_ups
             mock_build.return_value = failed_result
-            with pytest.raises(ErrInfo) as exc_info:
-                x_pg_upsert_check(
-                    staging_schema="staging",
-                    base_schema="public",
-                    tail="books",
-                    metacommandline="PG_UPSERT CHECK FROM staging TO public TABLES books",
-                )
-            assert "QA failed for: books" in str(exc_info.value)
+            x_pg_upsert_check(
+                staging_schema="staging",
+                base_schema="public",
+                tail="books",
+                metacommandline="PG_UPSERT CHECK FROM staging TO public TABLES books",
+            )
+        calls = {c[0][0]: c[0][1] for c in state.subvars.add_substitution.call_args_list}
+        assert calls["$PG_UPSERT_QA_PASSED"] == "FALSE"
 
 
 # ---------------------------------------------------------------------------
@@ -1427,15 +1391,15 @@ class TestExportFailures:
             patch("execsql.metacommands.upsert._create_pgupsert") as mock_create,
         ):
             mock_create.return_value.run.return_value = fake_result
-            with pytest.raises(ErrInfo):
-                x_pg_upsert(
-                    staging_schema="staging",
-                    base_schema="public",
-                    tail="books EXPORT_FAILURES /tmp/out",
-                    metacommandline="PG_UPSERT FROM staging TO public TABLES books EXPORT_FAILURES /tmp/out",
-                )
-        # Export MUST have happened before the ErrInfo was raised.
+            x_pg_upsert(
+                staging_schema="staging",
+                base_schema="public",
+                tail="books EXPORT_FAILURES /tmp/out",
+                metacommandline="PG_UPSERT FROM staging TO public TABLES books EXPORT_FAILURES /tmp/out",
+            )
         assert fake_result.export_calls == [("/tmp/out", "csv")]
+        calls = {c[0][0]: c[0][1] for c in state.subvars.add_substitution.call_args_list}
+        assert calls["$PG_UPSERT_QA_PASSED"] == "FALSE"
 
     def test_no_export_when_keyword_absent(self, mock_state):
         state, db = mock_state
