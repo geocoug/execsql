@@ -243,15 +243,17 @@ def _exec_sql(
 
 def _exec_metacommand(
     ctx: RuntimeContext,
-    command: str,
+    cmd: str,
     source: str,
     line_no: int,
-    localvars: SubVarSet | None = None,
 ) -> Any:
-    """Dispatch a metacommand through the dispatch table."""
-    # Build localvars from the command-list stack frame (see _exec_sql comment).
-    effective_locals = _stack_localvars(ctx) or localvars
-    cmd = substitute_vars(command, effective_locals, ctx=ctx)
+    """Dispatch a metacommand through the dispatch table.
+
+    *cmd* must already have ``!!$VAR!!`` substitution applied.  The caller is
+    responsible for expansion so that side-effecting substitutions (counter
+    increments, ``$RANDOM``, ``$UUID``) are evaluated exactly once per
+    metacommand reference.
+    """
     if _VARLIKE.search(cmd):
         ctx.output.write(
             f"Warning: There is a potential un-substituted variable in the command\n     {cmd}\n",
@@ -355,13 +357,15 @@ def _execute_node(
         command = node.command
         if in_loop:
             command = _convert_deferred_vars(command)
-        # Intercept BREAK before dispatch — it controls loop flow
+        # Substitute once: the same expanded text is used for BREAK detection
+        # and dispatch.  Calling substitute_vars twice would double-increment
+        # !!$COUNTER_N!! and re-roll !!$RANDOM!!/!!$UUID!! references.
         effective_locals = _stack_localvars(ctx) or localvars
         expanded = substitute_vars(command, effective_locals, ctx=ctx)
         if _BREAK_RX.match(expanded):
             raise _BreakLoop
         ctx.last_command = _FakeScriptCmd(node)
-        _exec_metacommand(ctx, command, node.span.file, node.span.start_line, localvars)
+        _exec_metacommand(ctx, expanded, node.span.file, node.span.start_line)
 
     elif isinstance(node, IfBlock):
         ctx.last_command = _FakeScriptCmd(node)

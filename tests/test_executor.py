@@ -154,6 +154,45 @@ class TestVariableSubstitution:
         rows = _query_db(tmp_path, "SELECT val FROM t")
         assert rows == [(8,)]
 
+    def test_counter_in_metacommand_starts_at_one(self, tmp_path):
+        # Regression: the AST executor previously called substitute_vars()
+        # twice per metacommand (once for BREAK detection, once for dispatch),
+        # which double-incremented $COUNTER_N so refs returned 2, 4, 6.
+        result = _run_ast(
+            '-- !x! WRITE "First: !!$COUNTER_1!!"\n'
+            '-- !x! WRITE "Second: !!$COUNTER_1!!"\n'
+            '-- !x! WRITE "Third: !!$COUNTER_1!!"\n',
+            tmp_path,
+        )
+        assert result.returncode == 0, result.stderr
+        assert "First: 1" in result.stdout
+        assert "Second: 2" in result.stdout
+        assert "Third: 3" in result.stdout
+
+    def test_counter_in_sql_starts_at_one(self, tmp_path):
+        # Sibling check: SQL-statement counters were already correct, but
+        # pin the behavior so a future regression in the SQL path is caught.
+        result = _run_ast(
+            "CREATE TABLE t (n INT);\n"
+            "INSERT INTO t VALUES (!!$COUNTER_2!!);\n"
+            "INSERT INTO t VALUES (!!$COUNTER_2!!);\n"
+            "INSERT INTO t VALUES (!!$COUNTER_2!!);\n",
+            tmp_path,
+        )
+        assert result.returncode == 0, result.stderr
+        rows = _query_db(tmp_path, "SELECT n FROM t ORDER BY n")
+        assert rows == [(1,), (2,), (3,)]
+
+    def test_counter_same_ref_twice_in_one_metacommand(self, tmp_path):
+        # Per docs: multiple references in one command share the same value.
+        result = _run_ast(
+            '-- !x! WRITE "A=!!$COUNTER_3!! B=!!$COUNTER_3!!"\n-- !x! WRITE "C=!!$COUNTER_3!!"\n',
+            tmp_path,
+        )
+        assert result.returncode == 0, result.stderr
+        assert "A=1 B=1" in result.stdout
+        assert "C=2" in result.stdout
+
 
 # ---------------------------------------------------------------------------
 # IF / ELSE / ELSEIF
