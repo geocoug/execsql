@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.17.0] - 2026-05-07
+
 ### Changed
 
 - **Behavior change.** `PG_UPSERT`, `PG_UPSERT QA`, and `PG_UPSERT CHECK` no longer raise a metacommand error when QA checks fail. The outcome is reported via `$PG_UPSERT_QA_PASSED` (and the per-table `$PG_UPSERT_TABLE_QA_PASSED`) along with `$PG_UPSERT_RESULT_JSON`, so the script controls flow with `IF` or `ASSERT` instead of being forced into execsql's halt-on-error path. `EXPORT_FAILURES` still runs on QA failure, and the upsert is still skipped (no commit). Scripts that previously relied on a hard halt should add `ASSERT !!$PG_UPSERT_QA_PASSED!! = TRUE` (or branch via `IF`) at the call site.
