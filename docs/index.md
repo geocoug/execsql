@@ -36,32 +36,32 @@ The sections of the *execsql* documentation fall into several categories, descri
 
 These documentation sections contain information that most users will need to read in order to start using *execsql*.
 
-> | [Installation](getting-started/installation.md#installation): Installation of *execsql*.
-> | [Requirements](getting-started/requirements.md#requirements): Other Python packages that may be needed.
-> | [Syntax and Options](getting-started/syntax.md#syntax): Command-line arguments and flags.
+- [Installation](getting-started/installation.md#installation): Installation of *execsql*.
+- [Requirements](getting-started/requirements.md#requirements): Other Python packages that may be needed.
+- [Syntax and Options](getting-started/syntax.md#syntax): Command-line arguments and flags.
 
 ## Major Features and Reference
 
 These documentation sections contain detailed descriptions of major features of *execsql*. These sections may need to be consulted repeatedly when writing SQL scripts. Some tips and guidance are included within these sections; see below for other sections containing tips and guidance.
 
-> | [Configuration Files](reference/configuration.md#configuration): Fire-and-forget control over *execsql*'s environment and operation.
-> | [Substitution Variables](reference/substitution_vars.md#substitution_vars): Text substitutions to customize any part of a script.
-> | [Metacommands](reference/metacommands.md#metacommands): Import and export data, interact with the user, and dynamically control script flow.
+- [Configuration Files](reference/configuration.md#configuration): Fire-and-forget control over *execsql*'s environment and operation.
+- [Substitution Variables](reference/substitution_vars.md#substitution_vars): Text substitutions to customize any part of a script.
+- [Metacommands](reference/metacommands.md#metacommands): Import and export data, interact with the user, and dynamically control script flow.
 
 ## Tips and Guidance
 
 These documentation sections include information that is pertinent to specific DBMSs and may improve your understanding and usage of *execsql*'s features. If you are encountering unexpected behavior, information in these sections may be of assistance.
 
-> | [Usage Notes](guides/usage.md#usage): Important but not necessarily essential information about *execsql*'s operation.
-> | [SQL Syntax Notes](guides/sql_syntax.md#sql_syntax): Details about handling of SQL statements.
-> | [Logging](guides/logging.md#logging): A description of the automatically maintained log file, which can be useful for *post-mortem* evaluation of script actions.
-> | [Character Encoding](guides/encoding.md#encoding): Information on handling of different character encodings.
-> | [Using Script Files](guides/using_scripts.md#scripting): Recommendations (really, advocacy) for the use of script files.
-> | [Documenting Script Actions](guides/documentation.md#documentation): Information to support the creation of comprehensive documentation.
-> | [Debugging](guides/debugging.md#debugging): Metacommands to assist with SQL script debugging.
+- [Usage Notes](guides/usage.md#usage): Important but not necessarily essential information about *execsql*'s operation.
+- [SQL Syntax Notes](guides/sql_syntax.md#sql_syntax): Details about handling of SQL statements.
+- [Logging](guides/logging.md#logging): A description of the automatically maintained log file, which can be useful for *post-mortem* evaluation of script actions.
+- [Character Encoding](guides/encoding.md#encoding): Information on handling of different character encodings.
+- [Using Script Files](guides/using_scripts.md#scripting): Recommendations (really, advocacy) for the use of script files.
+- [Documenting Script Actions](guides/documentation.md#documentation): Information to support the creation of comprehensive documentation.
+- [Debugging](guides/debugging.md#debugging): Metacommands to assist with SQL script debugging.
 
 ## Examples
 
 This section contains examples of *execsql*'s usage, focusing primarily on [metacommands](reference/metacommands.md#metacommands). The code snippets in these examples can generally be easily modified for use in other applications.
 
-> | [Examples](guides/examples.md#examples): Code snippets to illustrate *execsql* usage.
+- [Examples](guides/examples.md#examples): Code snippets to illustrate *execsql* usage.

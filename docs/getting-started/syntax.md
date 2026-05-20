@@ -16,7 +16,7 @@ At minimum, provide a SQL script file to run. If database connection information
 
 For client-server databases (PostgreSQL, MySQL/MariaDB, SQL Server, Oracle, Firebird), provide the server and database name after the script file:
 
-```bash
+```sh
 execsql -tp script.sql myserver mydb        # PostgreSQL
 execsql -tm script.sql myserver mydb        # MySQL / MariaDB
 execsql -ts script.sql myserver mydb        # SQL Server
@@ -30,7 +30,7 @@ If only one argument is provided after the script file, it is interpreted as the
 
 For file-based databases (SQLite, DuckDB, MS Access), provide the database file path:
 
-```bash
+```sh
 execsql -tl script.sql mydb.sqlite          # SQLite
 execsql -tk script.sql mydb.duckdb          # DuckDB
 execsql -ta script.sql mydb.accdb           # MS Access
@@ -40,7 +40,7 @@ execsql -ta script.sql mydb.accdb           # MS Access
 
 Connect via an ODBC DSN or a connection URL:
 
-```bash
+```sh
 execsql -td script.sql my_dsn_name                          # ODBC DSN
 execsql --dsn postgresql://user:pass@host:5432/db script.sql # Connection URL
 ```
@@ -49,7 +49,7 @@ execsql --dsn postgresql://user:pass@host:5432/db script.sql # Connection URL
 
 Use `-c` to execute a SQL or metacommand string directly, without a script file:
 
-```bash
+```sh
 execsql -tl -c "SELECT sqlite_version();" mydb.sqlite
 ```
 
@@ -57,7 +57,7 @@ execsql -tl -c "SELECT sqlite_version();" mydb.sqlite
 
 When all connection parameters are in a [configuration file](../reference/configuration.md#configuration):
 
-```bash
+```sh
 execsql script.sql
 ```
 
@@ -217,7 +217,7 @@ Valid encoding names can be displayed with the `-y` option. See also [Character 
 
     Exits 0 when no errors are found (warnings alone do not affect the exit code). Exits 1 when any errors are found.
 
-    ```bash
+    ```sh
     execsql --lint script.sql
     ```
 
@@ -225,7 +225,7 @@ Valid encoding names can be displayed with the `-y` option. See also [Character 
 
 :   Test database connectivity and exit. Connects to the configured database, queries the server version if possible, and prints a one-line summary on success (exit 0). On failure, prints the error message and exits with code 1. No script file is required — `--ping` can be combined with `--dsn` or other connection flags without specifying a `.sql` file.
 
-    ```bash
+    ```sh
     execsql --ping --dsn postgresql://user:pass@host/db
     execsql --ping --dsn sqlite:///mydb.sqlite
     ```
@@ -234,7 +234,7 @@ Valid encoding names can be displayed with the `-y` option. See also [Character 
 
 :   Parse the script into an Abstract Syntax Tree and print a visual tree showing block nesting (IF/LOOP/BATCH/SCRIPT), source line ranges, compound conditions (ANDIF/ORIF), and all metacommands. Does not connect to a database or execute anything. Useful for understanding script structure.
 
-    ```bash
+    ```sh
     execsql --parse-tree script.sql
     ```
 
@@ -242,7 +242,7 @@ Valid encoding names can be displayed with the `-y` option. See also [Character 
 
 :   List all discovered plugins (metacommands, exporters, importers) and exit. Plugins are Python packages that register extensions via entry points. See the [Plugin System](#plugin-system) section in the developer guide.
 
-    ```bash
+    ```sh
     execsql --list-plugins
     ```
 

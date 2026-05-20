@@ -6,7 +6,7 @@
 
 The easiest way to install the required libraries is to use the optional dependency extras provided by the `execsql2` package:
 
-```bash
+```sh
 # Database drivers
 pip install "execsql2[postgres]"    # PostgreSQL
 pip install "execsql2[mysql]"       # MySQL / MariaDB

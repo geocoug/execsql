@@ -4,13 +4,13 @@
 
 It can be installed with:
 
-```
+```sh
 pip install execsql2
 ```
 
 Or with [uv](https://docs.astral.sh/uv/):
 
-```
+```sh
 uv add execsql2
 ```
 
@@ -18,7 +18,7 @@ This installs the `execsql2` command-line tool.
 
 To install with optional dependencies:
 
-```
+```sh
 pip install "execsql2[postgres]"    # PostgreSQL
 pip install "execsql2[mysql]"       # MySQL / MariaDB
 pip install "execsql2[duckdb]"      # DuckDB
