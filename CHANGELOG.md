@@ -18,6 +18,7 @@ ______________________________________________________________________
 ### Fixed
 
 - VS Code syntax highlighting now recognizes the single-quoted (`!'!name!'!`) and double-quoted (`!"!name!"!`) substitution variable forms in addition to the bare `!!name!!` form. All scope prefixes (`$`, `&`, `#`, `@`, `~`, `+`, and unprefixed names) work with all three delimiter styles. Previously the quoted variants rendered as plain text or were partially consumed by the string-literal rule, so users following the convention recommended in `docs/reference/substitution_vars.md#quoting_convention` got worse highlighting than users sticking to bare `!!`. Regenerate the bundled grammar with `just install-vscode` to pick up the fix.
+- Mermaid diagrams in the docs site (e.g. `docs/dev/architecture.md`) now render as SVG instead of as plain code blocks. The `zensical.toml` `pymdownx.superfences` block was overriding zensical's default config without re-declaring the `mermaid` custom fence, so the bundled mermaid.js detector never matched the rendered HTML. Added the `mermaid` custom fence so the three diagrams in the Architecture page (and any future mermaid blocks) render correctly.
 
 ______________________________________________________________________
 
