@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Added
+
+- New `Quoting Convention` section in the substitution variables reference (`docs/reference/substitution_vars.md#quoting_convention`) covering the storage-vs-use-site principle. Explains how `SUB`, variable substitution, and `EXECUTE SCRIPT` argument parsing compose, and walks through the common footgun where `SUB myfile "x"` followed by `EXECUTE SCRIPT(arg='!!myfile!!')` leaves stray quotes inside the called script because `wo_quotes()` strips only one pair. Documents the SQL string literal exception (`SUB MEASBASIS 'Partic'`) and the test for when it applies.
+
 ______________________________________________________________________
 
 ## [2.17.0] - 2026-05-07

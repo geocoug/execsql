@@ -304,6 +304,95 @@ In addition to the [SUB](metacommands.md#subcmd) metacommand, several other meta
 
 Substitution variables can also be defined in the "variables" section of a [configuration file](configuration.md#configuration).
 
+## Quoting Convention { #quoting_convention }
+
+[SUB](metacommands.md#subcmd), variable substitution, and [EXECUTE SCRIPT](metacommands.md#executescript) argument parsing each handle quotes differently, and composing them naïvely produces a subtle footgun. This section describes the convention that avoids it.
+
+**Overall principle:** quotes belong at the *use site* (where the variable is read), never at the *storage site* (where it is defined).
+
+### Storage and use sites
+
+*Storage* is the line where a variable is given its value:
+
+```sql
+-- !x! SUB logfile /var/log/run.log
+```
+
+*Use site* is any line where the variable is read back via `!!varname!!` (or `!'!varname!'!` / `!"!varname!"!`) to insert its value somewhere:
+
+```sql
+-- !x! WRITE "starting" TEE TO !!logfile!!
+INSERT INTO log (path) VALUES (!'!logfile!'!);
+-- !x! EXECUTE SCRIPT process(target="!!logfile!!")
+```
+
+Storage happens once; use sites happen many times in different contexts, each potentially needing different quoting. Pre-quoting at storage cannot satisfy every downstream context, and once quotes are stored they cannot be stripped from inside a called script.
+
+### The three rules
+
+- **`SUB` (storage)** — store bare values, with no surrounding quotes (one [exception](#sql_literal_exception)).
+- **`EXECUTE SCRIPT(arg=...)` (caller use site)** — always double-quote: `arg="!!var!!"`. The argument parser strips one pair of surrounding quotes (single, double, or square brackets), so quoted and unquoted forms produce identical values inside the called script. Always-double-quote also handles values containing `,` or `)` (which terminate unquoted arguments) and visually distinguishes values from identifiers — no judgment call required.
+- **Inside scripts (callee use sites)** — pick the substitution form that matches what the value is being used as:
+
+| Form           | Use for                                                                                             | Example                           |
+| -------------- | --------------------------------------------------------------------------------------------------- | --------------------------------- |
+| `!!#param!!`   | Raw text — file paths, identifiers in metacommands, arguments forwarded to another `EXECUTE SCRIPT` | `WRITE "msg" TEE TO !!#logfile!!` |
+| `!'!#param!'!` | SQL string literal — wraps in `'...'` and doubles any embedded `'`                                  | `WHERE name = !'!#username!'!`    |
+| `!"!#param!"!` | SQL quoted identifier — wraps in `"..."`                                                            | `SELECT * FROM !"!#tablename!"!`  |
+
+The caller and callee rules are the same rule applied on opposite ends of the call: quote at the use site for the context that is consuming the value.
+
+### Why the principle holds
+
+If a value is stored pre-quoted, the quotes ride along through every substitution and cannot be removed inside a called script. Consider:
+
+```sql
+-- !x! SUB myfile "filename.txt"
+-- !x! EXECUTE SCRIPT process(arg='!!myfile!!')
+```
+
+1. `SUB` stores the value verbatim, including the double quotes: `"filename.txt"`.
+1. Substitution replaces `!!myfile!!` with that exact text, so the line becomes `arg='"filename.txt"'`.
+1. The `EXECUTE SCRIPT` argument parser matches the single-quoted form and strips one pair of outer quotes, yielding `"filename.txt"`.
+1. Inside the called script, `!!#arg!!` expands to `"filename.txt"` — still wrapped in the double quotes from step 1.
+
+Any use of `!!#arg!!` that does not itself strip quotes (such as `WRITE ... TEE TO !!#arg!!`) sees a filesystem path with literal `"` characters around it. There is no in-script primitive to undo storage-site quoting, so responsibility for clean values must live with the caller.
+
+Storing the value bare avoids the chain entirely:
+
+```sql
+-- !x! SUB myfile filename.txt
+-- !x! EXECUTE SCRIPT process(arg="!!myfile!!")
+```
+
+The called script receives `filename.txt` and uses it directly.
+
+### The SQL string literal exception { #sql_literal_exception }
+
+One pattern legitimately stores quotes in `SUB`:
+
+```sql
+-- !x! SUB MEASBASIS 'Partic'
+INSERT INTO results (basis) VALUES (!!MEASBASIS!!);
+```
+
+The quotes here are part of the final SQL — the substitution expands to `VALUES ('Partic')`. The value is consumed as a SQL string literal and nothing else.
+
+Test for whether the exception applies: ask "does the substituted output need to *be* the quote characters as final SQL syntax?" If yes, quotes in `SUB` are correct. If no — file paths, identifiers, script arguments, anything passed to a metacommand — store bare and quote at the use site instead.
+
+For new code, prefer the `!'!varname!'!` form even for SQL string literals. It stores cleanly and applies the quoting at the use site, where it belongs:
+
+```sql
+-- !x! SUB MEASBASIS Partic
+INSERT INTO results (basis) VALUES (!'!MEASBASIS!'!);
+```
+
+### Related
+
+- [SUB](metacommands.md#subcmd)
+- [BEGIN SCRIPT](metacommands.md#beginscript)
+- [EXECUTE SCRIPT](metacommands.md#executescript)
+
 ## Deferred Variable Substitution { #deferred_substitution }
 
 The ON ERROR_HALT metacommands, the ON CANCEL_HALT metacommands, the EXECUTE SCRIPT WHILE/UNTIL metacommands, the LOOP metacommand, and two forms of the EXTEND SCRIPT metacommand all accept clauses or arguments that can contain substitution variables that are meant to be evaluated after the execution of the metacommand itself. For example, in the metacommand line:
