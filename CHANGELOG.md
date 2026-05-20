@@ -15,6 +15,10 @@ ______________________________________________________________________
 
 - New `Quoting Convention` section in the substitution variables reference (`docs/reference/substitution_vars.md#quoting_convention`) covering the storage-vs-use-site principle. Explains how `SUB`, variable substitution, and `EXECUTE SCRIPT` argument parsing compose, and walks through the common footgun where `SUB myfile "x"` followed by `EXECUTE SCRIPT(arg='!!myfile!!')` leaves stray quotes inside the called script because `wo_quotes()` strips only one pair. Documents the SQL string literal exception (`SUB MEASBASIS 'Partic'`) and the test for when it applies.
 
+### Fixed
+
+- VS Code syntax highlighting now recognizes the single-quoted (`!'!name!'!`) and double-quoted (`!"!name!"!`) substitution variable forms in addition to the bare `!!name!!` form. All scope prefixes (`$`, `&`, `#`, `@`, `~`, `+`, and unprefixed names) work with all three delimiter styles. Previously the quoted variants rendered as plain text or were partially consumed by the string-literal rule, so users following the convention recommended in `docs/reference/substitution_vars.md#quoting_convention` got worse highlighting than users sticking to bare `!!`. Regenerate the bundled grammar with `just install-vscode` to pick up the fix.
+
 ______________________________________________________________________
 
 ## [2.17.0] - 2026-05-07

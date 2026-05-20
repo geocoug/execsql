@@ -127,94 +127,94 @@
       "name": "keyword.operator.execsql"
     },
     "variable-substitution": {
-      "comment": "Variable substitution patterns \u2014 apply everywhere in .sql files",
+      "comment": "Variable substitution patterns \u2014 apply everywhere in .sql files. Each prefix-specific rule matches all three delimiter forms: bare !!name!!, single-quoted !'!name!'!, and double-quoted !\"!name!\"!.",
       "patterns": [
         {
-          "comment": "System variable !!$name!!",
-          "match": "(!!)(\\$[A-Za-z_][A-Za-z0-9_]*)(!!)",
+          "comment": "System variable (!!$name!!, !'!$name!'!, !\"!$name!\"!)",
+          "match": "(!(['\\\"]?)!)(\\$[A-Za-z_][A-Za-z0-9_]*)(!\\2!)",
           "captures": {
             "1": {
               "name": "punctuation.definition.variable.execsql"
             },
-            "2": {
+            "3": {
               "name": "variable.language.execsql"
             },
-            "3": {
+            "4": {
               "name": "punctuation.definition.variable.execsql"
             }
           }
         },
         {
-          "comment": "Environment variable !!&name!!",
-          "match": "(!!)(&[A-Za-z_][A-Za-z0-9_]*)(!!)",
+          "comment": "Environment variable (!!&name!!, !'!&name!'!, !\"!&name!\"!)",
+          "match": "(!(['\\\"]?)!)(&[A-Za-z_][A-Za-z0-9_]*)(!\\2!)",
           "captures": {
             "1": {
               "name": "punctuation.definition.variable.execsql"
             },
-            "2": {
+            "3": {
               "name": "variable.language.execsql"
             },
-            "3": {
+            "4": {
               "name": "punctuation.definition.variable.execsql"
             }
           }
         },
         {
-          "comment": "Parameter variable !!#name!!",
-          "match": "(!!)(#[A-Za-z_][A-Za-z0-9_]*)(!!)",
+          "comment": "Parameter variable (!!#name!!, !'!#name!'!, !\"!#name!\"!)",
+          "match": "(!(['\\\"]?)!)(#[A-Za-z_][A-Za-z0-9_]*)(!\\2!)",
           "captures": {
             "1": {
               "name": "punctuation.definition.variable.execsql"
             },
-            "2": {
+            "3": {
               "name": "variable.parameter.execsql"
             },
-            "3": {
+            "4": {
               "name": "punctuation.definition.variable.execsql"
             }
           }
         },
         {
-          "comment": "Column/data variable !!@name!!",
-          "match": "(!!)(@[A-Za-z_][A-Za-z0-9_]*)(!!)",
+          "comment": "Column/data variable (!!@name!!, !'!@name!'!, !\"!@name!\"!)",
+          "match": "(!(['\\\"]?)!)(@[A-Za-z_][A-Za-z0-9_]*)(!\\2!)",
           "captures": {
             "1": {
               "name": "punctuation.definition.variable.execsql"
             },
-            "2": {
+            "3": {
               "name": "variable.other.member.execsql"
             },
-            "3": {
+            "4": {
               "name": "punctuation.definition.variable.execsql"
             }
           }
         },
         {
-          "comment": "Local variable !!~name!! or !!+name!!",
-          "match": "(!!)([~+][A-Za-z_][A-Za-z0-9_]*)(!!)",
+          "comment": "Local variable (!!~name!! / !!+name!! and quoted variants)",
+          "match": "(!(['\\\"]?)!)([~+][A-Za-z_][A-Za-z0-9_]*)(!\\2!)",
           "captures": {
             "1": {
               "name": "punctuation.definition.variable.execsql"
             },
-            "2": {
+            "3": {
               "name": "variable.other.local.execsql"
             },
-            "3": {
+            "4": {
               "name": "punctuation.definition.variable.execsql"
             }
           }
         },
         {
-          "comment": "Regular variable !!name!!",
-          "match": "(!!)([A-Za-z_][A-Za-z0-9_]*)(!!)",
+          "comment": "Regular variable (!!name!!, !'!name!'!, !\"!name!\"!)",
+          "match": "(!(['\\\"]?)!)([A-Za-z_][A-Za-z0-9_]*)(!\\2!)",
           "captures": {
             "1": {
               "name": "punctuation.definition.variable.execsql"
             },
-            "2": {
+            "3": {
               "name": "variable.other.execsql"
             },
-            "3": {
+            "4": {
               "name": "punctuation.definition.variable.execsql"
             }
           }

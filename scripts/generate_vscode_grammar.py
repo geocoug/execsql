@@ -89,6 +89,30 @@ def _build_pattern(keywords: list[str]) -> str:
     return f"(?i)\\b({alternation})\\b"
 
 
+def _var_sub_pattern(comment: str, prefix_pattern: str, scope_name: str) -> dict:
+    """Build a substitution-variable pattern matching all three delimiter forms.
+
+    Produces a rule that matches ``!!name!!``, ``!'!name!'!``, and ``!"!name!"!``
+    via a backreference on the optional quote character, mirroring
+    ``SubVarSet._TOKEN_RX`` in ``src/execsql/script/variables.py``.
+
+    Captures:
+        1 — opening delimiter (``!!``, ``!'!``, or ``!"!``)
+        2 — the quote character or empty (used by the backreference)
+        3 — the variable name (with any scope prefix)
+        4 — closing delimiter (matches capture 1's quote)
+    """
+    return {
+        "comment": comment,
+        "match": rf"(!(['\"]?)!)({prefix_pattern}[A-Za-z_][A-Za-z0-9_]*)(!\2!)",
+        "captures": {
+            "1": {"name": "punctuation.definition.variable.execsql"},
+            "3": {"name": scope_name},
+            "4": {"name": "punctuation.definition.variable.execsql"},
+        },
+    }
+
+
 def _build_grammar(data: dict) -> dict:
     """Build the complete tmLanguage grammar dict."""
     mc = data["metacommands"]
@@ -201,62 +225,40 @@ def _build_grammar(data: dict) -> dict:
                 "name": "keyword.operator.execsql",
             },
             "variable-substitution": {
-                "comment": "Variable substitution patterns — apply everywhere in .sql files",
+                "comment": "Variable substitution patterns — apply everywhere in .sql files. "
+                "Each prefix-specific rule matches all three delimiter forms: "
+                "bare !!name!!, single-quoted !'!name!'!, and double-quoted !\"!name!\"!.",
                 "patterns": [
-                    {
-                        "comment": "System variable !!$name!!",
-                        "match": r"(!!)(\$[A-Za-z_][A-Za-z0-9_]*)(!!)",
-                        "captures": {
-                            "1": {"name": "punctuation.definition.variable.execsql"},
-                            "2": {"name": "variable.language.execsql"},
-                            "3": {"name": "punctuation.definition.variable.execsql"},
-                        },
-                    },
-                    {
-                        "comment": "Environment variable !!&name!!",
-                        "match": r"(!!)(&[A-Za-z_][A-Za-z0-9_]*)(!!)",
-                        "captures": {
-                            "1": {"name": "punctuation.definition.variable.execsql"},
-                            "2": {"name": "variable.language.execsql"},
-                            "3": {"name": "punctuation.definition.variable.execsql"},
-                        },
-                    },
-                    {
-                        "comment": "Parameter variable !!#name!!",
-                        "match": r"(!!)(#[A-Za-z_][A-Za-z0-9_]*)(!!)",
-                        "captures": {
-                            "1": {"name": "punctuation.definition.variable.execsql"},
-                            "2": {"name": "variable.parameter.execsql"},
-                            "3": {"name": "punctuation.definition.variable.execsql"},
-                        },
-                    },
-                    {
-                        "comment": "Column/data variable !!@name!!",
-                        "match": r"(!!)(@[A-Za-z_][A-Za-z0-9_]*)(!!)",
-                        "captures": {
-                            "1": {"name": "punctuation.definition.variable.execsql"},
-                            "2": {"name": "variable.other.member.execsql"},
-                            "3": {"name": "punctuation.definition.variable.execsql"},
-                        },
-                    },
-                    {
-                        "comment": "Local variable !!~name!! or !!+name!!",
-                        "match": r"(!!)([~+][A-Za-z_][A-Za-z0-9_]*)(!!)",
-                        "captures": {
-                            "1": {"name": "punctuation.definition.variable.execsql"},
-                            "2": {"name": "variable.other.local.execsql"},
-                            "3": {"name": "punctuation.definition.variable.execsql"},
-                        },
-                    },
-                    {
-                        "comment": "Regular variable !!name!!",
-                        "match": r"(!!)([A-Za-z_][A-Za-z0-9_]*)(!!)",
-                        "captures": {
-                            "1": {"name": "punctuation.definition.variable.execsql"},
-                            "2": {"name": "variable.other.execsql"},
-                            "3": {"name": "punctuation.definition.variable.execsql"},
-                        },
-                    },
+                    _var_sub_pattern(
+                        "System variable (!!$name!!, !'!$name!'!, !\"!$name!\"!)",
+                        r"\$",
+                        "variable.language.execsql",
+                    ),
+                    _var_sub_pattern(
+                        "Environment variable (!!&name!!, !'!&name!'!, !\"!&name!\"!)",
+                        r"&",
+                        "variable.language.execsql",
+                    ),
+                    _var_sub_pattern(
+                        "Parameter variable (!!#name!!, !'!#name!'!, !\"!#name!\"!)",
+                        r"#",
+                        "variable.parameter.execsql",
+                    ),
+                    _var_sub_pattern(
+                        "Column/data variable (!!@name!!, !'!@name!'!, !\"!@name!\"!)",
+                        r"@",
+                        "variable.other.member.execsql",
+                    ),
+                    _var_sub_pattern(
+                        "Local variable (!!~name!! / !!+name!! and quoted variants)",
+                        r"[~+]",
+                        "variable.other.local.execsql",
+                    ),
+                    _var_sub_pattern(
+                        "Regular variable (!!name!!, !'!name!'!, !\"!name!\"!)",
+                        r"",
+                        "variable.other.execsql",
+                    ),
                     {
                         "comment": "Deferred substitution !{name}!",
                         "match": r"!\{[A-Za-z_~+$@&#][A-Za-z0-9_]*\}!",
