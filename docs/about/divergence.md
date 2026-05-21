@@ -227,7 +227,7 @@ These are behavioral changes driven by security or correctness issues in the ups
 
 | Area                         | Fix                                                                                                                                                                                                  |
 | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Database metadata queries    | `schema_exists()`, `table_exists()`, `column_exists()`, `table_columns()`, `view_exists()`, `role_exists()` across all 8 adapters now use parameterized queries. Upstream used string interpolation. |
+| Database metadata queries    | `schema_exists()`, `table_exists()`, `column_exists()`, `table_columns()`, `view_exists()`, `role_exists()` across all 9 adapters now use parameterized queries. Upstream used string interpolation. |
 | `import_entire_file()`       | Column names are quoted with `quote_identifier()` instead of interpolated into INSERT statements.                                                                                                    |
 | PostgreSQL `CREATE DATABASE` | Database name and encoding are quoted. COPY delimiter and quote character are validated.                                                                                                             |
 | MySQL `LOAD DATA INFILE`     | File path, delimiter, and quotechar are now escaped with `replace("'", "''")` before interpolation into the SQL statement.                                                                           |

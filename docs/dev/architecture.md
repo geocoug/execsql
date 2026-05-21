@@ -49,7 +49,7 @@ flowchart LR
     STATE["state.py<br/>Global runtime<br/>singletons"]
     SCRIPT["script/<br/>engine, control,<br/>variables, AST"]
     META["metacommands/<br/>Dispatch table,<br/>~225 handlers"]
-    DB["db/<br/>Database ABC,<br/>8 adapters,<br/>DatabasePool"]
+    DB["db/<br/>Database ABC,<br/>9 adapters,<br/>DatabasePool"]
     EXPORT["exporters/<br/>20+ output<br/>formats"]
     IMPORT["importers/<br/>CSV, ODS,<br/>XLS, Feather"]
     GUI["gui/<br/>Tkinter, Textual,<br/>Console backends"]
@@ -79,27 +79,27 @@ flowchart LR
 
 ### Package summary
 
-| Package         | Purpose                                                                                          |
-| --------------- | ------------------------------------------------------------------------------------------------ |
-| `cli/`          | Typer app, `_run()` orchestration, DSN URL parsing, Rich help output, `--lint` entry points      |
-| `api.py`        | Public `execsql.run()` Python entry point for notebooks, pipelines, and library use              |
-| `config.py`     | `ConfigData` (INI merging), `StatObj` (runtime flags), `WriteHooks` (stdout/stderr redirection)  |
-| `state.py`      | Thread-local runtime store — all shared mutable state lives here, isolated per-thread            |
-| `script/`       | AST parser/executor, `CommandList`, `MetaCommandList`, `SubVarSet`, `ScriptFile`                 |
-| `metacommands/` | `build_dispatch_table()`, all `x_*` handlers, `build_conditional_table()`, all `xf_*` predicates |
-| `db/`           | `Database` ABC, `DatabasePool`, 8 adapter modules (postgres, sqlite, duckdb, mysql, etc.)        |
-| `exporters/`    | `ExportRecord`, `ExportMetadata`, `WriteSpec`, 20+ format writers (CSV, JSON, XML, HTML, etc.)   |
-| `importers/`    | `CsvFile`, `OdsFile`, `XlsFile`, `FeatherFile` — data import backends                            |
-| `gui/`          | `GuiBackend` ABC, `TkinterBackend`, `TextualBackend`, `ConsoleBackend`                           |
-| `utils/`        | Shared utilities: file I/O, encryption, mail, regex helpers, string manipulation, timers         |
-| `parser.py`     | Recursive-descent parsers for conditional (`IF`) and arithmetic (`SET`) expressions              |
-| `types.py`      | `DataType` subclasses and `DbType` per-DBMS type dialect mappings                                |
-| `models.py`     | `Column`, `DataTable`, `JsonDatatype`                                                            |
-| `format.py`     | `execsql-format` CLI — opinionated formatter for execsql scripts                                 |
-| `exceptions.py` | `ExecSqlError` base, `ErrInfo`, `ConfigError`, `DataTypeError`, `DbTypeError`, etc.              |
-| `plugins.py`    | Entry-point plugin discovery for metacommands, exporters, and importers                          |
-| `debug/`        | Interactive REPL debugger for stepping through script execution                                  |
-| `data/`         | Bundled package data (`execsql.conf.template` powers `--init-config`)                            |
+| Package         | Purpose                                                                                                                       |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `cli/`          | Typer app, `_run()` orchestration, DSN URL parsing, Rich help output, `--lint` entry points                                   |
+| `api.py`        | Public `execsql.run()` Python entry point for notebooks, pipelines, and library use                                           |
+| `config.py`     | `ConfigData` (INI merging), `StatObj` (runtime flags), `WriteHooks` (stdout/stderr redirection)                               |
+| `state.py`      | Thread-local runtime store — all shared mutable state lives here, isolated per-thread                                         |
+| `script/`       | AST parser/executor, `CommandList`, `MetaCommandList`, `SubVarSet`, `ScriptFile`                                              |
+| `metacommands/` | `build_dispatch_table()`, all `x_*` handlers, `build_conditional_table()`, all `xf_*` predicates                              |
+| `db/`           | `Database` ABC, `DatabasePool`, 9 adapter modules (postgres, sqlite, duckdb, mysql, sqlserver, oracle, firebird, access, dsn) |
+| `exporters/`    | `ExportRecord`, `ExportMetadata`, `WriteSpec`, 20+ format writers (CSV, JSON, XML, HTML, etc.)                                |
+| `importers/`    | `CsvFile`, `OdsFile`, `XlsFile`, `FeatherFile` — data import backends                                                         |
+| `gui/`          | `GuiBackend` ABC, `TkinterBackend`, `TextualBackend`, `ConsoleBackend`                                                        |
+| `utils/`        | Shared utilities: file I/O, encryption, mail, regex helpers, string manipulation, timers                                      |
+| `parser.py`     | Recursive-descent parsers for conditional (`IF`) and arithmetic (`SET`) expressions                                           |
+| `types.py`      | `DataType` subclasses and `DbType` per-DBMS type dialect mappings                                                             |
+| `models.py`     | `Column`, `DataTable`, `JsonDatatype`                                                                                         |
+| `format.py`     | `execsql-format` CLI — opinionated formatter for execsql scripts                                                              |
+| `exceptions.py` | `ExecSqlError` base, `ErrInfo`, `ConfigError`, `DataTypeError`, `DbTypeError`, etc.                                           |
+| `plugins.py`    | Entry-point plugin discovery for metacommands, exporters, and importers                                                       |
+| `debug/`        | Interactive REPL debugger for stepping through script execution                                                               |
+| `data/`         | Bundled package data (`execsql.conf.template` powers `--init-config`)                                                         |
 
 ______________________________________________________________________
 
