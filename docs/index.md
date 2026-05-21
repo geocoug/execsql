@@ -9,7 +9,7 @@
 You can use *execsql* to:
 
 - Import data from text files and spreadsheets into a database.
-- Export tables and views to text files, OpenDocument spreadsheets, HTML, JSON, LaTeΧ, XML, or 17 other data formats.
+- Export tables and views to ~30 data formats including CSV, OpenDocument spreadsheets, XLSX, HTML, JSON, YAML, Markdown, LaTeX, XML, Parquet, Feather, HDF5, SQLite, and DuckDB.
 - Copy data between different databases, even databases using different DBMSs.
 - Display tables or views on the terminal or in a GUI dialog window.
 - Export data using template processors to produce non-tabular output with customized format and contents.
