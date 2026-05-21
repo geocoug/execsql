@@ -1,17 +1,15 @@
 # Configuration Files
 
-In addition to, or as an alternative to, command-line options and arguments, configuration files can be used to specify most of the same information, plus some additional information. Most of the command-line options and arguments can be specified in a configuration file, with the exception of the script name. The script name must always be specified on the command line.
+Configuration files can supply most of the same settings as command-line options (plus some additional ones); only the script name itself must be on the command line.
 
-*execsql* will automatically read information from up to four configuration files in different standard locations, if they are present. The four locations are:
+*execsql* automatically reads up to four `execsql.conf` files, if present, from these locations in order:
 
 > - The system-wide application data directory. This is `/etc` on Linux, and `%APPDATA%` on Windows.
 > - The user-specific configuration directory. This is a directory named `.config` under the user's home directory on both Linux and Windows.
 > - The directory where the script file is located.
 > - The directory from which *execsql* was started.
 
-The name of the configuration file, in all locations, is `execsql.conf`.
-
-Configuration data is read from these files in the order listed above. Information in later files may augment or replace information in earlier files. Options and arguments specified on the command line will further augment or override information specified in the configuration files.
+Later files augment or override earlier ones; CLI arguments override the merged result.
 
 An explicit configuration file can also be specified with the `--config FILE` command-line option. This file is loaded **after** all four implicit search paths, so its values take precedence over system, user, script-directory, and working-directory config files. CLI arguments still override everything. The `--config` file may chain additional configs via its `[config]` section, just like any other config file.
 
@@ -188,7 +186,7 @@ The section and property names that may be used in a configuration file are list
 :   Controls whether all text values written to a delimited text file by the [EXPORT](metacommands.md#export) metacommand will be quoted. The property value should be either "Yes" or "No"--the default is "No".
 
 `outfile_open_timeout` { #setting_outfile_open_timeout }
-:   When the [WRITE](metacommands.md#write) metacommand writes to a file, the file is opened in a separate process to try to avoid access conflicts that may occur if that file has been temporarily opened by some other user or process (such as a backup or syncing process). If the WRITE process cannot immediately open the file, the WRITE process will continue trying to open the file for the number of seconds specified by this setting. The WRITE process will buffer multiple output to a blocked file until the file is opened or this timeout period has expired. The WRITE process can also write to other files during the timeout period. If a file cannot be opened before the timeout expires, or before *execsql* finishes processing the script, all pending output to that file will be lost, and an error message will be written to *stderr*. The default value for this setting is 600.
+:   How long (in seconds) the WRITE background process keeps retrying when a target file is held open by another process (backup, sync, etc.); output is buffered during the wait. If the timeout expires (or the script ends first) any pending output is lost and an error is written to *stderr*. Default: 600.
 
 `export_row_buffer` { #setting_export_row_buffer }
 :   The number of data rows to be buffered from the database when exporting data. Larger values result in faster exports, up to a point, and at a diminishing rate of return. Larger values also require more memory. The setting value must be a positive integer greater than zero. The default value is 1000 rows. This value cannot be customized when using DuckDB.
@@ -203,7 +201,7 @@ The section and property names that may be used in a configuration file are list
 :   A set of CSS style specifications to be included in the header of an HTML file created with the [EXPORT](metacommands.md#export) metacommand. If this is specified, it will replace the CSS styles that *execsql* would otherwise use. Both css_file and css_style may be specified; if they are, they will be included in the header of the HTML file in that order.
 
 `template_processor`
-:   The name of the template processor that will be used with the [EXPORT](metacommands.md#export) and [EXPORT QUERY](metacommands.md#export_query) metacommands when a template file is specified. The only valid value for this property is "jinja". When set to "jinja", execsql renders the template file using [Jinja2](https://jinja.palletsprojects.com/), passing the full result set as two context variables — `headers` (a list of column names) and `datatable` (a list of row dicts) — so the template can loop, filter, and format the data freely. If this property is not specified, execsql uses Python's built-in `string.Template` processor instead, which applies the template individually to each row using `$column_name` placeholders. Use `jinja` when you need conditionals, loops, or more than simple per-row substitution in your output. Requires the `jinja2` Python package (`pip install jinja2`).
+:   Template engine for `EXPORT … WITH TEMPLATE`. Default is Python's `string.Template`, applied once per row with `$column_name` placeholders. Set to `jinja` (the only other valid value) to render the full result set in one pass via [Jinja2](https://jinja.palletsprojects.com/), exposing the data as `headers` (list of column names) and `datatable` (list of row dicts) so the template can loop, filter, and conditionalize. Requires `jinja2`.
 
 `zip_buffer_mb` { #zip_buffer_mb }
 :   The size of the internal buffer used when the [EXPORT](metacommands.md#export) metacommand exports data to a zipfile, in Mb. The default value is 10. The buffer should be at least as large as the largest data row to be exported. This value typically has little effect on performance, and only affects memory usage.
@@ -323,11 +321,8 @@ The section and property names that may be used in a configuration file are list
 `dao_flush_delay_secs`
 :   The number of seconds that *execsql* should wait between the time that a query is created in Access (which uses DAO) and the time that the next statement is executed using ODBC. This value must be greater than or equal to 5.0. The default is `5.0`.
 
-`linux_config_file`
-:   The full name or path to an additional configuration file to be read if *execsql* is running on Linux (`sys.platform == "linux"`). If only a path is specified, the name of the configuration file should be `execsql.conf`. The configuration file specified will be read immediately following the configuration file in which it is named. No configuration file will be read more than once. If the name or path are invalid, this setting will be silently ignored. This setting may include [substitution variables](substitution_vars.md#substitution_vars); at the time that configuration files are read, however, only environment variables and system variables related to the script name and path are defined.
-
-`macos_config_file`
-:   The full name or path to an additional configuration file to be read if *execsql* is running on macOS (`sys.platform == "darwin"`). Behaves identically to `linux_config_file` but is only active on macOS. Tilde expansion (`~`) is supported.
+`linux_config_file`, `macos_config_file`, `win_config_file`
+:   Platform-conditional additional configuration files, active only on Linux (`sys.platform == "linux"`), macOS (`sys.platform == "darwin"`), and Windows (`os.name == "nt"`) respectively. The named file is loaded immediately after the config that referenced it; same path/precedence rules as `config_file`. Tilde expansion (`~`) is supported.
 
 `log_sql` { #log_sql }
 :   When set to "Yes", all executed SQL statements are written to the log file with a `sql` record type, including the database name, line number, and query text. The property value should be either "Yes" or "No". The default is "No". This can also be enabled via the `CONFIG LOG_SQL` metacommand.
@@ -341,9 +336,6 @@ The section and property names that may be used in a configuration file are list
 `log_datavars` { #conf_log_datavars }
 :   A value of 'Yes' or 'No' to control whether data variables that are created by the [SELECT_SUB](metacommands.md#select_sub), [PROMPT SELECT_SUB](metacommands.md#prompt_selsub) and [PROMPT ACTION](metacommands.md#prompt_action) metacommands are written to *execsql*'s [log file](../guides/logging.md#logging). By default, this is set to 'Yes', so that all data variable assignments are logged. The performance of scripts that make extensive use of these metacommands (e.g., [Example 27](../guides/examples.md#example27)) can be improved by setting this to 'No'.
 
-`win_config_file`
-:   The full name or path to an additional configuration file to be read if *execsql* is running on Windows. If only a path is specified, the name of the configuration file should be `execsql.conf`. The configuration file specified will be read immediately following the configuration file in which it is named. No configuration file will be read more than once. If the name or path are invalid, this setting will be silently ignored. This setting may include [substitution variables](substitution_vars.md#substitution_vars); at the time that configuration files are read, however, only environment variables and system variables related to the script name and path are defined.
-
 `user_logfile`
 :   Uses an *execsql.log* file in the user's home directory instead of in the directory from which the script was run. This setting may need to be used if multiple users will be running scripts from the same directory.
 
@@ -351,22 +343,10 @@ The section and property names that may be used in a configuration file are list
 
 There are no fixed properties for this section. All property names and their values that are specified in this section will be used to define substitution variables, just as if a series of SUB metacommands had been used at the beginning of the script. All variables defined in this section will be global.
 
-## Section `include_required`
+## Sections `include_required` and `include_optional`
 
-This section lists additional script files that should be automatically included before the main script is run, without the use of any explicit [INCLUDE](metacommands.md#include) metacommand in the main script.
+Both sections list script files to be auto-included before the main script runs, without an explicit [INCLUDE](metacommands.md#include). Each property is an integer that specifies inclusion order; the value is a filename. Duplicate integers keep the last assignment, and each file is included at most once.
 
-Each property in this section should be an integer, and the property value should be a filename. The integers specify the order in which the files should be included. If any integer is listed more than once, only the last filename associated with that integer in this configuration section will be included. If any of the specified files does not exist, an error will occur and *execsql* will stop. Each file may be included only once.
+The difference between the sections is what happens when a file is missing: `include_required` halts *execsql* with an error; `include_optional` silently skips it.
 
-Files specified in this section will be included before any files specified in the `include_optional` section. This priority ordering applies to lists of required and optional files specified in all configuration files that are read.
-
-The order in which these files are imported is also affected by the order in which multiple configuration files (if they exist) are read.
-
-## Section `include_optional`
-
-This section lists additional script files that will, if they exist, be automatically included before the main script is run, without the use of any explicit [INCLUDE](metacommands.md#include) metacommand in the main script.
-
-Each property in this section should be an integer, and the property value should be a filename. The integers specify the order in which the files should be included. If any integer is listed more than once, only the last filename associated with that integer in this configuration section will be included. If any of the specified files does not exist, it will be ignored. Each file may be included only once.
-
-Files specified in this section will be included after any files specified in the `include_required` section. This priority ordering applies to lists of required and optional files specified in all configuration files that are read.
-
-The order in which these files are imported is also affected by the order in which multiple configuration files (if they exist) are read.
+All `include_required` files run before any `include_optional` files. Across multiple config files, ordering follows the order in which those config files are read.
