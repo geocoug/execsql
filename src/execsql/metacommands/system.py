@@ -3,9 +3,10 @@ from __future__ import annotations
 """
 System and shell metacommand handlers for execsql.
 
-Implements ``x_shell`` (SHELL — execute an OS command via ``subprocess``)
-and related system-interaction metacommands that allow SQL scripts to
-invoke external programs, set environment variables, or query the OS.
+Implements ``x_system_cmd`` (SYSTEM_CMD — execute an OS command via
+``subprocess``) and related system-interaction metacommands that allow
+SQL scripts to invoke external programs, set environment variables, or
+query the OS.
 """
 
 import os
