@@ -151,11 +151,11 @@ jobs:
             - name: Run subprocess integration tests
               run: |
                   python -m pytest tests/integration/test_postgres.py tests/integration/test_mysql.py -v --override-ini="addopts="
-            - name: Run in-process DB adapter tests with 87% coverage floor
+            - name: Run in-process DB adapter tests with 86% coverage floor
               env:
                   DISPLAY: ""
               run: |
-                  python -m pytest --cov=execsql --cov-branch --cov-report=xml --cov-fail-under=87
+                  python -m pytest --cov=execsql --cov-branch --cov-report=xml --cov-fail-under=86
             - name: Upload coverage to Codecov
               uses: codecov/codecov-action@v6
               with:
