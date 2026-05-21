@@ -98,6 +98,27 @@ Program status at exit.
 | Exit type      | `end_of_script` (normal), `prompt_quit`, `halt` ([HALT](../reference/metacommands.md#halt) executed), `error`, or `exception` |
 | Line number    | Script line that triggered the exit (may be null)                                                                             |
 | Description    | Free text                                                                                                                     |
+| Elapsed        | Total wall-clock run duration                                                                                                 |
+
+### `sql`
+
+Each executed SQL statement, when the [`log_sql`](../reference/configuration.md#log_sql) config option (or `CONFIG LOG_SQL ON` metacommand) is enabled.
+
+| Field          | Description              |
+| -------------- | ------------------------ |
+| Record type    | `sql`                    |
+| Run identifier | Compact date-time string |
+| Database       | Active database name     |
+| Line number    | Script line              |
+| Query          | The SQL text             |
+
+### `import_progress`
+
+Periodic row-count status lines during an `IMPORT`, written every N rows when the [`import_progress_interval`](../reference/configuration.md#import_progress_interval) config option is set to a positive integer. A final completion line is also written.
+
+### Per-event timestamps
+
+`status`, `connect`, `action`, and `user_msg` records include an ISO 8601 timestamp field in addition to the run identifier. The run identifier itself uses millisecond precision (`%Y%m%d_%H%M_%S_NNN`).
 
 ## Custom logging
 

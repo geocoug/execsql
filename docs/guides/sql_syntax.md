@@ -12,7 +12,7 @@ When adding a very large amount of data with the [IMPORT](../reference/metacomma
 
 ## Implicit DROP TABLE Statements
 
-The "REPLACEMENT" keyword for the [IMPORT](../reference/metacommands.md#import) and [COPY](../reference/metacommands.md#copy) metacommands allows a previously existing table to be replaced. To accomplish this, execsql issues a "DROP TABLE" statement to the database in use. PostgreSQL, SQLite, MySQL, MariaDB, and Oracle support a form of the "DROP TABLE" statement that automatically removes all foreign keys to the named table. execsql uses these forms of the "DROP TABLE" statement for these DBMSs, and therefore use of the "REPLACEMENT" keyword always succeeds at removing the named table before trying to create a new table with the same name. SQL Server, MS-Access, and Firebird do not have a form of the "DROP TABLE" statement that automatically removes foreign keys. Therefore, if the "REPLACEMENT" keyword is used with any of these three DBMSs, for a table that has foreign keys into it, that table will not be dropped, and an error will subsequently occur when execsql issues a "CREATE TABLE" statement to create a new table of the same name. To avoid this, when using any of these three DBMSs, you should include in the script the appropriate SQL commands to remove foreign keys (and possibly even to remove the table) before using the IMPORT or COPY metacommands.
+The "REPLACEMENT" keyword for the [IMPORT](../reference/metacommands.md#import) and [COPY](../reference/metacommands.md#copy) metacommands allows a previously existing table to be replaced. To accomplish this, execsql issues a "DROP TABLE" statement to the database in use. PostgreSQL, SQLite, MySQL, MariaDB, Oracle, and DuckDB support a form of the "DROP TABLE" statement that automatically removes all foreign keys to the named table. execsql uses these forms of the "DROP TABLE" statement for these DBMSs, and therefore use of the "REPLACEMENT" keyword always succeeds at removing the named table before trying to create a new table with the same name. SQL Server, MS-Access, and Firebird do not have a form of the "DROP TABLE" statement that automatically removes foreign keys. Therefore, if the "REPLACEMENT" keyword is used with any of these three DBMSs, for a table that has foreign keys into it, that table will not be dropped, and an error will subsequently occur when execsql issues a "CREATE TABLE" statement to create a new table of the same name. To avoid this, when using any of these three DBMSs, you should include in the script the appropriate SQL commands to remove foreign keys (and possibly even to remove the table) before using the IMPORT or COPY metacommands.
 
 ## Boolean Data Types
 
@@ -23,6 +23,7 @@ Not all DBMSs have explicit support for a boolean data type. When execsql create
 > - Access: integer. Although Access supports a "bit" data type, bit values are non-nullable, and so to preserve null boolean values, execsql uses the integer type instead. *True* values are converted to 1, and *False* values are converted to 0.
 > - SQL Server: bit.
 > - MySQL and MariaDB: boolean
+> - DuckDB: boolean.
 > - Firebird: integer. *True* values are converted to 1, and *False* values are converted to 0.
 > - Oracle: integer. *True* values are converted to 1, and *False* values are converted to 0.
 

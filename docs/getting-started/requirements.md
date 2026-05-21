@@ -66,5 +66,3 @@ Connections to SQLite databases use Python's standard library and require no add
 ## Additional System Requirements { #system_requirements }
 
 To use MS Access, SQL Server, or an ODBC DSN, an appropriate ODBC driver must be installed on the system (e.g., the [Microsoft Access Database Engine](https://www.microsoft.com/en-US/download/details.aspx?id=13255) for MS Access, or the [ODBC Driver for SQL Server](https://learn.microsoft.com/en-us/sql/connect/odbc/download-odbc-driver-for-sql-server)).
-
-If data are to be [imported](../reference/metacommands.md#import) from the [Parquet](https://parquet.apache.org/) file format, the [pandas](https://pypi.org/project/pandas/) library and either the *pyarrow* or *fastparquet* Python package must be installed.
