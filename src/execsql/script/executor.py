@@ -1,22 +1,25 @@
 """AST-based script executor for execsql.
 
-Walks a :class:`~execsql.script.ast.Script` tree and executes each node,
-replacing the flat ``CommandList.run_next()`` loop for scripts parsed via
-the AST parser.
+Walks a :class:`~execsql.script.ast.Script` tree and executes each node.
+This is the only execution engine; the parser produces the tree, this
+module runs it.
 
 Design:
-    - **The executor owns control flow.**  IF conditions, LOOP iteration,
-      and BATCH boundaries are driven by the tree structure — no
-      ``if_stack`` or ``compiling_loop`` needed.
-    - **SQL and metacommands delegate to the existing runtime.**  SQL is
-      executed via the current database connection; metacommands are
-      dispatched through ``ctx.metacommandlist.eval()``.  All 200+
-      metacommand handlers work unchanged.
-    - **Variable substitution** uses the existing ``substitute_vars()``.
-    - **RuntimeContext is passed explicitly** as ``ctx`` — the first
-      module migrated to instance-based context (Phase 2).  The public
-      ``execute()`` function defaults to ``get_context()`` if no ``ctx``
-      is provided, so callers that haven't migrated yet work unchanged.
+    - **Control flow is tree-driven.** IF conditions, LOOP iteration, and
+      BATCH boundaries are resolved by walking nested nodes, not by
+      runtime state flags.
+    - **SQL and metacommands delegate to the existing runtime.** SQL
+      runs against the active database connection; metacommands are
+      dispatched through ``ctx.metacommandlist.eval()`` (the same
+      ~225-entry dispatch table the rest of the codebase uses).
+    - **Variable substitution** uses :func:`execsql.script.engine.substitute_vars`.
+    - **Context is explicit.** :func:`execute` takes a
+      :class:`~execsql.state.RuntimeContext` via the ``ctx`` keyword;
+      when omitted it falls back to :func:`~execsql.state.get_context`.
+      For tracking and error reporting the executor pushes synthetic
+      :class:`~execsql.script.engine.CommandList` frames onto
+      ``ctx.commandliststack`` as it descends into INCLUDE'd files and
+      ``EXECUTE SCRIPT`` calls.
 
 Usage::
 
@@ -24,12 +27,13 @@ Usage::
     from execsql.script.parser import parse_script
 
     tree = parse_script("pipeline.sql")
-    execute(tree)  # uses global context
+    execute(tree)  # uses the thread-local context
 
     # Or with an explicit context:
-    from execsql.state import RuntimeContext, get_context
-    ctx = get_context()
-    execute(tree, ctx=ctx)
+    from execsql.state import RuntimeContext, active_context
+    ctx = RuntimeContext()
+    with active_context(ctx):
+        execute(tree, ctx=ctx)
 """
 
 from __future__ import annotations

@@ -1,50 +1,49 @@
 from __future__ import annotations
 
 """
-Core script-execution engine for execsql.
+Core script-execution data types and helpers for execsql.
 
-This module contains the data structures and functions that load, parse, and
-drive execution of execsql ``.sql`` script files.  It is the heart of the
-runtime.
+This package re-exports the data structures, dispatch primitives, and AST
+machinery that drive execution of execsql ``.sql`` script files. Script
+parsing lives in :mod:`execsql.script.parser`; tree-walking execution
+lives in :mod:`execsql.script.executor`.
 
 Key classes:
 
 - :class:`BatchLevels` — tracks which databases are used in nested BEGIN/END
   BATCH blocks for commit/rollback handling.
 - :class:`IfItem` / :class:`IfLevels` — stack-based IF/ELSE/ENDIF nesting.
-- :class:`CounterVars` — named integer counters (``@NAME``).
-- :class:`SubVarSet` — global ``!!$VAR!!`` substitution-variable store, plus
-  ``&ENV``, ``@COUNTER``, ``~LOCAL``, and ``#ARG`` prefixes.
+- :class:`CounterVars` — named integer counters (``$COUNTER_N``).
+- :class:`SubVarSet` — substitution-variable store covering all sigils
+  (no prefix, ``$``, ``&``, ``@``).
 - :class:`LocalSubVarSet` / :class:`ScriptArgSubVarSet` — per-script-scope
-  variable overlays.
+  variable overlays for ``~`` local and ``#`` argument variables.
 - :class:`MetaCommand` — one entry in the metacommand dispatch table (regex +
   handler function + flags).
-- :class:`MetaCommandList` — ordered list of :class:`MetaCommand` entries;
-  ``get_match()`` finds the first matching entry for a given line.
+- :class:`MetaCommandList` — ordered list of :class:`MetaCommand` entries
+  with a keyword index for fast dispatch.
 - :class:`SqlStmt` — wraps a single SQL string; ``run()`` executes it via the
   active database connection.
 - :class:`MetacommandStmt` — wraps a metacommand line; ``run()`` dispatches
-  through :attr:`execsql.state.metacommandlist`.
+  through ``_state.metacommandlist``.
 - :class:`ScriptCmd` — pairs a statement with its source-file location.
-- :class:`CommandList` — ordered list of :class:`ScriptCmd` objects plus an
-  execution cursor; ``run_next()`` drives one step of execution.
-- :class:`CommandListWhileLoop` / :class:`CommandListUntilLoop` — loop
-  variants of :class:`CommandList` that re-evaluate a condition each pass.
-- :class:`ScriptFile` — reads and tokenises a ``.sql`` file into
-  :class:`ScriptCmd` objects.
+- :class:`CommandList` — ordered list of :class:`ScriptCmd` objects plus a
+  forward-only cursor; ``run_next()`` drives one step of execution. The AST
+  executor pushes synthetic ``CommandList`` frames onto
+  ``ctx.commandliststack`` for ``current_script_line`` tracking.
 - :class:`ScriptExecSpec` — specification for deferred script execution.
 
 Key functions:
 
-- :func:`set_system_vars` — populates built-in ``$VARNAME`` system variables.
-- :func:`substitute_vars` — performs ``!!$VAR!!`` and ``!{$var}!`` expansion.
-- :func:`runscripts` — central execution loop; pops the top
-  :class:`CommandList` from ``_state.commandliststack`` and drives
-  ``run_next()`` until the stack is empty.
-- :func:`current_script_line` — returns the source location of the currently
-  executing command.
-- :func:`read_sqlfile` — parses a SQL script file into a new
-  :class:`CommandList` and pushes it onto ``_state.commandliststack``.
+- :func:`set_system_vars` — populates built-in ``$VARNAME`` system variables
+  (calls the static + dynamic helpers).
+- :func:`substitute_vars` — performs ``!!$VAR!!`` / ``!'!var!'!`` /
+  ``!"!var!"!`` / ``!{$var}!`` expansion.
+- :func:`current_script_line` — returns the ``(file, line_no)`` of the
+  currently executing command.
+- :func:`parse_script` / :func:`parse_string` — produce a
+  :class:`~execsql.script.ast.Script` AST tree from a file or string,
+  consumed by :func:`execsql.script.executor.execute`.
 """
 
 from execsql.script.control import BatchLevels, IfItem, IfLevels

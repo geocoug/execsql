@@ -2,28 +2,27 @@ from __future__ import annotations
 
 """Script execution engine for execsql.
 
-Classes and functions that load, parse, and drive execution of execsql
-``.sql`` script files.
+Holds the metacommand dispatch primitives, the statement / command-list
+data types that the AST executor pushes onto ``ctx.commandliststack``
+for frame tracking, and the substitution-variable helpers shared by the
+parser and executor. Script parsing and tree-walking live in
+:mod:`execsql.script.parser` and :mod:`execsql.script.executor`
+respectively.
 
 Classes:
 - :class:`MetaCommand` — one entry in the metacommand dispatch table.
-- :class:`MetaCommandList` — ordered list of :class:`MetaCommand` entries.
+- :class:`MetaCommandList` — ordered list of :class:`MetaCommand` entries with a keyword index.
 - :class:`SqlStmt` — wraps a single SQL string for execution.
 - :class:`MetacommandStmt` — wraps a metacommand line for dispatch.
 - :class:`ScriptCmd` — pairs a statement with its source-file location.
-- :class:`CommandList` — ordered list of :class:`ScriptCmd` objects.
-- :class:`CommandListWhileLoop` — loop variant that repeats while a condition is true.
-- :class:`CommandListUntilLoop` — loop variant that repeats until a condition is true.
-- :class:`ScriptFile` — reads and tokenises a ``.sql`` file.
+- :class:`CommandList` — ordered list of :class:`ScriptCmd` objects with a forward-only cursor.
 - :class:`ScriptExecSpec` — specification for deferred script execution.
 
 Functions:
-- :func:`set_system_vars` — populates built-in ``$VARNAME`` system variables.
-- :func:`substitute_vars` — performs ``!!$VAR!!`` and ``!{$var}!`` expansion.
-- :func:`runscripts` — central execution loop.
-- :func:`current_script_line` — returns the source location of the currently executing command.
-- :func:`read_sqlfile` — parses a SQL script file into a new :class:`CommandList`.
-- :func:`read_sqlstring` — parses an inline script string into a new :class:`CommandList`.
+- :func:`set_system_vars` — populates built-in ``$VARNAME`` system variables (calls the static + dynamic helpers).
+- :func:`set_static_system_vars` / :func:`set_dynamic_system_vars` — refresh the half-static / per-statement system variables independently.
+- :func:`substitute_vars` — performs ``!!$VAR!!`` / ``!'!var!'!`` / ``!"!var!"!`` / ``!{$var}!`` expansion.
+- :func:`current_script_line` — returns the ``(file, line_no)`` of the currently executing command.
 """
 
 import datetime
