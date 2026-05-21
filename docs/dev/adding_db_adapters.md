@@ -99,7 +99,7 @@ class MyDBDatabase(Database):
         curs.execute(f'SELECT * FROM "{table_name}" WHERE 1=0')
         return [d[0] for d in curs.description]
 
-    def view_exists(self, view_name: str) -> bool:
+    def view_exists(self, view_name: str, schema_name: str | None = None) -> bool:
         curs = self.cursor()
         curs.execute("SELECT name FROM mydb_views WHERE name = ?", (view_name,))
         return curs.fetchone() is not None
@@ -179,14 +179,16 @@ def db_MyDB(mydb_file: str, new_db: bool = False) -> MyDBDatabase:
 
 ### Step 4 — Register the type token and wire into the CLI
 
-The CLI maps the `-t` flag value to a factory call. Open `src/execsql/cli.py` and find the `db_type` dispatch block. Add a branch for your new type code (pick an unused single character):
+The CLI maps the `-t` flag value to a factory call in `_connect_initial_db()` (in `src/execsql/cli/run.py`). Pick an unused single character (the existing codes are `a`, `d`, `f`, `k`, `l`, `m`, `o`, `p`, `s`), add the factory to that function's import block at the top, then add a dispatch branch following the existing pattern:
 
 ```python
-elif db_type == "y":
-    db = db_MyDB(database_file, new_db=new_db)
+elif conf.db_type == "y":
+    return db_MyDB(conf.db_file, new_db=conf.new_db)
 ```
 
-You also need to define the `dbt_mydb` type token. Open `src/execsql/types.py` and follow the pattern used for `dbt_sqlite` or `dbt_duckdb`.
+Also add the new code to the validation tuple in `cli/__init__.py` (search for the `("a", "d", "p", ...)` check) so Typer accepts it.
+
+Define the `dbt_mydb` type token in `src/execsql/types.py` following the pattern used by `dbt_sqlite` / `dbt_duckdb` — instantiate `DbType("MyDB")` and call `name_datatype()` for every `DT_*` type your DBMS supports.
 
 ### Step 5 — Add tests
 
@@ -227,7 +229,7 @@ ______________________________________________________________________
 - [ ] All required methods implemented (`open_db`, `table_exists`, `column_exists`, `table_columns`, `view_exists`, `schema_exists`, `drop_table`, `populate_table`)
 - [ ] Factory function `db_MyDB()` added to `src/execsql/db/factory.py`
 - [ ] Type token `dbt_mydb` defined in `src/execsql/types.py`
-- [ ] CLI dispatch branch added in `src/execsql/cli.py`
+- [ ] CLI dispatch branch added in `_connect_initial_db()` (`src/execsql/cli/run.py`) and new type code added to the validator tuple in `cli/__init__.py`
 - [ ] Integration test added to `tests/db/`
 - [ ] `pytest` passes locally
 - [ ] New type code added to the `-t` flag table in [Syntax & Options](../getting-started/syntax.md#db_types)
