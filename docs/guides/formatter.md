@@ -92,51 +92,17 @@ Use `--no-sql` to skip SQL reformatting entirely and only normalize metacommands
 
 ## Examples { #examples }
 
-### Format to stdout
-
-Preview what a file will look like after formatting without modifying it:
-
 ```bash
-execsql-format myscript.sql
+execsql-format myscript.sql                      # Preview to stdout
+execsql-format --in-place myscript.sql           # Rewrite in place
+execsql-format --in-place scripts/               # Recurse into a directory
+execsql-format --check scripts/                  # Exit 1 if any file would change (for CI)
+execsql-format --indent 2 --in-place myscript.sql        # Two-space indent
+execsql-format --leading-comma --in-place myscript.sql   # Commas at line start
+execsql-format --no-sql --in-place myscript.sql          # Only re-indent metacommands; leave SQL alone
 ```
 
-### Format a file in place
-
-```bash
-execsql-format --in-place myscript.sql
-```
-
-### Format all scripts in a directory
-
-```bash
-execsql-format --in-place scripts/
-```
-
-This recurses into subdirectories and formats every `*.sql` file found.
-
-### Check mode for CI
-
-Use `--check` in a CI pipeline to fail the build if any script is not formatted:
-
-```bash
-execsql-format --check scripts/
-```
-
-Exit code is `0` if all files are already formatted, `1` if any file would change.
-
-### Use a two-space indent
-
-```bash
-execsql-format --indent 2 --in-place myscript.sql
-```
-
-### Use leading commas
-
-```bash
-execsql-format --leading-comma --in-place myscript.sql
-```
-
-This places commas at the start of each line instead of the end:
+`--leading-comma` produces output like:
 
 ```sql
 SELECT
@@ -144,14 +110,6 @@ SELECT
     , b
     , c
 FROM t;
-```
-
-### Skip SQL reformatting
-
-Format only metacommand indentation and casing, leaving SQL statements untouched:
-
-```bash
-execsql-format --no-sql --in-place myscript.sql
 ```
 
 ## Before and After Example { #before-after }
@@ -190,36 +148,18 @@ select id,name,created_at from users where active = true order by name;
 
 ## Pre-commit Hook { #pre-commit }
 
-`execsql-format` can be used as a [pre-commit](https://pre-commit.com/) hook. Add the following to your `.pre-commit-config.yaml`:
+`execsql-format` can be used as a [pre-commit](https://pre-commit.com/) hook. Add to `.pre-commit-config.yaml`:
 
 ```yaml
 repos:
   - repo: https://github.com/geocoug/execsql
-    rev: v2.4.2
+    rev: v2.17.0
     hooks:
       - id: execsql-format
         args: [--in-place]
 ```
 
-The hook runs on `*.sql` files. Pass any CLI options via `args`:
-
-```yaml
-# Check-only (CI — fail if files need formatting)
-- id: execsql-format
-  args: [--check]
-
-# Auto-fix in place, skip SQL reformatting
-- id: execsql-format
-  args: [--in-place, --no-sql]
-
-# Custom indent width
-- id: execsql-format
-  args: [--in-place, --indent, "2"]
-
-# Leading commas
-- id: execsql-format
-  args: [--in-place, --leading-comma]
-```
+The hook runs on `*.sql` files. Pass any CLI flags via `args` — e.g. `[--check]` for a CI-style check-only run, or `[--in-place, --indent, "2"]` to combine in-place rewriting with a custom indent width. Run `pre-commit autoupdate` periodically to bump the `rev`.
 
 ## Exit Codes { #exit-codes }
 
