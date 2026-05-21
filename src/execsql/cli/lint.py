@@ -1,37 +1,33 @@
-"""Static analysis (lint) for execsql scripts.
+"""Legacy flat-CommandList linter and shared result printer for execsql.
 
-:func:`_lint_script` inspects a parsed :class:`~execsql.script.CommandList`
-for common structural problems without connecting to a database or executing
-any commands.
+The active ``--lint`` implementation is in :mod:`execsql.cli.lint_ast`,
+which works against the AST produced by
+:func:`execsql.script.parser.parse_script`. The CLI reaches that
+linter directly; the ``_lint_cmdlist`` walker in this module is
+unreached from the CLI now and is retained for reference / potential
+reuse only.
 
-Checks performed
-----------------
-1. **Unmatched IF / ENDIF** — mismatched nesting depth (error).
-2. **Unmatched LOOP / END LOOP** — mismatched nesting depth (error).
-3. **Unmatched BEGIN BATCH / END BATCH** — mismatched nesting depth (error).
-4. **Potentially undefined variables** — ``!!$VAR!!`` tokens not preceded by a
-   ``SUB`` (or ``SUB_EMPTY``, ``SUB_ADD``, ``SUB_APPEND``, ``SUBDATA``)
-   metacommand in the same parsed command list and not in the set of built-in
-   variables (warning).  Note: ``SUB_INI`` and ``SELECT_SUB`` define variables
-   whose names are not statically knowable — those may produce false-positive
-   warnings.
-5. **EXECUTE SCRIPT flow analysis** — when an ``EXECUTE SCRIPT <name>``
-   metacommand is encountered, the linter descends into the named script
-   block (if found in ``_state.savedscripts``) and merges any variables it
-   defines back into the caller's scope.
-6. **Missing INCLUDE files** — INCLUDE target does not exist on disk relative
-   to the script directory (warning).
-7. **Empty script** — no commands found (warning).
+What's still used from this module:
 
-The function walks ``CommandList.cmdlist`` and also descends into any
-``CommandList`` objects stored in ``_state.savedscripts`` (i.e. named scripts
-defined with ``BEGIN SCRIPT … END SCRIPT`` in the same file).  SCRIPT blocks
-are analysed in isolation; nesting counters reset for each block.
+- :func:`_print_lint_results` — shared Rich-formatted output for both
+  the AST linter and any code that still constructs lint issues
+  manually. Called from ``cli/__init__.py`` and re-exported via
+  ``cli/run.py``.
+- :class:`_Issue` and the ``_error()`` / ``_warning()`` constructors
+  — used by both linters.
 
-Exit-code contract
-------------------
-- Returns ``1`` when at least one **error**-severity issue is found.
-- Returns ``0`` when only warnings (or nothing) are found.
+The flat-CommandList ``_lint_cmdlist``, ``_collect_defined_vars``, and
+``_discover_builtin_vars`` helpers below covered the same checks the
+AST linter now performs (unmatched IF/LOOP/BATCH, undefined ``!!$VAR!!``
+references, missing INCLUDE files, EXECUTE SCRIPT flow analysis, empty
+script). They operate on the legacy
+:class:`~execsql.script.engine.CommandList`; no CLI path constructs
+that representation any more.
+
+Exit-code contract (still honoured by the AST linter):
+
+- ``1`` when at least one error-severity issue is found.
+- ``0`` when only warnings (or nothing) are found.
 """
 
 from __future__ import annotations

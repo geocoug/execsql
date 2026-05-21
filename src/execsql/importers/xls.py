@@ -6,7 +6,7 @@ XLS and XLSX spreadsheet import for execsql.
 Provides :func:`xls_data` / :func:`importxls` (``xlrd``-based ``.xls``
 reader) and the XLSX equivalent using ``openpyxl``.  Used by
 ``IMPORT … FORMAT xls`` and ``FORMAT xlsx``.  Requires
-``execsql2[excel]``.
+``execsql2[formats]``.
 """
 
 from typing import Any

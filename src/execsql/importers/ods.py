@@ -6,7 +6,7 @@ ODS spreadsheet import for execsql.
 Provides :func:`ods_data` (row iterator over an ODS sheet) and
 :func:`importods` (imports an ODS sheet into a database table), used by
 the ``IMPORT … FORMAT ods`` metacommand.  Requires ``odfpy``
-(``execsql2[ods]``).
+(``execsql2[formats]``).
 """
 
 from typing import Any
