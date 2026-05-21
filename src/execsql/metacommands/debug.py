@@ -3,12 +3,24 @@ from __future__ import annotations
 """
 Debug metacommand handlers for execsql.
 
-Provides ``x_debug_write_metacommands``, which implements the
-``WRITE METACOMMANDS`` debug metacommand that prints the full registered
-metacommand list to the log/console for troubleshooting.
+Handlers for the ``DEBUG …`` family of introspection metacommands and
+``SHOW SCRIPTS`` script-block listing:
 
-Also provides ``x_show_scripts`` for runtime introspection of registered
-SCRIPT blocks.
+- ``x_debug_log_subvars`` / ``x_debug_write_subvars`` — dump substitution
+  variables to the log file or to terminal/file (``DEBUG LOG SUBVARS`` /
+  ``DEBUG WRITE SUBVARS``). Both accept optional ``LOCAL`` / ``USER``
+  qualifiers.
+- ``x_debug_log_config`` / ``x_debug_write_config`` — dump the merged
+  configuration.
+- ``x_debug_write_odbc_drivers`` — list installed ODBC drivers.
+- ``x_debug_write_metacommands`` — dump the registered metacommand list
+  (``DEBUG WRITE METACOMMANDLIST TO <file>``).
+- ``x_debug_commandliststack`` — dump the current execution stack
+  (``DEBUG WRITE COMMANDLISTSTACK``).
+- ``x_debug_iflevels`` — dump the nested IF condition state
+  (``DEBUG WRITE IFLEVELS``).
+- ``x_show_scripts`` — list registered ``BEGIN SCRIPT`` blocks
+  (``SHOW SCRIPTS [<name>]``), with optional name argument for detail.
 """
 
 from pathlib import Path

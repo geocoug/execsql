@@ -3,17 +3,28 @@ from __future__ import annotations
 """
 Control-flow metacommand handlers for execsql.
 
-Implements the imperative ``x_*`` functions for script flow control:
+Implements the ``x_*`` functions for script flow control:
 
-- Loop management: ``x_loop`` (LOOP … END LOOP), ``x_while_loop``
-  (WHILE … END LOOP), ``x_until_loop`` (UNTIL … END LOOP)
-- Batch control: ``x_begin_batch``, ``x_end_batch``, ``x_commit``,
-  ``x_rollback``
-- Script include/execute: ``x_include``, ``x_execute_script``
-- Named scripts: ``x_begin_script``, ``x_end_script``, ``x_run_script``
-- Error/halt control: ``x_halt``, ``x_on_error``, ``x_on_cancel``
-- Counter operations: ``x_set_counter``, ``x_increment_counter``
-- Substitution variable assignment: ``x_set``
+- Conditional execution: ``x_if`` and its companions ``x_if_andif``,
+  ``x_if_orif``, ``x_if_elseif``, ``x_if_else``, ``x_if_end``,
+  ``x_if_block`` (compound IF / ELSEIF / ELSE / ENDIF handling).
+- Assertion: ``x_assert`` (ASSERT condition with optional message).
+- Loop management: ``x_loop`` (LOOP … END LOOP, including WHILE/UNTIL
+  variants matched by the same regex).
+- Batch control: ``x_begin_batch``, ``x_end_batch``, ``x_rollback``.
+- Error/halt control: ``x_halt``, ``x_halt_msg``, ``x_error_halt``,
+  ``x_metacommand_error_halt``.
+- Flow modifiers: ``x_break`` (exit a LOOP), ``x_wait_until``.
+
+Handlers for related areas live in sibling modules:
+
+- INCLUDE / EXECUTE SCRIPT / RUN / named-script registration —
+  :mod:`execsql.metacommands.script_ext` (and the AST executor).
+- Counter operations (RESET COUNTER, SET COUNTER) and substitution
+  variable assignment (SUB, SUB_LOCAL, etc.) —
+  :mod:`execsql.metacommands.data`.
+- ON ERROR_HALT / ON CANCEL_HALT directives —
+  :mod:`execsql.metacommands.system`.
 """
 
 import time
