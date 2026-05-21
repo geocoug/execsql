@@ -1,9 +1,7 @@
 """AST-producing parser for execsql scripts.
 
 Converts raw ``.sql`` script text into a :class:`~execsql.script.ast.Script`
-tree.  This is intended to eventually replace ``_parse_script_lines()`` in
-:mod:`execsql.script.engine` — during the transition both paths coexist and
-can be compared for correctness.
+tree consumed by :func:`execsql.script.executor.execute`.
 
 The parser is a single-pass, line-oriented state machine that tracks:
 

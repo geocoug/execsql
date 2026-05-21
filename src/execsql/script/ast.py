@@ -1,12 +1,12 @@
 """Abstract Syntax Tree node definitions for execsql scripts.
 
-This module defines the node types that make up the execsql AST.  A parser
-(to be added in a later phase) will convert raw ``.sql`` script text into a
-tree of these nodes; an executor will walk the tree to run the script.
+Defines the node types that make up the execsql AST.
+:func:`execsql.script.parser.parse_script` produces trees of these nodes;
+:func:`execsql.script.executor.execute` walks them to run the script.
 
 Design principles:
-    - Every node carries a :class:`SourceSpan` so that error messages, the
-      LSP, and ``--lint`` can report precise source locations.
+    - Every node carries a :class:`SourceSpan` so that error messages,
+      ``--lint``, and the formatter can report precise source locations.
     - Block structures (IF, LOOP, BATCH, SCRIPT) are represented as nodes
       whose ``body`` (and optional ``else_body``, ``elseif_clauses``) contain
       child nodes, forming the tree structure.
@@ -14,8 +14,8 @@ Design principles:
       :class:`Comment`) have no children.
     - All nodes inherit from :class:`Node`, which provides a uniform
       ``children()`` iterator for tree traversal.
-    - The tree is meant to be *walked* for execution — nodes are data, not
-      behavior.  Execution logic will live in a separate executor module.
+    - The tree is data, not behavior — execution logic lives in
+      :mod:`execsql.script.executor`.
 
 Node hierarchy::
 
