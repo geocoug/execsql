@@ -17,14 +17,14 @@ ______________________________________________________________________
 
 ### The dispatch table
 
-At import time, `src/execsql/metacommands/__init__.py` calls `build_dispatch_table()`, which populates a `MetaCommandList` and assigns it to the module-level `DISPATCH_TABLE`. That singleton is consumed at runtime via `_state.metacommandlist`.
+`build_dispatch_table()` in `src/execsql/metacommands/dispatch.py` populates a `MetaCommandList` with `mcl.add()` calls for every metacommand. `__init__.py` calls it at import time and assigns the result to the module-level `DISPATCH_TABLE`, which is then consumed at runtime via `_state.metacommandlist`.
 
 ### MetaCommandList / MetaCommand
 
-`MetaCommandList` is an ordered list of `MetaCommand` objects with keyword-indexed dispatch (defined in `src/execsql/script/engine.py`). Each `MetaCommand` holds one compiled regex and one handler function. When `MetaCommandList.eval()` is called on a line of SQL script:
+`MetaCommandList` (in `src/execsql/script/engine.py`) is an ordered list of `MetaCommand` objects with a keyword index for fast dispatch. Each `MetaCommand` holds one compiled regex and one handler. When `MetaCommandList.eval()` is called on a script line:
 
-1. It extracts the leading keyword and narrows candidates to matching entries (keyword index), falling back to the full list if no keyword match is found.
-1. It checks `_state.if_stack.all_true()` (skips execution when inside a false conditional branch, unless `run_when_false=True`).
+1. It extracts the leading keyword and narrows candidates via the keyword index, falling back to the full list if no keyword matches.
+1. It checks `_state.if_stack.all_true()` and skips execution inside a false conditional branch (unless `run_when_false=True`).
 1. It calls the handler, passing all named regex groups plus `"metacommandline"` as keyword arguments.
 
 ### Handler naming conventions
@@ -95,7 +95,7 @@ def x_my_command(**kwargs: Any) -> None:
 
 ### Step 2 — Register the regex in the dispatch table
 
-Open `src/execsql/metacommands/__init__.py` and add a `mcl.add()` call inside `build_dispatch_table()`. **Order matters**: more specific patterns should appear before catch-all patterns. The linked list is traversed front-to-back and the first match wins.
+Open `src/execsql/metacommands/dispatch.py` and add a `mcl.add()` call inside `build_dispatch_table()`. (`__init__.py` calls this function at import time and assigns the result to `DISPATCH_TABLE`; you don't edit `__init__.py` for new registrations.) **Order matters**: more specific patterns should appear before catch-all patterns. The list is traversed front-to-back and the first match wins.
 
 ```python
 mcl.add(
@@ -146,10 +146,9 @@ mcl.add(
 )
 ```
 
-### Step 3 — Export the handler in `__init__.py`
+### Step 3 — Import the handler in `dispatch.py`
 
-Add the function to the relevant import block at the top of
-`src/execsql/metacommands/__init__.py`:
+Add the function to the relevant import block at the top of `src/execsql/metacommands/dispatch.py` so the `mcl.add()` call in Step 2 can reference it:
 
 ```python
 from execsql.metacommands.data import (
@@ -223,9 +222,9 @@ ______________________________________________________________________
 ## Checklist
 
 - [ ] Handler function added to the appropriate `src/execsql/metacommands/*.py` module
-- [ ] Handler imported in `src/execsql/metacommands/__init__.py`
+- [ ] Handler imported in `src/execsql/metacommands/dispatch.py`
 - [ ] `mcl.add(...)` call added in `build_dispatch_table()` with `description=` and `category=`
-- [ ] Run `just generate-vscode-grammar` to update the VS Code grammar
+- [ ] Run `just install-vscode` to regenerate the VS Code grammar
 - [ ] Integration test added to `tests/test_metacommands.py` (or relevant file)
 - [ ] `pytest` passes locally (including `tests/test_registry.py` keyword consistency checks)
 
@@ -241,13 +240,15 @@ def xf_my_test(**kwargs: Any) -> bool:
     return kwargs["value1"] == kwargs["value2"]
 ```
 
-Then register it in `build_conditional_table()`:
+Then register it in `build_conditional_table()` (the same `MetaCommandList`-typed local is conventionally named `mcl` here too):
 
 ```python
-ctl.add(
+mcl.add(
     r"^\s*MY_TEST\s+(?P<value1>\S+)\s+(?P<value2>\S+)\s*$",
     xf_my_test,
+    description="MY_TEST",
+    category="condition",
 )
 ```
 
-The conditional table is exposed as `CONDITIONAL_TABLE` and consumed via `_state.conditionallist`.
+The result is exposed as `CONDITIONAL_TABLE` and consumed at runtime via `_state.conditionallist`.
