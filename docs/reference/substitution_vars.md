@@ -1,6 +1,6 @@
 # Substitution Variables
 
-Substitution variables are words that have been defined to be equivalent to some other text, so that when they are used, those words will be replaced (substituted) by the other text in a SQL statement or metacommand. Substitution variables are similar to macros in the C programming language. Execsql performs the substitutions immediately before each statement or metacommand is executed (unlike C). Ordinary substitution variables can be defined and re-defined dynamically as a script runs.
+Substitution variables are named strings that are replaced with their defined values when referenced in a SQL statement or metacommand. Substitution is performed immediately before each statement or metacommand is executed. Ordinary substitution variables can be defined and re-defined dynamically as a script runs.
 
 Substitution variables can be defined using the SUB metacommand, as follows:
 
@@ -8,28 +8,25 @@ Substitution variables can be defined using the SUB metacommand, as follows:
 SUB <match_string> <replacement_string>
 ```
 
-The \<match_string> is the word (substitution variable) that will be matched, and the \<replacement_string> is the text that will be substituted for the matching word. Substitution variables are only recognized in SQL statements and metacommands when the match string is preceded and followed by two exclamation points (`!!`) or by either of two variants:
+The \<match_string> identifies the substitution variable; the \<replacement_string> is the text inserted in its place. A substitution is recognized only when the match string is bracketed by one of three tokens:
 
-- Exclamation points bracketing an apostrophe (`!'!`). This will cause all apostrophes in the replacement string to be doubled.
-- Exclamation points bracketing a double quote (`!"!`). This will cause the replacement string to be double-quoted.
+- `!!name!!` — insert the value verbatim.
+- `!'!name!'!` — wrap the value in single quotes, doubling any embedded apostrophe. Suitable for SQL string literals containing user data.
+- `!"!name!"!` — wrap the value in double quotes. Suitable for SQL quoted identifiers, or for metacommand arguments that must be quoted.
 
-The first of these variants is useful when the replacement value is a data value that may contain apostrophes. For example, it could be used in a SQL statement such as:
+For example, to use a data variable that may contain apostrophes in a SQL string literal:
 
 ```sql
-create or replace temporary view docs as
-select * from documents
-where author = '!!@author!!';
+select * from documents where author = !'!@author!'!;
 ```
 
-The second variant is useful when a database object name must be double-quoted when it is used in a metacommand. For example:
+To use a substitution variable as a quoted database object name in a metacommand:
 
 ```sql
 -- !x! export !"!foreign_table!"! to xtable.csv as csv
 ```
 
-The `!!` dereferencing token causes the replacement string to be substituted for the match string without any modification.
-
-Substitution variable names may contain only letters, digits, and the underscore character (the first character may be different in some cases, as described in the following sections). Substitutions are processed in the order in which they are defined. Substitution variable definitions can themselves include substitution variables. SQL statements and metacommands may contain nested references to substitution variables, as illustrated in [Example 7](../guides/examples.md#example7). Complex expressions using substitution variables can be evaluated using SQL, as illustrated in [Example 16](../guides/examples.md#example16).
+Substitution variable names contain letters, digits, and underscores (some types take an additional prefix character; see below). Substitutions are processed in the order they are defined and may be nested; see [Example 7](../guides/examples.md#example7). Complex expressions can be evaluated using SQL; see [Example 16](../guides/examples.md#example16).
 
 Substitution variables are global by default, but local substitution variables can also be created. The scope of local substitution variables is limited to the [SCRIPT](metacommands.md#beginscript) in which they are created. Local substitution variables must be prefixed with "~" when they are referenced.
 
@@ -47,7 +44,7 @@ The differences between types of substitution variables are summarized in the fo
 | Argument     | #      | SCRIPT where used                | R/O        |
 | Environment  | &      | Global                           | R/O        |
 
-The types of substitution variables are more fully described in the following sections. All of the substitution variables that are defined can be displayed with a [DEBUG](../guides/debugging.md#debugging) metacommand.
+All defined substitution variables can be displayed with the [DEBUG](../guides/debugging.md#debugging) metacommand.
 
 ## Local Variables
 
@@ -202,7 +199,7 @@ $SYSTEM_CMD_EXIT_STATUS
 :   The exit status of the command executed by the [SYSTEM_CMD](metacommands.md#system_cmd) metacommand. The value is "0" (zero) prior to the first use of the SYSTEM_CMD metacommand. Not set when the CONTINUE keyword is used.
 
 $SYSTEM_CMD_PID
-:   The process ID (PID) of the background process launched by `SHELL … CONTINUE`. Only set when the CONTINUE keyword is used.
+:   The process ID (PID) of the background process launched by `SYSTEM_CMD … CONTINUE`. Only set when the CONTINUE keyword is used.
 
 $TIMER
 :   The elapsed time of the script timer. If the [TIMER ON](metacommands.md#timer) command has never been used, this value will be zero. If the timer has been started but not stopped, this value will be the elapsed time since the timer was started. If the timer has been started and stopped, this value will be the elapsed time when the timer was stopped.
@@ -243,18 +240,7 @@ Any environment variable names that contain characters other than letters, digit
 
 !!! warning "Security consideration"
 
-    Environment variables whose names contain any of the following substrings
-    (case-insensitive) are silently excluded and will not be available as
-    substitution variables: `SECRET`, `TOKEN`, `PASSWORD`, `PASSWD`,
-    `PRIVATE_KEY`, `CREDENTIAL`. No error or warning is raised for excluded
-    variables — they simply will not exist as `!!&VARNAME!!`.
-
-    All other environment variables present at startup are exposed as
-    substitution variables. If a script is shared, logged, or produces output
-    that includes substitution variable expansions, values from those variables
-    could be disclosed. To pass a sensitive value into a script without exposing
-    it as an environment variable, use the `-a`/`--assign-arg` CLI flag or the
-    [SUB](metacommands.md#subcmd) metacommand to set it explicitly at runtime.
+    Environment variables whose names (case-insensitive) contain `SECRET`, `TOKEN`, `PASSWORD`, `PASSWD`, `PRIVATE_KEY`, or `CREDENTIAL` are silently excluded — no error is raised, the variable simply does not exist as `!!&VARNAME!!`. All others are exposed as-is and may appear in shared scripts, logs, or output that includes substitution expansions. To pass a sensitive value without putting it in the environment, use the `-a`/`--assign-arg` CLI flag or the [SUB](metacommands.md#subcmd) metacommand.
 
 ## Metacommands to Assign Substitution Variables
 
@@ -306,92 +292,16 @@ Substitution variables can also be defined in the "variables" section of a [conf
 
 ## Quoting Convention { #quoting_convention }
 
-[SUB](metacommands.md#subcmd), variable substitution, and [EXECUTE SCRIPT](metacommands.md#executescript) argument parsing each handle quotes differently, and composing them naïvely produces a subtle footgun. This section describes the convention that avoids it.
+[SUB](metacommands.md#subcmd) stores its replacement string verbatim, and substitution inserts the stored text without modification. [EXECUTE SCRIPT](metacommands.md#executescript) argument values, however, are stripped of one pair of surrounding quotes when bound to parameters. As a result, `SUB myfile "filename.txt"` followed by `EXECUTE SCRIPT proc(arg='!!myfile!!')` leaves the called script's `!!#arg!!` expanding to `"filename.txt"` — still wrapped in the double quotes from the SUB, with no in-script primitive to strip them.
 
-**Overall principle:** quotes belong at the *use site* (where the variable is read), never at the *storage site* (where it is defined).
+To avoid this, store bare values and apply quoting only at the point of use:
 
-### Storage and use sites
+- In `SUB`, do not include surrounding quotes.
+- In `EXECUTE SCRIPT(arg=...)`, always double-quote: `arg="!!var!!"`. The quotes are stripped before binding, but the form survives values containing `,` or `)` (which terminate unquoted arguments).
+- In a SQL string literal, use `!'!varname!'!` (single-quoted, doubles embedded apostrophes) rather than pre-quoting the SUB.
+- In a SQL quoted identifier, use `!"!varname!"!`.
 
-*Storage* is the line where a variable is given its value:
-
-```sql
--- !x! SUB logfile /var/log/run.log
-```
-
-*Use site* is any line where the variable is read back via `!!varname!!` (or `!'!varname!'!` / `!"!varname!"!`) to insert its value somewhere:
-
-```sql
--- !x! WRITE "starting" TEE TO !!logfile!!
-INSERT INTO log (path) VALUES (!'!logfile!'!);
--- !x! EXECUTE SCRIPT process(target="!!logfile!!")
-```
-
-Storage happens once; use sites happen many times in different contexts, each potentially needing different quoting. Pre-quoting at storage cannot satisfy every downstream context, and once quotes are stored they cannot be stripped from inside a called script.
-
-### The three rules
-
-- **`SUB` (storage)** — store bare values, with no surrounding quotes (one [exception](#sql_literal_exception)).
-- **`EXECUTE SCRIPT(arg=...)` (caller use site)** — always double-quote: `arg="!!var!!"`. The argument parser strips one pair of surrounding quotes (single, double, or square brackets), so quoted and unquoted forms produce identical values inside the called script. Always-double-quote also handles values containing `,` or `)` (which terminate unquoted arguments) and visually distinguishes values from identifiers — no judgment call required.
-- **Inside scripts (callee use sites)** — pick the substitution form that matches what the value is being used as:
-
-| Form           | Use for                                                                                             | Example                           |
-| -------------- | --------------------------------------------------------------------------------------------------- | --------------------------------- |
-| `!!#param!!`   | Raw text — file paths, identifiers in metacommands, arguments forwarded to another `EXECUTE SCRIPT` | `WRITE "msg" TEE TO !!#logfile!!` |
-| `!'!#param!'!` | SQL string literal — wraps in `'...'` and doubles any embedded `'`                                  | `WHERE name = !'!#username!'!`    |
-| `!"!#param!"!` | SQL quoted identifier — wraps in `"..."`                                                            | `SELECT * FROM !"!#tablename!"!`  |
-
-The caller and callee rules are the same rule applied on opposite ends of the call: quote at the use site for the context that is consuming the value.
-
-### Why the principle holds
-
-If a value is stored pre-quoted, the quotes ride along through every substitution and cannot be removed inside a called script. Consider:
-
-```sql
--- !x! SUB myfile "filename.txt"
--- !x! EXECUTE SCRIPT process(arg='!!myfile!!')
-```
-
-1. `SUB` stores the value verbatim, including the double quotes: `"filename.txt"`.
-1. Substitution replaces `!!myfile!!` with that exact text, so the line becomes `arg='"filename.txt"'`.
-1. The `EXECUTE SCRIPT` argument parser matches the single-quoted form and strips one pair of outer quotes, yielding `"filename.txt"`.
-1. Inside the called script, `!!#arg!!` expands to `"filename.txt"` — still wrapped in the double quotes from step 1.
-
-Any use of `!!#arg!!` that does not itself strip quotes (such as `WRITE ... TEE TO !!#arg!!`) sees a filesystem path with literal `"` characters around it. There is no in-script primitive to undo storage-site quoting, so responsibility for clean values must live with the caller.
-
-Storing the value bare avoids the chain entirely:
-
-```sql
--- !x! SUB myfile filename.txt
--- !x! EXECUTE SCRIPT process(arg="!!myfile!!")
-```
-
-The called script receives `filename.txt` and uses it directly.
-
-### The SQL string literal exception { #sql_literal_exception }
-
-One pattern legitimately stores quotes in `SUB`:
-
-```sql
--- !x! SUB MEASBASIS 'Partic'
-INSERT INTO results (basis) VALUES (!!MEASBASIS!!);
-```
-
-The quotes here are part of the final SQL — the substitution expands to `VALUES ('Partic')`. The value is consumed as a SQL string literal and nothing else.
-
-Test for whether the exception applies: ask "does the substituted output need to *be* the quote characters as final SQL syntax?" If yes, quotes in `SUB` are correct. If no — file paths, identifiers, script arguments, anything passed to a metacommand — store bare and quote at the use site instead.
-
-For new code, prefer the `!'!varname!'!` form even for SQL string literals. It stores cleanly and applies the quoting at the use site, where it belongs:
-
-```sql
--- !x! SUB MEASBASIS Partic
-INSERT INTO results (basis) VALUES (!'!MEASBASIS!'!);
-```
-
-### Related
-
-- [SUB](metacommands.md#subcmd)
-- [BEGIN SCRIPT](metacommands.md#beginscript)
-- [EXECUTE SCRIPT](metacommands.md#executescript)
+The one exception is a value consumed *only* as a SQL string literal embedded directly in SQL — e.g. `SUB MEASBASIS 'Partic'` followed by `INSERT … VALUES (!!MEASBASIS!!)`. The stored quotes are part of the final SQL and nothing strips or re-quotes them. New code should still prefer `!'!MEASBASIS!'!` to keep storage uniform.
 
 ## Deferred Variable Substitution { #deferred_substitution }
 
