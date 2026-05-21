@@ -1,4 +1,4 @@
-# Character Encoding
+# Character Encoding { #encoding }
 
 [Command-line options](../getting-started/syntax.md#syntax) and [configuration file](../reference/configuration.md#configuration) settings allow specification of the encoding used in the database, the encoding used to read the script file and imported data files, and the encoding used to write output text. The encoding of data files to be imported can also be specified with the [IMPORT](../reference/metacommands.md#import) metacommand. Database encoding can also be specified with the [CONNECT](../reference/metacommands.md#connect) metacommand. Specification of appropriate encoding will eliminate errors that would otherwise result from the presence of characters in an encoding that is not compatible with the database.
 

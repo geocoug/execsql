@@ -1,4 +1,4 @@
-# SQL Syntax Notes
+# SQL Syntax Notes { #sql_syntax }
 
 ## ANSI Compatibility
 

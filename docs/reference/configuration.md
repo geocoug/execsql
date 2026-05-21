@@ -1,4 +1,4 @@
-# Configuration Files
+# Configuration Files { #configuration }
 
 Configuration files can supply most of the same settings as command-line options (plus some additional ones); only the script name itself must be on the command line.
 

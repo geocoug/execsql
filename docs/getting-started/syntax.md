@@ -1,4 +1,4 @@
-# Syntax and Options
+# Syntax and Options { #syntax }
 
 *execsql* is a command-line tool installed via the `execsql2` package. After [installation](installation.md#installation), the `execsql` command is available on your PATH. Run it from a shell prompt on Linux/macOS or a command window on Windows.
 
@@ -222,7 +222,7 @@ Valid encoding names can be displayed with the `-y` option. See also [Character 
 
 `--list-plugins`
 
-:   List all discovered plugins (metacommands, exporters, importers) and exit. Plugins are Python packages that register extensions via entry points. See the [Plugin System](#plugin-system) section in the developer guide.
+:   List all discovered plugins (metacommands, exporters, importers) and exit. Plugins are Python packages that register extensions via entry points. See the [Plugin System](../dev/architecture.md#plugin-system) section in the developer guide.
 
     ```sh
     execsql --list-plugins

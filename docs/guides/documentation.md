@@ -1,5 +1,5 @@
 
-# Documenting Script Actions
+# Documenting Script Actions { #documentation }
 
 One of the primary goals of execsql is to facilitate, and even encourage, comprehensive documentation of all actions taken upon a database. Two fundamental aspects of execsql that support this goal are:
 

@@ -1,4 +1,4 @@
-# Substitution Variables
+# Substitution Variables { #substitution_vars }
 
 Substitution variables are named strings that are replaced with their defined values when referenced in a SQL statement or metacommand. Substitution is performed immediately before each statement or metacommand is executed. Ordinary substitution variables can be defined and re-defined dynamically as a script runs.
 

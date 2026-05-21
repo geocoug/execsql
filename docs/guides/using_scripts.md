@@ -1,4 +1,4 @@
-# Using Script Files
+# Using Script Files { #scripting }
 
 Using script files to store and execute task-specific SQL statements has a number of advantages over using views, functions, or procedures that are stored within the database itself, particularly for one-off or infrequent tasks, or actions that must be applied to multiple databases. These advantages are:
 
