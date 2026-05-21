@@ -3,14 +3,26 @@ from __future__ import annotations
 """
 Conditional test handler functions for execsql.
 
-Implements all ``xf_*`` functions — the conditional test predicates used
-by IF/ELSEIF expressions — and the ``x_if``, ``x_elseif``, ``x_else``,
-and ``x_endif`` imperative handlers that manage the IF-nesting stack.
+Implements the ``xf_*`` predicates used by IF / ELSEIF / ANDIF / ORIF
+/ ASSERT / WAIT_UNTIL expressions. The IF-nesting *imperative*
+handlers (``x_if``, ``x_if_elseif``, ``x_if_else``, ``x_if_end``,
+etc.) live in :mod:`execsql.metacommands.control`.
 
-Examples of conditional tests defined here: ``xf_tableexists``,
-``xf_fileexists``, ``xf_equals``, ``xf_contains``, ``xf_startswith``,
-``xf_greaterthan``, etc., along with all their quoting variants generated
-at registration time.
+Predicates registered here (with regex variants generated at
+registration time for quoted, unquoted, and bracketed arguments):
+
+- Object existence: ``xf_fileexists``, ``xf_direxists``,
+  ``xf_schemaexists``, ``xf_tableexists``, ``xf_roleexists``,
+  ``xf_script_exists``, ``xf_sub_defined``.
+- Value tests: ``xf_equals``, ``xf_identical``, ``xf_contains``,
+  ``xf_startswith``, ``xf_endswith``, ``xf_isnull``, ``xf_iszero``,
+  ``xf_istrue``, ``xf_boolliteral``, ``xf_sub_empty``.
+- Numeric comparison: ``xf_isgt``, ``xf_isgte``.
+- Row counts: ``xf_hasrows``, ``xf_row_count_gt``, ``xf_row_count_gte``,
+  ``xf_row_count_eq``, ``xf_row_count_lt``.
+- Runtime state: ``xf_sqlerror``, ``xf_dialogcanceled``, ``xf_dbms``.
+
+The full list is also surfaced by ``execsql --dump-keywords``.
 """
 
 import os

@@ -1,7 +1,19 @@
 """Export metacommand handlers.
 
-Implements ``x_export``, ``x_export_query``, template-based exports,
-ODS multi-sheet export, and export metadata operations.
+- ``x_export`` — EXPORT (table → file in any supported format).
+- ``x_export_query`` — EXPORT QUERY (ad-hoc SELECT → file).
+- ``x_export_with_template`` / ``x_export_query_with_template`` —
+  template-rendered EXPORT (Jinja or string.Template).
+- ``x_export_ods_multiple`` / ``x_export_xlsx_multiple`` — multi-sheet
+  ODS / XLSX workbooks.
+- ``x_export_metadata`` / ``x_export_metadata_table`` — EXPORT_METADATA
+  (dump the in-process export-record log).
+- ``x_export_row_buffer`` — CONFIG EXPORT_ROW_BUFFER (set the per-export
+  row-buffer size).
+
+Per-format dispatch happens inside ``x_export``'s
+``if filefmt in (...): ... elif ...`` chain, which calls the
+appropriate writer in :mod:`execsql.exporters`.
 """
 
 from __future__ import annotations

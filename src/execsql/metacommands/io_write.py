@@ -1,7 +1,14 @@
 """WRITE metacommand handlers.
 
-Implements ``x_write``, ``x_write_create_table`` (CSV, ODS, XLS, alias),
-``x_write_prefix``, ``x_write_suffix``, and ``x_writescript``.
+- ``x_write`` — WRITE "<text>" [TEE TO <file>] (text output).
+- ``x_writescript`` — WRITE SCRIPT <name> [TO <file>] (dump a named
+  script block).
+- ``x_write_create_table`` — WRITE CREATE_TABLE … (emit a CREATE TABLE
+  statement inferred from a data source); plus the format-specific
+  variants ``x_write_create_table_ods``, ``x_write_create_table_xls``,
+  ``x_write_create_table_alias``.
+- ``x_write_prefix`` / ``x_write_suffix`` — CONFIG WRITE_PREFIX /
+  CONFIG WRITE_SUFFIX (set text prepended / appended to every WRITE).
 """
 
 from __future__ import annotations
