@@ -32,11 +32,7 @@ DEBUG WRITE ODBC_DRIVERS [[APPEND] TO <filename>]
 
 Writes the names of available ODBC drivers to the console or to the specified text file. ODBC drivers are used with SQL Server and MS-Access.
 
-```
-DEBUG WRITE <script_name> [[APPEND] TO <filename>]
-```
-
-This is an alias for the [WRITE SCRIPT](../reference/metacommands.md#write_script) metacommand.
+Three additional variants exist for diagnosing the script engine itself: `DEBUG WRITE METACOMMANDLIST TO <filename>` (dump all registered metacommand patterns), `DEBUG WRITE COMMANDLISTSTACK` (current execution stack), and `DEBUG WRITE IFLEVELS` (nested IF condition state).
 
 # Interactive Debug REPL (BREAKPOINT)
 
@@ -47,28 +43,31 @@ Insert `-- !x! BREAKPOINT` anywhere in a script to pause execution and drop into
 SELECT * FROM orders WHERE status = 'pending';
 ```
 
-The REPL prints the current file name, line number, and the upcoming statement when it opens:
+On entry, the REPL prints a horizontal rule with the label (`Breakpoint` or `Step` for step-mode), the current file:line, the upcoming statement with its type tag, and a one-line help hint:
 
 ```
-[Breakpoint] myscript.sql:42 — Script paused. Type '.help' for commands, '.c' to resume.
-  myscript.sql:42  (sql)
-  → SELECT * FROM orders WHERE status = 'pending';
+── Breakpoint ── myscript.sql:42 ────────────────────────────
+  (sql) SELECT * FROM orders WHERE status = 'pending'
+  Type '.help' for commands, '.c' to resume.
+
 execsql debug>
 ```
 
 **Available commands:**
 
-| Command        | Shortcut | Description                                                               |
-| -------------- | -------- | ------------------------------------------------------------------------- |
-| `.continue`    | `.c`     | Resume normal script execution                                            |
-| `.abort`       | `.q`     | Halt the script with exit status 1                                        |
-| `.vars`        | `.v`     | List user, system, local, and counter substitution variables              |
-| `.vars all`    | `.v all` | Include environment variables (`&`) in the listing                        |
-| `.next`        | `.n`     | Execute the next statement, then pause again (step mode)                  |
-| `.where`       | `.w`     | Re-display the current script location and upcoming statement             |
-| `.stack`       |          | Show the command-list stack (script name, cursor position, nesting depth) |
-| `.set VAR VAL` | `.s`     | Set or update a substitution variable                                     |
-| `.help`        | `.h`     | Show available commands                                                   |
+| Command         | Shortcut | Description                                                               |
+| --------------- | -------- | ------------------------------------------------------------------------- |
+| `.continue`     | `.c`     | Resume normal script execution                                            |
+| `.abort`        | `.q`     | Halt the script (exit 1)                                                  |
+| `.vars`         | `.v`     | List user, system, local, and counter substitution variables              |
+| `.vars all`     | `.v all` | Include environment variables (`&`) in the listing                        |
+| `.next`         | `.n`     | Execute the next statement, then pause again (step mode)                  |
+| `.where`        | `.w`     | Re-display the current script location and upcoming statement             |
+| `.stack`        |          | Show the command-list stack (script name, cursor position, nesting depth) |
+| `.set VAR VAL`  | `.s`     | Set or update a substitution variable                                     |
+| `.scripts`      |          | List all registered SCRIPT definitions with parameters and source         |
+| `.scripts NAME` |          | Show detail for a specific SCRIPT (parameters, source file/line range)    |
+| `.help`         | `.h`     | Show available commands                                                   |
 
 Anything not starting with `.` is treated as a variable lookup or SQL:
 
