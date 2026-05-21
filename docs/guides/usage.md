@@ -1,12 +1,8 @@
 # Usage Notes
 
-This section contains miscellaneous notes on *execsql* usage.
-
 ## Required Arguments
 
-If the program is run without any arguments it will print a help message on the terminal, similar to the [syntax description](../getting-started/syntax.md#syntax).
-
-At least one argument, the name of the script file to run, is required. This single argument can be used when the database connection information is specified in one or more [configuration files](../reference/configuration.md#configuration).
+A script file name is the only required argument; database connection information can come from one or more [configuration files](../reference/configuration.md#configuration). Running *execsql* with no arguments prints the [syntax description](../getting-started/syntax.md#syntax).
 
 ## SQL Statement Recognition
 
@@ -148,33 +144,13 @@ The screenshot above uses the *ancient* colorscheme. The same color specificatio
 
 ### Highlighting Execsql Metacommands in Bluefish
 
-When using the Bluefish editor, the standard syntax highlighting for SQL files can be extended with alternate highlighting for the comment lines that contain *execsql* metacommands. The extra syntax highlighting rules should be added to the file "sql.bflang2". On Linux this file is located in
-
-```
-/usr/share/bluefish/bflang
-```
-
-A customized copy may be placed in the user-specific settings directory
-
-```
-~/.bluefish
-```
-
-to override the default global file.
-
-On Windows, the syntax highlighting definition file is located under the Bluefish installation directory, in the path
-
-```
-share\bluefish\bflang
-```
-
-Two additions must be made to this file. In the \<header> section, the line
+To add metacommand highlighting to Bluefish, edit `sql.bflang2` (`/usr/share/bluefish/bflang/` on Linux, or `share\bluefish\bflang\` under the install directory on Windows; copy to `~/.bluefish/` to override globally). In the `<header>` section, add:
 
 ```
 <highlight name="execsql_metacommand" style="execsql_metacommand" />
 ```
 
-should be added. Within the \<context> section, the lines
+Within `<context>`, add:
 
 ```
 <group case_insens="1" highlight="execsql_metacommand">
@@ -182,7 +158,7 @@ should be added. Within the \<context> section, the lines
 </group>
 ```
 
-should be added. Assigning visual attributes to this metacommand specification is done within Bluefish. With a SQL file open, open the *Edit/Preferences* dialog and use the *Editor settings/Text styles* section to assign the desired attributes to the "execsql_metacommand" style.
+Assign visual attributes for the `execsql_metacommand` style via *Edit / Preferences / Editor settings / Text styles* with a SQL file open.
 
 ## MS-Access-Specific Considerations
 
@@ -258,48 +234,22 @@ In a multi-user environment, where more than one person may run a script, and ea
 
 ## Password Storage and the OS Keyring
 
-When *execsql* is installed with the `auth` extra (`pip install execsql2[auth]`), it integrates with your operating system's credential store via the [keyring](https://pypi.org/project/keyring/) Python package. This means that **you will typically only be prompted for a database password once** per database connection. After that, *execsql* retrieves the stored password automatically, which may be surprising if you expect a prompt on every run.
+When installed with the `auth` extra (`pip install execsql2[auth]`), *execsql* uses the [keyring](https://pypi.org/project/keyring/) package to store database passwords in your OS credential store (macOS Keychain, Windows Credential Manager, or a SecretService-compatible backend on Linux). After a successful interactive prompt, the password is saved automatically and reused on later runs — so you typically see a password prompt only once per `db_type / server / database / username` combination.
 
-### How It Works
+If a stored password is later rejected by the server (e.g. it was rotated), *execsql* clears the stale entry and re-prompts; the new password replaces the old one in the keyring.
 
-1. When *execsql* needs a password, it first checks the OS credential store for a matching entry.
-1. If a stored password is found, it is used immediately --- you will not see a password prompt.
-1. If no stored password is found, *execsql* prompts you interactively. After a successful connection, the password is automatically saved to the credential store for future use.
-
-Passwords are stored in whatever credential backend your OS provides:
-
-- **macOS**: Keychain Access (viewable in the Keychain Access app under the service name `execsql/...`)
-- **Windows**: Windows Credential Manager (viewable in Control Panel > Credential Manager)
-- **Linux**: SecretService-compatible store (e.g., GNOME Keyring or KWallet)
-
-Stored credentials use the service name pattern `execsql/<db_type>/<server>/<database>` and are keyed to your database username.
-
-### When a Password Changes
-
-If your database password changes, the stored credential will be stale. *execsql* handles this automatically: if a connection fails using a keyring-stored password, it clears the bad entry and re-prompts you for the new password. The new password is then stored in the keyring.
-
-### Disabling Keyring Integration
-
-If you prefer to be prompted for your password every time, you can disable keyring integration by setting `use_keyring` to "No" in your [configuration file](../reference/configuration.md#configuration):
+To opt out, install without the extra, or set `use_keyring=No` in `[connect]`:
 
 ```ini
 [connect]
 use_keyring=No
 ```
 
-Alternatively, if the `keyring` package is simply not installed (i.e., you installed with `pip install execsql2` without the `[auth]` extra), keyring integration is inactive and *execsql* will always prompt for a password.
+To remove a stored password, open your OS credential manager (Keychain Access on macOS, Credential Manager on Windows, Seahorse / KWallet on Linux) and delete the entry under the service name pattern `execsql/<db_type>/<server>/<database>`.
 
-### Removing a Stored Password
+## SQL Server with Windows Authentication
 
-To remove a stored password from your OS credential store, use your platform's native credential management tool:
-
-- **macOS**: Open Keychain Access, search for "execsql", and delete the entry.
-- **Windows**: Open Credential Manager (Control Panel > Credential Manager), find the entry under "Generic Credentials", and remove it.
-- **Linux**: Use your keyring manager (e.g., Seahorse for GNOME Keyring) to find and delete the entry.
-
-## Connecting to SQL Server Using Windows Authentication With a Default Username Configured
-
-If you ordinarily use a DBMS for which a username must be provided, it is convenient to specify your username in an *execsql* configuration file, for example, in your \<home>/.config directory. However, if you need to connect to an instance of SQL Server (or SQL Express) that uses Windows authentication, you must *not* specify a username when connecting. One convenient way to do this is to create a custom *execsql.conf* file in the directory containing the scripts to be run against the SQL Server instance, and to explicitly un-set your username in this configuration file. The \[[connect]\] section of the configuration file would look like this:
+When a username is set in a user-level config (typical when most of your DBMSs require one), connecting to a Windows-authenticated SQL Server instance fails because no username should be sent. Override by placing an `execsql.conf` next to the script that explicitly blanks the username:
 
 ```sh
 [connect]
@@ -309,6 +259,6 @@ db=rasa
 username=
 ```
 
-## Using 'Inner Word' Commands in Vim With Substitution Variables
+## Vim 'Inner Word' Commands with Substitution Variables
 
-Vim's 'inner word' command modifier recognizes the exclamation points that delimit *execsql* substitution variables as word delimiters. So, for example, if the cursor is anywhere within a substitution variable name that is delimited by exclamation points, the "ciw" (change inner word) command will remove the word under the cursor and place Vim in 'insert' mode, leaving the exclamation points in place.
+Vim treats the `!` delimiters around substitution variables as word boundaries, so `ciw` on a variable name like `!!myvar!!` replaces just `myvar` and leaves the delimiters intact.
