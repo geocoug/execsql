@@ -76,8 +76,12 @@ class ScriptResult:
         commands_run: Number of SQL statements and metacommands executed.
         elapsed: Wall-clock execution time in seconds.
         errors: List of errors encountered (empty on success).
-        variables: Final state of all user-defined substitution variables
-            (``$``-prefixed names, without the ``$``).
+        variables: Final state of substitution variables, keyed by name
+            without any sigil. Includes user-defined variables (no prefix)
+            and system variables (the leading ``$`` is stripped, so
+            ``$DATE_TAG`` appears as ``"DATE_TAG"``). Environment (``&``),
+            column-data (``@``), script-local (``~``), and script-parameter
+            (``#``) variables are excluded.
     """
 
     success: bool
@@ -100,7 +104,20 @@ class ScriptResult:
 
 
 class ExecSqlError(Exception):
-    """Raised by :meth:`ScriptResult.raise_on_error` when a script fails."""
+    """Raised by :meth:`ScriptResult.raise_on_error` when a script fails.
+
+    Note:
+        This is a separate class from :class:`execsql.exceptions.ExecSqlError`,
+        which is the internal base of the in-process exception hierarchy
+        (``ErrInfo``, ``ConfigError``, etc.). The library API never
+        propagates those — internal exceptions are caught and converted
+        to :class:`ScriptError` entries on the returned :class:`ScriptResult`.
+        Only ``raise_on_error()`` raises this public exception.
+
+    Attributes:
+        result: The :class:`ScriptResult` that triggered the raise. The
+            full error list is available on ``result.errors``.
+    """
 
     def __init__(self, message: str, result: ScriptResult) -> None:
         super().__init__(message)
@@ -338,8 +355,10 @@ def run(
             error.  If ``False``, capture errors and continue.
         new_db: If ``True``, create the database if it does not exist
             (SQLite, PostgreSQL, DuckDB).
-        allow_system_cmd: If ``False``, the SYSTEM_CMD (SHELL) metacommand
-            is disabled and will raise an error if encountered.
+        allow_system_cmd: If ``False``, the SYSTEM_CMD metacommand is
+            disabled and will raise an error if encountered. Matches the
+            ``--no-system-cmd`` CLI flag and the ``allow_system_cmd``
+            config option.
 
     Returns:
         A :class:`ScriptResult` with execution outcome, timing, errors,

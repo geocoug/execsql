@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 """
-Custom exception hierarchy for execsql.
+Custom exception hierarchy for execsql (internal use).
 
-All domain-specific exceptions are defined here so that callers can import
-from a single location.  Notable exceptions:
+All domain-specific exceptions are defined here so that internal callers
+can import from a single location. Notable exceptions:
 
-- :class:`ExecSqlError` — common base for all single-message execsql exceptions.
+- :class:`ExecSqlError` — common base for all internal execsql exceptions.
 - :class:`ConfigError` — invalid or missing ``execsql.conf`` values.
 - :class:`ErrInfo` — rich exception carrying type, command text, exception
   message, and script location; used as both a raised exception and an error
@@ -19,6 +19,15 @@ from a single location.  Notable exceptions:
   — spreadsheet I/O failures.
 - :class:`ConsoleUIError` — GUI console errors.
 - :class:`CondParserError` / :class:`NumericParserError` — parser failures.
+
+Note:
+    The ``execsql`` top-level package re-exports a *separate*
+    :class:`execsql.api.ExecSqlError` for library-API consumers. That
+    class is unrelated to this internal hierarchy; it is raised only by
+    :meth:`execsql.api.ScriptResult.raise_on_error`. Library callers
+    using ``from execsql import ExecSqlError`` get the public one;
+    internal modules using ``from execsql.exceptions import ExecSqlError``
+    get the hierarchy base defined here.
 """
 
 __all__ = [
@@ -173,6 +182,8 @@ class ErrInfo(ExecSqlError):
 
 
 class DataTypeError(ExecSqlError):
+    """Raised when a value cannot be cast to or rendered as a given DataType."""
+
     def __init__(self, data_type_name: str, error_msg: str) -> None:
         self.data_type_name = data_type_name or "Unspecified data type"
         self.error_msg = error_msg or "Unspecified error"
@@ -186,6 +197,8 @@ class DataTypeError(ExecSqlError):
 
 
 class DbTypeError(ExecSqlError):
+    """Raised when a DataType has no DBMS-specific mapping for the active database."""
+
     def __init__(self, dbms_id: str, data_type: object, error_msg: str) -> None:
         self.dbms_id = dbms_id
         self.data_type = data_type
@@ -211,6 +224,8 @@ class DataTableError(ExecSqlError):
 
 
 class DatabaseNotImplementedError(ExecSqlError):
+    """Raised when a Database subclass does not implement a required method for the current DBMS."""
+
     def __init__(self, db_name: str, method: str) -> None:
         self.db_name = db_name
         self.method = method

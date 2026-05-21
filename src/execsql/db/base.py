@@ -46,7 +46,26 @@ def _default_dt_cast() -> dict[type, Callable]:
 
 
 class Database(ABC):
-    """Abstract base class for all database connections."""
+    """Abstract base class for every DBMS adapter.
+
+    Concrete adapters in sibling modules (``postgres.py``, ``sqlite.py``,
+    ``duckdb.py``, etc.) subclass ``Database`` and override the two
+    abstract methods (:meth:`open_db`, :meth:`exec_cmd`) plus any
+    introspection or data-handling method whose default ANSI
+    ``information_schema`` implementation does not work for the target
+    DBMS (``schema_exists``, ``table_exists``, ``column_exists``,
+    ``table_columns``, ``view_exists``, ``role_exists``, ``drop_table``,
+    ``populate_table``).
+
+    The base class provides shared implementations of :meth:`execute`,
+    :meth:`select_data`, :meth:`select_rowsource`, :meth:`select_rowdict`,
+    :meth:`commit`, :meth:`rollback`, :meth:`quote_identifier`, and
+    :meth:`paramsubs` that work for any DB-API 2.0 driver.
+
+    Adapter instances are owned by :class:`DatabasePool` (accessed at
+    runtime via ``_state.dbs``); metacommand handlers call
+    ``_state.dbs.current()`` rather than constructing adapters directly.
+    """
 
     _dt_cast: dict[type, Callable] | None = None
 
@@ -412,7 +431,14 @@ class Database(ABC):
         return len(rows) > 0
 
     def role_exists(self, rolename: str) -> bool:
-        """Return ``True`` if *rolename* exists; subclasses must override this."""
+        """Return ``True`` if *rolename* exists in this database.
+
+        The default implementation raises :class:`~execsql.exceptions.DatabaseNotImplementedError`;
+        adapters for DBMSes that have a concept of roles (PostgreSQL,
+        SQL Server, etc.) override this to query the appropriate
+        catalog. Calling ``ROLE_EXISTS()`` from a script against a DBMS
+        without role support will surface the raised error.
+        """
         from execsql.exceptions import DatabaseNotImplementedError
 
         raise DatabaseNotImplementedError(self.name(), "role_exists")
