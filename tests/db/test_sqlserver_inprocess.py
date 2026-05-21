@@ -23,16 +23,24 @@ import pytest
 import execsql.state as _state
 
 
-pyodbc = pytest.importorskip("pyodbc", reason="pyodbc not installed")
+# If another test module (e.g. tests/db/test_db_adapters_mocked.py)
+# injected a MagicMock for pyodbc at import time, the real driver never gets
+# loaded.  Drop any cached entry and force a fresh import so the real
+# package wins whenever it's installed.
+import importlib
+import sys as _sys
 
-# When other test modules inject a MagicMock for pyodbc, the real driver
-# isn't loaded and pyodbc.drivers may not exist or return nothing useful.
-if not hasattr(pyodbc, "drivers") or not callable(getattr(pyodbc, "drivers", None)):
-    pytest.skip("pyodbc is mocked by another test module", allow_module_level=True)
-
-# Need at least one SQL Server ODBC driver
+_sys.modules.pop("pyodbc", None)
 try:
-    _DRIVERS = [d for d in pyodbc.drivers() if "SQL Server" in d]
+    pyodbc = importlib.import_module("pyodbc")
+except ImportError:
+    pytest.skip("pyodbc not installed", allow_module_level=True)
+
+# Need at least one real SQL Server ODBC driver — a MagicMock's drivers()
+# returns a MagicMock (not iterable as a list of strings), so the list
+# comprehension yields nothing useful and we fall through to skip.
+try:
+    _DRIVERS = [d for d in pyodbc.drivers() if isinstance(d, str) and "SQL Server" in d]
 except Exception:
     _DRIVERS = []
 if not _DRIVERS:
