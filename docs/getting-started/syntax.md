@@ -158,6 +158,9 @@ Valid encoding names can be displayed with the `-y` option. See also [Character 
 `-z`, `--import-buffer` *KB*
 :   Buffer size in KB for the IMPORT metacommand. Default: 32.
 
+`--progress`
+:   Show a Rich progress bar during long-running IMPORT operations. Equivalent to setting `show_progress = yes` in `execsql.conf` or `-- !x! CONFIG SHOW_PROGRESS YES` at runtime.
+
 ### GUI options
 
 `-v`, `--visible-prompts` *{0,1,2,3}*
@@ -234,7 +237,23 @@ Valid encoding names can be displayed with the `-y` option. See also [Character 
 
 `--profile`
 
-:   Record the wall-clock execution time of each SQL statement and metacommand. After the script finishes, print a summary table to the console showing elapsed time, percentage of total time, source file and line number, command type, and a preview of the command text. Statements are sorted from slowest to fastest; the top 20 are displayed. Useful for identifying slow queries or metacommands in long-running scripts.
+:   Record the wall-clock execution time of each SQL statement and metacommand. After the script finishes, print a summary table to the console showing elapsed time, percentage of total time, source file and line number, command type, and a preview of the command text. Statements are sorted from slowest to fastest; the top N (default 20, configurable via `--profile-limit`) are displayed. Useful for identifying slow queries or metacommands in long-running scripts.
+
+`--profile-limit` *N*
+
+:   Number of top statements to display in the `--profile` summary (default: 20). Remaining statements are counted and noted in the output footer.
+
+`--no-system-cmd`
+
+:   Disable the `SYSTEM_CMD` metacommand. Scripts that attempt to execute an OS command will fail with a clear error. Useful for CI pipelines, shared execution environments, or running semi-trusted scripts. Equivalent to `allow_system_cmd = No` in `execsql.conf` `[config]` section or `allow_system_cmd=False` in the [library API](../api/index.md#library-api). The CLI flag always takes precedence over the config file.
+
+`--config` *FILE*
+
+:   Load an explicit configuration file *after* the implicit search paths (system, user, script-dir, working-dir). Its values take precedence over those four; CLI arguments still override everything. The file may chain additional configs via its `[config]` section.
+
+`--init-config`
+
+:   Print a default `execsql.conf` template to stdout with every option commented out and documented. Redirect to a file to bootstrap a configuration: `execsql --init-config > execsql.conf`.
 
 `--version`
 
