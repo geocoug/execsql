@@ -2,11 +2,13 @@
 
 ## Dispatch table
 
-The `DISPATCH_TABLE` (a `MetaCommandList`) maps metacommand regex patterns to their handler functions. It is populated when this module is first imported and consumed by `script.MetacommandStmt.run()` via `_state.metacommandlist`.
+`build_dispatch_table()` (in `execsql.metacommands.dispatch`) populates a `MetaCommandList` with every metacommand regex and its handler. `__init__.py` calls it at import time and exposes the result as `DISPATCH_TABLE`; runtime consumes it via `_state.metacommandlist`.
 
 If you are adding a new metacommand, start with the [Adding Metacommands](../dev/adding_metacommands.md) guide.
 
 ::: execsql.metacommands
+
+::: execsql.metacommands.dispatch
 
 ## Handler modules
 
@@ -18,6 +20,14 @@ If you are adding a new metacommand, start with the [Adding Metacommands](../dev
 
 ::: execsql.metacommands.data
 
+::: execsql.metacommands.io_export
+
+::: execsql.metacommands.io_import
+
+::: execsql.metacommands.io_write
+
+::: execsql.metacommands.io_fileops
+
 ::: execsql.metacommands.io
 
 ::: execsql.metacommands.prompt
@@ -25,5 +35,7 @@ If you are adding a new metacommand, start with the [Adding Metacommands](../dev
 ::: execsql.metacommands.system
 
 ::: execsql.metacommands.script_ext
+
+::: execsql.metacommands.upsert
 
 ::: execsql.metacommands.debug

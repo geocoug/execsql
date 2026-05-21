@@ -11,11 +11,11 @@ Entry-point functions, argument parsing, and the main execution loop.
 ## Module overview
 
 ::: execsql.cli
-options:
-members: false
+    options:
+      members: false
 
 ## Core execution
 
 ::: execsql.cli._run
-options:
-show_signature_annotations: false
+    options:
+      show_signature_annotations: false

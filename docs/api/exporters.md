@@ -6,6 +6,8 @@
 
 ::: execsql.exporters.base
 
+::: execsql.exporters.protocol
+
 ## Format writers
 
 Each module below implements one or more output formats. Every writer follows the same signature: receive a SQL `select_stmt` string and a `Database` instance, stream rows via `db.select_rowsource()`, and write to a file or zip. See [Adding Exporters](../dev/adding_exporters.md) to add a new format.
