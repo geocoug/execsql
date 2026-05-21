@@ -10,7 +10,7 @@ Exporters are standalone module-level functions. There is no base class to subcl
 
 ### The EXPORT dispatch
 
-When a script runs `-- !x! EXPORT TO myfile.ext FORMAT myformat`, the handler in `src/execsql/metacommands/io.py` receives the format string and calls the corresponding exporter function directly via an `if`/`elif` chain. Adding a new format means adding a new `elif` branch to that chain.
+When a script runs `-- !x! EXPORT TO myfile.ext FORMAT myformat`, the `x_export` handler in `src/execsql/metacommands/io_export.py` matches the format string against an `if filefmt in (...): ... elif ...:` chain and calls the corresponding exporter function. Adding a new format means adding one `elif` branch.
 
 ### The core pattern
 
@@ -112,7 +112,7 @@ The `desc` parameter is optional metadata passed from the EXPORT metacommand. St
 
 ### Step 2 — Register the format in the EXPORT handler
 
-Open `src/execsql/metacommands/io.py`. At the top, import your new function:
+Open `src/execsql/metacommands/io_export.py`. At the top, import your new function:
 
 ```python
 from execsql.exporters.myformat import write_query_to_myformat
@@ -183,7 +183,7 @@ ______________________________________________________________________
 ## Checklist
 
 - [ ] Exporter function written in `src/execsql/exporters/myformat.py`
-- [ ] Function imported in `src/execsql/metacommands/io.py`
+- [ ] Function imported in `src/execsql/metacommands/io_export.py`
 - [ ] `elif filefmt == "myformat":` branch added in `x_export()`
 - [ ] Zip guard added if the format does not support zip output
 - [ ] Test added to `tests/exporters/`

@@ -21,7 +21,9 @@ Your importer just needs to open and parse the source file, then call `import_da
 
 ### The IMPORT dispatch
 
-When a script runs `-- !x! IMPORT myfile.ext TO mytable FORMAT myformat`, the IMPORT handler in `src/execsql/metacommands/io.py` reads the format string and calls the corresponding importer function. Adding a new format means adding a new `elif` branch to the dispatch in the handler.
+Unlike `EXPORT`, the `IMPORT` machinery in `src/execsql/metacommands/io_import.py` is split. The main `x_import` handler dispatches by file extension (`.csv`, `.txt`, `.ods`, `.xls`/`.xlsx`) and calls the matching importer directly. Some formats (e.g. Feather, Parquet) have their own top-level handlers — `x_import_feather`, `x_import_parquet` — registered separately in the dispatch table.
+
+When adding a new format, pick the right pattern: extend the extension-dispatch in `x_import` for a format that fits the standard `IMPORT … TO …` shape, or write a new `x_import_<format>` handler if the format needs its own metacommand syntax.
 
 ______________________________________________________________________
 
@@ -98,6 +100,7 @@ def importtable_myformat(
 
 Key points:
 
+- **Naming is not standardized.** Existing importers use `importtable` (csv), `importods`, `importxls`, `import_feather`, `import_parquet`. Pick a descriptive function name; the example `importtable_myformat` is one option, not a required convention.
 - **Call `import_data_table()`** — do not call `db.populate_table()` directly. The shared back-end handles column header cleaning, `CREATE TABLE`, and commit.
 - **Import optional dependencies lazily** inside the function body so execsql still runs for users who do not have the library installed.
 - **Raise `ErrInfo`** for expected failures rather than a bare `raise` or `sys.exit`.
@@ -105,7 +108,7 @@ Key points:
 
 ### Step 2 — Register the format in the IMPORT handler
 
-Open `src/execsql/metacommands/io.py`. At the top, import your function:
+Open `src/execsql/metacommands/io_import.py`. At the top, import your function:
 
 ```python
 from execsql.importers.myformat import importtable_myformat
@@ -162,7 +165,7 @@ ______________________________________________________________________
 ## Checklist
 
 - [ ] Importer function written in `src/execsql/importers/myformat.py`
-- [ ] Function imported in `src/execsql/metacommands/io.py`
+- [ ] Function imported in `src/execsql/metacommands/io_import.py`
 - [ ] `elif filefmt == "myformat":` branch added in the IMPORT handler
 - [ ] Test added to `tests/importers/`
 - [ ] `pytest` passes locally
