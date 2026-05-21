@@ -1,14 +1,6 @@
 # Architecture & Design Guide
 
-This document describes the internal architecture of execsql2 for developers who want to understand the codebase, debug issues, or contribute changes. It covers the execution flow, module organization, and the key subsystems that make execsql work.
-
-______________________________________________________________________
-
-## Overview
-
-execsql2 is a CLI tool that runs SQL scripts against multiple database backends (PostgreSQL, SQLite, MariaDB/MySQL, DuckDB, Firebird, MS-Access, MS-SQL Server, Oracle, ODBC DSN). Beyond raw SQL execution, it provides a metacommand language embedded in SQL comments (`-- !x! COMMAND`) for control flow, data import/export, substitution variables, conditional execution, and GUI prompts.
-
-The codebase was refactored from a 16,600-line monolith into a modular package under `src/execsql/`. The importable module is `execsql` (the PyPI package name is `execsql2`).
+This guide describes the internals of `src/execsql/` for contributors. The codebase was refactored from a 16,600-line monolith into a modular package; the importable module is `execsql`, the PyPI distribution is `execsql2`.
 
 ______________________________________________________________________
 
@@ -22,34 +14,28 @@ flowchart TD
     RUN["<code>_run()</code><br/><code>cli/run.py</code><br/>Initialize state, config, subvars"]
     CONF["Load configuration<br/><code>ConfigData</code><br/>Merge execsql.conf files"]
     INIT["Initialize state<br/><code>state.initialize()</code><br/>Create singletons"]
-    PARSE["Parse script<br/><code>read_sqlfile()</code><br/>Tokenize into CommandList"]
+    PARSE["Parse script<br/><code>parse_script()</code> / <code>parse_string()</code><br/>Build AST tree"]
     CONNECT["Connect to database<br/><code>_connect_initial_db()</code><br/>Via db/factory.py"]
-    LOOP["<code>runscripts()</code><br/>Pop command stack,<br/>call run_next()"]
-    SQL["SQL statement<br/><code>SqlStmt.run()</code><br/>Execute via Database"]
-    META["Metacommand<br/><code>MetacommandStmt.run()</code><br/>Dispatch via MetaCommandList"]
-    DONE["Stack empty<br/>Close connections, exit"]
+    EXEC["<code>execute(tree, ctx=)</code><br/><code>script/executor.py</code><br/>Walk AST nodes"]
+    SQL["SQL node<br/>Execute via current Database"]
+    META["Metacommand node<br/>Dispatch via <code>_state.metacommandlist</code>"]
+    DONE["Tree exhausted<br/>Close connections, exit"]
 
     CLI --> RUN
     RUN --> CONF
     CONF --> INIT
     INIT --> PARSE
     PARSE --> CONNECT
-    CONNECT --> LOOP
-    LOOP --> SQL
-    LOOP --> META
-    META -->|"may push onto stack<br/>(INCLUDE, LOOP, EXECUTE SCRIPT)"| LOOP
-    SQL --> LOOP
-    LOOP -->|"StopIteration /<br/>stack empty"| DONE
+    CONNECT --> EXEC
+    EXEC --> SQL
+    EXEC --> META
+    EXEC -->|"recurse into IfBlock,<br/>LoopBlock, ScriptBlock,<br/>IncludeDirective"| EXEC
+    SQL --> EXEC
+    META --> EXEC
+    EXEC --> DONE
 ```
 
-### Key stages
-
-1. **CLI parsing** (`cli/__init__.py`) -- Typer validates arguments and delegates to `_run()`.
-1. **Configuration** (`cli/run.py`) -- `_run()` creates `SubVarSet`, seeds system variables (`$DATE_TAG`, `$USER`, etc.), loads `ConfigData` from `execsql.conf` files, and applies CLI flag overrides.
-1. **State initialization** (`state.initialize()`) -- Creates the runtime singletons: `DatabasePool`, `IfLevels`, `CounterVars`, `Timer`, `TempFileMgr`, `ExportMetadata`, and wires up the dispatch tables.
-1. **Script parsing** (`read_sqlfile()` / `read_sqlstring()`) -- Reads the `.sql` file, tokenizes lines into `ScriptCmd` objects (each wrapping either a `SqlStmt` or `MetacommandStmt`), and pushes the resulting `CommandList` onto `commandliststack`.
-1. **Database connection** (`_connect_initial_db()`) -- Uses `db/factory.py` to instantiate the correct `Database` subclass based on `db_type`.
-1. **Execution loop** (`runscripts()`) -- Pops the top `CommandList` from the stack, calls `run_next()` until `StopIteration`, then pops and continues with the next stack entry. This loop is the heart of execution.
+`execute()` recursively walks the AST via `_execute_nodes()` / `_execute_node()`. Each node type has dedicated handling: SQL statements run on the current `Database`; metacommands dispatch through `_state.metacommandlist`; `IfBlock` / `LoopBlock` drive their bodies based on tree structure; `IncludeDirective` parses and recurses into the included file; `ScriptBlock` registers a named script on `ctx.ast_scripts` for later `EXECUTE SCRIPT` lookup.
 
 ______________________________________________________________________
 
@@ -58,28 +44,25 @@ ______________________________________________________________________
 ```mermaid
 flowchart LR
     CLI["cli/<br/>Entry point,<br/>arg parsing,<br/>DSN parsing"]
+    API["api.py<br/>Public Python<br/>entry point"]
     CONFIG["config.py<br/>ConfigData,<br/>StatObj,<br/>WriteHooks"]
     STATE["state.py<br/>Global runtime<br/>singletons"]
-    SCRIPT["script/<br/>engine, control,<br/>variables"]
+    SCRIPT["script/<br/>engine, control,<br/>variables, AST"]
     META["metacommands/<br/>Dispatch table,<br/>~225 handlers"]
-    DB["db/<br/>Database ABC,<br/>9 adapters,<br/>DatabasePool"]
+    DB["db/<br/>Database ABC,<br/>8 adapters,<br/>DatabasePool"]
     EXPORT["exporters/<br/>20+ output<br/>formats"]
     IMPORT["importers/<br/>CSV, ODS,<br/>XLS, Feather"]
     GUI["gui/<br/>Tkinter, Textual,<br/>Console backends"]
     UTILS["utils/<br/>auth, crypto,<br/>fileio, mail,<br/>regex, strings"]
     PARSER["parser.py<br/>CondParser,<br/>NumericParser"]
     DEBUG["debug/<br/>REPL debugger"]
-    NOTEBOOK["notebook/<br/>Jupyter integration"]
-    SERVER["server/<br/>Daemon"]
-    LSP["lsp/<br/>Language Server<br/>Protocol"]
 
     CLI --> CONFIG
     CLI --> STATE
     CLI --> SCRIPT
     CLI --> DEBUG
-    CLI --> NOTEBOOK
-    CLI --> SERVER
-    CLI --> LSP
+    API --> STATE
+    API --> SCRIPT
     SCRIPT --> STATE
     SCRIPT --> META
     META --> STATE
@@ -98,42 +81,42 @@ flowchart LR
 
 | Package         | Purpose                                                                                          |
 | --------------- | ------------------------------------------------------------------------------------------------ |
-| `cli/`          | Typer app, `_run()` orchestration, DSN URL parsing, Rich help output                             |
+| `cli/`          | Typer app, `_run()` orchestration, DSN URL parsing, Rich help output, `--lint` entry points      |
+| `api.py`        | Public `execsql.run()` Python entry point for notebooks, pipelines, and library use              |
 | `config.py`     | `ConfigData` (INI merging), `StatObj` (runtime flags), `WriteHooks` (stdout/stderr redirection)  |
-| `state.py`      | Thread-local runtime store -- all shared mutable state lives here, isolated per-thread           |
-| `script/`       | `CommandList`, `MetaCommandList`, `SubVarSet`, `ScriptFile`, `runscripts()`                      |
+| `state.py`      | Thread-local runtime store — all shared mutable state lives here, isolated per-thread            |
+| `script/`       | AST parser/executor, `CommandList`, `MetaCommandList`, `SubVarSet`, `ScriptFile`                 |
 | `metacommands/` | `build_dispatch_table()`, all `x_*` handlers, `build_conditional_table()`, all `xf_*` predicates |
-| `db/`           | `Database` ABC, `DatabasePool`, 9 adapter modules (postgres, sqlite, duckdb, mysql, etc.)        |
+| `db/`           | `Database` ABC, `DatabasePool`, 8 adapter modules (postgres, sqlite, duckdb, mysql, etc.)        |
 | `exporters/`    | `ExportRecord`, `ExportMetadata`, `WriteSpec`, 20+ format writers (CSV, JSON, XML, HTML, etc.)   |
-| `importers/`    | `CsvFile`, `OdsFile`, `XlsFile`, `FeatherFile` -- data import backends                           |
+| `importers/`    | `CsvFile`, `OdsFile`, `XlsFile`, `FeatherFile` — data import backends                            |
 | `gui/`          | `GuiBackend` ABC, `TkinterBackend`, `TextualBackend`, `ConsoleBackend`                           |
 | `utils/`        | Shared utilities: file I/O, encryption, mail, regex helpers, string manipulation, timers         |
 | `parser.py`     | Recursive-descent parsers for conditional (`IF`) and arithmetic (`SET`) expressions              |
 | `types.py`      | `DataType` subclasses and `DbType` per-DBMS type dialect mappings                                |
 | `models.py`     | `Column`, `DataTable`, `JsonDatatype`                                                            |
+| `format.py`     | `execsql-format` CLI — opinionated formatter for execsql scripts                                 |
 | `exceptions.py` | `ExecSqlError` base, `ErrInfo`, `ConfigError`, `DataTypeError`, `DbTypeError`, etc.              |
 | `plugins.py`    | Entry-point plugin discovery for metacommands, exporters, and importers                          |
 | `debug/`        | Interactive REPL debugger for stepping through script execution                                  |
-| `notebook/`     | Jupyter notebook integration -- run execsql scripts from notebook cells                          |
-| `server/`       | Daemon mode -- run execsql as a long-lived process accepting script requests                     |
-| `lsp/`          | Language Server Protocol server -- powers editor features such as hover docs and autocomplete    |
+| `data/`         | Bundled package data (`execsql.conf.template` powers `--init-config`)                            |
 
 ______________________________________________________________________
 
 ## AST Parser and Executor
 
-In addition to the legacy flat command-list engine, execsql2 includes an AST-based parser and executor:
+execsql2 parses scripts into an AST and walks the tree to execute. There is no separate flat-command-list engine; the AST executor is the only path.
 
-- **`script/ast.py`** -- Defines 11 AST node types (`SqlStatement`, `MetaCommandStatement`, `IfBlock`, `LoopBlock`, `BatchBlock`, `ScriptBlock`, `SqlBlock`, `IncludeDirective`, `Comment`) plus `SourceSpan` for source locations and `ConditionModifier` for ANDIF/ORIF.
-- **`script/parser.py`** -- `parse_script()` / `parse_string()` produce a `Script` tree. Unlike the legacy parser, all block structures (IF/LOOP/BATCH/SCRIPT/SQL) are resolved at parse time into nested nodes.
-- **`script/executor.py`** -- `execute(script, ctx=)` walks the AST tree. IF conditions, LOOP iteration, and BATCH boundaries are driven by tree structure rather than runtime state flags (`if_stack`, `compiling_loop`). SQL and metacommands delegate to the existing dispatch table. INCLUDE'd files are parsed by the AST parser and executed natively (no fallback to the legacy engine). Circular INCLUDE references are detected and reported. Named SCRIPT blocks are stored on `ctx.ast_scripts` (instance-scoped, not module-level). ON ERROR_HALT / ON CANCEL_HALT EXECUTE SCRIPT deferred scripts execute natively through the AST executor.
-- **`cli/lint_ast.py`** -- AST-based linter that walks the tree for variable and INCLUDE checks. Structural validation (unmatched blocks) is handled by the parser itself.
+- **`script/ast.py`** — defines 9 `Node` subclasses (`SqlStatement`, `MetaCommandStatement`, `Comment`, `IfBlock`, `LoopBlock`, `BatchBlock`, `ScriptBlock`, `SqlBlock`, `IncludeDirective`) plus the `Script` root and supporting types (`SourceSpan` for source locations, `ConditionModifier` for ANDIF/ORIF, `ElseIfClause`, `ParamDef`).
+- **`script/parser.py`** — `parse_script(path)` / `parse_string(text)` produce a `Script` tree. All block structures (IF/LOOP/BATCH/SCRIPT/SQL) are resolved at parse time into nested nodes; the parser also reports structural errors (unmatched blocks).
+- **`script/executor.py`** — `execute(tree, ctx=)` walks the tree via `_execute_nodes()` / `_execute_node()`. SQL and metacommands delegate to the existing dispatch tables. INCLUDE'd files are parsed and recursed into natively; circular INCLUDE references are detected via `ctx.include_chain` and reported. Named SCRIPT blocks register in `ctx.ast_scripts` (instance-scoped) for later `EXECUTE SCRIPT` lookup. `ON ERROR_HALT` / `ON CANCEL_HALT EXECUTE SCRIPT` deferred scripts also run through the AST executor.
+- **`cli/lint_ast.py`** — AST-based linter for variable and INCLUDE checks; structural validation lives in the parser.
 
-The AST executor is the only execution engine. Use `--parse-tree` to visualize the AST without executing.
+Use `--parse-tree` to print the AST without executing.
 
-### RuntimeContext Isolation
+### RuntimeContext
 
-The executor accepts an explicit `RuntimeContext` parameter (`ctx`). The `active_context()` context manager in `state.py` installs a context as the active thread-local so all metacommand handlers and database adapters automatically resolve against it. Each thread gets its own isolated context via `threading.local()`, enabling concurrent `from execsql import run` calls and future PARALLEL blocks. The RuntimeContext carries AST-specific state: `ast_scripts` (script block registry) and `include_chain` (circular include detection).
+`RuntimeContext` (in `state.py`) holds the per-run mutable state. `execute()` accepts an explicit `ctx`; the `active_context()` context manager installs one as the active thread-local so metacommand handlers and database adapters resolve against it automatically. Each thread gets its own context via `threading.local()`, enabling concurrent `execsql.run()` calls. The context carries AST-specific state alongside the legacy frame/stack fields: `ast_scripts` (script block registry), `include_chain` (circular include detection), and the still-used `commandliststack` (synthetic frames the executor pushes for `current_script_line()` error reporting).
 
 ______________________________________________________________________
 
@@ -150,76 +133,13 @@ See `--list-plugins` to view discovered plugins.
 
 ______________________________________________________________________
 
-## The Command Stack
-
-The command stack is the central execution mechanism. It is a list of `CommandList` objects stored in `_state.commandliststack`.
-
-### Core types
-
-- **`ScriptCmd`** -- Pairs a statement (`SqlStmt` or `MetacommandStmt`) with its source file name and line number.
-- **`CommandList`** -- An ordered list of `ScriptCmd` objects with a forward-only cursor (`cmdptr`). Each `CommandList` also carries its own `LocalSubVarSet` for `~`-prefixed local variables.
-- **`CommandListWhileLoop`** / **`CommandListUntilLoop`** -- Subclasses that override iteration to repeat until a condition changes.
-
-### How the stack works
-
-```mermaid
-sequenceDiagram
-    participant R as runscripts()
-    participant S as commandliststack
-    participant C as CommandList (main script)
-    participant I as CommandList (included script)
-
-    R->>S: peek top
-    S-->>R: C (main script)
-    R->>C: run_next()
-    Note over C: SQL statement -- execute
-    R->>C: run_next()
-    Note over C: INCLUDE other.sql
-    C->>S: push new CommandList(I)
-    R->>S: peek top
-    S-->>R: I (included script)
-    R->>I: run_next()
-    Note over I: execute commands...
-    R->>I: run_next()
-    I-->>R: StopIteration
-    R->>S: pop I
-    R->>S: peek top
-    S-->>R: C (main script)
-    R->>C: run_next()
-    Note over C: continue after INCLUDE
-```
-
-### What pushes onto the stack
-
-| Metacommand                   | Effect                                                                                                   |
-| ----------------------------- | -------------------------------------------------------------------------------------------------------- |
-| `INCLUDE`                     | Parses the included file into a new `CommandList` and pushes it                                          |
-| `EXECUTE SCRIPT`              | Looks up a named script from `_state.savedscripts` and pushes a copy                                     |
-| `LOOP ... END LOOP`           | Compiles enclosed commands into a `CommandListWhileLoop` or `CommandListUntilLoop` and pushes it         |
-| `BEGIN SCRIPT ... END SCRIPT` | Parses commands but does **not** push -- stores them in `_state.savedscripts` for later `EXECUTE SCRIPT` |
-
-### Loop compilation
-
-When the parser encounters a `LOOP` metacommand:
-
-1. `_state.compiling_loop` is set to `True`.
-1. Subsequent commands are appended to a `CommandList` on `_state.loopcommandstack` instead of being executed.
-1. Nested `LOOP`/`END LOOP` pairs are tracked via `_state.loop_nest_level`.
-1. When the matching `END LOOP` is reached, `_state.endloop()` pushes the compiled loop onto `commandliststack` and sets `compiling_loop = False`.
-
-______________________________________________________________________
-
 ## Metacommand Dispatch
 
 Metacommands are lines in SQL scripts prefixed with `-- !x!`. At import time, `metacommands/__init__.py` calls `build_dispatch_table()`, which populates a `MetaCommandList` with all `mcl.add()` registrations (~225 regex patterns). This singleton is stored as `_state.metacommandlist`.
 
 ### How dispatch works
 
-1. `MetacommandStmt.run()` calls `_state.metacommandlist.eval(cmd_str)`.
-1. `MetaCommandList.eval()` extracts the leading keyword from the command string and looks up candidate `MetaCommand` entries via a keyword index (reducing the search space from ~225 to typically 1-5 entries).
-1. Each candidate's compiled regex is tested against the full command string.
-1. On a match, the handler function is called with all named regex groups as keyword arguments, plus `metacommandline` (the original unmodified line).
-1. On success, the matched entry's hit counter is incremented.
+`MetacommandStmt.run()` delegates to `_state.metacommandlist.eval(cmd_str)`. The dispatcher extracts the leading keyword, narrows ~225 entries to a small candidate set via a keyword index, then tests each candidate's compiled regex against the full command. The matched handler is called with the regex's named groups as keyword arguments plus `metacommandline` (the original unmodified line), and its hit counter is incremented.
 
 ### Handler conventions
 
@@ -253,7 +173,7 @@ Conditional test functions live in `metacommands/conditions.py`. Examples:
 - `xf_tableexists` -- checks if a table exists in the database
 - `xf_fileexists` -- checks if a file exists on disk
 - `xf_contains` -- string containment test
-- `xf_equals`, `xf_greaterthan` -- comparison tests
+- `xf_equals`, `xf_isgt`, `xf_isgte` — comparison tests
 - `xf_startswith` -- string prefix test
 
 These are registered in `build_conditional_table()` with `category="condition"` for keyword introspection.
@@ -262,30 +182,14 @@ ______________________________________________________________________
 
 ## Substitution Variables
 
-Substitution variables allow dynamic values in SQL and metacommand text. They are managed by `SubVarSet` (in `script/variables.py`) and stored in `_state.subvars`.
+`SubVarSet` (in `script/variables.py`) holds substitution variables in `_state.subvars`. Before each command runs, `substitute_vars()` in `engine.py` replaces all `!!var!!` patterns with their current values. The deferred form `!{var}!` is expanded at the point of use rather than at parse time, which is essential inside loops where the value changes on each iteration. See [Substitution Variables](../reference/substitution_vars.md) for user-facing syntax and types.
 
-### Variable syntax
+### Scoping classes
 
-| Syntax      | Type                                  | Example                      |
-| ----------- | ------------------------------------- | ---------------------------- |
-| `!!name!!`  | Regular variable                      | `!!my_var!!`                 |
-| `!!$name!!` | System variable (read-only)           | `!!$DATE_TAG!!`, `!!$USER!!` |
-| `!!&name!!` | Environment variable                  | `!!&HOME!!`                  |
-| `!!@name!!` | Column variable (from query results)  | `!!@column_name!!`           |
-| `!!~name!!` | Local variable (per-script scope)     | `!!~counter!!`               |
-| `!!#name!!` | Parameter variable (script arguments) | `!!#param1!!`                |
-| `!{name}!`  | Deferred substitution                 | `!{my_var}!`                 |
-
-### How substitution works
-
-Before a command is executed, `substitute_vars()` in `engine.py` replaces all `!!var!!` patterns with their current values from `_state.subvars`. Deferred substitution (`!{var}!`) is only expanded at the point of use, not at parse time -- this is essential for variables inside loops where the value changes on each iteration.
-
-### Variable scoping
-
-- **`SubVarSet`** -- Global scope, shared across all scripts.
-- **`LocalSubVarSet`** -- Each `CommandList` carries its own local variable overlay for `~`-prefixed variables. These are pushed/popped with the command stack.
-- **`ScriptArgSubVarSet`** -- Per-script `#`-prefixed argument variables, set when `EXECUTE SCRIPT` passes parameters.
-- **`CounterVars`** -- Auto-incrementing `$COUNTER_N` variables managed by `_state.counters`.
+- **`SubVarSet`** — global scope, shared across all scripts.
+- **`LocalSubVarSet`** — per-`CommandList` overlay for `~`-prefixed variables; pushed and popped with the command stack.
+- **`ScriptArgSubVarSet`** — per-script `#`-prefixed arguments set by `EXECUTE SCRIPT`.
+- **`CounterVars`** — auto-incrementing `$COUNTER_N` variables on `_state.counters`.
 
 ______________________________________________________________________
 
@@ -338,7 +242,7 @@ ______________________________________________________________________
 
 ### Export metadata
 
-`ExportMetadata` (in `exporters/base.py`) tracks metadata about exports -- file names, row counts, timestamps -- accessible via `$LAST_EXPORT_*` system variables.
+`ExportMetadata` (in `exporters/base.py`) tracks per-export metadata — file names, row counts, timestamps. The `$SHEETS_*` system variables surface multi-sheet `IMPORT` results; see [Substitution Variables](../reference/substitution_vars.md#system_vars) for the full list.
 
 For guides on extending these pipelines, see [Adding Exporters](adding_exporters.md) and [Adding Importers](adding_importers.md).
 
