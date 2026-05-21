@@ -4,21 +4,35 @@ from execsql.exceptions import ErrInfo
 """
 Interactive user prompt metacommand handlers for execsql.
 
-Implements all ``x_*`` handler functions that display GUI dialogs or
-console prompts to the user:
+Implements handlers that display GUI dialogs or console prompts.
+The PROMPT family routes through the active GUI backend (Tkinter,
+Textual, or Console) via :mod:`execsql.utils.gui`.
 
-- ``x_prompt_action`` — ACTION prompt (choose from a list of actions)
-- ``x_prompt_message`` — MESSAGE dialog
-- ``x_prompt_display`` — DISPLAY (show a query result)
-- ``x_prompt_entry`` — ENTRY FORM (fill in substitution variables)
-- ``x_prompt_compare`` — COMPARE dialog
-- ``x_prompt_selectrows`` — SELECT ROWS dialog
-- ``x_prompt_map`` — MAP display
-- ``x_open_file`` — OPEN FILE browser
-- ``x_save_file`` — SAVE FILE browser
-- ``x_get_directory`` — GET DIRECTORY browser
-- ``x_credentials`` — CREDENTIALS dialog
-- ``x_gui_console`` — GUI console on/off control
+PROMPT variants:
+
+- ``x_prompt`` — PROMPT DISPLAY (show a query result in a dialog)
+- ``x_prompt_action`` — PROMPT ACTION (choose from a list of actions)
+- ``x_prompt_ask`` — PROMPT ASK (yes/no, optionally with DISPLAY/COMPARE)
+- ``x_prompt_ask_compare`` — PROMPT ASK … COMPARE (yes/no over two tables)
+- ``x_prompt_compare`` — PROMPT COMPARE (side-by-side or stacked table diff)
+- ``x_prompt_connect`` — PROMPT CONNECT (interactive DB connection dialog)
+- ``x_prompt_credentials`` — PROMPT CREDENTIALS (username/password dialog)
+- ``x_prompt_directory`` — PROMPT DIRECTORY (folder picker)
+- ``x_prompt_enter`` — PROMPT ENTER_SUB (single text-entry dialog)
+- ``x_prompt_entryform`` — PROMPT ENTRY_FORM (multi-field form)
+- ``x_prompt_map`` — PROMPT MAP (markers on an interactive map)
+- ``x_prompt_openfile`` — PROMPT OPENFILE (file picker)
+- ``x_prompt_pause`` — PROMPT PAUSE (modal pause dialog with timer)
+- ``x_prompt_savefile`` — PROMPT SAVEFILE (file save dialog)
+- ``x_prompt_select_rows`` — PROMPT SELECT_ROWS (multi-row selection dialog)
+
+Console / non-PROMPT siblings:
+
+- ``x_ask`` — ASK (terminal-only yes/no, no GUI)
+- ``x_pause`` — PAUSE (terminal-only "press a key to continue")
+- ``x_msg`` — PROMPT MESSAGE (single-button text dialog)
+- ``x_reset_dialog_canceled`` — RESET DIALOG_CANCELED (clear the
+  dialog-cancellation flag set by a PROMPT cancel).
 """
 
 import os

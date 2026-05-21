@@ -3,20 +3,27 @@ from __future__ import annotations
 """
 Database connection metacommand handlers for execsql.
 
-Implements all ``x_connect_*`` handler functions that open or switch
-database connections at script runtime:
+Per-DBMS ``CONNECT`` handlers. Each DBMS has two variants — the bare
+form (credentials taken from regex captures / config) and the
+``_user_`` form (interactive password prompt):
 
-- ``x_connect_pg`` — ``CONNECT POSTGRESQL …``
-- ``x_connect_mysql`` — ``CONNECT MYSQL …``
-- ``x_connect_oracle`` — ``CONNECT ORACLE …``
-- ``x_connect_sqlite`` — ``CONNECT SQLITE …``
-- ``x_connect_duckdb`` — ``CONNECT DUCKDB …``
-- ``x_connect_firebird`` — ``CONNECT FIREBIRD …``
-- ``x_connect_sqlserver`` — ``CONNECT SQLSERVER …``
-- ``x_connect_access`` — ``CONNECT ACCESS …``
-- ``x_connect_dsn`` — ``CONNECT DSN …``
-- ``x_use_db`` — ``USE DATABASE <alias>``
-- ``x_close_db`` — ``CLOSE DATABASE <alias>``
+- PostgreSQL: ``x_connect_pg``, ``x_connect_user_pg``
+- SQL Server: ``x_connect_ssvr``, ``x_connect_user_ssvr``
+- MySQL / MariaDB: ``x_connect_mysql``, ``x_connect_user_mysql``
+- Oracle: ``x_connect_ora``, ``x_connect_user_ora``
+- Firebird: ``x_connect_fb``, ``x_connect_user_fb``
+- MS Access: ``x_connect_access``
+- DuckDB: ``x_connect_duckdb``
+- SQLite: ``x_connect_sqlite``
+- ODBC DSN: ``x_connect_dsn``
+
+Plus the connection-management handlers:
+
+- ``x_use`` — ``USE <alias>`` (switch the active database).
+- ``x_disconnect`` — ``DISCONNECT [<alias>]`` (close a registered connection).
+- ``x_autocommit_on`` / ``x_autocommit_off`` — ``AUTOCOMMIT ON|OFF``.
+- ``x_pg_vacuum`` — ``PG_VACUUM`` (run VACUUM against the current Postgres connection).
+- ``x_daoflushdelay`` — ``CONFIG DAO_FLUSH_DELAY_SECS`` (MS Access only).
 """
 
 from pathlib import Path

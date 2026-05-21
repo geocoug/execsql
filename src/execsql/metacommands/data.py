@@ -2,13 +2,29 @@ from __future__ import annotations
 from execsql.exceptions import ErrInfo
 
 """
-Data import and export metacommand handlers for execsql.
+Substitution-variable, counter, and IMPORT/EXPORT configuration handlers.
 
-Implements ``x_export`` (the EXPORT metacommand) and ``x_import`` (the
-IMPORT metacommand).  These are among the most complex handlers: they
-parse the full metacommand argument syntax (format, file name, options)
-and delegate to the appropriate exporter or importer function in
-:mod:`execsql.exporters` and :mod:`execsql.importers`.
+Despite the module name, this file does **not** implement the EXPORT or
+IMPORT metacommands themselves — those live in
+:mod:`execsql.metacommands.io_export` and :mod:`execsql.metacommands.io_import`.
+
+What's actually here:
+
+- Substitution-variable manipulation: ``x_sub``, ``x_sub_local``,
+  ``x_sub_add``, ``x_sub_append``, ``x_sub_empty``, ``x_rm_sub``,
+  ``x_sub_tempfile``, ``x_sub_ini``, ``x_sub_querystring``,
+  ``x_sub_encrypt``, ``x_sub_decrypt``, ``x_subdata``.
+- Data-variable assignment from queries / prompts: ``x_selectsub``,
+  ``x_prompt_selectsub``.
+- Counter operations: ``x_reset_counter``, ``x_reset_counters``,
+  ``x_set_counter``.
+- IMPORT / scanning configuration metacommands (the ``CONFIG …`` form):
+  ``x_empty_strings``, ``x_trim_strings``, ``x_replace_newlines``,
+  ``x_empty_rows``, ``x_only_strings``, ``x_boolean_int``,
+  ``x_boolean_words``, ``x_fold_col_hdrs``, ``x_trim_col_hdrs``,
+  ``x_clean_col_hdrs``, ``x_del_empty_cols``, ``x_create_col_hdrs``,
+  ``x_dedup_col_hdrs``, ``x_import_common_cols_only``, ``x_max_int``.
+- EXPORT configuration: ``x_quote_all_text``.
 """
 
 import math

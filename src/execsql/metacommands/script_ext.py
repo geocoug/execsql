@@ -1,13 +1,24 @@
 from __future__ import annotations
 
 """
-Script extension metacommand handlers for execsql.
+Script-block extension and dispatch handlers for execsql.
 
-Implements metacommands that extend or augment a running script:
+Handlers for the named-script invocation and dynamic-extension
+metacommands. Used by both the AST executor and legacy command paths:
 
-- ``x_extendscript`` — EXTEND SCRIPT (append additional commands from
-  a file into the current script stream)
-- Other substitution-variable and script-modification helpers.
+- ``x_executescript`` — ``EXECUTE SCRIPT <name>`` / ``RUN SCRIPT <name>``
+  (look up a previously-registered ``BEGIN SCRIPT`` block and run it,
+  optionally with parameter bindings and a WHILE / UNTIL loop).
+- ``x_extendscript`` — ``EXTEND SCRIPT <name> WITH SCRIPT|FILE …``
+  (append additional commands to an existing named script block from
+  an inline source).
+- ``x_extendscript_metacommand`` — ``EXTEND SCRIPT … WITH METACOMMAND …``.
+- ``x_extendscript_sql`` — ``EXTEND SCRIPT … WITH SQL …``.
+
+Registration of ``BEGIN SCRIPT … END SCRIPT`` blocks themselves is
+handled by the AST parser (block boundaries) and executor (registering
+the block on ``ctx.ast_scripts``); this module is only the call-site /
+extension handlers.
 """
 
 from typing import Any
