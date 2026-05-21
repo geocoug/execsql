@@ -188,7 +188,7 @@ addopts = [
     "--cov=execsql",
     "--cov-branch",
     "--cov-report=xml",
-    "--cov-fail-under=89",
+    "--cov-fail-under=85",
     "--strict-markers",
     "--strict-config",
     "--color=yes",
@@ -200,21 +200,8 @@ log_cli = true
 [tool.coverage.report]
 exclude_also = ["if __name__ == .__main__.:"]
 omit = [
+    # Vendored legacy monolith — not the codebase under test
     "_execsql/*",
-    # GUI modules require a display/event loop to test
-    "*/execsql/gui/desktop.py",
-    "*/execsql/gui/tui.py",
-    "*/execsql/metacommands/prompt.py",
-    # AST executor — tested via subprocess integration tests (test_executor.py)
-    "*/execsql/script/executor.py",
-    # DB adapters that require external servers or platform-specific drivers
-    "*/execsql/db/postgres.py",
-    "*/execsql/db/mysql.py",
-    "*/execsql/db/oracle.py",
-    "*/execsql/db/firebird.py",
-    "*/execsql/db/sqlserver.py",
-    "*/execsql/db/access.py",
-    "*/execsql/db/dsn.py",
 ]
 
 [tool.mypy]
