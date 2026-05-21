@@ -280,7 +280,7 @@ Unquoted default values cannot contain whitespace and must not begin with a quot
 
 ### Docstrings
 
-Comments (`--` or `/* */`) immediately following the BEGIN SCRIPT line are captured as the script's docstring. A blank line terminates the docstring. Docstrings are displayed by [SHOW SCRIPT](#show_script), [SHOW SCRIPTS](#show_scripts), and the `.scripts` REPL command.
+Comments (`--` or `/* */`) immediately following the BEGIN SCRIPT line are captured as the script's docstring. A blank line terminates the docstring. Docstrings are displayed by [SHOW SCRIPTS](#show_scripts) and the `.scripts` REPL command.
 
 ```sql
 -- !x! BEGIN SCRIPT load_data(schema, table)
@@ -877,6 +877,22 @@ variable](substitution_vars.md#substitution_vars) and that substitution variable
 The data addition to the target table is always committed unless [AUTOCOMMIT](#autocommit) is OFF. Therefore, the COPY metacommand should be used with care within transactions that are managed with explicit SQL statements or with or [BATCHes](#batch).
 
 
+## DEBUG { #debug }
+
+```
+DEBUG LOG [LOCAL] [USER] SUBVARS
+DEBUG LOG CONFIG
+DEBUG WRITE [LOCAL] [USER] SUBVARS [[APPEND] TO <filename>]
+DEBUG WRITE CONFIG [[APPEND] TO <filename>]
+DEBUG WRITE ODBC_DRIVERS [[APPEND] TO <filename>]
+DEBUG WRITE METACOMMANDLIST TO <filename>
+DEBUG WRITE COMMANDLISTSTACK
+DEBUG WRITE IFLEVELS
+```
+
+Writes internal state to the log file (`LOG` form) or to the terminal or a file (`WRITE` form). `SUBVARS` writes substitution variables (qualified by `LOCAL` to write only the current local scope, and/or `USER` to exclude system/data/environment variables). `CONFIG` writes the merged configuration. `ODBC_DRIVERS` writes the list of installed ODBC drivers. The three internal-state variants (`METACOMMANDLIST`, `COMMANDLISTSTACK`, `IFLEVELS`) dump the registered metacommand table, the current execution stack, and the nested-IF condition state respectively — these are primarily for diagnosing the engine itself. See the [Debugging guide](../guides/debugging.md) for usage examples and the interactive `BREAKPOINT` REPL.
+
+
 ## DISCONNECT
 
 ```
@@ -924,13 +940,14 @@ When ERROR_HALT is set to ON, which is the default, any errors that occur as a r
 When ERROR_HALT is set to OFF inside a transaction, any SQL error will ordinarily cause the entire transaction to fail.
 
 
-## EXECUTE
+## EXECUTE { #execute }
 
 ```
 EXECUTE <procedure_name>
+RUN <procedure_name>
 ```
 
-Executes the specified stored procedure (or function, or query, depending on the DBMS). Conceptually, the EXECUTE metacommand is intended to be used to execute stored procedures that do not require arguments and do not return any values. The actual operation of this command differs depending on the DBMS that is in use.
+Executes the specified stored procedure (or function, or query, depending on the DBMS). `RUN` is accepted as an alias for `EXECUTE` (the two are interchangeable; do not confuse with `EXECUTE SCRIPT` below, which runs a named SCRIPT block defined within the script file). Conceptually, the EXECUTE metacommand is intended to be used to execute stored procedures that do not require arguments and do not return any values. The actual operation of this command differs depending on the DBMS that is in use.
 
 
 Postgres has stored functions. Functions with no return value are equivalent to stored procedures. When using Postgres, *execsql* treats the argument as the name of a stored function. It appends an empty pair of parentheses to the function name before calling it, so you should not include the parentheses yourself; the reason for this is to maintain as much compatibility as possible in the metacommand syntax across DBMSs.
@@ -1666,6 +1683,15 @@ IS_TRUE(<value>)
 Evaluates whether or not the specified value represents a Boolean value of True. Values of "Yes", "Y", "True", "T", and "1" are considered to represent True values; anything else is considered to represent a False value. The values are not case-sensitive and may be quoted or unquoted. This test is similar to the use of a Boolean literal, but additionally recognizes the single-character values of "T", "F", "Y", and "N".
 
 The IS_TRUE test should also be used where the use of a single undefined substitution variable as the entire Boolean expression causes a problem for the logical expression parser. Alternatively, initialize the substitution variable before it is used.
+
+
+### *IS_FALSE*
+
+```
+IS_FALSE(<value>)
+```
+
+The inverse of `IS_TRUE`. Evaluates whether the specified value represents a Boolean value of False. Values of "No", "N", "False", "F", and "0" are considered False; anything else is considered True. Useful when an undefined or unquoted substitution variable as the whole expression would otherwise confuse the parser.
 
 
 ### *IS_ZERO*
@@ -2617,6 +2643,17 @@ The \<Enter\> key will carry out the action of the "Continue" button except when
 If a URL is provided with the HELP keyword, the dialog box will include a button that will open that URL when clicked. The URL must be double-quoted if it contains spaces.
 
 Although the PROMPT ENTRY_FORM metacommand supports validation of individual entries through the use of either a list of valid values or a regular expression, it does not support cross-column validation or foreign key checks (except for single valid values). The primary purpose of *execsql* is to facilitate scripting, and therefore documentation, of data modifications, and interactive data entry runs counter to that purpose. There are nevertheless circumstances in which a data entry form is an appropriate tool to collect user input. Use of a simple custom data entry form is illustrated in [Example 18](../guides/examples.md#example18) and [Example 23](../guides/examples.md#example23).
+
+
+## PROMPT MAP { #prompt_map }
+
+```
+PROMPT MESSAGE "<text>" MAP <table_or_view>
+       LAT "<lat_col>" LON "<lon_col>"
+       [LABEL "<label_col>"] [COLOR "<color_col>"] [SYMBOL "<symbol_col>"]
+```
+
+Opens a dialog showing the rows of the specified table or view as points on an interactive map. `LAT` and `LON` name the columns holding latitude and longitude. The optional `LABEL`, `COLOR`, and `SYMBOL` columns provide per-point styling — values in those columns become the marker label, color, and symbol respectively. The dialog has Continue and Cancel buttons; Cancel halts the script unless [CANCEL_HALT](#cancel_halt) is OFF.
 
 
 ## PROMPT MESSAGE
