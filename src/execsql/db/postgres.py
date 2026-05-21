@@ -3,9 +3,10 @@ from __future__ import annotations
 """
 PostgreSQL database adapter for execsql.
 
-Implements :class:`PostgresDatabase`, the most feature-complete adapter,
-supporting schema-qualified tables, server-side ``COPY``, ``LISTEN``/
-``NOTIFY``, and ``psycopg2``-level connection options.  Corresponds to
+Implements :class:`PostgresDatabase`. Uses ``psycopg2`` for the
+connection, supports schema-qualified tables, server-side ``COPY`` for
+fast IMPORT, ``CREATE DATABASE`` when ``new_db=True``, ``ROLE_EXISTS``,
+and the ``PG_VACUUM`` metacommand (``vacuum()`` method). Corresponds to
 ``-t p`` on the CLI.
 """
 

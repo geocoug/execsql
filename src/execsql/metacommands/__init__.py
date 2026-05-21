@@ -1,11 +1,40 @@
 """execsql metacommand dispatch table.
 
-Importing this module populates a MetaCommandList (``DISPATCH_TABLE``) with
-every metacommand regex and its handler function.  The dispatch table is
-consumed by script.MetacommandStmt.run() via ``_state.metacommandlist``.
+Importing this module populates a ``MetaCommandList`` (``DISPATCH_TABLE``)
+with every metacommand regex and its handler function. The dispatch
+table is consumed by ``script.MetacommandStmt.run()`` via
+``_state.metacommandlist``.
 
-Handler functions live in the sibling modules:
-  connect, conditions, control, data, debug, io, prompt, script_ext, system
+The table itself is built by ``build_dispatch_table()`` in
+:mod:`execsql.metacommands.dispatch`. Handler functions are organized
+into sibling modules by topic:
+
+- :mod:`~execsql.metacommands.connect` — CONNECT / USE / DISCONNECT
+  / AUTOCOMMIT / PG_VACUUM.
+- :mod:`~execsql.metacommands.conditions` — ``xf_*`` predicates used
+  by IF / ELSEIF / ASSERT.
+- :mod:`~execsql.metacommands.control` — IF / ELSEIF / ELSE / ENDIF /
+  ANDIF / ORIF, ASSERT, LOOP, BATCH, HALT, BREAK, WAIT_UNTIL,
+  error-halt directives.
+- :mod:`~execsql.metacommands.data` — SUB family, counters, IMPORT
+  config metacommands.
+- :mod:`~execsql.metacommands.debug` — DEBUG WRITE/LOG variants and
+  SHOW SCRIPTS.
+- :mod:`~execsql.metacommands.io_export` — EXPORT and EXPORT QUERY.
+- :mod:`~execsql.metacommands.io_import` — IMPORT and IMPORT_FILE.
+- :mod:`~execsql.metacommands.io_write` — WRITE, WRITE SCRIPT,
+  WRITE CREATE_TABLE.
+- :mod:`~execsql.metacommands.io_fileops` — INCLUDE, COPY, ZIP,
+  RM_FILE, CD, SERVE.
+- :mod:`~execsql.metacommands.io` — re-export façade for the four
+  ``io_*`` modules above (kept for backward-compatible import paths).
+- :mod:`~execsql.metacommands.prompt` — PROMPT family, ASK, PAUSE.
+- :mod:`~execsql.metacommands.script_ext` — EXECUTE SCRIPT, RUN
+  SCRIPT, EXTEND SCRIPT.
+- :mod:`~execsql.metacommands.system` — SYSTEM_CMD, LOG, EMAIL,
+  CONSOLE, ON ERROR_HALT / ON CANCEL_HALT directives, TIMER.
+- :mod:`~execsql.metacommands.upsert` — PG_UPSERT (optional, requires
+  ``execsql2[upsert]``).
 """
 
 from __future__ import annotations
