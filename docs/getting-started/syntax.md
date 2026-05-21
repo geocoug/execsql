@@ -193,29 +193,11 @@ Valid encoding names can be displayed with the `-y` option. See also [Character 
 
 `--dry-run`
 
-:   Parse the script (or inline `-c` command) and print the full command list — SQL statements and metacommands with source locations — without connecting to a database or executing anything. Useful for validating scripts.
-
-    Substitution variables that are already populated at parse time are expanded in the output: environment variables (`!!&ENV_VAR!!`), `--assign-arg` values (`!!$ARG_1!!`), and built-in start-time variables like `!!$SCRIPT_START_TIME!!` and `!!$USER!!`. Variables that are set during execution — such as `$CURRENT_TIME`, `$DB_NAME`, and `$TIMER` — remain unexpanded because no database connection is established in dry-run mode. Local `~`-prefixed script-scope variables are also left unexpanded.
+:   Parse the script (or `-c` command) and print the full command list with source locations, without connecting to a database. Substitution variables already populated at parse time (environment variables, `--assign-arg` values, start-time built-ins) are expanded; execution-time variables (`$CURRENT_TIME`, `$DB_NAME`, etc.) and `~`-prefixed locals remain literal.
 
 `--lint`
 
-:   Parse the script and perform static analysis without connecting to a database or executing anything. A complement to `--dry-run` focused on structural correctness rather than command display.
-
-    Checks performed:
-
-    - **Unmatched IF / ENDIF** — open IF blocks with no closing ENDIF, or orphan ENDIF with no IF (error).
-    - **Unmatched LOOP / END LOOP** — open LOOP with no END LOOP, or orphan END LOOP (error).
-    - **Unmatched BEGIN BATCH / END BATCH** — open batch with no close, or orphan END BATCH (error).
-    - **Potentially undefined variables** — `!!$VAR!!` references where `$VAR` is not a built-in system variable, not `$ARG_N`, not `$COUNTER_N`, and was not defined by a `SUB`, `SUB_EMPTY`, `SUB_ADD`, `SUB_APPEND`, `SUBDATA`, or `SUB_INI` metacommand anywhere in the script (warning — may be a false-positive if the variable is set in a config file or via `-a`).
-    - **Missing INCLUDE files** — `INCLUDE` targets that do not exist on disk relative to the script's directory (warning; `INCLUDE IF EXISTS` targets are never checked).
-    - **Unknown EXECUTE SCRIPT target** — `EXECUTE SCRIPT` names a script block that was not defined in the file (warning; `EXECUTE SCRIPT IF EXISTS` targets are never warned about).
-    - **Empty script** — no commands found (warning).
-
-    Variable analysis uses two passes: the first collects every variable definition across the entire script and all named script blocks; the second performs the checks. Variables may be referenced before their definition point without producing false warnings. The linter also descends into named script blocks (`BEGIN SCRIPT … END SCRIPT`) reached via `EXECUTE SCRIPT`, `EXEC SCRIPT`, or `RUN SCRIPT`, so variables defined inside a block are visible to the caller. `SUB_INI` INI files are read at lint time to register their section keys as defined variables.
-
-    Built-in system variables are discovered automatically from the installed execsql source, so new variables added in future releases are recognized without any linter changes.
-
-    Exits 0 when no errors are found (warnings alone do not affect the exit code). Exits 1 when any errors are found.
+:   Parse and statically check the script without connecting to a database. Reports unmatched IF / LOOP / BEGIN BATCH blocks (errors); undefined `!!$VAR!!` references, missing INCLUDE files, and unknown `EXECUTE SCRIPT` targets (warnings). Two-pass variable analysis follows EXECUTE SCRIPT / INCLUDE chains and reads `SUB_INI` files at lint time. Exits 0 if no errors are found (warnings do not affect exit code), 1 otherwise.
 
     ```sh
     execsql --lint script.sql
@@ -258,6 +240,4 @@ Valid encoding names can be displayed with the `-y` option. See also [Character 
 
 :   Show the version number and exit.
 
-## Configuration File Defaults { #config_defaults }
-
-Most command-line options and arguments can be specified in [configuration files](../reference/configuration.md#configuration) instead of on the command line. If the database type and connection information is specified in a configuration file, the `-t` option and the server/database arguments can be omitted. The only required command-line argument is the script file (or `-c` for inline scripts).
+See [Configuration Files](../reference/configuration.md#configuration) for the full list of options that can be set via `execsql.conf` instead of (or in addition to) command-line flags.
