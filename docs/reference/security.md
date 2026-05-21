@@ -33,7 +33,7 @@ To prevent scripts from executing OS commands entirely, use the `--no-system-cmd
 execsql --no-system-cmd script.sql mydb
 ```
 
-Any script that uses `SYSTEM_CMD` or `SHELL` will fail with an error. This is useful for CI pipelines, shared execution environments, or running semi-trusted scripts where shell access is not appropriate.
+Any script that uses `SYSTEM_CMD` will fail with an error. This is useful for CI pipelines, shared execution environments, or running semi-trusted scripts where shell access is not appropriate.
 
 The same restriction can be set permanently in `execsql.conf`:
 
@@ -67,63 +67,11 @@ execsql/<db_type>/<server>/<database>
 
 To disable keyring integration, set `use_keyring = No` in the `[connect]` section of `execsql.conf`.
 
-#### Platform setup { #keyring_setup }
+macOS, Windows, and desktop Linux (with GNOME Keyring or KWallet running) use the OS-native credential store automatically. On headless Linux, install `execsql2[auth-encrypted]` for an encrypted on-disk backend (master password prompted once per session) or `execsql2[auth-plaintext]` for a no-prompt plaintext backend (see [Usage Notes](../guides/usage.md#password-storage-and-the-os-keyring) for backend selection and setup).
 
-**macOS** — Works out of the box. Keyring uses the macOS Keychain automatically.
+!!! warning "Plaintext keyring backend"
 
-**Windows** — Works out of the box. Keyring uses the Windows Credential Manager automatically.
-
-**Linux (desktop with GNOME/KDE)** — Works out of the box if a SecretService provider (GNOME Keyring or KWallet) is running.
-
-**Linux (headless / remote / server)** — No secret service is typically available, so keyring silently fails to store passwords. You need to configure a file-based backend. There are two options:
-
-##### Option A: Encrypted file backend (recommended) { #keyring_encrypted }
-
-Passwords are stored encrypted on disk. Requires a master password the first time keyring is used per session.
-
-```bash
-pip install execsql2[auth-encrypted]
-mkdir -p ~/.config/python_keyring
-cat > ~/.config/python_keyring/keyringrc.cfg << 'EOF'
-[backend]
-default-keyring=keyrings.alt.file.EncryptedKeyring
-EOF
-```
-
-The encrypted keyring file is stored at `~/.local/share/python_keyring/crypted_pass.cfg`. You will be prompted for a master password once per session (e.g., when you first run execsql after logging in).
-
-##### Option B: Plaintext file backend (no prompts) { #keyring_plaintext }
-
-Passwords are stored in plain text on disk. No master password is needed — execsql will never prompt for a password after the first successful entry.
-
-```bash
-pip install execsql2[auth-plaintext]
-mkdir -p ~/.config/python_keyring
-cat > ~/.config/python_keyring/keyringrc.cfg << 'EOF'
-[backend]
-default-keyring=keyrings.alt.file.PlaintextKeyring
-EOF
-```
-
-Passwords are stored at `~/.local/share/python_keyring/keyring_pass.cfg`. Restrict access to this file:
-
-```bash
-chmod 600 ~/.local/share/python_keyring/keyring_pass.cfg
-```
-
-!!! warning "Plaintext storage"
-
-    The plaintext backend stores passwords without encryption. Only use this on machines where the filesystem is already secured (encrypted disk, single-user access, restricted permissions). Prefer the encrypted backend when possible.
-
-##### Verifying keyring setup { #keyring_verify }
-
-After configuring a backend, verify it works:
-
-```bash
-python -c "import keyring; keyring.set_password('test', 'user', 'pw'); print(keyring.get_password('test', 'user'))"
-```
-
-This should print `pw` without errors. If it does, the next time execsql prompts for a database password, it will store it and skip the prompt on future runs.
+    `keyrings.alt.file.PlaintextKeyring` stores passwords without encryption at `~/.local/share/python_keyring/keyring_pass.cfg`. Only acceptable when the filesystem is already secured (encrypted disk, single-user host, `chmod 600` on the file). Prefer the encrypted backend when possible.
 
 ### `enc_password` in execsql.conf
 
@@ -184,11 +132,11 @@ SELECT * FROM !!target_schema!!.mytable;
 
 If a variable value is derived from external input (command-line arguments, environment variables, `PROMPT` responses, or data read from a file), the script author is responsible for quoting or validating that value before it is substituted into SQL.
 
-The `!'!` dereferencing form doubles apostrophes in the replacement value, which helps when inserting text data values into SQL literals:
+The `!'!varname!'!` dereferencing form wraps the value in single quotes and doubles any embedded apostrophes, which helps when inserting text values into SQL literals:
 
 ```sql
 -- !x! sub author_name !!&AUTHOR!!
-SELECT * FROM documents WHERE author = '!'!author_name!'!';
+SELECT * FROM documents WHERE author = !'!author_name!'!;
 ```
 
 This does not constitute full SQL escaping. For untrusted string input, validate the value before substitution.
@@ -203,6 +151,6 @@ This does not constitute full SQL escaping. For untrusted string input, validate
 
 1. **Enable TLS for SMTP.** Set `use_ssl = yes` in the `[email]` section, or at minimum `use_tls = yes`. Do not send credentials over an unencrypted SMTP connection.
 
-1. **Audit scripts that use `SHELL` or `INCLUDE` with variable-derived paths.** Trace where each variable originates. If any value comes from outside the script (environment, prompt, file content), validate it before use in a command that touches the filesystem or executes a process.
+1. **Audit scripts that use `SYSTEM_CMD` or `INCLUDE` with variable-derived paths.** Trace where each variable originates. If any value comes from outside the script (environment, prompt, file content), validate it before use in a command that touches the filesystem or executes a process.
 
 1. **Restrict access to `execsql.conf`.** Configuration files may contain usernames, SMTP settings, and obfuscated passwords. Ensure file permissions prevent reads by other users (`chmod 600 execsql.conf` on Linux/macOS).
