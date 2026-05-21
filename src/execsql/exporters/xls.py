@@ -2,11 +2,19 @@ from __future__ import annotations
 from execsql.types import DT_TimestampTZ
 
 """
-XLS and XLSX spreadsheet export for execsql.
+Spreadsheet file wrappers used by the EXPORT and IMPORT metacommands.
 
-Provides :class:`XlsFile` (writes ``.xls`` via ``xlwt``) and
-:class:`XlsxFile` (writes ``.xlsx`` via ``openpyxl``), both used by the
-EXPORT metacommand.  Requires the ``execsql2[excel]`` extras.
+Despite living in the ``exporters`` package, both classes here are
+mixed-use:
+
+- :class:`XlsFile` — **read-only** wrapper around ``xlrd`` for importing
+  legacy ``.xls`` spreadsheets. (Writing ``.xls`` is not supported; new
+  exports should target ``.xlsx``.)
+- :class:`XlsxFile` — read/write wrapper around ``openpyxl`` for
+  ``.xlsx`` spreadsheets.
+
+Both back-ends are optional dependencies; install via
+``execsql2[formats]``.
 """
 
 import datetime

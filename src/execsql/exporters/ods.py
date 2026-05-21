@@ -6,7 +6,7 @@ ODS (OpenDocument Spreadsheet) export for execsql.
 Provides :func:`write_query_to_ods` (single-sheet export),
 :func:`write_queries_to_ods` (multi-sheet export), and :class:`OdsFile`
 (wrapper around ``odfpy`` for writing ``.ods`` files).  Requires the
-``odfpy`` package (``execsql2[ods]``).
+``odfpy`` package (``execsql2[formats]``).
 """
 
 import datetime

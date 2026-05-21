@@ -5,9 +5,9 @@ from execsql.exceptions import ErrInfo
 Apache Feather and HDF5 export for execsql.
 
 Provides :func:`write_query_to_feather` (Apache Arrow Feather v2 format
-via ``pyarrow``) and :func:`write_query_to_hdf5` (HDF5 via ``pandas``
-and ``tables``).  Used by ``EXPORT … FORMAT feather`` and
-``FORMAT hdf5``.  Both packages are optional dependencies.
+via ``polars``) and :func:`write_query_to_hdf5` (HDF5 via the ``tables``
+library). Used by ``EXPORT … FORMAT feather`` and ``FORMAT hdf5``.
+Both back-ends are optional; install via ``execsql2[formats]``.
 """
 
 from typing import Any

@@ -8,9 +8,8 @@ Provides:
 - :class:`LineDelimiter` — configurable line-ending constant.
 - :class:`DelimitedWriter` / :class:`CsvWriter` — low-level writers used
   by the export logic.
-- :class:`CsvFile` — full delimited-file reader/writer (≈622 lines in the
-  original monolith) supporting custom delimiters, quoting, encoding, and
-  ZIP output.
+- :class:`CsvFile` — full delimited-file reader/writer supporting custom
+  delimiters, quoting, encoding, and ZIP output.
 - :func:`write_delimited_file` — writes a query result set to a
   CSV/TSV/delimited text file.
 """

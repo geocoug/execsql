@@ -5,7 +5,7 @@ XLSX (Excel Open XML) export for execsql.
 
 Provides :func:`write_query_to_xlsx` (single-sheet export) and
 :func:`write_queries_to_xlsx` (multi-sheet export).  Requires the
-``openpyxl`` package (``execsql2[excel]``).
+``openpyxl`` package (``execsql2[formats]``).
 """
 
 import datetime
