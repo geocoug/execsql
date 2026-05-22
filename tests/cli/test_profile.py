@@ -302,12 +302,13 @@ class TestProfilingActivation:
 class TestCliProfileFlag:
     """Verify the Typer CLI accepts --profile without errors."""
 
-    def test_profile_flag_accepted_with_help(self):
-        """--help should list --profile without raising."""
-        runner = CliRunner()
-        result = runner.invoke(app, ["--help"])
-        assert result.exit_code == 0
-        assert "--profile" in result.output
+    def test_profile_flag_registered(self):
+        """--profile must be a registered option on the Typer CLI."""
+        from typer.main import get_command
+
+        params = get_command(app).params
+        opts = {opt for p in params for opt in getattr(p, "opts", [])}
+        assert "--profile" in opts
 
     def test_profile_flag_requires_script(self):
         """--profile alone (no script) should exit with a non-zero code."""
@@ -316,12 +317,13 @@ class TestCliProfileFlag:
         # Should fail because no script is given, not because the flag is invalid.
         assert result.exit_code != 0
 
-    def test_profile_limit_flag_in_help(self):
-        """--profile-limit should appear in --help output."""
-        runner = CliRunner()
-        result = runner.invoke(app, ["--help"])
-        assert result.exit_code == 0
-        assert "--profile-limit" in result.output
+    def test_profile_limit_flag_registered(self):
+        """--profile-limit must be a registered option on the Typer CLI."""
+        from typer.main import get_command
+
+        params = get_command(app).params
+        opts = {opt for p in params for opt in getattr(p, "opts", [])}
+        assert "--profile-limit" in opts
 
     def test_profile_limit_default_is_20(self):
         """Default profile_limit should be 20 (verified by the default in _run signature)."""

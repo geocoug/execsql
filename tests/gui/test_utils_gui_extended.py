@@ -428,20 +428,18 @@ class TestPauseTtyPath:
         return ctx
 
     def test_tty_enter_returns_zero(self) -> None:
-        with sys.platform != "win32" and self._setup_tty(["\r"])[-1]:
-            patches = self._setup_tty(["\r"])
+        pytest.importorskip("termios")
+        if sys.platform == "win32":
+            pytest.skip("termios/tty TTY path is POSIX-only")
+        patches = self._setup_tty(["\r"])
+        for p in patches:
+            p.start()
+        try:
+            rv = _gui.pause("hello")
+            assert rv == 0
+        finally:
             for p in patches:
-                p.start()
-            try:
-                # Sneak the TTY path: skip if termios import fails outright
-                pytest.importorskip("termios")
-                rv = _gui.pause("hello")
-                # When TTY check inside pause() returns True and termios is mocked,
-                # it should read \r and return 0.
-                assert rv == 0
-            finally:
-                for p in patches:
-                    p.stop()
+                p.stop()
 
     def test_tty_esc_returns_one(self) -> None:
         pytest.importorskip("termios")
