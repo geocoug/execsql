@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.17.1] - 2026-05-22
+
 ### Fixed
 
 - VS Code grammar now highlights the single-quoted (`!'!name!'!`) and double-quoted (`!"!name!"!`) substitution variable variants, not just the bare `!!name!!` form. Regenerate the bundled grammar with `just install-vscode`.
