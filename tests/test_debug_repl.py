@@ -240,15 +240,17 @@ class TestPrintWhere:
 
 class TestPrintStack:
     def test_empty_stack(self, capture):
-        _state.commandliststack = []
+        _state.ast_exec_stack = []
         with patch("execsql.debug.repl._use_color", return_value=False):
             _print_stack()
         assert "empty" in capture.getvalue()
 
     def test_populated_stack(self, capture):
-        cl1 = SimpleNamespace(listname="main.sql", cmdptr=5)
-        cl2 = SimpleNamespace(listname="include.sql", cmdptr=2)
-        _state.commandliststack = [cl1, cl2]
+        from execsql.state import ExecFrame
+
+        f1 = ExecFrame(kind="main", label="<main>", source="main.sql", line=1)
+        f2 = ExecFrame(kind="include", label="include.sql", source="/abs/include.sql", line=1)
+        _state.ast_exec_stack = [f1, f2]
         with patch("execsql.debug.repl._use_color", return_value=False):
             _print_stack()
         out = capture.getvalue()

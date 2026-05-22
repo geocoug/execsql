@@ -2653,7 +2653,29 @@ PROMPT MESSAGE "<text>" MAP <table_or_view>
        [LABEL "<label_col>"] [COLOR "<color_col>"] [SYMBOL "<symbol_col>"]
 ```
 
-Opens a dialog showing the rows of the specified table or view as points on an interactive map. `LAT` and `LON` name the columns holding latitude and longitude. The optional `LABEL`, `COLOR`, and `SYMBOL` columns provide per-point styling — values in those columns become the marker label, color, and symbol respectively. The dialog has Continue and Cancel buttons; Cancel halts the script unless [CANCEL_HALT](#cancel_halt) is OFF.
+Opens a dialog showing the rows of the specified table or view as points on an interactive map. `LAT` and `LON` name the columns holding latitude and longitude (numeric). The optional `LABEL` and `COLOR` columns provide per-marker styling — values become the marker text and circle color respectively. The dialog has Continue and Cancel buttons; Cancel halts the script unless [CANCEL_HALT](#cancel_halt) is OFF.
+
+**Backend support and the `[map]` extra.** Interactive map rendering uses the [`tkintermapview`](https://github.com/TomSchimansky/TkinterMapView) package, which is **not** installed by default. Install it explicitly or via the bundled extra:
+
+```sh
+pip install execsql2[map]
+```
+
+When `tkintermapview` is not installed, when no valid `LAT`/`LON` values can be parsed from the rows, or when running under the Textual TUI / console backends, the dialog falls back to a tabular display of the same rows so the script can still proceed. The `SYMBOL` column is accepted for syntactic compatibility but is currently ignored — `tkintermapview` renders all markers as circles, with color taken from the `COLOR` column when present.
+
+Color values are passed through to `tkintermapview` and accept any color name Tkinter understands (e.g. `red`, `blue`, `#ff8800`).
+
+Example:
+
+```sql
+CREATE TABLE sites (name TEXT, lat REAL, lon REAL, color TEXT);
+INSERT INTO sites VALUES
+    ('Seattle',  47.61, -122.33, 'blue'),
+    ('Denver',   39.74, -104.99, 'orange'),
+    ('Miami',    25.76,  -80.19, 'purple');
+
+-- !x! PROMPT MESSAGE "Sample sites" MAP sites LAT lat LON lon LABEL name COLOR color
+```
 
 
 ## PROMPT MESSAGE

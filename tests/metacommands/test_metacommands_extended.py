@@ -901,7 +901,7 @@ class TestDebugHandlers:
 
         _state.if_stack = IfLevels()
         x_debug_iflevels()
-        _state.output.write.assert_called_with("If levels: None\n")
+        _state.output.write.assert_called_with("If levels: (no active IF block)\n")
 
     def test_x_debug_iflevels_with_values(self):
         from execsql.metacommands.debug import x_debug_iflevels

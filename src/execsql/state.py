@@ -31,7 +31,40 @@ import re
 import sys
 import threading
 import types
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
+
+
+@dataclass
+class ExecFrame:
+    """One frame on the AST executor's unified execution stack.
+
+    Every nesting construct the AST executor enters (IF/ELSEIF/ELSE branches,
+    LOOP iterations, BATCH blocks, INCLUDE'd files, EXECUTE SCRIPT calls,
+    plus the top-level ``<main>`` script) pushes one of these via try/finally
+    so the debug REPL ``.stack`` command and ``DEBUG WRITE COMMANDLISTSTACK``
+    can show real execution context — not just SCRIPT call frames.
+
+    Attributes:
+        kind: One of ``"main"`` / ``"script"`` / ``"include"`` / ``"if"`` /
+            ``"elseif"`` / ``"else"`` / ``"loop_while"`` / ``"loop_until"`` /
+            ``"batch"``.
+        label: Human-readable summary — condition text for IF, file basename
+            for INCLUDE, script name + params for SCRIPT, etc.
+        source: Path of the source file the block lives in.
+        line: Source line where the block opens, or ``None`` for ``main``.
+        iteration: Current 1-based iteration count for LOOP frames; 0
+            otherwise.
+        params: Bound parameter values for SCRIPT frames; ``None`` otherwise.
+    """
+
+    kind: str
+    label: str = ""
+    source: str = ""
+    line: int | None = None
+    iteration: int = 0
+    params: dict[str, str] | None = None
+
 
 if TYPE_CHECKING:
     import multiprocessing as _mp
@@ -202,6 +235,7 @@ _CONTEXT_ATTRS: frozenset[str] = frozenset(
         # AST executor
         "ast_scripts",
         "include_chain",
+        "ast_exec_stack",
     },
 )
 
@@ -260,6 +294,7 @@ class RuntimeContext:
         # AST executor
         "ast_scripts",
         "include_chain",
+        "ast_exec_stack",
     )
 
     def __init__(self) -> None:
@@ -317,6 +352,14 @@ class RuntimeContext:
         # AST executor — script block registry and include-chain tracking.
         self.ast_scripts: dict = {}
         self.include_chain: list[str] = []
+        # Unified execution stack maintained by the AST executor for every
+        # nesting construct: top-level script, EXECUTE SCRIPT calls, INCLUDE'd
+        # files, IF/ELSEIF/ELSE branches, LOOP iterations, BATCH blocks. See
+        # :class:`ExecFrame` for frame structure. Read by the debug REPL's
+        # ``.stack`` command and ``DEBUG WRITE COMMANDLISTSTACK`` for genuine
+        # execution context — the legacy ``commandliststack`` only records
+        # SCRIPT call frames and is therefore insufficient for the debugger.
+        self.ast_exec_stack: list[ExecFrame] = []
 
 
 # ---------------------------------------------------------------------------

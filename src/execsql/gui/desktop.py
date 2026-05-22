@@ -849,7 +849,7 @@ class ActionDialog:
 
 
 # ---------------------------------------------------------------------------
-# MapDialog — shows tabular data (no interactive map without tkintermapview)
+# MapDialog — interactive map via tkintermapview (tabular fallback if missing)
 # ---------------------------------------------------------------------------
 
 
@@ -870,22 +870,31 @@ class MapDialog:
                 anchor="w",
                 pady=(0, 4),
             )
-        ttk.Label(frame, text="(Interactive map requires tkintermapview; showing tabular data)").pack(
-            anchor="w",
-            pady=(0, 8),
-        )
 
         headers = args.get("headers", [])
         rows = args.get("rows", [])
-        if headers and rows:
-            tree_frame = ttk.Frame(frame)
-            tree_frame.pack(fill=tk.BOTH, expand=True)
-            tree = ttk.Treeview(tree_frame, height=min(12, len(rows)))
-            _populate_treeview(tree, headers, rows)
-            vsb = ttk.Scrollbar(tree_frame, orient=tk.VERTICAL, command=tree.yview)
-            tree.configure(yscrollcommand=vsb.set)
-            tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-            vsb.pack(side=tk.RIGHT, fill=tk.Y)
+        rendered_map = self._try_render_map(frame, args, headers, rows)
+        if not rendered_map:
+            ttk.Label(
+                frame,
+                text=(
+                    "(Interactive map requires the tkintermapview package — "
+                    "`pip install execsql2[map]` — showing tabular data)"
+                ),
+                wraplength=580,
+                justify="left",
+            ).pack(anchor="w", pady=(0, 8))
+            if headers and rows:
+                tree_frame = ttk.Frame(frame)
+                tree_frame.pack(fill=tk.BOTH, expand=True)
+                tree = ttk.Treeview(tree_frame, height=min(12, len(rows)))
+                _populate_treeview(tree, headers, rows)
+                vsb = ttk.Scrollbar(tree_frame, orient=tk.VERTICAL, command=tree.yview)
+                tree.configure(yscrollcommand=vsb.set)
+                tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+                vsb.pack(side=tk.RIGHT, fill=tk.Y)
+
+        if rows:
             ttk.Label(frame, text=_row_count_text(len(rows))).pack(anchor="w")
 
         button_list = args.get("button_list", [("Continue", 1, "<Return>")])
@@ -893,13 +902,113 @@ class MapDialog:
         btn_frame.pack(pady=8, anchor="e")
         _add_buttons(btn_frame, button_list, lambda v: self._close(win, v))
 
-        _center_window(win, 600, 450)
+        _center_window(win, 750, 600)
         root.wait_window(win)
+
+    def _try_render_map(self, frame: ttk.Frame, args: dict, headers: list, rows: list) -> bool:
+        import warnings
+
+        # tkintermapview pulls in `geocoder`, which has a Python 3.12+ SyntaxWarning
+        # from an unescaped \d in a regex string literal. It's harmless but noisy.
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=SyntaxWarning, module=r"geocoder.*")
+            try:
+                from tkintermapview import TkinterMapView
+            except ImportError:
+                return False
+
+        lat_col = args.get("lat_col")
+        lon_col = args.get("lon_col")
+        if not (lat_col and lon_col and headers and rows):
+            return False
+
+        hdrs_lower = [str(h).lower() for h in headers]
+
+        def _idx(col: str | None) -> int | None:
+            if not col:
+                return None
+            try:
+                return hdrs_lower.index(col.lower())
+            except ValueError:
+                return None
+
+        lat_idx = _idx(lat_col)
+        lon_idx = _idx(lon_col)
+        if lat_idx is None or lon_idx is None:
+            return False
+
+        label_idx = _idx(args.get("label_col"))
+        color_idx = _idx(args.get("color_col"))
+
+        markers: list[tuple[float, float, str | None, str | None]] = []
+        for row in rows:
+            try:
+                lat = float(row[lat_idx])
+                lon = float(row[lon_idx])
+            except (TypeError, ValueError, IndexError):
+                continue
+            label = str(row[label_idx]) if label_idx is not None and row[label_idx] is not None else None
+            color = str(row[color_idx]) if color_idx is not None and row[color_idx] is not None else None
+            markers.append((lat, lon, label, color))
+
+        if not markers:
+            return False
+
+        map_widget = TkinterMapView(frame, width=700, height=480, corner_radius=0)
+        map_widget.pack(fill=tk.BOTH, expand=True, pady=(0, 8))
+        # Force the geometry manager to assign the real packed size to the widget
+        # so its tile-box math uses the actual on-screen dimensions, not the
+        # constructor values. Without this the first paint can fetch tiles for
+        # the wrong viewport and the basemap appears blank.
+        map_widget.update_idletasks()
+
+        avg_lat = sum(m[0] for m in markers) / len(markers)
+        avg_lon = sum(m[1] for m in markers) / len(markers)
+        zoom = _pick_zoom(markers)
+
+        def _populate() -> None:
+            map_widget.set_position(avg_lat, avg_lon)
+            map_widget.set_zoom(zoom)
+            for lat, lon, label, color in markers:
+                kwargs: dict = {}
+                if label:
+                    kwargs["text"] = label
+                # Setting only `marker_color_circle` (not `marker_color_outside`)
+                # renders a small colored dot instead of the chunky full drop-pin.
+                if color:
+                    kwargs["marker_color_circle"] = color
+                map_widget.set_marker(lat, lon, **kwargs)
+
+        # Defer marker / position setup until after the widget's first <Configure>
+        # event so tile loading happens against the realized dimensions.
+        map_widget.after_idle(_populate)
+        return True
 
     def _close(self, win: tk.Toplevel, value: int | None) -> None:
         self.result = {"button": value}
         if win.winfo_exists():
             win.destroy()
+
+
+def _pick_zoom(markers: list[tuple[float, float, str | None, str | None]]) -> int:
+    if len(markers) <= 1:
+        return 10
+    lat_span = max(m[0] for m in markers) - min(m[0] for m in markers)
+    lon_span = max(m[1] for m in markers) - min(m[1] for m in markers)
+    span = max(lat_span, lon_span)
+    if span > 60:
+        return 2
+    if span > 30:
+        return 3
+    if span > 15:
+        return 4
+    if span > 5:
+        return 5
+    if span > 2:
+        return 7
+    if span > 0.5:
+        return 9
+    return 11
 
 
 # ---------------------------------------------------------------------------

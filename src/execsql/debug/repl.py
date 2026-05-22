@@ -428,17 +428,47 @@ def _print_var(varname: str) -> None:
 
 
 def _print_stack() -> None:
-    """Print the current command-list stack (script name, line number, depth)."""
-    stack = _state.commandliststack
+    """Print the unified AST execution stack.
+
+    Shows every nesting construct the executor is currently inside:
+    ``<main>`` script, ``EXECUTE SCRIPT`` calls, ``INCLUDE``'d files,
+    ``IF``/``ELSEIF``/``ELSE`` branches, ``LOOP`` iterations (with iteration
+    count), and ``BATCH`` blocks. Each frame shows source file and line.
+    """
+    stack = _state.ast_exec_stack
     if not stack:
-        _write("  (command list stack is empty)\n\n")
+        _write("  (execution stack is empty)\n\n")
         return
     _write_rule(f" {_c(_BOLD + _YELLOW, 'Stack')} ")
     _write(f"  {_c(_DIM, 'depth:')} {len(stack)}\n")
-    for depth, cmdlist in enumerate(stack):
-        listname = getattr(cmdlist, "listname", "<unknown>")
-        cmdptr = getattr(cmdlist, "cmdptr", 0)
-        _write(f"  [{depth}] {listname}  {_c(_DIM, f'(cursor at index {cmdptr})')}\n")
+    for depth, frame in enumerate(stack):
+        kind_label = frame.kind.upper().replace("LOOP_", "LOOP ")
+        # Build the right-hand description per kind
+        if frame.kind in ("if", "elseif"):
+            desc = f"{kind_label}  {frame.label}"
+        elif frame.kind == "else":
+            desc = kind_label
+        elif frame.kind in ("loop_while", "loop_until"):
+            desc = f"{kind_label}  {frame.label}  {_c(_DIM, f'iter={frame.iteration}')}"
+        elif frame.kind == "script":
+            params = ""
+            if frame.params:
+                params = "(" + ", ".join(f"{k}={v!r}" for k, v in frame.params.items()) + ")"
+            iter_suffix = f"  {_c(_DIM, f'iter={frame.iteration}')}" if frame.iteration else ""
+            desc = f"SCRIPT {frame.label}{params}{iter_suffix}"
+        elif frame.kind == "include":
+            desc = f"INCLUDE {frame.label}"
+        elif frame.kind == "batch":
+            desc = "BATCH"
+        elif frame.kind == "main":
+            desc = frame.label or "<main>"
+        else:
+            desc = f"{kind_label}  {frame.label}"
+        src = ""
+        if frame.source:
+            src_name = frame.source.rsplit("/", 1)[-1].rsplit("\\", 1)[-1]
+            src = _c(_DIM, f"  {src_name}:{frame.line}" if frame.line else f"  {src_name}")
+        _write(f"  [{depth}] {desc}{src}\n")
     _write("\n")
 
 

@@ -46,23 +46,78 @@ def x_debug_write_metacommands(**kwargs: Any) -> None:
 
 
 def x_debug_commandliststack(**kwargs: Any) -> None:
-    _state.output.write("Command List Stack:\n")
-    pfx = "  "
-    for cl in _state.commandliststack:
-        _state.output.write(pfx + f"Name:             {cl.listname}\n")
-        _state.output.write(pfx + f"Parameters:       {cl.paramnames}\n")
-        _state.output.write(pfx + f"Command pointer:  {cl.cmdptr}\n")
-        pfx = pfx + "  "
+    """Dump the unified AST execution stack.
+
+    Shows every nesting construct the executor is currently inside:
+    ``<main>`` script, ``EXECUTE SCRIPT`` calls, ``INCLUDE``'d files,
+    ``IF``/``ELSEIF``/``ELSE`` branches, ``LOOP`` iterations (with iteration
+    count), and ``BATCH`` blocks. Each frame shows source file and line.
+
+    The legacy ``commandliststack`` is reported separately as a secondary view
+    because it only records SCRIPT call frames; the unified ``ast_exec_stack``
+    is the authoritative debugger view.
+    """
+    stack = getattr(_state, "ast_exec_stack", None) or []
+    _state.output.write(f"Execution Stack (depth: {len(stack)}):\n")
+    if not stack:
+        _state.output.write("  (empty)\n")
+        return None
+
+    for depth, frame in enumerate(stack):
+        kind_label = frame.kind.upper().replace("LOOP_", "LOOP ")
+        # Right-hand description per kind
+        if frame.kind in ("if", "elseif"):
+            desc = f"{kind_label}  {frame.label}"
+        elif frame.kind == "else":
+            desc = kind_label
+        elif frame.kind in ("loop_while", "loop_until"):
+            desc = f"{kind_label}  {frame.label}  iter={frame.iteration}"
+        elif frame.kind == "script":
+            params = ""
+            if frame.params:
+                params = "(" + ", ".join(f"{k}={v!r}" for k, v in frame.params.items()) + ")"
+            iter_suffix = f"  iter={frame.iteration}" if frame.iteration else ""
+            desc = f"SCRIPT {frame.label}{params}{iter_suffix}"
+        elif frame.kind == "include":
+            desc = f"INCLUDE {frame.label}"
+        elif frame.kind == "batch":
+            desc = "BATCH"
+        elif frame.kind == "main":
+            desc = frame.label or "<main>"
+        else:
+            desc = f"{kind_label}  {frame.label}"
+        src = f"  {frame.source}:{frame.line}" if frame.source and frame.line else ""
+        _state.output.write(f"  [{depth}] {desc}{src}\n")
+
+    # Show the legacy SCRIPT-call stack for diagnostic completeness
+    legacy = _state.commandliststack or []
+    if legacy:
+        _state.output.write("\nLegacy command list stack (SCRIPT call frames only):\n")
+        for depth, cl in enumerate(legacy):
+            _state.output.write(f"  [{depth}] {cl.listname}  (cursor at index {cl.cmdptr})\n")
     return None
 
 
 def x_debug_iflevels(**kwargs: Any) -> None:
-    if len(_state.if_stack.if_levels) == 0:
-        _state.output.write("If levels: None\n")
-    else:
-        _state.output.write(
-            "If levels: [{}]\n".format(",".join([str(tf.tf_value) for tf in _state.if_stack.if_levels])),
-        )
+    # Filter the unified AST exec stack to just IF/ELSEIF/ELSE frames.
+    stack = getattr(_state, "ast_exec_stack", None) or []
+    if_frames = [f for f in stack if f.kind in ("if", "elseif", "else")]
+    if not if_frames:
+        # Fall back to legacy if_stack for any unparsed-source code paths
+        legacy_levels = _state.if_stack.if_levels if _state.if_stack else []
+        if legacy_levels:
+            values = ",".join(str(tf.tf_value) for tf in legacy_levels)
+            _state.output.write(f"If levels (depth {len(legacy_levels)}, legacy): [{values}]\n")
+        else:
+            _state.output.write("If levels: (no active IF block)\n")
+        return None
+
+    _state.output.write(f"If levels (depth {len(if_frames)}):\n")
+    for depth, frame in enumerate(if_frames):
+        kind_label = frame.kind.upper()
+        label = f"{kind_label} {frame.label}".strip() if frame.label else kind_label
+        src = f"  {frame.source}:{frame.line}" if frame.source and frame.line else ""
+        _state.output.write(f"  [{depth}] {label}{src}\n")
     return None
 
 
@@ -73,13 +128,13 @@ def x_debug_write_odbc_drivers(**kwargs: Any) -> None:
         fatal_error("The pyodbc module is required.")
     output_dest = kwargs["filename"]
     append = kwargs["append"]
+    if output_dest is not None and output_dest != "stdout" and append is None:
+        filewriter_open_as_new(output_dest)
 
     def write(txt: str) -> None:
         if output_dest is None or output_dest == "stdout":
             _state.output.write(txt)
         else:
-            if not append:
-                filewriter_open_as_new(output_dest)
             filewriter_write(output_dest, txt)
 
     for d in pyodbc.drivers():
@@ -98,51 +153,57 @@ def x_debug_log_subvars(**kwargs: Any) -> None:
                 _state.exec_log.log_status_info(f"Substitution [{s[0]}] = [{s[1]}]")
 
 
-def x_debug_log_config(**kwargs: Any) -> None:
+_SENSITIVE_ATTRS = frozenset({"smtp_password", "passwd", "password"})
+
+
+def _config_lines() -> list[str]:
+    """Return the merged config as a list of ``"[<section>] <key> = <value>"`` lines.
+
+    Pulled directly from ``ConfigData._schema``, the registry that ``ConfigData``
+    populates each time it reads an option from the INI files. Adding a new
+    option to ``ConfigData.__init__`` automatically makes it appear here —
+    nothing in this file needs updating.
+
+    Lines are grouped by section in the order each section was first registered
+    so the dump matches the natural reading order of ``execsql.conf``.
+
+    Sensitive values (passwords) are redacted.
+    """
+    from execsql.config import ConfigData
+
     conf = _state.conf
-    _state.exec_log.log_status_info(f"Config; Script encoding = {conf.script_encoding}")
-    _state.exec_log.log_status_info(f"Config; Output encoding = {conf.output_encoding}")
-    _state.exec_log.log_status_info(f"Config; Import encoding = {conf.import_encoding}")
-    _state.exec_log.log_status_info(f"Config; Import common columns only = {conf.import_common_cols_only}")
-    _state.exec_log.log_status_info(f"Config; Use numeric type for Access = {conf.access_use_numeric}")
-    _state.exec_log.log_status_info(f"Config; Max int = {conf.max_int}")
-    _state.exec_log.log_status_info(f"Config; Boolean int = {conf.boolean_int}")
-    _state.exec_log.log_status_info(f"Config; Boolean words = {conf.boolean_words}")
-    _state.exec_log.log_status_info(f"Config; Clean column headers {conf.clean_col_hdrs}")
-    _state.exec_log.log_status_info(f"Config; Create column headers {conf.create_col_hdrs}")
-    _state.exec_log.log_status_info(f"Config; Dedup column headers {conf.dedup_col_hdrs}")
-    _state.exec_log.log_status_info(f"Config; Console wait when done {conf.gui_wait_on_exit}")
-    _state.exec_log.log_status_info(f"Config; Console wait when error {conf.gui_wait_on_error_halt}")
-    _state.exec_log.log_status_info(f"Config; Empty rows = {conf.empty_rows}")
-    _state.exec_log.log_status_info(f"Config; Empty_strings = {conf.empty_strings}")
-    _state.exec_log.log_status_info(f"Config: Trim_strings = {conf.trim_strings}")
-    _state.exec_log.log_status_info(f"Config: Replace_newlines = {conf.replace_newlines}")
-    _state.exec_log.log_status_info(f"Config; Only_strings = {conf.only_strings}")
-    _state.exec_log.log_status_info(f"Config; Scan lines = {conf.scan_lines}")
-    _state.exec_log.log_status_info(f"Config; Import row buffer size = {conf.import_row_buffer}")
-    _state.exec_log.log_status_info(f"Config; Write warnings to console = {conf.write_warnings}")
-    _state.exec_log.log_status_info(f"Config; Write prefix = {conf.write_prefix}")
-    _state.exec_log.log_status_info(f"Config; Write suffix = {conf.write_suffix}")
-    _state.exec_log.log_status_info(f"Config; Log write messages = {conf.tee_write_log}")
-    _state.exec_log.log_status_info(f"Config; Log data variable assignments = {conf.log_datavars}")
-    _state.exec_log.log_status_info(f"Config; GUI level = {conf.gui_level}")
-    _state.exec_log.log_status_info(f"Config; CSS file for HTML export = {conf.css_file}")
-    _state.exec_log.log_status_info(f"Config; CSS styles for HTML export = {conf.css_styles}")
-    _state.exec_log.log_status_info(f"Config; Make export directories = {conf.make_export_dirs}")
-    _state.exec_log.log_status_info(f"Config; Quote all text on export = {conf.quote_all_text}")
-    _state.exec_log.log_status_info(f"Config; Export row buffer size = {conf.export_row_buffer}")
-    _state.exec_log.log_status_info(f"Config; Text length for HDF5 export = {conf.hdf5_text_len}")
-    _state.exec_log.log_status_info(f"Config; Template processor = {conf.template_processor}")
-    _state.exec_log.log_status_info(f"Config; SMTP host = {conf.smtp_host}")
-    _state.exec_log.log_status_info(f"Config; SMTP port = {conf.smtp_port}")
-    _state.exec_log.log_status_info(f"Config; SMTP username = {conf.smtp_username}")
-    _state.exec_log.log_status_info(f"Config; SMTP use SSL = {conf.smtp_ssl}")
-    _state.exec_log.log_status_info(f"Config; SMTP use TLS = {conf.smtp_tls}")
-    _state.exec_log.log_status_info(f"Config; Email format = {conf.email_format}")
-    _state.exec_log.log_status_info(f"Config; Email CSS = {conf.email_css}")
-    _state.exec_log.log_status_info(f"Config; Zip buffer size (Mb) = {conf.zip_buffer_mb}")
-    _state.exec_log.log_status_info(f"Config; DAO flush delay (seconds) = {conf.dao_flush_delay_secs}")
-    _state.exec_log.log_status_info(f"Config; Configuration files read = {', '.join(conf.files_read)}")
+    if conf is None:
+        return ["(no config loaded)"]
+
+    # Group attrs by section, preserving registration order within each section.
+    by_section: dict[str, list[tuple[str, str, str]]] = {}
+    section_order: list[str] = []
+    for attr, (section, ini_key, type_label) in ConfigData._schema.items():
+        if section not in by_section:
+            by_section[section] = []
+            section_order.append(section)
+        by_section[section].append((attr, ini_key, type_label))
+
+    lines: list[str] = []
+    for section in section_order:
+        lines.append(f"[{section}]")
+        for attr, ini_key, _type_label in by_section[section]:
+            value = getattr(conf, attr, "(unset)")
+            if attr in _SENSITIVE_ATTRS and value:
+                value = "***"
+            lines.append(f"  {ini_key} = {value}  (attr: {attr})")
+        lines.append("")
+
+    # Runtime-computed values that aren't read from the INI file.
+    lines.append("[runtime]")
+    files = getattr(conf, "files_read", None) or []
+    lines.append(f"  files_read = {', '.join(files) if files else '(none)'}")
+    return lines
+
+
+def x_debug_log_config(**kwargs: Any) -> None:
+    for line in _config_lines():
+        _state.exec_log.log_status_info(line)
 
 
 def x_debug_write_subvars(**kwargs: Any) -> None:
@@ -171,13 +232,6 @@ def x_debug_write_subvars(**kwargs: Any) -> None:
 def x_debug_write_config(**kwargs: Any) -> None:
     output_dest = kwargs["filename"]
     append = kwargs["append"]
-    conf = _state.conf
-    lines = [
-        f"Config; Script encoding = {conf.script_encoding}",
-        f"Config; Output encoding = {conf.output_encoding}",
-        f"Config; Import encoding = {conf.import_encoding}",
-        f"Config; GUI level = {conf.gui_level}",
-    ]
     if output_dest is not None and output_dest != "stdout" and append is None:
         filewriter_open_as_new(output_dest)
 
@@ -187,7 +241,7 @@ def x_debug_write_config(**kwargs: Any) -> None:
         else:
             filewriter_write(output_dest, txt)
 
-    for line in lines:
+    for line in _config_lines():
         write(f"{line}\n")
 
 

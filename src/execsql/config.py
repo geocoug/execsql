@@ -74,6 +74,17 @@ class ConfigData:
     _INCLUDE_REQ_SECTION = "include_required"
     _INCLUDE_OPT_SECTION = "include_optional"
 
+    # Schema registry: maps attribute name -> (section, ini_key, type_label).
+    # Populated by the _get_* methods on every option they read.  This is the
+    # canonical source for DEBUG WRITE CONFIG / DEBUG LOG CONFIG output —
+    # adding a new option below automatically makes it appear in the dump.
+    _schema: dict[str, tuple[str, str, str]] = {}
+
+    @classmethod
+    def _register_option(cls, section: str, key: str, attr: str, type_label: str) -> None:
+        """Record ``attr`` in the schema registry so config introspection sees it."""
+        cls._schema[attr] = (section, key, type_label)
+
     def _get_str(self, cp: ConfigParser, section: str, key: str, attr: str, *, required: bool = False) -> None:
         """Read a string option and set ``self.<attr>``.
 
@@ -84,6 +95,7 @@ class ConfigData:
             attr: Attribute name to set on ``self``.
             required: If ``True``, raise :class:`ConfigError` when the value is ``None``.
         """
+        self._register_option(section, key, attr, "str")
         if cp.has_option(section, key):
             val = cp.get(section, key)
             if required and val is None:
@@ -110,6 +122,7 @@ class ConfigData:
             choices: Tuple of permitted values.
             lower: If ``True`` (default), lower-case the raw value before validation.
         """
+        self._register_option(section, key, attr, "enum")
         if cp.has_option(section, key):
             val = cp.get(section, key)
             if lower:
@@ -130,6 +143,7 @@ class ConfigData:
         Raises:
             ConfigError: If the value cannot be parsed as a boolean.
         """
+        self._register_option(section, key, attr, "bool")
         if cp.has_option(section, key):
             try:
                 setattr(self, attr, cp.getboolean(section, key))
@@ -159,6 +173,7 @@ class ConfigData:
         Raises:
             ConfigError: If the value cannot be parsed as an integer.
         """
+        self._register_option(section, key, attr, "int")
         if cp.has_option(section, key):
             try:
                 val = cp.getint(section, key) * multiply
@@ -189,6 +204,7 @@ class ConfigData:
         Raises:
             ConfigError: If the value cannot be parsed as a float, or is below ``min_val``.
         """
+        self._register_option(section, key, attr, "float")
         if cp.has_option(section, key):
             try:
                 val = cp.getfloat(section, key)
@@ -197,6 +213,127 @@ class ConfigData:
             if min_val is not None and val < min_val:
                 raise ConfigError(f"Invalid {key}: {val}; must be >= {min_val}.")
             setattr(self, attr, val)
+
+    def _read_known_options(self, cp: ConfigParser) -> None:
+        """Apply every schema-registered option from ``cp`` to ``self``.
+
+        Single source of truth for which options ``ConfigData`` knows about.
+        Called once with an empty ``ConfigParser`` at the start of ``__init__``
+        so :attr:`_schema` is populated even when no config files exist on the
+        system, then again from the file-merge loop for each real config file
+        (which actually sets attribute values).
+
+        Options with special-case validation (``db_type``, ``write_prefix``,
+        ``gui_level``, ``gui_framework``, ``dao_flush_delay_secs``,
+        ``enc_password``, ``email_format``) stay inline in ``__init__`` to
+        preserve their exact error messages and side effects.
+        """
+        # --- [connect] ---
+        self._get_str(cp, self._CONNECT_SECTION, "server", "server", required=True)
+        self._get_str(cp, self._CONNECT_SECTION, "db", "db", required=True)
+        self._get_int(cp, self._CONNECT_SECTION, "port", "port")
+        self._get_str(cp, self._CONNECT_SECTION, "database", "db", required=True)
+        self._get_str(cp, self._CONNECT_SECTION, "db_file", "db_file", required=True)
+        self._get_str(cp, self._CONNECT_SECTION, "username", "username", required=True)
+        self._get_str(cp, self._CONNECT_SECTION, "access_username", "access_username")
+        self._get_bool(cp, self._CONNECT_SECTION, "password_prompt", "passwd_prompt")
+        self._get_bool(cp, self._CONNECT_SECTION, "use_keyring", "use_keyring")
+        self._get_bool(cp, self._CONNECT_SECTION, "new_db", "new_db")
+        # --- [encoding] ---
+        self._get_str(cp, self._ENCODING_SECTION, "database", "db_encoding")
+        self._get_str(cp, self._ENCODING_SECTION, "script", "script_encoding", required=True)
+        self._get_str(cp, self._ENCODING_SECTION, "import", "import_encoding", required=True)
+        self._get_str(cp, self._ENCODING_SECTION, "output", "output_encoding", required=True)
+        self._get_enum(
+            cp,
+            self._ENCODING_SECTION,
+            "error_response",
+            "enc_err_disposition",
+            ("ignore", "replace", "xmlcharrefreplace", "backslashreplace"),
+        )
+        # --- [input] ---
+        self._get_int(cp, self._INPUT_SECTION, "max_int", "max_int")
+        self._get_bool(cp, self._INPUT_SECTION, "boolean_int", "boolean_int")
+        self._get_bool(cp, self._INPUT_SECTION, "boolean_words", "boolean_words")
+        self._get_bool(cp, self._INPUT_SECTION, "empty_strings", "empty_strings")
+        self._get_bool(cp, self._INPUT_SECTION, "only_strings", "only_strings")
+        self._get_bool(cp, self._INPUT_SECTION, "empty_rows", "empty_rows")
+        self._get_bool(cp, self._INPUT_SECTION, "delete_empty_columns", "del_empty_cols")
+        self._get_bool(cp, self._INPUT_SECTION, "create_column_headers", "create_col_hdrs")
+        self._get_enum(
+            cp,
+            self._INPUT_SECTION,
+            "trim_column_headers",
+            "trim_col_hdrs",
+            ("none", "both", "left", "right"),
+        )
+        self._get_bool(cp, self._INPUT_SECTION, "clean_column_headers", "clean_col_hdrs")
+        self._get_enum(
+            cp,
+            self._INPUT_SECTION,
+            "fold_column_headers",
+            "fold_col_hdrs",
+            ("no", "lower", "upper"),
+        )
+        self._get_bool(cp, self._INPUT_SECTION, "dedup_column_headers", "dedup_col_hdrs")
+        self._get_bool(cp, self._INPUT_SECTION, "trim_strings", "trim_strings")
+        self._get_bool(cp, self._INPUT_SECTION, "replace_newlines", "replace_newlines")
+        self._get_int(cp, self._INPUT_SECTION, "import_row_buffer", "import_row_buffer")
+        self._get_int(cp, self._INPUT_SECTION, "import_progress_interval", "import_progress_interval")
+        self._get_bool(cp, self._INPUT_SECTION, "show_progress", "show_progress")
+        self._get_bool(cp, self._INPUT_SECTION, "access_use_numeric", "access_use_numeric")
+        self._get_bool(cp, self._INPUT_SECTION, "import_only_common_columns", "import_common_cols_only")
+        self._get_bool(cp, self._INPUT_SECTION, "import_common_columns_only", "import_common_cols_only")
+        self._get_int(cp, self._INPUT_SECTION, "scan_lines", "scan_lines")
+        self._get_int(cp, self._INPUT_SECTION, "import_buffer", "import_buffer", multiply=1024)
+        # --- [output] ---
+        self._get_bool(cp, self._OUTPUT_SECTION, "log_write_messages", "tee_write_log")
+        self._get_int(cp, self._OUTPUT_SECTION, "hdf5_text_len", "hdf5_text_len")
+        self._get_str(cp, self._OUTPUT_SECTION, "css_file", "css_file", required=True)
+        self._get_str(cp, self._OUTPUT_SECTION, "css_styles", "css_styles", required=True)
+        self._get_bool(cp, self._OUTPUT_SECTION, "make_export_dirs", "make_export_dirs")
+        self._get_bool(cp, self._OUTPUT_SECTION, "quote_all_text", "quote_all_text")
+        self._get_int(cp, self._OUTPUT_SECTION, "outfile_open_timeout", "outfile_open_timeout")
+        self._get_int(cp, self._OUTPUT_SECTION, "export_row_buffer", "export_row_buffer")
+        self._get_enum(
+            cp,
+            self._OUTPUT_SECTION,
+            "template_processor",
+            "template_processor",
+            ("jinja",),
+        )
+        self._get_int(cp, self._OUTPUT_SECTION, "zip_buffer_mb", "zip_buffer_mb")
+        # --- [interface] ---
+        self._get_bool(cp, self._INTERFACE_SECTION, "write_warnings", "write_warnings")
+        self._get_int(cp, self._INTERFACE_SECTION, "console_height", "gui_console_height", min_val=5)
+        self._get_int(cp, self._INTERFACE_SECTION, "console_width", "gui_console_width", min_val=20)
+        self._get_bool(cp, self._INTERFACE_SECTION, "console_wait_when_done", "gui_wait_on_exit")
+        self._get_bool(cp, self._INTERFACE_SECTION, "console_wait_when_error_halt", "gui_wait_on_error_halt")
+        # --- [config] ---
+        self._get_bool(cp, self._CONFIG_SECTION, "user_logfile", "user_logfile")
+        self._get_bool(cp, self._CONFIG_SECTION, "log_datavars", "log_datavars")
+        self._get_bool(cp, self._CONFIG_SECTION, "log_sql", "log_sql")
+        self._get_int(cp, self._CONFIG_SECTION, "max_log_size_mb", "max_log_size_mb")
+        self._get_bool(cp, self._CONFIG_SECTION, "allow_system_cmd", "allow_system_cmd")
+        # --- [email] ---
+        self._get_str(cp, self._EMAIL_SECTION, "host", "smtp_host")
+        self._get_int(cp, self._EMAIL_SECTION, "port", "smtp_port")
+        self._get_str(cp, self._EMAIL_SECTION, "username", "smtp_username")
+        self._get_str(cp, self._EMAIL_SECTION, "password", "smtp_password")
+        self._get_bool(cp, self._EMAIL_SECTION, "use_ssl", "smtp_ssl")
+        self._get_bool(cp, self._EMAIL_SECTION, "use_tls", "smtp_tls")
+        self._get_str(cp, self._EMAIL_SECTION, "message_css", "email_css")
+
+        # Register options whose loading lives inline in __init__ (because they
+        # need special-case validation or side effects) so they still appear in
+        # DEBUG WRITE CONFIG.
+        self._register_option(self._CONNECT_SECTION, "db_type", "db_type", "enum")
+        self._register_option(self._INTERFACE_SECTION, "write_prefix", "write_prefix", "str")
+        self._register_option(self._INTERFACE_SECTION, "write_suffix", "write_suffix", "str")
+        self._register_option(self._INTERFACE_SECTION, "gui_level", "gui_level", "int")
+        self._register_option(self._INTERFACE_SECTION, "gui_framework", "gui_framework", "enum")
+        self._register_option(self._CONFIG_SECTION, "dao_flush_delay_secs", "dao_flush_delay_secs", "float")
+        self._register_option(self._EMAIL_SECTION, "email_format", "email_format", "enum")
 
     def __init__(
         self,
@@ -309,6 +446,13 @@ class ConfigData:
         _MAX_CONFIG_CHAIN = 20  # Guard against circular config_file references.
         config_queue: deque[str] = deque(config_files)
         self.files_read: list = []
+        # Warm the schema registry by running the option reader against an
+        # empty ConfigParser. cp.has_option() is False for everything so no
+        # attribute values change, but every _get_* call registers its
+        # (section, ini_key, attr) tuple in ConfigData._schema. This means
+        # DEBUG WRITE CONFIG / DEBUG LOG CONFIG see the full option set even
+        # when no execsql.conf files exist on the system.
+        self._read_known_options(ConfigParser())
         while config_queue:
             configfile = config_queue.popleft()
             if len(self.files_read) >= _MAX_CONFIG_CHAIN:
@@ -323,82 +467,7 @@ class ConfigData:
                     if t not in ("a", "d", "f", "k", "l", "m", "o", "p", "s"):
                         raise ConfigError(f"Invalid database type: {t}")
                     self.db_type = t
-                self._get_str(cp, self._CONNECT_SECTION, "server", "server", required=True)
-                self._get_str(cp, self._CONNECT_SECTION, "db", "db", required=True)
-                self._get_int(cp, self._CONNECT_SECTION, "port", "port")
-                self._get_str(cp, self._CONNECT_SECTION, "database", "db", required=True)
-                self._get_str(cp, self._CONNECT_SECTION, "db_file", "db_file", required=True)
-                self._get_str(cp, self._CONNECT_SECTION, "username", "username", required=True)
-                self._get_str(cp, self._CONNECT_SECTION, "access_username", "access_username")
-                self._get_bool(cp, self._CONNECT_SECTION, "password_prompt", "passwd_prompt")
-                self._get_bool(cp, self._CONNECT_SECTION, "use_keyring", "use_keyring")
-                self._get_bool(cp, self._CONNECT_SECTION, "new_db", "new_db")
-                # --- [encoding] ---
-                self._get_str(cp, self._ENCODING_SECTION, "database", "db_encoding")
-                self._get_str(cp, self._ENCODING_SECTION, "script", "script_encoding", required=True)
-                self._get_str(cp, self._ENCODING_SECTION, "import", "import_encoding", required=True)
-                self._get_str(cp, self._ENCODING_SECTION, "output", "output_encoding", required=True)
-                self._get_enum(
-                    cp,
-                    self._ENCODING_SECTION,
-                    "error_response",
-                    "enc_err_disposition",
-                    ("ignore", "replace", "xmlcharrefreplace", "backslashreplace"),
-                )
-                # --- [input] ---
-                self._get_int(cp, self._INPUT_SECTION, "max_int", "max_int")
-                self._get_bool(cp, self._INPUT_SECTION, "boolean_int", "boolean_int")
-                self._get_bool(cp, self._INPUT_SECTION, "boolean_words", "boolean_words")
-                self._get_bool(cp, self._INPUT_SECTION, "empty_strings", "empty_strings")
-                self._get_bool(cp, self._INPUT_SECTION, "only_strings", "only_strings")
-                self._get_bool(cp, self._INPUT_SECTION, "empty_rows", "empty_rows")
-                self._get_bool(cp, self._INPUT_SECTION, "delete_empty_columns", "del_empty_cols")
-                self._get_bool(cp, self._INPUT_SECTION, "create_column_headers", "create_col_hdrs")
-                self._get_enum(
-                    cp,
-                    self._INPUT_SECTION,
-                    "trim_column_headers",
-                    "trim_col_hdrs",
-                    ("none", "both", "left", "right"),
-                )
-                self._get_bool(cp, self._INPUT_SECTION, "clean_column_headers", "clean_col_hdrs")
-                self._get_enum(
-                    cp,
-                    self._INPUT_SECTION,
-                    "fold_column_headers",
-                    "fold_col_hdrs",
-                    ("no", "lower", "upper"),
-                )
-                self._get_bool(cp, self._INPUT_SECTION, "dedup_column_headers", "dedup_col_hdrs")
-                self._get_bool(cp, self._INPUT_SECTION, "trim_strings", "trim_strings")
-                self._get_bool(cp, self._INPUT_SECTION, "replace_newlines", "replace_newlines")
-                self._get_int(cp, self._INPUT_SECTION, "import_row_buffer", "import_row_buffer")
-                self._get_int(cp, self._INPUT_SECTION, "import_progress_interval", "import_progress_interval")
-                self._get_bool(cp, self._INPUT_SECTION, "show_progress", "show_progress")
-                self._get_bool(cp, self._INPUT_SECTION, "access_use_numeric", "access_use_numeric")
-                self._get_bool(cp, self._INPUT_SECTION, "import_only_common_columns", "import_common_cols_only")
-                self._get_bool(cp, self._INPUT_SECTION, "import_common_columns_only", "import_common_cols_only")
-                self._get_int(cp, self._INPUT_SECTION, "scan_lines", "scan_lines")
-                self._get_int(cp, self._INPUT_SECTION, "import_buffer", "import_buffer", multiply=1024)
-                # --- [output] ---
-                self._get_bool(cp, self._OUTPUT_SECTION, "log_write_messages", "tee_write_log")
-                self._get_int(cp, self._OUTPUT_SECTION, "hdf5_text_len", "hdf5_text_len")
-                self._get_str(cp, self._OUTPUT_SECTION, "css_file", "css_file", required=True)
-                self._get_str(cp, self._OUTPUT_SECTION, "css_styles", "css_styles", required=True)
-                self._get_bool(cp, self._OUTPUT_SECTION, "make_export_dirs", "make_export_dirs")
-                self._get_bool(cp, self._OUTPUT_SECTION, "quote_all_text", "quote_all_text")
-                self._get_int(cp, self._OUTPUT_SECTION, "outfile_open_timeout", "outfile_open_timeout")
-                self._get_int(cp, self._OUTPUT_SECTION, "export_row_buffer", "export_row_buffer")
-                self._get_enum(
-                    cp,
-                    self._OUTPUT_SECTION,
-                    "template_processor",
-                    "template_processor",
-                    ("jinja",),
-                )
-                self._get_int(cp, self._OUTPUT_SECTION, "zip_buffer_mb", "zip_buffer_mb")
-                # --- [interface] ---
-                self._get_bool(cp, self._INTERFACE_SECTION, "write_warnings", "write_warnings")
+                self._read_known_options(cp)
                 # write_prefix / write_suffix have special "clear" → None handling
                 if cp.has_option(self._INTERFACE_SECTION, "write_prefix"):
                     try:
@@ -425,10 +494,6 @@ class ConfigData:
                     if fw not in ("tkinter", "textual"):
                         raise ConfigError("gui_framework must be 'tkinter' or 'textual'.")
                     self.gui_framework = fw
-                self._get_int(cp, self._INTERFACE_SECTION, "console_height", "gui_console_height", min_val=5)
-                self._get_int(cp, self._INTERFACE_SECTION, "console_width", "gui_console_width", min_val=20)
-                self._get_bool(cp, self._INTERFACE_SECTION, "console_wait_when_done", "gui_wait_on_exit")
-                self._get_bool(cp, self._INTERFACE_SECTION, "console_wait_when_error_halt", "gui_wait_on_error_halt")
                 # --- [config] ---
                 # config_file / OS-specific config files retain special chaining logic
                 if cp.has_option(self._CONFIG_SECTION, "config_file"):
@@ -464,7 +529,6 @@ class ConfigData:
                         conffile = str(Path(conffile) / self.config_file_name)
                     if Path(conffile).is_file():
                         config_queue.appendleft(conffile)
-                self._get_bool(cp, self._CONFIG_SECTION, "user_logfile", "user_logfile")
                 # dao_flush_delay_secs has a specific error message — keep inline
                 if cp.has_option(self._CONFIG_SECTION, "dao_flush_delay_secs"):
                     self.dao_flush_delay_secs = cp.getfloat(self._CONFIG_SECTION, "dao_flush_delay_secs")
@@ -472,15 +536,7 @@ class ConfigData:
                         raise ConfigError(
                             f"Invalid DAO flush delay: {self.dao_flush_delay_secs}; must be >= 5.0.",
                         )
-                self._get_bool(cp, self._CONFIG_SECTION, "log_datavars", "log_datavars")
-                self._get_bool(cp, self._CONFIG_SECTION, "log_sql", "log_sql")
-                self._get_int(cp, self._CONFIG_SECTION, "max_log_size_mb", "max_log_size_mb")
-                self._get_bool(cp, self._CONFIG_SECTION, "allow_system_cmd", "allow_system_cmd")
                 # --- [email] ---
-                self._get_str(cp, self._EMAIL_SECTION, "host", "smtp_host")
-                self._get_int(cp, self._EMAIL_SECTION, "port", "smtp_port")
-                self._get_str(cp, self._EMAIL_SECTION, "username", "smtp_username")
-                self._get_str(cp, self._EMAIL_SECTION, "password", "smtp_password")
                 # enc_password has special decryption logic — keep inline
                 if cp.has_option(self._EMAIL_SECTION, "enc_password"):
                     import warnings
@@ -492,15 +548,12 @@ class ConfigData:
                         stacklevel=1,
                     )
                     self.smtp_password = Encrypt().decrypt(cp.get(self._EMAIL_SECTION, "enc_password"))
-                self._get_bool(cp, self._EMAIL_SECTION, "use_ssl", "smtp_ssl")
-                self._get_bool(cp, self._EMAIL_SECTION, "use_tls", "smtp_tls")
                 # email_format has a specific error message — keep inline
                 if cp.has_option(self._EMAIL_SECTION, "email_format"):
                     fmt = cp.get(self._EMAIL_SECTION, "email_format").lower()
                     if fmt not in ("plain", "html"):
                         raise ConfigError(f"Invalid email format: {fmt}")
                     self.email_format = fmt
-                self._get_str(cp, self._EMAIL_SECTION, "message_css", "email_css")
                 if cp.has_section(self._VARIABLES_SECTION) and variable_pool:
                     varsect = cp.items(self._VARIABLES_SECTION)
                     for sub, repl in varsect:

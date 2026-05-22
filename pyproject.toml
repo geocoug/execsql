@@ -62,6 +62,7 @@ auth = ["keyring"]
 auth-plaintext = ["keyring", "keyrings.alt"]
 auth-encrypted = ["keyring", "keyrings.alt", "pycryptodome"]
 upsert = ["pg-upsert>=1.22.0"]
+map = ["tkintermapview>=1.29"]
 # Convenience groups
 all-db = [
     "psycopg2-binary",
@@ -76,6 +77,7 @@ all = [
     "execsql2[formats]",
     "execsql2[auth]",
     "execsql2[upsert]",
+    "execsql2[map]",
 ]
 dev = [
     "build>=1.2.2.post1",

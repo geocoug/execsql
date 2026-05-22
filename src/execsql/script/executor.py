@@ -411,20 +411,45 @@ def _execute_if(
     *,
     in_loop: bool = False,
 ) -> None:
-    """Evaluate an IF block and execute the matching branch."""
+    """Evaluate an IF block and execute the matching branch.
+
+    Pushes an :class:`ExecFrame` onto ``ctx.ast_exec_stack`` for the active
+    branch while its body executes, so the debug REPL and
+    ``DEBUG WRITE COMMANDLISTSTACK`` see the current IF nesting.
+    """
+    from execsql.state import ExecFrame
+
     if _eval_condition(ctx, node.condition, node.condition_modifiers):
-        _execute_nodes(ctx, node.body, node.span.file, localvars, in_loop=in_loop)
+        ctx.ast_exec_stack.append(
+            ExecFrame(kind="if", label=node.condition, source=node.span.file, line=node.span.start_line),
+        )
+        try:
+            _execute_nodes(ctx, node.body, node.span.file, localvars, in_loop=in_loop)
+        finally:
+            ctx.ast_exec_stack.pop()
         return
 
     # Try ELSEIF clauses
     for clause in node.elseif_clauses:
         if _eval_condition(ctx, clause.condition, clause.condition_modifiers):
-            _execute_nodes(ctx, clause.body, node.span.file, localvars, in_loop=in_loop)
+            ctx.ast_exec_stack.append(
+                ExecFrame(kind="elseif", label=clause.condition, source=node.span.file, line=node.span.start_line),
+            )
+            try:
+                _execute_nodes(ctx, clause.body, node.span.file, localvars, in_loop=in_loop)
+            finally:
+                ctx.ast_exec_stack.pop()
             return
 
     # ELSE branch
     if node.else_body:
-        _execute_nodes(ctx, node.else_body, node.span.file, localvars, in_loop=in_loop)
+        ctx.ast_exec_stack.append(
+            ExecFrame(kind="else", label="", source=node.span.file, line=node.span.start_line),
+        )
+        try:
+            _execute_nodes(ctx, node.else_body, node.span.file, localvars, in_loop=in_loop)
+        finally:
+            ctx.ast_exec_stack.pop()
 
 
 def _execute_loop(
@@ -433,29 +458,39 @@ def _execute_loop(
     localvars: SubVarSet | None = None,
 ) -> None:
     """Execute a LOOP WHILE or LOOP UNTIL block."""
+    from execsql.state import ExecFrame
+
     # Convert deferred vars in the condition — they re-evaluate each iteration
     condition = _convert_deferred_vars(node.condition)
 
-    if node.loop_type == "WHILE":
-        while True:
-            effective_locals = _stack_localvars(ctx)
-            expanded = substitute_vars(condition, effective_locals, ctx=ctx)
-            if not xcmd_test(expanded):
-                break
-            try:
-                _execute_nodes(ctx, node.body, node.span.file, localvars, in_loop=True)
-            except _BreakLoop:
-                break
-    else:  # UNTIL
-        while True:
-            try:
-                _execute_nodes(ctx, node.body, node.span.file, localvars, in_loop=True)
-            except _BreakLoop:
-                break
-            effective_locals = _stack_localvars(ctx)
-            expanded = substitute_vars(condition, effective_locals, ctx=ctx)
-            if xcmd_test(expanded):
-                break
+    kind = "loop_while" if node.loop_type == "WHILE" else "loop_until"
+    frame = ExecFrame(kind=kind, label=node.condition, source=node.span.file, line=node.span.start_line, iteration=0)
+    ctx.ast_exec_stack.append(frame)
+    try:
+        if node.loop_type == "WHILE":
+            while True:
+                effective_locals = _stack_localvars(ctx)
+                expanded = substitute_vars(condition, effective_locals, ctx=ctx)
+                if not xcmd_test(expanded):
+                    break
+                frame.iteration += 1
+                try:
+                    _execute_nodes(ctx, node.body, node.span.file, localvars, in_loop=True)
+                except _BreakLoop:
+                    break
+        else:  # UNTIL
+            while True:
+                frame.iteration += 1
+                try:
+                    _execute_nodes(ctx, node.body, node.span.file, localvars, in_loop=True)
+                except _BreakLoop:
+                    break
+                effective_locals = _stack_localvars(ctx)
+                expanded = substitute_vars(condition, effective_locals, ctx=ctx)
+                if xcmd_test(expanded):
+                    break
+    finally:
+        ctx.ast_exec_stack.pop()
 
 
 def _execute_batch(
@@ -466,10 +501,16 @@ def _execute_batch(
     in_loop: bool = False,
 ) -> None:
     """Execute a BEGIN BATCH / END BATCH block."""
+    from execsql.state import ExecFrame
+
     ctx.status.batch.new_batch()
+    ctx.ast_exec_stack.append(
+        ExecFrame(kind="batch", label="", source=node.span.file, line=node.span.start_line),
+    )
     try:
         _execute_nodes(ctx, node.body, node.span.file, localvars, in_loop=in_loop)
     finally:
+        ctx.ast_exec_stack.pop()
         if ctx.status.batch.in_batch():
             ctx.status.batch.end_batch()
 
@@ -773,6 +814,20 @@ def _execute_script_native(
     if paramvals is not None:
         frame.paramvals = paramvals
 
+    from execsql.state import ExecFrame
+
+    params_dict: dict[str, str] | None = None
+    if paramvals is not None:
+        params_dict = dict(paramvals.substitutions)
+    exec_frame = ExecFrame(
+        kind="script",
+        label=script_block.name,
+        source=script_block.span.file,
+        line=script_block.span.start_line,
+        params=params_dict,
+    )
+    ctx.ast_exec_stack.append(exec_frame)
+
     try:
 
         def _run_body() -> None:
@@ -791,12 +846,14 @@ def _execute_script_native(
                 expanded = substitute_vars(condition, effective_locals, ctx=ctx)
                 if not xcmd_test(expanded):
                     break
+                exec_frame.iteration += 1
                 try:
                     _run_body()
                 except _BreakLoop:
                     break
         elif node.loop_type == "UNTIL":
             while True:
+                exec_frame.iteration += 1
                 try:
                     _run_body()
                 except _BreakLoop:
@@ -808,6 +865,7 @@ def _execute_script_native(
         else:
             _run_body()
     finally:
+        ctx.ast_exec_stack.pop()
         _pop_frame(ctx)
 
 
@@ -871,10 +929,16 @@ def _execute_include_native(
     _pre_register_scripts(ctx, included_tree.body)
 
     # Execute with include-chain tracking
+    from execsql.state import ExecFrame
+
     ctx.include_chain.append(resolved)
+    ctx.ast_exec_stack.append(
+        ExecFrame(kind="include", label=Path(resolved).name, source=resolved, line=1),
+    )
     try:
         _execute_nodes(ctx, included_tree.body, included_tree.source, localvars)
     finally:
+        ctx.ast_exec_stack.pop()
         ctx.include_chain.pop()
 
 
@@ -976,9 +1040,12 @@ def execute(script: Script, *, ctx: RuntimeContext | None = None) -> None:
     # handlers, database adapters, and other legacy code resolve against
     # it.  This gives full isolation without modifying 200+ handler
     # function signatures.
+    from execsql.state import ExecFrame
+
     with active_context(ctx):
         ctx.ast_scripts.clear()
         ctx.include_chain.clear()
+        ctx.ast_exec_stack.clear()
         # Seed the include chain with the main script to catch self-includes.
         if script.source != "<inline>":
             try:
@@ -995,6 +1062,7 @@ def execute(script: Script, *, ctx: RuntimeContext | None = None) -> None:
         # xf_sub_defined(), the REPL, and all other commandliststack readers
         # work correctly even at the top level.
         _push_frame(ctx, "<main>", script.source)
+        ctx.ast_exec_stack.append(ExecFrame(kind="main", label="<main>", source=script.source, line=1))
         try:
             _execute_nodes(ctx, script.body, script.source)
         except _BreakLoop as exc:
@@ -1003,4 +1071,5 @@ def execute(script: Script, *, ctx: RuntimeContext | None = None) -> None:
                 other_msg="BREAK metacommand outside of a LOOP block.",
             ) from exc
         finally:
+            ctx.ast_exec_stack.pop()
             _pop_frame(ctx)

@@ -375,25 +375,25 @@ class TestPrintStack:
     def test_empty_stack(self) -> None:
         written: list[str] = []
         with (
-            patch.object(_state, "commandliststack", []),
+            patch.object(_state, "ast_exec_stack", []),
             patch("execsql.debug.repl._write", side_effect=written.append),
         ):
             _print_stack()
         assert any("empty" in s for s in written)
 
     def test_nonempty_stack(self) -> None:
-        fake_cmdlist = MagicMock()
-        fake_cmdlist.listname = "my_script.sql"
-        fake_cmdlist.cmdptr = 5
+        from execsql.state import ExecFrame
+
+        frame = ExecFrame(kind="main", label="<main>", source="my_script.sql", line=1)
         written: list[str] = []
         with (
-            patch.object(_state, "commandliststack", [fake_cmdlist]),
+            patch.object(_state, "ast_exec_stack", [frame]),
             patch("execsql.debug.repl._write", side_effect=written.append),
         ):
             _print_stack()
         combined = "".join(written)
         assert "my_script.sql" in combined
-        assert "5" in combined
+        assert "<main>" in combined
 
 
 # ---------------------------------------------------------------------------
