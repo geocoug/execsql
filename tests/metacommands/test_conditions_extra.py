@@ -38,18 +38,20 @@ def fake_state():
     sv.sub_exists.return_value = True
     sv.varvalue.return_value = "val"
     _state.subvars = sv
-    cmd = MagicMock()
-    cmd.localvars = MagicMock()
-    cmd.localvars.sub_exists.return_value = True
-    cmd.localvars.varvalue.return_value = ""
-    cmd.paramvals = MagicMock()
-    cmd.paramvals.sub_exists.return_value = True
-    cmd.paramvals.varvalue.return_value = "p"
-    _state.commandliststack = [cmd]
+    from execsql.state import ExecFrame
+
+    localvars = MagicMock()
+    localvars.sub_exists.return_value = True
+    localvars.varvalue.return_value = ""
+    paramvals = MagicMock()
+    paramvals.sub_exists.return_value = True
+    paramvals.varvalue.return_value = "p"
+    cmd = ExecFrame(kind="script", localvars=localvars, paramvals=paramvals)
+    _state.ast_exec_stack = [cmd]
     status = MagicMock()
     status.metacommand_error = False
     _state.status = status
-    yield MagicMock(db=db, pool=pool, subvars=sv, cmd=cmd, status=status)
+    yield MagicMock(db=db, pool=pool, subvars=sv, cmd=cmd, status=status, localvars=localvars, paramvals=paramvals)
 
 
 class TestExistencePredicates:

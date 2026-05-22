@@ -55,6 +55,22 @@ def _mock_commandlist(name: str = "test") -> MagicMock:
     return cl
 
 
+def _push_mock_scope(name: str = "test") -> tuple:
+    """Install a mock scope frame on both legacy and unified stacks.
+
+    Returns ``(cl, frame)`` — the legacy ``CommandList`` mock and the new
+    ``ExecFrame`` with a shared ``LocalSubVarSet``. Tests that mutate
+    locals via either side see the same data.
+    """
+    from execsql.state import ExecFrame
+
+    cl = _mock_commandlist(name)
+    frame = ExecFrame(kind="script", label=name, localvars=cl.localvars)
+    _state.commandliststack = [cl]
+    _state.ast_exec_stack = [frame]
+    return cl, frame
+
+
 def _make_state_subvars():
     """Install a fresh SubVarSet in _state.subvars and return it."""
     sv = _make_subvars()
@@ -270,12 +286,12 @@ class TestDataSubVarOps:
     def setup_method(self):
         sv = _make_subvars()
         _state.subvars = sv
-        cl = _mock_commandlist()
-        _state.commandliststack = [cl]
+        _push_mock_scope()
 
     def teardown_method(self):
         _state.subvars = None
         _state.commandliststack = []
+        _state.ast_exec_stack = []
 
     def test_x_sub(self):
         from execsql.metacommands.data import x_sub

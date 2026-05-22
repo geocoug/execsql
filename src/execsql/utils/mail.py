@@ -138,8 +138,9 @@ class MailSpec:
     def _expand(text: str) -> str:
         """Expand local and global substitution variables in *text*."""
         result = text
-        if _state.commandliststack:
-            result, _ = _state.commandliststack[-1].localvars.substitute_all(result)
+        localvars = _state.current_localvars()
+        if localvars is not None:
+            result, _ = localvars.substitute_all(result)
         result, _ = _state.subvars.substitute_all(result)
         return result
 

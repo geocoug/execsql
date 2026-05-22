@@ -140,7 +140,7 @@ def x_prompt_enter(**kwargs: Any) -> None:
             _state.exec_log.log_exit_halt(*current_script_line(), msg="Quit from prompt to enter a SUB value.")
             exit_now(2, None)
     else:
-        subvarset = _state.subvars if sub_var[0] != "~" else _state.commandliststack[-1].localvars
+        subvarset = _state.subvars if sub_var[0] != "~" else _state.current_localvars()
         subvarset.add_substitution(sub_var, txtval)
         script_name, lno = current_script_line()
         if as_pw:
@@ -266,7 +266,7 @@ def x_prompt_entryform(**kwargs: Any) -> None:
                     ) from e
                 if entry_col < 1:
                     entry_col = 1
-        subvarset = _state.subvars if subvar[0] != "~" else _state.commandliststack[-1].localvars
+        subvarset = _state.subvars if subvar[0] != "~" else _state.current_localvars()
         subvarset.remove_substitution(subvar)
         entry_list.append(
             EntrySpec(
@@ -307,7 +307,7 @@ def x_prompt_entryform(**kwargs: Any) -> None:
         for e in entries:
             if e.value:
                 value = str(e.value)
-                subvarset = _state.subvars if subvar[0] != "~" else _state.commandliststack[-1].localvars
+                subvarset = _state.subvars if subvar[0] != "~" else _state.current_localvars()
                 subvarset.add_substitution(e.name, value)
                 _state.exec_log.log_status_info(
                     f"Substitution variable {e.name} set to {{{value}}} on line {line_no} of {script}",
@@ -439,7 +439,7 @@ def x_prompt_ask_compare(**kwargs: Any) -> None:
             exit_now(2, None)
     else:
         respstr = "Yes" if btn == 1 else "No"
-        subvarset = _state.subvars if subvar[0] != "~" else _state.commandliststack[-1].localvars
+        subvarset = _state.subvars if subvar[0] != "~" else _state.current_localvars()
         subvarset.add_substitution(subvar, respstr)
         _state.exec_log.log_status_info(f"Question {{{kwargs['msg']}}} on line {lno} answered {respstr}")
 
@@ -476,7 +476,7 @@ def x_prompt_ask(**kwargs: Any) -> None:
             exit_now(2, None)
     else:
         respstr = "Yes" if btn == 1 else "No"
-        subvarset = _state.subvars if subvar[0] != "~" else _state.commandliststack[-1].localvars
+        subvarset = _state.subvars if subvar[0] != "~" else _state.current_localvars()
         subvarset.add_substitution(subvar, respstr)
         _state.exec_log.log_status_info(
             f"Question {{{kwargs['question']}}} answered {respstr} on line {lno} of script {script}",
@@ -619,7 +619,7 @@ def x_prompt_savefile(**kwargs: Any) -> None:
     sub_name5 = kwargs["fnbase_match"]
     startdir = kwargs["startdir"]
     try:
-        subvarset = _state.subvars if sub_name[0] != "~" else _state.commandliststack[-1].localvars
+        subvarset = _state.subvars if sub_name[0] != "~" else _state.current_localvars()
         subvarset.remove_substitution(sub_name)
         script, lno = current_script_line()
         working_dir = startdir if startdir is not None else str(Path(script).resolve().parent)
@@ -642,7 +642,7 @@ def x_prompt_savefile(**kwargs: Any) -> None:
                 f"Substitution variable {sub_name} set to path and filename {fn} at line {lno} of {script}",
             )
             if sub_name2 is not None:
-                subvarset2 = _state.subvars if sub_name2[0] != "~" else _state.commandliststack[-1].localvars
+                subvarset2 = _state.subvars if sub_name2[0] != "~" else _state.current_localvars()
                 subvarset2.remove_substitution(sub_name2)
                 basefn = Path(fn).name
                 subvarset2.add_substitution(sub_name2, basefn)
@@ -650,7 +650,7 @@ def x_prompt_savefile(**kwargs: Any) -> None:
                     f"Substitution variable {sub_name2} set to filename {basefn} at line {lno} of {script}",
                 )
             if sub_name3 is not None:
-                subvarset3 = _state.subvars if sub_name3[0] != "~" else _state.commandliststack[-1].localvars
+                subvarset3 = _state.subvars if sub_name3[0] != "~" else _state.current_localvars()
                 subvarset3.remove_substitution(sub_name3)
                 dirname = str(Path(fn).parent)
                 if os.name != "posix":
@@ -660,7 +660,7 @@ def x_prompt_savefile(**kwargs: Any) -> None:
                     f"Substitution variable {sub_name3} set to path {dirname} at line {lno} of {script}",
                 )
             if sub_name4 is not None:
-                subvarset4 = _state.subvars if sub_name4[0] != "~" else _state.commandliststack[-1].localvars
+                subvarset4 = _state.subvars if sub_name4[0] != "~" else _state.current_localvars()
                 subvarset4.remove_substitution(sub_name4)
                 ext = Path(fn).suffix
                 if ext is None:
@@ -669,7 +669,7 @@ def x_prompt_savefile(**kwargs: Any) -> None:
                     ext = ext[1:]
                     subvarset4.add_substitution(sub_name4, ext)
             if sub_name5 is not None:
-                subvarset5 = _state.subvars if sub_name5[0] != "~" else _state.commandliststack[-1].localvars
+                subvarset5 = _state.subvars if sub_name5[0] != "~" else _state.current_localvars()
                 subvarset5.remove_substitution(sub_name5)
                 subvarset5.add_substitution(sub_name5, Path(fn).stem)
     except (ErrInfo, SystemExit):
@@ -692,7 +692,7 @@ def x_prompt_openfile(**kwargs: Any) -> None:
             other_msg="Different values can't be assigned to the same substitution variable.",
         )
     try:
-        subvarset = _state.subvars if sub_name[0] != "~" else _state.commandliststack[-1].localvars
+        subvarset = _state.subvars if sub_name[0] != "~" else _state.current_localvars()
         subvarset.remove_substitution(sub_name)
         script, lno = current_script_line()
         working_dir = startdir if startdir is not None else str(Path(script).resolve().parent)
@@ -715,19 +715,19 @@ def x_prompt_openfile(**kwargs: Any) -> None:
                 f"Substitution variable {sub_name} set to path and filename {fn} at line {lno} of {script}",
             )
             if sub_name2 is not None:
-                subvarset2 = _state.subvars if sub_name2[0] != "~" else _state.commandliststack[-1].localvars
+                subvarset2 = _state.subvars if sub_name2[0] != "~" else _state.current_localvars()
                 subvarset2.remove_substitution(sub_name2)
                 basefn = Path(fn).name
                 subvarset2.add_substitution(sub_name2, basefn)
             if sub_name3 is not None:
-                subvarset3 = _state.subvars if sub_name3[0] != "~" else _state.commandliststack[-1].localvars
+                subvarset3 = _state.subvars if sub_name3[0] != "~" else _state.current_localvars()
                 subvarset3.remove_substitution(sub_name3)
                 dirname = str(Path(fn).parent)
                 if os.name != "posix":
                     dirname = dirname.replace("/", "\\")
                 subvarset3.add_substitution(sub_name3, dirname)
             if sub_name4 is not None:
-                subvarset4 = _state.subvars if sub_name4[0] != "~" else _state.commandliststack[-1].localvars
+                subvarset4 = _state.subvars if sub_name4[0] != "~" else _state.current_localvars()
                 subvarset4.remove_substitution(sub_name4)
                 ext = Path(fn).suffix
                 if ext is None:
@@ -736,7 +736,7 @@ def x_prompt_openfile(**kwargs: Any) -> None:
                     ext = ext[1:]
                     subvarset4.add_substitution(sub_name4, ext)
             if sub_name5 is not None:
-                subvarset5 = _state.subvars if sub_name5[0] != "~" else _state.commandliststack[-1].localvars
+                subvarset5 = _state.subvars if sub_name5[0] != "~" else _state.current_localvars()
                 subvarset5.remove_substitution(sub_name5)
                 subvarset5.add_substitution(sub_name5, Path(fn).stem)
     except (ErrInfo, SystemExit):
@@ -751,7 +751,7 @@ def x_prompt_directory(**kwargs: Any) -> None:
     fullpath = kwargs["fullpath"]
     startdir = kwargs["startdir"]
     try:
-        subvarset = _state.subvars if sub_name[0] != "~" else _state.commandliststack[-1].localvars
+        subvarset = _state.subvars if sub_name[0] != "~" else _state.current_localvars()
         subvarset.remove_substitution(sub_name)
         script, lno = current_script_line()
         working_dir = startdir if startdir is not None else str(Path(script).resolve().parent)
@@ -892,7 +892,7 @@ def x_ask(**kwargs: Any) -> None:
             exit_now(2, None)
         else:
             respstr = "Yes" if resp == "y" else "No"
-    subvarset = _state.subvars if subvar[0] != "~" else _state.commandliststack[-1].localvars
+    subvarset = _state.subvars if subvar[0] != "~" else _state.current_localvars()
     subvarset.add_substitution(subvar, respstr)
     _state.exec_log.log_status_info(
         f"Question {{{message}}} answered {respstr} on line {lno} of script {script}",

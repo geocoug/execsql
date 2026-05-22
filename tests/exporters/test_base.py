@@ -226,8 +226,10 @@ def _make_write_state(msg_passthrough: str = None):
         substitute_all=lambda s: (s, False) if msg_passthrough is None else (msg_passthrough, True),
     )
 
-    # commandliststack[-1].localvars
-    fake_cmd = SimpleNamespace(localvars=fake_localvars)
+    # ast_exec_stack[-1].localvars (innermost scope frame)
+    from execsql.state import ExecFrame
+
+    fake_cmd = ExecFrame(kind="main", localvars=fake_localvars)
 
     # subvars.substitute_all(msg) → return (msg, False) unchanged
     fake_subvars = SimpleNamespace(substitute_all=lambda s: (s, False))
@@ -260,13 +262,13 @@ class TestWriteSpecWrite:
         stack.enter_context(patch.object(_state, "subvars", fake_subvars))
         stack.enter_context(patch.object(_state, "output", fake_output))
         stack.enter_context(patch.object(_state, "exec_log", fake_exec_log))
-        _state.commandliststack.append(fake_cmd)
+        _state.ast_exec_stack.append(fake_cmd)
         return stack
 
     def _cleanup_stack(self):
-        """Pop the fake command from the commandliststack after a test."""
-        if _state.commandliststack:
-            _state.commandliststack.pop()
+        """Pop the fake frame from the ast_exec_stack after a test."""
+        if _state.ast_exec_stack:
+            _state.ast_exec_stack.pop()
 
     # ------------------------------------------------------------------
     # Console-only path (no outfile)

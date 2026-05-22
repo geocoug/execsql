@@ -345,12 +345,13 @@ def _print_all_vars(*, include_env: bool = False) -> None:
         _write("  (no substitution variables defined)\n\n")
         return
     items = list(subvars.substitutions)  # list of (name, value) tuples
-    # Include ~local and #param variables from the current stack frame.
-    if _state.commandliststack:
-        frame = _state.commandliststack[-1]
-        items.extend(frame.localvars.substitutions)
-        if frame.paramvals is not None:
-            items.extend(frame.paramvals.substitutions)
+    # Include ~local and #param variables from the current scope frame.
+    localvars = _state.current_localvars()
+    if localvars is not None:
+        items.extend(localvars.substitutions)
+    paramvals = _state.current_paramvals()
+    if paramvals is not None:
+        items.extend(paramvals.substitutions)
     if not items:
         _write("  (no substitution variables defined)\n\n")
         return
@@ -415,12 +416,15 @@ def _print_var(varname: str) -> None:
     value = subvars.varvalue(varname)
     if value is None and len(varname) > 1 and varname[0] in "$&@#~":
         value = subvars.varvalue(varname[1:])
-    # Check stack frame for ~local and #param variables.
-    if value is None and _state.commandliststack:
-        frame = _state.commandliststack[-1]
-        value = frame.localvars.varvalue(varname)
-        if value is None and frame.paramvals is not None:
-            value = frame.paramvals.varvalue(varname)
+    # Check current scope frame for ~local and #param variables.
+    if value is None:
+        localvars = _state.current_localvars()
+        if localvars is not None:
+            value = localvars.varvalue(varname)
+        if value is None:
+            paramvals = _state.current_paramvals()
+            if paramvals is not None:
+                value = paramvals.varvalue(varname)
     if value is None:
         _write(f"  {_c(_CYAN, varname)}: {_c(_DIM, '(undefined)')}\n")
     else:
@@ -540,8 +544,12 @@ def _set_var(varname: str, value: str) -> None:
     if subvars is None:
         _write("  Error: substitution variables are not initialised.\n")
         return
-    if varname.startswith("~") and _state.commandliststack:
-        _state.commandliststack[-1].localvars.add_substitution(varname, value)
+    if varname.startswith("~"):
+        localvars = _state.current_localvars()
+        if localvars is not None:
+            localvars.add_substitution(varname, value)
+        else:
+            subvars.add_substitution(varname, value)
     else:
         subvars.add_substitution(varname, value)
     _write(f"  {_c(_CYAN, varname)} {_c(_DIM, '=')} {value}\n")

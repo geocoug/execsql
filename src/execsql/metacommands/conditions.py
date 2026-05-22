@@ -257,9 +257,9 @@ def xf_sub_defined(**kwargs: Any) -> bool:
     if varname[0] not in ("~", "#"):
         subvarset = _state.subvars
     elif varname[0] == "~":
-        subvarset = _state.commandliststack[-1].localvars
+        subvarset = _state.current_localvars()
     else:
-        subvarset = _state.commandliststack[-1].paramvals
+        subvarset = _state.current_paramvals()
     return subvarset.sub_exists(varname) if subvarset else False
 
 
@@ -268,9 +268,9 @@ def xf_sub_empty(**kwargs: Any) -> bool:
     if varname[0] not in ("~", "#"):
         subvarset = _state.subvars
     elif varname[0] == "~":
-        subvarset = _state.commandliststack[-1].localvars
+        subvarset = _state.current_localvars()
     else:
-        subvarset = _state.commandliststack[-1].paramvals
+        subvarset = _state.current_paramvals()
     if not subvarset.sub_exists(varname):
         raise ErrInfo(
             type="cmd",

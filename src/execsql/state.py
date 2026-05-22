@@ -43,7 +43,14 @@ class ExecFrame:
     LOOP iterations, BATCH blocks, INCLUDE'd files, EXECUTE SCRIPT calls,
     plus the top-level ``<main>`` script) pushes one of these via try/finally
     so the debug REPL ``.stack`` command and ``DEBUG WRITE COMMANDLISTSTACK``
-    can show real execution context — not just SCRIPT call frames.
+    can show real execution context.
+
+    Frames with ``kind in ("main", "script")`` are **scope frames** — they
+    own a ``LocalSubVarSet`` (``localvars``) for ``~``-prefixed variables and
+    a ``ScriptArgSubVarSet`` (``paramvals``) for ``#``-prefixed parameters.
+    All other kinds (if/elseif/else/loop_*/batch/include) are non-scope and
+    cache a reference to their enclosing scope in ``scope_ref`` so that
+    ``current_localvars()`` lookups stay O(1) regardless of nesting depth.
 
     Attributes:
         kind: One of ``"main"`` / ``"script"`` / ``"include"`` / ``"if"`` /
@@ -55,7 +62,17 @@ class ExecFrame:
         line: Source line where the block opens, or ``None`` for ``main``.
         iteration: Current 1-based iteration count for LOOP frames; 0
             otherwise.
-        params: Bound parameter values for SCRIPT frames; ``None`` otherwise.
+        params: Bound parameter values for SCRIPT frames (display-only dict
+            of ``name -> str(value)``); ``None`` otherwise.
+        localvars: ``LocalSubVarSet`` for ``~`` variables; only populated for
+            ``main`` / ``script`` frames.
+        paramvals: ``ScriptArgSubVarSet`` for ``#`` script parameters; only
+            populated for ``script`` frames.
+        paramnames: Formal parameter names declared on BEGIN SCRIPT, used for
+            display purposes; only populated for ``script`` frames.
+        scope_ref: Cached pointer to the enclosing scope frame
+            (``main``/``script``) for non-scope frames; ``None`` for scope
+            frames themselves.
     """
 
     kind: str
@@ -64,6 +81,10 @@ class ExecFrame:
     line: int | None = None
     iteration: int = 0
     params: dict[str, str] | None = None
+    localvars: Any = None  # LocalSubVarSet — TYPE_CHECKING import would be circular
+    paramvals: Any = None  # ScriptArgSubVarSet
+    paramnames: list[str] | None = None
+    scope_ref: ExecFrame | None = None
 
 
 if TYPE_CHECKING:
@@ -361,6 +382,50 @@ class RuntimeContext:
         # SCRIPT call frames and is therefore insufficient for the debugger.
         self.ast_exec_stack: list[ExecFrame] = []
 
+    # -----------------------------------------------------------------
+    # Unified-stack scope accessors
+    # -----------------------------------------------------------------
+
+    def current_scope(self) -> ExecFrame | None:
+        """Return the innermost SCRIPT or ``<main>`` frame, or ``None`` if empty.
+
+        Non-scope frames (if/elseif/else/loop_*/batch/include) cache a
+        ``scope_ref`` to their enclosing scope at push time, so this lookup
+        is O(1) regardless of nesting depth.
+        """
+        if not self.ast_exec_stack:
+            return None
+        top = self.ast_exec_stack[-1]
+        if top.kind in ("main", "script"):
+            return top
+        return top.scope_ref
+
+    def current_localvars(self) -> Any:  # LocalSubVarSet | None
+        """Return the current scope's ``~`` variable container, or ``None``."""
+        scope = self.current_scope()
+        return scope.localvars if scope is not None else None
+
+    def current_paramvals(self) -> Any:  # ScriptArgSubVarSet | None
+        """Return the current SCRIPT frame's ``#`` parameter container.
+
+        Returns ``None`` when the current scope is ``<main>`` (parameters
+        only exist for named SCRIPT blocks).
+        """
+        scope = self.current_scope()
+        if scope is None or scope.kind != "script":
+            return None
+        return scope.paramvals
+
+    def outer_script_scopes(self) -> list[ExecFrame]:
+        """Return the list of enclosing scope frames excluding the innermost.
+
+        Used by ``utils/strings.get_subvarset`` for ``+``-prefixed outer-scope
+        variable lookup — the caller iterates this list in reverse order to
+        find the most recently entered outer scope that defines the variable.
+        """
+        scopes = [f for f in self.ast_exec_stack if f.kind in ("main", "script")]
+        return scopes[:-1]
+
 
 # ---------------------------------------------------------------------------
 # Module proxy — transparently delegates context attr access to _ctx
@@ -414,6 +479,26 @@ def xcmd_test(teststr: str) -> bool:
     if result is not None:
         return result
     raise _exc.ErrInfo(type="cmd", command_text=teststr, other_msg="Unrecognized conditional")
+
+
+def current_scope() -> ExecFrame | None:
+    """Module-level wrapper for :meth:`RuntimeContext.current_scope`."""
+    return _get_ctx().current_scope()
+
+
+def current_localvars() -> Any:
+    """Module-level wrapper for :meth:`RuntimeContext.current_localvars`."""
+    return _get_ctx().current_localvars()
+
+
+def current_paramvals() -> Any:
+    """Module-level wrapper for :meth:`RuntimeContext.current_paramvals`."""
+    return _get_ctx().current_paramvals()
+
+
+def outer_script_scopes() -> list[ExecFrame]:
+    """Module-level wrapper for :meth:`RuntimeContext.outer_script_scopes`."""
+    return _get_ctx().outer_script_scopes()
 
 
 def endloop() -> None:

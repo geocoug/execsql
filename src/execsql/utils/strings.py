@@ -250,11 +250,11 @@ def get_subvarset(varname: str, metacommandline: str) -> tuple:
     # Outer scope variable
     if varname[0] == "+":
         varname = re.sub("^[+]", "~", varname)
-        for cl in reversed(_state.commandliststack[0:-1]):
-            if cl.localvars.sub_exists(varname):
-                subvarset = cl.localvars
+        for frame in reversed(_state.outer_script_scopes()):
+            if frame.localvars is not None and frame.localvars.sub_exists(varname):
+                subvarset = frame.localvars
                 break
-        # Raise error if local variable not found anywhere down in commandliststack
+        # Raise error if local variable not found anywhere in the enclosing scopes
         if not subvarset:
             raise ErrInfo(
                 type="cmd",
@@ -266,5 +266,5 @@ def get_subvarset(varname: str, metacommandline: str) -> tuple:
             )
     # Global or local variable
     else:
-        subvarset = _state.subvars if varname[0] != "~" else _state.commandliststack[-1].localvars
+        subvarset = _state.subvars if varname[0] != "~" else _state.current_localvars()
     return subvarset, varname

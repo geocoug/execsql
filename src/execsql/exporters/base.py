@@ -147,8 +147,9 @@ class WriteSpec:
         if self.repeatable or not self.written:
             self.written = True
             msg = self.msg
-            if _state.commandliststack:
-                msg, _ = _state.commandliststack[-1].localvars.substitute_all(msg)
+            localvars = _state.current_localvars()
+            if localvars is not None:
+                msg, _ = localvars.substitute_all(msg)
             msg, _ = subvars.substitute_all(msg)
             if self.outfile:
                 from execsql.utils.fileio import EncodedFile

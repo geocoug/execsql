@@ -97,11 +97,14 @@ def _setup_state(*, gui_responses: dict | None = None, cancel_halt: bool = True)
     queue = _FakeManagerQueue(gui_responses or {})
     _state.gui_manager_queue = queue
 
-    # commandliststack: ensure top has localvars
-    top_cmd = MagicMock()
-    top_cmd.localvars = MagicMock()
-    top_cmd.localvars.sub_exists.return_value = False
+    # exec stack: ensure innermost scope frame has localvars
+    from execsql.state import ExecFrame
+
+    localvars = MagicMock()
+    localvars.sub_exists.return_value = False
+    top_cmd = ExecFrame(kind="script", localvars=localvars)
     _state.commandliststack = [top_cmd]
+    _state.ast_exec_stack = [top_cmd]
 
     _state.gui_console = None
     _state.gui_manager_thread = None

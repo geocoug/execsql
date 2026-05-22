@@ -63,7 +63,7 @@ from execsql.script.ast import (
 )
 from execsql.script.engine import CommandList, set_dynamic_system_vars, set_static_system_vars, substitute_vars
 from execsql.script.variables import SubVarSet
-from execsql.state import RuntimeContext, active_context, get_context, xcmd_test
+from execsql.state import ExecFrame, RuntimeContext, active_context, get_context, xcmd_test
 from execsql.utils.errors import exception_desc, exit_now, stamp_errinfo
 
 __all__ = ["execute"]
@@ -85,18 +85,21 @@ _VARLIKE = re.compile(r"!![$@&~#]?\w+!!", re.I)
 
 
 def _stack_localvars(ctx: RuntimeContext) -> SubVarSet | None:
-    """Build the merged local+param variable overlay from the current stack frame.
+    """Build the merged ``~`` local + ``#`` param overlay for the current scope.
 
-    Returns ``frame.localvars.merge(frame.paramvals)`` for the top frame on
-    ``ctx.commandliststack``, or ``None`` if the stack is empty.  This mirrors
-    the legacy ``CommandList.run_and_increment()`` pattern (line 517 of
-    engine.py) so that both ``substitute_vars`` and ``get_subvarset`` (used by
-    ``x_sub``, ``x_rm_sub``, etc.) operate on the same scope.
+    Returns ``localvars.merge(paramvals)`` for the innermost SCRIPT or
+    ``<main>`` scope frame, or ``None`` if the exec stack is empty.  This is
+    the canonical "current variable scope" used by ``substitute_vars`` and
+    ``get_subvarset`` so that ``x_sub``, ``x_rm_sub``, condition predicates,
+    and prompt handlers all see the same overlay.
     """
-    if ctx.commandliststack:
-        frame = ctx.commandliststack[-1]
-        return frame.localvars.merge(frame.paramvals)
-    return None
+    scope = ctx.current_scope()
+    if scope is None:
+        return None
+    localvars = scope.localvars
+    if localvars is None:
+        return None
+    return localvars.merge(scope.paramvals)
 
 
 def _push_frame(
@@ -106,26 +109,60 @@ def _push_frame(
     line_no: int = 0,
     *,
     paramnames: list[str] | None = None,
-) -> CommandList:
-    """Push a synthetic CommandList frame onto the command-list stack.
+    kind: str = "script",
+) -> ExecFrame:
+    """Push a scope frame onto the unified AST execution stack.
 
-    Creates a minimal frame with a sentinel :class:`ScriptCmd` so that
-    ``current_script_line()`` and ``get_subvarset()`` work correctly.
-    Returns the frame so the caller can set ``paramvals`` or pre-populate
-    ``localvars``.
+    Creates an :class:`ExecFrame` of ``kind`` ``"main"`` or ``"script"`` with a
+    fresh :class:`LocalSubVarSet` and the declared ``paramnames``.  Returns
+    the frame so the caller can set ``paramvals`` after parsing the call's
+    arguments.
+
+    During the legacy-engine elimination migration this also pushes a
+    matching legacy ``CommandList`` onto ``ctx.commandliststack`` so the
+    25 ``_state.commandliststack[-1].localvars`` reader sites keep working
+    until they are migrated to the new accessor API.  The legacy push
+    will be removed once all readers use ``_state.current_localvars()``.
     """
     from execsql.script.engine import MetacommandStmt, ScriptCmd
+    from execsql.script.variables import LocalSubVarSet
+    from execsql.state import ExecFrame
 
+    localvars = LocalSubVarSet()
+    frame = ExecFrame(
+        kind=kind,
+        label=name,
+        source=source,
+        line=line_no or None,
+        localvars=localvars,
+        paramnames=paramnames,
+    )
+    ctx.ast_exec_stack.append(frame)
+
+    # Legacy dual-write — remove in the Phase 4 cleanup
     sentinel = ScriptCmd(source, line_no, "cmd", MetacommandStmt(f"BEGIN SCRIPT {name}"))
-    frame = CommandList([sentinel], name, paramnames)
-    ctx.commandliststack.append(frame)
+    legacy = CommandList([sentinel], name, paramnames)
+    legacy.localvars = localvars  # share the same LocalSubVarSet object across both stacks
+    ctx.commandliststack.append(legacy)
     return frame
 
 
 def _pop_frame(ctx: RuntimeContext) -> None:
-    """Pop the top frame from the command-list stack."""
+    """Pop the top scope frame from both stacks (dual-write era)."""
+    if ctx.ast_exec_stack:
+        ctx.ast_exec_stack.pop()
     if ctx.commandliststack:
         ctx.commandliststack.pop()
+
+
+def _push_block_frame(ctx: RuntimeContext, frame: ExecFrame) -> None:
+    """Push a non-scope frame (if/loop/batch/include) onto the exec stack.
+
+    Caches a reference to the enclosing SCRIPT/main scope on the frame so
+    that ``current_localvars()`` stays O(1) regardless of nesting depth.
+    """
+    frame.scope_ref = ctx.current_scope()
+    ctx.ast_exec_stack.append(frame)
 
 
 def _convert_deferred_vars(text: str) -> str:
@@ -420,7 +457,8 @@ def _execute_if(
     from execsql.state import ExecFrame
 
     if _eval_condition(ctx, node.condition, node.condition_modifiers):
-        ctx.ast_exec_stack.append(
+        _push_block_frame(
+            ctx,
             ExecFrame(kind="if", label=node.condition, source=node.span.file, line=node.span.start_line),
         )
         try:
@@ -432,7 +470,8 @@ def _execute_if(
     # Try ELSEIF clauses
     for clause in node.elseif_clauses:
         if _eval_condition(ctx, clause.condition, clause.condition_modifiers):
-            ctx.ast_exec_stack.append(
+            _push_block_frame(
+                ctx,
                 ExecFrame(kind="elseif", label=clause.condition, source=node.span.file, line=node.span.start_line),
             )
             try:
@@ -443,7 +482,8 @@ def _execute_if(
 
     # ELSE branch
     if node.else_body:
-        ctx.ast_exec_stack.append(
+        _push_block_frame(
+            ctx,
             ExecFrame(kind="else", label="", source=node.span.file, line=node.span.start_line),
         )
         try:
@@ -465,7 +505,7 @@ def _execute_loop(
 
     kind = "loop_while" if node.loop_type == "WHILE" else "loop_until"
     frame = ExecFrame(kind=kind, label=node.condition, source=node.span.file, line=node.span.start_line, iteration=0)
-    ctx.ast_exec_stack.append(frame)
+    _push_block_frame(ctx, frame)
     try:
         if node.loop_type == "WHILE":
             while True:
@@ -504,7 +544,8 @@ def _execute_batch(
     from execsql.state import ExecFrame
 
     ctx.status.batch.new_batch()
-    ctx.ast_exec_stack.append(
+    _push_block_frame(
+        ctx,
         ExecFrame(kind="batch", label="", source=node.span.file, line=node.span.start_line),
     )
     try:
@@ -810,23 +851,15 @@ def _execute_script_native(
         script_block.span.file,
         script_block.span.start_line,
         paramnames=script_block.param_names,
+        kind="script",
     )
     if paramvals is not None:
         frame.paramvals = paramvals
-
-    from execsql.state import ExecFrame
-
-    params_dict: dict[str, str] | None = None
-    if paramvals is not None:
-        params_dict = dict(paramvals.substitutions)
-    exec_frame = ExecFrame(
-        kind="script",
-        label=script_block.name,
-        source=script_block.span.file,
-        line=script_block.span.start_line,
-        params=params_dict,
-    )
-    ctx.ast_exec_stack.append(exec_frame)
+        # Also keep the legacy CommandList in sync so any not-yet-migrated
+        # reader of commandliststack[-1].paramvals still sees the values.
+        if ctx.commandliststack:
+            ctx.commandliststack[-1].paramvals = paramvals
+        frame.params = dict(paramvals.substitutions)
 
     try:
 
@@ -846,14 +879,14 @@ def _execute_script_native(
                 expanded = substitute_vars(condition, effective_locals, ctx=ctx)
                 if not xcmd_test(expanded):
                     break
-                exec_frame.iteration += 1
+                frame.iteration += 1
                 try:
                     _run_body()
                 except _BreakLoop:
                     break
         elif node.loop_type == "UNTIL":
             while True:
-                exec_frame.iteration += 1
+                frame.iteration += 1
                 try:
                     _run_body()
                 except _BreakLoop:
@@ -865,7 +898,6 @@ def _execute_script_native(
         else:
             _run_body()
     finally:
-        ctx.ast_exec_stack.pop()
         _pop_frame(ctx)
 
 
@@ -932,7 +964,8 @@ def _execute_include_native(
     from execsql.state import ExecFrame
 
     ctx.include_chain.append(resolved)
-    ctx.ast_exec_stack.append(
+    _push_block_frame(
+        ctx,
         ExecFrame(kind="include", label=Path(resolved).name, source=resolved, line=1),
     )
     try:
@@ -1040,8 +1073,6 @@ def execute(script: Script, *, ctx: RuntimeContext | None = None) -> None:
     # handlers, database adapters, and other legacy code resolve against
     # it.  This gives full isolation without modifying 200+ handler
     # function signatures.
-    from execsql.state import ExecFrame
-
     with active_context(ctx):
         ctx.ast_scripts.clear()
         ctx.include_chain.clear()
@@ -1057,12 +1088,11 @@ def execute(script: Script, *, ctx: RuntimeContext | None = None) -> None:
         # The legacy engine registered scripts at parse time (two-pass);
         # the AST executor must do an explicit pre-scan.
         _pre_register_scripts(ctx, script.body)
-        # Push a root frame so commandliststack is never empty during AST
-        # execution.  This ensures get_subvarset(), current_script_line(),
-        # xf_sub_defined(), the REPL, and all other commandliststack readers
-        # work correctly even at the top level.
-        _push_frame(ctx, "<main>", script.source)
-        ctx.ast_exec_stack.append(ExecFrame(kind="main", label="<main>", source=script.source, line=1))
+        # Push a root <main> scope frame so the AST exec stack is never
+        # empty during execution.  This ensures get_subvarset(),
+        # current_script_line(), xf_sub_defined(), the REPL, and every
+        # variable-scoping reader works correctly even at the top level.
+        _push_frame(ctx, "<main>", script.source, line_no=1, kind="main")
         try:
             _execute_nodes(ctx, script.body, script.source)
         except _BreakLoop as exc:
@@ -1071,5 +1101,4 @@ def execute(script: Script, *, ctx: RuntimeContext | None = None) -> None:
                 other_msg="BREAK metacommand outside of a LOOP block.",
             ) from exc
         finally:
-            ctx.ast_exec_stack.pop()
             _pop_frame(ctx)

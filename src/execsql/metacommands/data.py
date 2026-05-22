@@ -70,7 +70,7 @@ def x_sub_empty(**kwargs: Any) -> None:
 
 def x_rm_sub(**kwargs: Any) -> None:
     varname = kwargs["match"]
-    subvarset = _state.subvars if varname[0] != "~" else _state.commandliststack[-1].localvars
+    subvarset = _state.subvars if varname[0] != "~" else _state.current_localvars()
     subvarset.remove_substitution(varname)
     return None
 
@@ -79,7 +79,7 @@ def x_sub_local(**kwargs: Any) -> None:
     varname = kwargs["match"]
     if varname[0] != "~":
         varname = "~" + varname
-    _state.commandliststack[-1].localvars.add_substitution(varname, kwargs["repl"])
+    _state.current_localvars().add_substitution(varname, kwargs["repl"])
     return None
 
 
