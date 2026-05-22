@@ -313,13 +313,11 @@ def _flush_filewriter() -> None:
 @pytest.fixture(autouse=True)
 def _reset_execsql_state():
     yield
-    _state.commandliststack.clear()
-    _state.loopcommandstack.clear()
-    _state.compiling_loop = False
-    _state.loop_nest_level = 0
+    _state.ast_exec_stack.clear()
+    _state.ast_scripts.clear()
+    _state.include_chain.clear()
     _state.cmds_run = 0
     _state.subvars = None
-    _state.if_stack = None
     _state.counters = None
     _state.timer = None
     _state.output = None

@@ -252,11 +252,7 @@ class TestXCd:
         from execsql.metacommands.io import x_cd
 
         _setup_exec_log()
-        mock_cl = MagicMock()
-        mock_cl.current_command.return_value = SimpleNamespace(
-            current_script_line=lambda: ("test.sql", 1),
-        )
-        _state.commandliststack = [mock_cl]
+        _state.last_command = SimpleNamespace(source="test.sql", line_no=1)
 
         original_dir = os.getcwd()
         try:

@@ -450,7 +450,7 @@ class TestHandleDotCommand:
         assert "test.sql" in capture.getvalue()
 
     def test_stack(self, capture):
-        _state.commandliststack = []
+        _state.ast_exec_stack = []
         with patch("execsql.debug.repl._use_color", return_value=False):
             _handle_dot_command(".stack")
         assert "empty" in capture.getvalue()

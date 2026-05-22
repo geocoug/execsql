@@ -103,7 +103,6 @@ def _setup_state(*, gui_responses: dict | None = None, cancel_halt: bool = True)
     localvars = MagicMock()
     localvars.sub_exists.return_value = False
     top_cmd = ExecFrame(kind="script", localvars=localvars)
-    _state.commandliststack = [top_cmd]
     _state.ast_exec_stack = [top_cmd]
 
     _state.gui_console = None

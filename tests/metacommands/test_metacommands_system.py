@@ -173,10 +173,7 @@ class TestXSystemCmd:
 
         _setup_exec_log()
         mock_sv = _setup_subvars()
-        _state.commandliststack = [MagicMock()]
-        _state.commandliststack[-1].current_command.return_value = SimpleNamespace(
-            current_script_line=lambda: ("test.sql", 1),
-        )
+        _state.last_command = SimpleNamespace(source="test.sql", line_no=1)
 
         mock_result = SimpleNamespace(returncode=0)
         with (
@@ -193,10 +190,7 @@ class TestXSystemCmd:
 
         _setup_exec_log()
         _setup_subvars()
-        _state.commandliststack = [MagicMock()]
-        _state.commandliststack[-1].current_command.return_value = SimpleNamespace(
-            current_script_line=lambda: ("test.sql", 2),
-        )
+        _state.last_command = SimpleNamespace(source="test.sql", line_no=2)
 
         with (
             patch("execsql.metacommands.system.subprocess.Popen") as mock_popen,
@@ -211,10 +205,7 @@ class TestXSystemCmd:
 
         _setup_exec_log()
         mock_sv = _setup_subvars()
-        _state.commandliststack = [MagicMock()]
-        _state.commandliststack[-1].current_command.return_value = SimpleNamespace(
-            current_script_line=lambda: ("test.sql", 10),
-        )
+        _state.last_command = SimpleNamespace(source="test.sql", line_no=10)
 
         fake_proc = MagicMock()
         fake_proc.pid = 54321
@@ -232,10 +223,7 @@ class TestXSystemCmd:
 
         _setup_exec_log()
         mock_sv = _setup_subvars()
-        _state.commandliststack = [MagicMock()]
-        _state.commandliststack[-1].current_command.return_value = SimpleNamespace(
-            current_script_line=lambda: ("test.sql", 11),
-        )
+        _state.last_command = SimpleNamespace(source="test.sql", line_no=11)
 
         fake_proc = MagicMock()
         fake_proc.pid = 99
@@ -257,10 +245,7 @@ class TestXSystemCmd:
 
         _setup_exec_log()
         mock_sv = _setup_subvars()
-        _state.commandliststack = [MagicMock()]
-        _state.commandliststack[-1].current_command.return_value = SimpleNamespace(
-            current_script_line=lambda: ("test.sql", 12),
-        )
+        _state.last_command = SimpleNamespace(source="test.sql", line_no=12)
 
         mock_result = SimpleNamespace(returncode=0)
         with (
@@ -278,10 +263,7 @@ class TestXSystemCmd:
 
         _setup_exec_log()
         mock_sv = _setup_subvars()
-        _state.commandliststack = [MagicMock()]
-        _state.commandliststack[-1].current_command.return_value = SimpleNamespace(
-            current_script_line=lambda: ("test.sql", 3),
-        )
+        _state.last_command = SimpleNamespace(source="test.sql", line_no=3)
 
         mock_result = SimpleNamespace(returncode=1)
         with (

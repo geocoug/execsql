@@ -116,7 +116,7 @@ Use `--parse-tree` to print the AST without executing.
 
 ### RuntimeContext
 
-`RuntimeContext` (in `state.py`) holds the per-run mutable state. `execute()` accepts an explicit `ctx`; the `active_context()` context manager installs one as the active thread-local so metacommand handlers and database adapters resolve against it automatically. Each thread gets its own context via `threading.local()`, enabling concurrent `execsql.run()` calls. The context carries AST-specific state alongside the legacy frame/stack fields: `ast_scripts` (script block registry), `include_chain` (circular include detection), and the still-used `commandliststack` (synthetic frames the executor pushes for `current_script_line()` error reporting).
+`RuntimeContext` (in `state.py`) holds the per-run mutable state. `execute()` accepts an explicit `ctx`; the `active_context()` context manager installs one as the active thread-local so metacommand handlers and database adapters resolve against it automatically. Each thread gets its own context via `threading.local()`, enabling concurrent `execsql.run()` calls. The context carries the AST script registry (`ast_scripts`), the include cycle detector (`include_chain`), and the unified execution stack (`ast_exec_stack`) — a list of `ExecFrame` records describing every active scope, IF/LOOP/BATCH block, and INCLUDE'd file. Scope frames (`kind="main"` / `kind="script"`) hold the active `localvars` and `paramvals`; block frames cache a `scope_ref` to the enclosing scope for O(1) variable lookup. `current_script_line()` reads `ctx.last_command`, which the executor updates per statement.
 
 ______________________________________________________________________
 
@@ -154,11 +154,13 @@ ______________________________________________________________________
 
 ## Conditional Expressions
 
-The `IF`/`ELSEIF`/`ELSE`/`ENDIF` metacommands control conditional execution via a stack-based model.
+The `IF`/`ELSEIF`/`ELSE`/`ENDIF` metacommands control conditional execution structurally — they are parsed into `IfBlock` AST nodes by `script/parser.py` and dispatched by `_execute_if()` in `script/executor.py`.
 
-### The IF stack
+### How IF blocks execute
 
-`_state.if_stack` is an `IfLevels` instance (defined in `script/control.py`) that tracks nested conditional blocks. Each level records whether its condition is true or false. The engine checks `_state.if_stack.all_true()` before executing any command -- commands are skipped when the condition is false, unless the metacommand has `run_when_false=True` (which is set for `ELSE`, `ELSEIF`, and `ENDIF` so they can manipulate the stack itself).
+`_execute_if()` evaluates the IF condition (and any ANDIF/ORIF modifiers) via `CondParser`, then walks the chosen branch (the IF body, one of the ELSEIF clauses, or the ELSE body). For tracking and REPL introspection it pushes a non-scope `ExecFrame` (`kind="if"`/`"elseif"`/`"else"`) onto `ctx.ast_exec_stack` whose `scope_ref` points at the enclosing SCRIPT/main scope; the frame is popped when the branch finishes.
+
+Because branching is structural, the legacy `_state.if_stack` / `IfLevels` machinery and the `run_when_false` flag on metacommand handlers are no longer in use; the dispatch handlers for `IF` / `ELSEIF` / `ELSE` / `ENDIF` / `ANDIF` / `ORIF` / `BREAK` / `BEGIN BATCH` / `END BATCH` remain registered as `ErrInfo` stubs so a parser regression that bypassed the AST would fail loudly instead of silently.
 
 ### CondParser
 
@@ -187,8 +189,8 @@ ______________________________________________________________________
 ### Scoping classes
 
 - **`SubVarSet`** — global scope, shared across all scripts.
-- **`LocalSubVarSet`** — per-`CommandList` overlay for `~`-prefixed variables; pushed and popped with the command stack.
-- **`ScriptArgSubVarSet`** — per-script `#`-prefixed arguments set by `EXECUTE SCRIPT`.
+- **`LocalSubVarSet`** — per-`ExecFrame` overlay for `~`-prefixed variables; lives on the active SCRIPT/main scope frame and is freed when the frame is popped. Retrieved via `_state.current_localvars()`.
+- **`ScriptArgSubVarSet`** — per-script `#`-prefixed arguments set by `EXECUTE SCRIPT`; lives on the SCRIPT-kind `ExecFrame`. Retrieved via `_state.current_paramvals()`.
 - **`CounterVars`** — auto-incrementing `$COUNTER_N` variables on `_state.counters`.
 
 ______________________________________________________________________
@@ -276,24 +278,24 @@ import execsql.state as _state
 
 This import pattern (always as `_state`, always accessed inside function/method bodies) avoids circular imports at load time. The module stores all mutable state in a `threading.local()` instance, so each thread gets its own isolated `RuntimeContext`. The module provides two management functions:
 
-- **`initialize(config, dispatch_table, conditional_table)`** -- Called once from `_run()` to create runtime singletons (`DatabasePool`, `IfLevels`, `CounterVars`, etc.).
+- **`initialize(config, dispatch_table, conditional_table)`** -- Called once from `_run()` to create runtime singletons (`DatabasePool`, `CounterVars`, `BatchLevels`, etc.).
 - **`reset()`** -- Tears down all state for test isolation.
 
 ### Key state variables
 
-| Variable           | Type                     | Purpose                               |
-| ------------------ | ------------------------ | ------------------------------------- |
-| `conf`             | `ConfigData`             | Merged configuration                  |
-| `subvars`          | `SubVarSet`              | Global substitution variables         |
-| `commandliststack` | `list[CommandList]`      | The execution stack                   |
-| `savedscripts`     | `dict[str, CommandList]` | Named scripts from `BEGIN/END SCRIPT` |
-| `dbs`              | `DatabasePool`           | Open database connections             |
-| `metacommandlist`  | `MetaCommandList`        | Metacommand dispatch table            |
-| `conditionallist`  | `MetaCommandList`        | Conditional predicate dispatch table  |
-| `if_stack`         | `IfLevels`               | Nested IF/ELSE condition state        |
-| `counters`         | `CounterVars`            | Auto-incrementing counters            |
-| `filewriter`       | `FileWriter`             | Background file-writing process       |
-| `exec_log`         | `Logger`                 | Execution log                         |
+| Variable          | Type                     | Purpose                                                          |
+| ----------------- | ------------------------ | ---------------------------------------------------------------- |
+| `conf`            | `ConfigData`             | Merged configuration                                             |
+| `subvars`         | `SubVarSet`              | Global substitution variables                                    |
+| `ast_exec_stack`  | `list[ExecFrame]`        | Unified execution stack (scopes + IF/LOOP/BATCH/INCLUDE)         |
+| `ast_scripts`     | `dict[str, ScriptBlock]` | Named scripts from `BEGIN/END SCRIPT` (AST registry)             |
+| `last_command`    | `ScriptCmd \| None`      | Most-recently-executed statement; powers `current_script_line()` |
+| `dbs`             | `DatabasePool`           | Open database connections                                        |
+| `metacommandlist` | `MetaCommandList`        | Metacommand dispatch table                                       |
+| `conditionallist` | `MetaCommandList`        | Conditional predicate dispatch table                             |
+| `counters`        | `CounterVars`            | Auto-incrementing counters                                       |
+| `filewriter`      | `FileWriter`             | Background file-writing process                                  |
+| `exec_log`        | `Logger`                 | Execution log                                                    |
 
 ______________________________________________________________________
 

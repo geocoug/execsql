@@ -35,13 +35,11 @@ def _setup_exec_log():
 
 def _setup_commandliststack():
     """Set up a commandliststack with a localvars for SUB LOCAL tests."""
+    from execsql.state import ExecFrame
+
     local_sv = SubVarSet()
-    mock_cl = MagicMock()
-    mock_cl.localvars = local_sv
-    mock_cl.current_command.return_value = SimpleNamespace(
-        current_script_line=lambda: ("test.sql", 1),
-    )
-    _state.commandliststack = [mock_cl]
+    _state.ast_exec_stack = [ExecFrame(kind="script", label="test", localvars=local_sv)]
+    _state.last_command = SimpleNamespace(source="test.sql", line_no=1)
     return local_sv
 
 
@@ -398,18 +396,14 @@ class TestXSelectsubExtended:
         return mock_db
 
     def _setup_base_state(self):
+        from execsql.state import ExecFrame
+
         sv = SubVarSet()
         _state.subvars = sv
         mock_log = MagicMock()
         _state.exec_log = mock_log
-        # Commandlist whose current_command() returns None so current_script_line
-        # falls back to (listname, len) — gives a valid 2-tuple without extra mocking.
-        mock_cl = MagicMock()
-        mock_cl.listname = "test_list"
-        mock_cl.cmdlist = []
-        mock_cl.current_command.return_value = None
-        mock_cl.localvars = SubVarSet()
-        _state.commandliststack = [mock_cl]
+        _state.ast_exec_stack = [ExecFrame(kind="script", label="test_list", localvars=SubVarSet())]
+        _state.last_command = SimpleNamespace(source="test.sql", line_no=1)
         return sv, mock_log
 
     def test_selectsub_non_errinfo_db_exception_wraps_as_errinfo(self, minimal_conf):
@@ -509,12 +503,10 @@ class TestXPromptSelectsub:
         _state.exec_log = MagicMock()
         _state.status = MagicMock()
         _state.status.cancel_halt = False
-        mock_cl = MagicMock()
-        mock_cl.listname = "test_list"
-        mock_cl.cmdlist = []
-        mock_cl.current_command.return_value = None
-        mock_cl.localvars = SubVarSet()
-        _state.commandliststack = [mock_cl]
+        from execsql.state import ExecFrame
+
+        _state.ast_exec_stack = [ExecFrame(kind="script", label="test_list", localvars=SubVarSet())]
+        _state.last_command = SimpleNamespace(source="test.sql", line_no=1)
         return sv
 
     def _setup_db(self, sq_name, hdrs, rows):

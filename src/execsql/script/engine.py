@@ -2,12 +2,11 @@ from __future__ import annotations
 
 """Script execution engine for execsql.
 
-Holds the metacommand dispatch primitives, the statement / command-list
-data types that the AST executor pushes onto ``ctx.commandliststack``
-for frame tracking, and the substitution-variable helpers shared by the
-parser and executor. Script parsing and tree-walking live in
-:mod:`execsql.script.parser` and :mod:`execsql.script.executor`
-respectively.
+Holds the metacommand dispatch primitives, the statement data types
+consumed by the AST executor, and the substitution-variable helpers
+shared by the parser and executor. Script parsing and tree-walking
+live in :mod:`execsql.script.parser` and
+:mod:`execsql.script.executor` respectively.
 
 Classes:
 - :class:`MetaCommand` — one entry in the metacommand dispatch table.
@@ -15,7 +14,6 @@ Classes:
 - :class:`SqlStmt` — wraps a single SQL string for execution.
 - :class:`MetacommandStmt` — wraps a metacommand line for dispatch.
 - :class:`ScriptCmd` — pairs a statement with its source-file location.
-- :class:`CommandList` — ordered list of :class:`ScriptCmd` objects with a forward-only cursor.
 - :class:`ScriptExecSpec` — specification for deferred script execution.
 
 Functions:
@@ -34,7 +32,7 @@ from typing import Any
 
 import execsql.state as _state
 from execsql.exceptions import ErrInfo
-from execsql.script.variables import LocalSubVarSet, SubVarSet
+from execsql.script.variables import SubVarSet
 from execsql.utils.errors import exception_desc
 
 __all__ = [
@@ -43,7 +41,6 @@ __all__ = [
     "SqlStmt",
     "MetacommandStmt",
     "ScriptCmd",
-    "CommandList",
     "ScriptExecSpec",
     "set_system_vars",
     "substitute_vars",
@@ -236,10 +233,9 @@ class MetaCommandList:
         run, ``(False, None)`` if no command matched.
         """
         for cmd in self._candidates(cmd_str):
-            if _state.if_stack.all_true() or cmd.run_when_false:
-                success, value = cmd.run(cmd_str)
-                if success:
-                    return True, value
+            success, value = cmd.run(cmd_str)
+            if success:
+                return True, value
         return False, None
 
     def get_match(self, cmd: str) -> tuple | None:
@@ -260,56 +256,18 @@ class MetaCommandList:
 
 
 class SqlStmt:
-    """A single SQL statement ready to be executed against the active database."""
+    """A single SQL statement ready to be executed against the active database.
 
-    # A SQL statement to be passed to a database to execute.
+    Data class only — the legacy ``.run()`` method was removed when the AST
+    executor became the sole engine.  SQL execution now goes through
+    :func:`execsql.script.executor._exec_sql`.
+    """
+
     def __init__(self, sql_statement: str) -> None:
         self.statement = re.sub(r"\s*;(\s*;\s*)+$", ";", sql_statement)
 
     def __repr__(self) -> str:
         return f"SqlStmt({self.statement})"
-
-    def run(self, localvars: SubVarSet | None = None, commit: bool = True) -> None:
-        """Execute the statement on the current database, committing unless in a batch."""
-        # Run the SQL statement on the current database.
-        if _state.if_stack.all_true():
-            e = None
-            _state.status.sql_error = False
-            cmd = substitute_vars(self.statement, localvars)
-            if _state.varlike.search(cmd):
-                _state.output.write(
-                    f"Warning: There is a potential un-substituted variable in the command\n     {cmd}\n",
-                )
-            try:
-                db = _state.dbs.current()
-                if _state.conf.log_sql and _state.exec_log:
-                    lno = getattr(_state, "last_command", None)
-                    lno = lno.line_no if lno and hasattr(lno, "line_no") else None
-                    _state.exec_log.log_sql_query(cmd, db.name(), lno)
-                db.execute(cmd)
-                if commit:
-                    db.commit()
-            except ErrInfo as errinfo:
-                e = errinfo
-            except SystemExit:
-                raise
-            except Exception:
-                e = ErrInfo(type="exception", exception_msg=exception_desc())
-            if e:
-                from execsql.utils.errors import stamp_errinfo
-
-                stamp_errinfo(e)
-                _state.subvars.add_substitution("$LAST_ERROR", cmd)
-                _state.subvars.add_substitution("$ERROR_MESSAGE", e.errmsg())
-                _state.status.sql_error = True
-                if _state.exec_log is not None:
-                    _state.exec_log.log_status_info(f"SQL error: {e.errmsg()}")
-                if _state.status.halt_on_err:
-                    from execsql.utils.errors import exit_now
-
-                    exit_now(1, e)
-                return
-            _state.subvars.add_substitution("$LAST_SQL", cmd)
 
     def commandline(self) -> str:
         """Return the raw SQL statement text."""
@@ -317,51 +275,18 @@ class SqlStmt:
 
 
 class MetacommandStmt:
-    """A single execsql metacommand line ready to be dispatched."""
+    """A single execsql metacommand line.
 
-    # A metacommand to be handled by execsql.
+    Data class only — the legacy ``.run()`` method was removed when the AST
+    executor became the sole engine.  Metacommand dispatch now goes through
+    :func:`execsql.script.executor._exec_metacommand`.
+    """
+
     def __init__(self, metacommand_statement: str) -> None:
         self.statement = metacommand_statement
 
     def __repr__(self) -> str:
         return f"MetacommandStmt({self.statement})"
-
-    def run(self, localvars: SubVarSet | None = None, commit: bool = False) -> Any:
-        """Expand substitution variables then dispatch through the metacommand table."""
-        # Tries all metacommands in the dispatch table until one runs.
-        errmsg = "Unknown metacommand"
-        cmd = substitute_vars(self.statement, localvars)
-        if _state.if_stack.all_true() and _state.varlike.search(cmd):
-            _state.output.write(f"Warning: There is a potential un-substituted variable in the command\n     {cmd}\n")
-        e = None
-        try:
-            applies, result = _state.metacommandlist.eval(cmd)
-            if applies:
-                return result
-        except ErrInfo as errinfo:
-            e = errinfo
-        except SystemExit:
-            raise
-        except Exception:
-            e = ErrInfo(type="exception", exception_msg=exception_desc())
-        if e:
-            from execsql.utils.errors import stamp_errinfo
-
-            stamp_errinfo(e)
-            _state.status.metacommand_error = True
-            _state.subvars.add_substitution("$LAST_ERROR", cmd)
-            _state.subvars.add_substitution("$ERROR_MESSAGE", e.errmsg())
-            if _state.exec_log is not None:
-                _state.exec_log.log_status_info(f"Metacommand error: {e.errmsg()}")
-            if _state.status.halt_on_metacommand_err:
-                # Re-raise the original ErrInfo so its message is preserved, not
-                # replaced with the generic "Unknown metacommand" text.
-                raise e
-        if _state.if_stack.all_true():
-            # but nothing applies, because we got here.
-            _state.status.metacommand_error = True
-            raise ErrInfo(type="cmd", command_text=cmd, other_msg=errmsg)
-        return None
 
     def commandline(self) -> str:
         """Return the metacommand line in its canonical ``-- !x! ...`` form."""
@@ -409,145 +334,6 @@ class ScriptCmd:
 
 
 # ---------------------------------------------------------------------------
-# CommandList / CommandListWhileLoop / CommandListUntilLoop
-# ---------------------------------------------------------------------------
-
-
-class CommandList:
-    """Ordered sequence of :class:`ScriptCmd` objects with a forward-only execution cursor.
-
-    Push onto ``_state.commandliststack`` and call :meth:`run_next` in a loop
-    (or let :func:`runscripts` drive it) to execute each command in turn.
-    """
-
-    # A list of ScriptCmd objects including execution state.
-    def __init__(
-        self,
-        cmdlist: list[ScriptCmd],
-        listname: str,
-        paramnames: list[str] | None = None,
-    ) -> None:
-        if cmdlist is None:
-            raise ErrInfo("error", other_msg="Initiating a command list without any commands.")
-        self.listname = listname
-        self.cmdlist = cmdlist
-        self.cmdptr = 0
-        self.paramnames = paramnames
-        self.paramvals: SubVarSet | None = None
-        self.localvars = LocalSubVarSet()
-        self.init_if_level: int | None = None
-
-    def add(self, script_command: ScriptCmd) -> None:
-        """Append *script_command* to the end of this command list."""
-        self.cmdlist.append(script_command)
-
-    def set_paramvals(self, paramvals: SubVarSet) -> None:
-        self.paramvals = paramvals
-        if self.paramnames is not None:
-            passed_paramnames = [p[0].lstrip("#") for p in paramvals.substitutions]
-            if not all(p in passed_paramnames for p in self.paramnames):
-                raise ErrInfo(
-                    "error",
-                    other_msg=f"Formal and actual parameter name mismatch in call to {self.listname}.",
-                )
-
-    def current_command(self) -> ScriptCmd | None:
-        """Return the :class:`ScriptCmd` at the current cursor position, or ``None`` if exhausted."""
-        if self.cmdptr > len(self.cmdlist) - 1:
-            return None
-        return self.cmdlist[self.cmdptr]
-
-    def check_iflevels(self) -> None:
-        """Warn if the IF-stack depth changed during execution of this command list."""
-        if_excess = len(_state.if_stack.if_levels) - self.init_if_level
-        if if_excess > 0:
-            sources = _state.if_stack.script_lines(if_excess)
-            src_msg = ", ".join([f"{src[0]} line {src[1]}" for src in sources])
-            from execsql.utils.errors import write_warning
-
-            write_warning(f"IF level mismatch at beginning and end of script; origin at or after: {src_msg}.")
-
-    def run_and_increment(self) -> None:
-        cmditem = self.cmdlist[self.cmdptr]
-        if _state.compiling_loop:
-            # Don't run this command, but save it or complete the loop.
-            if cmditem.command_type == "cmd" and _state.loop_rx.match(cmditem.command.statement):
-                _state.loop_nest_level += 1
-                # Substitute any deferred substitution variables with regular substitution var flags.
-                m = _state.defer_rx.findall(cmditem.command.statement)
-                if m is not None:
-                    for dv in m:
-                        rep = "!!" + dv[1] + "!!"
-                        cmditem.command.statement = cmditem.command.statement.replace(dv[0], rep)
-                _state.loopcommandstack[-1].add(cmditem)
-            elif cmditem.command_type == "cmd" and _state.endloop_rx.match(cmditem.command.statement):
-                if _state.loop_nest_level == 0:
-                    _state.endloop()
-                else:
-                    _state.loop_nest_level -= 1
-                    _state.loopcommandstack[-1].add(cmditem)
-            else:
-                _state.loopcommandstack[-1].add(cmditem)
-        else:
-            _state.last_command = cmditem
-            if cmditem.command_type == "sql" and _state.status.batch.in_batch():
-                _state.status.batch.using_db(_state.dbs.current())
-            _state.subvars.add_substitution("$CURRENT_TIME", datetime.datetime.now().strftime("%Y-%m-%d %H:%M"))
-            utcnow = datetime.datetime.now(tz=datetime.timezone.utc)
-            _state.subvars.add_substitution("$CURRENT_TIME_UTC", utcnow.strftime("%Y-%m-%d %H:%M"))
-            _state.subvars.add_substitution("$CURRENT_SCRIPT", cmditem.source)
-            _state.subvars.add_substitution(
-                "$CURRENT_SCRIPT_PATH",
-                cmditem.source_dir,
-            )
-            _state.subvars.add_substitution("$CURRENT_SCRIPT_NAME", cmditem.source_name)
-            _state.subvars.add_substitution("$CURRENT_SCRIPT_LINE", str(cmditem.line_no))
-            _state.subvars.add_substitution("$SCRIPT_LINE", str(cmditem.line_no))
-            if _state.step_mode:
-                _state.step_mode = False
-                from execsql.debug.repl import _debug_repl
-
-                _debug_repl(step=True)
-            _profiling = _state.profile_data is not None
-            if _profiling:
-                import time as _time
-
-                _t0 = _time.perf_counter()
-            cmditem.command.run(self.localvars.merge(self.paramvals), not _state.status.batch.in_batch())
-            if _profiling:
-                _elapsed = _time.perf_counter() - _t0
-                _state.profile_data.append(
-                    (
-                        cmditem.source,
-                        cmditem.line_no,
-                        cmditem.command_type,
-                        _elapsed,
-                        cmditem.command.commandline()[:100],
-                    ),
-                )
-        self.cmdptr += 1
-
-    def run_next(self) -> None:
-        """Execute the command at the current cursor and advance; raise StopIteration when done."""
-        if self.cmdptr == 0:
-            self.init_if_level = len(_state.if_stack.if_levels)
-        if self.cmdptr > len(self.cmdlist) - 1:
-            self.check_iflevels()
-            raise StopIteration
-        self.run_and_increment()
-
-    def __iter__(self) -> Any:
-        return self
-
-    def __next__(self) -> ScriptCmd:
-        if self.cmdptr > len(self.cmdlist) - 1:
-            raise StopIteration
-        scriptcmd = self.cmdlist[self.cmdptr]
-        self.cmdptr += 1
-        return scriptcmd
-
-
-# ---------------------------------------------------------------------------
 # ScriptExecSpec
 # ---------------------------------------------------------------------------
 
@@ -563,7 +349,7 @@ class ScriptExecSpec:
 
     def __init__(self, **kwargs: Any) -> None:
         self.script_id = kwargs["script_id"].lower()
-        if self.script_id not in _state.savedscripts:
+        if self.script_id not in _state.ast_scripts:
             raise ErrInfo("cmd", other_msg=f"There is no SCRIPT named {self.script_id}.")
         self.arg_exp = kwargs["argexp"]
         self.looptype = kwargs["looptype"].upper() if "looptype" in kwargs and kwargs["looptype"] is not None else None
@@ -639,7 +425,7 @@ def set_dynamic_system_vars(ctx: Any = None) -> None:
     _s.subvars.add_substitution("$CONSOLE_WAIT_WHEN_DONE_STATE", "ON" if _s.conf.gui_wait_on_exit else "OFF")
     db = _s.dbs.current()
     _s.subvars.add_substitution("$AUTOCOMMIT_STATE", "ON" if db.autocommit else "OFF")
-    # $CURRENT_TIME is set per-statement in run_and_increment() for accuracy.
+    # $CURRENT_TIME is set per-statement in executor._set_command_vars() for accuracy.
     _s.subvars.add_substitution("$TIMER", str(datetime.timedelta(seconds=_s.timer.elapsed())))
     _s.subvars.clear_lazy_cache()
 
@@ -699,12 +485,13 @@ def substitute_vars(command_str: str, localvars: SubVarSet | None = None, ctx: A
 
 
 def current_script_line() -> tuple:
-    """Return ``(source_name, line_number)`` for the command currently executing."""
-    if len(_state.commandliststack) > 0:
-        current_cmds = _state.commandliststack[-1]
-        if current_cmds.current_command() is not None:
-            return current_cmds.current_command().current_script_line()
-        else:
-            return (f"script '{current_cmds.listname}'", len(current_cmds.cmdlist))
-    else:
+    """Return ``(source_name, line_number)`` for the command currently executing.
+
+    Reads from ``_state.last_command``, which the AST executor updates on
+    every statement via the ``_FakeScriptCmd`` shim.  Returns ``("", 0)``
+    when nothing has executed yet (e.g. during early initialization errors).
+    """
+    last = getattr(_state, "last_command", None)
+    if last is None:
         return ("", 0)
+    return (getattr(last, "source", ""), getattr(last, "line_no", 0))

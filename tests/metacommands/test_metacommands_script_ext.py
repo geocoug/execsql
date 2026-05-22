@@ -1,18 +1,25 @@
 """Unit tests for execsql metacommand handlers in metacommands/script_ext.py.
 
-Tests the handler functions directly with appropriate state mocking.
+Tests the AST-backed handler functions directly. EXTEND SCRIPT operates on
+``_state.ast_scripts`` (the registry of :class:`ScriptBlock` AST nodes),
+not the legacy ``CommandList`` data structure.
 """
 
 from __future__ import annotations
 
-from types import SimpleNamespace
-from unittest.mock import MagicMock
+from unittest.mock import patch
 
 import pytest
 
 import execsql.state as _state
 from execsql.exceptions import ErrInfo
-from execsql.script import CommandList, ScriptCmd, MetacommandStmt, SqlStmt
+from execsql.script.ast import (
+    MetaCommandStatement,
+    ParamDef,
+    ScriptBlock,
+    SourceSpan,
+    SqlStatement,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -20,19 +27,24 @@ from execsql.script import CommandList, ScriptCmd, MetacommandStmt, SqlStmt
 # ---------------------------------------------------------------------------
 
 
-def _make_script_cmd(line: str, cmd_type: str = "cmd") -> ScriptCmd:
-    """Create a ScriptCmd for testing."""
-    if cmd_type == "cmd":
-        return ScriptCmd("test.sql", 1, "cmd", MetacommandStmt(line))
-    else:
-        return ScriptCmd("test.sql", 1, "sql", SqlStmt(line))
+def _span(line: int = 1) -> SourceSpan:
+    return SourceSpan(file="test.sql", start_line=line, end_line=line)
 
 
-def _make_commandlist(name: str, cmds: list[ScriptCmd] | None = None) -> CommandList:
-    """Create a CommandList with at least one dummy command."""
-    if cmds is None:
-        cmds = [_make_script_cmd("LOG test")]
-    return CommandList(cmds, name)
+def _meta(text: str, line: int = 1) -> MetaCommandStatement:
+    return MetaCommandStatement(span=_span(line), command=text)
+
+
+def _sql(text: str, line: int = 1) -> SqlStatement:
+    return SqlStatement(span=_span(line), text=text)
+
+
+def _make_script(name: str, body: list | None = None, params: list[str] | None = None) -> ScriptBlock:
+    """Register a fresh ScriptBlock in ``_state.ast_scripts``."""
+    param_defs = [ParamDef(name=p, default=None) for p in params] if params else None
+    block = ScriptBlock(span=_span(), name=name, param_defs=param_defs, body=list(body) if body else [])
+    _state.ast_scripts[name] = block
+    return block
 
 
 # ---------------------------------------------------------------------------
@@ -43,69 +55,55 @@ def _make_commandlist(name: str, cmds: list[ScriptCmd] | None = None) -> Command
 class TestXExtendScript:
     """Tests for the EXTEND SCRIPT metacommand handler."""
 
+    def setup_method(self):
+        _state.ast_scripts = {}
+
+    def teardown_method(self):
+        _state.ast_scripts = {}
+
     def test_extend_script_appends_commands(self, minimal_conf):
         from execsql.metacommands.script_ext import x_extendscript
 
-        cmd1 = _make_script_cmd("LOG msg1")
-        cmd2 = _make_script_cmd("LOG msg2")
-        s1 = _make_commandlist("source", [cmd1])
-        s2 = _make_commandlist("target", [cmd2])
-        _state.savedscripts["source"] = s1
-        _state.savedscripts["target"] = s2
+        _make_script("source", [_meta("LOG msg1")])
+        target = _make_script("target", [_meta("LOG msg2")])
 
         x_extendscript(script1="source", script2="target")
 
-        # target should now have cmd2 + cmd1
-        assert len(s2.cmdlist) == 2
-        assert s2.cmdlist[0] is cmd2
-        assert s2.cmdlist[1] is cmd1
+        assert len(target.body) == 2
+        assert target.body[0].command == "LOG msg2"
+        assert target.body[1].command == "LOG msg1"
 
     def test_extend_script_merges_params(self, minimal_conf):
         from execsql.metacommands.script_ext import x_extendscript
 
-        s1 = _make_commandlist("source", [_make_script_cmd("LOG a")])
-        s1.paramnames = ["x", "y"]
-        s2 = _make_commandlist("target", [_make_script_cmd("LOG b")])
-        s2.paramnames = ["y", "z"]
-        _state.savedscripts["source"] = s1
-        _state.savedscripts["target"] = s2
+        _make_script("source", [_meta("LOG a")], params=["x", "y"])
+        target = _make_script("target", [_meta("LOG b")], params=["y", "z"])
 
         x_extendscript(script1="source", script2="target")
 
-        # target params should be ["y", "z", "x"] -- x added, y not duplicated
-        assert "x" in s2.paramnames
-        assert "y" in s2.paramnames
-        assert "z" in s2.paramnames
-        assert s2.paramnames.count("y") == 1
+        names = [p.name for p in target.param_defs]
+        assert names == ["y", "z", "x"]
 
     def test_extend_script_creates_params_on_target_if_none(self, minimal_conf):
         from execsql.metacommands.script_ext import x_extendscript
 
-        s1 = _make_commandlist("source", [_make_script_cmd("LOG a")])
-        s1.paramnames = ["p1"]
-        s2 = _make_commandlist("target", [_make_script_cmd("LOG b")])
-        s2.paramnames = None
-        _state.savedscripts["source"] = s1
-        _state.savedscripts["target"] = s2
+        _make_script("source", [_meta("LOG a")], params=["p1"])
+        target = _make_script("target", [_meta("LOG b")])  # no params
 
         x_extendscript(script1="source", script2="target")
-        assert s2.paramnames == ["p1"]
+        assert [p.name for p in target.param_defs] == ["p1"]
 
     def test_extend_script_missing_source_raises(self, minimal_conf):
         from execsql.metacommands.script_ext import x_extendscript
 
-        s2 = _make_commandlist("target", [_make_script_cmd("LOG b")])
-        _state.savedscripts["target"] = s2
-
+        _make_script("target")
         with pytest.raises(ErrInfo):
             x_extendscript(script1="nosuch", script2="target")
 
     def test_extend_script_missing_target_raises(self, minimal_conf):
         from execsql.metacommands.script_ext import x_extendscript
 
-        s1 = _make_commandlist("source", [_make_script_cmd("LOG a")])
-        _state.savedscripts["source"] = s1
-
+        _make_script("source")
         with pytest.raises(ErrInfo):
             x_extendscript(script1="source", script2="nosuch")
 
@@ -118,22 +116,23 @@ class TestXExtendScript:
 class TestXExtendScriptMetacommand:
     """Tests for the EXTEND SCRIPT METACOMMAND handler."""
 
+    def setup_method(self):
+        _state.ast_scripts = {}
+
+    def teardown_method(self):
+        _state.ast_scripts = {}
+
     def test_adds_metacommand_to_script(self, minimal_conf):
         from execsql.metacommands.script_ext import x_extendscript_metacommand
 
-        s = _make_commandlist("myscript", [_make_script_cmd("LOG start")])
-        _state.savedscripts["myscript"] = s
+        block = _make_script("myscript", [_meta("LOG start")])
 
-        # Need a commandliststack entry for current_script_line()
-        mock_cl = MagicMock()
-        mock_cl.current_command.return_value = SimpleNamespace(
-            current_script_line=lambda: ("test.sql", 10),
-        )
-        _state.commandliststack = [mock_cl]
+        with patch("execsql.metacommands.script_ext.current_script_line", return_value=("test.sql", 10)):
+            x_extendscript_metacommand(script="myscript", cmd="LOG appended")
 
-        x_extendscript_metacommand(script="myscript", cmd="LOG appended")
-        assert len(s.cmdlist) == 2
-        assert s.cmdlist[1].command_type == "cmd"
+        assert len(block.body) == 2
+        assert isinstance(block.body[1], MetaCommandStatement)
+        assert block.body[1].command == "LOG appended"
 
     def test_missing_script_raises(self, minimal_conf):
         from execsql.metacommands.script_ext import x_extendscript_metacommand
@@ -150,21 +149,23 @@ class TestXExtendScriptMetacommand:
 class TestXExtendScriptSql:
     """Tests for the EXTEND SCRIPT SQL handler."""
 
+    def setup_method(self):
+        _state.ast_scripts = {}
+
+    def teardown_method(self):
+        _state.ast_scripts = {}
+
     def test_adds_sql_to_script(self, minimal_conf):
         from execsql.metacommands.script_ext import x_extendscript_sql
 
-        s = _make_commandlist("myscript", [_make_script_cmd("LOG start")])
-        _state.savedscripts["myscript"] = s
+        block = _make_script("myscript", [_meta("LOG start")])
 
-        mock_cl = MagicMock()
-        mock_cl.current_command.return_value = SimpleNamespace(
-            current_script_line=lambda: ("test.sql", 15),
-        )
-        _state.commandliststack = [mock_cl]
+        with patch("execsql.metacommands.script_ext.current_script_line", return_value=("test.sql", 15)):
+            x_extendscript_sql(script="myscript", sql="SELECT 1;")
 
-        x_extendscript_sql(script="myscript", sql="SELECT 1;")
-        assert len(s.cmdlist) == 2
-        assert s.cmdlist[1].command_type == "sql"
+        assert len(block.body) == 2
+        assert isinstance(block.body[1], SqlStatement)
+        assert block.body[1].text == "SELECT 1;"
 
     def test_missing_script_raises(self, minimal_conf):
         from execsql.metacommands.script_ext import x_extendscript_sql

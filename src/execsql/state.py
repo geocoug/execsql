@@ -94,9 +94,7 @@ if TYPE_CHECKING:
     from execsql.db.base import DatabasePool
     from execsql.exporters.base import ExportMetadata, WriteSpec
     from execsql.script import (
-        CommandList,
         CounterVars,
-        IfLevels,
         MetaCommandList,
         ScriptCmd,
         ScriptExecSpec,
@@ -120,13 +118,8 @@ __all__ = [
     "cancel_halt_writespec",
     "cancel_halt_mailspec",
     "cancel_halt_exec",
-    "commandliststack",
-    "savedscripts",
-    "loopcommandstack",
-    "compiling_loop",
     "endloop_rx",
     "loop_rx",
-    "loop_nest_level",
     "cmds_run",
     "defer_rx",
     "stringtypes",
@@ -134,7 +127,6 @@ __all__ = [
     "subvars",
     "status",
     # Lazy singletons
-    "if_stack",
     "counters",
     "timer",
     "output",
@@ -157,7 +149,6 @@ __all__ = [
     "tertiary_vno",
     # Functions
     "xcmd_test",
-    "endloop",
     "reset",
     "initialize",
     # New public API
@@ -224,11 +215,6 @@ _CONTEXT_ATTRS: frozenset[str] = frozenset(
         "cancel_halt_mailspec",
         "cancel_halt_exec",
         # Execution stack
-        "commandliststack",
-        "savedscripts",
-        "loopcommandstack",
-        "compiling_loop",
-        "loop_nest_level",
         "cmds_run",
         # I/O
         "exec_log",
@@ -237,7 +223,6 @@ _CONTEXT_ATTRS: frozenset[str] = frozenset(
         "output",
         "filewriter",
         # Lazy singletons
-        "if_stack",
         "counters",
         "timer",
         "dbs",
@@ -283,11 +268,6 @@ class RuntimeContext:
         "cancel_halt_mailspec",
         "cancel_halt_exec",
         # Execution stack
-        "commandliststack",
-        "savedscripts",
-        "loopcommandstack",
-        "compiling_loop",
-        "loop_nest_level",
         "cmds_run",
         # I/O
         "exec_log",
@@ -296,7 +276,6 @@ class RuntimeContext:
         "output",
         "filewriter",
         # Lazy singletons
-        "if_stack",
         "counters",
         "timer",
         "dbs",
@@ -334,11 +313,6 @@ class RuntimeContext:
         self.cancel_halt_exec: ScriptExecSpec | None = None
 
         # Execution stack
-        self.commandliststack: list[CommandList] = []
-        self.savedscripts: dict[str, CommandList] = {}
-        self.loopcommandstack: list[CommandList] = []
-        self.compiling_loop: bool = False
-        self.loop_nest_level: int = 0
         self.cmds_run: int = 0
 
         # I/O
@@ -349,7 +323,6 @@ class RuntimeContext:
         self.filewriter: FileWriter | None = None
 
         # Lazy singletons
-        self.if_stack: IfLevels | None = None
         self.counters: CounterVars | None = None
         self.timer: Timer | None = None
         self.dbs: DatabasePool | None = None
@@ -501,18 +474,6 @@ def outer_script_scopes() -> list[ExecFrame]:
     return _get_ctx().outer_script_scopes()
 
 
-def endloop() -> None:
-    """Complete the current loop being compiled and push it onto the command stack."""
-    import execsql.exceptions as _exc
-
-    ctx = _get_ctx()
-    if len(ctx.loopcommandstack) == 0:
-        raise _exc.ErrInfo("error", other_msg="END LOOP metacommand without a matching preceding LOOP metacommand.")
-    ctx.compiling_loop = False
-    ctx.commandliststack.append(ctx.loopcommandstack[-1])
-    ctx.loopcommandstack.pop()
-
-
 # ---------------------------------------------------------------------------
 # Context management
 # ---------------------------------------------------------------------------
@@ -630,7 +591,6 @@ def initialize(
 
     ctx = _get_ctx()
     ctx.conf = config
-    ctx.if_stack = _script.IfLevels()
     ctx.counters = _script.CounterVars()
     ctx.timer = _timer_mod.Timer()
     ctx.dbs = _db_base.DatabasePool()

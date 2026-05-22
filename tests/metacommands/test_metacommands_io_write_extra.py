@@ -16,21 +16,30 @@ from execsql.utils.gui import ConsoleUIError
 # ---------------------------------------------------------------------------
 
 
+def _make_ast_script(name, body=None, params=None):
+    """Construct and register an AST ScriptBlock in ast_scripts."""
+    from execsql.script.ast import ParamDef, ScriptBlock, SourceSpan
+
+    span = SourceSpan(file="test.sql", start_line=1, end_line=1)
+    param_defs = [ParamDef(name=p, default=None) for p in params] if params else None
+    block = ScriptBlock(span=span, name=name, param_defs=param_defs, body=list(body) if body else [])
+    _state.ast_scripts[name] = block
+    return block
+
+
 class TestXWritescript:
     def test_writescript_to_stdout(self, minimal_conf):
         from execsql.metacommands.io_write import x_writescript
+        from execsql.script.ast import SqlStatement, SourceSpan
 
         mock_output = MagicMock()
         _state.output = mock_output
-
-        mock_script = MagicMock()
-        mock_script.paramnames = ["p1", "p2"]
-        mock_cmd1 = MagicMock()
-        mock_cmd1.commandline.return_value = "SELECT 1;"
-        mock_cmd2 = MagicMock()
-        mock_cmd2.commandline.return_value = "SELECT 2;"
-        mock_script.cmdlist = [mock_cmd1, mock_cmd2]
-        _state.savedscripts = {"test_script": mock_script}
+        _state.ast_scripts = {}
+        body = [
+            SqlStatement(span=SourceSpan(file="t.sql", start_line=1, end_line=1), text="SELECT 1;"),
+            SqlStatement(span=SourceSpan(file="t.sql", start_line=2, end_line=2), text="SELECT 2;"),
+        ]
+        _make_ast_script("test_script", body=body, params=["p1", "p2"])
 
         x_writescript(script_id="test_script", filename=None, append=None)
         calls = [c[0][0] for c in mock_output.write.call_args_list]
@@ -43,11 +52,8 @@ class TestXWritescript:
 
         mock_output = MagicMock()
         _state.output = mock_output
-
-        mock_script = MagicMock()
-        mock_script.paramnames = None
-        mock_script.cmdlist = []
-        _state.savedscripts = {"s1": mock_script}
+        _state.ast_scripts = {}
+        _make_ast_script("s1")
 
         x_writescript(script_id="s1", filename=None, append=None)
         calls = [c[0][0] for c in mock_output.write.call_args_list]
@@ -55,13 +61,11 @@ class TestXWritescript:
 
     def test_writescript_to_file(self, minimal_conf, tmp_path):
         from execsql.metacommands.io_write import x_writescript
+        from execsql.script.ast import SqlStatement, SourceSpan
 
-        mock_script = MagicMock()
-        mock_script.paramnames = []
-        mock_cmd = MagicMock()
-        mock_cmd.commandline.return_value = "SELECT 1;"
-        mock_script.cmdlist = [mock_cmd]
-        _state.savedscripts = {"s1": mock_script}
+        _state.ast_scripts = {}
+        body = [SqlStatement(span=SourceSpan(file="t.sql", start_line=1, end_line=1), text="SELECT 1;")]
+        _make_ast_script("s1", body=body)
 
         outfile = str(tmp_path / "script.sql")
         with (
@@ -75,10 +79,8 @@ class TestXWritescript:
     def test_writescript_to_file_append(self, minimal_conf, tmp_path):
         from execsql.metacommands.io_write import x_writescript
 
-        mock_script = MagicMock()
-        mock_script.paramnames = []
-        mock_script.cmdlist = []
-        _state.savedscripts = {"s1": mock_script}
+        _state.ast_scripts = {}
+        _make_ast_script("s1")
 
         outfile = str(tmp_path / "script.sql")
         with (
@@ -88,6 +90,79 @@ class TestXWritescript:
         ):
             x_writescript(script_id="s1", filename=outfile, append="APPEND")
             mock_new.assert_not_called()  # append mode should not open as new
+
+    def test_writescript_renders_nested_if_block(self, minimal_conf):
+        from execsql.metacommands.io_write import x_writescript
+        from execsql.script.ast import (
+            ElseIfClause,
+            IfBlock,
+            MetaCommandStatement,
+            SourceSpan,
+            SqlStatement,
+        )
+
+        mock_output = MagicMock()
+        _state.output = mock_output
+        _state.ast_scripts = {}
+
+        span = SourceSpan(file="t.sql", start_line=1, end_line=1)
+        if_body = [SqlStatement(span=span, text="SELECT 'a';")]
+        elseif = ElseIfClause(
+            condition="sub_defined(x)",
+            span=span,
+            body=[MetaCommandStatement(span=span, command="WRITE 'b'")],
+        )
+        else_body = [SqlStatement(span=span, text="SELECT 'c';")]
+        if_block = IfBlock(
+            span=span,
+            condition="HASROWS(q)",
+            body=if_body,
+            elseif_clauses=[elseif],
+            else_body=else_body,
+        )
+        _make_ast_script("with_if", body=[if_block])
+
+        x_writescript(script_id="with_if", filename=None, append=None)
+        out = "".join(c[0][0] for c in mock_output.write.call_args_list)
+        assert "-- !x! IF (HASROWS(q))" in out
+        assert "SELECT 'a';" in out
+        assert "-- !x! ELSEIF (sub_defined(x))" in out
+        assert "-- !x! WRITE 'b'" in out
+        assert "-- !x! ELSE" in out
+        assert "SELECT 'c';" in out
+        assert "-- !x! ENDIF" in out
+
+    def test_writescript_renders_nested_loop_and_batch(self, minimal_conf):
+        from execsql.metacommands.io_write import x_writescript
+        from execsql.script.ast import (
+            BatchBlock,
+            LoopBlock,
+            SourceSpan,
+            SqlStatement,
+        )
+
+        mock_output = MagicMock()
+        _state.output = mock_output
+        _state.ast_scripts = {}
+
+        span = SourceSpan(file="t.sql", start_line=1, end_line=1)
+        loop_body = [SqlStatement(span=span, text="UPDATE t SET n = n + 1;")]
+        loop = LoopBlock(span=span, loop_type="WHILE", condition="$counter_1 < 5", body=loop_body)
+        batch_body = [
+            SqlStatement(span=span, text="INSERT INTO t VALUES (1);"),
+            loop,
+        ]
+        batch = BatchBlock(span=span, body=batch_body)
+        _make_ast_script("with_blocks", body=[batch])
+
+        x_writescript(script_id="with_blocks", filename=None, append=None)
+        out = "".join(c[0][0] for c in mock_output.write.call_args_list)
+        assert "-- !x! BEGIN BATCH" in out
+        assert "INSERT INTO t VALUES (1);" in out
+        assert "-- !x! LOOP WHILE ($counter_1 < 5)" in out
+        assert "UPDATE t SET n = n + 1;" in out
+        assert "-- !x! END LOOP" in out
+        assert "-- !x! END BATCH" in out
 
 
 # ---------------------------------------------------------------------------

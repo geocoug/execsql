@@ -271,7 +271,7 @@ def xf_sub_empty(**kwargs: Any) -> bool:
         subvarset = _state.current_localvars()
     else:
         subvarset = _state.current_paramvals()
-    if not subvarset.sub_exists(varname):
+    if subvarset is None or not subvarset.sub_exists(varname):
         raise ErrInfo(
             type="cmd",
             command_text=kwargs["metacommandline"],
@@ -282,7 +282,7 @@ def xf_sub_empty(**kwargs: Any) -> bool:
 
 def xf_script_exists(**kwargs: Any) -> bool:
     script_id = kwargs["script_id"].lower()
-    return script_id in _state.savedscripts
+    return script_id in _state.ast_scripts
 
 
 def xf_equals(**kwargs: Any) -> bool:

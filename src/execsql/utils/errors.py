@@ -164,7 +164,6 @@ def exit_now(exit_status: int, errinfo: ErrInfo | None, logmsg: str | None = Non
     if errinfo is not None and _state.err_halt_exec is not None:
         errexec = _state.err_halt_exec
         _state.err_halt_exec = None
-        _state.commandliststack = []
         _run_deferred_script(errexec)
     if exit_status == 2 and _state.cancel_halt_mailspec is not None:
         try:
@@ -175,7 +174,6 @@ def exit_now(exit_status: int, errinfo: ErrInfo | None, logmsg: str | None = Non
     if exit_status == 2 and _state.cancel_halt_exec is not None:
         cancelexec = _state.cancel_halt_exec
         _state.cancel_halt_exec = None
-        _state.commandliststack = []
         _run_deferred_script(cancelexec)
     if exit_status > 0 and _state.exec_log:
         if logmsg:

@@ -229,10 +229,69 @@ def x_write_suffix(**kwargs: Any) -> None:
     return None
 
 
+def _render_script_nodes(nodes: Any, emit: Any) -> None:
+    """Walk a list of AST nodes and emit reconstructed source lines.
+
+    Nested IfBlock / LoopBlock / BatchBlock structures are rendered with
+    their delimiters so the output round-trips through ``INCLUDE`` and
+    ``EXECUTE SCRIPT``.
+    """
+    from execsql.script.ast import (
+        BatchBlock,
+        IfBlock,
+        LoopBlock,
+        MetaCommandStatement,
+        SqlStatement,
+    )
+
+    for node in nodes:
+        if isinstance(node, SqlStatement):
+            emit(f"{node.text}\n")
+        elif isinstance(node, MetaCommandStatement):
+            emit(f"-- !x! {node.command}\n")
+        elif isinstance(node, IfBlock):
+            emit(f"-- !x! IF ({node.condition})\n")
+            for mod in node.condition_modifiers:
+                kw = "ANDIF" if mod.kind == "AND" else "ORIF"
+                emit(f"-- !x! {kw} ({mod.condition})\n")
+            _render_script_nodes(node.body, emit)
+            for clause in node.elseif_clauses:
+                emit(f"-- !x! ELSEIF ({clause.condition})\n")
+                for mod in clause.condition_modifiers:
+                    kw = "ANDIF" if mod.kind == "AND" else "ORIF"
+                    emit(f"-- !x! {kw} ({mod.condition})\n")
+                _render_script_nodes(clause.body, emit)
+            if node.else_body:
+                emit("-- !x! ELSE\n")
+                _render_script_nodes(node.else_body, emit)
+            emit("-- !x! ENDIF\n")
+        elif isinstance(node, LoopBlock):
+            emit(f"-- !x! LOOP {node.loop_type} ({node.condition})\n")
+            _render_script_nodes(node.body, emit)
+            emit("-- !x! END LOOP\n")
+        elif isinstance(node, BatchBlock):
+            emit("-- !x! BEGIN BATCH\n")
+            _render_script_nodes(node.body, emit)
+            emit("-- !x! END BATCH\n")
+
+
 def x_writescript(**kwargs: Any) -> None:
-    script_id = kwargs["script_id"]
+    """Dump a registered SCRIPT block's source to stdout or a file.
+
+    Reads from the AST script registry (``ctx.ast_scripts``) and walks the
+    full block tree — including nested IF / LOOP / BATCH structures —
+    reconstructing source between ``BEGIN SCRIPT`` and ``END SCRIPT``
+    delimiters so the output is re-includable.
+    """
+    from execsql.exceptions import ErrInfo
+
+    script_id = kwargs["script_id"].lower()
     output_dest = kwargs["filename"]
     append = kwargs["append"]
+
+    block = _state.ast_scripts.get(script_id)
+    if block is None:
+        raise ErrInfo("cmd", other_msg=f"There is no SCRIPT named {script_id}.")
 
     def write(txt: str) -> None:
         if output_dest is None or output_dest == "stdout":
@@ -244,12 +303,11 @@ def x_writescript(**kwargs: Any) -> None:
         check_dir(output_dest)
         if not append:
             filewriter_open_as_new(output_dest)
-    script = _state.savedscripts[script_id]
-    if script.paramnames is not None and len(script.paramnames) > 0:
-        write(f"BEGIN SCRIPT {script_id} ({', '.join(script.paramnames)})\n")
+
+    param_names = block.param_names
+    if param_names:
+        write(f"BEGIN SCRIPT {script_id} ({', '.join(param_names)})\n")
     else:
         write(f"BEGIN SCRIPT {script_id}\n")
-    lines = [c.commandline() for c in script.cmdlist]
-    for line in lines:
-        write(f"{line}\n")
+    _render_script_nodes(block.body, write)
     write(f"END SCRIPT {script_id}\n")

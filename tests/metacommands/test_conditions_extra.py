@@ -137,7 +137,7 @@ class TestHasRowsAndRowCount:
 
 class TestMiscPredicates:
     def test_script_exists(self, fake_state):
-        _state.savedscripts = {"main": object()}
+        _state.ast_scripts = {"main": object()}
         assert _cond.xf_script_exists(script_id="MAIN") is True
         assert _cond.xf_script_exists(script_id="missing") is False
 

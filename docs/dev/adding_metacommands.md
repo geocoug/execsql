@@ -24,8 +24,9 @@ ______________________________________________________________________
 `MetaCommandList` (in `src/execsql/script/engine.py`) is an ordered list of `MetaCommand` objects with a keyword index for fast dispatch. Each `MetaCommand` holds one compiled regex and one handler. When `MetaCommandList.eval()` is called on a script line:
 
 1. It extracts the leading keyword and narrows candidates via the keyword index, falling back to the full list if no keyword matches.
-1. It checks `_state.if_stack.all_true()` and skips execution inside a false conditional branch (unless `run_when_false=True`).
 1. It calls the handler, passing all named regex groups plus `"metacommandline"` as keyword arguments.
+
+Conditional branching (`IF` / `ELSEIF` / `ELSE` / `ENDIF`) is **structural** under the AST executor — the parser turns those metacommands into `IfBlock` AST nodes and the executor only invokes handlers for the branch it actually entered. Handlers therefore do not need to consult any IF state, and `run_when_false` is no longer honoured.
 
 ### Handler naming conventions
 

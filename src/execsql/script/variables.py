@@ -248,8 +248,12 @@ class SubVarSet:
                     sub = sub.replace("\\", "\\\\")
                 quote = m.group("q")
                 if quote == "'":
-                    sub = sub.replace("'", "''")
+                    # Wrap value in single quotes, doubling any embedded
+                    # apostrophe — produces a SQL string literal.
+                    sub = "'" + sub.replace("'", "''") + "'"
                 elif quote == '"':
+                    # Wrap value in double quotes — produces a SQL quoted
+                    # identifier or quoted metacommand argument.
                     sub = '"' + sub + '"'
                 return command_str[: m.start()] + sub + command_str[m.end() :], True
             # Token found but variable not defined — skip it and keep searching.
@@ -277,12 +281,13 @@ class SubVarSet:
             idx = cmd_lower.find(token)
             if idx != -1:
                 return command_str[:idx] + sub + command_str[idx + len(token) :], True
-            # Single-quote-escaped token: !'!varname!'!
+            # Single-quote-wrapped token: !'!varname!'!
             tokenq = f"!'!{varname}!'!"
             idxq = cmd_lower.find(tokenq)
             if idxq != -1:
+                wrapped = "'" + sub.replace("'", "''") + "'"
                 return (
-                    command_str[:idxq] + sub.replace("'", "''") + command_str[idxq + len(tokenq) :],
+                    command_str[:idxq] + wrapped + command_str[idxq + len(tokenq) :],
                     True,
                 )
             # Double-quote-wrapped token: !"!varname!"!

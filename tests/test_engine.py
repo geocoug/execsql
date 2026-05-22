@@ -24,7 +24,6 @@ from execsql.config import StatObj, WriteHooks
 from execsql.exceptions import ErrInfo
 from execsql.script import (
     CounterVars,
-    IfLevels,
     MetaCommand,
     MetaCommandList,
     MetacommandStmt,
@@ -32,7 +31,6 @@ from execsql.script import (
     SubVarSet,
 )
 from execsql.script.engine import (
-    CommandList,
     ScriptCmd,
     ScriptExecSpec,
     current_script_line,
@@ -48,11 +46,10 @@ from execsql.script.engine import (
 
 def _setup_engine_state(subvars=None, status=None):
     """Populate the _state singletons required by the engine functions."""
-    _state.if_stack = IfLevels()
     _state.counters = CounterVars()
     _state.subvars = subvars if subvars is not None else SubVarSet()
     _state.status = status if status is not None else StatObj()
-    _state.commandliststack = []
+    _state.ast_exec_stack = []
     _state.output = WriteHooks()
     # Stub exec_log so read_sqlstring / read_sqlfile don't fail
     mock_log = MagicMock()
@@ -265,20 +262,16 @@ class TestMetaCommandList:
         result = mcl.keywords_by_category()
         assert result["cat"].count("FOO") == 1
 
-    def test_run_when_false_skips_when_if_stack_false(self, engine_state):
-        called = []
+    def test_run_when_false_flag_kept_on_command(self, engine_state):
+        """run_when_false is preserved on the MetaCommand for documentation /
+        introspection purposes even though the AST executor's structural IF
+        dispatch makes the runtime check obsolete."""
         mcl = MetaCommandList()
-        mcl.add(r"^\s*SKIP\s*$", lambda **kw: called.append(True), run_when_false=False)
-        _state.if_stack.nest(False)
-        mcl.eval("SKIP")
-        assert called == []
-
-    def test_run_when_false_runs_despite_false_if_stack(self, engine_state):
+        mcl.add(r"^\s*RUN\s*$", lambda **kw: None, run_when_false=True)
+        # eval always tries to match — the flag is no longer consulted at dispatch time.
         called = []
-        mcl = MetaCommandList()
-        mcl.add(r"^\s*RUN\s*$", lambda **kw: called.append(True), run_when_false=True)
-        _state.if_stack.nest(False)
-        mcl.eval("RUN")
+        mcl.add(r"^\s*FIRES\s*$", lambda **kw: called.append(True))
+        mcl.eval("FIRES")
         assert called == [True]
 
     def test_unkeyed_pattern_falls_back_to_full_list(self, engine_state):
@@ -329,67 +322,9 @@ class TestMetacommandStmt:
         ms = MetacommandStmt("SET x = 1")
         assert "SET x = 1" in repr(ms)
 
-    def test_run_dispatches_to_metacommandlist(self, engine_state):
-        called = []
-        _state.metacommandlist.add(
-            r"^\s*NOOP\s*$",
-            lambda **kw: called.append(True),
-        )
-        ms = MetacommandStmt("NOOP")
-        ms.run()
-        assert called == [True]
-
-    def test_run_raises_on_unknown_metacommand(self, engine_state):
-        """An unrecognised metacommand with all_true if-stack raises ErrInfo."""
-        ms = MetacommandStmt("UNKNOWN_CMD_XYZ")
-        with pytest.raises(ErrInfo):
-            ms.run()
-
-    def test_run_does_not_raise_when_if_stack_false(self, engine_state):
-        """Unknown metacommand is silently ignored when if-stack is False."""
-        _state.if_stack.nest(False)
-        ms = MetacommandStmt("UNKNOWN_CMD_XYZ")
-        # Should return None, not raise
-        rv = ms.run()
-        assert rv is None
-
-    def test_run_sets_metacommand_error_on_exception(self, engine_state):
-        _state.status.halt_on_metacommand_err = False
-
-        def boom(**kw):
-            raise RuntimeError("kaboom")
-
-        _state.metacommandlist.add(r"^\s*BOOM\s*$", boom)
-        ms = MetacommandStmt("BOOM")
-        ms.run()
-        assert _state.status.metacommand_error is True
-
-    def test_run_propagates_system_exit(self, engine_state):
-        def sys_exit(**kw):
-            raise SystemExit(1)
-
-        _state.metacommandlist.add(r"^\s*BYE\s*$", sys_exit)
-        ms = MetacommandStmt("BYE")
-        with pytest.raises(SystemExit):
-            ms.run()
-
-    def test_run_expands_vars_before_dispatch(self, engine_state):
-        seen = []
-        _state.subvars.add_substitution("$CMD", "ALPHA")
-        _state.metacommandlist.add(r"^\s*ALPHA\s*$", lambda **kw: seen.append("alpha"))
-        ms = MetacommandStmt("!!$CMD!!")
-        ms.run()
-        assert seen == ["alpha"]
-
-    def test_run_halt_on_metacommand_err_raises_on_eval_errinf(self, engine_state):
-        """When halt_on_metacommand_err is True and eval raises ErrInfo, MetacommandStmt raises too."""
-        _state.status.halt_on_metacommand_err = True
-        # Cause metacommandlist.eval() to propagate an ErrInfo (not via MetaCommand.run
-        # but by having eval itself raise — simulated by replacing eval entirely)
-        with patch.object(_state.metacommandlist, "eval", side_effect=ErrInfo("error", other_msg="bad eval")):
-            ms = MetacommandStmt("ANYTHING")
-            with pytest.raises(ErrInfo):
-                ms.run()
+    # MetacommandStmt.run was removed when the AST executor became the only
+    # engine. Dispatch now happens through executor._exec_metacommand. See
+    # tests/test_executor.py for the new coverage.
 
 
 # ---------------------------------------------------------------------------
@@ -417,71 +352,9 @@ class TestScriptCmd:
         assert "10" in r
 
 
-# ---------------------------------------------------------------------------
-# CommandList
-# ---------------------------------------------------------------------------
-
-
-def _make_script_cmd(stmt="SELECT 1;", cmd_type="sql", source="test.sql", lineno=1):
-    if cmd_type == "sql":
-        return ScriptCmd(source, lineno, "sql", SqlStmt(stmt))
-    else:
-        return ScriptCmd(source, lineno, "cmd", MetacommandStmt(stmt))
-
-
-class TestCommandList:
-    def test_raises_on_none_cmdlist(self):
-        with pytest.raises(ErrInfo):
-            CommandList(None, "mylist")
-
-    def test_empty_cmdlist_allowed(self):
-        cl = CommandList([], "mylist")
-        assert cl.current_command() is None
-
-    def test_add_appends_command(self):
-        cl = CommandList([], "mylist")
-        sc = _make_script_cmd()
-        cl.add(sc)
-        assert cl.current_command() is sc
-
-    def test_current_command_returns_none_when_exhausted(self):
-        sc = _make_script_cmd()
-        cl = CommandList([sc], "mylist")
-        cl.cmdptr = 1  # advance past end
-        assert cl.current_command() is None
-
-    def test_iter_yields_commands(self):
-        sc1 = _make_script_cmd("SELECT 1;", lineno=1)
-        sc2 = _make_script_cmd("SELECT 2;", lineno=2)
-        cl = CommandList([sc1, sc2], "mylist")
-        items = list(cl)
-        assert len(items) == 2
-        assert items[0] is sc1
-        assert items[1] is sc2
-
-    def test_run_next_raises_stop_iteration_when_empty(self, engine_state):
-        cl = CommandList([], "mylist")
-        with pytest.raises(StopIteration):
-            cl.run_next()
-
-    def test_set_paramvals_with_matching_names(self):
-        cl = CommandList([], "myscript", paramnames=["x", "y"])
-        from execsql.script.variables import ScriptArgSubVarSet
-
-        save = ScriptArgSubVarSet()
-        save.add_substitution("#x", "1")
-        save.add_substitution("#y", "2")
-        cl.set_paramvals(save)  # should not raise
-
-    def test_set_paramvals_mismatch_raises(self):
-        cl = CommandList([], "myscript", paramnames=["x", "y"])
-        from execsql.script.variables import ScriptArgSubVarSet
-
-        save = ScriptArgSubVarSet()
-        save.add_substitution("#x", "1")
-        # y is missing
-        with pytest.raises(ErrInfo):
-            cl.set_paramvals(save)
+# CommandList was removed in the legacy-engine elimination. See
+# ExecFrame in execsql.state plus the scope-frame helpers on
+# RuntimeContext for the replacement.
 
 
 # ---------------------------------------------------------------------------
@@ -648,24 +521,14 @@ class TestSetSystemVars:
 
 
 class TestCurrentScriptLine:
-    def test_empty_stack_returns_empty(self, engine_state):
-        _state.commandliststack = []
+    def test_no_last_command_returns_empty(self, engine_state):
+        _state.last_command = None
         assert current_script_line() == ("", 0)
 
-    def test_active_command_returns_source_and_lineno(self, engine_state):
+    def test_last_command_returns_source_and_lineno(self, engine_state):
         sc = ScriptCmd("myscript.sql", 7, "sql", SqlStmt("SELECT 1;"))
-        cl = CommandList([sc], "myscript.sql")
-        _state.commandliststack = [cl]
+        _state.last_command = sc
         assert current_script_line() == ("myscript.sql", 7)
-
-    def test_exhausted_list_returns_listname_and_length(self, engine_state):
-        sc = ScriptCmd("myscript.sql", 7, "sql", SqlStmt("SELECT 1;"))
-        cl = CommandList([sc], "myscript")
-        cl.cmdptr = 1  # exhausted
-        _state.commandliststack = [cl]
-        source, line = current_script_line()
-        assert "myscript" in source
-        assert line == 1
 
 
 # Legacy parser tests (_parse_script_lines, read_sqlstring, read_sqlfile,
@@ -680,13 +543,18 @@ class TestCurrentScriptLine:
 
 class TestScriptExecSpec:
     def _make_saved_script(self, name="myscript", cmds=None, paramnames=None):
-        if cmds is None:
-            cmds = []
-        cl = CommandList(cmds, name, paramnames)
-        _state.savedscripts[name] = cl
+        from execsql.script.ast import ScriptBlock, SourceSpan
+
+        body = list(cmds) if cmds else []
+        block = ScriptBlock(
+            span=SourceSpan(file="test.sql", start_line=1, end_line=1),
+            name=name,
+            body=body,
+        )
+        _state.ast_scripts[name] = block
 
     def test_raises_on_missing_script(self, engine_state):
-        _state.savedscripts = {}
+        _state.ast_scripts = {}
         with pytest.raises(ErrInfo, match="no SCRIPT"):
             ScriptExecSpec(script_id="nonexistent", argexp=None, looptype=None, loopcond=None)
 

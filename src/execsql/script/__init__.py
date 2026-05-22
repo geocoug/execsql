@@ -12,26 +12,22 @@ Key classes:
 
 - :class:`BatchLevels` — tracks which databases are used in nested BEGIN/END
   BATCH blocks for commit/rollback handling.
-- :class:`IfItem` / :class:`IfLevels` — stack-based IF/ELSE/ENDIF nesting.
 - :class:`CounterVars` — named integer counters (``$COUNTER_N``).
 - :class:`SubVarSet` — substitution-variable store covering all sigils
   (no prefix, ``$``, ``&``, ``@``).
 - :class:`LocalSubVarSet` / :class:`ScriptArgSubVarSet` — per-script-scope
-  variable overlays for ``~`` local and ``#`` argument variables.
+  variable overlays for ``~`` local and ``#`` argument variables. Stored
+  on the active :class:`~execsql.state.ExecFrame` and retrieved via
+  ``ctx.current_localvars()`` / ``ctx.current_paramvals()``.
 - :class:`MetaCommand` — one entry in the metacommand dispatch table (regex +
   handler function + flags).
 - :class:`MetaCommandList` — ordered list of :class:`MetaCommand` entries
   with a keyword index for fast dispatch.
-- :class:`SqlStmt` — wraps a single SQL string; ``run()`` executes it via the
-  active database connection.
-- :class:`MetacommandStmt` — wraps a metacommand line; ``run()`` dispatches
-  through ``_state.metacommandlist``.
-- :class:`ScriptCmd` — pairs a statement with its source-file location.
-- :class:`CommandList` — ordered list of :class:`ScriptCmd` objects plus a
-  forward-only cursor; ``run_next()`` drives one step of execution. The AST
-  executor pushes synthetic ``CommandList`` frames onto
-  ``ctx.commandliststack`` for ``current_script_line`` tracking.
-- :class:`ScriptExecSpec` — specification for deferred script execution.
+- :class:`SqlStmt` / :class:`MetacommandStmt` / :class:`ScriptCmd` —
+  statement wrappers carried in the AST and used by ``ctx.last_command``
+  for source-location tracking.
+- :class:`ScriptExecSpec` — specification for deferred script execution
+  (used by ``ON ERROR_HALT`` / ``ON CANCEL_HALT EXECUTE SCRIPT``).
 
 Key functions:
 
@@ -46,9 +42,8 @@ Key functions:
   consumed by :func:`execsql.script.executor.execute`.
 """
 
-from execsql.script.control import BatchLevels, IfItem, IfLevels
+from execsql.script.control import BatchLevels
 from execsql.script.engine import (
-    CommandList,
     MetaCommand,
     MetaCommandList,
     MetacommandStmt,
@@ -83,8 +78,6 @@ from execsql.script.variables import CounterVars, LocalSubVarSet, ScriptArgSubVa
 
 __all__ = [
     "BatchLevels",
-    "IfItem",
-    "IfLevels",
     "CounterVars",
     "SubVarSet",
     "LocalSubVarSet",
@@ -94,7 +87,6 @@ __all__ = [
     "SqlStmt",
     "MetacommandStmt",
     "ScriptCmd",
-    "CommandList",
     "ScriptExecSpec",
     "set_dynamic_system_vars",
     "set_static_system_vars",

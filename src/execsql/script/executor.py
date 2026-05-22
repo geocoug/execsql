@@ -16,10 +16,13 @@ Design:
     - **Context is explicit.** :func:`execute` takes a
       :class:`~execsql.state.RuntimeContext` via the ``ctx`` keyword;
       when omitted it falls back to :func:`~execsql.state.get_context`.
-      For tracking and error reporting the executor pushes synthetic
-      :class:`~execsql.script.engine.CommandList` frames onto
-      ``ctx.commandliststack`` as it descends into INCLUDE'd files and
-      ``EXECUTE SCRIPT`` calls.
+      For tracking and error reporting the executor pushes
+      :class:`~execsql.state.ExecFrame` records onto
+      ``ctx.ast_exec_stack`` as it descends into IF / LOOP / BATCH /
+      INCLUDE'd files / ``EXECUTE SCRIPT`` calls. Scope frames
+      (``main``, ``script``) carry the active ``localvars`` and
+      ``paramvals``; block frames cache a ``scope_ref`` to the
+      enclosing scope for O(1) variable lookup.
 
 Usage::
 
@@ -61,7 +64,7 @@ from execsql.script.ast import (
     SqlBlock,
     SqlStatement,
 )
-from execsql.script.engine import CommandList, set_dynamic_system_vars, set_static_system_vars, substitute_vars
+from execsql.script.engine import set_dynamic_system_vars, set_static_system_vars, substitute_vars
 from execsql.script.variables import SubVarSet
 from execsql.state import ExecFrame, RuntimeContext, active_context, get_context, xcmd_test
 from execsql.utils.errors import exception_desc, exit_now, stamp_errinfo
@@ -117,42 +120,25 @@ def _push_frame(
     fresh :class:`LocalSubVarSet` and the declared ``paramnames``.  Returns
     the frame so the caller can set ``paramvals`` after parsing the call's
     arguments.
-
-    During the legacy-engine elimination migration this also pushes a
-    matching legacy ``CommandList`` onto ``ctx.commandliststack`` so the
-    25 ``_state.commandliststack[-1].localvars`` reader sites keep working
-    until they are migrated to the new accessor API.  The legacy push
-    will be removed once all readers use ``_state.current_localvars()``.
     """
-    from execsql.script.engine import MetacommandStmt, ScriptCmd
     from execsql.script.variables import LocalSubVarSet
-    from execsql.state import ExecFrame
 
-    localvars = LocalSubVarSet()
     frame = ExecFrame(
         kind=kind,
         label=name,
         source=source,
         line=line_no or None,
-        localvars=localvars,
+        localvars=LocalSubVarSet(),
         paramnames=paramnames,
     )
     ctx.ast_exec_stack.append(frame)
-
-    # Legacy dual-write — remove in the Phase 4 cleanup
-    sentinel = ScriptCmd(source, line_no, "cmd", MetacommandStmt(f"BEGIN SCRIPT {name}"))
-    legacy = CommandList([sentinel], name, paramnames)
-    legacy.localvars = localvars  # share the same LocalSubVarSet object across both stacks
-    ctx.commandliststack.append(legacy)
     return frame
 
 
 def _pop_frame(ctx: RuntimeContext) -> None:
-    """Pop the top scope frame from both stacks (dual-write era)."""
+    """Pop the top scope frame from the AST execution stack."""
     if ctx.ast_exec_stack:
         ctx.ast_exec_stack.pop()
-    if ctx.commandliststack:
-        ctx.commandliststack.pop()
 
 
 def _push_block_frame(ctx: RuntimeContext, frame: ExecFrame) -> None:
@@ -417,12 +403,15 @@ def _execute_node(
         _execute_loop(ctx, node, localvars)
 
     elif isinstance(node, BatchBlock):
+        ctx.last_command = _FakeScriptCmd(node)
         _execute_batch(ctx, node, localvars, in_loop=in_loop)
 
     elif isinstance(node, ScriptBlock):
+        ctx.last_command = _FakeScriptCmd(node)
         _register_script_block(ctx, node)
 
     elif isinstance(node, SqlBlock):
+        ctx.last_command = _FakeScriptCmd(node)
         _execute_sql_block(ctx, node, localvars, in_loop=in_loop)
 
     elif isinstance(node, IncludeDirective):
@@ -584,134 +573,8 @@ def _pre_register_scripts(ctx: RuntimeContext, nodes: list[Node]) -> None:
 
 
 def _register_script_block(ctx: RuntimeContext, node: ScriptBlock) -> None:
-    """Register a named SCRIPT block.
-
-    Stores the AST node in ``ctx.ast_scripts`` for native execution, and also
-    builds a legacy ``CommandList`` in ``ctx.savedscripts`` so that dispatch
-    table handlers (e.g., ON ERROR_HALT EXECUTE SCRIPT) still work.
-    """
-    from execsql.script.engine import CommandList
-
-    # AST-native registry
+    """Register a named SCRIPT block in the AST script registry."""
     ctx.ast_scripts[node.name] = node
-
-    # Legacy compatibility — flatten to CommandList for dispatch table
-    cmdlist = _flatten_for_legacy(node.body, node.span.file)
-    cl = CommandList(cmdlist, node.name, node.param_names)
-    ctx.savedscripts[node.name] = cl
-
-
-def _flatten_for_legacy(nodes: list[Node], source: str) -> list:
-    """Convert AST nodes to flat ScriptCmd list for legacy compatibility."""
-    from execsql.script.engine import MetacommandStmt, ScriptCmd, SqlStmt
-
-    result = []
-    for node in nodes:
-        if isinstance(node, SqlStatement):
-            text = re.sub(r"\s*;(\s*;\s*)+$", ";", node.text)
-            result.append(
-                ScriptCmd(node.span.file, node.span.start_line, "sql", SqlStmt(text)),
-            )
-        elif isinstance(node, MetaCommandStatement):
-            result.append(
-                ScriptCmd(node.span.file, node.span.start_line, "cmd", MetacommandStmt(node.command)),
-            )
-        elif isinstance(node, IfBlock):
-            result.append(
-                ScriptCmd(
-                    node.span.file,
-                    node.span.start_line,
-                    "cmd",
-                    MetacommandStmt(f"IF ({node.condition})"),
-                ),
-            )
-            # Emit ANDIF/ORIF condition modifiers after the IF
-            for mod in node.condition_modifiers:
-                keyword = "ANDIF" if mod.kind == "AND" else "ORIF"
-                result.append(
-                    ScriptCmd(
-                        mod.span.file,
-                        mod.span.start_line,
-                        "cmd",
-                        MetacommandStmt(f"{keyword} ({mod.condition})"),
-                    ),
-                )
-            result.extend(_flatten_for_legacy(node.body, source))
-            for clause in node.elseif_clauses:
-                result.append(
-                    ScriptCmd(
-                        clause.span.file,
-                        clause.span.start_line,
-                        "cmd",
-                        MetacommandStmt(f"ELSEIF ({clause.condition})"),
-                    ),
-                )
-                result.extend(_flatten_for_legacy(clause.body, source))
-            if node.else_body:
-                result.append(
-                    ScriptCmd(
-                        node.span.file,
-                        node.else_span.start_line if node.else_span else node.span.start_line,
-                        "cmd",
-                        MetacommandStmt("ELSE"),
-                    ),
-                )
-                result.extend(_flatten_for_legacy(node.else_body, source))
-            result.append(
-                ScriptCmd(
-                    node.span.file,
-                    node.span.effective_end_line,
-                    "cmd",
-                    MetacommandStmt("ENDIF"),
-                ),
-            )
-        elif isinstance(node, LoopBlock):
-            result.append(
-                ScriptCmd(
-                    node.span.file,
-                    node.span.start_line,
-                    "cmd",
-                    MetacommandStmt(f"LOOP {node.loop_type} ({node.condition})"),
-                ),
-            )
-            result.extend(_flatten_for_legacy(node.body, source))
-            result.append(
-                ScriptCmd(
-                    node.span.file,
-                    node.span.effective_end_line,
-                    "cmd",
-                    MetacommandStmt("END LOOP"),
-                ),
-            )
-        elif isinstance(node, BatchBlock):
-            result.append(
-                ScriptCmd(node.span.file, node.span.start_line, "cmd", MetacommandStmt("BEGIN BATCH")),
-            )
-            result.extend(_flatten_for_legacy(node.body, source))
-            result.append(
-                ScriptCmd(node.span.file, node.span.effective_end_line, "cmd", MetacommandStmt("END BATCH")),
-            )
-        elif isinstance(node, SqlBlock):
-            result.extend(_flatten_for_legacy(node.body, source))
-        elif isinstance(node, IncludeDirective):
-            if node.is_execute_script:
-                parts = ["EXECUTE SCRIPT"]
-                if node.if_exists:
-                    parts.append("IF EXISTS")
-                parts.append(node.target)
-                if node.arguments:
-                    parts.append(f"WITH ARGS ({node.arguments})")
-                if node.loop_type:
-                    parts.append(f"{node.loop_type} ({node.loop_condition})")
-                result.append(
-                    ScriptCmd(node.span.file, node.span.start_line, "cmd", MetacommandStmt(" ".join(parts))),
-                )
-            else:
-                prefix = "INCLUDE IF EXISTS" if node.if_exists else "INCLUDE"
-                result.append(
-                    ScriptCmd(node.span.file, node.span.start_line, "cmd", MetacommandStmt(f"{prefix} {node.target}")),
-                )
-    return result
 
 
 def _execute_sql_block(
@@ -752,22 +615,12 @@ def _execute_include(
             _execute_script_native(ctx, node, ctx.ast_scripts[target], localvars)
             return
 
-        # Target not in AST registry — might be defined in an INCLUDE'd file
-        # that hasn't been loaded yet.  Fall through to legacy dispatch.
-        if not node.if_exists and target not in ctx.savedscripts:
-            raise ErrInfo(
-                "cmd",
-                other_msg=f"There is no SCRIPT named {node.target}.",
-            )
-        if node.if_exists and target not in ctx.savedscripts:
-            return  # IF EXISTS — skip silently
-
-        # Target is in savedscripts but not ast_scripts — this shouldn't
-        # happen when the AST executor is the only engine, but handle it
-        # gracefully by raising an error.
+        # Target not registered — IF EXISTS silently skips; otherwise error.
+        if node.if_exists:
+            return
         raise ErrInfo(
             "cmd",
-            other_msg=f"SCRIPT {node.target} is not registered in the AST executor.",
+            other_msg=f"There is no SCRIPT named {node.target}.",
         )
 
     # --- INCLUDE (file inclusion) — parse and execute natively ---
@@ -782,10 +635,11 @@ def _execute_script_native(
 ) -> None:
     """Execute a SCRIPT block natively through the AST executor.
 
-    Pushes a :class:`CommandList` frame onto ``ctx.commandliststack`` so that
-    legacy metacommand handlers (``x_sub``, ``x_rm_sub``, ``xf_sub_defined``,
-    prompt handlers, etc.) can access ``~`` local variables and ``#`` script
-    arguments via ``get_subvarset()`` / ``commandliststack[-1]``.  The frame
+    Pushes a SCRIPT-kind :class:`~execsql.state.ExecFrame` onto
+    ``ctx.ast_exec_stack`` so that metacommand handlers (``x_sub``,
+    ``x_rm_sub``, ``xf_sub_defined``, prompt handlers, etc.) can access
+    ``~`` local variables and ``#`` script arguments via
+    ``ctx.current_localvars()`` / ``ctx.current_paramvals()``. The frame
     is popped on exit (including on error) via ``try/finally``.
     """
     from execsql.script.variables import ScriptArgSubVarSet
@@ -840,7 +694,7 @@ def _execute_script_native(
                 if pdef.default is not None:
                     paramvals.add_substitution(f"#{pdef.name}", pdef.default)
 
-    # Push a CommandList frame onto the stack so that:
+    # Push a SCRIPT-kind ExecFrame onto ast_exec_stack so that:
     #   - get_subvarset() can find ~local and +outer-scope variables
     #   - xf_sub_defined/xf_sub_empty can check ~local and #param variables
     #   - current_script_line() returns meaningful source location
@@ -855,10 +709,6 @@ def _execute_script_native(
     )
     if paramvals is not None:
         frame.paramvals = paramvals
-        # Also keep the legacy CommandList in sync so any not-yet-migrated
-        # reader of commandliststack[-1].paramvals still sees the values.
-        if ctx.commandliststack:
-            ctx.commandliststack[-1].paramvals = paramvals
         frame.params = dict(paramvals.substitutions)
 
     try:
@@ -896,7 +746,13 @@ def _execute_script_native(
                 if xcmd_test(expanded):
                     break
         else:
-            _run_body()
+            try:
+                _run_body()
+            except _BreakLoop as exc:
+                raise ErrInfo(
+                    type="cmd",
+                    other_msg=f"BREAK metacommand inside SCRIPT '{script_block.name}' but not inside a LOOP.",
+                ) from exc
     finally:
         _pop_frame(ctx)
 
@@ -1077,6 +933,7 @@ def execute(script: Script, *, ctx: RuntimeContext | None = None) -> None:
         ctx.ast_scripts.clear()
         ctx.include_chain.clear()
         ctx.ast_exec_stack.clear()
+        ctx.last_command = None
         # Seed the include chain with the main script to catch self-includes.
         if script.source != "<inline>":
             try:

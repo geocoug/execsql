@@ -135,7 +135,7 @@ class TestExitNowHaltSpecs:
     def test_err_halt_exec_runs_script(self):
         mock_exec = MagicMock()
         _state.err_halt_exec = mock_exec
-        _state.commandliststack = []
+        _state.ast_exec_stack = []
         _state.output = MagicMock()
 
         errinfo = ErrInfo("error", other_msg="test")
@@ -150,7 +150,7 @@ class TestExitNowHaltSpecs:
     def test_cancel_halt_exec_runs_script(self):
         mock_exec = MagicMock()
         _state.cancel_halt_exec = mock_exec
-        _state.commandliststack = []
+        _state.ast_exec_stack = []
 
         with (
             patch("execsql.utils.errors.sys.exit"),

@@ -31,7 +31,7 @@ def test_state_importable():
     import execsql.state as _state
 
     # Core attributes are present at module level before main() runs.
-    assert hasattr(_state, "commandliststack")
+    assert hasattr(_state, "ast_exec_stack")
     assert hasattr(_state, "subvars")
     assert hasattr(_state, "varlike")
 

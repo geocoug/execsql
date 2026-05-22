@@ -11,7 +11,6 @@ from execsql.exceptions import ErrInfo
 from execsql.script import (
     BatchLevels,
     CounterVars,
-    IfLevels,
     LocalSubVarSet,
     MetaCommand,
     MetaCommandList,
@@ -130,114 +129,6 @@ class TestBatchLevels:
     def test_rollback_noop_when_no_batch(self):
         bl = BatchLevels()
         bl.rollback_batch()  # should not raise
-
-
-# ---------------------------------------------------------------------------
-# IfLevels
-# ---------------------------------------------------------------------------
-
-
-class TestIfLevels:
-    def setup_method(self):
-        # Ensure commandliststack is empty so current_script_line() returns ("", 0).
-        _state.commandliststack = []
-
-    def test_all_true_when_empty(self):
-        ifl = IfLevels()
-        assert ifl.all_true() is True
-
-    def test_only_current_false_when_empty(self):
-        ifl = IfLevels()
-        assert ifl.only_current_false() is False
-
-    def test_nest_true_all_true(self):
-        ifl = IfLevels()
-        ifl.nest(True)
-        assert ifl.all_true() is True
-
-    def test_nest_false_not_all_true(self):
-        ifl = IfLevels()
-        ifl.nest(False)
-        assert ifl.all_true() is False
-
-    def test_current_returns_top_value(self):
-        ifl = IfLevels()
-        ifl.nest(True)
-        assert ifl.current() is True
-
-    def test_current_raises_when_empty(self):
-        ifl = IfLevels()
-        with pytest.raises(ErrInfo):
-            ifl.current()
-
-    def test_unnest_removes_top(self):
-        ifl = IfLevels()
-        ifl.nest(True)
-        ifl.unnest()
-        assert ifl.all_true() is True
-
-    def test_unnest_raises_when_empty(self):
-        ifl = IfLevels()
-        with pytest.raises(ErrInfo):
-            ifl.unnest()
-
-    def test_invert_flips_top(self):
-        ifl = IfLevels()
-        ifl.nest(True)
-        ifl.invert()
-        assert ifl.current() is False
-
-    def test_invert_raises_when_empty(self):
-        ifl = IfLevels()
-        with pytest.raises(ErrInfo):
-            ifl.invert()
-
-    def test_replace_changes_top(self):
-        ifl = IfLevels()
-        ifl.nest(True)
-        ifl.replace(False)
-        assert ifl.current() is False
-
-    def test_replace_raises_when_empty(self):
-        ifl = IfLevels()
-        with pytest.raises(ErrInfo):
-            ifl.replace(True)
-
-    def test_only_current_false_single_level(self):
-        ifl = IfLevels()
-        ifl.nest(False)
-        assert ifl.only_current_false() is True
-
-    def test_only_current_false_when_current_true(self):
-        ifl = IfLevels()
-        ifl.nest(True)
-        assert ifl.only_current_false() is False
-
-    def test_only_current_false_nested_outer_false(self):
-        # Both outer and current are false — not "only current false"
-        ifl = IfLevels()
-        ifl.nest(False)  # outer level = False
-        ifl.nest(False)  # current level = False
-        assert ifl.only_current_false() is False
-
-    def test_only_current_false_nested_outer_true(self):
-        ifl = IfLevels()
-        ifl.nest(True)  # outer = True
-        ifl.nest(False)  # current = False
-        assert ifl.only_current_false() is True
-
-    def test_script_lines_raises_with_insufficient_depth(self):
-        ifl = IfLevels()
-        ifl.nest(True)
-        with pytest.raises(ErrInfo):
-            ifl.script_lines(2)
-
-    def test_script_lines_returns_correct_count(self):
-        ifl = IfLevels()
-        ifl.nest(True)
-        ifl.nest(False)
-        lines = ifl.script_lines(2)
-        assert len(lines) == 2
 
 
 # ---------------------------------------------------------------------------
@@ -366,7 +257,7 @@ class TestSubVarSet:
         sv.add_substitution("$val", "it's")
         result, changed = sv.substitute("!'!$val!'!")
         assert changed is True
-        assert "it''s" in result
+        assert result == "'it''s'"
 
     def test_substitute_double_quoted_var(self):
         sv = SubVarSet()
@@ -503,7 +394,7 @@ class TestSubVarSet:
         sv.add_substitution("$v", "it's")
         result, changed = sv.substitute("!'!$v!'!")
         assert changed is True
-        assert "it''s" in result
+        assert result == "'it''s'"
 
     def test_substitute_double_quoted(self):
         sv = SubVarSet()
@@ -722,13 +613,13 @@ class TestSubVarSetTokenOptimization:
         assert result == "done"
 
     def test_nested_variable_name_single_quote_form(self):
-        """Nested name inside single-quoted form applies apostrophe escaping."""
+        """Nested name inside single-quoted form wraps + escapes apostrophes."""
         sv = SubVarSet()
         sv.add_substitution("group", "east")
         sv.add_substitution("n_east_val", "it's done")
         result, changed = sv.substitute_all("!'!N_!!GROUP!!_VAL!'!")
         assert changed is True
-        assert result == "it''s done"
+        assert result == "'it''s done'"
 
     def test_nested_variable_name_double_quote_form(self):
         """Nested name inside double-quoted form wraps value in quotes."""
@@ -770,12 +661,12 @@ class TestSubVarSetTokenOptimization:
         assert changed is False
 
     def test_single_quoted_no_apostrophes(self):
-        """Single-quoted form with a value that has no apostrophes — no doubling needed."""
+        """Single-quoted form wraps the value in single quotes."""
         sv = SubVarSet()
         sv.add_substitution("$v", "clean")
         result, changed = sv.substitute("!'!$v!'!")
         assert changed is True
-        assert result == "clean"
+        assert result == "'clean'"
 
     def test_double_quoted_empty_value(self):
         sv = SubVarSet()
@@ -805,7 +696,7 @@ class TestSubVarSetTokenOptimization:
         result, changed = sv.substitute_all("plain=!!$v!! quoted=!'!$v!'!")
         assert changed is True
         assert "plain=it's" in result
-        assert "quoted=it''s" in result
+        assert "quoted='it''s'" in result
 
     def test_substitute_all_cycle_raises(self):
         """Cyclic variable references raise RuntimeError after max iterations."""
@@ -872,7 +763,7 @@ class _MockStatus:
 
 class TestMetaCommand:
     def setup_method(self):
-        _state.commandliststack = []
+        _state.ast_exec_stack = []
         _state.status = _MockStatus()
 
     def test_repr(self):
@@ -943,7 +834,7 @@ class TestMetaCommand:
 
 class TestMetaCommandList:
     def setup_method(self):
-        _state.commandliststack = []
+        _state.ast_exec_stack = []
         _state.status = _MockStatus()
 
     def test_initially_empty(self):
@@ -995,7 +886,7 @@ class TestMetaCommandListKeywordIndex:
     """Tests for the keyword-indexed dispatch optimization."""
 
     def setup_method(self):
-        _state.commandliststack = []
+        _state.ast_exec_stack = []
         _state.status = _MockStatus()
 
     def test_keyword_index_groups_by_leading_keyword(self):

@@ -21,50 +21,68 @@ the block on ``ctx.ast_scripts``); this module is only the call-site /
 extension handlers.
 """
 
+import copy
+from dataclasses import replace
 from typing import Any
 
 import execsql.state as _state
 from execsql.exceptions import ErrInfo
-from execsql.script import MetacommandStmt, ScriptCmd, SqlStmt, current_script_line
+from execsql.script import current_script_line
+
+
+def _get_ast_script(name: str):
+    """Return the AST :class:`ScriptBlock` for ``name`` or raise ErrInfo."""
+    block = _state.ast_scripts.get(name.lower())
+    if block is None:
+        raise ErrInfo("cmd", other_msg=f"There is no SCRIPT named {name}.")
+    return block
+
+
+def _new_span(source: str, line_no: int):
+    """Construct a SourceSpan for a synthetic AST node created at runtime."""
+    from execsql.script.ast import SourceSpan
+
+    return SourceSpan(file=source, start_line=line_no, end_line=line_no)
 
 
 def x_extendscript(**kwargs: Any) -> None:
-    script1 = kwargs["script1"].lower()
-    if script1 not in _state.savedscripts:
-        raise ErrInfo("cmd", other_msg=f"There is no SCRIPT named {script1}.")
-    script2 = kwargs["script2"].lower()
-    if script2 not in _state.savedscripts:
-        raise ErrInfo("cmd", other_msg=f"There is no SCRIPT named {script2}.")
-    s1 = _state.savedscripts[script1]
-    s2 = _state.savedscripts[script2]
-    for cmd in s1.cmdlist:
-        s2.add(cmd)
-    if s1.paramnames is not None:
-        if s2.paramnames is None:
-            s2.paramnames = []
-        for param in s1.paramnames:
-            if param not in s2.paramnames:
-                s2.paramnames.append(param)
+    """Append the body of one SCRIPT to another, merging parameter names."""
+    target = _get_ast_script(kwargs["script2"])
+    source = _get_ast_script(kwargs["script1"])
+
+    # Append a deep copy of the source body so future mutations don't bleed.
+    target.body.extend(copy.deepcopy(source.body))
+
+    # Merge parameter definitions, preserving the target's existing order and
+    # adding any new params from the source.
+    if source.param_defs:
+        existing = list(target.param_defs or [])
+        existing_names = {p.name for p in existing}
+        for pdef in source.param_defs:
+            if pdef.name not in existing_names:
+                existing.append(replace(pdef))
+                existing_names.add(pdef.name)
+        target.param_defs = existing
 
 
 def x_extendscript_metacommand(**kwargs: Any) -> None:
-    script = kwargs["script"].lower()
-    if script not in _state.savedscripts:
-        raise ErrInfo("cmd", other_msg=f"There is no SCRIPT named {script}.")
+    """Append a single metacommand line to an existing SCRIPT body."""
+    from execsql.script.ast import MetaCommandStatement
+
+    block = _get_ast_script(kwargs["script"])
     script_file, script_line_no = current_script_line()
-    _state.savedscripts[script].add(
-        ScriptCmd(script_file, script_line_no, "cmd", MetacommandStmt(kwargs["cmd"])),
-    )
+    span = _new_span(script_file, script_line_no or 0)
+    block.body.append(MetaCommandStatement(span=span, command=kwargs["cmd"]))
 
 
 def x_extendscript_sql(**kwargs: Any) -> None:
-    script = kwargs["script"].lower()
-    if script not in _state.savedscripts:
-        raise ErrInfo("cmd", other_msg=f"There is no SCRIPT named {script}.")
+    """Append a single SQL statement to an existing SCRIPT body."""
+    from execsql.script.ast import SqlStatement
+
+    block = _get_ast_script(kwargs["script"])
     script_file, script_line_no = current_script_line()
-    _state.savedscripts[script].add(
-        ScriptCmd(script_file, script_line_no, "sql", SqlStmt(kwargs["sql"])),
-    )
+    span = _new_span(script_file, script_line_no or 0)
+    block.body.append(SqlStatement(span=span, text=kwargs["sql"]))
 
 
 def x_executescript(**kwargs: Any) -> None:

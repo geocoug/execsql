@@ -16,8 +16,6 @@ from unittest.mock import MagicMock
 import pytest
 
 import execsql.state as _state
-from execsql.exceptions import ErrInfo
-from execsql.script import CommandList
 from execsql.state import RuntimeContext, _CONTEXT_ATTRS, active_context
 
 
@@ -105,95 +103,20 @@ class TestGlobalRegexDefaults:
 
 
 class TestMutableStateDefaults:
-    def test_compiling_loop_is_false(self):
-        # Only valid when no loop is being compiled; at module level this is False.
-        assert _state.compiling_loop is False
-
     def test_stringtypes_is_str(self):
         assert _state.stringtypes is str
-
-    def test_loop_nest_level_is_int(self):
-        assert isinstance(_state.loop_nest_level, int)
 
     def test_cmds_run_is_int(self):
         assert isinstance(_state.cmds_run, int)
 
-    def test_commandliststack_is_list(self):
-        assert isinstance(_state.commandliststack, list)
+    def test_ast_exec_stack_is_list(self):
+        assert isinstance(_state.ast_exec_stack, list)
 
-    def test_savedscripts_is_dict(self):
-        assert isinstance(_state.savedscripts, dict)
-
-    def test_loopcommandstack_is_list(self):
-        assert isinstance(_state.loopcommandstack, list)
+    def test_ast_scripts_is_dict(self):
+        assert isinstance(_state.ast_scripts, dict)
 
     def test_logfile_encoding_is_utf8(self):
         assert _state.logfile_encoding == "utf8"
-
-
-# ---------------------------------------------------------------------------
-# endloop()
-# ---------------------------------------------------------------------------
-
-
-class TestEndloop:
-    def test_endloop_raises_erinfo_when_stack_empty(self):
-        """endloop() raises ErrInfo when loopcommandstack is empty."""
-        saved = list(_state.loopcommandstack)
-        _state.loopcommandstack.clear()
-        try:
-            with pytest.raises(ErrInfo):
-                _state.endloop()
-        finally:
-            _state.loopcommandstack.extend(saved)
-
-    def test_endloop_moves_commandlist_to_exec_stack(self):
-        """endloop() pops loopcommandstack and appends to commandliststack."""
-        cl = CommandList([], "test_loop")
-        saved_loop = list(_state.loopcommandstack)
-        saved_cmd = list(_state.commandliststack)
-        _state.loopcommandstack.clear()
-        _state.commandliststack.clear()
-
-        _state.loopcommandstack.append(cl)
-        _state.compiling_loop = True
-
-        try:
-            _state.endloop()
-            assert len(_state.commandliststack) == 1
-            assert _state.commandliststack[0] is cl
-            assert len(_state.loopcommandstack) == 0
-            assert _state.compiling_loop is False
-        finally:
-            _state.loopcommandstack.clear()
-            _state.loopcommandstack.extend(saved_loop)
-            _state.commandliststack.clear()
-            _state.commandliststack.extend(saved_cmd)
-            _state.compiling_loop = False
-
-    def test_endloop_handles_nested_loops(self):
-        """With two entries on loopcommandstack, only the top is popped."""
-        cl1 = CommandList([], "outer_loop")
-        cl2 = CommandList([], "inner_loop")
-        saved_loop = list(_state.loopcommandstack)
-        saved_cmd = list(_state.commandliststack)
-        _state.loopcommandstack.clear()
-        _state.commandliststack.clear()
-
-        _state.loopcommandstack.extend([cl1, cl2])
-        _state.compiling_loop = True
-
-        try:
-            _state.endloop()
-            assert len(_state.loopcommandstack) == 1
-            assert _state.loopcommandstack[0] is cl1
-            assert _state.commandliststack[-1] is cl2
-        finally:
-            _state.loopcommandstack.clear()
-            _state.loopcommandstack.extend(saved_loop)
-            _state.commandliststack.clear()
-            _state.commandliststack.extend(saved_cmd)
-            _state.compiling_loop = False
 
 
 # ---------------------------------------------------------------------------
@@ -215,12 +138,10 @@ class TestRuntimeContext:
         ctx = RuntimeContext()
         assert ctx.conf is None
         assert ctx.logfile_encoding == "utf8"
-        assert ctx.compiling_loop is False
-        assert ctx.loop_nest_level == 0
         assert ctx.cmds_run == 0
-        assert ctx.commandliststack == []
-        assert ctx.savedscripts == {}
-        assert ctx.loopcommandstack == []
+        assert ctx.ast_exec_stack == []
+        assert ctx.ast_scripts == {}
+        assert ctx.include_chain == []
         assert ctx.subvars is None
         assert ctx.dbs is None
         assert ctx.filewriter is None
@@ -252,7 +173,7 @@ class TestRuntimeContext:
     def test_proxy_hasattr(self):
         """hasattr works for both context attrs and module-level constants."""
         assert hasattr(_state, "conf")
-        assert hasattr(_state, "commandliststack")
+        assert hasattr(_state, "ast_exec_stack")
         assert hasattr(_state, "varlike")
         assert hasattr(_state, "primary_vno")
         assert not hasattr(_state, "nonexistent_attr_xyz")
@@ -261,7 +182,7 @@ class TestRuntimeContext:
         """dir(_state) includes context attributes."""
         d = dir(_state)
         assert "conf" in d
-        assert "commandliststack" in d
+        assert "ast_exec_stack" in d
         assert "varlike" in d
 
     def test_reset_preserves_filewriter(self):
@@ -284,13 +205,13 @@ class TestRuntimeContext:
 
     def test_reset_produces_clean_defaults(self):
         """After reset(), all context attrs are at their default values."""
-        _state.compiling_loop = True
         _state.cmds_run = 42
         _state.upass = "stale"
+        _state.ast_exec_stack = [object()]
         _state.reset()
-        assert _state.compiling_loop is False
         assert _state.cmds_run == 0
         assert _state.upass is None
+        assert _state.ast_exec_stack == []
 
     def test_slots_prevent_typo_attrs(self):
         """RuntimeContext.__slots__ prevents setting misspelled attributes."""

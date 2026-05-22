@@ -24,9 +24,7 @@ import execsql.state as _state
 from execsql.exceptions import ErrInfo
 from execsql.script import (
     SubVarSet,
-    LocalSubVarSet,
     CounterVars,
-    IfLevels,
     BatchLevels,
 )
 
@@ -43,32 +41,19 @@ def _make_subvars() -> SubVarSet:
     return sv
 
 
-def _mock_commandlist(name: str = "test") -> MagicMock:
-    """Return a mock CommandList with a localvars attribute."""
-    cl = MagicMock()
-    cl.listname = name
-    cl.paramnames = None
-    cl.cmdptr = 0
-    cl.init_if_level = 0
-    lv = LocalSubVarSet()
-    cl.localvars = lv
-    return cl
+def _push_mock_scope(name: str = "test"):
+    """Install a mock SCRIPT scope frame on ``_state.ast_exec_stack``.
 
-
-def _push_mock_scope(name: str = "test") -> tuple:
-    """Install a mock scope frame on both legacy and unified stacks.
-
-    Returns ``(cl, frame)`` — the legacy ``CommandList`` mock and the new
-    ``ExecFrame`` with a shared ``LocalSubVarSet``. Tests that mutate
-    locals via either side see the same data.
+    Returns the ``ExecFrame`` carrying a fresh ``LocalSubVarSet`` — tests
+    can read ``frame.localvars`` to assert state changes, or call
+    ``_state.current_localvars()`` to exercise the production accessor.
     """
+    from execsql.script.variables import LocalSubVarSet
     from execsql.state import ExecFrame
 
-    cl = _mock_commandlist(name)
-    frame = ExecFrame(kind="script", label=name, localvars=cl.localvars)
-    _state.commandliststack = [cl]
+    frame = ExecFrame(kind="script", label=name, localvars=LocalSubVarSet())
     _state.ast_exec_stack = [frame]
-    return cl, frame
+    return frame
 
 
 def _make_state_subvars():
@@ -290,7 +275,6 @@ class TestDataSubVarOps:
 
     def teardown_method(self):
         _state.subvars = None
-        _state.commandliststack = []
         _state.ast_exec_stack = []
 
     def test_x_sub(self):
@@ -333,7 +317,7 @@ class TestDataSubVarOps:
     def test_x_rm_sub_local(self):
         from execsql.metacommands.data import x_rm_sub
 
-        lv = _state.commandliststack[-1].localvars
+        lv = _state.current_localvars()
         lv.add_substitution("~localvar", "val")
         assert lv.sub_exists("~localvar")
         x_rm_sub(match="~localvar")
@@ -342,7 +326,7 @@ class TestDataSubVarOps:
     def test_x_sub_local_adds_tilde_prefix(self):
         from execsql.metacommands.data import x_sub_local
 
-        lv = _state.commandliststack[-1].localvars
+        lv = _state.current_localvars()
         x_sub_local(match="noprefix", repl="thevalue")
         # The function should prepend ~ if not present
         assert lv.sub_exists("~noprefix")
@@ -351,7 +335,7 @@ class TestDataSubVarOps:
     def test_x_sub_local_already_tilde(self):
         from execsql.metacommands.data import x_sub_local
 
-        lv = _state.commandliststack[-1].localvars
+        lv = _state.current_localvars()
         x_sub_local(match="~alreadytilde", repl="val")
         assert lv.varvalue("~alreadytilde") == "val"
 
@@ -404,14 +388,13 @@ class TestSystemHandlers:
         _state.output = MagicMock()
         _state.status = MagicMock()
         _state.status.cancel_halt = False
-        _state.commandliststack = [_mock_commandlist()]
+        _push_mock_scope()
 
     def teardown_method(self):
         _state.subvars = None
         _state.exec_log = None
         _state.output = None
         _state.status = None
-        _state.commandliststack = []
 
     def test_x_log_writes_message(self):
         from execsql.metacommands.system import x_log
@@ -664,20 +647,13 @@ class TestControlHandlers:
         _state.status.halt_on_err = True
         _state.status.halt_on_metacommand_err = True
         _state.status.batch = BatchLevels()
-        _state.if_stack = IfLevels()
-        _state.commandliststack = [_mock_commandlist()]
-        _state.loopcommandstack = []
-        _state.compiling_loop = False
+        _push_mock_scope()
 
     def teardown_method(self):
         _state.subvars = None
         _state.exec_log = None
         _state.output = None
         _state.status = None
-        _state.if_stack = None
-        _state.commandliststack = []
-        _state.loopcommandstack = []
-        _state.compiling_loop = False
 
     def test_x_error_halt_on(self):
         from execsql.metacommands.control import x_error_halt
@@ -715,171 +691,43 @@ class TestControlHandlers:
         with pytest.raises(ErrInfo):
             x_metacommand_error_halt(onoff="bad", metacommandline="metacommand_error_halt bad")
 
-    def test_x_begin_batch(self):
-        from execsql.metacommands.control import x_begin_batch
-
-        assert not _state.status.batch.in_batch()
-        x_begin_batch()
-        assert _state.status.batch.in_batch()
-
-    def test_x_end_batch(self):
-        from execsql.metacommands.control import x_begin_batch, x_end_batch
-
-        x_begin_batch()
-        assert _state.status.batch.in_batch()
-        x_end_batch()
-        assert not _state.status.batch.in_batch()
-
     def test_x_rollback(self):
-        from execsql.metacommands.control import x_begin_batch, x_rollback
+        from execsql.metacommands.control import x_rollback
 
         mock_db = MagicMock()
-        x_begin_batch()
+        _state.status.batch.new_batch()
         _state.status.batch.using_db(mock_db)
         x_rollback()
         mock_db.rollback.assert_called_once()
 
-    def test_x_if_block_true(self):
-        from execsql.metacommands.control import x_if_block
+    @pytest.mark.parametrize(
+        "handler_name,kwargs",
+        [
+            ("x_if_block", {"condtest": "1 == 1"}),
+            ("x_if_end", {}),
+            ("x_if_else", {}),
+            ("x_if_orif", {"condtest": "anything"}),
+            ("x_if_andif", {"condtest": "anything"}),
+            ("x_if_elseif", {"condtest": "anything"}),
+            ("x_begin_batch", {}),
+            ("x_end_batch", {}),
+            ("x_break", {}),
+            ("x_loop", {}),
+        ],
+    )
+    def test_legacy_handler_raises_ast_only_stub(self, handler_name, kwargs):
+        """Dispatch handlers for AST-structural keywords raise loud ErrInfo.
 
-        with (
-            patch("execsql.state.xcmd_test", return_value=True),
-            patch("execsql.script.current_script_line", return_value=("t.sql", 1)),
-        ):
-            x_if_block(condtest="1 == 1")
-        assert _state.if_stack.all_true()
-        assert len(_state.if_stack.if_levels) == 1
+        IF / ELSE / ELSEIF / ANDIF / ORIF / ENDIF / BEGIN BATCH / END BATCH
+        / BREAK / LOOP are recognised by the AST parser and dispatched
+        structurally by the executor; reaching the dispatch handler means
+        the parser failed to recognise the keyword.
+        """
+        import execsql.metacommands.control as control
 
-    def test_x_if_block_false(self):
-        from execsql.metacommands.control import x_if_block
-
-        with (
-            patch("execsql.state.xcmd_test", return_value=False),
-            patch("execsql.script.current_script_line", return_value=("t.sql", 1)),
-        ):
-            x_if_block(condtest="1 == 2")
-        assert not _state.if_stack.all_true()
-        assert len(_state.if_stack.if_levels) == 1
-
-    def test_x_if_block_nested_outer_false(self):
-        from execsql.metacommands.control import x_if_block
-
-        with patch("execsql.script.current_script_line", return_value=("t.sql", 1)):
-            _state.if_stack.nest(False)
-            with patch("execsql.state.xcmd_test", return_value=True):
-                x_if_block(condtest="1 == 1")
-        # Both levels should exist; inner forced to False because outer is False
-        assert len(_state.if_stack.if_levels) == 2
-        assert not _state.if_stack.if_levels[-1].value()
-
-    def test_x_if_end_unnests(self):
-        from execsql.metacommands.control import x_if_end
-
-        with patch("execsql.script.current_script_line", return_value=("t.sql", 1)):
-            _state.if_stack.nest(True)
-        assert len(_state.if_stack.if_levels) == 1
-        x_if_end()
-        assert len(_state.if_stack.if_levels) == 0
-
-    def test_x_if_else_inverts(self):
-        from execsql.metacommands.control import x_if_else
-
-        with patch("execsql.script.current_script_line", return_value=("t.sql", 1)):
-            _state.if_stack.nest(True)
-        x_if_else()
-        assert not _state.if_stack.if_levels[-1].value()
-
-    def test_x_if_orif_short_circuits_when_all_true(self):
-        from execsql.metacommands.control import x_if_orif
-
-        with patch("execsql.script.current_script_line", return_value=("t.sql", 1)):
-            _state.if_stack.nest(True)
-        with patch("execsql.state.xcmd_test") as mock_test:
-            x_if_orif(condtest="anything")
-        # Should not even call xcmd_test if all_true
-        mock_test.assert_not_called()
-
-    def test_x_if_orif_evaluates_when_current_false(self):
-        from execsql.metacommands.control import x_if_orif
-
-        with patch("execsql.script.current_script_line", return_value=("t.sql", 1)):
-            _state.if_stack.nest(False)
-        with patch("execsql.state.xcmd_test", return_value=True):
-            x_if_orif(condtest="something")
-        assert _state.if_stack.if_levels[-1].value() is True
-
-    def test_x_if_andif_short_circuits_when_not_all_true(self):
-        from execsql.metacommands.control import x_if_andif
-
-        with patch("execsql.script.current_script_line", return_value=("t.sql", 1)):
-            _state.if_stack.nest(False)
-        with patch("execsql.state.xcmd_test") as mock_test:
-            x_if_andif(condtest="anything")
-        # Should not evaluate if not all_true
-        mock_test.assert_not_called()
-
-    def test_x_if_andif_evaluates_when_all_true(self):
-        from execsql.metacommands.control import x_if_andif
-
-        with patch("execsql.script.current_script_line", return_value=("t.sql", 1)):
-            _state.if_stack.nest(True)
-        with patch("execsql.state.xcmd_test", return_value=False):
-            x_if_andif(condtest="something_false")
-        assert not _state.if_stack.if_levels[-1].value()
-
-    def test_x_if_elseif_switches_when_only_current_false(self):
-        from execsql.metacommands.control import x_if_elseif
-
-        with patch("execsql.script.current_script_line", return_value=("t.sql", 1)):
-            _state.if_stack.nest(False)
-        with patch("execsql.state.xcmd_test", return_value=True):
-            x_if_elseif(condtest="new_condition")
-        assert _state.if_stack.if_levels[-1].value() is True
-
-    def test_x_if_elseif_sets_false_when_previously_true(self):
-        from execsql.metacommands.control import x_if_elseif
-
-        with patch("execsql.script.current_script_line", return_value=("t.sql", 1)):
-            _state.if_stack.nest(True)
-        with patch("execsql.state.xcmd_test", return_value=True):
-            x_if_elseif(condtest="something")
-        # ELSEIF when current is True should set False (only execute one branch)
-        assert not _state.if_stack.if_levels[-1].value()
-
-    def test_x_break_with_single_command_list(self):
-        from execsql.metacommands.control import x_break
-
-        with (
-            patch("execsql.metacommands.control.current_script_line", return_value=("test.sql", 1)),
-            patch("execsql.metacommands.control.write_warning") as mock_warn,
-        ):
-            x_break()
-        mock_warn.assert_called_once()
-        # Stack should still have one item
-        assert len(_state.commandliststack) == 1
-
-    def test_x_break_with_nested_command_list(self):
-        from execsql.metacommands.control import x_break
-
-        # Add a second command list to simulate nesting
-        second_cl = _mock_commandlist("inner")
-        second_cl.init_if_level = 0
-        _state.commandliststack.append(second_cl)
-        assert len(_state.commandliststack) == 2
-        x_break()
-        assert len(_state.commandliststack) == 1
-
-    def test_x_loop_raises_in_ast_mode(self):
-        """x_loop raises because LOOP is handled by the AST executor."""
-        from execsql.metacommands.control import x_loop
-
+        handler = getattr(control, handler_name)
         with pytest.raises(ErrInfo, match="AST executor"):
-            x_loop(looptype="WHILE", loopcond="1 == 1")
-
-    def test_endloop_without_loop_raises(self):
-        _state.loopcommandstack = []
-        with pytest.raises(ErrInfo):
-            _state.endloop()
+            handler(**kwargs)
 
 
 # ---------------------------------------------------------------------------
@@ -895,14 +743,13 @@ class TestDebugHandlers:
         _state.subvars = sv
         _state.exec_log = MagicMock()
         _state.output = MagicMock()
-        _state.commandliststack = [_mock_commandlist()]
+        _push_mock_scope()
         _state.metacommandlist = []
 
     def teardown_method(self):
         _state.subvars = None
         _state.exec_log = None
         _state.output = None
-        _state.commandliststack = []
         _state.metacommandlist = None
 
     def test_x_debug_commandliststack_writes_output(self):
@@ -915,20 +762,22 @@ class TestDebugHandlers:
     def test_x_debug_iflevels_empty(self):
         from execsql.metacommands.debug import x_debug_iflevels
 
-        _state.if_stack = IfLevels()
         x_debug_iflevels()
         _state.output.write.assert_called_with("If levels: (no active IF block)\n")
 
     def test_x_debug_iflevels_with_values(self):
         from execsql.metacommands.debug import x_debug_iflevels
+        from execsql.state import ExecFrame
 
-        _state.if_stack = IfLevels()
-        with patch("execsql.script.current_script_line", return_value=("test.sql", 1)):
-            _state.if_stack.nest(True)
-            _state.if_stack.nest(False)
+        _state.ast_exec_stack = [
+            ExecFrame(kind="if", label="cond_a", source="t.sql", line=1),
+            ExecFrame(kind="if", label="cond_b", source="t.sql", line=2),
+        ]
         x_debug_iflevels()
-        call_args = _state.output.write.call_args[0][0]
-        assert "True" in call_args or "False" in call_args
+        call_args = "".join(c[0][0] for c in _state.output.write.call_args_list)
+        assert "IF" in call_args
+        assert "cond_a" in call_args
+        assert "cond_b" in call_args
 
     def test_x_debug_write_metacommands_to_stdout(self):
         from execsql.metacommands.debug import x_debug_write_metacommands
@@ -1005,79 +854,83 @@ class TestDebugHandlers:
 
 
 class TestScriptExtHandlers:
-    """Tests for script_ext.py metacommand handlers."""
+    """Tests for script_ext.py metacommand handlers (AST-backed)."""
 
     def setup_method(self):
-        _state.savedscripts = {}
-        _state.commandliststack = [_mock_commandlist()]
+        _state.ast_scripts = {}
         _state.exec_log = MagicMock()
 
     def teardown_method(self):
-        _state.savedscripts = {}
-        _state.commandliststack = []
+        _state.ast_scripts = {}
         _state.exec_log = None
 
-    def _make_saved_script(self, name: str, cmds: list | None = None) -> MagicMock:
-        """Create a mock saved script and register it in _state.savedscripts."""
-        sc = MagicMock()
-        sc.cmdlist = cmds or []
-        sc.paramnames = None
-        _state.savedscripts[name] = sc
-        return sc
+    def _make_ast_script(self, name: str, body: list | None = None, params: list[str] | None = None):
+        """Register a fresh ScriptBlock in ast_scripts."""
+        from execsql.script.ast import ParamDef, ScriptBlock, SourceSpan
+
+        param_defs = [ParamDef(name=p, default=None) for p in params] if params else None
+        block = ScriptBlock(
+            span=SourceSpan(file="test.sql", start_line=1, end_line=1),
+            name=name,
+            param_defs=param_defs,
+            body=list(body) if body else [],
+        )
+        _state.ast_scripts[name] = block
+        return block
 
     def test_x_extendscript_both_exist(self):
         from execsql.metacommands.script_ext import x_extendscript
+        from execsql.script.ast import MetaCommandStatement, SourceSpan
 
-        cmd1 = MagicMock()
-        cmd2 = MagicMock()
-        _ = self._make_saved_script("s1", [cmd1])
-        s2 = self._make_saved_script("s2", [cmd2])
+        cmd1 = MetaCommandStatement(span=SourceSpan(file="s1.sql", start_line=1, end_line=1), command="WRITE x")
+        cmd2 = MetaCommandStatement(span=SourceSpan(file="s2.sql", start_line=1, end_line=1), command="WRITE y")
+        self._make_ast_script("s1", [cmd1])
+        s2 = self._make_ast_script("s2", [cmd2])
         x_extendscript(script1="s1", script2="s2")
-        s2.add.assert_called_once_with(cmd1)
+        assert len(s2.body) == 2
+        assert s2.body[1].command == "WRITE x"
 
     def test_x_extendscript_missing_script1(self):
         from execsql.metacommands.script_ext import x_extendscript
 
-        self._make_saved_script("s2")
+        self._make_ast_script("s2")
         with pytest.raises(ErrInfo):
             x_extendscript(script1="missing", script2="s2")
 
     def test_x_extendscript_missing_script2(self):
         from execsql.metacommands.script_ext import x_extendscript
 
-        self._make_saved_script("s1")
+        self._make_ast_script("s1")
         with pytest.raises(ErrInfo):
             x_extendscript(script1="s1", script2="missing")
 
     def test_x_extendscript_copies_params(self):
         from execsql.metacommands.script_ext import x_extendscript
 
-        s1 = self._make_saved_script("s1")
-        s1.paramnames = ["p1", "p2"]
-        s2 = self._make_saved_script("s2")
-        s2.paramnames = None
+        self._make_ast_script("s1", params=["p1", "p2"])
+        s2 = self._make_ast_script("s2")
         x_extendscript(script1="s1", script2="s2")
-        # s2.paramnames should be set from s1
-        assert s2.paramnames is not None
+        names = [p.name for p in (s2.param_defs or [])]
+        assert names == ["p1", "p2"]
 
     def test_x_extendscript_merges_existing_params(self):
         from execsql.metacommands.script_ext import x_extendscript
 
-        s1 = self._make_saved_script("s1")
-        s1.paramnames = ["p1", "p2"]
-        s2 = self._make_saved_script("s2")
-        s2.paramnames = ["p2", "p3"]
+        self._make_ast_script("s1", params=["p1", "p2"])
+        s2 = self._make_ast_script("s2", params=["p2", "p3"])
         x_extendscript(script1="s1", script2="s2")
-        # p1 should be added, p2 already present
-        assert "p1" in s2.paramnames
+        names = [p.name for p in (s2.param_defs or [])]
+        assert "p1" in names
+        assert names.count("p2") == 1
 
     def test_x_extendscript_metacommand(self):
         from execsql.metacommands.script_ext import x_extendscript_metacommand
 
-        s = self._make_saved_script("myscript")
+        s = self._make_ast_script("myscript")
         with patch("execsql.metacommands.script_ext.current_script_line", return_value=("test.sql", 10)):
             x_extendscript_metacommand(script="myscript", cmd="sub foo bar")
-        s.add.assert_called_once()
+        assert len(s.body) == 1
+        assert s.body[0].command == "sub foo bar"
 
     def test_x_extendscript_metacommand_missing_script(self):
         from execsql.metacommands.script_ext import x_extendscript_metacommand
@@ -1088,10 +941,11 @@ class TestScriptExtHandlers:
     def test_x_extendscript_sql(self):
         from execsql.metacommands.script_ext import x_extendscript_sql
 
-        s = self._make_saved_script("myscript")
+        s = self._make_ast_script("myscript")
         with patch("execsql.metacommands.script_ext.current_script_line", return_value=("test.sql", 5)):
             x_extendscript_sql(script="myscript", sql="select 1;")
-        s.add.assert_called_once()
+        assert len(s.body) == 1
+        assert s.body[0].text == "select 1;"
 
     def test_x_extendscript_sql_missing_script(self):
         from execsql.metacommands.script_ext import x_extendscript_sql
@@ -1318,20 +1172,13 @@ class TestControlHaltExtended:
         _state.status = MagicMock()
         _state.status.halt_on_err = True
         _state.status.batch = BatchLevels()
-        _state.if_stack = IfLevels()
-        _state.commandliststack = [_mock_commandlist()]
-        _state.loopcommandstack = []
-        _state.compiling_loop = False
+        _push_mock_scope()
 
     def teardown_method(self):
         _state.subvars = None
         _state.exec_log = None
         _state.output = None
         _state.status = None
-        _state.if_stack = None
-        _state.commandliststack = []
-        _state.loopcommandstack = []
-        _state.compiling_loop = False
 
     # --- x_halt: file output path (lines 147-152) ---
 
@@ -2020,99 +1867,7 @@ class TestSubVarSet:
 
 
 # ---------------------------------------------------------------------------
-# Tests for IfLevels (script.py)
-# ---------------------------------------------------------------------------
-
-
-class TestIfLevels:
-    """Unit tests for IfLevels."""
-
-    def test_all_true_empty(self):
-        il = IfLevels()
-        assert il.all_true() is True
-
-    def test_all_true_with_trues(self):
-        il = IfLevels()
-        with patch("execsql.script.current_script_line", return_value=("t.sql", 1)):
-            il.nest(True)
-            il.nest(True)
-        assert il.all_true() is True
-
-    def test_all_true_with_false(self):
-        il = IfLevels()
-        with patch("execsql.script.current_script_line", return_value=("t.sql", 1)):
-            il.nest(True)
-            il.nest(False)
-        assert il.all_true() is False
-
-    def test_only_current_false_empty(self):
-        il = IfLevels()
-        assert il.only_current_false() is False
-
-    def test_only_current_false_single_false(self):
-        il = IfLevels()
-        with patch("execsql.script.current_script_line", return_value=("t.sql", 1)):
-            il.nest(False)
-        assert il.only_current_false() is True
-
-    def test_only_current_false_single_true(self):
-        il = IfLevels()
-        with patch("execsql.script.current_script_line", return_value=("t.sql", 1)):
-            il.nest(True)
-        assert il.only_current_false() is False
-
-    def test_only_current_false_nested_outer_true_inner_false(self):
-        il = IfLevels()
-        with patch("execsql.script.current_script_line", return_value=("t.sql", 1)):
-            il.nest(True)
-            il.nest(False)
-        assert il.only_current_false() is True
-
-    def test_only_current_false_nested_both_false(self):
-        il = IfLevels()
-        with patch("execsql.script.current_script_line", return_value=("t.sql", 1)):
-            il.nest(False)
-            il.nest(False)
-        # Both false, not only current
-        assert il.only_current_false() is False
-
-    def test_unnest_empty_raises(self):
-        il = IfLevels()
-        with pytest.raises(ErrInfo):
-            il.unnest()
-
-    def test_invert_empty_raises(self):
-        il = IfLevels()
-        with pytest.raises(ErrInfo):
-            il.invert()
-
-    def test_replace_empty_raises(self):
-        il = IfLevels()
-        with pytest.raises(ErrInfo):
-            il.replace(True)
-
-    def test_current_empty_raises(self):
-        il = IfLevels()
-        with pytest.raises(ErrInfo):
-            il.current()
-
-    def test_script_lines(self):
-        il = IfLevels()
-        with patch("execsql.script.current_script_line", return_value=("t.sql", 1)):
-            il.nest(True)
-        lines = il.script_lines(1)
-        assert len(lines) == 1
-
-    def test_script_lines_invalid_depth_raises(self):
-        il = IfLevels()
-        with patch("execsql.script.current_script_line", return_value=("t.sql", 1)):
-            il.nest(True)
-        with pytest.raises(ErrInfo):
-            il.script_lines(5)
-
-
-# ---------------------------------------------------------------------------
-# Tests for CounterVars (script.py)
+# CounterVars
 # ---------------------------------------------------------------------------
 
 

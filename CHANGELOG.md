@@ -11,6 +11,16 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Fixed
+
+- `!'!var!'!` substitution now wraps the value in single quotes, matching the documented behavior. Previously only embedded apostrophes were doubled — `WHERE x = !'!myvar!'!` produced `it''s` instead of `'it''s'`.
+- `WRITE SCRIPT` round-trips SCRIPT bodies that contain nested `IF` / `LOOP` / `BATCH` blocks. Nested blocks were silently dropped.
+- `BREAK` inside an `EXECUTE SCRIPT` body now raises an error instead of silently terminating the caller's `LOOP`.
+
+### Removed
+
+- Internal: legacy command-list execution engine removed. Breaking change for code that imported `CommandList` / `IfLevels` from `execsql.script` or read `_state.commandliststack` / `_state.if_stack` / `_state.savedscripts` directly; migrate to `_state.current_localvars()` / `_state.current_paramvals()` and the `ExecFrame` data class on `_state.ast_exec_stack`.
+
 ______________________________________________________________________
 
 ## [2.17.1] - 2026-05-22

@@ -33,13 +33,8 @@ from execsql.exceptions import ErrInfo
 from typing import Any
 
 import execsql.state as _state
-from execsql.script import (
-    CommandList,
-    MetacommandStmt,
-    ScriptCmd,
-    current_script_line,
-)
-from execsql.utils.errors import exit_now, write_warning
+from execsql.script import current_script_line
+from execsql.utils.errors import exit_now
 from execsql.utils.fileio import EncodedFile, check_dir
 from execsql.utils.gui import GUI_HALT, GuiSpec, enable_gui, gui_console_isrunning
 
@@ -78,67 +73,55 @@ def x_assert(**kwargs: Any) -> None:
         raise ErrInfo(type="assert", other_msg=message)
 
 
+def _ast_only_stub(name: str):
+    """Return an ErrInfo for a metacommand the AST executor handles structurally.
+
+    These handlers stay registered in the dispatch table so ``--dump-keywords``,
+    the VS Code grammar generator, and ``--list-keywords`` still see the
+    keyword.  The AST parser converts the source form (``IF`` / ``ENDIF`` /
+    ``LOOP`` / ``BEGIN BATCH`` / ``BREAK`` / ``ELSE`` / ``ELSEIF`` / ``ANDIF``
+    / ``ORIF``) into structural AST nodes that the executor walks directly —
+    none of these dispatch handlers fire for parsed scripts.  Reaching one
+    means the AST parser failed to recognise the keyword, which is a bug.
+    """
+    from execsql.exceptions import ErrInfo
+
+    return ErrInfo(
+        type="cmd",
+        other_msg=f"{name} should be handled by the AST executor, not the dispatch table.",
+    )
+
+
 def x_if(**kwargs: Any) -> None:
-    tf_value = _state.xcmd_test(kwargs["condtest"])
-    if tf_value:
-        src, line_no = current_script_line()
-        metacmd = MetacommandStmt(kwargs["condcmd"])
-        script_cmd = ScriptCmd(src, line_no, "cmd", metacmd)
-        cmdlist = CommandList([script_cmd], f"{src}_{line_no}")
-        _state.commandliststack.append(cmdlist)
-    return None
+    raise _ast_only_stub("IF")
 
 
 def x_if_orif(**kwargs: Any) -> None:
-    if _state.if_stack.all_true():
-        return None  # Short-circuit evaluation
-    if _state.if_stack.only_current_false():
-        _state.if_stack.replace(_state.xcmd_test(kwargs["condtest"]))
-    return None
+    raise _ast_only_stub("ORIF")
 
 
 def x_if_andif(**kwargs: Any) -> None:
-    if _state.if_stack.all_true():
-        _state.if_stack.replace(_state.if_stack.current() and _state.xcmd_test(kwargs["condtest"]))
-    return None
+    raise _ast_only_stub("ANDIF")
 
 
 def x_if_elseif(**kwargs: Any) -> None:
-    if _state.if_stack.only_current_false():
-        _state.if_stack.replace(_state.xcmd_test(kwargs["condtest"]))
-    else:
-        _state.if_stack.replace(False)
-    return None
+    raise _ast_only_stub("ELSEIF")
 
 
 def x_if_else(**kwargs: Any) -> None:
-    if _state.if_stack.all_true() or _state.if_stack.only_current_false():
-        _state.if_stack.invert()
-    return None
+    raise _ast_only_stub("ELSE")
 
 
 def x_if_block(**kwargs: Any) -> None:
-    if _state.if_stack.all_true():
-        _state.if_stack.nest(_state.xcmd_test(kwargs["condtest"]))
-    else:
-        _state.if_stack.nest(False)
-    return None
+    raise _ast_only_stub("IF")
 
 
 def x_if_end(**kwargs: Any) -> None:
-    _state.if_stack.unnest()
-    return None
+    raise _ast_only_stub("ENDIF")
 
 
 def x_loop(**kwargs: Any) -> None:
-    # LOOP is now handled natively by the AST executor (_execute_loop).
-    # This handler exists only for dispatch table registration compatibility.
-    from execsql.exceptions import ErrInfo
-
-    raise ErrInfo(
-        type="cmd",
-        other_msg="LOOP should be handled by the AST executor, not the dispatch table.",
-    )
+    raise _ast_only_stub("LOOP")
 
 
 def x_halt(**kwargs: Any) -> None:
@@ -197,27 +180,20 @@ def x_metacommand_error_halt(**kwargs: Any) -> None:
 
 
 def x_begin_batch(**kwargs: Any) -> None:
-    _state.status.batch.new_batch()
-    return None
+    raise _ast_only_stub("BEGIN BATCH")
 
 
 def x_end_batch(**kwargs: Any) -> None:
-    _state.status.batch.end_batch()
-    return None
+    raise _ast_only_stub("END BATCH")
 
 
 def x_rollback(**kwargs: Any) -> None:
+    """Roll back all DBs registered in the innermost batch level."""
     _state.status.batch.rollback_batch()
 
 
 def x_break(**kwargs: Any) -> None:
-    if len(_state.commandliststack) == 1:
-        src, line_no = current_script_line()
-        write_warning(f"BREAK metacommand with no command nesting on line {line_no} of {src}")
-    else:
-        _state.if_stack.if_levels = _state.if_stack.if_levels[: _state.commandliststack[-1].init_if_level]
-        _state.commandliststack.pop()
-    return None
+    raise _ast_only_stub("BREAK")
 
 
 def x_wait_until(**kwargs: Any) -> None:

@@ -170,7 +170,7 @@ class TestCancelHaltExec:
     def test_sets_exec_spec(self, minimal_conf):
         from execsql.metacommands.system import x_cancel_halt_exec
 
-        _state.savedscripts = {"myscript": MagicMock()}
+        _state.ast_scripts = {"myscript": MagicMock()}
         x_cancel_halt_exec(script_id="myscript", argexp=None, looptype=None, loopcond=None, metacommandline="...")
         assert _state.cancel_halt_exec is not None
 
@@ -219,7 +219,7 @@ class TestErrorHaltExec:
     def test_sets_exec_spec(self, minimal_conf):
         from execsql.metacommands.system import x_error_halt_exec
 
-        _state.savedscripts = {"errscript": MagicMock()}
+        _state.ast_scripts = {"errscript": MagicMock()}
         x_error_halt_exec(script_id="errscript", argexp=None, looptype=None, loopcond=None, metacommandline="...")
         assert _state.err_halt_exec is not None
 

@@ -88,13 +88,6 @@ def x_debug_commandliststack(**kwargs: Any) -> None:
             desc = f"{kind_label}  {frame.label}"
         src = f"  {frame.source}:{frame.line}" if frame.source and frame.line else ""
         _state.output.write(f"  [{depth}] {desc}{src}\n")
-
-    # Show the legacy SCRIPT-call stack for diagnostic completeness
-    legacy = _state.commandliststack or []
-    if legacy:
-        _state.output.write("\nLegacy command list stack (SCRIPT call frames only):\n")
-        for depth, cl in enumerate(legacy):
-            _state.output.write(f"  [{depth}] {cl.listname}  (cursor at index {cl.cmdptr})\n")
     return None
 
 
@@ -103,13 +96,7 @@ def x_debug_iflevels(**kwargs: Any) -> None:
     stack = getattr(_state, "ast_exec_stack", None) or []
     if_frames = [f for f in stack if f.kind in ("if", "elseif", "else")]
     if not if_frames:
-        # Fall back to legacy if_stack for any unparsed-source code paths
-        legacy_levels = _state.if_stack.if_levels if _state.if_stack else []
-        if legacy_levels:
-            values = ",".join(str(tf.tf_value) for tf in legacy_levels)
-            _state.output.write(f"If levels (depth {len(legacy_levels)}, legacy): [{values}]\n")
-        else:
-            _state.output.write("If levels: (no active IF block)\n")
+        _state.output.write("If levels: (no active IF block)\n")
         return None
 
     _state.output.write(f"If levels (depth {len(if_frames)}):\n")

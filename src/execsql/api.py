@@ -468,7 +468,7 @@ def run(
     ctx.exec_log = _NoOpLogger()
 
     with active_context(ctx):
-        # Initialize singletons (IfLevels, CounterVars, Timer, DatabasePool, etc.)
+        # Initialize singletons (CounterVars, Timer, DatabasePool, BatchLevels, etc.)
         from execsql.state import initialize
 
         initialize(conf, DISPATCH_TABLE, CONDITIONAL_TABLE)
