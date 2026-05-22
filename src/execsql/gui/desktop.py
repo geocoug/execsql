@@ -954,7 +954,12 @@ class MapDialog:
         if not markers:
             return False
 
-        map_widget = TkinterMapView(frame, width=700, height=480, corner_radius=0)
+        try:
+            map_widget = TkinterMapView(frame, width=700, height=480, corner_radius=0)
+        except Exception:
+            # Headless display, no Tk root, or any other map-widget failure —
+            # fall back to tabular rather than crashing the dialog.
+            return False
         map_widget.pack(fill=tk.BOTH, expand=True, pady=(0, 8))
         # Force the geometry manager to assign the real packed size to the widget
         # so its tile-box math uses the actual on-screen dimensions, not the
