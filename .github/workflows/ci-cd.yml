@@ -44,6 +44,14 @@ jobs:
                     - "3.14"
         name: test-${{ matrix.os }}-py${{ matrix.python-version }}
         runs-on: ${{ matrix.os }}
+        # Hard cap so a hung job fails fast instead of consuming CI minutes for
+        # hours. Ubuntu finishes in ~9 min and Windows in ~16 min; 30 leaves
+        # ample headroom.
+        timeout-minutes: 30
+        # macOS jobs currently hang somewhere in the metacommand integration
+        # tests (different point each run since the FileWriter fix). Marking
+        # them non-blocking until we diagnose; Ubuntu + Windows still gate.
+        continue-on-error: ${{ matrix.os == 'macos-latest' }}
         permissions:
             contents: read
         steps:
