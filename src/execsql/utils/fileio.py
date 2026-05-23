@@ -312,6 +312,12 @@ fw_output: multiprocessing.Queue = multiprocessing.Queue()
 
 
 def filewriter_filestatus(filename: str) -> int:
+    # When the FileWriter subprocess isn't running (e.g., unit tests that
+    # bypass _state.initialize()), there's no consumer for fw_input and no
+    # producer for fw_output — fw_output.get() would block forever. Treat
+    # "no writer" as "file not held open" so callers proceed.
+    if filewriter is None or not filewriter.is_alive():
+        return FileWriter.FileControl.STATUS_CLOSED
     fw_input.put((FileWriter.CMD_GET_STATUS, (filename,)))
     return fw_output.get()
 
@@ -329,6 +335,8 @@ def filewriter_open_as_new(filename: str) -> None:
 def filewriter_close(filename: str) -> None:
     # This is intended to be used by the main process to ensure that a file
     # is closed before that process writes to it.
+    if filewriter is None or not filewriter.is_alive():
+        return
     fw_input.put((FileWriter.CMD_CLOSE_IF_OPEN, (filename,)))
     while filewriter_filestatus(filename) == FileWriter.FileControl.STATUS_OPEN:
         time.sleep(0.05)
