@@ -44,13 +44,11 @@ jobs:
                     - "3.14"
         name: test-${{ matrix.os }}-py${{ matrix.python-version }}
         runs-on: ${{ matrix.os }}
-        # Hard cap so a hung job fails fast instead of consuming CI minutes for
-        # hours. Ubuntu finishes in ~9 min and Windows in ~16 min; 30 leaves
-        # ample headroom.
-        timeout-minutes: 30
         # macOS jobs currently hang somewhere in the metacommand integration
-        # tests (different point each run since the FileWriter fix). Marking
-        # them non-blocking until we diagnose; Ubuntu + Windows still gate.
+        # tests. Marking them non-blocking until we diagnose; Ubuntu + Windows
+        # still gate. NB: continue-on-error only masks step *failure*, not job
+        # cancellation — so the test step uses step-level timeout-minutes
+        # rather than a job-level one to keep timeouts in the failure path.
         continue-on-error: ${{ matrix.os == 'macos-latest' }}
         permissions:
             contents: read
@@ -80,6 +78,10 @@ jobs:
             - name: Test with tox
               env:
                   DISPLAY: ""
+              # Ubuntu finishes in ~9 min and Windows in ~16 min; 30 leaves
+              # ample headroom. Step-level timeout fails the step (not the
+              # job), so continue-on-error can mask it on macOS.
+              timeout-minutes: 30
               run: |
                   tox -e py
             - name: Upload coverage to Codecov
