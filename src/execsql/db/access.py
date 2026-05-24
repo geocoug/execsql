@@ -307,23 +307,24 @@ class AccessDatabase(Database):
         return headers, iter(dict_row, None)
 
     def table_exists(self, table_name: str, schema_name: str | None = None) -> bool:
-        """Return True if the named table exists in the Access database."""
+        """Return True if the named table exists in the Access database.
+
+        Uses the DAO ``TableDefs`` collection rather than querying
+        ``MSysObjects`` directly — Access 2016+ requires explicit "Read Design"
+        permission on the system catalog and refuses ad-hoc queries against
+        it by default, with the error
+        ``Record(s) cannot be read; no read permission on 'MSysObjects'``.
+        """
         self.dao_flush_check()
-        sql = "select Name from MSysObjects where Name=? And Type In (1,4,6);"
-        with self._cursor() as curs:
-            try:
-                curs.execute(sql, (table_name,))
-            except ErrInfo:
-                raise
-            except Exception as e:
-                raise ErrInfo(
-                    type="db",
-                    command_text=sql,
-                    exception_msg=exception_desc(),
-                    other_msg=f"Failure on test for existence of Access table {table_name}",
-                ) from e
-            rows = curs.fetchall()
-        return len(rows) > 0
+        try:
+            return any(td.Name == table_name for td in self.dao_conn.TableDefs)
+        except Exception as e:
+            raise ErrInfo(
+                type="db",
+                command_text="DAO TableDefs enumeration",
+                exception_msg=exception_desc(),
+                other_msg=f"Failure on test for existence of Access table {table_name}",
+            ) from e
 
     def column_exists(
         self,
@@ -352,23 +353,22 @@ class AccessDatabase(Database):
             return [d[0] for d in curs.description]
 
     def view_exists(self, view_name: str, schema_name: str | None = None) -> bool:
-        """Return True if the named view or query exists in the Access database."""
+        """Return True if the named view or query exists in the Access database.
+
+        Uses DAO ``QueryDefs`` (Access's saved queries play the role of views)
+        rather than querying ``MSysObjects`` directly — see :meth:`table_exists`
+        for the permission rationale.
+        """
         self.dao_flush_check()
-        sql = "select Name from MSysObjects where Name=? And Type = 5;"
-        with self._cursor() as curs:
-            try:
-                curs.execute(sql, (view_name,))
-            except ErrInfo:
-                raise
-            except Exception as e:
-                raise ErrInfo(
-                    type="db",
-                    command_text=sql,
-                    exception_msg=exception_desc(),
-                    other_msg=f"Test for existence of Access view/query {view_name}",
-                ) from e
-            rows = curs.fetchall()
-        return len(rows) > 0
+        try:
+            return any(qd.Name == view_name for qd in self.dao_conn.QueryDefs)
+        except Exception as e:
+            raise ErrInfo(
+                type="db",
+                command_text="DAO QueryDefs enumeration",
+                exception_msg=exception_desc(),
+                other_msg=f"Test for existence of Access view/query {view_name}",
+            ) from e
 
     def schema_exists(self, schema_name: str) -> bool:
         """Return False; Access does not support schemas."""
