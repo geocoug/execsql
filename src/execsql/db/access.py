@@ -317,6 +317,9 @@ class AccessDatabase(Database):
         """
         self.dao_flush_check()
         try:
+            # DAO caches TableDefs and won't see tables created via ODBC
+            # until the collection is explicitly refreshed.
+            self.dao_conn.TableDefs.Refresh()
             return any(td.Name == table_name for td in self.dao_conn.TableDefs)
         except Exception as e:
             raise ErrInfo(
@@ -361,6 +364,8 @@ class AccessDatabase(Database):
         """
         self.dao_flush_check()
         try:
+            # Refresh — see :meth:`table_exists` for the DAO caching rationale.
+            self.dao_conn.QueryDefs.Refresh()
             return any(qd.Name == view_name for qd in self.dao_conn.QueryDefs)
         except Exception as e:
             raise ErrInfo(
