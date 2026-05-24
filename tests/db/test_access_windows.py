@@ -108,7 +108,20 @@ def accdb_path(tmp_path_factory):
 
 @pytest.fixture(scope="module")
 def db(accdb_path):
-    inst = AccessDatabase(accdb_path)
+    # Module-scoped fixtures run BEFORE function-scoped autouse fixtures, so
+    # the per-test ``_state_setup`` hasn't installed mocks yet. AccessDatabase
+    # construction calls _state.exec_log.log_status_info(...), so install a
+    # mock exec_log here just long enough to build the instance. The
+    # per-test autouse fixture takes over once tests start running.
+    _saved_exec_log = _state.exec_log
+    _saved_subvars = _state.subvars
+    _state.exec_log = MagicMock()
+    _state.subvars = MagicMock()
+    try:
+        inst = AccessDatabase(accdb_path)
+    finally:
+        _state.exec_log = _saved_exec_log
+        _state.subvars = _saved_subvars
     yield inst
     try:
         inst.close()
