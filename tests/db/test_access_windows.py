@@ -8,8 +8,10 @@ The module skips outside Windows and when win32com / ODBC drivers are not
 available, so it is harmless on Ubuntu / macOS runners.
 
 CI setup (handled in `.github/workflows/ci-cd.yml`):
-  - Install Access Database Engine via `choco install accessdatabaseengine-x64`
-  - Install pywin32 + pyodbc via the project's mssql + dev extras
+  - Download AccessDatabaseEngine_X64.exe from Microsoft and run it silently
+    (the chocolatey `accessdatabaseengine-x64` package was removed from the
+    community feed in early 2026).
+  - Install pywin32 + pyodbc via the project's mssql + dev extras.
 """
 
 from __future__ import annotations
