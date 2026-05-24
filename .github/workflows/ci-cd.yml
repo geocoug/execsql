@@ -191,8 +191,20 @@ jobs:
               with:
                   python-version: ${{ matrix.python-version }}
             - name: Install Microsoft Access Database Engine 2016 (x64)
+              # The chocolatey `accessdatabaseengine-x64` package was removed
+              # from the community feed; download the redistributable directly
+              # from Microsoft and run it silently instead.
               run: |
-                  choco install accessdatabaseengine-x64 -y --no-progress
+                  $ErrorActionPreference = 'Stop'
+                  $url = 'https://download.microsoft.com/download/3/5/C/35C84C36-661A-44E6-9324-8786B8DBE231/AccessDatabaseEngine_X64.exe'
+                  $dst = Join-Path $env:RUNNER_TEMP 'AccessDatabaseEngine_X64.exe'
+                  Write-Host "Downloading $url"
+                  Invoke-WebRequest -Uri $url -OutFile $dst -UseBasicParsing
+                  Write-Host "Installing $dst"
+                  $proc = Start-Process -FilePath $dst -ArgumentList '/quiet','/norestart' -Wait -PassThru
+                  Write-Host "Installer exit code: $($proc.ExitCode)"
+                  # 0 = success, 3010 = success but reboot pending. Anything else is a failure.
+                  if ($proc.ExitCode -ne 0 -and $proc.ExitCode -ne 3010) { exit $proc.ExitCode }
               shell: pwsh
             - name: Install Python dependencies
               run: |
