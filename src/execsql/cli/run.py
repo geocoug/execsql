@@ -630,6 +630,16 @@ def _run(
     import execsql.utils.fileio as _fileio
 
     if _state.filewriter is None or not _state.filewriter.is_alive():
+        # Drain stale messages from the queues so a previously-dead subprocess
+        # can't leak responses or unconsumed commands into the new one. On
+        # macOS (`spawn`) the OS pipe buffer is small enough that retained
+        # entries from a crashed writer would deadlock the next put().
+        for q in (_fileio.fw_input, _fileio.fw_output):
+            try:
+                while True:
+                    q.get_nowait()
+            except Exception:
+                pass
         _fileio.filewriter = _state.filewriter = FileWriter(
             _fileio.fw_input,
             _fileio.fw_output,

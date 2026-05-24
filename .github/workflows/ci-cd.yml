@@ -44,12 +44,6 @@ jobs:
                     - "3.14"
         name: test-${{ matrix.os }}-py${{ matrix.python-version }}
         runs-on: ${{ matrix.os }}
-        # macOS jobs currently hang somewhere in the metacommand integration
-        # tests. Marking them non-blocking until we diagnose; Ubuntu + Windows
-        # still gate. NB: continue-on-error only masks step *failure*, not job
-        # cancellation — so the test step uses step-level timeout-minutes
-        # rather than a job-level one to keep timeouts in the failure path.
-        continue-on-error: ${{ matrix.os == 'macos-latest' }}
         permissions:
             contents: read
         steps:

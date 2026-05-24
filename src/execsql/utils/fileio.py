@@ -311,31 +311,44 @@ fw_input: multiprocessing.Queue = multiprocessing.Queue()
 fw_output: multiprocessing.Queue = multiprocessing.Queue()
 
 
+def _writer_alive() -> bool:
+    """True if the FileWriter subprocess is running and consuming fw_input.
+
+    Every entry-point that puts a command on ``fw_input`` should guard on this:
+    if the subprocess isn't running (test contexts that bypass
+    ``_state.initialize()``, or a subprocess that crashed), unbounded ``put()``
+    calls eventually fill the OS pipe buffer (smaller on macOS than Linux) and
+    deadlock the caller. ``fw_output.get()`` calls would block forever on a
+    dead writer for the same reason.
+    """
+    return filewriter is not None and filewriter.is_alive()
+
+
 def filewriter_filestatus(filename: str) -> int:
-    # When the FileWriter subprocess isn't running (e.g., unit tests that
-    # bypass _state.initialize()), there's no consumer for fw_input and no
-    # producer for fw_output — fw_output.get() would block forever. Treat
-    # "no writer" as "file not held open" so callers proceed.
-    if filewriter is None or not filewriter.is_alive():
+    if not _writer_alive():
         return FileWriter.FileControl.STATUS_CLOSED
     fw_input.put((FileWriter.CMD_GET_STATUS, (filename,)))
     return fw_output.get()
 
 
 def filewriter_write(filename: str, message: str) -> None:
+    if not _writer_alive():
+        return
     fw_input.put((FileWriter.CMD_WRITE, (filename, message)))
 
 
 def filewriter_open_as_new(filename: str) -> None:
     # FileWriter opens files in append mode ("a") by default.  This ensures that it
     # will be opened in write mode ("w") instead.  If the file is open, it will be closed.
+    if not _writer_alive():
+        return
     fw_input.put((FileWriter.CMD_OPEN_AS_NEW, (filename,)))
 
 
 def filewriter_close(filename: str) -> None:
     # This is intended to be used by the main process to ensure that a file
     # is closed before that process writes to it.
-    if filewriter is None or not filewriter.is_alive():
+    if not _writer_alive():
         return
     fw_input.put((FileWriter.CMD_CLOSE_IF_OPEN, (filename,)))
     while filewriter_filestatus(filename) == FileWriter.FileControl.STATUS_OPEN:
@@ -343,6 +356,8 @@ def filewriter_close(filename: str) -> None:
 
 
 def filewriter_close_all_after_write() -> None:
+    if not _writer_alive():
+        return
     fw_input.put((FileWriter.CMD_CLOSE_ALL_AFTER_WRITE, ()))
     all_closed = False
     while not all_closed:
@@ -353,17 +368,29 @@ def filewriter_close_all_after_write() -> None:
 
 
 def filewriter_closeall() -> None:
+    if not _writer_alive():
+        return
     fw_input.put((FileWriter.CMD_CLOSE_ALL, ()))
 
 
 def filewriter_shutdown() -> None:
+    if not _writer_alive():
+        return
     fw_input.put((FileWriter.CMD_SHUTDOWN, ()))
 
 
 def filewriter_end() -> None:
+    # join() with no timeout blocks forever if the subprocess is stuck;
+    # cap it so atexit handlers can't wedge Python shutdown.
+    if filewriter is None:
+        return
     try:
-        filewriter_shutdown()
-        filewriter.join()
+        if filewriter.is_alive():
+            filewriter_shutdown()
+            filewriter.join(timeout=5.0)
+        if filewriter.is_alive():
+            filewriter.terminate()
+            filewriter.join(timeout=2.0)
     except Exception:
         pass  # Best-effort cleanup at interpreter shutdown.
 
