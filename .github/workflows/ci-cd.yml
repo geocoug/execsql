@@ -69,6 +69,12 @@ jobs:
             - name: Install tkinter (Ubuntu)
               if: runner.os == 'Linux'
               run: sudo apt-get install -y python3-tk
+            - name: Install unixodbc (macOS)
+              # tox installs the [all] extra which pulls in pyodbc; pyodbc's
+              # native .so depends on libodbc.2.dylib from the unixodbc
+              # package, otherwise importing it fails and any DSN test bails.
+              if: runner.os == 'macOS'
+              run: brew install unixodbc
             - name: Test with tox
               env:
                   DISPLAY: ""
