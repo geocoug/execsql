@@ -309,22 +309,23 @@ class AccessDatabase(Database):
     def table_exists(self, table_name: str, schema_name: str | None = None) -> bool:
         """Return True if the named table exists in the Access database.
 
-        Uses the DAO ``TableDefs`` collection rather than querying
-        ``MSysObjects`` directly — Access 2016+ requires explicit "Read Design"
-        permission on the system catalog and refuses ad-hoc queries against
-        it by default, with the error
-        ``Record(s) cannot be read; no read permission on 'MSysObjects'``.
+        Uses ODBC's catalog function (``cursor.tables()``) instead of
+        querying ``MSysObjects`` directly. Access 2016+ refuses ad-hoc
+        queries on the system catalog with the error
+        ``Record(s) cannot be read; no read permission on 'MSysObjects'``;
+        the ODBC catalog path is permission-clean and matches the table
+        view that ``CREATE TABLE`` modifies, unlike DAO ``TableDefs``
+        which caches independently.
         """
         self.dao_flush_check()
         try:
-            # DAO caches TableDefs and won't see tables created via ODBC
-            # until the collection is explicitly refreshed.
-            self.dao_conn.TableDefs.Refresh()
-            return any(td.Name == table_name for td in self.dao_conn.TableDefs)
+            with self._cursor() as curs:
+                rows = list(curs.tables(table=table_name, tableType="TABLE"))
+                return any(r.table_name == table_name for r in rows)
         except Exception as e:
             raise ErrInfo(
                 type="db",
-                command_text="DAO TableDefs enumeration",
+                command_text=f"ODBC SQLTables for {table_name}",
                 exception_msg=exception_desc(),
                 other_msg=f"Failure on test for existence of Access table {table_name}",
             ) from e
@@ -364,13 +365,13 @@ class AccessDatabase(Database):
         """
         self.dao_flush_check()
         try:
-            # Refresh — see :meth:`table_exists` for the DAO caching rationale.
-            self.dao_conn.QueryDefs.Refresh()
-            return any(qd.Name == view_name for qd in self.dao_conn.QueryDefs)
+            with self._cursor() as curs:
+                rows = list(curs.tables(table=view_name, tableType="VIEW"))
+                return any(r.table_name == view_name for r in rows)
         except Exception as e:
             raise ErrInfo(
                 type="db",
-                command_text="DAO QueryDefs enumeration",
+                command_text=f"ODBC SQLTables for view {view_name}",
                 exception_msg=exception_desc(),
                 other_msg=f"Test for existence of Access view/query {view_name}",
             ) from e

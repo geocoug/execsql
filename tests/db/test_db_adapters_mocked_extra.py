@@ -310,12 +310,14 @@ class TestFirebirdDropTable:
 # ===========================================================================
 
 
-def _make_access(rows=None, jet4=True, table_names=None, query_names=None) -> AccessDatabase:
+def _make_access(rows=None, jet4=True, catalog_tables=None) -> AccessDatabase:
     """Construct an AccessDatabase with both open_dao and open_db mocked.
 
-    ``rows`` populates the mocked pyodbc cursor result set.
-    ``table_names`` / ``query_names`` populate the mocked DAO TableDefs /
-    QueryDefs collections used by ``table_exists`` / ``view_exists``.
+    ``rows`` populates the mocked pyodbc cursor result set used by
+    ``select_data`` / generic execute paths. ``catalog_tables`` populates
+    the mocked ``cursor.tables()`` result set used by
+    ``table_exists`` / ``view_exists`` (each entry is the table name
+    string; the mock wraps it in an object exposing ``.table_name``).
     """
     with (
         patch.object(AccessDatabase, "open_dao", return_value=None),
@@ -324,18 +326,13 @@ def _make_access(rows=None, jet4=True, table_names=None, query_names=None) -> Ac
         db = AccessDatabase("test.accdb")
     db.jet4 = jet4
     conn = _mock_conn_with_rows(rows or [])
+    # Wire up cursor.tables() to return objects with a ``.table_name`` attr.
+    catalog_rows = [MagicMock(table_name=n) for n in (catalog_tables or [])]
+    conn.cursor.return_value.tables = MagicMock(return_value=catalog_rows)
     db.conn = conn
-    # Stand up a DAO connection mock with TableDefs / QueryDefs collections.
-    # A plain list won't accept the .Refresh attribute the production code
-    # calls, so wrap each collection in a MagicMock with __iter__ configured.
-    dao_conn = MagicMock()
-    td_collection = MagicMock()
-    td_collection.__iter__ = lambda self: iter([MagicMock(Name=n) for n in (table_names or [])])
-    dao_conn.TableDefs = td_collection
-    qd_collection = MagicMock()
-    qd_collection.__iter__ = lambda self: iter([MagicMock(Name=n) for n in (query_names or [])])
-    dao_conn.QueryDefs = qd_collection
-    db.dao_conn = dao_conn
+    # DAO connection isn't used by table_exists/view_exists anymore, but
+    # other Access methods still call dao_conn — provide a benign mock.
+    db.dao_conn = MagicMock()
     return db
 
 
@@ -372,18 +369,18 @@ class TestAccessValueConversion:
 
 class TestAccessSchemaQueries:
     def test_table_exists_true(self):
-        # Access walks DAO TableDefs (was MSysObjects raw SQL pre-2026).
-        db = _make_access(table_names=["MYTABLE", "OTHER"])
+        # Access calls ODBC cursor.tables() (was MSysObjects raw SQL pre-2026).
+        db = _make_access(catalog_tables=["MYTABLE", "OTHER"])
         assert db.table_exists("MYTABLE") is True
 
     def test_table_exists_false(self):
-        db = _make_access(table_names=[])
+        db = _make_access(catalog_tables=[])
         assert db.table_exists("NOPE") is False
 
     def test_table_exists_wraps_driver_error(self):
         db = _make_access()
-        # Force the DAO walk to raise — table_exists must convert to ErrInfo.
-        db.dao_conn.TableDefs.Refresh.side_effect = RuntimeError("DAO error")
+        # Force cursor.tables() to raise — table_exists must convert to ErrInfo.
+        db.conn.cursor.return_value.tables.side_effect = RuntimeError("ODBC error")
         with pytest.raises(ErrInfo):
             db.table_exists("T")
 
