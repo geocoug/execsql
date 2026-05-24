@@ -310,8 +310,13 @@ class TestFirebirdDropTable:
 # ===========================================================================
 
 
-def _make_access(rows=None, jet4=True) -> AccessDatabase:
-    """Construct an AccessDatabase with both open_dao and open_db mocked."""
+def _make_access(rows=None, jet4=True, table_names=None, query_names=None) -> AccessDatabase:
+    """Construct an AccessDatabase with both open_dao and open_db mocked.
+
+    ``rows`` populates the mocked pyodbc cursor result set.
+    ``table_names`` / ``query_names`` populate the mocked DAO TableDefs /
+    QueryDefs collections used by ``table_exists`` / ``view_exists``.
+    """
     with (
         patch.object(AccessDatabase, "open_dao", return_value=None),
         patch.object(AccessDatabase, "open_db", return_value=None),
@@ -320,6 +325,17 @@ def _make_access(rows=None, jet4=True) -> AccessDatabase:
     db.jet4 = jet4
     conn = _mock_conn_with_rows(rows or [])
     db.conn = conn
+    # Stand up a DAO connection mock with TableDefs / QueryDefs collections.
+    # A plain list won't accept the .Refresh attribute the production code
+    # calls, so wrap each collection in a MagicMock with __iter__ configured.
+    dao_conn = MagicMock()
+    td_collection = MagicMock()
+    td_collection.__iter__ = lambda self: iter([MagicMock(Name=n) for n in (table_names or [])])
+    dao_conn.TableDefs = td_collection
+    qd_collection = MagicMock()
+    qd_collection.__iter__ = lambda self: iter([MagicMock(Name=n) for n in (query_names or [])])
+    dao_conn.QueryDefs = qd_collection
+    db.dao_conn = dao_conn
     return db
 
 
@@ -356,17 +372,18 @@ class TestAccessValueConversion:
 
 class TestAccessSchemaQueries:
     def test_table_exists_true(self):
-        # Access queries MSysObjects via raw SQL
-        db = _make_access(rows=[("MYTABLE",)])
+        # Access walks DAO TableDefs (was MSysObjects raw SQL pre-2026).
+        db = _make_access(table_names=["MYTABLE", "OTHER"])
         assert db.table_exists("MYTABLE") is True
 
     def test_table_exists_false(self):
-        db = _make_access(rows=[])
+        db = _make_access(table_names=[])
         assert db.table_exists("NOPE") is False
 
     def test_table_exists_wraps_driver_error(self):
         db = _make_access()
-        db.conn.cursor.return_value.execute.side_effect = RuntimeError("Jet error")
+        # Force the DAO walk to raise — table_exists must convert to ErrInfo.
+        db.dao_conn.TableDefs.Refresh.side_effect = RuntimeError("DAO error")
         with pytest.raises(ErrInfo):
             db.table_exists("T")
 
