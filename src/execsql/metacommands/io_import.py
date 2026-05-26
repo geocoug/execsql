@@ -163,7 +163,18 @@ def x_import_ods_pattern(**kwargs: Any) -> None:
         is_new = 0
     schemaname = kwargs["schema"]
     filename = kwargs["filename"]
-    rx = re.compile(kwargs["patn"], re.I)
+    # B18/F012: surface a friendly error for malformed regex patterns
+    # rather than letting an uncaught re.error bubble up. (ReDoS via
+    # catastrophic backtracking remains a documented risk — re2 is
+    # not in stdlib so we can't enforce a complexity cap here.)
+    try:
+        rx = re.compile(kwargs["patn"], re.I)
+    except re.error as exc:
+        raise ErrInfo(
+            type="cmd",
+            command_text=kwargs.get("metacommandline", "IMPORT ODS PATTERN"),
+            other_msg=f"Invalid regular expression {kwargs['patn']!r}: {exc}",
+        ) from exc
     hdr_rows = kwargs["skip"]
     if not hdr_rows:
         hdr_rows = 0
@@ -260,7 +271,16 @@ def x_import_xls_pattern(**kwargs: Any) -> None:
         is_new = 0
     schemaname = kwargs["schema"]
     filename = kwargs["filename"]
-    rx = re.compile(kwargs["patn"], re.I)
+    # B18/F012: surface a friendly error for malformed regex patterns
+    # (see x_import_ods_pattern for the full rationale).
+    try:
+        rx = re.compile(kwargs["patn"], re.I)
+    except re.error as exc:
+        raise ErrInfo(
+            type="cmd",
+            command_text=kwargs.get("metacommandline", "IMPORT XLS PATTERN"),
+            other_msg=f"Invalid regular expression {kwargs['patn']!r}: {exc}",
+        ) from exc
     hdr_rows = kwargs["skip"]
     encoding = kwargs["encoding"]
     if not hdr_rows:
