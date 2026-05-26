@@ -38,6 +38,11 @@ lint:
 format:
     uv run ruff format .
 
+# Run mypy type checker
+[group('quality')]
+typecheck:
+    uv run mypy src/execsql/
+
 # Run pre-commit hooks on all files
 [group('quality')]
 pre-commit:
@@ -124,3 +129,8 @@ bump-minor:
 [group('version')]
 bump-major:
     uv run bump-my-version bump major
+
+# Bump to an explicit pre-release version (e.g. 2.0.0a1, 2.0.0b1, 2.0.0rc1)
+[group('version')]
+bump-pre version:
+    uv run bump-my-version bump --new-version {{ version }} patch

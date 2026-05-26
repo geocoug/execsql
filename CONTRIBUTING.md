@@ -44,7 +44,7 @@ CI rejects PRs that fail linting or any pre-commit check.
 
 ```bash
 just test       # active Python only
-just test-all   # full 3.10–3.13 matrix in parallel
+just test-all   # full 3.10–3.14 matrix in parallel
 ```
 
 Tests are run with [pytest](https://pytest.org/) via [tox-uv](https://github.com/tox-dev/tox-uv). Coverage is reported automatically.
@@ -98,7 +98,7 @@ Triggered on pushes to `main`, any `v*.*.*` tag, and pull requests.
 
 | Job                | Trigger            | What it does                                    |
 | ------------------ | ------------------ | ----------------------------------------------- |
-| `tests`            | all events         | Runs the test matrix (3 OS × 4 Python versions) |
+| `tests`            | all events         | Runs the test matrix (3 OS × 5 Python versions) |
 | `build`            | `v*.*.*` tags only | Builds sdist + wheel, checks with twine         |
 | `publish`          | `v*.*.*` tags only | Publishes to PyPI via OIDC trusted publishing   |
 | `generate-release` | `v*.*.*` tags only | Creates a GitHub Release with dist artifacts    |
