@@ -13,9 +13,14 @@ ______________________________________________________________________
 
 ### Fixed
 
-- `!'!var!'!` substitution now wraps the value in single quotes, matching the documented behavior. Previously only embedded apostrophes were doubled — `WHERE x = !'!myvar!'!` produced `it''s` instead of `'it''s'`.
-- `WRITE SCRIPT` round-trips SCRIPT bodies that contain nested `IF` / `LOOP` / `BATCH` blocks. Nested blocks were silently dropped.
-- `BREAK` inside an `EXECUTE SCRIPT` body now raises an error instead of silently terminating the caller's `LOOP`.
+- `!'!var!'!` substitution now wraps the value in single quotes, matching the documented behavior. Previously only embedded apostrophes were doubled.
+- `BREAK` inside an `EXECUTE SCRIPT` body raises an error instead of silently terminating the caller's `LOOP`.
+- `WRITE SCRIPT` output is now re-includable: nested `IF` / `LOOP` / `BATCH` / `SQL` blocks, `INCLUDE`, `EXECUTE SCRIPT`, and comments are all preserved, and `BEGIN/END SCRIPT` lines carry the `-- !x!` prefix.
+- `PROMPT MAP` falls back to the tabular view on any map-widget construction failure (headless display, missing dependencies).
+- `TABLE_EXISTS` / `VIEW_EXISTS` against SQLite, Oracle, Firebird, and Access now match identifiers case-insensitively per each database's native semantics. Access also moved off the now-restricted `MSysObjects` catalog so the checks work on Access 2016+ default permissions.
+- Oracle `ROLE_EXISTS` works for non-DBA accounts (falls back to `session_roles` when `dba_roles` isn't accessible).
+- SQL Server connection setup, PostgreSQL / MySQL fast-path `IMPORT`, and `Database.close()` no longer crash with `AttributeError` when called before the execution log is initialised (library and pre-run code paths).
+- File-output operations complete instead of hanging if the background `FileWriter` subprocess crashes mid-run.
 
 ### Removed
 
