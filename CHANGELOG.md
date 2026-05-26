@@ -20,6 +20,10 @@ ______________________________________________________________________
 - `templates/script_template.sql` had two `WRITE` lines (`Committing:` and `Cleaning up:`) with unterminated double-quoted strings; the closing quotes are now present.
 - `ends_with(string, "")` now returns `True` for any string, matching Python's `str.endswith` semantics. Previously it returned `True` only when the haystack was also empty.
 
+### Removed
+
+- Internal: the legacy flat-CommandList linter (`_lint_script` and helpers in `execsql.cli.lint`) has been deleted. The `--lint` CLI has used the AST-based linter (`execsql.cli.lint_ast`) since v2.13; only `_print_lint_results` and the issue-constructor helpers remain in `execsql.cli.lint`. Breaking change for code that imported `_lint_script` from `execsql.cli.lint` directly.
+
 ______________________________________________________________________
 
 ## [2.17.3] - 2026-05-26
