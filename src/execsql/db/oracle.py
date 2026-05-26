@@ -61,6 +61,12 @@ class OracleDatabase(Database):
             f"{self.need_passwd!r}, {self.port!r}, {self.encoding!r})"
         )
 
+    def auto_commits_ddl(self) -> bool:
+        """Oracle implicitly commits DDL — ``rollback()`` is a silent
+        no-op for any transaction whose boundary the DDL crossed.
+        See ``docs/about/divergence.md`` for the per-DBMS matrix."""
+        return True
+
     def open_db(self) -> None:
         """Open a connection to the Oracle database."""
         import cx_Oracle
