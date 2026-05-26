@@ -226,8 +226,8 @@ create schema if not exists !!staging!!;
 -- !x! write "User:             !!$DB_USER!!" to !!logfile!!
 -- !x! write "Run at:           !!$CURRENT_TIME!!" to !!logfile!!
 -- !x! write "Run ID:           !!$RUN_ID!!" to !!logfile!!
--- !x! write "Committing:       !!do_commit!! to !!logfile!!
--- !x! write "Cleaning up:      !!do_cleanup!! to !!logfile!!
+-- !x! write "Committing:       !!do_commit!!" to !!logfile!!
+-- !x! write "Cleaning up:      !!do_cleanup!!" to !!logfile!!
 -- !x! if(sub_defined(metadata_comment))
 	-- !x! write "" to !!logfile!!
 	-- !x! write "!!metadata_comment!!" to !!logfile!!

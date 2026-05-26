@@ -134,7 +134,7 @@ from gls_glossary order by !!gls_name!!;
 
 drop table if exists gls_column_list cascade;
 select
-	trim(regexp_split_to_table('!!#column_list!!', E'\\s*,\\s*')) as !!gls_name!!
+	trim(regexp_split_to_table(!'!#column_list!'!, E'\\s*,\\s*')) as !!gls_name!!
 into
 	gls_column_list;
 
@@ -220,7 +220,7 @@ drop table gls_newglossary cascade;
 	select
 		inp.item, inp.definition, inp.url
 	from
-		(select '!!#item!!'::text as item, '!!#definition!!'::text as definition, '!!#def_url!!'::text as url) as inp
+		(select !'!#item!'!::text as item, !'!#definition!'!::text as definition, !'!#def_url!'!::text as url) as inp
 		left join gls_glossary as g on g.!!gls_name!! = inp.item
 	where
 		g.!!gls_name!! is null;
@@ -229,7 +229,7 @@ drop table gls_newglossary cascade;
 	select
 		inp.item, inp.definition
 	from
-		(select '!!#item!!'::text as item, '!!#definition!!'::text as definition) as inp
+		(select !'!#item!'!::text as item, !'!#definition!'!::text as definition) as inp
 		left join gls_glossary as g on g.!!gls_name!! = inp.item
 	where
 		g.!!gls_name!! is null;
@@ -265,7 +265,7 @@ drop table gls_newglossary cascade;
 -- !x! if(is_null("!!#schema!!"))
 	-- !x! sub_empty ~schema_sel
 -- !x! else
-	-- !x! sub ~schema_sel and table_schema = '!!#schema!!'
+	-- !x! sub ~schema_sel and table_schema = !'!#schema!'!
 -- !x! endif
 drop view if exists gls_collist cascade;
 create temporary view gls_collist as
@@ -274,7 +274,7 @@ select
 from
 	information_schema.columns
 where
-	table_name = '!!#table!!'
+	table_name = !'!#table!'!
 	!!~schema_sel!!
 	;
 -- !x! subdata ~collist gls_collist

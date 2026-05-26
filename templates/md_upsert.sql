@@ -182,12 +182,12 @@ from
 	(
 	select
 		'base' as schema_type,
-		'!!#table!!' as table_name
+		!'!#table!'! as table_name
 	union
 	select
 
 		'staging' as schema_type,
-		'!!#stage_pfx!!!!#table!!' as table_name
+		concat(!'!#stage_pfx!'!, !'!#table!'!) as table_name
 	) as tt
 	left join information_schema.tables as iss on tt.table_name=iss.table_name
 where
@@ -276,7 +276,7 @@ where
 update ups_validate_control as vc, information_schema.tables as st
 set vc.staging_exists = True
 where
-	st.table_name= concat('!!#stage_pfx!!', vc.table_name)
+	st.table_name= concat(!'!#stage_pfx!'!, vc.table_name)
 	and st.table_type='BASE TABLE'
 	and st.table_schema = '!!$DB_NAME!!'
 ;
@@ -293,7 +293,7 @@ from
 		from ups_validate_control
 		where not base_exists
 		union
-		select concat('!!#stage_pfx!!', table_name) as schema_table
+		select concat(!'!#stage_pfx!'!, table_name) as schema_table
 		from ups_validate_control
 		where not staging_exists
 		) as it
@@ -427,7 +427,7 @@ with recursive itemtable as (
 		select
 			trim(substring_index(data, ',', 1)) as table_name,
 			right(data, length(data) - locate(',', data, 1)) as data
-		from (select '!!#table_list!!' as data) as input
+		from (select !'!#table_list!'! as data) as input
 		union
 		select
 			trim(substring_index(data, ',', 1)) as table_name,
@@ -624,7 +624,7 @@ from
 	information_schema.columns
 where
 	table_schema = '!!$DB_NAME!!'
-	and table_name = '!!#table!!'
+	and table_name = !'!#table!'!
 	and is_nullable = 'NO'
 	and column_default is null
 	!!~omitnull!!
@@ -783,7 +783,7 @@ inner join information_schema.key_column_usage as k
     and tc.table_name = k.table_name
 	and tc.constraint_name = k.constraint_name
 where
-	k.table_name = '!!#table!!'
+	k.table_name = !'!#table!'!
 	and tc.constraint_schema = '!!$db_name!!'
 order by k.ordinal_position
 ;
@@ -998,7 +998,7 @@ from
 	ups_foreign_key_columns
 where
 	table_schema = '!!$DB_NAME!!'
-	and table_name = '!!#table!!';
+	and table_name = !'!#table!'!;
 
 -- Create a table of all unique constraint names for
 -- this table, with an integer column to be populated with the
@@ -1257,7 +1257,7 @@ create table ups_cols
 select column_name
 from information_schema.columns
 where
-	table_name = '!!#stage_pfx!!!!#table!!'
+	table_name = concat(!'!#stage_pfx!'!, !'!#table!'!)
 	and table_schema = '!!$DB_NAME!!'
 	!!~col_excl!!
 order by ordinal_position;
@@ -1280,7 +1280,7 @@ inner join information_schema.key_column_usage as k
     and tc.table_name = k.table_name
 	and tc.constraint_name = k.constraint_name
 where
-	k.table_name = '!!#table!!'
+	k.table_name = !'!#table!'!
 	and k.table_schema = '!!$DB_NAME!!'
 order by k.ordinal_position;
 
@@ -2103,7 +2103,7 @@ inner join information_schema.key_column_usage as k
 	and tc.table_name = k.table_name
 	and tc.constraint_name = k.constraint_name
 where
-	k.table_name = '!!#table!!'
+	k.table_name = !'!#table!'!
 	and k.table_schema = '!!$DB_NAME!!'
 ;
 
@@ -2335,7 +2335,7 @@ where
 			from information_schema.columns
 			where
 				table_schema = '!!$DB_NAME!!'
-				and table_name = '!!#stage_pfx!!!!#table!!'
+				and table_name = concat(!'!#stage_pfx!'!, !'!#table!'!)
 			) as stag on  pk.newpk_col=stag.column_name
 	where
 		stag.column_name is null
@@ -2731,7 +2731,7 @@ where
             		and cu_uq.table_name = tc_uq.table_name
 					and cu_uq.ordinal_position = cu.ordinal_position
 			where
-				rc.table_name = '!!#table!!'
+				rc.table_name = !'!#table!'!
 				;
 
 			-- Narrow the list down to ONLY dependencies that affect PK columns

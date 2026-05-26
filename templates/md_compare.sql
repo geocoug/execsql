@@ -114,7 +114,7 @@ inner join information_schema.key_column_usage as k
     and tc.table_name = k.table_name
 	and tc.constraint_name = k.constraint_name
 where
-	k.table_name = '!!#table!!'
+	k.table_name = !'!#table!'!
 	and tc.constraint_schema = '!!$db_name!!'
 order by k.ordinal_position
 ;
@@ -137,8 +137,8 @@ from information_schema.columns as s
 	inner join information_schema.columns as b on s.column_name=b.column_name
 	left join cmp_primary_key_columns as pk on pk.column_name = s.column_name
 where
-	s.table_name = '!!#stage_pfx!!!!#table!!'
-	and b.table_name = '!!#table!!'
+	s.table_name = concat(!'!#stage_pfx!'!, !'!#table!'!)
+	and b.table_name = !'!#table!'!
 	and pk.column_name is null
 	!!~col_sel!!
 order by s.ordinal_position;
@@ -251,7 +251,7 @@ inner join information_schema.key_column_usage as k
     and tc.table_name = k.table_name
 	and tc.constraint_name = k.constraint_name
 where
-	k.table_name = '!!#table!!'
+	k.table_name = !'!#table!'!
 	and tc.constraint_schema = '!!$db_name!!'
 order by k.ordinal_position
 ;
@@ -274,8 +274,8 @@ from information_schema.columns as s
 	inner join information_schema.columns as b on s.column_name=b.column_name
 	left join cmp_primary_key_columns as pk on pk.column_name = s.column_name
 where
-	s.table_name = '!!#stage_pfx!!!!#table!!'
-	and b.table_name = '!!#table!!'
+	s.table_name = concat(!'!#stage_pfx!'!, !'!#table!'!)
+	and b.table_name = !'!#table!'!
 	and pk.column_name is null
 	!!~col_sel!!
 order by s.ordinal_position;
@@ -391,7 +391,7 @@ inner join information_schema.key_column_usage as k
     and tc.table_name = k.table_name
 	and tc.constraint_name = k.constraint_name
 where
-	k.table_name = '!!#table!!'
+	k.table_name = !'!#table!'!
 	and tc.constraint_schema = '!!$db_name!!'
 order by k.ordinal_position
 ;
@@ -415,8 +415,8 @@ from information_schema.columns as s
 	inner join information_schema.columns as b on s.column_name=b.column_name
 	left join cmp_primary_key_columns as pk on pk.column_name = s.column_name
 where
-	s.table_name = '!!#stage_pfx!!!!#table!!'
-	and b.table_name = '!!#table!!'
+	s.table_name = concat(!'!#stage_pfx!'!, !'!#table!'!)
+	and b.table_name = !'!#table!'!
 	and pk.column_name is null
 	!!~col_sel!!
 order by s.ordinal_position;
@@ -542,7 +542,7 @@ inner join information_schema.key_column_usage as k
     and tc.table_name = k.table_name
 	and tc.constraint_name = k.constraint_name
 where
-	k.table_name = '!!#table!!'
+	k.table_name = !'!#table!'!
 	and tc.constraint_schema = '!!$db_name!!'
 order by k.ordinal_position
 ;
@@ -565,8 +565,8 @@ from information_schema.columns as s
 	inner join information_schema.columns as b on s.column_name=b.column_name
 	left join cmp_primary_key_columns as pk on pk.column_name = s.column_name
 where
-	s.table_name = '!!#stage_pfx!!!!#table!!'
-	and b.table_name = '!!#table!!'
+	s.table_name = concat(!'!#stage_pfx!'!, !'!#table!'!)
+	and b.table_name = !'!#table!'!
 	and pk.column_name is null
 	!!~col_sel!!
 order by s.ordinal_position;
