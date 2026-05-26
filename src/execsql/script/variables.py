@@ -283,27 +283,33 @@ class SubVarSet:
         compilation to avoid O(N) ``re.compile`` calls on every invocation.
         """
         cmd_lower = command_str.lower()
+
+        def _check_nul(name: str, value: str) -> None:
+            """B07a/F002: raise when *value* (about to be interpolated)
+            contains a NUL byte. Called only after a token match so an
+            unrelated variable's NUL value never blocks substitution of
+            a different variable."""
+            if "\x00" in value:
+                raise ValueError(
+                    f"Substitution variable {name!r} contains a NUL byte; refusing to interpolate.",
+                )
+
         for varname, sub in self._subs_dict.items():
             if sub is None:
                 sub = ""
             sub = str(sub)
-            # B07a/F002: reject embedded NUL bytes here too — _substitute_nested
-            # is the fallback path for nested tokens but applies the same
-            # quoting rules as the primary path above.
-            if "\x00" in sub:
-                raise ValueError(
-                    f"Substitution variable {varname!r} contains a NUL byte; refusing to interpolate.",
-                )
             # Standard token: !!varname!!
             token = f"!!{varname}!!"
             idx = cmd_lower.find(token)
             if idx != -1:
+                _check_nul(varname, sub)
                 return command_str[:idx] + sub + command_str[idx + len(token) :], True
             # Single-quote-wrapped token: !'!varname!'! — escape ``\`` and
             # double embedded ``'`` (see substitute_one for rationale).
             tokenq = f"!'!{varname}!'!"
             idxq = cmd_lower.find(tokenq)
             if idxq != -1:
+                _check_nul(varname, sub)
                 wrapped = "'" + sub.replace("\\", "\\\\").replace("'", "''") + "'"
                 return (
                     command_str[:idxq] + wrapped + command_str[idxq + len(tokenq) :],
@@ -313,6 +319,7 @@ class SubVarSet:
             tokendq = f'!"!{varname}!"!'
             idxdq = cmd_lower.find(tokendq)
             if idxdq != -1:
+                _check_nul(varname, sub)
                 return (
                     command_str[:idxdq] + '"' + sub.replace('"', '""') + '"' + command_str[idxdq + len(tokendq) :],
                     True,
