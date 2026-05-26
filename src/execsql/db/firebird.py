@@ -59,6 +59,12 @@ class FirebirdDatabase(Database):
             f"{self.need_passwd!r}, {self.port!r}, {self.encoding!r})"
         )
 
+    def needs_explicit_commit_after_ddl(self) -> bool:
+        """Firebird leaves DDL pending until commit — callers issuing
+        ``CREATE TABLE`` then ``INSERT`` on a fresh table must commit
+        in between."""
+        return True
+
     def open_db(self) -> None:
         """Open a connection to the Firebird database."""
         import fdb as firebird_lib

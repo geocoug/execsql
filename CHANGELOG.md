@@ -15,6 +15,9 @@ ______________________________________________________________________
 
 - `--no-rm-file` and `--no-serve` CLI flags disable the `RM_FILE` and `SERVE` metacommands, symmetric with the existing `--no-system-cmd`. Matching `allow_rm_file` and `allow_serve` config keys are honoured in the `[config]` section of `execsql.conf`.
 - New `include_root`, `serve_root`, and `template_root` config keys in the `[config]` section of `execsql.conf`. When set, `INCLUDE` / `EXECUTE SCRIPT`, `SERVE`, and Jinja2 / `string.Template` loaders confine resolved paths under the named root and reject anything that escapes via `..`, absolute paths, drive letters, or UNC paths.
+- `Database.quote_literal(value)` and `Database.quote_qualified_identifier(*parts)` helpers on the base `Database` class. The default `quote_literal` escapes `\` and doubles `'` and rejects NUL bytes; subclasses can override for dialect-specific literal forms.
+- `Database.needs_explicit_commit_after_ddl()` and `Database.auto_commits_ddl()` capability hooks. Firebird overrides the first (its driver leaves DDL pending until commit). Oracle, MySQL, SQL Server, and MS Access override the second (their drivers implicitly commit DDL — `rollback()` is a silent no-op for transactions whose boundary the DDL crossed).
+- MySQL / MariaDB connections now correctly report implicit DDL commits via `auto_commits_ddl()`, so scripts that wrap DDL statements (`CREATE TABLE`, `ALTER TABLE`, etc.) in explicit transactions will no longer see silent mid-transaction commits go undetected.
 
 ### Changed
 
@@ -32,10 +35,6 @@ ______________________________________________________________________
 - `EXPORT … FORMAT sqlite` and `EXPORT … FORMAT duckdb` now identifier-quote the table name in `DROP TABLE` / `INSERT INTO` and parameter-bind it in the existence check, closing two SQL-injection-via-tablename sites.
 - MySQL / MariaDB and SQL Server `Database.quote_identifier()` now use the native backtick (`` `…` ``) and bracket (`[…]`) forms respectively, so identifier quoting works even if user SQL has reset `sql_mode` / `QUOTED_IDENTIFIER`.
 - `IMPORT` into a SQLite database now batches rows and uses `cursor.executemany()` (honouring `import_row_buffer`, default 1000) instead of issuing one `cursor.execute()` per row. Million-row imports are 10–100× faster.
-
-### Added
-
-- `Database.quote_literal(value)` and `Database.quote_qualified_identifier(*parts)` helpers on the base `Database` class. The default `quote_literal` escapes `\` and doubles `'` and rejects NUL bytes; subclasses can override for dialect-specific literal forms.
 
 ### Removed
 

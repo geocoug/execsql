@@ -58,6 +58,12 @@ class SqlServerDatabase(Database):
             f"{self.need_passwd!r}, {self.port!r}, {self.encoding!r})"
         )
 
+    def auto_commits_ddl(self) -> bool:
+        """SQL Server implicitly commits DDL on Microsoft's pyodbc
+        driver in autocommit mode — ``rollback()`` is a silent no-op
+        for any transaction whose boundary the DDL crossed."""
+        return True
+
     def quote_identifier(self, identifier: str) -> str:
         """SQL Server native identifier quoting uses square brackets.
 
