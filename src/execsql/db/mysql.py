@@ -90,6 +90,70 @@ class MySQLDatabase(Database):
         """
         return "`" + identifier.replace("`", "``") + "`"
 
+    # B10/F069: MySQL's ``lower_case_table_names`` server variable
+    # controls whether identifier comparisons against information_schema
+    # rows are case-sensitive. On Linux the default is 0 (case-sensitive
+    # storage, case-sensitive compare); on Windows/macOS the default is
+    # 1 (lowercased storage, case-insensitive compare); ``2`` stores
+    # as-created but compares case-insensitively. The base
+    # ``information_schema.tables`` lookups in Database compare
+    # literally, so ``table_exists("MyTable")`` returned False on
+    # case-sensitive Linux servers even when ``MyTable`` actually
+    # existed. Fold the input name when the server is case-insensitive.
+
+    def _lower_case_table_names(self) -> int:
+        """Return the server-level ``@@lower_case_table_names`` value, cached.
+
+        Looks up the system variable on first call; subsequent calls
+        return the cached value. Safe to call before ``open_db()``
+        returns — falls back to ``0`` (case-sensitive) if the lookup
+        fails for any reason.
+        """
+        cached = getattr(self, "_cached_lctn", None)
+        if cached is not None:
+            return cached
+        try:
+            _, rows = self.select_data("SELECT @@lower_case_table_names;")
+            value = int(rows[0][0]) if rows else 0
+        except Exception:
+            value = 0
+        self._cached_lctn = value
+        return value
+
+    def _fold_identifier(self, name: str | None) -> str | None:
+        """Lowercase *name* when the server is case-insensitive (LCTN 1/2)."""
+        if name is None:
+            return None
+        return name.lower() if self._lower_case_table_names() in (1, 2) else name
+
+    # NB: schema_exists is overridden below to return False unconditionally
+    # — MySQL's pre-existing behavior. The case-folding only matters for
+    # adapters where schema lookups are meaningful, which MySQL skips.
+
+    def table_exists(self, table_name: str, schema_name: str | None = None) -> bool:
+        return super().table_exists(
+            self._fold_identifier(table_name),
+            self._fold_identifier(schema_name),
+        )
+
+    def column_exists(
+        self,
+        table_name: str,
+        column_name: str,
+        schema_name: str | None = None,
+    ) -> bool:
+        return super().column_exists(
+            self._fold_identifier(table_name),
+            self._fold_identifier(column_name),
+            self._fold_identifier(schema_name),
+        )
+
+    def view_exists(self, view_name: str, schema_name: str | None = None) -> bool:
+        return super().view_exists(
+            self._fold_identifier(view_name),
+            self._fold_identifier(schema_name),
+        )
+
     def open_db(self) -> None:
         """Open a connection to the MySQL or MariaDB server."""
         import pymysql as mysql_lib
