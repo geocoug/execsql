@@ -17,7 +17,6 @@ import execsql.state as _state
 from execsql.exceptions import ErrInfo
 from execsql.models import DataTable
 from execsql.script import current_script_line
-from execsql.types import dbt_firebird
 from execsql.utils.errors import exception_desc
 from execsql.utils.fileio import filewriter_close
 from execsql.utils.strings import unquoted
@@ -95,7 +94,7 @@ def x_copy(**kwargs: Any) -> None:
             except Exception:
                 _state.exec_log.log_status_info(f"Could not drop existing table ({tbl2}) for COPY metacommand")
         db2.execute(create_tbl)
-        if db2.type == dbt_firebird:
+        if db2.needs_explicit_commit_after_ddl():
             db2.execute("COMMIT;")
     try:
         hdrs, rows = db1.select_rowsource(select_stmt)
@@ -169,7 +168,7 @@ def x_copy_query(**kwargs: Any) -> None:
             except Exception:
                 _state.exec_log.log_status_info(f"Could not drop existing table ({tbl2}) for COPY metacommand")
         db2.execute(create_tbl)
-        if db2.type == dbt_firebird:
+        if db2.needs_explicit_commit_after_ddl():
             db2.execute("COMMIT;")
     try:
         hdrs, rows = db1.select_rowsource(select_stmt)

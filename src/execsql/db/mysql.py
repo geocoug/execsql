@@ -73,6 +73,12 @@ class MySQLDatabase(Database):
             f"{self.need_passwd!r}, {self.port!r}, {self.encoding!r})"
         )
 
+    def auto_commits_ddl(self) -> bool:
+        """MySQL / MariaDB implicitly commit DDL — ``rollback()`` is a
+        silent no-op for any transaction whose boundary the DDL
+        crossed. See ``docs/about/divergence.md``."""
+        return True
+
     def quote_identifier(self, identifier: str) -> str:
         """MySQL / MariaDB native identifier quoting uses backticks.
 
