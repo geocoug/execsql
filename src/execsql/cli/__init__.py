@@ -128,28 +128,24 @@ def main(
         None,
         "-e",
         "--database-encoding",
-        "--database_encoding",
         help="Character encoding used in the database.",
     ),
     script_encoding: str | None = typer.Option(
         None,
         "-f",
         "--script-encoding",
-        "--script_encoding",
         help="Character encoding of the script file. [dim]Default: UTF-8[/dim]",
     ),
     output_encoding: str | None = typer.Option(
         None,
         "-g",
         "--output-encoding",
-        "--output_encoding",
         help="Encoding for WRITE and EXPORT output.",
     ),
     import_encoding: str | None = typer.Option(
         None,
         "-i",
         "--import-encoding",
-        "--import_encoding",
         help="Encoding for data files used with IMPORT.",
     ),
     # -- Import/Export -----------------------------------------------------
@@ -157,7 +153,6 @@ def main(
         None,
         "-z",
         "--import-buffer",
-        "--import_buffer",
         metavar="KB",
         help="Import buffer size in KB. [dim]Default: 32[/dim]",
     ),
@@ -265,7 +260,6 @@ def main(
         None,
         "-v",
         "--visible-prompts",
-        "--visible_prompts",
         metavar="{0,1,2,3}",
         help=(
             "GUI level: [bold]0[/bold]=none (default), [bold]1[/bold]=GUI for password/pause, "
@@ -305,7 +299,6 @@ def main(
         False,
         "-l",
         "--user-logfile",
-        "--user_logfile",
         help="Write a log file to [cyan]~/execsql.log[/cyan].",
     ),
     # -- Information -------------------------------------------------------
