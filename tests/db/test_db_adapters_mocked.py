@@ -258,7 +258,8 @@ class TestSqlServerDatabase:
 
         curs = conn.cursor.return_value
         raw_arg = curs.execute.call_args[0][0]
-        assert raw_arg == 'execute "run_etl";'
+        # B07a: SQL Server now uses its native bracket identifier quoting.
+        assert raw_arg == "execute [run_etl];"
 
     def test_exec_cmd_updates_last_rowcount(self):
         db = _make_sqlserver()

@@ -9,7 +9,6 @@ Classes:
 - :class:`ScriptArgSubVarSet` — per-script ``#``-prefixed argument overlay.
 """
 
-import os
 import re
 from typing import Any
 
@@ -244,17 +243,31 @@ class SubVarSet:
                 if sub is None:
                     sub = ""
                 sub = str(sub)
-                if os.name != "posix":
-                    sub = sub.replace("\\", "\\\\")
+                # B07a/F002: reject embedded NUL bytes regardless of quoter;
+                # most DBMS protocols truncate at NUL and PostgreSQL rejects.
+                if "\x00" in sub:
+                    raise ValueError(
+                        f"Substitution variable {varname!r} contains a NUL byte; refusing to interpolate.",
+                    )
                 quote = m.group("q")
                 if quote == "'":
-                    # Wrap value in single quotes, doubling any embedded
-                    # apostrophe — produces a SQL string literal.
-                    sub = "'" + sub.replace("'", "''") + "'"
+                    # B07a/F002: wrap in single quotes, doubling embedded
+                    # apostrophes AND escaping backslashes so MySQL default
+                    # mode and PostgreSQL E-string literals can't end the
+                    # quoted region via ``\'``. The previous Windows-only
+                    # branch (``os.name != 'posix'``) applied the escape on
+                    # the wrong axis — host OS vs target DBMS.
+                    sub = "'" + sub.replace("\\", "\\\\").replace("'", "''") + "'"
                 elif quote == '"':
-                    # Wrap value in double quotes — produces a SQL quoted
-                    # identifier or quoted metacommand argument.
-                    sub = '"' + sub + '"'
+                    # B07a/F001: wrap in double quotes, doubling embedded
+                    # ``"`` so a value containing ``"; DROP TABLE x; --``
+                    # produces a valid quoted identifier rather than a
+                    # closing quote followed by a second statement.
+                    sub = '"' + sub.replace('"', '""') + '"'
+                else:
+                    # Bare !!var!! token — preserve the raw value verbatim
+                    # but still defend against NUL bytes (handled above).
+                    pass
                 return command_str[: m.start()] + sub + command_str[m.end() :], True
             # Token found but variable not defined — skip it and keep searching.
             m = self._TOKEN_RX.search(command_str, m.end())
@@ -274,28 +287,34 @@ class SubVarSet:
             if sub is None:
                 sub = ""
             sub = str(sub)
-            if os.name != "posix":
-                sub = sub.replace("\\", "\\\\")
+            # B07a/F002: reject embedded NUL bytes here too — _substitute_nested
+            # is the fallback path for nested tokens but applies the same
+            # quoting rules as the primary path above.
+            if "\x00" in sub:
+                raise ValueError(
+                    f"Substitution variable {varname!r} contains a NUL byte; refusing to interpolate.",
+                )
             # Standard token: !!varname!!
             token = f"!!{varname}!!"
             idx = cmd_lower.find(token)
             if idx != -1:
                 return command_str[:idx] + sub + command_str[idx + len(token) :], True
-            # Single-quote-wrapped token: !'!varname!'!
+            # Single-quote-wrapped token: !'!varname!'! — escape ``\`` and
+            # double embedded ``'`` (see substitute_one for rationale).
             tokenq = f"!'!{varname}!'!"
             idxq = cmd_lower.find(tokenq)
             if idxq != -1:
-                wrapped = "'" + sub.replace("'", "''") + "'"
+                wrapped = "'" + sub.replace("\\", "\\\\").replace("'", "''") + "'"
                 return (
                     command_str[:idxq] + wrapped + command_str[idxq + len(tokenq) :],
                     True,
                 )
-            # Double-quote-wrapped token: !"!varname!"!
+            # Double-quote-wrapped token: !"!varname!"! — double embedded ``"``.
             tokendq = f'!"!{varname}!"!'
             idxdq = cmd_lower.find(tokendq)
             if idxdq != -1:
                 return (
-                    command_str[:idxdq] + '"' + sub + '"' + command_str[idxdq + len(tokendq) :],
+                    command_str[:idxdq] + '"' + sub.replace('"', '""') + '"' + command_str[idxdq + len(tokendq) :],
                     True,
                 )
         return command_str, False

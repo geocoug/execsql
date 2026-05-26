@@ -30,20 +30,27 @@ def export_sqlite(
     from execsql.models import DataTable
 
     chunksize = 10000
+    # B07a/F025: tablename is substituted from user input — use the
+    # existing dbt_sqlite.quoted helper to identifier-quote every site
+    # rather than f-string-interpolating into SQL.
+    qtable = dbt_sqlite.quoted(tablename)
     pre_exist = Path(outfile).is_file()
     sdb = sqlite3.connect(outfile)
     try:
         if pre_exist:
             curs = sdb.cursor()
+            # Existence check: the table name is a value here (not an
+            # identifier), so use a parameter rather than string concat.
             res = curs.execute(
-                f"select name from sqlite_master where type='table' and name='{tablename}';",
+                "select name from sqlite_master where type='table' and name=?;",
+                (tablename,),
             )
             rv = res.fetchone()
             if not (rv is None or rv[0] == 0):
                 if append:
                     raise ErrInfo(type="error", other_msg=f"The table {tablename} already exists in {outfile}.")
                 else:
-                    curs.execute(f"drop table {tablename};")
+                    curs.execute(f"drop table {qtable};")
             curs.close()
         # Construct and run the CREATE TABLE statement
         rowdata = list(rows)
@@ -55,7 +62,7 @@ def export_sqlite(
         columns = [dbt_sqlite.quoted(col) for col in hdrs]
         colspec = ",".join(columns)
         paramspec = ",".join(("?",) * len(columns))
-        sql = f"insert into {tablename} ({colspec}) values ({paramspec});"
+        sql = f"insert into {qtable} ({colspec}) values ({paramspec});"
         n_chunks = math.ceil(len(rowdata) / chunksize)
         for i in range(n_chunks):
             start = i * chunksize

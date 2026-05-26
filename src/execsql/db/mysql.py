@@ -73,6 +73,17 @@ class MySQLDatabase(Database):
             f"{self.need_passwd!r}, {self.port!r}, {self.encoding!r})"
         )
 
+    def quote_identifier(self, identifier: str) -> str:
+        """MySQL / MariaDB native identifier quoting uses backticks.
+
+        Override of :meth:`Database.quote_identifier` for B07a/F021: the
+        base ANSI ``"…"`` form only works after the connection sets
+        ``sql_mode=ANSI`` / ``ANSI_QUOTES`` (the adapter does this at
+        open_db, but user SQL that resets the mode would silently break
+        execsql-generated DDL).
+        """
+        return "`" + identifier.replace("`", "``") + "`"
+
     def open_db(self) -> None:
         """Open a connection to the MySQL or MariaDB server."""
         import pymysql as mysql_lib

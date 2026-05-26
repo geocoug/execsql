@@ -37,21 +37,25 @@ def export_duckdb(
     from execsql.models import DataTable
 
     chunksize = 10000
+    # B07a/F026: tablename and catalog are substituted from user input.
+    # Identifier-quote the table-name interpolation site and use
+    # placeholders for the information_schema literal-value query.
+    qtable = dbt_duckdb.quoted(tablename)
     pre_exist = Path(outfile).is_file()
     ddb = duckdb.connect(outfile, read_only=False)
     if pre_exist:
         catalog = Path(outfile).stem
         curs = ddb.cursor()
         res = curs.execute(
-            f"select count(*) as rows from information_schema.tables "
-            f"where table_catalog = '{catalog}' and table_name = '{tablename}';",
+            "select count(*) as rows from information_schema.tables where table_catalog = ? and table_name = ?;",
+            (catalog, tablename),
         )
         rv = res.fetchone()
         if not (rv is None or rv[0] == 0):
             if append:
                 raise ErrInfo(type="error", other_msg=f"The table {tablename} already exists in {outfile}.")
             else:
-                curs.execute(f"drop table {tablename};")
+                curs.execute(f"drop table {qtable};")
         curs.close()
     # Construct and run the CREATE TABLE statement
     rowdata = list(rows)
@@ -63,7 +67,7 @@ def export_duckdb(
     columns = [dbt_duckdb.quoted(col) for col in hdrs]
     colspec = ",".join(columns)
     paramspec = ",".join(("?",) * len(columns))
-    sql = f"insert into {tablename} ({colspec}) values ({paramspec});"
+    sql = f"insert into {qtable} ({colspec}) values ({paramspec});"
     n_chunks = math.ceil(len(rowdata) / chunksize)
     curs.execute("BEGIN TRANSACTION;")
     for i in range(n_chunks):

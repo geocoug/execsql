@@ -153,8 +153,40 @@ class Database(ABC):
 
     def quote_identifier(self, identifier: str) -> str:
         """Return *identifier* wrapped in double-quotes with any embedded
-        double-quotes escaped (standard SQL identifier quoting)."""
+        double-quotes escaped (standard SQL identifier quoting).
+
+        Override in subclasses for adapters whose native identifier quote
+        differs (MySQL uses backticks, SQL Server uses square brackets).
+        """
         return '"' + identifier.replace('"', '""') + '"'
+
+    def quote_qualified_identifier(self, *parts: str) -> str:
+        """Quote each non-empty part of a possibly-multi-segment identifier
+        and join them with ``.`` (e.g. ``"schema"."table"``).
+
+        Skips ``None`` or empty parts so callers don't need to special-case
+        schemaless databases (SQLite, Firebird).
+        """
+        return ".".join(self.quote_identifier(p) for p in parts if p)
+
+    def quote_literal(self, value: Any) -> str:
+        """Return *value* as a SQL string literal, safely escaped.
+
+        Default ANSI/Postgres behaviour: wrap in single quotes, double
+        embedded apostrophes, escape backslashes (so a value containing
+        ``\\'`` cannot terminate the literal on MySQL default mode or
+        PostgreSQL E-strings), and reject embedded NUL bytes (most
+        wire protocols truncate or reject them).
+
+        Override per-DBMS only when the wire protocol requires a different
+        literal form.
+        """
+        if value is None:
+            return "NULL"
+        s = str(value)
+        if "\x00" in s:
+            raise ValueError("SQL literal contains a NUL byte; refusing to quote.")
+        return "'" + s.replace("\\", "\\\\").replace("'", "''") + "'"
 
     def paramsubs(self, paramcount: int) -> str:
         """Return a comma-separated string of *paramcount* parameter placeholders."""
