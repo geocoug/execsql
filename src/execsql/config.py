@@ -321,6 +321,7 @@ class ConfigData:
         self._get_str(cp, self._CONFIG_SECTION, "serve_root", "serve_root")
         self._get_str(cp, self._CONFIG_SECTION, "template_root", "template_root")
         self._get_bool(cp, self._CONFIG_SECTION, "csv_safe_formulas", "csv_safe_formulas")
+        self._get_int(cp, self._CONFIG_SECTION, "max_substitution_bytes", "max_substitution_bytes")
         # --- [email] ---
         self._get_str(cp, self._EMAIL_SECTION, "host", "smtp_host")
         self._get_int(cp, self._EMAIL_SECTION, "port", "smtp_port")
@@ -446,6 +447,10 @@ class ConfigData:
         # exported string cells with ``'`` so they import as text
         # instead of executing as formulas in Excel / LibreOffice Calc.
         self.csv_safe_formulas = True
+        # B17/F013: byte ceiling on substitute_vars() expansion to
+        # defeat exponential-expansion bombs. None = use the engine
+        # default (10 MB).
+        self.max_substitution_bytes: int | None = None
         self.zip_buffer_mb = 10
         if os.name == "posix":
             sys_config_file = str(Path("/etc") / self.config_file_name)

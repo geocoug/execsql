@@ -24,6 +24,8 @@ ______________________________________________________________________
 - `EXPORT … FORMAT xlsx` and `IMPORT … FORMAT xlsx` now reject zip-bomb XLSX files via a new `check_zip_decompression_ratio` helper that inspects the OOXML zip directory before openpyxl parses the file. Rejects individual members with a compression ratio above 100:1 (default) and aggregate uncompressed size above 500 MB (default).
 - `IMPORT … FORMAT ods` and `EXPORT … FORMAT ods` defuse the stdlib XML parsers via `defusedxml.defuse_stdlib()` on first `OdsFile` construction, protecting odfpy from billion-laughs / external-entity attacks. The `defusedxml` package is now part of the `[formats]` extra.
 - CSV, XLSX, and ODS exporters now neutralize spreadsheet formula leaders (`=`, `+`, `-`, `@`, tab) in string cell values by prefixing them with `'`, so a malicious cell like `=cmd|'/c calc'!A1` imports as text instead of executing on open in Excel or LibreOffice Calc. Toggle via the new `csv_safe_formulas` config key (default `Yes`) in the `[config]` section.
+- `substitute_vars()` now aborts when expanded output exceeds 10 MB (configurable via the new `max_substitution_bytes` key in the `[config]` section), defending against exponential-expansion bombs where a chain of substitutions accumulates beyond a safe size before the iteration depth cap fires.
+- New `max_substitution_bytes` config key in the `[config]` section of `execsql.conf`. Sets a byte ceiling on `substitute_vars()` expansion to defeat exponential-expansion bombs. Default `None` uses the engine default (10 MB).
 
 ### Changed
 

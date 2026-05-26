@@ -442,6 +442,14 @@ def set_system_vars(ctx: Any = None) -> None:
 
 
 _MAX_SUBSTITUTION_DEPTH = 100
+# B17/F013: output-byte ceiling for substitute_vars. The depth cap
+# above stops cyclic references (a → !!b!!, b → !!a!!) but does not
+# stop exponential expansion: a single variable referencing the same
+# other variable N times grows ``2^N`` per iteration without ever
+# looping. Track the rendered length and abort when it crosses
+# _MAX_SUBSTITUTION_BYTES (default 10 MB — well above any legitimate
+# SQL statement, comfortably below a memory-pressure failure mode).
+_MAX_SUBSTITUTION_BYTES = 10 * 1024 * 1024
 
 
 def substitute_vars(command_str: str, localvars: SubVarSet | None = None, ctx: Any = None) -> str:
@@ -452,12 +460,23 @@ def substitute_vars(command_str: str, localvars: SubVarSet | None = None, ctx: A
         localvars: Optional local variable overlay to merge with globals.
         ctx: Optional :class:`RuntimeContext`.  When ``None``, falls through
             to the global ``_state`` module (legacy behavior).
+
+    Raises:
+        ErrInfo: when the iteration count exceeds
+            :data:`_MAX_SUBSTITUTION_DEPTH` (cyclic reference) OR the
+            expanded output exceeds :data:`_MAX_SUBSTITUTION_BYTES`
+            (exponential expansion bomb).
     """
     _s = ctx if ctx is not None else _state
     if localvars is not None:
         subs = _s.subvars.merge(localvars)
     else:
         subs = _s.subvars
+    # Allow runtime override of the byte cap via conf. None / missing
+    # → use the engine default (back-compat with users who legitimately
+    # render multi-MB SQL through substitution).
+    conf_max = getattr(_s.conf, "max_substitution_bytes", None)
+    max_bytes = conf_max if conf_max is not None else _MAX_SUBSTITUTION_BYTES
     cmdstr = command_str
     subs_made = True
     iterations = 0
@@ -467,6 +486,19 @@ def substitute_vars(command_str: str, localvars: SubVarSet | None = None, ctx: A
         cmdstr, any_subbed = _s.counters.substitute_all(cmdstr)
         subs_made = subs_made or any_subbed
         iterations += 1
+        # Only enforce the byte cap when expansion ACTUALLY happened
+        # this iteration. A user passing a large pre-existing literal
+        # with no !!var!! tokens shouldn't be rejected — the cap
+        # targets expansion-bomb growth, not literal input size.
+        if subs_made and len(cmdstr) > max_bytes:
+            raise ErrInfo(
+                type="error",
+                other_msg=(
+                    f"Substitution variable expansion exceeded {max_bytes} bytes "
+                    f"(possible exponential expansion bomb) while expanding: "
+                    f"{command_str[:200]}"
+                ),
+            )
         if iterations >= _MAX_SUBSTITUTION_DEPTH:
             raise ErrInfo(
                 type="error",
