@@ -320,6 +320,7 @@ class ConfigData:
         self._get_str(cp, self._CONFIG_SECTION, "include_root", "include_root")
         self._get_str(cp, self._CONFIG_SECTION, "serve_root", "serve_root")
         self._get_str(cp, self._CONFIG_SECTION, "template_root", "template_root")
+        self._get_bool(cp, self._CONFIG_SECTION, "csv_safe_formulas", "csv_safe_formulas")
         # --- [email] ---
         self._get_str(cp, self._EMAIL_SECTION, "host", "smtp_host")
         self._get_int(cp, self._EMAIL_SECTION, "port", "smtp_port")
@@ -441,6 +442,10 @@ class ConfigData:
         self.template_root: str | None = None
         self.allow_rm_file = True
         self.allow_serve = True
+        # B16/F027–F029: prefix leading ``=``/``+``/``-``/``@``/tab in
+        # exported string cells with ``'`` so they import as text
+        # instead of executing as formulas in Excel / LibreOffice Calc.
+        self.csv_safe_formulas = True
         self.zip_buffer_mb = 10
         if os.name == "posix":
             sys_config_file = str(Path("/etc") / self.config_file_name)

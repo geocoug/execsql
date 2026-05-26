@@ -46,6 +46,12 @@ def _cell_value(item: Any) -> Any:
     openpyxl natively handles int, float, bool, str, datetime.datetime,
     datetime.date, and None.  datetime.time is converted to a string because
     openpyxl does not have a native time-only cell type.
+
+    String values are passed through :func:`exporters.base.neutralize_formula`
+    so a value starting with ``=`` / ``+`` / ``-`` / ``@`` / tab gets a
+    leading ``'`` (B16/F028 — XLSX formula injection defence). Numeric,
+    datetime, and bool values bypass the check — those types land in
+    typed cells and can't carry a formula payload.
     """
     if item is None:
         return None
@@ -61,7 +67,11 @@ def _cell_value(item: Any) -> Any:
     if isinstance(item, datetime.time):
         # openpyxl has no native time-only type; store as HH:MM:SS string.
         return item.strftime("%H:%M:%S")
-    return str(item)
+    from execsql.exporters.base import neutralize_formula
+
+    if isinstance(item, str):
+        return neutralize_formula(item)
+    return neutralize_formula(str(item))
 
 
 # ---------------------------------------------------------------------------
