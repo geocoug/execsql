@@ -1,0 +1,21 @@
+# Dependabot keeps the SHA-pinned GitHub Actions in ci-cd.yml up to
+# date. The audit's B22 finding (F059) called out that pinning to
+# major-version tags (e.g. `actions/checkout@v6`) is supply-chain
+# exposure — an attacker who compromises the repo can retag any v6.x
+# release to point at malicious code and every consumer pulls it on
+# the next run. Pinning to a 40-char SHA closes that hole, but the
+# pins must be refreshed when upstream ships a real new release;
+# Dependabot files a PR with the new SHA and a CHANGELOG link.
+version: 2
+updates:
+    - package-ecosystem: github-actions
+      directory: /
+      schedule:
+          interval: weekly
+      groups:
+          actions-minor-and-patch:
+              patterns:
+                  - "*"
+              update-types:
+                  - minor
+                  - patch
