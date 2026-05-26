@@ -27,7 +27,9 @@ ______________________________________________________________________
 - `substitute_vars()` now aborts when expanded output exceeds 10 MB (configurable via the new `max_substitution_bytes` key in the `[config]` section), defending against exponential-expansion bombs where a chain of substitutions accumulates beyond a safe size before the iteration depth cap fires.
 - `IMPORT … ODS PATTERN <regex>` and `IMPORT … XLS PATTERN <regex>` now raise a friendly `ErrInfo` listing the invalid pattern instead of letting an uncaught `re.error` bubble up from `re.compile`.
 - `IMPORT … FROM JSON` with newline-delimited JSON (NDJSON) now reads the file line-by-line instead of buffering the entire text alongside the parsed records. The standard JSON-array path is unchanged (would require an `ijson` dependency to stream).
-- New `max_substitution_bytes` config key in the `[config]` section of `execsql.conf`. Sets a byte ceiling on `substitute_vars()` expansion to defeat exponential-expansion bombs. Default `None` uses the engine default (10 MB).
+- New `execsql.utils.auth.is_plaintext_keyring()` helper detects when the active OS keyring backend stores secrets in cleartext (e.g. `keyrings.alt.file.PlaintextKeyring` on headless Linux without a real Secret Service). The internal `_keyring_set()` path now emits a one-time stderr warning before writing into a plaintext backend so users know stored passwords are not meaningfully protected at rest.
+- On POSIX systems without `$DISPLAY` or `$WAYLAND_DISPLAY`, `enable_gui()` now skips the Tkinter backend entirely and falls through to the Textual / Console backends, instead of failing with a cryptic `_tkinter.TclError` that the broad-except previously swallowed.
+- Internal: `.github/workflows/ci-cd.yml` now SHA-pins all third-party GitHub Actions with a trailing `# vX.Y.Z` comment; new `.github/dependabot.yml` files weekly bump PRs grouping minor/patch action updates.
 
 ### Changed
 
