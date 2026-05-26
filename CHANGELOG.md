@@ -26,6 +26,15 @@ ______________________________________________________________________
 - `templates/script_template.sql` had two `WRITE` lines (`Committing:` and `Cleaning up:`) with unterminated double-quoted strings; the closing quotes are now present.
 - `ends_with(string, "")` now returns `True` for any string, matching Python's `str.endswith` semantics. Previously it returned `True` only when the haystack was also empty.
 - ODBC DSN connections now brace-quote the DSN, UID, and PWD attribute values with `{…}` (and double any embedded `}`) so a password or user containing `;` cannot inject additional connection-string attributes (CWE-91 / ODBC attribute injection).
+- The `!"!var!"!` substitution operator now doubles embedded `"` so a value like `foo"; DROP TABLE x; --` produces a single valid quoted identifier rather than a closing quote followed by a second statement.
+- The `!'!var!'!` substitution operator now always escapes embedded `\`, not just on Windows. The previous Windows-only branch left MySQL default-mode and PostgreSQL E-string literals open to `\'` injection from POSIX hosts.
+- All three substitution forms (`!!var!!`, `!'!var!'!`, `!"!var!"!`) now reject values containing NUL bytes, which most DBMS wire protocols silently truncate or reject.
+- `EXPORT … FORMAT sqlite` and `EXPORT … FORMAT duckdb` now identifier-quote the table name in `DROP TABLE` / `INSERT INTO` and parameter-bind it in the existence check, closing two SQL-injection-via-tablename sites.
+- MySQL / MariaDB and SQL Server `Database.quote_identifier()` now use the native backtick (`` `…` ``) and bracket (`[…]`) forms respectively, so identifier quoting works even if user SQL has reset `sql_mode` / `QUOTED_IDENTIFIER`.
+
+### Added
+
+- `Database.quote_literal(value)` and `Database.quote_qualified_identifier(*parts)` helpers on the base `Database` class. The default `quote_literal` escapes `\` and doubles `'` and rejects NUL bytes; subclasses can override for dialect-specific literal forms.
 
 ### Removed
 

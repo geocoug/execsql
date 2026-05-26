@@ -58,6 +58,18 @@ class SqlServerDatabase(Database):
             f"{self.need_passwd!r}, {self.port!r}, {self.encoding!r})"
         )
 
+    def quote_identifier(self, identifier: str) -> str:
+        """SQL Server native identifier quoting uses square brackets.
+
+        Override of :meth:`Database.quote_identifier` for B07a/F021: the
+        base ANSI ``"…"`` form only works while ``QUOTED_IDENTIFIER`` is
+        ``ON`` (the adapter sets this at open_db, but user SQL that
+        toggles the session setting would silently break
+        execsql-generated DDL). ``]`` inside an identifier is escaped to
+        ``]]``.
+        """
+        return "[" + identifier.replace("]", "]]") + "]"
+
     def open_db(self) -> None:
         """Open a connection to the SQL Server database via pyodbc."""
         import pyodbc
