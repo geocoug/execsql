@@ -249,3 +249,38 @@ class TestEqualsBranches:
             _cond.xf_equals(string1="true", string2="yes") is True
             or _cond.xf_equals(string1="true", string2="True") is True
         )
+
+
+class TestStartsEndsWith:
+    """F042 regression: xf_startswith / xf_endswith must match Python's
+    str.startswith / str.endswith for the empty-needle edge case."""
+
+    def test_endswith_empty_needle_nonempty_string(self):
+        assert _cond.xf_endswith(string1="hello", string2="", ignorecase=None) is True
+
+    def test_endswith_empty_needle_empty_string(self):
+        assert _cond.xf_endswith(string1="", string2="", ignorecase=None) is True
+
+    def test_endswith_match(self):
+        assert _cond.xf_endswith(string1="hello", string2="llo", ignorecase=None) is True
+
+    def test_endswith_no_match(self):
+        assert _cond.xf_endswith(string1="hello", string2="xyz", ignorecase=None) is False
+
+    def test_endswith_ignorecase(self):
+        assert _cond.xf_endswith(string1="HELLO", string2="llo", ignorecase="i") is True
+
+    def test_startswith_empty_needle_nonempty_string(self):
+        assert _cond.xf_startswith(string1="hello", string2="", ignorecase=None) is True
+
+    def test_startswith_empty_needle_empty_string(self):
+        assert _cond.xf_startswith(string1="", string2="", ignorecase=None) is True
+
+    def test_startswith_match(self):
+        assert _cond.xf_startswith(string1="hello", string2="hel", ignorecase=None) is True
+
+    def test_startswith_no_match(self):
+        assert _cond.xf_startswith(string1="hello", string2="xyz", ignorecase=None) is False
+
+    def test_startswith_ignorecase(self):
+        assert _cond.xf_startswith(string1="HELLO", string2="hel", ignorecase="i") is True

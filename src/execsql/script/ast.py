@@ -483,6 +483,14 @@ def _format_nodes(nodes: list[Node], lines: list[str], prefix: str) -> None:
             _format_if_block(node, lines, child_prefix)
         elif isinstance(node, (LoopBlock, BatchBlock, ScriptBlock, SqlBlock)):
             _format_nodes(node.body, lines, child_prefix)
+        elif isinstance(node, (SqlStatement, MetaCommandStatement, Comment, IncludeDirective)):
+            # Leaf nodes — no children to render.
+            pass
+        else:
+            # Guard against silently skipping bodies of future block-type nodes.
+            raise NotImplementedError(
+                f"_format_nodes does not handle {type(node).__name__}",
+            )
 
 
 def _format_if_block(node: IfBlock, lines: list[str], prefix: str) -> None:
