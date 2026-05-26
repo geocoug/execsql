@@ -102,6 +102,12 @@ $CURRENT_SCRIPT_NAME
 $CURRENT_SCRIPT_PATH
 :   The complete path of the script from which the current command originated, including a terminating path separator character. This value will change if a different script is [INCLUDEEd](metacommands.md#include).
 
+$CURRENT_DATE
+:   The current calendar date (in the format `YYYY-MM-DD`) when the current script line is run. Useful for stamping export filenames or audit log entries.
+
+$CURRENT_SCRIPT_LINE
+:   The 1-based line number, within `$CURRENT_SCRIPT`, of the command currently being executed. Most useful inside `WRITE` and `DEBUG WRITE` metacommands for diagnostic output.
+
 $CURRENT_TIME
 :   The date and time at which the current script line is run. See [Example 4](../guides/examples.md#example4) for an illustration of its use.
 

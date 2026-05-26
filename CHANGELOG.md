@@ -30,6 +30,8 @@ ______________________________________________________________________
 - New `execsql.utils.auth.is_plaintext_keyring()` helper detects when the active OS keyring backend stores secrets in cleartext (e.g. `keyrings.alt.file.PlaintextKeyring` on headless Linux without a real Secret Service). The internal `_keyring_set()` path now emits a one-time stderr warning before writing into a plaintext backend so users know stored passwords are not meaningfully protected at rest.
 - On POSIX systems without `$DISPLAY` or `$WAYLAND_DISPLAY`, `enable_gui()` now skips the Tkinter backend entirely and falls through to the Textual / Console backends, instead of failing with a cryptic `_tkinter.TclError` that the broad-except previously swallowed.
 - Internal: `.github/workflows/ci-cd.yml` now SHA-pins all third-party GitHub Actions with a trailing `# vX.Y.Z` comment; new `.github/dependabot.yml` files weekly bump PRs grouping minor/patch action updates.
+- Documented `$CURRENT_DATE` and `$CURRENT_SCRIPT_LINE` substitution variables in `docs/reference/substitution_vars.md`; the `[map]` extra in the README installation list; `RUN SCRIPT` as an alias for `EXECUTE SCRIPT` in `docs/reference/metacommands.md`. All were functional, just undocumented.
+- Expanded `SECURITY.md` from a stub-policy page to a defense-in-depth catalogue covering substitution-variable quoters, path-containment, SQL-injection mitigations, file-format defenses (XLSX zip-bomb, ODS XML, formula injection), credential/logging hygiene, and known limitations.
 
 ### Changed
 

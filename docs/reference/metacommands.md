@@ -970,6 +970,8 @@ Firebird supports stored procedures, and *execsql* executes the procedure with t
 
 ## EXECUTE SCRIPT { #executescript }
 
+`EXEC SCRIPT` and `RUN SCRIPT` are accepted as aliases for `EXECUTE SCRIPT` — the three forms are interchangeable.
+
 ```
 EXECUTE SCRIPT [IF EXISTS] <script_name>
 ```

@@ -56,6 +56,7 @@ pip install execsql2[upsert]          # pg-upsert for PostgreSQL upsert operatio
 pip install execsql2[auth]            # OS keyring integration
 pip install execsql2[auth-plaintext]  # Keyring + plaintext file backend (headless Linux)
 pip install execsql2[auth-encrypted]  # Keyring + encrypted file backend (headless Linux)
+pip install execsql2[map]             # tkintermapview for PROMPT MAP
 
 # Convenience
 pip install execsql2[all-db]     # All database drivers
