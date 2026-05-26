@@ -783,6 +783,18 @@ def _execute_include_native(
     if len(target) > 1 and target[0] == "~" and target[1] == os.sep:
         target = str(Path.home() / target[2:])
 
+    # Optional containment: when conf.include_root is set, the resolved
+    # INCLUDE / EXECUTE SCRIPT target must live under that root.
+    include_root = getattr(ctx.conf, "include_root", None) if hasattr(ctx, "conf") else None
+    if include_root is None:
+        import execsql.state as _state
+
+        include_root = getattr(_state.conf, "include_root", None)
+    if include_root:
+        from execsql.utils.fileio import safe_output_path
+
+        target = safe_output_path(target, include_root)
+
     target_path = Path(target)
 
     # IF EXISTS handling
