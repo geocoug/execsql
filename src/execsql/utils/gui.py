@@ -248,11 +248,21 @@ def enable_gui() -> None:
 
     framework = _state.conf.gui_framework if _state.conf else "tkinter"
 
+    # --- Headless POSIX guard ----------------------------------------------
+    # B20/F041: on POSIX without DISPLAY or WAYLAND_DISPLAY, Tkinter's
+    # ``tk.Tk()`` constructor raises a cryptic _tkinter.TclError. Skip
+    # straight to a non-GUI backend on headless systems so the fallback
+    # path is taken cleanly rather than after a confusing TclError that
+    # the broad ``except Exception`` would swallow.
+    import os as _os
+
+    headless_posix = _os.name == "posix" and not _os.environ.get("DISPLAY") and not _os.environ.get("WAYLAND_DISPLAY")
+
     # --- Tkinter sync path --------------------------------------------------
     # Tkinter must run on the main thread (required on macOS).  Use a sync
     # queue that dispatches dialogs directly in the calling thread instead of
     # routing through a background manager thread.
-    if framework == "tkinter":
+    if framework == "tkinter" and not headless_posix:
         try:
             from execsql.gui.desktop import TkinterBackend, _TkinterSyncQueue
 

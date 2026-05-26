@@ -29,10 +29,55 @@ import getpass
 
 import execsql.state as _state
 
-__all__ = ["get_password", "clear_stored_password", "password_from_keyring"]
+__all__ = ["clear_stored_password", "get_password", "is_plaintext_keyring", "password_from_keyring"]
 
 # Tracks whether the most recent get_password() call returned a keyring-stored value.
 _last_from_keyring: bool = False
+
+# Tracks whether we've already warned about a plaintext keyring backend
+# this process — keyring is a one-shot warning, not a per-call nag.
+_plaintext_warned: bool = False
+
+
+def is_plaintext_keyring() -> bool:
+    """Return True if the active keyring backend stores secrets in cleartext.
+
+    B20/F040: on headless Linux without a real Secret Service, the
+    ``keyrings.alt.file.PlaintextKeyring`` (or
+    ``EncryptedKeyring`` with a hard-coded passphrase) backend is
+    used silently. Detect by inspecting the active backend's module
+    path so callers can warn the user instead of pretending secrets
+    are encrypted.
+    """
+    try:
+        import keyring
+
+        backend = keyring.get_keyring()
+        module = type(backend).__module__
+        return "keyrings.alt" in module or "fail" in module.lower()
+    except Exception:
+        return False
+
+
+def _warn_if_plaintext_keyring() -> None:
+    """Print a one-time warning if the active keyring backend is plaintext."""
+    global _plaintext_warned
+    if _plaintext_warned or not is_plaintext_keyring():
+        return
+    _plaintext_warned = True
+    try:
+        import keyring
+        import sys
+
+        backend_name = type(keyring.get_keyring()).__name__
+        print(
+            f"WARNING: active keyring backend ({backend_name}) stores secrets in "
+            f"cleartext or with a hard-coded key. Stored passwords are not "
+            f"meaningfully protected.",
+            file=sys.stderr,
+        )
+    except Exception:
+        pass
 
 
 def _keyring_service(dbms_name: str, database_name: str, server_name: str | None) -> str:
@@ -53,6 +98,9 @@ def _keyring_get(service: str, username: str) -> str | None:
 
 def _keyring_set(service: str, username: str, password: str) -> bool:
     """Try to store a password in the OS keyring.  Returns True on success."""
+    # B20/F040: warn before storing into a plaintext backend so the user
+    # knows their secret is not meaningfully protected at rest.
+    _warn_if_plaintext_keyring()
     try:
         import keyring
 
