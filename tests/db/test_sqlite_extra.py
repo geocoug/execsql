@@ -487,7 +487,8 @@ class TestPopulateTableDbError:
         rows = [[1, "ok", 1.0]]
 
         bad_curs = MagicMock()
-        bad_curs.execute.side_effect = sqlite3.DatabaseError("constraint violation")
+        # B08: populate_table now uses executemany instead of per-row execute.
+        bad_curs.executemany.side_effect = sqlite3.DatabaseError("constraint violation")
 
         with patch.object(db_with_table, "cursor", return_value=bad_curs), pytest.raises(ErrInfo) as exc_info:
             db_with_table.populate_table(
@@ -500,14 +501,15 @@ class TestPopulateTableDbError:
         assert "Can't load data into table" in str(exc_info.value)
 
     def test_insert_errrinfo_propagates_directly(self, db_with_table, minimal_conf):
-        """ErrInfo raised during execute inside populate_table must not be double-wrapped."""
+        """ErrInfo raised during executemany inside populate_table must not be double-wrapped."""
         minimal_conf.empty_rows = True
         tablespec_src = _make_tablespec(["id", "name", "score"])
         rows = [[1, "ok", 1.0]]
         original_err = ErrInfo(type="db", other_msg="original error")
 
         bad_curs = MagicMock()
-        bad_curs.execute.side_effect = original_err
+        # B08: populate_table now uses executemany instead of per-row execute.
+        bad_curs.executemany.side_effect = original_err
 
         with patch.object(db_with_table, "cursor", return_value=bad_curs), pytest.raises(ErrInfo) as exc_info:
             db_with_table.populate_table(
@@ -527,9 +529,13 @@ class TestPopulateTableDbError:
 
 class TestPopulateTableProgressLogging:
     def test_progress_logged_at_interval(self, db_with_table, minimal_conf):
-        """exec_log.log_status_info should be called when interval matches row count (line 221)."""
+        """exec_log.log_status_info should be called when interval matches row count."""
         minimal_conf.empty_rows = True
         minimal_conf.import_progress_interval = 2
+        # B08: populate_table batches rows via import_row_buffer; force a
+        # small buffer so progress logging fires at row 2 and row 4 the
+        # way it would have with the old per-row execute path.
+        minimal_conf.import_row_buffer = 2
 
         mock_log = MagicMock()
         _state.exec_log = mock_log
@@ -543,8 +549,8 @@ class TestPopulateTableProgressLogging:
             column_list=["id", "name", "score"],
             tablespec_src=tablespec_src,
         )
-        # With interval=2 and 4 rows, we expect log calls at rows 2 and 4
-        # plus the final completion log — at least 2 interval calls
+        # With interval=2 and 4 rows in 2-row batches, expect interval
+        # log calls at row 2 and row 4.
         calls = [str(c) for c in mock_log.log_status_info.call_args_list]
         interval_calls = [c for c in calls if "rows imported so far" in c]
         assert len(interval_calls) >= 2
