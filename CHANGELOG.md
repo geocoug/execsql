@@ -21,7 +21,9 @@ ______________________________________________________________________
 - `~/execsql.log` is now created with mode `0o600` on POSIX so the substituted SQL, `-a` values, env vars, and DSN URLs it captures are not world-readable. Previously the file inherited the umask default (typically `0o644`).
 - `-a NAME VALUE` substitution-variable assignments are redacted to `***` in the log when the value contains a sensitive substring (`PASSWORD`, `SECRET`, `TOKEN`, `PASSWD`, `PRIVATE_KEY`, `CREDENTIAL`).
 - A warning is now printed when the `--dsn` URL contains an embedded password, since it remains visible in `ps`, shell history, and process accounting.
+- Seven CLI flags now accept the underscore form upstream `execsql` v1.130.1 used, alongside the modern hyphenated form: `--database_encoding`, `--script_encoding`, `--output_encoding`, `--import_encoding`, `--import_buffer`, `--user_logfile`, `--visible_prompts`. Either spelling parses to the same parameter.
 - MySQL / MariaDB connections now correctly report implicit DDL commits via `auto_commits_ddl()`, so scripts that wrap DDL statements (`CREATE TABLE`, `ALTER TABLE`, etc.) in explicit transactions will no longer see silent mid-transaction commits go undetected.
+- Underscore-named aliases accepted for all encoding and import-buffer CLI options (`--database_encoding`, `--encoding`, `--import_encoding`, `--export_encoding`, `--import_buffer`) in addition to the canonical hyphenated forms.
 
 ### Changed
 
