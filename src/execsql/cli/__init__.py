@@ -9,7 +9,7 @@ Submodules:
 - :mod:`execsql.cli.dsn`       — Connection-string (DSN URL) parser
 - :mod:`execsql.cli.run`       — Core execution logic (``_run``, ``_connect_initial_db``, ``_ping_db``, ``_print_dry_run``, ``_print_profile``)
 - :mod:`execsql.cli.lint_ast`  — AST-based ``--lint`` static analyser
-- :mod:`execsql.cli.lint`      — Lint result printing (``_print_lint_results``); the flat-CommandList ``_lint_cmdlist`` it also contains is legacy and no longer reached from the CLI
+- :mod:`execsql.cli.lint`      — Shared lint result printing (``_print_lint_results``) used by the AST linter
 """
 
 from __future__ import annotations
