@@ -144,7 +144,7 @@ class Database(ABC):
     def close(self) -> None:
         """Close the database connection, logging a warning if autocommit is off."""
         if self.conn:
-            if not self.autocommit:
+            if not self.autocommit and _state.exec_log is not None:
                 _state.exec_log.log_status_info(
                     f"Closing {self.name()} when AUTOCOMMIT is OFF; transactions may not have completed.",
                 )
@@ -708,9 +708,10 @@ class DatabasePool:
                     type="error",
                     other_msg="You may not reassign the alias of a database that is currently used in a batch.",
                 )
-            _state.exec_log.log_status_info(
-                f"Reassigning database alias '{db_alias}' from {self.pool[db_alias].name()} to {db_obj.name()}.",
-            )
+            if _state.exec_log is not None:
+                _state.exec_log.log_status_info(
+                    f"Reassigning database alias '{db_alias}' from {self.pool[db_alias].name()} to {db_obj.name()}.",
+                )
             self.pool[db_alias].close()
         self.pool[db_alias] = db_obj
         # Refresh static system vars so $DB_NAME, $DB_USER, etc. reflect the new connection.

@@ -109,13 +109,15 @@ class AccessDatabase(Database):
                 try:
                     self.conn = pyodbc.connect(connstr)
                 except Exception:
-                    _state.exec_log.log_status_info(
-                        f"Could not connect via ODBC using: {re.sub(r'Pwd=[^;]*', 'Pwd=***', connstr)}",
-                    )
+                    if _state.exec_log is not None:
+                        _state.exec_log.log_status_info(
+                            f"Could not connect via ODBC using: {re.sub(r'Pwd=[^;]*', 'Pwd=***', connstr)}",
+                        )
                 else:
-                    _state.exec_log.log_status_info(
-                        f"Connected via ODBC using: {re.sub(r'Pwd=[^;]*', 'Pwd=***', connstr)}",
-                    )
+                    if _state.exec_log is not None:
+                        _state.exec_log.log_status_info(
+                            f"Connected via ODBC using: {re.sub(r'Pwd=[^;]*', 'Pwd=***', connstr)}",
+                        )
                     self.jet4 = jet4flag
                     return True
             return False
@@ -162,9 +164,11 @@ class AccessDatabase(Database):
                     else:
                         self.dao_conn = daoEngine.OpenDatabase(self.db_name)
                 except Exception:
-                    _state.exec_log.log_status_info(f"Could not connect via DAO using: {engine}")
+                    if _state.exec_log is not None:
+                        _state.exec_log.log_status_info(f"Could not connect via DAO using: {engine}")
                 else:
-                    _state.exec_log.log_status_info(f"Connected via DAO using: {engine}")
+                    if _state.exec_log is not None:
+                        _state.exec_log.log_status_info(f"Connected via DAO using: {engine}")
                     return True
             return False
 
@@ -321,7 +325,10 @@ class AccessDatabase(Database):
         try:
             with self._cursor() as curs:
                 rows = list(curs.tables(table=table_name, tableType="TABLE"))
-                return any(r.table_name == table_name for r in rows)
+                # Access identifiers are case-insensitive; the catalog
+                # returns whatever case the table was created with.
+                lname = table_name.lower()
+                return any(r.table_name.lower() == lname for r in rows)
         except Exception as e:
             raise ErrInfo(
                 type="db",
@@ -367,7 +374,8 @@ class AccessDatabase(Database):
         try:
             with self._cursor() as curs:
                 rows = list(curs.tables(table=view_name, tableType="VIEW"))
-                return any(r.table_name == view_name for r in rows)
+                lname = view_name.lower()
+                return any(r.table_name.lower() == lname for r in rows)
         except Exception as e:
             raise ErrInfo(
                 type="db",

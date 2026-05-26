@@ -220,9 +220,10 @@ class MySQLDatabase(Database):
                     import_sql = f"{import_sql} optionally enclosed by '{safe_quote}'"
             import_sql = f"{import_sql} ignore {1 + csv_file_obj.junk_header_lines} lines"
             import_sql = f"{import_sql} ({input_col_list});"
-            _state.exec_log.log_status_info(
-                f"IMPORTing {csv_file_obj.csvfname} using the DBMS' fast file reading routine",
-            )
+            if _state.exec_log is not None:
+                _state.exec_log.log_status_info(
+                    f"IMPORTing {csv_file_obj.csvfname} using the DBMS' fast file reading routine",
+                )
             self.execute(import_sql)
         else:
             data_indexes = [csv_file_cols.index(col) for col in import_cols]

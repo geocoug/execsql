@@ -340,9 +340,10 @@ class PostgresDatabase(Database):
                 safe_quote = csv_file_obj.quotechar.replace("'", "''")
                 copy_cmd = copy_cmd + f", quote '{safe_quote}'"
             copy_cmd = copy_cmd + ")"
-            _state.exec_log.log_status_info(
-                f"IMPORTing {csv_file_obj.csvfname} using Postgres' fast file reading routine",
-            )
+            if _state.exec_log is not None:
+                _state.exec_log.log_status_info(
+                    f"IMPORTing {csv_file_obj.csvfname} using Postgres' fast file reading routine",
+                )
             with self._cursor() as curs:
                 try:
                     curs.copy_expert(copy_cmd, rf, _state.conf.import_buffer)

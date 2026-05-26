@@ -43,8 +43,10 @@ class TestXWritescript:
 
         x_writescript(script_id="test_script", filename=None, append=None)
         calls = [c[0][0] for c in mock_output.write.call_args_list]
-        assert any("BEGIN SCRIPT" in c for c in calls)
-        assert any("END SCRIPT" in c for c in calls)
+        # Output must be re-includable, so BEGIN/END SCRIPT lines need the
+        # -- !x! metacommand prefix.
+        assert any("-- !x! BEGIN SCRIPT" in c for c in calls)
+        assert any("-- !x! END SCRIPT" in c for c in calls)
         assert any("p1, p2" in c for c in calls)
 
     def test_writescript_no_params(self, minimal_conf):
@@ -57,7 +59,8 @@ class TestXWritescript:
 
         x_writescript(script_id="s1", filename=None, append=None)
         calls = [c[0][0] for c in mock_output.write.call_args_list]
-        assert any("BEGIN SCRIPT s1\n" in c for c in calls)
+        assert any("-- !x! BEGIN SCRIPT s1\n" in c for c in calls)
+        assert any("-- !x! END SCRIPT s1\n" in c for c in calls)
 
     def test_writescript_to_file(self, minimal_conf, tmp_path):
         from execsql.metacommands.io_write import x_writescript
@@ -163,6 +166,67 @@ class TestXWritescript:
         assert "UPDATE t SET n = n + 1;" in out
         assert "-- !x! END LOOP" in out
         assert "-- !x! END BATCH" in out
+
+    def test_writescript_renders_comment_and_include(self, minimal_conf):
+        from execsql.metacommands.io_write import x_writescript
+        from execsql.script.ast import (
+            Comment,
+            IncludeDirective,
+            SourceSpan,
+            SqlStatement,
+        )
+
+        mock_output = MagicMock()
+        _state.output = mock_output
+        _state.ast_scripts = {}
+
+        span = SourceSpan(file="t.sql", start_line=1, end_line=1)
+        body = [
+            Comment(span=span, text="-- a leading remark"),
+            IncludeDirective(
+                span=span,
+                target="lib.sql",
+                is_execute_script=False,
+                if_exists=True,
+            ),
+            IncludeDirective(
+                span=span,
+                target="helper",
+                is_execute_script=True,
+                if_exists=False,
+                arguments="x=1",
+            ),
+            SqlStatement(span=span, text="SELECT 1;"),
+        ]
+        _make_ast_script("mixed", body=body)
+
+        x_writescript(script_id="mixed", filename=None, append=None)
+        out = "".join(c[0][0] for c in mock_output.write.call_args_list)
+        assert "-- a leading remark" in out
+        assert "-- !x! INCLUDE IF EXISTS lib.sql" in out
+        assert "-- !x! EXECUTE SCRIPT helper (x=1)" in out
+        assert "SELECT 1;" in out
+
+    def test_writescript_unknown_node_type_raises(self, minimal_conf):
+        from execsql.exceptions import ErrInfo
+        from execsql.metacommands.io_write import x_writescript
+        from execsql.script.ast import Node, SourceSpan
+
+        mock_output = MagicMock()
+        _state.output = mock_output
+        _state.ast_scripts = {}
+
+        # Manufacture a Node subclass the renderer doesn't know about — if
+        # a future AST adds a new node type, WRITE SCRIPT should fail loudly
+        # rather than silently drop it.
+        class _UnknownNode(Node):
+            pass
+
+        body = [_UnknownNode(span=SourceSpan(file="t.sql", start_line=1, end_line=1))]
+        _make_ast_script("bad", body=body)
+
+        with pytest.raises(ErrInfo):
+            x_writescript(script_id="bad", filename=None, append=None)
 
 
 # ---------------------------------------------------------------------------

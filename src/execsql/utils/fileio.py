@@ -361,8 +361,17 @@ def filewriter_close_all_after_write() -> None:
     fw_input.put((FileWriter.CMD_CLOSE_ALL_AFTER_WRITE, ()))
     all_closed = False
     while not all_closed:
+        # Re-check liveness on every iteration: if the subprocess dies
+        # mid-loop, fw_output.get() would block forever otherwise.
+        if not _writer_alive():
+            return
         fw_input.put((FileWriter.CMD_CLOSED_STATUS, ()))
-        close_status = fw_output.get()
+        try:
+            close_status = fw_output.get(timeout=2.0)
+        except queue.Empty:
+            # Either the writer is too slow or it died after the alive
+            # check above — recheck on the next iteration.
+            continue
         all_closed = close_status == FileWriter.FileControl.STATUS_CLOSED
         time.sleep(0.05)
 

@@ -191,10 +191,12 @@ class FirebirdDatabase(Database):
 
     def view_exists(self, view_name: str, schema_name: str | None = None) -> bool:
         """Return True if the named view exists in the Firebird database."""
+        # Firebird folds unquoted identifiers to uppercase in the system catalog;
+        # match the case of the table_exists() handling above.
         sql = "select distinct rdb$view_name from rdb$view_relations where rdb$view_name = ?;"
         with self._cursor() as curs:
             try:
-                curs.execute(sql, (view_name,))
+                curs.execute(sql, (view_name.upper(),))
             except ErrInfo:
                 raise
             except Exception as e:

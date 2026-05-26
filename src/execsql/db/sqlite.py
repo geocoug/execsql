@@ -82,8 +82,10 @@ class SQLiteDatabase(Database):
 
     def table_exists(self, table_name: str, schema_name: str | None = None) -> bool:
         """Return True if the named table exists in the SQLite database."""
+        # SQLite stores names as-created; match case-insensitively so a lookup
+        # of "mytable" finds the catalog entry for MyTable.
         with self._cursor() as curs:
-            sql = "select name from sqlite_master where type='table' and name=?;"
+            sql = "select name from sqlite_master where type='table' and lower(name)=lower(?);"
             try:
                 curs.execute(sql, (table_name,))
             except ErrInfo:
@@ -130,8 +132,9 @@ class SQLiteDatabase(Database):
 
     def view_exists(self, view_name: str) -> bool:
         """Return True if the named view exists in the SQLite database."""
+        # Match case-insensitively — see table_exists().
         with self._cursor() as curs:
-            sql = "select name from sqlite_master where type='view' and name=?;"
+            sql = "select name from sqlite_master where type='view' and lower(name)=lower(?);"
             try:
                 curs.execute(sql, (view_name,))
             except ErrInfo:

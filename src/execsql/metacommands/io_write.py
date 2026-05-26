@@ -232,15 +232,23 @@ def x_write_suffix(**kwargs: Any) -> None:
 def _render_script_nodes(nodes: Any, emit: Any) -> None:
     """Walk a list of AST nodes and emit reconstructed source lines.
 
-    Nested IfBlock / LoopBlock / BatchBlock structures are rendered with
-    their delimiters so the output round-trips through ``INCLUDE`` and
-    ``EXECUTE SCRIPT``.
+    Every node type that can legally appear in a ``ScriptBlock.body`` is
+    handled — nested ``IfBlock`` / ``LoopBlock`` / ``BatchBlock`` /
+    ``SqlBlock`` structures render with their delimiters; ``Comment`` and
+    ``IncludeDirective`` (``INCLUDE`` / ``EXECUTE SCRIPT``) are preserved.
+    Unknown node types raise ``ErrInfo`` rather than silently disappear so
+    future AST additions can't quietly cause data loss.
     """
+    from execsql.exceptions import ErrInfo
     from execsql.script.ast import (
         BatchBlock,
+        Comment,
         IfBlock,
+        IncludeDirective,
         LoopBlock,
         MetaCommandStatement,
+        ScriptBlock,
+        SqlBlock,
         SqlStatement,
     )
 
@@ -249,6 +257,16 @@ def _render_script_nodes(nodes: Any, emit: Any) -> None:
             emit(f"{node.text}\n")
         elif isinstance(node, MetaCommandStatement):
             emit(f"-- !x! {node.command}\n")
+        elif isinstance(node, Comment):
+            # Preserve comment text verbatim; the parser stores it including
+            # the leading "--" / "/* ... */" delimiters.
+            emit(f"{node.text}\n")
+        elif isinstance(node, IncludeDirective):
+            kw = "EXECUTE SCRIPT" if node.is_execute_script else "INCLUDE"
+            if_exists = " IF EXISTS" if node.if_exists else ""
+            args = f" ({node.arguments})" if node.arguments else ""
+            loop = f" LOOP {node.loop_type} ({node.loop_condition})" if node.loop_type else ""
+            emit(f"-- !x! {kw}{if_exists} {node.target}{args}{loop}\n")
         elif isinstance(node, IfBlock):
             emit(f"-- !x! IF ({node.condition})\n")
             for mod in node.condition_modifiers:
@@ -273,6 +291,25 @@ def _render_script_nodes(nodes: Any, emit: Any) -> None:
             emit("-- !x! BEGIN BATCH\n")
             _render_script_nodes(node.body, emit)
             emit("-- !x! END BATCH\n")
+        elif isinstance(node, SqlBlock):
+            emit("-- !x! BEGIN SQL\n")
+            _render_script_nodes(node.body, emit)
+            emit("-- !x! END SQL\n")
+        elif isinstance(node, ScriptBlock):
+            # Nested SCRIPT definition — emit recursively with its own
+            # BEGIN/END SCRIPT framing.
+            param_names = node.param_names
+            if param_names:
+                emit(f"-- !x! BEGIN SCRIPT {node.name} ({', '.join(param_names)})\n")
+            else:
+                emit(f"-- !x! BEGIN SCRIPT {node.name}\n")
+            _render_script_nodes(node.body, emit)
+            emit(f"-- !x! END SCRIPT {node.name}\n")
+        else:
+            raise ErrInfo(
+                type="cmd",
+                other_msg=f"WRITE SCRIPT cannot render AST node of type {type(node).__name__}.",
+            )
 
 
 def x_writescript(**kwargs: Any) -> None:
@@ -306,8 +343,8 @@ def x_writescript(**kwargs: Any) -> None:
 
     param_names = block.param_names
     if param_names:
-        write(f"BEGIN SCRIPT {script_id} ({', '.join(param_names)})\n")
+        write(f"-- !x! BEGIN SCRIPT {script_id} ({', '.join(param_names)})\n")
     else:
-        write(f"BEGIN SCRIPT {script_id}\n")
+        write(f"-- !x! BEGIN SCRIPT {script_id}\n")
     _render_script_nodes(block.body, write)
-    write(f"END SCRIPT {script_id}\n")
+    write(f"-- !x! END SCRIPT {script_id}\n")

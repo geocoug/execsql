@@ -103,13 +103,15 @@ class SqlServerDatabase(Database):
                     try:
                         self.conn = pyodbc.connect(connstr)
                     except Exception:
-                        _state.exec_log.log_status_info(
-                            f"Could not connect using: {re.sub(r'Pwd=[^;]*', 'Pwd=***', connstr)}",
-                        )
+                        if _state.exec_log is not None:
+                            _state.exec_log.log_status_info(
+                                f"Could not connect using: {re.sub(r'Pwd=[^;]*', 'Pwd=***', connstr)}",
+                            )
                     else:
-                        _state.exec_log.log_status_info(
-                            f"Connected using: {re.sub(r'Pwd=[^;]*', 'Pwd=***', connstr)}",
-                        )
+                        if _state.exec_log is not None:
+                            _state.exec_log.log_status_info(
+                                f"Connected using: {re.sub(r'Pwd=[^;]*', 'Pwd=***', connstr)}",
+                            )
                         return True
                 return False
 

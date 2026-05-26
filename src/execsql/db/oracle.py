@@ -142,11 +142,13 @@ class OracleDatabase(Database):
 
     def table_exists(self, table_name: str, schema_name: str | None = None) -> bool:
         """Return True if the named table exists in the Oracle database."""
-        params = {"tname": table_name}
+        # Oracle folds unquoted identifiers to uppercase; normalise so a lookup
+        # of "mytable" finds the catalog entry for MYTABLE.
+        params = {"tname": table_name.upper()}
         owner_clause = ""
         if schema_name:
             owner_clause = " and owner = :owner"
-            params["owner"] = schema_name
+            params["owner"] = schema_name.upper()
         sql = f"select table_name from sys.all_tables where table_name = :tname{owner_clause}"
         with self._cursor() as curs:
             try:
@@ -171,11 +173,12 @@ class OracleDatabase(Database):
         schema_name: str | None = None,
     ) -> bool:
         """Return True if the named column exists in the given Oracle table."""
-        params = {"tname": table_name, "cname": column_name}
+        # Oracle folds unquoted identifiers to uppercase.
+        params = {"tname": table_name.upper(), "cname": column_name.upper()}
         owner_clause = ""
         if schema_name:
             owner_clause = " and owner = :owner"
-            params["owner"] = schema_name
+            params["owner"] = schema_name.upper()
         sql = f"select column_name from all_tab_columns where table_name=:tname{owner_clause} and column_name=:cname"
         with self._cursor() as curs:
             try:
@@ -195,11 +198,12 @@ class OracleDatabase(Database):
 
     def table_columns(self, table_name: str, schema_name: str | None = None) -> list[str]:
         """Return a list of column names for the given Oracle table."""
-        params = {"tname": table_name}
+        # Oracle folds unquoted identifiers to uppercase.
+        params = {"tname": table_name.upper()}
         owner_clause = ""
         if schema_name:
             owner_clause = " and owner=:owner"
-            params["owner"] = schema_name
+            params["owner"] = schema_name.upper()
         sql = f"select column_name from all_tab_columns where table_name=:tname{owner_clause} order by column_id"
         with self._cursor() as curs:
             try:
@@ -219,11 +223,12 @@ class OracleDatabase(Database):
 
     def view_exists(self, view_name: str, schema_name: str | None = None) -> bool:
         """Return True if the named view exists in the Oracle database."""
-        params = {"vname": view_name}
+        # Oracle folds unquoted identifiers to uppercase.
+        params = {"vname": view_name.upper()}
         owner_clause = ""
         if schema_name:
             owner_clause = " and owner = :owner"
-            params["owner"] = schema_name
+            params["owner"] = schema_name.upper()
         sql = f"select view_name from sys.all_views where view_name = :vname{owner_clause}"
         with self._cursor() as curs:
             try:
@@ -242,13 +247,30 @@ class OracleDatabase(Database):
         return len(rows) > 0
 
     def role_exists(self, rolename: str) -> bool:
-        """Return True if the named role or user exists in the Oracle database."""
+        """Return True if the named role or user exists in the Oracle database.
+
+        ``dba_roles`` is restricted to DBA accounts and would raise
+        ``ORA-00942: table or view does not exist`` for non-DBA users; we
+        try it first and fall back to ``session_roles`` (always readable
+        for the current session) if the catalog isn't accessible.
+        """
+        # Oracle folds unquoted identifiers to uppercase in the catalog.
+        params = {"rname": rolename.upper()}
         with self._cursor() as curs:
-            curs.execute(
-                "select role from dba_roles where role = :rname union "
-                " select username from all_users where username = :rname",
-                {"rname": rolename},
-            )
+            try:
+                curs.execute(
+                    "select role from dba_roles where role = :rname union "
+                    " select username from all_users where username = :rname",
+                    params,
+                )
+            except Exception:
+                # Non-DBA fallback: enumerate session roles + users we can see.
+                self.rollback()
+                curs.execute(
+                    "select role from session_roles where role = :rname union "
+                    " select username from all_users where username = :rname",
+                    params,
+                )
             rows = curs.fetchall()
         return len(rows) > 0
 
