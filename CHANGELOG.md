@@ -35,6 +35,7 @@ ______________________________________________________________________
 - `EXPORT … FORMAT sqlite` and `EXPORT … FORMAT duckdb` now identifier-quote the table name in `DROP TABLE` / `INSERT INTO` and parameter-bind it in the existence check, closing two SQL-injection-via-tablename sites.
 - MySQL / MariaDB and SQL Server `Database.quote_identifier()` now use the native backtick (`` `…` ``) and bracket (`[…]`) forms respectively, so identifier quoting works even if user SQL has reset `sql_mode` / `QUOTED_IDENTIFIER`.
 - `IMPORT` into a SQLite database now batches rows and uses `cursor.executemany()` (honouring `import_row_buffer`, default 1000) instead of issuing one `cursor.execute()` per row. Million-row imports are 10–100× faster.
+- `MySQL.table_exists()`, `column_exists()`, and `view_exists()` now honour the server's `@@lower_case_table_names` setting: on Linux with the default `0`, identifiers are compared case-sensitively as before; on Windows/macOS (`1`) or `2`, the input name is folded to lowercase so a query like `table_exists("MyTable")` matches a row stored as `mytable`. The server variable is queried once and cached per connection.
 
 ### Removed
 
