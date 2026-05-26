@@ -151,13 +151,20 @@ class SqlServerDatabase(Database):
                     type="error",
                     other_msg=f"Can't open SQL Server database {self.db_name} on {self.server_name}",
                 )
+            # B11/F022: ensure the session-setup cursor is closed even
+            # if one of the SET statements raises. The previous code
+            # left a raw cursor open across pyodbc's connection,
+            # leaking a server-side handle for the connection's life.
             curs = self.conn.cursor()
-            curs.execute("SET IMPLICIT_TRANSACTIONS OFF;")
-            curs.execute("SET ANSI_NULLS ON;")
-            curs.execute("SET ANSI_PADDING ON;")
-            curs.execute("SET ANSI_WARNINGS ON;")
-            curs.execute("SET QUOTED_IDENTIFIER ON;")
-            self.conn.commit()
+            try:
+                curs.execute("SET IMPLICIT_TRANSACTIONS OFF;")
+                curs.execute("SET ANSI_NULLS ON;")
+                curs.execute("SET ANSI_PADDING ON;")
+                curs.execute("SET ANSI_WARNINGS ON;")
+                curs.execute("SET QUOTED_IDENTIFIER ON;")
+                self.conn.commit()
+            finally:
+                curs.close()
 
     def exec_cmd(self, querycommand: str) -> None:
         """Execute a stored procedure by name."""

@@ -17,6 +17,7 @@ ______________________________________________________________________
 - New `include_root`, `serve_root`, and `template_root` config keys in the `[config]` section of `execsql.conf`. When set, `INCLUDE` / `EXECUTE SCRIPT`, `SERVE`, and Jinja2 / `string.Template` loaders confine resolved paths under the named root and reject anything that escapes via `..`, absolute paths, drive letters, or UNC paths.
 - `Database.quote_literal(value)` and `Database.quote_qualified_identifier(*parts)` helpers on the base `Database` class. The default `quote_literal` escapes `\` and doubles `'` and rejects NUL bytes; subclasses can override for dialect-specific literal forms.
 - `Database.needs_explicit_commit_after_ddl()` and `Database.auto_commits_ddl()` capability hooks. Firebird overrides the first (its driver leaves DDL pending until commit). Oracle, MySQL, SQL Server, and MS Access override the second (their drivers implicitly commit DDL — `rollback()` is a silent no-op for transactions whose boundary the DDL crossed).
+- `EncodedFile` now supports the context-manager protocol (`with EncodedFile(...) as fh:`); callers no longer have to remember an explicit `close()` in a `try` / `finally` block.
 - MySQL / MariaDB connections now correctly report implicit DDL commits via `auto_commits_ddl()`, so scripts that wrap DDL statements (`CREATE TABLE`, `ALTER TABLE`, etc.) in explicit transactions will no longer see silent mid-transaction commits go undetected.
 
 ### Changed
