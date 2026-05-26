@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.17.3] - 2026-05-26
+
 ### Changed
 
 - Optional `[upsert]` extra now requires `pg-upsert>=1.22.1` (was `>=1.22.0`). 1.22.1 removed upper bounds on its `typer` and `pyyaml` dependencies, so installing `execsql2[upsert]` alongside the latest Typer/PyYAML no longer triggers a resolver conflict.
