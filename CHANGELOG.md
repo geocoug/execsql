@@ -25,6 +25,7 @@ ______________________________________________________________________
 
 - `templates/script_template.sql` had two `WRITE` lines (`Committing:` and `Cleaning up:`) with unterminated double-quoted strings; the closing quotes are now present.
 - `ends_with(string, "")` now returns `True` for any string, matching Python's `str.endswith` semantics. Previously it returned `True` only when the haystack was also empty.
+- ODBC DSN connections now brace-quote the DSN, UID, and PWD attribute values with `{…}` (and double any embedded `}`) so a password or user containing `;` cannot inject additional connection-string attributes (CWE-91 / ODBC attribute injection).
 
 ### Removed
 
