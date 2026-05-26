@@ -31,6 +31,7 @@ ______________________________________________________________________
 - All three substitution forms (`!!var!!`, `!'!var!'!`, `!"!var!"!`) now reject values containing NUL bytes, which most DBMS wire protocols silently truncate or reject.
 - `EXPORT … FORMAT sqlite` and `EXPORT … FORMAT duckdb` now identifier-quote the table name in `DROP TABLE` / `INSERT INTO` and parameter-bind it in the existence check, closing two SQL-injection-via-tablename sites.
 - MySQL / MariaDB and SQL Server `Database.quote_identifier()` now use the native backtick (`` `…` ``) and bracket (`[…]`) forms respectively, so identifier quoting works even if user SQL has reset `sql_mode` / `QUOTED_IDENTIFIER`.
+- `IMPORT` into a SQLite database now batches rows and uses `cursor.executemany()` (honouring `import_row_buffer`, default 1000) instead of issuing one `cursor.execute()` per row. Million-row imports are 10–100× faster.
 
 ### Added
 

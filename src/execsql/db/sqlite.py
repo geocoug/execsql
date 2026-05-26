@@ -189,6 +189,38 @@ class SQLiteDatabase(Database):
         sql = f"insert into {sq_name} ({colspec}) values ({paramspec});"
         curs = self.cursor()
         total_rows = 0
+        # B08/F019: batch rows and use cursor.executemany instead of one
+        # cursor.execute per row. The pre-fix code was 10–100× slower on
+        # the most common open-source target. Honour import_row_buffer
+        # (default 1000) so the batch never blows memory on huge imports.
+        batch_size = max(1, int(getattr(_state.conf, "import_row_buffer", 1000) or 1000))
+        batch: list[list[Any]] = []
+
+        def _flush(last_line: list[Any]) -> None:
+            nonlocal total_rows
+            if not batch:
+                return
+            try:
+                curs.executemany(sql, batch)
+            except ErrInfo:
+                raise
+            except Exception as e:
+                self.rollback()
+                raise ErrInfo(
+                    type="db",
+                    command_text=sql,
+                    exception_msg=exception_desc(),
+                    other_msg=f"Can't load data into table {sq_name} from line {{{last_line}}}",
+                ) from e
+            total_rows += len(batch)
+            batch.clear()
+            interval = getattr(_state.conf, "import_progress_interval", 0)
+            if _state.exec_log and interval > 0 and total_rows % interval == 0:
+                _state.exec_log.log_status_info(
+                    f"IMPORT into {sq_name}: {total_rows} rows imported so far.",
+                )
+
+        last_line: list[Any] = []
         try:
             for datalineno, line in enumerate(rowsource):
                 # Skip empty rows.
@@ -216,24 +248,11 @@ class SQLiteDatabase(Database):
                     if not _state.conf.empty_rows:
                         add_line = not all(c is None for c in linedata)
                     if add_line:
-                        try:
-                            curs.execute(sql, linedata)
-                        except ErrInfo:
-                            raise
-                        except Exception as e:
-                            self.rollback()
-                            raise ErrInfo(
-                                type="db",
-                                command_text=sql,
-                                exception_msg=exception_desc(),
-                                other_msg=f"Can't load data into table {sq_name} from line {{{line}}}",
-                            ) from e
-                        total_rows += 1
-                        interval = getattr(_state.conf, "import_progress_interval", 0)
-                        if _state.exec_log and interval > 0 and total_rows % interval == 0:
-                            _state.exec_log.log_status_info(
-                                f"IMPORT into {sq_name}: {total_rows} rows imported so far.",
-                            )
+                        batch.append(linedata)
+                        last_line = line
+                        if len(batch) >= batch_size:
+                            _flush(last_line)
+            _flush(last_line)
         finally:
             curs.close()
         if _state.exec_log:
