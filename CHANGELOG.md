@@ -23,6 +23,7 @@ ______________________________________________________________________
 - A warning is now printed when the `--dsn` URL contains an embedded password, since it remains visible in `ps`, shell history, and process accounting.
 - `EXPORT … FORMAT xlsx` and `IMPORT … FORMAT xlsx` now reject zip-bomb XLSX files via a new `check_zip_decompression_ratio` helper that inspects the OOXML zip directory before openpyxl parses the file. Rejects individual members with a compression ratio above 100:1 (default) and aggregate uncompressed size above 500 MB (default).
 - `IMPORT … FORMAT ods` and `EXPORT … FORMAT ods` defuse the stdlib XML parsers via `defusedxml.defuse_stdlib()` on first `OdsFile` construction, protecting odfpy from billion-laughs / external-entity attacks. The `defusedxml` package is now part of the `[formats]` extra.
+- CSV, XLSX, and ODS exporters now neutralize spreadsheet formula leaders (`=`, `+`, `-`, `@`, tab) in string cell values by prefixing them with `'`, so a malicious cell like `=cmd|'/c calc'!A1` imports as text instead of executing on open in Excel or LibreOffice Calc. Toggle via the new `csv_safe_formulas` config key (default `Yes`) in the `[config]` section.
 
 ### Changed
 
