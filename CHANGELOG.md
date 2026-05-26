@@ -21,6 +21,8 @@ ______________________________________________________________________
 - `~/execsql.log` is now created with mode `0o600` on POSIX so the substituted SQL, `-a` values, env vars, and DSN URLs it captures are not world-readable. Previously the file inherited the umask default (typically `0o644`).
 - `-a NAME VALUE` substitution-variable assignments are redacted to `***` in the log when the value contains a sensitive substring (`PASSWORD`, `SECRET`, `TOKEN`, `PASSWD`, `PRIVATE_KEY`, `CREDENTIAL`).
 - A warning is now printed when the `--dsn` URL contains an embedded password, since it remains visible in `ps`, shell history, and process accounting.
+- `EXPORT … FORMAT xlsx` and `IMPORT … FORMAT xlsx` now reject zip-bomb XLSX files via a new `check_zip_decompression_ratio` helper that inspects the OOXML zip directory before openpyxl parses the file. Rejects individual members with a compression ratio above 100:1 (default) and aggregate uncompressed size above 500 MB (default).
+- `IMPORT … FORMAT ods` and `EXPORT … FORMAT ods` defuse the stdlib XML parsers via `defusedxml.defuse_stdlib()` on first `OdsFile` construction, protecting odfpy from billion-laughs / external-entity attacks. The `defusedxml` package is now part of the `[formats]` extra.
 
 ### Changed
 

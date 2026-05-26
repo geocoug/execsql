@@ -203,6 +203,10 @@ class XlsxFile:
         self.encoding = encoding
         self.read_only = read_only
         if Path(filename).is_file():
+            # B15/F031: defend against zip-bomb XLSX before openpyxl parses it.
+            from execsql.utils.fileio import check_zip_decompression_ratio
+
+            check_zip_decompression_ratio(filename)
             if read_only:
                 self.wbk = self._openpyxl.load_workbook(filename, read_only=True)
             else:

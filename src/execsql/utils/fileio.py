@@ -84,6 +84,61 @@ def check_dir(filename: str) -> None:
                 raise ErrInfo(type="error", other_msg=f"The directory for file '{filename}' does not exist.")
 
 
+def check_zip_decompression_ratio(
+    path: str | os.PathLike[str],
+    *,
+    max_uncompressed_mb: int = 500,
+    max_ratio: int = 100,
+) -> None:
+    """Reject a zip-based workbook that looks like a decompression bomb.
+
+    OOXML (``.xlsx``) is a zip archive. A maliciously crafted file
+    can name a 1 GB uncompressed member that compresses to a few KB,
+    so blindly handing the path to ``openpyxl.load_workbook`` lets
+    the parser allocate proportional memory. This wrapper inspects
+    the zip directory entries before any parsing happens and raises
+    :class:`ErrInfo` when either bound is exceeded:
+
+    * ``max_uncompressed_mb`` — sum of all members' uncompressed
+      sizes (default 500 MB).
+    * ``max_ratio`` — per-member uncompressed:compressed ratio
+      (default 100:1; legitimate XML-heavy XLSX rarely exceeds 30:1).
+
+    No-op when *path* is not a zipfile (e.g. legacy ``.xls`` OLE-CDF).
+    """
+    import zipfile
+
+    try:
+        with zipfile.ZipFile(path) as zf:
+            total_uncompressed = 0
+            for info in zf.infolist():
+                total_uncompressed += info.file_size
+                if info.compress_size > 0:
+                    ratio = info.file_size / info.compress_size
+                    if ratio > max_ratio:
+                        raise ErrInfo(
+                            type="error",
+                            other_msg=(
+                                f"Refusing to open '{path}': member '{info.filename}' has "
+                                f"compression ratio {ratio:.1f}:1 (limit {max_ratio}:1) - "
+                                "possible zip-bomb."
+                            ),
+                        )
+            limit_bytes = max_uncompressed_mb * 1024 * 1024
+            if total_uncompressed > limit_bytes:
+                raise ErrInfo(
+                    type="error",
+                    other_msg=(
+                        f"Refusing to open '{path}': total uncompressed size "
+                        f"{total_uncompressed / 1024 / 1024:.0f} MB exceeds limit "
+                        f"{max_uncompressed_mb} MB - possible zip-bomb."
+                    ),
+                )
+    except zipfile.BadZipFile:
+        # Not a zip file (legacy .xls is OLE-CDF, not zip). Nothing to check.
+        pass
+
+
 def safe_output_path(user_path: str, root: str | os.PathLike[str] | None) -> str:
     """Resolve *user_path* and verify it lives under *root*.
 

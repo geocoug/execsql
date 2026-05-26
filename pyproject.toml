@@ -57,7 +57,7 @@ firebird = ["firebird-driver"]
 oracle = ["oracledb"]
 odbc = ["pyodbc"]
 # Feature bundles
-formats = ["odfpy", "xlrd", "openpyxl", "Jinja2", "polars", "tables", "PyYAML"]
+formats = ["odfpy", "xlrd", "openpyxl", "Jinja2", "polars", "tables", "PyYAML", "defusedxml"]
 auth = ["keyring"]
 auth-plaintext = ["keyring", "keyrings.alt"]
 auth-encrypted = ["keyring", "keyrings.alt", "pycryptodome"]

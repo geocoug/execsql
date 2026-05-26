@@ -734,6 +734,7 @@ dependencies = [
 
 [package.optional-dependencies]
 all = [
+    { name = "defusedxml" },
     { name = "duckdb" },
     { name = "firebird-driver", version = "1.10.11", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "firebird-driver", version = "2.0.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
@@ -777,6 +778,7 @@ auth-plaintext = [
 dev = [
     { name = "build" },
     { name = "bump-my-version" },
+    { name = "defusedxml" },
     { name = "jinja2" },
     { name = "markdown-include" },
     { name = "mkdocstrings-python" },
@@ -803,6 +805,7 @@ firebird = [
     { name = "firebird-driver", version = "2.0.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
 ]
 formats = [
+    { name = "defusedxml" },
     { name = "jinja2" },
     { name = "odfpy" },
     { name = "openpyxl" },
@@ -838,6 +841,7 @@ upsert = [
 requires-dist = [
     { name = "build", marker = "extra == 'dev'", specifier = ">=1.2.2.post1" },
     { name = "bump-my-version", marker = "extra == 'dev'", specifier = ">=1.2.7" },
+    { name = "defusedxml", marker = "extra == 'formats'" },
     { name = "duckdb", marker = "extra == 'all-db'" },
     { name = "duckdb", marker = "extra == 'duckdb'" },
     { name = "execsql2", extras = ["all-db"], marker = "extra == 'all'" },
