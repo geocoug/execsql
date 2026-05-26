@@ -177,8 +177,10 @@ class TestDsnDatabaseOpenDb:
 
         assert db.conn is conn
         connect_str = mock_connect.call_args_list[0][0][0]
-        assert "Uid=alice" in connect_str
-        assert "Pwd=s3cr3t" in connect_str
+        # B06: credentials are brace-quoted (uppercase keys) to defeat ODBC
+        # attribute injection (CWE-91).
+        assert "UID={alice}" in connect_str
+        assert "PWD={s3cr3t}" in connect_str
 
     def test_autocommit_fallback_on_optional_feature_error(self):
         """When pyodbc raises 'Optional feature not implemented', retry with autocommit=True."""

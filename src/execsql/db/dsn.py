@@ -70,17 +70,27 @@ class DsnDatabase(Database):
         if self.need_passwd and self.user and self.password is None:
             self.password = get_password("DSN", self.db_name, self.user)
 
+        def _odbc_quote(value: str) -> str:
+            """Brace-quote *value* for an ODBC connection-string attribute.
+
+            ODBC attribute lists are ``;``-delimited; a malicious value
+            containing ``;`` can inject attributes (CWE-91). Wrap every
+            user-supplied value in ``{…}`` and double any embedded ``}``
+            so ``pa}ss`` becomes ``{pa}}ss}``.
+            """
+            return "{" + str(value).replace("}", "}}") + "}"
+
         def _dsn_connect(autocommit: bool = False):
-            cs = "DSN=%s;"
+            # Build a connection string with brace-quoted attribute values
+            # so that ``;``, ``=`` and other ODBC delimiters in user-
+            # supplied credentials cannot inject additional attributes.
+            parts = [f"DSN={_odbc_quote(self.db_name)}"]
             if self.need_passwd:
-                kwargs = {"autocommit": autocommit} if autocommit else {}
-                self.conn = pyodbc.connect(
-                    f"{cs % self.db_name} Uid={self.user}; Pwd={self.password};",
-                    **kwargs,
-                )
-            else:
-                kwargs = {"autocommit": autocommit} if autocommit else {}
-                self.conn = pyodbc.connect(cs % self.db_name, **kwargs)
+                parts.append(f"UID={_odbc_quote(self.user)}")
+                parts.append(f"PWD={_odbc_quote(self.password)}")
+            connstr = ";".join(parts) + ";"
+            kwargs = {"autocommit": autocommit} if autocommit else {}
+            self.conn = pyodbc.connect(connstr, **kwargs)
 
         def _try_connect():
             try:
