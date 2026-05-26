@@ -573,3 +573,15 @@ class TestFormatTree:
         # The inner SELECT should be indented under the loop
         lines = result.split("\n")
         assert any("│" in line and "SELECT 1" in line for line in lines)
+
+    def test_unknown_node_type_raises(self):
+        """F068: _format_nodes must refuse unknown node types so a future
+        block-type node added without an explicit handler can't silently
+        skip its body."""
+
+        class UnknownNode(Node):
+            pass
+
+        script = Script(source="test.sql", body=[UnknownNode(span=_span(1))])
+        with pytest.raises(NotImplementedError, match="UnknownNode"):
+            format_tree(script)

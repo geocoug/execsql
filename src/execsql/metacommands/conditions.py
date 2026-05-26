@@ -75,7 +75,7 @@ def xf_startswith(**kwargs: Any) -> bool:
     if kwargs["ignorecase"] and kwargs["ignorecase"].lower() == "i":
         s1 = s1.lower()
         s2 = s2.lower()
-    return s1[: len(s2)] == s2
+    return s1.startswith(s2)
 
 
 def xf_endswith(**kwargs: Any) -> bool:
@@ -84,7 +84,7 @@ def xf_endswith(**kwargs: Any) -> bool:
     if kwargs["ignorecase"] and kwargs["ignorecase"].lower() == "i":
         s1 = s1.lower()
         s2 = s2.lower()
-    return s1[-len(s2) :] == s2
+    return s1.endswith(s2)
 
 
 def xf_hasrows(**kwargs: Any) -> bool:
