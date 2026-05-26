@@ -46,37 +46,52 @@ def _parse_json_file(filename: str, encoding: str) -> list[dict[str, Any]]:
     """Read a JSON file and return a list of flat dicts.
 
     Accepts either a JSON array of objects or newline-delimited JSON
-    (NDJSON).
+    (NDJSON). The NDJSON path streams the file line-by-line so the
+    raw text isn't buffered alongside the parsed records (B19/F043).
+    The array path still buffers the whole file — switching to a
+    streaming parser would require ``ijson`` as a dependency.
     """
-    text = Path(filename).read_text(encoding=encoding)
-    stripped = text.strip()
+    # Peek at the first non-whitespace character to decide which
+    # parsing strategy to use, without slurping the entire file.
+    with open(filename, encoding=encoding) as fh:
+        first_char: str | None = None
+        while True:
+            ch = fh.read(1)
+            if not ch:
+                break
+            if not ch.isspace():
+                first_char = ch
+                break
 
-    if stripped.startswith("["):
-        # Standard JSON array.
-        raw = json.loads(stripped)
+    if first_char == "[":
+        # Standard JSON array — must buffer the whole file (json.loads
+        # has no streaming mode; ijson would be needed for that).
+        text = Path(filename).read_text(encoding=encoding)
+        raw = json.loads(text)
         if not isinstance(raw, list):
             raise ErrInfo(type="error", other_msg="JSON file root is not an array of objects.")
         records = raw
-    elif stripped.startswith("{"):
-        # Try NDJSON (one object per line) or a single object.
+    elif first_char == "{":
+        # NDJSON — stream the file line-by-line.
         records = []
-        for lineno, line in enumerate(stripped.splitlines(), 1):
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                obj = json.loads(line)
-            except json.JSONDecodeError as exc:
-                raise ErrInfo(
-                    type="error",
-                    other_msg=f"Invalid JSON on line {lineno}: {exc}",
-                ) from exc
-            if not isinstance(obj, dict):
-                raise ErrInfo(
-                    type="error",
-                    other_msg=f"Line {lineno} is not a JSON object.",
-                )
-            records.append(obj)
+        with open(filename, encoding=encoding) as fh:
+            for lineno, line in enumerate(fh, 1):
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    obj = json.loads(line)
+                except json.JSONDecodeError as exc:
+                    raise ErrInfo(
+                        type="error",
+                        other_msg=f"Invalid JSON on line {lineno}: {exc}",
+                    ) from exc
+                if not isinstance(obj, dict):
+                    raise ErrInfo(
+                        type="error",
+                        other_msg=f"Line {lineno} is not a JSON object.",
+                    )
+                records.append(obj)
     else:
         raise ErrInfo(
             type="error",
