@@ -209,6 +209,13 @@ def x_zip_buffer_mb(**kwargs: Any) -> None:
 def x_rm_file(**kwargs: Any) -> None:
     import glob as _glob
 
+    if not getattr(_state.conf, "allow_rm_file", True):
+        raise ErrInfo(
+            type="cmd",
+            command_text=kwargs.get("metacommandline", "RM_FILE"),
+            other_msg="The RM_FILE metacommand is disabled (--no-rm-file).",
+        )
+
     fn = kwargs["filename"].strip(' "')
     fnlist = _glob.glob(fn)
     for f in fnlist:
@@ -249,7 +256,19 @@ def x_hdf5_text_len(**kwargs: Any) -> None:
 
 
 def x_serve(**kwargs: Any) -> None:
+    from execsql.utils.fileio import safe_output_path
+
+    if not getattr(_state.conf, "allow_serve", True):
+        raise ErrInfo(
+            type="cmd",
+            command_text=kwargs.get("metacommandline", "SERVE"),
+            other_msg="The SERVE metacommand is disabled (--no-serve).",
+        )
+
     infname = kwargs["filename"]
+    serve_root = getattr(_state.conf, "serve_root", None)
+    if serve_root:
+        infname = safe_output_path(infname, serve_root)
     fmt = kwargs["format"].lower()
     if not Path(infname).is_file():
         raise ErrInfo(

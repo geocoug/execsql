@@ -235,6 +235,16 @@ def main(
         "--no-system-cmd",
         help="Disable the SYSTEM_CMD (SHELL) metacommand. Scripts that use SHELL will fail with an error.",
     ),
+    no_rm_file: bool = typer.Option(
+        False,
+        "--no-rm-file",
+        help="Disable the RM_FILE metacommand. Scripts that try to delete files will fail with an error.",
+    ),
+    no_serve: bool = typer.Option(
+        False,
+        "--no-serve",
+        help="Disable the SERVE metacommand. Scripts that try to stream a file to stdout will fail with an error.",
+    ),
     profile: bool = typer.Option(
         False,
         "--profile",
@@ -604,6 +614,8 @@ def main(
         lint=lint,
         debug=debug,
         no_system_cmd=no_system_cmd,
+        no_rm_file=no_rm_file,
+        no_serve=no_serve,
         config_file=config_file,
     )
 

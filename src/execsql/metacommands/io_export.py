@@ -18,7 +18,6 @@ appropriate writer in :mod:`execsql.exporters`.
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any
 
 import execsql.state as _state
@@ -44,28 +43,24 @@ from execsql.exporters.yaml import write_query_to_yaml
 from execsql.importers.base import import_data_table
 from execsql.script import current_script_line
 from execsql.utils.errors import exception_desc
-from execsql.utils.fileio import check_dir
+from execsql.utils.fileio import check_dir, safe_output_path
 
 
 def _apply_output_dir(path: str) -> str:
-    """Prepend the configured --output-dir to *path* if it is a relative path.
+    """Resolve *path* against the configured ``--output-dir`` root.
 
-    If ``conf.export_output_dir`` is set and *path* is not absolute (and not
-    ``stdout``), the base directory is joined to *path* so that all EXPORT
-    output lands in the same directory without requiring scripts to hard-code
-    absolute paths.
+    When ``conf.export_output_dir`` is set, ``--output-dir`` is treated as a
+    containment boundary: relative paths are joined to it, absolute paths
+    must already fall inside it, and ``..`` segments that escape the root
+    are rejected. ``stdout`` is passed through untouched.
+
+    When ``conf.export_output_dir`` is unset, *path* is returned unchanged
+    (no behavior change for users not opting in to ``--output-dir``).
     """
     output_dir = getattr(_state.conf, "export_output_dir", None)
-    if not output_dir:
+    if not output_dir or path.lower() == "stdout":
         return path
-    if path.lower() == "stdout":
-        return path
-    if Path(path).is_absolute():
-        return path
-    # Windows drive-letter paths are also absolute
-    if len(path) > 1 and path[1] == ":":
-        return path
-    return str(Path(output_dir) / path)
+    return safe_output_path(path, output_dir)
 
 
 # ---------------------------------------------------------------------------
@@ -212,12 +207,12 @@ def x_export(**kwargs: Any) -> None:
 
 def x_export_query(**kwargs: Any) -> None:
     select_stmt = kwargs["query"]
-    outfile = kwargs["filename"]
+    outfile = _apply_output_dir(kwargs["filename"])
     description = kwargs["description"]
     tee = bool(kwargs["tee"])
     append = bool(kwargs["append"])
     filefmt = kwargs["format"].lower()
-    zipfilename = kwargs["zipfilename"]
+    zipfilename = _apply_output_dir(kwargs["zipfilename"]) if kwargs["zipfilename"] else None
     notype = bool(kwargs.get("notype"))
     _check_zip_compat(outfile, filefmt, zipfilename)
     check_dir(outfile)
@@ -242,13 +237,13 @@ def x_export_query(**kwargs: Any) -> None:
 
 def x_export_query_with_template(**kwargs: Any) -> None:
     select_stmt = kwargs["query"]
-    outfile = kwargs["filename"]
+    outfile = _apply_output_dir(kwargs["filename"])
     template_file = kwargs["template"]
     tee = kwargs["tee"]
     tee = bool(tee)
     append = kwargs["append"]
     append = bool(append)
-    zipfilename = kwargs["zipfilename"]
+    zipfilename = _apply_output_dir(kwargs["zipfilename"]) if kwargs["zipfilename"] else None
     check_dir(outfile)
     if tee and outfile.lower() != "stdout":
         prettyprint_query(select_stmt, _state.dbs.current(), "stdout", False)
@@ -262,13 +257,13 @@ def x_export_with_template(**kwargs: Any) -> None:
     table = kwargs["table"]
     queryname = _state.dbs.current().schema_qualified_table_name(schema, table)
     select_stmt = f"select * from {queryname};"
-    outfile = kwargs["filename"]
+    outfile = _apply_output_dir(kwargs["filename"])
     template_file = kwargs["template"]
     tee = kwargs["tee"]
     tee = bool(tee)
     append = kwargs["append"]
     append = bool(append)
-    zipfilename = kwargs["zipfilename"]
+    zipfilename = _apply_output_dir(kwargs["zipfilename"]) if kwargs["zipfilename"] else None
     check_dir(outfile)
     if tee and outfile.lower() != "stdout":
         prettyprint_query(select_stmt, _state.dbs.current(), "stdout", False)
@@ -279,7 +274,7 @@ def x_export_with_template(**kwargs: Any) -> None:
 
 def x_export_ods_multiple(**kwargs: Any) -> None:
     table_list = kwargs["tables"]
-    outfile = kwargs["filename"]
+    outfile = _apply_output_dir(kwargs["filename"])
     description = kwargs["description"]
     tee = kwargs["tee"]
     tee = bool(tee)
@@ -292,7 +287,7 @@ def x_export_ods_multiple(**kwargs: Any) -> None:
 def x_export_xlsx_multiple(**kwargs: Any) -> None:
     """Export multiple tables to separate worksheets in a single XLSX workbook."""
     table_list = kwargs["tables"]
-    outfile = kwargs["filename"]
+    outfile = _apply_output_dir(kwargs["filename"])
     description = kwargs["description"]
     tee = kwargs["tee"]
     tee = bool(tee)
@@ -303,10 +298,10 @@ def x_export_xlsx_multiple(**kwargs: Any) -> None:
 
 
 def x_export_metadata(**kwargs: Any) -> None:
-    outfile = kwargs["filename"]
+    outfile = _apply_output_dir(kwargs["filename"])
     append = kwargs["append"] is not None
     xall = kwargs["all"] is not None
-    zipfilename = kwargs["zipfilename"]
+    zipfilename = _apply_output_dir(kwargs["zipfilename"]) if kwargs["zipfilename"] else None
     filefmt = kwargs["format"].lower()
     if xall:
         hdrs, rows = _state.export_metadata.get_all()

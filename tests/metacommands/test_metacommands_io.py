@@ -380,11 +380,13 @@ class TestApplyOutputDir:
         assert fn("output.csv") == "output.csv"
 
     def test_relative_path_gets_prefix(self, minimal_conf, tmp_path):
-        export_dir = str(tmp_path / "exports")
-        minimal_conf.export_output_dir = export_dir
+        export_dir = tmp_path / "exports"
+        export_dir.mkdir()
+        minimal_conf.export_output_dir = str(export_dir)
         fn = self._fn()
         result = fn("output.csv")
-        assert result == str(Path(export_dir) / "output.csv")
+        # B05: _apply_output_dir now resolves the joined path
+        assert Path(result) == (export_dir / "output.csv").resolve()
 
     def test_stdout_unchanged(self, minimal_conf, tmp_path):
         minimal_conf.export_output_dir = str(tmp_path / "exports")
@@ -392,11 +394,17 @@ class TestApplyOutputDir:
         assert fn("stdout") == "stdout"
         assert fn("STDOUT") == "STDOUT"
 
-    def test_absolute_path_unchanged(self, minimal_conf, tmp_path):
+    def test_absolute_path_outside_root_rejected(self, minimal_conf, tmp_path):
+        """B05/F003: absolute paths outside the configured root are now rejected."""
+        import pytest
+
+        from execsql.exceptions import ErrInfo
+
         minimal_conf.export_output_dir = str(tmp_path / "exports")
         fn = self._fn()
         abs_path = str(tmp_path / "abs" / "path" / "output.csv")
-        assert fn(abs_path) == abs_path
+        with pytest.raises(ErrInfo, match="outside the allowed root"):
+            fn(abs_path)
 
     def test_no_attr_returns_path(self, minimal_conf):
         """If conf has no export_output_dir attribute at all, passthrough."""

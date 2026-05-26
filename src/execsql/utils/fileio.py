@@ -84,6 +84,47 @@ def check_dir(filename: str) -> None:
                 raise ErrInfo(type="error", other_msg=f"The directory for file '{filename}' does not exist.")
 
 
+def safe_output_path(user_path: str, root: str | os.PathLike[str] | None) -> str:
+    """Resolve *user_path* and verify it lives under *root*.
+
+    If *root* is ``None`` or empty, returns *user_path* unchanged — the
+    caller has opted out of containment (current default behavior, no
+    regression for users who don't set the corresponding config key).
+
+    If *root* is set, *user_path* is joined to *root* (when relative) or
+    interpreted directly (when absolute), then ``.resolve()``'d and
+    verified to be at or below the resolved root. Absolute paths,
+    Windows drive letters, and UNC paths that don't fall under *root*
+    raise :class:`ErrInfo` rather than silently bypassing the
+    boundary.
+
+    Returns the resolved path as a string. Raises :class:`ErrInfo`
+    when *user_path* escapes *root*.
+    """
+    if not root:
+        return user_path
+    root_path = Path(root).expanduser().resolve()
+    candidate = Path(user_path).expanduser()
+    # Reject UNC paths (//server/share or \\server\share) when a root
+    # is set — these always escape a local root.
+    if user_path.startswith(("//", r"\\")):
+        raise ErrInfo(
+            type="error",
+            other_msg=f"Path '{user_path}' is outside the allowed root '{root_path}'.",
+        )
+    if not candidate.is_absolute():
+        candidate = root_path / candidate
+    resolved = candidate.resolve()
+    try:
+        resolved.relative_to(root_path)
+    except ValueError:
+        raise ErrInfo(
+            type="error",
+            other_msg=f"Path '{user_path}' resolves to '{resolved}', which is outside the allowed root '{root_path}'.",
+        ) from None
+    return str(resolved)
+
+
 class FileWriter(multiprocessing.Process):
     # An object of this class is intended to be used as a subprocess.
     # All files that are to be written to are kept open until explicitly closed or the object is destroyed.

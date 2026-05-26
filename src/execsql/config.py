@@ -315,6 +315,11 @@ class ConfigData:
         self._get_bool(cp, self._CONFIG_SECTION, "log_sql", "log_sql")
         self._get_int(cp, self._CONFIG_SECTION, "max_log_size_mb", "max_log_size_mb")
         self._get_bool(cp, self._CONFIG_SECTION, "allow_system_cmd", "allow_system_cmd")
+        self._get_bool(cp, self._CONFIG_SECTION, "allow_rm_file", "allow_rm_file")
+        self._get_bool(cp, self._CONFIG_SECTION, "allow_serve", "allow_serve")
+        self._get_str(cp, self._CONFIG_SECTION, "include_root", "include_root")
+        self._get_str(cp, self._CONFIG_SECTION, "serve_root", "serve_root")
+        self._get_str(cp, self._CONFIG_SECTION, "template_root", "template_root")
         # --- [email] ---
         self._get_str(cp, self._EMAIL_SECTION, "host", "smtp_host")
         self._get_int(cp, self._EMAIL_SECTION, "port", "smtp_port")
@@ -426,6 +431,16 @@ class ConfigData:
         self.export_output_dir: str | None = None
         self.dao_flush_delay_secs = 5.0
         self.allow_system_cmd = True
+        # B05: path-containment controls. ``*_root`` keys, when set, force
+        # the corresponding handler to confine resolved paths under the
+        # named root and reject anything that escapes via ``..``,
+        # absolute paths, drive letters, or UNCs. ``allow_*`` toggles
+        # disable the handler entirely (symmetric with allow_system_cmd).
+        self.include_root: str | None = None
+        self.serve_root: str | None = None
+        self.template_root: str | None = None
+        self.allow_rm_file = True
+        self.allow_serve = True
         self.zip_buffer_mb = 10
         if os.name == "posix":
             sys_config_file = str(Path("/etc") / self.config_file_name)

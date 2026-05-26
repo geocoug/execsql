@@ -130,10 +130,13 @@ class TestApplyOutputDir:
         assert fn("output.csv") == "output.csv"
 
     def test_relative_path_gets_prefix(self, minimal_conf, tmp_path):
-        minimal_conf.export_output_dir = str(tmp_path / "exports")
+        export_dir = tmp_path / "exports"
+        export_dir.mkdir()
+        minimal_conf.export_output_dir = str(export_dir)
         fn = self._fn()
         result = fn("output.csv")
-        assert result == str(Path(str(tmp_path / "exports")) / "output.csv")
+        # B05: _apply_output_dir now resolves the joined path via safe_output_path
+        assert Path(result) == (export_dir / "output.csv").resolve()
 
     def test_stdout_is_unchanged(self, minimal_conf, tmp_path):
         minimal_conf.export_output_dir = str(tmp_path / "exports")
@@ -141,19 +144,34 @@ class TestApplyOutputDir:
         assert fn("stdout") == "stdout"
         assert fn("STDOUT") == "STDOUT"
 
-    def test_absolute_path_unchanged(self, minimal_conf, tmp_path):
+    def test_absolute_path_outside_root_rejected(self, minimal_conf, tmp_path):
+        """B05/F003: absolute paths outside the configured root are rejected, not silently allowed."""
+        from execsql.exceptions import ErrInfo
+
         minimal_conf.export_output_dir = str(tmp_path / "exports")
         fn = self._fn()
         abs_path = str(tmp_path / "abs" / "output.csv")
-        assert fn(abs_path) == abs_path
+        with pytest.raises(ErrInfo, match="outside the allowed root"):
+            fn(abs_path)
 
-    def test_windows_drive_letter_path_unchanged(self, minimal_conf, tmp_path):
-        """A path starting with X: should not get a prefix applied."""
+    def test_absolute_path_inside_root_accepted(self, minimal_conf, tmp_path):
+        """An absolute path that already lives under the root resolves through."""
+        export_dir = tmp_path / "exports"
+        export_dir.mkdir()
+        minimal_conf.export_output_dir = str(export_dir)
+        fn = self._fn()
+        target = export_dir / "nested" / "output.csv"
+        result = fn(str(target))
+        assert Path(result) == target.resolve()
+
+    def test_traversal_rejected(self, minimal_conf, tmp_path):
+        """B05/F003: ``..`` traversal that escapes the root is rejected."""
+        from execsql.exceptions import ErrInfo
+
         minimal_conf.export_output_dir = str(tmp_path / "exports")
         fn = self._fn()
-        # Simulate a Windows-style path — just test the logic; no actual I/O
-        result = fn("C:\\data\\output.csv")
-        assert result == "C:\\data\\output.csv"
+        with pytest.raises(ErrInfo, match="outside the allowed root"):
+            fn("../escape.csv")
 
     def test_empty_output_dir_is_passthrough(self, minimal_conf):
         minimal_conf.export_output_dir = ""

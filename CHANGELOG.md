@@ -11,9 +11,15 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Added
+
+- `--no-rm-file` and `--no-serve` CLI flags disable the `RM_FILE` and `SERVE` metacommands, symmetric with the existing `--no-system-cmd`. Matching `allow_rm_file` and `allow_serve` config keys are honoured in the `[config]` section of `execsql.conf`.
+- New `include_root`, `serve_root`, and `template_root` config keys in the `[config]` section of `execsql.conf`. When set, `INCLUDE` / `EXECUTE SCRIPT`, `SERVE`, and Jinja2 / `string.Template` loaders confine resolved paths under the named root and reject anything that escapes via `..`, absolute paths, drive letters, or UNC paths.
+
 ### Changed
 
 - Bundled `templates/{pg,md,ss}_{upsert,compare,glossary}.sql` now use the safe `!'!#var!'!` substitution form instead of `'!!#var!!'`, so single quotes in script-argument values are escaped when interpolated into SQL string literals.
+- `--output-dir` is now a containment boundary, not just a prefix. Absolute paths or `..` traversals that escape the configured root are rejected. Stdout passes through unchanged. The setting now also applies to `EXPORT QUERY`, `EXPORT … WITH TEMPLATE`, `EXPORT METADATA`, and the multi-sheet `EXPORT ODS` / `EXPORT XLSX` variants, which previously ignored it.
 
 ### Fixed
 

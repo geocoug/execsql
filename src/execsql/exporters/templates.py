@@ -28,6 +28,11 @@ class StrTemplateReport:
     def __init__(self, template_file: str) -> None:
         """Load and compile the template from the given file path."""
         conf = _state.conf
+        template_root = getattr(conf, "template_root", None)
+        if template_root:
+            from execsql.utils.fileio import safe_output_path
+
+            template_file = safe_output_path(template_file, template_root)
         self.infname = template_file
         from execsql.utils.fileio import EncodedFile
 
@@ -89,6 +94,11 @@ class JinjaTemplateReport:
                 "The jinja2 library is required to produce reports with the Jinja2 templating system.   See http://jinja.pocoo.org/",
             )
         conf = _state.conf
+        template_root = getattr(conf, "template_root", None)
+        if template_root:
+            from execsql.utils.fileio import safe_output_path
+
+            template_file = safe_output_path(template_file, template_root)
         self.infname = template_file
         from execsql.utils.fileio import EncodedFile
 

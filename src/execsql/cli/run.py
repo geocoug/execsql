@@ -533,6 +533,8 @@ def _run(
     lint: bool = False,
     debug: bool = False,
     no_system_cmd: bool = False,
+    no_rm_file: bool = False,
+    no_serve: bool = False,
     config_file: str | None = None,
 ) -> None:
     """Initialise state, connect to the database, load the script, and run it.
@@ -740,6 +742,12 @@ def _run(
 
     if no_system_cmd:
         conf.allow_system_cmd = False
+
+    if no_rm_file:
+        conf.allow_rm_file = False
+
+    if no_serve:
+        conf.allow_serve = False
 
     if _ast_tree is not None:
         _execute_script_ast(_ast_tree, conf, profile=profile, profile_limit=profile_limit)
