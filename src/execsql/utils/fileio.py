@@ -490,6 +490,22 @@ class EncodedFile:
     def close(self) -> None:
         if self.fo is not None:
             self.fo.close()
+            self.fo = None
+
+    # B11/F049: context-manager protocol so callers can use ``with
+    # EncodedFile(...) as fh:`` and have the file closed automatically.
+    # The previous code required every site to remember an explicit
+    # close in a try/finally, which several call paths didn't do.
+    def __enter__(self) -> io.TextIOWrapper:
+        # Default to read mode when used directly as a context manager.
+        # Callers that need a different mode should call ``open(mode)``
+        # before entering the ``with`` block.
+        if self.fo is None:
+            self.open("r")
+        return self.fo
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        self.close()
 
 
 class Logger:
