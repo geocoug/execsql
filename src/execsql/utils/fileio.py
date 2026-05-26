@@ -556,6 +556,14 @@ class Logger:
             errmsg = f"Can't open log file {self.log_file_name}"
             e = ErrInfo("exception", exception_msg=exception_desc(), other_msg=errmsg)
             exit_now(1, e, errmsg)
+        # B12/F017: tighten log file mode to 0o600 on POSIX. The log
+        # captures substituted SQL, -a values, env vars, and DSN URLs;
+        # the default umask (typically 022) leaves it world-readable.
+        if os.name == "posix":
+            try:
+                os.chmod(self.log_file_name, 0o600)
+            except Exception:
+                pass  # Best-effort hardening; don't break logging if chmod fails.
         if not f_exists:
             self.writelog(
                 "# Execsql log.\n# The first value on each line is the record type.\n"

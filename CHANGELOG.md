@@ -18,6 +18,9 @@ ______________________________________________________________________
 - `Database.quote_literal(value)` and `Database.quote_qualified_identifier(*parts)` helpers on the base `Database` class. The default `quote_literal` escapes `\` and doubles `'` and rejects NUL bytes; subclasses can override for dialect-specific literal forms.
 - `Database.needs_explicit_commit_after_ddl()` and `Database.auto_commits_ddl()` capability hooks. Firebird overrides the first (its driver leaves DDL pending until commit). Oracle, MySQL, SQL Server, and MS Access override the second (their drivers implicitly commit DDL — `rollback()` is a silent no-op for transactions whose boundary the DDL crossed).
 - `EncodedFile` now supports the context-manager protocol (`with EncodedFile(...) as fh:`); callers no longer have to remember an explicit `close()` in a `try` / `finally` block.
+- `~/execsql.log` is now created with mode `0o600` on POSIX so the substituted SQL, `-a` values, env vars, and DSN URLs it captures are not world-readable. Previously the file inherited the umask default (typically `0o644`).
+- `-a NAME VALUE` substitution-variable assignments are redacted to `***` in the log when the value contains a sensitive substring (`PASSWORD`, `SECRET`, `TOKEN`, `PASSWD`, `PRIVATE_KEY`, `CREDENTIAL`).
+- A warning is now printed when the `--dsn` URL contains an embedded password, since it remains visible in `ps`, shell history, and process accounting.
 - MySQL / MariaDB connections now correctly report implicit DDL commits via `auto_commits_ddl()`, so scripts that wrap DDL statements (`CREATE TABLE`, `ALTER TABLE`, etc.) in explicit transactions will no longer see silent mid-transaction commits go undetected.
 
 ### Changed

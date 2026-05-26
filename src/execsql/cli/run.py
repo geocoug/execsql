@@ -197,6 +197,11 @@ def _ping_db(db: Any) -> None:
 # ---------------------------------------------------------------------------
 
 
+# B12/F014: shared sensitive-name filter used by env-var seeding, -a
+# value logging, and any future credential-redaction sites.
+_SENSITIVE_SUBSTRINGS = ("SECRET", "TOKEN", "PASSWORD", "PASSWD", "PRIVATE_KEY", "CREDENTIAL")
+
+
 def _seed_early_subvars() -> SubVarSet:
     """Create and populate the initial substitution variable pool.
 
@@ -205,7 +210,6 @@ def _seed_early_subvars() -> SubVarSet:
     """
     subvars = SubVarSet()
 
-    _SENSITIVE_SUBSTRINGS = ("SECRET", "TOKEN", "PASSWORD", "PASSWD", "PRIVATE_KEY", "CREDENTIAL")
     for k in os.environ:
         if any(s in k.upper() for s in _SENSITIVE_SUBSTRINGS):
             continue
@@ -310,6 +314,14 @@ def _apply_dsn(dsn: str, conf: ConfigData, db_type: str | None) -> tuple[str | N
     if parsed["password"]:
         conf.db_password = parsed["password"]
         conf.passwd_prompt = False
+        # B12/F038: embedding the password in the --dsn URL leaks it to
+        # `ps`, shell history, and any logging that captures argv. Warn
+        # so the user knows to prefer keyring or a password-less DSN.
+        _err_console.print(
+            "[bold yellow]Warning:[/bold yellow] --dsn URL contains a password; "
+            "it may be visible in `ps`, shell history, and process accounting. "
+            "Consider keyring or a password-less DSN.",
+        )
     port = parsed["port"]  # may be None
     return db_type, user, port
 
@@ -490,8 +502,15 @@ def _setup_logging(
         for n, repl in enumerate(sub_vars):
             var = f"$ARG_{n + 1}"
             subvars.add_substitution(var, repl)
+            # B12/F014: -a values are user input that may contain
+            # secrets. Redact the value in the log line when the
+            # surrounding -a payload looks sensitive (matches the
+            # existing env-var filter at _seed_early_subvars).
+            display_repl = repl
+            if any(s in str(repl).upper() for s in _SENSITIVE_SUBSTRINGS):
+                display_repl = "***"
             logger.log_status_info(
-                f"Command-line substitution variable assignment: {var} set to {{{repl}}}",
+                f"Command-line substitution variable assignment: {var} set to {{{display_repl}}}",
             )
 
     return logger
