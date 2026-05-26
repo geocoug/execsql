@@ -103,6 +103,10 @@ def write_query_to_xlsx(
     # Determine sheet name and open/create workbook
     # ------------------------------------------------------------------
     if append and Path(outfile).is_file():
+        # B15/F031: defend against zip-bomb XLSX before openpyxl parses it.
+        from execsql.utils.fileio import check_zip_decompression_ratio
+
+        check_zip_decompression_ratio(outfile)
         wb = openpyxl.load_workbook(outfile)
         existing_names = wb.sheetnames
         base = sheetname or "Sheet"
@@ -223,6 +227,9 @@ def write_queries_to_xlsx(
         os.unlink(outfile)
 
     if Path(outfile).is_file():
+        from execsql.utils.fileio import check_zip_decompression_ratio
+
+        check_zip_decompression_ratio(outfile)
         wb = openpyxl.load_workbook(outfile)
     else:
         wb = openpyxl.Workbook()

@@ -35,6 +35,17 @@ class OdsFile:
     def __init__(self) -> None:
         """Import odfpy and initialise the workbook state."""
         global of
+        # B15/F030: defuse stdlib XML parsers before odfpy uses them.
+        # odfpy parses .ods through xml.dom.minidom and friends — a
+        # malicious .ods can carry a billion-laughs or external-entity
+        # bomb. defuse_stdlib() is a global patch and is idempotent.
+        try:
+            import defusedxml
+
+            defusedxml.defuse_stdlib()
+        except ImportError:
+            # defusedxml is in the [ods] extra; absence is non-fatal.
+            pass
         try:
             import odf as of  # noqa: F401 — submodule imports below register on the `of` alias
             import odf.opendocument  # noqa: F401
