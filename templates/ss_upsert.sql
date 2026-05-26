@@ -154,7 +154,7 @@
 -- Take the user-provided temp_table argument and validate syntax
 if object_id('tempdb..#tmptbl_name') is not null drop table #tmptbl_name;
 select
-	case when left('!!#temptable_name!!',1) = '#'
+	case when left(!'!#temptable_name!'!,1) = '#'
 		then 1
 		else 0
 		end as temptbl_name
@@ -218,7 +218,7 @@ agg as
 		one.row_num=1
 	UNION ALL
 	select
-		agg.agg_string + '!!#delimiter!!' + enum.agg_string as agg_string,
+		agg.agg_string + !'!#delimiter!'! + enum.agg_string as agg_string,
 		enum.row_num
 	from
 		agg, enum
@@ -265,12 +265,12 @@ into #ups_ctrl_invl_schema
 from
 	(
 	select
-		'!!#base_schema!!' as schema_name,
+		!'!#base_schema!'! as schema_name,
 		'base' as schema_type
 	union
 	select
 
-		'!!#staging!!' as schema_name,
+		!'!#staging!'! as schema_name,
 		'staging' as schema_type
 	) as schemas
 	left join information_schema.schemata as iss on schemas.schema_name=iss.schema_name
@@ -327,15 +327,15 @@ where
 	from
 		(
 		select
-			'!!#base_schema!!' as schema_name,
+			!'!#base_schema!'! as schema_name,
 			'base' as schema_type,
-			'!!#table!!' as table_name
+			!'!#table!'! as table_name
 		union
 		select
 
-			'!!#staging!!' as schema_name,
+			!'!#staging!'! as schema_name,
 			'staging' as schema_type,
-			'!!#table!!' as table_name
+			!'!#table!'! as table_name
 		) as tt
 		left join information_schema.tables as iss on tt.schema_name=iss.table_schema and tt.table_name=iss.table_name
 	where
@@ -409,8 +409,8 @@ where
 -- !x! if(is_null("!!~err_info!!"))
 	if object_id('tempdb..#ups_validate_control') is not null drop table #ups_validate_control;
 	select
-		'!!#base_schema!!' as base_schema,
-		'!!#staging!!' as staging_schema,
+		!'!#base_schema!'! as base_schema,
+		!'!#staging!'! as staging_schema,
 		table_name,
 		cast(0 as bit) as base_exists,
 		cast(0 as bit) as staging_exists
@@ -583,7 +583,7 @@ with itemtable as (
 			else rtrim(ltrim(substring(table_string, charindex(',', table_string)+1, len(table_string))))
 			end as remaining_list
 	from
-		(select '!!#table_list!!' as table_string) as ts
+		(select !'!#table_list!'! as table_string) as ts
 	UNION ALL
 	select
 		case when charindex(',', remaining_list) = 0
@@ -790,8 +790,8 @@ into
 from
 	information_schema.columns
 where
-	table_schema = '!!#base_schema!!'
-	and table_name = '!!#table!!'
+	table_schema = !'!#base_schema!'!
+	and table_name = !'!#table!'!
 	and is_nullable = 'NO'
 	and column_default is null
 	!!~omitnull!!
@@ -945,8 +945,8 @@ inner join information_schema.key_column_usage as k
     and tc.table_name = k.table_name
 	and tc.constraint_name = k.constraint_name
 where
-	k.table_name = '!!#table!!'
-	and k.table_schema = '!!#base_schema!!'
+	k.table_name = !'!#table!'!
+	and k.table_schema = !'!#base_schema!'!
 order by k.ordinal_position
 ;
 
@@ -1129,8 +1129,8 @@ into #ups_sel_fks
 from
 	#ups_foreign_key_columns
 where
-	table_schema = '!!#base_schema!!'
-	and table_name = '!!#table!!';
+	table_schema = !'!#base_schema!'!
+	and table_name = !'!#table!'!;
 
 -- Create a temporary table of all unique constraint names for
 -- this table, with an integer column to be populated with the
@@ -1389,10 +1389,10 @@ from
 	information_schema.columns as s
 	inner join information_schema.columns as b on s.column_name=b.column_name
 where
-	s.table_schema = '!!#staging!!'
-	and s.table_name = '!!#table!!'
-	and b.table_schema = '!!#base_schema!!'
-	and b.table_name = '!!#table!!'
+	s.table_schema = !'!#staging!'!
+	and s.table_name = !'!#table!'!
+	and b.table_schema = !'!#base_schema!'!
+	and b.table_name = !'!#table!'!
 	!!~col_excl!!
 ;
 
@@ -1412,8 +1412,8 @@ inner join information_schema.key_column_usage as k
     and tc.table_name = k.table_name
 	and tc.constraint_name = k.constraint_name
 where
-	k.table_name = '!!#table!!'
-	and k.table_schema = '!!#base_schema!!'
+	k.table_name = !'!#table!'!
+	and k.table_schema = !'!#base_schema!'!
 ;
 
 -- Get all base table columns that are to be updated into a comma-delimited list.
@@ -1700,7 +1700,7 @@ from
 	inner join information_schema.table_constraints as tp on tp.constraint_name=cu.unique_constraint_name
 where
 	tc.constraint_type = 'FOREIGN KEY'
-	and tc.table_schema = '!!#base_schema!!'
+	and tc.table_schema = !'!#base_schema!'!
 	--Exclude cases where parent and child are same table (to protect against infinite recursion in table ordering)
 	and tc.table_name<>tp.table_name;
 
@@ -1764,7 +1764,7 @@ from
 		left join #ups_dependencies as p on t.table_name=p.parent
 		left join #ups_dependencies as c on t.table_name=c.child
 	where
-		t.table_schema = '!!#base_schema!!'
+		t.table_schema = !'!#base_schema!'!
 		and t.table_type = 'BASE TABLE'
 		and p.parent is null
 		and c.child is null
@@ -2181,8 +2181,8 @@ inner join information_schema.key_column_usage as k
 	and tc.table_name = k.table_name
 	and tc.constraint_name = k.constraint_name
 where
-	k.table_name = '!!#table!!'
-	and k.table_schema = '!!#base_schema!!'
+	k.table_name = !'!#table!'!
+	and k.table_schema = !'!#base_schema!'!
 ;
 
 -- Run QA checks
@@ -2387,7 +2387,7 @@ where
 			select table_name, column_name
 			from information_schema.columns
 			where
-				table_schema = '!!#staging!!'
+				table_schema = !'!#staging!'!
 			) as stag on pk.table_name=stag.table_name and pk.newpk_col=stag.column_name
 	where
 		stag.column_name is null
@@ -2730,7 +2730,7 @@ where
 			if object_id('tempdb..#ups_fkcol_refs') is not null drop table #ups_fkcol_refs;
 			select
 				object_name(fk.constraint_object_id) as fk_constraint,
-				'!!#staging!!' as staging_schema,
+				!'!#staging!'! as staging_schema,
 				schema_name(t.schema_id) as table_schema,
 				t.name as table_name,
 				cc.name as column_name,
@@ -2747,8 +2747,8 @@ where
 				inner join sys.columns as cp on fk.referenced_object_id=cp.object_id and fk.referenced_column_id=cp.column_id
 				inner join sys.objects as op on op.object_id=cp.object_id
 			where
-				schema_name(t.schema_id)='!!#base_schema!!'
-				and t.name = '!!#table!!'
+				schema_name(t.schema_id)=!'!#base_schema!'!
+				and t.name = !'!#table!'!
 			;
 
 			-- Narrow the list down to ONLY dependencies that affect PK columns

@@ -11,6 +11,14 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Changed
+
+- Bundled `templates/{pg,md,ss}_{upsert,compare,glossary}.sql` now use the safe `!'!#var!'!` substitution form instead of `'!!#var!!'`, so single quotes in script-argument values are escaped when interpolated into SQL string literals.
+
+### Fixed
+
+- `templates/script_template.sql` had two `WRITE` lines (`Committing:` and `Cleaning up:`) with unterminated double-quoted strings; the closing quotes are now present.
+
 ______________________________________________________________________
 
 ## [2.17.3] - 2026-05-26

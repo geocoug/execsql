@@ -146,7 +146,7 @@ with recursive itemtable as (
 		select
 			trim(substring_index(data, ',', 1)) as column_name,
 			right(data, length(data) - locate(',', data, 1)) as data
-		from (select '!!#column_list!!' as data) as input
+		from (select !'!#column_list!'! as data) as input
 		union
 		select
 			trim(substring_index(data, ',', 1)) as column_name,
@@ -254,7 +254,7 @@ select !!gls_collist!! from gls_newglossary;
 	select
 		inp.item, inp.definition, inp.url
 	from
-		(select '!!#item!!'::text as item, '!!#definition!!'::text as definition, '!!#def_url!!'::text as url) as inp
+		(select !'!#item!'!::text as item, !'!#definition!'!::text as definition, !'!#def_url!'!::text as url) as inp
 		left join gls_glossary as g on g.!!gls_name!! = inp.item
 	where
 		g.!!gls_name!! is null;
@@ -264,8 +264,8 @@ select !!gls_collist!! from gls_newglossary;
 		inp.item, inp.definition
 	from
 		(select
-			cast('!!#item!!' as varchar(255)) as item,
-			cast('!!#definition!!' as varchar(255)) as definition
+			cast(!'!#item!'! as varchar(255)) as item,
+			cast(!'!#definition!'! as varchar(255)) as definition
 		) as inp
 		left join gls_glossary as g on g.!!gls_name!! = inp.item
 	where
@@ -307,7 +307,7 @@ select
 from
 	information_schema.columns
 where
-	table_name = '!!#table!!'
+	table_name = !'!#table!'!
 	;
 -- !x! subdata ~collist gls_collist
 

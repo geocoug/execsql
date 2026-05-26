@@ -118,8 +118,8 @@ inner join information_schema.key_column_usage as k
     and tc.table_name = k.table_name
 	and tc.constraint_name = k.constraint_name
 where
-	k.table_name = '!!#table!!'
-	and k.table_schema = '!!#base_schema!!'
+	k.table_name = !'!#table!'!
+	and k.table_schema = !'!#base_schema!'!
 order by k.ordinal_position
 ;
 
@@ -141,10 +141,10 @@ from information_schema.columns as s
 	inner join information_schema.columns as b on s.column_name=b.column_name
 	left join cmp_primary_key_columns as pk on pk.column_name = s.column_name
 where
-	s.table_schema = '!!#staging!!'
-	and s.table_name = '!!#table!!'
-	and b.table_schema = '!!#base_schema!!'
-	and b.table_name = '!!#table!!'
+	s.table_schema = !'!#staging!'!
+	and s.table_name = !'!#table!'!
+	and b.table_schema = !'!#base_schema!'!
+	and b.table_name = !'!#table!'!
 	and pk.column_name is null
 	!!~col_sel!!
 order by s.ordinal_position;
@@ -255,8 +255,8 @@ inner join information_schema.key_column_usage as k
     and tc.table_name = k.table_name
 	and tc.constraint_name = k.constraint_name
 where
-	k.table_name = '!!#table!!'
-	and k.table_schema = '!!#base_schema!!'
+	k.table_name = !'!#table!'!
+	and k.table_schema = !'!#base_schema!'!
 order by k.ordinal_position
 ;
 
@@ -278,10 +278,10 @@ from information_schema.columns as s
 	inner join information_schema.columns as b on s.column_name=b.column_name
 	left join cmp_primary_key_columns as pk on pk.column_name = s.column_name
 where
-	s.table_schema = '!!#staging!!'
-	and s.table_name = '!!#table!!'
-	and b.table_schema = '!!#base_schema!!'
-	and b.table_name = '!!#table!!'
+	s.table_schema = !'!#staging!'!
+	and s.table_name = !'!#table!'!
+	and b.table_schema = !'!#base_schema!'!
+	and b.table_name = !'!#table!'!
 	and pk.column_name is null
 	!!~col_sel!!
 order by s.ordinal_position;
@@ -393,8 +393,8 @@ inner join information_schema.key_column_usage as k
     and tc.table_name = k.table_name
 	and tc.constraint_name = k.constraint_name
 where
-	k.table_name = '!!#table!!'
-	and k.table_schema = '!!#base_schema!!'
+	k.table_name = !'!#table!'!
+	and k.table_schema = !'!#base_schema!'!
 order by k.ordinal_position
 ;
 
@@ -416,10 +416,10 @@ from information_schema.columns as s
 	inner join information_schema.columns as b on s.column_name=b.column_name
 	left join cmp_primary_key_columns as pk on pk.column_name = s.column_name
 where
-	s.table_schema = '!!#staging!!'
-	and s.table_name = '!!#table!!'
-	and b.table_schema = '!!#base_schema!!'
-	and b.table_name = '!!#table!!'
+	s.table_schema = !'!#staging!'!
+	and s.table_name = !'!#table!'!
+	and b.table_schema = !'!#base_schema!'!
+	and b.table_name = !'!#table!'!
 	!!~col_sel!!
 order by s.ordinal_position;
 
@@ -540,8 +540,8 @@ inner join information_schema.key_column_usage as k
     and tc.table_name = k.table_name
 	and tc.constraint_name = k.constraint_name
 where
-	k.table_name = '!!#table!!'
-	and k.table_schema = '!!#base_schema!!'
+	k.table_name = !'!#table!'!
+	and k.table_schema = !'!#base_schema!'!
 order by k.ordinal_position
 ;
 
@@ -563,10 +563,10 @@ from information_schema.columns as s
 	inner join information_schema.columns as b on s.column_name=b.column_name
 	left join cmp_primary_key_columns as pk on pk.column_name = s.column_name
 where
-	s.table_schema = '!!#staging!!'
-	and s.table_name = '!!#table!!'
-	and b.table_schema = '!!#base_schema!!'
-	and b.table_name = '!!#table!!'
+	s.table_schema = !'!#staging!'!
+	and s.table_name = !'!#table!'!
+	and b.table_schema = !'!#base_schema!'!
+	and b.table_name = !'!#table!'!
 	!!~col_sel!!
 order by s.ordinal_position;
 

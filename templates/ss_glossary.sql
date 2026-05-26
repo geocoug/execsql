@@ -97,7 +97,7 @@ agg as
 		one.row_num=1
 	UNION ALL
 	select
-		agg.agg_string + '!!#delimiter!!' + enum.agg_string as agg_string,
+		agg.agg_string + !'!#delimiter!'! + enum.agg_string as agg_string,
 		enum.row_num
 	from
 		agg, enum
@@ -215,7 +215,7 @@ with itemtable as (
 			else rtrim(ltrim(substring(column_string, charindex(',', column_string)+1, len(column_string))))
 			end as remaining_list
 	from
-		(select '!!#column_list!!' as column_string) as ts
+		(select !'!#column_list!'! as column_string) as ts
 	UNION ALL
 	select
 		case when charindex(',', remaining_list) = 0
@@ -325,7 +325,7 @@ drop table gls_newentries;
 	select
 		inp.item, inp.definition, inp.url
 	from
-		(select cast('!!#item!!' as varchar(max)) as item, cast('!!#definition!!' as varchar(max)) as definition, cast('!!#def_url!!' as varchar(max)) as url) as inp
+		(select cast(!'!#item!'! as varchar(max)) as item, cast(!'!#definition!'! as varchar(max)) as definition, cast(!'!#def_url!'! as varchar(max)) as url) as inp
 		left join gls_glossary as g on g.!!gls_name!! = inp.item
 	where
 		g.!!gls_name!! is null;
@@ -334,7 +334,7 @@ drop table gls_newentries;
 	select
 		inp.item, inp.definition
 	from
-		(select cast('!!#item!!' as varchar(max)) as item, cast('!!#definition!!' as varchar(max)) as definition) as inp
+		(select cast(!'!#item!'! as varchar(max)) as item, cast(!'!#definition!'! as varchar(max)) as definition) as inp
 		left join gls_glossary as g on g.!!gls_name!! = inp.item
 	where
 		g.!!gls_name!! is null;
@@ -384,8 +384,8 @@ drop view if exists gls_collist;
 	from
 		information_schema.columns
 	where
-		table_name = '!!#table!!'
-		and table_schema = '!!#schema!!'
+		table_name = !'!#table!'!
+		and table_schema = !'!#schema!'!
 		;
 -- !x! endif
 -- !x! sub_empty ~collist

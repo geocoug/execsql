@@ -189,12 +189,12 @@ into temporary table ups_ctrl_invl_schema
 from
 	(
 	select
-		'!!#base_schema!!' as schema_name,
+		!'!#base_schema!'! as schema_name,
 		'base' as schema_type
 	union
 	select
 
-		'!!#staging!!' as schema_name,
+		!'!#staging!'! as schema_name,
 		'staging' as schema_type
 	) as schemas
 	left join information_schema.schemata as iss on schemas.schema_name=iss.schema_name
@@ -252,15 +252,15 @@ having count(*)>0
 	from
 		(
 		select
-			'!!#base_schema!!' as schema_name,
+			!'!#base_schema!'! as schema_name,
 			'base' as schema_type,
-			'!!#table!!' as table_name
+			!'!#table!'! as table_name
 		union
 		select
 
-			'!!#staging!!' as schema_name,
+			!'!#staging!'! as schema_name,
 			'staging' as schema_type,
-			'!!#table!!' as table_name
+			!'!#table!'! as table_name
 		) as tt
 		left join information_schema.tables as iss on tt.schema_name=iss.table_schema and tt.table_name=iss.table_name
 	where
@@ -336,8 +336,8 @@ having count(*)>0
 -- !x! if(is_null("!!~err_info!!"))
 	drop table if exists ups_validate_control cascade;
 	select
-		cast('!!#base_schema!!' as text) as base_schema,
-		cast('!!#staging!!' as text) as staging_schema,
+		cast(!'!#base_schema!'! as text) as base_schema,
+		cast(!'!#staging!'! as text) as staging_schema,
 		table_name,
 		False as base_exists,
 		False as staging_exists
@@ -500,7 +500,7 @@ create temporary table !!#control_table!! (
 insert into !!#control_table!!
 	(table_name)
 select
-	trim(regexp_split_to_table('!!#table_list!!', E'\\s*,\\s*')) as table_name;
+	trim(regexp_split_to_table(!'!#table_list!'!, E'\\s*,\\s*')) as table_name;
 
 
 -- !x! END SCRIPT
@@ -684,8 +684,8 @@ into
 from
 	information_schema.columns
 where
-	table_schema = '!!#base_schema!!'
-	and table_name = '!!#table!!'
+	table_schema = !'!#base_schema!'!
+	and table_name = !'!#table!'!
 	and is_nullable = 'NO'
 	and column_default is null
 	!!~omitnull!!
@@ -855,8 +855,8 @@ inner join information_schema.key_column_usage as k
     and tc.table_name = k.table_name
 	and tc.constraint_name = k.constraint_name
 where
-	k.table_name = '!!#table!!'
-	and k.table_schema = '!!#base_schema!!'
+	k.table_name = !'!#table!'!
+	and k.table_schema = !'!#base_schema!'!
 order by k.ordinal_position
 ;
 
@@ -1041,8 +1041,8 @@ into
 from
 	ups_foreign_key_columns
 where
-	table_schema = '!!#base_schema!!'
-	and table_name = '!!#table!!';
+	table_schema = !'!#base_schema!'!
+	and table_name = !'!#table!'!;
 
 -- Create a temporary table of all unique constraint names for
 -- this table, with an integer column to be populated with the
@@ -1290,10 +1290,10 @@ into temporary table ups_cols
 from information_schema.columns as s
 	inner join information_schema.columns as b on s.column_name=b.column_name
 where
-	s.table_schema = '!!#staging!!'
-	and s.table_name = '!!#table!!'
-	and b.table_schema = '!!#base_schema!!'
-	and b.table_name = '!!#table!!'
+	s.table_schema = !'!#staging!'!
+	and s.table_name = !'!#table!'!
+	and b.table_schema = !'!#base_schema!'!
+	and b.table_name = !'!#table!'!
 	!!~col_excl!!
 order by s.ordinal_position;
 
@@ -1313,8 +1313,8 @@ inner join information_schema.key_column_usage as k
     and tc.table_name = k.table_name
 	and tc.constraint_name = k.constraint_name
 where
-	k.table_name = '!!#table!!'
-	and k.table_schema = '!!#base_schema!!'
+	k.table_name = !'!#table!'!
+	and k.table_schema = !'!#base_schema!'!
 order by k.ordinal_position;
 
 -- Get all base table columns that are to be updated into a comma-delimited list.
@@ -1583,7 +1583,7 @@ from
 where
 	tc.constraint_type = 'FOREIGN KEY'
 	and tc.table_name <> tu.table_name
-	and tc.table_schema = '!!#base_schema!!';
+	and tc.table_schema = !'!#base_schema!'!;
 
 
 -- Create a list of tables in the base schema ordered by dependency.
@@ -1644,7 +1644,7 @@ from (
 		left join ups_dependencies as p on t.table_name=p.parent
 		left join ups_dependencies as c on t.table_name=c.child
 	where
-		t.table_schema = '!!#base_schema!!'
+		t.table_schema = !'!#base_schema!'!
 		and t.table_type = 'BASE TABLE'
 		and p.parent is null
 		and c.child is null
@@ -2062,8 +2062,8 @@ inner join information_schema.key_column_usage as k
 	and tc.table_name = k.table_name
 	and tc.constraint_name = k.constraint_name
 where
-	k.table_name = '!!#table!!'
-	and k.table_schema = '!!#base_schema!!'
+	k.table_name = !'!#table!'!
+	and k.table_schema = !'!#base_schema!'!
 ;
 
 
@@ -2273,7 +2273,7 @@ where
 			select table_name, column_name
 			from information_schema.columns
 			where
-				table_schema = '!!#staging!!'
+				table_schema = !'!#staging!'!
 			) as stag on pk.table_name=stag.table_name and pk.newpk_col=stag.column_name
 	where
 		stag.column_name is null
@@ -2605,7 +2605,7 @@ where
 			(
 				select
 					cons.conname as fk_constraint,
-					'!!#staging!!' as staging_schema,
+					!'!#staging!'! as staging_schema,
 					ns1.nspname as table_schema,
 					cls1.relname as table_name,
 					cons.conrelid as table_id,
@@ -2619,8 +2619,8 @@ where
 
 				where
 					cons.contype='f'
-					and ns1.nspname  = '!!#base_schema!!'
-					and cls1.relname = '!!#table!!'
+					and ns1.nspname  = !'!#base_schema!'!
+					and cls1.relname = !'!#table!'!
 			) as fkinf
 			inner join pg_class as cls2 on cls2.oid=fkinf.parent_table_id
 			inner join pg_namespace ns2 on ns2.oid = cls2.relnamespace
