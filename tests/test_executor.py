@@ -82,7 +82,10 @@ def _query_db(tmp_path: Path, sql: str) -> list:
 # ---------------------------------------------------------------------------
 
 
-_SQL_SCRIPTS = sorted(_FIXTURES.glob("*.sql"))
+_AUDIT_LINT_BAD = "audit_lint_bad.sql"  # exercised via --lint, not normal execution
+
+
+_SQL_SCRIPTS = sorted(s for s in _FIXTURES.glob("*.sql") if s.name != _AUDIT_LINT_BAD)
 
 
 @pytest.mark.parametrize(
