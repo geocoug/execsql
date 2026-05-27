@@ -1,0 +1,5 @@
+# this comment line should be skipped
+# and so should this one
+id,name,score
+1,zulu,77
+2,yankee,88
