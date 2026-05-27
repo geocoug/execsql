@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.18.0] - 2026-05-27
+
 ### Added
 
 - `IS_FALSE(<value>)` conditional predicate — recognises `No`, `N`, `False`, `F`, and `0` as falsy (case-insensitive); inverse of `IS_TRUE`. Previously documented but not implemented, so `IF (IS_FALSE(...))` raised `CondParserError`.
