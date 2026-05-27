@@ -43,13 +43,13 @@ ______________________________________________________________________
 Create a symlink from the VSCode extensions directory to this folder:
 
 ```sh
-ln -s /path/to/execsql/vscode-execsql ~/.vscode/extensions/execsql-syntax
+ln -s /path/to/execsql/extras/vscode-execsql ~/.vscode/extensions/execsql-syntax
 ```
 
 For example, if you cloned the repo to `./execsql`:
 
 ```sh
-ln -s ./execsql/vscode-execsql ~/.vscode/extensions/execsql-syntax
+ln -s "$(pwd)/execsql/extras/vscode-execsql" ~/.vscode/extensions/execsql-syntax
 ```
 
 ### Windows
@@ -57,13 +57,13 @@ ln -s ./execsql/vscode-execsql ~/.vscode/extensions/execsql-syntax
 Create a directory junction using Command Prompt **as Administrator**:
 
 ```cmd
-mklink /J "%USERPROFILE%\.vscode\extensions\execsql-syntax" "C:\path\to\execsql\vscode-execsql"
+mklink /J "%USERPROFILE%\.vscode\extensions\execsql-syntax" "C:\path\to\execsql\extras\vscode-execsql"
 ```
 
 Or using PowerShell **as Administrator**:
 
 ```powershell
-New-Item -ItemType Junction -Path "$env:USERPROFILE\.vscode\extensions\execsql-syntax" -Target "C:\path\to\execsql\vscode-execsql"
+New-Item -ItemType Junction -Path "$env:USERPROFILE\.vscode\extensions\execsql-syntax" -Target "C:\path\to\execsql\extras\vscode-execsql"
 ```
 
 ### After installing

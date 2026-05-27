@@ -99,44 +99,46 @@ execsql script.sql                          # read connection from config file
 
 ## Options
 
-| Flag                                  | Description                                                       |
-| ------------------------------------- | ----------------------------------------------------------------- |
-| `-t {p,m,s,l,k,a,f,o,d}`              | Database type                                                     |
-| `-u USER`                             | Database username                                                 |
-| `-p PORT`                             | Server port                                                       |
-| `-a VALUE`                            | Set substitution variable `$ARG_x`                                |
-| `-b` / `--boolean-int`                | Treat integers 0 and 1 as boolean values                          |
-| `-c SCRIPT`                           | Execute inline SQL or metacommand string                          |
-| `-d`                                  | Auto-create export directories                                    |
-| `-e ENCODING` / `--database-encoding` | Character encoding used in the database                           |
-| `-f ENCODING`                         | Script file encoding (default: UTF-8)                             |
-| `-g ENCODING` / `--output-encoding`   | Encoding for WRITE and EXPORT output                              |
-| `-i ENCODING` / `--import-encoding`   | Encoding for data files used with IMPORT                          |
-| `-l`                                  | Write run log to `~/execsql.log`                                  |
-| `-m`                                  | List metacommands and exit                                        |
-| `-n`                                  | Create a new SQLite or PostgreSQL database if it does not exist   |
-| `-o` / `--online-help`                | Open the online documentation in the default browser              |
-| `-s N` / `--scan-lines`               | Lines to scan for IMPORT format detection (0 = scan entire file)  |
-| `-v {0,1,2,3}`                        | GUI level (0=none, 1=password, 2=selection, 3=full)               |
-| `-w`                                  | Skip password prompt when a username is supplied                  |
-| `-y` / `--encodings`                  | List available encoding names and exit                            |
-| `-z KB` / `--import-buffer`           | Import buffer size in KB (default: 32)                            |
-| `--dsn URL`                           | Connection string (e.g. `postgresql://user:pass@host/db`)         |
-| `--output-dir DIR`                    | Default base directory for EXPORT output files                    |
-| `--dry-run`                           | Parse the script and report commands without executing            |
-| `--lint`                              | Static analysis: check structure and warn on issues (no DB)       |
-| `--parse-tree`                        | Print the script's AST structure and exit (no DB)                 |
-| `--list-plugins`                      | List discovered plugins and exit                                  |
-| `--ping`                              | Test database connectivity and exit                               |
-| `--profile`                           | Show per-statement timing summary after execution                 |
-| `--profile-limit N`                   | Top N statements to display in `--profile` summary (default: 20)  |
-| `--progress`                          | Show a progress bar for long-running IMPORT operations            |
-| `--config FILE`                       | Load an explicit config file (highest priority after CLI args)    |
-| `--no-system-cmd`                     | Disable the `SYSTEM_CMD` metacommand (safer for CI / shared envs) |
-| `--init-config`                       | Print a default `execsql.conf` template to stdout and exit        |
-| `--debug`                             | Start in step-through debug mode (REPL pauses before each stmt)   |
-| `--dump-keywords`                     | Print metacommand keywords as JSON and exit                       |
-| `--gui-framework {tkinter,textual}`   | GUI framework for interactive prompts                             |
+| Flag                                  | Description                                                        |
+| ------------------------------------- | ------------------------------------------------------------------ |
+| `-t {p,m,s,l,k,a,f,o,d}`              | Database type                                                      |
+| `-u USER`                             | Database username                                                  |
+| `-p PORT`                             | Server port                                                        |
+| `-a VALUE`                            | Set substitution variable `$ARG_x`                                 |
+| `-b` / `--boolean-int`                | Treat integers 0 and 1 as boolean values                           |
+| `-c SCRIPT`                           | Execute inline SQL or metacommand string                           |
+| `-d`                                  | Auto-create export directories                                     |
+| `-e ENCODING` / `--database-encoding` | Character encoding used in the database                            |
+| `-f ENCODING`                         | Script file encoding (default: UTF-8)                              |
+| `-g ENCODING` / `--output-encoding`   | Encoding for WRITE and EXPORT output                               |
+| `-i ENCODING` / `--import-encoding`   | Encoding for data files used with IMPORT                           |
+| `-l`                                  | Write run log to `~/execsql.log`                                   |
+| `-m`                                  | List metacommands and exit                                         |
+| `-n`                                  | Create a new SQLite or PostgreSQL database if it does not exist    |
+| `-o` / `--online-help`                | Open the online documentation in the default browser               |
+| `-s N` / `--scan-lines`               | Lines to scan for IMPORT format detection (0 = scan entire file)   |
+| `-v {0,1,2,3}`                        | GUI level (0=none, 1=password, 2=selection, 3=full)                |
+| `-w`                                  | Skip password prompt when a username is supplied                   |
+| `-y` / `--encodings`                  | List available encoding names and exit                             |
+| `-z KB` / `--import-buffer`           | Import buffer size in KB (default: 32)                             |
+| `--dsn URL`                           | Connection string (e.g. `postgresql://user:pass@host/db`)          |
+| `--output-dir DIR`                    | Default base directory for EXPORT output files                     |
+| `--dry-run`                           | Parse the script and report commands without executing             |
+| `--lint`                              | Static analysis: check structure and warn on issues (no DB)        |
+| `--parse-tree`                        | Print the script's AST structure and exit (no DB)                  |
+| `--list-plugins`                      | List discovered plugins and exit                                   |
+| `--ping`                              | Test database connectivity and exit                                |
+| `--profile`                           | Show per-statement timing summary after execution                  |
+| `--profile-limit N`                   | Top N statements to display in `--profile` summary (default: 20)   |
+| `--progress`                          | Show a progress bar for long-running IMPORT operations             |
+| `--config FILE`                       | Load an explicit config file (highest priority after CLI args)     |
+| `--no-system-cmd`                     | Disable the `SYSTEM_CMD` metacommand (safer for CI / shared envs)  |
+| `--no-rm-file`                        | Disable the `RM_FILE` metacommand (no script-driven file deletion) |
+| `--no-serve`                          | Disable the `SERVE` metacommand (no script-driven file streaming)  |
+| `--init-config`                       | Print a default `execsql.conf` template to stdout and exit         |
+| `--debug`                             | Start in step-through debug mode (REPL pauses before each stmt)    |
+| `--dump-keywords`                     | Print metacommand keywords as JSON and exit                        |
+| `--gui-framework {tkinter,textual}`   | GUI framework for interactive prompts                              |
 
 Run `execsql --help` for the full option list, or `execsql -m` to list all metacommands.
 
@@ -264,7 +266,7 @@ execsql-format --check scripts/
 ```yaml
 repos:
   - repo: https://github.com/geocoug/execsql
-    rev: v2.11.0
+    rev: v2.18.0
     hooks:
       - id: execsql-format
         args: [--in-place]
