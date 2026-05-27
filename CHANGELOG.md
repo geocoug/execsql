@@ -13,6 +13,7 @@ ______________________________________________________________________
 
 ### Added
 
+- `IS_FALSE(<value>)` conditional predicate — recognises `No`, `N`, `False`, `F`, and `0` as falsy (case-insensitive); inverse of `IS_TRUE`. Previously documented but not implemented, so `IF (IS_FALSE(...))` raised `CondParserError`.
 - `--no-rm-file` and `--no-serve` CLI flags disable the `RM_FILE` and `SERVE` metacommands, symmetric with the existing `--no-system-cmd`. Matching `allow_rm_file` and `allow_serve` config keys are honoured in the `[config]` section of `execsql.conf`.
 - New `include_root`, `serve_root`, and `template_root` config keys in the `[config]` section of `execsql.conf`. When set, `INCLUDE` / `EXECUTE SCRIPT`, `SERVE`, and Jinja2 / `string.Template` loaders confine resolved paths under the named root and reject anything that escapes via `..`, absolute paths, drive letters, or UNC paths.
 - `Database.quote_literal(value)` and `Database.quote_qualified_identifier(*parts)` helpers on the base `Database` class. The default `quote_literal` escapes `\` and doubles `'` and rejects NUL bytes; subclasses can override for dialect-specific literal forms.
@@ -23,15 +24,14 @@ ______________________________________________________________________
 - A warning is now printed when the `--dsn` URL contains an embedded password, since it remains visible in `ps`, shell history, and process accounting.
 - `EXPORT … FORMAT xlsx` and `IMPORT … FORMAT xlsx` now reject zip-bomb XLSX files via a new `check_zip_decompression_ratio` helper that inspects the OOXML zip directory before openpyxl parses the file. Rejects individual members with a compression ratio above 100:1 (default) and aggregate uncompressed size above 500 MB (default).
 - `IMPORT … FORMAT ods` and `EXPORT … FORMAT ods` defuse the stdlib XML parsers via `defusedxml.defuse_stdlib()` on first `OdsFile` construction, protecting odfpy from billion-laughs / external-entity attacks. The `defusedxml` package is now part of the `[formats]` extra.
-- CSV, XLSX, and ODS exporters now neutralize spreadsheet formula leaders (`=`, `+`, `-`, `@`, tab) in string cell values by prefixing them with `'`, so a malicious cell like `=cmd|'/c calc'!A1` imports as text instead of executing on open in Excel or LibreOffice Calc. Toggle via the new `csv_safe_formulas` config key (default `Yes`) in the `[config]` section.
 - `substitute_vars()` now aborts when expanded output exceeds 10 MB (configurable via the new `max_substitution_bytes` key in the `[config]` section), defending against exponential-expansion bombs where a chain of substitutions accumulates beyond a safe size before the iteration depth cap fires.
 - `IMPORT … ODS PATTERN <regex>` and `IMPORT … XLS PATTERN <regex>` now raise a friendly `ErrInfo` listing the invalid pattern instead of letting an uncaught `re.error` bubble up from `re.compile`.
-- `IMPORT … FROM JSON` with newline-delimited JSON (NDJSON) now reads the file line-by-line instead of buffering the entire text alongside the parsed records. The standard JSON-array path is unchanged (would require an `ijson` dependency to stream).
+- `IMPORT … FROM JSON` with [JSON Lines](https://jsonlines.org/) (JSONL) now reads the file line-by-line instead of buffering the entire text alongside the parsed records. The standard JSON-array path is unchanged (would require an `ijson` dependency to stream).
 - New `execsql.utils.auth.is_plaintext_keyring()` helper detects when the active OS keyring backend stores secrets in cleartext (e.g. `keyrings.alt.file.PlaintextKeyring` on headless Linux without a real Secret Service). The internal `_keyring_set()` path now emits a one-time stderr warning before writing into a plaintext backend so users know stored passwords are not meaningfully protected at rest.
 - On POSIX systems without `$DISPLAY` or `$WAYLAND_DISPLAY`, `enable_gui()` now skips the Tkinter backend entirely and falls through to the Textual / Console backends, instead of failing with a cryptic `_tkinter.TclError` that the broad-except previously swallowed.
 - Internal: `.github/workflows/ci-cd.yml` now SHA-pins all third-party GitHub Actions with a trailing `# vX.Y.Z` comment; new `.github/dependabot.yml` files weekly bump PRs grouping minor/patch action updates.
 - Documented `$CURRENT_DATE` and `$CURRENT_SCRIPT_LINE` substitution variables in `docs/reference/substitution_vars.md`; the `[map]` extra in the README installation list; `RUN SCRIPT` as an alias for `EXECUTE SCRIPT` in `docs/reference/metacommands.md`. All were functional, just undocumented.
-- Expanded `SECURITY.md` from a stub-policy page to a defense-in-depth catalogue covering substitution-variable quoters, path-containment, SQL-injection mitigations, file-format defenses (XLSX zip-bomb, ODS XML, formula injection), credential/logging hygiene, and known limitations.
+- Expanded `SECURITY.md` from a stub-policy page to a defense-in-depth catalogue covering substitution-variable quoters, path-containment, SQL-injection mitigations, file-format defenses (XLSX zip-bomb, ODS XML), credential/logging hygiene, and known limitations.
 
 ### Changed
 
@@ -54,6 +54,7 @@ ______________________________________________________________________
 
 ### Removed
 
+- `EXPORT` no longer adds a leading `'` to CSV / XLSX / ODS string cells starting with `=`, `+`, `-`, `@`, or tab; exports preserve string values verbatim. The `csv_safe_formulas` config key is removed.
 - Internal: the legacy flat-CommandList linter (`_lint_script` and helpers in `execsql.cli.lint`) has been deleted. The `--lint` CLI has used the AST-based linter (`execsql.cli.lint_ast`) since v2.13; only `_print_lint_results` and the issue-constructor helpers remain in `execsql.cli.lint`. Breaking change for code that imported `_lint_script` from `execsql.cli.lint` directly.
 
 ______________________________________________________________________
@@ -584,7 +585,7 @@ ______________________________________________________________________
 
 ### Added
 
-- `IMPORT … FROM JSON` metacommand — imports a JSON array of objects or NDJSON file into a database table. Nested objects are flattened with dot-separated column names; nested arrays are stored as JSON strings. Missing keys become NULL.
+- `IMPORT … FROM JSON` metacommand — imports a JSON array of objects or [JSON Lines](https://jsonlines.org/) file into a database table. Nested objects are flattened with dot-separated column names; nested arrays are stored as JSON strings. Missing keys become NULL.
 - `SHELL … CONTINUE` now sets `$SYSTEM_CMD_PID` with the PID of the background process.
 
 ### Fixed

@@ -47,7 +47,6 @@ The following protections are on by default. They can be tuned or disabled via `
 
 - XLSX importers and exporters pre-inspect the OOXML zip directory and reject decompression-bomb files (compression ratio > 100:1 per member or aggregate size > 500 MB by default).
 - ODS importers and exporters call `defusedxml.defuse_stdlib()` so odfpy can't be tricked into processing billion-laughs or external-entity XML attacks.
-- CSV, XLSX, and ODS exporters prefix string cell values starting with `=`, `+`, `-`, `@`, or tab with `'` so the cell imports as text instead of executing as a formula on open in Excel / LibreOffice Calc (toggle via `csv_safe_formulas`).
 
 ### Credentials and logging
 

@@ -52,16 +52,10 @@ class LineDelimiter:
 
     def delimited(self, datarow: Any, add_newline: bool = True) -> str:
         """Format a sequence of values as a single delimited text line."""
-        # B16/F027: prefix leading formula-trigger chars with ``'`` so
-        # the cell imports as text in Excel / LibreOffice Calc instead
-        # of executing as a formula (CSV-injection defence).
-        from execsql.exporters.base import neutralize_formula
-
         if self.quotechar:
             d_row = []
             for e in datarow:
                 if isinstance(e, str):
-                    e = neutralize_formula(e)
                     if (
                         self.quote_all_text
                         or (self.quotechar in e)
@@ -83,8 +77,6 @@ class LineDelimiter:
             for e in datarow:
                 if e is None:
                     d_row.append("")
-                elif isinstance(e, str):
-                    d_row.append(neutralize_formula(e))
                 else:
                     d_row.append(e)
             text = self.joinchar.join([str(d) for d in d_row])

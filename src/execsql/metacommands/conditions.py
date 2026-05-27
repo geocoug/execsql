@@ -374,6 +374,10 @@ def xf_istrue(**kwargs: Any) -> bool:
     return unquoted(kwargs["value"].strip()).lower() in ("yes", "y", "true", "t", "1")
 
 
+def xf_isfalse(**kwargs: Any) -> bool:
+    return unquoted(kwargs["value"].strip()).lower() in ("no", "n", "false", "f", "0")
+
+
 def xf_dbms(**kwargs: Any) -> bool:
     dbms = kwargs["dbms"]
     return _state.dbs.current().type.dbms_id.lower() == dbms.strip().lower()
@@ -797,6 +801,7 @@ def build_conditional_table() -> Any:
         category="condition",
     )
     mcl.add(r"^\s*IS_TRUE\(\s*(?P<value>[^)]*)\s*\)", xf_istrue, description="IS_TRUE", category="condition")
+    mcl.add(r"^\s*IS_FALSE\(\s*(?P<value>[^)]*)\s*\)", xf_isfalse, description="IS_FALSE", category="condition")
 
     # Boolean literals
     mcl.add(

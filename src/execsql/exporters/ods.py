@@ -264,13 +264,7 @@ class OdsFile:
                 tc = of.table.TableCell(timevalue=timeval.strftime("PT%HH%MM%S.%fS"), stylename="iso_datetime")
                 tc.addElement(of.text.P(text=timeval.strftime("%H:%M:%S.%f")))
             elif isinstance(item, str):
-                # B16/F029: neutralise spreadsheet formula leaders so
-                # ``=cmd|'/c calc'!A1`` doesn't execute on open in
-                # Calc / Excel. Numeric / datetime branches above land
-                # in typed cells and can't carry an injection payload.
-                from execsql.exporters.base import neutralize_formula
-
-                item = neutralize_formula(item.replace("\n", " ").replace("\r", " "))
+                item = item.replace("\n", " ").replace("\r", " ")
                 tc = of.table.TableCell(valuetype="string", stringvalue=item, stylename=style_name)
             else:
                 tc = of.table.TableCell(value=item, stylename=style_name)
