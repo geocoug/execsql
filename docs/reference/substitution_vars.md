@@ -214,7 +214,7 @@ $USER
 :   The name of the person logged in when the script is started. This is not necessarily the same as the user name used with any database.
 
 $UUID
-:   A random 128-bit Universally Unique Identifier in the canonical form of 32 hexadecimal digits. Multiple references to $UUID in a single SQL statement or metacommand will return the same value.
+:   A random 128-bit Universally Unique Identifier (UUID v4) in the canonical hyphenated form `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` (36 characters). Multiple references to $UUID in a single SQL statement or metacommand will return the same value.
 
 $VERSION1
 :   Execsql's primary version number.

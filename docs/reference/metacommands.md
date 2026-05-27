@@ -510,7 +510,7 @@ The width of the column to be used in an HDF5 export file when the data have a '
 
 
 ```
-CONFIG IMPORT_COMMON_COLUMNS_ONLY YES|NO
+IMPORT_ONLY_COMMON_COLUMNS YES|NO
 ```
 
 Controls whether the [IMPORT](#import) metacommand will import CSV files with more columns than the target table. This has the same action as the `import_only_common_columns` [configuration setting](configuration.md#config_input). The argument should be either "Yes" or "No". The default value is "No", in which case the [IMPORT](#import) metacommand will halt with an error message if the target table does not have all of the columns that are in the file to be imported.
@@ -1885,7 +1885,7 @@ The syntax for importing data from a [JSON](https://www.json.org/) file is:
 IMPORT TO [NEW|REPLACEMENT] <table_name> FROM JSON <file_name>
 ```
 
-The JSON file must contain either a JSON array of objects (`[{…}, …]`) or newline-delimited JSON (NDJSON, one object per line). Nested objects are flattened with dot-separated column names (e.g., an object `{"address": {"city": "Portland"}}` produces column `address.city`). Nested arrays within objects are stored as JSON strings. Records with different keys produce a superset of columns — missing keys become NULL.
+The JSON file must contain either a JSON array of objects (`[{…}, …]`) or [JSON Lines](https://jsonlines.org/) (JSONL, one object per line). Nested objects are flattened with dot-separated column names (e.g., an object `{"address": {"city": "Portland"}}` produces column `address.city`). Nested arrays within objects are stored as JSON strings. Records with different keys produce a superset of columns — missing keys become NULL. The parser auto-detects which form is present by peeking at the first non-whitespace character (`[` → array, `{` → JSON Lines); the file extension is not consulted.
 
 Column names in the input must be valid for the DBMS in use.
 

@@ -4,10 +4,11 @@ from __future__ import annotations
 JSON import for execsql.
 
 Provides :func:`import_json`, used by ``IMPORT … FORMAT json``.
-Supports JSON arrays of objects (``[{…}, …]``) and newline-delimited
-JSON (NDJSON, one object per line).  Nested objects are flattened with
-dot-separated keys; nested arrays and non-object values are serialized
-as JSON strings so every column maps to a scalar database value.
+Supports JSON arrays of objects (``[{…}, …]``) and `JSON Lines
+<https://jsonlines.org/>`_ (JSONL, one object per line).  Nested
+objects are flattened with dot-separated keys; nested arrays and
+non-object values are serialized as JSON strings so every column
+maps to a scalar database value.
 """
 
 import json
@@ -45,11 +46,12 @@ def _flatten(obj: Any, prefix: str = "", sep: str = ".") -> dict[str, Any]:
 def _parse_json_file(filename: str, encoding: str) -> list[dict[str, Any]]:
     """Read a JSON file and return a list of flat dicts.
 
-    Accepts either a JSON array of objects or newline-delimited JSON
-    (NDJSON). The NDJSON path streams the file line-by-line so the
-    raw text isn't buffered alongside the parsed records (B19/F043).
-    The array path still buffers the whole file — switching to a
-    streaming parser would require ``ijson`` as a dependency.
+    Accepts either a JSON array of objects or `JSON Lines
+    <https://jsonlines.org/>`_ (JSONL). The JSONL path streams the
+    file line-by-line so the raw text isn't buffered alongside the
+    parsed records (B19/F043). The array path still buffers the
+    whole file — switching to a streaming parser would require
+    ``ijson`` as a dependency.
     """
     # Peek at the first non-whitespace character to decide which
     # parsing strategy to use, without slurping the entire file.
@@ -72,7 +74,7 @@ def _parse_json_file(filename: str, encoding: str) -> list[dict[str, Any]]:
             raise ErrInfo(type="error", other_msg="JSON file root is not an array of objects.")
         records = raw
     elif first_char == "{":
-        # NDJSON — stream the file line-by-line.
+        # JSONL (JSON Lines) — stream the file line-by-line.
         records = []
         with open(filename, encoding=encoding) as fh:
             for lineno, line in enumerate(fh, 1):
@@ -95,7 +97,7 @@ def _parse_json_file(filename: str, encoding: str) -> list[dict[str, Any]]:
     else:
         raise ErrInfo(
             type="error",
-            other_msg="JSON import expects a file starting with '[' (array) or '{' (object/NDJSON).",
+            other_msg="JSON import expects a file starting with '[' (array) or '{' (object/JSONL).",
         )
 
     if not records:

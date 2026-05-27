@@ -8,7 +8,7 @@
 - ``x_import_xls`` / ``x_import_xls_pattern`` — same for XLS/XLSX.
 - ``x_import_parquet`` — IMPORT … FROM PARQUET (via polars).
 - ``x_import_feather`` — IMPORT … FROM FEATHER (via polars).
-- ``x_import_json`` — IMPORT … FROM JSON (array of objects or NDJSON).
+- ``x_import_json`` — IMPORT … FROM JSON (array of objects or JSON Lines).
 - ``x_import_row_buffer`` — CONFIG IMPORT_ROW_BUFFER.
 - ``x_show_progress`` — CONFIG SHOW_PROGRESS (toggle the import progress bar).
 """

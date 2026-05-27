@@ -22,37 +22,7 @@ from execsql.script import current_script_line
 from execsql.utils.errors import file_size_date
 from execsql.utils.gui import ConsoleUIError
 
-__all__ = ["ExportMetadata", "ExportRecord", "WriteSpec", "neutralize_formula"]
-
-
-# Characters that, when leading a spreadsheet cell, are treated as
-# formula prefixes by Excel and LibreOffice Calc. A malicious EXPORT
-# that includes ``=cmd|'/c calc'!A1`` in a CSV/XLSX/ODS cell will
-# silently execute when the recipient opens the file (CVE-2014-3524
-# class — "CSV formula injection"). Defense is to prefix the cell
-# value with a single quote so the spreadsheet treats it as text.
-_FORMULA_LEADERS: frozenset[str] = frozenset(("=", "+", "-", "@", "\t"))
-
-
-def neutralize_formula(value: Any) -> Any:
-    """Return *value* with a leading ``'`` if it is a string starting
-    with a spreadsheet formula leader (``=``, ``+``, ``-``, ``@``, tab).
-
-    Honours the ``conf.csv_safe_formulas`` toggle: when ``False``, the
-    helper is a no-op (returns *value* unchanged) so users with
-    legitimate leading-``=`` data can opt out.
-
-    Non-string values pass through unchanged — numeric / datetime /
-    bool / None types can't carry an injection payload because
-    spreadsheet writers store them as typed cells, not text.
-    """
-    if not isinstance(value, str) or not value:
-        return value
-    if not getattr(_state.conf, "csv_safe_formulas", True):
-        return value
-    if value[0] in _FORMULA_LEADERS:
-        return "'" + value
-    return value
+__all__ = ["ExportMetadata", "ExportRecord", "WriteSpec"]
 
 
 class ExportRecord:

@@ -158,6 +158,27 @@ class TestMiscPredicates:
         for v in ("no", "n", "false", "0", ""):
             assert _cond.xf_istrue(value=v) is False
 
+    def test_isfalse_falsy_values(self):
+        for v in ("no", "n", "FALSE", "F", "0"):
+            assert _cond.xf_isfalse(value=v) is True
+
+    def test_isfalse_truthy_values(self):
+        for v in ("yes", "y", "true", "1", "", "anything-else"):
+            assert _cond.xf_isfalse(value=v) is False
+
+    def test_isfalse_case_insensitive(self):
+        # Both upper- and lower-case variants resolve via .lower() lookup.
+        for v in ("No", "NO", "False", "FALSE", "n", "N", "f", "F"):
+            assert _cond.xf_isfalse(value=v) is True
+
+    def test_isfalse_strips_paired_double_quotes(self):
+        # The dispatch regex captures values that may be wrapped in double
+        # quotes (e.g. IS_FALSE("0")); unquoted() strips paired " marks.
+        # Single quotes are NOT stripped — that matches IS_TRUE behaviour.
+        assert _cond.xf_isfalse(value='"no"') is True
+        assert _cond.xf_isfalse(value='"0"') is True
+        assert _cond.xf_isfalse(value='"1"') is False
+
     def test_dbms_match(self, fake_state):
         assert _cond.xf_dbms(dbms="sqlite") is True
         assert _cond.xf_dbms(dbms="postgres") is False

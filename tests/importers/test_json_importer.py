@@ -1,5 +1,5 @@
 """
-Tests for execsql.importers.json — JSON and NDJSON import.
+Tests for execsql.importers.json — JSON array and JSON Lines (JSONL) import.
 
 Covers :func:`_flatten`, :func:`_parse_json_file`, and :func:`import_json`.
 Uses an in-memory SQLiteDatabase so no external services are required.
@@ -122,13 +122,13 @@ class TestParseJsonFile:
         assert records[0]["id"] == 1
         assert records[1]["name"] == "Bob"
 
-    def test_ndjson_one_object_per_line(self, tmp_path):
+    def test_jsonl_one_object_per_line(self, tmp_path):
         lines = [
             json.dumps({"id": 1, "val": "a"}),
             json.dumps({"id": 2, "val": "b"}),
             json.dumps({"id": 3, "val": "c"}),
         ]
-        f = tmp_path / "data.ndjson"
+        f = tmp_path / "data.jsonl"
         f.write_text("\n".join(lines), encoding="utf-8")
         records = _parse_json_file(str(f), "utf-8")
         assert len(records) == 3
@@ -182,13 +182,13 @@ class TestParseJsonFile:
         records = _parse_json_file(str(f), "utf-8")
         assert len(records) == 1
 
-    def test_ndjson_with_blank_lines_skipped(self, tmp_path):
+    def test_jsonl_with_blank_lines_skipped(self, tmp_path):
         lines = [
             json.dumps({"id": 1}),
             "",
             json.dumps({"id": 2}),
         ]
-        f = tmp_path / "blanks.ndjson"
+        f = tmp_path / "blanks.jsonl"
         f.write_text("\n".join(lines), encoding="utf-8")
         records = _parse_json_file(str(f), "utf-8")
         assert len(records) == 2
@@ -307,12 +307,12 @@ class TestImportJson:
         _, rows = db.select_data("SELECT val FROM tbl;")
         assert rows[0][0] == "café"
 
-    def test_ndjson_file_imported_correctly(self, db, tmp_path):
+    def test_jsonl_file_imported_correctly(self, db, tmp_path):
         lines = [
             json.dumps({"id": 1, "city": "Denver"}),
             json.dumps({"id": 2, "city": "Austin"}),
         ]
-        f = tmp_path / "data.ndjson"
+        f = tmp_path / "data.jsonl"
         f.write_text("\n".join(lines), encoding="utf-8")
         import_json(db, None, "cities", str(f), is_new=1)
         _, rows = db.select_data("SELECT city FROM cities ORDER BY id;")
