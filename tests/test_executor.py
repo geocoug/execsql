@@ -83,9 +83,11 @@ def _query_db(tmp_path: Path, sql: str) -> list:
 
 
 _AUDIT_LINT_BAD = "audit_lint_bad.sql"  # exercised via --lint, not normal execution
+_AUDIT_SMOKE = "audit_smoke.sql"  # parametrized harness in tests/scripts/test_sql_scripts.py
+_DEDICATED = {_AUDIT_LINT_BAD, _AUDIT_SMOKE}
 
 
-_SQL_SCRIPTS = sorted(s for s in _FIXTURES.glob("*.sql") if s.name != _AUDIT_LINT_BAD)
+_SQL_SCRIPTS = sorted(s for s in _FIXTURES.glob("*.sql") if s.name not in _DEDICATED)
 
 
 @pytest.mark.parametrize(
