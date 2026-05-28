@@ -722,7 +722,7 @@ wheels = [
 
 [[package]]
 name = "execsql2"
-version = "2.18.0"
+version = "2.18.1"
 source = { editable = "." }
 dependencies = [
     { name = "python-dateutil" },

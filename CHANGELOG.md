@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.18.1] - 2026-05-28
+
 ### Changed
 
 - Internal: `execsql.cli.lint_ast` has been folded into `execsql.cli.lint`; the AST walker entry point is now `execsql.cli.lint.lint()`. Code that imported `execsql.cli.lint_ast.lint_ast` should import `execsql.cli.lint.lint` instead.
