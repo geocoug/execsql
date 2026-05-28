@@ -4,7 +4,7 @@ Covers the classes and functions that remain after the legacy execution
 engine was replaced by the AST executor:
 - MetaCommand / MetaCommandList — dispatch table
 - SqlStmt / MetacommandStmt — command wrappers
-- ScriptCmd / CommandList — used by _flatten_for_legacy savedscripts
+- ScriptCmd — named-script wrapper used by EXECUTE SCRIPT dispatch
 - ScriptExecSpec — deferred execution spec (construction only)
 - substitute_vars() — variable expansion
 - set_system_vars() — system variable population
@@ -261,18 +261,6 @@ class TestMetaCommandList:
         mcl.add(r"^\s*FOO\s*$", lambda **kw: None, description="FOO", category="cat")
         result = mcl.keywords_by_category()
         assert result["cat"].count("FOO") == 1
-
-    def test_run_when_false_flag_kept_on_command(self, engine_state):
-        """run_when_false is preserved on the MetaCommand for documentation /
-        introspection purposes even though the AST executor's structural IF
-        dispatch makes the runtime check obsolete."""
-        mcl = MetaCommandList()
-        mcl.add(r"^\s*RUN\s*$", lambda **kw: None, run_when_false=True)
-        # eval always tries to match — the flag is no longer consulted at dispatch time.
-        called = []
-        mcl.add(r"^\s*FIRES\s*$", lambda **kw: called.append(True))
-        mcl.eval("FIRES")
-        assert called == [True]
 
     def test_unkeyed_pattern_falls_back_to_full_list(self, engine_state):
         """A pattern with no extractable keyword lands in _unkeyed and still matches."""

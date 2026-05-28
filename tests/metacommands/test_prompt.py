@@ -235,7 +235,7 @@ class TestXPromptEnter:
         msg = s.exec_log.log_status_info.call_args[0][0]
         assert "Password" in msg
 
-    def test_local_var_uses_commandliststack(self, fake_state) -> None:
+    def test_local_var_uses_ast_exec_stack(self, fake_state) -> None:
         s = fake_state(gui_responses={GUI_DISPLAY: {"button": 1, "return_value": "v"}})
         _prompt.x_prompt_enter(**self._kwargs(match_str="~local"))
         s.top_cmd.localvars.add_substitution.assert_called_with("~local", "v")

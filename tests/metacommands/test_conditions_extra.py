@@ -82,12 +82,12 @@ class TestSubVariablePredicates:
         assert _cond.xf_sub_defined(match_str="myvar") is True
 
     def test_sub_defined_local(self, fake_state):
-        # ~local prefix consults commandliststack[-1].localvars
+        # ~local prefix consults the active ExecFrame's localvars (top of ast_exec_stack)
         assert _cond.xf_sub_defined(match_str="~loc") is True
         fake_state.cmd.localvars.sub_exists.assert_called()
 
     def test_sub_defined_param(self, fake_state):
-        # #param prefix consults commandliststack[-1].paramvals
+        # #param prefix consults the active ExecFrame's paramvals (top of ast_exec_stack)
         assert _cond.xf_sub_defined(match_str="#p") is True
         fake_state.cmd.paramvals.sub_exists.assert_called()
 
@@ -101,7 +101,7 @@ class TestSubVariablePredicates:
             _cond.xf_sub_empty(match_str="myvar", metacommandline="SUB_EMPTY")
 
     def test_sub_empty_param_branch(self, fake_state):
-        # #param prefix consults commandliststack[-1].paramvals — covers line 261
+        # #param prefix consults the active ExecFrame's paramvals — covers line 261
         fake_state.cmd.paramvals.varvalue.return_value = ""
         assert _cond.xf_sub_empty(match_str="#param", metacommandline="X") is True
 

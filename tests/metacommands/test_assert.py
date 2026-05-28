@@ -202,9 +202,3 @@ class TestAssertDispatchRegex:
         assert gd is not None
         # No message group in the no-message variant
         assert gd.get("message") is None
-
-    def test_assert_run_when_false_is_false(self) -> None:
-        """ASSERT must NOT run inside a False IF block."""
-        for mc in self.dt:
-            if mc.description and "ASSERT" in mc.description:
-                assert mc.run_when_false is False, f"Expected run_when_false=False for {mc}"

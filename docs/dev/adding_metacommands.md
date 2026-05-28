@@ -26,7 +26,7 @@ ______________________________________________________________________
 1. It extracts the leading keyword and narrows candidates via the keyword index, falling back to the full list if no keyword matches.
 1. It calls the handler, passing all named regex groups plus `"metacommandline"` as keyword arguments.
 
-Conditional branching (`IF` / `ELSEIF` / `ELSE` / `ENDIF`) is **structural** under the AST executor — the parser turns those metacommands into `IfBlock` AST nodes and the executor only invokes handlers for the branch it actually entered. Handlers therefore do not need to consult any IF state, and `run_when_false` is no longer honoured.
+Conditional branching (`IF` / `ELSEIF` / `ELSE` / `ENDIF`) is **structural** under the AST executor — the parser turns those metacommands into `IfBlock` AST nodes and the executor only invokes handlers for the branch it actually entered. Handlers therefore do not need to consult any IF state; the `run_when_false` and `run_in_batch` flags that used to gate dispatch under the flat command-list engine were removed in v2.18.1.
 
 ### Handler naming conventions
 
@@ -114,8 +114,6 @@ mcl.add(
 | `matching_regexes` | `str` or `tuple[str, ...]` | required | One regex string, or a tuple of strings all mapped to the same handler                                            |
 | `exec_func`        | callable                   | required | The handler function                                                                                              |
 | `description`      | `str \| None`              | `None`   | Human-readable keyword name (shown in `DEBUG WRITE METACOMMANDLIST` and `--dump-keywords`)                        |
-| `run_in_batch`     | `bool`                     | `False`  | Allow execution inside an open `BEGIN_BATCH`/`END_BATCH` block                                                    |
-| `run_when_false`   | `bool`                     | `False`  | Execute even when the `IF`-stack condition is false (needed for `ELSE`, `ENDIF`, etc.)                            |
 | `set_error_flag`   | `bool`                     | `True`   | Update `_state.status.metacommand_error` on success/failure                                                       |
 | `category`         | `str \| None`              | `None`   | Keyword category for `--dump-keywords` and VS Code grammar generation (e.g., `"action"`, `"control"`, `"config"`) |
 
