@@ -85,7 +85,7 @@ flowchart LR
 | `api.py`        | Public `execsql.run()` Python entry point for notebooks, pipelines, and library use                                           |
 | `config.py`     | `ConfigData` (INI merging), `StatObj` (runtime flags), `WriteHooks` (stdout/stderr redirection)                               |
 | `state.py`      | Thread-local runtime store — all shared mutable state lives here, isolated per-thread                                         |
-| `script/`       | AST parser/executor, `CommandList`, `MetaCommandList`, `SubVarSet`, `ScriptFile`                                              |
+| `script/`       | AST node types, parser, `MetaCommandList`, `SubVarSet`, `BatchLevels`, `ScriptExecSpec`, `set_system_vars()`                  |
 | `metacommands/` | `build_dispatch_table()`, all `x_*` handlers, `build_conditional_table()`, all `xf_*` predicates                              |
 | `db/`           | `Database` ABC, `DatabasePool`, 9 adapter modules (postgres, sqlite, duckdb, mysql, sqlserver, oracle, firebird, access, dsn) |
 | `exporters/`    | `ExportRecord`, `ExportMetadata`, `WriteSpec`, 20+ format writers (CSV, JSON, XML, HTML, etc.)                                |
@@ -110,7 +110,7 @@ execsql2 parses scripts into an AST and walks the tree to execute. There is no s
 - **`script/ast.py`** — defines 9 `Node` subclasses (`SqlStatement`, `MetaCommandStatement`, `Comment`, `IfBlock`, `LoopBlock`, `BatchBlock`, `ScriptBlock`, `SqlBlock`, `IncludeDirective`) plus the `Script` root and supporting types (`SourceSpan` for source locations, `ConditionModifier` for ANDIF/ORIF, `ElseIfClause`, `ParamDef`).
 - **`script/parser.py`** — `parse_script(path)` / `parse_string(text)` produce a `Script` tree. All block structures (IF/LOOP/BATCH/SCRIPT/SQL) are resolved at parse time into nested nodes; the parser also reports structural errors (unmatched blocks).
 - **`script/executor.py`** — `execute(tree, ctx=)` walks the tree via `_execute_nodes()` / `_execute_node()`. SQL and metacommands delegate to the existing dispatch tables. INCLUDE'd files are parsed and recursed into natively; circular INCLUDE references are detected via `ctx.include_chain` and reported. Named SCRIPT blocks register in `ctx.ast_scripts` (instance-scoped) for later `EXECUTE SCRIPT` lookup. `ON ERROR_HALT` / `ON CANCEL_HALT EXECUTE SCRIPT` deferred scripts also run through the AST executor.
-- **`cli/lint_ast.py`** — AST-based linter for variable and INCLUDE checks; structural validation lives in the parser.
+- **`cli/lint.py`** — AST-based linter for variable and INCLUDE checks plus the Rich result printer; structural validation lives in the parser.
 
 Use `--parse-tree` to print the AST without executing.
 
@@ -139,7 +139,7 @@ Metacommands are lines in SQL scripts prefixed with `-- !x!`. At import time, `m
 
 ### How dispatch works
 
-`MetacommandStmt.run()` delegates to `_state.metacommandlist.eval(cmd_str)`. The dispatcher extracts the leading keyword, narrows ~225 entries to a small candidate set via a keyword index, then tests each candidate's compiled regex against the full command. The matched handler is called with the regex's named groups as keyword arguments plus `metacommandline` (the original unmodified line), and its hit counter is incremented.
+For each `MetaCommandStatement` AST node, the executor calls `_exec_metacommand()` in `script/executor.py`, which delegates to `_state.metacommandlist.eval(cmd_str)`. The dispatcher extracts the leading keyword, narrows ~225 entries to a small candidate set via a keyword index, then tests each candidate's compiled regex against the full command. The matched handler is called with the regex's named groups as keyword arguments plus `metacommandline` (the original unmodified line), and its hit counter is incremented.
 
 ### Handler conventions
 
@@ -160,7 +160,7 @@ The `IF`/`ELSEIF`/`ELSE`/`ENDIF` metacommands control conditional execution stru
 
 `_execute_if()` evaluates the IF condition (and any ANDIF/ORIF modifiers) via `CondParser`, then walks the chosen branch (the IF body, one of the ELSEIF clauses, or the ELSE body). For tracking and REPL introspection it pushes a non-scope `ExecFrame` (`kind="if"`/`"elseif"`/`"else"`) onto `ctx.ast_exec_stack` whose `scope_ref` points at the enclosing SCRIPT/main scope; the frame is popped when the branch finishes.
 
-Because branching is structural, the legacy `_state.if_stack` / `IfLevels` machinery and the `run_when_false` flag on metacommand handlers are no longer in use; the dispatch handlers for `IF` / `ELSEIF` / `ELSE` / `ENDIF` / `ANDIF` / `ORIF` / `BREAK` / `BEGIN BATCH` / `END BATCH` remain registered as `ErrInfo` stubs so a parser regression that bypassed the AST would fail loudly instead of silently.
+Because branching is structural, the executor never consults dispatch-time flags to decide whether an IF/ELSE/ELSEIF/ENDIF/ANDIF/ORIF handler should fire — the parser has already chosen the live branch. The corresponding dispatch entries (and the `BREAK` / `BEGIN BATCH` / `END BATCH` entries) remain registered as `ErrInfo` stubs so that a parser regression which let one of those metacommands fall through to the dispatch table would fail loudly rather than silently. (The pre-AST flat-command-list engine relied on a `_state.if_stack` + `IfLevels` state machine and matching `run_when_false` / `run_in_batch` flags on `MetaCommand`; both were removed once the AST became the sole execution engine.)
 
 ### CondParser
 

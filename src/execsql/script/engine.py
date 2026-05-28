@@ -67,25 +67,18 @@ class MetaCommand:
         rx: Any,
         exec_func: Any,
         description: str | None = None,
-        run_in_batch: bool = False,
-        run_when_false: bool = False,
         set_error_flag: bool = True,
         category: str | None = None,
     ) -> None:
         self.rx = rx
         self.exec_fn = exec_func
         self.description = description
-        self.run_in_batch = run_in_batch
-        self.run_when_false = run_when_false
         self.set_error_flag = set_error_flag
         self.category = category
         self.hitcount = 0
 
     def __repr__(self) -> str:
-        return (
-            f"MetaCommand({self.rx.pattern!r}, {self.exec_fn!r}, {self.description!r}, "
-            f"{self.run_in_batch!r}, {self.run_when_false!r})"
-        )
+        return f"MetaCommand({self.rx.pattern!r}, {self.exec_fn!r}, {self.description!r})"
 
     def run(self, cmd_str: str) -> tuple:
         """Match *cmd_str* against this entry's regex and, if it matches, invoke the handler.
@@ -171,8 +164,6 @@ class MetaCommandList:
         matching_regexes: Any,
         exec_func: Any,
         description: str | None = None,
-        run_in_batch: bool = False,
-        run_when_false: bool = False,
         set_error_flag: bool = True,
         category: str | None = None,
     ) -> None:
@@ -193,8 +184,6 @@ class MetaCommandList:
                 rx,
                 exec_func,
                 description,
-                run_in_batch,
-                run_when_false,
                 set_error_flag,
                 category,
             )

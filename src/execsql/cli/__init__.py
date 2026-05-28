@@ -8,8 +8,7 @@ Submodules:
 - :mod:`execsql.cli.help`      — Rich-formatted help output & console objects
 - :mod:`execsql.cli.dsn`       — Connection-string (DSN URL) parser
 - :mod:`execsql.cli.run`       — Core execution logic (``_run``, ``_connect_initial_db``, ``_ping_db``, ``_print_dry_run``, ``_print_profile``)
-- :mod:`execsql.cli.lint_ast`  — AST-based ``--lint`` static analyser
-- :mod:`execsql.cli.lint`      — Shared lint result printing (``_print_lint_results``) used by the AST linter
+- :mod:`execsql.cli.lint`      — AST-based ``--lint`` static analyser and Rich result printer
 """
 
 from __future__ import annotations
@@ -554,8 +553,7 @@ def main(
     # Lint: AST-based static analysis (no DB connection needed)
     # ------------------------------------------------------------------
     if lint:
-        from execsql.cli.lint import _print_lint_results
-        from execsql.cli.lint_ast import lint_ast
+        from execsql.cli.lint import _print_lint_results, lint as _lint_script
         from execsql.script.parser import parse_script, parse_string
 
         label = script_name or "<inline>"
@@ -576,7 +574,7 @@ def main(
             exit_code = _print_lint_results(issues, label)
             raise typer.Exit(code=exit_code) from exc
 
-        issues = lint_ast(tree, script_path=script_name)
+        issues = _lint_script(tree, script_path=script_name)
         exit_code = _print_lint_results(issues, label)
         raise typer.Exit(code=exit_code)
 

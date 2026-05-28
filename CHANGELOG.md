@@ -11,6 +11,14 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Changed
+
+- Internal: `execsql.cli.lint_ast` has been folded into `execsql.cli.lint`; the AST walker entry point is now `execsql.cli.lint.lint()`. Code that imported `execsql.cli.lint_ast.lint_ast` should import `execsql.cli.lint.lint` instead.
+
+### Removed
+
+- Internal: the unused `run_when_false` and `run_in_batch` flags on `MetaCommand` (and the matching keyword arguments on `MetaCommandList.add()`) — neither has been consulted since v2.16.0. Code that still passes either kwarg to `mcl.add()` will raise `TypeError`.
+
 ______________________________________________________________________
 
 ## [2.18.0] - 2026-05-27

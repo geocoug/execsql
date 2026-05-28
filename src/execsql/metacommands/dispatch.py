@@ -1377,8 +1377,8 @@ def build_dispatch_table() -> MetaCommandList:
     # BEGIN / END BATCH / ROLLBACK
     # ------------------------------------------------------------------
     mcl.add(r"^\s*BEGIN\s+BATCH\s*$", x_begin_batch, description="BEGIN BATCH", category="block")
-    mcl.add(r"^\s*END\s+BATCH\s*$", x_end_batch, "END BATCH", run_in_batch=True, category="block")
-    mcl.add(r"^\s*ROLLBACK(:?\s+BATCH)?\s*$", x_rollback, "ROLLBACK BATCH", run_in_batch=True, category="block")
+    mcl.add(r"^\s*END\s+BATCH\s*$", x_end_batch, "END BATCH", category="block")
+    mcl.add(r"^\s*ROLLBACK(:?\s+BATCH)?\s*$", x_rollback, "ROLLBACK BATCH", category="block")
 
     # ------------------------------------------------------------------
     # ERROR_HALT / METACOMMAND_ERROR_HALT / CANCEL_HALT
@@ -1727,14 +1727,12 @@ def build_dispatch_table() -> MetaCommandList:
         x_assert,
         description="ASSERT",
         category="action",
-        run_when_false=False,
     )
     mcl.add(
         r"^\s*ASSERT\s+(?P<condtest>.+?)\s+(?P<message>(?:\"[^\"]*\"|'[^']*'))\s*$",
         x_assert,
         description="ASSERT",
         category="action",
-        run_when_false=False,
     )
 
     # ------------------------------------------------------------------
@@ -1745,7 +1743,6 @@ def build_dispatch_table() -> MetaCommandList:
         x_breakpoint,
         description="BREAKPOINT",
         category="action",
-        run_when_false=False,
     )
 
     # ------------------------------------------------------------------
@@ -1765,26 +1762,24 @@ def build_dispatch_table() -> MetaCommandList:
         r"^\s*ORIF\s*\(\s*(?P<condtest>.+)\s*\)\s*$",
         x_if_orif,
         description="ORIF",
-        run_when_false=True,
         category="control",
     )
     mcl.add(
         r"^\s*ELSEIF\s*\(\s*(?P<condtest>.+)\s*\)\s*$",
         x_if_elseif,
         description="ELSEIF",
-        run_when_false=True,
         category="control",
     )
     mcl.add(r"^\s*ANDIF\s*\(\s*(?P<condtest>.+)\s*\)\s*$", x_if_andif, description="ANDIF", category="control")
-    mcl.add(r"^\s*ELSE\s*$", x_if_else, description="ELSE", run_when_false=True, category="control")
+    mcl.add(r"^\s*ELSE\s*$", x_if_else, description="ELSE", category="control")
     mcl.add(
         r"^\s*IF\s*\(\s*(?P<condtest>.+)\s*\)\s*{\s*(?P<condcmd>.+)\s*}\s*$",
         x_if,
         description="IF",
         category="control",
     )
-    mcl.add(r"^\s*IF\s*\(\s*(?P<condtest>.+)\s*\)\s*$", x_if_block, run_when_false=True, category="control")
-    mcl.add(r"^\s*ENDIF\s*$", x_if_end, description="ENDIF", run_when_false=True, category="control")
+    mcl.add(r"^\s*IF\s*\(\s*(?P<condtest>.+)\s*\)\s*$", x_if_block, category="control")
+    mcl.add(r"^\s*ENDIF\s*$", x_if_end, description="ENDIF", category="control")
 
     # ------------------------------------------------------------------
     # CONNECT — SQL Server

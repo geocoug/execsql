@@ -1186,9 +1186,9 @@ class TestDeferredVariables:
 class TestLocalVarScoping:
     """Tests for ~ local variables and # argument variables in SCRIPT blocks.
 
-    These test the commandliststack bridging added to the AST executor so that
-    x_sub, x_rm_sub, xf_sub_defined, and other legacy handlers that access
-    commandliststack[-1] work correctly.
+    These verify the AST executor's per-frame variable scoping: x_sub,
+    x_rm_sub, xf_sub_defined, and other handlers resolve ``~`` locals and
+    ``#`` params via the active ``ExecFrame`` on ``_state.ast_exec_stack``.
     """
 
     def test_tilde_var_in_script(self, tmp_path):
@@ -1295,7 +1295,7 @@ class TestLocalVarScoping:
         assert rows == [("first",), ("outer_val",), ("second",)]
 
     def test_sub_local_metacommand(self, tmp_path):
-        """SUB_LOCAL metacommand writes to ~ scope via commandliststack."""
+        """SUB_LOCAL metacommand writes to ~ scope via the active ExecFrame."""
         script = (
             "-- !x! BEGIN SCRIPT proc1\n"
             "-- !x! SUB_LOCAL myvar 99\n"
