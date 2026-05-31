@@ -2667,6 +2667,8 @@ pip install execsql2[map]
 
 When `tkintermapview` is not installed, when no valid `LAT`/`LON` values can be parsed from the rows, or when running under the Textual TUI / console backends, the dialog falls back to a tabular display of the same rows so the script can still proceed. The `SYMBOL` column is accepted for syntactic compatibility but is currently ignored — `tkintermapview` renders all markers as circles, with color taken from the `COLOR` column when present.
 
+Under the **console backend** specifically, this fallback is a one-way print: the lat/lon table is written to stdout along with a `"requires a GUI backend"` notice, but no interactive selection or pan/zoom is possible. The script proceeds to the next statement. Tkinter and Textual backends remain fully interactive.
+
 Color values are passed through to `tkintermapview` and accept any color name Tkinter understands (e.g. `red`, `blue`, `#ff8800`).
 
 Example:
@@ -2756,6 +2758,8 @@ The same row from *table1* may be added to *table2* multiple times. The metacomm
 The background color for rows that have been selected from *table1* will be set to grey.
 
 If a URL is provided with the HELP keyword, the dialog box will include a button that will open that URL when clicked. The URL must be double-quoted if it contains spaces.
+
+**Console backend (headless POSIX, `--gui-framework console`):** PROMPT SELECT_ROWS is a *degraded no-op* under the text-only console backend — the rows of *table1* are printed alongside a `"requires a GUI backend"` notice, but the dialog cannot collect double-click row selections. *Table2* is left in whatever state it was before the metacommand fired; scripts that depend on rows being populated must guard against this case (e.g. check `$LAST_ROWCOUNT` of `table2` afterwards, or run the script under `--gui-framework tkinter` / `textual` where the dialog is fully interactive). Tkinter and Textual backends are unaffected.
 
 
 ## PROMPT SELECT_SUB { #prompt_selsub }
