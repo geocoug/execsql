@@ -462,7 +462,11 @@ def _print_all_vars(*, include_env: bool = False) -> None:
         _write(f"  {_c(_BOLD, label)}:\n")
         max_name = max(len(n) for n, _ in group)
         for name, value in group:
-            _write(f"    {_c(_CYAN, name):<{max_name}}  {_c(_DIM, '=')}  {value}\n")
+            # Pre-compute padding from RAW name length — the format-spec ``:<{max_name}``
+            # form measures the colored string, which (when ANSI is on) is ~9 chars
+            # longer per wrap and breaks the column alignment.
+            pad = " " * (max_name - len(name))
+            _write(f"    {_c(_CYAN, name)}{pad}  {_c(_DIM, '=')}  {value}\n")
 
     _print_group("User", user_vars)
     _print_group("System ($)", system_vars)

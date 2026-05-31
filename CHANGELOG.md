@@ -23,7 +23,7 @@ ______________________________________________________________________
 ### Changed
 
 - `textual` floor raised from `>=0.47.0` to `>=1.0`. The old floor was 8 majors behind currently-resolved versions; pinning it to 1.0+ prevents cached 0.x wheels from resolving to an API surface execsql's TUI no longer expects to compile against.
-- `sqlglot` moved from mandatory dependency to the new `[format]` extra. SQL execution and metacommand dispatch never used it — only the optional SQL-reformatting pass in `execsql-format`. Users who run `execsql-format` without `--no-sql` now need `pip install execsql2[format]`; the lazy import raises a clear `ImportError` with the install hint. `--no-sql` continues to work on a bare `execsql2` install. Net: -1 mandatory dependency for the dominant script-execution use case.
+- `sqlglot` moved from mandatory dependency to the new `[formatter]` extra (singular — distinct from the existing `formats` extra which covers file-format I/O like ODS / XLS / Jinja2). SQL execution and metacommand dispatch never used it — only the optional SQL-reformatting pass in `execsql-format`. Users who run `execsql-format` without `--no-sql` now need `pip install execsql2[formatter]`; the lazy import raises a clear `ImportError` with the install hint. `--no-sql` continues to work on a bare `execsql2` install. Net: -1 mandatory dependency for the dominant script-execution use case.
 
 ### Removed
 

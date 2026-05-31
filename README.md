@@ -251,11 +251,11 @@ The `PROMPT` metacommand produces a GUI display of the data:
 
 # Formatting Scripts
 
-The `execsql-format` command normalizes execsql script files: it uppercases metacommand keywords, corrects block indentation, and optionally reformats SQL via `sqlglot`. The metacommand / indent / keyword reformatting is built into `execsql2`; SQL reformatting requires the `[format]` extra (or pass `--no-sql` to skip it):
+The `execsql-format` command normalizes execsql script files: it uppercases metacommand keywords, corrects block indentation, and optionally reformats SQL via `sqlglot`. The metacommand / indent / keyword reformatting is built into `execsql2`; SQL reformatting requires the `[formatter]` extra (or pass `--no-sql` to skip it):
 
 ```bash
 # Install with the SQL-reformatting extra
-pip install execsql2[format]
+pip install execsql2[formatter]
 
 # Format files in place
 execsql-format --in-place scripts/
