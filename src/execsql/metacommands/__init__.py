@@ -2,8 +2,8 @@
 
 Importing this module populates a ``MetaCommandList`` (``DISPATCH_TABLE``)
 with every metacommand regex and its handler function. The dispatch
-table is consumed by ``script.MetacommandStmt.run()`` via
-``_state.metacommandlist``.
+table is consumed by :func:`execsql.script.executor._exec_metacommand`
+via ``_state.metacommandlist``.
 
 The table itself is built by ``build_dispatch_table()`` in
 :mod:`execsql.metacommands.dispatch`. Handler functions are organized

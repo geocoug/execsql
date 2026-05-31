@@ -104,8 +104,9 @@ def table_exists(db_path: Path, table: str) -> bool:
 def _reset_execsql_state():
     """Reset execsql global state between integration tests.
 
-    The CLI initialises module-level singletons (subvars, if_stack, status,
-    dbs, …) on each run; after the CLI returns those singletons remain set.
+    The CLI initialises module-level singletons (subvars, ast_exec_stack,
+    status, dbs, …) on each run; after the CLI returns those singletons
+    remain set.
     The conftest ``minimal_conf`` fixture restores ``_state.conf`` but leaves
     all other globals untouched.  This fixture clears the ones most likely to
     cause cross-test pollution.
