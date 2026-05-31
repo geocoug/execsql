@@ -953,11 +953,7 @@ class TestNestingEdgeCases:
             )
 
     def test_endloop_inside_unclosed_if_names_inner_block(self):
-        """ENDLOOP fired while an IF is open names the IF, not 'ENDLOOP without matching LOOP'.
-
-        Regression for F-PARSER-001 — previously the error blamed ENDLOOP
-        even though LOOP *was* matched and the real bug was the missing ENDIF.
-        """
+        """ENDLOOP fired while an IF is open names the IF, not 'ENDLOOP without matching LOOP'."""
         with pytest.raises(
             ErrInfo,
             match=r"ENDLOOP on line \d+ .* but the currently open block is IF .* expected ENDIF before ENDLOOP",

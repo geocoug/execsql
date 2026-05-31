@@ -66,12 +66,7 @@ class TestCheckZipDecompressionRatio:
 
 
 class TestXlsxImporterRejectsBomb:
-    """F-SEC-XLSX regression: the XLSX *importer* now applies the same
-    zip-bomb defence the exporter has had since 2.18.0.  Previously
-    ``importers.xls.xls_data`` handed any ``.xlsx`` path directly to
-    openpyxl with no decompression-ratio inspection — single-source
-    P0 in the AUDIT.md exec summary.
-    """
+    """The XLSX importer applies the same zip-bomb defence as the exporter."""
 
     def test_xlsx_importer_rejects_high_ratio_bomb(self, tmp_path):
         from execsql.importers.xls import xls_data
