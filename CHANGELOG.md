@@ -18,6 +18,14 @@ ______________________________________________________________________
 - Parser block-mismatch errors (`ENDIF`, `ENDLOOP`, `END BATCH`, `END SCRIPT`) now name the block actually open at that point — e.g. `"ENDLOOP on line 42 of script.sql expects a matching LOOP, but the currently open block is IF that started on line 30 — expected ENDIF before ENDLOOP."` Previously the message blamed the END keyword that fired the check, even when the real bug was a forgotten `ENDIF` on a nested inner block. Empty-stack errors retain the original `"X without matching Y"` wording.
 - `BREAKPOINT` REPL: bad SQL and other errors now print an inline `Error:` line and re-prompt instead of escaping through the BREAKPOINT metacommand and ending the session as a `"Metacommand error"`. Bare SQL without a trailing `;` (`SELECT 1`) now runs as SQL instead of being treated as an undefined variable name. A trailing `;` on a bare variable name (`logfile;`) still routes to variable lookup.
 
+### Removed
+
+- `Database.auto_commits_ddl()` capability hook (added in 2.18.0) and its four overrides on Oracle, MySQL, SQL Server, and MS Access. No call site ever consumed it. Downstream code that subclassed `Database` and overrode the method can drop the override — Python will not complain about the missing-from-base method, and there is no consumer to disagree with the return value. The companion `Database.needs_explicit_commit_after_ddl()` is unaffected. See `docs/about/divergence.md` for the asymmetry it used to describe.
+
+### Removed
+
+- `Database.auto_commits_ddl()` method removed from the Database base class. Code that called this method should query `needs_explicit_commit_after_ddl()` instead (inverted logic).
+
 ### Internal
 
 - Cleaned four stale comments / docstrings left over from the AST migration: `script/executor.py` (two "bypasses if_stack" section headers and one tombstone block about `_ast_scripts`), `metacommands/__init__.py` (referenced a removed `script.MetacommandStmt.run()` call site), and `tests/metacommands/test_metacommands.py` (listed `if_stack` among module-level singletons; now lists `ast_exec_stack`).

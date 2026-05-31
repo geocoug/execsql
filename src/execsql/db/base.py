@@ -253,19 +253,6 @@ class Database(ABC):
         """
         return False
 
-    def auto_commits_ddl(self) -> bool:
-        """Return True if this adapter's driver implicitly commits DDL.
-
-        Oracle, MySQL, SQL Server, and MS Access all auto-commit DDL —
-        ``rollback()`` is a silent no-op for any transaction whose
-        boundary the DDL crossed. Callers that wrap DDL inside an
-        explicit ``BEGIN BATCH … END BATCH`` block on these adapters
-        get weaker rollback guarantees than on PostgreSQL / SQLite, and
-        should be aware of the asymmetry. See
-        ``docs/about/divergence.md`` for the full per-DBMS matrix.
-        """
-        return False
-
     def schema_qualified_table_name(self, schema_name: str | None, table_name: str) -> str:
         """Return the quoted, optionally schema-qualified form of *table_name*."""
         table_name = self.type.quoted(table_name)
