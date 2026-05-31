@@ -648,14 +648,7 @@ class TestDebugReplIntegration:
         assert "Breakpoint" in capture.getvalue()
 
     def test_bad_sql_does_not_exit_repl(self, capture, last_command):
-        """Bad SQL prints SQL error and re-prompts — does not escape the REPL.
-
-        Regression for F-REPL-001: previously any exception that escaped a
-        REPL action would propagate through x_breakpoint to
-        _exec_metacommand, get stamped as ``metacommand_error``, and end
-        the session.  After the fix the loop survives bad SQL and the user
-        can keep typing.
-        """
+        """Bad SQL prints ``SQL error`` and re-prompts instead of ending the session."""
         _wire_mock_cursor(execute_raises=Exception("table not found"))
         # First input bad SQL with ``;``; second is .c to exit normally.
         with (
@@ -668,11 +661,7 @@ class TestDebugReplIntegration:
         assert "table not found" in out
 
     def test_unexpected_exception_caught_by_outer_handler(self, capture, last_command):
-        """An unexpected exception from a REPL helper prints ``Error:`` and re-prompts.
-
-        Regression for F-REPL-001: the outer try/except wrapper makes the
-        REPL resilient to bugs in any handler (not just _run_sql).
-        """
+        """An unexpected exception from a REPL helper prints ``Error:`` and re-prompts."""
         # Simulate a buggy dot-command by patching _handle_dot_command to raise.
         with (
             patch("builtins.input", side_effect=[".vars", ".c"]),
@@ -685,12 +674,7 @@ class TestDebugReplIntegration:
         assert "boom" in out
 
     def test_multiline_sql_accumulates_until_semicolon(self, capture, last_command):
-        """Multi-line SQL accumulates lines until ``;``, then executes the joined buffer.
-
-        Regression for F-REPL-001 follow-up: typing ``SELECT 7`` then
-        ``FROM dual;`` runs ``SELECT 7 FROM dual;`` as one statement rather
-        than treating ``SELECT 7`` as a variable lookup.
-        """
+        """Multi-line SQL accumulates lines until ``;``, then executes the joined buffer."""
         _, cursor = _wire_mock_cursor(description=[("x",)], fetchall=[(7,)], rowcount=1)
         with (
             patch("builtins.input", side_effect=["SELECT 7", "FROM dual;", ".c"]),

@@ -83,10 +83,8 @@ def import_data_table(
         sql = get_ts().create_table(db.type, schemaname, tablename)
         try:
             db.execute(sql)
-            # Don't commit here; commit will be done after populating the table —
-            # except on adapters whose driver leaves DDL pending until commit
-            # (Firebird is the canonical case; the hook lets future adapters
-            # opt in without touching this site).
+            # Most adapters delay commit until after populating the table; adapters
+            # that need DDL committed first (Firebird) must do it here.
             if db.needs_explicit_commit_after_ddl():
                 db.conn.commit()
         except Exception as e:

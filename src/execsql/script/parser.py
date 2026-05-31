@@ -94,8 +94,7 @@ _INCLUDE_RX = re.compile(
     re.I,
 )
 
-# Block-frame `kind` → human-facing keyword forms, used by mid-script END* mismatch errors
-# to point the user at the block actually open (not the END keyword that fired the check).
+# Human-facing keyword forms for block-mismatch error messages.
 _END_KEYWORD_BY_KIND = {
     "if": "ENDIF",
     "loop": "ENDLOOP",

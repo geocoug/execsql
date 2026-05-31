@@ -27,16 +27,10 @@ _SQLGLOT_MISSING_MSG = (
 
 
 def _require_sqlglot():
-    """Lazy import of sqlglot — raises ImportError with an install hint if missing.
-
-    sqlglot is an optional dependency (the ``[formatter]`` extra).  It is only
-    needed by ``_sqlglot_format``; the rest of the formatter (metacommand
-    normalization, keyword uppercasing, comment preservation) does not use
-    it.  Pass ``--no-sql`` on the CLI to bypass entirely.
-    """
+    """Lazy import of sqlglot, raising ImportError with an install hint if missing."""
     try:
         import sqlglot
-        import sqlglot.errors  # noqa: F401  (parse() uses sqlglot.errors.ErrorLevel)
+        import sqlglot.errors  # noqa: F401
 
         return sqlglot
     except ImportError as e:
@@ -183,7 +177,7 @@ def _sqlglot_format(
     leading_comma: bool = False,
 ) -> list[str]:
     """Format a list of SQL-only lines (no comment-only lines) via sqlglot."""
-    sqlglot = _require_sqlglot()  # lazy import — raises ImportError with install hint
+    sqlglot = _require_sqlglot()
     import sqlglot.errors as sqlglot_errors
 
     text = "\n".join(sql_lines)
