@@ -15,6 +15,7 @@ ______________________________________________________________________
 
 - Documentation: deferred-substitution example in `docs/reference/substitution_vars.md` now shows the correct `!{$LAST_ERROR}!` form (was previously broken — both delimiter tokens identical, variable name dropped).
 - `templates/example_config_prompt.sql` now uses the safe `!'!#usage!'!` substitution-quoting form instead of the literal-quote `'!!#usage!!'` form that the 2.18.0 template-safety wave converted everywhere else.
+- Parser block-mismatch errors (`ENDIF`, `ENDLOOP`, `END BATCH`, `END SCRIPT`) now name the block actually open at that point — e.g. `"ENDLOOP on line 42 of script.sql expects a matching LOOP, but the currently open block is IF that started on line 30 — expected ENDIF before ENDLOOP."` Previously the message blamed the END keyword that fired the check, even when the real bug was a forgotten `ENDIF` on a nested inner block. Empty-stack errors retain the original `"X without matching Y"` wording.
 
 ### Internal
 
