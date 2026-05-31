@@ -42,7 +42,6 @@ requires-python = ">=3.10"
 dependencies = [
     "python-dateutil>=2.8",
     "rich>=13.0",
-    "sqlglot>=25.0",
     "textual>=1.0",
     "typer>=0.12",
 ]
@@ -63,6 +62,7 @@ auth-plaintext = ["keyring", "keyrings.alt"]
 auth-encrypted = ["keyring", "keyrings.alt", "pycryptodome"]
 upsert = ["pg-upsert>=1.22.1"]
 map = ["tkintermapview>=1.29"]
+format = ["sqlglot>=25.0"]
 # Convenience groups
 all-db = [
     "psycopg2-binary",
@@ -78,6 +78,7 @@ all = [
     "execsql2[auth]",
     "execsql2[upsert]",
     "execsql2[map]",
+    "execsql2[format]",
 ]
 dev = [
     "build>=1.2.2.post1",

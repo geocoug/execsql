@@ -16,10 +16,32 @@ import io
 import re
 from pathlib import Path
 
-import sqlglot
-import sqlglot.errors
-
 __all__ = ["collect_paths", "format_file", "main", "parse_keyword"]
+
+
+_SQLGLOT_MISSING_MSG = (
+    "execsql-format requires sqlglot for SQL reformatting.\n"
+    "  Install with:  pip install execsql2[format]\n"
+    "  Or skip SQL reformatting with the --no-sql flag."
+)
+
+
+def _require_sqlglot():
+    """Lazy import of sqlglot — raises ImportError with an install hint if missing.
+
+    sqlglot is an optional dependency (the ``[format]`` extra).  It is only
+    needed by ``_sqlglot_format``; the rest of the formatter (metacommand
+    normalization, keyword uppercasing, comment preservation) does not use
+    it.  Pass ``--no-sql`` on the CLI to bypass entirely.
+    """
+    try:
+        import sqlglot
+        import sqlglot.errors  # noqa: F401  (parse() uses sqlglot.errors.ErrorLevel)
+
+        return sqlglot
+    except ImportError as e:
+        raise ImportError(_SQLGLOT_MISSING_MSG) from e
+
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -161,6 +183,9 @@ def _sqlglot_format(
     leading_comma: bool = False,
 ) -> list[str]:
     """Format a list of SQL-only lines (no comment-only lines) via sqlglot."""
+    sqlglot = _require_sqlglot()  # lazy import — raises ImportError with install hint
+    import sqlglot.errors as sqlglot_errors
+
     text = "\n".join(sql_lines)
     protected, replacements = _protect_variables(text)
 
@@ -169,7 +194,7 @@ def _sqlglot_format(
 
     try:
         with contextlib.redirect_stderr(io.StringIO()):
-            ast = sqlglot.parse(protected, read="postgres", error_level=sqlglot.errors.ErrorLevel.IGNORE)
+            ast = sqlglot.parse(protected, read="postgres", error_level=sqlglot_errors.ErrorLevel.IGNORE)
             statements: list[str] = []
             for node in ast:
                 if node is None:
