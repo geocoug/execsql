@@ -15,7 +15,6 @@ from typing import Any
 from execsql.exceptions import ErrInfo
 from execsql.db.base import Database
 import execsql.state as _state
-from execsql.types import dbt_firebird
 
 __all__ = ["import_data_table"]
 
@@ -84,9 +83,11 @@ def import_data_table(
         sql = get_ts().create_table(db.type, schemaname, tablename)
         try:
             db.execute(sql)
-            # Don't commit here; commit will be done after populating the table
-            # ...except for Firebird.
-            if db.type == dbt_firebird:
+            # Don't commit here; commit will be done after populating the table —
+            # except on adapters whose driver leaves DDL pending until commit
+            # (Firebird is the canonical case; the hook lets future adapters
+            # opt in without touching this site).
+            if db.needs_explicit_commit_after_ddl():
                 db.conn.commit()
         except Exception as e:
             raise ErrInfo(
