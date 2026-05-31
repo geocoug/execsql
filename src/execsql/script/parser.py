@@ -94,6 +94,21 @@ _INCLUDE_RX = re.compile(
     re.I,
 )
 
+# Block-frame `kind` → human-facing keyword forms, used by mid-script END* mismatch errors
+# to point the user at the block actually open (not the END keyword that fired the check).
+_END_KEYWORD_BY_KIND = {
+    "if": "ENDIF",
+    "loop": "ENDLOOP",
+    "batch": "END BATCH",
+    "script": "END SCRIPT",
+}
+_OPENING_KEYWORD_BY_KIND = {
+    "if": "IF",
+    "loop": "LOOP",
+    "batch": "BEGIN BATCH",
+    "script": "BEGIN SCRIPT",
+}
+
 
 def _strip_quotes(s: str) -> str:
     """Strip a matching pair of surrounding quotes from *s*."""
@@ -529,11 +544,23 @@ def _parse_lines(lines: Iterable[str], source_name: str) -> Script:
                 end_name = m.group("name")
                 if end_name is not None:
                     end_name = end_name.lower()
-                if not block_stack or block_stack[-1].kind != "script":
+                if not block_stack:
                     raise ErrInfo(
                         type="cmd",
                         command_text=line,
                         other_msg=f"Unmatched END SCRIPT metacommand on line {file_lineno} of file {source_name}.",
+                    )
+                if block_stack[-1].kind != "script":
+                    top = block_stack[-1]
+                    raise ErrInfo(
+                        type="cmd",
+                        command_text=line,
+                        other_msg=(
+                            f"END SCRIPT on line {file_lineno} of {source_name} expects a matching BEGIN SCRIPT, "
+                            f"but the currently open block is {_OPENING_KEYWORD_BY_KIND[top.kind]} "
+                            f"that started on line {top.start_line} of {top.source} — "
+                            f"expected {_END_KEYWORD_BY_KIND[top.kind]} before END SCRIPT."
+                        ),
                     )
                 frame = block_stack[-1]
                 script_node = frame.node
@@ -671,11 +698,23 @@ def _parse_lines(lines: Iterable[str], source_name: str) -> Script:
             # -- ENDIF --
             m = _ENDIF_RX.match(cmd_text)
             if m:
-                if not block_stack or block_stack[-1].kind != "if":
+                if not block_stack:
                     raise ErrInfo(
                         type="cmd",
                         command_text=line,
                         other_msg=f"ENDIF without matching IF on line {file_lineno} of {source_name}.",
+                    )
+                if block_stack[-1].kind != "if":
+                    top = block_stack[-1]
+                    raise ErrInfo(
+                        type="cmd",
+                        command_text=line,
+                        other_msg=(
+                            f"ENDIF on line {file_lineno} of {source_name} expects a matching IF, "
+                            f"but the currently open block is {_OPENING_KEYWORD_BY_KIND[top.kind]} "
+                            f"that started on line {top.start_line} of {top.source} — "
+                            f"expected {_END_KEYWORD_BY_KIND[top.kind]} before ENDIF."
+                        ),
                     )
                 frame = block_stack.pop()
                 frame.node.span = SourceSpan(source_name, frame.start_line, file_lineno)
@@ -702,11 +741,23 @@ def _parse_lines(lines: Iterable[str], source_name: str) -> Script:
             # -- ENDLOOP --
             m = _ENDLOOP_RX.match(cmd_text)
             if m:
-                if not block_stack or block_stack[-1].kind != "loop":
+                if not block_stack:
                     raise ErrInfo(
                         type="cmd",
                         command_text=line,
                         other_msg=f"ENDLOOP without matching LOOP on line {file_lineno} of {source_name}.",
+                    )
+                if block_stack[-1].kind != "loop":
+                    top = block_stack[-1]
+                    raise ErrInfo(
+                        type="cmd",
+                        command_text=line,
+                        other_msg=(
+                            f"ENDLOOP on line {file_lineno} of {source_name} expects a matching LOOP, "
+                            f"but the currently open block is {_OPENING_KEYWORD_BY_KIND[top.kind]} "
+                            f"that started on line {top.start_line} of {top.source} — "
+                            f"expected {_END_KEYWORD_BY_KIND[top.kind]} before ENDLOOP."
+                        ),
                     )
                 frame = block_stack.pop()
                 frame.node.span = SourceSpan(source_name, frame.start_line, file_lineno)
@@ -729,11 +780,23 @@ def _parse_lines(lines: Iterable[str], source_name: str) -> Script:
             # -- END BATCH --
             m = _END_BATCH_RX.match(cmd_text)
             if m:
-                if not block_stack or block_stack[-1].kind != "batch":
+                if not block_stack:
                     raise ErrInfo(
                         type="cmd",
                         command_text=line,
                         other_msg=f"END BATCH without matching BEGIN BATCH on line {file_lineno} of {source_name}.",
+                    )
+                if block_stack[-1].kind != "batch":
+                    top = block_stack[-1]
+                    raise ErrInfo(
+                        type="cmd",
+                        command_text=line,
+                        other_msg=(
+                            f"END BATCH on line {file_lineno} of {source_name} expects a matching BEGIN BATCH, "
+                            f"but the currently open block is {_OPENING_KEYWORD_BY_KIND[top.kind]} "
+                            f"that started on line {top.start_line} of {top.source} — "
+                            f"expected {_END_KEYWORD_BY_KIND[top.kind]} before END BATCH."
+                        ),
                     )
                 frame = block_stack.pop()
                 frame.node.span = SourceSpan(source_name, frame.start_line, file_lineno)

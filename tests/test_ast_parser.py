@@ -952,6 +952,62 @@ class TestNestingEdgeCases:
                 "-- !x! END BATCH",
             )
 
+    def test_endloop_inside_unclosed_if_names_inner_block(self):
+        """ENDLOOP fired while an IF is open names the IF, not 'ENDLOOP without matching LOOP'.
+
+        Regression for F-PARSER-001 — previously the error blamed ENDLOOP
+        even though LOOP *was* matched and the real bug was the missing ENDIF.
+        """
+        with pytest.raises(
+            ErrInfo,
+            match=r"ENDLOOP on line \d+ .* but the currently open block is IF .* expected ENDIF before ENDLOOP",
+        ):
+            parse_string(
+                "-- !x! LOOP WHILE (HAS_ROWS)\n"
+                "-- !x! IF (COND)\n"  # missing ENDIF
+                "SELECT 1;\n"
+                "-- !x! ENDLOOP",
+            )
+
+    def test_endif_inside_unclosed_loop_names_inner_block(self):
+        """ENDIF fired while a LOOP is open names the LOOP, not 'ENDIF without matching IF'."""
+        with pytest.raises(
+            ErrInfo,
+            match=r"ENDIF on line \d+ .* but the currently open block is LOOP .* expected ENDLOOP before ENDIF",
+        ):
+            parse_string(
+                "-- !x! IF (HAS_ROWS)\n"
+                "-- !x! LOOP WHILE (COND)\n"  # missing ENDLOOP
+                "SELECT 1;\n"
+                "-- !x! ENDIF",
+            )
+
+    def test_end_batch_inside_unclosed_if_names_inner_block(self):
+        """END BATCH fired while an IF is open names the IF."""
+        with pytest.raises(
+            ErrInfo,
+            match=r"END BATCH on line \d+ .* but the currently open block is IF .* expected ENDIF before END BATCH",
+        ):
+            parse_string(
+                "-- !x! BEGIN BATCH\n"
+                "-- !x! IF (COND)\n"  # missing ENDIF
+                "SELECT 1;\n"
+                "-- !x! END BATCH",
+            )
+
+    def test_end_script_inside_unclosed_if_names_inner_block(self):
+        """END SCRIPT fired while an IF is open names the IF."""
+        with pytest.raises(
+            ErrInfo,
+            match=r"END SCRIPT on line \d+ .* but the currently open block is IF .* expected ENDIF before END SCRIPT",
+        ):
+            parse_string(
+                "-- !x! BEGIN SCRIPT inner\n"
+                "-- !x! IF (COND)\n"  # missing ENDIF
+                "SELECT 1;\n"
+                "-- !x! END SCRIPT",
+            )
+
     def test_script_block_inside_if(self):
         script = "-- !x! IF (HAS_ROWS)\n-- !x! BEGIN SCRIPT inner_proc\nSELECT 1;\n-- !x! END SCRIPT\n-- !x! ENDIF"
         node = _first(script)
