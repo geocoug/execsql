@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Fixed
+
+- Documentation: deferred-substitution example in `docs/reference/substitution_vars.md` now shows the correct `!{$LAST_ERROR}!` form (was previously broken — both delimiter tokens identical, variable name dropped).
+
 ______________________________________________________________________
 
 ## [2.18.1] - 2026-05-28

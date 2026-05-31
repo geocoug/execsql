@@ -319,8 +319,8 @@ ON ERROR_HALT WRITE "Error in line: !!$LAST_ERROR!!"
 
 The $LAST_ERROR system variable is intended to be evaluated when an error occurs. Instead, however, it will be evaluated when the ON ERROR_HALT WRITE metacommand itself is executed, and because no error has occurred at that point in the script, the $LAST_ERROR system variable will be empty, and the value that will be written when an error occurs will be just "Error in line: ".
 
-This problem can be eliminated by deferring variable substitution. Variables for which substitution is to be deferred should be bracketed with the tokens "!!" instead of "!!". Using deferred substitution, the example metacommand above should be written:
+This problem can be eliminated by deferring variable substitution. Variables for which substitution is to be deferred should be bracketed with the tokens `!{` and `}!` instead of `!!` on both sides. The deferred form is rewritten to the regular `!!…!!` form at the point of (re-)evaluation — for an ON ERROR_HALT or ON CANCEL_HALT clause, that is when the error or cancellation actually fires; for a LOOP body, that is on every iteration. Using deferred substitution, the example metacommand above should be written:
 
 ```
-ON ERROR_HALT WRITE "Error in line: !!"
+ON ERROR_HALT WRITE "Error in line: !{$LAST_ERROR}!"
 ```
