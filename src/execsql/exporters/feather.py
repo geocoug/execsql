@@ -58,20 +58,26 @@ def write_query_to_hdf5(
             other_msg="The tables Python library must be installed to export data to the HDF5 format.",
         ) from e
     try:
-        hdrs, rows = db.select_rowsource(select_stmt)
+        hdrs, row_iter = db.select_rowsource(select_stmt)
     except ErrInfo:
         raise
     except Exception as e:
         raise ErrInfo("db", select_stmt, exception_msg=exception_desc()) from e
+    # Materialize once so DataTable's type inference (below) and the write
+    # loop (further below) share the same rows without a second query.
+    rows = list(row_iter)
 
     def h5type(datatype, size):
-        if datatype in (_state.DT_Varchar, _state.DT_Text):
+        if datatype == _state.DT_Varchar:
             t = tables.StringCol(size)
             do_cast = False
         elif datatype == _state.DT_Text:
             t = tables.StringCol(_state.conf.hdf5_text_len)
             do_cast = False
-        elif datatype in (_state.DT_Integer, _state.DT_Long):
+        elif datatype == _state.DT_Long:
+            t = tables.Int64Col()
+            do_cast = False
+        elif datatype == _state.DT_Integer:
             t = tables.IntCol()
             do_cast = False
         elif datatype in (_state.DT_Float, _state.DT_Decimal):
@@ -87,25 +93,20 @@ def write_query_to_hdf5(
             raise ErrInfo("error", other_msg=f"Invalid data type for export to HDF5: {repr(datatype)}")
         return t, do_cast
 
-    # Create a dictionary of column names with the HDF5 data types
     tbl_desc = DataTable(hdrs, rows)
     h5type_dict = {}
     cast_flags = []
-    # Iterate over hdrs instead of tbl_desc.cols to preserve column order.
     for h in hdrs:
         dt = [col for col in tbl_desc.cols if col.name == h][0].dt
-        # dt is a tuple of: 0: the column name; 1: the data type class; 2: the maximum length or None if NA; other info.
+        # dt is (name, data-type-class, max-length-or-None, ...)
         h5typ, as_str = h5type(dt[1], dt[2])
         h5type_dict[h] = h5typ
         cast_flags.append(as_str)
-    # Open the HDF5 table
     filewriter_close(outfile)
     h5file_mode = "a" if append else "w"
     h5file = tables.open_file(outfile, mode=h5file_mode)
     h5grp = h5file.create_group("/", table_name, title=desc)
     h5tbl = h5file.create_table(h5grp, table_name, h5type_dict)
-    # Write the data.
-    hdrs, rows = db.select_rowsource(select_stmt)
     for datarow in rows:
         h5row = h5tbl.row
         for i, h in enumerate(hdrs):
