@@ -13,6 +13,7 @@ ______________________________________________________________________
 
 ### Fixed
 
+- **`IMPORT … FORMAT xlsx` now applies the same zip-bomb defence the exporter has had since 2.18.0.** Previously the importer handed any `.xlsx` path directly to openpyxl with no decompression-ratio inspection — a maliciously crafted XLSX with a 1 GB uncompressed member could trigger proportional memory allocation. Helper at `execsql.utils.fileio.check_zip_decompression_ratio` is now invoked before openpyxl parses the file. Default thresholds: 100:1 per-member ratio, 500 MB aggregate uncompressed size. Legacy `.xls` (OLE-CDF, not zip) is unaffected.
 - Documentation: deferred-substitution example in `docs/reference/substitution_vars.md` now shows the correct `!{$LAST_ERROR}!` form (was previously broken — both delimiter tokens identical, variable name dropped).
 - `templates/example_config_prompt.sql` now uses the safe `!'!#usage!'!` substitution-quoting form instead of the literal-quote `'!!#usage!!'` form that the 2.18.0 template-safety wave converted everywhere else.
 - Parser block-mismatch errors (`ENDIF`, `ENDLOOP`, `END BATCH`, `END SCRIPT`) now name the block actually open at that point — e.g. `"ENDLOOP on line 42 of script.sql expects a matching LOOP, but the currently open block is IF that started on line 30 — expected ENDIF before ENDLOOP."` Previously the message blamed the END keyword that fired the check, even when the real bug was a forgotten `ENDIF` on a nested inner block. Empty-stack errors retain the original `"X without matching Y"` wording.

@@ -245,12 +245,14 @@ These are behavioral changes driven by security or correctness issues in the ups
 
 ### Template and Export Safety
 
-| Area              | Fix                                                                                                    |
-| ----------------- | ------------------------------------------------------------------------------------------------------ |
-| Jinja2 sandboxing | Templates run in `SandboxedEnvironment` instead of the default `jinja2.Template`.                      |
-| HTML export       | Column headers and cell values are escaped with `html.escape()` to prevent XSS.                        |
-| XML export        | Values are escaped with `xml.sax.saxutils.escape()`. Invalid XML element name characters are replaced. |
-| JSON export       | The `description` field and all column names use `json.dumps()` instead of string interpolation.       |
+| Area                   | Fix                                                                                                                                                                                                                                                                                                                                                                   |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Jinja2 sandboxing      | Templates run in `SandboxedEnvironment` instead of the default `jinja2.Template`.                                                                                                                                                                                                                                                                                     |
+| HTML export            | Column headers and cell values are escaped with `html.escape()` to prevent XSS.                                                                                                                                                                                                                                                                                       |
+| XML export             | Values are escaped with `xml.sax.saxutils.escape()`. Invalid XML element name characters are replaced.                                                                                                                                                                                                                                                                |
+| JSON export            | The `description` field and all column names use `json.dumps()` instead of string interpolation.                                                                                                                                                                                                                                                                      |
+| XLSX zip-bomb defence  | `EXPORT … FORMAT xlsx`, `EXPORT … FORMAT xls`, and (as of 2.19.0) `IMPORT … FORMAT xlsx` reject zip-based workbooks whose decompression ratio exceeds 100:1 per member or whose aggregate uncompressed size exceeds 500 MB. Helper at `execsql.utils.fileio.check_zip_decompression_ratio`. Legacy `.xls` (OLE-CDF, not zip) is unaffected — the helper no-ops on it. |
+| ODS XML attack defence | `EXPORT … FORMAT ods` / `IMPORT … FORMAT ods` defuse the stdlib XML parsers via `defusedxml.defuse_stdlib()` on first `OdsFile` construction, protecting odfpy from billion-laughs and external-entity attacks.                                                                                                                                                       |
 
 ### Credential and Logging Safety
 
