@@ -13,9 +13,14 @@ The REPL allows the user to:
 - Resume or abort execution.
 
 All REPL commands are dot-prefixed (``.continue``, ``.vars``, ``.next``)
-to avoid ambiguity with variable names and SQL.  Anything not starting
-with ``.`` is treated as either a variable lookup (if it matches a known
-variable) or SQL (if it ends with ``;``).
+to avoid ambiguity with variable names and SQL.  Other input is routed by
+shape: a bare identifier (optionally prefixed by ``$``/``&``/``@``/``#``/``~``,
+with or without a trailing ``;``) is treated as a variable lookup; anything
+else is executed as SQL (the trailing ``;`` is optional).
+
+Errors raised by any REPL helper — bad SQL, malformed dot-commands, etc. —
+are caught at the loop level so the session re-prompts instead of escaping
+through ``x_breakpoint`` and being stamped as a "Metacommand error".
 
 In non-interactive environments (CI, piped input, ``sys.stdin.isatty()`` is
 ``False``) the metacommand is silently skipped so automated pipelines are not
@@ -23,11 +28,19 @@ blocked.
 """
 
 import os
+import re
 import sys
 from pathlib import Path
 from typing import Any
 
 import execsql.state as _state
+
+# A bare token that could plausibly be a substitution-variable name —
+# optional sigil ($ env/system, & counter, @ alias, # param, ~ local)
+# followed by an identifier.  Used by the REPL main loop to route
+# single-token input to variable lookup; anything else (including SQL
+# with or without trailing ``;``) falls through to _run_sql.
+_VARNAME_RX = re.compile(r"^[$&@#~]?[A-Za-z_]\w*$")
 
 __all__ = ["x_breakpoint"]
 
@@ -229,26 +242,43 @@ def _debug_repl(*, step: bool = False) -> None:
         if not line:
             continue
 
-        # Dot-prefixed → REPL command
-        if line.startswith("."):
-            cmd = line[1:].strip().lower()
-            _handle_dot_command(line)
-            if cmd in ("continue", "c"):
-                return
-            if cmd in ("abort", "q", "quit"):
-                # _handle_dot_command already raised SystemExit, but guard anyway
-                return
-            if cmd in ("next", "n"):
-                return
-            continue
+        # The body below is wrapped so any uncaught exception from a single
+        # input prints "Error: …" and re-prompts, instead of escaping through
+        # x_breakpoint → _exec_metacommand and ending the REPL session as a
+        # "Metacommand error".  SystemExit is re-raised so .abort/.quit still
+        # exit the process; KeyboardInterrupt drops back to the prompt.
+        try:
+            # Dot-prefixed → REPL command
+            if line.startswith("."):
+                cmd = line[1:].strip().lower()
+                _handle_dot_command(line)
+                if cmd in ("continue", "c"):
+                    return
+                if cmd in ("abort", "q", "quit"):
+                    # _handle_dot_command already raised SystemExit, but guard anyway
+                    return
+                if cmd in ("next", "n"):
+                    return
+                continue
 
-        # SQL (ends with semicolon)
-        if line.rstrip().endswith(";"):
+            # Looks like a substitution-variable name → lookup.  A trailing
+            # ``;`` is stripped before the regex match so ``myvar;`` still
+            # routes to lookup.
+            routing_line = line.rstrip(";").rstrip()
+            if _VARNAME_RX.match(routing_line):
+                _print_var(routing_line)
+                continue
+
+            # Everything else → SQL (bare ``SELECT 1`` works without ``;``).
             _run_sql(line)
+        except SystemExit:
+            raise
+        except KeyboardInterrupt:
+            _write("\n  (interrupted)\n")
             continue
-
-        # Everything else → variable lookup
-        _print_var(line)
+        except Exception as exc:
+            _write(f"  {_c(_RED, 'Error:')} {exc}\n")
+            continue
 
 
 def _handle_dot_command(line: str) -> None:

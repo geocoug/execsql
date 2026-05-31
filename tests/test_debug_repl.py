@@ -612,3 +612,81 @@ class TestDebugReplIntegration:
         with patch("builtins.input", side_effect=[".c"]), patch("execsql.debug.repl._use_color", return_value=False):
             _debug_repl()
         assert "Breakpoint" in capture.getvalue()
+
+    def test_bad_sql_does_not_exit_repl(self, capture, last_command):
+        """Bad SQL prints SQL error and re-prompts — does not escape the REPL.
+
+        Regression for F-REPL-001: previously any exception that escaped a
+        REPL action would propagate through x_breakpoint to
+        _exec_metacommand, get stamped as ``metacommand_error``, and end
+        the session.  After the fix the loop survives bad SQL and the user
+        can keep typing.
+        """
+        mock_db = MagicMock()
+        mock_db.select_data.side_effect = Exception("table not found")
+        pool = MagicMock()
+        pool.current.return_value = mock_db
+        _state.dbs = pool
+        # First input bad SQL with ``;``; second is .c to exit normally.
+        with (
+            patch("builtins.input", side_effect=["SELECT * FROM missing;", ".c"]),
+            patch("execsql.debug.repl._use_color", return_value=False),
+        ):
+            _debug_repl()
+        out = capture.getvalue()
+        assert "SQL error" in out
+        assert "table not found" in out
+
+    def test_bare_sql_without_semicolon_runs_as_sql(self, capture, last_command):
+        """``SELECT 1`` (no trailing ;) is now routed to _run_sql rather than var lookup.
+
+        Regression for F-REPL-001 bonus: previously the missing ``;`` made
+        the REPL treat the input as a variable name, printing ``(undefined)``.
+        """
+        mock_db = MagicMock()
+        mock_db.select_data.return_value = (["x"], [(1,)])
+        pool = MagicMock()
+        pool.current.return_value = mock_db
+        _state.dbs = pool
+        with (
+            patch("builtins.input", side_effect=["SELECT 1", ".c"]),
+            patch("execsql.debug.repl._use_color", return_value=False),
+        ):
+            _debug_repl()
+        out = capture.getvalue()
+        # The query ran (returned 1, "1 row"); not treated as undefined variable.
+        assert "1 row" in out
+        assert "undefined" not in out
+        mock_db.select_data.assert_called_once_with("SELECT 1")
+
+    def test_variable_with_trailing_semicolon_routes_to_lookup(
+        self,
+        capture,
+        last_command,
+        subvars,
+    ):
+        """``logfile;`` (trailing ;) still routes to variable lookup, not SQL."""
+        with (
+            patch("builtins.input", side_effect=["logfile;", ".c"]),
+            patch("execsql.debug.repl._use_color", return_value=False),
+        ):
+            _debug_repl()
+        out = capture.getvalue()
+        assert "/tmp/test.log" in out
+
+    def test_unexpected_exception_caught_by_outer_handler(self, capture, last_command):
+        """An unexpected exception from a REPL helper prints ``Error:`` and re-prompts.
+
+        Regression for F-REPL-001: the outer try/except wrapper makes the
+        REPL resilient to bugs in any handler (not just _run_sql).
+        """
+        # Simulate a buggy dot-command by patching _handle_dot_command to raise.
+        with (
+            patch("builtins.input", side_effect=[".vars", ".c"]),
+            patch("execsql.debug.repl._handle_dot_command", side_effect=[RuntimeError("boom"), None]),
+            patch("execsql.debug.repl._use_color", return_value=False),
+        ):
+            _debug_repl()
+        out = capture.getvalue()
+        assert "Error:" in out
+        assert "boom" in out
