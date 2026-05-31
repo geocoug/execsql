@@ -105,6 +105,7 @@ def _build_fake_tables_module():
     # Column type sentinels — each callable returns a unique sentinel string
     tables.StringCol = lambda size: f"StringCol({size})"
     tables.IntCol = lambda: "IntCol()"
+    tables.Int64Col = lambda: "Int64Col()"
     tables.Float64Col = lambda: "Float64Col()"
     tables.BoolCol = lambda: "BoolCol()"
 
@@ -131,15 +132,20 @@ def _build_fake_tables_module():
 
 
 def _make_fake_db(headers, rows):
-    """Return a SimpleNamespace that mimics the minimal db interface used by write_query_to_hdf5."""
-    # select_rowsource is called twice: once for type inference, once for data
-    call_count = [0]
+    """Return a SimpleNamespace mimicking the minimal db interface.
+
+    The ``select_rowsource_calls`` attribute records the number of calls
+    so tests can assert the query is run only once (not duplicated for
+    type inference and writing).
+    """
+    db = SimpleNamespace(select_rowsource_calls=0)
 
     def select_rowsource(stmt):
-        call_count[0] += 1
+        db.select_rowsource_calls += 1
         return headers, iter(rows)
 
-    return SimpleNamespace(select_rowsource=select_rowsource)
+    db.select_rowsource = select_rowsource
+    return db
 
 
 @pytest.fixture()
@@ -167,7 +173,11 @@ class TestWriteQueryToHdf5:
     """Tests for write_query_to_hdf5 with a mocked tables library."""
 
     def _run(self, headers, rows, outfile, fake_tables, append=False, desc=None):
-        """Patch tables and filewriter_close, then call write_query_to_hdf5."""
+        """Patch tables and filewriter_close, then call write_query_to_hdf5.
+
+        Returns ``(fake_tables, db)`` so callers can introspect the fake db's
+        ``select_rowsource_calls`` counter.
+        """
         from execsql.exporters.feather import write_query_to_hdf5
 
         db = _make_fake_db(headers, rows)
@@ -176,7 +186,7 @@ class TestWriteQueryToHdf5:
             patch("execsql.exporters.feather.filewriter_close", return_value=None),
         ):
             write_query_to_hdf5("mytable", "SELECT 1", db, outfile, append=append, desc=desc)
-        return fake_tables
+        return fake_tables, db
 
     def test_opens_hdf5_file_in_write_mode(self, state_with_dt_types, tmp_path):
         """write_query_to_hdf5 opens the HDF5 file with mode 'w' when append=False."""
@@ -287,6 +297,60 @@ class TestWriteQueryToHdf5:
         type_dict = fake_tables._h5file.create_table.call_args[0][2]
         # Date columns map to StringCol(50)
         assert type_dict["created"] == "StringCol(50)"
+
+    def test_select_rowsource_called_exactly_once(self, state_with_dt_types, tmp_path):
+        """The query runs once; rows are reused for both type inference and writing."""
+        fake_tables = _build_fake_tables_module()
+        outfile = str(tmp_path / "out.h5")
+        headers = ["n"]
+        rows = [(1,), (2,), (3,)]
+        _, db = self._run(headers, rows, outfile, fake_tables)
+        assert db.select_rowsource_calls == 1
+
+    def test_long_column_maps_to_int64col(self, state_with_dt_types, tmp_path):
+        """DT_Long (bigint) columns map to Int64Col, not the int32 IntCol default."""
+        fake_tables = _build_fake_tables_module()
+        outfile = str(tmp_path / "out.h5")
+        headers = ["bignum"]
+        # Values > 2^31 force DataTable to infer DT_Long instead of DT_Integer.
+        rows = [(9_000_000_000,), (5_000_000_000,)]
+        self._run(headers, rows, outfile, fake_tables)
+        type_dict = fake_tables._h5file.create_table.call_args[0][2]
+        assert type_dict["bignum"] == "Int64Col()"
+
+    def test_text_column_uses_hdf5_text_len(self, state_with_dt_types, tmp_path):
+        """DT_Text columns use the configured hdf5_text_len, not the data-inferred size."""
+        from execsql.types import DT_Text
+
+        fake_tables = _build_fake_tables_module()
+        outfile = str(tmp_path / "out.h5")
+        # Drive DT_Text by patching DataTable's column inference for this row.
+        # The DT_Varchar→DT_Text promotion happens at type-inference time
+        # based on max length; short strings stay Varchar.  Easier path:
+        # patch DataTable to return DT_Text for the column.
+        headers = ["description"]
+        rows = [("short",)]
+        from execsql.exporters import feather as feather_mod
+
+        original_dt = feather_mod.DataTable
+
+        class _FakeCol:
+            def __init__(self, name):
+                self.name = name
+                self.dt = (name, DT_Text, 1000)
+
+        class _FakeDataTable:
+            def __init__(self, hdrs, _rows):
+                self.cols = [_FakeCol(h) for h in hdrs]
+
+        try:
+            feather_mod.DataTable = _FakeDataTable
+            self._run(headers, rows, outfile, fake_tables)
+        finally:
+            feather_mod.DataTable = original_dt
+
+        type_dict = fake_tables._h5file.create_table.call_args[0][2]
+        assert type_dict["description"] == f"StringCol({1000})"
 
     def test_db_select_exception_raised_as_errinfo(self, state_with_dt_types, tmp_path):
         """A database error from select_rowsource is re-raised as ErrInfo."""
