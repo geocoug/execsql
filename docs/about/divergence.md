@@ -84,15 +84,21 @@ ______________________________________________________________________
 
 New options in `execsql.conf`:
 
-| Option                     | Section       | Description                                                       |
-| -------------------------- | ------------- | ----------------------------------------------------------------- |
-| `use_keyring`              | `[connect]`   | Use the OS keyring for credential storage (default: `yes`).       |
-| `show_progress`            | `[input]`     | Enable Rich progress bar for IMPORT (default: `no`).              |
-| `import_progress_interval` | `[input]`     | Log a status line every N rows during IMPORT (default: `0`).      |
-| `gui_framework`            | `[interface]` | GUI backend: `tkinter` (default) or `textual` (terminal UI).      |
-| `log_sql`                  | `[config]`    | Enable SQL audit logging (default: `no`).                         |
-| `max_log_size_mb`          | `[config]`    | Rotate the log file at this size in MB (default: `0` = disabled). |
-| `macos_config_file`        | `[config]`    | Additional config file path, active only on macOS.                |
+| Option                     | Section       | Description                                                                                                                                                                                                      |
+| -------------------------- | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `use_keyring`              | `[connect]`   | Use the OS keyring for credential storage (default: `yes`).                                                                                                                                                      |
+| `show_progress`            | `[input]`     | Enable Rich progress bar for IMPORT (default: `no`).                                                                                                                                                             |
+| `import_progress_interval` | `[input]`     | Log a status line every N rows during IMPORT (default: `0`).                                                                                                                                                     |
+| `gui_framework`            | `[interface]` | GUI backend: `tkinter` (default) or `textual` (terminal UI).                                                                                                                                                     |
+| `log_sql`                  | `[config]`    | Enable SQL audit logging (default: `no`).                                                                                                                                                                        |
+| `max_log_size_mb`          | `[config]`    | Rotate the log file at this size in MB (default: `0` = disabled).                                                                                                                                                |
+| `macos_config_file`        | `[config]`    | Additional config file path, active only on macOS.                                                                                                                                                               |
+| `allow_rm_file`            | `[config]`    | Disable the `RM_FILE` metacommand (default: `yes`). Symmetric with `allow_system_cmd`; also `--no-rm-file` on the CLI.                                                                                           |
+| `allow_serve`              | `[config]`    | Disable the `SERVE` metacommand (default: `yes`). Symmetric with `allow_system_cmd`; also `--no-serve` on the CLI.                                                                                               |
+| `include_root`             | `[config]`    | Path-containment root for `INCLUDE` / `EXECUTE SCRIPT` (default: none). When set, attempts to include files outside this root via `../`, absolute paths, drive letters, or UNC paths are rejected with an error. |
+| `serve_root`               | `[config]`    | Path-containment root for `SERVE` (default: none). Same semantics as `include_root`.                                                                                                                             |
+| `template_root`            | `[config]`    | Path-containment root for Jinja2 / `string.Template` loaders (default: none). Same semantics as `include_root`.                                                                                                  |
+| `max_substitution_bytes`   | `[config]`    | Byte ceiling on a single substitution-variable expansion (default: `10485760` = 10 MB) to defeat exponential-expansion bombs.                                                                                    |
 
 ### Tools
 

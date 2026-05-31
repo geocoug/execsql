@@ -333,6 +333,24 @@ The section and property names that may be used in a configuration file are list
 `allow_system_cmd` { #allow_system_cmd }
 :   When set to "No", the `SYSTEM_CMD` (SHELL) metacommand is disabled. Any script that attempts to execute an OS command will fail with an error. The default is "Yes". This can also be set via the `--no-system-cmd` CLI flag or `allow_system_cmd=False` in the library API. See [Security — Disabling SYSTEM_CMD](security.md#disable_system_cmd) for details.
 
+`allow_rm_file` { #allow_rm_file }
+:   When set to "No", the `RM_FILE` metacommand (which deletes a file) is disabled. Any script that attempts to remove a file will fail with an error. The default is "Yes". This can also be set via the `--no-rm-file` CLI flag or `allow_rm_file=False` in the library API. Symmetric with `allow_system_cmd`.
+
+`allow_serve` { #allow_serve }
+:   When set to "No", the `SERVE` metacommand (which opens a one-shot HTTP server on a local port to deliver a file) is disabled. The default is "Yes". This can also be set via the `--no-serve` CLI flag or `allow_serve=False` in the library API. Symmetric with `allow_system_cmd`.
+
+`include_root` { #include_root }
+:   Root directory under which `INCLUDE` and `EXECUTE SCRIPT` targets must resolve. When set, attempts to include files outside this root via `../`, absolute paths, drive letters, or UNC paths are rejected with an error. Default: no containment (any readable path is permitted). See [Security — Path containment roots](security.md#path-containment-roots) for the full per-handler matrix.
+
+`serve_root` { #serve_root }
+:   Root directory under which `SERVE` targets must resolve. Same containment semantics as `include_root` — paths that escape via `../` or absolute references are rejected. Default: no containment.
+
+`template_root` { #template_root }
+:   Root directory under which Jinja2 / `string.Template` loader paths must resolve. Same containment semantics as `include_root`. Default: no containment.
+
+`max_substitution_bytes` { #max_substitution_bytes }
+:   Maximum byte size of any single substitution-variable expansion, enforced by the `substitute_vars()` engine to defeat exponential-expansion bombs (a script that nests `!!a!!` referring to `!!b!!` referring to `!!a!!` and so on can otherwise blow past memory). When set to a positive integer, expansions exceeding the threshold raise an error. Default: `10485760` (10 MB).
+
 `log_datavars` { #conf_log_datavars }
 :   A value of 'Yes' or 'No' to control whether data variables that are created by the [SELECT_SUB](metacommands.md#select_sub), [PROMPT SELECT_SUB](metacommands.md#prompt_selsub) and [PROMPT ACTION](metacommands.md#prompt_action) metacommands are written to *execsql*'s [log file](../guides/logging.md#logging). By default, this is set to 'Yes', so that all data variable assignments are logged. The performance of scripts that make extensive use of these metacommands (e.g., [Example 27](../guides/examples.md#example27)) can be improved by setting this to 'No'.
 
