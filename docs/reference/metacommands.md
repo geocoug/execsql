@@ -152,9 +152,9 @@ All REPL commands are dot-prefixed to avoid ambiguity with variable names and SQ
 | `logfile` | Print the value of the `logfile` variable |
 | `$ARG_1` | Print the value of a system/built-in variable |
 | `&HOME` | Print the value of an environment variable |
-| `SELECT 1` or `SELECT 1;` | Run ad-hoc SQL against the current database and pretty-print results (trailing `;` optional) |
+| `SELECT * FROM t;` | Run ad-hoc SQL against the current database and pretty-print results — **the trailing `;` is required and acts as an intent gate** |
 
-Input that looks like a bare identifier (optionally prefixed with `$`/`&`/`@`/`#`/`~`, and optionally with a trailing `;`) is treated as a variable lookup; everything else is executed as SQL. Errors raised by the SQL or by a dot-command print an inline `Error:` line and re-prompt — the REPL session does not exit on a typo.
+Input ending in `;` is executed as SQL; anything else is treated as a variable lookup. The trailing `;` is a deliberate intent gate — the REPL has no read-only mode, so any SQL you run executes against the live connection (including DML and DDL), and DDL on Oracle / MySQL / SQL Server / MS Access / SQLite is irreversible. Use SQL `BEGIN; … ROLLBACK;` to bracket exploratory DML if you need recoverability. Errors raised by the SQL or by a dot-command print an inline `Error:` line and re-prompt — the REPL session does not exit on a typo.
 
 Pressing Ctrl-D (EOF) or Ctrl-C (KeyboardInterrupt) at the `execsql debug>` prompt resumes execution, the same as typing `.continue`.
 

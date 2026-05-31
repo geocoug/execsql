@@ -13,10 +13,20 @@ The REPL allows the user to:
 - Resume or abort execution.
 
 All REPL commands are dot-prefixed (``.continue``, ``.vars``, ``.next``)
-to avoid ambiguity with variable names and SQL.  Other input is routed by
-shape: a bare identifier (optionally prefixed by ``$``/``&``/``@``/``#``/``~``,
-with or without a trailing ``;``) is treated as a variable lookup; anything
-else is executed as SQL (the trailing ``;`` is optional).
+to avoid ambiguity with variable names and SQL.  At the fresh ``execsql
+debug>`` prompt, input is routed by shape:
+
+- a bare identifier (e.g. ``logfile``, ``$ARG_1``) → variable lookup;
+- input ending in ``;`` → run as SQL;
+- anything else → starts a multi-line SQL block.  The prompt switches
+  to ``  ...        > `` and lines are accumulated until one ends with
+  ``;``; ``.cancel`` (or Ctrl-C / EOF) discards the partial buffer.
+
+The trailing ``;`` is the SQL terminator both within one line and across
+multiple lines — the REPL has no read-only mode and DDL on most adapters
+is irreversible, so requiring ``;`` is a small intent gate against
+accidental DML/DDL on mistyped input.  Use SQL ``BEGIN; … ROLLBACK;`` to
+bracket exploratory DML if you need recoverability.
 
 Errors raised by any REPL helper — bad SQL, malformed dot-commands, etc. —
 are caught at the loop level so the session re-prompts instead of escaping
@@ -37,9 +47,8 @@ import execsql.state as _state
 
 # A bare token that could plausibly be a substitution-variable name —
 # optional sigil ($ env/system, & counter, @ alias, # param, ~ local)
-# followed by an identifier.  Used by the REPL main loop to route
-# single-token input to variable lookup; anything else (including SQL
-# with or without trailing ``;``) falls through to _run_sql.
+# followed by an identifier.  Used by the REPL fresh-prompt routing to
+# tell variable lookups apart from the start of a multi-line SQL block.
 _VARNAME_RX = re.compile(r"^[$&@#~]?[A-Za-z_]\w*$")
 
 __all__ = ["x_breakpoint"]
@@ -126,12 +135,13 @@ _HELP_COMMANDS = [
     (".set VAR VAL", ".s", "Set or update a substitution variable"),
     (".scripts", "", "List all registered SCRIPT definitions"),
     (".scripts NAME", "", "Show detail for a specific SCRIPT"),
+    (".cancel", "", "Discard a partial multi-line SQL buffer"),
     (".help", ".h", "Show this help text"),
 ]
 
 _HELP_OTHER = [
     ("varname", "Print a variable's value (e.g. logfile, $ARG_1, &HOME)"),
-    ("SELECT ...;", "Run SQL ending with ';' (expects columns returned, e.g. SELECT)"),
+    ("SELECT ...;", "Run SQL — multi-line accepted, terminate with ';' to execute"),
 ]
 
 _HELP_CMD_WIDTH = 13  # width of the command column
@@ -229,15 +239,31 @@ def _debug_repl(*, step: bool = False) -> None:
     _hint_c = _c(_DIM, "'.c'")
     _write(f"  Type {_hint_help} for commands, {_hint_c} to resume.\n\n")
 
+    # Multi-line SQL accumulator.  When non-empty, the prompt switches to
+    # the continuation form and every line is appended until one ends with
+    # ``;`` (then the joined buffer is executed and cleared).  Use
+    # ``.cancel`` or Ctrl-C / EOF while buffering to discard the partial
+    # input without leaving the REPL.
+    sql_buffer: list[str] = []
+
     while True:
+        prompt = "  ...        > " if sql_buffer else "execsql debug> "
         try:
-            line = input("execsql debug> ").strip()
+            line = input(prompt).strip()
         except EOFError:
+            if sql_buffer:
+                sql_buffer.clear()
+                _write("\n  (input discarded)\n")
+                continue
             _write("\n")
-            return  # Ctrl-D → continue
+            return  # Ctrl-D at fresh prompt → continue script
         except KeyboardInterrupt:
+            if sql_buffer:
+                sql_buffer.clear()
+                _write("\n  (input discarded)\n")
+                continue
             _write("\n")
-            return  # Ctrl-C → continue
+            return  # Ctrl-C at fresh prompt → continue script
 
         if not line:
             continue
@@ -246,11 +272,19 @@ def _debug_repl(*, step: bool = False) -> None:
         # input prints "Error: …" and re-prompts, instead of escaping through
         # x_breakpoint → _exec_metacommand and ending the REPL session as a
         # "Metacommand error".  SystemExit is re-raised so .abort/.quit still
-        # exit the process; KeyboardInterrupt drops back to the prompt.
+        # exit the process; on Exception the partial SQL buffer is cleared so
+        # the user is not stuck in a state they can't see.
         try:
-            # Dot-prefixed → REPL command
+            # Dot-prefixed → REPL command.  Honored even mid-buffer because
+            # they can never be valid SQL.  ``.cancel`` is the explicit way
+            # to discard a partial multi-line SQL buffer.
             if line.startswith("."):
                 cmd = line[1:].strip().lower()
+                if cmd == "cancel":
+                    if sql_buffer:
+                        sql_buffer.clear()
+                        _write("  (input discarded)\n")
+                    continue
                 _handle_dot_command(line)
                 if cmd in ("continue", "c"):
                     return
@@ -261,22 +295,37 @@ def _debug_repl(*, step: bool = False) -> None:
                     return
                 continue
 
-            # Looks like a substitution-variable name → lookup.  A trailing
-            # ``;`` is stripped before the regex match so ``myvar;`` still
-            # routes to lookup.
-            routing_line = line.rstrip(";").rstrip()
-            if _VARNAME_RX.match(routing_line):
-                _print_var(routing_line)
+            # Continuation mode: append the line and flush on terminator.
+            if sql_buffer:
+                sql_buffer.append(line)
+                joined = " ".join(sql_buffer)
+                if joined.rstrip().endswith(";"):
+                    _run_sql(joined)
+                    sql_buffer.clear()
                 continue
 
-            # Everything else → SQL (bare ``SELECT 1`` works without ``;``).
-            _run_sql(line)
+            # Fresh prompt — single-line SQL?  ``;`` is the SQL terminator.
+            if line.rstrip().endswith(";"):
+                _run_sql(line)
+                continue
+
+            # No ``;`` and not a dot-command.  Bare identifier → variable
+            # lookup; anything else (e.g. ``SELECT * FROM t``) starts a
+            # multi-line SQL block.  The continuation prompt is the user's
+            # cue that they are accumulating SQL.
+            if _VARNAME_RX.match(line):
+                _print_var(line)
+                continue
+
+            sql_buffer.append(line)
         except SystemExit:
             raise
         except KeyboardInterrupt:
+            sql_buffer.clear()
             _write("\n  (interrupted)\n")
             continue
         except Exception as exc:
+            sql_buffer.clear()
             _write(f"  {_c(_RED, 'Error:')} {exc}\n")
             continue
 
@@ -507,7 +556,17 @@ def _print_stack() -> None:
 
 
 def _run_sql(sql: str) -> None:
-    """Execute ad-hoc SQL against the current database and pretty-print the results."""
+    """Execute ad-hoc SQL against the current database.
+
+    Branches on ``cursor.description`` after ``execute`` to handle both
+    SELECT-class statements (pretty-prints the result table) and non-result
+    statements like DML / DDL / transaction-control (``BEGIN`` / ``COMMIT``
+    / ``ROLLBACK``).  Does NOT call ``db.commit()`` after execute — the
+    user is expected to manage transactions explicitly via ``BEGIN`` /
+    ``COMMIT`` / ``ROLLBACK`` SQL (auto-commit at the connection level
+    still applies on adapters that default to autocommit-on, matching
+    script semantics).
+    """
     dbs = _state.dbs
     if dbs is None:
         _write("  (no database connection is active)\n")
@@ -516,8 +575,41 @@ def _run_sql(sql: str) -> None:
     if db is None:
         _write("  (no database connection is active)\n")
         return
+
     try:
-        colnames, rows = db.select_data(sql)
+        with db._cursor() as curs:
+            try:
+                curs.execute(sql)
+            except Exception as exc:
+                # Roll back so the connection is reusable; mirror db.execute's behavior.
+                try:
+                    db.rollback()
+                except Exception:
+                    pass
+                _write(f"  {_c(_RED, 'SQL error:')} {exc}\n")
+                return
+
+            # Mirror $LAST_ROWCOUNT updates done by db.execute / db.select_data.
+            try:
+                _state.subvars.add_substitution("$LAST_ROWCOUNT", curs.rowcount)
+            except Exception:
+                pass
+
+            # Non-result statement (DML / DDL / transaction-control) — cursor.description
+            # is None.  Report rowcount when the driver supplies one, otherwise just
+            # confirm the statement ran.
+            if curs.description is None:
+                rowcount = curs.rowcount if curs.rowcount is not None else -1
+                if rowcount >= 0:
+                    row_word = "row" if rowcount == 1 else "rows"
+                    _write(f"  {_c(_DIM, f'({rowcount} {row_word} affected)')}\n")
+                else:
+                    _write(f"  {_c(_DIM, '(statement executed)')}\n")
+                return
+
+            # SELECT-class — fetch and pretty-print.
+            colnames = [d[0] for d in curs.description]
+            rows = curs.fetchall()
     except Exception as exc:
         _write(f"  {_c(_RED, 'SQL error:')} {exc}\n")
         return
