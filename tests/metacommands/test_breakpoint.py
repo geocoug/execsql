@@ -413,11 +413,25 @@ class TestRunSql:
             _run_sql("SELECT 1;")
         assert any("no database connection" in s for s in written)
 
-    def test_sql_error(self) -> None:
+    def _wire_db(self, description=None, fetchall=None, rowcount=0, execute_raises=None):
+        cursor = MagicMock()
+        cursor.description = description
+        cursor.rowcount = rowcount
+        if fetchall is not None:
+            cursor.fetchall.return_value = fetchall
+        if execute_raises is not None:
+            cursor.execute.side_effect = execute_raises
         db = MagicMock()
-        db.select_data.side_effect = Exception("syntax error")
+        cm = MagicMock()
+        cm.__enter__.return_value = cursor
+        cm.__exit__.return_value = False
+        db._cursor.return_value = cm
         dbs = MagicMock()
         dbs.current.return_value = db
+        return db, dbs, cursor
+
+    def test_sql_error(self) -> None:
+        _, dbs, _ = self._wire_db(execute_raises=Exception("syntax error"))
         written: list[str] = []
         with (
             patch.object(_state, "dbs", dbs),
@@ -428,10 +442,11 @@ class TestRunSql:
         assert any("syntax error" in s for s in written)
 
     def test_pretty_print_results(self) -> None:
-        db = MagicMock()
-        db.select_data.return_value = (["id", "name"], [[1, "Alice"], [2, "Bob"]])
-        dbs = MagicMock()
-        dbs.current.return_value = db
+        _, dbs, _ = self._wire_db(
+            description=[("id",), ("name",)],
+            fetchall=[[1, "Alice"], [2, "Bob"]],
+            rowcount=2,
+        )
         written: list[str] = []
         with (
             patch.object(_state, "dbs", dbs),
@@ -446,10 +461,7 @@ class TestRunSql:
         assert "2 rows" in combined
 
     def test_single_row_label(self) -> None:
-        db = MagicMock()
-        db.select_data.return_value = (["val"], [[42]])
-        dbs = MagicMock()
-        dbs.current.return_value = db
+        _, dbs, _ = self._wire_db(description=[("val",)], fetchall=[[42]], rowcount=1)
         written: list[str] = []
         with (
             patch.object(_state, "dbs", dbs),
@@ -461,10 +473,7 @@ class TestRunSql:
         assert "1 rows" not in combined
 
     def test_null_value_displayed(self) -> None:
-        db = MagicMock()
-        db.select_data.return_value = (["col"], [[None]])
-        dbs = MagicMock()
-        dbs.current.return_value = db
+        _, dbs, _ = self._wire_db(description=[("col",)], fetchall=[[None]], rowcount=1)
         written: list[str] = []
         with (
             patch.object(_state, "dbs", dbs),
@@ -475,10 +484,7 @@ class TestRunSql:
         assert "NULL" in combined
 
     def test_sql_executed_from_repl(self) -> None:
-        db = MagicMock()
-        db.select_data.return_value = (["n"], [[7]])
-        dbs = MagicMock()
-        dbs.current.return_value = db
+        _, dbs, cursor = self._wire_db(description=[("n",)], fetchall=[[7]], rowcount=1)
         written: list[str] = []
         with (
             patch("builtins.input", side_effect=["SELECT 7;", ".c"]),
@@ -486,7 +492,7 @@ class TestRunSql:
             patch("execsql.debug.repl._write", side_effect=written.append),
         ):
             _debug_repl()
-        db.select_data.assert_called_once_with("SELECT 7;")
+        cursor.execute.assert_called_once_with("SELECT 7;")
 
 
 # ---------------------------------------------------------------------------
