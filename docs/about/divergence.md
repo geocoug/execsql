@@ -202,6 +202,7 @@ All 33 mutable runtime globals in `state.py` have been consolidated into a `Runt
 - **Connection timeouts** — PostgreSQL and SQLite adapters accept a connection timeout parameter (default 30 seconds).
 - **DuckDB temporal types** — `TIMESTAMPTZ`, `TIMESTAMP`, `DATE`, `TIME` now map to native DuckDB types instead of `TEXT`.
 - **SQLite `DT_Long` mapping** — `DT_Long` maps to `"hugeint"` in the SQLite type table. SQLite does not have a native `HUGEINT` type; the value receives `TEXT` affinity. In practice this is harmless because SQLite's type affinity system handles large integers transparently, but the mapping name differs from upstream.
+- **`Database.auto_commits_ddl()` not provided** — 2.18.0 shipped this capability hook on the base `Database` class with `True` overrides on Oracle, MySQL, SQL Server, and MS Access (to signal that DDL on those drivers implicitly commits, so `rollback()` is a silent no-op across the DDL boundary). No call site ever consumed the hook, so 2.19.0 removed it. The asymmetry it described is still real — DDL inside a `BEGIN BATCH … END BATCH` block on Oracle / MySQL / SQL Server / MS Access cannot be rolled back — but execsql does not currently warn callers about it. (The companion hook `Database.needs_explicit_commit_after_ddl()`, used by the Firebird import path, remains.)
 
 ### Execution Engine
 

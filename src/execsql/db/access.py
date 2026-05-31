@@ -88,12 +88,6 @@ class AccessDatabase(Database):
     def __repr__(self) -> str:
         return f"AccessDatabase({self.db_name}, {self.encoding})"
 
-    def auto_commits_ddl(self) -> bool:
-        """MS Access (via Jet/ACE on pyodbc) implicitly commits DDL —
-        ``rollback()`` is a silent no-op for any transaction whose
-        boundary the DDL crossed."""
-        return True
-
     def open_db(self) -> None:
         """Open an ODBC connection to the Access database."""
         # Open an ODBC connection.
