@@ -196,6 +196,28 @@ class TestXSubdata:
         with pytest.raises(ErrInfo):
             x_subdata(match="$result", datasource="tbl", metacommandline="SUBDATA ...")
 
+    @pytest.mark.parametrize(
+        "bad_source",
+        [
+            "tbl; DROP TABLE x; --",
+            "tbl WHERE id = 1",
+            "tbl JOIN other ON tbl.id = other.id",
+            "schema.tbl.col",
+            '"My Table"',
+            "tbl-with-dashes",
+            "(SELECT 1)",
+            "tbl /* comment */",
+        ],
+    )
+    def test_subdata_rejects_invalid_datasource(self, minimal_conf, bad_source):
+        from execsql.metacommands.data import x_subdata
+
+        _setup_subvars()
+        _state.dbs = MagicMock()
+
+        with pytest.raises(ErrInfo, match="Invalid datasource"):
+            x_subdata(match="$result", datasource=bad_source, metacommandline="SUBDATA ...")
+
 
 # ---------------------------------------------------------------------------
 # x_selectsub
