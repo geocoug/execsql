@@ -883,7 +883,7 @@ requires-dist = [
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.4" },
     { name = "sqlglot", specifier = ">=25.0" },
     { name = "tables", marker = "extra == 'formats'" },
-    { name = "textual", specifier = ">=0.47.0" },
+    { name = "textual", specifier = ">=1.0" },
     { name = "tkintermapview", marker = "extra == 'map'", specifier = ">=1.29" },
     { name = "tox-uv", marker = "extra == 'dev'", specifier = ">=1.13.1" },
     { name = "twine", marker = "extra == 'dev'", specifier = ">=6.1.0" },
