@@ -78,7 +78,6 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
 - `templates/script_template.sql` had two `WRITE` lines (`Committing:` and `Cleaning up:`) with unterminated double-quoted strings; the closing quotes are now present.
 - `ends_with(string, "")` now returns `True` for any string, matching Python's `str.endswith` semantics. Previously it returned `True` only when the haystack was also empty.
 - ODBC DSN connections now brace-quote the DSN, UID, and PWD attribute values with `{…}` (and double any embedded `}`) so a password or user containing `;` cannot inject additional connection-string attributes (CWE-91 / ODBC attribute injection).
@@ -109,8 +108,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    `!'!var!'!` substitution now wraps the value in single quotes, matching the documented behavior. Previously only embedded apostrophes were doubled.
+- `!'!var!'!` substitution now wraps the value in single quotes, matching the documented behavior. Previously only embedded apostrophes were doubled.
 - `BREAK` inside an `EXECUTE SCRIPT` body raises an error instead of silently terminating the caller's `LOOP`.
 - `WRITE SCRIPT` output is now re-includable: nested `IF` / `LOOP` / `BATCH` / `SQL` blocks, `INCLUDE`, `EXECUTE SCRIPT`, and comments are all preserved, and `BEGIN/END SCRIPT` lines carry the `-- !x!` prefix.
 - `PROMPT MAP` falls back to the tabular view on any map-widget construction failure (headless display, missing dependencies).
@@ -129,8 +127,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    VS Code grammar now highlights the single-quoted (`!'!name!'!`) and double-quoted (`!"!name!"!`) substitution variable variants, not just the bare `!!name!!` form. Regenerate the bundled grammar with `just install-vscode`.
+- VS Code grammar now highlights the single-quoted (`!'!name!'!`) and double-quoted (`!"!name!"!`) substitution variable variants, not just the bare `!!name!!` form. Regenerate the bundled grammar with `just install-vscode`.
 - Mermaid diagrams in the docs site now render as SVG (previously plain code blocks).
 - Documentation accuracy sweep across `docs/reference/`, `docs/guides/`, `docs/getting-started/`, `docs/about/`, and `docs/dev/`: fixed nine broken cross-link anchors, corrected ~30 source-module docstrings (stale class/function/extras names), repaired API reference page rendering, and corrected the `--profile` description to mention `--profile-limit`.
 
@@ -150,8 +147,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    `!!$COUNTER_N!!` references inside metacommands (`WRITE`, `IF`, `SUB`, etc.) now return the documented sequence `1, 2, 3, …` starting at 1. The same fix stabilizes `!!$RANDOM!!` and `!!$UUID!!` across `BREAK` detection and dispatch.
+- `!!$COUNTER_N!!` references inside metacommands (`WRITE`, `IF`, `SUB`, etc.) now return the documented sequence `1, 2, 3, …` starting at 1. The same fix stabilizes `!!$RANDOM!!` and `!!$UUID!!` across `BREAK` detection and dispatch.
 
 ______________________________________________________________________
 
@@ -159,8 +155,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    `BEGIN SCRIPT` parameter defaults now strip surrounding quotes, matching the existing handling at the call site. A default written as `default_unit_set="Default"` previously bound the literal string `"Default"` (quotes intact).
+- `BEGIN SCRIPT` parameter defaults now strip surrounding quotes, matching the existing handling at the call site. A default written as `default_unit_set="Default"` previously bound the literal string `"Default"` (quotes intact).
 
 ### Changed
 
@@ -173,8 +168,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    Formatter no longer treats inline `IF (cond) { command }` as a block opener (lines after an inline `IF` were previously indented forever).
+- Formatter no longer treats inline `IF (cond) { command }` as a block opener (lines after an inline `IF` were previously indented forever).
 - Formatter no longer escapes blank lines inside `BEGIN SQL` / `BEGIN BATCH` blocks.
 
 ______________________________________________________________________
@@ -193,8 +187,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    `SYSTEM_CMD` no longer wraps arguments containing `&` in spurious double quotes (a Windows `cmd.exe` workaround inherited from upstream that broke non-`cmd` targets).
+- `SYSTEM_CMD` no longer wraps arguments containing `&` in spurious double quotes (a Windows `cmd.exe` workaround inherited from upstream that broke non-`cmd` targets).
 
 ______________________________________________________________________
 
@@ -210,8 +203,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    `ELSEIF` conditions now support `ANDIF`/`ORIF` modifiers (previously silently attached to the parent `IF`).
+- `ELSEIF` conditions now support `ANDIF`/`ORIF` modifiers (previously silently attached to the parent `IF`).
 - Unknown AST node types now raise an error instead of being silently ignored.
 - Cursor leak in `select_rowsource()` and `select_rowdict()`: cursor is now closed on query failure; `EXPORT` and `COPY` explicitly close the row generator on error.
 
@@ -226,8 +218,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    `execsql-format`: comments interleaved within multi-line SQL no longer corrupt the formatted output. Statements are no longer split at comment boundaries (which previously turned commas into semicolons and dropped content silently).
+- `execsql-format`: comments interleaved within multi-line SQL no longer corrupt the formatted output. Statements are no longer split at comment boundaries (which previously turned commas into semicolons and dropped content silently).
 - `execsql-format`: `/* */` block comments containing `-- !x!` metacommand markers are no longer mangled.
 - `execsql-format`: blank lines within multi-line SQL no longer split the statement into independent format blocks.
 - `execsql-format`: if sqlglot produces more or fewer statements than the input, the formatter falls back to the original text instead of emitting corrupted SQL.
@@ -246,8 +237,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    Multi-line `/* */` block comment docstrings in `BEGIN SCRIPT` are now captured in full (the doc collector previously classified comment continuation lines as non-comment and stopped early).
+- Multi-line `/* */` block comment docstrings in `BEGIN SCRIPT` are now captured in full (the doc collector previously classified comment continuation lines as non-comment and stopped early).
 
 ______________________________________________________________________
 
@@ -255,8 +245,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    `EXECUTE SCRIPT !!#script_name!!` (variable-substituted script target) now works. The parser regex previously rejected non-literal identifiers, causing dispatch to fail with "should be handled by the AST executor".
+- `EXECUTE SCRIPT !!#script_name!!` (variable-substituted script target) now works. The parser regex previously rejected non-literal identifiers, causing dispatch to fail with "should be handled by the AST executor".
 
 ______________________________________________________________________
 
@@ -276,8 +265,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    SQL comments (`--` and `/* */`) inside multi-line SQL statements no longer split the statement. Comments between SELECT columns or before CASE clauses are now preserved as part of the statement text.
+- SQL comments (`--` and `/* */`) inside multi-line SQL statements no longer split the statement. Comments between SELECT columns or before CASE clauses are now preserved as part of the statement text.
 
 ______________________________________________________________________
 
@@ -285,8 +273,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    `ANDIF`/`ORIF` conditions now short-circuit. `IF (sub_defined(x)) ANDIF (not sub_empty(x))` previously evaluated `sub_empty` even when `sub_defined` returned false, throwing "Unrecognized substitution variable" on undefined variables.
+- `ANDIF`/`ORIF` conditions now short-circuit. `IF (sub_defined(x)) ANDIF (not sub_empty(x))` previously evaluated `sub_empty` even when `sub_defined` returned false, throwing "Unrecognized substitution variable" on undefined variables.
 - `IF`, `LOOP`, and `INCLUDE` error reports now show the correct source line instead of the previous command's location.
 
 ______________________________________________________________________
@@ -295,8 +282,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    `execsql-format` no longer corrupts PL/pgSQL function bodies inside `$$`-delimited blocks. sqlglot was rewriting `IF NOT EXISTS … END IF` and similar PL/pgSQL constructs as `COMMIT;`; the formatter now skips sqlglot for any block containing dollar-quoted content.
+- `execsql-format` no longer corrupts PL/pgSQL function bodies inside `$$`-delimited blocks. sqlglot was rewriting `IF NOT EXISTS … END IF` and similar PL/pgSQL constructs as `COMMIT;`; the formatter now skips sqlglot for any block containing dollar-quoted content.
 - Debug REPL `.vars` now shows `~` local and `#` param variables from the current stack frame, not just globals. `.vars ~myvar` and `.set ~myvar value` also read/write the stack frame's local scope.
 
 ______________________________________________________________________
@@ -305,8 +291,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    Debug REPL `.vars`, `.set` now read/write `~` local and `#` param variables from the current stack frame instead of globals only.
+- Debug REPL `.vars`, `.set` now read/write `~` local and `#` param variables from the current stack frame instead of globals only.
 
 ______________________________________________________________________
 
@@ -314,8 +299,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    Forward references in SCRIPT blocks now work: `EXECUTE SCRIPT foo` can appear before `BEGIN SCRIPT foo` in the same file or `INCLUDE`'d file. The AST executor pre-scans for SCRIPT definitions, matching the legacy engine's two-pass behavior.
+- Forward references in SCRIPT blocks now work: `EXECUTE SCRIPT foo` can appear before `BEGIN SCRIPT foo` in the same file or `INCLUDE`'d file. The AST executor pre-scans for SCRIPT definitions, matching the legacy engine's two-pass behavior.
 
 ______________________________________________________________________
 
@@ -323,8 +307,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    `BEGIN SCRIPT name(params)` without a space before the opening parenthesis now parses correctly. The previous regex required whitespace and silently ignored the SCRIPT block, causing `END SCRIPT` to fail.
+- `BEGIN SCRIPT name(params)` without a space before the opening parenthesis now parses correctly. The previous regex required whitespace and silently ignored the SCRIPT block, causing `END SCRIPT` to fail.
 
 ______________________________________________________________________
 
@@ -332,8 +315,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    `INCLUDE` with quoted paths (e.g. `-- !x! INCLUDE "!!path!!/file.sql"`) now strips the surrounding quotes before resolving the file path.
+- `INCLUDE` with quoted paths (e.g. `-- !x! INCLUDE "!!path!!/file.sql"`) now strips the surrounding quotes before resolving the file path.
 
 ______________________________________________________________________
 
@@ -341,8 +323,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    `~` (local) and `+` (outer-scope) substitution variables inside SCRIPT blocks now work correctly. Previously these wrote to a disconnected scope, causing the variable to be invisible to subsequent SQL and producing spurious "potential un-substituted variable" warnings.
+- `~` (local) and `+` (outer-scope) substitution variables inside SCRIPT blocks now work correctly. Previously these wrote to a disconnected scope, causing the variable to be invisible to subsequent SQL and producing spurious "potential un-substituted variable" warnings.
 - `EXECUTE SCRIPT` argument expressions like `val=!!#parent_param!!` are now expanded in the caller's scope before the child frame is created, fixing nested script calls that pass `~` or `#` variables as arguments.
 
 ### Changed
@@ -371,8 +352,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    \*\*[Critical]\*\* `WriteSpec.write()` and `MailSpec.send()` error-recovery paths crashed because `SubVarSet.substitute_all()` returns `(str, bool)` but callers treated it as a plain string. All 14 call sites fixed.
+- \*\*[Critical]\*\* `WriteSpec.write()` and `MailSpec.send()` error-recovery paths crashed because `SubVarSet.substitute_all()` returns `(str, bool)` but callers treated it as a plain string. All 14 call sites fixed.
 - **[Critical]** Error-recovery in `WriteSpec.write()` and `io_write` called `.encode()` producing bytes passed to `sys.stdout.write()` which expects `str`.
 - SQL injection across all 8 database adapters in `exec_cmd()` — stored procedure / function / view names are now quoted with `quote_identifier()`.
 - `DSN` and `SQL Server` adapters no longer encode SQL strings to bytes before execution.
@@ -390,8 +370,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    `PAUSE` console-mode fallback now checks `sys.platform` before attempting POSIX terminal imports, preventing hangs on Windows when stdin reports as a TTY.
+- `PAUSE` console-mode fallback now checks `sys.platform` before attempting POSIX terminal imports, preventing hangs on Windows when stdin reports as a TTY.
 
 ______________________________________________________________________
 
@@ -404,8 +383,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    Config file chaining no longer mutates a list during iteration.
+- Config file chaining no longer mutates a list during iteration.
 - `PAUSE` console mode no longer crashes on Windows CI due to unconditional `import termios`.
 - `HAS_ROWS`, `ROW_COUNT_*` condition predicates now quote table names with SQL identifier quoting, preventing injection when table names come from substitution variables.
 
@@ -419,8 +397,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    `PAUSE` in console mode (no `-v`) now responds to single keypresses (Enter to continue, Esc to quit) instead of requiring Enter after every key.
+- `PAUSE` in console mode (no `-v`) now responds to single keypresses (Enter to continue, Esc to quit) instead of requiring Enter after every key.
 - `PAUSE` with `CONTINUE AFTER` / `HALT AFTER` in console mode displays a live SIGALRM-driven progress bar showing time remaining.
 - Double minutes-to-seconds conversion in the console `PAUSE` path: a 1-minute pause used to sleep for 60 minutes.
 
@@ -440,8 +417,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    `PG_UPSERT QA` and `PG_UPSERT CHECK` now capture all QA findings (errors + warnings) instead of only errors.
+- `PG_UPSERT QA` and `PG_UPSERT CHECK` now capture all QA findings (errors + warnings) instead of only errors.
 
 ______________________________________________________________________
 
@@ -449,8 +425,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    `CounterVars.substitute` now correctly searches the full string. `re.I` was mistakenly passed as the `pos` argument to `re.search`, skipping the first two characters of every input.
+- `CounterVars.substitute` now correctly searches the full string. `re.I` was mistakenly passed as the `pos` argument to `re.search`, skipping the first two characters of every input.
 - SQL injection in MySQL `LOAD DATA INFILE`: file path, field delimiter, and quote character are now escaped before being interpolated into SQL.
 - SQLite and DuckDB `exec_cmd` no longer encodes the SQL string to bytes before passing to `execute()` (always raised `TypeError` in Python 3).
 - Cursor leaks across all database adapters — call sites that manually opened cursors now use the `with self._cursor()` context manager.
@@ -468,8 +443,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    Nested substitution variable names (e.g. `!!N_!!CHECK_GROUP!!_CHECKS!!`) now resolve correctly. The single-pass token regex introduced in 2.15.0 could not find inner `!!var!!` tokens embedded in an outer variable name.
+- Nested substitution variable names (e.g. `!!N_!!CHECK_GROUP!!_CHECKS!!`) now resolve correctly. The single-pass token regex introduced in 2.15.0 could not find inner `!!var!!` tokens embedded in an outer variable name.
 
 ______________________________________________________________________
 
@@ -477,8 +451,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    `DT_Timestamp` type inference no longer claims time-only values like `13:15:45`. `dateutil.parser.parse()` silently filled in today's date for bare time strings, generating PostgreSQL `InvalidDatetimeFormat` errors on CSV import.
+- `DT_Timestamp` type inference no longer claims time-only values like `13:15:45`. `dateutil.parser.parse()` silently filled in today's date for bare time strings, generating PostgreSQL `InvalidDatetimeFormat` errors on CSV import.
 
 ______________________________________________________________________
 
@@ -486,8 +459,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    Test data encoding typo causing assertion failure on Windows CI.
+- Test data encoding typo causing assertion failure on Windows CI.
 
 ______________________________________________________________________
 
@@ -507,8 +479,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    `DT_Text.data_type_name` corrected from `"character"` to `"text"` — error messages now identify the text type correctly.
+- `DT_Text.data_type_name` corrected from `"character"` to `"text"` — error messages now identify the text type correctly.
 - `DT_Varchar._from_data()` now converts non-string data to string and enforces the 255-character length limit.
 - `CondAstNode.eval()` now raises `CondParserError` for unknown node types instead of silently returning `None`.
 - `NumericAstNode.eval()` now raises `NumericParserError` on division by zero instead of an unhandled `ZeroDivisionError`.
@@ -535,8 +506,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    `NumericParser` now uses left-associative parsing. Previously `10 - 3 - 2` evaluated as `10 - (3 - 2) = 9` instead of `5`. Same fix for division.
+- `NumericParser` now uses left-associative parsing. Previously `10 - 3 - 2` evaluated as `10 - (3 - 2) = 9` instead of `5`. Same fix for division.
 - SQLite `populate_table()` now applies `trim_strings`, `replace_newlines`, and `empty_strings` processing before extracting column data (previously processing was applied after the insert data was copied, so it never took effect).
 - `$CURRENT_DATABASE` and `$CURRENT_DBMS` system variables now refresh on `USE` (previously stale after switching databases).
 - `PROMPT COMPARE` diff logic now uses native Python equality instead of string comparison — `int(1)` vs `float(1.0)`, `Decimal("10.00")` vs `Decimal("10.0")`, and `True` vs `1` are correctly treated as equal.
@@ -558,8 +528,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    `PROMPT MESSAGE … CREDENTIALS <user_var> <pw_var>` no longer crashes in console-fallback mode. The fallback now uses `getpass.getpass()` for the password.
+- `PROMPT MESSAGE … CREDENTIALS <user_var> <pw_var>` no longer crashes in console-fallback mode. The fallback now uses `getpass.getpass()` for the password.
 
 ______________________________________________________________________
 
@@ -567,8 +536,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    Windows CI: use `zf.namelist()[0]` instead of path for zip entry lookup.
+- Windows CI: use `zf.namelist()[0]` instead of path for zip entry lookup.
 
 ______________________________________________________________________
 
@@ -584,8 +552,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    `CONFIG GUI_LEVEL` now accepts value `3` (open GUI console on start), matching the `gui_level` config file setting.
+- `CONFIG GUI_LEVEL` now accepts value `3` (open GUI console on start), matching the `gui_level` config file setting.
 - `PROMPT COMPARE` now respects `AND` vs `BESIDE`: `AND` stacks tables vertically, `BESIDE` displays side-by-side. Previously both were side-by-side.
 - `PROMPT ENTRY_FORM` now renders all documented `entry_type` values: `listbox`, `radiobuttons`, `textarea`, `inputfile`, `outputfile`. Previously only `checkbox` and `dropdown`/`select` were implemented.
 - `PROMPT ENTER_SUB` HELP URL regex now correctly matches URLs containing `+` characters.
@@ -628,8 +595,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    `Mailer`, `WriteableZipfile`, `ZipWriter` now support the context manager protocol (`with` statement) for reliable resource cleanup.
+- `Mailer`, `WriteableZipfile`, `ZipWriter` now support the context manager protocol (`with` statement) for reliable resource cleanup.
 - `FileWriter`, `FileControl`, `Mailer`, `WriteableZipfile`, `ZipWriter` `__del__` methods no longer raise during interpreter shutdown.
 
 ______________________________________________________________________
@@ -638,8 +604,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    Bump pg-upsert minimum to `>=1.18.2` — fixes the interactive FK check dialog showing only 1 violation row instead of all rows.
+- Bump pg-upsert minimum to `>=1.18.2` — fixes the interactive FK check dialog showing only 1 violation row instead of all rows.
 
 ______________________________________________________________________
 
@@ -656,8 +621,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    CLI test fixture: handle CliRunner's separate stderr capture.
+- CLI test fixture: handle CliRunner's separate stderr capture.
 
 ______________________________________________________________________
 
@@ -699,8 +663,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    Cursor leak in `select_rowsource()` — generator now closes the cursor in a `finally` block.
+- Cursor leak in `select_rowsource()` — generator now closes the cursor in a `finally` block.
 
 ______________________________________________________________________
 
@@ -725,8 +688,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    `x_assert` crash when `exec_log` is `None`.
+- `x_assert` crash when `exec_log` is `None`.
 - `--ping` version-query loop exiting prematurely — `break` was at wrong indentation, skipping fallback queries.
 - `CONSOLE SET WIDTH/HEIGHT` crash — `gui_console_width()`/`gui_console_height()` restored as setter functions.
 - `$ERROR_MESSAGE` now contains full `errmsg()` (with script location and timestamp) for non-halting errors.
@@ -747,8 +709,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    `BREAKPOINT` REPL no longer wraps variable values in extra single quotes.
+- `BREAKPOINT` REPL no longer wraps variable values in extra single quotes.
 - Error messages now include script file name and line number — `ErrInfo` fields `script_file` and `script_line_no` are populated in all error paths.
 - `$ERROR_MESSAGE` is now updated on every error (was initialized once to `""` and never changed).
 - `MetacommandStmt.run()` now re-raises the original handler `ErrInfo` when `halt_on_metacommand_err` is True, instead of raising a generic "Unknown metacommand".
@@ -760,8 +721,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    `BREAKPOINT` variable lookup — `$logfile` was showing `(undefined)` because `SUB` stores keys without a sigil prefix. The debug REPL now strips `$`, `&`, `@`, `#`, `~` prefixes and retries when the exact name isn't found.
+- `BREAKPOINT` variable lookup — `$logfile` was showing `(undefined)` because `SUB` stores keys without a sigil prefix. The debug REPL now strips `$`, `&`, `@`, `#`, `~` prefixes and retries when the exact name isn't found.
 
 ______________________________________________________________________
 
@@ -800,8 +760,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    `AttributeError: module 'execsql.state' has no attribute 'dedup_words'` when importing CSV with `DEDUP_COL_HDRS` enabled.
+- `AttributeError: module 'execsql.state' has no attribute 'dedup_words'` when importing CSV with `DEDUP_COL_HDRS` enabled.
 
 ______________________________________________________________________
 
@@ -867,8 +826,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    `ON ERROR_HALT EXECUTE SCRIPT` and `ON CANCEL_HALT EXECUTE SCRIPT` were not recognized — handlers existed but dispatch patterns were missing.
+- `ON ERROR_HALT EXECUTE SCRIPT` and `ON CANCEL_HALT EXECUTE SCRIPT` were not recognized — handlers existed but dispatch patterns were missing.
 - `EXTEND SCRIPT <X> WITH SCRIPT <Y>` was not recognized — only the `APPEND SCRIPT` synonym was ported.
 - `PROMPT ASK` with single-quoted (`'…'`) or bracket-delimited (`[…]`) questions, and with unquoted `HELP` arguments, were not recognized.
 - `CONNECT TO SQLSERVER` with mixed quoting (e.g. quoted SERVER + unquoted DB) or quoted PASSWORD was not recognized.
@@ -879,8 +837,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    PyPI publish URL — use `execsql2` package name instead of repo name.
+- PyPI publish URL — use `execsql2` package name instead of repo name.
 - SQLite import-error test: patch `fatal_error` before `__import__`.
 
 ______________________________________________________________________
@@ -905,8 +862,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    `--dsn` now correctly overrides connection settings from configuration files.
+- `--dsn` now correctly overrides connection settings from configuration files.
 - MySQL `LOAD DATA INFILE` encoding — Python encoding names (e.g. `utf-8`) are now mapped to MySQL charset names (e.g. `utf8mb4`).
 - Importer error reporting: replaced removed `exception_info()` with `exception_desc()`.
 
@@ -934,8 +890,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    ODS import/export — `import odf as of` was previously `import of as of`. ODS support was broken since the modular refactor.
+- ODS import/export — `import odf as of` was previously `import of as of`. ODS support was broken since the modular refactor.
 - `--dsn` password is now passed through to all database backends (MySQL, SQL Server, Oracle, Firebird, DSN). Previously only PostgreSQL received it.
 - Importer error reporting: `exception_info()` (tuple) replaced with `exception_desc()` (string) in 6 call sites. Previously caused `AttributeError: 'tuple' has no attribute 'replace'` on any import failure.
 - MySQL `LOAD DATA LOCAL INFILE` encoding name mapping (Python encoding → MySQL charset).
@@ -951,8 +906,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    Plaintext passwords (`Pwd=***`) redacted from ODBC connection strings in log output for Access and SQL Server adapters.
+- Plaintext passwords (`Pwd=***`) redacted from ODBC connection strings in log output for Access and SQL Server adapters.
 
 ### Changed
 
@@ -964,8 +918,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    Skip `TimerHandler` alarm tests on Windows where `signal.setitimer` is unavailable.
+- Skip `TimerHandler` alarm tests on Windows where `signal.setitimer` is unavailable.
 - `UnicodeDecodeError` in CLI subprocess tests on Windows — specify UTF-8 encoding.
 
 ______________________________________________________________________
@@ -990,8 +943,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    ODS export/import was completely broken when `odfpy` was installed — `import odf as of` was previously `import of as of`.
+- ODS export/import was completely broken when `odfpy` was installed — `import odf as of` was previously `import of as of`.
 - File-handle leaks in many exporters and metacommands — `try/finally` added to guarantee close on error in `exporters/raw.py`, `xml.py`, `json.py`, `templates.py`, `values.py`, `pretty.py`, `html.py`, `latex.py`, and `metacommands/debug.py`, `control.py`, `prompt.py`.
 - XML export injection: cell values are now escaped via `xml.sax.saxutils.escape()`; column headers and table names used as XML element names have invalid characters replaced with underscores.
 - HTML export XSS: column headers and cell values are now escaped via `html.escape()`.
@@ -1021,8 +973,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    Config parser now accepts `k` (DuckDB) as a valid `db_type` in `execsql.conf`. Previously only the CLI flag `-t k` worked.
+- Config parser now accepts `k` (DuckDB) as a valid `db_type` in `execsql.conf`. Previously only the CLI flag `-t k` worked.
 - Read the Docs build: added `mkdocstrings-python` and editable project install so `mkdocstrings` resolves API references.
 
 ______________________________________________________________________
@@ -1037,8 +988,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    `ExecSqlTimeoutError` now inherits from `ExecSqlError` instead of `Exception`, so generic `except ExecSqlError` handlers catch timeouts. Accepts an optional message (defaults to "Operation timed out").
+- `ExecSqlTimeoutError` now inherits from `ExecSqlError` instead of `Exception`, so generic `except ExecSqlError` handlers catch timeouts. Accepts an optional message (defaults to "Operation timed out").
 - ODS import/export was silently non-functional — `import odf as of` was previously `import of as of`.
 - Python 3.10 compatibility: replaced `datetime.UTC` (3.11+) with `datetime.timezone.utc`.
 - SQLite connection leaks: `state.reset()` now calls `dbs.closeall()` before discarding the `DatabasePool`; `export_sqlite()` uses `try/finally` to guarantee close on error.
@@ -1072,8 +1022,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    `IMPORT` completion log message is now always written when a log is active, regardless of `import_progress_interval`. Previously the completion record was suppressed in silent mode, leaving no trace of successful imports.
+- `IMPORT` completion log message is now always written when a log is active, regardless of `import_progress_interval`. Previously the completion record was suppressed in silent mode, leaving no trace of successful imports.
 - `Logger.exit_type` defaults to `"unknown"` instead of `None` — prevents the literal string `"None"` from appearing in the `exit` log record.
 - SQL injection in `schema_exists()`, `table_exists()`, `column_exists()`, `table_columns()`, `view_exists()`, `role_exists()` across `db/base.py`, `db/postgres.py`, `db/oracle.py`, `db/duckdb.py`, `db/sqlite.py` — now uses parameterized queries and `quote_identifier()`.
 - `config.py`: five misnamed attribute writes (`only_strings`, `fold_column_headers`, `replace_newlines`, `import_row_buffer`, `css_styles`) all wrote to the wrong target.
@@ -1090,8 +1039,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    Windows `PermissionError` when exporting to HTML in append mode — the file descriptor from `tempfile.mkstemp()` is now closed before the file is opened for writing.
+- Windows `PermissionError` when exporting to HTML in append mode — the file descriptor from `tempfile.mkstemp()` is now closed before the file is opened for writing.
 - Windows `PermissionError` when exporting to LaTeX — the file descriptor from `tempfile.mkstemp()` is now closed before `EncodedFile` opens the same path.
 
 ______________________________________________________________________
@@ -1142,8 +1090,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    Width specification for listboxes in the `PROMPT ENTRY_FORM` metacommand.
+- Width specification for listboxes in the `PROMPT ENTRY_FORM` metacommand.
 
 ## [1.126.0] - 2024-02-15
 
@@ -1156,8 +1103,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    Spurious warnings when running under Python 3.12.
+- Spurious warnings when running under Python 3.12.
 
 ## [1.125.0] - 2023-12-13
 
@@ -1308,8 +1254,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    `PROMPT ENTRY_FORM` no longer closes the form when the 'Enter' key is pressed while a checkbox has focus.
+- `PROMPT ENTRY_FORM` no longer closes the form when the 'Enter' key is pressed while a checkbox has focus.
 
 ## [1.100.1] - 2022-02-22
 
@@ -1504,8 +1449,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    `ASK` metacommand under Python 3 on Windows.
+- `ASK` metacommand under Python 3 on Windows.
 
 ## [1.74.1] - 2020-07-08
 
@@ -1527,8 +1471,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    Correction to 2020-03-30 modification.
+- Correction to 2020-03-30 modification.
 
 ## [1.72.0] - 2020-03-30
 
@@ -1723,8 +1666,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    `EXPORT...AS VALUES` now correctly writes `NULL` for null data.
+- `EXPORT...AS VALUES` now correctly writes `NULL` for null data.
 
 ## [1.42.0] - 2019-08-18
 
@@ -1760,8 +1702,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    Error messages containing bad data are now protected from encoding errors.
+- Error messages containing bad data are now protected from encoding errors.
 
 ## [1.37.6] - 2019-05-07
 
@@ -1782,8 +1723,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    `int`/`long` conversion for Python 3 with Access.
+- `int`/`long` conversion for Python 3 with Access.
 
 ## [1.37.0] - 2019-03-16
 
@@ -2052,8 +1992,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    Stripping of extra spaces from input data when input is not strings.
+- Stripping of extra spaces from input data when input is not strings.
 
 ## [1.26.5.0] - 2018-07-20
 
@@ -2067,22 +2006,19 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    Trailing space is now trimmed from the last column header of an IMPORTed CSV file.
+- Trailing space is now trimmed from the last column header of an IMPORTed CSV file.
 
 ## [1.26.4.3] - 2018-07-12
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    Handling of double-quoted filenames by the `ON ERROR_HALT WRITE` and `ON CANCEL_HALT WRITE` metacommands.
+- Handling of double-quoted filenames by the `ON ERROR_HALT WRITE` and `ON CANCEL_HALT WRITE` metacommands.
 
 ## [1.26.4.2] - 2018-07-09
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    Handling of double-quoted filenames by the `WRITE` and `RM_FILE` metacommands.
+- Handling of double-quoted filenames by the `WRITE` and `RM_FILE` metacommands.
 
 ## [1.26.4.0] - 2018-06-27
 
@@ -2105,8 +2041,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    Hang on uppercase counter references.
+- Hang on uppercase counter references.
 
 ## [1.26.0.0] - 2018-06-13
 
@@ -2146,8 +2081,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    `is_null()`, `equals()`, and `identical()` now correctly strip quotes.
+- `is_null()`, `equals()`, and `identical()` now correctly strip quotes.
 
 ## [1.24.7.0] - 2018-04-03
 
@@ -2382,8 +2316,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    Corrections to `IMPORT` metacommand for Firebird.
+- Corrections to `IMPORT` metacommand for Firebird.
 
 ## [1.8.13.0] - 2016-11-07
 
@@ -2431,8 +2364,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    Parsing of numeric time zones.
+- Parsing of numeric time zones.
 
 ## [1.7.3.0] - 2016-08-05
 
@@ -2526,8 +2458,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    Extra quoting in drop table method.
+- Extra quoting in drop table method.
 - `str` coercion in TXT export.
 
 ## [1.2.8.0] - 2016-01-11
@@ -2551,8 +2482,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    Miscellaneous bug fixes.
+- Miscellaneous bug fixes.
 
 ## [1.2.4.6] - 2015-12-19
 
@@ -2564,22 +2494,19 @@ ______________________________________________________________________
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    Asterisks in `PROMPT ENTER_SUB`.
+- Asterisks in `PROMPT ENTER_SUB`.
 
 ## [1.2.4.4] - 2015-12-14
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    Regexes for quoted filenames.
+- Regexes for quoted filenames.
 
 ## [1.2.4.3] - 2015-12-13
 
 ### Fixed
 
-- GUI system now gracefully handles headless POSIX systems (without DISPLAY or WAYLAND_DISPLAY) by skipping Tkinter initialization and falling back to Textual or console backend, preventing cryptic \_tkinter.TclError on headless environments.
-    `-y` option display.
+- `-y` option display.
 - Parsing of `WRITE CREATE_TABLE` comment option.
 - Parsing of backslashes in substitution strings on Windows.
 
