@@ -39,6 +39,13 @@ def xls_data(
 
         wbk = XlsFile()
     elif ext3 == "lsx":
+        # B15/F031: defend against zip-bomb XLSX inputs before openpyxl parses.
+        # Symmetric with the exporter's check at exporters/xlsx.py:111,234 and
+        # exporters/xls.py:209.  Helper no-ops on non-zip files, so legacy .xls
+        # (OLE-CDF) is unaffected — see check_zip_decompression_ratio doc.
+        from execsql.utils.fileio import check_zip_decompression_ratio
+
+        check_zip_decompression_ratio(filename)
         # openpyxl imported lazily
         from execsql.exporters.xls import XlsxFile
 
