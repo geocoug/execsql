@@ -21,7 +21,7 @@ __all__ = ["collect_paths", "format_file", "main", "parse_keyword"]
 
 _SQLGLOT_MISSING_MSG = (
     "execsql-format requires sqlglot for SQL reformatting.\n"
-    "  Install with:  pip install execsql2[format]\n"
+    "  Install with:  pip install execsql2[formatter]\n"
     "  Or skip SQL reformatting with the --no-sql flag."
 )
 
@@ -29,7 +29,7 @@ _SQLGLOT_MISSING_MSG = (
 def _require_sqlglot():
     """Lazy import of sqlglot — raises ImportError with an install hint if missing.
 
-    sqlglot is an optional dependency (the ``[format]`` extra).  It is only
+    sqlglot is an optional dependency (the ``[formatter]`` extra).  It is only
     needed by ``_sqlglot_format``; the rest of the formatter (metacommand
     normalization, keyword uppercasing, comment preservation) does not use
     it.  Pass ``--no-sql`` on the CLI to bypass entirely.

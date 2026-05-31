@@ -804,9 +804,6 @@ firebird = [
     { name = "firebird-driver", version = "1.10.11", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "firebird-driver", version = "2.0.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
 ]
-format = [
-    { name = "sqlglot" },
-]
 formats = [
     { name = "defusedxml" },
     { name = "jinja2" },
@@ -817,6 +814,9 @@ formats = [
     { name = "tables", version = "3.10.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "tables", version = "3.11.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "xlrd" },
+]
+formatter = [
+    { name = "sqlglot" },
 ]
 map = [
     { name = "tkintermapview" },
@@ -849,9 +849,9 @@ requires-dist = [
     { name = "duckdb", marker = "extra == 'duckdb'" },
     { name = "execsql2", extras = ["all-db"], marker = "extra == 'all'" },
     { name = "execsql2", extras = ["auth"], marker = "extra == 'all'" },
-    { name = "execsql2", extras = ["format"], marker = "extra == 'all'" },
     { name = "execsql2", extras = ["formats"], marker = "extra == 'all'" },
     { name = "execsql2", extras = ["formats"], marker = "extra == 'dev'" },
+    { name = "execsql2", extras = ["formatter"], marker = "extra == 'all'" },
     { name = "execsql2", extras = ["map"], marker = "extra == 'all'" },
     { name = "execsql2", extras = ["upsert"], marker = "extra == 'all'" },
     { name = "firebird-driver", marker = "extra == 'all-db'" },
@@ -885,7 +885,7 @@ requires-dist = [
     { name = "pyyaml", marker = "extra == 'formats'" },
     { name = "rich", specifier = ">=13.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.4" },
-    { name = "sqlglot", marker = "extra == 'format'", specifier = ">=25.0" },
+    { name = "sqlglot", marker = "extra == 'formatter'", specifier = ">=25.0" },
     { name = "tables", marker = "extra == 'formats'" },
     { name = "textual", specifier = ">=1.0" },
     { name = "tkintermapview", marker = "extra == 'map'", specifier = ">=1.29" },
@@ -895,7 +895,7 @@ requires-dist = [
     { name = "xlrd", marker = "extra == 'formats'" },
     { name = "zensical", marker = "extra == 'dev'", specifier = ">=0.0.28" },
 ]
-provides-extras = ["postgres", "mysql", "mssql", "duckdb", "firebird", "oracle", "odbc", "formats", "auth", "auth-plaintext", "auth-encrypted", "upsert", "map", "format", "all-db", "all", "dev"]
+provides-extras = ["postgres", "mysql", "mssql", "duckdb", "firebird", "oracle", "odbc", "formats", "auth", "auth-plaintext", "auth-encrypted", "upsert", "map", "formatter", "all-db", "all", "dev"]
 
 [[package]]
 name = "filelock"
