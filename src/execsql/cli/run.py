@@ -648,6 +648,33 @@ def _run(
 
     _state.output = WriteHooks()
 
+    # ------------------------------------------------------------------
+    # Early exits — modes that touch nothing besides parsing/connecting.
+    # Keep these before FileWriter / log / atexit so --dry-run and --ping
+    # honor their "no side effects" contracts.
+    # ------------------------------------------------------------------
+    if dry_run:
+        # Seed -a assign-args so substitute_vars in the dry-run print can
+        # expand them; the normal path does this inside _setup_logging,
+        # which we are skipping.
+        if sub_vars:
+            for n, repl in enumerate(sub_vars):
+                _state.subvars.add_substitution(f"$ARG_{n + 1}", repl)
+        _ast_tree = _load_script(command, script_name, conf.script_encoding)
+        _print_dry_run(_ast_tree)
+        raise SystemExit(0)
+
+    if ping:
+        if conf.server is None and conf.db is None and conf.db_file is None:
+            from execsql.utils.errors import fatal_error
+
+            fatal_error(
+                "Database not specified for --ping in configuration files or command-line arguments.",
+            )
+        db = _connect_initial_db(conf)
+        _state.dbs.add("initial", db)
+        _ping_db(db)  # raises SystemExit
+
     import execsql.utils.fileio as _fileio
 
     if _state.filewriter is None or not _state.filewriter.is_alive():
@@ -696,16 +723,9 @@ def _run(
     )
 
     # ------------------------------------------------------------------
-    # Load the SQL script (skipped in --ping mode)
+    # Load the SQL script (--dry-run / --ping already exited above)
     # ------------------------------------------------------------------
-    _ast_tree = None if ping else _load_script(command, script_name, conf.script_encoding)
-
-    # ------------------------------------------------------------------
-    # Dry-run: print command list and exit without connecting to DB
-    # ------------------------------------------------------------------
-    if dry_run:
-        _print_dry_run(_ast_tree)
-        raise SystemExit(0)
+    _ast_tree = _load_script(command, script_name, conf.script_encoding)
 
     # ------------------------------------------------------------------
     # NOTE: --lint is handled as an early exit in cli/__init__.py (AST
@@ -740,12 +760,6 @@ def _run(
     _state.subvars.add_substitution("$CURRENT_DATABASE", db.name())
     _state.subvars.add_substitution("$DB_SERVER", db.server_name)
     _state.subvars.add_substitution("$SYSTEM_CMD_EXIT_STATUS", "0")
-
-    # ------------------------------------------------------------------
-    # --ping: report connection details and exit (no script executed)
-    # ------------------------------------------------------------------
-    if ping:
-        _ping_db(db)  # raises SystemExit(0) on success
 
     # ------------------------------------------------------------------
     # Execute the script
