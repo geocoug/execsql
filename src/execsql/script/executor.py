@@ -83,10 +83,6 @@ _DEFER_RX = re.compile(r"!\{([$@&~#+]?\w+)\}!")
 _VARLIKE = re.compile(r"!![$@&~#]?\w+!!", re.I)
 
 
-# Legacy module-level alias — ``_ast_scripts`` is now ``ctx.ast_scripts``
-# on the RuntimeContext.  Kept as a comment for grep-ability.
-
-
 def _stack_localvars(ctx: RuntimeContext) -> SubVarSet | None:
     """Build the merged ``~`` local + ``#`` param overlay for the current scope.
 
@@ -210,7 +206,7 @@ def _set_command_vars(ctx: RuntimeContext, source: str, line_no: int) -> None:
 
 
 # ---------------------------------------------------------------------------
-# SQL execution (bypasses SqlStmt.run's if_stack check)
+# SQL execution
 # ---------------------------------------------------------------------------
 
 
@@ -264,7 +260,7 @@ def _exec_sql(
 
 
 # ---------------------------------------------------------------------------
-# Metacommand execution (bypasses MetacommandStmt.run's if_stack check)
+# Metacommand execution
 # ---------------------------------------------------------------------------
 
 

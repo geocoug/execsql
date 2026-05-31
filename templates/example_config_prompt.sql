@@ -122,7 +122,7 @@
 	from configspecs cs inner join configusage cu
 		on cu.sub_var = cs.sub_var
 	where
-		usage = '!!#usage!!';
+		usage = !'!#usage!'!;
 	-- !x! prompt entry_form !!~spectbl!! message "You may change any of the configuration settings below."
 	-- !x! if(sub_defined(~boolean_int)) {config boolean_int !!~boolean_int!!}
 	-- !x! if(sub_defined(~boolean_words)) {config boolean_words !!~boolean_words!!}

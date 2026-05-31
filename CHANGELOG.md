@@ -14,6 +14,11 @@ ______________________________________________________________________
 ### Fixed
 
 - Documentation: deferred-substitution example in `docs/reference/substitution_vars.md` now shows the correct `!{$LAST_ERROR}!` form (was previously broken — both delimiter tokens identical, variable name dropped).
+- `templates/example_config_prompt.sql` now uses the safe `!'!#usage!'!` substitution-quoting form instead of the literal-quote `'!!#usage!!'` form that the 2.18.0 template-safety wave converted everywhere else.
+
+### Internal
+
+- Cleaned four stale comments / docstrings left over from the AST migration: `script/executor.py` (two "bypasses if_stack" section headers and one tombstone block about `_ast_scripts`), `metacommands/__init__.py` (referenced a removed `script.MetacommandStmt.run()` call site), and `tests/metacommands/test_metacommands.py` (listed `if_stack` among module-level singletons; now lists `ast_exec_stack`).
 
 ______________________________________________________________________
 
