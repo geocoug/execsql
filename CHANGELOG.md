@@ -16,7 +16,9 @@ ______________________________________________________________________
 - Documentation: deferred-substitution example in `docs/reference/substitution_vars.md` now shows the correct `!{$LAST_ERROR}!` form (was previously broken — both delimiter tokens identical, variable name dropped).
 - `templates/example_config_prompt.sql` now uses the safe `!'!#usage!'!` substitution-quoting form instead of the literal-quote `'!!#usage!!'` form that the 2.18.0 template-safety wave converted everywhere else.
 - Parser block-mismatch errors (`ENDIF`, `ENDLOOP`, `END BATCH`, `END SCRIPT`) now name the block actually open at that point — e.g. `"ENDLOOP on line 42 of script.sql expects a matching LOOP, but the currently open block is IF that started on line 30 — expected ENDIF before ENDLOOP."` Previously the message blamed the END keyword that fired the check, even when the real bug was a forgotten `ENDIF` on a nested inner block. Empty-stack errors retain the original `"X without matching Y"` wording.
-- `BREAKPOINT` REPL: bad SQL and other errors now print an inline `Error:` line and re-prompt instead of escaping through the BREAKPOINT metacommand and ending the session as a `"Metacommand error"`. Bare SQL without a trailing `;` (`SELECT 1`) now runs as SQL instead of being treated as an undefined variable name. A trailing `;` on a bare variable name (`logfile;`) still routes to variable lookup.
+- `BREAKPOINT` REPL: bad SQL and other unexpected errors now print an inline `Error:` line and re-prompt instead of escaping through the BREAKPOINT metacommand and ending the session as a `"Metacommand error"`. The trailing `;` is still required to route input as SQL (kept as a deliberate intent gate — the REPL has no read-only mode and DDL is irreversible on most adapters; use `BEGIN; … ROLLBACK;` to bracket exploratory DML).
+- `BREAKPOINT` REPL now accepts multi-line SQL: any non-dot input that isn't a bare variable name opens a buffer with the continuation prompt ` ...        >`, accumulating lines until one ends with `;`. Use `.cancel` (or Ctrl-C / EOF) to discard a partial buffer. Dot-commands still work mid-buffer.
+- `BREAKPOINT` REPL now handles non-`SELECT` statements correctly. Previously `DELETE FROM t;` (and any other DML / DDL / `BEGIN` / `COMMIT` / `ROLLBACK`) reported `"SQL error: 'NoneType' object is not iterable"` after the statement had already executed. The REPL now reports `(N rows affected)` for DML and `(statement executed)` for DDL / transaction control.
 
 ### Changed
 
@@ -29,7 +31,6 @@ ______________________________________________________________________
 ### Internal
 
 - Cleaned four stale comments / docstrings left over from the AST migration: `script/executor.py` (two "bypasses if_stack" section headers and one tombstone block about `_ast_scripts`), `metacommands/__init__.py` (referenced a removed `script.MetacommandStmt.run()` call site), and `tests/metacommands/test_metacommands.py` (listed `if_stack` among module-level singletons; now lists `ast_exec_stack`).
-- Regression tests for F-REPL-001 added to `tests/test_debug_repl.py`. No user-visible changes.
 
 ______________________________________________________________________
 
