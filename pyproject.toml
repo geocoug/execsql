@@ -84,6 +84,7 @@ dev = [
     "build>=1.2.2.post1",
     "bump-my-version>=1.2.7",
     "execsql2[formats]",
+    "execsql2[formatter]",
     "markdown-include>=0.8",
     "mkdocstrings-python>=2.0.3",
     "mypy>=1.10",
