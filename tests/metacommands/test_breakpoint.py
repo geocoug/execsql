@@ -207,13 +207,13 @@ class TestDebugReplUnknownDotCommand:
 
 
 class TestDebugReplVariableLookup:
-    """Bare words that aren't dot-commands or SQL are treated as variable lookups."""
+    """``.vars VAR`` prints a single variable's value."""
 
     def test_known_var_prints_value(self) -> None:
         sv = _make_subvars({"logfile": "testing.log"})
         written: list[str] = []
         with (
-            patch("builtins.input", side_effect=["logfile", ".c"]),
+            patch("builtins.input", side_effect=[".vars logfile", ".c"]),
             patch.object(_state, "subvars", sv),
             patch("execsql.debug.repl._write", side_effect=written.append),
         ):
@@ -221,11 +221,11 @@ class TestDebugReplVariableLookup:
         combined = "".join(written)
         assert "testing.log" in combined
 
-    def test_unknown_bare_word_shows_undefined(self) -> None:
+    def test_unknown_var_shows_undefined(self) -> None:
         sv = _make_subvars({})
         written: list[str] = []
         with (
-            patch("builtins.input", side_effect=["nonexistent", ".c"]),
+            patch("builtins.input", side_effect=[".vars nonexistent", ".c"]),
             patch.object(_state, "subvars", sv),
             patch("execsql.debug.repl._write", side_effect=written.append),
         ):
@@ -237,7 +237,7 @@ class TestDebugReplVariableLookup:
         sv = _make_subvars({"$arg_1": "hello"})
         written: list[str] = []
         with (
-            patch("builtins.input", side_effect=["$ARG_1", ".c"]),
+            patch("builtins.input", side_effect=[".vars $ARG_1", ".c"]),
             patch.object(_state, "subvars", sv),
             patch("execsql.debug.repl._write", side_effect=written.append),
         ):

@@ -137,24 +137,25 @@ All REPL commands are dot-prefixed to avoid ambiguity with variable names and SQ
 |---------|-------------|
 | `.continue` or `.c` | Resume script execution |
 | `.quit` or `.q` | Halt the script with exit status 1 (`.abort` is accepted as an alias) |
-| `.vars` | List user, system, local, and counter variables (grouped by type) |
-| `.vars all` | Include environment variables (`&`) in the listing |
+| `.vars` or `.v` | List all execsql substitution variables (user, system, local, counter), grouped by type |
+| `.vars VAR` or `.v VAR` | Print the value of a single variable (e.g. `.vars logfile`, `.v $ARG_1`) |
 | `.next` or `.n` | Execute the next script statement, then pause again (step mode) |
 | `.stack` | Show the command-list stack: script name, cursor index, and nesting depth |
+| `.set VAR VAL` or `.s VAR VAL` | Set or update a substitution variable |
 | `.scripts` | List all registered SCRIPT definitions with parameters and source locations |
 | `.scripts NAME` | Show detail for a specific SCRIPT (parameters, source file/line range) |
-| `.help` | Show the list of available REPL commands |
+| `.cancel` | Discard a partial multi-line SQL buffer |
+| `.help` or `.h` | Show the list of available REPL commands |
 
-**Variable inspection and SQL (no dot prefix):**
+**SQL (no dot prefix):**
 
 | Input | Description |
 |-------|-------------|
-| `logfile` | Print the value of the `logfile` variable |
-| `$ARG_1` | Print the value of a system/built-in variable |
-| `&HOME` | Print the value of an environment variable |
-| `SELECT * FROM t;` | Run ad-hoc SQL against the current database and pretty-print results — **the trailing `;` is required and acts as an intent gate** |
+| `SELECT * FROM t;` | Run ad-hoc SQL against the current database and pretty-print results |
+| `SELECT *` then `FROM t;` | Multi-line SQL — the prompt switches to a continuation form (`  ...        > `) until a line ends with `;` |
+| `INSERT INTO t …;`, `BEGIN;`, `COMMIT;`, etc. | DML, DDL, and transaction-control statements all run. DML/DDL is irreversible on most adapters — use `BEGIN; … ROLLBACK;` to bracket exploratory changes. |
 
-Input ending in `;` is executed as SQL; anything else is treated as a variable lookup. The trailing `;` is a deliberate intent gate — the REPL has no read-only mode, so any SQL you run executes against the live connection (including DML and DDL), and DDL on Oracle / MySQL / SQL Server / MS Access / SQLite is irreversible. Use SQL `BEGIN; … ROLLBACK;` to bracket exploratory DML if you need recoverability. Errors raised by the SQL or by a dot-command print an inline `Error:` line and re-prompt — the REPL session does not exit on a typo.
+All non-dot input is SQL — there is no bare-identifier variable lookup. Type `.vars VAR` to inspect a variable. Errors raised by the SQL or by a dot-command print an inline `Error:` line and re-prompt; the REPL session does not exit on a typo. The trailing `;` is the SQL terminator both within one line and across multiple lines, and acts as a deliberate intent gate — the REPL has no read-only mode, and DDL on Oracle / MySQL / SQL Server / MS Access / SQLite is irreversible.
 
 Pressing Ctrl-D (EOF) or Ctrl-C (KeyboardInterrupt) at the `execsql debug>` prompt resumes execution, the same as typing `.continue`.
 
