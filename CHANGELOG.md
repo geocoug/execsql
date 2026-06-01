@@ -11,10 +11,6 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
-### Added
-
-- `--init-config` now emits the six 2.18.0 security keys that were missing from the template: `allow_rm_file`, `allow_serve`, `include_root`, `serve_root`, `template_root`, `max_substitution_bytes`. The same keys are now documented in `docs/reference/configuration.md`.
-
 ### Fixed
 
 - `IMPORT … FORMAT xlsx` rejects zip-bomb workbooks (per-member ratio over 100:1, or total uncompressed size over 500 MB). Convert large workbooks to CSV for import. Legacy `.xls` is unaffected.
@@ -22,23 +18,12 @@ ______________________________________________________________________
 - `BREAKPOINT` REPL no longer ends the session on a bad SQL statement — errors print inline and the prompt returns.
 - `BREAKPOINT` REPL handles DML / DDL / transaction-control statements: DML prints `(N rows affected)`, DDL / `BEGIN` / `COMMIT` / `ROLLBACK` print `(statement executed)`.
 - `BREAKPOINT` REPL accepts multi-line SQL — input is buffered until a line ends with `;`. `.cancel` (or Ctrl-C / EOF) discards a partial buffer.
-- `--ping` accepts (and ignores) a leading script-file positional, so `execsql tmp.sql --ping -t l tmp.db` works.
-- `--dry-run` aligns multi-line SQL continuation lines under the SQL column.
-- Parser block-mismatch errors blame the unclosed opening. `LOOP { IF (no ENDIF) } ENDLOOP` now reports `IF on line N has no matching ENDIF` (previously blamed the `ENDLOOP`).
-- Deferred-substitution example in `docs/reference/substitution_vars.md` corrected to `!{$LAST_ERROR}!` (the previous example had identical delimiter tokens and a missing variable name).
-- `templates/example_config_prompt.sql` uses the safe `!'!#usage!'!` quoting form.
 
 ### Changed
 
 - **`BREAKPOINT` REPL dispatch is now two-way**: input starting with `.` is a REPL command, everything else is SQL. Bare-name variable lookup is removed — use `.vars VAR` (e.g. `.vars logfile`, `.vars $ARG_1`) to print one variable; `.vars` alone still lists all.
-- `BREAKPOINT` primary halt command is now `.quit` (`.abort` accepted as an alias).
-- `.vars all` removed — `.vars` no longer surfaces environment variables.
 - `sqlglot` moved to the new `[formatter]` extra. Install `execsql2[formatter]` to use `execsql-format`'s SQL pass; `execsql-format --no-sql` works without.
 - `textual` dependency floor raised to `>=1.0` (was `>=0.47.0`).
-
-### Removed
-
-- `Database.auto_commits_ddl()` capability hook (added in 2.18.0; never consumed). Downstream `Database` subclasses can drop the override. `Database.needs_explicit_commit_after_ddl()` is unaffected.
 
 ______________________________________________________________________
 
