@@ -150,7 +150,6 @@ class TestFormatHelp:
         with patch("execsql.debug.repl._use_color", return_value=False):
             text = _format_help()
             assert "SELECT" in text
-            assert "varname" in text
 
 
 # ---------------------------------------------------------------------------
@@ -477,10 +476,11 @@ class TestHandleDotCommand:
             _handle_dot_command(".vars")
         assert "logfile" in capture.getvalue()
 
-    def test_vars_all(self, capture, subvars):
+    def test_vars_with_name(self, capture, subvars):
+        """`.vars <name>` prints a single variable's value."""
         with patch("execsql.debug.repl._use_color", return_value=False):
-            _handle_dot_command(".vars all")
-        assert "&home" in capture.getvalue()
+            _handle_dot_command(".vars logfile")
+        assert "/tmp/test.log" in capture.getvalue()
 
     def test_where(self, capture, last_command):
         with patch("execsql.debug.repl._use_color", return_value=False):
@@ -600,9 +600,10 @@ class TestDebugReplIntegration:
         ):
             _debug_repl()
 
-    def test_variable_lookup_then_continue(self, capture, last_command, subvars):
+    def test_variable_lookup_via_dot_vars(self, capture, last_command, subvars):
+        """``.vars logfile`` prints the named variable's value."""
         with (
-            patch("builtins.input", side_effect=["logfile", ".c"]),
+            patch("builtins.input", side_effect=[".vars logfile", ".c"]),
             patch("execsql.debug.repl._use_color", return_value=False),
         ):
             _debug_repl()
@@ -719,11 +720,14 @@ class TestDebugReplIntegration:
         # .vars output (logfile is set by the subvars fixture) appears between the buffer lines.
         assert "logfile" in capture.getvalue()
 
-    def test_fresh_prompt_bare_identifier_routes_to_lookup(self, capture, last_command, subvars):
-        """Bare ``logfile`` at fresh prompt → variable lookup (not start of SQL buffer)."""
+    def test_bare_identifier_starts_sql_buffer(self, capture, last_command, subvars):
+        """Bare ``logfile`` at fresh prompt starts a multi-line SQL buffer (no lookup)."""
+        _, cursor = _wire_mock_cursor(description=None, rowcount=1)
         with (
-            patch("builtins.input", side_effect=["logfile", ".c"]),
+            patch("builtins.input", side_effect=["logfile", "= 1;", ".c"]),
             patch("execsql.debug.repl._use_color", return_value=False),
         ):
             _debug_repl()
-        assert "/tmp/test.log" in capture.getvalue()
+        # Buffer joined to "logfile = 1;" and sent to execute — bare identifier
+        # is no longer interpreted as a variable lookup at the top level.
+        cursor.execute.assert_called_once_with("logfile = 1;")

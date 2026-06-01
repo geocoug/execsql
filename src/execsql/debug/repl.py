@@ -12,15 +12,16 @@ The REPL allows the user to:
 - Step through the script one statement at a time.
 - Resume or abort execution.
 
-All REPL commands are dot-prefixed (``.continue``, ``.vars``, ``.next``)
-to avoid ambiguity with variable names and SQL.  At the fresh ``execsql
-debug>`` prompt, input is routed by shape:
+Dispatch is two-way (psql-style): input starting with ``.`` is a REPL
+command (``.continue``, ``.vars [VAR]``, ``.next``, etc.), everything
+else is SQL.  Multi-line SQL is supported: any non-``.`` input opens a
+buffer whose continuation prompt is ``  ...        > ``, accumulating
+until a line ends with ``;``.  ``.cancel`` (or Ctrl-C / EOF) discards
+the partial buffer.
 
-- a bare identifier (e.g. ``logfile``, ``$ARG_1``) → variable lookup;
-- input ending in ``;`` → run as SQL;
-- anything else → starts a multi-line SQL block.  The prompt switches
-  to ``  ...        > `` and lines are accumulated until one ends with
-  ``;``; ``.cancel`` (or Ctrl-C / EOF) discards the partial buffer.
+Variable lookup is explicit — ``.vars LOGFILE`` prints one variable;
+``.vars`` lists them all.  There is no bare-identifier lookup, so any
+SQL keyword you type starts a buffer the moment you press Enter.
 
 The trailing ``;`` is the SQL terminator both within one line and across
 multiple lines — the REPL has no read-only mode and DDL on most adapters
@@ -38,52 +39,11 @@ blocked.
 """
 
 import os
-import re
 import sys
 from pathlib import Path
 from typing import Any
 
 import execsql.state as _state
-
-# Optional sigil ($/&/@/#/~) followed by an identifier — the REPL routes
-# matches to variable lookup and everything else to multi-line SQL.
-_VARNAME_RX = re.compile(r"^[$&@#~]?[A-Za-z_]\w*$")
-
-# A bare SQL keyword on its own line starts a multi-line SQL buffer
-# rather than a variable lookup.
-_SQL_KEYWORD_STARTERS = frozenset(
-    {
-        "SELECT",
-        "WITH",
-        "INSERT",
-        "UPDATE",
-        "DELETE",
-        "MERGE",
-        "CREATE",
-        "DROP",
-        "ALTER",
-        "TRUNCATE",
-        "RENAME",
-        "BEGIN",
-        "COMMIT",
-        "ROLLBACK",
-        "SAVEPOINT",
-        "RELEASE",
-        "EXPLAIN",
-        "ANALYZE",
-        "VACUUM",
-        "PRAGMA",
-        "SHOW",
-        "GRANT",
-        "REVOKE",
-        "SET",
-        "RESET",
-        "ATTACH",
-        "DETACH",
-        "REINDEX",
-        "CALL",
-    },
-)
 
 __all__ = ["x_breakpoint"]
 
@@ -161,8 +121,8 @@ def _c(code: str, text: str) -> str:
 _HELP_COMMANDS = [
     (".continue", ".c", "Resume script execution"),
     (".quit", ".q", "Halt the script (exit 1)"),
-    (".vars", ".v", "List user, system, local, and counter variables"),
-    (".vars all", ".v all", "Include environment variables (&) in the listing"),
+    (".vars", ".v", "List all execsql substitution variables"),
+    (".vars VAR", ".v VAR", "Print the value of a single variable (e.g. .vars logfile)"),
     (".next", ".n", "Execute the next statement then pause again (step mode)"),
     (".where", ".w", "Show the current script location and upcoming statement"),
     (".stack", "", "Show the command-list stack (script name, line, depth)"),
@@ -174,7 +134,6 @@ _HELP_COMMANDS = [
 ]
 
 _HELP_OTHER = [
-    ("varname", "Print a variable's value (e.g. logfile, $ARG_1, &HOME)"),
     ("SELECT ...;", "Run SQL — multi-line accepted, terminate with ';' to execute"),
 ]
 
@@ -326,13 +285,6 @@ def _debug_repl(*, step: bool = False) -> None:
                 _run_sql(line)
                 continue
 
-            if _VARNAME_RX.match(line):
-                if line.upper() in _SQL_KEYWORD_STARTERS:
-                    sql_buffer.append(line)
-                    continue
-                _print_var(line)
-                continue
-
             sql_buffer.append(line)
         except SystemExit:
             raise
@@ -357,10 +309,14 @@ def _handle_dot_command(line: str) -> None:
         raise SystemExit(1)
     elif cmd in ("help", "h"):
         _write(_format_help())
-    elif cmd in ("vars all", "v all"):
-        _print_all_vars(include_env=True)
     elif cmd in ("vars", "v"):
         _print_all_vars()
+    elif cmd.startswith("vars ") or cmd.startswith("v "):
+        rest = cmd.split(None, 1)[1].strip() if " " in cmd else ""
+        if rest:
+            _print_var(rest)
+        else:
+            _print_all_vars()
     elif cmd in ("where", "w"):
         _print_where()
     elif cmd == "stack":
