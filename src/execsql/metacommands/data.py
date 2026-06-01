@@ -1,31 +1,6 @@
 from __future__ import annotations
 
-import re
-
 from execsql.exceptions import ErrInfo
-
-# Documented contract for SUBDATA / SELECT_SUB datasource: one or two
-# word-character identifiers joined by a single dot. Quoting is not applied
-# because wrapping in double-quotes would force PG into case-sensitive
-# lookups and break existing scripts that rely on unquoted folding.
-_DATASOURCE_RX = re.compile(r"^\w+(\.\w+)?$")
-
-
-def _validate_datasource(datasource: str, metacommand: str) -> str:
-    """Return *datasource* stripped, or raise if it isn't ``[schema.]table``."""
-    cleaned = datasource.strip()
-    if not _DATASOURCE_RX.match(cleaned):
-        raise ErrInfo(
-            type="cmd",
-            command_text=metacommand,
-            other_msg=(
-                f"Invalid datasource {cleaned!r} for {metacommand}: expected "
-                "an unquoted table or view name, optionally schema-qualified "
-                "as 'schema.table'."
-            ),
-        )
-    return cleaned
-
 
 """
 Substitution-variable, counter, and IMPORT/EXPORT configuration handlers.
@@ -157,8 +132,7 @@ def x_sub_decrypt(**kwargs: Any) -> None:
 
 def x_subdata(**kwargs: Any) -> None:
     varname = kwargs["match"]
-    datasource = _validate_datasource(kwargs["datasource"], "SUBDATA")
-    sql = f"select * from {datasource};"
+    sql = f"select * from {kwargs['datasource']};"
     db = _state.dbs.current()
     subvarset, varname = get_subvarset(varname, kwargs["metacommandline"])
     subvarset.remove_substitution(varname)
@@ -187,12 +161,12 @@ def x_subdata(**kwargs: Any) -> None:
 
 
 def x_selectsub(**kwargs: Any) -> None:
-    datasource = _validate_datasource(kwargs["datasource"], "SELECT_SUB")
-    sql = f"select * from {datasource};"
+    sql = f"select * from {kwargs['datasource']};"
     db = _state.dbs.current()
     script, line_no = current_script_line()
     nodatamsg = (
-        f"There are no data in {datasource} to use with the SELECT_SUB metacommand (script {script}, line {line_no})."
+        f"There are no data in {kwargs['datasource']} to use with the SELECT_SUB metacommand "
+        f"(script {script}, line {line_no})."
     )
     try:
         hdrs, rec = db.select_rowsource(sql)
