@@ -11,34 +11,34 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Added
+
+- `--init-config` now emits the six 2.18.0 security keys that were missing from the template: `allow_rm_file`, `allow_serve`, `include_root`, `serve_root`, `template_root`, `max_substitution_bytes`. The same keys are now documented in `docs/reference/configuration.md`.
+
 ### Fixed
 
-- **`IMPORT … FORMAT xlsx` now applies the same zip-bomb defence the exporter has had since 2.18.0.** Previously the importer handed any `.xlsx` path directly to openpyxl with no decompression-ratio inspection — a maliciously crafted XLSX with a 1 GB uncompressed member could trigger proportional memory allocation. Helper at `execsql.utils.fileio.check_zip_decompression_ratio` is now invoked before openpyxl parses the file. Default thresholds: 100:1 per-member ratio, 500 MB aggregate uncompressed size. Legacy `.xls` (OLE-CDF, not zip) is unaffected.
-- Documentation: deferred-substitution example in `docs/reference/substitution_vars.md` now shows the correct `!{$LAST_ERROR}!` form (was previously broken — both delimiter tokens identical, variable name dropped).
-- `templates/example_config_prompt.sql` now uses the safe `!'!#usage!'!` substitution-quoting form instead of the literal-quote `'!!#usage!!'` form that the 2.18.0 template-safety wave converted everywhere else.
-- Parser block-mismatch errors (`ENDIF`, `ENDLOOP`, `END BATCH`, `END SCRIPT`) now name the block actually open at that point — e.g. `"ENDLOOP on line 42 of script.sql expects a matching LOOP, but the currently open block is IF that started on line 30 — expected ENDIF before ENDLOOP."` Previously the message blamed the END keyword that fired the check, even when the real bug was a forgotten `ENDIF` on a nested inner block. Empty-stack errors retain the original `"X without matching Y"` wording.
-- `BREAKPOINT` REPL: bad SQL and other unexpected errors now print an inline `Error:` line and re-prompt instead of escaping through the BREAKPOINT metacommand and ending the session as a `"Metacommand error"`. The trailing `;` is still required to route input as SQL (kept as a deliberate intent gate — the REPL has no read-only mode and DDL is irreversible on most adapters; use `BEGIN; … ROLLBACK;` to bracket exploratory DML).
-- `BREAKPOINT` REPL now accepts multi-line SQL: any non-dot input opens a buffer with the continuation prompt ` ...        >`, accumulating lines until one ends with `;`. Use `.cancel` (or Ctrl-C / EOF) to discard a partial buffer. Dot-commands still work mid-buffer.
-- `BREAKPOINT` REPL: the primary "halt the script" command is now `.quit`; `.abort` is kept as an alias.
-- `--ping` no longer errors with `"Configured to run with SQLite, but no SQLite file name is provided"` when invoked with a script file as the first positional (e.g. `execsql tmp.sql --ping -t l -n tmp.db`). The script positional is now silently skipped under `--ping` so the remaining args route to server/db/db_file as expected.
-- `--dry-run` output now aligns continuation lines of multi-line SQL statements under the SQL column instead of wrapping flush-left.
-- `BREAKPOINT` REPL now handles non-`SELECT` statements correctly. Previously `DELETE FROM t;` (and any other DML / DDL / `BEGIN` / `COMMIT` / `ROLLBACK`) reported `"SQL error: 'NoneType' object is not iterable"` after the statement had already executed. The REPL now reports `(N rows affected)` for DML and `(statement executed)` for DDL / transaction control.
-- `EXPORT … FORMAT hdf5` no longer runs the source SELECT twice (once for type inference and once for the write loop), no longer truncates `bigint` / `DT_Long` columns by mapping them to 32-bit `IntCol` (now `Int64Col`), and no longer dead-coded the `DT_Text` branch behind a `DT_Varchar` match — `DT_Text` columns now correctly use the configured `hdf5_text_len` instead of falling into the unreachable branch.
+- `IMPORT … FORMAT xlsx` rejects zip-bomb workbooks (per-member ratio over 100:1, or total uncompressed size over 500 MB). Convert large workbooks to CSV for import. Legacy `.xls` is unaffected.
+- `EXPORT … FORMAT hdf5` no longer truncates `BIGINT` columns to 32-bit, and `DT_Text` columns now honour the configured `hdf5_text_len`.
+- `BREAKPOINT` REPL no longer ends the session on a bad SQL statement — errors print inline and the prompt returns.
+- `BREAKPOINT` REPL handles DML / DDL / transaction-control statements: DML prints `(N rows affected)`, DDL / `BEGIN` / `COMMIT` / `ROLLBACK` print `(statement executed)`.
+- `BREAKPOINT` REPL accepts multi-line SQL — input is buffered until a line ends with `;`. `.cancel` (or Ctrl-C / EOF) discards a partial buffer.
+- `--ping` accepts (and ignores) a leading script-file positional, so `execsql tmp.sql --ping -t l tmp.db` works.
+- `--dry-run` aligns multi-line SQL continuation lines under the SQL column.
+- Parser block-mismatch errors blame the unclosed opening. `LOOP { IF (no ENDIF) } ENDLOOP` now reports `IF on line N has no matching ENDIF` (previously blamed the `ENDLOOP`).
+- Deferred-substitution example in `docs/reference/substitution_vars.md` corrected to `!{$LAST_ERROR}!` (the previous example had identical delimiter tokens and a missing variable name).
+- `templates/example_config_prompt.sql` uses the safe `!'!#usage!'!` quoting form.
 
 ### Changed
 
-- **`BREAKPOINT` REPL dispatch is now two-way**: input starting with `.` is a REPL command, everything else is SQL. Variable lookup at the bare prompt has been removed — the only way to print a variable is now `.vars VAR` (e.g. `.vars logfile`, `.vars $ARG_1`). `.vars` with no argument still lists every execsql substitution variable. Matches the psql / sqlite3 contract and removes the previous hardcoded SQL-keyword heuristic that tried to distinguish "bare identifier = variable lookup" from "bare keyword = start of SQL".
-- `.vars all` (which previously included environment variables) has been removed. `.vars` now lists user / system / local / counter variables; environment variables are not surfaced via this command.
-- `textual` floor raised from `>=0.47.0` to `>=1.0`. The old floor was 8 majors behind currently-resolved versions; pinning it to 1.0+ prevents cached 0.x wheels from resolving to an API surface execsql's TUI no longer expects to compile against.
-- `sqlglot` moved from mandatory dependency to the new `[formatter]` extra (singular — distinct from the existing `formats` extra which covers file-format I/O like ODS / XLS / Jinja2). SQL execution and metacommand dispatch never used it — only the optional SQL-reformatting pass in `execsql-format`. Users who run `execsql-format` without `--no-sql` now need `pip install execsql2[formatter]`; the lazy import raises a clear `ImportError` with the install hint. `--no-sql` continues to work on a bare `execsql2` install. Net: -1 mandatory dependency for the dominant script-execution use case.
+- **`BREAKPOINT` REPL dispatch is now two-way**: input starting with `.` is a REPL command, everything else is SQL. Bare-name variable lookup is removed — use `.vars VAR` (e.g. `.vars logfile`, `.vars $ARG_1`) to print one variable; `.vars` alone still lists all.
+- `BREAKPOINT` primary halt command is now `.quit` (`.abort` accepted as an alias).
+- `.vars all` removed — `.vars` no longer surfaces environment variables.
+- `sqlglot` moved to the new `[formatter]` extra. Install `execsql2[formatter]` to use `execsql-format`'s SQL pass; `execsql-format --no-sql` works without.
+- `textual` dependency floor raised to `>=1.0` (was `>=0.47.0`).
 
 ### Removed
 
-- `Database.auto_commits_ddl()` capability hook (added in 2.18.0) and its four overrides on Oracle, MySQL, SQL Server, and MS Access. No call site ever consumed it. Downstream code that subclassed `Database` and overrode the method can drop the override — Python will not complain about the missing-from-base method, and there is no consumer to disagree with the return value. The companion `Database.needs_explicit_commit_after_ddl()` is unaffected. See `docs/about/divergence.md` for the asymmetry it used to describe.
-
-### Internal
-
-- Cleaned four stale comments / docstrings left over from the AST migration: `script/executor.py` (two "bypasses if_stack" section headers and one tombstone block about `_ast_scripts`), `metacommands/__init__.py` (referenced a removed `script.MetacommandStmt.run()` call site), and `tests/metacommands/test_metacommands.py` (listed `if_stack` among module-level singletons; now lists `ast_exec_stack`).
+- `Database.auto_commits_ddl()` capability hook (added in 2.18.0; never consumed). Downstream `Database` subclasses can drop the override. `Database.needs_explicit_commit_after_ddl()` is unaffected.
 
 ______________________________________________________________________
 
