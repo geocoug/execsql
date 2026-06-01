@@ -250,15 +250,15 @@ class TestIfBlock:
         assert len(inner.body) == 1
 
     def test_unmatched_endif_raises(self):
-        with pytest.raises(ErrInfo, match="ENDIF without matching IF"):
+        with pytest.raises(ErrInfo, match="ENDIF on line .* has no matching IF"):
             parse_string("-- !x! ENDIF")
 
     def test_unmatched_else_raises(self):
-        with pytest.raises(ErrInfo, match="ELSE without matching IF"):
+        with pytest.raises(ErrInfo, match="ELSE on line .* has no matching IF"):
             parse_string("-- !x! ELSE")
 
     def test_unmatched_elseif_raises(self):
-        with pytest.raises(ErrInfo, match="ELSEIF without matching IF"):
+        with pytest.raises(ErrInfo, match="ELSEIF on line .* has no matching IF"):
             parse_string("-- !x! ELSEIF (COND)")
 
     def test_unclosed_if_raises(self):
@@ -352,11 +352,11 @@ class TestIfBlock:
         assert clause.condition_modifiers[0].condition == "COND_D"
 
     def test_andif_without_if_raises(self):
-        with pytest.raises(ErrInfo, match="ANDIF without matching IF"):
+        with pytest.raises(ErrInfo, match="ANDIF on line .* has no matching IF"):
             parse_string("-- !x! ANDIF (COND)")
 
     def test_orif_without_if_raises(self):
-        with pytest.raises(ErrInfo, match="ORIF without matching IF"):
+        with pytest.raises(ErrInfo, match="ORIF on line .* has no matching IF"):
             parse_string("-- !x! ORIF (COND)")
 
 
@@ -392,7 +392,7 @@ class TestLoopBlock:
         assert inner.loop_type == "UNTIL"
 
     def test_unmatched_endloop_raises(self):
-        with pytest.raises(ErrInfo, match="ENDLOOP without matching LOOP"):
+        with pytest.raises(ErrInfo, match="ENDLOOP on line .* has no matching LOOP"):
             parse_string("-- !x! ENDLOOP")
 
     def test_unclosed_loop_raises(self):
@@ -423,7 +423,7 @@ class TestBatchBlock:
         assert node.span.effective_end_line == 4
 
     def test_unmatched_end_batch_raises(self):
-        with pytest.raises(ErrInfo, match="END BATCH without matching BEGIN BATCH"):
+        with pytest.raises(ErrInfo, match="END BATCH on line .* has no matching BEGIN BATCH"):
             parse_string("-- !x! END BATCH")
 
     def test_unclosed_batch_raises(self):
@@ -468,7 +468,7 @@ class TestScriptBlock:
             parse_string("-- !x! BEGIN SCRIPT foo\nSELECT 1;\n-- !x! END SCRIPT bar")
 
     def test_unmatched_end_script_raises(self):
-        with pytest.raises(ErrInfo, match="Unmatched END SCRIPT"):
+        with pytest.raises(ErrInfo, match="END SCRIPT on line .* has no matching BEGIN SCRIPT"):
             parse_string("-- !x! END SCRIPT")
 
     def test_unclosed_script_raises(self):
@@ -952,11 +952,11 @@ class TestNestingEdgeCases:
                 "-- !x! END BATCH",
             )
 
-    def test_endloop_inside_unclosed_if_names_inner_block(self):
-        """ENDLOOP fired while an IF is open names the IF, not 'ENDLOOP without matching LOOP'."""
+    def test_endloop_with_unclosed_inner_if_names_inner_block(self):
+        """ENDLOOP fired while an IF is open names the IF block as still-open."""
         with pytest.raises(
             ErrInfo,
-            match=r"ENDLOOP on line \d+ .* but the currently open block is IF .* expected ENDIF before ENDLOOP",
+            match=r"ENDLOOP on line \d+ of .*: an IF block .* is still open",
         ):
             parse_string(
                 "-- !x! LOOP WHILE (HAS_ROWS)\n"
@@ -965,11 +965,11 @@ class TestNestingEdgeCases:
                 "-- !x! ENDLOOP",
             )
 
-    def test_endif_inside_unclosed_loop_names_inner_block(self):
-        """ENDIF fired while a LOOP is open names the LOOP, not 'ENDIF without matching IF'."""
+    def test_endif_with_unclosed_inner_loop_names_inner_block(self):
+        """ENDIF fired while a LOOP is open names the LOOP block as still-open."""
         with pytest.raises(
             ErrInfo,
-            match=r"ENDIF on line \d+ .* but the currently open block is LOOP .* expected ENDLOOP before ENDIF",
+            match=r"ENDIF on line \d+ of .*: a LOOP block .* is still open",
         ):
             parse_string(
                 "-- !x! IF (HAS_ROWS)\n"
@@ -978,11 +978,11 @@ class TestNestingEdgeCases:
                 "-- !x! ENDIF",
             )
 
-    def test_end_batch_inside_unclosed_if_names_inner_block(self):
+    def test_end_batch_with_unclosed_inner_if_names_inner_block(self):
         """END BATCH fired while an IF is open names the IF."""
         with pytest.raises(
             ErrInfo,
-            match=r"END BATCH on line \d+ .* but the currently open block is IF .* expected ENDIF before END BATCH",
+            match=r"END BATCH on line \d+ of .*: an IF block .* is still open",
         ):
             parse_string(
                 "-- !x! BEGIN BATCH\n"
@@ -991,11 +991,11 @@ class TestNestingEdgeCases:
                 "-- !x! END BATCH",
             )
 
-    def test_end_script_inside_unclosed_if_names_inner_block(self):
+    def test_end_script_with_unclosed_inner_if_names_inner_block(self):
         """END SCRIPT fired while an IF is open names the IF."""
         with pytest.raises(
             ErrInfo,
-            match=r"END SCRIPT on line \d+ .* but the currently open block is IF .* expected ENDIF before END SCRIPT",
+            match=r"END SCRIPT on line \d+ of .*: an IF block .* is still open",
         ):
             parse_string(
                 "-- !x! BEGIN SCRIPT inner\n"
