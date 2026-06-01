@@ -102,6 +102,19 @@ def _strip_quotes(s: str) -> str:
     return s
 
 
+def _unclosed_block_msg(top: _BlockFrame) -> str:
+    """Message blaming an unclosed opening block for a wrong-kind END-keyword error."""
+    if top.kind == "if":
+        return f"IF on line {top.start_line} of {top.source} has no matching ENDIF."
+    if top.kind == "loop":
+        return f"LOOP on line {top.start_line} of {top.source} has no matching ENDLOOP."
+    if top.kind == "batch":
+        return f"BEGIN BATCH on line {top.start_line} of {top.source} has no matching END BATCH."
+    if top.kind == "script":
+        return f"BEGIN SCRIPT on line {top.start_line} of {top.source} has no matching END SCRIPT."
+    return f"{top.kind.upper()} on line {top.start_line} of {top.source} is unclosed."
+
+
 _EXEC_SCRIPT_RX = re.compile(
     r"^\s*(?:EXEC(?:UTE)?|RUN)\s+SCRIPT"
     r"(?P<exists>\s+IF\s+EXISTS)?"
@@ -536,15 +549,10 @@ def _parse_lines(lines: Iterable[str], source_name: str) -> Script:
                         other_msg=f"END SCRIPT on line {file_lineno} of {source_name} has no matching BEGIN SCRIPT.",
                     )
                 if block_stack[-1].kind != "script":
-                    top = block_stack[-1]
                     raise ErrInfo(
                         type="cmd",
                         command_text=line,
-                        other_msg=(
-                            f"END SCRIPT on line {file_lineno} of {source_name}: "
-                            f"{'an' if top.kind == 'if' else 'a'} {top.kind.upper()} block "
-                            f"(line {top.start_line} of {top.source}) is still open. Close it first."
-                        ),
+                        other_msg=_unclosed_block_msg(block_stack[-1]),
                     )
                 frame = block_stack[-1]
                 script_node = frame.node
@@ -689,15 +697,10 @@ def _parse_lines(lines: Iterable[str], source_name: str) -> Script:
                         other_msg=f"ENDIF on line {file_lineno} of {source_name} has no matching IF.",
                     )
                 if block_stack[-1].kind != "if":
-                    top = block_stack[-1]
                     raise ErrInfo(
                         type="cmd",
                         command_text=line,
-                        other_msg=(
-                            f"ENDIF on line {file_lineno} of {source_name}: "
-                            f"{'an' if top.kind == 'if' else 'a'} {top.kind.upper()} block "
-                            f"(line {top.start_line} of {top.source}) is still open. Close it first."
-                        ),
+                        other_msg=_unclosed_block_msg(block_stack[-1]),
                     )
                 frame = block_stack.pop()
                 frame.node.span = SourceSpan(source_name, frame.start_line, file_lineno)
@@ -731,15 +734,10 @@ def _parse_lines(lines: Iterable[str], source_name: str) -> Script:
                         other_msg=f"ENDLOOP on line {file_lineno} of {source_name} has no matching LOOP.",
                     )
                 if block_stack[-1].kind != "loop":
-                    top = block_stack[-1]
                     raise ErrInfo(
                         type="cmd",
                         command_text=line,
-                        other_msg=(
-                            f"ENDLOOP on line {file_lineno} of {source_name}: "
-                            f"{'an' if top.kind == 'if' else 'a'} {top.kind.upper()} block "
-                            f"(line {top.start_line} of {top.source}) is still open. Close it first."
-                        ),
+                        other_msg=_unclosed_block_msg(block_stack[-1]),
                     )
                 frame = block_stack.pop()
                 frame.node.span = SourceSpan(source_name, frame.start_line, file_lineno)
@@ -769,15 +767,10 @@ def _parse_lines(lines: Iterable[str], source_name: str) -> Script:
                         other_msg=f"END BATCH on line {file_lineno} of {source_name} has no matching BEGIN BATCH.",
                     )
                 if block_stack[-1].kind != "batch":
-                    top = block_stack[-1]
                     raise ErrInfo(
                         type="cmd",
                         command_text=line,
-                        other_msg=(
-                            f"END BATCH on line {file_lineno} of {source_name}: "
-                            f"{'an' if top.kind == 'if' else 'a'} {top.kind.upper()} block "
-                            f"(line {top.start_line} of {top.source}) is still open. Close it first."
-                        ),
+                        other_msg=_unclosed_block_msg(block_stack[-1]),
                     )
                 frame = block_stack.pop()
                 frame.node.span = SourceSpan(source_name, frame.start_line, file_lineno)
