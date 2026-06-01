@@ -49,6 +49,42 @@ import execsql.state as _state
 # matches to variable lookup and everything else to multi-line SQL.
 _VARNAME_RX = re.compile(r"^[$&@#~]?[A-Za-z_]\w*$")
 
+# A bare SQL keyword on its own line starts a multi-line SQL buffer
+# rather than a variable lookup.
+_SQL_KEYWORD_STARTERS = frozenset(
+    {
+        "SELECT",
+        "WITH",
+        "INSERT",
+        "UPDATE",
+        "DELETE",
+        "MERGE",
+        "CREATE",
+        "DROP",
+        "ALTER",
+        "TRUNCATE",
+        "RENAME",
+        "BEGIN",
+        "COMMIT",
+        "ROLLBACK",
+        "SAVEPOINT",
+        "RELEASE",
+        "EXPLAIN",
+        "ANALYZE",
+        "VACUUM",
+        "PRAGMA",
+        "SHOW",
+        "GRANT",
+        "REVOKE",
+        "SET",
+        "RESET",
+        "ATTACH",
+        "DETACH",
+        "REINDEX",
+        "CALL",
+    },
+)
+
 __all__ = ["x_breakpoint"]
 
 # ---------------------------------------------------------------------------
@@ -124,7 +160,7 @@ def _c(code: str, text: str) -> str:
 
 _HELP_COMMANDS = [
     (".continue", ".c", "Resume script execution"),
-    (".abort", ".q", "Halt the script (exit 1)"),
+    (".quit", ".q", "Halt the script (exit 1)"),
     (".vars", ".v", "List user, system, local, and counter variables"),
     (".vars all", ".v all", "Include environment variables (&) in the listing"),
     (".next", ".n", "Execute the next statement then pause again (step mode)"),
@@ -291,6 +327,9 @@ def _debug_repl(*, step: bool = False) -> None:
                 continue
 
             if _VARNAME_RX.match(line):
+                if line.upper() in _SQL_KEYWORD_STARTERS:
+                    sql_buffer.append(line)
+                    continue
                 _print_var(line)
                 continue
 

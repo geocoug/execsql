@@ -136,7 +136,7 @@ All REPL commands are dot-prefixed to avoid ambiguity with variable names and SQ
 | Command | Description |
 |---------|-------------|
 | `.continue` or `.c` | Resume script execution |
-| `.abort` or `.q` | Halt the script with exit status 1 |
+| `.quit` or `.q` | Halt the script with exit status 1 (`.abort` is accepted as an alias) |
 | `.vars` | List user, system, local, and counter variables (grouped by type) |
 | `.vars all` | Include environment variables (`&`) in the listing |
 | `.next` or `.n` | Execute the next script statement, then pause again (step mode) |
@@ -1868,6 +1868,9 @@ IMPORT TO [NEW|REPLACEMENT] TABLES IN [SCHEMA] <schema_name>
     FROM EXCEL <file_name> SHEETS MATCHING <regular_expression>
     [SKIP <rows>] [ENCODING <encoding>]
 ```
+
+!!! note "XLSX size limit"
+    Imports from `.xlsx` files (OOXML, zip-based) are gated by a zip-bomb defence that rejects workbooks whose aggregate uncompressed payload exceeds 500 MB or whose per-member compression ratio exceeds 100:1. These limits are intentional and not user-configurable. For genuinely large tabular data, convert the source to CSV first (`Save As → CSV UTF-8` in Excel, or `libreoffice --headless --convert-to csv ...`) — CSV imports are also substantially faster, support streaming, and avoid the openpyxl memory cost. Legacy `.xls` (OLE-CDF) is not affected by the limit.
 
 The syntax for importing data from a data file in [Parquet](https://parquet.apache.org/) format is:
 

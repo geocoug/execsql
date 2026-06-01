@@ -138,7 +138,7 @@ class TestFormatHelp:
         with patch("execsql.debug.repl._use_color", return_value=False):
             text = _format_help()
             assert ".continue" in text
-            assert ".abort" in text
+            assert ".quit" in text
             assert ".vars" in text
             assert ".next" in text
             assert ".where" in text
