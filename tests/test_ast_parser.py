@@ -998,3 +998,221 @@ class TestNestingEdgeCases:
         assert isinstance(node, IfBlock)
         assert len(node.body) == 1
         assert isinstance(node.body[0], ScriptBlock)
+
+
+# ---------------------------------------------------------------------------
+# Block-mismatch error wording — exhaustive matrix
+# ---------------------------------------------------------------------------
+#
+# Two error forms:
+#
+# 1. Empty stack — the END* / branch keyword fires with nothing on the
+#    parser's block stack.  Message names the END* keyword itself.
+#
+#       "<ENDKW> on line N of FILE has no matching <OPENKW>."
+#
+# 2. Wrong kind on top — a block of a different kind is on top of the
+#    stack.  Message names the *opening* keyword that was left unclosed.
+#
+#       "<OPENKW> on line M of FILE has no matching <ENDKW>."
+#
+# The matrix below covers every cell of (END keyword) × (block-on-top).
+
+
+class TestBlockMismatchEmptyStack:
+    """END* / branch keyword fires with no opening on the stack."""
+
+    @pytest.mark.parametrize(
+        ("script", "expected_pattern"),
+        [
+            ("-- !x! ENDIF", r"ENDIF on line 1 of <inline> has no matching IF\."),
+            ("-- !x! ENDLOOP", r"ENDLOOP on line 1 of <inline> has no matching LOOP\."),
+            ("-- !x! END BATCH", r"END BATCH on line 1 of <inline> has no matching BEGIN BATCH\."),
+            ("-- !x! END SCRIPT", r"END SCRIPT on line 1 of <inline> has no matching BEGIN SCRIPT\."),
+            ("-- !x! ELSE", r"ELSE on line 1 of <inline> has no matching IF\."),
+            ("-- !x! ELSEIF (X)", r"ELSEIF on line 1 of <inline> has no matching IF\."),
+            ("-- !x! ANDIF (X)", r"ANDIF on line 1 of <inline> has no matching IF\."),
+            ("-- !x! ORIF (X)", r"ORIF on line 1 of <inline> has no matching IF\."),
+        ],
+    )
+    def test_empty_stack_messages(self, script, expected_pattern):
+        with pytest.raises(ErrInfo, match=expected_pattern):
+            parse_string(script)
+
+
+class TestBlockMismatchWrongKind:
+    """END* fires with a block of a different kind on top of the stack.
+
+    The error message names the *opening* of the still-open block —
+    that's what the user needs to close (or recognise as the actual
+    bug, in the rarer 'extra END* keyword' case).
+    """
+
+    # Each row: (opening-keyword-script-snippet, expected-opening-keyword-in-error)
+    # The snippet leaves the opening on top of the stack; the test prepends
+    # this and then appends an END* keyword that doesn't match.
+    OPENINGS = {
+        "IF": ("-- !x! IF (X)\n", "IF"),
+        "LOOP": ("-- !x! LOOP WHILE (X)\n", "LOOP"),
+        "BATCH": ("-- !x! BEGIN BATCH\n", "BEGIN BATCH"),
+        "SCRIPT": ("-- !x! BEGIN SCRIPT inner\n", "BEGIN SCRIPT"),
+    }
+
+    # Map opening kind -> the END* keyword that *would* match it.
+    # The error message blames the unclosed opening by saying it has
+    # no matching <this>.
+    MATCHING_END = {
+        "IF": "ENDIF",
+        "LOOP": "ENDLOOP",
+        "BATCH": "END BATCH",
+        "SCRIPT": "END SCRIPT",
+    }
+
+    @pytest.mark.parametrize(
+        ("end_keyword", "end_text"),
+        [
+            ("ENDIF", "-- !x! ENDIF"),
+            ("ENDLOOP", "-- !x! ENDLOOP"),
+            ("END BATCH", "-- !x! END BATCH"),
+            ("END SCRIPT", "-- !x! END SCRIPT"),
+        ],
+    )
+    @pytest.mark.parametrize(
+        "opening_kind",
+        ["IF", "LOOP", "BATCH", "SCRIPT"],
+    )
+    def test_wrong_kind_blames_opening(self, end_keyword, end_text, opening_kind):
+        # Skip the matching pair — it would parse successfully, not error.
+        if self.MATCHING_END[opening_kind] == end_keyword:
+            pytest.skip("matching pair — no error expected")
+        opening_snippet, opening_name = self.OPENINGS[opening_kind]
+        script = opening_snippet + end_text
+        expected = self.MATCHING_END[opening_kind]
+        # Error names the unclosed opening + the END* it lacks.
+        with pytest.raises(
+            ErrInfo,
+            match=rf"{opening_name} on line 1 of <inline> has no matching {expected}\.",
+        ):
+            parse_string(script)
+
+
+class TestBlockMismatchAtEOF:
+    """Blocks left open at end of file produce an EOF-unclosed error."""
+
+    @pytest.mark.parametrize(
+        ("script", "kind"),
+        [
+            ("-- !x! IF (X)\nSELECT 1;", "IF"),
+            ("-- !x! LOOP WHILE (X)\nSELECT 1;", "LOOP"),
+            ("-- !x! BEGIN BATCH\nSELECT 1;", "BATCH"),
+            ("-- !x! BEGIN SCRIPT inner\nSELECT 1;\n", "SCRIPT"),
+        ],
+    )
+    def test_unclosed_at_eof(self, script, kind):
+        with pytest.raises(ErrInfo, match=rf"Unmatched {kind} block starting on line 1"):
+            parse_string(script)
+
+
+class TestBlockMismatchRealScenarios:
+    """End-to-end scenarios drawn from real maintainer reports."""
+
+    def test_forgot_endif_inside_loop(self):
+        """LOOP { IF (no ENDIF) } ENDLOOP → blames the IF.
+
+        The audit's original F-PARSER-001 scenario: pre-fix, the engine
+        said 'ENDLOOP without matching LOOP' even though the LOOP was
+        fine.  Post-fix, the IF is correctly named.
+        """
+        script = (
+            "-- !x! LOOP WHILE (HAS_ROWS)\n"
+            "-- !x! IF (COND)\n"  # missing ENDIF
+            "SELECT 1;\n"
+            "-- !x! ENDLOOP"
+        )
+        with pytest.raises(ErrInfo, match=r"IF on line 2 of <inline> has no matching ENDIF\."):
+            parse_string(script)
+
+    def test_forgot_endloop_inside_if(self):
+        """IF { LOOP (no ENDLOOP) } ENDIF → blames the LOOP."""
+        script = (
+            "-- !x! IF (X)\n"
+            "-- !x! LOOP WHILE (Y)\n"  # missing ENDLOOP
+            "SELECT 1;\n"
+            "-- !x! ENDIF"
+        )
+        with pytest.raises(ErrInfo, match=r"LOOP on line 2 of <inline> has no matching ENDLOOP\."):
+            parse_string(script)
+
+    def test_deeply_nested_unclosed_inner_block(self):
+        """LOOP { IF { LOOP (no ENDLOOP) } { IF { ENDIF } } } ENDLOOP.
+
+        The unclosed inner LOOP is what the user actually needs to fix.
+        """
+        script = (
+            "-- !x! LOOP WHILE (A)\n"
+            "-- !x! IF (B)\n"
+            "-- !x! LOOP WHILE (C)\n"  # missing ENDLOOP — line 3
+            "SELECT 1;\n"
+            "-- !x! ENDIF\n"
+        )
+        with pytest.raises(ErrInfo, match=r"LOOP on line 3 of <inline> has no matching ENDLOOP\."):
+            parse_string(script)
+
+    def test_balanced_blocks_parse_clean(self):
+        """Sanity: properly balanced nested blocks parse without error."""
+        script = (
+            "-- !x! LOOP WHILE (A)\n"
+            "-- !x! IF (B)\n"
+            "-- !x! BEGIN BATCH\n"
+            "SELECT 1;\n"
+            "-- !x! END BATCH\n"
+            "-- !x! ENDIF\n"
+            "-- !x! ENDLOOP\n"
+        )
+        nodes = parse_string(script).body
+        assert len(nodes) == 1
+        assert isinstance(nodes[0], LoopBlock)
+
+    def test_extra_endif_blames_the_loop_trade_off(self):
+        """LOOP { IF { ENDIF } { extra ENDIF } } ENDLOOP.
+
+        Documented trade-off: the parser sees an ENDIF when LOOP is on
+        top of the stack and reports 'LOOP has no matching ENDLOOP'.
+        Strictly accurate at the point of parsing (the LOOP IS still
+        open when the bad ENDIF fires), but the actual fix the user
+        needs is to DELETE the extra ENDIF, not add ENDLOOP.  This
+        edge case is rarer than the forgot-to-close-inner case the
+        message is optimised for.
+        """
+        script = (
+            "-- !x! LOOP WHILE (A)\n"
+            "-- !x! IF (B)\n"
+            "SELECT 1;\n"
+            "-- !x! ENDIF\n"  # closes the IF
+            "-- !x! ENDIF\n"  # EXTRA — fires the error
+            "-- !x! ENDLOOP\n"
+        )
+        with pytest.raises(ErrInfo, match=r"LOOP on line 1 of <inline> has no matching ENDLOOP\."):
+            parse_string(script)
+
+    def test_commented_metacommand_with_four_dashes_silently_ignored(self):
+        """`---- !x! if(...)` is a SQL comment, not a metacommand.
+
+        Maintainer-reported footgun: 4-dash prefix looks like a
+        metacommand but is parsed as a regular `--` SQL comment.  The
+        block-mismatch error fires later when subsequent ENDIF/ENDLOOP
+        keywords don't match what the user *thought* was open.
+        """
+        script = (
+            "-- !x! LOOP WHILE (HAS_ROWS)\n"
+            "-- !x! IF (X)\n"
+            "---- !x! IF (Y)\n"  # COMMENT — no IF opens
+            "-- !x! ENDIF\n"  # closes the line-2 IF
+            "-- !x! ENDIF\n"  # EXTRA — fires error; LOOP on top
+            "-- !x! ENDLOOP\n"
+        )
+        # The fix the user needs is to either change `----` to `-- ` or
+        # remove the extra ENDIF.  Message blames the open LOOP because
+        # the parser can't read minds.
+        with pytest.raises(ErrInfo, match=r"LOOP on line 1 of <inline> has no matching ENDLOOP\."):
+            parse_string(script)
