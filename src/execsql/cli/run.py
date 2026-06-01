@@ -65,12 +65,21 @@ def _print_dry_run(tree: object) -> None:
         else:
             ctype = "METACMD"
             raw = "-- !x! " + node.command
-        source_info = f"[dim]{node.span.file}:{node.span.start_line}[/dim]"
+        file_loc = f"{node.span.file}:{node.span.start_line}"
         try:
             expanded = substitute_vars(raw)
         except Exception:
             expanded = raw
-        _console.print(f"  [dim]{i:>4}[/dim]  [bold green]{ctype}[/bold green]  {source_info}  {expanded}")
+        lines = expanded.splitlines() or [""]
+        first, *continuations = lines
+        _console.print(
+            f"  [dim]{i:>4}[/dim]  [bold green]{ctype}[/bold green]  [dim]{file_loc}[/dim]  {first}",
+        )
+        if continuations:
+            prefix_width = 2 + 4 + 2 + 7 + 2 + len(file_loc) + 2
+            pad = " " * prefix_width
+            for cont in continuations:
+                _console.print(f"{pad}{cont}")
 
 
 # ---------------------------------------------------------------------------
@@ -411,6 +420,12 @@ def _route_positionals(
     ping: bool,
 ) -> None:
     """Apply remaining positional CLI arguments to *conf* as server/db/db_file."""
+    # When --ping is set, the script-file positional is ignored (ping has no
+    # script).  Users who add --ping to an existing invocation often leave the
+    # script in place — drop it from positional routing so the connection args
+    # behind it are interpreted correctly.
+    if ping and positional and Path(positional[0]).is_file() and positional[0].lower().endswith(".sql"):
+        positional = positional[1:]
     off = 0 if (command is not None or ping) else 1
     if len(positional) == off + 1:
         if conf.db_type in ("a", "l", "k"):

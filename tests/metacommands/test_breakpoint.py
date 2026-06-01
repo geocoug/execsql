@@ -186,7 +186,7 @@ class TestDebugReplHelp:
             _debug_repl()
         combined = "".join(written)
         assert ".continue" in combined
-        assert ".abort" in combined
+        assert ".quit" in combined
         assert ".vars" in combined
         assert ".stack" in combined
 
