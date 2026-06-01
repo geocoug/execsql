@@ -952,12 +952,9 @@ class TestNestingEdgeCases:
                 "-- !x! END BATCH",
             )
 
-    def test_endloop_with_unclosed_inner_if_names_inner_block(self):
-        """ENDLOOP fired while an IF is open names the IF block as still-open."""
-        with pytest.raises(
-            ErrInfo,
-            match=r"ENDLOOP on line \d+ of .*: an IF block .* is still open",
-        ):
+    def test_endloop_with_unclosed_inner_if_blames_the_if(self):
+        """ENDLOOP fired while an IF is open: error names the IF as the unclosed block."""
+        with pytest.raises(ErrInfo, match=r"IF on line \d+ of .* has no matching ENDIF"):
             parse_string(
                 "-- !x! LOOP WHILE (HAS_ROWS)\n"
                 "-- !x! IF (COND)\n"  # missing ENDIF
@@ -965,12 +962,9 @@ class TestNestingEdgeCases:
                 "-- !x! ENDLOOP",
             )
 
-    def test_endif_with_unclosed_inner_loop_names_inner_block(self):
-        """ENDIF fired while a LOOP is open names the LOOP block as still-open."""
-        with pytest.raises(
-            ErrInfo,
-            match=r"ENDIF on line \d+ of .*: a LOOP block .* is still open",
-        ):
+    def test_endif_with_unclosed_inner_loop_blames_the_loop(self):
+        """ENDIF fired while a LOOP is open: error names the LOOP as the unclosed block."""
+        with pytest.raises(ErrInfo, match=r"LOOP on line \d+ of .* has no matching ENDLOOP"):
             parse_string(
                 "-- !x! IF (HAS_ROWS)\n"
                 "-- !x! LOOP WHILE (COND)\n"  # missing ENDLOOP
@@ -978,12 +972,9 @@ class TestNestingEdgeCases:
                 "-- !x! ENDIF",
             )
 
-    def test_end_batch_with_unclosed_inner_if_names_inner_block(self):
-        """END BATCH fired while an IF is open names the IF."""
-        with pytest.raises(
-            ErrInfo,
-            match=r"END BATCH on line \d+ of .*: an IF block .* is still open",
-        ):
+    def test_end_batch_with_unclosed_inner_if_blames_the_if(self):
+        """END BATCH fired while an IF is open: error names the IF."""
+        with pytest.raises(ErrInfo, match=r"IF on line \d+ of .* has no matching ENDIF"):
             parse_string(
                 "-- !x! BEGIN BATCH\n"
                 "-- !x! IF (COND)\n"  # missing ENDIF
@@ -991,12 +982,9 @@ class TestNestingEdgeCases:
                 "-- !x! END BATCH",
             )
 
-    def test_end_script_with_unclosed_inner_if_names_inner_block(self):
-        """END SCRIPT fired while an IF is open names the IF."""
-        with pytest.raises(
-            ErrInfo,
-            match=r"END SCRIPT on line \d+ of .*: an IF block .* is still open",
-        ):
+    def test_end_script_with_unclosed_inner_if_blames_the_if(self):
+        """END SCRIPT fired while an IF is open: error names the IF."""
+        with pytest.raises(ErrInfo, match=r"IF on line \d+ of .* has no matching ENDIF"):
             parse_string(
                 "-- !x! BEGIN SCRIPT inner\n"
                 "-- !x! IF (COND)\n"  # missing ENDIF
