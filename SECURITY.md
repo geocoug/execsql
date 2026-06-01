@@ -18,11 +18,11 @@ execsql2 treats the script author as fully trusted. Scripts run with the same OS
 
 The trust boundary inside the runtime is the **substitution variable**: values fed via `-a`, `PROMPT`, `SUBDATA`, environment variables, or DB rows are user-controlled and reach SQL through the substitution engine. execsql2 ships several defenses to limit the blast radius of an untrusted substitution value, but a malicious script author can still do anything the OS user can do.
 
-For a full discussion of security boundaries, credential handling, and known limitations, see the [Security documentation](https://execsql2.readthedocs.io/reference/security/).
+For a full discussion of security boundaries, credential handling, and known limitations, see the [Security documentation](https://execsql2.readthedocs.io/en/latest/reference/security/).
 
 ## Defense-in-Depth
 
-The following protections are on by default. They can be tuned or disabled via `execsql.conf` and CLI flags — see [`docs/reference/configuration.md`](https://execsql2.readthedocs.io/reference/configuration/).
+The following protections are on by default. They can be tuned or disabled via `execsql.conf` and CLI flags — see [`docs/reference/configuration.md`](https://execsql2.readthedocs.io/en/latest/reference/configuration/).
 
 ### Substitution variables
 

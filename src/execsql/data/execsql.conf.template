@@ -1,6 +1,6 @@
 # execsql.conf — Configuration file for execsql
 #
-# Documentation: https://execsql2.readthedocs.io/reference/configuration/
+# Documentation: https://execsql2.readthedocs.io/en/latest/reference/configuration/
 #
 # This file uses INI format. Section names are case-sensitive (lowercase).
 # Property names are not case-sensitive. Lines starting with # are comments.
@@ -263,7 +263,7 @@
 #message_css=
 
 # Obfuscated password (XOR, not cryptographically secure — use keyring instead).
-# See: https://execsql2.readthedocs.io/reference/security/#credentials
+# See: https://execsql2.readthedocs.io/en/latest/reference/security/#credentials
 #enc_password=
 
 
