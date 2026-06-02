@@ -4,13 +4,19 @@
 
 ## Installation { #installation }
 
-`execsql-format` is installed automatically as part of the `execsql2` package — no extra steps required.
+The `execsql-format` command is installed automatically with the `execsql2` package and is available on your PATH after install:
 
 ```bash
 pip install execsql2
 ```
 
-After installation, the `execsql-format` command is available on your PATH.
+The metacommand-indentation and keyword-casing passes work out of the box. **SQL reformatting** (the optional sqlglot pass) requires the `[formatter]` extra, as of execsql2 2.19.0:
+
+```bash
+pip install "execsql2[formatter]"
+```
+
+Without the extra, `execsql-format` works in `--no-sql` mode (metacommand indentation and keyword casing only); invoking the SQL pass without `[formatter]` installed raises `ModuleNotFoundError: No module named 'sqlglot'`.
 
 ## Usage { #usage }
 

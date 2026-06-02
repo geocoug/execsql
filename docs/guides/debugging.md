@@ -57,22 +57,29 @@ execsql debug>
 
 | Command         | Shortcut | Description                                                               |
 | --------------- | -------- | ------------------------------------------------------------------------- |
-| `.continue`     | `.c`     | Resume normal script execution                                            |
-| `.abort`        | `.q`     | Halt the script (exit 1)                                                  |
-| `.vars`         | `.v`     | List user, system, local, and counter substitution variables              |
-| `.vars all`     | `.v all` | Include environment variables (`&`) in the listing                        |
+| `.continue`     | `.c`     | Resume script execution                                                   |
+| `.quit`         | `.q`     | Halt the script (exit 1). `.abort` is accepted as an alias.               |
+| `.vars`         | `.v`     | List all execsql substitution variables                                   |
+| `.vars VAR`     | `.v VAR` | Print the value of one variable (e.g. `.vars logfile`, `.vars $ARG_1`)    |
 | `.next`         | `.n`     | Execute the next statement, then pause again (step mode)                  |
 | `.where`        | `.w`     | Re-display the current script location and upcoming statement             |
 | `.stack`        |          | Show the command-list stack (script name, cursor position, nesting depth) |
 | `.set VAR VAL`  | `.s`     | Set or update a substitution variable                                     |
 | `.scripts`      |          | List all registered SCRIPT definitions with parameters and source         |
 | `.scripts NAME` |          | Show detail for a specific SCRIPT (parameters, source file/line range)    |
+| `.cancel`       |          | Discard the current partial multi-line SQL buffer (also Ctrl-C / EOF)     |
 | `.help`         | `.h`     | Show available commands                                                   |
 
-Anything not starting with `.` is treated as a variable lookup or SQL:
+**Dispatch is two-way** (changed in 2.19.0): input starting with `.` is a REPL command, everything else is SQL. There is no bare-name variable lookup — use `.vars VAR` to print a single variable.
 
-- A bare name (e.g. `logfile`) prints the value of that substitution variable.
-- Any input ending with `;` is executed as SQL against the current database (expects columns returned, e.g. SELECT).
+**SQL execution:**
+
+- Input is buffered as SQL until a line ends with `;`, at which point the buffered statement is sent to the live connection. Multi-line statements are accepted; the prompt switches to a continuation indicator while a partial statement is being entered.
+- `SELECT` (and other row-returning statements) print the result rows in tabular form.
+- DML (`INSERT` / `UPDATE` / `DELETE`) prints `(N rows affected)`.
+- DDL and transaction-control statements (`CREATE`, `DROP`, `BEGIN`, `COMMIT`, `ROLLBACK`, …) print `(statement executed)`.
+- A SQL error prints the database error inline and returns to the prompt — the REPL session is not terminated.
+- `.cancel` (or Ctrl-C / EOF mid-statement) discards a partial buffer without executing it.
 
 The `--debug` CLI flag starts execution in step mode, pausing before every statement.
 

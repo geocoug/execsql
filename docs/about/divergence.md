@@ -147,7 +147,7 @@ New options in `execsql.conf`:
 
 ### Debugging { #debugging }
 
-execsql2 adds an interactive debug REPL (no upstream equivalent), triggered either by the `BREAKPOINT` metacommand or the `--debug` CLI flag (step-through mode). The REPL prompts with `execsql debug>` and accepts dot-prefixed commands (`.continue`, `.next`, `.vars`, `.where`, `.stack`, `.set`, `.scripts`, `.help`), bare variable names for inspection, and SQL terminated with `;` for ad-hoc queries against the live connection. `BREAKPOINT` is silently skipped when stdin is not a TTY so it does not hang CI. Full command list and behavior: [Debugging guide](../guides/debugging.md).
+execsql2 adds an interactive debug REPL (no upstream equivalent), triggered either by the `BREAKPOINT` metacommand or the `--debug` CLI flag (step-through mode). The REPL prompts with `execsql debug>` and uses two-way dispatch (as of 2.19.0): input starting with `.` is a REPL command (`.continue`, `.quit`, `.next`, `.vars`, `.vars VAR`, `.where`, `.stack`, `.set`, `.scripts`, `.cancel`, `.help`); everything else is SQL, buffered across lines until terminated with `;` and executed against the live connection (DML reports rows affected, DDL / transaction-control reports `(statement executed)`, errors print inline without ending the session). `BREAKPOINT` is silently skipped when stdin is not a TTY so it does not hang CI. Full command list and behavior: [Debugging guide](../guides/debugging.md).
 
 ### Library API
 

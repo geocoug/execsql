@@ -18,11 +18,16 @@ pip install "execsql2[odbc]"        # ODBC DSN (pyodbc)
 
 # Feature bundles
 pip install "execsql2[formats]"     # ODS, Excel, Jinja2, Feather, Parquet, HDF5
-pip install "execsql2[auth]"        # OS keyring integration
+pip install "execsql2[formatter]"   # SQL pass for execsql-format (sqlglot)
+pip install "execsql2[upsert]"      # PG_UPSERT metacommand (pg-upsert)
+pip install "execsql2[map]"         # PROMPT MAP widget (tkintermapview)
+pip install "execsql2[auth]"        # OS keyring integration (desktop / native)
+pip install "execsql2[auth-plaintext]"  # Headless keyring (plaintext file backend)
+pip install "execsql2[auth-encrypted]"  # Headless keyring (encrypted file backend)
 
 # Convenience
 pip install "execsql2[all-db]"      # All database drivers
-pip install "execsql2[all]"         # Everything
+pip install "execsql2[all]"         # Everything (all-db + formats + formatter + auth + upsert + map)
 ```
 
 Multiple extras can be combined: `pip install "execsql2[postgres,duckdb,formats]"`.
@@ -55,11 +60,33 @@ The specific libraries installed by each extra are:
 | [Parquet](https://parquet.apache.org/) files                       | [polars](https://pypi.org/project/polars/)                                                              |
 | [HDF5](https://www.hdfgroup.org/solutions/hdf5/) files             | [tables](https://pypi.org/project/tables/)                                                              |
 
+### `formatter` extra
+
+Required for the SQL-formatting pass of the `execsql-format` CLI. Without this extra, `execsql-format` still normalizes metacommand indentation and keyword casing (use `--no-sql` or import scripts without SQL); the SQL pretty-printing pass calls [sqlglot](https://sqlglot.com/) and raises `ModuleNotFoundError` if it isn't installed.
+
+| Feature                               | Library                                      |
+| ------------------------------------- | -------------------------------------------- |
+| SQL reformatting via `execsql-format` | [sqlglot](https://pypi.org/project/sqlglot/) |
+
+### `upsert` extra
+
+| Feature                                   | Library                                          |
+| ----------------------------------------- | ------------------------------------------------ |
+| `PG_UPSERT` PostgreSQL upsert metacommand | [pg-upsert](https://pypi.org/project/pg-upsert/) |
+
+### `map` extra
+
+| Feature                               | Library                                                    |
+| ------------------------------------- | ---------------------------------------------------------- |
+| `PROMPT MAP` lat/lon selection widget | [tkintermapview](https://pypi.org/project/tkintermapview/) |
+
 ### `auth` bundle
 
 | Feature              | Library                                      |
 | -------------------- | -------------------------------------------- |
 | OS keyring / secrets | [keyring](https://pypi.org/project/keyring/) |
+
+The `auth-plaintext` and `auth-encrypted` variants add a fallback keyring backend for headless Linux: `auth-plaintext` adds [keyrings.alt](https://pypi.org/project/keyrings.alt/) (plaintext file storage — **secrets are not encrypted at rest**), and `auth-encrypted` adds `keyrings.alt` plus [pycryptodome](https://pypi.org/project/pycryptodome/) for an encrypted file backend. See [Keyring Platform Setup](../reference/security.md#keyring_setup).
 
 Connections to SQLite databases use Python's standard library and require no additional packages.
 

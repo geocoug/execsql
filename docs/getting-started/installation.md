@@ -27,12 +27,14 @@ pip install "execsql2[odbc]"              # Generic ODBC DSN (pyodbc)
 pip install "execsql2[firebird]"          # Firebird
 pip install "execsql2[oracle]"            # Oracle
 pip install "execsql2[formats]"           # ODS, Excel, Jinja2, Feather/Parquet, HDF5, YAML
+pip install "execsql2[formatter]"         # SQL pass for execsql-format (sqlglot)
 pip install "execsql2[auth]"              # OS keyring integration (desktop/native)
 pip install "execsql2[auth-plaintext]"    # Headless keyring (plaintext file backend)
 pip install "execsql2[auth-encrypted]"    # Headless keyring (encrypted file backend)
 pip install "execsql2[upsert]"            # PG_UPSERT metacommand (pg-upsert)
+pip install "execsql2[map]"               # PROMPT MAP widget (tkintermapview)
 pip install "execsql2[all-db]"            # All database drivers
-pip install "execsql2[all]"               # Everything (all-db + formats + auth + upsert)
+pip install "execsql2[all]"               # Everything (all-db + formats + formatter + auth + upsert + map)
 ```
 
 In addition to the *execsql* program itself, additional Python libraries may need to be installed to use *execsql* with specific types of DBMSs and spreadsheets. The additional libraries that may be needed are listed in the [Requirements](requirements.md#requirements) section.
