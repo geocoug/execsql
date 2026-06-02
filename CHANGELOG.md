@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.19.0] - 2026-06-02
+
 ### Fixed
 
 - `IMPORT … FORMAT xlsx` rejects zip-bomb workbooks (per-member ratio over 100:1, or total uncompressed size over 500 MB). Convert large workbooks to CSV for import. Legacy `.xls` is unaffected.
