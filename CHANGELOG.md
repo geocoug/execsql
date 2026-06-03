@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.19.2] - 2026-06-03
+
 ### Fixed
 
 - `pre-commit` hook `execsql-format` now installs `sqlglot` into its isolated env. Since 2.19.0 moved `sqlglot` to the `[formatter]` extra, the hook env (which installs the bare package) was missing it and crashed with `ModuleNotFoundError: No module named 'sqlglot'`. Re-run `pre-commit clean && pre-commit install --install-hooks` after upgrading to pick up the new dependency.
