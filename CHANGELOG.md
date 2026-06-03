@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Fixed
+
+- `execsql-format` no longer mangles quoted substitution variables: `!'!var!'!` and `!"!var!"!` were being parsed by sqlglot as `NOT` operators (e.g. `!'!myvar!'!` → `NOT NOT '!myvar!'`). All three quote forms plus deferred `!{var}!` are now hidden from SQL formatting.
+
 ______________________________________________________________________
 
 ## [2.19.0] - 2026-06-02

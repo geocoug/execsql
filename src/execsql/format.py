@@ -129,9 +129,15 @@ def parse_keyword(payload: str) -> str:
 # SQL block formatting helpers
 # ---------------------------------------------------------------------------
 
-# Matches execsql variable substitutions: !!varname!!, !!#param!!, !!@col!!, etc.
-# and deferred substitutions !{varname}!
-_EXECSQL_VAR_RE = re.compile(r"!!([^!\s][^!]*)!!|!\{[^}]+\}!")
+# Matches execsql variable substitutions:
+#   !!varname!!     verbatim
+#   !'!varname!'!   single-quoted (apostrophes doubled at expansion)
+#   !"!varname!"!   double-quoted (quotes doubled at expansion)
+#   !{varname}!     deferred
+# The bare/quoted forms mirror src/execsql/script/variables.py:_TOKEN_RX so
+# every token the executor recognises is hidden from sqlglot — otherwise the
+# `!` in a quoted form is parsed as a NOT operator (e.g. `!'!v!'!` -> `NOT NOT '!v!'`).
+_EXECSQL_VAR_RE = re.compile(r"""!(['"]?)!([^!\s][^!]*)!\1!|!\{[^}]+\}!""")
 
 
 def _protect_variables(sql: str) -> tuple[str, list[tuple[str, str]]]:

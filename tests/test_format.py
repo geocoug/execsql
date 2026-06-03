@@ -279,6 +279,18 @@ class TestProtectVariables:
         assert len(replacements) == 1
         assert replacements[0][1] == "!{myvar}!"
 
+    def test_single_quoted_var(self):
+        protected, replacements = _protect_variables("WHERE a = !'!myvar!'!")
+        assert "!'!myvar!'!" not in protected
+        assert len(replacements) == 1
+        assert replacements[0][1] == "!'!myvar!'!"
+
+    def test_double_quoted_var(self):
+        protected, replacements = _protect_variables('WHERE a = !"!myvar!"!')
+        assert '!"!myvar!"!' not in protected
+        assert len(replacements) == 1
+        assert replacements[0][1] == '!"!myvar!"!'
+
     def test_multiple_vars(self):
         protected, replacements = _protect_variables("SELECT !!a!!, !!b!!")
         assert len(replacements) == 2
@@ -648,6 +660,18 @@ class TestFormatFileEdgeCases:
         result = format_file(source, use_sql=False)
         assert "!!$my_var!!" in result
         assert "!!table_name!!" in result
+
+    def test_quoted_subvar_not_mangled_as_not(self):
+        # Regression: !'!var!'! used to be parsed by sqlglot as NOT NOT '!var!'.
+        source = "select * from documents where author = !'!myvar!'!;\n"
+        result = format_file(source)
+        assert "!'!myvar!'!" in result
+        assert "NOT" not in result
+
+    def test_double_quoted_subvar_preserved(self):
+        source = 'select * from t where col = !"!myvar!"!;\n'
+        result = format_file(source)
+        assert '!"!myvar!"!' in result
 
     def test_elseif_depth(self):
         source = "-- !x! IF 1=1\n-- !x! WRITE 'a'\n-- !x! ELSEIF 2=2\n-- !x! WRITE 'b'\n-- !x! ENDIF\n"
