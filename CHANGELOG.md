@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Changed
+
+- Published `execsql-format` pre-commit hook now defaults to `args: [--in-place]`. Downstream configs that listed `- id: execsql-format` with no `args:` previously got a silent no-op (the CLI's default is stdout, which pre-commit doesn't capture); they will now reformat files in place. Override with `args: [--check]` for check-only mode.
+
 ### Fixed
 
 - `[firebird]` extra now connects: the adapter imports `firebird.driver` (provided by `firebird-driver`) instead of the missing `fdb` module. Users who installed `pip install execsql2[firebird]` previously hit `ModuleNotFoundError: No module named 'fdb'` at connect time.

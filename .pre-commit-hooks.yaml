@@ -5,4 +5,5 @@
   language: python
   types: [file]
   files: \.sql$
+  args: [--in-place]
   additional_dependencies: [sqlglot]
