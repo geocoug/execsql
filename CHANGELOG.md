@@ -26,7 +26,8 @@ ______________________________________________________________________
 
 ### Fixed
 
-- `pre-commit` hook `execsql-format` now installs `sqlglot` into its isolated env. Since 2.19.0 moved `sqlglot` to the `[formatter]` extra, the hook env (which installs the bare package) was missing it and crashed with `ModuleNotFoundError: No module named 'sqlglot'`. Re-run `pre-commit clean && pre-commit install --install-hooks` after upgrading to pick up the new dependency.
+- `pre-commit` hook `execsql-format` now installs `sqlglot` into its isolated env (previously crashed with `ModuleNotFoundError: No module named 'sqlglot'`).
+- After upgrading, re-run `pre-commit clean && pre-commit install --install-hooks` to rebuild the hook env.
 
 ______________________________________________________________________
 
@@ -58,13 +59,7 @@ ______________________________________________________________________
 
 ## [2.18.1] - 2026-05-28
 
-### Changed
-
-- Internal: `execsql.cli.lint_ast` has been folded into `execsql.cli.lint`; the AST walker entry point is now `execsql.cli.lint.lint()`. Code that imported `execsql.cli.lint_ast.lint_ast` should import `execsql.cli.lint.lint` instead.
-
-### Removed
-
-- Internal: the unused `run_when_false` and `run_in_batch` flags on `MetaCommand` (and the matching keyword arguments on `MetaCommandList.add()`) — neither has been consulted since v2.16.0. Code that still passes either kwarg to `mcl.add()` will raise `TypeError`.
+- Internal: `execsql.cli.lint_ast` is now `execsql.cli.lint.lint`; deprecated `MetaCommand.run_when_false` / `run_in_batch` kwargs removed.
 
 ______________________________________________________________________
 
