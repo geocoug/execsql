@@ -20,6 +20,7 @@ ______________________________________________________________________
 ### Fixed
 
 - `[firebird]` extra now connects: the adapter imports `firebird.driver` (provided by `firebird-driver`) instead of the missing `fdb` module. Users who installed `pip install execsql2[firebird]` previously hit `ModuleNotFoundError: No module named 'fdb'` at connect time.
+- MySQL, SQL Server (pyodbc), MS Access (pyodbc), DSN (pyodbc), Firebird, and SMTP connections now use a 30-second connect timeout, matching the existing Postgres default. A silently-dropped peer no longer hangs a script (or a CI run) indefinitely.
 
 ______________________________________________________________________
 

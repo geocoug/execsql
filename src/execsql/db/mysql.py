@@ -152,6 +152,10 @@ class MySQLDatabase(Database):
         """Open a connection to the MySQL or MariaDB server."""
         import pymysql as mysql_lib
 
+        # 30 s default matches the Postgres adapter so a wedged peer
+        # can't hang a script indefinitely.
+        connect_timeout = 30
+
         def db_conn():
             if self.user and self.password:
                 return mysql_lib.connect(
@@ -162,6 +166,7 @@ class MySQLDatabase(Database):
                     password=self.password,
                     charset=self.encoding,
                     local_infile=True,
+                    connect_timeout=connect_timeout,
                 )
             else:
                 return mysql_lib.connect(
@@ -170,6 +175,7 @@ class MySQLDatabase(Database):
                     port=self.port,
                     charset=self.encoding,
                     local_infile=True,
+                    connect_timeout=connect_timeout,
                 )
 
         if self.conn is None:

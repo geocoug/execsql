@@ -90,7 +90,9 @@ class DsnDatabase(Database):
                 parts.append(f"PWD={_odbc_quote(self.password)}")
             connstr = ";".join(parts) + ";"
             kwargs = {"autocommit": autocommit} if autocommit else {}
-            self.conn = pyodbc.connect(connstr, **kwargs)
+            # 30 s connect timeout matches the Postgres adapter default
+            # so a wedged DSN peer cannot hang a script indefinitely.
+            self.conn = pyodbc.connect(connstr, timeout=30, **kwargs)
 
         def _try_connect():
             try:

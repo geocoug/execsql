@@ -51,16 +51,19 @@ class Mailer:
         conf = _state.conf
         if conf.smtp_host is None:
             raise ErrInfo(type="error", other_msg="Can't send email; the email host is not configured.")
+        # 30 s connect/read timeout matches the DB-adapter default so a
+        # silently-dropped SMTP peer can't hang a script (or a CI run).
+        smtp_timeout = 30
         if conf.smtp_port is None:
             if conf.smtp_ssl:
-                self.smtpconn = smtplib.SMTP_SSL(conf.smtp_host)
+                self.smtpconn = smtplib.SMTP_SSL(conf.smtp_host, timeout=smtp_timeout)
             else:
-                self.smtpconn = smtplib.SMTP(conf.smtp_host)
+                self.smtpconn = smtplib.SMTP(conf.smtp_host, timeout=smtp_timeout)
         else:
             if conf.smtp_ssl:
-                self.smtpconn = smtplib.SMTP_SSL(conf.smtp_host, conf.smtp_port)
+                self.smtpconn = smtplib.SMTP_SSL(conf.smtp_host, conf.smtp_port, timeout=smtp_timeout)
             else:
-                self.smtpconn = smtplib.SMTP(conf.smtp_host, conf.smtp_port)
+                self.smtpconn = smtplib.SMTP(conf.smtp_host, conf.smtp_port, timeout=smtp_timeout)
         self.smtpconn.ehlo_or_hello_if_needed()
         if conf.smtp_tls:
             self.smtpconn.starttls()

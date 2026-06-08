@@ -107,7 +107,11 @@ class AccessDatabase(Database):
                 else:
                     connstr = cs % db_name
                 try:
-                    self.conn = pyodbc.connect(connstr)
+                    # Access is file-based but a UNC path on an
+                    # unreachable share can still block forever; cap
+                    # the connect attempt at 30 s to match the other
+                    # adapters.
+                    self.conn = pyodbc.connect(connstr, timeout=30)
                 except Exception:
                     if _state.exec_log is not None:
                         _state.exec_log.log_status_info(
