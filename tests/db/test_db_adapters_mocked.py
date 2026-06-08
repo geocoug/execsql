@@ -3,9 +3,9 @@ from __future__ import annotations
 """
 Mocked unit tests for Oracle, SQL Server, Firebird, and MS Access adapters.
 
-None of these adapters' driver libraries (cx_Oracle, pyodbc, fdb, win32com)
-are installed in the test environment.  Each class section injects a
-``MagicMock`` module into ``sys.modules`` before importing the adapter, so
+None of these adapters' driver libraries (cx_Oracle, pyodbc, firebird-driver,
+win32com) are installed in the test environment.  Each class section injects
+a ``MagicMock`` module into ``sys.modules`` before importing the adapter, so
 the import guard inside each ``__init__`` succeeds without a real driver.
 
 Tests focus exclusively on **pure-logic methods** that do not require an
@@ -291,15 +291,18 @@ class TestSqlServerDatabase:
 # ===========================================================================
 
 
-def _ensure_fdb_mock() -> MagicMock:
-    if "fdb" not in sys.modules:
-        mock = types.ModuleType("fdb")
-        mock.connect = MagicMock()
-        sys.modules["fdb"] = mock
-    return sys.modules["fdb"]
+def _ensure_firebird_driver_mock() -> MagicMock:
+    if "firebird.driver" not in sys.modules:
+        parent = types.ModuleType("firebird")
+        driver_mod = types.ModuleType("firebird.driver")
+        driver_mod.connect = MagicMock()
+        parent.driver = driver_mod
+        sys.modules["firebird"] = parent
+        sys.modules["firebird.driver"] = driver_mod
+    return sys.modules["firebird.driver"]
 
 
-_ensure_fdb_mock()
+_ensure_firebird_driver_mock()
 
 from execsql.db.firebird import FirebirdDatabase  # noqa: E402
 

@@ -6,8 +6,8 @@ methods (``table_exists``, ``view_exists``, ``column_exists``,
 paths, the Oracle SQL-trailing-semicolon shims, and the Access value-
 conversion helpers.
 
-The driver libraries (cx_Oracle/oracledb, fdb, pyodbc, win32com) are
-not installed in CI's matrix runners; each adapter is imported only
+The driver libraries (cx_Oracle/oracledb, firebird-driver, pyodbc, win32com)
+are not installed in CI's matrix runners; each adapter is imported only
 after a MagicMock is injected into ``sys.modules``.
 """
 
@@ -50,7 +50,13 @@ def _ensure_mock(mod_name: str, **attrs) -> None:
 
 _ensure_mock("cx_Oracle", connect=MagicMock(), makedsn=MagicMock(return_value="dsn"))
 _ensure_mock("oracledb", connect=MagicMock(), makedsn=MagicMock(return_value="dsn"))
-_ensure_mock("fdb", connect=MagicMock())
+if "firebird.driver" not in sys.modules:
+    _fb_parent = types.ModuleType("firebird")
+    _fb_driver = types.ModuleType("firebird.driver")
+    _fb_driver.connect = MagicMock()
+    _fb_parent.driver = _fb_driver
+    sys.modules["firebird"] = _fb_parent
+    sys.modules["firebird.driver"] = _fb_driver
 _ensure_mock("pyodbc", connect=MagicMock(), Binary=MagicMock(side_effect=lambda d: d))
 _ensure_mock(
     "win32com",
