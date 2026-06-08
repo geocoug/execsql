@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Fixed
+
+- `[firebird]` extra now connects: the adapter imports `firebird.driver` (provided by `firebird-driver`) instead of the missing `fdb` module. Users who installed `pip install execsql2[firebird]` previously hit `ModuleNotFoundError: No module named 'fdb'` at connect time.
+
 ______________________________________________________________________
 
 ## [2.19.2] - 2026-06-03

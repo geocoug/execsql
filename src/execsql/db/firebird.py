@@ -18,7 +18,7 @@ __all__ = ["FirebirdDatabase"]
 
 
 class FirebirdDatabase(Database):
-    """Firebird adapter using the firebird-driver (fdb) package."""
+    """Firebird adapter using the firebird-driver package."""
 
     def __init__(
         self,
@@ -31,10 +31,11 @@ class FirebirdDatabase(Database):
         password: str | None = None,
     ) -> None:
         try:
-            import fdb as firebird_lib  # noqa: F401
+            from firebird import driver as firebird_lib  # noqa: F401
         except Exception:
             fatal_error(
-                "The fdb module is required to connect to Firebird.   See https://pypi.python.org/pypi/fdb/",
+                "The firebird-driver module is required to connect to Firebird.   "
+                "See https://pypi.org/project/firebird-driver/",
             )
         from execsql.types import dbt_firebird
 
@@ -67,7 +68,7 @@ class FirebirdDatabase(Database):
 
     def open_db(self) -> None:
         """Open a connection to the Firebird database."""
-        import fdb as firebird_lib
+        from firebird import driver as firebird_lib
 
         def db_conn():
             if self.user and self.password:
