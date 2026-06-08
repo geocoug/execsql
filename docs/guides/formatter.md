@@ -159,7 +159,7 @@ select id,name,created_at from users where active = true order by name;
 ```yaml
 repos:
   - repo: https://github.com/geocoug/execsql
-    rev: v2.17.0
+    rev: v2.19.2
     hooks:
       - id: execsql-format
 ```

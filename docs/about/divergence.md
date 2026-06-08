@@ -106,6 +106,11 @@ New options in `execsql.conf`:
 | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `execsql-format` | Standalone CLI for normalizing metacommand indentation and uppercasing SQL keywords. Supports `--check`, `--in-place`, `--indent N` (controls both metacommand and SQL indentation), and `--leading-comma` (commas at start of lines) modes. Also available as a [pre-commit hook](../guides/formatter.md) — the published hook defaults to `args: [--in-place]` so downstream consumers get formatting on commit without extra wiring. SQL reformatting (the optional sqlglot pass) requires the `[formatter]` extra as of 2.19.0; `--no-sql` works without it. |
 
+Formatter correctness notes added in the 2.19.x line:
+
+- **2.19.1** — All four substitution-variable forms (`!!var!!`, `!'!var!'!`, `!"!var!"!`, and the deferred form `!{var}!`) are hidden from the sqlglot pass. Previously, `!'!var!'!` and `!"!var!"!` were parsed as `NOT` operators and rewritten — e.g. `!'!myvar!'!` → `NOT NOT '!myvar!'`. Scripts using quoted substitution variables are now safe to run through `execsql-format`.
+- **2.19.2** — The published pre-commit hook declares `sqlglot` as an isolated-env dependency. The 2.19.0 move of `sqlglot` to the `[formatter]` extra meant the hook env (which installs the bare package) crashed with `ModuleNotFoundError: No module named 'sqlglot'` on first run. After upgrading, downstream users should run `pre-commit clean && pre-commit install --install-hooks` once to rebuild the env.
+
 ### GUI
 
 | Feature              | Description                                                                                                                                                            |

@@ -14,6 +14,7 @@ ______________________________________________________________________
 ### Changed
 
 - Published `execsql-format` pre-commit hook now defaults to `args: [--in-place]`. Downstream configs that listed `- id: execsql-format` with no `args:` previously got a silent no-op (the CLI's default is stdout, which pre-commit doesn't capture); they will now reformat files in place. Override with `args: [--check]` for check-only mode.
+- Pre-commit `rev:` snippets in `README.md` and `docs/guides/formatter.md` now point at `v2.19.2` and are rewritten automatically by `bump-my-version` on every version bump, so they cannot drift.
 
 ### Fixed
 

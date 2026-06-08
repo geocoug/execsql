@@ -272,13 +272,12 @@ execsql-format --no-sql --in-place scripts/
 ```yaml
 repos:
   - repo: https://github.com/geocoug/execsql
-    rev: v2.18.0
+    rev: v2.19.2
     hooks:
       - id: execsql-format
-        args: [--in-place]
 ```
 
-See the [formatter documentation](https://execsql2.readthedocs.io/en/latest/guides/formatter/) for all options.
+The hook rewrites `*.sql` files in place by default. See the [formatter documentation](https://execsql2.readthedocs.io/en/latest/guides/formatter/) for `--check`, `--indent`, and other options.
 
 # VS Code Syntax Highlighting
 
