@@ -188,6 +188,16 @@ ______________________________________________________________________
 
 ## [{new_version}] - {now:%Y-%m-%d}"""
 
+[[tool.bumpversion.files]]
+filename = "README.md"
+search = "rev: v{current_version}"
+replace = "rev: v{new_version}"
+
+[[tool.bumpversion.files]]
+filename = "docs/guides/formatter.md"
+search = "rev: v{current_version}"
+replace = "rev: v{new_version}"
+
 [tool.pytest.ini_options]
 addopts = [
     "--cov=execsql",
