@@ -70,6 +70,9 @@ class FirebirdDatabase(Database):
         """Open a connection to the Firebird database."""
         from firebird import driver as firebird_lib
 
+        # 30 s connect timeout matches the Postgres adapter default.
+        connect_timeout = 30
+
         def db_conn():
             if self.user and self.password:
                 return firebird_lib.connect(
@@ -79,6 +82,7 @@ class FirebirdDatabase(Database):
                     user=self.user,
                     password=self.password,
                     charset=self.encoding,
+                    timeout=connect_timeout,
                 )
             else:
                 return firebird_lib.connect(
@@ -86,6 +90,7 @@ class FirebirdDatabase(Database):
                     database=self.db_name,
                     port=self.port,
                     charset=self.encoding,
+                    timeout=connect_timeout,
                 )
 
         if self.conn is None:

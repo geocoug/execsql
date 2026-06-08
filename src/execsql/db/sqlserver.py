@@ -113,7 +113,10 @@ class SqlServerDatabase(Database):
                             f"DATABASE={self.db_name};Trusted_Connection=yes"
                         )
                     try:
-                        self.conn = pyodbc.connect(connstr)
+                        # 30 s connect timeout matches the Postgres adapter
+                        # default; pyodbc treats `timeout` as the login-and-
+                        # query timeout on the connection.
+                        self.conn = pyodbc.connect(connstr, timeout=30)
                     except Exception:
                         if _state.exec_log is not None:
                             _state.exec_log.log_status_info(
