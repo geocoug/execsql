@@ -206,9 +206,29 @@ def _ping_db(db: Any) -> None:
 # ---------------------------------------------------------------------------
 
 
-# B12/F014: shared sensitive-name filter used by env-var seeding, -a
-# value logging, and any future credential-redaction sites.
-_SENSITIVE_SUBSTRINGS = ("SECRET", "TOKEN", "PASSWORD", "PASSWD", "PRIVATE_KEY", "CREDENTIAL")
+# B12/F014: shared sensitive-name filter for env-var seeding and any
+# other name-based credential-redaction sites. Case-insensitive substring
+# matches: an env var whose name (uppercased) contains any of these is
+# not seeded into the substitution pool. "_KEY" uses a leading underscore
+# so it catches AWS_ACCESS_KEY_ID / SECRET_KEY without also blocking
+# KEYBOARD-style names. Substring matching catches the common service-
+# prefixed forms (STRIPE_KEY, OPENAI_API_KEY, SENTRY_DSN, SLACK_WEBHOOK);
+# GitHub PAT-suffixed names (GITHUB_PAT) and URL-encoded DSNs
+# (DATABASE_URL) are documented gaps — use a TOKEN- or SECRET-prefixed
+# name when storing those.
+_SENSITIVE_SUBSTRINGS = (
+    "SECRET",
+    "TOKEN",
+    "PASSWORD",
+    "PASSWD",
+    "PRIVATE_KEY",
+    "CREDENTIAL",
+    "_KEY",
+    "APIKEY",
+    "API_KEY",
+    "DSN",
+    "WEBHOOK",
+)
 
 
 def _seed_early_subvars() -> SubVarSet:
@@ -517,15 +537,12 @@ def _setup_logging(
         for n, repl in enumerate(sub_vars):
             var = f"$ARG_{n + 1}"
             subvars.add_substitution(var, repl)
-            # B12/F014: -a values are user input that may contain
-            # secrets. Redact the value in the log line when the
-            # surrounding -a payload looks sensitive (matches the
-            # existing env-var filter at _seed_early_subvars).
-            display_repl = repl
-            if any(s in str(repl).upper() for s in _SENSITIVE_SUBSTRINGS):
-                display_repl = "***"
+            # `-a` values are positional and opaque (no name to denylist
+            # against). High-entropy secrets (sk-live-*, AKIA*, ghp_*,
+            # JWTs) pass any substring/value heuristic, so log the
+            # assignment confirmation without the value.
             logger.log_status_info(
-                f"Command-line substitution variable assignment: {var} set to {{{display_repl}}}",
+                f"Command-line substitution variable assignment: {var} set to {{***}}",
             )
 
     return logger

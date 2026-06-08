@@ -1,9 +1,13 @@
-"""B12 regression tests: credential redaction in the execsql log.
+"""Regression tests: credential redaction in the execsql log.
 
 Covers:
-* F014 — ``-a NAME VALUE`` values whose name matches the sensitive
-  filter (``PASSWORD``, ``SECRET``, ``TOKEN``, …) are replaced with
-  ``***`` in the log line.
+* ``-a VALUE`` log lines: every ``$ARG_n`` assignment is logged with
+  ``***`` rather than the raw value, since the value is opaque user
+  input and may contain high-entropy secrets that don't match any
+  name-based filter (``sk-live-*``, ``AKIA…``, ``ghp_*``, JWTs).
+* ``_SENSITIVE_SUBSTRINGS`` denylist: env-var seeding (the only
+  name-based redaction site) skips common cloud / payment / observability
+  / VCS secret naming patterns.
 * F017 — ``~/execsql.log`` is created with mode ``0o600`` on POSIX so
   the substituted SQL, ``-a`` values, env vars, and DSN URLs it
   captures aren't world-readable.
@@ -53,7 +57,6 @@ class TestSensitiveSubstringsConstant:
     def test_known_names_match(self):
         from execsql.cli.run import _SENSITIVE_SUBSTRINGS
 
-        # The filter should catch substrings (case-insensitive) of these.
         sensitive_inputs = [
             "DB_PASSWORD=secret123",
             "MY_SECRET",
@@ -61,6 +64,15 @@ class TestSensitiveSubstringsConstant:
             "PASSWD=hunter2",
             "PRIVATE_KEY",
             "AWS_CREDENTIALS",
+            "AWS_ACCESS_KEY_ID",
+            "AWS_SECRET_ACCESS_KEY",
+            "STRIPE_KEY",
+            "OPENAI_API_KEY",
+            "ANTHROPIC_API_KEY",
+            "SENTRY_DSN",
+            "DATABASE_DSN",
+            "SLACK_WEBHOOK",
+            "DD_APIKEY",
         ]
         for s in sensitive_inputs:
             assert any(needle in s.upper() for needle in _SENSITIVE_SUBSTRINGS), f"_SENSITIVE_SUBSTRINGS missed {s!r}"
@@ -68,7 +80,108 @@ class TestSensitiveSubstringsConstant:
     def test_innocuous_names_do_not_match(self):
         from execsql.cli.run import _SENSITIVE_SUBSTRINGS
 
-        for s in ["DEBUG=on", "OUTFILE=report.csv", "RUN_ID=abc123"]:
+        innocuous = [
+            "DEBUG=on",
+            "OUTFILE=report.csv",
+            "RUN_ID=abc123",
+            "PATH=/usr/local/bin",
+            "NODE_PATH=/srv/app",
+            "PYTHONPATH=/srv/lib",
+            "KEYBOARD_LAYOUT=us",
+            "PATTERN=glob",
+            "TURNKEY_MODE=fast",
+        ]
+        for s in innocuous:
             assert not any(needle in s.upper() for needle in _SENSITIVE_SUBSTRINGS), (
                 f"_SENSITIVE_SUBSTRINGS unexpectedly matched {s!r}"
             )
+
+
+class TestArgValueRedactionInLog:
+    """`-a` log lines must always emit `***` instead of the raw value.
+
+    `-a` is positional (the variable name is `$ARG_n`), so there is no
+    name to denylist. The value is user-supplied and may be a high-entropy
+    secret that defeats any substring or value-based heuristic. Emitting
+    `***` unconditionally is the only safe answer.
+    """
+
+    def _capture_arg_log_messages(self, sub_vars):
+        """Drive _setup_logging() with sub_vars, return the log_status_info calls."""
+        from types import SimpleNamespace
+        from unittest.mock import patch
+
+        from execsql.cli.run import _setup_logging
+        from execsql.script.variables import SubVarSet
+
+        captured = []
+
+        class FakeLogger:
+            run_id = "test-run"
+
+            def __init__(self, *a, **kw):
+                pass
+
+            def log_status_info(self, msg):
+                captured.append(msg)
+
+        conf = SimpleNamespace(
+            db=None,
+            server=None,
+            db_file=None,
+            user_logfile=False,
+            files_read=[],
+            log_write_messages=False,
+            log_msg_format=None,
+            log_write_sql=False,
+            log_write_substitutions=False,
+        )
+        with (
+            patch("execsql.cli.run.Logger", FakeLogger),
+            patch("execsql.cli.run.os.path.isfile", return_value=False),
+        ):
+            _setup_logging(
+                conf,
+                SubVarSet(),
+                script_name="<inline>",
+                sub_vars=sub_vars,
+                boolean_int=None,
+                make_dirs=None,
+                database_encoding=None,
+                script_encoding=None,
+                output_encoding=None,
+                import_encoding=None,
+                user_logfile=True,
+                new_db=False,
+                port=None,
+                scanlines=None,
+                db_type="l",
+                user=None,
+                use_gui=None,
+                no_passwd=False,
+                import_buffer=None,
+            )
+        return [m for m in captured if "Command-line substitution variable assignment" in (m or "")]
+
+    def test_high_entropy_values_never_logged(self):
+        # Synthetic fixture values constructed at runtime so gitleaks
+        # doesn't flag the test file as containing a real secret.
+        secrets = [
+            "sk-live-" + "abcdef1234567890",
+            "AKIA" + "IOSFODNN7EXAMPLE",
+            "ghp" + "_" + "abcdef1234567890abcdef1234567890abcd",
+            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9" + ".foo.bar",
+        ]
+        log_lines = self._capture_arg_log_messages(secrets)
+        assert len(log_lines) == len(secrets)
+        joined = " ".join(log_lines)
+        for value in secrets:
+            assert value not in joined, f"raw secret value {value!r} leaked into log"
+        for line in log_lines:
+            assert "{***}" in line, f"missing redaction marker in log line: {line!r}"
+
+    def test_innocuous_values_also_redacted(self):
+        """Redaction is unconditional — `-a` values are never logged verbatim."""
+        log_lines = self._capture_arg_log_messages(["hello", "42"])
+        assert all("{***}" in line for line in log_lines), log_lines
+        assert all("hello" not in line and "42" not in line for line in log_lines), log_lines
