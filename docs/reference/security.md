@@ -88,6 +88,25 @@ password = <plaintext password here>
 enc_password = <base64 obfuscated value here>
 ```
 
+### Environment variables and log redaction { #env_redaction }
+
+execsql seeds every readable environment variable into the substitution-variable pool as `&NAME` so SQL scripts can reference them. To keep obvious secrets out of the pool — and out of `~/execsql.log` when `-l` / `--user-logfile` is enabled — env-var names whose uppercased form contains any of the following substrings are skipped:
+
+```text
+SECRET   TOKEN   PASSWORD   PASSWD   PRIVATE_KEY   CREDENTIAL
+_KEY     APIKEY  API_KEY    DSN      WEBHOOK
+```
+
+This catches mainstream cloud, payment, observability, and VCS conventions: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `STRIPE_KEY`, `SENTRY_DSN`, `SLACK_WEBHOOK`, etc.
+
+**Known gaps.** Substring matching is a denylist; it cannot catch every convention:
+
+- `GITHUB_PAT` and other `…_PAT` suffixes are NOT filtered (the substring `PAT` would also match `PATH`, `_PATCH`, `NODE_PATH`, etc., breaking legitimate substitutions). Use `GITHUB_TOKEN` instead.
+- `DATABASE_URL` and other URL-encoded DSNs (`postgresql://user:pass@host/db`) are NOT filtered. Use `*_DSN` or `*_SECRET` naming when the URL contains credentials.
+- Any custom secret name that doesn't match a listed substring (e.g. `MY_MAGIC_VALUE`) passes through. Rename it or wrap your script in a process that strips it from the environment before invoking execsql.
+
+`-a` (positional `$ARG_n`) assignments are always redacted to `***` in the log — `$ARG_n` is a positional name with no naming convention to denylist, and the value is opaque user input that may contain any high-entropy secret. The value is still passed to the substitution machinery normally; only the log line hides it.
+
 ## File System Access { #filesystem }
 
 execsql can read and write any file that the process user has permission to access. There is no base-directory restriction, no path allowlist, and no protection against `../` traversal sequences in output paths specified by `EXPORT`, `WRITE`, or `INCLUDE` metacommands.

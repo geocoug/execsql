@@ -261,10 +261,11 @@ These are behavioral changes driven by security or correctness issues in the ups
 
 ### Credential and Logging Safety
 
-| Area                         | Fix                                                                                        |
-| ---------------------------- | ------------------------------------------------------------------------------------------ |
-| ODBC password redaction      | Connection strings in log output have `Pwd=***` substituted before logging.                |
-| `enc_password` documentation | Prominent warnings that XOR encryption is obfuscation only — keys are hardcoded in source. |
+| Area                         | Fix                                                                                                                                                                                                                                                          |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| ODBC password redaction      | Connection strings in log output have `Pwd=***` substituted before logging.                                                                                                                                                                                  |
+| `enc_password` documentation | Prominent warnings that XOR encryption is obfuscation only — keys are hardcoded in source.                                                                                                                                                                   |
+| Env-var secret denylist      | Extended `_SENSITIVE_SUBSTRINGS` to cover mainstream cloud / payment / observability / VCS conventions (`*_KEY`, `APIKEY`, `API_KEY`, `DSN`, `WEBHOOK`). `-a` positional assignment log lines now redact unconditionally (`{***}` instead of the raw value). |
 
 ### Bug Fixes
 
