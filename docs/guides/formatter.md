@@ -162,10 +162,9 @@ repos:
     rev: v2.17.0
     hooks:
       - id: execsql-format
-        args: [--in-place]
 ```
 
-The hook runs on `*.sql` files. Pass any CLI flags via `args` — e.g. `[--check]` for a CI-style check-only run, or `[--in-place, --indent, "2"]` to combine in-place rewriting with a custom indent width. Run `pre-commit autoupdate` periodically to bump the `rev`.
+The hook runs on `*.sql` files and rewrites them in place by default (`args: [--in-place]` is baked into the published hook). To run in CI-style check-only mode that fails without modifying files, override with `args: [--check]`. To combine in-place rewriting with a custom indent width, use `args: [--in-place, --indent, "2"]` — note that any explicit `args:` you supply replaces the default, so include `--in-place` when adding more flags if you still want in-place behavior. Run `pre-commit autoupdate` periodically to bump the `rev`.
 
 ## Exit Codes { #exit-codes }
 
