@@ -893,7 +893,7 @@ requires-dist = [
     { name = "twine", marker = "extra == 'dev'", specifier = ">=6.1.0" },
     { name = "typer", specifier = ">=0.12" },
     { name = "xlrd", marker = "extra == 'formats'" },
-    { name = "zensical", marker = "extra == 'dev'", specifier = ">=0.0.28" },
+    { name = "zensical", marker = "extra == 'dev'", specifier = "==0.0.28" },
 ]
 provides-extras = ["postgres", "mysql", "mssql", "duckdb", "firebird", "oracle", "odbc", "formats", "auth", "auth-plaintext", "auth-encrypted", "upsert", "map", "formatter", "all-db", "all", "dev"]
 

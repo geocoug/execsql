@@ -9,7 +9,7 @@ build:
     python: "3.13"
   jobs:
     install:
-      - pip install zensical mkdocstrings-python
+      - pip install "zensical==0.0.28" mkdocstrings-python
       - pip install -e .
     pre_build:
       - cp CHANGELOG.md docs/about/change_log.md
