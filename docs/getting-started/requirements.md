@@ -93,3 +93,19 @@ Connections to SQLite databases use Python's standard library and require no add
 ## Additional System Requirements { #system_requirements }
 
 To use MS Access, SQL Server, or an ODBC DSN, an appropriate ODBC driver must be installed on the system (e.g., the [Microsoft Access Database Engine](https://www.microsoft.com/en-US/download/details.aspx?id=13255) for MS Access, or the [ODBC Driver for SQL Server](https://learn.microsoft.com/en-us/sql/connect/odbc/download-odbc-driver-for-sql-server)).
+
+### MS Access on Windows
+
+In addition to the ODBC engine above, the MS Access adapter also needs [pywin32](https://pypi.org/project/pywin32/) to read certain Access-specific value types via the COM bridge. It is not declared in the `[mssql]` or any `execsql2` extra (the package is Windows-only and would noise up non-Windows installs); install it explicitly when you set up the rest of your Access stack:
+
+```sh
+pip install "execsql2[mssql]" pywin32
+```
+
+### Oracle thin vs thick mode
+
+[oracledb](https://pypi.org/project/oracledb/) defaults to **thin** mode (pure Python, no client libraries required) and works out of the box for most workloads. Switch to **thick** mode by installing the Oracle Instant Client (or a full Oracle client) on the host and calling `oracledb.init_oracle_client()` at startup. Thick mode is required for features the thin driver doesn't implement (Advanced Queuing, some XML features, legacy networking options). See the [oracledb docs](https://python-oracledb.readthedocs.io/en/latest/user_guide/initialization.html) for the full feature matrix.
+
+### Firebird client library
+
+[firebird-driver](https://pypi.org/project/firebird-driver/) is the Python bindings; the actual Firebird C client library (`fbclient.dll` on Windows, `libfbclient.so` on Linux, `libfbclient.dylib` on macOS) is loaded at runtime. Install it via your Firebird server distribution or the standalone [Firebird ODBC / client packages](https://firebirdsql.org/en/firebird-client-installer/), and make sure it's on the OS loader path (`PATH` on Windows, `LD_LIBRARY_PATH` on Linux, `DYLD_LIBRARY_PATH` on macOS) before invoking execsql.
