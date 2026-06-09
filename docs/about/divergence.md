@@ -110,6 +110,7 @@ Formatter correctness notes added in the 2.19.x line:
 
 - **2.19.1** — All four substitution-variable forms (`!!var!!`, `!'!var!'!`, `!"!var!"!`, and the deferred form `!{var}!`) are hidden from the sqlglot pass. Previously, `!'!var!'!` and `!"!var!"!` were parsed as `NOT` operators and rewritten — e.g. `!'!myvar!'!` → `NOT NOT '!myvar!'`. Scripts using quoted substitution variables are now safe to run through `execsql-format`.
 - **2.19.2** — The published pre-commit hook declares `sqlglot` as an isolated-env dependency. The 2.19.0 move of `sqlglot` to the `[formatter]` extra meant the hook env (which installs the bare package) crashed with `ModuleNotFoundError: No module named 'sqlglot'` on first run. After upgrading, downstream users should run `pre-commit clean && pre-commit install --install-hooks` once to rebuild the env.
+- **Tagged dollar quotes** — Tagged PL/pgSQL function bodies (`$body$ … $body$`, `$func$ … $func$`, any `$tag$`) are now recognized and skipped over by the formatter. Previously the tracker only saw untagged `$$`, so tagged function bodies were sent to sqlglot which mangled `IF / END IF / LOOP / RETURN`.
 
 ### GUI
 

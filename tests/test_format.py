@@ -1658,6 +1658,67 @@ class TestDollarQuotedStrings:
         result = format_file(source, use_sql=True)
         assert "this is a raw string" in result
 
+    def test_tagged_dollar_quote_body_preserved(self):
+        """`$body$ … $body$` PL/pgSQL must not be sent to sqlglot.
+
+        The naive `$$`-only tracker did not see tagged markers, so the
+        function body was passed to sqlglot which mangled IF / END IF /
+        LOOP / RETURN. The tag-aware tracker treats `$body$` exactly like
+        `$$`.
+        """
+        source = (
+            "CREATE FUNCTION add_one(x int) RETURNS int AS $body$\n"
+            "BEGIN\n"
+            "    IF x IS NULL THEN\n"
+            "        RETURN 0;\n"
+            "    END IF;\n"
+            "    RETURN x + 1;\n"
+            "END\n"
+            "$body$ LANGUAGE plpgsql;\n"
+        )
+        result = format_file(source, use_sql=True)
+        # Body must survive verbatim — no sqlglot rewrite to COMMIT, no
+        # collapsed IF / END IF, no lost RETURN.
+        assert "IF x IS NULL THEN" in result
+        assert "END IF" in result
+        assert "RETURN 0" in result
+        assert "RETURN x + 1" in result
+
+    def test_tagged_dollar_quote_func_preserved(self):
+        """An unrelated tag like `$func$` is handled the same way."""
+        source = (
+            "DO $func$\n"
+            "DECLARE\n"
+            "    n int := 0;\n"
+            "BEGIN\n"
+            "    LOOP\n"
+            "        EXIT WHEN n >= 3;\n"
+            "        n := n + 1;\n"
+            "    END LOOP;\n"
+            "END\n"
+            "$func$;\n"
+        )
+        result = format_file(source, use_sql=True)
+        assert "DECLARE" in result
+        assert "LOOP" in result
+        assert "EXIT WHEN n >= 3" in result
+        assert "END LOOP" in result
+
+    def test_nested_foreign_tag_inside_dollar_quote_ignored(self):
+        """A `$other$` marker inside a `$body$` block is literal text."""
+        source = (
+            "CREATE FUNCTION f() RETURNS text AS $body$\n"
+            "BEGIN\n"
+            "    -- the literal sequence $other$ here must not close $body$\n"
+            "    RETURN 'hello $other$ world';\n"
+            "END\n"
+            "$body$ LANGUAGE plpgsql;\n"
+        )
+        result = format_file(source, use_sql=True)
+        # Function body still preserved verbatim.
+        assert "RETURN 'hello $other$ world'" in result
+        assert "END" in result
+
 
 # ---------------------------------------------------------------------------
 # Regression: patterns that previously produced corrupt output

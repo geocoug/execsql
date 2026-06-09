@@ -101,6 +101,11 @@ CONTINUATION = frozenset({"ANDIF", "ORIF"})  # emit at depth-1, no depth change
 # Inline IF: "IF (cond) { command }" — self-contained, no ENDIF, no depth change.
 # Mirrors src/execsql/cli/lint.py:_RX_IF_INLINE so formatter and linter agree.
 _IF_INLINE_RE = re.compile(r"^\s*IF\s*\(\s*.+\s*\)\s*\{.+\}\s*$", re.I)
+
+# Matches both untagged `$$` and tagged `$tag$` dollar-quote markers
+# (PostgreSQL PL/pgSQL / DO-block syntax). Tags are letter-or-underscore
+# followed by word characters; the empty tag (just `$$`) is also valid.
+_DOLLAR_QUOTE_RE = re.compile(r"\$([A-Za-z_][A-Za-z0-9_]*)?\$")
 # BLOCK_OPEN keywords whose bodies are guaranteed-SQL (not metacommand-driven).
 # Blank lines inside these belong to the SQL accumulator, not the output stream.
 _SQL_BODY_BLOCKS = frozenset({"BEGIN SQL", "BEGIN BATCH"})
@@ -515,6 +520,10 @@ def format_file(source: str, indent: int = 4, use_sql: bool = True, leading_comm
     output: list[str] = []
 
     in_dollar_quote = False
+    # When in_dollar_quote, the tag string we are inside ("" for `$$`,
+    # "body" for `$body$`, etc.). Nested markers with a different tag
+    # are ignored — only a matching close marker re-opens us.
+    current_dq_tag: str | None = None
     in_block_comment = False
     # Track whether we are inside an open SQL statement (last SQL line
     # did not end with ';').  Blank lines mid-statement should NOT flush
@@ -527,7 +536,7 @@ def format_file(source: str, indent: int = 4, use_sql: bool = True, leading_comm
     in_explicit_sql_block = False
 
     def flush_sql() -> None:
-        nonlocal in_dollar_quote, in_sql_statement
+        nonlocal in_dollar_quote, current_dq_tag, in_sql_statement
         if sql_acc:
             # If any line in the accumulated block is inside a $$-delimited
             # region, skip sqlglot formatting entirely.  PL/pgSQL function
@@ -596,9 +605,19 @@ def format_file(source: str, indent: int = 4, use_sql: bool = True, leading_comm
                 output.append(format_metacommand(payload, depth, indent))
 
         else:
-            # Track $$ boundaries to prevent sqlglot from mangling PL/pgSQL
-            if "$$" in raw_line and raw_line.count("$$") % 2 == 1:
-                in_dollar_quote = not in_dollar_quote
+            # Track $$ and $tag$ boundaries to prevent sqlglot from mangling
+            # PL/pgSQL. Walk every dollar-quote marker on the line; toggle
+            # state only when we hit the matching open or close.
+            for m in _DOLLAR_QUOTE_RE.finditer(raw_line):
+                tag = m.group(1) or ""
+                if not in_dollar_quote:
+                    in_dollar_quote = True
+                    current_dq_tag = tag
+                elif tag == current_dq_tag:
+                    in_dollar_quote = False
+                    current_dq_tag = None
+                # else: tag mismatch — a foreign-tagged marker inside our
+                # quoted region; ignore (PG would treat it as literal text).
             sql_acc.append(raw_line)
             # Update statement tracking: if this SQL line ends with ';'
             # (and isn't a comment), the statement is complete.
