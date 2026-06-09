@@ -118,6 +118,32 @@ Use `--parse-tree` to print the AST without executing.
 
 `RuntimeContext` (in `state.py`) holds the per-run mutable state. `execute()` accepts an explicit `ctx`; the `active_context()` context manager installs one as the active thread-local so metacommand handlers and database adapters resolve against it automatically. Each thread gets its own context via `threading.local()`, enabling concurrent `execsql.run()` calls. The context carries the AST script registry (`ast_scripts`), the include cycle detector (`include_chain`), and the unified execution stack (`ast_exec_stack`) — a list of `ExecFrame` records describing every active scope, IF/LOOP/BATCH block, and INCLUDE'd file. Scope frames (`kind="main"` / `kind="script"`) hold the active `localvars` and `paramvals`; block frames cache a `scope_ref` to the enclosing scope for O(1) variable lookup. `current_script_line()` reads `ctx.last_command`, which the executor updates per statement.
 
+### Dispatch vs. AST executor — the stub seam
+
+A handful of keywords appear in **both** the metacommand dispatch table and the AST grammar. The dispatch entries are intentional stubs that raise `ErrInfo` at runtime if reached, and exist only so the keyword tables and tooling stay complete.
+
+| Keyword                                               | Source                                                       |
+| ----------------------------------------------------- | ------------------------------------------------------------ |
+| `IF` / `ANDIF` / `ORIF` / `ELSEIF` / `ELSE` / `ENDIF` | `metacommands/control.py` raises `_ast_only_stub("IF")` etc. |
+| `LOOP` / `BREAK`                                      | same                                                         |
+| `BEGIN BATCH` / `END BATCH`                           | same                                                         |
+
+What the stubs are for:
+
+- **`--dump-keywords`** walks the dispatch table to emit the canonical keyword list. The VS Code grammar in `extras/vscode-execsql/syntaxes/execsql.tmLanguage.json` is regenerated from `--dump-keywords` output (see `scripts/generate_vscode_grammar.py`). Removing the dispatch entries would silently shrink that grammar and lose highlighting for the affected keywords.
+- **Reachability is impossible at runtime.** The AST parser owns these constructs and they never bottom out in `_exec_metacommand()`. If a stub *does* raise, that means the parser missed a structural case — file a bug rather than implementing the dispatch path.
+
+A new contributor who greps for `ErrInfo: AST-only` lands in `metacommands/control.py:_ast_only_stub`; the same logic applies to any future keyword that the AST parser owns.
+
+### Legacy `commandliststack` residue
+
+`state.py` still exposes `commandliststack` (and `if_stack`, `savedscripts`) as `RuntimeContext` attributes for backwards compatibility with two surfaces:
+
+- **`metacommands/debug.py`** — the `x_debug_commandliststack` REPL helper and a few diagnostic prints read `_state.commandliststack[-1]` to surface the active local-variable frame.
+- **`state.py` proxy** — kept as a slot on `RuntimeContext` so external code that imported `from execsql.state import commandliststack` keeps importing.
+
+These are **read-only diagnostic surfaces.** New control-flow or scope code must go through `ctx.ast_exec_stack` / `ExecFrame`; the legacy stack is no longer the source of truth and is not pushed/popped by the AST executor in the way the old flat-command-list engine did. Treat `commandliststack` as a debug-only window onto `ctx.localvars` / `ctx.paramvals`.
+
 ______________________________________________________________________
 
 ## Plugin System
