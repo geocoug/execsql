@@ -36,7 +36,8 @@ nav = [
         { "Adding Metacommands" = "dev/adding_metacommands.md" },
         { "Adding Exporters" = "dev/adding_exporters.md" },
         { "Adding Database Adapters" = "dev/adding_db_adapters.md" },
-        { "Adding Importers" = "dev/adding_importers.md" }
+        { "Adding Importers" = "dev/adding_importers.md" },
+        { "Release Process" = "dev/releasing.md" }
     ] },
     { "API Reference" = [
         { "Overview" = "api/index.md" },
