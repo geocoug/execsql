@@ -47,30 +47,39 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Database drivers
-postgres = ["psycopg2-binary"]
-mysql = ["pymysql"]
-mssql = ["pyodbc"]
-duckdb = ["duckdb"]
-firebird = ["firebird-driver"]
-oracle = ["oracledb"]
-odbc = ["pyodbc"]
+# Database drivers — conservative floors matching uv.lock; patches allowed.
+postgres = ["psycopg2-binary>=2.9"]
+mysql = ["pymysql>=1.1"]
+mssql = ["pyodbc>=5.0"]
+duckdb = ["duckdb>=1.0"]
+firebird = ["firebird-driver>=1.10"]
+oracle = ["oracledb>=3.0"]
+odbc = ["pyodbc>=5.0"]
 # Feature bundles
-formats = ["odfpy", "xlrd", "openpyxl", "Jinja2", "polars", "tables", "PyYAML", "defusedxml"]
-auth = ["keyring"]
-auth-plaintext = ["keyring", "keyrings.alt"]
-auth-encrypted = ["keyring", "keyrings.alt", "pycryptodome"]
+formats = [
+    "odfpy>=1.4",
+    "xlrd>=2.0",
+    "openpyxl>=3.1",
+    "Jinja2>=3.1",
+    "polars>=1.0",
+    "tables>=3.10",
+    "PyYAML>=6.0",
+    "defusedxml>=0.7",
+]
+auth = ["keyring>=25.0"]
+auth-plaintext = ["keyring>=25.0", "keyrings.alt>=5.0"]
+auth-encrypted = ["keyring>=25.0", "keyrings.alt>=5.0", "pycryptodome>=3.20"]
 upsert = ["pg-upsert>=1.22.1"]
 map = ["tkintermapview>=1.29"]
 formatter = ["sqlglot>=25.0"]
 # Convenience groups
 all-db = [
-    "psycopg2-binary",
-    "pymysql",
-    "pyodbc",
-    "duckdb",
-    "firebird-driver",
-    "oracledb",
+    "psycopg2-binary>=2.9",
+    "pymysql>=1.1",
+    "pyodbc>=5.0",
+    "duckdb>=1.0",
+    "firebird-driver>=1.10",
+    "oracledb>=3.0",
 ]
 all = [
     "execsql2[all-db]",
