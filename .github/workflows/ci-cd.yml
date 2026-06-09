@@ -175,9 +175,10 @@ jobs:
     access-tests-windows:
         name: access-tests-windows
         runs-on: windows-latest
-        # Best-effort: Access Database Engine install can be flaky on hosted
-        # runners.  Failures don't gate the rest of the pipeline.
-        continue-on-error: true
+        # The Access engine install step is best-effort (the redistributable
+        # download from Microsoft can be flaky on hosted runners). The
+        # downstream test step IS gating — a real Access regression should
+        # block the merge.
         strategy:
             fail-fast: false
             matrix:
@@ -191,6 +192,8 @@ jobs:
               with:
                   python-version: ${{ matrix.python-version }}
             - name: Install Microsoft Access Database Engine 2016 (x64)
+              id: install_access
+              continue-on-error: true
               # The chocolatey `accessdatabaseengine-x64` package was removed
               # from the community feed; download the redistributable directly
               # from Microsoft and run it silently instead.
@@ -206,12 +209,21 @@ jobs:
                   # 0 = success, 3010 = success but reboot pending. Anything else is a failure.
                   if ($proc.ExitCode -ne 0 -and $proc.ExitCode -ne 3010) { exit $proc.ExitCode }
               shell: pwsh
+            - name: Annotate skipped Access tests
+              if: steps.install_access.outcome != 'success'
+              run: |
+                  Write-Host "::warning::Access Database Engine install failed; Access real-driver tests skipped this run."
+              shell: pwsh
             - name: Install Python dependencies
+              if: steps.install_access.outcome == 'success'
               run: |
                   python -m pip install --upgrade pip
                   python -m pip install ".[dev,odbc]" pywin32
               shell: pwsh
             - name: Run Access real-driver tests
+              # Gating: a real regression in src/execsql/db/access.py blocks
+              # the merge. Only runs when the install above succeeded.
+              if: steps.install_access.outcome == 'success'
               env:
                   DISPLAY: ""
               run: |
