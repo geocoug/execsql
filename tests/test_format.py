@@ -1704,6 +1704,38 @@ class TestDollarQuotedStrings:
         assert "EXIT WHEN n >= 3" in result
         assert "END LOOP" in result
 
+    def test_multiword_keywords_cover_dispatch_table(self):
+        """Every multi-word metacommand registered in dispatch.py must be in
+        MULTIWORD_KEYWORDS, or `parse_keyword` will only see the first word
+        and `format_metacommand` will leave the second word lowercase.
+
+        This is a one-way check: MULTIWORD_KEYWORDS is also allowed to
+        contain parser-handled keywords (BEGIN SCRIPT, END SCRIPT, BEGIN
+        SQL, END SQL, END LOOP, CREATE SCRIPT) that have no dispatch entry.
+        """
+        import re as _re
+
+        from execsql.format import MULTIWORD_KEYWORDS
+
+        from pathlib import Path
+
+        dispatch_src = Path("src/execsql/metacommands/dispatch.py").read_text()
+        # Pull every `description="..."` value out of the dispatch table.
+        # Multi-word descriptions (containing a space) are the ones the
+        # formatter needs to recognize.
+        descriptions = _re.findall(r'description="([A-Z][A-Z_ ]+)"', dispatch_src)
+        multiword = {d for d in descriptions if " " in d}
+        # Also catch `mcl.add(regex, fn, "DESCRIPTION", …)` positional form.
+        positional = _re.findall(r'mcl\.add\([^,]+,\s*[a-zA-Z_]+,\s*"([A-Z][A-Z_ ]+)"', dispatch_src)
+        multiword.update(d for d in positional if " " in d)
+
+        missing = multiword - set(MULTIWORD_KEYWORDS)
+        assert not missing, (
+            f"MULTIWORD_KEYWORDS is missing dispatch-registered multi-word "
+            f"keywords: {sorted(missing)}. parse_keyword will leave the "
+            f"second word lowercase. Add each to src/execsql/format.py."
+        )
+
     def test_nested_foreign_tag_inside_dollar_quote_ignored(self):
         """A `$other$` marker inside a `$body$` block is literal text."""
         source = (

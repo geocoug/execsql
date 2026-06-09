@@ -45,6 +45,13 @@ METACOMMAND_RE = re.compile(r"^\s*--\s*!x!\s*(.*)", re.IGNORECASE)
 
 # Multi-word keywords — checked longest-first before single-word fallback.
 # Order matters: more-specific variants must precede their prefixes.
+# Only entries that appear at the *start* of a `-- !x!` payload belong
+# here — `parse_keyword()` matches against the beginning of the payload,
+# not embedded sub-clauses. `IN ZIPFILE` / `WITH TEMPLATE` are EXPORT
+# sub-clauses and never appear at the start, so they don't go here.
+# When adding a new dispatch keyword, mirror it here (or fix the missing
+# entry via the `tests/test_format.py` drift check that pulls names from
+# the dispatch table).
 MULTIWORD_KEYWORDS = [
     "METACOMMAND_ERROR_HALT",
     "ON ERROR_HALT",
@@ -77,18 +84,31 @@ MULTIWORD_KEYWORDS = [
     "SUB_INI",
     "PROMPT ENTRY_FORM",
     "PROMPT SELECT_SUB",
+    "PROMPT SELECT_ROWS",
     "PROMPT ENTER_SUB",
     "PROMPT DIRECTORY",
+    "PROMPT CREDENTIALS",
     "PROMPT CONNECT",
     "PROMPT COMPARE",
     "PROMPT MESSAGE",
     "PROMPT DISPLAY",
     "PROMPT ACTION",
+    "PROMPT OPENFILE",
+    "PROMPT SAVEFILE",
     "PROMPT PAUSE",
-    "PROMPT FILE",
+    # PROMPT ASK COMPARE must precede PROMPT ASK so longest-match wins;
+    # parse_keyword iterates in list order, not by length.
+    "PROMPT ASK COMPARE",
     "PROMPT ASK",
-    "WITH TEMPLATE",
-    "IN ZIPFILE",
+    "PROMPT MAP",
+    "APPEND SCRIPT",
+    "PG_UPSERT CHECK",
+    "PG_UPSERT QA",
+    "RESET COUNTER",
+    "RESET DIALOG_CANCELED",
+    "SET COUNTER",
+    "WRITE CREATE_TABLE",
+    "WRITE SCRIPT",
     "SHOW SCRIPTS",
 ]
 
