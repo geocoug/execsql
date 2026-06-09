@@ -92,7 +92,7 @@ dev = [
     "ruff>=0.4",
     "tox-uv>=1.13.1",
     "twine>=6.1.0",
-    "zensical>=0.0.28",
+    "zensical==0.0.28",
 ]
 
 [project.scripts]
