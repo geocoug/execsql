@@ -16,6 +16,7 @@ ______________________________________________________________________
 - Published `execsql-format` pre-commit hook now defaults to `args: [--in-place]`. Downstream configs that listed `- id: execsql-format` with no `args:` previously got a silent no-op (the CLI's default is stdout, which pre-commit doesn't capture); they will now reformat files in place. Override with `args: [--check]` for check-only mode.
 - Pre-commit `rev:` snippets in `README.md` and `docs/guides/formatter.md` now point at `v2.19.2` and are rewritten automatically by `bump-my-version` on every version bump, so they cannot drift.
 - Env-var redaction filter expanded to skip mainstream secret-naming conventions (`AWS_ACCESS_KEY_ID`, `STRIPE_KEY`, `OPENAI_API_KEY`, `SENTRY_DSN`, `SLACK_WEBHOOK`, etc.). `-a` assignment log lines now always show `{***}` instead of the raw value. See `docs/reference/security.md#env_redaction` for the full list and known gaps (`DATABASE_URL`, `GITHUB_PAT`).
+- The duplicate `execsql.conf` reference file shipped at `<sys.prefix>/execsql2_extras/execsql.conf` has been removed. The canonical template still ships inside the package and is loaded via `importlib.resources`; bootstrap a project conf with `execsql --init-config > execsql.conf` (the documented path).
 
 ### Fixed
 

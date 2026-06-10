@@ -2,7 +2,7 @@
 
 Several types of templates are provided that may be useful in conjunction with execsql. These are:
 
-- **execsql.conf** — An annotated version of the configuration file that includes all configuration settings and notes on their usage.
+- **execsql.conf** — An annotated reference of every configuration setting with notes on its usage. Generate a fresh copy in any directory with `execsql --init-config > execsql.conf`; the canonical content ships inside the installed package and is loaded via `importlib.resources` (no need to find or copy a source file).
 
 - **script_template.sql** — A framework for SQL scripts that make use of several execsql features. It includes sections for custom configuration settings, custom logfile creation, and reporting of unexpected script exits (through user cancellation or errors).
 
