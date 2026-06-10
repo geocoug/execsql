@@ -30,14 +30,15 @@ By default, formatted output is written to stdout. Use `--in-place` to overwrite
 
 ### Options { #options }
 
-| Option             | Default  | Description                                                                                                    |
-| ------------------ | -------- | -------------------------------------------------------------------------------------------------------------- |
-| `FILE_OR_DIR`      | required | One or more files or directories to format. Directories are searched recursively for `*.sql` files.            |
-| `--check`          | off      | Exit with code 1 if any file would be reformatted. Does not write any changes. Useful in CI.                   |
-| `-i`, `--in-place` | off      | Modify files in place instead of writing to stdout.                                                            |
-| `--no-sql`         | off      | Skip SQL reformatting via sqlglot. Only normalizes metacommand indentation and keyword casing.                 |
-| `--indent N`       | `4`      | Spaces per indent level. Controls both metacommand block depth and SQL indentation (columns, subqueries, etc). |
-| `--leading-comma`  | off      | Place commas at the start of lines instead of the end (e.g. `  , col2` instead of `col1,`).                    |
+| Option             | Default  | Description                                                                                                                       |
+| ------------------ | -------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `FILE_OR_DIR`      | required | One or more files or directories to format. Directories are searched recursively for `*.sql` files.                               |
+| `--check`          | off      | Exit with code 1 if any file would be reformatted. Does not write any changes. Useful in CI.                                      |
+| `-i`, `--in-place` | off      | Modify files in place instead of writing to stdout.                                                                               |
+| `--no-sql`         | off      | Skip SQL reformatting via sqlglot. Only normalizes metacommand indentation and keyword casing.                                    |
+| `--indent N`       | `4`      | Spaces per indent level. Controls both metacommand block depth and SQL indentation (columns, subqueries, etc).                    |
+| `--leading-comma`  | off      | Place commas at the start of lines instead of the end (e.g. `  , col2` instead of `col1,`).                                       |
+| `--encoding NAME`  | `utf-8`  | Text encoding used to read and write SQL files. Pass `cp1252`, `latin-1`, `shift_jis`, etc. for files saved by non-UTF-8 editors. |
 
 ## What Gets Formatted { #what-gets-formatted }
 

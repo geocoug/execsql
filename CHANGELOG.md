@@ -25,6 +25,10 @@ ______________________________________________________________________
 - `execsql-format` now uppercases the second word of multi-word metacommands like `PROMPT MAP`, `PROMPT SAVEFILE`, `PROMPT OPENFILE`, `PROMPT CREDENTIALS`, `PROMPT SELECT_ROWS`, `PROMPT ASK COMPARE`, `APPEND SCRIPT`, `PG_UPSERT CHECK`/`QA`, `RESET COUNTER`/`DIALOG_CANCELED`, `SET COUNTER`, `WRITE CREATE_TABLE`/`SCRIPT`. Previously only the first word was uppercased, leaving the rest as the user typed.
 - `execsql-format` no longer short-circuits on the first unreadable file; remaining files are still checked or formatted, and the run exits 1 at the end if any read error or pending change was found.
 
+### Added
+
+- `execsql-format --encoding NAME` flag controls the text encoding used to read and write SQL files (default `utf-8`). Files saved by editors that emit cp1252, latin-1, shift_jis, etc. can now be formatted directly. A `UnicodeDecodeError` reports the file path and suggests `--encoding` instead of dumping a traceback.
+
 ______________________________________________________________________
 
 ## [2.19.2] - 2026-06-03
