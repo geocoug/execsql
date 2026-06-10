@@ -1839,12 +1839,13 @@ class TestDollarQuotedStrings:
         SQL, END SQL, END LOOP, CREATE SCRIPT) that have no dispatch entry.
         """
         import re as _re
+        from pathlib import Path
 
         from execsql.format import MULTIWORD_KEYWORDS
 
-        from pathlib import Path
+        import execsql.metacommands.dispatch as _dispatch_mod
 
-        dispatch_src = Path("src/execsql/metacommands/dispatch.py").read_text()
+        dispatch_src = Path(_dispatch_mod.__file__).read_text()
         # Pull every `description="..."` value out of the dispatch table.
         # Multi-word descriptions (containing a space) are the ones the
         # formatter needs to recognize.
