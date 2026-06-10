@@ -118,8 +118,12 @@ BLOCK_CLOSE = frozenset({"ENDIF", "END LOOP", "ENDLOOP", "END SCRIPT", "END BATC
 PIVOT = frozenset({"ELSE", "ELSEIF"})  # decrease depth before emit, increase after
 CONTINUATION = frozenset({"ANDIF", "ORIF"})  # emit at depth-1, no depth change
 
-# Inline IF: "IF (cond) { command }" — self-contained, no ENDIF, no depth change.
-# Mirrors src/execsql/cli/lint.py:_RX_IF_INLINE so formatter and linter agree.
+# Inline IF: "IF (cond) { command }" — self-contained, no ENDIF, no depth
+# change. Pattern must accept the same payloads as
+# src/execsql/script/parser.py:_IF_INLINE_RX. Kept as a separate compiled
+# pattern (not an import) so execsql-format doesn't pull in the AST parser
+# module graph at startup; tests/test_format.py has a drift check that
+# asserts both regexes recognise the same inputs.
 _IF_INLINE_RE = re.compile(r"^\s*IF\s*\(\s*.+\s*\)\s*\{.+\}\s*$", re.I)
 
 # Matches both untagged `$$` and tagged `$tag$` dollar-quote markers

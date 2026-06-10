@@ -1704,6 +1704,33 @@ class TestDollarQuotedStrings:
         assert "EXIT WHEN n >= 3" in result
         assert "END LOOP" in result
 
+    def test_if_inline_regex_agrees_with_parser(self):
+        """`_IF_INLINE_RE` (formatter) and `_IF_INLINE_RX` (AST parser) must
+        recognise the same inline-IF payloads. They are intentionally kept
+        as separate compiled patterns so execsql-format doesn't import the
+        AST parser module graph at startup, but they must not drift —
+        otherwise the formatter's depth tracking and the parser's block
+        recognition diverge.
+        """
+        from execsql.format import _IF_INLINE_RE
+        from execsql.script.parser import _IF_INLINE_RX
+
+        cases = [
+            ("IF (x = 1) { WRITE 'one' }", True),
+            ("IF (substr(!!v!!,1,1) = 'a') { SUB y 1 }", True),
+            ("if (x = 1) { write 'lower' }", True),
+            ("IF (x = 1) { multi word command here }", True),
+            ("IF (x = 1)", False),  # block form, no { }
+            ("IF (x = 1) THEN", False),  # not the inline shape
+            ("SELECT 1", False),  # not an IF at all
+        ]
+        for payload, expected in cases:
+            fmt_hit = _IF_INLINE_RE.match(payload) is not None
+            parser_hit = _IF_INLINE_RX.match(payload) is not None
+            assert fmt_hit == parser_hit == expected, (
+                f"Drift: payload={payload!r} formatter={fmt_hit} parser={parser_hit} expected={expected}"
+            )
+
     def test_multiword_keywords_cover_dispatch_table(self):
         """Every multi-word metacommand registered in dispatch.py must be in
         MULTIWORD_KEYWORDS, or `parse_keyword` will only see the first word
