@@ -89,7 +89,7 @@ class TestMailerConfigValidation:
         _state.conf.smtp_username = None
         _state.conf.smtp_password = None
         m = Mailer()
-        mock_smtp_cls.assert_called_once_with("mail.example.com")
+        mock_smtp_cls.assert_called_once_with("mail.example.com", timeout=30)
         mock_conn.ehlo_or_hello_if_needed.assert_called_once()
         # Clean up to avoid __del__ issues
         del m.smtpconn
@@ -105,7 +105,7 @@ class TestMailerConfigValidation:
         _state.conf.smtp_username = None
         _state.conf.smtp_password = None
         m = Mailer()
-        mock_smtp_cls.assert_called_once_with("mail.example.com", 587)
+        mock_smtp_cls.assert_called_once_with("mail.example.com", 587, timeout=30)
         del m.smtpconn
 
     @patch("smtplib.SMTP_SSL")
@@ -119,7 +119,7 @@ class TestMailerConfigValidation:
         _state.conf.smtp_username = None
         _state.conf.smtp_password = None
         m = Mailer()
-        mock_smtp_ssl_cls.assert_called_once_with("mail.example.com")
+        mock_smtp_ssl_cls.assert_called_once_with("mail.example.com", timeout=30)
         del m.smtpconn
 
     @patch("smtplib.SMTP")
