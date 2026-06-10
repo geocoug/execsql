@@ -592,6 +592,51 @@ class TestMainCLIDirect:
         captured = capsys.readouterr()
         assert "select 1;" in captured.out
 
+    def test_check_continues_past_unreadable_file(self, tmp_path, capsys):
+        """An unreadable file should be reported but must not short-circuit
+        the rest of a `--check` run; the report needs to be complete so the
+        user can fix everything in one pass.
+        """
+        # First file: synthetic OSError on read (chmod 0 isn't reliable across
+        # platforms or running as root, so override read_text instead).
+        bad = tmp_path / "0_unreadable.sql"
+        bad.write_text("-- !x! write 'unread'\n")
+        # Second file: a real one that needs reformatting (lowercase keyword).
+        good = tmp_path / "1_needs_format.sql"
+        good.write_text("-- !x! write 'hello'\n")
+
+        from pathlib import Path
+
+        real_read = Path.read_text
+
+        def fake_read(self, *args, **kwargs):
+            if self.name == "0_unreadable.sql":
+                raise OSError("synthetic read failure")
+            return real_read(self, *args, **kwargs)
+
+        # SystemExit(1) is expected because (a) bad file errored and
+        # (b) good file needs reformatting in --check mode.
+        with (
+            patch.object(Path, "read_text", fake_read),
+            patch("sys.argv", ["execsql-format", "--check", str(tmp_path)]),
+        ):
+            from execsql.format import main
+
+            try:
+                main()
+            except SystemExit as exc:
+                assert exc.code == 1
+
+        captured = capsys.readouterr()
+        # The second file's reformat report must have been emitted, proving
+        # the loop did not short-circuit on the first file's error.
+        assert "1_needs_format.sql" in captured.out, (
+            f"--check stopped after the read error; later files were skipped:\n"
+            f"stdout: {captured.out!r}\nstderr: {captured.err!r}"
+        )
+        # And the read error itself must have been logged.
+        assert "0_unreadable.sql" in captured.err
+
     def test_main_unreadable_file(self, tmp_path):
         # Pass a path that doesn't exist → OSError when reading → exit code 1
         missing = tmp_path / "missing.sql"

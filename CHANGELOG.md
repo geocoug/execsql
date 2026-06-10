@@ -23,6 +23,7 @@ ______________________________________________________________________
 - MySQL, SQL Server (pyodbc), MS Access (pyodbc), DSN (pyodbc), Firebird, and SMTP connections now use a 30-second connect timeout, matching the existing Postgres default. A silently-dropped peer no longer hangs a script (or a CI run) indefinitely.
 - `execsql-format` now recognizes tagged `$body$ … $body$` / `$func$ … $func$` PL/pgSQL dollar quotes and skips sqlglot inside them, matching the existing `$$` behaviour. Tagged function bodies previously had their `IF / END IF / LOOP / RETURN` rewritten or collapsed.
 - `execsql-format` now uppercases the second word of multi-word metacommands like `PROMPT MAP`, `PROMPT SAVEFILE`, `PROMPT OPENFILE`, `PROMPT CREDENTIALS`, `PROMPT SELECT_ROWS`, `PROMPT ASK COMPARE`, `APPEND SCRIPT`, `PG_UPSERT CHECK`/`QA`, `RESET COUNTER`/`DIALOG_CANCELED`, `SET COUNTER`, `WRITE CREATE_TABLE`/`SCRIPT`. Previously only the first word was uppercased, leaving the rest as the user typed.
+- `execsql-format` no longer short-circuits on the first unreadable file; remaining files are still checked or formatted, and the run exits 1 at the end if any read error or pending change was found.
 
 ______________________________________________________________________
 
