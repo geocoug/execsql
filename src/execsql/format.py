@@ -716,12 +716,16 @@ def main() -> None:
             raise typer.Exit(code=1)
 
         any_changed = False
+        any_errors = False
         for path in paths:
             try:
                 source = path.read_text(encoding="utf-8")
             except OSError as exc:
                 _err_console.print(f"[bold red]Error:[/bold red] reading {path}: {exc}")
-                raise typer.Exit(code=1) from None
+                any_errors = True
+                # Collect read errors instead of short-circuiting so a single
+                # unreadable file doesn't hide the rest of the report.
+                continue
 
             formatted = format_file(source, indent=indent, use_sql=use_sql, leading_comma=leading_comma)
 
@@ -736,7 +740,7 @@ def main() -> None:
             else:
                 sys.stdout.write(formatted)
 
-        if check and any_changed:
+        if any_errors or (check and any_changed):
             raise typer.Exit(code=1)
 
     app()
