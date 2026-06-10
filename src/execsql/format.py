@@ -708,6 +708,12 @@ def main() -> None:
             "--leading-comma",
             help="Place commas at the start of lines instead of the end.",
         ),
+        encoding: str = typer.Option(
+            "utf-8",
+            "--encoding",
+            metavar="NAME",
+            help="Text encoding used to read and write SQL files (default utf-8).",
+        ),
     ) -> None:
         use_sql = not no_sql
         paths = collect_paths(targets)
@@ -719,12 +725,19 @@ def main() -> None:
         any_errors = False
         for path in paths:
             try:
-                source = path.read_text(encoding="utf-8")
+                source = path.read_text(encoding=encoding)
             except OSError as exc:
                 _err_console.print(f"[bold red]Error:[/bold red] reading {path}: {exc}")
                 any_errors = True
                 # Collect read errors instead of short-circuiting so a single
                 # unreadable file doesn't hide the rest of the report.
+                continue
+            except UnicodeDecodeError as exc:
+                _err_console.print(
+                    f"[bold red]Error:[/bold red] decoding {path} as {encoding}: {exc}. "
+                    f"Try [bold]--encoding cp1252[/bold] or another text encoding.",
+                )
+                any_errors = True
                 continue
 
             formatted = format_file(source, indent=indent, use_sql=use_sql, leading_comma=leading_comma)
@@ -735,7 +748,7 @@ def main() -> None:
                     any_changed = True
             elif in_place:
                 if formatted != source:
-                    path.write_text(formatted, encoding="utf-8")
+                    path.write_text(formatted, encoding=encoding)
                     _console.print(f"reformatted {path}")
             else:
                 sys.stdout.write(formatted)
