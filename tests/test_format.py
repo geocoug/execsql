@@ -1318,20 +1318,39 @@ class TestIdempotency:
             second = format_file(first, use_sql=False)
             assert first == second, f"Not idempotent (use_sql=False): {name}"
 
-    # Pre-existing drift: leading_comma=True is not idempotent on this one
-    # fixture because mid-statement `-- group N` comments shift positions
-    # across passes when commas are moved to line starts. Tracked as a
-    # follow-up; exclude from the leading_comma idempotency check so the
-    # remaining 13 fixtures still gate against new drift.
-    _LEADING_COMMA_KNOWN_DRIFT = {"select_with_mid_statement_comments"}
-
     def test_idempotent_with_leading_comma(self):
         for name, source in self.SAMPLES.items():
-            if name in self._LEADING_COMMA_KNOWN_DRIFT:
-                continue
             first = format_file(source, use_sql=True, leading_comma=True)
             second = format_file(first, use_sql=True, leading_comma=True)
             assert first == second, f"Not idempotent (leading_comma=True): {name}"
+
+    def test_idempotent_with_leading_comma_input_in_source(self):
+        """When the source file is already saved in leading-comma style,
+        re-formatting with leading_comma=True must converge in one pass.
+
+        Without `_normalize_to_trailing_comma` as a pre-pass, sqlglot
+        migrates the inline `/* marker */` comments and the output drifts
+        on every subsequent run. Regression: previously tracked as a
+        known bug via `_LEADING_COMMA_KNOWN_DRIFT` which has since been
+        removed.
+        """
+        source = "select\n    -- group 1\n    a\n    , b\n    -- group 2\n    , c\n    , d\nfrom t;\n"
+        first = format_file(source, use_sql=True, leading_comma=True)
+        second = format_file(first, use_sql=True, leading_comma=True)
+        third = format_file(second, use_sql=True, leading_comma=True)
+        assert first == second == third, (
+            f"Leading-comma-source drift:\nsource:\n{source}\npass1:\n{first}\npass2:\n{second}"
+        )
+
+    def test_cross_mode_round_trip_via_leading_comma(self):
+        """Format with trailing → leading → trailing must reach the same
+        trailing-comma fixed point. Catches any directional asymmetry in
+        the comma pre/post passes."""
+        source = "select\n    -- group 1\n    a, b,\n    -- group 2\n    c, d\nfrom t;\n"
+        t1 = format_file(source, use_sql=True, leading_comma=False)
+        L = format_file(t1, use_sql=True, leading_comma=True)
+        t2 = format_file(L, use_sql=True, leading_comma=False)
+        assert t1 == t2, f"Round-trip drift:\nt1:\n{t1}\nL:\n{L}\nt2:\n{t2}"
 
     def test_idempotent_with_indent_two(self):
         for name, source in self.SAMPLES.items():

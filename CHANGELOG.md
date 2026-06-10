@@ -30,6 +30,10 @@ ______________________________________________________________________
 
 - `execsql-format --encoding NAME` flag controls the text encoding used to read and write SQL files (default `utf-8`). Files saved by editors that emit cp1252, latin-1, shift_jis, etc. can now be formatted directly. A `UnicodeDecodeError` reports the file path and suggests `--encoding` instead of dumping a traceback.
 
+### Fixed
+
+- `execsql-format --leading-comma` is now idempotent on SQL with mid-statement comments. The flag is no longer threaded through to sqlglot (which migrates inline `/* marker */` comments between passes); instead the formatter normalizes any leading-comma input to trailing-comma before sqlglot sees it, and applies leading commas as a textual post-pass on the assembled output.
+
 ______________________________________________________________________
 
 ## [2.19.2] - 2026-06-03

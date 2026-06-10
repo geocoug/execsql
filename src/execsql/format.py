@@ -209,9 +209,16 @@ def _is_comment_line(line: str, in_block: bool) -> tuple[bool, bool]:
 def _sqlglot_format(
     sql_lines: list[str],
     sql_indent: int = 4,
-    leading_comma: bool = False,
+    leading_comma: bool = False,  # noqa: ARG001 — leading-comma layout is applied as a textual post-pass on the assembled output; sqlglot's own `leading_comma=True` is non-idempotent under inline comments.
 ) -> list[str]:
-    """Format a list of SQL-only lines (no comment-only lines) via sqlglot."""
+    """Format a list of SQL-only lines (no comment-only lines) via sqlglot.
+
+    Always emits trailing-comma style; if the caller wants leading commas
+    they are produced by ``_apply_leading_comma`` at the end of
+    ``format_file``. sqlglot's own ``leading_comma=True`` reshuffles inline
+    comments and is therefore non-idempotent on SQL with mid-statement
+    comments, which is the dominant real-world case.
+    """
     sqlglot = _require_sqlglot()
     import sqlglot.errors as sqlglot_errors
 
@@ -240,7 +247,6 @@ def _sqlglot_format(
                             pad=sql_indent,
                             indent=sql_indent,
                             max_text_width=120,
-                            leading_comma=leading_comma,
                         ),
                     )
         stmts = [s for s in statements if s]
@@ -537,8 +543,96 @@ def format_metacommand(payload: str, depth: int, indent: int) -> str:
     return f"{prefix}-- !x! {keyword}"
 
 
+def _is_comment_only(s: str) -> bool:
+    """Strict comment classifier for the leading-comma post/pre passes."""
+    st = s.strip()
+    return st.startswith("--") or st.startswith("/*") or st.startswith("*/")
+
+
+def _normalize_to_trailing_comma(text: str) -> str:
+    """Rewrite leading-comma SQL (`, foo`) back to trailing-comma style.
+
+    Symmetric inverse of ``_apply_leading_comma``. Used as a pre-pass so
+    that sqlglot — which migrates inline ``/* marker */`` comments under
+    leading-comma input — sees a consistent trailing-comma shape on
+    every invocation. Comments between the two SQL lines stay in place.
+    """
+    lines = text.split("\n")
+
+    def find_prev_sql_line(idx: int) -> int:
+        k = idx - 1
+        while k >= 0 and (not lines[k].strip() or _is_comment_only(lines[k])):
+            k -= 1
+        return k
+
+    for i, line in enumerate(lines):
+        stripped = line.lstrip()
+        if not stripped.startswith(",") or _is_comment_only(line):
+            continue
+        # Don't try to rewrite leading-comma inside a comment-only line.
+        # Move the comma onto the previous SQL line as a trailing `,`.
+        prev = find_prev_sql_line(i)
+        if prev < 0:
+            continue
+        # Drop the `, ` (or `,`) at the start of this line.
+        indent_len = len(line) - len(stripped)
+        rest = stripped[1:].lstrip()
+        lines[i] = line[:indent_len] + rest
+        # Append `,` to the prev SQL line (preserving any existing right-side
+        # trailing whitespace — there shouldn't be any after format_file).
+        prev_rstripped = lines[prev].rstrip()
+        if not prev_rstripped.endswith(","):
+            lines[prev] = prev_rstripped + ","
+    return "\n".join(lines)
+
+
+def _apply_leading_comma(text: str) -> str:
+    """Rewrite trailing-comma SQL to leading-comma style as a textual pass.
+
+    Walks the assembled output line-by-line. For every line that ends with
+    ``,`` (and is not a comment), strip the comma and prepend ``, `` to the
+    next non-blank, non-comment line — preserving that target line's
+    indent. Comments between the two SQL lines stay in place. The
+    transformation is idempotent: rerunning it on its own output is a
+    no-op (the source line no longer ends with ``,``).
+
+    This decouples our user-facing ``--leading-comma`` flag from
+    sqlglot's own ``leading_comma=True`` mode, which is non-idempotent
+    when inline ``/* marker */`` comments are present — sqlglot moves
+    the markers around between passes (verified in tests/test_format.py
+    TestIdempotency).
+    """
+    lines = text.split("\n")
+    i = 0
+    n = len(lines)
+    while i < n:
+        rstripped = lines[i].rstrip()
+        if rstripped.endswith(",") and not _is_comment_only(lines[i]):
+            j = i + 1
+            while j < n and (not lines[j].strip() or _is_comment_only(lines[j])):
+                j += 1
+            if j < n:
+                stripped = lines[i].rstrip()
+                comma_idx = stripped.rfind(",")
+                lines[i] = stripped[:comma_idx] + stripped[comma_idx + 1 :]
+                target = lines[j]
+                indent_len = len(target) - len(target.lstrip())
+                lines[j] = target[:indent_len] + ", " + target[indent_len:]
+        i += 1
+    return "\n".join(lines)
+
+
 def format_file(source: str, indent: int = 4, use_sql: bool = True, leading_comma: bool = False) -> str:
     """Format the source text of an execsql script and return the result."""
+    # Normalize any leading-comma SQL in the source to trailing commas so
+    # that sqlglot always sees the same comma shape regardless of how
+    # the user saved the file. The post-pass at the bottom of this
+    # function re-applies leading commas when the caller asked for them.
+    # This is what makes leading_comma=True idempotent under inline
+    # comments — sqlglot itself migrates `/* marker */` comments when
+    # parsing leading-comma input.
+    source = _normalize_to_trailing_comma(source)
+
     depth = 0
     sql_acc: list[str] = []
     output: list[str] = []
@@ -653,6 +747,8 @@ def format_file(source: str, indent: int = 4, use_sql: bool = True, leading_comm
     flush_sql()
 
     result = "\n".join(output)
+    if leading_comma:
+        result = _apply_leading_comma(result)
     if not result.endswith("\n"):
         result += "\n"
     return result
