@@ -661,13 +661,17 @@ class TestMainCLIDirect:
 
         captured = capsys.readouterr()
         # The second file's reformat report must have been emitted, proving
-        # the loop did not short-circuit on the first file's error.
-        assert "1_needs_format.sql" in captured.out, (
+        # the loop did not short-circuit on the first file's error. Strip
+        # newlines / whitespace because Rich's console wraps long paths
+        # on narrow terminals (notably Ubuntu CI defaults).
+        out_unwrapped = "".join(captured.out.split())
+        err_unwrapped = "".join(captured.err.split())
+        assert "1_needs_format.sql" in out_unwrapped, (
             f"--check stopped after the read error; later files were skipped:\n"
             f"stdout: {captured.out!r}\nstderr: {captured.err!r}"
         )
         # And the read error itself must have been logged.
-        assert "0_unreadable.sql" in captured.err
+        assert "0_unreadable.sql" in err_unwrapped
 
     def test_main_unreadable_file(self, tmp_path):
         # Pass a path that doesn't exist → OSError when reading → exit code 1
