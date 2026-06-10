@@ -72,18 +72,21 @@ class TestInfoFlags:
         assert "[email]" in result.output
         assert "[config]" in result.output
 
-    def test_init_config_matches_template(self):
-        """Bundled template is identical to templates/execsql.conf."""
+    def test_init_config_template_is_well_formed(self):
+        """The bundled conf template loads via importlib.resources and
+        contains every section the --init-config caller expects."""
         import importlib.resources
-        from pathlib import Path
 
         bundled = (
             importlib.resources.files("execsql.data").joinpath("execsql.conf.template").read_text(encoding="utf-8")
         )
-        source = (Path(__file__).resolve().parents[2] / "templates" / "execsql.conf").read_text(
-            encoding="utf-8",
-        )
-        assert bundled == source
+        # Sanity: each documented section header is present. There is one
+        # canonical copy of this template (the package data file); the
+        # previous duplicate at templates/execsql.conf was removed since
+        # `execsql --init-config` is the documented bootstrap path.
+        for section in ("[config]", "[connect]", "[output]", "[interface]", "[email]"):
+            assert section in bundled, f"Bundled conf template is missing {section}"
+        assert bundled.strip(), "Bundled conf template is empty"
 
     def test_help_flag(self):
         result = runner.invoke(app, ["--help"])
