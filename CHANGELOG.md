@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Added
+
+- `execsql-format --encoding NAME` flag controls the text encoding used to read and write SQL files (default `utf-8`). Files saved by editors that emit cp1252, latin-1, shift_jis, etc. can now be formatted directly. A `UnicodeDecodeError` reports the file path and suggests `--encoding` instead of dumping a traceback.
+
 ### Changed
 
 - Published `execsql-format` pre-commit hook now defaults to `args: [--in-place]`. Downstream configs that listed `- id: execsql-format` with no `args:` previously got a silent no-op (the CLI's default is stdout, which pre-commit doesn't capture); they will now reformat files in place. Override with `args: [--check]` for check-only mode.
@@ -25,13 +29,6 @@ ______________________________________________________________________
 - `execsql-format` now recognizes tagged `$body$ … $body$` / `$func$ … $func$` PL/pgSQL dollar quotes and skips sqlglot inside them, matching the existing `$$` behaviour. Tagged function bodies previously had their `IF / END IF / LOOP / RETURN` rewritten or collapsed.
 - `execsql-format` now uppercases the second word of multi-word metacommands like `PROMPT MAP`, `PROMPT SAVEFILE`, `PROMPT OPENFILE`, `PROMPT CREDENTIALS`, `PROMPT SELECT_ROWS`, `PROMPT ASK COMPARE`, `APPEND SCRIPT`, `PG_UPSERT CHECK`/`QA`, `RESET COUNTER`/`DIALOG_CANCELED`, `SET COUNTER`, `WRITE CREATE_TABLE`/`SCRIPT`. Previously only the first word was uppercased, leaving the rest as the user typed.
 - `execsql-format` no longer short-circuits on the first unreadable file; remaining files are still checked or formatted, and the run exits 1 at the end if any read error or pending change was found.
-
-### Added
-
-- `execsql-format --encoding NAME` flag controls the text encoding used to read and write SQL files (default `utf-8`). Files saved by editors that emit cp1252, latin-1, shift_jis, etc. can now be formatted directly. A `UnicodeDecodeError` reports the file path and suggests `--encoding` instead of dumping a traceback.
-
-### Fixed
-
 - `execsql-format --leading-comma` is now idempotent on SQL with mid-statement comments. The flag is no longer threaded through to sqlglot (which migrates inline `/* marker */` comments between passes); instead the formatter normalizes any leading-comma input to trailing-comma before sqlglot sees it, and applies leading commas as a textual post-pass on the assembled output.
 
 ______________________________________________________________________
