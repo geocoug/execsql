@@ -6,7 +6,7 @@ the backend (db_type = p).  Each test writes a minimal execsql.conf, creates a
 outcomes (tables created, data inserted, files exported, etc.).
 
 The entire module is skipped when:
-  - psycopg2 is not installed, OR
+  - psycopg (psycopg3) is not installed, OR
   - the test PostgreSQL instance (localhost:5432, database=execsql_test,
     user=execsql, password=execsql) is not reachable.
 """
@@ -23,10 +23,10 @@ import pytest
 from tests.integration.conftest import write_script
 
 # ---------------------------------------------------------------------------
-# Module-level skip: psycopg2 availability + server reachability
+# Module-level skip: psycopg (psycopg3) availability + server reachability
 # ---------------------------------------------------------------------------
 
-psycopg2 = pytest.importorskip("psycopg2", reason="psycopg2 package required")
+psycopg = pytest.importorskip("psycopg", reason="psycopg (psycopg3) package required")
 
 _PG_CONNECT_KWARGS: dict = {
     "host": os.environ.get("EXECSQL_PG_HOST", "localhost"),
@@ -41,7 +41,7 @@ _PG_CONNECT_KWARGS: dict = {
 def _pg_is_reachable() -> bool:
     """Return True if the test PostgreSQL instance is connectable."""
     try:
-        conn = psycopg2.connect(**_PG_CONNECT_KWARGS)
+        conn = psycopg.connect(**_PG_CONNECT_KWARGS)
         conn.close()
         return True
     except Exception:  # noqa: BLE001
@@ -101,7 +101,7 @@ def _run_execsql_pg(tmp_path, script_path, extra_args=None, timeout=30):
 
 def _query_pg(sql: str, params=None):
     """Open a connection to the test PostgreSQL database, run *sql*, and return all rows."""
-    conn = psycopg2.connect(**_PG_CONNECT_KWARGS)
+    conn = psycopg.connect(**_PG_CONNECT_KWARGS)
     try:
         cur = conn.cursor()
         cur.execute(sql, params)
@@ -112,7 +112,7 @@ def _query_pg(sql: str, params=None):
 
 def _exec_pg(sql: str, params=None):
     """Execute a non-SELECT statement against the test PostgreSQL database."""
-    conn = psycopg2.connect(**_PG_CONNECT_KWARGS)
+    conn = psycopg.connect(**_PG_CONNECT_KWARGS)
     try:
         conn.autocommit = True
         cur = conn.cursor()

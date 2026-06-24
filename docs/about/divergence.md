@@ -210,6 +210,7 @@ All 33 mutable runtime globals in `state.py` have been consolidated into a `Runt
 
 ### Database Adapters
 
+- **PostgreSQL driver is psycopg3** — the PostgreSQL adapter uses `psycopg` (psycopg3, installed via the `psycopg[binary]` extra) instead of upstream's `psycopg2`. The connection now passes the libpq `dbname` keyword (psycopg3 rejects psycopg2's `database`), `VACUUM` toggles `conn.autocommit` instead of the removed `set_session()`, server-side `COPY` import uses psycopg3's `cursor.copy()` context manager instead of `copy_expert()`, and binary `IMPORT` sends raw `bytes` instead of `psycopg2.Binary()`. This also makes `db.conn` directly usable by the `PG_UPSERT` metacommand's pg-upsert ≥1.23.0 dependency, which itself requires a psycopg3 connection.
 - **`Database` is an ABC** — `open_db()` and `exec_cmd()` are abstract methods. Subclasses that omit them raise `TypeError` at instantiation instead of at call time.
 - **Connection timeouts** — PostgreSQL and SQLite adapters accept a connection timeout parameter (default 30 seconds).
 - **DuckDB temporal types** — `TIMESTAMPTZ`, `TIMESTAMP`, `DATE`, `TIME` now map to native DuckDB types instead of `TEXT`.

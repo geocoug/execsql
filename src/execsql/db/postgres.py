@@ -3,7 +3,7 @@ from __future__ import annotations
 """
 PostgreSQL database adapter for execsql.
 
-Implements :class:`PostgresDatabase`. Uses ``psycopg2`` for the
+Implements :class:`PostgresDatabase`. Uses ``psycopg`` (psycopg3) for the
 connection, supports schema-qualified tables, server-side ``COPY`` for
 fast IMPORT, ``CREATE DATABASE`` when ``new_db=True``, ``ROLE_EXISTS``,
 and the ``PG_VACUUM`` metacommand (``vacuum()`` method). Corresponds to
@@ -26,7 +26,7 @@ DEFAULT_CONNECT_TIMEOUT = 30  # seconds
 
 
 class PostgresDatabase(Database):
-    """PostgreSQL adapter using psycopg2, with schema support, server-side COPY, and keyring auth."""
+    """PostgreSQL adapter using psycopg (psycopg3), with schema support, server-side COPY, and keyring auth."""
 
     def __init__(
         self,
@@ -41,10 +41,11 @@ class PostgresDatabase(Database):
         connect_timeout: int = DEFAULT_CONNECT_TIMEOUT,
     ) -> None:
         try:
-            import psycopg2  # noqa: F401
+            import psycopg  # noqa: F401
         except Exception:
             fatal_error(
-                "The psycopg2 module is required to connect to PostgreSQL.   See http://initd.org/psycopg/",
+                "The psycopg module (psycopg3) is required to connect to PostgreSQL.   "
+                "See https://www.psycopg.org/psycopg3/",
             )
         from execsql.types import dbt_postgres
 
@@ -73,23 +74,23 @@ class PostgresDatabase(Database):
 
     def open_db(self) -> None:
         """Open a connection to the PostgreSQL database."""
-        import psycopg2
+        import psycopg
 
         def db_conn(db: PostgresDatabase, db_name: str):
             try:
                 if db.user and db.password:
-                    return psycopg2.connect(
+                    return psycopg.connect(
                         host=str(db.server_name),
-                        database=str(db_name),
+                        dbname=str(db_name),
                         port=db.port,
                         user=db.user,
                         password=db.password,
                         connect_timeout=db.connect_timeout,
                     )
                 else:
-                    return psycopg2.connect(
+                    return psycopg.connect(
                         host=str(db.server_name),
-                        database=db_name,
+                        dbname=db_name,
                         port=db.port,
                         connect_timeout=db.connect_timeout,
                     )
@@ -148,7 +149,7 @@ class PostgresDatabase(Database):
                 msg = f"Failed to open PostgreSQL database {self.db_name} on {self.server_name}"
                 raise ErrInfo(type="exception", exception_msg=exception_desc(), other_msg=msg) from e
             # (Re)set the encoding to match the database.
-            self.encoding = self.conn.encoding
+            self.encoding = self.conn.info.encoding
 
     def exec_cmd(self, querycommand: str) -> None:
         """Execute a stored function by name."""
@@ -242,13 +243,13 @@ class PostgresDatabase(Database):
         but should not be exposed to untrusted input.
         """
         self.commit()
-        self.conn.set_session(autocommit=True)
+        self.conn.autocommit = True
         curs = self.conn.cursor()
         try:
             curs.execute(f"VACUUM {argstring};")
         finally:
             curs.close()
-            self.conn.set_session(autocommit=False)
+            self.conn.autocommit = False
 
     def import_tabular_file(
         self,
@@ -290,7 +291,7 @@ class PostgresDatabase(Database):
         import_cols = [self.type.quoted(col) for col in import_cols]
         csv_file_cols_q = [self.type.quoted(col) for col in csv_file_cols]
         input_col_list = ",".join(import_cols)
-        # If encodings match, use copy_expert.
+        # If encodings match, use server-side COPY.
         # If encodings don't match, and the file encoding isn't recognized by CSV, read as CSV.
         enc_xlates = {
             "cp1252": "win1252",
@@ -319,7 +320,7 @@ class PostgresDatabase(Database):
             and not _state.conf.trim_strings
             and not _state.conf.replace_newlines
         ):
-            # Use Postgres' COPY FROM method via psycopg2's copy_expert() method.
+            # Use Postgres' COPY FROM method via psycopg3's cursor.copy() context manager.
             rf = csv_file_obj.open("rt")
             if skipheader:
                 next(rf)
@@ -346,7 +347,9 @@ class PostgresDatabase(Database):
                 )
             with self._cursor() as curs:
                 try:
-                    curs.copy_expert(copy_cmd, rf, _state.conf.import_buffer)
+                    with curs.copy(copy_cmd) as copy:
+                        while chunk := rf.read(_state.conf.import_buffer):
+                            copy.write(chunk)
                 except ErrInfo:
                     raise
                 except Exception as e:
@@ -461,12 +464,11 @@ class PostgresDatabase(Database):
         file_name: str,
     ) -> None:
         """Import an entire binary file into a single column of a table."""
-        import psycopg2
-
         with open(file_name, "rb") as f:
             filedata = f.read()
         sq_name = self.schema_qualified_table_name(schema_name, table_name)
         quoted_col = self.quote_identifier(column_name)
         sql = f"insert into {sq_name} ({quoted_col}) values ({self.paramsubs(1)});"
         with self._cursor() as curs:
-            curs.execute(sql, (psycopg2.Binary(filedata),))
+            # psycopg3 sends ``bytes`` to a ``bytea`` column directly; no Binary() wrapper.
+            curs.execute(sql, (filedata,))

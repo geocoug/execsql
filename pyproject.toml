@@ -48,7 +48,7 @@ dependencies = [
 
 [project.optional-dependencies]
 # Database drivers — conservative floors matching uv.lock; patches allowed.
-postgres = ["psycopg2-binary>=2.9"]
+postgres = ["psycopg[binary]>=3.1,<4"]
 mysql = ["pymysql>=1.1"]
 mssql = ["pyodbc>=5.0"]
 duckdb = ["duckdb>=1.0"]
@@ -69,12 +69,12 @@ formats = [
 auth = ["keyring>=25.0"]
 auth-plaintext = ["keyring>=25.0", "keyrings.alt>=5.0"]
 auth-encrypted = ["keyring>=25.0", "keyrings.alt>=5.0", "pycryptodome>=3.20"]
-upsert = ["pg-upsert>=1.22.1"]
+upsert = ["pg-upsert>=1.23.0"]
 map = ["tkintermapview>=1.29"]
 formatter = ["sqlglot>=25.0"]
 # Convenience groups
 all-db = [
-    "psycopg2-binary>=2.9",
+    "psycopg[binary]>=3.1,<4",
     "pymysql>=1.1",
     "pyodbc>=5.0",
     "duckdb>=1.0",

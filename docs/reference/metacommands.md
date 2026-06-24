@@ -2368,7 +2368,7 @@ For the full list of temporary objects and their schemas, see the [pg-upsert Tem
 PG_VACUUM <vacuum arguments>
 ```
 
-Runs the 'vacuum' command on the current database if the current DBMS is Postgres. The 'vacuum' command will not execute successfully as a SQL command because it requires a change in the configuration of the (psycopg2) connection. This metacommand makes that change, runs the 'vacuum' metacommand, and restores the connection configuration to its default setting.
+Runs the 'vacuum' command on the current database if the current DBMS is Postgres. The 'vacuum' command will not execute successfully as a SQL command because it requires a change in the configuration of the (psycopg) connection. This metacommand makes that change, runs the 'vacuum' metacommand, and restores the connection configuration to its default setting.
 
 This metacommand has no effect if the current DBMS is not PostgreSQL.
 

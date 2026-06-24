@@ -38,16 +38,16 @@ The specific libraries installed by each extra are:
 
 ### Database drivers
 
-| Database / Format | Extra      | Library                                                      |
-| ----------------- | ---------- | ------------------------------------------------------------ |
-| PostgreSQL        | `postgres` | [psycopg2-binary](https://pypi.org/project/psycopg2-binary/) |
-| MySQL / MariaDB   | `mysql`    | [pymysql](https://pypi.org/project/PyMySQL/)                 |
-| MS SQL Server     | `mssql`    | [pyodbc](https://pypi.org/project/pyodbc/)                   |
-| DuckDB            | `duckdb`   | [duckdb](https://pypi.org/project/duckdb/)                   |
-| Firebird          | `firebird` | [firebird-driver](https://pypi.org/project/firebird-driver/) |
-| Oracle            | `oracle`   | [oracledb](https://pypi.org/project/oracledb/)               |
-| ODBC DSN          | `odbc`     | [pyodbc](https://pypi.org/project/pyodbc/)                   |
-| SQLite            | —          | Built-in (`sqlite3` standard library)                        |
+| Database / Format | Extra      | Library                                                         |
+| ----------------- | ---------- | --------------------------------------------------------------- |
+| PostgreSQL        | `postgres` | [psycopg[binary]](https://pypi.org/project/psycopg/) (psycopg3) |
+| MySQL / MariaDB   | `mysql`    | [pymysql](https://pypi.org/project/PyMySQL/)                    |
+| MS SQL Server     | `mssql`    | [pyodbc](https://pypi.org/project/pyodbc/)                      |
+| DuckDB            | `duckdb`   | [duckdb](https://pypi.org/project/duckdb/)                      |
+| Firebird          | `firebird` | [firebird-driver](https://pypi.org/project/firebird-driver/)    |
+| Oracle            | `oracle`   | [oracledb](https://pypi.org/project/oracledb/)                  |
+| ODBC DSN          | `odbc`     | [pyodbc](https://pypi.org/project/pyodbc/)                      |
+| SQLite            | —          | Built-in (`sqlite3` standard library)                           |
 
 ### `formats` bundle
 

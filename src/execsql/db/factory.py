@@ -63,7 +63,7 @@ def db_Postgres(
     new_db: bool = False,
     password: str | None = None,
 ) -> PostgresDatabase:
-    """Open a new PostgreSQL connection via psycopg2."""
+    """Open a new PostgreSQL connection via psycopg (psycopg3)."""
     return PostgresDatabase(server_name, database_name, user, pw_needed, port, new_db=new_db, password=password)
 
 
