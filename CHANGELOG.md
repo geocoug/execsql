@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Changed
+
+- PostgreSQL connections now use psycopg3 (install the `postgres` extra, which pulls `psycopg[binary]`) instead of psycopg2. The `PG_UPSERT` metacommand now requires `pg-upsert>=1.23.0`.
+
 ______________________________________________________________________
 
 ## [2.20.0] - 2026-06-11

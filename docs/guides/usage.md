@@ -82,7 +82,7 @@ When a DSN is used as a data source, *execsql* has no information about the feat
 
 ## PostgreSQL-Compatible Databases
 
-Amazon [Redshift](https://docs.aws.amazon.com/redshift/index.html) is built on PostgreSQL 8.0.3 and [CockroachDB](https://www.cockroachlabs.com/) uses the *psycopg2* library for connections from Python. Both of these databases can therefore potentially be used with *execsql* by specifying the database type as Postgres (i.e., db_type=p).
+Amazon [Redshift](https://docs.aws.amazon.com/redshift/index.html) is built on PostgreSQL 8.0.3 and [CockroachDB](https://www.cockroachlabs.com/) uses the *psycopg* library for connections from Python. Both of these databases can therefore potentially be used with *execsql* by specifying the database type as Postgres (i.e., db_type=p).
 
 The following Postgres-specific features that are used by *execsql* may function differently or not at all in other Postgres-compatible databases:
 

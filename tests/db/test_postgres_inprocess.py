@@ -7,7 +7,7 @@ subprocess* — subprocess execution yields no coverage credit, so those
 ~199 missed lines stay uncovered.
 
 The module is skipped when:
-  - psycopg2 is not installed, or
+  - psycopg (psycopg3) is not installed, or
   - the test PostgreSQL instance (localhost:5432, database=execsql_test,
     user=execsql, password=execsql) is not reachable.
 
@@ -30,7 +30,7 @@ import execsql.state as _state
 # Skip the entire module when the driver or server is unavailable
 # ---------------------------------------------------------------------------
 
-psycopg2 = pytest.importorskip("psycopg2", reason="psycopg2 not installed")
+psycopg = pytest.importorskip("psycopg", reason="psycopg (psycopg3) not installed")
 
 _PG_KW: dict = {
     "host": os.environ.get("EXECSQL_PG_HOST", "localhost"),
@@ -44,7 +44,7 @@ _PG_KW: dict = {
 
 def _pg_reachable() -> bool:
     try:
-        psycopg2.connect(**_PG_KW).close()
+        psycopg.connect(**_PG_KW).close()
         return True
     except Exception:
         return False
@@ -306,7 +306,7 @@ class TestDataAccess:
     def test_select_data_bad_sql_raises(self, db):
         # base.Database.select_data() re-raises the driver exception directly
         # after rolling back; it does not wrap in ErrInfo.
-        with pytest.raises(psycopg2.Error):
+        with pytest.raises(psycopg.Error):
             db.select_data("SELECT * FROM execsql_no_such_table_xyz;")
 
     def test_select_rowsource_iterates(self, db, fresh_table):
@@ -357,7 +357,7 @@ class TestExecCmd:
             db.commit()
 
     def test_exec_cmd_unknown_function_rolls_back(self, db):
-        with pytest.raises(psycopg2.Error):
+        with pytest.raises(psycopg.Error):
             db.exec_cmd("execsql_no_such_function_xyz")
 
 

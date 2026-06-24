@@ -59,7 +59,7 @@ class MyDBDatabase(Database):
         self.need_passwd = False
         self.encoding = "UTF-8"
         self.encode_commands = False
-        self.paramstr = "?"      # placeholder style: "?" for most drivers, "%s" for psycopg2
+        self.paramstr = "?"      # placeholder style: "?" for most drivers, "%s" for psycopg
         self.conn = None
         self.autocommit = True
         self.open_db()
@@ -137,7 +137,7 @@ These are the instance attributes and methods you must configure correctly:
 | Attribute / Method     | Type              | Purpose                                                                           |
 | ---------------------- | ----------------- | --------------------------------------------------------------------------------- |
 | `self.type`            | `DbType`          | DBMS type token (e.g., `dbt_sqlite`). Controls quoting and type-mapping.          |
-| `self.paramstr`        | `str`             | SQL parameter placeholder: `"?"` (most drivers) or `"%s"` (psycopg2, PyMySQL).    |
+| `self.paramstr`        | `str`             | SQL parameter placeholder: `"?"` (most drivers) or `"%s"` (psycopg, PyMySQL).     |
 | `self.encoding`        | `str`             | Database character encoding. Detect from the database on connect if possible.     |
 | `self.encode_commands` | `bool`            | `True` if SQL strings should be encoded before passing to the driver.             |
 | `self.autocommit`      | `bool`            | `True` means the driver commits automatically; `False` requires explicit commits. |
