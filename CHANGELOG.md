@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Fixed
+
+- PostgreSQL: `EXPORT` and other repeated queries against objects a script drops/recreates or alters no longer fail with `FeatureNotSupported: cached plan must not change result type`. psycopg3's automatic server-side prepared statements are now disabled (`prepare_threshold=None`), restoring the psycopg2 behavior.
+
 ______________________________________________________________________
 
 ## [2.21.0] - 2026-06-24

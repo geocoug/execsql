@@ -78,6 +78,12 @@ class PostgresDatabase(Database):
 
         def db_conn(db: PostgresDatabase, db_name: str):
             try:
+                # prepare_threshold=None disables psycopg3's automatic server-side
+                # prepared statements.  execsql re-runs the same query text (e.g. via
+                # EXPORT) against objects that scripts may drop/recreate or alter
+                # between runs; a cached plan whose result type then changes triggers
+                # PostgreSQL's "cached plan must not change result type" error.  psycopg2
+                # never auto-prepared, so this preserves backwards-compatible behavior.
                 if db.user and db.password:
                     return psycopg.connect(
                         host=str(db.server_name),
@@ -86,6 +92,7 @@ class PostgresDatabase(Database):
                         user=db.user,
                         password=db.password,
                         connect_timeout=db.connect_timeout,
+                        prepare_threshold=None,
                     )
                 else:
                     return psycopg.connect(
@@ -93,6 +100,7 @@ class PostgresDatabase(Database):
                         dbname=db_name,
                         port=db.port,
                         connect_timeout=db.connect_timeout,
+                        prepare_threshold=None,
                     )
             except Exception as e:
                 msg = (
