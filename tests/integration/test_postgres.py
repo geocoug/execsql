@@ -412,3 +412,54 @@ class TestExportJSON:
         assert data[1]["label"] == "beta"
 
         _exec_pg("DROP TABLE IF EXISTS items")
+
+
+# ---------------------------------------------------------------------------
+# Regression: psycopg3 cached-plan / auto-prepared statements
+#
+# psycopg3 promotes a query to a server-side prepared statement after the same
+# query text runs prepare_threshold times (default 5).  Re-EXPORTing a view that
+# the script drops/recreates with a different result type used to raise
+# "FeatureNotSupported: cached plan must not change result type".  The adapter
+# now connects with prepare_threshold=None; this exercises the full pipeline to
+# prove the fix end-to-end.  See CHANGELOG 2.21.1.
+# ---------------------------------------------------------------------------
+
+
+class TestCachedPlanRegression:
+    def test_repeated_export_after_view_result_type_change(self, tmp_path):
+        """EXPORT the same view past the prepare threshold, then recreate it with
+        a different column type and EXPORT again — must not error."""
+        _exec_pg("DROP VIEW IF EXISTS val_summ")
+        _exec_pg("DROP TABLE IF EXISTS val_src")
+        _write_conf(tmp_path)
+        out = tmp_path / "summ.txt"
+
+        # Six exports of identical query text cross psycopg3's default
+        # prepare_threshold (5); the view is then recreated returning a TEXT
+        # column instead of an INTEGER one and exported again.
+        first_exports = "\n".join(f"-- !x! EXPORT val_summ TO {out} AS TXT" for _ in range(6))
+        second_exports = "\n".join(f"-- !x! EXPORT val_summ TO {out} AS TXT" for _ in range(6))
+        script = write_script(
+            tmp_path,
+            f"""\
+            CREATE TABLE val_src (id INTEGER, name TEXT);
+            INSERT INTO val_src VALUES (1, 'alpha');
+
+            CREATE VIEW val_summ AS SELECT id AS c FROM val_src;
+            {first_exports}
+
+            DROP VIEW val_summ;
+            CREATE VIEW val_summ AS SELECT name AS c FROM val_src;
+            {second_exports}
+            """,
+        )
+
+        result = _run_execsql_pg(tmp_path, script)
+        assert result.returncode == 0, f"stderr: {result.stderr}"
+        assert "cached plan must not change result type" not in result.stderr
+        # The final export reflects the recreated (TEXT) view.
+        assert "alpha" in out.read_text()
+
+        _exec_pg("DROP VIEW IF EXISTS val_summ")
+        _exec_pg("DROP TABLE IF EXISTS val_src")

@@ -93,3 +93,49 @@ class TestPostgresConnectTimeout:
         # Credential-less path still uses ``dbname``.
         assert call_kwargs["dbname"] == "testdb"
         assert "database" not in call_kwargs
+
+
+# ---------------------------------------------------------------------------
+# Regression: psycopg3 auto-prepared statements must stay disabled
+#
+# psycopg3 promotes a query to a server-side prepared statement after the same
+# query text runs ``prepare_threshold`` times (default 5).  Scripts that re-run
+# a query (e.g. via EXPORT) against an object they drop/recreate or alter then
+# hit "cached plan must not change result type".  psycopg2 never auto-prepared,
+# so the adapter passes ``prepare_threshold=None`` to restore that behavior.
+# ---------------------------------------------------------------------------
+
+
+class TestPostgresPrepareThresholdDisabled:
+    @patch.dict("sys.modules", {"psycopg": _make_mock_psycopg()})
+    def test_prepare_threshold_disabled_with_credentials(self):
+        import sys
+
+        mock_psycopg = sys.modules["psycopg"]
+        from execsql.db.postgres import PostgresDatabase
+
+        PostgresDatabase(
+            server_name="localhost",
+            db_name="testdb",
+            user_name="user",
+            password="pass",
+        )
+        call_kwargs = mock_psycopg.connect.call_args[1]
+        assert "prepare_threshold" in call_kwargs
+        assert call_kwargs["prepare_threshold"] is None
+
+    @patch.dict("sys.modules", {"psycopg": _make_mock_psycopg()})
+    def test_prepare_threshold_disabled_without_credentials(self):
+        import sys
+
+        mock_psycopg = sys.modules["psycopg"]
+        from execsql.db.postgres import PostgresDatabase
+
+        PostgresDatabase(
+            server_name="localhost",
+            db_name="testdb",
+            user_name=None,
+        )
+        call_kwargs = mock_psycopg.connect.call_args[1]
+        assert "prepare_threshold" in call_kwargs
+        assert call_kwargs["prepare_threshold"] is None
