@@ -60,3 +60,11 @@ class TestWriteQueryToParquet:
         assert len(result["id"]) == 100
         assert result["id"][0] == 0
         assert result["label"][99] == "item_99"
+
+    def test_leading_nulls_then_float(self, noop_filewriter_close, tmp_path):
+        out = str(tmp_path / "out.parquet")
+        rows = [(None,)] * 100 + [(12.5,), (5.2,)]
+        write_query_to_parquet(out, ["val"], iter(rows))
+        result = pl.read_parquet(out).to_dict(as_series=False)
+        assert result["val"][100] == pytest.approx(12.5)
+        assert result["val"][101] == pytest.approx(5.2)

@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Fixed
+
+- Fixed `EXPORT … AS PARQUET` and `EXPORT … AS FEATHER` `ComputeError` when a result column has more than 100 leading `NULL` values followed by non-null numeric values.
+
 ______________________________________________________________________
 
 ## [2.21.1] - 2026-06-24

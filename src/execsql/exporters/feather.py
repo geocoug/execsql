@@ -33,7 +33,7 @@ def write_query_to_feather(outfile: str, headers: list[str], rows: Any) -> None:
         ) from e
     rows_list = list(rows)
     if rows_list:
-        df = pl.DataFrame(rows_list, schema=headers, orient="row")
+        df = pl.DataFrame(rows_list, schema=headers, orient="row", infer_schema_length=None)
     else:
         df = pl.DataFrame({h: [] for h in headers})
     filewriter_close(outfile)
