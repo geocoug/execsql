@@ -898,8 +898,9 @@ def _execute_script_textual_console(tree: Any, conf: ConfigData) -> None:
     dialog_queue = _ConsoleDialogQueue()
     _state.gui_manager_queue = dialog_queue
 
+    ctx = _state.get_context()
     app = ConsoleApp(
-        script_runner=lambda: execute(tree),
+        script_runner=lambda: execute(tree, ctx=ctx),
         dialog_queue=dialog_queue,
         wait_on_exit=conf.gui_wait_on_exit,
     )
