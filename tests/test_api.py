@@ -301,3 +301,36 @@ class TestScriptResult:
         r = repr(result)
         assert "ScriptResult" in r
         assert "success=True" in r
+
+
+# ---------------------------------------------------------------------------
+# Security flags — allow_rm_file, allow_serve  [F-SEC-001]
+# ---------------------------------------------------------------------------
+
+
+class TestSecurityFlags:
+    def test_allow_rm_file_false_blocks_rm_file(self, tmp_path):
+        target = tmp_path / "victim.txt"
+        target.write_text("data")
+        script = tmp_path / "rm.sql"
+        script.write_text(f"-- !x! RM_FILE {target}\n")
+        result = run(script=script, dsn="sqlite:///:memory:", allow_rm_file=False)
+        assert result.success is False
+        assert target.exists()
+
+    def test_allow_rm_file_true_permits_rm_file(self, tmp_path):
+        target = tmp_path / "victim.txt"
+        target.write_text("data")
+        script = tmp_path / "rm.sql"
+        script.write_text(f"-- !x! RM_FILE {target}\n")
+        result = run(script=script, dsn="sqlite:///:memory:", allow_rm_file=True)
+        assert result.success is True
+        assert not target.exists()
+
+    def test_allow_serve_false_blocks_serve(self, tmp_path):
+        target = tmp_path / "data.txt"
+        target.write_text("data")
+        script = tmp_path / "serve.sql"
+        script.write_text(f"-- !x! SERVE {target}\n")
+        result = run(script=script, dsn="sqlite:///:memory:", allow_serve=False)
+        assert result.success is False
