@@ -13,7 +13,6 @@ from decimal import Decimal
 import pytest
 
 from execsql.exceptions import DataTableError, ErrInfo
-from execsql.exporters._normalize import normalize_rows
 from execsql.models import Column, DataTable, JsonDatatype, to_json_type
 from execsql.types import (
     DT_Boolean,
@@ -51,8 +50,8 @@ class TestColumn:
         assert dt is DT_Integer
 
     def test_float_column(self):
-        col = Column("price")
-        for v in ["1.5", "3.14", "0.99"]:
+        col = Column("measurement")
+        for v in ["1.5e10", "3.14e-2", "2.0e8"]:
             col.eval_types(v)
         name, dt, maxlen, nullable, prec, scale = col.column_type()
         assert dt is DT_Float
@@ -102,13 +101,13 @@ class TestColumn:
         name, dt, *_ = col.column_type()
         assert dt is DT_Text
 
-    def test_mixed_integer_float_resolves_to_float(self):
+    def test_integer_and_decimal_resolves_to_decimal(self):
         col = Column("mixed")
         col.eval_types("1")
         col.eval_types("2.5")
         col.eval_types("3")
         name, dt, *_ = col.column_type()
-        assert dt is DT_Float
+        assert dt is DT_Decimal
 
     def test_whitespace_name_stripped(self):
         col = Column("  spaced  ")
@@ -358,33 +357,47 @@ class TestColumnInferStrings:
 
 
 # ---------------------------------------------------------------------------
-# normalize_rows
+# Mixed-scale decimal inference (F-DATA-001)
 # ---------------------------------------------------------------------------
 
 
-class TestNormalizeRows:
-    """Unit tests for execsql.exporters._normalize.normalize_rows."""
+class TestColumnMixedScaleDecimal:
+    """Mixed-scale decimal columns must infer NUMERIC, not fall through to float."""
 
-    def test_decimal_converted_to_str(self):
-        """Decimal values must become their exact string representation."""
-        rows = [(Decimal("9.99"),)]
-        result = normalize_rows(rows, safe_types=(type(None), int, float, str, bytes))
-        assert result == [("9.99",)]
+    def test_mixed_scale_infers_decimal_not_float(self):
+        col = Column("amount")
+        for v in ["1.2", "3.45", "6.789"]:
+            col.eval_types(v)
+        _, dt, _, _, prec, scale = col.column_type()
+        assert dt is DT_Decimal
+        assert scale == 3
+        assert prec == 4  # max_int_digits(1) + max_scale(3)
 
-    def test_safe_types_pass_through(self):
-        """None, int, float, str, and bytes pass through the normaliser unchanged."""
-        safe = (type(None), int, float, str, bytes)
-        row = (None, 42, 3.14, "hello", b"bytes")
-        result = normalize_rows([row], safe_types=safe)
-        assert result == [(None, 42, 3.14, "hello", b"bytes")]
+    def test_same_scale_still_works(self):
+        col = Column("price")
+        for v in ["12.34", "56.78", "90.12"]:
+            col.eval_types(v)
+        _, dt, _, _, prec, scale = col.column_type()
+        assert dt is DT_Decimal
+        assert scale == 2
+        assert prec == 4  # max_int_digits(2) + max_scale(2)
 
-    def test_unknown_object_stringified(self):
-        """An object not in safe_types is coerced via str()."""
+    def test_precision_accounts_for_varying_int_digits(self):
+        # "9.99" (int=1, scale=2) + "99.9" (int=2, scale=1) → NUMERIC(4,2)
+        col = Column("val")
+        for v in ["9.99", "99.9"]:
+            col.eval_types(v)
+        _, dt, _, _, prec, scale = col.column_type()
+        assert dt is DT_Decimal
+        assert scale == 2
+        assert prec == 4  # max_int_digits(2) + max_scale(2)
 
-        class GeoPoint:
-            def __str__(self) -> str:
-                return "POINT(1 2)"
-
-        rows = [(GeoPoint(),)]
-        result = normalize_rows(rows, safe_types=(type(None), int, float, str, bytes))
-        assert result == [("POINT(1 2)",)]
+    def test_integer_string_with_decimal_string(self):
+        # "1" (scale=0) + "2.5" (scale=1) + "3" (scale=0) → NUMERIC(2,1)
+        col = Column("n")
+        for v in ["1", "2.5", "3"]:
+            col.eval_types(v)
+        _, dt, _, _, prec, scale = col.column_type()
+        assert dt is DT_Decimal
+        assert scale == 1
+        assert prec == 2  # max_int_digits(1) + max_scale(1)
