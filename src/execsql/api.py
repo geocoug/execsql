@@ -334,6 +334,8 @@ def run(
     halt_on_error: bool = True,
     new_db: bool = False,
     allow_system_cmd: bool = True,
+    allow_rm_file: bool = True,
+    allow_serve: bool = True,
 ) -> ScriptResult:
     """Execute a SQL script and return the result.
 
@@ -359,6 +361,13 @@ def run(
             disabled and will raise an error if encountered. Matches the
             ``--no-system-cmd`` CLI flag and the ``allow_system_cmd``
             config option.
+        allow_rm_file: If ``False``, the RM_FILE metacommand is disabled
+            and will raise an error if encountered. Matches the
+            ``--no-rm-file`` CLI flag and the ``allow_rm_file`` config
+            option.
+        allow_serve: If ``False``, the SERVE metacommand is disabled and
+            will raise an error if encountered. Matches the ``--no-serve``
+            CLI flag and the ``allow_serve`` config option.
 
     Returns:
         A :class:`ScriptResult` with execution outcome, timing, errors,
@@ -457,6 +466,8 @@ def run(
     ctx.status = StatObj()
     ctx.status.halt_on_err = halt_on_error
     conf.allow_system_cmd = allow_system_cmd
+    conf.allow_rm_file = allow_rm_file
+    conf.allow_serve = allow_serve
     ctx.conf = conf
 
     # Capture output to a buffer (suppress stdout/stderr)

@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Added
+
+- `run()` now accepts `allow_rm_file=False` and `allow_serve=False` to disable the `RM_FILE` and `SERVE` metacommands for library callers, matching the existing `allow_system_cmd` kwarg and the `--no-rm-file` / `--no-serve` CLI flags.
+
 ### Fixed
 
 - `EXPORT … FORMAT SQLITE` and `EXPORT … FORMAT DUCKDB` correctly preserve source column types when exporting from a typed database: text columns stay text (not re-inferred as TIMESTAMP or numeric from value shape), `decimal.Decimal` values bind without error (converted to their exact string representation for SQLite), and unsupported Python objects such as PostGIS geometry are stringified instead of raising a bind error.
