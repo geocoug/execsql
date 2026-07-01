@@ -22,7 +22,14 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 import execsql.state as _state
-from execsql.cli.run import _apply_cli_options, _connect_initial_db, _print_dry_run, _run, _seed_early_subvars
+from execsql.cli.run import (
+    _apply_cli_options,
+    _connect_initial_db,
+    _execute_script_textual_console,
+    _print_dry_run,
+    _run,
+    _seed_early_subvars,
+)
 from execsql.exceptions import ConfigError
 
 
@@ -1484,3 +1491,40 @@ class TestApplyCliOptionsDefaults:
         conf = self._conf(db_type=None)
         self._call(conf, db_type="p")
         assert conf.db_type == "p"
+
+
+# ---------------------------------------------------------------------------
+# _execute_script_textual_console — context propagation (F-CONC-001)
+# ---------------------------------------------------------------------------
+
+
+class TestTextualConsoleContextPropagation:
+    """The Textual background worker must receive the main thread's RuntimeContext."""
+
+    def test_script_runner_passes_main_thread_ctx(self, minimal_conf):
+        expected_ctx = _state.get_context()
+        captured = {}
+
+        fake_app = MagicMock()
+        fake_app._script_exception = None
+
+        def capture_constructor(*args, **kwargs):
+            captured["script_runner"] = kwargs.get("script_runner")
+            return fake_app
+
+        _state.output = MagicMock()
+        _state.dbs = MagicMock()
+        _state.exec_log = MagicMock()
+
+        with (
+            patch("execsql.gui.tui.ConsoleApp", side_effect=capture_constructor),
+            patch("execsql.gui.tui._ConsoleDialogQueue"),
+            patch("execsql.script.executor.execute") as mock_execute,
+            patch("execsql.utils.gui._active_backend", create=True),
+        ):
+            _execute_script_textual_console(MagicMock(), minimal_conf)
+
+        assert "script_runner" in captured
+        captured["script_runner"]()
+        _, kwargs = mock_execute.call_args
+        assert kwargs.get("ctx") is expected_ctx
