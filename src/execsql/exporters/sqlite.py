@@ -8,11 +8,14 @@ to a table in an SQLite database file.  Used by ``EXPORT … FORMAT sqlite``.
 """
 
 import math
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
 from execsql.exceptions import ErrInfo
 from execsql.types import dbt_sqlite
+
+_SQLITE_SAFE = (int, float, str, bytes)
 
 __all__ = ["export_sqlite", "write_query_to_sqlite"]
 
@@ -54,7 +57,14 @@ def export_sqlite(
             curs.close()
         # Construct and run the CREATE TABLE statement
         rowdata = list(rows)
-        tablespec = DataTable(hdrs, rowdata)
+        tablespec = DataTable(hdrs, rowdata, infer_strings=False)
+        rowdata = [
+            tuple(
+                str(v) if isinstance(v, Decimal) else v if (v is None or isinstance(v, _SQLITE_SAFE)) else str(v)
+                for v in row
+            )
+            for row in rowdata
+        ]
         sql = tablespec.create_table(dbt_sqlite, schemaname=None, tablename=tablename)
         curs = sdb.cursor()
         curs.execute(sql)

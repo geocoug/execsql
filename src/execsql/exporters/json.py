@@ -105,7 +105,7 @@ def write_query_to_json_ts(
         f.write('  "fields": [\n')
         if write_types:
             # Scan the data to determine data types.
-            tbl_desc = DataTable(hdrs, rows)
+            tbl_desc = DataTable(hdrs, rows, infer_strings=False)
             # Write the column descriptions to the header.
             # Iterate over hdrs instead of tbl_desc.cols to preserve column order.
             for i, h in enumerate(hdrs):

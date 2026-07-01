@@ -1108,6 +1108,8 @@ DUCKDB
 
 :   A [DuckDB](https://duckdb.org/) file-based database. If the specified database file does not exist, it will be created. If the database file already exists and has a table of the same name as the table or view that is exported, then the existing table will be replaced unless the "APPEND" keyword is used. When "APPEND" is used and the table already exists, an error will occur. The "DESCRIPTION" keyword is ignored when this format is used. DuckDB database files cannot be created in a zipfile; if the "ZIPFILE" keyword is used, an error will occur.
 
+    When exporting a query result from a typed database (PostgreSQL, MySQL, etc.), the column schema is inferred from the Python types returned by the database driver rather than re-parsed from the string shape of values. A `TEXT` column whose values look like timestamps or numbers is exported as `VARCHAR`, not as `TIMESTAMP` or `INTEGER`. Python objects not natively bindable by DuckDB (e.g. PostGIS geometry) are stringified rather than raising a bind error.
+
 
 FEATHER
 
@@ -1162,6 +1164,8 @@ YAML
 SQLITE
 
 :   A [SQLite](https://www.sqlite.org/index.html) file-based database. If the specified database file does not exist, it will be created. If the database file already exists and has a table of the same name as the table or view that is exported, then the existing table will be replaced unless the "APPEND" keyword is used. When "APPEND" is used and the table already exists, an error will occur. The "DESCRIPTION" keyword is ignored when this format is used. SQLite database files cannot be created in a zipfile; if the "ZIPFILE" keyword is used, an error will occur.
+
+    When exporting a query result from a typed database (PostgreSQL, MySQL, etc.), the column schema is inferred from the Python types returned by the database driver rather than re-parsed from the string shape of values. A `TEXT` column whose values look like timestamps or numbers is exported as a text column, not as `TIMESTAMP` or `INTEGER`. `decimal.Decimal` values are stored as their exact string representation (SQLite's NUMERIC affinity handles them losslessly). Python objects not natively bindable by SQLite (e.g. PostGIS geometry) are stringified rather than raising a bind error.
 
 
 

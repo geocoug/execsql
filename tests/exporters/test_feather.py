@@ -340,7 +340,7 @@ class TestWriteQueryToHdf5:
                 self.dt = (name, DT_Text, 1000)
 
         class _FakeDataTable:
-            def __init__(self, hdrs, _rows):
+            def __init__(self, hdrs, _rows, infer_strings=True):
                 self.cols = [_FakeCol(h) for h in hdrs]
 
         try:

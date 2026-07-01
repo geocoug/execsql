@@ -7,19 +7,24 @@ that Column and DataTable read during type scanning.
 
 from __future__ import annotations
 
+import datetime
+from decimal import Decimal
 
 import pytest
 
 from execsql.exceptions import DataTableError, ErrInfo
+from execsql.exporters._normalize import normalize_rows
 from execsql.models import Column, DataTable, JsonDatatype, to_json_type
 from execsql.types import (
     DT_Boolean,
     DT_Character,
     DT_Date,
+    DT_Decimal,
     DT_Float,
     DT_Integer,
     DT_Text,
     DT_Timestamp,
+    DT_TimestampTZ,
     DT_Varchar,
     dbt_postgres,
 )
@@ -299,3 +304,87 @@ class TestJsonDatatype:
         assert to_json_type[DT_Text] == "string"
         assert to_json_type[DT_Date] == "date"
         assert to_json_type[DT_Timestamp] == "datetime"
+
+
+# ---------------------------------------------------------------------------
+# Column.infer_strings=False
+# ---------------------------------------------------------------------------
+
+
+class TestColumnInferStrings:
+    """Verify Column behaviour when infer_strings=False.
+
+    With infer_strings=False, str values skip the typed accumulators and only
+    land in string-typed buckets (Character / Varchar / Text).  Non-str values
+    (datetime, Decimal, …) still flow through all accumulators and are typed
+    correctly.
+    """
+
+    def test_timestamp_string_stays_text_when_infer_strings_false(self):
+        """A timestamp-looking string must not be inferred as TIMESTAMP."""
+        col = Column("ts", infer_strings=False)
+        col.eval_types("2026-06-30 10:07:20 PM")
+        _, dt, *_ = col.column_type()
+        assert dt in (DT_Character, DT_Varchar, DT_Text)
+
+    def test_datetime_object_typed_when_infer_strings_false(self):
+        """A real datetime object must still resolve to a timestamp type."""
+        col = Column("ts", infer_strings=False)
+        col.eval_types(datetime.datetime(2026, 6, 30, 10, 7, 20))
+        _, dt, *_ = col.column_type()
+        assert dt in (DT_Timestamp, DT_TimestampTZ)
+
+    def test_decimal_object_typed_when_infer_strings_false(self):
+        """A Decimal object must resolve to an exact-numeric type."""
+        col = Column("price", infer_strings=False)
+        col.eval_types(Decimal("12.50"))
+        _, dt, *_ = col.column_type()
+        assert dt in (DT_Decimal, DT_Float)
+
+    def test_numeric_string_stays_text_when_infer_strings_false(self):
+        """A numeric string must not be inferred as INTEGER or FLOAT."""
+        col = Column("n", infer_strings=False)
+        col.eval_types("42")
+        _, dt, *_ = col.column_type()
+        assert dt in (DT_Character, DT_Varchar, DT_Text)
+
+    def test_default_infer_strings_true_unchanged(self):
+        """Backward-compat smoke test: default infer_strings=True still works."""
+        col = Column("ts")
+        col.eval_types("2026-06-30 10:07:20 PM")
+        result = col.column_type()
+        assert isinstance(result, tuple)
+        assert len(result) == 6
+
+
+# ---------------------------------------------------------------------------
+# normalize_rows
+# ---------------------------------------------------------------------------
+
+
+class TestNormalizeRows:
+    """Unit tests for execsql.exporters._normalize.normalize_rows."""
+
+    def test_decimal_converted_to_str(self):
+        """Decimal values must become their exact string representation."""
+        rows = [(Decimal("9.99"),)]
+        result = normalize_rows(rows, safe_types=(type(None), int, float, str, bytes))
+        assert result == [("9.99",)]
+
+    def test_safe_types_pass_through(self):
+        """None, int, float, str, and bytes pass through the normaliser unchanged."""
+        safe = (type(None), int, float, str, bytes)
+        row = (None, 42, 3.14, "hello", b"bytes")
+        result = normalize_rows([row], safe_types=safe)
+        assert result == [(None, 42, 3.14, "hello", b"bytes")]
+
+    def test_unknown_object_stringified(self):
+        """An object not in safe_types is coerced via str()."""
+
+        class GeoPoint:
+            def __str__(self) -> str:
+                return "POINT(1 2)"
+
+        rows = [(GeoPoint(),)]
+        result = normalize_rows(rows, safe_types=(type(None), int, float, str, bytes))
+        assert result == [("POINT(1 2)",)]

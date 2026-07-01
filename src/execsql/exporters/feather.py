@@ -93,7 +93,7 @@ def write_query_to_hdf5(
             raise ErrInfo("error", other_msg=f"Invalid data type for export to HDF5: {repr(datatype)}")
         return t, do_cast
 
-    tbl_desc = DataTable(hdrs, rows)
+    tbl_desc = DataTable(hdrs, rows, infer_strings=False)
     h5type_dict = {}
     cast_flags = []
     for h in hdrs:

@@ -110,8 +110,18 @@ class Column:
                 else:
                     self.failed = True
 
-    def __init__(self, colname: str) -> None:
-        """Create a column characteriser for the named column."""
+    def __init__(self, colname: str, infer_strings: bool = True) -> None:
+        """Create a column characteriser for the named column.
+
+        Args:
+            colname: The name of the column to characterise.
+            infer_strings: When ``False``, string values are only tested
+                against string-typed accumulators (Character, Varchar, Text),
+                skipping numeric/date/boolean checks.  Set to ``False`` when
+                the row source already contains typed values (e.g. exported
+                from a DBMS cursor) so that a Python ``str`` that happens to
+                look like a date is not misclassified.
+        """
         from execsql.exceptions import ErrInfo
         import execsql.state as _state
 
@@ -148,6 +158,8 @@ class Column:
                 self.Accum(DT_Text()),
                 self.Accum(DT_Binary()),
             )
+        self.infer_strings = infer_strings
+        self.str_accums = tuple(ac for ac in self.accums if isinstance(ac.dt, (DT_Character, DT_Varchar, DT_Text)))
         self.dt_eval = False
         # self.dt is a tuple of: 0: column name; 1: data type class; 2: max length or None;
         # 3: bool indicating any null values; 4: precision or None; 5: scale or None.
@@ -174,8 +186,12 @@ class Column:
         ):
             self.nullrows += 1
             return
-        for dt in self.accums:
-            dt.check(column_value)
+        if not self.infer_strings and isinstance(column_value, str):
+            for dt in self.str_accums:
+                dt.check(column_value)
+        else:
+            for dt in self.accums:
+                dt.check(column_value)
 
     def column_type(self) -> tuple:
         """Return the inferred type of this column as a 6-tuple."""
@@ -223,8 +239,17 @@ class Column:
 class DataTable:
     """Scan a row source and infer column types for CREATE TABLE generation."""
 
-    def __init__(self, column_names: list[str], rowsource: Any) -> None:
-        """Scan all rows from the source and infer a column type for each column."""
+    def __init__(self, column_names: list[str], rowsource: Any, infer_strings: bool = True) -> None:
+        """Scan all rows from the source and infer a column type for each column.
+
+        Args:
+            column_names: Ordered list of column names for the table.
+            rowsource: Iterable of row tuples (or lists) to scan.
+            infer_strings: Passed through to each :class:`Column`.  Set to
+                ``False`` when the row source originates from a DBMS cursor so
+                that Python ``str`` values that resemble dates or numbers are
+                not misclassified.
+        """
         import execsql.state as _state
 
         self.inputrows = 0  # Total number of rows in the row source.
@@ -232,7 +257,7 @@ class DataTable:
         self.shortrows = 0  # Number of rows without as many data values as column names.
         self.cols: list = []  # List of Column objects.
         for n in column_names:
-            self.cols.append(Column(n))
+            self.cols.append(Column(n, infer_strings=infer_strings))
         conf = _state.conf
         # Read and evaluate columns in the rowsource until done (or until an error).
         for datarow in rowsource:

@@ -109,6 +109,35 @@ class TestExportDuckdb:
         con.close()
         assert rows == [(42,)]
 
+    def test_timestamp_text_stays_varchar(self, tmp_path):
+        """A timestamp-looking string exported to a TEXT column comes back unchanged.
+
+        With infer_strings=False the exporter assigns a VARCHAR/TEXT column type
+        to string values regardless of their content, so "2026-06-30 10:07:20 PM"
+        must be stored and retrieved as a plain string — not auto-cast to TIMESTAMP.
+        """
+        out = str(tmp_path / "out.duckdb")
+        ts_str = "2026-06-30 10:07:20 PM"
+        export_duckdb(out, ["ts"], [(ts_str,)], append=False, tablename="events")
+        con = duckdb.connect(out)
+        rows = con.execute("SELECT ts FROM events").fetchall()
+        con.close()
+        assert rows == [(ts_str,)]
+
+    def test_unknown_object_stringified(self, tmp_path):
+        """Objects not in the DuckDB safe_types set are coerced via str()."""
+
+        class GeoPoint:
+            def __str__(self) -> str:
+                return "POINT(1 2)"
+
+        out = str(tmp_path / "out.duckdb")
+        export_duckdb(out, ["geom"], [(GeoPoint(),)], append=False, tablename="geo")
+        con = duckdb.connect(out)
+        rows = con.execute("SELECT geom FROM geo").fetchall()
+        con.close()
+        assert rows == [("POINT(1 2)",)]
+
 
 # ---------------------------------------------------------------------------
 # write_query_to_duckdb

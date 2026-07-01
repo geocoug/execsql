@@ -8,12 +8,16 @@ to a table in a DuckDB database file.  Used by ``EXPORT … FORMAT duckdb``.
 Requires the ``execsql2[duckdb]`` extra.
 """
 
+import datetime as _datetime
+import decimal as _decimal
 import math
 from pathlib import Path
 from typing import Any
 
 from execsql.exceptions import ErrInfo
 from execsql.types import dbt_duckdb
+
+_DUCKDB_SAFE = (int, float, str, bytes, bool, _decimal.Decimal, _datetime.datetime, _datetime.date, _datetime.time)
 
 __all__ = ["export_duckdb", "write_query_to_duckdb"]
 
@@ -59,7 +63,8 @@ def export_duckdb(
         curs.close()
     # Construct and run the CREATE TABLE statement
     rowdata = list(rows)
-    tablespec = DataTable(hdrs, rowdata)
+    tablespec = DataTable(hdrs, rowdata, infer_strings=False)
+    rowdata = [tuple(v if (v is None or isinstance(v, _DUCKDB_SAFE)) else str(v) for v in row) for row in rowdata]
     sql = tablespec.create_table(dbt_duckdb, schemaname=None, tablename=tablename)
     curs = ddb.cursor()
     curs.execute(sql)

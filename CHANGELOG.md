@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Fixed
+
+- `EXPORT … FORMAT SQLITE` and `EXPORT … FORMAT DUCKDB` correctly preserve source column types when exporting from a typed database: text columns stay text (not re-inferred as TIMESTAMP or numeric from value shape), `decimal.Decimal` values bind without error (converted to their exact string representation for SQLite), and unsupported Python objects such as PostGIS geometry are stringified instead of raising a bind error.
+
 ______________________________________________________________________
 
 ## [2.21.2] - 2026-06-30
