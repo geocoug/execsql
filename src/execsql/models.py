@@ -69,6 +69,8 @@ class Column:
             self.maxprecision = None
             self.scale = None
             self.varscale = False
+            self.maxscale = None
+            self.max_int_digits = None
 
         def __repr__(self) -> str:
             return (
@@ -97,16 +99,18 @@ class Column:
                     if vlen > self.maxlen:
                         self.maxlen = vlen
                     if self.dt.precision is not None and self.dt.scale is not None:
+                        int_digits = self.dt.precision - self.dt.scale
                         if self.maxprecision is None:
                             self.maxprecision = self.dt.precision
+                            self.scale = self.dt.scale
+                            self.maxscale = self.dt.scale
+                            self.max_int_digits = int_digits
                         else:
                             self.maxprecision = max(self.dt.precision, self.maxprecision)
-                        if self.scale is None:
-                            self.scale = self.dt.scale
-                        else:
                             if self.dt.scale != self.scale:
                                 self.varscale = True
-                                self.failed = True
+                            self.maxscale = max(self.dt.scale, self.maxscale)
+                            self.max_int_digits = max(int_digits, self.max_int_digits)
                 else:
                     self.failed = True
 
@@ -229,8 +233,8 @@ class Column:
             sel_type.dt.__class__,
             None if not sel_type.dt.lenspec else sel_type.maxlen,
             self.nullrows > 0,
-            sel_type.maxprecision,
-            sel_type.scale,
+            (sel_type.max_int_digits + sel_type.maxscale) if sel_type.maxscale is not None else sel_type.maxprecision,
+            sel_type.maxscale if sel_type.maxscale is not None else sel_type.scale,
         )
         self.dt_eval = True
         return self.dt
