@@ -198,6 +198,32 @@ class TestXCopy:
             )
             db2.execute.assert_called()
 
+    def test_copy_new_selects_source_once(self, minimal_conf):
+        from execsql.metacommands.io_fileops import x_copy
+
+        hdrs = ["id"]
+        rows = [(1,), (2,)]
+        db1, db2 = self._setup_dbs((hdrs, iter(rows)))
+
+        with patch("execsql.metacommands.io_fileops.DataTable") as MockDT:
+            mock_dt = MagicMock()
+            mock_dt.create_table.return_value = "CREATE TABLE t2 (id INT);"
+            MockDT.return_value = mock_dt
+
+            x_copy(
+                alias1="SRC",
+                schema1=None,
+                table1="t1",
+                new="NEW",
+                alias2="DST",
+                schema2=None,
+                table2="t2",
+                metacommandline="COPY ...",
+            )
+
+        db1.select_rowsource.assert_called_once_with("select * from schema1.table1;")
+        db2.populate_table.assert_called_once()
+
     def test_copy_replacement_drop_failure_aborts(self, minimal_conf):
         from execsql.metacommands.io_fileops import x_copy
 
@@ -323,6 +349,29 @@ class TestXCopyQuery:
                 metacommandline="COPY QUERY ...",
             )
             db2.execute.assert_called()
+
+    def test_copy_query_new_selects_source_once(self, minimal_conf):
+        from execsql.metacommands.io_fileops import x_copy_query
+
+        db1, db2 = self._setup_copy_dbs()
+
+        with patch("execsql.metacommands.io_fileops.DataTable") as MockDT:
+            mock_dt = MagicMock()
+            mock_dt.create_table.return_value = "CREATE TABLE t2 (id INT);"
+            MockDT.return_value = mock_dt
+
+            x_copy_query(
+                alias1="SRC",
+                query="SELECT id FROM t1",
+                new="NEW",
+                alias2="DST",
+                schema=None,
+                table="t2",
+                metacommandline="COPY QUERY ...",
+            )
+
+        db1.select_rowsource.assert_called_once_with("SELECT id FROM t1")
+        db2.populate_table.assert_called_once()
 
     def test_copy_query_replacement(self, minimal_conf):
         from execsql.metacommands.io_fileops import x_copy_query

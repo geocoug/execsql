@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 import sys
+from itertools import tee
 from pathlib import Path
 from shutil import copyfileobj
 from typing import Any
@@ -20,6 +21,12 @@ from execsql.script import current_script_line
 from execsql.utils.errors import exception_desc
 from execsql.utils.fileio import filewriter_close
 from execsql.utils.strings import unquoted
+
+
+def _close_rowsource(rows: Any) -> None:
+    close = getattr(rows, "close", None)
+    if close:
+        close()
 
 
 def x_include(**kwargs: Any) -> None:
@@ -77,16 +84,20 @@ def x_copy(**kwargs: Any) -> None:
             pass  # Best-effort check; some adapters lack information_schema.
     select_stmt = f"select * from {tbl1};"
 
-    def get_ts() -> DataTable:
-        if get_ts.tablespec is None:
-            hdrs, rows = db1.select_rowsource(select_stmt)
-            get_ts.tablespec = DataTable(hdrs, rows)
-        return get_ts.tablespec
-
-    get_ts.tablespec = None
+    get_ts_tablespec = None
+    rows_to_close = None
 
     if new_tbl2:
-        tbl_desc = get_ts()
+        try:
+            hdrs, rows = db1.select_rowsource(select_stmt)
+        except ErrInfo:
+            raise
+        except Exception as e:
+            raise ErrInfo("db", select_stmt, exception_msg=exception_desc()) from e
+        rows_to_close = rows
+        rows_for_schema, rows = tee(rows)
+        get_ts_tablespec = DataTable(hdrs, rows_for_schema)
+        tbl_desc = get_ts_tablespec
         create_tbl = tbl_desc.create_table(db2.type, schema2, table2)
         if new_tbl2 == "replacement":
             try:
@@ -102,17 +113,27 @@ def x_copy(**kwargs: Any) -> None:
         db2.execute(create_tbl)
         if db2.needs_explicit_commit_after_ddl():
             db2.execute("COMMIT;")
-    try:
-        hdrs, rows = db1.select_rowsource(select_stmt)
-    except ErrInfo:
-        raise
-    except Exception as e:
-        raise ErrInfo("db", select_stmt, exception_msg=exception_desc()) from e
+    else:
+        try:
+            hdrs, rows = db1.select_rowsource(select_stmt)
+        except ErrInfo:
+            raise
+        except Exception as e:
+            raise ErrInfo("db", select_stmt, exception_msg=exception_desc()) from e
+        rows_to_close = rows
+
+    def get_ts() -> DataTable:
+        nonlocal get_ts_tablespec
+        if get_ts_tablespec is None:
+            ts_hdrs, ts_rows = db1.select_rowsource(select_stmt)
+            get_ts_tablespec = DataTable(ts_hdrs, ts_rows)
+        return get_ts_tablespec
+
     try:
         db2.populate_table(schema2, table2, rows, hdrs, get_ts)
         db2.commit()
     except BaseException:
-        rows.close()
+        _close_rowsource(rows_to_close)
         raise
 
 
@@ -150,13 +171,8 @@ def x_copy_query(**kwargs: Any) -> None:
         except Exception:
             pass  # Best-effort check; some adapters lack information_schema.
 
-    def get_ts() -> DataTable:
-        if not get_ts.tablespec:
-            hdrs, rows = db1.select_rowsource(select_stmt)
-            get_ts.tablespec = DataTable(hdrs, rows)
-        return get_ts.tablespec
-
-    get_ts.tablespec = None
+    get_ts_tablespec = None
+    rows_to_close = None
 
     if new_tbl2:
         try:
@@ -165,8 +181,10 @@ def x_copy_query(**kwargs: Any) -> None:
             raise
         except Exception as e:
             raise ErrInfo("db", select_stmt, exception_msg=exception_desc()) from e
-        get_ts.tablespec = DataTable(hdrs, rows)
-        tbl_desc = get_ts.tablespec
+        rows_to_close = rows
+        rows_for_schema, rows = tee(rows)
+        get_ts_tablespec = DataTable(hdrs, rows_for_schema)
+        tbl_desc = get_ts_tablespec
         create_tbl = tbl_desc.create_table(db2.type, schema2, table2)
         if new_tbl2 == "replacement":
             try:
@@ -182,17 +200,27 @@ def x_copy_query(**kwargs: Any) -> None:
         db2.execute(create_tbl)
         if db2.needs_explicit_commit_after_ddl():
             db2.execute("COMMIT;")
-    try:
-        hdrs, rows = db1.select_rowsource(select_stmt)
-    except ErrInfo:
-        raise
-    except Exception as e:
-        raise ErrInfo("db", select_stmt, exception_msg=exception_desc()) from e
+    else:
+        try:
+            hdrs, rows = db1.select_rowsource(select_stmt)
+        except ErrInfo:
+            raise
+        except Exception as e:
+            raise ErrInfo("db", select_stmt, exception_msg=exception_desc()) from e
+        rows_to_close = rows
+
+    def get_ts() -> DataTable:
+        nonlocal get_ts_tablespec
+        if get_ts_tablespec is None:
+            ts_hdrs, ts_rows = db1.select_rowsource(select_stmt)
+            get_ts_tablespec = DataTable(ts_hdrs, ts_rows)
+        return get_ts_tablespec
+
     try:
         db2.populate_table(schema2, table2, rows, hdrs, get_ts)
         db2.commit()
     except BaseException:
-        rows.close()
+        _close_rowsource(rows_to_close)
         raise
 
 
