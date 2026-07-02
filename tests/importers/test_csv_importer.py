@@ -8,7 +8,7 @@ importer_conf fixture extends it with attributes specific to the importers.
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -234,51 +234,34 @@ class TestImportTableQuotecharNone:
 
 
 # ===========================================================================
-# importtable — drop_table failure logging (lines 57-58)
+# importtable — replacement drop failure
 # ===========================================================================
 
 
 class TestImportTableDropTableFailure:
-    """When drop_table raises and is_new==2, the error is logged but not re-raised."""
+    """When drop_table raises for replacement import, the import aborts."""
 
-    def test_drop_table_failure_is_logged_not_raised(self, db, tmp_path):
-        """If drop_table raises, importtable logs a warning and continues."""
-        import execsql.state as _state
-
+    def test_drop_table_failure_raises_errinfo(self, db, tmp_path):
         csv = tmp_path / "data.csv"
         csv.write_text("x\n1\n", encoding="utf-8")
 
-        # exec_log is None by default; replace it with a mock for this test.
-        mock_log = MagicMock()
-        logged = []
-        mock_log.log_status_info.side_effect = lambda msg: logged.append(msg)
-
         with (
             patch.object(db, "drop_table", side_effect=RuntimeError("boom")),
-            patch.object(_state, "exec_log", mock_log),
+            pytest.raises(ErrInfo, match="Could not drop existing table"),
         ):
-            # Should not raise despite drop_table failing.
             importtable(db, None, "t", str(csv), is_new=2)
 
-        assert any("Could not drop" in m for m in logged), f"Expected drop warning in logs: {logged}"
-
-    def test_drop_table_failure_data_still_imported(self, db, tmp_path):
-        """Even when drop_table fails, the subsequent CREATE + INSERT still runs."""
-        import execsql.state as _state
-
+    def test_drop_table_failure_does_not_create_or_import(self, db, tmp_path):
         csv = tmp_path / "data.csv"
         csv.write_text("val\nhello\n", encoding="utf-8")
 
-        mock_log = MagicMock()
-
         with (
             patch.object(db, "drop_table", side_effect=RuntimeError("boom")),
-            patch.object(_state, "exec_log", mock_log),
+            pytest.raises(ErrInfo),
         ):
             importtable(db, None, "t", str(csv), is_new=2)
 
-        _, rows = db.select_data("SELECT val FROM t;")
-        assert len(rows) == 1
+        assert not db.table_exists("t")
 
 
 # ===========================================================================

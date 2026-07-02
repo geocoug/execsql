@@ -198,6 +198,34 @@ class TestXCopy:
             )
             db2.execute.assert_called()
 
+    def test_copy_replacement_drop_failure_aborts(self, minimal_conf):
+        from execsql.metacommands.io_fileops import x_copy
+
+        hdrs = ["id"]
+        rows = [(1,)]
+        _db1, db2 = self._setup_dbs((hdrs, iter(rows)))
+        db2.drop_table.side_effect = RuntimeError("locked")
+
+        with patch("execsql.metacommands.io_fileops.DataTable") as MockDT:
+            mock_dt = MagicMock()
+            mock_dt.create_table.return_value = "CREATE TABLE t2 (id INT);"
+            MockDT.return_value = mock_dt
+
+            with pytest.raises(ErrInfo, match="Could not drop existing table"):
+                x_copy(
+                    alias1="SRC",
+                    schema1=None,
+                    table1="t1",
+                    new="REPLACEMENT",
+                    alias2="DST",
+                    schema2=None,
+                    table2="t2",
+                    metacommandline="COPY ...",
+                )
+
+        db2.execute.assert_not_called()
+        db2.populate_table.assert_not_called()
+
 
 # ---------------------------------------------------------------------------
 # x_copy_query
@@ -317,3 +345,28 @@ class TestXCopyQuery:
             )
             db2.drop_table.assert_called_once()
             db2.execute.assert_called()
+
+    def test_copy_query_replacement_drop_failure_aborts(self, minimal_conf):
+        from execsql.metacommands.io_fileops import x_copy_query
+
+        _db1, db2 = self._setup_copy_dbs()
+        db2.drop_table.side_effect = RuntimeError("locked")
+
+        with patch("execsql.metacommands.io_fileops.DataTable") as MockDT:
+            mock_dt = MagicMock()
+            mock_dt.create_table.return_value = "CREATE TABLE t2 (id INT);"
+            MockDT.return_value = mock_dt
+
+            with pytest.raises(ErrInfo, match="Could not drop existing table"):
+                x_copy_query(
+                    alias1="SRC",
+                    query="SELECT id FROM t1",
+                    new="REPLACEMENT",
+                    alias2="DST",
+                    schema=None,
+                    table="t2",
+                    metacommandline="COPY QUERY ...",
+                )
+
+        db2.execute.assert_not_called()
+        db2.populate_table.assert_not_called()

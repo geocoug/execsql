@@ -91,8 +91,14 @@ def x_copy(**kwargs: Any) -> None:
         if new_tbl2 == "replacement":
             try:
                 db2.drop_table(tbl2)
-            except Exception:
-                _state.exec_log.log_status_info(f"Could not drop existing table ({tbl2}) for COPY metacommand")
+            except ErrInfo:
+                raise
+            except Exception as e:
+                raise ErrInfo(
+                    type="db",
+                    other_msg=f"Could not drop existing table ({tbl2}) for COPY metacommand",
+                    exception_msg=exception_desc(),
+                ) from e
         db2.execute(create_tbl)
         if db2.needs_explicit_commit_after_ddl():
             db2.execute("COMMIT;")
@@ -165,8 +171,14 @@ def x_copy_query(**kwargs: Any) -> None:
         if new_tbl2 == "replacement":
             try:
                 db2.drop_table(tbl2)
-            except Exception:
-                _state.exec_log.log_status_info(f"Could not drop existing table ({tbl2}) for COPY metacommand")
+            except ErrInfo:
+                raise
+            except Exception as e:
+                raise ErrInfo(
+                    type="db",
+                    other_msg=f"Could not drop existing table ({tbl2}) for COPY metacommand",
+                    exception_msg=exception_desc(),
+                ) from e
         db2.execute(create_tbl)
         if db2.needs_explicit_commit_after_ddl():
             db2.execute("COMMIT;")

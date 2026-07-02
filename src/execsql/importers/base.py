@@ -72,14 +72,19 @@ def import_data_table(
 
     get_ts.tablespec = None
 
-    exec_log = _state.exec_log
     if is_new:
         if is_new == 2:
             tblspec = db.schema_qualified_table_name(schemaname, tablename)
             try:
                 db.drop_table(tblspec)
-            except Exception:
-                exec_log.log_status_info(f"Could not drop existing table ({tblspec}) for IMPORT metacommand")
+            except ErrInfo:
+                raise
+            except Exception as e:
+                raise ErrInfo(
+                    type="db",
+                    other_msg=f"Could not drop existing table ({tblspec}) for IMPORT metacommand",
+                    exception_msg=exception_desc(),
+                ) from e
         sql = get_ts().create_table(db.type, schemaname, tablename)
         try:
             db.execute(sql)

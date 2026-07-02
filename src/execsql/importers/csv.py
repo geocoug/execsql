@@ -54,9 +54,14 @@ def importtable(
         if is_new == 2:
             try:
                 db.drop_table(db.schema_qualified_table_name(schemaname, tablename))
-            except Exception:
-                _state.exec_log.log_status_info(f"Could not drop existing table ({tablename}) for IMPORT metacommand")
-                # Don't raise an exception; this may not be a problem because the table may not already exist.
+            except ErrInfo:
+                raise
+            except Exception as e:
+                raise ErrInfo(
+                    type="db",
+                    other_msg=f"Could not drop existing table ({tablename}) for IMPORT metacommand",
+                    exception_msg=exception_desc(),
+                ) from e
         try:
             db.execute(sql)
             # Don't commit table creation here; the commit will be done after data import

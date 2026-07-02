@@ -202,6 +202,25 @@ class TestImportDataTablePopulateErrors:
 
 
 # ---------------------------------------------------------------------------
+# replacement drop failure
+# ---------------------------------------------------------------------------
+
+
+class TestImportDataTableDropTableFailure:
+    def test_replacement_drop_failure_raises_errinfo(self, tmp_path, importer_conf):
+        db = _make_sqlite_db(tmp_path, "")
+        db_mock = MagicMock(wraps=db)
+        db_mock.drop_table.side_effect = RuntimeError("locked")
+        db_mock.type = db.type
+
+        with pytest.raises(ErrInfo, match="Could not drop existing table"):
+            import_data_table(db_mock, None, "replace_tbl", 2, ["id"], [[1]])
+
+        db_mock.execute.assert_not_called()
+        db_mock.populate_table.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
 # import_common_cols_only path (line 100)
 # ---------------------------------------------------------------------------
 
