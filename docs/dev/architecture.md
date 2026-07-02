@@ -6,7 +6,7 @@ ______________________________________________________________________
 
 ## Execution Flow
 
-When a user runs `execsql2 script.sql mydb.sqlite -t l`, the following sequence occurs:
+When a user runs `execsql script.sql mydb.sqlite -t l`, the following sequence occurs:
 
 ```mermaid
 flowchart TD

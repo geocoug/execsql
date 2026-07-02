@@ -14,7 +14,8 @@ Or with [uv](https://docs.astral.sh/uv/):
 uv add execsql2
 ```
 
-This installs the `execsql2` command-line tool.
+This installs the `execsql` and `execsql-format` command-line tools. The PyPI distribution is named
+`execsql2`; the executable remains `execsql` for compatibility.
 
 To install with optional dependencies:
 
