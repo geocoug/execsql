@@ -59,6 +59,15 @@ per commit._
 - **Test it yourself:** run a script with `-l -a opaque-runtime-value` that logs SQL or `SYSTEM_CMD` containing `!!$ARG_1!!`; `execsql.log` should contain `***` instead of the raw value.
 - **Heads-up:** logging behavior changes for secret-like strings; values matching the redaction patterns are intentionally hidden in log output.
 
+### [F-OPS-001 / F-OPS-002] Enforce pre-commit and docs build in CI · Medium · commit 2cb8bce
+
+- **What changed:** CI now runs the full pre-commit suite and a `zensical build` docs job, and tag builds depend on both gates before packaging.
+- **Files:** `.github/workflows/ci-cd.yml`, `CONTRIBUTING.md`
+- **Docs updated:** `CONTRIBUTING.md`
+- **Verified:** `uv run pre-commit run --all-files`; `cp CHANGELOG.md docs/about/change_log.md && uv run zensical build`; commit hooks.
+- **Test it yourself:** open a PR with a failing pre-commit hook or broken docs page; the new CI job should fail before merge and tag builds should wait on it.
+- **Heads-up:** the mypy CI gate is deferred because `uv run mypy src/execsql/` currently reports 1246 existing baseline errors.
+
 ## Blocked (need a human)
 
 - None yet.
