@@ -279,6 +279,12 @@
 # Values: Yes or No.  Default: Yes.
 #allow_system_cmd=Yes
 
+# Maximum seconds a foreground SYSTEM_CMD may run before execsql stops it.
+# Set to 0 for no timeout. SYSTEM_CMD ... CONTINUE is detached and is not
+# timeout-managed by this setting.
+# Value: A non-negative number of seconds.  Default: 0.
+#system_cmd_timeout=0
+
 # Whether to allow the RM_FILE metacommand (which deletes a file).
 # Set to No to prevent scripts from deleting files.
 # Also controllable via --no-rm-file CLI flag.

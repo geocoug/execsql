@@ -170,6 +170,7 @@ class _LibraryConfig:
         self.log_datavars = False
         self.show_progress = False
         self.max_log_size_mb = 0
+        self.system_cmd_timeout = 0.0
 
         # Data handling
         self.boolean_int = True

@@ -315,6 +315,7 @@ class ConfigData:
         self._get_bool(cp, self._CONFIG_SECTION, "log_sql", "log_sql")
         self._get_int(cp, self._CONFIG_SECTION, "max_log_size_mb", "max_log_size_mb")
         self._get_bool(cp, self._CONFIG_SECTION, "allow_system_cmd", "allow_system_cmd")
+        self._get_float(cp, self._CONFIG_SECTION, "system_cmd_timeout", "system_cmd_timeout", min_val=0.0)
         self._get_bool(cp, self._CONFIG_SECTION, "allow_rm_file", "allow_rm_file")
         self._get_bool(cp, self._CONFIG_SECTION, "allow_serve", "allow_serve")
         self._get_str(cp, self._CONFIG_SECTION, "include_root", "include_root")
@@ -432,6 +433,7 @@ class ConfigData:
         self.export_output_dir: str | None = None
         self.dao_flush_delay_secs = 5.0
         self.allow_system_cmd = True
+        self.system_cmd_timeout = 0.0
         # B05: path-containment controls. ``*_root`` keys, when set, force
         # the corresponding handler to confine resolved paths under the
         # named root and reject anything that escapes via ``..``,

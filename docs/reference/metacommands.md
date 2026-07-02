@@ -3065,7 +3065,7 @@ On non-POSIX operating systems (specifically, Windows), any backslashes in the c
 
 The command line that is run will be automatically [logged](../guides/logging.md#logging) in `execsql.log`.
 
-The exit status of the command that is invoked will be stored in the [system variable](substitution_vars.md#system_vars) \$SYSTEM_CMD_EXIT_STATUS if the CONTINUE keyword has not been used. When the CONTINUE keyword is used, the process ID of the background process is stored in \$SYSTEM_CMD_PID.
+The exit status of the command that is invoked will be stored in the [system variable](substitution_vars.md#system_vars) \$SYSTEM_CMD_EXIT_STATUS if the CONTINUE keyword has not been used. A foreground command can be bounded with the [`system_cmd_timeout`](configuration.md#system_cmd_timeout) configuration setting; when a command times out, \$SYSTEM_CMD_EXIT_STATUS is set to `124` and the metacommand fails. When the CONTINUE keyword is used, the process ID of the background process is stored in \$SYSTEM_CMD_PID, and the background process is detached rather than timeout-managed.
 
 
 ## TIMER

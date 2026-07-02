@@ -6,6 +6,7 @@ focusing on testable behaviour without side effects.
 
 from __future__ import annotations
 
+import subprocess
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -185,6 +186,45 @@ class TestXSystemCmd:
             # The exit status should be recorded as a substitution variable
             mock_sv.add_substitution.assert_called_once_with("$SYSTEM_CMD_EXIT_STATUS", "0")
 
+    def test_system_cmd_passes_configured_timeout(self, minimal_conf):
+        from execsql.metacommands.system import x_system_cmd
+
+        minimal_conf.system_cmd_timeout = 2.5
+        _setup_exec_log()
+        mock_sv = _setup_subvars()
+        _state.last_command = SimpleNamespace(source="test.sql", line_no=1)
+
+        mock_result = SimpleNamespace(returncode=0)
+        with (
+            patch("execsql.metacommands.system.subprocess.run", return_value=mock_result) as mock_run,
+            patch("execsql.metacommands.system.filewriter_close_all_after_write"),
+        ):
+            x_system_cmd(command="echo hello", **{"continue": None})
+
+        mock_run.assert_called_once()
+        assert mock_run.call_args.kwargs == {"timeout": 2.5}
+        mock_sv.add_substitution.assert_called_once_with("$SYSTEM_CMD_EXIT_STATUS", "0")
+
+    def test_system_cmd_timeout_sets_exit_status_and_raises(self, minimal_conf):
+        from execsql.metacommands.system import x_system_cmd
+
+        minimal_conf.system_cmd_timeout = 1.0
+        _setup_exec_log()
+        mock_sv = _setup_subvars()
+        _state.last_command = SimpleNamespace(source="test.sql", line_no=1)
+
+        with (
+            patch(
+                "execsql.metacommands.system.subprocess.run",
+                side_effect=subprocess.TimeoutExpired(cmd=["sleep", "10"], timeout=1.0),
+            ),
+            patch("execsql.metacommands.system.filewriter_close_all_after_write"),
+            pytest.raises(ErrInfo, match="timed out after 1 seconds"),
+        ):
+            x_system_cmd(command="sleep 10", **{"continue": None}, metacommandline="SYSTEM_CMD (sleep 10)")
+
+        mock_sv.add_substitution.assert_called_once_with("$SYSTEM_CMD_EXIT_STATUS", "124")
+
     def test_system_cmd_log_redacts_registered_value(self, minimal_conf, tmp_path):
         from execsql.metacommands.system import x_system_cmd
         from execsql.utils.fileio import Logger
@@ -213,6 +253,7 @@ class TestXSystemCmd:
     def test_system_cmd_continue_uses_popen(self, minimal_conf):
         from execsql.metacommands.system import x_system_cmd
 
+        minimal_conf.system_cmd_timeout = 2.5
         _setup_exec_log()
         _setup_subvars()
         _state.last_command = SimpleNamespace(source="test.sql", line_no=2)
