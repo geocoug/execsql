@@ -16,7 +16,7 @@
 | F-DOC-001 / F-DOC-004             | Correct executable-name and path-containment docs          | High     | done     | 15d519f | Adds executable-name correction and path containment matrix    |
 | F-DOC-002 / F-DOC-005 / F-DOC-006 | Correct dependency and CI-enforcement docs drift           | Medium   | done     | 01bbd69 | Corrects PostgreSQL, Feather, and CI/pre-commit docs           |
 | F-SEC-002                         | Centralize/redact expanded SQL and command logs            | Medium   | done     | 95c492d | Logger redacts registered values, DSNs, and token-like strings |
-| F-OPS-001 / F-OPS-002             | Add CI gates for pre-commit and docs                       | Medium   | pending  | -       | Typecheck gate deferred because current baseline does not pass |
+| F-OPS-001 / F-OPS-002             | Add CI gates for pre-commit and docs                       | Medium   | done     | 2cb8bce | Typecheck gate deferred because current baseline does not pass |
 | F-DATA-004 / F-CONC-002           | Replacement import/copy durability policy                  | Medium   | deferred | -       | Needs design decision on atomic/staged replacement semantics   |
 | F-DATA-002                        | Stream non-CSV structured imports                          | Medium   | deferred | -       | Architectural import-contract change                           |
 | F-DATA-003                        | Avoid double execution for COPY NEW/REPLACEMENT            | Medium   | deferred | -       | Architectural copy/schema inference change                     |
