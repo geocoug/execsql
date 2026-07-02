@@ -50,6 +50,15 @@ per commit._
 - **Test it yourself:** search the targeted docs for `psycopg2-binary`, stale Feather `pandas` dependency guidance, and claims that CI runs every pre-commit hook.
 - **Heads-up:** none.
 
+### [F-SEC-002] Redact secrets from expanded log records · Medium · commit 95c492d
+
+- **What changed:** log writing now redacts registered command-line substitution values, URL passwords, common `password=` / `api_key=` style fields, and common token-shaped values before writing SQL, status, user, and exit records.
+- **Files:** `src/execsql/utils/fileio.py`, `src/execsql/cli/run.py`, `tests/security/test_log_redaction.py`, `tests/metacommands/test_metacommands_system.py`
+- **Docs updated:** none.
+- **Verified:** `uv run pytest --no-cov tests/security/test_log_redaction.py tests/metacommands/test_metacommands_system.py tests/utils/test_fileio_extra.py`; targeted `ruff format`; targeted `ruff check`; commit hooks.
+- **Test it yourself:** run a script with `-l -a opaque-runtime-value` that logs SQL or `SYSTEM_CMD` containing `!!$ARG_1!!`; `execsql.log` should contain `***` instead of the raw value.
+- **Heads-up:** logging behavior changes for secret-like strings; values matching the redaction patterns are intentionally hidden in log output.
+
 ## Blocked (need a human)
 
 - None yet.
