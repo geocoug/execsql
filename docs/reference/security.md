@@ -109,9 +109,9 @@ This catches mainstream cloud, payment, observability, and VCS conventions: `AWS
 
 ## File System Access { #filesystem }
 
-execsql can read and write any file that the process user has permission to access. There is no base-directory restriction, no path allowlist, and no protection against `../` traversal sequences in output paths specified by `EXPORT`, `WRITE`, or `INCLUDE` metacommands.
+By default, execsql can read and write any file that the process user has permission to access. Configure containment roots for shared or semi-trusted environments; otherwise path arguments may resolve outside the current directory.
 
-The [`INCLUDE`](metacommands.md#include) metacommand executes a script from any accessible path with full privileges. If the included path is constructed from a variable, an attacker who controls that variable can cause execsql to execute an arbitrary script file.
+The [`INCLUDE`](metacommands.md#include) metacommand executes a script from any accessible path unless `include_root` is set. If the included path is constructed from a variable, an attacker who controls that variable can cause execsql to execute an arbitrary script file.
 
 ```sql
 -- Risky: included path derived from a variable
@@ -120,6 +120,18 @@ The [`INCLUDE`](metacommands.md#include) metacommand executes a script from any 
 ```
 
 Validate any variable used to construct file paths before use in file-related metacommands.
+
+## Path containment roots { #path-containment-roots }
+
+Containment roots are opt-in. When configured, paths must resolve under the configured root; attempts to escape with `../`, absolute paths, drive letters, or UNC paths are rejected.
+
+| Setting         | Applies to                                | Default      |
+| --------------- | ----------------------------------------- | ------------ |
+| `include_root`  | `INCLUDE` and `EXECUTE SCRIPT` targets    | unrestricted |
+| `serve_root`    | `SERVE` targets                           | unrestricted |
+| `template_root` | Jinja2 and `string.Template` loader paths | unrestricted |
+
+These roots do not contain every filesystem operation. In particular, `EXPORT` and `WRITE` output paths are governed by their output-directory behavior, and remain writable anywhere the process user can write unless separately constrained by how you invoke execsql.
 
 ## Email (SMTP) { #smtp }
 
