@@ -537,6 +537,7 @@ def _setup_logging(
         for n, repl in enumerate(sub_vars):
             var = f"$ARG_{n + 1}"
             subvars.add_substitution(var, repl)
+            logger.add_redaction_value(repl)
             # `-a` values are positional and opaque (no name to denylist
             # against). High-entropy secrets (sk-live-*, AKIA*, ghp_*,
             # JWTs) pass any substring/value heuristic, so log the

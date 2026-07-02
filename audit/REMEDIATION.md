@@ -14,8 +14,8 @@
 | F-CONC-001                        | Propagate RuntimeContext into Textual worker               | High     | done     | adb27f6 | Existing commit on branch at remediation reset                 |
 | F-SEC-001 / F-DOC-003             | Add run() controls for RM_FILE and SERVE                   | Medium   | done     | 4e6f67f | Existing commit on branch at remediation reset                 |
 | F-DOC-001 / F-DOC-004             | Correct executable-name and path-containment docs          | High     | done     | 15d519f | Adds executable-name correction and path containment matrix    |
-| F-DOC-002 / F-DOC-005 / F-DOC-006 | Correct dependency and CI-enforcement docs drift           | Medium   | pending  | -       | Implemented; targeted checks passed; awaiting commit approval  |
-| F-SEC-002                         | Centralize/redact expanded SQL and command logs            | Medium   | pending  | -       | Validate current code first                                    |
+| F-DOC-002 / F-DOC-005 / F-DOC-006 | Correct dependency and CI-enforcement docs drift           | Medium   | done     | 01bbd69 | Corrects PostgreSQL, Feather, and CI/pre-commit docs           |
+| F-SEC-002                         | Centralize/redact expanded SQL and command logs            | Medium   | pending  | -       | Implemented; focused tests and ruff passed; awaiting approval  |
 | F-OPS-001 / F-OPS-002             | Add CI gates for pre-commit, typecheck, and docs           | Medium   | pending  | -       | Policy-sensitive; implement only if bounded                    |
 | F-DATA-004 / F-CONC-002           | Replacement import/copy durability policy                  | Medium   | deferred | -       | Needs design decision on atomic/staged replacement semantics   |
 | F-DATA-002                        | Stream non-CSV structured imports                          | Medium   | deferred | -       | Architectural import-contract change                           |

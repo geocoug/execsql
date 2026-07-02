@@ -27,6 +27,7 @@ import io
 import multiprocessing
 import os
 import queue
+import re
 from pathlib import Path
 import stat
 import sys
@@ -566,6 +567,14 @@ class EncodedFile:
 class Logger:
     # A custom logger for execsql that writes several different types of messages to a log file.
     log_file = None
+    _COMMON_SECRET_PATTERNS = (
+        re.compile(r"(?i)(://[^/\s:@]+:)([^@\s]+)(@)"),
+        re.compile(r"(?i)\b(password|passwd|token|secret|api[_-]?key|private[_-]?key|webhook)(\s*[=:]\s*)([^\s,;]+)"),
+        re.compile(r"\bsk-(?:live|test)-[A-Za-z0-9_-]+\b"),
+        re.compile(r"\bAKIA[A-Z0-9]{12,}\b"),
+        re.compile(r"\bgh[pousr]_[A-Za-z0-9_]{20,}\b"),
+        re.compile(r"\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b"),
+    )
 
     def __repr__(self) -> str:
         return f"Logger({self.script_file_name!r}, {self.db_name!r}, {self.server_name!r}, {self.cmdline_options!r}, {self.log_file_name!r})"
@@ -587,6 +596,7 @@ class Logger:
         self.db_name = db_name
         self.server_name = server_name
         self.cmdline_options = cmdline_options
+        self._redaction_values: list[str] = []
         if log_file_name:
             self.log_file_name = log_file_name
         else:
@@ -663,6 +673,29 @@ class Logger:
 
         return _datetime.datetime.now().isoformat(timespec="seconds")
 
+    def add_redaction_value(self, value: str | None) -> None:
+        if value is None:
+            return
+        value = str(value)
+        if not value or value in self._redaction_values:
+            return
+        self._redaction_values.append(value)
+
+    def _redact(self, msg: str | None) -> str | None:
+        if msg is None:
+            return None
+        redacted = str(msg)
+        for value in sorted(self._redaction_values, key=len, reverse=True):
+            redacted = redacted.replace(value, "***")
+        for pattern in self._COMMON_SECRET_PATTERNS:
+            if pattern.pattern.startswith("(?i)(://"):
+                redacted = pattern.sub(r"\1***\3", redacted)
+            elif "password|passwd|token" in pattern.pattern:
+                redacted = pattern.sub(r"\1\2***", redacted)
+            else:
+                redacted = pattern.sub("***", redacted)
+        return redacted
+
     def _rotate_if_needed(self) -> None:
         try:
             import execsql.state as _state
@@ -701,32 +734,32 @@ class Logger:
         self.writelog(msg)
 
     def log_status_exception(self, msg: str | None) -> None:
-        msg = None if not msg else msg.replace("\n", "")
+        msg = self._redact(None if not msg else msg.replace("\n", ""))
         self.seq_no += 1
         wmsg = f"status\t{self.run_id}\t{self.seq_no}\t{self._ts()}\texception\t{msg or ''}\n"
         self.writelog(wmsg)
 
     def log_status_error(self, msg: str | None) -> None:
-        msg = None if not msg else msg.replace("\n", "")
+        msg = self._redact(None if not msg else msg.replace("\n", ""))
         self.seq_no += 1
         wmsg = f"status\t{self.run_id}\t{self.seq_no}\t{self._ts()}\terror\t{msg or ''}\n"
         self.writelog(wmsg)
 
     def log_status_info(self, msg: str | None) -> None:
-        msg = None if not msg else msg.replace("\n", "")
+        msg = self._redact(None if not msg else msg.replace("\n", ""))
         self.seq_no += 1
         wmsg = f"status\t{self.run_id}\t{self.seq_no}\t{self._ts()}\tinfo\t{msg or ''}\n"
         self.writelog(wmsg)
 
     def log_status_warning(self, msg: str | None) -> None:
-        msg = None if not msg else msg.replace("\n", "")
+        msg = self._redact(None if not msg else msg.replace("\n", ""))
         self.seq_no += 1
         wmsg = f"status\t{self.run_id}\t{self.seq_no}\t{self._ts()}\twarning\t{msg or ''}\n"
         self.writelog(wmsg)
 
     def log_sql_query(self, sql: str, db_name: str, line_no: int | None = None) -> None:
         """Log an executed SQL statement for audit purposes."""
-        cleaned = sql.replace("\n", " ").replace("\t", " ")
+        cleaned = self._redact(sql.replace("\n", " ").replace("\t", " ")) or ""
         if len(cleaned) > 2000:
             cleaned = cleaned[:2000] + "..."
         self.seq_no += 1
@@ -735,7 +768,7 @@ class Logger:
         self.writelog(wmsg)
 
     def log_user_msg(self, msg: str | None) -> None:
-        msg = None if not msg else msg.replace("\n", "")
+        msg = self._redact(None if not msg else msg.replace("\n", ""))
         if msg != "":
             self.seq_no += 1
             wmsg = f"user_msg\t{self.run_id}\t{self.seq_no}\t{self._ts()}\tinfo\t{msg}\n"
@@ -760,14 +793,14 @@ class Logger:
         self.exit_type = "exception"
         self.exit_scriptfile = None
         self.exit_lno = None
-        self.exit_description = msg.replace("\n", "")
+        self.exit_description = self._redact(msg.replace("\n", ""))
 
     def log_exit_error(self, msg: str | None) -> None:
         # Save values to be used by exit() function triggered on program exit
         self.exit_type = "error"
         self.exit_scriptfile = None
         self.exit_lno = None
-        self.exit_description = None if not msg else msg.replace("\n", "")
+        self.exit_description = self._redact(None if not msg else msg.replace("\n", ""))
 
     def log_exit(self) -> None:
         import datetime as _datetime
