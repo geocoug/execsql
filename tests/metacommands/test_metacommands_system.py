@@ -185,6 +185,31 @@ class TestXSystemCmd:
             # The exit status should be recorded as a substitution variable
             mock_sv.add_substitution.assert_called_once_with("$SYSTEM_CMD_EXIT_STATUS", "0")
 
+    def test_system_cmd_log_redacts_registered_value(self, minimal_conf, tmp_path):
+        from execsql.metacommands.system import x_system_cmd
+        from execsql.utils.fileio import Logger
+
+        _state.logfile_encoding = "utf-8"
+        log_path = tmp_path / "execsql.log"
+        _state.exec_log = Logger("<inline>", "testdb", None, {}, log_file_name=str(log_path))
+        mock_sv = _setup_subvars()
+        _state.last_command = SimpleNamespace(source="test.sql", line_no=1)
+        secret = "opaque-runtime-value"
+        _state.exec_log.add_redaction_value(secret)
+
+        mock_result = SimpleNamespace(returncode=0)
+        with (
+            patch("execsql.metacommands.system.subprocess.run", return_value=mock_result),
+            patch("execsql.metacommands.system.filewriter_close_all_after_write"),
+        ):
+            x_system_cmd(command=f"echo {secret}", **{"continue": None})
+
+        _state.exec_log.close()
+        content = log_path.read_text()
+        assert secret not in content
+        assert "System command on line 1 of script test.sql: echo ***" in content
+        mock_sv.add_substitution.assert_called_once_with("$SYSTEM_CMD_EXIT_STATUS", "0")
+
     def test_system_cmd_continue_uses_popen(self, minimal_conf):
         from execsql.metacommands.system import x_system_cmd
 

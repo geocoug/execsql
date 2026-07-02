@@ -41,6 +41,15 @@ per commit._
 - **Test it yourself:** `rg "execsql2 script|execsql2 command|invoked as either" docs README.md` should return no stale executable claims, and `docs/reference/security.md` should contain `#path-containment-roots`.
 - **Heads-up:** none.
 
+### [F-DOC-002 / F-DOC-005 / F-DOC-006] Correct dependency and CI guidance · Medium · commit 01bbd69
+
+- **What changed:** README PostgreSQL install guidance now names psycopg3; the Feather metacommand reference now names Polars and the `formats` extra; CONTRIBUTING now describes the CI-enforced ruff gate separately from local pre-commit hooks.
+- **Files:** `README.md`, `docs/reference/metacommands.md`, `CONTRIBUTING.md`
+- **Docs updated:** same files.
+- **Verified:** targeted docs checks passed; commit hooks passed.
+- **Test it yourself:** search the targeted docs for `psycopg2-binary`, stale Feather `pandas` dependency guidance, and claims that CI runs every pre-commit hook.
+- **Heads-up:** none.
+
 ## Blocked (need a human)
 
 - None yet.

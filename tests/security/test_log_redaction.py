@@ -125,6 +125,9 @@ class TestArgValueRedactionInLog:
             def log_status_info(self, msg):
                 captured.append(msg)
 
+            def add_redaction_value(self, value):
+                pass
+
         conf = SimpleNamespace(
             db=None,
             server=None,
@@ -185,3 +188,45 @@ class TestArgValueRedactionInLog:
         log_lines = self._capture_arg_log_messages(["hello", "42"])
         assert all("{***}" in line for line in log_lines), log_lines
         assert all("hello" not in line and "42" not in line for line in log_lines), log_lines
+
+
+class TestExpandedLogRedaction:
+    def test_registered_values_redacted_from_sql_and_user_messages(self, tmp_path, minimal_conf):
+        from execsql.utils.fileio import Logger
+
+        import execsql.state as _state
+
+        _state.logfile_encoding = "utf-8"
+        log_path = tmp_path / "execsql.log"
+        logger = Logger("<inline>", "testdb", None, {}, log_file_name=str(log_path))
+        secret = "opaque-runtime-value"
+        logger.add_redaction_value(secret)
+        logger.log_sql_query(f"select '{secret}'", "testdb", 1)
+        logger.log_user_msg(f"System command: echo {secret}")
+        logger.close()
+
+        content = log_path.read_text()
+        assert secret not in content
+        assert "select '***'" in content
+        assert "System command: echo ***" in content
+
+    def test_common_secret_shapes_redacted_without_registration(self, tmp_path, minimal_conf):
+        from execsql.utils.fileio import Logger
+
+        import execsql.state as _state
+
+        _state.logfile_encoding = "utf-8"
+        log_path = tmp_path / "execsql.log"
+        logger = Logger("<inline>", "testdb", None, {}, log_file_name=str(log_path))
+        api_key = "sk-live-" + "abcdef1234567890"
+        dsn = "postgresql://user:passw0rd@example.test/db"
+        logger.log_status_error(f"password=hunter2 api_key={api_key} dsn={dsn}")
+        logger.close()
+
+        content = log_path.read_text()
+        assert "hunter2" not in content
+        assert api_key not in content
+        assert "passw0rd" not in content
+        assert "password=***" in content
+        assert "api_key=***" in content
+        assert "postgresql://user:***@example.test/db" in content
