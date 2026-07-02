@@ -42,7 +42,7 @@ Optional extras install database drivers and feature bundles:
 
 ```bash
 # Database drivers
-pip install execsql2[postgres]    # PostgreSQL (psycopg2-binary)
+pip install execsql2[postgres]    # PostgreSQL (psycopg3 / psycopg[binary])
 pip install execsql2[mysql]       # MySQL / MariaDB (pymysql)
 pip install execsql2[mssql]       # SQL Server (pyodbc)
 pip install execsql2[duckdb]      # DuckDB

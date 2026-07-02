@@ -1113,7 +1113,7 @@ DUCKDB
 
 FEATHER
 
-:   The Feather binary file format established by the [Apache Arrow](https://arrow.apache.org/) project. The "APPEND" and "DESCRIPTION" keywords are ignored when this format is used. Exporting data in this format requires that the entire data set be first converted to a [pandas](https://pandas.pydata.org/) data frame in memory, so there is a system-specific limit to the size of the data set that can be exported in this format. The *feather* and *pandas* libraries must be installed to export data in the Feather format. Not all data types that may be present in a database can necessarily be exported to a Feather data file, so some data types, like timestamps, may have to be converted to character data before export. Data exported in feather format cannot be written into a zipfile.
+:   The Feather binary file format established by the [Apache Arrow](https://arrow.apache.org/) project. The "APPEND" and "DESCRIPTION" keywords are ignored when this format is used. Exporting data in this format uses [Polars](https://pola.rs/) and materializes the result in memory before writing, so there is a system-specific limit to the size of the data set that can be exported in this format. Install the `formats` extra, which includes `polars`, to export data in Feather format. Not all data types that may be present in a database can necessarily be exported to a Feather data file, so some data types, like timestamps, may have to be converted to character data before export. Data exported in Feather format cannot be written into a zipfile.
 
 
 HDF5
