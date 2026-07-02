@@ -49,7 +49,18 @@ def x_system_cmd(**kwargs: Any) -> None:
     filewriter_close_all_after_write()
     cmdlist = shlex.split(syscmd, posix=(os.name == "posix"))
     if cont is None:
-        result = subprocess.run(cmdlist)
+        timeout = getattr(_state.conf, "system_cmd_timeout", 0.0)
+        run_kwargs = {"timeout": timeout} if timeout and timeout > 0 else {}
+        try:
+            result = subprocess.run(cmdlist, **run_kwargs)
+        except subprocess.TimeoutExpired as e:
+            _state.subvars.add_substitution("$SYSTEM_CMD_EXIT_STATUS", "124")
+            raise ErrInfo(
+                type="cmd",
+                command_text=kwargs.get("metacommandline", "SYSTEM_CMD"),
+                other_msg=f"SYSTEM_CMD timed out after {timeout:g} seconds.",
+                exception_msg=exception_desc(),
+            ) from e
         _state.subvars.add_substitution("$SYSTEM_CMD_EXIT_STATUS", str(result.returncode))
     else:
         proc = subprocess.Popen(cmdlist)

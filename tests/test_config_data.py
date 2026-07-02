@@ -1357,6 +1357,10 @@ class TestConfigDataInterfaceExtended:
 
 
 class TestConfigDataConfigSection:
+    def test_default_system_cmd_timeout_is_unbounded(self, tmp_path):
+        cd = _make_conf(str(tmp_path))
+        assert cd.system_cmd_timeout == 0.0
+
     def test_reads_dao_flush_delay_secs(self, tmp_path):
         _write_conf(
             str(tmp_path),
@@ -1411,6 +1415,28 @@ class TestConfigDataConfigSection:
         )
         cd = _make_conf(str(tmp_path))
         assert cd.max_log_size_mb == 50
+
+    def test_reads_system_cmd_timeout(self, tmp_path):
+        _write_conf(
+            str(tmp_path),
+            """
+            [config]
+            system_cmd_timeout = 2.5
+        """,
+        )
+        cd = _make_conf(str(tmp_path))
+        assert cd.system_cmd_timeout == 2.5
+
+    def test_negative_system_cmd_timeout_raises(self, tmp_path):
+        _write_conf(
+            str(tmp_path),
+            """
+            [config]
+            system_cmd_timeout = -1
+        """,
+        )
+        with pytest.raises(ConfigError):
+            _make_conf(str(tmp_path))
 
     def test_invalid_max_log_size_mb_raises(self, tmp_path):
         _write_conf(

@@ -14,6 +14,7 @@ ______________________________________________________________________
 ### Added
 
 - `run()` now accepts `allow_rm_file=False` and `allow_serve=False` to disable the `RM_FILE` and `SERVE` metacommands for library callers, matching the existing `allow_system_cmd` kwarg and the `--no-rm-file` / `--no-serve` CLI flags.
+- `[config] system_cmd_timeout` can bound foreground `SYSTEM_CMD` execution; the default remains no timeout.
 
 ### Fixed
 
