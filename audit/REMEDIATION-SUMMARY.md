@@ -32,6 +32,15 @@ per commit._
 - **Test it yourself:** call `execsql.run(..., allow_rm_file=False)` or `allow_serve=False` with a script using the matching metacommand; expect the metacommand to be blocked.
 - **Heads-up:** existing commit was present before this ledger was created.
 
+### [F-DOC-001 / F-DOC-004] Correct CLI naming and path containment guidance · High · commit 15d519f
+
+- **What changed:** installation, divergence, and architecture docs now say the package is `execsql2` but the executable remains `execsql`; the security reference now documents path containment roots.
+- **Files:** `docs/getting-started/installation.md`, `docs/about/divergence.md`, `docs/dev/architecture.md`, `docs/reference/security.md`
+- **Docs updated:** same files.
+- **Verified:** targeted docs checks passed; commit hooks passed.
+- **Test it yourself:** `rg "execsql2 script|execsql2 command|invoked as either" docs README.md` should return no stale executable claims, and `docs/reference/security.md` should contain `#path-containment-roots`.
+- **Heads-up:** none.
+
 ## Blocked (need a human)
 
 - None yet.

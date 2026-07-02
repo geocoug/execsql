@@ -38,7 +38,7 @@ just lint
 just pre-commit
 ```
 
-CI rejects PRs that fail linting or any pre-commit check.
+CI rejects PRs that fail the ruff lint and format checks. Run the full pre-commit suite locally before pushing.
 
 ## Running Tests
 
