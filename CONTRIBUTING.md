@@ -38,7 +38,7 @@ Static type checking is handled by [mypy](https://mypy.readthedocs.io/) and must
 just typecheck
 ```
 
-[pre-commit](https://pre-commit.com/) hooks enforce additional checks (gitleaks, uv-lock, mdformat, markdownlint, typos, validate-pyproject) on every commit. To run them manually against all files:
+[pre-commit](https://pre-commit.com/) hooks enforce additional checks (gitleaks, uv-lock, mdformat, markdownlint, typos, validate-pyproject, mypy) on every commit. To run them manually against all files:
 
 ```bash
 just pre-commit
