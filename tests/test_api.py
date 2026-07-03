@@ -195,6 +195,21 @@ class TestArgValidation:
         with pytest.raises(ValueError, match="must be provided"):
             run(sql="SELECT 1;")
 
+    def test_db_factory_new_db_before_any_run(self, tmp_path):
+        """db factory functions work before run() initializes global conf."""
+        import execsql.state as _state
+        from execsql.db.factory import db_SQLite
+
+        old_conf = _state.conf
+        _state.conf = None
+        try:
+            conn = db_SQLite(str(tmp_path / "fresh.db"), new_db=True)
+            result = run(sql="CREATE TABLE t (id INT);", connection=conn)
+            conn.close()
+        finally:
+            _state.conf = old_conf
+        assert result.success is True
+
 
 # ---------------------------------------------------------------------------
 # Control flow

@@ -78,7 +78,9 @@ def check_dir(filename: str) -> None:
         import execsql.state as _state
 
         conf = _state.conf
-        if conf.make_export_dirs:
+        # conf is None when called via the library API (e.g. a db factory
+        # function) before run() has initialized global state.
+        if conf is not None and conf.make_export_dirs:
             make_export_dirs(filename)
         else:
             dn = str(Path(filename).parent)
