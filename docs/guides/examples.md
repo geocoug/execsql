@@ -657,7 +657,7 @@ set initial_value='!!comment!!'
 where sub_var = 'comment';
 -- !x! endif
 
--- !x! prompt entry_form entries message "The conversions for !!value!! !!unit!! are:"display conversions
+-- !x! prompt entry_form entries message "The conversions for !!value!! !!unit!! are:" display conversions
 
 -- !x! if(not equal("!!unit!!", "!!old_unit!!"))
 -- !x! orif(not equal("!!value!!", "!!old_value!!"))
@@ -912,7 +912,7 @@ begin;
 -- !x! select_sub unupdated
 -- !x! if(sub_defined(@database))
     -- !x! write "Updating !!@database!!"
-    -- !x! execute script update_db
+    -- !x! execute script update_database
     update dblist set updated=True where database='!!@database!!';
     -- !x! execute script update_all_dbs
 -- !x! endif
