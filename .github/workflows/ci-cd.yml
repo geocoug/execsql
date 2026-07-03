@@ -56,7 +56,10 @@ jobs:
                   cache: "pip"
             - run: python -m pip install --upgrade pip
             - run: python -m pip install ".[dev]"
+            # mypy runs in the dedicated typecheck job; the local hook needs uv
             - run: pre-commit run --all-files
+              env:
+                  SKIP: mypy
 
     docs:
         name: docs
