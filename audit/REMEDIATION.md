@@ -26,7 +26,7 @@
 | F-OPS-004 / F062                  | Supply-chain audit/SBOM/dependency automation              | Low      | skipped  | -       | Later tier skipped by default                                                                             |
 | F060                              | Move Textual to optional extra or document base dependency | Medium   | deferred | -       | Maintainer packaging policy decision                                                                      |
 | F061                              | Decide runtime dependency constraint policy                | Medium   | deferred | -       | Maintainer packaging policy decision                                                                      |
-| Typecheck CI gate                 | Burn down existing mypy baseline before enforcing in CI    | Medium   | done     | -       | Baseline burned down to 0 errors; `typecheck` CI job added and gates `build`; `just check` runs typecheck |
+| Typecheck CI gate                 | Burn down existing mypy baseline before enforcing in CI    | Medium   | done     | 6f3c759 | Baseline burned down to 0 errors; `typecheck` CI job added and gates `build`; `just check` runs typecheck |
 | K-001..K-004                      | Ignored local cleanup batches                              | -        | skipped  | -       | No tracked source deletion candidates; local disk cleanup only                                            |
 
 Pre-existing failures (excluded from pass/fail): none.
