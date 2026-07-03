@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.22.0] - 2026-07-03
+
 ### Added
 
 - `run()` now accepts `allow_rm_file=False` and `allow_serve=False` to disable the `RM_FILE` and `SERVE` metacommands for library callers, matching the existing `allow_system_cmd` kwarg and the `--no-rm-file` / `--no-serve` CLI flags.
