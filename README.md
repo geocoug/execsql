@@ -1,8 +1,5 @@
 > [!NOTE]
-> **This is a maintained fork of [execsql](https://execsql.readthedocs.io/).**
-> The original monolith has been fully refactored into a modular package.
-> The CLI and configuration are backwards-compatible with upstream v1.130.1.
-> Report issues at [github.com/geocoug/execsql/issues](https://github.com/geocoug/execsql/issues).
+> ***execsql2* is a maintained fork of [execsql](https://execsql.readthedocs.io/)**, originally authored by R.Dreas Nielsen and no longer actively maintained upstream. The monolith has been fully refactored into a modular package; the CLI and configuration remain backwards-compatible with upstream v1.130.1. Maintained by [Caleb Grant](https://github.com/geocoug) and distributed on PyPI as [`execsql2`](https://pypi.org/project/execsql2/). Report issues at [github.com/geocoug/execsql/issues](https://github.com/geocoug/execsql/issues).
 
 <div align="center">
 
@@ -24,48 +21,59 @@
 
 </div>
 
-# Fork
-
-*execsql2* is a maintained fork of [execsql](https://execsql.readthedocs.io/) originally authored by R.Dreas Nielsen. The upstream project is no longer actively maintained. This fork is maintained by [Caleb Grant](https://github.com/geocoug) and is distributed on PyPI as `execsql2`. Complete documentation is at [execsql2.readthedocs.io](https://execsql2.readthedocs.io/).
-
-# Overview
+## Overview
 
 *execsql* runs SQL scripts against PostgreSQL, MySQL/MariaDB, SQLite, DuckDB, MS-SQL-Server, MS-Access, Firebird, Oracle, or an ODBC DSN. In addition to standard SQL, it supports a set of metacommands (embedded in SQL comments) for importing and exporting data, copying data between databases, conditional execution, looping, substitution variables, and interactive prompts. Because metacommands live in SQL comments, scripts remain valid SQL and are ignored by other tools such as `psql` or `sqlcmd`.
 
-# Installation
+## Example
 
-```bash
-pip install execsql2
+Lines prefixed with `-- !x!` are metacommands; identifiers wrapped in `!!` are substitution variables:
+
+```sql
+-- ==== Configuration ====
+-- Put the (date-tagged) logfile name in the 'inputfile' substitution variable.
+-- !x! SUB inputfile logs/errors_!!$date_tag!!
+-- Ensure that the export directory will be created if necessary.
+-- !x! CONFIG MAKE_EXPORT_DIRS Yes
+
+-- ==== Display Fatal Errors ====
+-- !x! IF(file_exists(!!inputfile!!))
+    -- Import the data to a staging table.
+    -- !x! IMPORT TO REPLACEMENT staging.errorlog FROM !!inputfile!!
+    -- Create a view to display only fatal errors.
+    create temporary view fatals as
+        select user, run_time, process
+        from   staging.errorlog
+        where  severity = 'FATAL';
+    -- !x! IF(HASROWS(fatals))
+        -- Export the fatal errors to a dated report.
+        -- !x! EXPORT fatals TO reports/error_report_!!$date_tag!! AS CSV
+        -- Also display it to the user in a GUI.
+        -- !x! PROMPT MESSAGE "Fatal errors in !!inputfile!!:" DISPLAY fatals
+    -- !x! ELSE
+        -- !x! WRITE "There are no fatal errors."
+    -- !x! ENDIF
+-- !x! ELSE
+    -- !x! WRITE "There is no error log."
+-- !x! ENDIF
+drop table if exists staging.errorlog cascade;
 ```
 
-Optional extras install database drivers and feature bundles:
+The `PROMPT` metacommand produces a GUI display of the data:
+
+![PROMPT display of 'fatals' view](https://execsql2.readthedocs.io/en/latest/images/fatals.png)
+
+## Installation
 
 ```bash
-# Database drivers
-pip install execsql2[postgres]    # PostgreSQL (psycopg3 / psycopg[binary])
-pip install execsql2[mysql]       # MySQL / MariaDB (pymysql)
-pip install execsql2[mssql]       # SQL Server (pyodbc)
-pip install execsql2[duckdb]      # DuckDB
-pip install execsql2[firebird]    # Firebird (firebird-driver)
-pip install execsql2[oracle]      # Oracle (oracledb)
-pip install execsql2[odbc]        # ODBC DSN (pyodbc)
-
-# Feature bundles
-pip install execsql2[formats]         # ODS, Excel, Jinja2, Feather, Parquet, HDF5
-pip install execsql2[upsert]          # pg-upsert for PostgreSQL upsert operations
-pip install execsql2[auth]            # OS keyring integration
-pip install execsql2[auth-plaintext]  # Keyring + plaintext file backend (headless Linux)
-pip install execsql2[auth-encrypted]  # Keyring + encrypted file backend (headless Linux)
-pip install execsql2[map]             # tkintermapview for PROMPT MAP
-
-# Convenience
-pip install execsql2[all-db]     # All database drivers
-pip install execsql2[all]        # Everything
+pip install execsql2                # core — SQLite works with no extras
+pip install "execsql2[postgres]"    # add a driver: postgres, mysql, mssql, duckdb, firebird, oracle, odbc
+pip install "execsql2[all]"         # everything: all drivers plus all feature extras
 ```
 
-SQLite connections use Python's standard library and require no additional packages.
+Feature extras cover spreadsheet and Parquet/Feather formats, keyring authentication, PostgreSQL upsert, and more — see the [installation guide](https://execsql2.readthedocs.io/en/latest/getting-started/installation/) for the full list.
 
-# Usage
+## Usage
 
 ```text
 execsql [OPTIONS] SQL_SCRIPT [SERVER DATABASE | DATABASE_FILE]
@@ -83,7 +91,7 @@ execsql -to script.sql myserver myservice   # Oracle
 execsql script.sql                          # read connection from config file
 ```
 
-## Supported Databases
+### Supported Databases
 
 | Flag | Database        |
 | ---- | --------------- |
@@ -97,67 +105,53 @@ execsql script.sql                          # read connection from config file
 | `o`  | Oracle          |
 | `d`  | ODBC DSN        |
 
-## Options
+### Common options
 
-| Flag                                  | Description                                                        |
-| ------------------------------------- | ------------------------------------------------------------------ |
-| `-t {p,m,s,l,k,a,f,o,d}`              | Database type                                                      |
-| `-u USER`                             | Database username                                                  |
-| `-p PORT`                             | Server port                                                        |
-| `-a VALUE`                            | Set substitution variable `$ARG_x`                                 |
-| `-b` / `--boolean-int`                | Treat integers 0 and 1 as boolean values                           |
-| `-c SCRIPT`                           | Execute inline SQL or metacommand string                           |
-| `-d`                                  | Auto-create export directories                                     |
-| `-e ENCODING` / `--database-encoding` | Character encoding used in the database                            |
-| `-f ENCODING`                         | Script file encoding (default: UTF-8)                              |
-| `-g ENCODING` / `--output-encoding`   | Encoding for WRITE and EXPORT output                               |
-| `-i ENCODING` / `--import-encoding`   | Encoding for data files used with IMPORT                           |
-| `-l`                                  | Write run log to `~/execsql.log`                                   |
-| `-m`                                  | List metacommands and exit                                         |
-| `-n`                                  | Create a new SQLite or PostgreSQL database if it does not exist    |
-| `-o` / `--online-help`                | Open the online documentation in the default browser               |
-| `-s N` / `--scan-lines`               | Lines to scan for IMPORT format detection (0 = scan entire file)   |
-| `-v {0,1,2,3}`                        | GUI level (0=none, 1=password, 2=selection, 3=full)                |
-| `-w`                                  | Skip password prompt when a username is supplied                   |
-| `-y` / `--encodings`                  | List available encoding names and exit                             |
-| `-z KB` / `--import-buffer`           | Import buffer size in KB (default: 32)                             |
-| `--dsn URL`                           | Connection string (e.g. `postgresql://user:pass@host/db`)          |
-| `--output-dir DIR`                    | Default base directory for EXPORT output files                     |
-| `--dry-run`                           | Parse the script and report commands without executing             |
-| `--lint`                              | Static analysis: check structure and warn on issues (no DB)        |
-| `--parse-tree`                        | Print the script's AST structure and exit (no DB)                  |
-| `--list-plugins`                      | List discovered plugins and exit                                   |
-| `--ping`                              | Test database connectivity and exit                                |
-| `--profile`                           | Show per-statement timing summary after execution                  |
-| `--profile-limit N`                   | Top N statements to display in `--profile` summary (default: 20)   |
-| `--progress`                          | Show a progress bar for long-running IMPORT operations             |
-| `--config FILE`                       | Load an explicit config file (highest priority after CLI args)     |
-| `--no-system-cmd`                     | Disable the `SYSTEM_CMD` metacommand (safer for CI / shared envs)  |
-| `--no-rm-file`                        | Disable the `RM_FILE` metacommand (no script-driven file deletion) |
-| `--no-serve`                          | Disable the `SERVE` metacommand (no script-driven file streaming)  |
-| `--init-config`                       | Print a default `execsql.conf` template to stdout and exit         |
-| `--debug`                             | Start in step-through debug mode (REPL pauses before each stmt)    |
-| `--dump-keywords`                     | Print metacommand keywords as JSON and exit                        |
-| `--gui-framework {tkinter,textual}`   | GUI framework for interactive prompts                              |
+| Flag                                              | Description                                                     |
+| ------------------------------------------------- | --------------------------------------------------------------- |
+| `-t {p,m,s,l,k,a,f,o,d}`                          | Database type                                                   |
+| `-u USER`                                         | Database username                                               |
+| `-p PORT`                                         | Server port                                                     |
+| `--dsn URL`                                       | Connection string (e.g. `postgresql://user:pass@host/db`)       |
+| `-n`                                              | Create a new SQLite or PostgreSQL database if it does not exist |
+| `-c SCRIPT`                                       | Execute inline SQL or metacommand string                        |
+| `-a VALUE`                                        | Set substitution variable `$ARG_x`                              |
+| `-v {0,1,2,3}`                                    | GUI level (0=none, 1=password, 2=selection, 3=full)             |
+| `--config FILE`                                   | Load an explicit config file                                    |
+| `--dry-run`                                       | Parse the script and report commands without executing          |
+| `--lint`                                          | Static analysis: check structure and warn on issues (no DB)     |
+| `--ping`                                          | Test database connectivity and exit                             |
+| `--debug`                                         | Start in step-through debug mode (REPL pauses before each stmt) |
+| `--no-system-cmd` / `--no-rm-file` / `--no-serve` | Disable the `SYSTEM_CMD` / `RM_FILE` / `SERVE` metacommands     |
 
-Run `execsql --help` for the full option list, or `execsql -m` to list all metacommands.
+See the [full options reference](https://execsql2.readthedocs.io/en/latest/getting-started/syntax/#options) or run `execsql --help` for the complete list, and `execsql -m` for all metacommands.
 
-# Features
+## Features
+
+**Data movement**
 
 - Import data from CSV, TSV, JSON, Excel, OpenDocument, Feather, or Parquet files into a database table.
 - Export query results in 20+ formats including CSV, TSV, JSON, YAML, XML, HTML, Markdown, LaTeX, XLSX, OpenDocument, Feather, Parquet, HDF5, DuckDB, SQLite, plain text, and Jinja2 templates.
 - Copy data between databases, including across different DBMS types.
+
+**Script logic**
+
 - Conditionally execute SQL and metacommands using `IF`/`ELSE`/`ENDIF` based on data values, DBMS type, or user input.
-- Validate data with `ASSERT` — halt the script with a clear error message if a condition is false (ideal for CI pipelines).
-- Loop over blocks of SQL and metacommands using `LOOP`/`ENDLOOP`.
+- Loop over blocks of SQL and metacommands using `LOOP`/`ENDLOOP`; include or chain scripts with `INCLUDE` and `SCRIPT`.
 - Use substitution variables (`SUB`, `$ARG_x`, built-in variables like `$date_tag`) to parameterize scripts.
-- Include or chain scripts with `INCLUDE` and `SCRIPT`.
+- Validate data with `ASSERT` — halt the script with a clear error message if a condition is false (ideal for CI pipelines).
+
+**Interaction & observability**
+
 - Display query results in a GUI dialog; optionally prompt the user to select a row, enter a value, or submit a form.
 - Write status messages or tabular output to the console or a file during execution.
 - Automatically log each run, recording databases used, scripts executed, and user responses.
+
+**Extensibility**
+
 - Extend with custom metacommands, exporters, and importers via the plugin system.
 
-# Library API
+## Library API
 
 execsql can be used as a Python library for programmatic script execution:
 
@@ -200,56 +194,43 @@ if not result.success:
 result.raise_on_error()  # raises ExecSqlError
 ```
 
-Use a pre-existing database connection instead of a DSN:
+Use a pre-existing database connection instead of a DSN — useful for reusing one connection across multiple `run()` calls, or when connection parameters come from your application's configuration rather than a URL:
 
 ```python
-from execsql.db.factory import db_SQLite
+from execsql import run
+from execsql.db.factory import db_Postgres, db_SQLite
+
+# PostgreSQL connection object (psycopg3 under the hood)
+conn = db_Postgres(
+    "db.example.com",              # server
+    "warehouse",                   # database
+    user="etl",
+    port=5432,                     # optional, default 5432
+    password="s3cret",             # omit to use keyring / interactive prompt
+)
+
+# Reuse the same connection across multiple calls
+staged = run(script="stage.sql", connection=conn)
+loaded = run(
+    script="load.sql",
+    connection=conn,
+    variables={"RUN_DATE": "2026-07-03"},
+)
+
+# run() does NOT close the connection — you manage its lifecycle
+conn.close()
+
+# SQLite works the same way
 conn = db_SQLite("my.db", new_db=True)
 result = run(sql="SELECT 1;", connection=conn)
-# run() does NOT close this connection — you manage its lifecycle
+conn.close()
 ```
+
+Factory functions exist for every supported backend (`db_Postgres`, `db_MySQL`, `db_SQLite`, `db_DuckDB`, `db_SqlServer`, `db_Oracle`, `db_Firebird`, `db_Access`, `db_Dsn`) — see [`execsql.db.factory`](https://execsql2.readthedocs.io/en/latest/api/db/).
 
 Each call to `run()` uses an isolated `RuntimeContext`, so multiple calls do not share state.
 
-# An Illustration
-
-The following script demonstrates metacommands and substitution variables. Lines prefixed with `-- !x!` are metacommands; identifiers wrapped in `!!` are substitution variables.
-
-```sql
--- ==== Configuration ====
--- Put the (date-tagged) logfile name in the 'inputfile' substitution variable.
--- !x! SUB inputfile logs/errors_!!$date_tag!!
--- Ensure that the export directory will be created if necessary.
--- !x! CONFIG MAKE_EXPORT_DIRS Yes
-
--- ==== Display Fatal Errors ====
--- !x! IF(file_exists(!!inputfile!!))
-    -- Import the data to a staging table.
-    -- !x! IMPORT TO REPLACEMENT staging.errorlog FROM !!inputfile!!
-    -- Create a view to display only fatal errors.
-    create temporary view fatals as
-        select user, run_time, process
-        from   staging.errorlog
-        where  severity = 'FATAL';
-    -- !x! IF(HASROWS(fatals))
-        -- Export the fatal errors to a dated report.
-        -- !x! EXPORT fatals TO reports/error_report_!!$date_tag!! AS CSV
-        -- Also display it to the user in a GUI.
-        -- !x! PROMPT MESSAGE "Fatal errors in !!inputfile!!:" DISPLAY fatals
-    -- !x! ELSE
-        -- !x! WRITE "There are no fatal errors."
-    -- !x! ENDIF
--- !x! ELSE
-    -- !x! WRITE "There is no error log."
--- !x! ENDIF
-drop table if exists staging.errorlog cascade;
-```
-
-The `PROMPT` metacommand produces a GUI display of the data:
-
-![PROMPT display of 'fatals' view](https://execsql2.readthedocs.io/en/latest/images/fatals.png)
-
-# Formatting Scripts
+## Formatting Scripts
 
 The `execsql-format` command normalizes execsql script files: it uppercases metacommand keywords, corrects block indentation, and optionally reformats SQL via `sqlglot`. The metacommand / indent / keyword reformatting is built into `execsql2`; SQL reformatting requires the `[formatter]` extra (or pass `--no-sql` to skip it):
 
@@ -279,7 +260,7 @@ repos:
 
 The hook rewrites `*.sql` files in place by default. See the [formatter documentation](https://execsql2.readthedocs.io/en/latest/guides/formatter/) for `--check`, `--indent`, and other options.
 
-# VS Code Syntax Highlighting
+## VS Code Syntax Highlighting
 
 A VS Code extension for execsql syntax highlighting is included in [`extras/vscode-execsql`](extras/vscode-execsql). It injects a TextMate grammar into `.sql` files, adding highlighting for `-- !x!` metacommand markers, keywords (control flow, block, action, directive), variable substitutions (`!!var!!`, `!{var}!`), built-in functions, export formats, and config options — all layered on top of standard SQL highlighting.
 
@@ -291,7 +272,7 @@ ln -s /path/to/execsql/extras/vscode-execsql ~/.vscode/extensions/execsql-syntax
 
 See the [extension README](extras/vscode-execsql/README.md) for Windows instructions, color customization, and troubleshooting.
 
-# Templates
+## Templates
 
 The `templates/` directory in this repository includes ready-to-use execsql scripts:
 
@@ -301,13 +282,14 @@ The `templates/` directory in this repository includes ready-to-use execsql scri
 - **`script_template.sql`**: A framework for new scripts with sections for configuration, logging, and error reporting.
 - **`execsql.conf`**: An annotated configuration file covering all available settings.
 
-# Documentation
+## Documentation
 
 Full documentation, including a complete metacommand reference and 30+ examples, is at [execsql2.readthedocs.io](https://execsql2.readthedocs.io/).
 
-# Copyright and License
+## Copyright and License
 
 Copyright (c) 2007-2025 R.Dreas Nielsen
+
 Copyright (c) 2026-present Caleb Grant
 
 This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version. This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the [GNU General Public License](http://www.gnu.org/licenses/) for more details.

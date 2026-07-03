@@ -247,6 +247,14 @@ Valid encoding names can be displayed with the `-y` option. See also [Character 
 
 :   Disable the `SYSTEM_CMD` metacommand. Scripts that attempt to execute an OS command will fail with a clear error. Useful for CI pipelines, shared execution environments, or running semi-trusted scripts. Equivalent to `allow_system_cmd = No` in `execsql.conf` `[config]` section or `allow_system_cmd=False` in the [library API](../api/index.md#library-api). The CLI flag always takes precedence over the config file.
 
+`--no-rm-file`
+
+:   Disable the `RM_FILE` metacommand, so scripts cannot delete files. Fails with a clear error if a script attempts it. Equivalent to `allow_rm_file = No` in `execsql.conf` `[config]` section or `allow_rm_file=False` in the [library API](../api/index.md#library-api). The CLI flag always takes precedence over the config file.
+
+`--no-serve`
+
+:   Disable the `SERVE` metacommand, so scripts cannot stream files over HTTP. Fails with a clear error if a script attempts it. Equivalent to `allow_serve = No` in `execsql.conf` `[config]` section or `allow_serve=False` in the [library API](../api/index.md#library-api). The CLI flag always takes precedence over the config file.
+
 `--config` *FILE*
 
 :   Load an explicit configuration file *after* the implicit search paths (system, user, script-dir, working-dir). Its values take precedence over those four; CLI arguments still override everything. The file may chain additional configs via its `[config]` section.
