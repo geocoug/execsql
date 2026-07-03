@@ -292,7 +292,7 @@ def main(
         "-a",
         "--assign-arg",
         metavar="VALUE",
-        help="Define the replacement string for a substitution variable [cyan]\\$ARG_x[/cyan].",
+        help="Define the replacement string for a substitution variable [cyan]$ARG_x[/cyan].",
     ),
     user_logfile: bool = typer.Option(
         False,
