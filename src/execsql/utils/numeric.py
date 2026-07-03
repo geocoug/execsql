@@ -45,7 +45,7 @@ def leading_zero_num(dataval: Any) -> bool:
 
 def as_numeric(strval: Any) -> int | float | None:
     # Converts the given value to an int, a float, or None.
-    if type(strval) in (int, float):
+    if isinstance(strval, int | float):
         return strval
     if not isinstance(strval, str):
         strval = str(strval)

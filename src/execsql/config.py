@@ -17,8 +17,10 @@ Provides three classes:
 
 import os
 import sys
+from collections.abc import Callable
 from configparser import ConfigParser
 from pathlib import Path
+from typing import Protocol
 
 from execsql.exceptions import ConfigError
 from execsql.utils.crypto import Encrypt
@@ -28,6 +30,12 @@ __all__ = [
     "ConfigData",
     "WriteHooks",
 ]
+
+
+class _VariablePool(Protocol):
+    def substitute(self, strval: str) -> tuple[str, int]: ...
+    def var_name_ok(self, varname: str) -> bool: ...
+    def add_substitution(self, varname: str, strval: object) -> None: ...
 
 
 class StatObj:
@@ -345,7 +353,7 @@ class ConfigData:
     def __init__(
         self,
         script_path: str,
-        variable_pool: object,
+        variable_pool: _VariablePool,
         *,
         config_file: str | None = None,
     ) -> None:
@@ -362,22 +370,23 @@ class ConfigData:
                 precedence over system, user, script, and working-directory
                 config files.
         """
-        self.db_type = "l"
-        self.server = None
-        self.port = None
-        self.db = None
-        self.username = None
-        self.access_username = None
+        self.db_type: str | None = "l"
+        self.server: str | None = None
+        self.port: int | None = None
+        self.db: str | None = None
+        self.username: str | None = None
+        self.access_username: str | None = None
+        self.db_password: str | None = None
         self.passwd_prompt = True
         self.use_keyring = True
-        self.db_file = None
+        self.db_file: str | None = None
         self.new_db = False
         self.user_logfile = False
-        self.db_encoding = None
+        self.db_encoding: str | None = None
         self.script_encoding = "utf8"
         self.output_encoding = "utf8"
         self.import_encoding = "utf8"
-        self.enc_err_disposition = None
+        self.enc_err_disposition: str | None = None
         self.import_common_cols_only = False
         self.max_int = 2147483647
         self.boolean_int = True
@@ -397,17 +406,17 @@ class ConfigData:
         self.scan_lines = 100
         self.hdf5_text_len = 1000
         self.write_warnings = False
-        self.write_prefix = None
-        self.write_suffix = None
-        self.gui_level = 0
+        self.write_prefix: str | None = None
+        self.write_suffix: str | None = None
+        self.gui_level: int = 0
         self.gui_framework = "tkinter"
         self.gui_wait_on_exit = False
         self.gui_wait_on_error_halt = False
         self.gui_console_height = 25
         self.gui_console_width = 100
         self.import_buffer = 32 * 1024
-        self.css_file = None
-        self.css_styles = None
+        self.css_file: str | None = None
+        self.css_styles: str | None = None
         self.make_export_dirs = False
         self.outfile_open_timeout = 600
         self.quote_all_text = False
@@ -415,7 +424,7 @@ class ConfigData:
         self.import_progress_interval = 0
         self.show_progress = False
         self.export_row_buffer = 1000
-        self.template_processor = None
+        self.template_processor: str | None = None
         self.tee_write_log = False
         self.log_datavars = True
         self.log_sql = False
@@ -620,9 +629,9 @@ class WriteHooks:
 
     def __init__(
         self,
-        standard_output_func: object = None,
-        error_output_func: object = None,
-        status_output_func: object = None,
+        standard_output_func: Callable[[str], object] | None = None,
+        error_output_func: Callable[[str], object] | None = None,
+        status_output_func: Callable[[str], object] | None = None,
     ) -> None:
         """Store optional hook callables; ``None`` means use the default stream.
 
@@ -650,16 +659,20 @@ class WriteHooks:
         self.write_func = None
         self.err_func = None
 
-    def redir_stdout(self, standard_output_func: object) -> None:
+    def redir_stdout(self, standard_output_func: Callable[[str], object]) -> None:
         """Replace the standard-output hook with the given callable."""
         self.write_func = standard_output_func
 
-    def redir_stderr(self, error_output_func: object, tee: bool = True) -> None:
+    def redir_stderr(self, error_output_func: Callable[[str], object], tee: bool = True) -> None:
         """Replace the error-output hook and optionally keep tee-to-stderr behaviour."""
         self.err_func = error_output_func
         self.tee_stderr = tee
 
-    def redir(self, standard_output_func: object, error_output_func: object) -> None:
+    def redir(
+        self,
+        standard_output_func: Callable[[str], object],
+        error_output_func: Callable[[str], object],
+    ) -> None:
         """Redirect both stdout and stderr hooks in one call."""
         self.redir_stdout(standard_output_func)
         self.redir_stderr(error_output_func)

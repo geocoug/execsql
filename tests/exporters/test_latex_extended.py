@@ -76,18 +76,21 @@ class TestExportLatexStdoutAppend:
 
 # ---------------------------------------------------------------------------
 # zip path (zipfile is not None)
-# NOTE: export_latex's zip branch calls WriteableZipfile(zipfile).open(...)
-# but WriteableZipfile has no .open() method.  The test below documents this
-# limitation so the branch is at least exercised (AttributeError is caught).
 # ---------------------------------------------------------------------------
 
 
 class TestExportLatexZip:
-    def test_zip_branch_raises_attribute_error(self, tmp_path):
-        """export_latex zip branch calls WriteableZipfile.open() which doesn't exist."""
+    def test_zip_branch_writes_member_document(self, tmp_path):
+        """export_latex writes a complete LaTeX document into the named zip member."""
+        import zipfile as zipfile_mod
+
         zpath = str(tmp_path / "out.zip")
-        with pytest.raises(AttributeError):
-            export_latex(zpath, ["id"], [(1,)], zipfile=zpath)
+        export_latex("table.tex", ["id"], [(1,)], zipfile=zpath)
+        with zipfile_mod.ZipFile(zpath) as zf:
+            text = zf.read("table.tex").decode()
+        assert r"\documentclass{article}" in text
+        assert r"\begin{tabular}" in text
+        assert r"\end{document}" in text
 
 
 # ---------------------------------------------------------------------------

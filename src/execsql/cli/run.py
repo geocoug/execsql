@@ -7,15 +7,15 @@ and drives the main execution loop.  Separated from argument parsing
 
 from __future__ import annotations
 
-import atexit
-from typing import Any
 import datetime
+import atexit
 import getpass
 import os
 import platform
 import sys
 import traceback
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 from execsql import __version__
 from execsql.cli.dsn import _parse_connection_string
@@ -25,6 +25,9 @@ from execsql.exceptions import ConfigError, ErrInfo
 from execsql.script import SubVarSet, current_script_line, substitute_vars
 from execsql.utils.fileio import FileWriter, Logger, filewriter_end
 from execsql.utils.gui import gui_connect, gui_console_isrunning, gui_console_off, gui_console_on, gui_console_wait_user
+
+if TYPE_CHECKING:
+    from execsql.script.ast import Script
 
 __all__ = ["_connect_initial_db", "_ping_db", "_print_dry_run", "_print_profile", "_run"]
 
@@ -38,7 +41,7 @@ from execsql.cli.lint import _print_lint_results  # noqa: F401 — re-export (us
 # ---------------------------------------------------------------------------
 
 
-def _print_dry_run(tree: object) -> None:
+def _print_dry_run(tree: Script | None) -> None:
     """Print the parsed AST for --dry-run mode.
 
     Walks the AST tree and prints each SQL statement and metacommand with
@@ -304,7 +307,7 @@ def _load_script(
     command: str | None,
     script_name: str | None,
     encoding: str,
-) -> Any:
+) -> Script | None:
     """Parse the SQL script (or inline command) into an AST.
 
     Returns the AST tree, or ``None`` if no script is provided.
@@ -316,6 +319,8 @@ def _load_script(
             command.replace("\\n", "\n").replace("\\t", "\t"),
             "<inline>",
         )
+    if script_name is None:
+        return None
     return parse_script(script_name, encoding=encoding)
 
 
@@ -515,7 +520,7 @@ def _setup_logging(
     }
     logger = Logger(
         script_name or "<inline>",
-        conf.db,
+        conf.db or "",
         conf.server,
         opts_dict,
         conf.user_logfile,
@@ -947,6 +952,16 @@ def _execute_script_textual_console(tree: Any, conf: ConfigData) -> None:
 # ---------------------------------------------------------------------------
 
 
+def _required_connection_value(value: str | None, description: str) -> str:
+    """Return a required connection value or stop with the standard fatal path."""
+    if value is None:
+        from execsql.utils.errors import fatal_error
+
+        fatal_error(f"Configured database requires {description}, but none is provided.")
+        raise SystemExit(1)
+    return value
+
+
 def _connect_initial_db(conf: ConfigData):
     """Create and return the initial database object based on conf.db_type."""
     from execsql.db.factory import (
@@ -966,6 +981,7 @@ def _connect_initial_db(conf: ConfigData):
             from execsql.utils.errors import fatal_error
 
             fatal_error("Configured to run with MS-Access, but no Access file name is provided.")
+            raise SystemExit(1)
         return db_Access(
             conf.db_file,
             pw_needed=conf.passwd_prompt and conf.access_username is not None,
@@ -974,8 +990,8 @@ def _connect_initial_db(conf: ConfigData):
         )
     elif conf.db_type == "p":
         return db_Postgres(
-            conf.server,
-            conf.db,
+            _required_connection_value(conf.server, "a server name"),
+            _required_connection_value(conf.db, "a database name"),
             user=conf.username,
             pw_needed=conf.passwd_prompt,
             port=conf.port,
@@ -985,8 +1001,8 @@ def _connect_initial_db(conf: ConfigData):
         )
     elif conf.db_type == "s":
         return db_SqlServer(
-            conf.server,
-            conf.db,
+            _required_connection_value(conf.server, "a server name"),
+            _required_connection_value(conf.db, "a database name"),
             user=conf.username,
             pw_needed=conf.passwd_prompt,
             port=conf.port,
@@ -998,11 +1014,12 @@ def _connect_initial_db(conf: ConfigData):
             from execsql.utils.errors import fatal_error
 
             fatal_error("Configured to run with SQLite, but no SQLite file name is provided.")
+            raise SystemExit(1)
         return db_SQLite(conf.db_file, new_db=conf.new_db, encoding=conf.db_encoding)
     elif conf.db_type == "m":
         return db_MySQL(
-            conf.server,
-            conf.db,
+            _required_connection_value(conf.server, "a server name"),
+            _required_connection_value(conf.db, "a database name"),
             user=conf.username,
             pw_needed=conf.passwd_prompt,
             port=conf.port,
@@ -1014,11 +1031,12 @@ def _connect_initial_db(conf: ConfigData):
             from execsql.utils.errors import fatal_error
 
             fatal_error("Configured to run with DuckDB, but no DuckDB file name is provided.")
+            raise SystemExit(1)
         return db_DuckDB(conf.db_file, new_db=conf.new_db, encoding=conf.db_encoding)
     elif conf.db_type == "o":
         return db_Oracle(
-            conf.server,
-            conf.db,
+            _required_connection_value(conf.server, "a server name"),
+            _required_connection_value(conf.db, "a database name"),
             user=conf.username,
             pw_needed=conf.passwd_prompt,
             port=conf.port,
@@ -1027,8 +1045,8 @@ def _connect_initial_db(conf: ConfigData):
         )
     elif conf.db_type == "f":
         return db_Firebird(
-            conf.server,
-            conf.db,
+            _required_connection_value(conf.server, "a server name"),
+            _required_connection_value(conf.db, "a database name"),
             user=conf.username,
             pw_needed=conf.passwd_prompt,
             port=conf.port,
@@ -1037,7 +1055,7 @@ def _connect_initial_db(conf: ConfigData):
         )
     elif conf.db_type == "d":
         return db_Dsn(
-            conf.db,
+            _required_connection_value(conf.db, "a DSN name"),
             user=conf.username,
             pw_needed=conf.passwd_prompt,
             encoding=conf.db_encoding,

@@ -12,7 +12,8 @@ from __future__ import annotations
 import os
 import threading
 import time
-from typing import Any
+from typing import Any, cast
+from collections.abc import Callable
 
 from execsql.gui.base import GuiBackend
 
@@ -53,7 +54,7 @@ def _center_window(win: tk.Tk | tk.Toplevel, width: int = 600, height: int = 400
 from execsql.gui.base import DIFF_MARKER, compare_stats as _compare_stats, compute_row_diffs
 
 
-def _add_help_button(frame: tk.Frame, url: str | None) -> None:
+def _add_help_button(frame: Any, url: str | None) -> None:
     """Add a Help button to the top-right of *frame* that opens *url* in the system browser.
 
     Uses ``place()`` so the button overlays the top-right corner without
@@ -82,19 +83,31 @@ def _populate_treeview(tree: ttk.Treeview, headers: list, rows: list) -> None:
         tree.insert("", "end", values=[str(c) if c is not None else "" for c in row])
 
 
-def _add_buttons(frame: tk.Frame, button_list: list, callback) -> None:
+def _add_buttons(frame: Any, button_list: list, callback: Callable[[Any], Any]) -> None:
     """Add buttons from button_list = [(label, value, key?), ...] to frame."""
     for _i, btn in enumerate(button_list):
         label = btn[0]
         value = btn[1]
-        b = tk.Button(frame, text=label, command=lambda v=value: callback(v), padx=8)
+
+        def _command(v: Any = value) -> None:
+            callback(v)
+
+        b = tk.Button(frame, text=label, command=_command, padx=8)
         b.pack(side=tk.LEFT, padx=4)
         if len(btn) > 2 and btn[2]:
             key_seq = btn[2]
             if key_seq == "<Return>":
-                frame.winfo_toplevel().bind("<Return>", lambda e, v=value: callback(v))
+
+                def _return_handler(_event: Any, v: Any = value) -> None:
+                    callback(v)
+
+                frame.winfo_toplevel().bind("<Return>", _return_handler)
             elif len(key_seq) == 1:
-                frame.winfo_toplevel().bind(key_seq, lambda e, v=value: callback(v))
+
+                def _key_handler(_event: Any, v: Any = value) -> None:
+                    callback(v)
+
+                frame.winfo_toplevel().bind(key_seq, _key_handler)
 
 
 # ---------------------------------------------------------------------------
@@ -318,6 +331,7 @@ class EntryFormDialog:
 
         for i, spec in enumerate(specs):
             etype = (spec.entry_type or "text").lower()
+            var: Any
             # For radiobuttons, the label is semicolon-delimited: first part is the label
             if etype == "radiobuttons":
                 parts = (spec.label or "").split(";")
@@ -369,7 +383,7 @@ class EntryFormDialog:
                 var = tk.StringVar(value=spec.initial_value or "")
                 ttk.Entry(file_frame, textvariable=var, width=30).pack(side=tk.LEFT, fill=tk.X, expand=True)
 
-                def _browse(sv=var, mode=etype):
+                def _browse(sv: Any = var, mode: str = etype) -> None:
                     from tkinter import filedialog
 
                     if mode == "inputfile":
@@ -597,7 +611,7 @@ class CompareDialog:
                         tree.item(iid, tags=("diff_match",))
                     elif state == "changed":
                         tree.item(iid, tags=("diff_changed",))
-                        originals[iid] = tree.item(iid, "values")
+                        originals[iid] = cast(tuple[Any, ...], tree.item(iid, "values"))
                         vals = list(tree.item(iid, "values"))
                         diff_set = changed_cols[ridx]
                         for ci, col_name in enumerate(headers_str):
@@ -828,10 +842,14 @@ class ActionDialog:
         button_specs = args.get("button_specs", [])
         for i, spec in enumerate(button_specs):
             btn_text = f"{spec.label}\n{spec.prompt}"
+
+            def _button_command(v: int = i + 1) -> None:
+                self._close(win, v)
+
             ttk.Button(
                 frame,
                 text=btn_text,
-                command=lambda v=i + 1: self._close(win, v),
+                command=_button_command,
             ).pack(fill=tk.X, pady=2)
 
         include_continue = args.get("include_continue_button")
@@ -1380,7 +1398,7 @@ class TkinterBackend(GuiBackend):
         root = self._root_or_raise()
         dlg = dialog_class(root, args)
         root.update()
-        return dlg.result
+        return cast(dict, dlg.result)
 
     def show_halt(self, args: dict) -> dict:
         return self._run_dialog(MsgDialog, args)

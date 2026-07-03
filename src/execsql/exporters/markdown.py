@@ -103,6 +103,7 @@ def write_query_to_markdown(
         dashes = (f" {'-' * col_widths[i]} " for i in range(len(str_hdrs)))
         return "|" + "|".join(dashes) + "|\n"
 
+    f: Any
     if zipfile is None:
         filewriter_close(outfile)
         from execsql.utils.fileio import EncodedFile

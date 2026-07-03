@@ -66,7 +66,7 @@ per commit._
 - **Docs updated:** `CONTRIBUTING.md`
 - **Verified:** `uv run pre-commit run --all-files`; `cp CHANGELOG.md docs/about/change_log.md && uv run zensical build`; commit hooks.
 - **Test it yourself:** open a PR with a failing pre-commit hook or broken docs page; the new CI job should fail before merge and tag builds should wait on it.
-- **Heads-up:** the mypy CI gate is deferred because `uv run mypy src/execsql/` currently reports 1246 existing baseline errors.
+- **Heads-up:** the mypy baseline (originally 1246 errors) has since been burned down to zero; a `typecheck` CI job now runs `mypy src/execsql/` on every push/PR, tag builds depend on it, and `just check` includes the `typecheck` recipe.
 
 ## Blocked (need a human)
 

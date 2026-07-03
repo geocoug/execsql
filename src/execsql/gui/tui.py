@@ -21,7 +21,7 @@ import ctypes
 import os
 import queue as _stdlib_queue
 import threading
-from typing import Any
+from typing import Any, Literal, cast
 
 from execsql.gui.base import GuiBackend
 
@@ -61,7 +61,7 @@ from textual.widgets import (
 
 __all__ = ["TextualBackend"]
 
-from execsql.gui.base import DIFF_MARKER, compare_stats as _compare_stats, compute_row_diffs
+from execsql.gui.base import DIFF_MARKER, DiffResult, compare_stats as _compare_stats, compute_row_diffs
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -105,7 +105,7 @@ def _button_row(button_list: list) -> list[Button]:
         if not value and value != 1:  # falsy but not accidentally 1
             cancel_label = label
         else:
-            variant = "primary" if i == 0 else "default"
+            variant: Literal["primary", "default"] = "primary" if i == 0 else "default"
             primary_buttons.append(Button(label, id=f"btn_{i}", variant=variant))
     return [Button(cancel_label, id="btn_cancel_exit", variant="warning")] + primary_buttons
 
@@ -695,7 +695,7 @@ class CompareScreen(_BaseDialog):
         self._col_keys1: list = []
         self._col_keys2: list = []
         self._diff_on = False
-        self._diff_result = None
+        self._diff_result: DiffResult | None = None
         self._original_cells1: dict = {}
         self._original_cells2: dict = {}
 
@@ -1407,7 +1407,9 @@ class _TextualSyncQueue:
             return
         if self._screen_map is None:
             self.__class__._screen_map = _build_screen_map()
-        screen_class = self._screen_map.get(spec.gui_type)
+        screen_map = self._screen_map
+        assert screen_map is not None
+        screen_class = screen_map.get(spec.gui_type)
         if screen_class is None:
             spec.return_queue.put({"error": f"Unknown GUI type: {spec.gui_type}", "button": None})
             return
@@ -1578,7 +1580,7 @@ class ConsoleApp(App):
             else:
                 spec.return_queue.put(result if result is not None else {})
 
-        self.run_worker(_push, exclusive=False)
+        self.run_worker(cast(Any, _push), exclusive=False)
 
     def write_console(self, text: str) -> None:
         """Thread-safe method to append text to the RichLog widget."""

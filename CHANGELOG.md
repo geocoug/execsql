@@ -19,6 +19,8 @@ ______________________________________________________________________
 ### Fixed
 
 - `EXPORT … FORMAT SQLITE` and `EXPORT … FORMAT DUCKDB` correctly preserve source column types when exporting from a typed database: text columns stay text (not re-inferred as TIMESTAMP or numeric from value shape), `decimal.Decimal` values bind without error (converted to their exact string representation for SQLite), and unsupported Python objects such as PostGIS geometry are stringified instead of raising a bind error.
+- `EXPORT … FORMAT LATEX` into a ZIP archive no longer crashes with `AttributeError`.
+- Connecting to a server-based database without a server or database name now stops with a clear error message instead of a driver traceback.
 
 ______________________________________________________________________
 

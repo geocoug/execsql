@@ -73,7 +73,7 @@ class DuckDBDatabase(Database):
                 self.rollback()
                 raise
 
-    def view_exists(self, view_name: str) -> bool:
+    def view_exists(self, view_name: str, schema_name: str | None = None) -> bool:
         """Return True if the named view exists in the DuckDB database."""
         # DuckDB information_schema has no 'views' table; views are listed in 'tables'
         return self.table_exists(view_name)

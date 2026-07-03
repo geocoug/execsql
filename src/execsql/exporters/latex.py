@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from execsql.exceptions import ErrInfo
-from execsql.exporters.zip import WriteableZipfile
+from execsql.exporters.zip import ZipWriter
 import execsql.state as _state
 
 __all__ = ["export_latex", "write_query_to_latex"]
@@ -62,7 +62,7 @@ def export_latex(
                 ef = EncodedFile(outfile, conf.output_encoding)
                 f = ef.open("wt")
             else:
-                f = WriteableZipfile(zipfile).open(outfile, append)
+                f = ZipWriter(zipfile, outfile, append)
         try:
             f.write("\\documentclass{article}\n")
             f.write("\\begin{document}\n")

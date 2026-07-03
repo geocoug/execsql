@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 """
 Custom exception hierarchy for execsql (internal use).
 
@@ -110,15 +112,15 @@ class ErrInfo(ExecSqlError):
         exception_msg: str | None = None,
         other_msg: str | None = None,
     ) -> None:
-        self.type = type
-        self.command = command_text
-        self.exception = None if not exception_msg else exception_msg.replace("\n", "\n     ")
-        self.other = None if not other_msg else other_msg.replace("\n", "\n     ")
-        self.script_file = None
-        self.script_line_no = None
-        self.cmd = None
-        self.cmdtype = None
-        self.error_message = None
+        self.type: str = type
+        self.command: str | None = command_text
+        self.exception: str | None = None if not exception_msg else exception_msg.replace("\n", "\n     ")
+        self.other: str | None = None if not other_msg else other_msg.replace("\n", "\n     ")
+        self.script_file: str | None = None
+        self.script_line_no: int | None = None
+        self.cmd: str | None = None
+        self.cmdtype: str | None = None
+        self.error_message: str | None = None
         # Pass a concise message to Exception so str(e), e.args, and
         # standard loggers produce useful output.
         super().__init__(self.other or self.exception or self.type)
@@ -133,7 +135,8 @@ class ErrInfo(ExecSqlError):
             if self.cmdtype == "cmd":
                 return f"Metacommand: {self.cmd}"
             else:
-                return f"SQL statement: \n         {self.cmd.replace(chr(10), chr(10) + '         ')}"
+                cmd = "" if self.cmd is None else self.cmd
+                return f"SQL statement: \n         {cmd.replace(chr(10), chr(10) + '         ')}"
         return None
 
     def eval_err(self) -> str:
@@ -199,7 +202,7 @@ class DataTypeError(ExecSqlError):
 class DbTypeError(ExecSqlError):
     """Raised when a DataType has no DBMS-specific mapping for the active database."""
 
-    def __init__(self, dbms_id: str, data_type: object, error_msg: str) -> None:
+    def __init__(self, dbms_id: str, data_type: Any, error_msg: str) -> None:
         self.dbms_id = dbms_id
         self.data_type = data_type
         self.error_msg = error_msg or "Unspecified error"

@@ -34,7 +34,9 @@ provided at module level for every supported DBMS:
 import collections
 import datetime
 import re
+from collections.abc import Callable
 from decimal import Decimal
+from typing import Any, cast
 
 from execsql.exceptions import DataTypeError, DbTypeError
 from execsql.utils.numeric import leading_zero_num
@@ -71,13 +73,13 @@ __all__ = [
 class DataType:
     """Abstract base class for all data-type matchers used during column inference."""
 
-    data_type_name = None
-    data_type = None
+    data_type_name: str = "unknown"
+    data_type: type[Any] = object
     lenspec = False  # Is a length specification required for a (SQL) declaration of this data type?
     varlen = False  # Do we need to know if a set of data values varies in length?
     precspec = False  # Do we need to know the precision and scale of the data?
-    precision = None  # Precision (total number of digits) for numeric values.
-    scale = None  # Scale (number of digits to the right of the decimal point) for numeric values.
+    precision: int | None = None  # Precision (total number of digits) for numeric values.
+    scale: int | None = None  # Scale (number of digits to the right of the decimal point) for numeric values.
     _CONV_ERR = "Can't convert %s"
 
     def __repr__(self) -> str:
@@ -402,7 +404,7 @@ class DT_Integer(DataType):
         if isinstance(data, str) and not self._INT_RX.match(data):
             raise DataTypeError(self.data_type_name, self._CONV_ERR % data)
         try:
-            i = int(data)
+            i = int(cast(Any, data))
         except Exception as e:
             raise DataTypeError(self.data_type_name, self._CONV_ERR % data) from e
         if leading_zero_num(data):
@@ -440,7 +442,7 @@ class DT_Long(DataType):
         if isinstance(data, str) and not data.isdigit():
             raise DataTypeError(self.data_type_name, self._CONV_ERR % data)
         try:
-            i = int(data)
+            i = int(cast(Any, data))
         except Exception as e:
             raise DataTypeError(self.data_type_name, self._CONV_ERR % data) from e
         return i
@@ -466,7 +468,7 @@ class DT_Float(DataType):
         if isinstance(data, str) and not self._FLOAT_RX.match(data):
             return False
         try:
-            float(data)
+            float(cast(Any, data))
         except Exception:
             return False
         return True
@@ -481,7 +483,7 @@ class DT_Float(DataType):
         if isinstance(data, str) and not self._FLOAT_RX.match(data):
             raise DataTypeError(self.data_type_name, self._CONV_ERR % data)
         try:
-            i = float(data)
+            i = float(cast(Any, data))
         except Exception as e:
             raise DataTypeError(self.data_type_name, self._CONV_ERR % data) from e
         return i
@@ -503,11 +505,16 @@ class DT_Decimal(DataType):
         # 'dec' should be Decimal.
         x = dec.as_tuple()
         digits = len(x.digits)
-        if x.exponent < 0 and abs(x.exponent) > digits:
-            self.precision = abs(x.exponent) + 1
+        exponent = x.exponent
+        if not isinstance(exponent, int):
+            self.precision = digits
+            self.scale = 0
+            return
+        if exponent < 0 and abs(exponent) > digits:
+            self.precision = abs(exponent) + 1
         else:
             self.precision = digits
-        self.scale = abs(x.exponent)
+        self.scale = abs(exponent)
 
     def _from_data(self, data: object) -> object:
         if data is None:
@@ -643,22 +650,22 @@ class DbType:
         #   3. a function to perform a dbms-specific modification of the type conversion result
         #   4. the precision for numeric data types.
         #   5. the scale for numeric data types.
-        self.dialect = None
+        self.dialect: dict[type[DataType], tuple[str, bool, str | None, Callable[[Any], Any] | None, Any, Any]] = {}
         # The dt_xlate dictionary translates one data type to another.
-        self.dt_xlate: dict = {}
+        self.dt_xlate: dict[type[DataType], type[DataType]] = {}
 
     def __repr__(self) -> str:
         return f"DbType({self.dbms_id!r}, {self.quotechars!r})"
 
     def name_datatype(
         self,
-        data_type: object,
+        data_type: type[DataType],
         dbms_name: str,
         length_required: bool = False,
-        casting_name: object = None,
-        conv_mod_fn: object = None,
-        precision: object = None,
-        scale: object = None,
+        casting_name: str | None = None,
+        conv_mod_fn: Callable[[Any], Any] | None = None,
+        precision: Any = None,
+        scale: Any = None,
     ) -> None:
         """Register a DBMS-specific SQL type name for a DataType class."""
         # data_type is a DataType class object.
@@ -666,11 +673,9 @@ class DbType:
         # length_required indicates whether length information is required.
         # casting_name is an alternate to the data type name to use in SQL "cast(x as <casting_name>)" expressions.
         # conv_mod_fn is a function that modifies the result of data_type().from_data(x).
-        if self.dialect is None:
-            self.dialect = {}
         self.dialect[data_type] = (dbms_name, length_required, casting_name, conv_mod_fn, precision, scale)
 
-    def datatype_name(self, data_type: object) -> str:
+    def datatype_name(self, data_type: type[DataType]) -> str:
         """Return the DBMS-specific SQL type name for the given DataType class."""
         # A convenience function to simplify access to data type names.
         try:
@@ -690,7 +695,7 @@ class DbType:
             return self.quotechars[0] + dbms_object + self.quotechars[1]
         return dbms_object
 
-    def spec_type(self, data_type: object) -> object:
+    def spec_type(self, data_type: type[DataType]) -> type[DataType]:
         """Return the translated data type, or the original if no translation exists."""
         # Returns a translated data type or the original if there is no translation.
         if data_type in self.dt_xlate:
@@ -700,11 +705,11 @@ class DbType:
     def column_spec(
         self,
         column_name: str,
-        data_type: object,
-        max_len: object = None,
+        data_type: type[DataType],
+        max_len: int | None = None,
         is_nullable: bool = False,
-        precision: object = None,
-        scale: object = None,
+        precision: int | None = None,
+        scale: int | None = None,
     ) -> str:
         """Return a column specification string suitable for a CREATE TABLE statement."""
         # Returns a column specification as it would be used in a CREATE TABLE statement.

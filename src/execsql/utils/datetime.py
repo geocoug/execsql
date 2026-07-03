@@ -13,7 +13,7 @@ Delegates to ``dateutil.parser.parse()`` for robust, format-agnostic parsing.
 
 import datetime
 import re
-from typing import Any
+from typing import Any, cast
 
 from dateutil import parser as _dateutil_parser
 
@@ -66,7 +66,7 @@ def parse_datetime(datestr: Any) -> datetime.datetime | None:
     if _looks_time_only(datestr):
         return None
     try:
-        return _dateutil_parser.parse(datestr)
+        return cast(datetime.datetime, _dateutil_parser.parse(datestr))
     except (ValueError, OverflowError, TypeError):
         return None
 
@@ -90,7 +90,7 @@ def parse_datetimetz(data: Any) -> datetime.datetime | None:
     if _looks_numeric(data):
         return None
     try:
-        dt = _dateutil_parser.parse(data)
+        dt = cast(datetime.datetime, _dateutil_parser.parse(data))
     except (ValueError, OverflowError, TypeError):
         return None
     if dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None:

@@ -35,7 +35,7 @@ import io
 import os
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from execsql.cli.dsn import _parse_connection_string
 from execsql.config import ConfigData, StatObj, WriteHooks
@@ -401,6 +401,7 @@ def run(
         if script is not None:
             tree = parse_script(str(script), encoding=encoding)
         else:
+            assert sql is not None
             tree = parse_string(sql, source_name="<inline>")
     except ErrInfo as exc:
         return ScriptResult(
@@ -418,6 +419,7 @@ def run(
 
     # Configuration
     conf_overrides: dict[str, Any] = {"script_encoding": encoding}
+    conf: Any
     if config_file is not None:
         # Load a real ConfigData with the explicit config file
         from execsql.script.variables import SubVarSet
@@ -477,7 +479,7 @@ def run(
     ctx.output = WriteHooks(stdout_buf.write, stderr_buf.write)
 
     # No log file for library use
-    ctx.exec_log = _NoOpLogger()
+    ctx.exec_log = cast(Any, _NoOpLogger())
 
     with active_context(ctx):
         # Initialize singletons (CounterVars, Timer, DatabasePool, BatchLevels, etc.)
@@ -494,6 +496,8 @@ def run(
         else:
             db = connection
 
+        assert db is not None
+        assert ctx.dbs is not None
         ctx.dbs.add("initial", db)
         ctx.subvars.add_substitution("$CURRENT_DBMS", db.type.dbms_id)
         ctx.subvars.add_substitution("$CURRENT_DATABASE", db.name())
@@ -542,6 +546,7 @@ def run(
         # Close connection if we own it
         if owns_connection:
             try:
+                assert ctx.dbs is not None
                 ctx.dbs.closeall()
             except Exception:
                 pass
@@ -584,7 +589,7 @@ def _last_source(ctx: RuntimeContext) -> str:
     """Get the source file from the last executed command."""
     lc = ctx.last_command
     if lc is not None and hasattr(lc, "source"):
-        return lc.source
+        return cast(str, lc.source)
     return "<unknown>"
 
 
@@ -592,7 +597,7 @@ def _last_line(ctx: RuntimeContext) -> int | None:
     """Get the line number from the last executed command."""
     lc = ctx.last_command
     if lc is not None and hasattr(lc, "line_no"):
-        return lc.line_no
+        return cast(int | None, lc.line_no)
     return None
 
 

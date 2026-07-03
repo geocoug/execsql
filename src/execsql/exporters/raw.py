@@ -40,19 +40,19 @@ def write_query_raw(
                         else:
                             of.write(bytes(str(col), db_encoding))
     else:
-        of = ZipWriter(zipfile, outfile, append)
+        zip_of: Any = ZipWriter(zipfile, outfile, append)
         try:
             for row in rowsource:
                 for col in row:
                     if isinstance(col, bytearray):
-                        of.write(col)
+                        zip_of.write(col)
                     else:
                         if isinstance(col, str):
-                            of.write(bytes(col, db_encoding))
+                            zip_of.write(bytes(col, db_encoding))
                         else:
-                            of.write(bytes(str(col), db_encoding))
+                            zip_of.write(bytes(str(col), db_encoding))
         finally:
-            of.close()
+            zip_of.close()
 
 
 def write_query_b64(outfile: str, rowsource: Any, append: bool = False, zipfile: str | None = None) -> None:
@@ -65,10 +65,10 @@ def write_query_b64(outfile: str, rowsource: Any, append: bool = False, zipfile:
                 for col in row:
                     of.write(base64.standard_b64decode(col))
     else:
-        of = ZipWriter(zipfile, outfile, append)
+        zip_of: Any = ZipWriter(zipfile, outfile, append)
         try:
             for row in rowsource:
                 for col in row:
-                    of.write(base64.standard_b64decode(col))
+                    zip_of.write(base64.standard_b64decode(col))
         finally:
-            of.close()
+            zip_of.close()

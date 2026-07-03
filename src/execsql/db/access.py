@@ -12,7 +12,7 @@ import datetime
 import re
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from execsql.db.base import Database
 from execsql.exceptions import ErrInfo
@@ -69,7 +69,7 @@ class AccessDatabase(Database):
         # Encoding is only applicable to Jet < 4.0: non-accdb databases.
         self.encoding = encoding or "windows-1252"
         self.encode_commands = True
-        self.dao_conn = None
+        self.dao_conn: Any = None
         self.conn = None  # ODBC connection
         self.paramstr = "?"
         self.dt_cast = dict(self.dt_cast)  # Copy the lazy-initialized default before overriding.
@@ -253,6 +253,7 @@ class AccessDatabase(Database):
             else:
                 self.dao_flush_check()
                 with self._cursor() as curs:
+                    encoded_sql: Any
                     if self.jet4:
                         encoded_sql = str(sql)
                     else:
@@ -398,7 +399,7 @@ class AccessDatabase(Database):
         tablename = self.type.quoted(tablename)
         self.execute(f"drop table {tablename};")
 
-    def as_datetime(self, val: Any) -> datetime.datetime | None:
+    def as_datetime(self, val: Any) -> datetime.datetime | datetime.date | datetime.time | None:
         """Convert a value to a datetime object suitable for Access."""
         from execsql.types import DT_Timestamp, DT_Date, DT_Time, DataTypeError
 
@@ -414,7 +415,7 @@ class AccessDatabase(Database):
                     v = DT_Date().from_data(val)
                 except DataTypeError:
                     # If this generates an exception, let it go up to get caught.
-                    v = DT_Time().from_data(val)
+                    v = cast(datetime.time, DT_Time().from_data(val))
                     n = datetime.datetime.now()
                     v = datetime.datetime(
                         n.year,
@@ -427,7 +428,7 @@ class AccessDatabase(Database):
                     )
             except Exception:
                 raise
-            return v
+            return cast(datetime.datetime, v)
 
     def int_or_bool(self, val: Any) -> int | None:
         """Convert a value to an integer, recognizing Access boolean values."""

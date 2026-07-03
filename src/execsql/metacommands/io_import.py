@@ -296,6 +296,7 @@ def x_import_xls_pattern(**kwargs: Any) -> None:
     if len(filename) < 4:
         raise ErrInfo(type="cmd", other_msg=f"{filename} is not a recognizable Excel spreadsheet name.")
     ext3 = filename[-3:].lower()
+    wbk: Any
     if ext3 == "xls":
         wbk = XlsFile()
     elif ext3 == "lsx":

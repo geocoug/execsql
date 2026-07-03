@@ -139,7 +139,7 @@ class JinjaTemplateReport:
         try:
             ofile.write(self.template.render(headers=headers, datatable=data_dict_rows))
         except self._jinja2.TemplateSyntaxError as e:
-            raise ErrInfo("error", other_msg=e.message + f" on template line {e.lineno}") from e
+            raise ErrInfo("error", other_msg=f"{e} on template line {e.lineno}") from e
         except self._jinja2.TemplateError as e:
             raise ErrInfo("error", other_msg=f"Jinja2 template error ({e.message})") from e
         finally:
@@ -160,6 +160,7 @@ def report_query(
     conf = _state.conf
     _state.status.sql_error = False
     headers, ddict = db.select_rowdict(select_stmt)
+    t: Any
     if conf.template_processor == "jinja":
         t = JinjaTemplateReport(template_file)
     else:

@@ -806,11 +806,10 @@ class TestDbType:
         with pytest.raises(DbTypeError):
             dbt.datatype_name(DT_Integer)
 
-    def test_name_datatype_creates_dialect(self):
+    def test_name_datatype_populates_dialect(self):
         dbt = DbType("NewDB", '""')
-        assert dbt.dialect is None
+        assert dbt.dialect == {}
         dbt.name_datatype(DT_Integer, "INT")
-        assert dbt.dialect is not None
         assert DT_Integer in dbt.dialect
 
 

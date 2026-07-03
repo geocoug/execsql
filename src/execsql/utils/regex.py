@@ -24,7 +24,7 @@ __all__ = [
 ]
 
 
-def ins_rxs(rx_list: tuple, fragment1: object, fragment2: object) -> tuple:
+def ins_rxs(rx_list: tuple[str, ...], fragment1: object, fragment2: object) -> tuple[str, ...]:
     # Returns a tuple of all strings consisting of elements of the 'rx_list' tuple
     # inserted between 'fragment1' and 'fragment2'.  The fragments may themselves
     # be tuples.
@@ -34,7 +34,7 @@ def ins_rxs(rx_list: tuple, fragment1: object, fragment2: object) -> tuple:
         fragment2 = ("",)
     if not isinstance(fragment2, tuple):
         fragment2 = (fragment2,)
-    rv = []
+    rv: list[str] = []
     for te in rx_list:
         for f1 in fragment1:
             for f2 in fragment2:
@@ -42,12 +42,12 @@ def ins_rxs(rx_list: tuple, fragment1: object, fragment2: object) -> tuple:
     return tuple(rv)
 
 
-def ins_quoted_rx(fragment1: object, fragment2: object, rx: str) -> tuple:
+def ins_quoted_rx(fragment1: object, fragment2: object, rx: str) -> tuple[str, ...]:
     return ins_rxs((rx, rf'"{rx}"'), fragment1, fragment2)
 
 
-def ins_schema_rxs(fragment1: object, fragment2: object, suffix: str | None = None) -> tuple:
-    schema_exprs = (
+def ins_schema_rxs(fragment1: object, fragment2: object, suffix: str | None = None) -> tuple[str, ...]:
+    schema_exprs: tuple[str, ...] = (
         r'"(?P<schema>[A-Za-z0-9_\- ]+)"',
         r"(?P<schema>[A-Za-z0-9_\-]+)",
         r"\[(?P<schema>[A-Za-z0-9_\- ]+)\]",
@@ -57,8 +57,8 @@ def ins_schema_rxs(fragment1: object, fragment2: object, suffix: str | None = No
     return ins_rxs(schema_exprs, fragment1, fragment2)
 
 
-def ins_table_rxs(fragment1: object, fragment2: object, suffix: str | None = None) -> tuple:
-    tbl_exprs = (
+def ins_table_rxs(fragment1: object, fragment2: object, suffix: str | None = None) -> tuple[str, ...]:
+    tbl_exprs: tuple[str, ...] = (
         r'(?:"(?P<schema>[A-Za-z0-9_\- ]+)"\.)?"(?P<table>[A-Za-z0-9_\-\# ]+)"',
         r"(?:(?P<schema>[A-Za-z0-9_\-]+)\.)?(?P<table>[A-Za-z0-9_\-\#]+)",
         r'(?:"(?P<schema>[A-Za-z0-9_\- ]+)"\.)?(?P<table>[A-Za-z0-9_\-\#]+)',
@@ -75,7 +75,7 @@ def ins_table_rxs(fragment1: object, fragment2: object, suffix: str | None = Non
     return ins_rxs(tbl_exprs, fragment1, fragment2)
 
 
-def ins_table_list_rxs(fragment1: object, fragment2: object) -> tuple:
+def ins_table_list_rxs(fragment1: object, fragment2: object) -> tuple[str, ...]:
     tbl_exprs = (
         r'(?:(?P<tables>(?:"[A-Za-z0-9_\- ]+"\.)?"[A-Za-z0-9_\-\# ]+"(?:\s*,\s*(?:"[A-Za-z0-9_\- ]+"\.)?"[A-Za-z0-9_\-\# ]+")*))',
         r"(?:(?P<tables>(?:[A-Za-z0-9_\-]+\.)?[A-Za-z0-9_\-\#]+(?:\s*,\s*(?:[A-Za-z0-9_\-]+\.)?[A-Za-z0-9_\-\#]+)*))",
@@ -83,7 +83,7 @@ def ins_table_list_rxs(fragment1: object, fragment2: object) -> tuple:
     return ins_rxs(tbl_exprs, fragment1, fragment2)
 
 
-def ins_fn_rxs(fragment1: object, fragment2: object, symbolicname: str = "filename") -> tuple:
+def ins_fn_rxs(fragment1: object, fragment2: object, symbolicname: str = "filename") -> tuple[str, ...]:
     if os.name == "posix":
         fns = (
             rf"(?P<{symbolicname}>[\w\.\-\\\/\'~`!@#$^&()+={{}}\[\]:;,]*[\w\.\-\\\/\'~`!@#$^&(+={{}}\[\]:;,])",

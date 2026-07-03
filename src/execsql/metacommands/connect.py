@@ -27,7 +27,7 @@ Plus the connection-management handlers:
 """
 
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import execsql.state as _state
 from execsql.db.access import AccessDatabase  # noqa: F401 — used in x_connect_access; module-level for test patchability
@@ -498,7 +498,7 @@ def x_pg_vacuum(**kwargs: Any) -> None:
     db = _state.dbs.current()
     if db.type == dbt_postgres:
         args = kwargs["vacuum_args"]
-        db.vacuum(args)
+        cast(Any, db).vacuum(args)
 
 
 def x_daoflushdelay(**kwargs: Any) -> None:

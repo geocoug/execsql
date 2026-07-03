@@ -130,7 +130,7 @@ class SQLiteDatabase(Database):
                 ) from e
             return [d[0] for d in curs.description]
 
-    def view_exists(self, view_name: str) -> bool:
+    def view_exists(self, view_name: str, schema_name: str | None = None) -> bool:
         """Return True if the named view exists in the SQLite database."""
         # Match case-insensitively — see table_exists().
         with self._cursor() as curs:

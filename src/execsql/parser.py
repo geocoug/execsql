@@ -23,7 +23,7 @@ Classes:
 """
 
 import re
-from typing import Any
+from typing import Any, cast
 
 from execsql.exceptions import CondParserError, NumericParserError
 
@@ -154,18 +154,18 @@ class CondAstNode(CondTokens):
         if self.type == self.CONDITIONAL:
             exec_fn = self.left[0].exec_fn
             cmdargs = self.left[1]
-            return exec_fn(**cmdargs)
+            return bool(exec_fn(**cmdargs))
         if self.type == self.NOT:
             return not self.left.eval()
         lcond = self.left.eval()
         if self.type == self.AND:
             if not lcond:
                 return False
-            return self.right.eval()
+            return cast(bool, self.right.eval())
         if self.type == self.OR:
             if lcond:
                 return True
-            return self.right.eval()
+            return cast(bool, self.right.eval())
         raise CondParserError(f"Unknown conditional node type: {self.type}")
 
 
@@ -254,10 +254,10 @@ class CondParser(CondTokens):
         # conditionallist is a module-level global in the main execsql module
         import execsql.state as _state
 
-        m1 = self.cond_expr.match_metacommand(_state.conditionallist)
-        if m1 is not None:
-            m1[1]["metacommandline"] = self.condexpr
-            return CondAstNode(self.CONDITIONAL, m1, None)
+        matched_metacommand = self.cond_expr.match_metacommand(_state.conditionallist)
+        if matched_metacommand is not None:
+            matched_metacommand[1]["metacommandline"] = self.condexpr
+            return CondAstNode(self.CONDITIONAL, matched_metacommand, None)
         else:
             if self.cond_expr.match_str("(") is not None:
                 m1 = self.expression()

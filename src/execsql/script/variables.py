@@ -91,7 +91,7 @@ class SubVarSet:
         self._lazy_providers: dict[str, Any] = {}
         self.prefix_list: list[str] = ["$", "&", "@"]
         # Don't construct/compile on init because deepcopy() can't handle compiled regexes.
-        self.var_rx = None
+        self.var_rx: re.Pattern[str] | None = None
 
     @property
     def substitutions(self) -> list[tuple]:
@@ -114,7 +114,9 @@ class SubVarSet:
     def var_name_ok(self, varname: str) -> bool:
         if self.var_rx is None:
             self.compile_var_rx()
-        return self.var_rx.match(varname) is not None
+        var_rx = self.var_rx
+        assert var_rx is not None
+        return var_rx.match(varname) is not None
 
     def check_var_name(self, varname: str) -> None:
         if not self.var_name_ok(varname.lower()):

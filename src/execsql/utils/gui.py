@@ -19,7 +19,7 @@ their bodies to avoid circular imports.
 from __future__ import annotations
 
 import sys
-from typing import Any
+from typing import Any, cast
 
 __all__ = [
     # Constants
@@ -221,7 +221,7 @@ def gui_console_isrunning() -> bool:
     clicking the Tkinter window's close button).
     """
     if _active_backend is not None:
-        return _active_backend.query_console({}).get("console_running", False)
+        return cast(bool, _active_backend.query_console({}).get("console_running", False))
     return _console_running
 
 
@@ -245,6 +245,7 @@ def enable_gui() -> None:
     # Already initialised — nothing to do.
     if _active_backend is not None:
         return
+    backend: Any
 
     framework = _state.conf.gui_framework if _state.conf else "tkinter"
 
@@ -457,11 +458,12 @@ def _apply_connect_result(alias: str, result: dict) -> None:
     )
 
     db_type = result.get("db_type", "l")
-    server = result.get("server")
-    database = result.get("database")
-    db_file = result.get("db_file")
-    username = result.get("username")
+    server = str(result.get("server") or "")
+    database = str(result.get("database") or "")
+    db_file = str(result.get("db_file") or "")
+    username = str(result.get("username") or "")
 
+    db: Any
     if db_type == "p":
         db = db_Postgres(server, database, user=username, pw_needed=True)
     elif db_type == "s":
@@ -613,7 +615,7 @@ def pause(
     old_settings = termios.tcgetattr(fd)
 
     timer_handler: TimerHandler | None = None
-    old_alarm = signal.SIG_DFL
+    old_alarm: Any = signal.SIG_DFL
 
     try:
         tty.setraw(fd)
@@ -667,6 +669,8 @@ def pause_win(
     """
     try:
         import msvcrt
+
+        msvcrt_mod: Any = msvcrt
     except ImportError:
         # Not on Windows — delegate to the POSIX implementation.
         return pause(text, action=action, countdown=countdown, timeunit=timeunit)
@@ -690,8 +694,8 @@ def pause_win(
                 "{:8.1f}  |{}{}|\r".format(remaining, "+" * bar_left, "-" * (bar_len - bar_left)),
             )
             sys.stdout.flush()
-            if msvcrt.kbhit():
-                ch = msvcrt.getwch()
+            if msvcrt_mod.kbhit():
+                ch = msvcrt_mod.getwch()
                 if ch in ("\r", "\n"):
                     _clear_progress_line()
                     return 0
@@ -703,8 +707,8 @@ def pause_win(
         sys.stderr.write("Press Enter to continue, Esc to quit...\n")
         sys.stderr.flush()
         while True:
-            if msvcrt.kbhit():
-                ch = msvcrt.getwch()
+            if msvcrt_mod.kbhit():
+                ch = msvcrt_mod.getwch()
                 if ch in ("\r", "\n"):
                     return 0
                 if ch == "\x1b":

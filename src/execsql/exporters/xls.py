@@ -19,7 +19,7 @@ Both back-ends are optional dependencies; install via
 
 import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from execsql.exceptions import XlsFileError, XlsxFileError
 from execsql.utils.errors import fatal_error
@@ -38,7 +38,7 @@ class XlsFile:
 
         def __init__(self) -> None:
             """Initialise an empty message list."""
-            self.log_msgs = []
+            self.log_msgs: list[str] = []
 
         def write(self, msg: str) -> None:
             """Append a log message to the internal list."""
@@ -52,9 +52,9 @@ class XlsFile:
             self._xlrd = xlrd
         except ImportError:
             fatal_error("The xlrd library is needed to read Excel (.xls) spreadsheets.")
-        self.filename = None
-        self.encoding = None
-        self.wbk = None
+        self.filename: str | None = None
+        self.encoding: str | None = None
+        self.wbk: Any = None
         self.datemode = 0
         self.errlog = self.XlsLog()
 
@@ -177,7 +177,7 @@ class XlsxFile:
 
         def __init__(self) -> None:
             """Initialise an empty message list."""
-            self.log_msgs = []
+            self.log_msgs: list[str] = []
 
         def write(self, msg: str) -> None:
             """Append a log message to the internal list."""
@@ -191,9 +191,9 @@ class XlsxFile:
             self._openpyxl = openpyxl
         except ImportError:
             fatal_error("The openpyxl library is needed to read Excel (.xlsx) spreadsheets.")
-        self.filename = None
-        self.encoding = None
-        self.wbk = None
+        self.filename: str | None = None
+        self.encoding: str | None = None
+        self.wbk: Any = None
         self.read_only = False
         self.errlog = self.XlsxLog()
 
@@ -224,7 +224,7 @@ class XlsxFile:
 
     def sheetnames(self) -> list[str]:
         """Return the list of worksheet names in the open workbook."""
-        return self.wbk.sheetnames
+        return cast(list[str], self.wbk.sheetnames)
 
     def sheet_named(self, sheetname: Any) -> Any:
         """Return the sheet matching a name or 1-based integer index."""

@@ -113,10 +113,13 @@ def _dispatch_format(
     elif filefmt == "xlsx":
         write_query_to_xlsx(select_stmt, db, outfile, append, sheetname=sheetname, desc=description)
     elif filefmt == "duckdb":
+        assert tablename is not None
         write_query_to_duckdb(select_stmt, db, outfile, append, tablename=tablename)
     elif filefmt == "sqlite":
+        assert tablename is not None
         write_query_to_sqlite(select_stmt, db, outfile, append, tablename=tablename)
     elif filefmt == "xml":
+        assert xml_table is not None
         write_query_to_xml(select_stmt, xml_table, db, outfile, append, desc=description, zipfile=zipfilename)
     elif filefmt == "json":
         write_query_to_json(select_stmt, db, outfile, append, desc=description, zipfile=zipfilename)
@@ -131,6 +134,7 @@ def _dispatch_format(
     elif filefmt == "latex":
         write_query_to_latex(select_stmt, db, outfile, append, desc=description, zipfile=zipfilename)
     elif filefmt == "hdf5":
+        assert hdf5_table is not None
         write_query_to_hdf5(hdf5_table, select_stmt, db, outfile, append, desc=description)
     elif filefmt == "yaml":
         write_query_to_yaml(select_stmt, db, outfile, append, desc=description, zipfile=zipfilename)

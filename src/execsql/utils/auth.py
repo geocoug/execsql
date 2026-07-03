@@ -26,6 +26,7 @@ Keyring service names follow the pattern
 """
 
 import getpass
+from typing import Any, cast
 
 import execsql.state as _state
 
@@ -181,6 +182,7 @@ def get_password(
     if other_msg is not None:
         prompt = f"{prompt}\n{other_msg}"
 
+    passwd = ""
     # Try GUI path if a GUI manager thread is running.
     use_gui = False
     try:
@@ -189,9 +191,10 @@ def get_password(
         gui_manager_thread = getattr(_state, "gui_manager_thread", None)
         gui_manager_queue = getattr(_state, "gui_manager_queue", None)
         if gui_manager_thread:
-            return_queue = queue.Queue()
+            return_queue: queue.Queue[Any] = queue.Queue()
             from execsql.utils.gui import GuiSpec, QUERY_CONSOLE
 
+            assert gui_manager_queue is not None
             gui_manager_queue.put(GuiSpec(QUERY_CONSOLE, {}, return_queue))
             user_response = return_queue.get(block=True)
             use_gui = user_response["console_running"]
@@ -215,10 +218,11 @@ def get_password(
                 "hidetext": True,
             }
             gui_manager_queue = getattr(_state, "gui_manager_queue", None)
+            assert gui_manager_queue is not None
             gui_manager_queue.put(GuiSpec(GUI_DISPLAY, gui_args, return_queue))
             user_response = return_queue.get(block=True)
             btn = user_response["button"]
-            passwd = user_response["return_value"]
+            passwd = cast(str, user_response["return_value"])
             if not btn and _state.status and _state.status.cancel_halt:
                 if _state.exec_log:
                     _state.exec_log.log_exit_halt(

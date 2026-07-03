@@ -166,7 +166,7 @@ class WriteSpec:
                 except ConsoleUIError as e:
                     _state.output.reset()
                     _state.exec_log.log_status_info(
-                        f"Console UI write failed (message {{{e.value}}}); output reset to stdout.",
+                        f"Console UI write failed (message {{{e}}}); output reset to stdout.",
                     )
                     _state.output.write(msg)
             if conf.tee_write_log:

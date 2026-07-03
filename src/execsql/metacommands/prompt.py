@@ -81,7 +81,7 @@ def x_prompt(**kwargs: Any) -> None:
     cmd = f"select * from {sq_name};"
     colnames, rows = db.select_data(cmd)
     enable_gui()
-    return_queue = _queue.Queue()
+    return_queue: _queue.Queue[Any] = _queue.Queue()
     gui_args = {
         "title": table,
         "message": message,
@@ -117,7 +117,7 @@ def x_prompt_enter(**kwargs: Any) -> None:
     else:
         hdrs, rows = None, None
     enable_gui()
-    return_queue = _queue.Queue()
+    return_queue: _queue.Queue[Any] = _queue.Queue()
     gui_args = {
         "title": "Enter a value",
         "message": message,
@@ -289,7 +289,7 @@ def x_prompt_entryform(**kwargs: Any) -> None:
         sq_name = db.schema_qualified_table_name(display_schema, display_table)
         colnames, rows = db.select_data(f"select * from {sq_name};")
     enable_gui()
-    return_queue = _queue.Queue()
+    return_queue: _queue.Queue[Any] = _queue.Queue()
     gui_args = {
         "title": "Entry",
         "message": message,
@@ -304,18 +304,20 @@ def x_prompt_entryform(**kwargs: Any) -> None:
     entries = user_response["return_value"]
     script, line_no = current_script_line()
     if btn:
-        for e in entries:
-            if e.value:
-                value = str(e.value)
+        assert entries is not None
+        assert subvar is not None
+        for entry in entries:
+            if entry.value:
+                value = str(entry.value)
                 subvarset = _state.subvars if subvar[0] != "~" else _state.current_localvars()
-                subvarset.add_substitution(e.name, value)
+                subvarset.add_substitution(entry.name, value)
                 _state.exec_log.log_status_info(
-                    f"Substitution variable {e.name} set to {{{value}}} on line {line_no} of {script}",
+                    f"Substitution variable {entry.name} set to {{{value}}} on line {line_no} of {script}",
                 )
             else:
-                if _state.subvars.sub_exists(e.name):
+                if _state.subvars.sub_exists(entry.name):
                     _state.exec_log.log_status_info(
-                        f"Substitution variable {e.name} removed on line {line_no} of {script}",
+                        f"Substitution variable {entry.name} removed on line {line_no} of {script}",
                     )
     else:
         if _state.status.cancel_halt:
@@ -340,7 +342,7 @@ def x_prompt_pause(**kwargs: Any) -> None:
     if timeunit and timeunit.lower() == "minutes":
         maxtime_secs = maxtime_secs * 60
     enable_gui()
-    return_queue = _queue.Queue()
+    return_queue: _queue.Queue[Any] = _queue.Queue()
     gui_args = {
         "title": f"Script {current_script_line()[0]}",
         "message": msg,
@@ -401,7 +403,7 @@ def prompt_compare(button_list: list, **kwargs: Any) -> Any:
             other_msg=f"Specified primary key columns do not exist in PROMPT COMPARE metacommand on line {line_no} of {script}.",
         )
     enable_gui()
-    return_queue = _queue.Queue()
+    return_queue: _queue.Queue[Any] = _queue.Queue()
     gui_args = {
         "title": "Compare data",
         "message": msg,
@@ -458,7 +460,7 @@ def x_prompt_ask(**kwargs: Any) -> None:
     else:
         colnames, rows = None, None
     enable_gui()
-    return_queue = _queue.Queue()
+    return_queue: _queue.Queue[Any] = _queue.Queue()
     gui_args = {
         "title": script,
         "message": kwargs["question"],
@@ -499,7 +501,7 @@ def x_prompt_map(**kwargs: Any) -> None:
     cmd = f"select * from {sq_name};"
     colnames, rows = db.select_data(cmd)
     enable_gui()
-    return_queue = _queue.Queue()
+    return_queue: _queue.Queue[Any] = _queue.Queue()
     gui_args = {
         "title": table,
         "message": message,
@@ -590,7 +592,7 @@ def x_prompt_action(**kwargs: Any) -> None:
         sq_name = db.schema_qualified_table_name(display_schema, display_table)
         colnames, rows = db.select_data(f"select * from {sq_name};")
     enable_gui()
-    return_queue = _queue.Queue()
+    return_queue: _queue.Queue[Any] = _queue.Queue()
     gui_args = {
         "title": "Actions",
         "message": message,
@@ -624,7 +626,7 @@ def x_prompt_savefile(**kwargs: Any) -> None:
         script, lno = current_script_line()
         working_dir = startdir if startdir is not None else str(Path(script).resolve().parent)
         enable_gui()
-        return_queue = _queue.Queue()
+        return_queue: _queue.Queue[Any] = _queue.Queue()
         gui_args = {"working_dir": working_dir, "script": script}
         _state.gui_manager_queue.put(GuiSpec(GUI_SAVEFILE, gui_args, return_queue))
         user_response = return_queue.get(block=True)
@@ -697,7 +699,7 @@ def x_prompt_openfile(**kwargs: Any) -> None:
         script, lno = current_script_line()
         working_dir = startdir if startdir is not None else str(Path(script).resolve().parent)
         enable_gui()
-        return_queue = _queue.Queue()
+        return_queue: _queue.Queue[Any] = _queue.Queue()
         gui_args = {"working_dir": working_dir, "script": script}
         _state.gui_manager_queue.put(GuiSpec(GUI_OPENFILE, gui_args, return_queue))
         user_response = return_queue.get(block=True)
@@ -756,7 +758,7 @@ def x_prompt_directory(**kwargs: Any) -> None:
         script, lno = current_script_line()
         working_dir = startdir if startdir is not None else str(Path(script).resolve().parent)
         enable_gui()
-        return_queue = _queue.Queue()
+        return_queue: _queue.Queue[Any] = _queue.Queue()
         gui_args = {"working_dir": working_dir, "script": script}
         _state.gui_manager_queue.put(GuiSpec(GUI_DIRECTORY, gui_args, return_queue))
         user_response = return_queue.get(block=True)
@@ -818,7 +820,7 @@ def prompt_select_rows(button_list: list, **kwargs: Any) -> Any:
     if len(missing_hdrs) > 0:
         raise ErrInfo("error", other_msg=f"Columns [{', '.join(missing_hdrs)}] are missing from {sq_name2}.")
     enable_gui()
-    return_queue = _queue.Queue()
+    return_queue: _queue.Queue[Any] = _queue.Queue()
     gui_args = {
         "title": "Select rows",
         "message": msg,
@@ -867,7 +869,7 @@ def x_ask(**kwargs: Any) -> None:
     subvar = kwargs["match"]
     script, lno = current_script_line()
     if _state.gui_console:
-        return_queue = _queue.Queue()
+        return_queue: _queue.Queue[Any] = _queue.Queue()
         gui_args = {
             "title": script,
             "message": kwargs["question"],
@@ -919,7 +921,7 @@ def x_pause(**kwargs: Any) -> None:
         maxtime_secs = maxtime_secs * 60
     use_gui = False
     if _state.gui_manager_thread:
-        return_queue = _queue.Queue()
+        return_queue: _queue.Queue[Any] = _queue.Queue()
         _state.gui_manager_queue.put(GuiSpec(QUERY_CONSOLE, {}, return_queue))
         user_response = return_queue.get(block=True)
         use_gui = user_response["console_running"]
@@ -953,7 +955,7 @@ def x_msg(**kwargs: Any) -> None:
     message = kwargs["message"]
     current_script_line()
     enable_gui()
-    return_queue = _queue.Queue()
+    return_queue: _queue.Queue[Any] = _queue.Queue()
     gui_args = {"title": "Message", "message": message}
     _state.gui_manager_queue.put(GuiSpec(GUI_MSG, gui_args, return_queue))
     return_queue.get(block=True)

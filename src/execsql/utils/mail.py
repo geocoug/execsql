@@ -17,6 +17,7 @@ from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pathlib import Path
+from typing import cast
 
 import execsql.state as _state
 from execsql.exceptions import ErrInfo
@@ -48,6 +49,7 @@ class Mailer:
         self.close()
 
     def __init__(self) -> None:
+        self.smtpconn: smtplib.SMTP
         conf = _state.conf
         if conf.smtp_host is None:
             raise ErrInfo(type="error", other_msg="Can't send email; the email host is not configured.")
@@ -138,14 +140,16 @@ class MailSpec:
         self.sent = False
 
     @staticmethod
-    def _expand(text: str) -> str:
+    def _expand(text: str | None) -> str | None:
         """Expand local and global substitution variables in *text*."""
+        if text is None:
+            return None
         result = text
         localvars = _state.current_localvars()
         if localvars is not None:
             result, _ = localvars.substitute_all(result)
         result, _ = _state.subvars.substitute_all(result)
-        return result
+        return cast(str, result)
 
     def send(self) -> None:
         if self.repeatable or not self.sent:
@@ -153,6 +157,9 @@ class MailSpec:
             send_from = self._expand(self.send_from)
             send_to = self._expand(self.send_to)
             subject = self._expand(self.subject)
+            assert send_from is not None
+            assert send_to is not None
+            assert subject is not None
             msg_content = self._expand(self.msg_content)
             content_filename = self._expand(self.content_filename)
             attach_filename = self._expand(self.attach_filename)

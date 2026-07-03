@@ -17,7 +17,7 @@ Provides:
 import copy
 import re
 import sys
-from typing import Any
+from typing import Any, cast
 
 from execsql.utils.fileio import EncodedFile
 from execsql.exporters.zip import ZipWriter
@@ -42,6 +42,7 @@ class LineDelimiter:
         self.joinchar = delim if delim else ""
         self.quotechar = quote
         self.quote_all_text = _state.conf.quote_all_text if _state.conf else False
+        self.quotedquote: str | None
         if quote:
             if escchar:
                 self.quotedquote = escchar + quote
@@ -63,6 +64,7 @@ class LineDelimiter:
                         or ("\n" in e)
                         or ("\r" in e)
                     ):
+                        assert self.quotedquote is not None
                         d_row.append(f"{self.quotechar}{e.replace(self.quotechar, self.quotedquote)}{self.quotechar}")
                     else:
                         d_row.append(e)
@@ -159,12 +161,12 @@ class CsvFile(EncodedFile):
         self.csvfname = csvfname
         self.junk_header_lines = junk_header_lines
         self.lineformat_set = False  # Indicates whether delimiter, quotechar, and escapechar have been set
-        self.delimiter = None
-        self.quotechar = None
-        self.escapechar = None
-        self.parse_errors = []
-        self.table_data = None  # Set to a DataTable object by 'evaluate_column_types()'
-        self.blank_cols = []  # Indexes of blank column headers--columns may be deleted
+        self.delimiter: str | None = None
+        self.quotechar: str | None = None
+        self.escapechar: str | None = None
+        self.parse_errors: list[str] = []
+        self.table_data: DataTable | None = None  # Set by 'evaluate_column_types()'
+        self.blank_cols: list[int] = []  # Indexes of blank column headers--columns may be deleted
 
     def __repr__(self) -> str:
         return f"CsvFile({self.csvfname!r}, {self.encoding!r})"
@@ -193,8 +195,8 @@ class CsvFile(EncodedFile):
         def __init__(self, line_text: str) -> None:
             """Store the raw line text and prepare delimiter-count storage."""
             self.text = line_text
-            self.delim_counts = {}
-            self.item_errors = []  # A list of error messages.
+            self.delim_counts: dict[str, int] = {}
+            self.item_errors: list[str] = []  # A list of error messages.
 
         def __str__(self) -> str:
             return "; ".join(
@@ -220,14 +222,14 @@ class CsvFile(EncodedFile):
             """Return the previously counted occurrence total for the given delimiter."""
             return self.delim_counts[delim]
 
-        def _well_quoted(self, element: str, qchar: str):
+        def _well_quoted(self, element: str, qchar: str | None):
             # A well-quoted element has either no quotes, a quote on each end and none
             # in the middle, or quotes on both ends and every internal quote is either
             # doubled or escaped.
             # Returns a tuple of three booleans; the first indicates whether the element is
             # well-quoted, the second indicates whether the quote character is used
             # at all, and the third indicates whether the escape character is used.
-            if qchar not in element:
+            if qchar is None or qchar not in element:
                 return (True, False, False)
             if len(element) == 0:
                 return (True, False, False)
@@ -439,7 +441,7 @@ class CsvFile(EncodedFile):
             delim_wts = {}
             for d in delim_stats:
                 delim_wts[d] = delim_stats[d][0] ** 2 * delim_stats[d][1]
-            delim_order = sorted(delim_wts, key=delim_wts.get, reverse=True)
+            delim_order = sorted(delim_wts, key=lambda d: delim_wts[d], reverse=True)
             for d in delim_order:
                 quote_check = eval_quotes(d)
                 if quote_check[0] and quote_check[1]:
@@ -633,6 +635,7 @@ class CsvFile(EncodedFile):
 
         f = self.openclean("rt")
         try:
+            assert self.delimiter is not None
             csv_reader = csv.reader(
                 f,
                 delimiter=self.delimiter,
@@ -644,13 +647,13 @@ class CsvFile(EncodedFile):
                 if len(elements) == 0:
                     break
                 # Normalize empty strings to None for parity with the slow reader.
-                elements = [e if e != "" else None for e in elements]
+                normalized_elements = [e if e != "" else None for e in elements]
                 if conf.del_empty_cols and len(self.blank_cols) > 0:
                     blanks = copy.copy(self.blank_cols)
                     while len(blanks) > 0:
                         b = blanks.pop()
-                        del elements[b]
-                yield elements
+                        del normalized_elements[b]
+                yield normalized_elements
         finally:
             f.close()
 
@@ -721,7 +724,7 @@ class CsvFile(EncodedFile):
             colnames = fold_words(colnames, conf.fold_col_hdrs)
         if conf.dedup_col_hdrs:
             colnames = dedup_words(colnames)
-        return colnames
+        return cast(list[str], colnames)
 
     def column_headers(self) -> list[str]:
         """Return the first row of the file as a list of column header strings."""
@@ -734,6 +737,7 @@ class CsvFile(EncodedFile):
         """Return a :class:`DataTable` describing the file's columns and types."""
         if self.table_data is None:
             self.evaluate_column_types()
+        assert self.table_data is not None
         return self.table_data
 
     def evaluate_column_types(self) -> None:
@@ -746,6 +750,7 @@ class CsvFile(EncodedFile):
 
     def create_table(self, database_type: Any, schemaname: str | None, tablename: str, pretty: bool = False) -> str:
         """Generate a CREATE TABLE SQL statement for this file's inferred schema."""
+        assert self.table_data is not None
         return self.table_data.create_table(database_type, schemaname, tablename, pretty)
 
 
@@ -787,6 +792,7 @@ def write_delimited_file(
         quote = ""
         escchar = None
     line_delimiter = LineDelimiter(delim, quote, escchar)
+    ofile: Any
     if zipfile is not None:
         ofile = ZipWriter(zipfile, outfile, append)
         fdesc = f"{outfile} in {zipfile}"

@@ -27,6 +27,7 @@ from __future__ import annotations
 import re
 from collections.abc import Iterable
 from pathlib import Path
+from typing import cast
 
 from execsql.exceptions import ErrInfo
 from execsql.utils.errors import write_warning
@@ -555,7 +556,7 @@ def _parse_lines(lines: Iterable[str], source_name: str) -> Script:
                         other_msg=_unclosed_block_msg(block_stack[-1]),
                     )
                 frame = block_stack[-1]
-                script_node = frame.node
+                script_node = cast(ScriptBlock, frame.node)
                 if end_name is not None and end_name != script_node.name:  # type: ignore[union-attr]
                     raise ErrInfo(
                         type="cmd",
@@ -619,8 +620,8 @@ def _parse_lines(lines: Iterable[str], source_name: str) -> Script:
                 frame = block_stack[-1]
                 frame._in_else = False
                 frame._in_elseif = True
-                if_node = frame.node
-                if_node.elseif_clauses.append(  # type: ignore[union-attr]
+                if_node = cast(IfBlock, frame.node)
+                if_node.elseif_clauses.append(
                     ElseIfClause(
                         condition=m.group("cond").strip(),
                         span=SourceSpan(source_name, file_lineno),
@@ -643,11 +644,11 @@ def _parse_lines(lines: Iterable[str], source_name: str) -> Script:
                     span=SourceSpan(source_name, file_lineno),
                 )
                 frame = block_stack[-1]
-                if_node = frame.node
-                if frame._in_elseif and if_node.elseif_clauses:  # type: ignore[union-attr]
-                    if_node.elseif_clauses[-1].condition_modifiers.append(modifier)  # type: ignore[union-attr]
+                if_node = cast(IfBlock, frame.node)
+                if frame._in_elseif and if_node.elseif_clauses:
+                    if_node.elseif_clauses[-1].condition_modifiers.append(modifier)
                 else:
-                    if_node.condition_modifiers.append(modifier)  # type: ignore[union-attr]
+                    if_node.condition_modifiers.append(modifier)
                 continue
 
             # -- ORIF --
@@ -665,11 +666,11 @@ def _parse_lines(lines: Iterable[str], source_name: str) -> Script:
                     span=SourceSpan(source_name, file_lineno),
                 )
                 frame = block_stack[-1]
-                if_node = frame.node
-                if frame._in_elseif and if_node.elseif_clauses:  # type: ignore[union-attr]
-                    if_node.elseif_clauses[-1].condition_modifiers.append(modifier)  # type: ignore[union-attr]
+                if_node = cast(IfBlock, frame.node)
+                if frame._in_elseif and if_node.elseif_clauses:
+                    if_node.elseif_clauses[-1].condition_modifiers.append(modifier)
                 else:
-                    if_node.condition_modifiers.append(modifier)  # type: ignore[union-attr]
+                    if_node.condition_modifiers.append(modifier)
                 continue
 
             # -- ELSE --
@@ -684,7 +685,7 @@ def _parse_lines(lines: Iterable[str], source_name: str) -> Script:
                 frame = block_stack[-1]
                 frame._in_else = True
                 frame._in_elseif = False
-                frame.node.else_span = SourceSpan(source_name, file_lineno)  # type: ignore[union-attr]
+                cast(IfBlock, frame.node).else_span = SourceSpan(source_name, file_lineno)
                 continue
 
             # -- ENDIF --
