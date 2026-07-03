@@ -47,7 +47,7 @@ import os
 import re
 import time as _time
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from execsql.exceptions import ErrInfo
 from execsql.script.ast import (
@@ -98,7 +98,17 @@ def _stack_localvars(ctx: RuntimeContext) -> SubVarSet | None:
     localvars = scope.localvars
     if localvars is None:
         return None
-    return localvars.merge(scope.paramvals)
+    return cast(SubVarSet, localvars.merge(scope.paramvals))
+
+
+def _assert_command_runtime(ctx: RuntimeContext) -> None:
+    """Assert runtime singletons required by command execution are initialised."""
+    assert ctx.conf is not None
+    assert ctx.dbs is not None
+    assert ctx.metacommandlist is not None
+    assert ctx.output is not None
+    assert ctx.status is not None
+    assert ctx.subvars is not None
 
 
 def _push_frame(
@@ -192,6 +202,7 @@ def _eval_condition(
 
 def _set_command_vars(ctx: RuntimeContext, source: str, line_no: int) -> None:
     """Set per-command system variables (current script, line, time)."""
+    assert ctx.subvars is not None
     now = datetime.datetime.now()
     ctx.subvars.add_substitution("$CURRENT_TIME", now.strftime("%Y-%m-%d %H:%M"))
     ctx.subvars.add_substitution("$CURRENT_DATE", now.strftime("%Y-%m-%d"))
@@ -219,9 +230,21 @@ def _exec_sql(
     commit: bool = True,
 ) -> None:
     """Execute a SQL statement against the current database."""
-    ctx.status.sql_error = False
-    if ctx.status.batch.in_batch():
-        ctx.status.batch.using_db(ctx.dbs.current())
+    _assert_command_runtime(ctx)
+    conf = ctx.conf
+    dbs = ctx.dbs
+    output = ctx.output
+    status = ctx.status
+    subvars = ctx.subvars
+    assert conf is not None
+    assert dbs is not None
+    assert output is not None
+    assert status is not None
+    assert subvars is not None
+
+    status.sql_error = False
+    if status.batch.in_batch():
+        status.batch.using_db(dbs.current())
     # Build localvars from the command-list stack frame so that ~ and # vars
     # written by x_sub/get_subvarset are visible.  The stack frame is the
     # canonical source; the `localvars` parameter is kept for backward compat
@@ -229,13 +252,13 @@ def _exec_sql(
     effective_locals = _stack_localvars(ctx) or localvars
     cmd = substitute_vars(text, effective_locals, ctx=ctx)
     if _VARLIKE.search(cmd):
-        ctx.output.write(
+        output.write(
             f"Warning: There is a potential un-substituted variable in the command\n     {cmd}\n",
         )
     e = None
     try:
-        db = ctx.dbs.current()
-        if ctx.conf.log_sql and ctx.exec_log:
+        db = dbs.current()
+        if conf.log_sql and ctx.exec_log:
             ctx.exec_log.log_sql_query(cmd, db.name(), line_no)
         db.execute(cmd)
         if commit:
@@ -248,15 +271,15 @@ def _exec_sql(
         e = ErrInfo(type="exception", exception_msg=exception_desc())
     if e:
         stamp_errinfo(e)
-        ctx.subvars.add_substitution("$LAST_ERROR", cmd)
-        ctx.subvars.add_substitution("$ERROR_MESSAGE", e.errmsg())
-        ctx.status.sql_error = True
+        subvars.add_substitution("$LAST_ERROR", cmd)
+        subvars.add_substitution("$ERROR_MESSAGE", e.errmsg())
+        status.sql_error = True
         if ctx.exec_log is not None:
             ctx.exec_log.log_status_info(f"SQL error: {e.errmsg()}")
-        if ctx.status.halt_on_err:
+        if status.halt_on_err:
             exit_now(1, e)
         return
-    ctx.subvars.add_substitution("$LAST_SQL", cmd)
+    subvars.add_substitution("$LAST_SQL", cmd)
 
 
 # ---------------------------------------------------------------------------
@@ -277,13 +300,23 @@ def _exec_metacommand(
     increments, ``$RANDOM``, ``$UUID``) are evaluated exactly once per
     metacommand reference.
     """
+    _assert_command_runtime(ctx)
+    metacommandlist = ctx.metacommandlist
+    output = ctx.output
+    status = ctx.status
+    subvars = ctx.subvars
+    assert metacommandlist is not None
+    assert output is not None
+    assert status is not None
+    assert subvars is not None
+
     if _VARLIKE.search(cmd):
-        ctx.output.write(
+        output.write(
             f"Warning: There is a potential un-substituted variable in the command\n     {cmd}\n",
         )
     e = None
     try:
-        applies, result = ctx.metacommandlist.eval(cmd)
+        applies, result = metacommandlist.eval(cmd)
         if applies:
             return result
     except ErrInfo as errinfo:
@@ -294,16 +327,16 @@ def _exec_metacommand(
         e = ErrInfo(type="exception", exception_msg=exception_desc())
     if e:
         stamp_errinfo(e)
-        ctx.status.metacommand_error = True
-        ctx.subvars.add_substitution("$LAST_ERROR", cmd)
-        ctx.subvars.add_substitution("$ERROR_MESSAGE", e.errmsg())
+        status.metacommand_error = True
+        subvars.add_substitution("$LAST_ERROR", cmd)
+        subvars.add_substitution("$ERROR_MESSAGE", e.errmsg())
         if ctx.exec_log is not None:
             ctx.exec_log.log_status_info(f"Metacommand error: {e.errmsg()}")
-        if ctx.status.halt_on_metacommand_err:
+        if status.halt_on_metacommand_err:
             raise e
         return None
     # No handler matched — truly unknown metacommand
-    ctx.status.metacommand_error = True
+    status.metacommand_error = True
     raise ErrInfo(type="cmd", command_text=cmd, other_msg="Unknown metacommand")
 
 
@@ -345,7 +378,9 @@ def _execute_nodes(
             elapsed = _time.perf_counter() - t0
             cmd_type = _node_cmd_type(node)
             cmd_text = _node_cmd_text(node)[:100]
-            ctx.profile_data.append(
+            profile_data = ctx.profile_data
+            assert profile_data is not None
+            profile_data.append(
                 (node.span.file, node.span.start_line, cmd_type, elapsed, cmd_text),
             )
 
@@ -360,6 +395,7 @@ def _execute_node(
     in_loop: bool = False,
 ) -> None:
     """Execute a single AST node."""
+    assert ctx.status is not None
     if isinstance(node, SqlStatement):
         text = node.text
         if in_loop:
@@ -528,7 +564,9 @@ def _execute_batch(
     """Execute a BEGIN BATCH / END BATCH block."""
     from execsql.state import ExecFrame
 
-    ctx.status.batch.new_batch()
+    status = ctx.status
+    assert status is not None
+    status.batch.new_batch()
     _push_block_frame(
         ctx,
         ExecFrame(kind="batch", label="", source=node.span.file, line=node.span.start_line),
@@ -537,8 +575,8 @@ def _execute_batch(
         _execute_nodes(ctx, node.body, node.span.file, localvars, in_loop=in_loop)
     finally:
         ctx.ast_exec_stack.pop()
-        if ctx.status.batch.in_batch():
-            ctx.status.batch.end_batch()
+        if status.batch.in_batch():
+            status.batch.end_batch()
 
 
 def _pre_register_scripts(ctx: RuntimeContext, nodes: list[Node]) -> None:
@@ -716,7 +754,8 @@ def _execute_script_native(
 
         # Handle WHILE/UNTIL loops
         # Convert deferred vars once — node.loop_condition is immutable after parsing
-        if node.loop_type is not None:
+        condition = ""
+        if node.loop_type is not None and node.loop_condition is not None:
             condition = _convert_deferred_vars(node.loop_condition)
 
         if node.loop_type == "WHILE":
@@ -818,7 +857,7 @@ def _execute_include_native(
         ctx.exec_log.log_status_info(f"Reading script file {target} (size: {sz}; date: {dt})")
 
     # Parse with AST parser
-    encoding = ctx.conf.script_encoding if ctx.conf else "utf-8"
+    encoding = ctx.conf.script_encoding if ctx.conf is not None else "utf-8"
     included_tree = parse_script(target, encoding=encoding)
 
     # Pre-register SCRIPT blocks in the included file so forward references work.
@@ -879,11 +918,11 @@ class _FakeScriptCmd:
         else:
             self.command = type("_cmd", (), {"statement": "", "commandline": lambda self: ""})()
 
-    def current_script_line(self) -> tuple:
+    def current_script_line(self) -> tuple[str, int]:
         return (self.source, self.line_no)
 
     def commandline(self) -> str:
-        return self.command.commandline()
+        return cast(str, self.command.commandline())
 
 
 # ---------------------------------------------------------------------------

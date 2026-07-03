@@ -61,8 +61,8 @@ def _quote_table_name(name: str) -> str:
 
 
 def xf_contains(**kwargs: Any) -> bool:
-    s1 = kwargs["string1"]
-    s2 = kwargs["string2"]
+    s1 = str(kwargs["string1"])
+    s2 = str(kwargs["string2"])
     if kwargs["ignorecase"] and kwargs["ignorecase"].lower() == "i":
         s1 = s1.lower()
         s2 = s2.lower()
@@ -70,8 +70,8 @@ def xf_contains(**kwargs: Any) -> bool:
 
 
 def xf_startswith(**kwargs: Any) -> bool:
-    s1 = kwargs["string1"]
-    s2 = kwargs["string2"]
+    s1 = str(kwargs["string1"])
+    s2 = str(kwargs["string2"])
     if kwargs["ignorecase"] and kwargs["ignorecase"].lower() == "i":
         s1 = s1.lower()
         s2 = s2.lower()
@@ -79,8 +79,8 @@ def xf_startswith(**kwargs: Any) -> bool:
 
 
 def xf_endswith(**kwargs: Any) -> bool:
-    s1 = kwargs["string1"]
-    s2 = kwargs["string2"]
+    s1 = str(kwargs["string1"])
+    s2 = str(kwargs["string2"])
     if kwargs["ignorecase"] and kwargs["ignorecase"].lower() == "i":
         s1 = s1.lower()
         s2 = s2.lower()
@@ -97,7 +97,7 @@ def xf_hasrows(**kwargs: Any) -> bool:
     except Exception as e:
         raise ErrInfo("db", sql, exception_msg=exception_desc()) from e
     nrows = rec[0][0]
-    return nrows > 0
+    return bool(nrows > 0)
 
 
 def _row_count(queryname: str, sql_context: str, metacommandline: str) -> int:
@@ -313,13 +313,13 @@ def xf_equals(**kwargs: Any) -> bool:
 
 
 def xf_identical(**kwargs: Any) -> bool:
-    s1 = kwargs["string1"].strip('"')
-    s2 = kwargs["string2"].strip('"')
+    s1 = str(kwargs["string1"]).strip('"')
+    s2 = str(kwargs["string2"]).strip('"')
     return s1 == s2
 
 
 def xf_isnull(**kwargs: Any) -> bool:
-    item = kwargs["item"].strip().strip('"')
+    item = str(kwargs["item"]).strip().strip('"')
     return item == ""
 
 
@@ -379,12 +379,12 @@ def xf_isfalse(**kwargs: Any) -> bool:
 
 
 def xf_dbms(**kwargs: Any) -> bool:
-    dbms = kwargs["dbms"]
-    return _state.dbs.current().type.dbms_id.lower() == dbms.strip().lower()
+    dbms = str(kwargs["dbms"])
+    return bool(_state.dbs.current().type.dbms_id.lower() == dbms.strip().lower())
 
 
 def xf_dbname(**kwargs: Any) -> bool:
-    dbname = kwargs["dbname"]
+    dbname = str(kwargs["dbname"])
     return _state.dbs.current().name().lower() == dbname.strip().lower()
 
 
@@ -875,6 +875,6 @@ CONDITIONAL_TABLE = build_conditional_table()
 def xcmd_test(teststr: str) -> bool:
     result = CondParser(teststr).parse().eval()
     if result is not None:
-        return result
+        return bool(result)
     else:
         raise ErrInfo(type="cmd", command_text=teststr, other_msg="Unrecognized conditional")

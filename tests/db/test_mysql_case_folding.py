@@ -39,7 +39,6 @@ def _make_mysql():
         (2, "MyTable", "mytable"),
         (0, "MIXED_Schema", "MIXED_Schema"),
         (1, "MIXED_Schema", "mixed_schema"),
-        (1, None, None),
     ],
 )
 def test_fold_identifier(lctn, name, expected):
@@ -80,6 +79,24 @@ def test_table_exists_folds_when_case_insensitive():
     with patch.object(Database, "table_exists", fake_super_table_exists):
         assert db.table_exists("MyTable", "MyDB") is True
     assert captured == {"table_name": "mytable", "schema_name": "mydb"}
+
+
+def test_table_exists_with_no_schema_passes_none_through():
+    """LCTN=1: a missing schema name is passed through as None, not folded."""
+    db = _make_mysql()
+    db._cached_lctn = 1
+    captured = {}
+
+    def fake_super_table_exists(self, table_name, schema_name=None):
+        captured["table_name"] = table_name
+        captured["schema_name"] = schema_name
+        return True
+
+    from execsql.db.base import Database
+
+    with patch.object(Database, "table_exists", fake_super_table_exists):
+        assert db.table_exists("MyTable") is True
+    assert captured == {"table_name": "mytable", "schema_name": None}
 
 
 def test_table_exists_passes_through_when_case_sensitive():

@@ -33,8 +33,9 @@ import stat
 import sys
 import tempfile
 import time
+from collections.abc import Callable
 from encodings.aliases import aliases as codec_dict
-from typing import Any
+from typing import Any, cast
 
 from execsql.exceptions import ErrInfo
 
@@ -208,11 +209,11 @@ class FileWriter(multiprocessing.Process):
             self.open_timeout = open_timeout
             self.encoding = encoding
             self.openmode = "a"
-            self.handle = None
+            self.handle: io.TextIOWrapper | None = None
             self.status = self.STATUS_UNOPENED
-            self.open_start_time = None
+            self.open_start_time: float | None = None
             self.fail_message_written = False
-            self.output_queue: collections.deque = collections.deque()
+            self.output_queue: collections.deque[str] = collections.deque()
             self.close_after_write = False
 
         def __del__(self) -> None:
@@ -222,6 +223,7 @@ class FileWriter(multiprocessing.Process):
                 pass  # Best-effort cleanup at interpreter shutdown.
 
         def write_queue(self) -> None:
+            assert self.handle is not None
             while len(self.output_queue) > 0:
                 m = self.output_queue.pop()
                 self.handle.write(m)
@@ -239,11 +241,14 @@ class FileWriter(multiprocessing.Process):
                     self.open_start_time = time.time()
                 if time.time() - self.open_start_time < self.open_timeout:
                     try:
-                        self.handle = open(  # noqa: SIM115
-                            file=self.filename,
-                            mode=self.openmode,
-                            encoding=self.encoding,
-                            errors="backslashreplace",
+                        self.handle = cast(
+                            io.TextIOWrapper,
+                            open(  # noqa: SIM115
+                                file=self.filename,
+                                mode=self.openmode,
+                                encoding=self.encoding,
+                                errors="backslashreplace",
+                            ),
                         )
                     except Exception:
                         self.status = self.STATUS_WAITING
@@ -299,10 +304,10 @@ class FileWriter(multiprocessing.Process):
         self.return_msg_queue = return_msg_queue
         self.file_encoding = file_encoding
         self.open_timeout = open_timeout
-        self.files: dict = {}
+        self.files: dict[str, FileWriter.FileControl] = {}
         self.active = True
         # Functions in execvec must be in the same order as the CMD enums.
-        self.execvec = (
+        self.execvec: tuple[Callable[..., None], ...] = (
             self.write,
             self.close_if_open,
             self.close_all,
@@ -425,7 +430,7 @@ def filewriter_filestatus(filename: str) -> int:
     if not _writer_alive():
         return FileWriter.FileControl.STATUS_CLOSED
     fw_input.put((FileWriter.CMD_GET_STATUS, (filename,)))
-    return fw_output.get()
+    return cast(int, fw_output.get())
 
 
 def filewriter_write(filename: str, message: str) -> None:
@@ -528,19 +533,23 @@ class EncodedFile:
 
         if Path(filename).exists():
             self.encoding, self.bom_length = detect_by_bom(filename, file_encoding)
-        self.fo = None
+        self.fo: io.TextIOWrapper | None = None
 
     def open(self, mode: str = "r") -> io.TextIOWrapper:
         import execsql.state as _state
 
         conf = _state.conf
-        self.fo = open(  # noqa: SIM115
-            file=self.filename,
-            mode=mode,
-            encoding=self.encoding,
-            errors=conf.enc_err_disposition,
-            newline=None,
+        self.fo = cast(
+            io.TextIOWrapper,
+            open(  # noqa: SIM115
+                file=self.filename,
+                mode=mode,
+                encoding=self.encoding,
+                errors=conf.enc_err_disposition,
+                newline=None,
+            ),
         )
+        assert self.fo is not None
         return self.fo
 
     def close(self) -> None:
@@ -558,6 +567,7 @@ class EncodedFile:
         # before entering the ``with`` block.
         if self.fo is None:
             self.open("r")
+        assert self.fo is not None
         return self.fo
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
@@ -566,7 +576,7 @@ class EncodedFile:
 
 class Logger:
     # A custom logger for execsql that writes several different types of messages to a log file.
-    log_file = None
+    log_file: io.TextIOWrapper | None = None
     _COMMON_SECRET_PATTERNS = (
         re.compile(r"(?i)(://[^/\s:@]+:)([^@\s]+)(@)"),
         re.compile(r"(?i)\b(password|passwd|token|secret|api[_-]?key|private[_-]?key|webhook)(\s*[=:]\s*)([^\s,;]+)"),
@@ -640,6 +650,9 @@ class Logger:
         self.run_start = _now
         self.run_id = _now.strftime("%Y%m%d_%H%M_%S_") + f"{_now.microsecond // 1000:03d}"
         self.user = getpass.getuser()
+        sz: int
+        dt: str
+        abs_script: str
         if script_file_name and Path(script_file_name).is_file():
             sz, dt = file_size_date(script_file_name)
             abs_script = str(Path(script_file_name).resolve())
@@ -663,9 +676,9 @@ class Logger:
         self.seq_no = 0
         atexit.register(self.close)
         self.exit_type = "unknown"
-        self.exit_scriptfile = None
-        self.exit_lno = None
-        self.exit_description = None
+        self.exit_scriptfile: str | None = None
+        self.exit_lno: int | None = None
+        self.exit_description: str | None = None
         atexit.register(self.log_exit)
 
     def _ts(self) -> str:

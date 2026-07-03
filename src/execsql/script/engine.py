@@ -28,7 +28,7 @@ import os
 import re
 import uuid
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import execsql.state as _state
 from execsql.exceptions import ErrInfo
@@ -315,11 +315,11 @@ class ScriptCmd:
     def __repr__(self) -> str:
         return f"ScriptCmd({self.source!r}, {self.line_no!r}, {self.command_type!r}, {repr(self.command)!r})"
 
-    def current_script_line(self) -> tuple:
+    def current_script_line(self) -> tuple[str, int]:
         return (self.source, self.line_no)
 
     def commandline(self) -> str:
-        return self.command.statement if self.command_type == "sql" else "-- !x! " + self.command.statement
+        return cast(str, self.command.statement if self.command_type == "sql" else "-- !x! " + self.command.statement)
 
 
 # ---------------------------------------------------------------------------
@@ -505,7 +505,7 @@ def substitute_vars(command_str: str, localvars: SubVarSet | None = None, ctx: A
     return cmdstr
 
 
-def current_script_line() -> tuple:
+def current_script_line() -> tuple[str, int]:
     """Return ``(source_name, line_number)`` for the command currently executing.
 
     Reads from ``_state.last_command``, which the AST executor updates on

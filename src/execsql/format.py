@@ -383,22 +383,22 @@ def _format_preserving_comments(
             # Strip markers to get the underlying SQL line and its indent
             cleaned = _CMT_MARKER_RE.sub("", fline).strip()
             # Determine indent: use the SQL line's indent from sqlglot
-            sql_indent = ""
+            line_indent = ""
             if cleaned:
                 raw_cleaned = _CMT_MARKER_RE.sub("", fline)
-                sql_indent = raw_cleaned[: len(raw_cleaned) - len(raw_cleaned.lstrip())]
+                line_indent = raw_cleaned[: len(raw_cleaned) - len(raw_cleaned.lstrip())]
             for m in markers_here:
                 if m in comment_store:
                     orig = comment_store[m]
                     # Re-indent the comment to match the SQL line it precedes
                     orig_stripped = orig.strip()
                     if orig_stripped:
-                        result.append(sql_indent + orig_stripped)
+                        result.append(line_indent + orig_stripped)
                     else:
                         result.append("")
                     found_markers.add(m)
             if cleaned:
-                result.append(sql_indent + cleaned)
+                result.append(line_indent + cleaned)
         else:
             result.append(fline)
 
@@ -493,8 +493,8 @@ def format_sql_block(
     # which preserves both comments AND sqlglot formatting.  When all
     # comments are between statements, the simpler segmentation works.
     if _has_mid_statement_comments(rebased):
-        result = _format_preserving_comments(rebased, sql_indent=indent, leading_comma=leading_comma)
-        return [target_prefix + line if line.strip() else "" for line in result]
+        formatted_lines = _format_preserving_comments(rebased, sql_indent=indent, leading_comma=leading_comma)
+        return [target_prefix + line if line.strip() else "" for line in formatted_lines]
 
     result: list[str] = []
     seg: list[str] = []

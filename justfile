@@ -24,9 +24,9 @@ update-hooks:
 
 # ── Code Quality ──────────────────────────────────────────────────────────────
 
-# Lint, spell-check, and test
+# Lint, type-check, and test
 [group('quality')]
-check: format lint test
+check: format lint typecheck test
 
 # Run linter
 [group('quality')]

@@ -14,7 +14,7 @@ from typing import Any
 import execsql.state as _state
 from execsql.exporters.zip import ZipWriter
 from execsql.exceptions import ErrInfo
-from execsql.models import DataTable
+from execsql.models import DataTable, to_json_type
 from execsql.utils.errors import exception_desc
 from execsql.utils.fileio import filewriter_close
 
@@ -37,6 +37,7 @@ def write_query_to_json(
         raise
     except Exception as e:
         raise ErrInfo("db", select_stmt, exception_msg=exception_desc()) from e
+    f: Any
     if zipfile is None:
         filewriter_close(outfile)
         from execsql.utils.fileio import EncodedFile
@@ -85,6 +86,7 @@ def write_query_to_json_ts(
     except Exception as e:
         raise ErrInfo("db", select_stmt, exception_msg=exception_desc()) from e
     max_col_idx = len(hdrs) - 1
+    f: Any
     if zipfile is None:
         filewriter_close(outfile)
         from execsql.utils.fileio import EncodedFile
@@ -113,7 +115,7 @@ def write_query_to_json_ts(
                 c = [col for col in tbl_desc.cols if col.name == h][0]
                 jname = json.dumps(c.name)
                 jtitle = json.dumps(c.name.capitalize().replace("_", " "))
-                jtype = json.dumps(_state.to_json_type[c.dt[1]])
+                jtype = json.dumps(to_json_type[c.dt[1]])
                 f.write(
                     f'    {{\n      "name": {jname},\n      "title": {jtitle},\n      "type": {jtype}\n    }}{qcomma}\n',
                 )

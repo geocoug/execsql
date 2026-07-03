@@ -86,6 +86,8 @@ class DsnDatabase(Database):
             # supplied credentials cannot inject additional attributes.
             parts = [f"DSN={_odbc_quote(self.db_name)}"]
             if self.need_passwd:
+                assert self.user is not None
+                assert self.password is not None
                 parts.append(f"UID={_odbc_quote(self.user)}")
                 parts.append(f"PWD={_odbc_quote(self.password)}")
             connstr = ";".join(parts) + ";"

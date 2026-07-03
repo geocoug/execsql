@@ -9,7 +9,7 @@ from __future__ import annotations
 import os
 import sys
 import time
-from typing import Any
+from typing import Any, cast
 
 from execsql.gui.base import DIFF_MARKER, GuiBackend, compare_stats as _compare_stats, compute_row_diffs
 
@@ -88,9 +88,9 @@ def _prompt_buttons(button_list: list) -> int | None:
     while True:
         raw = input("Choice: ").strip()
         if raw.lower() in choices:
-            return choices[raw.lower()]
+            return cast(int | None, choices[raw.lower()])
         if raw in choices:
-            return choices[raw]
+            return cast(int | None, choices[raw])
         print("Invalid choice, please try again.", file=sys.stderr)
 
 

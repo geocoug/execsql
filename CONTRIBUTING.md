@@ -32,13 +32,19 @@ Linting and formatting are handled by [ruff](https://docs.astral.sh/ruff/):
 just lint
 ```
 
+Static type checking is handled by [mypy](https://mypy.readthedocs.io/) and must pass with zero errors:
+
+```bash
+just typecheck
+```
+
 [pre-commit](https://pre-commit.com/) hooks enforce additional checks (gitleaks, uv-lock, mdformat, markdownlint, typos, validate-pyproject) on every commit. To run them manually against all files:
 
 ```bash
 just pre-commit
 ```
 
-CI rejects PRs that fail ruff lint/format, the full pre-commit suite, docs build, or tests.
+CI rejects PRs that fail ruff lint/format, mypy type checking, the full pre-commit suite, docs build, or tests.
 
 ## Running Tests
 
@@ -96,12 +102,18 @@ Pre-releases are published to PyPI but are not installed by default — `pip ins
 
 Triggered on pushes to `main`, any `v*.*.*` tag, and pull requests.
 
-| Job                | Trigger            | What it does                                    |
-| ------------------ | ------------------ | ----------------------------------------------- |
-| `tests`            | all events         | Runs the test matrix (3 OS × 5 Python versions) |
-| `build`            | `v*.*.*` tags only | Builds sdist + wheel, checks with twine         |
-| `publish`          | `v*.*.*` tags only | Publishes to PyPI via OIDC trusted publishing   |
-| `generate-release` | `v*.*.*` tags only | Creates a GitHub Release with dist artifacts    |
+| Job                    | Trigger            | What it does                                          |
+| ---------------------- | ------------------ | ----------------------------------------------------- |
+| `lint`                 | all events         | Runs `ruff check` and `ruff format --check`           |
+| `typecheck`            | all events         | Runs `mypy src/execsql/` (zero-error gate)            |
+| `pre-commit`           | all events         | Runs the full pre-commit suite against all files      |
+| `docs`                 | all events         | Builds the documentation site                         |
+| `tests`                | all events         | Runs the test matrix (3 OS × 5 Python versions)       |
+| `integration-tests`    | all events         | Runs tests against live database service containers   |
+| `access-tests-windows` | all events         | Runs MS Access driver tests on Windows (non-blocking) |
+| `build`                | `v*.*.*` tags only | Builds sdist + wheel, checks with twine               |
+| `publish`              | `v*.*.*` tags only | Publishes to PyPI via OIDC trusted publishing         |
+| `generate-release`     | `v*.*.*` tags only | Creates a GitHub Release with dist artifacts          |
 
 ### PyPI trusted publishing setup
 

@@ -33,6 +33,7 @@ def xls_data(
     if len(filename) < 4:
         raise ErrInfo(type="cmd", other_msg=f"{filename} is not a recognizable Excel spreadsheet name.")
     ext3 = filename[-3:].lower()
+    wbk: Any
     if ext3 == "xls":
         # xlrd imported lazily
         from execsql.exporters.xls import XlsFile

@@ -48,11 +48,13 @@ def exception_info() -> tuple:
     exc_param = sys.exc_info()[1]
     if isinstance(exc_param, str):
         exc_message = exc_param
-    else:
-        if hasattr(exc_param, "message") and isinstance(exc_param.message, str) and len(exc_param.message) > 0:
-            exc_message = exc_param.message
-        elif hasattr(exc_param, "value") and isinstance(exc_param.value, str) and len(exc_param.value) > 0:
-            exc_message = exc_param.value
+    elif exc_param is not None:
+        message = getattr(exc_param, "message", None)
+        value = getattr(exc_param, "value", None)
+        if isinstance(message, str) and len(message) > 0:
+            exc_message = message
+        elif isinstance(value, str) and len(value) > 0:
+            exc_message = value
         else:
             exc_message = str(exc_param)
     try:

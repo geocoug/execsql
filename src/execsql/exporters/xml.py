@@ -38,6 +38,7 @@ def write_query_to_xml(
         raise
     except Exception as e:
         raise ErrInfo("db", select_stmt, exception_msg=exception_desc()) from e
+    f: Any
     if zipfile is None:
         filewriter_close(outfile)
         from execsql.utils.fileio import EncodedFile

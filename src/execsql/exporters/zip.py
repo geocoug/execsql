@@ -12,6 +12,7 @@ directed into a ``.zip`` archive.
 import sys
 import time
 import zipfile
+from typing import IO, Any, Literal, cast
 
 import execsql.state as _state
 
@@ -28,9 +29,9 @@ class WriteableZipfile:
         self.buf = memoryview(bytearray(self.bufsize))
         self.buflen = 0  # Length of buffer contents.
         comp = zipfile.ZIP_BZIP2
-        zmode = "w" if not append else "a"
+        zmode: Literal["w", "a"] = "w" if not append else "a"
         self.zf = zipfile.ZipFile(zipfile_name, mode=zmode, compression=comp, compresslevel=9)
-        self.current_handle = None
+        self.current_handle: IO[bytes] | None = None
 
     def __enter__(self) -> WriteableZipfile:
         return self
@@ -54,7 +55,7 @@ class WriteableZipfile:
         )
         self.current_zinfo.compress_type = self.zf.compression
         if sys.version_info.major >= 3 and sys.version_info.minor >= 7:
-            self.current_zinfo._compresslevel = self.zf.compresslevel
+            self.current_zinfo._compresslevel = self.zf.compresslevel  # type: ignore[attr-defined]
         # See https://stackoverflow.com/questions/434641/how-do-i-set-permissions-attributes-on-a-file-in-a-zip-file-using-pythons-zip
         self.current_zinfo.external_attr = 0o100755 << 16  # ?rw-rw-rw-
         if sys.platform.startswith("win"):
@@ -62,13 +63,13 @@ class WriteableZipfile:
         else:
             self.current_zinfo.create_system = 3
         self.current_zinfo.file_size = 0
-        self.current_handle = self.zf.open(self.current_zinfo, mode="w")
+        self.current_handle = cast(IO[bytes], self.zf.open(self.current_zinfo, mode="w"))
 
     def zip_buffer(self) -> None:
         """Flush any buffered bytes to the currently open zip member file."""
         # Writes the buffer contents, if any, to the zip member file.
         if self.buflen > 0 and self.current_handle is not None:
-            with self.zf._lock:
+            with cast(Any, self.zf)._lock:
                 self.current_zinfo.file_size = self.current_zinfo.file_size + self.buflen
                 self.current_handle.write(self.buf[0 : self.buflen])
             self.buflen = 0
@@ -104,8 +105,8 @@ class ZipWriter:
         """Open the archive at ``zip_fname`` and begin a new member file named ``member_fname``."""
         self.zip_fname = zip_fname
         self.member_fname = member_fname
-        self.zwriter = WriteableZipfile(self.zip_fname, append)
-        self.member = self.zwriter.member_file(member_fname)
+        self.zwriter: WriteableZipfile | None = WriteableZipfile(self.zip_fname, append)
+        self.zwriter.member_file(member_fname)
 
     def __enter__(self) -> ZipWriter:
         return self
@@ -116,6 +117,7 @@ class ZipWriter:
 
     def write(self, str_data: str) -> None:
         """Write a string to the current zip member."""
+        assert self.zwriter is not None
         self.zwriter.write(str_data)
 
     def close(self) -> None:

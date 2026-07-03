@@ -227,7 +227,7 @@ def x_prompt_selectsub(**kwargs: Any) -> None:
     if cont:
         btns.append(("Continue", 2, "<Return>"))
     enable_gui()
-    return_queue = _queue.Queue()
+    return_queue: _queue.Queue[Any] = _queue.Queue()
     gui_args = {
         "title": "Select data",
         "message": msg,
@@ -254,6 +254,7 @@ def x_prompt_selectsub(**kwargs: Any) -> None:
             exit_now(2, None)
     else:
         if btn_val == 1:
+            assert selected_row is not None
             for i, item in enumerate(selected_row):
                 if item is None:
                     item = ""

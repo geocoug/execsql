@@ -63,14 +63,15 @@ def import_data_table(
 
         hdrs = dedup_words(hdrs)
 
+    tablespec_cache: Any = None
+
     def get_ts():
-        if not get_ts.tablespec:
+        nonlocal tablespec_cache
+        if tablespec_cache is None:
             from execsql.models import DataTable
 
-            get_ts.tablespec = DataTable(hdrs, data)
-        return get_ts.tablespec
-
-    get_ts.tablespec = None
+            tablespec_cache = DataTable(hdrs, data)
+        return tablespec_cache
 
     if is_new:
         if is_new == 2:

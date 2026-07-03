@@ -50,9 +50,11 @@ def x_system_cmd(**kwargs: Any) -> None:
     cmdlist = shlex.split(syscmd, posix=(os.name == "posix"))
     if cont is None:
         timeout = getattr(_state.conf, "system_cmd_timeout", 0.0)
-        run_kwargs = {"timeout": timeout} if timeout and timeout > 0 else {}
         try:
-            result = subprocess.run(cmdlist, **run_kwargs)
+            if timeout and timeout > 0:
+                result = subprocess.run(cmdlist, timeout=timeout)
+            else:
+                result = subprocess.run(cmdlist)
         except subprocess.TimeoutExpired as e:
             _state.subvars.add_substitution("$SYSTEM_CMD_EXIT_STATUS", "124")
             raise ErrInfo(

@@ -8,7 +8,7 @@ servers via ``pymysql``.  Corresponds to ``-t m`` on the CLI.
 """
 
 import re
-from typing import Any
+from typing import Any, cast
 
 from execsql.db.base import Database
 from execsql.exceptions import ErrInfo
@@ -105,7 +105,7 @@ class MySQLDatabase(Database):
         """
         cached = getattr(self, "_cached_lctn", None)
         if cached is not None:
-            return cached
+            return cast(int, cached)
         try:
             _, rows = self.select_data("SELECT @@lower_case_table_names;")
             value = int(rows[0][0]) if rows else 0
@@ -114,10 +114,8 @@ class MySQLDatabase(Database):
         self._cached_lctn = value
         return value
 
-    def _fold_identifier(self, name: str | None) -> str | None:
+    def _fold_identifier(self, name: str) -> str:
         """Lowercase *name* when the server is case-insensitive (LCTN 1/2)."""
-        if name is None:
-            return None
         return name.lower() if self._lower_case_table_names() in (1, 2) else name
 
     # NB: schema_exists is overridden below to return False unconditionally
@@ -127,7 +125,7 @@ class MySQLDatabase(Database):
     def table_exists(self, table_name: str, schema_name: str | None = None) -> bool:
         return super().table_exists(
             self._fold_identifier(table_name),
-            self._fold_identifier(schema_name),
+            self._fold_identifier(schema_name) if schema_name is not None else None,
         )
 
     def column_exists(
@@ -139,13 +137,13 @@ class MySQLDatabase(Database):
         return super().column_exists(
             self._fold_identifier(table_name),
             self._fold_identifier(column_name),
-            self._fold_identifier(schema_name),
+            self._fold_identifier(schema_name) if schema_name is not None else None,
         )
 
     def view_exists(self, view_name: str, schema_name: str | None = None) -> bool:
         return super().view_exists(
             self._fold_identifier(view_name),
-            self._fold_identifier(schema_name),
+            self._fold_identifier(schema_name) if schema_name is not None else None,
         )
 
     def open_db(self) -> None:

@@ -243,7 +243,7 @@ def x_halt_msg(**kwargs: Any) -> None:
     else:
         headers, rows = None, None
     enable_gui()
-    return_queue = _queue.Queue()
+    return_queue: _queue.Queue[Any] = _queue.Queue()
     gui_args = {
         "title": "HALT",
         "message": errmsg,

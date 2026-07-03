@@ -25,6 +25,8 @@ from execsql.utils.strings import unquoted
 
 __all__ = ["OdsFile", "export_ods", "write_query_to_ods", "write_queries_to_ods"]
 
+of: Any = None
+
 
 class OdsFile:
     """Wrapper around the ``odfpy`` library for reading and writing OpenDocument Spreadsheet files."""
@@ -55,9 +57,9 @@ class OdsFile:
             import odf.style  # noqa: F401
         except ImportError:
             fatal_error("The odfpy library is needed to create OpenDocument spreadsheets.")
-        self.filename = None
-        self.wbk = None
-        self.cell_style_names = []
+        self.filename: str | None = None
+        self.wbk: Any = None
+        self.cell_style_names: list[str] = []
 
     def open(self, filename: str) -> None:
         """Open an existing ODS file or create a new one at the given path."""
@@ -278,6 +280,8 @@ class OdsFile:
 
     def save_close(self) -> None:
         """Serialise the workbook to disk and release all resources."""
+        if self.filename is None:
+            raise OdsFileError("Cannot save an ODS file before it has been opened.")
         with open(self.filename, "wb") as ofile:
             self.wbk.write(ofile)
         self.filename = None

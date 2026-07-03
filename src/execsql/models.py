@@ -47,6 +47,8 @@ __all__ = [
     "to_json_type",
 ]
 
+ColumnType = tuple[str, type[DataType], int | None, bool, int | None, int | None]
+
 
 class Column:
     """Compile data-type match statistics for a single column of imported data."""
@@ -66,11 +68,11 @@ class Column:
             self.count = 0
             self.maxlen = 0
             self.varlen = False
-            self.maxprecision = None
-            self.scale = None
+            self.maxprecision: int | None = None
+            self.scale: int | None = None
             self.varscale = False
-            self.maxscale = None
-            self.max_int_digits = None
+            self.maxscale: int | None = None
+            self.max_int_digits: int | None = None
 
         def __repr__(self) -> str:
             return (
@@ -106,6 +108,8 @@ class Column:
                             self.maxscale = self.dt.scale
                             self.max_int_digits = int_digits
                         else:
+                            assert self.maxscale is not None
+                            assert self.max_int_digits is not None
                             self.maxprecision = max(self.dt.precision, self.maxprecision)
                             if self.dt.scale != self.scale:
                                 self.varscale = True
@@ -140,6 +144,7 @@ class Column:
         self.nullrows = 0
         # The list of accumulators must be in order from most specific to least specific data type.
         conf = _state.conf
+        self.accums: tuple[Column.Accum, ...]
         if conf.only_strings:
             self.accums = (
                 self.Accum(DT_Character()),
@@ -167,7 +172,7 @@ class Column:
         self.dt_eval = False
         # self.dt is a tuple of: 0: column name; 1: data type class; 2: max length or None;
         # 3: bool indicating any null values; 4: precision or None; 5: scale or None.
-        self.dt = (None, None, None, None, None, None)
+        self.dt: ColumnType | None = None
 
     def __repr__(self) -> str:
         return f"Column({self.name!r})"
@@ -197,12 +202,13 @@ class Column:
             for dt in self.accums:
                 dt.check(column_value)
 
-    def column_type(self) -> tuple:
+    def column_type(self) -> ColumnType:
         """Return the inferred type of this column as a 6-tuple."""
         # Return the type of this column as a tuple of:
         #   column name, data type class, max length or None, bool for null values,
         #   precision or None, scale or None.
         if self.dt_eval:
+            assert self.dt is not None
             return self.dt
         sel_type = None  # Will be set to an Accum instance.
         if self.nullrows == self.rowcount:
@@ -233,7 +239,11 @@ class Column:
             sel_type.dt.__class__,
             None if not sel_type.dt.lenspec else sel_type.maxlen,
             self.nullrows > 0,
-            (sel_type.max_int_digits + sel_type.maxscale) if sel_type.maxscale is not None else sel_type.maxprecision,
+            (
+                sel_type.max_int_digits + sel_type.maxscale
+                if sel_type.max_int_digits is not None and sel_type.maxscale is not None
+                else sel_type.maxprecision
+            ),
             sel_type.maxscale if sel_type.maxscale is not None else sel_type.scale,
         )
         self.dt_eval = True

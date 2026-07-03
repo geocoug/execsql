@@ -12,7 +12,7 @@ import sys
 from itertools import tee
 from pathlib import Path
 from shutil import copyfileobj
-from typing import Any
+from typing import Any, Literal, cast
 
 import execsql.state as _state
 from execsql.exceptions import ErrInfo
@@ -86,6 +86,7 @@ def x_copy(**kwargs: Any) -> None:
 
     get_ts_tablespec = None
     rows_to_close = None
+    rows_for_insert: Any
 
     if new_tbl2:
         try:
@@ -95,7 +96,8 @@ def x_copy(**kwargs: Any) -> None:
         except Exception as e:
             raise ErrInfo("db", select_stmt, exception_msg=exception_desc()) from e
         rows_to_close = rows
-        rows_for_schema, rows = tee(rows)
+        rows = cast(Any, rows)
+        rows_for_schema, rows_for_insert = tee(rows)
         get_ts_tablespec = DataTable(hdrs, rows_for_schema)
         tbl_desc = get_ts_tablespec
         create_tbl = tbl_desc.create_table(db2.type, schema2, table2)
@@ -121,6 +123,7 @@ def x_copy(**kwargs: Any) -> None:
         except Exception as e:
             raise ErrInfo("db", select_stmt, exception_msg=exception_desc()) from e
         rows_to_close = rows
+        rows_for_insert = rows
 
     def get_ts() -> DataTable:
         nonlocal get_ts_tablespec
@@ -130,7 +133,7 @@ def x_copy(**kwargs: Any) -> None:
         return get_ts_tablespec
 
     try:
-        db2.populate_table(schema2, table2, rows, hdrs, get_ts)
+        db2.populate_table(schema2, table2, rows_for_insert, hdrs, get_ts)
         db2.commit()
     except BaseException:
         _close_rowsource(rows_to_close)
@@ -173,6 +176,7 @@ def x_copy_query(**kwargs: Any) -> None:
 
     get_ts_tablespec = None
     rows_to_close = None
+    rows_for_insert: Any
 
     if new_tbl2:
         try:
@@ -182,7 +186,8 @@ def x_copy_query(**kwargs: Any) -> None:
         except Exception as e:
             raise ErrInfo("db", select_stmt, exception_msg=exception_desc()) from e
         rows_to_close = rows
-        rows_for_schema, rows = tee(rows)
+        rows = cast(Any, rows)
+        rows_for_schema, rows_for_insert = tee(rows)
         get_ts_tablespec = DataTable(hdrs, rows_for_schema)
         tbl_desc = get_ts_tablespec
         create_tbl = tbl_desc.create_table(db2.type, schema2, table2)
@@ -208,6 +213,7 @@ def x_copy_query(**kwargs: Any) -> None:
         except Exception as e:
             raise ErrInfo("db", select_stmt, exception_msg=exception_desc()) from e
         rows_to_close = rows
+        rows_for_insert = rows
 
     def get_ts() -> DataTable:
         nonlocal get_ts_tablespec
@@ -217,7 +223,7 @@ def x_copy_query(**kwargs: Any) -> None:
         return get_ts_tablespec
 
     try:
-        db2.populate_table(schema2, table2, rows, hdrs, get_ts)
+        db2.populate_table(schema2, table2, rows_for_insert, hdrs, get_ts)
         db2.commit()
     except BaseException:
         _close_rowsource(rows_to_close)
@@ -231,7 +237,7 @@ def x_zip(**kwargs: Any) -> None:
     files = kwargs["filename"].strip(' "')
     zipfile_name = kwargs["zipfilename"].strip(' "')
     append = kwargs["append"]
-    zmode = "a" if append is not None else "w"
+    zmode: Literal["a", "w"] = "a" if append is not None else "w"
     zf = _zipfile.ZipFile(zipfile_name, mode=zmode, compression=_zipfile.ZIP_BZIP2, compresslevel=9)
     fnlist = _glob.glob(files)
     for f in fnlist:

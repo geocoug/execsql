@@ -72,6 +72,7 @@ def write_query_to_yaml(
     data = [dict(zip(uhdrs, row)) for row in rows]
     yaml_text = yaml.dump(data, default_flow_style=False, allow_unicode=True)
 
+    f: Any
     if zipfile is None:
         filewriter_close(outfile)
         from execsql.utils.fileio import EncodedFile

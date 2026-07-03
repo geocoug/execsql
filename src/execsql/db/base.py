@@ -67,6 +67,19 @@ class Database(ABC):
     ``_state.dbs.current()`` rather than constructing adapters directly.
     """
 
+    type: Any
+    server_name: Any
+    db_name: Any
+    user: Any
+    need_passwd: bool | None
+    password: str | None
+    port: int | None
+    encoding: Any
+    encode_commands: bool
+    paramstr: str
+    conn: Any
+    autocommit: bool
+
     _dt_cast: dict[type, Callable] | None = None
 
     @property
@@ -90,7 +103,7 @@ class Database(ABC):
         encoding: str | None = None,
     ) -> None:
         """Initialize common connection attributes for a database backend."""
-        self.type = None
+        self.type: Any = None
         self.server_name = server_name
         self.db_name = db_name
         self.user = user_name
@@ -697,12 +710,14 @@ class Database(ABC):
                 )
             import_cols = csv_cols
 
-        def get_ts() -> Any:
-            if not get_ts.tablespec:
-                get_ts.tablespec = csv_file_obj.data_table_def()
-            return get_ts.tablespec
+        tablespec_cache: Any = None
 
-        get_ts.tablespec = None
+        def get_ts() -> Any:
+            nonlocal tablespec_cache
+            if not tablespec_cache:
+                tablespec_cache = csv_file_obj.data_table_def()
+            return tablespec_cache
+
         f = csv_file_obj.reader()
         next(f)
         self.populate_table(schema_name, table_name, f, import_cols, get_ts)
@@ -777,14 +792,17 @@ class DatabasePool:
 
     def current(self) -> Database:
         """Return the currently active ``Database`` object."""
+        assert self.current_db is not None
         return self.pool[self.current_db]
 
     def current_alias(self) -> str:
         """Return the alias string for the currently active database."""
+        assert self.current_db is not None
         return self.current_db
 
     def initial(self) -> Database:
         """Return the first ``Database`` that was added to the pool."""
+        assert self.initial_db is not None
         return self.pool[self.initial_db]
 
     def aliased_as(self, db_alias: str) -> Database:

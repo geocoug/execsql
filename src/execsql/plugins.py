@@ -298,7 +298,7 @@ def _load_entry_points(group: str) -> list[tuple[str, Any]]:
     Errors during loading are logged and skipped — a broken plugin should
     not prevent execsql from starting.
     """
-    results = []
+    results: list[tuple[str, Any]] = []
     try:
         eps = entry_points(group=group)
     except Exception:
