@@ -34,8 +34,9 @@ coverage.xml
 .tox/
 htmlcov/
 execsql.log
+scripts/*
 !scripts/generate_vscode_grammar.py
-scripts/
+!scripts/benchmarks/
 !tests/scripts
 
 # Distribution
