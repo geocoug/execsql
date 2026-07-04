@@ -1760,3 +1760,131 @@ Each row shows:
 `--profile-limit N` controls how many rows appear in the table (default: 20). All statements contribute to the totals regardless of the limit. Combine `--profile` with `--profile-limit 0` to see every statement.
 
 The `--profile` flag has no effect on `--dry-run` or `--lint` (neither executes statements).
+
+## **Example 40:** Copying Data Between Databases { #example40 }
+
+The [COPY](../reference/metacommands.md#copy) metacommand moves data directly between two open database connections — including connections to *different* DBMSs. A common pattern is publishing a self-contained SQLite deliverable from a production PostgreSQL warehouse: connect to both, then copy whole tables or query results.
+
+``` sql
+-- Open a second connection to a brand-new SQLite file. The startup
+-- connection (here, PostgreSQL) always has the alias "initial".
+-- !x! CONNECT TO SQLITE(FILE=deliverable.sqlite, NEW) AS deliverable
+
+-- Copy an entire table.
+-- !x! COPY product_sales FROM initial TO NEW product_sales IN deliverable
+
+-- Copy the result of a query. REPLACEMENT drops and re-creates the
+-- target table if it already exists; NEW errors if it exists.
+-- (Each metacommand must be written on a single line.)
+-- !x! COPY QUERY << select product, sum(amount) as total_sales from product_sales group by product; >> FROM initial TO REPLACEMENT sales_summary IN deliverable
+
+-- Verify the copy on the target connection, then switch back.
+-- !x! USE deliverable
+-- !x! IF(HASROWS(sales_summary))
+    -- !x! WRITE "sales_summary delivered to deliverable.sqlite"
+-- !x! ENDIF
+-- !x! USE initial
+```
+
+The table structure is created automatically on the target, with column types translated between the two DBMSs' type systems. Because `COPY` reads from one live connection and writes to another, no intermediate export file is needed. To copy into a *server* database instead, open the second connection with the corresponding [CONNECT](../reference/metacommands.md#connect) form (e.g. `CONNECT TO POSTGRESQL(...) AS ...`).
+
+## **Example 41:** Exporting to JSON, Parquet, XLSX, and ZIP Archives { #example41 }
+
+The [EXPORT](../reference/metacommands.md#export) metacommand supports modern interchange formats alongside the classic delimited ones, and can write files directly into a ZIP archive. One query's results can be published in several forms:
+
+``` sql
+-- Machine-readable formats.
+-- !x! EXPORT product_sales TO sales.json AS JSON
+-- !x! EXPORT product_sales TO sales.parquet AS PARQUET
+
+-- A spreadsheet for people, built from a query instead of a table.
+-- !x! EXPORT QUERY << select product, sum(amount) as total_sales from product_sales group by product; >> TO summary.xlsx AS XLSX
+
+-- Bundle several files into one ZIP archive. The first EXPORT creates
+-- the archive; subsequent members need APPEND, otherwise the archive
+-- is overwritten and only the last file survives.
+-- !x! EXPORT product_sales TO sales.csv IN ZIPFILE report_bundle.zip AS CSV
+-- !x! EXPORT QUERY << select * from product_sales order by amount desc; >> APPEND TO ranked.csv IN ZIPFILE report_bundle.zip AS CSV
+```
+
+Notes:
+
+- Parquet and Feather exports require the `formats` extra (`pip install "execsql2[formats]"`), which provides Polars.
+- When writing into a ZIP archive, the `TO` name is the *member* name inside the archive and `IN ZIPFILE` names the archive itself.
+- `APPEND` means "add a member to the archive" in the ZIP form; without a ZIP archive it means "append rows to the file". Formats that cannot be streamed (Feather, DuckDB) cannot be written into a ZIP archive.
+- The full format list and per-format behavior are documented under [EXPORT](../reference/metacommands.md#export).
+
+## **Example 42:** Running Scripts from Python with the Library API { #example42 }
+
+execsql can be used as a Python library, embedding script execution in pipelines, notebooks, or applications. `run()` executes a script (or inline SQL) and returns a `ScriptResult`. Variables passed via the `variables=` dict are given a `$` prefix, so a key of `"REGION"` is referenced in the script as `!!$REGION!!`:
+
+``` sql
+-- regional_summary.sql
+create temporary view region_sales as
+    select sum(amount) as region_total
+    from product_sales
+    where region = '!!$REGION!!';
+-- !x! SUBDATA region_total region_sales
+```
+
+``` python
+from execsql import run
+from execsql.db.factory import db_SQLite
+
+conn = db_SQLite("sales.db")
+
+result = run(
+    script="regional_summary.sql",
+    connection=conn,
+    variables={"REGION": "north"},
+)
+print(result.success)                       # True
+print(result.variables["region_total"])    # "1650.5"
+
+conn.close()  # run() never closes a connection you pass in
+```
+
+`result.variables` holds the final state of all substitution variables (system variables have the leading `$` stripped), so values computed by the script — via [SUBDATA](../reference/metacommands.md#subdata), [SUB](../reference/metacommands.md#sub), or counters — flow back to Python.
+
+Error handling follows the `halt_on_error` argument. With the default (`True`), execution stops at the first error; with `False`, execution continues and every non-halting error is collected:
+
+``` python
+result = run(sql="select * from nonexistent;", connection=conn, halt_on_error=False)
+if not result.success:
+    for err in result.errors:
+        print(f"{err.source}:{err.line}: {err.message}")
+
+result.raise_on_error()  # or: raise ExecSqlError for any recorded error
+```
+
+Each `run()` call executes in an isolated context, so repeated or concurrent calls (from different threads) do not share variables or state. See the [Library API reference](../api/index.md#library-api) for the full argument list, including `dsn=` connection URLs and the `allow_system_cmd` / `allow_rm_file` / `allow_serve` safety switches.
+
+## **Example 43:** Running OS Commands with SYSTEM_CMD { #example43 }
+
+The [SYSTEM_CMD](../reference/metacommands.md#system_cmd) metacommand runs an operating-system command from a script. It has a foreground form that waits and records the exit code, and a background form (`CONTINUE`) that launches the command and moves on immediately.
+
+``` sql
+-- Foreground: the script waits, and the exit code is stored in
+-- $SYSTEM_CMD_EXIT_STATUS. A nonzero exit code is not an error by
+-- itself — scripts branch on it explicitly.
+-- !x! SYSTEM_CMD (python3 fetch_latest.py)
+-- !x! IF(IS_GT(!!$SYSTEM_CMD_EXIT_STATUS!!, 0))
+    -- !x! WRITE "fetch_latest.py failed with exit status !!$SYSTEM_CMD_EXIT_STATUS!!"
+    -- !x! HALT
+-- !x! ENDIF
+
+-- Background: CONTINUE launches the command and stores its process id
+-- in $SYSTEM_CMD_PID. The script does not wait, and the process may
+-- outlive the script.
+-- !x! SYSTEM_CMD (python3 rebuild_search_index.py) CONTINUE
+-- !x! WRITE "Index rebuild running as PID !!$SYSTEM_CMD_PID!!"
+```
+
+Foreground commands can be given a time limit with the `system_cmd_timeout` configuration option (seconds; default 0 = no limit), set in `execsql.conf`:
+
+``` ini
+[config]
+system_cmd_timeout=300
+```
+
+When the limit is exceeded, execsql stops the command, sets `$SYSTEM_CMD_EXIT_STATUS` to `124`, and raises a metacommand error (which halts the script unless [METACOMMAND_ERROR_HALT](../reference/metacommands.md#metacommand_error_halt) is `OFF`). Background (`CONTINUE`) commands are not affected by the timeout. For locked-down environments, the `--no-system-cmd` CLI flag (or `allow_system_cmd=No` in the config) disables the metacommand entirely.
