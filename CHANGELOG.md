@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.22.1] - 2026-07-04
+
 ### Fixed
 
 - Database factory functions (`db_SQLite(..., new_db=True)`, etc.) no longer crash with `AttributeError` when called before `run()` in library use.
