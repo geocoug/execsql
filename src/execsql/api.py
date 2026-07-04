@@ -528,6 +528,14 @@ def run(
         except Exception as exc:
             errors.append(ScriptError(message=str(exc), source="<runtime>"))
 
+        # Non-halting errors (halt_on_error=False, METACOMMAND_ERROR_HALT OFF)
+        # are recorded in status.error_history as execution continues; a
+        # halting error never reaches the history, so there is no overlap
+        # with the exception paths above.
+        if ctx.status is not None:
+            for err_source, err_line, err_cmd, err_msg in ctx.status.error_history:
+                errors.append(ScriptError(message=err_msg, source=err_source, line=err_line, sql=err_cmd))
+
         elapsed = time.perf_counter() - t0
 
         # ------------------------------------------------------------------

@@ -148,6 +148,10 @@ class TestErrorHandling:
         conn.close()
         assert rows == [(1,)]
 
+        # The non-halting error is still surfaced on the result
+        assert result.success is False
+        assert len(result.errors) >= 1
+
     def test_raise_on_error(self):
         result = run(
             sql="SELECT * FROM nonexistent;",

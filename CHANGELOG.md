@@ -14,6 +14,7 @@ ______________________________________________________________________
 ### Fixed
 
 - Database factory functions (`db_SQLite(..., new_db=True)`, etc.) no longer crash with `AttributeError` when called before `run()` in library use.
+- `run(halt_on_error=False)` now reports non-halting SQL and metacommand errors in `result.errors` and sets `result.success` to `False`; previously they were silently dropped.
 
 ______________________________________________________________________
 

@@ -278,6 +278,7 @@ def _exec_sql(
             ctx.exec_log.log_status_info(f"SQL error: {e.errmsg()}")
         if status.halt_on_err:
             exit_now(1, e)
+        status.error_history.append((source, line_no, cmd, e.errmsg()))
         return
     subvars.add_substitution("$LAST_SQL", cmd)
 
@@ -334,6 +335,7 @@ def _exec_metacommand(
             ctx.exec_log.log_status_info(f"Metacommand error: {e.errmsg()}")
         if status.halt_on_metacommand_err:
             raise e
+        status.error_history.append((source, line_no, cmd, e.errmsg()))
         return None
     # No handler matched — truly unknown metacommand
     status.metacommand_error = True
