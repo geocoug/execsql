@@ -786,27 +786,37 @@ class TestGuiPublicAPI:
         from execsql.utils.gui import get_yn
 
         monkeypatch.setattr("builtins.input", lambda *a: "y")
-        assert get_yn("Continue?") is True
+        assert get_yn("Continue?") == "y"
 
     def test_get_yn_no(self, monkeypatch):
         from execsql.utils.gui import get_yn
 
         monkeypatch.setattr("builtins.input", lambda *a: "n")
-        assert get_yn("Continue?") is False
+        assert get_yn("Continue?") == "n"
 
     def test_get_yn_full_words(self, monkeypatch):
         from execsql.utils.gui import get_yn
 
         inputs = iter(["yes"])
         monkeypatch.setattr("builtins.input", lambda *a: next(inputs))
-        assert get_yn("?") is True
+        assert get_yn("?") == "y"
 
     def test_get_yn_retry_on_bad_input(self, monkeypatch):
         from execsql.utils.gui import get_yn
 
         inputs = iter(["maybe", "no"])
         monkeypatch.setattr("builtins.input", lambda *a: next(inputs))
-        assert get_yn("?") is False
+        assert get_yn("?") == "n"
+
+    def test_get_yn_eof_returns_esc(self, monkeypatch):
+        """Ctrl-D / piped EOF is treated as the quit sentinel, matching upstream."""
+        from execsql.utils.gui import get_yn
+
+        def _raise_eof(*a):
+            raise EOFError
+
+        monkeypatch.setattr("builtins.input", _raise_eof)
+        assert get_yn("?") == chr(27)
 
     def test_gui_credentials_console_fallback(self, monkeypatch):
         """gui_credentials must not call auth.get_password (which needs
@@ -912,7 +922,7 @@ class TestGuiPublicAPI:
         from execsql.utils.gui import get_yn_win
 
         monkeypatch.setattr("builtins.input", lambda *a: "y")
-        assert get_yn_win("?") is True
+        assert get_yn_win("?") == "y"
 
     def test_gui_console_on_off_updates_isrunning(self):
         """gui_console_on/off should be reflected by gui_console_isrunning()."""

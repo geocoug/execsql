@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Fixed
+
+- `ASK … SUB` now stores the actual answer ("Yes" or "No"); it previously stored "No" for every response, so `IF(IS_TRUE(…))` and `IF(…)` branches keyed on the answer never took the yes path. Pressing `Esc` at the prompt again quits the script.
+
 ______________________________________________________________________
 
 ## [2.22.1] - 2026-07-04

@@ -499,6 +499,33 @@ class TestXAsk:
             os_mock.name = "posix"
             _prompt.x_ask(**self._kwargs())
 
+    def test_real_get_yn_yes_stores_yes(self, fake_state, monkeypatch) -> None:
+        """Regression: ASK ... SUB var must store "Yes" when the user answers y.
+
+        Exercises the real (unmocked) execsql.utils.gui.get_yn through x_ask,
+        driven by a patched builtins.input, instead of mocking get_yn itself.
+        This is what caught the bool-vs-char-contract regression where
+        get_yn() started returning True/False instead of "y"/"n"/chr(27),
+        making x_ask's `resp == "y"` comparison always false.
+        """
+        s = fake_state()
+        _state.gui_console = None
+        monkeypatch.setattr("builtins.input", lambda *a: "y")
+        with patch("execsql.metacommands.prompt.os") as os_mock:
+            os_mock.name = "posix"
+            _prompt.x_ask(**self._kwargs())
+        s.subvars.add_substitution.assert_called_with("ans", "Yes")
+
+    def test_real_get_yn_no_stores_no(self, fake_state, monkeypatch) -> None:
+        """Regression: ASK ... SUB var must store "No" when the user answers n."""
+        s = fake_state()
+        _state.gui_console = None
+        monkeypatch.setattr("builtins.input", lambda *a: "n")
+        with patch("execsql.metacommands.prompt.os") as os_mock:
+            os_mock.name = "posix"
+            _prompt.x_ask(**self._kwargs())
+        s.subvars.add_substitution.assert_called_with("ans", "No")
+
 
 # ---------------------------------------------------------------------------
 # x_pause

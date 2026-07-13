@@ -540,18 +540,27 @@ def gui_credentials(
 # ---------------------------------------------------------------------------
 
 
-def get_yn(prompt: str) -> bool:
-    """Prompt for a yes/no answer on the terminal."""
+def get_yn(prompt: str) -> str:
+    """Prompt for a yes/no answer on the terminal.
+
+    Returns:
+        ``"y"`` or ``"n"``, or ``chr(27)`` (ESC) if the user aborts via EOF
+        (Ctrl-D / piped stdin closed). Matches the upstream v1.130.1
+        ``get_yn`` character contract expected by callers such as ``x_ask``.
+    """
     while True:
-        answer = input(f"{prompt} [y/n]: ").strip().lower()
+        try:
+            answer = input(f"{prompt} [y/n]: ").strip().lower()
+        except EOFError:
+            return chr(27)
         if answer in ("y", "yes"):
-            return True
+            return "y"
         if answer in ("n", "no"):
-            return False
+            return "n"
         print("Please enter y or n.", file=sys.stderr)
 
 
-def get_yn_win(prompt: str) -> bool:
+def get_yn_win(prompt: str) -> str:
     """GUI yes/no dialog — falls back to terminal in headless mode."""
     return get_yn(prompt)
 
