@@ -46,10 +46,12 @@ scripts/*
 # Superseded monolith
 _execsql/
 
-# Claude
+# AI
 .claude/
 CLAUDE.md
 AUDIT.md
 DOC_AUDIT.md
 PROMPTS.md
 audit/
+AGENTS.md
+.codex/
