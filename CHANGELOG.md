@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.22.3] - 2026-07-23
+
 ### Fixed
 
 - `execsql-format` no longer sends a completed dollar-quoted PL/pgSQL body to sqlglot. A `CREATE FUNCTION … $$ … $$;` or `DO $$ … $$;` whose quote closed before the block was flushed was reformatted (signature exploded, `LANGUAGE … AS` reordered, body types uppercased) and drifted — gaining one space of indentation on every run, so `--check` never converged. Such statements are now kept verbatim.
