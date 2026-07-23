@@ -6,6 +6,7 @@ import subprocess
 import sys
 from unittest.mock import patch
 
+import pytest
 
 from execsql.format import (
     _is_comment_line,
@@ -1824,6 +1825,101 @@ class TestDollarQuotedStrings:
         assert "LOOP" in result
         assert "EXIT WHEN n >= 3" in result
         assert "END LOOP" in result
+
+    def test_closed_dollar_quote_body_not_sent_to_sqlglot(self):
+        """A *complete* `CREATE FUNCTION ... $$ ... $$;` must stay opaque.
+
+        The closing `$$` resets `in_dollar_quote` to False before the block is
+        flushed, so a guard that only checked `in_dollar_quote` handed the whole
+        procedural body to sqlglot — exploding the arg list, reordering
+        `LANGUAGE ... AS`, and uppercasing the body's types. The sticky
+        `sql_acc_contains_dollar_quote` flag keeps the statement verbatim.
+        """
+        source = (
+            "CREATE FUNCTION check_case(val text) RETURNS boolean AS $$\n"
+            "BEGIN\n"
+            "    -- compare lowercased value\n"
+            "    IF lower(val) = val THEN\n"
+            "        RETURN true;\n"
+            "    END IF;\n"
+            "    RETURN false;\n"
+            "END;\n"
+            "$$ LANGUAGE plpgsql;\n"
+        )
+        result = format_file(source, use_sql=True)
+        # Body preserved byte-for-byte: signature not exploded, types not
+        # uppercased, LANGUAGE clause not reordered, indentation intact.
+        assert "CREATE FUNCTION check_case(val text) RETURNS boolean AS $$" in result
+        assert "    -- compare lowercased value" in result
+        assert "        RETURN true;" in result
+        assert "$$ LANGUAGE plpgsql;" in result
+
+    @pytest.mark.parametrize(
+        "source",
+        [
+            # Untagged $$ with a comment inside the body.
+            (
+                "CREATE FUNCTION check_case(val text) RETURNS boolean AS $$\n"
+                "BEGIN\n"
+                "    -- compare lowercased value\n"
+                "    IF lower(val) = val THEN\n"
+                "        RETURN true;\n"
+                "    END IF;\n"
+                "    RETURN false;\n"
+                "END;\n"
+                "$$ LANGUAGE plpgsql;\n"
+            ),
+            # Tagged body ($body$ ... $body$).
+            (
+                "CREATE FUNCTION add_one(x int) RETURNS int AS $body$\n"
+                "BEGIN\n"
+                "    -- add one\n"
+                "    IF x IS NULL THEN\n"
+                "        RETURN 0;\n"
+                "    END IF;\n"
+                "    RETURN x + 1;\n"
+                "END\n"
+                "$body$ LANGUAGE plpgsql;\n"
+            ),
+            # DO $$ ... $$;
+            (
+                "DO $$\n"
+                "DECLARE\n"
+                "    n int := 0;\n"
+                "BEGIN\n"
+                "    -- loop three times\n"
+                "    LOOP\n"
+                "        EXIT WHEN n >= 3;\n"
+                "        n := n + 1;\n"
+                "    END LOOP;\n"
+                "END\n"
+                "$$;\n"
+            ),
+            # Dollar-quoted body wrapped in an explicit BEGIN SQL / END SQL block.
+            (
+                "-- !x! BEGIN SQL\n"
+                "CREATE FUNCTION add_one(x int) RETURNS int AS $$\n"
+                "BEGIN\n"
+                "    -- add one\n"
+                "    RETURN x + 1;\n"
+                "END;\n"
+                "$$ LANGUAGE plpgsql;\n"
+                "-- !x! END SQL\n"
+            ),
+        ],
+        ids=["untagged", "tagged-body", "do-block", "in-begin-sql"],
+    )
+    def test_dollar_quoted_body_idempotent(self, source):
+        """Formatting a dollar-quoted body must be idempotent (no drift).
+
+        Prior to the fix, each SQL-enabled pass re-indented the body's comment
+        and control-flow lines by one more space, so `execsql-format --check`
+        never converged. Assert `first == second == third`.
+        """
+        first = format_file(source, use_sql=True)
+        second = format_file(first, use_sql=True)
+        third = format_file(second, use_sql=True)
+        assert first == second == third
 
     def test_if_inline_regex_agrees_with_parser(self):
         """`_IF_INLINE_RE` (formatter) and `_IF_INLINE_RX` (AST parser) must

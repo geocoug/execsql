@@ -642,6 +642,12 @@ def format_file(source: str, indent: int = 4, use_sql: bool = True, leading_comm
     # "body" for `$body$`, etc.). Nested markers with a different tag
     # are ignored — only a matching close marker re-opens us.
     current_dq_tag: str | None = None
+    # Sticky flag: True once the current accumulator has seen ANY dollar-quote
+    # marker. `in_dollar_quote` alone is False by the time a complete
+    # `CREATE FUNCTION ... $$ ... $$;` is flushed (the closing `$$` reset it),
+    # which would wrongly hand the PL/pgSQL body to sqlglot. This flag keeps the
+    # whole containing statement opaque to sqlglot. Reset in flush_sql().
+    sql_acc_contains_dollar_quote = False
     in_block_comment = False
     # Track whether we are inside an open SQL statement (last SQL line
     # did not end with ';').  Blank lines mid-statement should NOT flush
@@ -655,15 +661,19 @@ def format_file(source: str, indent: int = 4, use_sql: bool = True, leading_comm
 
     def flush_sql() -> None:
         nonlocal in_dollar_quote, current_dq_tag, in_sql_statement
+        nonlocal sql_acc_contains_dollar_quote
         if sql_acc:
             # If any line in the accumulated block is inside a $$-delimited
             # region, skip sqlglot formatting entirely.  PL/pgSQL function
             # bodies contain IF/END IF, LOOP, RETURN, etc. that sqlglot does
             # not understand and will corrupt (e.g., rewriting to COMMIT).
-            safe_for_sqlglot = use_sql and not in_dollar_quote
+            # `sql_acc_contains_dollar_quote` catches the case where the region
+            # already closed (`... $$;`) so `in_dollar_quote` is False at flush.
+            safe_for_sqlglot = use_sql and not in_dollar_quote and not sql_acc_contains_dollar_quote
             output.extend(format_sql_block(sql_acc, depth, indent, safe_for_sqlglot, leading_comma=leading_comma))
             sql_acc.clear()
         in_sql_statement = False
+        sql_acc_contains_dollar_quote = False
 
     for raw_line in source.expandtabs(4).splitlines():
         stripped_line = raw_line.strip()
@@ -727,6 +737,7 @@ def format_file(source: str, indent: int = 4, use_sql: bool = True, leading_comm
             # PL/pgSQL. Walk every dollar-quote marker on the line; toggle
             # state only when we hit the matching open or close.
             for m in _DOLLAR_QUOTE_RE.finditer(raw_line):
+                sql_acc_contains_dollar_quote = True
                 tag = m.group(1) or ""
                 if not in_dollar_quote:
                     in_dollar_quote = True
