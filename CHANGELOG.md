@@ -11,15 +11,24 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Fixed
+
+- `execsql-format` no longer alters PostgreSQL escape strings; `E'\\s+'` was rewritten as `e'\s+'`, turning a whitespace regex into a letter-`s` regex, and lost a further backslash on every run.
+- `execsql-format` now leaves a statement unformatted when its string literals would change; the previous check compared only alphanumeric counts and missed punctuation-only rewrites.
+
+### Changed
+
+- The `execsql-format` pre-commit hook pins `sqlglot>=25.0,<31` so a given commit formats identically on every machine.
+
 ______________________________________________________________________
 
 ## [2.22.4] - 2026-08-27
 
 ### Fixed
 
-- `HALT` with a message no longer opens a dialog and blocks forever in unattended runs. Without a GUI console and below `gui_level` 2 (no `-v2`/`-v3`), the message is written to the console and the script exits with the requested `EXIT_STATUS` — as the documentation has always described. Scripts that worked around this by pairing `WRITE` with a bare `HALT` can go back to `HALT MESSAGE`.
-- `HALT … DISPLAY` now shows its table on the console in non-interactive runs instead of discarding it; an empty table appears as its column headings and a count of zero rows.
-- Textual (`--gui-framework textual`) `HALT` dialogs now show the single OK button the metacommand asks for, rather than a Cancel/Continue pair whose Cancel exited with status 2 instead of the requested `EXIT_STATUS`. `HALT … DISPLAY` also renders its table in the dialog, and <kbd>Esc</kbd> no longer cancels it.
+- `HALT` with a message no longer blocks on a dialog in unattended runs; below `gui_level` 2 the message is written to the console and the script exits with the requested `EXIT_STATUS`.
+- `HALT … DISPLAY` now writes its table to the console in non-interactive runs instead of discarding it.
+- Textual `HALT` dialogs now show the single OK button the metacommand asks for, render the `DISPLAY` table, and ignore <kbd>Esc</kbd>; cancelling previously exited with status 2 instead of the requested `EXIT_STATUS`.
 
 ______________________________________________________________________
 

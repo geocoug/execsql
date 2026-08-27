@@ -10,8 +10,10 @@ import pytest
 
 from execsql.format import (
     _is_comment_line,
+    _iter_sql_literals,
     _protect_variables,
     _restore_variables,
+    _sql_literal_texts,
     _sqlglot_format,
     collect_paths,
     format_file,
@@ -1309,6 +1311,11 @@ class TestIdempotency:
             "-- Populate\n"
             "insert into foo values (1);\n"
         ),
+        # Escape strings — the repeating-degradation shape from issue #28,
+        # where one backslash was lost per escaped pair on every pass.
+        "escape_string_regex": ("select regexp_split_to_table(v, E'\\\\s+') from t;\n"),
+        "escape_string_double_backslash": ("select E'\\\\\\\\' from t;\n"),
+        "escape_string_literal_newline": ("select E'a\\\\nb' from t;\n"),
     }
 
     def test_idempotent_with_sql(self):
@@ -1362,6 +1369,186 @@ class TestIdempotency:
             first = format_file(source, indent=2, use_sql=True)
             second = format_file(first, indent=2, use_sql=True)
             assert first == second, f"Not idempotent (indent=2): {name}"
+
+
+# ---------------------------------------------------------------------------
+# String literal fidelity (issues #28, #30)
+# ---------------------------------------------------------------------------
+
+
+class TestEscapeStringPreservation:
+    """``E'...'`` literals must survive formatting byte-for-byte.
+
+    sqlglot's Postgres tokenizer consumes backslash escapes inside an escape
+    string but its generator never re-emits them, so ``E'\\\\s+'`` (a regex
+    matching whitespace) round-tripped to ``e'\\s+'`` (a regex matching the
+    letter *s*).  Regression test for issue #28.
+    """
+
+    # (source, literal that must appear verbatim in the output)
+    CASES = [
+        (r"SELECT REGEXP_SPLIT_TO_TABLE(v, E'\\s+') FROM t;", r"E'\\s+'"),
+        (r"SELECT E'\\\\' FROM t;", r"E'\\\\'"),
+        (r"SELECT E'a\\nb' FROM t;", r"E'a\\nb'"),
+        (r"SELECT REGEXP_REPLACE(v, E'\\d+', 'N', 'g') FROM t;", r"E'\\d+'"),
+        # Single backslashes were already safe — keep them that way.
+        (r"SELECT E'a\nb' FROM t;", r"E'a\nb'"),
+        (r"SELECT E'\s+' FROM t;", r"E'\s+'"),
+    ]
+
+    @pytest.mark.parametrize(("source", "literal"), CASES)
+    def test_escape_string_survives_formatting(self, source, literal):
+        assert literal in format_file(source)
+
+    @pytest.mark.parametrize(("source", "literal"), CASES)
+    def test_escape_string_stable_across_two_passes(self, source, literal):
+        """Guards the degradation shape: one backslash lost per pass.
+
+        ``first == second`` alone cannot catch this — the single-collapse
+        cases reach a fixed point immediately — so compare the *source*
+        literal against pass 1 as well as pass 1 against pass 2.
+        """
+        first = format_file(source)
+        second = format_file(first)
+        assert literal in first
+        assert literal in second
+        assert first == second
+
+    @pytest.mark.parametrize(
+        "source",
+        [
+            r"SELECT REGEXP_SPLIT_TO_TABLE(v, '\\s+') FROM t;",
+            r"SELECT 'C:\\temp\\file.txt' FROM t;",
+            r"SELECT $$\\s+$$ FROM t;",
+            r"SELECT $q$\\s+$q$ FROM t;",
+        ],
+    )
+    def test_other_literal_forms_unaffected(self, source):
+        """Plain and dollar-quoted literals keep their backslashes too."""
+        assert r"\\" in format_file(source), f"backslashes lost in: {source}"
+
+    def test_escape_string_case_is_preserved(self):
+        """``E'`` is restored verbatim rather than lowercased to ``e'``."""
+        assert "E'" in format_file(r"SELECT E'\\s+' FROM t;")
+
+    def test_escape_string_containing_quotes(self):
+        r"""Both ``\'`` and ``''`` escapes inside an E-string are handled."""
+        for src in [r"SELECT E'it\'s' FROM t;", r"SELECT E'it''s' FROM t;"]:
+            out = format_file(src)
+            assert "it" in out
+
+    def test_escape_string_inside_metacommand_untouched(self):
+        source = "-- !x! sub delim \\s+\nselect 1;\n"
+        assert "\\s+" in format_file(source)
+
+
+class TestSqlLiteralScanner:
+    """``_iter_sql_literals`` must only report genuine literals."""
+
+    def test_finds_plain_and_escape_and_dollar(self):
+        sql = "select 'a', E'b', $$c$$ from t;"
+        kinds = [k for _, _, k in _iter_sql_literals(sql)]
+        assert kinds == ["plain", "estring", "dollar"]
+
+    def test_quotes_in_line_comment_are_not_literals(self):
+        assert _sql_literal_texts("-- don't do this\nselect 1;") == []
+
+    def test_quotes_in_block_comment_are_not_literals(self):
+        assert _sql_literal_texts("/* don't */ select 1;") == []
+
+    def test_nested_block_comments(self):
+        assert _sql_literal_texts("/* a /* b ' */ c */ select 'x';") == ["'x'"]
+
+    def test_quoted_identifier_is_not_a_literal(self):
+        assert _sql_literal_texts('select "it\'s" from t;') == []
+
+    def test_doubled_quote_inside_plain_literal(self):
+        assert _sql_literal_texts("select 'it''s' from t;") == ["'it''s'"]
+
+    def test_backslash_escape_inside_estring(self):
+        assert _sql_literal_texts(r"select E'a\'b' from t;") == [r"E'a\'b'"]
+
+    def test_trailing_e_on_identifier_is_not_an_estring(self):
+        """``abce'x'`` is the identifier ``abce`` then a separate literal."""
+        assert [k for _, _, k in _iter_sql_literals("select abce'x' from t;")] == ["plain"]
+
+    def test_dollar_tag_body_is_opaque(self):
+        assert _sql_literal_texts("select $q$ 'a' $$ b $q$ from t;") == ["$q$ 'a' $$ b $q$"]
+
+    def test_positional_parameter_is_not_a_dollar_quote(self):
+        assert _sql_literal_texts("select $1, 'a' from t;") == ["'a'"]
+
+
+class TestLiteralRoundTripGuard:
+    """The formatter falls back rather than emit altered literal content."""
+
+    def test_guard_falls_back_when_a_literal_is_lost(self, monkeypatch):
+        """A literal missing from the round trip forces the unformatted text.
+
+        Simulates the loss on the output side only: the guard calls
+        ``_sql_literal_texts`` for the input first and the generated SQL
+        second, so dropping the literal on the second call is exactly the
+        shape of an sqlglot round-trip regression.
+        """
+        import execsql.format as fmt
+
+        lines = ["select 'keepme' from t;"]
+        assert fmt._sqlglot_format(list(lines)) != lines, "expected this block to format normally"
+
+        real = fmt._sql_literal_texts
+        calls = {"n": 0}
+
+        def lose_on_output(sql):
+            calls["n"] += 1
+            found = real(sql)
+            return found if calls["n"] == 1 else [x for x in found if x != "'keepme'"]
+
+        monkeypatch.setattr(fmt, "_sql_literal_texts", lose_on_output)
+        assert fmt._sqlglot_format(list(lines)) == lines
+
+    def test_guard_falls_back_when_a_literal_is_altered(self, monkeypatch):
+        """Content change, not just loss, must also trip the guard."""
+        import execsql.format as fmt
+
+        lines = ["select 'keepme' from t;"]
+        real = fmt._sql_literal_texts
+        calls = {"n": 0}
+
+        def alter_on_output(sql):
+            calls["n"] += 1
+            found = real(sql)
+            return found if calls["n"] == 1 else [x.replace("keepme", "KEEPME") for x in found]
+
+        monkeypatch.setattr(fmt, "_sql_literal_texts", alter_on_output)
+        assert fmt._sqlglot_format(list(lines)) == lines
+
+    def test_guard_tolerates_literals_repeated_by_transpilation(self):
+        """sqlglot may legitimately emit a literal more times than the input.
+
+        ``SUBSTRING_INDEX(d, ',', 1)`` expands into a Postgres form that uses
+        ``','`` more than once; requiring exact list equality would fall back
+        here for no reason, so the guard uses containment.
+        """
+        source = "select trim(substring_index(data, ',', 1)) as c from t;\n"
+        out = format_file(source)
+        assert "','" in out
+        # Formatting actually happened rather than falling back.
+        assert out.count("\n") >= source.count("\n")
+
+    def test_literals_preserved_across_repo_style_sql(self):
+        """No literal present in the source may vanish from the output."""
+        source = (
+            "select\n"
+            "    a.name,\n"
+            "    'staging' as env,\n"
+            "    regexp_replace(a.v, E'\\\\s+', ' ', 'g') as clean,\n"
+            "    now() - interval '1 day' as cutoff\n"
+            "from t a\n"
+            "where a.k = 'x';\n"
+        )
+        out = format_file(source)
+        missing = set(_sql_literal_texts(source)) - set(_sql_literal_texts(out))
+        assert not missing, f"literals lost: {missing}"
 
 
 # ---------------------------------------------------------------------------
