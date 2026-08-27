@@ -298,7 +298,7 @@ Substitution variables can also be defined in the "variables" section of a [conf
 
 ## Quoting Convention { #quoting_convention }
 
-[SUB](metacommands.md#subcmd) stores its replacement string verbatim, and substitution inserts the stored text without modification. [EXECUTE SCRIPT](metacommands.md#executescript) argument values, however, are stripped of one pair of surrounding quotes when bound to parameters. As a result, `SUB myfile "filename.txt"` followed by `EXECUTE SCRIPT proc(arg='!!myfile!!')` leaves the called script's `!!#arg!!` expanding to `"filename.txt"` — still wrapped in the double quotes from the SUB, with no in-script primitive to strip them.
+[SUB](metacommands.md#subcmd) stores surrounding quotes verbatim, and substitution inserts the stored text without modification. (Surrounding *whitespace* is the exception — SUB trims it; see the [SUB](metacommands.md#subcmd) entry.) [EXECUTE SCRIPT](metacommands.md#executescript) argument values, however, are stripped of one pair of surrounding quotes when bound to parameters. As a result, `SUB myfile "filename.txt"` followed by `EXECUTE SCRIPT proc(arg='!!myfile!!')` leaves the called script's `!!#arg!!` expanding to `"filename.txt"` — still wrapped in the double quotes from the SUB, with no in-script primitive to strip them.
 
 To avoid this, store bare values and apply quoting only at the point of use:
 
