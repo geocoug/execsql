@@ -95,10 +95,99 @@ class TestMsgScreen:
 
     def test_continue_button_click(self):
         async def interact(pilot):
-            await pilot.click("#btn_close")
+            await pilot.click("#btn_0")
             await pilot.pause()
 
         result = _run_dialog(MsgScreen, {"title": "T", "message": "Hi"}, interact)
+        assert result.get("button") == 1
+
+    # --- button_list / no_cancel honoured (issue #26) ---
+
+    def test_custom_button_list_returns_its_value(self):
+        """A caller-supplied button_list drives the buttons and return value."""
+
+        async def interact(pilot):
+            await pilot.click("#btn_1")
+            await pilot.pause()
+
+        result = _run_dialog(
+            MsgScreen,
+            {"title": "T", "message": "Hi", "button_list": [("Retry", 5), ("Skip", 9)]},
+            interact,
+        )
+        assert result.get("button") == 9
+
+    def test_no_cancel_omits_cancel_button(self):
+        """no_cancel (as HALT passes) suppresses the Cancel button entirely."""
+        from textual.css.query import NoMatches
+
+        seen = {}
+
+        async def interact(pilot):
+            try:
+                pilot.app.screen.query_one("#btn_cancel_exit")
+                seen["cancel"] = True
+            except NoMatches:
+                seen["cancel"] = False
+            await pilot.click("#btn_0")
+            await pilot.pause()
+
+        result = _run_dialog(
+            MsgScreen,
+            {
+                "title": "HALT",
+                "message": "boom",
+                "button_list": [("OK", 1, "<Return>")],
+                "no_cancel": True,
+            },
+            interact,
+        )
+        assert seen["cancel"] is False
+        assert result.get("button") == 1
+
+    def test_no_cancel_ignores_escape(self):
+        """Escape must not cancel a no_cancel dialog — cancelling exits with status 2."""
+
+        async def interact(pilot):
+            await pilot.press("escape")
+            await pilot.pause()
+            await pilot.click("#btn_0")
+            await pilot.pause()
+
+        result = _run_dialog(
+            MsgScreen,
+            {
+                "title": "HALT",
+                "message": "boom",
+                "button_list": [("OK", 1, "<Return>")],
+                "no_cancel": True,
+            },
+            interact,
+        )
+        assert result.get("cancelled") is not True
+        assert result.get("button") == 1
+
+    def test_renders_display_rowset(self):
+        """column_headers/rowset (HALT ... DISPLAY) render as a table."""
+
+        async def interact(pilot):
+            table = pilot.app.screen.query_one("#msg_table")
+            assert table.row_count == 2
+            await pilot.click("#btn_0")
+            await pilot.pause()
+
+        result = _run_dialog(
+            MsgScreen,
+            {
+                "title": "HALT",
+                "message": "boom",
+                "button_list": [("OK", 1, "<Return>")],
+                "no_cancel": True,
+                "column_headers": ["id", "reason"],
+                "rowset": [(1, "missing station"), (22, "negative depth")],
+            },
+            interact,
+        )
         assert result.get("button") == 1
 
 

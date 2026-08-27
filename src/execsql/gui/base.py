@@ -9,9 +9,64 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     pass
 
-__all__ = ["DiffResult", "GuiBackend", "compare_stats", "compute_row_diffs"]
+__all__ = ["DiffResult", "GuiBackend", "compare_stats", "compute_row_diffs", "format_table", "row_count_text"]
 
 DIFF_MARKER = "● "
+
+
+# ---------------------------------------------------------------------------
+# Plain-text table rendering (shared by the console backend and by
+# non-interactive metacommand fallbacks such as HALT ... DISPLAY)
+# ---------------------------------------------------------------------------
+
+
+def row_count_text(n: int) -> str:
+    """Return a human-readable row count string, e.g. ``'3 rows'`` or ``'1 row'``."""
+    return f"{n:,} row{'s' if n != 1 else ''}"
+
+
+def format_table(
+    headers: list,
+    rows: list,
+    row_states: list[str] | None = None,
+    changed_cols: list[set[str]] | None = None,
+) -> str:
+    """Render *headers* and *rows* as a plain-text table.
+
+    Columns are left-aligned and padded to the widest value.  When *row_states*
+    and *changed_cols* are provided, cells that differ in ``"changed"`` rows are
+    prefixed with the diff marker (``"● "``) and the marker width is included in
+    the column sizing.
+
+    Returns an empty string when *headers* is empty.  The result has no trailing
+    newline.
+    """
+    if not headers:
+        return ""
+    headers_str = [str(h) for h in headers]
+
+    # Pre-compute display values so column widths account for markers.
+    display_rows: list[list[str]] = []
+    for ridx, row in enumerate(rows):
+        cells: list[str] = []
+        state = row_states[ridx] if row_states and ridx < len(row_states) else ""
+        diff_set = changed_cols[ridx] if changed_cols and ridx < len(changed_cols) else set()
+        for ci, cell in enumerate(row):
+            val = str(cell) if cell is not None else ""
+            if state == "changed" and ci < len(headers_str) and headers_str[ci] in diff_set:
+                val = f"{DIFF_MARKER}{val}"
+            cells.append(val)
+        display_rows.append(cells)
+
+    col_widths = [len(h) for h in headers_str]
+    for cells in display_rows:
+        for i, cell in enumerate(cells):
+            col_widths[i] = max(col_widths[i], len(cell))
+    fmt = "  " + "  ".join(f"{{:<{w}}}" for w in col_widths)
+    sep = "  " + "  ".join("-" * w for w in col_widths)
+    lines = [fmt.format(*headers_str), sep]
+    lines.extend(fmt.format(*cells) for cells in display_rows)
+    return "\n".join(lines)
 
 
 # ---------------------------------------------------------------------------

@@ -1326,6 +1326,7 @@ class TestControlHaltExtended:
         from execsql.metacommands.control import x_halt_msg
 
         minimal_conf.tee_write_log = False
+        minimal_conf.gui_level = 2  # opt into the dialog path
         mock_queue = MagicMock()
         _state.gui_manager_queue = mock_queue
 
@@ -1356,6 +1357,7 @@ class TestControlHaltExtended:
         from execsql.metacommands.control import x_halt_msg
 
         minimal_conf.tee_write_log = False
+        minimal_conf.gui_level = 2  # opt into the dialog path
         mock_queue = MagicMock()
         _state.gui_manager_queue = mock_queue
 
@@ -1393,6 +1395,7 @@ class TestControlHaltExtended:
         from execsql.metacommands.control import x_halt_msg
 
         minimal_conf.tee_write_log = False
+        minimal_conf.gui_level = 2  # opt into the dialog path
         mock_queue = MagicMock()
         _state.gui_manager_queue = mock_queue
         outfile = tmp_path / "haltmsg.txt"
@@ -1422,6 +1425,7 @@ class TestControlHaltExtended:
         from execsql.metacommands.control import x_halt_msg
 
         minimal_conf.tee_write_log = False
+        minimal_conf.gui_level = 2  # opt into the dialog path
         mock_queue = MagicMock()
         _state.gui_manager_queue = mock_queue
 
@@ -1449,6 +1453,7 @@ class TestControlHaltExtended:
         from execsql.metacommands.control import x_halt_msg
 
         minimal_conf.tee_write_log = False
+        minimal_conf.gui_level = 2  # opt into the dialog path
         mock_queue = MagicMock()
         _state.gui_manager_queue = mock_queue
 
@@ -1470,6 +1475,126 @@ class TestControlHaltExtended:
                 table=None,
             )
         mock_exit.assert_called_once_with(3, None)
+
+    # --- x_halt_msg: non-interactive fallback (issue #26) ---
+
+    def _noninteractive_halt(self, minimal_conf, **kwargs):
+        """Run x_halt_msg at gui_level 0 with no GUI console; return the mocked exit_now."""
+        from execsql.metacommands.control import x_halt_msg
+
+        minimal_conf.tee_write_log = False
+        minimal_conf.gui_level = 0
+        mock_queue = MagicMock()
+        _state.gui_manager_queue = mock_queue
+
+        with (
+            patch("execsql.metacommands.control.gui_console_isrunning", return_value=False),
+            patch("execsql.metacommands.control.enable_gui") as mock_enable,
+            patch("execsql.metacommands.control.exit_now") as mock_exit,
+            patch("execsql.metacommands.control.current_script_line", return_value=("t.sql", 1)),
+        ):
+            defaults = {
+                "errmsg": "boom",
+                "tee": None,
+                "filename": None,
+                "errorlevel": None,
+                "schema": None,
+                "table": None,
+            }
+            defaults.update(kwargs)
+            x_halt_msg(**defaults)
+        return mock_queue, mock_enable, mock_exit
+
+    def test_x_halt_msg_does_not_open_dialog_when_noninteractive(self, minimal_conf):
+        """At gui_level 0 with no console, no GUI is started and nothing is queued.
+
+        Regression test for issue #26: the message-bearing HALT forms shadow
+        x_halt in the dispatch table, so the guard has to live here or an
+        unattended run blocks forever on a modal nobody can dismiss.
+        """
+        mock_queue, mock_enable, mock_exit = self._noninteractive_halt(minimal_conf)
+        mock_enable.assert_not_called()
+        mock_queue.put.assert_not_called()
+        _state.output.write_err.assert_any_call("boom")
+        mock_exit.assert_called_once_with(3, None)
+
+    def test_x_halt_msg_noninteractive_honors_exit_status(self, minimal_conf):
+        """The EXIT_STATUS value is used on the console path, not the generic 2/3."""
+        _, _, mock_exit = self._noninteractive_halt(minimal_conf, errorlevel="7")
+        mock_exit.assert_called_once_with(7, None)
+
+    def test_x_halt_msg_noninteractive_logs_halt(self, minimal_conf):
+        """The halt is still recorded in the execution log."""
+        self._noninteractive_halt(minimal_conf)
+        _state.exec_log.log_exit_halt.assert_called_once_with("t.sql", 1, msg="boom")
+
+    def test_x_halt_msg_noninteractive_still_writes_tee_file(self, minimal_conf, tmp_path):
+        """The TEE TO file is written before the console fallback exits."""
+        outfile = tmp_path / "halt.txt"
+        self._noninteractive_halt(minimal_conf, filename=str(outfile))
+        assert outfile.read_text().strip() == "boom"
+
+    def test_x_halt_msg_noninteractive_renders_display_table(self, minimal_conf):
+        """A DISPLAY table is rendered to the error output instead of a dialog."""
+        mock_db = MagicMock()
+        mock_db.schema_qualified_table_name.return_value = "s.t"
+        mock_db.select_data.return_value = (["id", "reason"], [(1, "bad"), (22, "worse")])
+        mock_dbs = MagicMock()
+        mock_dbs.current.return_value = mock_db
+        _state.dbs = mock_dbs
+
+        self._noninteractive_halt(minimal_conf, schema="s", table="t")
+
+        written = "\n".join(c.args[0] for c in _state.output.write_err.call_args_list)
+        assert "boom" in written
+        assert "id" in written and "reason" in written
+        assert "bad" in written and "worse" in written
+        assert "2 rows" in written
+
+    def test_x_halt_msg_noninteractive_renders_empty_display_table(self, minimal_conf):
+        """An empty DISPLAY table still shows headers and a zero row count."""
+        mock_db = MagicMock()
+        mock_db.schema_qualified_table_name.return_value = "s.t"
+        mock_db.select_data.return_value = (["id", "reason"], [])
+        mock_dbs = MagicMock()
+        mock_dbs.current.return_value = mock_db
+        _state.dbs = mock_dbs
+
+        self._noninteractive_halt(minimal_conf, schema="s", table="t")
+
+        written = "\n".join(c.args[0] for c in _state.output.write_err.call_args_list)
+        assert "id" in written and "reason" in written
+        assert "0 rows" in written
+
+    def test_x_halt_msg_opens_dialog_when_console_running(self, minimal_conf):
+        """A running GUI console still gets the dialog even at gui_level 0."""
+        from execsql.metacommands.control import x_halt_msg
+
+        minimal_conf.tee_write_log = False
+        minimal_conf.gui_level = 0
+        mock_queue = MagicMock()
+        _state.gui_manager_queue = mock_queue
+
+        with (
+            patch("execsql.metacommands.control.gui_console_isrunning", return_value=True),
+            patch("execsql.metacommands.control.enable_gui"),
+            patch("execsql.metacommands.control.exit_now"),
+            patch("execsql.metacommands.control.current_script_line", return_value=("t.sql", 1)),
+            patch("queue.Queue") as mock_q_cls,
+        ):
+            rq = MagicMock()
+            rq.get.return_value = None
+            mock_q_cls.return_value = rq
+            x_halt_msg(
+                errmsg="boom",
+                tee=None,
+                filename=None,
+                errorlevel=None,
+                schema=None,
+                table=None,
+            )
+        mock_queue.put.assert_called_once()
+        assert mock_queue.put.call_args[0][0].gui_type == "halt"
 
     # --- x_wait_until: condition passes immediately (line 231) ---
 

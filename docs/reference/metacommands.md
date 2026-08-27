@@ -1361,10 +1361,22 @@ HALT [[MESSAGE] "<error_message>" [TEE TO <outfile>]]
     [DISPLAY <table_or_view>] [EXIT_STATUS <n>]
 ```
 
-Script processing is halted, and the *execsql* program terminates. If an error message is provided, it is written to the console, unless the "-v2" or "-v3" option is used, in which case the message is displayed in a dialog. If the TEE clause is used, the error message will be appended to the specified file. If the DISPLAY clause is used, the specified table or view will be displayed in a GUI dialog. If an EXIT_STATUS value is specified, the [system exit status](https://en.wikipedia.org/wiki/Exit_status) is set to that value, otherwise, the system exit status is set to 3.
+Script processing is halted, and the *execsql* program terminates. If the TEE clause is used, the error message will be appended to the specified file. If an EXIT_STATUS value is specified, the [system exit status](https://en.wikipedia.org/wiki/Exit_status) is set to that value, otherwise, the system exit status is set to 3.
+
+The error message and the DISPLAY table are reported in a dialog only when the run is interactive — that is, when the "-v2" or "-v3" option is used (or [`gui_level`](configuration.md#gui_level) is set to 2 or 3), or a GUI console is already open. Otherwise the message is written to the console, followed by the DISPLAY table as a plain-text table with a row count, and the script exits immediately. An unattended run therefore fails with the requested exit status rather than waiting on a dialog that nobody is present to dismiss.
+
+A DISPLAY table with no rows is shown on the console as its column headings and a count of zero rows; in a dialog, an empty table is omitted.
+
+```sql
+-- Fail the run and print the offending rows, in a cron job or in a GUI session.
+-- !x! if(hasrows(bad_rows)) { halt message "Validation failed." display bad_rows exit_status 7 }
+```
 
 !!! warning
     A backward-incompatible change to HALT MESSAGE was made in version 1.26.1.0 (2018-06-13): the default exit status was changed from 2 to 3.
+
+!!! note
+    Through execsql 2.22.3, a HALT that carried a message always opened a dialog, even at `gui_level` 0, which caused unattended runs to block indefinitely. Scripts that worked around this by writing the message with [WRITE](#write) before a bare `HALT` do not need to change, but they can now use `HALT MESSAGE` directly.
 
 The text to be written may be enclosed in double quotes (as shown above), or in single quotes, matching square brackets, backticks, tildes, or hash marks (#).
 
