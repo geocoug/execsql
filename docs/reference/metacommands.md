@@ -1807,7 +1807,7 @@ SUB_DEFINED(<match_string>)
 Evaluates whether a replacement string has been defined for the specified substitution variable (matching string).
 
 
-### *SUB_EMPTY*
+### *SUB_EMPTY* { #sub_empty_cond }
 
 ```
 SUB_EMPTY(<match_string>)
@@ -2945,6 +2945,20 @@ SUB <match_string> <replacement_string>
 Defines a [substitution variable](substitution_vars.md#substitution_vars) (the \<match_string\>) which, if matched on any line of the script, will be replaced by the specified replacement string. Replacement will occur on all following lines of the script (and all included scripts) before the lines are evaluated in any other way. Every occurrence of the \<match_string\>, when immediately preceded and followed by two exclamation points ("!!"), will be replaced by the replacement string. Substitutions are processed in the order in which they are defined.
 
 If the variable name (\<match_string\>) starts with a tilde, a [local variable](substitution_vars.md#local_vars) will be created. If the variable name starts with a plus, the substitution is assigned to the first (proceeding outward) local variable by the same name found in an enclosing script. The plus prefix may only be used to refer to an existing instance of an outer-scope local variables; it cannot be used to create a new instance. If no corresponding local variable exists in any outer scope, an error will be raised.
+
+The replacement string cannot be empty. A SUB metacommand with no replacement string matches no metacommand at all, and fails with an "Unknown metacommand" error naming the SUB line. Use [SUB_EMPTY](#sub_empty) to assign a zero-length string.
+
+This also applies when the replacement string comes from a variable — a value taken from [SELECT_SUB](#select_sub) or [SUBDATA](#subdata), for example. If the query returns an empty value, the substituted line reduces to `SUB <match_string>` and fails the same way:
+
+```sql
+-- The script works until the query happens to return an empty string.
+-- !x! SELECT_SUB v
+-- !x! SUB myvar !!@c!!
+```
+
+The variable is still *defined* in that case, so [SUB_DEFINED](#sub_defined) will not detect it. Test with the [SUB_EMPTY](#sub_empty_cond) conditional before the SUB, or coalesce the value to a non-empty sentinel in the query.
+
+Leading and trailing whitespace is removed from the replacement string, so SUB cannot store a value whose surrounding whitespace is significant. Trailing whitespace is stripped from every metacommand line before it is dispatched, so this applies to substituted values as well as to literal text. Indentation that must be preserved should be supplied where the variable is used rather than stored in the variable. [SUB_APPEND](#sub_append) differs here: it preserves leading whitespace in the appended text, while still losing trailing whitespace to the same line-level strip.
 
 
 ## SUB_ADD
