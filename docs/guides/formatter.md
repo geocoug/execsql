@@ -91,9 +91,18 @@ Block comments (`/* */`) that contain `-- !x!` metacommand markers (e.g. comment
 
 execsql substitution variables (`!!varname!!`, `!{varname}!`) are replaced with valid SQL identifiers before formatting, then restored afterward, so the formatter does not corrupt them — including in schema-qualified names (`!!staging!!.!!table!!`), CASE expressions, JOIN conditions, and string concatenation.
 
+#### String literal preservation { #string_literals }
+
+Formatting never changes what a string literal contains. Two mechanisms enforce this:
+
+- PostgreSQL escape strings (`E'...'`) are held out of the sqlglot round trip entirely and restored byte-for-byte, keeping both their backslash escapes and their `E` prefix. This matters because sqlglot consumes backslash escapes inside an escape string without re-emitting them, which would turn `E'\\s+'` (a regex matching whitespace) into `e'\s+'` (a regex matching the letter `s`).
+- Every other literal — ordinary `'...'` strings and dollar-quoted bodies (`$$...$$`, `$tag$...$tag$`) — is compared before and after formatting. If any literal fails to come back unchanged, the statement is left unformatted rather than rewritten.
+
+The second check is deliberately conservative: a statement may occasionally be left alone when the rewrite would in fact have been harmless (for example, sqlglot normalizes `interval '1 day'` to `INTERVAL '1 DAY'`, which changes the literal's text but not its meaning). Losing formatting on a statement is recoverable; silently changing what a query does is not.
+
 #### Fallback behavior
 
-If sqlglot cannot parse a SQL statement, or if safety checks detect that formatting would corrupt the SQL (e.g. statement count changes, significant content loss), the original text is preserved unchanged.
+If sqlglot cannot parse a SQL statement, or if safety checks detect that formatting would corrupt the SQL — statement count changes, significant content loss, or an altered [string literal](#string_literals) — the original text is preserved unchanged.
 
 Use `--no-sql` to skip SQL reformatting entirely and only normalize metacommands.
 

@@ -14,6 +14,7 @@ from __future__ import annotations
 import contextlib
 import io
 import re
+from collections.abc import Iterator
 from pathlib import Path
 
 __all__ = ["collect_paths", "format_file", "main", "parse_keyword"]
@@ -169,6 +170,170 @@ def parse_keyword(payload: str) -> str:
 _EXECSQL_VAR_RE = re.compile(r"""!(['"]?)!([^!\s][^!]*)!\1!|!\{[^}]+\}!""")
 
 
+# Characters that may appear in an identifier, used to tell an ``E'...'``
+# escape-string prefix from a trailing ``e`` on an identifier (``abce'x'`` is
+# the identifier ``abce`` followed by a separate literal).
+_IDENT_CHAR_RE = re.compile(r"[A-Za-z0-9_$]")
+
+
+def _iter_sql_literals(sql: str) -> Iterator[tuple[int, int, str]]:
+    """Yield ``(start, end, kind)`` spans for every string literal in *sql*.
+
+    This is a lexical walk rather than a regex sweep, because an apostrophe
+    only starts a literal in some contexts.  Line comments, block comments
+    (which nest in PostgreSQL), and quoted identifiers are skipped entirely,
+    so quotes inside them never open a literal.
+
+    *kind* is one of:
+
+    ``"estring"``
+        A PostgreSQL escape string, ``E'...'``.  Backslash escapes are
+        significant inside it, which is what makes it unsafe to hand to
+        sqlglot — see :func:`_protect_estrings`.
+    ``"plain"``
+        An ordinary ``'...'`` literal, where only a doubled ``''`` escapes.
+    ``"dollar"``
+        A dollar-quoted body, ``$$...$$`` or ``$tag$...$tag$``, in which no
+        character is special.
+    """
+    i, n = 0, len(sql)
+    while i < n:
+        c = sql[i]
+
+        if c == "-" and sql.startswith("--", i):
+            nl = sql.find("\n", i)
+            i = n if nl < 0 else nl + 1
+            continue
+
+        if c == "/" and sql.startswith("/*", i):
+            depth, i = 1, i + 2
+            while i < n and depth:
+                if sql.startswith("/*", i):
+                    depth, i = depth + 1, i + 2
+                elif sql.startswith("*/", i):
+                    depth, i = depth - 1, i + 2
+                else:
+                    i += 1
+            continue
+
+        if c == '"':
+            i += 1
+            while i < n:
+                if sql[i] == '"':
+                    if sql.startswith('""', i):
+                        i += 2
+                        continue
+                    i += 1
+                    break
+                i += 1
+            continue
+
+        if c == "$":
+            m = _DOLLAR_QUOTE_RE.match(sql, i)
+            if m:
+                tag = m.group(0)
+                close = sql.find(tag, m.end())
+                stop = n if close < 0 else close + len(tag)
+                yield i, stop, "dollar"
+                i = stop
+                continue
+
+        # E'...' — only when the `e` is not the tail of an identifier.
+        if c in "eE" and sql.startswith("'", i + 1) and not (i and _IDENT_CHAR_RE.match(sql[i - 1])):
+            j = i + 2
+            while j < n:
+                if sql[j] == "\\" and j + 1 < n:
+                    j += 2
+                    continue
+                if sql[j] == "'":
+                    if sql.startswith("''", j):
+                        j += 2
+                        continue
+                    j += 1
+                    break
+                j += 1
+            yield i, j, "estring"
+            i = j
+            continue
+
+        if c == "'":
+            j = i + 1
+            while j < n:
+                if sql[j] == "'":
+                    if sql.startswith("''", j):
+                        j += 2
+                        continue
+                    j += 1
+                    break
+                j += 1
+            yield i, j, "plain"
+            i = j
+            continue
+
+        i += 1
+
+
+def _sql_literal_texts(sql: str) -> list[str]:
+    """Return the source text of every string literal in *sql*, in order."""
+    return [sql[start:end] for start, end, _ in _iter_sql_literals(sql)]
+
+
+# Placeholder standing in for a masked E'...' literal.  It is a plain literal
+# so that sqlglot sees a string where a string was, and lays the statement out
+# the same way it would have for the real one.
+_ESTR_PLACEHOLDER = "execsqlestr"
+_ESTR_RESTORE_RE = re.compile(rf"'{_ESTR_PLACEHOLDER}(\d+)'")
+
+
+def _protect_estrings(sql: str) -> tuple[str, list[str]]:
+    """Replace ``E'...'`` literals with placeholders, return (protected, originals).
+
+    sqlglot's Postgres tokenizer consumes backslash escapes inside an escape
+    string but its generator never re-emits them, so ``E'\\\\s+'`` round-trips
+    to ``e'\\s+'`` — a different string (tobymao/sqlglot#8191).  Masking these
+    literals keeps them out of the round trip entirely and restores them
+    byte-for-byte, independently of the installed sqlglot version.
+    """
+    originals: list[str] = []
+    out: list[str] = []
+    last = 0
+    for start, end, kind in _iter_sql_literals(sql):
+        if kind != "estring":
+            continue
+        out.append(sql[last:start])
+        out.append(f"'{_ESTR_PLACEHOLDER}{len(originals)}'")
+        originals.append(sql[start:end])
+        last = end
+    if not originals:
+        return sql, []
+    out.append(sql[last:])
+    return "".join(out), originals
+
+
+def _restore_estrings(sql: str, originals: list[str]) -> str | None:
+    """Put masked ``E'...'`` literals back; return None if any went missing.
+
+    A missing placeholder means sqlglot dropped or mangled the literal, so the
+    caller must fall back to the unformatted text rather than emit SQL with a
+    placeholder left in it.
+    """
+    if not originals:
+        return sql
+    seen: set[int] = set()
+
+    def replace(m: re.Match[str]) -> str:
+        idx = int(m.group(1))
+        if idx >= len(originals):
+            return m.group(0)
+        seen.add(idx)
+        return originals[idx]
+
+    restored = _ESTR_RESTORE_RE.sub(replace, sql)
+    if len(seen) != len(originals) or _ESTR_PLACEHOLDER in restored:
+        return None
+    return restored
+
+
 def _protect_variables(sql: str) -> tuple[str, list[tuple[str, str]]]:
     """Replace execsql substitutions with valid SQL identifiers, return (protected, replacements)."""
     replacements: list[tuple[str, str]] = []
@@ -224,6 +389,9 @@ def _sqlglot_format(
 
     text = "\n".join(sql_lines)
     protected, replacements = _protect_variables(text)
+    # Keep E'...' literals out of the round trip; sqlglot loses their
+    # backslash escapes (see _protect_estrings).
+    protected, estrings = _protect_estrings(protected)
 
     # Count semicolons in input as a rough statement count.
     input_semis = protected.count(";")
@@ -275,8 +443,29 @@ def _sqlglot_format(
         output_alnum_len = len(_alnum.sub("", joined))
         if input_alnum_len and output_alnum_len < input_alnum_len * 0.7:
             return sql_lines
+
+        # Literal round-trip check.  The alphanumeric check above is a
+        # gross-token-loss detector: it deletes every non-alphanumeric
+        # character before counting, so a transformation that changes only
+        # punctuation — a dropped backslash, a swapped quote — is invisible to
+        # it at any threshold.  Requiring every literal to survive verbatim
+        # closes that blind spot for the whole class, not just for the E'...'
+        # case masked above.
+        #
+        # Containment, not equality: sqlglot rewrites dialect-specific
+        # constructs into Postgres equivalents that can legitimately repeat a
+        # literal (``SUBSTRING_INDEX(d, ',', 1)`` expands into a form using
+        # ``','`` more than once), so the output may hold more literals than
+        # the input.  What must never happen is an input literal coming back
+        # altered or not at all — that is content loss, and it falls back.
+        if set(_sql_literal_texts(protected)) - set(_sql_literal_texts(joined)):
+            return sql_lines
+
         joined = re.sub(r"\bINTO TEMPORARY\b(?!\s+TABLE)", "INTO TEMPORARY TABLE", joined)
-        return _restore_variables(joined, replacements).split("\n")
+        restored = _restore_estrings(joined, estrings)
+        if restored is None:
+            return sql_lines
+        return _restore_variables(restored, replacements).split("\n")
     except Exception:
         return sql_lines
 

@@ -6,4 +6,4 @@
   types: [file]
   files: \.sql$
   args: [--in-place]
-  additional_dependencies: [sqlglot]
+  additional_dependencies: ["sqlglot>=25.0,<31"]
