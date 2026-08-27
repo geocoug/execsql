@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.22.5] - 2026-08-27
+
 ### Fixed
 
 - `execsql-format` no longer alters PostgreSQL escape strings; `E'\\s+'` was rewritten as `e'\s+'`, turning a whitespace regex into a letter-`s` regex, and lost a further backslash on every run.
