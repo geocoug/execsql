@@ -11,6 +11,12 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Fixed
+
+- `HALT` with a message no longer opens a dialog and blocks forever in unattended runs. Without a GUI console and below `gui_level` 2 (no `-v2`/`-v3`), the message is written to the console and the script exits with the requested `EXIT_STATUS` — as the documentation has always described. Scripts that worked around this by pairing `WRITE` with a bare `HALT` can go back to `HALT MESSAGE`.
+- `HALT … DISPLAY` now shows its table on the console in non-interactive runs instead of discarding it; an empty table appears as its column headings and a count of zero rows.
+- Textual (`--gui-framework textual`) `HALT` dialogs now show the single OK button the metacommand asks for, rather than a Cancel/Continue pair whose Cancel exited with status 2 instead of the requested `EXIT_STATUS`. `HALT … DISPLAY` also renders its table in the dialog, and <kbd>Esc</kbd> no longer cancels it.
+
 ______________________________________________________________________
 
 ## [2.22.3] - 2026-07-23

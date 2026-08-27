@@ -11,7 +11,13 @@ import sys
 import time
 from typing import Any, cast
 
-from execsql.gui.base import DIFF_MARKER, GuiBackend, compare_stats as _compare_stats, compute_row_diffs
+from execsql.gui.base import (
+    GuiBackend,
+    compare_stats as _compare_stats,
+    compute_row_diffs,
+    format_table,
+    row_count_text as _row_count_text,
+)
 
 __all__ = ["ConsoleBackend"]
 
@@ -21,11 +27,6 @@ def _print_help_url(args: dict) -> None:
     url = args.get("help_url")
     if url:
         print(f"  Help: {url}", file=sys.stderr)
-
-
-def _row_count_text(n: int) -> str:
-    """Return a human-readable row count string, e.g. '3 rows' or '1 row'."""
-    return f"{n:,} row{'s' if n != 1 else ''}"
 
 
 def _print_table(
@@ -42,33 +43,9 @@ def _print_table(
     """
     if file is None:
         file = sys.stderr
-    if not headers:
-        return
-    headers_str = [str(h) for h in headers]
-
-    # Pre-compute display values so column widths account for markers.
-    display_rows: list[list[str]] = []
-    for ridx, row in enumerate(rows):
-        cells: list[str] = []
-        state = row_states[ridx] if row_states and ridx < len(row_states) else ""
-        diff_set = changed_cols[ridx] if changed_cols and ridx < len(changed_cols) else set()
-        for ci, cell in enumerate(row):
-            val = str(cell) if cell is not None else ""
-            if state == "changed" and ci < len(headers_str) and headers_str[ci] in diff_set:
-                val = f"{DIFF_MARKER}{val}"
-            cells.append(val)
-        display_rows.append(cells)
-
-    col_widths = [len(h) for h in headers_str]
-    for cells in display_rows:
-        for i, cell in enumerate(cells):
-            col_widths[i] = max(col_widths[i], len(cell))
-    fmt = "  " + "  ".join(f"{{:<{w}}}" for w in col_widths)
-    sep = "  " + "  ".join("-" * w for w in col_widths)
-    print(fmt.format(*headers_str), file=file)
-    print(sep, file=file)
-    for cells in display_rows:
-        print(fmt.format(*cells), file=file)
+    rendered = format_table(headers, rows, row_states=row_states, changed_cols=changed_cols)
+    if rendered:
+        print(rendered, file=file)
 
 
 def _prompt_buttons(button_list: list) -> int | None:

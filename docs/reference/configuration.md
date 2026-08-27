@@ -247,7 +247,7 @@ The section and property names that may be used in a configuration file are list
 
     - 0: Do not use any optional GUI dialogs.
     - 1: Use GUI dialogs for password prompts and for the [PAUSE](metacommands.md#pause) metacommand.
-    - 2: Also use a GUI dialog if a message is included with the [HALT](metacommands.md#halt) metacommand, and prompt for the initial database to use if no database connection parameters are specified in a configuration file or on the command line.
+    - 2: Also use a GUI dialog if a message is included with the [HALT](metacommands.md#halt) metacommand, and prompt for the initial database to use if no database connection parameters are specified in a configuration file or on the command line. At levels 0 and 1, a HALT message is written to the console instead, and the script exits without waiting for input.
     - 3: Additionally, open a GUI console when *execsql* starts.
 
 `gui_framework` { #gui_framework }

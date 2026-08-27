@@ -89,14 +89,18 @@ def _help_button(url: str | None) -> Button | None:
     return None
 
 
-def _button_row(button_list: list) -> list[Button]:
+def _button_row(button_list: list, no_cancel: bool = False) -> list[Button]:
     """Create Button widgets from a button_list of (label, value, key?) tuples.
 
-    A Cancel button (id ``btn_cancel_exit``) is always prepended so it appears
-    on the left while the primary action button sits on the far right.
-    Entries in *button_list* with a falsy value (0 or None) are treated as the
-    cancel label source and are otherwise excluded from the numbered buttons so
-    that ``btn_N`` indices stay aligned with ``button_list`` positions.
+    A Cancel button (id ``btn_cancel_exit``) is prepended so it appears on the
+    left while the primary action button sits on the far right.  Entries in
+    *button_list* with a falsy value (0 or None) are treated as the cancel
+    label source and are otherwise excluded from the numbered buttons so that
+    ``btn_N`` indices stay aligned with ``button_list`` positions.
+
+    When *no_cancel* is set, the Cancel button is omitted — dialogs such as
+    HALT have no meaningful cancel action, and cancelling one would exit with
+    the generic status 2 rather than the status the caller asked for.
     """
     cancel_label = "Cancel"
     primary_buttons = []
@@ -107,6 +111,8 @@ def _button_row(button_list: list) -> list[Button]:
         else:
             variant: Literal["primary", "default"] = "primary" if i == 0 else "default"
             primary_buttons.append(Button(label, id=f"btn_{i}", variant=variant))
+    if no_cancel:
+        return primary_buttons
     return [Button(cancel_label, id="btn_cancel_exit", variant="warning")] + primary_buttons
 
 
@@ -182,7 +188,14 @@ class _BaseDialog(ModalScreen):
         return self._result
 
     def action_cancel(self) -> None:
-        """Dismiss the dialog as cancelled (triggered by Escape key)."""
+        """Dismiss the dialog as cancelled (triggered by Escape key).
+
+        Ignored for dialogs that pass ``no_cancel`` (e.g. HALT), which have no
+        meaningful cancel action.  This matches the Tkinter backend, which does
+        not bind ``<Escape>`` to cancellation in that case.
+        """
+        if self.args.get("no_cancel", False):
+            return
         self._result = {"button": None, "cancelled": True}
         self.dismiss(self._result)
 
@@ -210,31 +223,48 @@ class _BaseDialog(ModalScreen):
 
 
 class MsgScreen(_BaseDialog):
-    """Simple message dialog with Continue and Cancel buttons."""
+    """Message dialog with an optional data table.
+
+    Honours the caller's ``button_list`` and ``no_cancel`` arguments, and
+    renders ``column_headers``/``rowset`` when supplied (as the HALT
+    metacommand's DISPLAY clause does), matching the Tkinter MsgDialog.
+    """
 
     BINDINGS = [
         *_BaseDialog.BINDINGS,
         Binding("enter", "submit", "Continue", show=True),
     ]
 
+    def _button_list(self) -> list:
+        return cast(list, self.args.get("button_list") or [("Continue", 1, "<Return>")])
+
     def compose(self) -> ComposeResult:
         title = self.args.get("title", "Message")
         message = self.args.get("message", "")
+        headers = self.args.get("column_headers")
+        rows = self.args.get("rowset")
         with Container(id="dialog"):
             yield Label(title, id="title")
             yield Static(message, id="message")
+            if headers and rows:
+                with ScrollableContainer(id="table_container"):
+                    yield _make_table_widget("msg_table", headers, rows)
+                yield Static(_row_count_text(len(rows)), classes="row-count")
             with Horizontal(id="buttons"):
-                yield Button("Cancel", id="btn_cancel_exit", variant="warning")
-                yield Button("Continue", id="btn_close", variant="primary")
+                yield from _button_row(self._button_list(), no_cancel=self.args.get("no_cancel", False))
 
     def action_submit(self) -> None:
-        """Continue the dialog (triggered by Enter key)."""
-        self._result = {"button": 1}
-        self.dismiss(self._result)
+        """Dismiss with the first non-cancel button value (triggered by Enter)."""
+        for btn in self._button_list():
+            if btn[1]:
+                self._result = {"button": btn[1]}
+                self.dismiss(self._result)
+                return
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "btn_close":
-            self._result = {"button": 1}
+        btn_id = event.button.id
+        if btn_id and btn_id.startswith("btn_") and btn_id[4:].isdigit():
+            self._result = {"button": self._button_list()[int(btn_id[4:])][1]}
             self.dismiss(self._result)
 
 
