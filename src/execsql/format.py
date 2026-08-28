@@ -278,32 +278,62 @@ def _sql_literal_texts(sql: str) -> list[str]:
     return [sql[start:end] for start, end, _ in _iter_sql_literals(sql)]
 
 
-def _dollar_quote_interior_lines(lines: list[str]) -> set[int]:
-    """Return indices of *lines* that begin inside a dollar-quoted literal.
-
-    The line that *opens* a dollar quote is ordinary SQL up to the delimiter,
-    so it is indented with the statement as usual.  Every later line of that
-    literal — through and including the one holding the closing delimiter —
-    begins inside the string, which makes its leading whitespace part of the
-    stored value rather than layout.  Re-indenting those lines changes what
-    the database receives, so callers must emit them verbatim.
-    """
-    if len(lines) < 2:
-        return set()
-    text = "\n".join(lines)
-
+def _literal_line_starts(lines: list[str]) -> list[int]:
+    """Return the character offset at which each of *lines* starts once joined."""
     starts: list[int] = []
     offset = 0
     for line in lines:
         starts.append(offset)
-        offset += len(line) + 1  # +1 for the newline joined above
+        offset += len(line) + 1  # +1 for the newline joined between lines
+    return starts
+
+
+def _literal_interior_lines(lines: list[str]) -> set[int]:
+    """Return indices of *lines* that begin inside a multi-line string literal.
+
+    The line that *opens* a literal is ordinary SQL up to the delimiter, so it
+    is indented with the statement as usual.  Every later line of that literal
+    — through and including the one holding the closing delimiter — begins
+    inside the string, which makes its leading whitespace part of the stored
+    value rather than layout.  Re-indenting those lines changes what the
+    database receives, so callers must emit them verbatim.
+
+    This covers every literal kind the scanner reports, not just dollar-quoted
+    bodies: an ordinary ``'…'`` string spanning lines carries its newlines and
+    indentation exactly the same way.
+    """
+    if len(lines) < 2:
+        return set()
+    text = "\n".join(lines)
+    starts = _literal_line_starts(lines)
 
     interior: set[int] = set()
-    for start, end, kind in _iter_sql_literals(text):
-        if kind != "dollar":
-            continue
+    for start, end, _kind in _iter_sql_literals(text):
         interior.update(i for i, line_start in enumerate(starts) if start < line_start < end)
     return interior
+
+
+def _literal_spanning_lines(lines: list[str]) -> set[int]:
+    """Return indices of every line that any multi-line literal touches.
+
+    Unlike :func:`_literal_interior_lines` this also includes the line that
+    *opens* the literal.  Passes that move text between lines — rather than
+    only adjusting leading whitespace — must leave the whole span alone, since
+    the opening line holds literal content after its delimiter.
+    """
+    if len(lines) < 2:
+        return set()
+    text = "\n".join(lines)
+    starts = _literal_line_starts(lines)
+
+    spanning: set[int] = set()
+    for start, end, _kind in _iter_sql_literals(text):
+        touched = [i for i, line_start in enumerate(starts) if start < line_start < end]
+        if not touched:
+            continue  # single-line literal — nothing spans
+        spanning.update(touched)
+        spanning.add(min(touched) - 1)  # the line that opens the literal
+    return spanning
 
 
 # Placeholder standing in for a masked E'...' literal.  It is a plain literal
@@ -531,6 +561,14 @@ def _has_mid_statement_comments(lines: list[str]) -> bool:
 
 _CMT_MARKER = "EXECSQL_CMTMARKER_"
 _CMT_MARKER_RE = re.compile(rf"/\*\s*({re.escape(_CMT_MARKER)}\d+)\s*\*/")
+# A whole run of adjacent markers plus the whitespace injected around them.
+# Markers are written as ``/* marker */ line`` and several consecutive source
+# comments attach several markers to one line, so removing them one at a time
+# leaves a separator space behind for each.  When sqlglot moves the run into
+# the middle of an expression that residue shows up as ``AND   RTRIM(`` and is
+# only normalised on the following pass, which costs an extra pass to
+# converge.  Matching the run as a unit removes it cleanly.  See issue #35.
+_CMT_MARKER_RUN_RE = re.compile(rf"\s*(?:/\*\s*{re.escape(_CMT_MARKER)}\d+\s*\*/\s*)+")
 
 
 def _format_preserving_comments(
@@ -598,12 +636,16 @@ def _format_preserving_comments(
         markers_here = _CMT_MARKER_RE.findall(fline)
         if markers_here:
             # Strip markers to get the underlying SQL line and its indent
-            cleaned = _CMT_MARKER_RE.sub("", fline).strip()
-            # Determine indent: use the SQL line's indent from sqlglot
-            line_indent = ""
-            if cleaned:
-                raw_cleaned = _CMT_MARKER_RE.sub("", fline)
-                line_indent = raw_cleaned[: len(raw_cleaned) - len(raw_cleaned.lstrip())]
+            cleaned = _CMT_MARKER_RUN_RE.sub(" ", fline).strip()
+            # Indent comes from the line's own leading whitespace, never from
+            # what is left after removing the marker.  Markers are injected as
+            # ``/* marker */ line`` — with a separating space — so measuring
+            # after removal counts that space as indentation.  Whenever
+            # sqlglot leaves the line untouched (an unparsable statement falls
+            # back verbatim) the extra space is re-measured and re-added on the
+            # next run, growing the indent by one on every pass and never
+            # converging.  See issue #35.
+            line_indent = fline[: len(fline) - len(fline.lstrip())]
             for m in markers_here:
                 if m in comment_store:
                     orig = comment_store[m]
@@ -699,10 +741,10 @@ def format_sql_block(
     if not non_empty:
         return [""] * len(lines)
 
-    # Lines that begin inside a dollar-quoted literal carry content, not
-    # layout — dedenting or indenting them changes the value the database
-    # stores.  Exclude them from the indent arithmetic and emit them verbatim.
-    interior = _dollar_quote_interior_lines(lines)
+    # Lines that begin inside a multi-line literal carry content, not layout —
+    # dedenting or indenting them changes the value the database stores.
+    # Exclude them from the indent arithmetic and emit them verbatim.
+    interior = _literal_interior_lines(lines)
     if interior:
         # format_file already withholds dollar-quoted blocks from sqlglot; keep
         # that true here so the line indices below stay aligned with the output.
@@ -787,6 +829,9 @@ def _normalize_to_trailing_comma(text: str) -> str:
     every invocation. Comments between the two SQL lines stay in place.
     """
     lines = text.split("\n")
+    # Symmetric with _apply_leading_comma: a leading comma inside a multi-line
+    # literal is data, not layout, so the whole span is left alone.
+    protected = _literal_spanning_lines(lines)
 
     def find_prev_sql_line(idx: int) -> int:
         k = idx - 1
@@ -796,7 +841,7 @@ def _normalize_to_trailing_comma(text: str) -> str:
 
     for i, line in enumerate(lines):
         stripped = line.lstrip()
-        if not stripped.startswith(",") or _is_comment_only(line):
+        if not stripped.startswith(",") or _is_comment_only(line) or i in protected:
             continue
         # Don't try to rewrite leading-comma inside a comment-only line.
         # Move the comma onto the previous SQL line as a trailing `,`.
@@ -832,15 +877,19 @@ def _apply_leading_comma(text: str) -> str:
     TestIdempotency).
     """
     lines = text.split("\n")
+    # A comma inside a multi-line string literal is data. Moving it to the next
+    # line would rewrite the stored value, so leave every line such a literal
+    # touches — including the one that opens it — exactly as it is.
+    protected = _literal_spanning_lines(lines)
     i = 0
     n = len(lines)
     while i < n:
         rstripped = lines[i].rstrip()
-        if rstripped.endswith(",") and not _is_comment_only(lines[i]):
+        if rstripped.endswith(",") and not _is_comment_only(lines[i]) and i not in protected:
             j = i + 1
             while j < n and (not lines[j].strip() or _is_comment_only(lines[j])):
                 j += 1
-            if j < n:
+            if j < n and j not in protected:
                 stripped = lines[i].rstrip()
                 comma_idx = stripped.rfind(",")
                 lines[i] = stripped[:comma_idx] + stripped[comma_idx + 1 :]

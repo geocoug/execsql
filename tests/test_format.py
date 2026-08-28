@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import subprocess
 import sys
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
 from execsql.format import (
-    _dollar_quote_interior_lines,
+    _literal_interior_lines,
+    _literal_spanning_lines,
     _is_comment_line,
     _iter_sql_literals,
     _protect_variables,
@@ -1373,6 +1375,92 @@ class TestIdempotency:
 
 
 # ---------------------------------------------------------------------------
+# Corpus literal fidelity — the broad net behind the targeted regressions
+# ---------------------------------------------------------------------------
+
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+
+# Build and environment directories that may hold generated copies of the
+# project's own scripts. Excluded so the corpus is the same set locally and
+# in CI, and so a file is never checked twice.
+_CORPUS_SKIP_DIRS = frozenset({".git", ".tox", ".venv", "venv", "build", "dist", "node_modules", ".eggs", "site"})
+
+
+def _corpus_sql_files() -> list[Path]:
+    """Every ``.sql`` file that belongs to the project, in a stable order."""
+    return sorted(p for p in _REPO_ROOT.rglob("*.sql") if _CORPUS_SKIP_DIRS.isdisjoint(p.parts))
+
+
+_CORPUS = _corpus_sql_files()
+
+
+def _corpus_id(path: Path) -> str:
+    """Repo-relative id with forward slashes on every platform.
+
+    ``str()`` would yield backslashes on Windows, so ids — and any lookup
+    keyed on them — would differ by platform.
+    """
+    return path.relative_to(_REPO_ROOT).as_posix()
+
+
+def _idempotency_params() -> list:
+    return [pytest.param(path, id=_corpus_id(path)) for path in _CORPUS]
+
+
+class TestCorpusLiteralFidelity:
+    """No string literal in a project script may vanish when it is formatted.
+
+    Every formatter bug found so far changed a literal's content somewhere in
+    this corpus while the unit tests of the day stayed green:
+
+    - #28 rewrote ``E'\\\\s+'`` as ``e'\\s+'`` in the ``pg_upsert`` and
+      ``pg_glossary`` templates.
+    - #33 baked block indentation into the ``$$ … $$`` body in
+      ``parse_only/parse_tree.sql``.
+
+    Both were found by running this comparison by hand. Running it here turns
+    the next one into a CI failure instead of a bug report.
+
+    The invariant is one-directional on purpose: the output may contain *more*
+    literals than the source, because sqlglot repeats one when it rewrites a
+    dialect construct. It may never contain fewer, or an altered one.
+    """
+
+    def test_corpus_is_populated(self):
+        """Guard against the corpus silently emptying and the checks passing."""
+        assert len(_CORPUS) >= 20, f"expected the project's .sql corpus, found {len(_CORPUS)} files"
+
+    @pytest.mark.parametrize("path", _CORPUS, ids=_corpus_id)
+    def test_no_literal_lost(self, path):
+        source = path.read_text(encoding="utf-8")
+        missing = set(_sql_literal_texts(source)) - set(_sql_literal_texts(format_file(source)))
+        assert not missing, f"{_corpus_id(path)}: formatting lost {len(missing)} literal(s): {sorted(missing)[:3]}"
+
+    @pytest.mark.parametrize(
+        ("indent", "leading_comma", "use_sql"),
+        [(2, False, True), (4, True, True), (4, False, False)],
+    )
+    def test_no_literal_lost_under_other_modes(self, indent, leading_comma, use_sql):
+        """The invariant holds for every combination of formatting flags."""
+        failures = []
+        for path in _CORPUS:
+            source = path.read_text(encoding="utf-8")
+            formatted = format_file(source, indent=indent, use_sql=use_sql, leading_comma=leading_comma)
+            if set(_sql_literal_texts(source)) - set(_sql_literal_texts(formatted)):
+                failures.append(_corpus_id(path))
+        assert not failures, (
+            f"literals lost with indent={indent} leading_comma={leading_comma} use_sql={use_sql}: {failures}"
+        )
+
+    @pytest.mark.parametrize("path", _idempotency_params())
+    def test_formatting_is_idempotent(self, path):
+        """Formatting an already-formatted file must be a no-op."""
+        source = path.read_text(encoding="utf-8")
+        first = format_file(source)
+        assert first == format_file(first), f"{_corpus_id(path)}: formatter is not idempotent"
+
+
+# ---------------------------------------------------------------------------
 # String literal fidelity (issues #28, #30)
 # ---------------------------------------------------------------------------
 
@@ -2006,10 +2094,130 @@ class TestDollarQuotedIndentation:
 
     def test_interior_line_helper_identifies_only_continuation_lines(self):
         lines = ["insert into t values ($$a", "b", "c$$);", "select 1;"]
-        assert _dollar_quote_interior_lines(lines) == {1, 2}
+        assert _literal_interior_lines(lines) == {1, 2}
 
     def test_interior_line_helper_ignores_single_line_quote(self):
-        assert _dollar_quote_interior_lines(["select $$a$$;", "select 1;"]) == set()
+        assert _literal_interior_lines(["select $$a$$;", "select 1;"]) == set()
+
+    def test_interior_line_helper_covers_plain_multiline_literals(self):
+        """Not just dollar quotes — an ordinary '…' string spans lines too."""
+        lines = ["select 'line one", "line two';", "select 1;"]
+        assert _literal_interior_lines(lines) == {1}
+
+    def test_spanning_helper_includes_the_opening_line(self):
+        lines = ["insert into t values ($$a", "b", "c$$);", "select 1;"]
+        assert _literal_spanning_lines(lines) == {0, 1, 2}
+
+    def test_spanning_helper_ignores_single_line_literals(self):
+        assert _literal_spanning_lines(["select 'a', 'b';", "select 1;"]) == set()
+
+
+class TestMultilineLiteralIndentation:
+    """Multi-line literals of every kind keep their interior whitespace.
+
+    The fix for issue #33 covered only dollar-quoted bodies; an ordinary
+    ``'…'`` literal spanning lines was still re-indented, which showed up at
+    indent widths other than the default.
+    """
+
+    PLAIN = "-- !x! IF (TRUE)\nselect 'line one\nline two' as v from t;\n-- !x! ENDIF\n"
+
+    @pytest.mark.parametrize("indent", [2, 4, 8])
+    def test_plain_multiline_literal_survives_any_indent(self, indent):
+        formatted = format_file(self.PLAIN, indent=indent)
+        assert _sql_literal_texts(self.PLAIN) == _sql_literal_texts(formatted)
+
+    def test_plain_multiline_literal_survives_leading_comma(self):
+        formatted = format_file(self.PLAIN, leading_comma=True)
+        assert _sql_literal_texts(self.PLAIN) == _sql_literal_texts(formatted)
+
+
+class TestCommentMarkerConvergence:
+    """Comment markers must not leave whitespace behind — issue #35.
+
+    Comments are hidden from sqlglot as ``/* marker */ line``.  Both defects
+    below came from the injected separator space surviving marker removal and
+    being re-measured as real text on the next run.
+    """
+
+    # `CREATE TABLE x` followed by a bare `WITH` clause (no `AS`) is not
+    # parsable, so the statement falls back verbatim — which is precisely when
+    # the marker residue used to survive into the output.
+    UNPARSABLE_WITH_COMMENT = "create table z\nwith c as (select 1 as a)\nselect a from t\n-- note\nwhere a = 1;\n"
+
+    def test_fallback_statement_does_not_gain_indentation(self):
+        """The killer case: one extra space per pass, never converging."""
+        text = self.UNPARSABLE_WITH_COMMENT
+        indents = []
+        for _ in range(4):
+            text = format_file(text)
+            line = next(line for line in text.splitlines() if "-- note" in line)
+            indents.append(len(line) - len(line.lstrip()))
+        assert len(set(indents)) == 1, f"indentation drifted across passes: {indents}"
+
+    def test_fallback_statement_is_idempotent(self):
+        first = format_file(self.UNPARSABLE_WITH_COMMENT)
+        assert first == format_file(first)
+
+    def test_consecutive_comments_converge_in_one_pass(self):
+        """Two comments on one line left ``AND   RTRIM(`` residue.
+
+        Several source comments attach several markers to the same line;
+        removing them individually left one separator space each, which only
+        normalized on the following pass.
+        """
+        source = (
+            "select *\nfrom t\nwhere\n    a is not null\n    -- guards against trailing commas\n"
+            "    -- e.g. 'col1, col2,'\n    and rtrim(ltrim(b)) <> '';\n"
+        )
+        first = format_file(source)
+        assert first == format_file(first), "needed a second pass to converge"
+
+    def test_no_double_space_left_where_markers_were(self):
+        source = "select *\nfrom t\nwhere\n    a = 1\n    -- one\n    -- two\n    and b = 2;\n"
+        out = format_file(source)
+        sql_lines = [line for line in out.splitlines() if line.strip() and not line.strip().startswith("--")]
+        assert not any("  " in line.strip() for line in sql_lines), out
+
+
+class TestLeadingCommaLiteralSafety:
+    """The comma passes must not move a comma across a literal boundary.
+
+    ``_apply_leading_comma`` and its inverse walk the assembled text line by
+    line.  A line ending in ``,`` inside a multi-line literal is data, so
+    relocating that comma rewrites the stored value.
+    """
+
+    # A PL/pgSQL body whose interior lines end in commas.
+    BODY = (
+        "-- !x! IF (TRUE)\n"
+        "create function f() returns void as $$\n"
+        "declare\n"
+        "    a int,\n"
+        "    b int,\n"
+        "    c int;\n"
+        "begin\n"
+        "    return;\n"
+        "end;\n"
+        "$$ language plpgsql;\n"
+        "-- !x! ENDIF\n"
+    )
+
+    def test_leading_comma_does_not_touch_literal_body(self):
+        formatted = format_file(self.BODY, leading_comma=True)
+        assert _sql_literal_texts(self.BODY) == _sql_literal_texts(formatted)
+
+    def test_trailing_comma_normalization_does_not_touch_literal_body(self):
+        """The inverse pass runs unconditionally, so it needs the same guard."""
+        once = format_file(self.BODY, leading_comma=True)
+        back = format_file(once, leading_comma=False)
+        assert _sql_literal_texts(self.BODY) == _sql_literal_texts(back)
+
+    def test_leading_comma_still_applies_outside_literals(self):
+        """The guard must not disable the feature for ordinary SQL."""
+        source = "select a, b, c from t;\n"
+        formatted = format_file(source, leading_comma=True)
+        assert any(line.lstrip().startswith(", ") for line in formatted.splitlines()), formatted
 
 
 class TestDollarQuotedStrings:

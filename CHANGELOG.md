@@ -13,7 +13,9 @@ ______________________________________________________________________
 
 ### Fixed
 
-- `execsql-format` no longer indents inside a multi-line dollar-quoted literal. A `$$…$$` body inside an `IF`, `LOOP`, or `BEGIN SQL` block had the block's indentation added to each of its lines, changing the string the database stores.
+- `execsql-format` no longer indents inside a multi-line string literal. A `$$…$$` body or a multi-line `'…'` string inside an `IF`, `LOOP`, or `BEGIN SQL` block had the block's indentation added to each of its lines, changing the value the database stores.
+- `execsql-format --leading-comma` no longer moves a comma into or out of a multi-line string literal, which rewrote the stored value.
+- `execsql-format` now reaches a stable result in one pass. A statement sqlglot could not parse gained a space of indentation on every run and never converged, so `--check` could not pass on an already-formatted file; two adjacent comments on one statement also cost an extra pass.
 
 ______________________________________________________________________
 
