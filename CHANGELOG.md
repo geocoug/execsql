@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Fixed
+
+- `execsql-format` no longer indents inside a multi-line dollar-quoted literal. A `$$…$$` body inside an `IF`, `LOOP`, or `BEGIN SQL` block had the block's indentation added to each of its lines, changing the string the database stores.
+
 ______________________________________________________________________
 
 ## [2.22.5] - 2026-08-27

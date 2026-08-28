@@ -278,6 +278,34 @@ def _sql_literal_texts(sql: str) -> list[str]:
     return [sql[start:end] for start, end, _ in _iter_sql_literals(sql)]
 
 
+def _dollar_quote_interior_lines(lines: list[str]) -> set[int]:
+    """Return indices of *lines* that begin inside a dollar-quoted literal.
+
+    The line that *opens* a dollar quote is ordinary SQL up to the delimiter,
+    so it is indented with the statement as usual.  Every later line of that
+    literal — through and including the one holding the closing delimiter —
+    begins inside the string, which makes its leading whitespace part of the
+    stored value rather than layout.  Re-indenting those lines changes what
+    the database receives, so callers must emit them verbatim.
+    """
+    if len(lines) < 2:
+        return set()
+    text = "\n".join(lines)
+
+    starts: list[int] = []
+    offset = 0
+    for line in lines:
+        starts.append(offset)
+        offset += len(line) + 1  # +1 for the newline joined above
+
+    interior: set[int] = set()
+    for start, end, kind in _iter_sql_literals(text):
+        if kind != "dollar":
+            continue
+        interior.update(i for i, line_start in enumerate(starts) if start < line_start < end)
+    return interior
+
+
 # Placeholder standing in for a masked E'...' literal.  It is a plain literal
 # so that sqlglot sees a string where a string was, and lays the statement out
 # the same way it would have for the real one.
@@ -671,12 +699,24 @@ def format_sql_block(
     if not non_empty:
         return [""] * len(lines)
 
-    base = min(len(line) - len(line.lstrip()) for line in non_empty)
+    # Lines that begin inside a dollar-quoted literal carry content, not
+    # layout — dedenting or indenting them changes the value the database
+    # stores.  Exclude them from the indent arithmetic and emit them verbatim.
+    interior = _dollar_quote_interior_lines(lines)
+    if interior:
+        # format_file already withholds dollar-quoted blocks from sqlglot; keep
+        # that true here so the line indices below stay aligned with the output.
+        use_sql = False
+
+    layout_lines = [line for i, line in enumerate(lines) if line.strip() and i not in interior]
+    base = min((len(line) - len(line.lstrip()) for line in layout_lines), default=0)
     target_prefix = " " * (depth * indent)
-    rebased = [line[base:] if line.strip() else "" for line in lines]
+    rebased = [line if i in interior else (line[base:] if line.strip() else "") for i, line in enumerate(lines)]
 
     if not use_sql:
-        return [target_prefix + line if line.strip() else "" for line in rebased]
+        return [
+            line if i in interior else (target_prefix + line if line.strip() else "") for i, line in enumerate(rebased)
+        ]
 
     # When comments appear mid-statement, use the marker-based approach
     # which preserves both comments AND sqlglot formatting.  When all
