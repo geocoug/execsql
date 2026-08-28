@@ -93,11 +93,12 @@ execsql substitution variables (`!!varname!!`, `!{varname}!`) are replaced with 
 
 #### String literal preservation { #string_literals }
 
-Formatting never changes what a string literal contains. Three mechanisms enforce this:
+Formatting never changes what a string literal contains. Four mechanisms enforce this:
 
 - PostgreSQL escape strings (`E'...'`) are held out of the sqlglot round trip entirely and restored byte-for-byte, keeping both their backslash escapes and their `E` prefix. This matters because sqlglot consumes backslash escapes inside an escape string without re-emitting them, which would turn `E'\\s+'` (a regex matching whitespace) into `e'\s+'` (a regex matching the letter `s`).
-- Indentation is never applied inside a multi-line dollar-quoted body (`$$...$$`, `$tag$...$tag$`). Leading whitespace on a continuation line of such a literal is part of the stored value, not layout. The line that *opens* the quote is ordinary SQL and is indented with the statement around it, but every line from there to the closing delimiter is emitted exactly as written. A `$$` body therefore keeps its original whitespace regardless of `--indent` or how deeply the statement is nested — which means the body will not line up visually with the statement that contains it. That is unavoidable: indenting it would change the string.
-- Literals that do pass through sqlglot — ordinary `'...'` strings — are compared before and after. If any fails to come back unchanged, the statement is left unformatted rather than rewritten.
+- Indentation is never applied inside a multi-line literal — a dollar-quoted body (`$$...$$`, `$tag$...$tag$`) or an ordinary `'...'` string that spans lines. Leading whitespace on a continuation line is part of the stored value, not layout. The line that *opens* the literal is ordinary SQL and is indented with the statement around it, but every line from there to the closing delimiter is emitted exactly as written. Such a literal therefore keeps its original whitespace regardless of `--indent` or how deeply the statement is nested — which means its body will not line up visually with the statement that contains it. That is unavoidable: indenting it would change the string.
+- Commas are never moved into or out of a multi-line literal. `--leading-comma`, and the trailing-comma normalization that precedes it, both skip every line such a literal touches, including the line that opens it. A comma inside a multi-line string is data, so repositioning it would change the value rather than the layout.
+- Literals that do pass through sqlglot — ordinary single-line `'...'` strings — are compared before and after. If any fails to come back unchanged, the statement is left unformatted rather than rewritten.
 
 The last check is deliberately conservative: a statement may occasionally be left alone when the rewrite would in fact have been harmless (for example, sqlglot normalizes `interval '1 day'` to `INTERVAL '1 DAY'`, which changes the literal's text but not its meaning). Losing formatting on a statement is recoverable; silently changing what a query does is not.
 
