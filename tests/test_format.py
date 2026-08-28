@@ -1395,7 +1395,12 @@ _CORPUS = _corpus_sql_files()
 
 
 def _corpus_id(path: Path) -> str:
-    return str(path.relative_to(_REPO_ROOT))
+    """Repo-relative id with forward slashes on every platform.
+
+    ``str()`` would yield backslashes on Windows, which would stop the
+    ``_KNOWN_NON_IDEMPOTENT`` lookup below from ever matching there.
+    """
+    return path.relative_to(_REPO_ROOT).as_posix()
 
 
 # Templates the formatter cannot reach a fixed point on — issue #35. The first
