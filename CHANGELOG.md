@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.22.6] - 2026-08-28
+
 ### Fixed
 
 - `execsql-format` no longer indents inside a multi-line string literal. A `$$…$$` body or a multi-line `'…'` string inside an `IF`, `LOOP`, or `BEGIN SQL` block had the block's indentation added to each of its lines, changing the value the database stores.
