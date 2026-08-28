@@ -1397,36 +1397,14 @@ _CORPUS = _corpus_sql_files()
 def _corpus_id(path: Path) -> str:
     """Repo-relative id with forward slashes on every platform.
 
-    ``str()`` would yield backslashes on Windows, which would stop the
-    ``_KNOWN_NON_IDEMPOTENT`` lookup below from ever matching there.
+    ``str()`` would yield backslashes on Windows, so ids — and any lookup
+    keyed on them — would differ by platform.
     """
     return path.relative_to(_REPO_ROOT).as_posix()
 
 
-# Templates the formatter cannot reach a fixed point on — issue #35. The first
-# two grow one space of indentation per pass and never converge; the third
-# needs a third pass to settle. Marked strict so that fixing #35 turns these
-# into unexpected passes and prompts removal of the marker.
-_KNOWN_NON_IDEMPOTENT = frozenset(
-    {
-        "templates/md_upsert.sql",
-        "templates/ss_upsert.sql",
-        "templates/ss_glossary.sql",
-    },
-)
-
-
 def _idempotency_params() -> list:
-    params = []
-    for path in _CORPUS:
-        cid = _corpus_id(path)
-        marks = (
-            [pytest.mark.xfail(strict=True, reason="issue #35: formatter does not converge on this template")]
-            if cid in _KNOWN_NON_IDEMPOTENT
-            else []
-        )
-        params.append(pytest.param(path, marks=marks, id=cid))
-    return params
+    return [pytest.param(path, id=_corpus_id(path)) for path in _CORPUS]
 
 
 class TestCorpusLiteralFidelity:
@@ -1476,11 +1454,7 @@ class TestCorpusLiteralFidelity:
 
     @pytest.mark.parametrize("path", _idempotency_params())
     def test_formatting_is_idempotent(self, path):
-        """Formatting an already-formatted file must be a no-op.
-
-        Known exceptions are xfailed against issue #35 rather than skipped, so
-        the suite still states the invariant and will announce when it holds.
-        """
+        """Formatting an already-formatted file must be a no-op."""
         source = path.read_text(encoding="utf-8")
         first = format_file(source)
         assert first == format_file(first), f"{_corpus_id(path)}: formatter is not idempotent"
@@ -2156,6 +2130,54 @@ class TestMultilineLiteralIndentation:
     def test_plain_multiline_literal_survives_leading_comma(self):
         formatted = format_file(self.PLAIN, leading_comma=True)
         assert _sql_literal_texts(self.PLAIN) == _sql_literal_texts(formatted)
+
+
+class TestCommentMarkerConvergence:
+    """Comment markers must not leave whitespace behind — issue #35.
+
+    Comments are hidden from sqlglot as ``/* marker */ line``.  Both defects
+    below came from the injected separator space surviving marker removal and
+    being re-measured as real text on the next run.
+    """
+
+    # `CREATE TABLE x` followed by a bare `WITH` clause (no `AS`) is not
+    # parsable, so the statement falls back verbatim — which is precisely when
+    # the marker residue used to survive into the output.
+    UNPARSABLE_WITH_COMMENT = "create table z\nwith c as (select 1 as a)\nselect a from t\n-- note\nwhere a = 1;\n"
+
+    def test_fallback_statement_does_not_gain_indentation(self):
+        """The killer case: one extra space per pass, never converging."""
+        text = self.UNPARSABLE_WITH_COMMENT
+        indents = []
+        for _ in range(4):
+            text = format_file(text)
+            line = next(line for line in text.splitlines() if "-- note" in line)
+            indents.append(len(line) - len(line.lstrip()))
+        assert len(set(indents)) == 1, f"indentation drifted across passes: {indents}"
+
+    def test_fallback_statement_is_idempotent(self):
+        first = format_file(self.UNPARSABLE_WITH_COMMENT)
+        assert first == format_file(first)
+
+    def test_consecutive_comments_converge_in_one_pass(self):
+        """Two comments on one line left ``AND   RTRIM(`` residue.
+
+        Several source comments attach several markers to the same line;
+        removing them individually left one separator space each, which only
+        normalized on the following pass.
+        """
+        source = (
+            "select *\nfrom t\nwhere\n    a is not null\n    -- guards against trailing commas\n"
+            "    -- e.g. 'col1, col2,'\n    and rtrim(ltrim(b)) <> '';\n"
+        )
+        first = format_file(source)
+        assert first == format_file(first), "needed a second pass to converge"
+
+    def test_no_double_space_left_where_markers_were(self):
+        source = "select *\nfrom t\nwhere\n    a = 1\n    -- one\n    -- two\n    and b = 2;\n"
+        out = format_file(source)
+        sql_lines = [line for line in out.splitlines() if line.strip() and not line.strip().startswith("--")]
+        assert not any("  " in line.strip() for line in sql_lines), out
 
 
 class TestLeadingCommaLiteralSafety:

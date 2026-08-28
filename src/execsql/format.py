@@ -561,6 +561,14 @@ def _has_mid_statement_comments(lines: list[str]) -> bool:
 
 _CMT_MARKER = "EXECSQL_CMTMARKER_"
 _CMT_MARKER_RE = re.compile(rf"/\*\s*({re.escape(_CMT_MARKER)}\d+)\s*\*/")
+# A whole run of adjacent markers plus the whitespace injected around them.
+# Markers are written as ``/* marker */ line`` and several consecutive source
+# comments attach several markers to one line, so removing them one at a time
+# leaves a separator space behind for each.  When sqlglot moves the run into
+# the middle of an expression that residue shows up as ``AND   RTRIM(`` and is
+# only normalised on the following pass, which costs an extra pass to
+# converge.  Matching the run as a unit removes it cleanly.  See issue #35.
+_CMT_MARKER_RUN_RE = re.compile(rf"\s*(?:/\*\s*{re.escape(_CMT_MARKER)}\d+\s*\*/\s*)+")
 
 
 def _format_preserving_comments(
@@ -628,12 +636,16 @@ def _format_preserving_comments(
         markers_here = _CMT_MARKER_RE.findall(fline)
         if markers_here:
             # Strip markers to get the underlying SQL line and its indent
-            cleaned = _CMT_MARKER_RE.sub("", fline).strip()
-            # Determine indent: use the SQL line's indent from sqlglot
-            line_indent = ""
-            if cleaned:
-                raw_cleaned = _CMT_MARKER_RE.sub("", fline)
-                line_indent = raw_cleaned[: len(raw_cleaned) - len(raw_cleaned.lstrip())]
+            cleaned = _CMT_MARKER_RUN_RE.sub(" ", fline).strip()
+            # Indent comes from the line's own leading whitespace, never from
+            # what is left after removing the marker.  Markers are injected as
+            # ``/* marker */ line`` — with a separating space — so measuring
+            # after removal counts that space as indentation.  Whenever
+            # sqlglot leaves the line untouched (an unparsable statement falls
+            # back verbatim) the extra space is re-measured and re-added on the
+            # next run, growing the indent by one on every pass and never
+            # converging.  See issue #35.
+            line_indent = fline[: len(fline) - len(fline.lstrip())]
             for m in markers_here:
                 if m in comment_store:
                     orig = comment_store[m]
