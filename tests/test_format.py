@@ -9,6 +9,7 @@ from unittest.mock import patch
 import pytest
 
 from execsql.format import (
+    _dollar_quote_interior_lines,
     _is_comment_line,
     _iter_sql_literals,
     _protect_variables,
@@ -1947,6 +1948,68 @@ class TestLeadingCommaFlag:
 # ---------------------------------------------------------------------------
 # Dollar-quoted strings with sqlglot enabled
 # ---------------------------------------------------------------------------
+
+
+class TestDollarQuotedIndentation:
+    """Block indentation must not reach inside a dollar-quoted literal.
+
+    Leading whitespace on a continuation line of a ``$$ … $$`` body is part of
+    the stored string, not layout, so re-indenting it changes the value the
+    database receives.  Regression test for issue #33.
+
+    These assertions compare the *source* against pass 1.  The existing
+    ``test_dollar_quoted_body_idempotent`` compares pass 1 against pass 2 and
+    cannot catch this: the indent is applied once and is then stable, so
+    idempotency holds while the content is already wrong.
+    """
+
+    CASES = {
+        "inside_if": "-- !x! IF (TRUE)\ninsert into t values ($$line one\nline two$$);\n-- !x! ENDIF\n",
+        "inside_begin_sql": "-- !x! BEGIN SQL\ninsert into t values ($$line one\nline two$$);\n-- !x! END SQL\n",
+        "nested_block": (
+            "-- !x! IF (TRUE)\n-- !x! BEGIN SQL\ninsert into t values ($$a\nb$$);\n-- !x! END SQL\n-- !x! ENDIF\n"
+        ),
+        "tagged": "-- !x! IF (TRUE)\ninsert into t values ($q$a\nb$q$);\n-- !x! ENDIF\n",
+        "plpgsql_body": (
+            "-- !x! IF (TRUE)\n"
+            "create function f() returns int as $$\nbegin\n  return 1;\nend;\n$$ language plpgsql;\n"
+            "-- !x! ENDIF\n"
+        ),
+        "source_already_indented": "-- !x! IF (TRUE)\n    insert into t values ($$a\nb$$);\n-- !x! ENDIF\n",
+        # Controls: nothing to preserve, must still format normally.
+        "depth_zero": "insert into t values ($$line one\nline two$$);\n",
+        "single_line": "-- !x! IF (TRUE)\ninsert into t values ($$oneline$$);\n-- !x! ENDIF\n",
+    }
+
+    @pytest.mark.parametrize("name", list(CASES))
+    def test_literal_content_survives_indentation(self, name):
+        source = self.CASES[name]
+        formatted = format_file(source)
+        assert _sql_literal_texts(source) == _sql_literal_texts(formatted)
+
+    @pytest.mark.parametrize("name", list(CASES))
+    def test_still_idempotent(self, name):
+        first = format_file(self.CASES[name])
+        assert first == format_file(first)
+
+    @pytest.mark.parametrize("indent", [2, 4, 8])
+    def test_indent_width_does_not_leak_into_literal(self, indent):
+        source = self.CASES["nested_block"]
+        formatted = format_file(source, indent=indent)
+        assert _sql_literal_texts(source) == _sql_literal_texts(formatted)
+
+    def test_opening_line_is_still_indented(self):
+        """Only the literal's interior is exempt — the opening line is SQL."""
+        formatted = format_file(self.CASES["inside_if"])
+        opening = next(line for line in formatted.splitlines() if "insert into t" in line)
+        assert opening.startswith("    "), f"opening line not indented: {opening!r}"
+
+    def test_interior_line_helper_identifies_only_continuation_lines(self):
+        lines = ["insert into t values ($$a", "b", "c$$);", "select 1;"]
+        assert _dollar_quote_interior_lines(lines) == {1, 2}
+
+    def test_interior_line_helper_ignores_single_line_quote(self):
+        assert _dollar_quote_interior_lines(["select $$a$$;", "select 1;"]) == set()
 
 
 class TestDollarQuotedStrings:
