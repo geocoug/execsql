@@ -89,7 +89,7 @@ Block comments (`/* */`) that contain `-- !x!` metacommand markers (e.g. comment
 
 #### Variable preservation
 
-execsql substitution variables (`!!varname!!`, `!{varname}!`) are replaced with valid SQL identifiers before formatting, then restored afterward, so the formatter does not corrupt them — including in schema-qualified names (`!!staging!!.!!table!!`), CASE expressions, JOIN conditions, and string concatenation.
+execsql substitution variables (`!!varname!!`, `!{varname}!`) are replaced with valid SQL identifiers before formatting, then restored afterward, so the formatter does not corrupt them — including in schema-qualified names (`!!staging!!.!!table!!`), CASE expressions, JOIN conditions, and string concatenation. A variable that holds a *fragment* rather than a value — a `!!~var!!` standing alone in a `WHERE` clause, as the upsert templates use for optional predicates — leaves the statement unparsable once masked, so the statement is passed through untouched rather than reformatted without it (see [fallback behavior](#fallback-behavior)).
 
 #### String literal preservation { #string_literals }
 
@@ -102,9 +102,22 @@ Formatting never changes what a string literal contains. Four mechanisms enforce
 
 The last check is deliberately conservative: a statement may occasionally be left alone when the rewrite would in fact have been harmless (for example, sqlglot normalizes `interval '1 day'` to `INTERVAL '1 DAY'`, which changes the literal's text but not its meaning). Losing formatting on a statement is recoverable; silently changing what a query does is not.
 
-#### Fallback behavior
+#### Fallback behavior { #fallback-behavior }
 
-If sqlglot cannot parse a SQL statement, or if safety checks detect that formatting would corrupt the SQL — statement count changes, significant content loss, or an altered [string literal](#string_literals) — the original text is preserved unchanged.
+SQL that sqlglot cannot fully parse is left exactly as written. The parse is strict: if any statement in a run of SQL fails to parse, that whole run is emitted verbatim and only its indentation is normalized. Nothing partially understood is ever regenerated.
+
+That strictness is what keeps a clause from disappearing. Given a partial parse, sqlglot returns the fragment it did understand and drops the rest, so
+
+```sql
+INSERT INTO t (a, b)
+SELECT x, y FROM src
+CROSS JOIN LATERAL (VALUES (1, 2)) AS g(a, b)
+ON CONFLICT(a) DO NOTHING;
+```
+
+came back without its `DO NOTHING` — one statement in, one statement out, nearly all of the text intact, and no longer valid SQL. A dropped `DISTINCT`, `CASCADE`, `DESC`, or `NOT` costs even fewer characters, so no content-loss threshold can catch this class; only the parser knows whether it understood the whole statement.
+
+Formatting is also skipped when safety checks detect that it would corrupt SQL it did parse — statement count changes, significant content loss, or an altered [string literal](#string_literals). In every case the original text is preserved unchanged.
 
 Use `--no-sql` to skip SQL reformatting entirely and only normalize metacommands.
 
