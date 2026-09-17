@@ -1263,6 +1263,91 @@ class TestSqlglotSafetyChecks:
         # Should fall back — original content preserved.
         assert "doc1" in joined
 
+    def test_unparsable_input_falls_back_verbatim(self):
+        """Input sqlglot cannot parse is emitted exactly as written.
+
+        sqlglot answers an unparsable statement with a partial AST when
+        errors are ignored — the tokens it choked on are simply gone.  The
+        parse must therefore be strict, so the formatter never regenerates
+        SQL from a parse that did not cover the whole statement.
+        """
+        lines = [
+            "INSERT INTO t (a, b)",
+            "SELECT x, y FROM src",
+            "CROSS JOIN LATERAL (VALUES (1, 2)) AS g(a, b)",
+            "ON CONFLICT(a) DO NOTHING;",
+        ]
+        assert _sqlglot_format(lines) == lines
+
+    def test_lateral_on_conflict_keeps_do_nothing(self):
+        """Regression: DO NOTHING must survive ``LATERAL ... AS g(cols)``.
+
+        The dropped clause passed every quantitative guard: one statement for
+        one semicolon, 88% of the input's alphanumeric characters, and no
+        string literals to round-trip.  PostgreSQL rejected the result with
+        ``syntax error at or near ";"``.
+        """
+        source = (
+            "INSERT INTO t (a, b)\n"
+            "SELECT x, y FROM src\n"
+            "CROSS JOIN LATERAL (VALUES (1, 2)) AS g(a, b)\n"
+            "ON CONFLICT(a) DO NOTHING;\n"
+        )
+        result = format_file(source, use_sql=True)
+        assert "DO NOTHING" in result
+        assert result == source
+
+    @pytest.mark.parametrize(
+        "source",
+        [
+            "insert into t (a, b) select x, y from src where x is not null on conflict (a) do nothing;\n",
+            "insert into t (a, b) select x, y from src on conflict (a) do update set b = excluded.b;\n",
+            "with q as (select 1 as a) insert into t (a) select a from q on conflict (a) do nothing;\n",
+        ],
+        ids=["where-clause", "do-update", "cte"],
+    )
+    def test_parseable_on_conflict_still_formats(self, source):
+        """Strict parsing must not stop ordinary ON CONFLICT statements formatting."""
+        result = format_file(source, use_sql=True)
+        assert result != source, "statement should still be reformatted"
+        assert "ON CONFLICT" in result
+        assert "DO NOTHING" in result or "DO UPDATE SET" in result
+
+    def test_conditional_substitution_fragment_is_not_deleted(self):
+        """A bare `!!~var!!` fragment inside a statement must survive.
+
+        The upsert templates build a WHERE clause from a variable holding a
+        conditional predicate (`-- !x! sub ~omitnull and column_name not in
+        (...)`).  The protected form is a bare identifier where SQL expects an
+        operator, so the statement does not parse — and the formatter used to
+        emit the statement with the variable simply gone, silently deleting
+        the condition.
+        """
+        source = (
+            "select column_name\n"
+            "from information_schema.columns\n"
+            "where table_schema = !'!#schema!'!\n"
+            "    and is_nullable = 'NO'\n"
+            "    !!~omitnull!!\n"
+            "    ;\n"
+        )
+        result = format_file(source, use_sql=True)
+        assert "!!~omitnull!!" in result
+        assert result == source
+
+    def test_unparsable_statement_does_not_corrupt_neighbors(self):
+        """A block holding one unparsable statement keeps every statement intact."""
+        source = (
+            "SELECT DISTINCT a FROM t ORDER BY a DESC;\n"
+            "INSERT INTO t (a, b)\n"
+            "SELECT x, y FROM src\n"
+            "CROSS JOIN LATERAL (VALUES (1, 2)) AS g(a, b)\n"
+            "ON CONFLICT(a) DO NOTHING;\n"
+        )
+        result = format_file(source, use_sql=True)
+        assert "DO NOTHING" in result
+        assert "DISTINCT" in result.upper()
+
 
 # ---------------------------------------------------------------------------
 # Idempotency — formatting twice must produce identical output

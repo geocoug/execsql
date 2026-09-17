@@ -456,7 +456,21 @@ def _sqlglot_format(
 
     try:
         with contextlib.redirect_stderr(io.StringIO()):
-            ast = sqlglot.parse(protected, read="postgres", error_level=sqlglot_errors.ErrorLevel.IGNORE)
+            # Parse with RAISE, not IGNORE.  Under IGNORE sqlglot answers a
+            # statement it cannot parse with a *partial* AST — the tokens it
+            # failed on are simply absent — and regenerating from that AST
+            # writes back SQL that no longer means what the author wrote.
+            # ``INSERT ... CROSS JOIN LATERAL (VALUES ...) AS g(a, b) ON
+            # CONFLICT (a) DO NOTHING`` came back with ``DO NOTHING`` deleted:
+            # still one statement, still 88% of the input's alphanumeric
+            # characters, no string literals to compare, so every guard below
+            # passed it through.  The guards are quantitative and this loss is
+            # qualitative — a dropped ``DISTINCT``, ``CASCADE``, ``DESC`` or
+            # ``NOT`` is smaller still, and no threshold separates those from
+            # ordinary reformatting.  Only the parser knows whether it
+            # understood the whole statement, so ask it: input that does not
+            # parse is left exactly as written.
+            ast = sqlglot.parse(protected, read="postgres", error_level=sqlglot_errors.ErrorLevel.RAISE)
             statements: list[str] = []
             for node in ast:
                 if node is None:
@@ -524,6 +538,10 @@ def _sqlglot_format(
         if restored is None:
             return sql_lines
         return _restore_variables(restored, replacements).split("\n")
+    except sqlglot_errors.ParseError:
+        # Unparsable input: anything generated from a partial parse is
+        # untrustworthy, so emit the original lines untouched.
+        return sql_lines
     except Exception:
         return sql_lines
 

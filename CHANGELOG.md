@@ -11,6 +11,15 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Fixed
+
+- `execsql-format` no longer deletes clauses from SQL it cannot fully parse. `INSERT ... CROSS JOIN LATERAL (VALUES ...) AS g(a, b) ON CONFLICT (a) DO NOTHING` was rewritten without its `DO NOTHING`, and `--in-place` reported the result as `reformatted`.
+- `execsql-format` no longer deletes a substitution variable that supplies a conditional clause. A `!!~var!!` standing alone in a `WHERE` clause — the pattern the shipped upsert templates use for optional predicates — was dropped from the formatted output, as was a trailing `ORDER BY` in the same statement.
+
+### Changed
+
+- `execsql-format` leaves a run of SQL untouched when any statement in it fails to parse, instead of reformatting from a partial parse. Affected statements keep their original layout; only their indentation is normalized.
+
 ______________________________________________________________________
 
 ## [2.22.6] - 2026-08-28
