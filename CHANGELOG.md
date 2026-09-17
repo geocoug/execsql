@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.22.8] - 2026-09-17
+
 ### Fixed
 
 - `execsql-format` no longer leaves a space before a `;` when a comment precedes the closing statement line. `1 = 1;` came back as `1 = 1 ;` and was corrected only on the next run, so `--check` failed on a file the formatter had just written.
