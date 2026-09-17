@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.22.7] - 2026-09-17
+
 ### Fixed
 
 - `execsql-format` no longer deletes clauses from SQL it cannot fully parse. `INSERT ... CROSS JOIN LATERAL (VALUES ...) AS g(a, b) ON CONFLICT (a) DO NOTHING` was rewritten without its `DO NOTHING`, and `--in-place` reported the result as `reformatted`.
