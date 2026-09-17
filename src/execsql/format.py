@@ -176,13 +176,18 @@ _EXECSQL_VAR_RE = re.compile(r"""!(['"]?)!([^!\s][^!]*)!\1!|!\{[^}]+\}!""")
 _IDENT_CHAR_RE = re.compile(r"[A-Za-z0-9_$]")
 
 
-def _iter_sql_literals(sql: str) -> Iterator[tuple[int, int, str]]:
-    """Yield ``(start, end, kind)`` spans for every string literal in *sql*.
+_LITERAL_KINDS = frozenset({"estring", "plain", "dollar"})
+
+
+def _iter_sql_spans(sql: str) -> Iterator[tuple[int, int, str]]:
+    """Yield ``(start, end, kind)`` spans for every non-code region of *sql*.
 
     This is a lexical walk rather than a regex sweep, because an apostrophe
-    only starts a literal in some contexts.  Line comments, block comments
-    (which nest in PostgreSQL), and quoted identifiers are skipped entirely,
-    so quotes inside them never open a literal.
+    only starts a literal in some contexts: inside a line comment, a block
+    comment (which nests in PostgreSQL), or a quoted identifier it is just a
+    character.  Those three regions are reported as spans of their own so
+    callers that care about code positions — :func:`_paren_depths` — can mask
+    them out, and :func:`_iter_sql_literals` filters them back off.
 
     *kind* is one of:
 
@@ -195,6 +200,8 @@ def _iter_sql_literals(sql: str) -> Iterator[tuple[int, int, str]]:
     ``"dollar"``
         A dollar-quoted body, ``$$...$$`` or ``$tag$...$tag$``, in which no
         character is special.
+    ``"line_comment"``, ``"block_comment"``, ``"quoted_ident"``
+        Regions that are not code and hold no literal.
     """
     i, n = 0, len(sql)
     while i < n:
@@ -202,10 +209,13 @@ def _iter_sql_literals(sql: str) -> Iterator[tuple[int, int, str]]:
 
         if c == "-" and sql.startswith("--", i):
             nl = sql.find("\n", i)
-            i = n if nl < 0 else nl + 1
+            stop = n if nl < 0 else nl
+            yield i, stop, "line_comment"
+            i = stop
             continue
 
         if c == "/" and sql.startswith("/*", i):
+            start = i
             depth, i = 1, i + 2
             while i < n and depth:
                 if sql.startswith("/*", i):
@@ -214,9 +224,11 @@ def _iter_sql_literals(sql: str) -> Iterator[tuple[int, int, str]]:
                     depth, i = depth - 1, i + 2
                 else:
                     i += 1
+            yield start, i, "block_comment"
             continue
 
         if c == '"':
+            start = i
             i += 1
             while i < n:
                 if sql[i] == '"':
@@ -226,6 +238,7 @@ def _iter_sql_literals(sql: str) -> Iterator[tuple[int, int, str]]:
                     i += 1
                     break
                 i += 1
+            yield start, i, "quoted_ident"
             continue
 
         if c == "$":
@@ -271,6 +284,46 @@ def _iter_sql_literals(sql: str) -> Iterator[tuple[int, int, str]]:
             continue
 
         i += 1
+
+
+def _iter_sql_literals(sql: str) -> Iterator[tuple[int, int, str]]:
+    """Yield ``(start, end, kind)`` spans for every string literal in *sql*.
+
+    The literal subset of :func:`_iter_sql_spans`; comments and quoted
+    identifiers are dropped, so quotes inside them never open a literal.
+    """
+    for start, end, kind in _iter_sql_spans(sql):
+        if kind in _LITERAL_KINDS:
+            yield start, end, kind
+
+
+def _paren_depths(lines: list[str]) -> list[int]:
+    """Return the parenthesis nesting depth at the start of each of *lines*.
+
+    Parentheses inside string literals, comments, and quoted identifiers do
+    not count.  Depth resets at every ``;`` so one statement with unbalanced
+    parens — which only happens when the input is a fragment — cannot skew
+    the statements that follow.
+    """
+    text = "\n".join(lines)
+    chars = list(text)
+    for start, end, _kind in _iter_sql_spans(text):
+        for i in range(start, min(end, len(chars))):
+            if chars[i] != "\n":
+                chars[i] = " "
+
+    depths: list[int] = []
+    depth = 0
+    for line in "".join(chars).split("\n"):
+        depths.append(depth)
+        for ch in line:
+            if ch == "(":
+                depth += 1
+            elif ch == ")":
+                depth = max(0, depth - 1)
+            elif ch == ";":
+                depth = 0
+    return depths
 
 
 def _sql_literal_texts(sql: str) -> list[str]:
@@ -588,6 +641,34 @@ _CMT_MARKER_RE = re.compile(rf"/\*\s*({re.escape(_CMT_MARKER)}\d+)\s*\*/")
 # converge.  Matching the run as a unit removes it cleanly.  See issue #35.
 _CMT_MARKER_RUN_RE = re.compile(rf"\s*(?:/\*\s*{re.escape(_CMT_MARKER)}\d+\s*\*/\s*)+")
 
+# Characters that must not be preceded by a space once a marker run between
+# them and the previous token is removed.
+_NO_SPACE_BEFORE = frozenset(",;).")
+
+
+def _strip_marker_runs(line: str) -> str:
+    """Remove every comment-marker run from *line*, leaving no stray spacing.
+
+    A run stands where the author wrote nothing, so it is replaced by the one
+    space that keeps its neighbours apart — ``AND /* m */ RTRIM(`` must not
+    become ``ANDRTRIM(``.  At the ends of the line, or against punctuation
+    that binds to the token before it, that space is not a separator but
+    residue: sqlglot emitting ``1 = 1 /* m */;`` left ``1 = 1 ;``, which the
+    next run then normalised — costing a pass and making ``--check`` fail on a
+    file that was already formatted.  See issue #35.
+    """
+
+    def repl(match: re.Match[str]) -> str:
+        before = line[: match.start()]
+        after = line[match.end() :]
+        if not before.strip() or not after.strip():
+            return ""
+        if after[:1] in _NO_SPACE_BEFORE or before.endswith("("):
+            return ""
+        return " "
+
+    return _CMT_MARKER_RUN_RE.sub(repl, line)
+
 
 def _format_preserving_comments(
     lines: list[str],
@@ -613,6 +694,7 @@ def _format_preserving_comments(
     comment_store: dict[str, str] = {}  # marker → original comment line
     # Track the SQL line that originally followed each comment, for fallback
     anchor_sql: dict[str, str] = {}  # marker → next SQL line (stripped)
+    anchor_line: dict[str, int] = {}  # marker → index of that line in `processed`
     pending_markers: list[str] = []
     processed: list[str] = []
     in_block = False
@@ -639,50 +721,87 @@ def _format_preserving_comments(
             processed.append(f"{prefix} {line}" if prefix else line)
             for m in pending_markers:
                 anchor_sql[m] = stripped
+                anchor_line[m] = len(processed) - 1
             pending_markers.clear()
 
     # Trailing comments with no following SQL — preserve as-is
     trailing: list[str] = [comment_store[m] for m in pending_markers]
+
+    # Parenthesis depth each comment sat at in the input.  A comment on its own
+    # line belongs to the SQL line below it, so it shares that line's depth.
+    in_depths = _paren_depths(processed)
+    anchor_depth: dict[str, int] = {m: in_depths[i] for m, i in anchor_line.items()}
 
     # ---- Step 2: format through sqlglot ---------------------------------
     formatted = _sqlglot_format(processed, sql_indent=sql_indent, leading_comma=leading_comma)
 
     # ---- Step 3: restore surviving markers to comment lines -------------
     found_markers: set[str] = set()
-    result: list[str] = []
+    sql_out: list[str] = []
+    marker_sites: list[tuple[int, str]] = []  # (index in sql_out, marker)
     for fline in formatted:
         markers_here = _CMT_MARKER_RE.findall(fline)
-        if markers_here:
-            # Strip markers to get the underlying SQL line and its indent
-            cleaned = _CMT_MARKER_RUN_RE.sub(" ", fline).strip()
-            # Indent comes from the line's own leading whitespace, never from
-            # what is left after removing the marker.  Markers are injected as
-            # ``/* marker */ line`` — with a separating space — so measuring
-            # after removal counts that space as indentation.  Whenever
-            # sqlglot leaves the line untouched (an unparsable statement falls
-            # back verbatim) the extra space is re-measured and re-added on the
-            # next run, growing the indent by one on every pass and never
-            # converging.  See issue #35.
-            line_indent = fline[: len(fline) - len(fline.lstrip())]
-            for m in markers_here:
-                if m in comment_store:
-                    orig = comment_store[m]
-                    # Re-indent the comment to match the SQL line it precedes
-                    orig_stripped = orig.strip()
-                    if orig_stripped:
-                        result.append(line_indent + orig_stripped)
-                    else:
-                        result.append("")
-                    found_markers.add(m)
-            if cleaned:
-                result.append(line_indent + cleaned)
+        if not markers_here:
+            sql_out.append(fline)
+            continue
+        # Strip markers to get the underlying SQL line and its indent
+        cleaned = _strip_marker_runs(fline).strip()
+        # Indent comes from the line's own leading whitespace, never from
+        # what is left after removing the marker.  Markers are injected as
+        # ``/* marker */ line`` — with a separating space — so measuring
+        # after removal counts that space as indentation.  Whenever
+        # sqlglot leaves the line untouched (an unparsable statement falls
+        # back verbatim) the extra space is re-measured and re-added on the
+        # next run, growing the indent by one on every pass and never
+        # converging.  See issue #35.
+        line_indent = fline[: len(fline) - len(fline.lstrip())]
+        for m in markers_here:
+            if m in comment_store:
+                marker_sites.append((len(sql_out), m))
+                found_markers.add(m)
+        if cleaned:
+            sql_out.append(line_indent + cleaned)
+
+    # Place each comment above the line where its expression *starts*, not
+    # above whatever line the marker landed on.  sqlglot attaches an inline
+    # comment to a node, and when it then reflows that node across lines the
+    # marker can surface deep inside the expression — ``COALESCE((a.b).c,
+    # FALSE)`` puts it on the ``).c, FALSE)`` continuation line.  Restoring
+    # there splits the expression around a comment that now documents a
+    # fragment of it.  The comment's own line in the input sat at the
+    # parenthesis depth of the SQL line below it, so walk back from the marker
+    # to the nearest line at that depth: the line the reflowed expression
+    # opens on.  A marker that did not move is already at its anchor depth and
+    # stays where it is.
+    out_depths = _paren_depths(sql_out)
+    comments_before: dict[int, list[str]] = {}
+    for idx, marker in marker_sites:
+        target = idx
+        want = anchor_depth.get(marker, 0)
+        while target > 0 and target < len(out_depths) and out_depths[target] > want:
+            target -= 1
+        orig_stripped = comment_store[marker].strip()
+        if not orig_stripped:
+            comments_before.setdefault(target, []).append("")
+            continue
+        # Re-indent the comment to match the SQL line it precedes
+        if target < len(sql_out):
+            anchor = sql_out[target]
+            indent_str = anchor[: len(anchor) - len(anchor.lstrip())]
         else:
-            result.append(fline)
+            indent_str = ""
+        comments_before.setdefault(target, []).append(indent_str + orig_stripped)
+
+    result: list[str] = []
+    for i, line in enumerate(sql_out):
+        result.extend(comments_before.get(i, ()))
+        result.append(line)
+    result.extend(comments_before.get(len(sql_out), ()))
 
     # ---- Step 4: reinsert lost markers ----------------------------------
     lost = [m for m in comment_store if m not in found_markers and m not in set(pending_markers)]
     if lost:
-        _reinsert_lost_comments(result, lost, comment_store, anchor_sql)
+        _reinsert_lost_comments(result, lost, comment_store, anchor_sql, anchor_depth)
 
     result.extend(trailing)
     return result
@@ -693,14 +812,22 @@ def _reinsert_lost_comments(
     lost_markers: list[str],
     comment_store: dict[str, str],
     anchor_sql: dict[str, str],
+    anchor_depth: dict[str, int],
 ) -> None:
     """Best-effort reinsertion of comments that sqlglot dropped.
 
     For each lost comment, extract key tokens from its anchor SQL line and
     find the output line that best matches, then insert the comment before
     that line (indented to match).  Operates on *result* in place.
+
+    Token matching scores whole lines, so on a reflowed expression the best
+    match is often a continuation line — ``a.meas_value`` out of ``CASE WHEN
+    (a.meas_value).undetected``.  Inserting there splits the expression, so
+    the match is pulled back to the line where the expression opens, the same
+    way surviving markers are placed in :func:`_format_preserving_comments`.
     """
     _word_re = re.compile(r"[a-zA-Z_]\w*")
+    out_depths = _paren_depths(result)
 
     # Process in reverse order so earlier inserts don't shift later indices.
     insertions: list[tuple[int, str]] = []
@@ -726,6 +853,10 @@ def _reinsert_lost_comments(
             if score > best_score:
                 best_score = score
                 best_idx = i
+
+        want = anchor_depth.get(marker, 0)
+        while best_idx > 0 and best_idx < len(out_depths) and out_depths[best_idx] > want:
+            best_idx -= 1
 
         # Re-indent comment to match the target line
         if best_idx < len(result):
