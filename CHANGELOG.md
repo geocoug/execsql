@@ -11,6 +11,11 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Fixed
+
+- `execsql-format` no longer leaves a space before a `;` when a comment precedes the closing statement line. `1 = 1;` came back as `1 = 1 ;` and was corrected only on the next run, so `--check` failed on a file the formatter had just written.
+- `execsql-format` no longer moves a comment into the middle of the expression it describes. A comment above a select item containing a parenthesized composite-field access — `COALESCE((a.meas_value).undetected, FALSE)` — was relocated between the operand and the closing paren, and the file then reformatted differently on the next run, so `pre-commit` could not pass. Comments around `CASE` branches were relocated the same way.
+
 ______________________________________________________________________
 
 ## [2.22.7] - 2026-09-17

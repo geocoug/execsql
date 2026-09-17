@@ -353,6 +353,20 @@ At runtime, scripts can modify configuration via `CONFIG` metacommands (e.g., `C
 
 ______________________________________________________________________
 
+## Formatter Corpus
+
+`tests/test_format.py` checks four invariants against a corpus of real `.sql` files rather than hand-written snippets alone: no string literal is lost, no comment changes parenthesis depth, formatting is idempotent, and nothing raises. The corpus is every `.sql` file in the repository, which means `tests/data/formatter_shapes/` is the place to add a construct that has broken the formatter — files dropped anywhere in the repo are picked up automatically.
+
+Every formatter bug so far was reported from a production script and reproduced from a construct the project's own scripts do not contain, so the in-repo corpus can only catch a class of bug after someone has already hit it. To run the same checks over a private library of real SQL:
+
+```sh
+EXECSQL_FORMAT_CORPUS=~/sql-library uv run pytest tests/test_format.py -k corpus
+```
+
+Several directories may be given, separated by `:` (`;` on Windows). Unset — which is what CI sees — the in-repo corpus is used alone. Nothing is written to the corpus directories; the files are read and formatted in memory.
+
+______________________________________________________________________
+
 ## Further Reading
 
 - [Adding Metacommands](adding_metacommands.md) -- Step-by-step guide for new metacommands

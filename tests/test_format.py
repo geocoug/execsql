@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -10,10 +11,12 @@ from unittest.mock import patch
 import pytest
 
 from execsql.format import (
+    METACOMMAND_RE,
     _literal_interior_lines,
     _literal_spanning_lines,
     _is_comment_line,
     _iter_sql_literals,
+    _paren_depths,
     _protect_variables,
     _restore_variables,
     _sql_literal_texts,
@@ -1471,9 +1474,27 @@ _REPO_ROOT = Path(__file__).resolve().parents[1]
 _CORPUS_SKIP_DIRS = frozenset({".git", ".tox", ".venv", "venv", "build", "dist", "node_modules", ".eggs", "site"})
 
 
+# An optional second corpus, outside the repo.  Every formatter bug so far was
+# reported from a production script and reproduced from a construct the
+# project's own scripts happen not to contain, so the in-repo corpus can only
+# catch a class of bug after someone has already hit it.  Point
+# ``EXECSQL_FORMAT_CORPUS`` at a directory of real SQL — several paths
+# separated by ``os.pathsep`` — and these checks run over it too.  Unset (the
+# default, and what CI sees) the in-repo corpus is used alone.
+_EXTERNAL_CORPUS_ENV = "EXECSQL_FORMAT_CORPUS"
+
+
+def _external_corpus_roots() -> list[Path]:
+    raw = os.environ.get(_EXTERNAL_CORPUS_ENV, "")
+    return [Path(part).expanduser().resolve() for part in raw.split(os.pathsep) if part.strip()]
+
+
 def _corpus_sql_files() -> list[Path]:
-    """Every ``.sql`` file that belongs to the project, in a stable order."""
-    return sorted(p for p in _REPO_ROOT.rglob("*.sql") if _CORPUS_SKIP_DIRS.isdisjoint(p.parts))
+    """Every ``.sql`` file in the corpus, in a stable order."""
+    files = [p for p in _REPO_ROOT.rglob("*.sql") if _CORPUS_SKIP_DIRS.isdisjoint(p.parts)]
+    for root in _external_corpus_roots():
+        files.extend(p for p in root.rglob("*.sql") if _CORPUS_SKIP_DIRS.isdisjoint(p.parts))
+    return sorted(files)
 
 
 _CORPUS = _corpus_sql_files()
@@ -1485,7 +1506,28 @@ def _corpus_id(path: Path) -> str:
     ``str()`` would yield backslashes on Windows, so ids — and any lookup
     keyed on them — would differ by platform.
     """
-    return path.relative_to(_REPO_ROOT).as_posix()
+    try:
+        return path.relative_to(_REPO_ROOT).as_posix()
+    except ValueError:
+        return path.as_posix()
+
+
+def _comment_depths(text: str) -> list[tuple[str, int]]:
+    """Every standalone ``--`` comment in *text* with its parenthesis depth.
+
+    A comment's depth is the structural position it was written at: outside
+    the expression, inside the column list, inside a ``WHERE (...)`` group.
+    Formatting changes layout, never position, so this list must survive a
+    format unchanged.  Metacommands are excluded — they are not SQL comments
+    and the formatter re-indents them by block depth.
+    """
+    lines = text.splitlines()
+    depths = _paren_depths(lines)
+    return sorted(
+        (" ".join(line.split()), depths[i])
+        for i, line in enumerate(lines)
+        if line.strip().startswith("--") and not METACOMMAND_RE.match(line)
+    )
 
 
 def _idempotency_params() -> list:
@@ -1543,6 +1585,25 @@ class TestCorpusLiteralFidelity:
         source = path.read_text(encoding="utf-8")
         first = format_file(source)
         assert first == format_file(first), f"{_corpus_id(path)}: formatter is not idempotent"
+
+
+class TestCorpusCommentAnchoring:
+    """No comment in a corpus script may change structural position.
+
+    Formatting moves text around; it must not move a comment into or out of an
+    expression.  The composite-field bug relocated a comment from above a
+    select item to between an operand and its closing paren — a change of
+    parenthesis depth, invisible to the literal and idempotency checks because
+    the output still parsed and still converged.
+    """
+
+    @pytest.mark.parametrize("path", _CORPUS, ids=_corpus_id)
+    def test_comment_depth_preserved(self, path):
+        source = path.read_text(encoding="utf-8")
+        before = _comment_depths(source)
+        after = _comment_depths(format_file(source))
+        moved = [c for c in before if c not in after]
+        assert not moved, f"{_corpus_id(path)}: {len(moved)} comment(s) changed depth: {moved[:2]}"
 
 
 # ---------------------------------------------------------------------------
@@ -2258,11 +2319,89 @@ class TestCommentMarkerConvergence:
         first = format_file(source)
         assert first == format_file(first), "needed a second pass to converge"
 
+    def test_no_space_left_before_semicolon(self):
+        """sqlglot put the marker run before the ``;``, leaving ``1 = 1 ;``.
+
+        The residue normalised on the next run, so the file reformatted twice
+        and ``--check`` failed on output the formatter had just produced.
+        """
+        source = "select a\nfrom t\nwhere\n    -- uncomment to restrict\n    -- and t.b is null\n    1 = 1;\n"
+        out = format_file(source)
+        assert " ;" not in out, out
+        assert out == format_file(out), "needed a second pass to converge"
+
     def test_no_double_space_left_where_markers_were(self):
         source = "select *\nfrom t\nwhere\n    a = 1\n    -- one\n    -- two\n    and b = 2;\n"
         out = format_file(source)
         sql_lines = [line for line in out.splitlines() if line.strip() and not line.strip().startswith("--")]
         assert not any("  " in line.strip() for line in sql_lines), out
+
+
+class TestCommentAnchoring:
+    """A comment must stay above the expression it was written above.
+
+    Comments are hidden from sqlglot as ``/* marker */ line``, and sqlglot
+    attaches that marker to an AST node.  When it then reflows the node across
+    several lines the marker can surface deep inside the expression, and
+    restoring the comment above the marker's line drops it into the middle of
+    the statement it was describing.
+    """
+
+    COMPOSITE_FIELD = "SELECT\n    a.x,\n    -- C\n    COALESCE((a.meas_value).undetected, FALSE) AS u\nFROM t AS a;\n"
+
+    def test_comment_not_moved_inside_parenthesised_composite_field(self):
+        """``COALESCE((a.b).c, FALSE)`` used to swallow the comment above it."""
+        out = format_file(self.COMPOSITE_FIELD)
+        lines = out.splitlines()
+        idx = next(i for i, line in enumerate(lines) if line.strip() == "-- C")
+        assert lines[idx + 1].strip().startswith("COALESCE("), out
+
+    def test_composite_field_comment_is_idempotent(self):
+        first = format_file(self.COMPOSITE_FIELD)
+        assert first == format_file(first), "needed a second pass to converge"
+
+    CASE_COMPOSITE_FIELD = (
+        "SELECT\n"
+        "    CASE\n"
+        "        -- non-detects screen as U\n"
+        "        WHEN (a.meas_value).undetected THEN 'U'\n"
+        "        ELSE 'D'\n"
+        "    END AS screen_status\n"
+        "FROM t AS a;\n"
+    )
+
+    def test_case_comment_not_moved_inside_parentheses(self):
+        """sqlglot drops comments inside CASE; reinsertion must not split it."""
+        out = format_file(self.CASE_COMPOSITE_FIELD)
+        lines = out.splitlines()
+        idx = next(i for i, line in enumerate(lines) if "non-detects" in line)
+        assert lines[idx + 1].strip().startswith("CASE"), out
+
+    def test_case_comment_is_idempotent(self):
+        first = format_file(self.CASE_COMPOSITE_FIELD)
+        assert first == format_file(first), "needed a second pass to converge"
+
+    def test_comment_inside_parentheses_stays_inside(self):
+        """Relocation must not drag a genuinely nested comment outwards."""
+        source = "insert into t (\n    -- keys\n    id,\n    -- values\n    name\n) values (1, 'x');\n"
+        out = format_file(source)
+        lines = [line.strip() for line in out.splitlines()]
+        assert lines.index("-- keys") < lines.index("id,")
+        assert lines.index("id,") < lines.index("-- values")
+        assert out == format_file(out)
+
+
+class TestParenDepths:
+    """``_paren_depths`` reports code parentheses only."""
+
+    def test_depth_at_start_of_each_line(self):
+        assert _paren_depths(["select f(", "    a", "), b", "from t"]) == [0, 1, 1, 0]
+
+    def test_parens_in_literals_and_comments_ignored(self):
+        assert _paren_depths(["select '(' as a, -- )", "    b"]) == [0, 0]
+
+    def test_depth_resets_at_statement_end(self):
+        assert _paren_depths(["select (a;", "select b"]) == [0, 0]
 
 
 class TestLeadingCommaLiteralSafety:

@@ -85,6 +85,10 @@ Comments interleaved within SQL statements (e.g. `--` comments between SELECT co
 1. Markers are restored to their original `--` comment style and position.
 1. Comments that sqlglot's AST drops (e.g. inside CASE WHEN) are detected and re-inserted at the best matching position.
 
+A comment written on its own line stays on its own line, above the expression it preceded — even when sqlglot reflows that expression across several lines. sqlglot attaches the marker to an AST node, and reformatting can carry it onto a continuation line deep inside the expression; the formatter walks back to the line where the expression opens, matching the parenthesis depth the comment sat at in the source. Without that, a comment above `COALESCE((a.meas_value).undetected, FALSE)` landed between the operand and its closing paren.
+
+A comment that genuinely sits inside parentheses — between the columns of an `INSERT` list, or inside a `WHERE (...)` group — stays inside them.
+
 Block comments (`/* */`) that contain `-- !x!` metacommand markers (e.g. commented-out code blocks) are recognized and passed through without metacommand processing.
 
 #### Variable preservation
