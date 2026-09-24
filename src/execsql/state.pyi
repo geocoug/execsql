@@ -52,7 +52,7 @@ subvars: SubVarSet
 status: StatObj
 output: Any
 tier_notices_shown: set[str]
-filewriter: FileWriter
+filewriter: FileWriter | None
 counters: CounterVars
 timer: Timer
 dbs: DatabasePool

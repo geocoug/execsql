@@ -435,8 +435,40 @@ def filewriter_filestatus(filename: str) -> int:
     return cast(int, fw_output.get())
 
 
+#: Set once the first dropped write has been reported, so a script writing
+#: thousands of lines warns once rather than per line.
+_drop_warned = False
+
+
+def _warn_write_dropped(filename: str) -> None:
+    """Report, once per process, that file output is being discarded.
+
+    Silently dropping a write is not a safe default: a script's logfile simply
+    comes back empty and the run still reports success.  The guard itself has
+    to stay — putting on a queue no subprocess is draining fills the OS pipe
+    buffer and deadlocks the caller — so the write is still dropped, but no
+    longer without saying so.
+    """
+    global _drop_warned
+    if _drop_warned:
+        return
+    _drop_warned = True
+    try:
+        from execsql.utils.errors import write_warning
+
+        write_warning(
+            f'no file writer is running; output to "{filename}" and any later file '
+            "is discarded. Start one with execsql.utils.fileio.FileWriter, or run "
+            "the script through the CLI or execsql.api.run().",
+            always=True,
+        )
+    except Exception:
+        pass  # Never let the warning path break the caller.
+
+
 def filewriter_write(filename: str, message: str) -> None:
     if not _writer_alive():
+        _warn_write_dropped(filename)
         return
     fw_input.put((FileWriter.CMD_WRITE, (filename, message)))
 
@@ -445,6 +477,7 @@ def filewriter_open_as_new(filename: str) -> None:
     # FileWriter opens files in append mode ("a") by default.  This ensures that it
     # will be opened in write mode ("w") instead.  If the file is open, it will be closed.
     if not _writer_alive():
+        _warn_write_dropped(filename)
         return
     fw_input.put((FileWriter.CMD_OPEN_AS_NEW, (filename,)))
 
