@@ -242,6 +242,7 @@
 # Settings for the EMAIL metacommand.
 
 # SMTP server connection.
+# If username is set, password (or enc_password, below) is required too.
 #host=
 #port=
 #username=

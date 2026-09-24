@@ -66,15 +66,19 @@ class Mailer:
                 self.smtpconn = smtplib.SMTP_SSL(conf.smtp_host, conf.smtp_port, timeout=smtp_timeout)
             else:
                 self.smtpconn = smtplib.SMTP(conf.smtp_host, conf.smtp_port, timeout=smtp_timeout)
-        self.smtpconn.ehlo_or_hello_if_needed()
+        self.smtpconn.ehlo_or_helo_if_needed()
         if conf.smtp_tls:
             self.smtpconn.starttls()
             self.smtpconn.ehlo(conf.smtp_host)
         if conf.smtp_username:
-            if conf.smtp_password:
-                self.smtpconn.login(conf.smtp_username, conf.smtp_password)
-            else:
-                self.smtpconn.login(conf.smtp_username)
+            if not conf.smtp_password:
+                # smtplib.login() requires a password; calling it with only a
+                # username raises TypeError deep in the stdlib.
+                raise ErrInfo(
+                    type="error",
+                    other_msg="Can't send email; an SMTP username is configured but no password.",
+                )
+            self.smtpconn.login(conf.smtp_username, conf.smtp_password)
 
     def sendmail(
         self,

@@ -266,7 +266,7 @@ The section and property names that may be used in a configuration file are list
 
 `username`
 
-:   The name of the user if the SMTP server requires login authentication.
+:   The name of the user if the SMTP server requires login authentication. If `username` is set, either `password` or `enc_password` must also be set; execsql reports an error rather than attempting an incomplete login.
 
 `password`
 

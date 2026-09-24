@@ -11,6 +11,11 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Fixed
+
+- `EMAIL`, and the `ON ERROR_HALT EMAIL` and `ON CANCEL_HALT EMAIL` hooks, failed with `AttributeError: 'SMTP' object has no attribute 'ehlo_or_hello_if_needed'` instead of sending. Every send was affected, on every server and TLS setting.
+- An `[email]` `username` with no `password` or `enc_password` now reports a configuration error instead of failing with a `TypeError` from `smtplib`.
+
 ______________________________________________________________________
 
 ## [2.22.8] - 2026-09-17

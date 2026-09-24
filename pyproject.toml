@@ -256,6 +256,10 @@ fo = "fo"
 odf = "odf"
 # Latin-1 test data: b"caf\xe9" decodes to "café"
 caf = "caf"
+# SMTP verb: EHLO-or-HELO, not the English word. Correcting it to "hello"
+# renames smtplib.ehlo_or_helo_if_needed() into a method that does not exist,
+# which is exactly how every EMAIL send broke in 2.22.8.
+helo = "helo"
 
 [tool.tox]
 required = ["tox-uv"]
