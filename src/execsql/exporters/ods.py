@@ -10,6 +10,7 @@ Provides :func:`write_query_to_ods` (single-sheet export),
 """
 
 import datetime
+import decimal
 import getpass
 import os
 from pathlib import Path
@@ -239,7 +240,12 @@ class OdsFile:
             if isinstance(item, bool):
                 # Booleans must be evaluated before numbers.
                 tc = of.table.TableCell(valuetype="boolean", value=1 if item else 0, stylename=style_name)
-            elif isinstance(item, float | int):
+            elif isinstance(item, float | int | decimal.Decimal):
+                # Decimal belongs here: PostgreSQL, MySQL and DuckDB all return it
+                # for numeric/decimal columns.  Without it the value fell to the
+                # untyped branch below and the cell was written with an
+                # office:value but no office:value-type, which is not valid ODF —
+                # a reader is free to treat the number as text or ignore it.
                 tc = of.table.TableCell(valuetype="float", value=item, stylename=style_name)
             elif isinstance(item, datetime.datetime):
                 self.define_iso_datetime_style()
@@ -266,12 +272,24 @@ class OdsFile:
                 tc = of.table.TableCell(timevalue=timeval.strftime("PT%HH%MM%S.%fS"), stylename="iso_datetime")
                 tc.addElement(of.text.P(text=timeval.strftime("%H:%M:%S.%f")))
             elif isinstance(item, str):
-                item = item.replace("\n", " ").replace("\r", " ")
-                tc = of.table.TableCell(valuetype="string", stringvalue=item, stylename=style_name)
+                # An XML parser normalises a newline inside an attribute to a
+                # space, so office:string-value cannot carry one.  ODF's answer
+                # is one <text:p> per line, which is what LibreOffice writes;
+                # the attribute is set only for single-line values.
+                if "\n" in item or "\r" in item:
+                    tc = of.table.TableCell(valuetype="string", stylename=style_name)
+                else:
+                    tc = of.table.TableCell(valuetype="string", stringvalue=item, stylename=style_name)
             else:
                 tc = of.table.TableCell(value=item, stylename=style_name)
             if item is not None:
-                tc.addElement(of.text.P(text=item))
+                if isinstance(item, str) and ("\n" in item or "\r" in item):
+                    # Previously these were flattened to spaces, silently changing
+                    # the exported value.
+                    for line in item.replace("\r\n", "\n").replace("\r", "\n").split("\n"):
+                        tc.addElement(of.text.P(text=line))
+                else:
+                    tc.addElement(of.text.P(text=item))
             tr.addElement(tc)
 
     def add_sheet(self, of_table: Any) -> None:

@@ -22,6 +22,8 @@ ______________________________________________________________________
 
 ### Changed
 
+- `EXPORT ... AS ODS` writes `numeric`/`decimal` columns as typed numbers. PostgreSQL, MySQL, and DuckDB return `Decimal` for those columns, which was written with an `office:value` but no `office:value-type` — not valid ODF, leaving a reader free to treat the number as text or ignore it.
+- `EXPORT ... AS ODS` keeps newlines inside a value instead of replacing them with spaces. Multi-line text is now written as one line per `<text:p>`, which is how ODF represents it; previously the exported cell did not match the value in the database.
 - `EXPORT ... AS XLSX` writes `numeric`/`decimal` columns as numbers instead of text. PostgreSQL, MySQL, and DuckDB return `Decimal` for those columns, which fell through to a string cell — a measurement column arrived in Excel as text and could not be summed, sorted, or charted. Integer and float columns were unaffected.
 - MySQL and MariaDB connections now default to `utf8mb4` instead of `latin1`. A latin1 connection could not carry CJK, emoji, Greek, or Cyrillic at all — inserting such text raised `UnicodeEncodeError` before reaching the server — so scripts had to pass `-e utf8mb4` to move most of Unicode. Existing latin1 databases are unaffected: the connection charset governs only client/server transfer, and MySQL transcodes to and from each column's own charset. Pass `-e latin1` to restore the previous behavior.
 
