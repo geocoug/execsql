@@ -111,3 +111,37 @@ class TestTabRoundTrip:
         out = tmp_path / "out.tsv"
         _export(export_db, out, filefmt="tab")
         assert _read_csv(out, delimiter="\t")[0] == HEADERS
+
+
+class TestLineEndings:
+    """Guards the newline fix on every platform, not only Windows.
+
+    ``EncodedFile`` opened with ``newline=None`` let Python translate every
+    ``\n`` to ``os.linesep`` on write.  That is right for row terminators and
+    wrong for data — a newline inside a quoted field was rewritten too, so a
+    value exported on Windows came back different from the one in the database.
+    These assertions read raw bytes rather than parsed fields.  On POSIX they
+    can only pass — ``os.linesep`` is already LF, so nothing is translated
+    whatever ``newline`` says — and it is the Windows jobs in CI that give them
+    teeth.  That is exactly how the bug was found: four of these failed on
+    every Windows runner and on none of the others.
+    """
+
+    def test_no_carriage_returns_anywhere(self, export_db, tmp_path):
+        out = tmp_path / "out.csv"
+        _export(export_db, out)
+        assert b"\r" not in out.read_bytes(), "line-ending translation is back"
+
+    def test_embedded_newline_is_written_as_one_byte(self, export_db, tmp_path):
+        """The field's own newline must survive as LF, not become CRLF."""
+        out = tmp_path / "out.csv"
+        _export(export_db, out)
+        raw = out.read_bytes()
+        assert b"a\nnewline" in raw
+        assert b"a\r\nnewline" not in raw
+
+    def test_row_count_by_terminator(self, export_db, tmp_path):
+        """One LF per row plus the one inside the quoted field."""
+        out = tmp_path / "out.csv"
+        _export(export_db, out)
+        assert out.read_bytes().count(b"\n") == 4, "header + 2 rows + 1 embedded"
