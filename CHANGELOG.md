@@ -22,6 +22,7 @@ ______________________________________________________________________
 
 ### Changed
 
+- `EXPORT ... AS VALUES` quotes dates, timestamps, and every other non-numeric value in the generated `INSERT`. Only strings were quoted, so a date was written bare as `2026-09-24` — which SQL reads as arithmetic, not a date. PostgreSQL accepted the statement and stored `1993` without complaint; a timestamp, carrying a space, was a syntax error instead. Numbers are still written bare, and `NULL` is unchanged.
 - `EXPORT ... AS LATEX` escapes every LaTeX special character, not only `_`. An `&` in a value acted as a column separator and produced a table with the wrong number of columns, which LaTeX refuses to compile ("Extra alignment tab has been changed to \\cr"); a `%` commented out the rest of the row. `\\ & % $ # _ { } ~ ^` are now all escaped.
 - `EXPORT ... AS LATEX` writes NULL as an empty cell instead of the literal text `None`.
 - `EXPORT ... AS HTML` renders zero and other falsy values instead of blank cells. Cells were written with `str(v) if v else ''`, so `0`, `False`, and empty strings came out empty — a zero measurement was indistinguishable from a NULL in the output.
