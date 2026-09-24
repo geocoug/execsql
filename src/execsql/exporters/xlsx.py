@@ -9,6 +9,7 @@ Provides :func:`write_query_to_xlsx` (single-sheet export) and
 """
 
 import datetime
+import decimal
 import getpass
 import os
 from pathlib import Path
@@ -52,7 +53,12 @@ def _cell_value(item: Any) -> Any:
     if isinstance(item, bool):
         # bool must be checked before int — bool is a subclass of int.
         return item
-    if isinstance(item, int | float):
+    if isinstance(item, int | float | decimal.Decimal):
+        # Decimal is in openpyxl's NUMERIC_TYPES and becomes a real numeric
+        # cell.  Without it, every ``numeric``/``decimal`` column — which is
+        # what PostgreSQL, MySQL and DuckDB return for measurements — fell
+        # through to str() below and arrived in Excel as text: no sums, no
+        # sorting, no charts.
         return item
     if isinstance(item, datetime.datetime):
         return item
