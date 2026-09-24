@@ -56,6 +56,8 @@ COLUMNS: list[tuple[str, str]] = [
     ("t_short", "varchar(40)"),
     ("t_unicode", "varchar(40)"),
     ("t_awkward", "varchar(80)"),
+    ("t_markup", "varchar(60)"),
+    ("n_zero", "integer"),
     ("d_date", "date"),
     ("d_stamp", "timestamp"),
 ]
@@ -70,10 +72,14 @@ ROWS: list[tuple] = [
         "plain",
         "café — naïve ± 30° ⚡",
         'has "quotes", a comma, a\ttab and a\nnewline',
+        # Characters that break markup if a writer forgets to escape them.
+        '<b>a & b</b> | "pipe" <script>',
+        # Zero: falsy in Python, and a value a spreadsheet must still show.
+        0,
         datetime.date(2026, 9, 24),
         datetime.datetime(2026, 9, 24, 13, 45, 56),
     ),
-    (2, None, None, None, None, None, None, None, None),
+    (2, None, None, None, None, None, None, None, None, None, None),
 ]
 
 #: Column names in table order, for assertions.

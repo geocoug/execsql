@@ -51,7 +51,10 @@ def export_html(
         for r in rows:
             f.write("<tr>")
             for v in r:
-                f.write(f"<td>{html_mod.escape(str(v)) if v else ''}</td>")
+                # `if v is not None`, not `if v`: 0, False, and an empty
+                # string are all falsy, and a zero measurement silently became
+                # an empty cell.
+                f.write(f"<td>{html_mod.escape(str(v)) if v is not None else ''}</td>")
             f.write("</tr>\n")
         f.write("</tbody>\n</table>\n")
 
@@ -191,7 +194,10 @@ def export_cgi_html(
         for r in rows:
             f.write("<tr>")
             for v in r:
-                f.write(f"<td>{html_mod.escape(str(v)) if v else ''}</td>")
+                # `if v is not None`, not `if v`: 0, False, and an empty
+                # string are all falsy, and a zero measurement silently became
+                # an empty cell.
+                f.write(f"<td>{html_mod.escape(str(v)) if v is not None else ''}</td>")
             f.write("</tr>\n")
         f.write("</tbody>\n</table>\n")
 

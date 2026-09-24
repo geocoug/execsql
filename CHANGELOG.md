@@ -22,6 +22,8 @@ ______________________________________________________________________
 
 ### Changed
 
+- `EXPORT ... AS HTML` renders zero and other falsy values instead of blank cells. Cells were written with `str(v) if v else ''`, so `0`, `False`, and empty strings came out empty — a zero measurement was indistinguishable from a NULL in the output.
+- `EXPORT ... AS MARKDOWN` no longer breaks the table when a value contains a newline. A GitHub-flavoured Markdown row is a single line, so a literal newline ended the row mid-cell and left the remaining values on a stray line outside the table. Line breaks are now written as `<br>`.
 - `EXPORT ... AS ODS` writes `numeric`/`decimal` columns as typed numbers. PostgreSQL, MySQL, and DuckDB return `Decimal` for those columns, which was written with an `office:value` but no `office:value-type` — not valid ODF, leaving a reader free to treat the number as text or ignore it.
 - `EXPORT ... AS ODS` keeps newlines inside a value instead of replacing them with spaces. Multi-line text is now written as one line per `<text:p>`, which is how ODF represents it; previously the exported cell did not match the value in the database.
 - `EXPORT ... AS XLSX` writes `numeric`/`decimal` columns as numbers instead of text. PostgreSQL, MySQL, and DuckDB return `Decimal` for those columns, which fell through to a string cell — a measurement column arrived in Excel as text and could not be summed, sorted, or charted. Integer and float columns were unaffected.
