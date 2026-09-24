@@ -141,6 +141,10 @@ def _duckdb_db(tmp_path):
 
 def _postgres_db(tmp_path):
     pytest.importorskip("psycopg", reason="psycopg (psycopg3) not installed")
+    host = os.environ.get("EXECSQL_PG_HOST", "localhost")
+    port = int(os.environ.get("EXECSQL_PG_PORT", "5432"))
+    if not _server_listening(host, port):
+        raise OSError(f"nothing listening at {host}:{port}")
     from execsql.db.postgres import PostgresDatabase
 
     db = PostgresDatabase(
@@ -157,6 +161,10 @@ def _postgres_db(tmp_path):
 
 def _mysql_db(tmp_path):
     pytest.importorskip("pymysql", reason="pymysql not installed")
+    host = os.environ.get("EXECSQL_MYSQL_HOST", "localhost")
+    port = int(os.environ.get("EXECSQL_MYSQL_PORT", "3306"))
+    if not _server_listening(host, port):
+        raise OSError(f"nothing listening at {host}:{port}")
     from execsql.db.mysql import MySQLDatabase
 
     db = MySQLDatabase(
@@ -178,6 +186,28 @@ _BACKENDS = {
     "mysql": _mysql_db,
 }
 
+#: Why a backend is unusable, cached after the first attempt.  Without this the
+#: fixture re-attempts a TCP connection for every parametrized test, and on a
+#: machine with no server listening — every Windows CI runner — that cost more
+#: than the rest of the suite combined: the Windows jobs went from 15 minutes to
+#: 30, straight into the tox timeout.  One probe per backend per session.
+_unusable: dict[str, str] = {}
+
+
+def _server_listening(host: str, port: int, timeout: float = 1.0) -> bool:
+    """True if something accepts a TCP connection at *host*:*port*.
+
+    Checked before building an adapter so an absent server costs one short
+    connect rather than a driver-specific timeout.
+    """
+    import socket
+
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except OSError:
+        return False
+
 
 @pytest.fixture(params=sorted(_BACKENDS), ids=sorted(_BACKENDS))
 def export_db(request, tmp_path, minimal_conf):
@@ -187,12 +217,15 @@ def export_db(request, tmp_path, minimal_conf):
     server is unreachable is skipped rather than failed.
     """
     dbms = request.param
+    if dbms in _unusable:
+        pytest.skip(_unusable[dbms])
     try:
         db = _BACKENDS[dbms](tmp_path)
     except pytest.skip.Exception:
         raise
     except Exception as exc:
-        pytest.skip(f"{dbms} not reachable: {type(exc).__name__}: {exc}")
+        _unusable[dbms] = f"{dbms} not reachable: {type(exc).__name__}: {exc}"
+        pytest.skip(_unusable[dbms])
 
     _state.dbs = None  # exporters resolve the current db through the pool
     try:
