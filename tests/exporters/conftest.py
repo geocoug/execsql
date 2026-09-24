@@ -227,7 +227,6 @@ def export_db(request, tmp_path, minimal_conf):
         _unusable[dbms] = f"{dbms} not reachable: {type(exc).__name__}: {exc}"
         pytest.skip(_unusable[dbms])
 
-    _state.dbs = None  # exporters resolve the current db through the pool
     try:
         with db._cursor() as curs:
             curs.execute(f"drop table if exists {TABLE_NAME};")
@@ -237,6 +236,15 @@ def export_db(request, tmp_path, minimal_conf):
     except Exception as exc:  # setup failure is a skip, not a red test
         db.close()
         pytest.skip(f"{dbms} setup failed: {type(exc).__name__}: {exc}")
+
+    # Register the connection the way a run does: several exporters reach for
+    # _state.dbs.current() to record provenance, and a bare adapter is not how
+    # execsql ever holds one.
+    from execsql.db.base import DatabasePool
+
+    pool = DatabasePool()
+    pool.add("initial", db)
+    _state.dbs = pool
 
     db.dbms_name = dbms  # type: ignore[attr-defined]  # for test diagnostics
     yield db
