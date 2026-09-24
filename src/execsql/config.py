@@ -316,6 +316,7 @@ class ConfigData:
         self._get_int(cp, self._OUTPUT_SECTION, "zip_buffer_mb", "zip_buffer_mb")
         # --- [interface] ---
         self._get_bool(cp, self._INTERFACE_SECTION, "write_warnings", "write_warnings")
+        self._get_bool(cp, self._INTERFACE_SECTION, "support_tier_notice", "support_tier_notice")
         self._get_int(cp, self._INTERFACE_SECTION, "console_height", "gui_console_height", min_val=5)
         self._get_int(cp, self._INTERFACE_SECTION, "console_width", "gui_console_width", min_val=20)
         self._get_bool(cp, self._INTERFACE_SECTION, "console_wait_when_done", "gui_wait_on_exit")
@@ -409,6 +410,7 @@ class ConfigData:
         self.scan_lines = 100
         self.hdf5_text_len = 1000
         self.write_warnings = False
+        self.support_tier_notice = True
         self.write_prefix: str | None = None
         self.write_suffix: str | None = None
         self.gui_level: int = 0

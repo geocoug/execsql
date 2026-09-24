@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any, cast
 
 from execsql.db.base import Database
+from execsql.db.tiers import SupportTier
 from execsql.exceptions import ErrInfo
 from execsql.utils.errors import exception_desc, fatal_error
 from execsql.utils.auth import clear_stored_password, get_password, password_from_keyring
@@ -25,6 +26,11 @@ __all__ = ["AccessDatabase"]
 
 class AccessDatabase(Database):
     """MS Access adapter connecting to .mdb/.accdb files via DAO (win32com) with pyodbc fallback."""
+
+    #: The Access Database Engine install on the Windows CI runner is
+    #: best-effort, so a run can silently skip these tests.
+    support_tier = SupportTier.BEST_EFFORT
+    support_tier_name = "MS Access"
 
     # Regex for the 'create temporary view' SQL extension
     temp_rx = re.compile(

@@ -231,6 +231,11 @@
 # Values: Yes or No.  Default: No.
 #write_warnings=No
 
+# Whether opening a best-effort database connection (MS Access, Firebird,
+# Oracle, ODBC DSN) notes on stderr that the adapter is not verified in CI.
+# Values: Yes or No.  Default: Yes.
+#support_tier_notice=Yes
+
 # Text to prefix to WRITE output (with a space separator). "clear" removes a previous prefix.
 #write_prefix=
 

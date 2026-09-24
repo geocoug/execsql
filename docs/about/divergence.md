@@ -184,6 +184,12 @@ The CLI framework changed from `optparse` to [Typer](https://typer.tiangolo.com/
 
 Seven upstream long-form flags were renamed underscore → hyphen and the underscore forms are **not** accepted: `--database-encoding`, `--script-encoding`, `--output-encoding`, `--import-encoding`, `--import-buffer`, `--user-logfile`, `--visible-prompts` (upstream wrote these with underscores). Scripts and CI pipelines that invoke the long-form flags must update the spelling; the short letters (`-e`, `-f`, `-g`, `-i`, `-l`, `-v`, `-z`) are unchanged.
 
+### Database Support Tiers
+
+Upstream documented all nine DBMS adapters with equal confidence. execsql2 splits them by what is actually verified: **Supported** (PostgreSQL, MySQL/MariaDB, MS SQL Server, SQLite, DuckDB) run against a live server or a real database file on every CI run, while **best effort** (MS Access, Firebird, Oracle, ODBC DSN) are carried forward from the monolith and are exercised nowhere in CI.
+
+No adapter is removed, deprecated, or changed in behavior — the tiers describe verification, not intent. Opening a best-effort connection writes one informational line to stderr per DBMS per run, which `support_tier_notice=No` in the `[interface]` section silences. Adapters declare their own tier through `Database.support_tier`, and `tests/db/test_tiers.py` fails if the code and the documented tables disagree.
+
 ### Default Database Type
 
 The default database type (`-t`) changed from Access (`a`) to SQLite (`l`). Upstream defaulted to Access, which requires Windows and pyodbc. SQLite is cross-platform, ships with Python, and is the most common use case. Users targeting Access databases should pass `-t a` explicitly.

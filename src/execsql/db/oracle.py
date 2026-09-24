@@ -11,6 +11,7 @@ on the CLI.
 from typing import Any
 
 from execsql.db.base import Database
+from execsql.db.tiers import SupportTier
 from execsql.exceptions import ErrInfo
 from execsql.utils.errors import exception_desc, fatal_error
 from execsql.utils.auth import clear_stored_password, get_password, password_from_keyring
@@ -21,6 +22,10 @@ __all__ = ["OracleDatabase"]
 
 class OracleDatabase(Database):
     """Oracle adapter using the cx_Oracle (python-oracledb) driver."""
+
+    #: No Oracle server runs in CI; this adapter has no tests.
+    support_tier = SupportTier.BEST_EFFORT
+    support_tier_name = "Oracle"
 
     def __init__(
         self,

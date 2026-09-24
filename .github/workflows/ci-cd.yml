@@ -141,7 +141,7 @@ jobs:
                   files: coverage.xml
 
     integration-tests:
-        name: integration-tests-py${{ matrix.python-version }}
+        name: tier1-live-db-tests-py${{ matrix.python-version }}
         runs-on: ubuntu-latest
         strategy:
             fail-fast: false
@@ -222,7 +222,7 @@ jobs:
                   files: coverage.xml
 
     access-tests-windows:
-        name: access-tests-windows
+        name: tier2-access-tests-windows
         runs-on: windows-latest
         # The Access engine install step is best-effort (the redistributable
         # download from Microsoft can be flaky on hosted runners). The

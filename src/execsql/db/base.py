@@ -19,11 +19,12 @@ import datetime
 import re
 from abc import ABC, abstractmethod
 from decimal import Decimal
-from typing import Any
+from typing import Any, ClassVar
 from collections.abc import Callable, Generator, Iterator
 
 from execsql.exceptions import ErrInfo
 from execsql.utils.errors import exception_desc
+from execsql.db.tiers import SupportTier, announce_tier
 import execsql.state as _state
 
 __all__ = ["Database", "DatabasePool"]
@@ -79,6 +80,15 @@ class Database(ABC):
     paramstr: str
     conn: Any
     autocommit: bool
+
+    #: How thoroughly this adapter is verified.  Subclasses that are not
+    #: exercised against a live server in CI override this with
+    #: ``SupportTier.BEST_EFFORT``; see :mod:`execsql.db.tiers`.
+    support_tier: ClassVar[SupportTier] = SupportTier.SUPPORTED
+
+    #: Name used in the best-effort notice.  Defaults to the class name minus
+    #: the ``Database`` suffix (``FirebirdDatabase`` -> ``Firebird``).
+    support_tier_name: ClassVar[str | None] = None
 
     _dt_cast: dict[type, Callable] | None = None
 
@@ -778,6 +788,10 @@ class DatabasePool:
                 )
             self.pool[db_alias].close()
         self.pool[db_alias] = db_obj
+        announce_tier(
+            db_obj.support_tier,
+            db_obj.support_tier_name or type(db_obj).__name__.removesuffix("Database"),
+        )
         # Refresh static system vars so $DB_NAME, $DB_USER, etc. reflect the new connection.
         try:
             from execsql.script.engine import set_static_system_vars
