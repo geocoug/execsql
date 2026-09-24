@@ -386,6 +386,16 @@ class CsvFile(EncodedFile):
                 break
             except:
                 raise
+            # A quoted field may contain a newline — RFC 4180 allows it, and
+            # execsql's own CSV writer produces it.  Read on until the quotes
+            # balance, so diagnosis sees one logical record rather than two
+            # physical lines whose delimiter counts disagree; an odd count made
+            # the real delimiter look inconsistent and it was rejected.
+            while ln.count('"') % 2 == 1:
+                try:
+                    ln += next(linestream)
+                except StopIteration:
+                    break
             while len(ln) > 0 and ln[-1] in ("\n", "\r"):
                 ln = ln[:-1]
             if len(ln) > 0:
