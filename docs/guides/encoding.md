@@ -8,7 +8,7 @@ If no encodings are specified, the following default encodings are used:
 
 > - Script file: utf8
 > - Firebird: latin1
-> - MySQL and MariaDB: latin1
+> - MySQL and MariaDB: utf8mb4
 > - SQL Server: latin1
 > - Access: windows_1252
 > - DSN: None

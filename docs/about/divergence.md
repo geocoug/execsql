@@ -184,6 +184,12 @@ The CLI framework changed from `optparse` to [Typer](https://typer.tiangolo.com/
 
 Seven upstream long-form flags were renamed underscore → hyphen and the underscore forms are **not** accepted: `--database-encoding`, `--script-encoding`, `--output-encoding`, `--import-encoding`, `--import-buffer`, `--user-logfile`, `--visible-prompts` (upstream wrote these with underscores). Scripts and CI pipelines that invoke the long-form flags must update the spelling; the short letters (`-e`, `-f`, `-g`, `-i`, `-l`, `-v`, `-z`) are unchanged.
 
+### MySQL Connection Encoding
+
+Upstream opened MySQL and MariaDB connections as `latin1`, and execsql2 did the same until this was measured against a live server. A latin1 connection cannot carry CJK, emoji, Greek, or Cyrillic — pymysql raises `UnicodeEncodeError` before the server is reached — so any script moving text outside Latin-1 had to pass `-e utf8mb4` explicitly or fail.
+
+The default is now `utf8mb4`. This does not change stored data or column charsets: the connection charset governs only how text moves between client and server, and MySQL transcodes to and from each column's own charset. A latin1 column read over a utf8mb4 connection returns the same string it always did. `-e latin1` restores the upstream behavior.
+
 ### Database Support Tiers
 
 Upstream documented all nine DBMS adapters with equal confidence. execsql2 splits them by what is actually verified: **Supported** (PostgreSQL, MySQL/MariaDB, MS SQL Server, SQLite, DuckDB) run against a live server or a real database file on every CI run, while **best effort** (MS Access, Firebird, Oracle, ODBC DSN) are carried forward from the monolith and are exercised nowhere in CI.
