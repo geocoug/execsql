@@ -16,8 +16,6 @@ rather than re-dialling for every parametrised test.
 from __future__ import annotations
 
 import datetime
-import os
-import socket
 from decimal import Decimal
 
 import pytest
@@ -51,93 +49,14 @@ ROWS = [
 ]
 
 
-def _server_listening(host: str, port: int, timeout: float = 1.0) -> bool:
-    """True if something accepts a TCP connection at *host*:*port*."""
-    try:
-        with socket.create_connection((host, port), timeout=timeout):
-            return True
-    except OSError:
-        return False
+from tests.live_db import BACKEND_NAMES, open_backend
 
 
-def _sqlite_db(tmp_path):
-    from execsql.db.sqlite import SQLiteDatabase
-
-    return SQLiteDatabase(str(tmp_path / "import.sqlite"))
-
-
-def _duckdb_db(tmp_path):
-    pytest.importorskip("duckdb", reason="duckdb not installed")
-    from execsql.db.duckdb import DuckDBDatabase
-
-    return DuckDBDatabase(str(tmp_path / "import.duckdb"))
-
-
-def _postgres_db(tmp_path):
-    pytest.importorskip("psycopg", reason="psycopg (psycopg3) not installed")
-    host = os.environ.get("EXECSQL_PG_HOST", "localhost")
-    port = int(os.environ.get("EXECSQL_PG_PORT", "5432"))
-    if not _server_listening(host, port):
-        raise OSError(f"nothing listening at {host}:{port}")
-    from execsql.db.postgres import PostgresDatabase
-
-    db = PostgresDatabase(
-        host,
-        os.environ.get("EXECSQL_PG_DATABASE", "execsql_test"),
-        user_name=os.environ.get("EXECSQL_PG_USER", "execsql"),
-        need_passwd=False,
-        port=port,
-        password=os.environ.get("EXECSQL_PG_PASSWORD", "execsql"),
-    )
-    db.open_db()
-    return db
-
-
-def _mysql_db(tmp_path):
-    pytest.importorskip("pymysql", reason="pymysql not installed")
-    host = os.environ.get("EXECSQL_MYSQL_HOST", "localhost")
-    port = int(os.environ.get("EXECSQL_MYSQL_PORT", "3306"))
-    if not _server_listening(host, port):
-        raise OSError(f"nothing listening at {host}:{port}")
-    from execsql.db.mysql import MySQLDatabase
-
-    db = MySQLDatabase(
-        host,
-        os.environ.get("EXECSQL_MYSQL_DATABASE", "execsql_test"),
-        user_name=os.environ.get("EXECSQL_MYSQL_USER", "execsql"),
-        need_passwd=False,
-        port=port,
-        password=os.environ.get("EXECSQL_MYSQL_PASSWORD", "execsql"),
-    )
-    db.open_db()
-    return db
-
-
-_BACKENDS = {
-    "sqlite": _sqlite_db,
-    "duckdb": _duckdb_db,
-    "postgres": _postgres_db,
-    "mysql": _mysql_db,
-}
-
-#: Why a backend is unusable, cached after the first attempt — see the exporter
-#: conftest for what re-dialling per test cost on Windows CI.
-_unusable: dict[str, str] = {}
-
-
-@pytest.fixture(params=sorted(_BACKENDS), ids=sorted(_BACKENDS))
+@pytest.fixture(params=BACKEND_NAMES, ids=BACKEND_NAMES)
 def import_db(request, tmp_path, minimal_conf):
     """A live Tier 1 connection with the round-trip table dropped and ready."""
     dbms = request.param
-    if dbms in _unusable:
-        pytest.skip(_unusable[dbms])
-    try:
-        db = _BACKENDS[dbms](tmp_path)
-    except pytest.skip.Exception:
-        raise
-    except Exception as exc:
-        _unusable[dbms] = f"{dbms} not reachable: {type(exc).__name__}: {exc}"
-        pytest.skip(_unusable[dbms])
+    db = open_backend(dbms, tmp_path)
 
     # minimal_conf covers the pure modules.  The import path and the adapters
     # read a handful more — PostgreSQL's COPY FROM needs a buffer size, and
