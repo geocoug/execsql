@@ -22,6 +22,8 @@ ______________________________________________________________________
 
 ### Changed
 
+- `EXPORT ... AS LATEX` escapes every LaTeX special character, not only `_`. An `&` in a value acted as a column separator and produced a table with the wrong number of columns, which LaTeX refuses to compile ("Extra alignment tab has been changed to \\cr"); a `%` commented out the rest of the row. `\\ & % $ # _ { } ~ ^` are now all escaped.
+- `EXPORT ... AS LATEX` writes NULL as an empty cell instead of the literal text `None`.
 - `EXPORT ... AS HTML` renders zero and other falsy values instead of blank cells. Cells were written with `str(v) if v else ''`, so `0`, `False`, and empty strings came out empty — a zero measurement was indistinguishable from a NULL in the output.
 - `EXPORT ... AS MARKDOWN` no longer breaks the table when a value contains a newline. A GitHub-flavoured Markdown row is a single line, so a literal newline ended the row mid-cell and left the remaining values on a stray line outside the table. Line breaks are now written as `<br>`.
 - `EXPORT ... AS ODS` writes `numeric`/`decimal` columns as typed numbers. PostgreSQL, MySQL, and DuckDB return `Decimal` for those columns, which was written with an `office:value` but no `office:value-type` — not valid ODF, leaving a reader free to treat the number as text or ignore it.
