@@ -29,6 +29,7 @@ Usage::
 
 from __future__ import annotations
 
+import atexit
 import dataclasses
 import datetime
 import io
@@ -511,6 +512,11 @@ def run(
         errors: list[ScriptError] = []
         t0 = time.perf_counter()
 
+        # WRITE ... TO <file> and TEE are handled by a FileWriter subprocess,
+        # and fileio drops every write when none is running.  Start one here so
+        # the API behaves like the CLI.
+        _ensure_filewriter(conf)
+
         try:
             execute(tree, ctx=ctx)
         except SystemExit:
@@ -537,6 +543,17 @@ def run(
                 errors.append(ScriptError(message=err_msg, source=err_source, line=err_line, sql=err_cmd))
 
         elapsed = time.perf_counter() - t0
+
+        # Flush and close every file the script wrote, so the caller can read
+        # them the moment run() returns.  The subprocess itself is left running
+        # for reuse by a later run() and is reaped by the atexit handler; a
+        # writer the caller started is theirs and is never shut down here.
+        from execsql.utils.fileio import filewriter_close_all_after_write
+
+        try:
+            filewriter_close_all_after_write()
+        except Exception:
+            pass  # Best-effort: a failed flush must not mask a script error.
 
         # ------------------------------------------------------------------
         # Collect results
@@ -571,6 +588,60 @@ def run(
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+def _ensure_filewriter(conf: Any) -> bool:
+    """Start the FileWriter subprocess if one is not already running.
+
+    ``WRITE ... TO <file>`` and ``TEE`` hand their output to a FileWriter
+    subprocess, and every entry point in :mod:`execsql.utils.fileio` guards on
+    the subprocess being alive — dropping the write when it is not, so that a
+    dead writer cannot deadlock the caller on a full pipe.  The CLI starts one
+    during startup; :func:`run` did not, so every file write under the API was
+    silently discarded and the run still reported success.
+
+    A writer started here outlives the call and is reused by a later
+    :func:`run`, exactly as the CLI keeps one for the life of the process; it
+    is reaped by an ``atexit`` handler.  A writer the caller started themselves
+    is left alone.
+
+    Returns:
+        ``True`` if this call started the writer, ``False`` if one was already
+        running.
+    """
+    import execsql.state as _state
+    import execsql.utils.fileio as _fileio
+    from execsql.utils.fileio import FileWriter, filewriter_end
+
+    if _fileio.filewriter is not None and _fileio.filewriter.is_alive():
+        return False
+
+    # Drain stale messages so a previously-dead subprocess cannot leak
+    # responses or unconsumed commands into the new one.  On macOS (`spawn`)
+    # the OS pipe buffer is small enough that retained entries would deadlock
+    # the next put().
+    for q in (_fileio.fw_input, _fileio.fw_output):
+        try:
+            while True:
+                q.get_nowait()
+        except Exception:
+            pass
+
+    try:
+        _fileio.filewriter = _state.filewriter = FileWriter(
+            _fileio.fw_input,
+            _fileio.fw_output,
+            file_encoding=conf.output_encoding,
+            open_timeout=getattr(conf, "outfile_open_timeout", 10),
+        )
+        _state.filewriter.start()
+    except Exception:
+        # Under the `spawn` start method (macOS, Windows) the subprocess
+        # re-imports the parent's __main__, which fails from a REPL, a
+        # notebook, or `python -c`.  Leave the writer unset: fileio's guards
+        # then warn on the first dropped write rather than deadlocking.
+        _fileio.filewriter = _state.filewriter = None
+        return False
+    atexit.register(filewriter_end)
+    return True
 
 
 def _capture_errors(ctx: RuntimeContext, errors: list[ScriptError]) -> None:

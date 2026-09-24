@@ -48,6 +48,23 @@ for t in threads:
 
 Each thread gets its own database connections, IF/LOOP stacks, substitution variables, and error state. No locking is required.
 
+### File Output { #file-output }
+
+`WRITE ... TO <file>`, `TEE`, and the other metacommands that write text files hand their output to a separate FileWriter process. `run()` starts one if none is running, and flushes and closes every file before returning — so a file a script wrote is on disk and complete the moment `run()` hands back control.
+
+```python
+from execsql import run
+
+result = run(sql='-- !x! WRITE "done" to report.txt\nselect 1;\n', dsn="sqlite:///data.db")
+open("report.txt").read()   # "done\n" — readable immediately
+```
+
+The writer process stays up afterwards and is reused by later `run()` calls, exactly as the CLI keeps one for the life of the process; it is shut down automatically at interpreter exit. A writer you started yourself is left alone — `run()` neither replaces nor stops it.
+
+!!! warning "Interactive interpreters"
+
+    On macOS and Windows, Python starts subprocesses with the `spawn` method, which re-imports the calling program's `__main__` module. That fails in a REPL, a notebook, or `python -c`, so the writer cannot start and file output is discarded — with a warning on stderr rather than in silence. Run scripts that write files from a `.py` file, guarded by `if __name__ == "__main__":`.
+
 ## Extension Guides
 
 | Extension type       | Guide                                                    | API reference                   |
