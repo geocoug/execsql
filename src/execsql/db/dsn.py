@@ -10,6 +10,7 @@ the CLI.
 
 
 from execsql.db.base import Database
+from execsql.db.tiers import SupportTier
 from execsql.exceptions import ErrInfo
 from execsql.utils.errors import exception_desc, fatal_error
 from execsql.utils.auth import clear_stored_password, get_password, password_from_keyring
@@ -20,6 +21,11 @@ __all__ = ["DsnDatabase"]
 
 class DsnDatabase(Database):
     """Generic ODBC adapter that connects to any data source registered as an ODBC DSN via pyodbc."""
+
+    #: CI covers DSN string parsing only — no live DSN is ever opened,
+    #: and a DSN may front any DBMS at all.
+    support_tier = SupportTier.BEST_EFFORT
+    support_tier_name = "ODBC DSN"
 
     # There's no telling what is actually connected to a DSN, so this uses
     # generic Database methods almost exclusively.  Only 'exec_cmd()' is

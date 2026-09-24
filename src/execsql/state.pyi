@@ -51,6 +51,7 @@ exec_log: Logger
 subvars: SubVarSet
 status: StatObj
 output: Any
+tier_notices_shown: set[str]
 filewriter: FileWriter
 counters: CounterVars
 timer: Timer
@@ -84,6 +85,7 @@ class RuntimeContext:
     subvars: SubVarSet | None
     status: StatObj | None
     output: Any
+    tier_notices_shown: set[str]
     filewriter: FileWriter | None
     counters: CounterVars | None
     timer: Timer | None

@@ -222,6 +222,7 @@ _CONTEXT_ATTRS: frozenset[str] = frozenset(
         "status",
         "output",
         "filewriter",
+        "tier_notices_shown",
         # Lazy singletons
         "counters",
         "timer",
@@ -275,6 +276,7 @@ class RuntimeContext:
         "status",
         "output",
         "filewriter",
+        "tier_notices_shown",
         # Lazy singletons
         "counters",
         "timer",
@@ -321,6 +323,9 @@ class RuntimeContext:
         self.status: StatObj | None = None
         self.output: WriteHooks | None = None
         self.filewriter: FileWriter | None = None
+        # DBMS names whose best-effort support notice has already been shown,
+        # so repeated connections to the same backend announce it only once.
+        self.tier_notices_shown: set[str] = set()
 
         # Lazy singletons
         self.counters: CounterVars | None = None

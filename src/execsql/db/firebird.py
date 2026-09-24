@@ -9,6 +9,7 @@ via the ``firebird-driver`` package.  Corresponds to ``-t f`` on the CLI.
 
 
 from execsql.db.base import Database
+from execsql.db.tiers import SupportTier
 from execsql.exceptions import ErrInfo
 from execsql.utils.errors import exception_desc, fatal_error
 from execsql.utils.auth import clear_stored_password, get_password, password_from_keyring
@@ -19,6 +20,10 @@ __all__ = ["FirebirdDatabase"]
 
 class FirebirdDatabase(Database):
     """Firebird adapter using the firebird-driver package."""
+
+    #: No Firebird server runs in CI; this adapter has no tests.
+    support_tier = SupportTier.BEST_EFFORT
+    support_tier_name = "Firebird"
 
     def __init__(
         self,

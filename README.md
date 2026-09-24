@@ -93,17 +93,26 @@ execsql script.sql                          # read connection from config file
 
 ### Supported Databases
 
-| Flag | Database        |
-| ---- | --------------- |
-| `p`  | PostgreSQL      |
-| `m`  | MySQL / MariaDB |
-| `s`  | MS SQL Server   |
-| `l`  | SQLite          |
-| `k`  | DuckDB          |
-| `a`  | MS Access       |
-| `f`  | Firebird        |
-| `o`  | Oracle          |
-| `d`  | ODBC DSN        |
+| Flag | Database        | Support                                          |
+| ---- | --------------- | ------------------------------------------------ |
+| `p`  | PostgreSQL      | Supported — verified against a live server in CI |
+| `m`  | MySQL / MariaDB | Supported — verified against a live server in CI |
+| `s`  | MS SQL Server   | Supported — verified against a live server in CI |
+| `l`  | SQLite          | Supported — verified against real files in CI    |
+| `k`  | DuckDB          | Supported — verified against real files in CI    |
+| `a`  | MS Access       | Best effort — not verified in CI                 |
+| `f`  | Firebird        | Best effort — not verified in CI                 |
+| `o`  | Oracle          | Best effort — not verified in CI                 |
+| `d`  | ODBC DSN        | Best effort — not verified in CI                 |
+
+**Supported** adapters run against a live server or a real database file on
+every CI run; a regression blocks the release and bugs get fixed. **Best
+effort** adapters are carried forward from the upstream monolith and are not
+exercised anywhere in CI — the code is there and may work, but nothing proves
+it still does. Issues and pull requests are welcome for them; no guarantee is
+made. Opening a best-effort connection prints one informational line, which
+`support_tier_notice=No` in the `[interface]` section of `execsql.conf`
+silences.
 
 ### Common options
 

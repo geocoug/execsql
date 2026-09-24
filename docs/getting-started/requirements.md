@@ -36,6 +36,32 @@ Multiple extras can be combined: `pip install "execsql2[postgres,duckdb,formats]
 
 The specific libraries installed by each extra are:
 
+### Database support tiers { #support-tiers }
+
+execsql2 ships nine DBMS adapters, but they are not all verified to the same
+standard. The tier tells you which ones have actually been run.
+
+| Tier            | Databases                                                | What it means                                                                                                                                                                                       |
+| --------------- | -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Supported**   | PostgreSQL, MySQL/MariaDB, MS SQL Server, SQLite, DuckDB | Exercised against a live server (or a real database file) on every CI run. A regression blocks the release, and bugs are fixed.                                                                     |
+| **Best effort** | MS Access, Firebird, Oracle, ODBC DSN                    | Carried forward from the upstream monolith and not exercised in CI. The code is present and may work; nothing proves it still does. Issues and pull requests are welcome, but no guarantee is made. |
+
+Opening a best-effort connection writes one informational line to stderr, once
+per DBMS per run:
+
+```
+Note: Firebird support is best-effort — it is not verified in CI and may break.
+Set support_tier_notice=No in the [interface] section of execsql.conf to silence this.
+```
+
+It goes to stderr rather than stdout, so it cannot corrupt piped query output.
+To turn it off, set [`support_tier_notice`](../reference/configuration.md#support_tier_notice)
+to `No`.
+
+No adapter is deprecated or scheduled for removal. The tiers describe what is
+verified, not what is wanted — a best-effort adapter moves up when it gains
+tests that run against something real.
+
 ### Database drivers
 
 | Database / Format | Extra      | Library                                                         |

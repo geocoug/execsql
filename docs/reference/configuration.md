@@ -233,6 +233,10 @@ The section and property names that may be used in a configuration file are list
 
 :   Determines whether warning messages are written to the console as well as to the log file. The default value is "No", indicating that warnings will not be written to the console. If it is set to "Yes", warnings will be written to the console.
 
+`support_tier_notice` { #support_tier_notice }
+
+:   Determines whether opening a connection to a [best-effort database](../getting-started/requirements.md#support-tiers) — MS Access, Firebird, Oracle, or an ODBC DSN — writes an informational line to stderr saying that the adapter is not verified in CI. The default value is "Yes". Set it to "No" to silence the notice. The message is written once per DBMS per run, and always to stderr rather than stdout, so it cannot corrupt piped query output. It is recorded in the log file regardless of this setting.
+
 `write_prefix`
 
 :   Text that will be prefixed to any output from the WRITE metacommand, with a space separator. If substitution variables are used, deferred substitution may be appropriate.
