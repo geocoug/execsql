@@ -253,7 +253,7 @@ execsql-format --no-sql --in-place scripts/
 ```yaml
 repos:
   - repo: https://github.com/geocoug/execsql
-    rev: v2.22.8
+    rev: v2.22.9
     hooks:
       - id: execsql-format
 ```

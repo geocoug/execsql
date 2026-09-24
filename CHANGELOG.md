@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.22.9] - 2026-09-24
+
 ### Fixed
 
 - `EMAIL`, and the `ON ERROR_HALT EMAIL` and `ON CANCEL_HALT EMAIL` hooks, failed with `AttributeError: 'SMTP' object has no attribute 'ehlo_or_hello_if_needed'` instead of sending. Every send was affected, on every server and TLS setting.
