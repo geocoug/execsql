@@ -16,6 +16,14 @@ ______________________________________________________________________
 - Database support tiers. PostgreSQL, MySQL/MariaDB, MS SQL Server, SQLite, and DuckDB are **supported** — verified against a live server or real database file on every CI run. MS Access, Firebird, Oracle, and ODBC DSN are **best effort** — present, unverified in CI, and may break. No adapter changes behavior or is scheduled for removal.
 - `support_tier_notice` configuration option (`[interface]` section, default `Yes`). Opening a best-effort database connection writes one line to stderr naming the tier, once per DBMS per run. Set it to `No` to silence.
 
+### Fixed
+
+- `EXPORT ... AS CSV` (and the other delimited formats) no longer corrupts values containing a newline when run on Windows. Universal-newline translation rewrote every `\n` as `\r\n` on write, including newlines *inside* a quoted field, so an exported value did not match the one in the database. Delimited files now use `\n` row terminators on every platform, so the same query produces the same bytes everywhere.
+
+### Changed
+
+- MySQL and MariaDB connections now default to `utf8mb4` instead of `latin1`. A latin1 connection could not carry CJK, emoji, Greek, or Cyrillic at all — inserting such text raised `UnicodeEncodeError` before reaching the server — so scripts had to pass `-e utf8mb4` to move most of Unicode. Existing latin1 databases are unaffected: the connection charset governs only client/server transfer, and MySQL transcodes to and from each column's own charset. Pass `-e latin1` to restore the previous behavior.
+
 ______________________________________________________________________
 
 ## [2.22.9] - 2026-09-24

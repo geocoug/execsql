@@ -22,6 +22,7 @@ __all__ = ["MySQLDatabase"]
 _PYTHON_TO_MYSQL_CHARSET: dict[str, str] = {
     "utf-8": "utf8mb4",
     "utf8": "utf8mb4",
+    "utf8mb4": "utf8mb4",
     "latin-1": "latin1",
     "iso-8859-1": "latin1",
     "iso8859-1": "latin1",
@@ -41,7 +42,7 @@ class MySQLDatabase(Database):
         user_name: str | None,
         need_passwd: bool = False,
         port: int | None = 3306,
-        encoding: str | None = "latin1",
+        encoding: str | None = "utf8mb4",
         password: str | None = None,
     ) -> None:
         try:
@@ -59,7 +60,12 @@ class MySQLDatabase(Database):
         self.need_passwd = need_passwd
         self.password = password
         self.port = port if port else 3306
-        self.encoding = encoding or "latin1"
+        # utf8mb4, not latin1: the connection charset only governs how text moves
+        # between client and server, and MySQL transcodes to and from each
+        # column's own charset.  A latin1 connection cannot carry CJK, emoji,
+        # Greek, or Cyrillic at all — it raises UnicodeEncodeError before the
+        # server is reached — so it silently capped what execsql could move.
+        self.encoding = encoding or "utf8mb4"
         self.encode_commands = True
         self.paramstr = "%s"
         self.conn = None

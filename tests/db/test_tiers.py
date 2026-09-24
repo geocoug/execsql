@@ -185,3 +185,40 @@ class TestDatabasePoolAnnounces:
         """The notice belongs to joining the session, not to object construction."""
         _FakeBestEffort(":memory:")
         assert recorder.err == []
+
+
+# ---------------------------------------------------------------------------
+# Connection-encoding defaults
+#
+# Not strictly a tier concern, but it is the same question: what does a user
+# get when they pass no flags?  A latin1 MySQL connection cannot carry CJK,
+# emoji, Greek, or Cyrillic, and raises UnicodeEncodeError before the server is
+# reached.  Caught by tests/exporters/test_roundtrip_delimited.py running
+# against a live MySQL container.
+# ---------------------------------------------------------------------------
+
+
+class TestConnectionEncodingDefaults:
+    def test_mysql_defaults_to_utf8mb4(self):
+        """A user who passes no -e flag must still be able to move Unicode."""
+        import inspect
+
+        from execsql.db.mysql import MySQLDatabase
+
+        default = inspect.signature(MySQLDatabase.__init__).parameters["encoding"].default
+        assert default == "utf8mb4", "latin1 cannot encode most of Unicode"
+
+    def test_mysql_none_encoding_falls_back_to_utf8mb4(self):
+        """cli/run.py passes conf.db_encoding, which is None unless -e is given."""
+        import re
+        from pathlib import Path
+
+        src = Path("src/execsql/db/mysql.py").read_text()
+        fallback = re.search(r'self\.encoding = encoding or "([^"]+)"', src)
+        assert fallback and fallback.group(1) == "utf8mb4"
+
+    def test_utf8mb4_maps_to_itself_for_load_data_infile(self):
+        """The default must survive the Python-name to MySQL-charset mapping."""
+        from execsql.db.mysql import _PYTHON_TO_MYSQL_CHARSET
+
+        assert _PYTHON_TO_MYSQL_CHARSET["utf8mb4"] == "utf8mb4"

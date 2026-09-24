@@ -537,7 +537,19 @@ class EncodedFile:
             self.encoding, self.bom_length = detect_by_bom(filename, file_encoding)
         self.fo: io.TextIOWrapper | None = None
 
-    def open(self, mode: str = "r") -> io.TextIOWrapper:
+    def open(self, mode: str = "r", newline: str | None = None) -> io.TextIOWrapper:
+        """Open the file in text mode.
+
+        Args:
+            mode: Any mode accepted by :func:`open`.
+            newline: Passed straight to :func:`open`.  The default ``None``
+                enables universal-newline translation, which rewrites every
+                ``\n`` written as ``os.linesep`` — ``\r\n`` on Windows.  That
+                is right for line terminators and wrong for data: a newline
+                *inside* a quoted field is rewritten too, so the value read
+                back is not the value exported.  Writers whose output can
+                carry an embedded newline pass ``""`` to disable it.
+        """
         import execsql.state as _state
 
         conf = _state.conf
@@ -548,7 +560,7 @@ class EncodedFile:
                 mode=mode,
                 encoding=self.encoding,
                 errors=conf.enc_err_disposition,
-                newline=None,
+                newline=newline,
             ),
         )
         assert self.fo is not None

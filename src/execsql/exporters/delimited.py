@@ -799,7 +799,11 @@ def write_delimited_file(
     else:
         fmode = "w" if not append else "a"
         filewriter_close(outfile)
-        ofile = EncodedFile(outfile, file_encoding).open(mode=fmode)
+        # newline="": a delimited field may legitimately contain a newline, and
+        # universal-newline translation would rewrite it to \r\n on Windows,
+        # changing the exported value.  Row terminators stay "\n" on every
+        # platform, so the same query now produces the same bytes everywhere.
+        ofile = EncodedFile(outfile, file_encoding).open(mode=fmode, newline="")
         fdesc = outfile
     try:
         if not (filefmt.lower() == "plain" or (append and zipfile is None)):
