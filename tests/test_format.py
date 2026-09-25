@@ -1557,6 +1557,22 @@ class TestCorpusLiteralFidelity:
         """Guard against the corpus silently emptying and the checks passing."""
         assert len(_CORPUS) >= 20, f"expected the project's .sql corpus, found {len(_CORPUS)} files"
 
+    def test_shape_corpus_is_populated(self):
+        """The synthetic shapes are the only CI-visible cover for some constructs.
+
+        ``tests/data/formatter_shapes/`` holds non-client stand-ins for the
+        production SQL each formatter bug was reported from — tagged dollar
+        quotes, ``ON CONFLICT DO NOTHING``, window ``EXCLUDE`` frames.  Nothing
+        else in the repo contains them, so deleting a shape file silently
+        removes the only gate on that class of bug while every check still
+        passes.
+        """
+        shapes = sorted((_REPO_ROOT / "tests" / "data" / "formatter_shapes").glob("*.sql"))
+        assert len(shapes) >= 4, f"expected the formatter shape corpus, found {len(shapes)} files"
+        corpus = set(_CORPUS)
+        missing = [s.name for s in shapes if s not in corpus]
+        assert not missing, f"shape files are not being checked by the corpus: {missing}"
+
     @pytest.mark.parametrize("path", _CORPUS, ids=_corpus_id)
     def test_no_literal_lost(self, path):
         source = path.read_text(encoding="utf-8")

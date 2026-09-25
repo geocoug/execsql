@@ -43,6 +43,25 @@ jobs:
             - run: python -m pip install ".[dev]"
             - run: mypy src/execsql/
 
+    formatter-corpus:
+        name: formatter-corpus
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+        steps:
+            - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+            - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+              with:
+                  python-version: "3.13"
+                  cache: "pip"
+            - run: python -m pip install --upgrade pip
+            - run: python -m pip install ".[dev]"
+            # Every formatter bug to date came from real SQL containing a
+            # construct the project's own scripts lack.  This gate runs those
+            # checks under their own name so a corpus failure is legible
+            # without reading a 6,000-test log.
+            - run: pytest tests/test_format.py -k corpus --no-cov -q
+
     pre-commit:
         name: pre-commit
         runs-on: ubuntu-latest
@@ -289,7 +308,7 @@ jobs:
     build:
         name: Build distribution 📦
         runs-on: ubuntu-latest
-        needs: [ lint, typecheck, pre-commit, docs, tests, integration-tests ]
+        needs: [ lint, typecheck, pre-commit, formatter-corpus, docs, tests, integration-tests ]
         # Deliberately NOT gated on tags: packaging breaks must surface on a PR,
         # not at release time. Only publish/generate-release below are tag-gated.
         permissions:

@@ -23,7 +23,43 @@
 
 ## Overview
 
-*execsql* runs SQL scripts against PostgreSQL, MySQL/MariaDB, SQLite, DuckDB, MS-SQL-Server, MS-Access, Firebird, Oracle, or an ODBC DSN. In addition to standard SQL, it supports a set of metacommands (embedded in SQL comments) for importing and exporting data, copying data between databases, conditional execution, looping, substitution variables, and interactive prompts. Because metacommands live in SQL comments, scripts remain valid SQL and are ignored by other tools such as `psql` or `sqlcmd`.
+*execsql* is a toolchain for SQL scripts: **write** them with editor support, **format** them consistently, **lint** them without a database, and **run** them against nine DBMSs.
+
+Scripts are ordinary SQL plus metacommands embedded in comments (`-- !x!`), which add importing and exporting data, copying between databases, conditional execution, looping, substitution variables, and interactive prompts. Because the metacommands live in comments, the scripts stay valid SQL and other tools — `psql`, `sqlcmd`, your editor — ignore them.
+
+| Tool                                       | What it does                                                 | Needs a database? |
+| ------------------------------------------ | ------------------------------------------------------------ | ----------------- |
+| `execsql-format`                           | Normalize keywords, indentation, and SQL layout              | No                |
+| `execsql --lint`                           | Static analysis: structure, undefined variables, bad targets | No                |
+| `execsql --dry-run`                        | Parse and report what would run, without executing           | No                |
+| `execsql`                                  | Run the script against PostgreSQL, MySQL, SQLite, DuckDB, …  | Yes               |
+| [VS Code extension](extras/vscode-execsql) | Syntax highlighting for metacommands and variables           | No                |
+
+## Quick start — no database required
+
+Two of the four tools work on a bare `.sql` file. Try them first:
+
+```bash
+pip install execsql2[formatter]
+
+execsql-format --check script.sql   # is it formatted?
+execsql-format --in-place script.sql # format it
+execsql --lint script.sql            # find problems before they cost you a run
+```
+
+`--lint` reports unmatched blocks, undefined substitution variables, and `INCLUDE`/`SCRIPT` targets that do not exist — the failures that otherwise surface halfway through a run against a live database:
+
+```text
+$ execsql --lint load_data.sql
+WARNING  load_data.sql:2  Potentially undefined variable: !!site_code!!
+                          (not defined by a preceding SUB; may be set by a
+                          config file or -a arg)
+WARNING  load_data.sql:3  INCLUDE target does not exist: 'common/setup.sql'
+
+2 warnings
+```
+
+`execsql-format` also runs as a [pre-commit hook](#formatting-scripts), so formatting is enforced without anyone remembering to run it.
 
 ## Example
 

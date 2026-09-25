@@ -63,6 +63,20 @@ test-all:
 coverage:
     uv run pytest --cov-report=term-missing
 
+# Run the formatter corpus checks over every .sql file in the repo
+[group('quality')]
+corpus:
+    uv run pytest tests/test_format.py -k corpus --no-cov -q
+
+# Run the corpus checks over an external library of real SQL as well.
+# CORPUS must be a read-only copy — never the original library.
+# Refresh one with:
+#   rsync -a --delete --include='*/' --include='*.sql' --exclude='*' \
+#       <library>/ ~/.cache/execsql-format-corpus/
+[group('quality')]
+corpus-external CORPUS='~/.cache/execsql-format-corpus':
+    EXECSQL_FORMAT_CORPUS={{ CORPUS }} uv run pytest tests/test_format.py -k corpus --no-cov -q
+
 # Clean up Python build artifacts and caches
 [group('quality')]
 clean:
