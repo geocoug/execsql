@@ -22,6 +22,7 @@ ______________________________________________________________________
 
 ### Removed
 
+- `SqlStmt`, `MetacommandStmt`, and `ScriptCmd` are removed from `execsql.script`. They were statement wrappers from the pre-AST engine; nothing has constructed one since the AST executor became the only engine, and the parse tree now describes an executing statement on its own. Nothing in execsql imported them, and a script cannot reference them — only code importing `execsql.script` directly is affected.
 - The `execsql-format` command has been removed. Use `execsql format` — the options are identical, so `execsql-format --check scripts/` becomes `execsql format --check scripts/`. **Pre-commit users need no change**: the published hook id is still `execsql-format` and only its internal entry point moved, so existing `.pre-commit-config.yaml` files keep working as they are. Shell scripts, Makefiles, and CI steps that invoke `execsql-format` directly must be updated.
 
 ### Changed

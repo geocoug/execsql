@@ -102,6 +102,16 @@ New options in `execsql.conf`:
 
 ### Tools
 
+Upstream's statement wrappers — `SqlStmt`, `MetacommandStmt`, and `ScriptCmd`
+— no longer exist. The monolith paired a statement object with its source
+location and executed it through a `.run()` method; execsql2 parses to a
+syntax tree and walks it, so a node already carries both the statement and
+its span. The wrappers survived the migration as data classes that nothing
+constructed, and the executor built a synthetic `ScriptCmd` per statement so
+that error reporting could still read `ctx.last_command`. That second
+representation is gone: `ExecutingStatement` wraps the node and derives what
+its readers need.
+
 The `execsql` command gained subcommands, which upstream never had. Upstream
 v1.130.1 has one invocation — `execsql SCRIPT [SERVER DATABASE]` — and that
 form is still the default here: dispatch reads `argv[1]`, and only a known

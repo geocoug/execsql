@@ -402,7 +402,7 @@ def _execute_node(
         text = node.text
         if in_loop:
             text = _convert_deferred_vars(text)
-        # Deduplicate trailing semicolons (matches SqlStmt.__init__)
+        # Deduplicate trailing semicolons
         text = re.sub(r"\s*;(\s*;\s*)+$", ";", text)
         ctx.last_command = ExecutingStatement(node)
         _exec_sql(

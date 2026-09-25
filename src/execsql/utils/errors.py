@@ -75,7 +75,7 @@ def stamp_errinfo(errinfo: ErrInfo) -> ErrInfo:
     """Attach script location from ``_state.last_command`` to an :class:`~execsql.exceptions.ErrInfo`.
 
     Reads the source file name, line number, command text, and command type from
-    the most-recently-executed :class:`~execsql.script.engine.ScriptCmd` and
+    the most-recently-executed statement and
     populates any ``None`` fields on *errinfo*.  This ensures that error messages
     include "Line N of script foo.sql" context even when the ErrInfo was originally
     created deep inside a handler that had no access to execution state.
