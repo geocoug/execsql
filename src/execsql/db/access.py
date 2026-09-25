@@ -64,13 +64,15 @@ class AccessDatabase(Database):
             fatal_error("The pyodbc module is required.  See http://github.com/mkleehammer/pyodbc")
         from execsql.types import dbt_access
 
+        super().__init__(
+            server_name=None,
+            db_name=Access_fn,
+            user_name=user_name,
+            need_passwd=need_passwd,
+        )
         self.type = dbt_access
-        self.server_name = None
-        self.db_name = Access_fn
         # The following assignment is tentative and may be changed when the connection is made.
         self.jet4 = len(Access_fn) > 6 and Access_fn.lower()[-6:] == ".accdb"
-        self.user = user_name
-        self.need_passwd = need_passwd
         self.password = password
         # Encoding is only applicable to Jet < 4.0: non-accdb databases.
         self.encoding = encoding or "windows-1252"

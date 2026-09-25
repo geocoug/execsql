@@ -67,13 +67,15 @@ class MySQLDatabase(Database):
             )
         from execsql.types import dbt_mysql
 
+        super().__init__(
+            server_name=str(server_name) if server_name is not None else None,
+            db_name=str(db_name) if db_name is not None else None,
+            user_name=str(user_name) if user_name is not None else None,
+            need_passwd=need_passwd,
+            port=port if port else 3306,
+        )
         self.type = dbt_mysql
-        self.server_name = str(server_name) if server_name is not None else None
-        self.db_name = str(db_name) if db_name is not None else None
-        self.user = str(user_name) if user_name is not None else None
-        self.need_passwd = need_passwd
         self.password = password
-        self.port = port if port else 3306
         # utf8mb4, not latin1: the connection charset only governs how text moves
         # between client and server, and MySQL transcodes to and from each
         # column's own charset.  A latin1 connection cannot carry CJK, emoji,
@@ -82,8 +84,6 @@ class MySQLDatabase(Database):
         self.encoding = encoding or "utf8mb4"
         self.encode_commands = True
         self.paramstr = "%s"
-        self.conn = None
-        self.autocommit = True
         self.open_db()
         self.password = None  # Clear cleartext password after successful connection
 

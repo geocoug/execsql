@@ -47,18 +47,17 @@ class DsnDatabase(Database):
             fatal_error("The pyodbc module is required.  See http://github.com/mkleehammer/pyodbc")
         from execsql.types import dbt_dsn
 
+        super().__init__(
+            server_name=None,
+            db_name=dsn_name,
+            user_name=user_name,
+            need_passwd=need_passwd,
+        )
         self.type = dbt_dsn
-        self.server_name = None
-        self.db_name = dsn_name
-        self.user = user_name
-        self.need_passwd = need_passwd
         self.password = password
-        self.port = None
         self.encoding = encoding
         self.encode_commands = True
         self.paramstr = "?"
-        self.conn = None
-        self.autocommit = True
         self.open_db()
         self.password = None  # Clear cleartext password after successful connection
 

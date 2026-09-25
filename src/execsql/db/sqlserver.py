@@ -37,18 +37,18 @@ class SqlServerDatabase(Database):
             fatal_error("The pyodbc module is required.  See http://github.com/mkleehammer/pyodbc")
         from execsql.types import dbt_sqlserver
 
+        super().__init__(
+            server_name=server_name,
+            db_name=db_name,
+            user_name=user_name,
+            need_passwd=need_passwd,
+            port=port if port else 1433,
+        )
         self.type = dbt_sqlserver
-        self.server_name = server_name
-        self.db_name = db_name
-        self.user = user_name
-        self.need_passwd = need_passwd
         self.password = password
-        self.port = port if port else 1433
         self.encoding = encoding or "latin1"  # Default on installation of SQL Server
         self.encode_commands = True
         self.paramstr = "?"
-        self.conn = None
-        self.autocommit = True
         self.open_db()
         self.password = None  # Clear cleartext password after successful connection
 

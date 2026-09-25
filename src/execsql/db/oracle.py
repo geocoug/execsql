@@ -45,18 +45,18 @@ class OracleDatabase(Database):
             )
         from execsql.types import dbt_oracle
 
+        super().__init__(
+            server_name=server_name,
+            db_name=db_name,
+            user_name=user_name,
+            need_passwd=need_passwd,
+            port=port if port else 1521,
+        )
         self.type = dbt_oracle
-        self.server_name = server_name
-        self.db_name = db_name
-        self.user = user_name
-        self.need_passwd = need_passwd
         self.password = password
-        self.port = port if port else 1521
         self.encoding = encoding or "UTF8"
         self.encode_commands = False
         self.paramstr = ":1"
-        self.conn = None
-        self.autocommit = True
         self.open_db()
         self.password = None  # Clear cleartext password after successful connection
 
