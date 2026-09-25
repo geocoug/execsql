@@ -23,22 +23,31 @@ Checks performed:
    not correspond to a :class:`ScriptBlock` in the same file (skipped
    when ``IF EXISTS`` is present).
 
+Every check has a rule code (:data:`RULES`), so a caller can select or
+ignore rules and machine-readable output can name them.
+
 Public surface:
 
-- :func:`lint` — entry point; returns a list of
-  ``(severity, source, line_no, message)`` tuples.
-- :func:`_print_lint_results` — Rich console formatter for those
-  tuples; returns the ``--lint`` process exit code (``1`` when any
-  error-severity issue is present, ``0`` otherwise).
-- :data:`_Issue`, :func:`_error`, :func:`_warning` — tuple type alias
-  and constructors used by the walker and the formatter.
+- :func:`lint` — entry point; returns a list of :class:`Issue`.
+- :data:`RULES` / :class:`Rule` — the rule registry: code, name, severity.
+- :func:`parse_error` — the :class:`Issue` for a script that fails to parse.
+- :func:`resolve_selectors` / :func:`filter_issues` — ``--select`` and
+  ``--ignore`` handling.
+- :func:`_print_lint_results`, :func:`render_json`, :func:`rule_counts` —
+  output. ``_print_lint_results`` returns the process exit code (``1`` when
+  any error-severity issue is present, ``0`` otherwise).
 """
 
 from __future__ import annotations
 
+import json
 import re
+from collections import Counter
+from collections.abc import Iterable
 from pathlib import Path
+from typing import NamedTuple
 
+from execsql.exceptions import ErrInfo
 from execsql.script.ast import (
     BatchBlock,
     Comment,
@@ -53,23 +62,117 @@ from execsql.script.ast import (
     SqlStatement,
 )
 
-__all__ = ["_Issue", "_error", "_print_lint_results", "_warning", "lint"]
+__all__ = [
+    "RULES",
+    "Issue",
+    "Rule",
+    "_print_lint_results",
+    "filter_issues",
+    "lint",
+    "parse_error",
+    "render_json",
+    "resolve_selectors",
+    "rule_counts",
+]
 
 
 # ---------------------------------------------------------------------------
-# Issue tuple type and constructors
+# Rules and issues
 # ---------------------------------------------------------------------------
 
 
-_Issue = tuple[str, str, int, str]  # (severity, source, line_no, message)
+class Rule(NamedTuple):
+    """One lint check.
+
+    Codes are grouped by what the rule is about, not by severity, so a rule
+    can change severity without breaking anyone's ``--ignore`` list:
+    ``P`` parsing, ``S`` the script as a whole, ``V`` variables, ``I``
+    INCLUDE / EXECUTE SCRIPT targets, ``F`` control flow.
+    """
+
+    code: str
+    name: str
+    severity: str  # "error" | "warning"
+    summary: str
 
 
-def _error(source: str, line_no: int, message: str) -> _Issue:
-    return ("error", source, line_no, message)
+#: Every rule, by code. Codes are a public contract: never renumber or reuse one.
+RULES: dict[str, Rule] = {
+    rule.code: rule
+    for rule in (
+        Rule(
+            "P001",
+            "parse-error",
+            "error",
+            "The script cannot be parsed, for example an IF, LOOP, BATCH or SCRIPT block that is never closed.",
+        ),
+        Rule("S001", "empty-script", "warning", "The script contains no statements."),
+        Rule(
+            "V001",
+            "undefined-variable",
+            "warning",
+            "A !!variable!! is referenced, but no SUB-family metacommand in the script defines it.",
+        ),
+        Rule(
+            "V002",
+            "unused-variable",
+            "warning",
+            "A SUB-family metacommand defines a variable that nothing in the script references.",
+        ),
+        Rule("I001", "missing-include", "warning", "An INCLUDE target file does not exist."),
+        Rule(
+            "I002",
+            "missing-script",
+            "warning",
+            "EXECUTE SCRIPT names a script that no BEGIN SCRIPT block in the file defines.",
+        ),
+        Rule(
+            "F001",
+            "constant-condition",
+            "warning",
+            "An IF condition is always true or always false, so one of its branches can never run.",
+        ),
+        Rule("F002", "unreachable-code", "warning", "A statement follows an unconditional HALT."),
+    )
+}
+
+#: Always reported, whatever --select and --ignore say: a script that does not
+#: parse has not been checked, and reporting "no issues" for it would be false.
+_ALWAYS_REPORTED = frozenset({"P001"})
 
 
-def _warning(source: str, line_no: int, message: str) -> _Issue:
-    return ("warning", source, line_no, message)
+class Issue(NamedTuple):
+    """One finding. ``line`` is 0 when the issue has no single line."""
+
+    severity: str
+    source: str
+    line: int
+    message: str
+    code: str
+
+
+# Kept as the internal name the walker functions were written against.
+_Issue = Issue
+
+
+def _issue(code: str, source: str, line_no: int, message: str) -> Issue:
+    return Issue(RULES[code].severity, source, line_no, message, code)
+
+
+_RX_ON_LINE = re.compile(r"\bon line (\d+)")
+
+
+def parse_error(source: str, exc: ErrInfo) -> Issue:
+    """The issue reported for a script that fails to parse.
+
+    Uses the parser's own message rather than :meth:`ErrInfo.errmsg`, which
+    adds a banner and a timestamp, and folds it onto one line. Every parser
+    message names the offending line as "on line N", which becomes the
+    issue's line so editors and JSON consumers can jump to it.
+    """
+    text = " ".join((exc.other or exc.exception or str(exc)).split())
+    found = _RX_ON_LINE.search(text)
+    return _issue("P001", source, int(found.group(1)) if found else 0, f"Parse error: {text}")
 
 
 # ---------------------------------------------------------------------------
@@ -281,7 +384,8 @@ def _check_var_ref(
         return
 
     issues.append(
-        _warning(
+        _issue(
+            "V001",
             source,
             line_no,
             f"Potentially undefined variable: !!{raw_name}!! "
@@ -304,7 +408,7 @@ def _check_include_path(
 
     if not p.exists():
         issues.append(
-            _warning(source, line_no, f"INCLUDE target does not exist: {raw_path!r}"),
+            _issue("I001", source, line_no, f"INCLUDE target does not exist: {raw_path!r}"),
         )
 
 
@@ -352,7 +456,8 @@ def _check_constant_condition(node: IfBlock, issues: list[_Issue]) -> None:
         dead = len(node.elseif_clauses) + (1 if node.else_body else 0)
         if dead:
             issues.append(
-                _warning(
+                _issue(
+                    "F001",
                     src,
                     lno,
                     f"IF condition {node.condition!r} is always true, so the {dead} branch(es) after it can never run",
@@ -360,7 +465,8 @@ def _check_constant_condition(node: IfBlock, issues: list[_Issue]) -> None:
             )
     elif _is_always_false(node) and node.body:
         issues.append(
-            _warning(
+            _issue(
+                "F001",
                 src,
                 lno,
                 f"IF condition {node.condition!r} is always false, so its body can never run",
@@ -383,7 +489,8 @@ def _check_unreachable_after_halt(nodes: list[Node], issues: list[_Issue]) -> No
         if rest:
             after = rest[0]
             issues.append(
-                _warning(
+                _issue(
+                    "F002",
                     after.span.file,
                     after.span.start_line,
                     f"unreachable — HALT on line {node.span.start_line} always ends the script",
@@ -434,7 +541,8 @@ def _check_unused_variables(script: Script, defined: set[str], issues: list[_Iss
     for name in unused:
         line = _definition_line(script.body, name)
         issues.append(
-            _warning(
+            _issue(
+                "V002",
                 script.body[0].span.file if script.body else "<script>",
                 line,
                 f"variable !!{name.lower()}!! is defined but never referenced",
@@ -497,7 +605,7 @@ def _lint_nodes(
                 if target not in script_blocks:
                     if not node.if_exists:
                         issues.append(
-                            _warning(src, lno, f"EXECUTE SCRIPT target not found: '{target}'"),
+                            _issue("I002", src, lno, f"EXECUTE SCRIPT target not found: '{target}'"),
                         )
                 elif target not in visited_scripts:
                     visited_scripts.add(target)
@@ -552,8 +660,8 @@ def _lint_nodes(
                     sub_issues,
                     visited_scripts=visited_scripts,
                 )
-                for sev, ssrc, slno, msg in sub_issues:
-                    issues.append((sev, ssrc, slno, f"[script '{node.name}'] {msg}"))
+                for sub in sub_issues:
+                    issues.append(sub._replace(message=f"[script '{node.name}'] {sub.message}"))
 
 
 # ---------------------------------------------------------------------------
@@ -573,12 +681,12 @@ def lint(
             INCLUDE paths).  ``None`` for inline scripts.
 
     Returns:
-        List of ``(severity, source, line_no, message)`` issue tuples.
+        Every :class:`Issue` found, unfiltered.
     """
     issues: list[_Issue] = []
 
     if not script.body:
-        issues.append(_warning("<script>", 0, "Script is empty — no commands found"))
+        issues.append(_issue("S001", script_path or "<script>", 0, "Script is empty — no commands found"))
         return issues
 
     script_dir = Path(script_path).resolve().parent if script_path else None
@@ -604,27 +712,87 @@ def lint(
 
 
 # ---------------------------------------------------------------------------
+# Selecting rules
+# ---------------------------------------------------------------------------
+
+
+def resolve_selectors(values: Iterable[str] | None) -> tuple[str, ...]:
+    """Normalize ``--select`` / ``--ignore`` values into code prefixes.
+
+    Each value may hold several comma-separated entries. An entry is a full
+    code (``V001``) or a prefix of one (``V``, ``V0``), matched without
+    regard to case.
+
+    Raises:
+        ValueError: An entry matches no rule. A typo in ``--ignore`` would
+            otherwise silently ignore nothing.
+    """
+    prefixes: list[str] = []
+    for value in values or ():
+        for entry in value.split(","):
+            prefix = entry.strip().upper()
+            if not prefix:
+                continue
+            if not any(code.startswith(prefix) for code in RULES):
+                raise ValueError(f"unknown rule code or prefix: {entry.strip()!r}")
+            prefixes.append(prefix)
+    return tuple(prefixes)
+
+
+def filter_issues(
+    issues: Iterable[Issue],
+    select: tuple[str, ...] = (),
+    ignore: tuple[str, ...] = (),
+) -> list[Issue]:
+    """Keep the issues *select* asks for, minus those *ignore* removes.
+
+    An empty *select* means every rule. *ignore* wins over *select*. Parse
+    errors (``P001``) are kept regardless.
+    """
+    kept = []
+    for issue in issues:
+        if issue.code in _ALWAYS_REPORTED:
+            kept.append(issue)
+            continue
+        if select and not issue.code.startswith(select):
+            continue
+        if ignore and issue.code.startswith(ignore):
+            continue
+        kept.append(issue)
+    return kept
+
+
+# ---------------------------------------------------------------------------
 # Result printing
 # ---------------------------------------------------------------------------
 
 
-def _print_lint_results(issues: list[_Issue], script_label: str) -> int:
-    """Print lint issues to the console using Rich formatting.
+def exit_code(issues: Iterable[Issue]) -> int:
+    """``1`` when any issue is an error, otherwise ``0``."""
+    return 1 if any(issue.severity == "error" for issue in issues) else 0
+
+
+def _sorted(issues: Iterable[Issue]) -> list[Issue]:
+    """Errors first, then warnings; by line within each."""
+    order = {"error": 0, "warning": 1}
+    return sorted(issues, key=lambda i: (order.get(i.severity, 9), i.line, i.code))
+
+
+def _print_lint_results(issues: list[Issue], script_label: str) -> int:
+    """Print one script's issues to the console.
 
     Args:
-        issues: List of ``(severity, source, line_no, message)`` tuples.
-        script_label: Human-readable label for the script (file path or
-            ``<inline>``), shown in the summary line.
+        issues: The issues to show, already filtered.
+        script_label: The script's path, or ``<inline>``.
 
     Returns:
         ``1`` if any errors were found, ``0`` if only warnings or nothing.
     """
+    from rich.markup import escape
+
     from execsql.cli.help import _console
 
-    n_errors = sum(1 for sev, *_ in issues if sev == "error")
-    n_warnings = sum(1 for sev, *_ in issues if sev == "warning")
-
-    _console.print(f"\n[bold cyan]Lint:[/bold cyan] {script_label}")
+    _console.print(f"\n[bold cyan]Lint:[/bold cyan] {escape(script_label)}")
     _console.print()
 
     if not issues:
@@ -632,23 +800,19 @@ def _print_lint_results(issues: list[_Issue], script_label: str) -> int:
         _console.print()
         return 0
 
-    # Sort: errors first, then warnings; within each group sort by line number.
-    _sev_order = {"error": 0, "warning": 1}
-    sorted_issues = sorted(issues, key=lambda i: (_sev_order.get(i[0], 9), i[2]))
+    ordered = _sorted(issues)
+    locs = [f"{i.source}:{i.line}" if i.line else i.source for i in ordered]
+    loc_width = max(len(loc) for loc in locs)
 
-    # Compute the widest location string so columns align.
-    locs: list[str] = []
-    for _, source, line_no, _ in sorted_issues:
-        locs.append(f"{source}:{line_no}" if line_no else source)
-    loc_width = max(len(loc) for loc in locs) if locs else 0
-
-    for (severity, _source, _line_no, message), loc in zip(sorted_issues, locs):
+    for issue, loc in zip(ordered, locs):
         pad = " " * (loc_width - len(loc))
-        if severity == "error":
-            _console.print(f"  [bold red]ERROR  [/bold red]  [dim]{loc}[/dim]{pad}  {message}")
-        else:
-            _console.print(f"  [bold yellow]WARNING[/bold yellow]  [dim]{loc}[/dim]{pad}  {message}")
+        label = "[bold red]ERROR  [/bold red]" if issue.severity == "error" else "[bold yellow]WARNING[/bold yellow]"
+        _console.print(
+            f"  {label}  [dim]{escape(loc)}[/dim]{pad}  [magenta]{issue.code}[/magenta]  {escape(issue.message)}",
+        )
 
+    n_errors = sum(1 for i in issues if i.severity == "error")
+    n_warnings = len(issues) - n_errors
     _console.print()
     parts = []
     if n_errors:
@@ -658,4 +822,30 @@ def _print_lint_results(issues: list[_Issue], script_label: str) -> int:
     _console.print("  " + ", ".join(parts))
     _console.print()
 
-    return 1 if n_errors > 0 else 0
+    return exit_code(issues)
+
+
+def render_json(issues: Iterable[Issue]) -> str:
+    """Every issue as one JSON array, in the order given.
+
+    Each object has ``file``, ``line`` (``null`` when the issue has no single
+    line), ``code``, ``rule``, ``severity`` and ``message``.
+    """
+    rows = [
+        {
+            "file": i.source,
+            "line": i.line or None,
+            "code": i.code,
+            "rule": RULES[i.code].name,
+            "severity": i.severity,
+            "message": i.message,
+        }
+        for i in issues
+    ]
+    return json.dumps(rows, indent=2, ensure_ascii=False)
+
+
+def rule_counts(issues: Iterable[Issue]) -> list[tuple[Rule, int]]:
+    """How often each rule fired, most frequent first, then by code."""
+    counts = Counter(i.code for i in issues)
+    return sorted(((RULES[code], n) for code, n in counts.items()), key=lambda rc: (-rc[1], rc[0].code))

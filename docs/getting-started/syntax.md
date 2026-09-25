@@ -22,6 +22,8 @@ execsql lint   FILE_OR_DIR...
 
 `format` and `lint` accept files or directories; directories are searched
 recursively for `*.sql`. A CI job runs them as two steps, so both report.
+`lint` options and every rule it checks are described in the
+[lint rules reference](../reference/lint.md).
 
 !!! note "The original form still works"
 
@@ -259,13 +261,13 @@ Valid encoding names can be displayed with the `-y` option. See also [Character 
 
 `--lint`
 
-:   Parse and statically check the script without connecting to a database. Prefer the `execsql lint` command, which takes directories as well.
+:   Parse and statically check the script without connecting to a database. Prefer the `execsql lint` command, which takes directories and adds `--select`, `--ignore`, JSON output and `--statistics`.
 
-    **Errors** — unmatched `IF` / `LOOP` / `BEGIN BATCH` blocks, and any parse failure.
+    **Errors** — the script does not parse, such as an unmatched `IF` / `LOOP` / `BEGIN BATCH` block.
 
     **Warnings** — undefined `!!$VAR!!` references; missing `INCLUDE` files; unknown `EXECUTE SCRIPT` targets; a variable defined by `SUB` that nothing ever reads; a constant `IF` condition that makes its `ELSE` (or its own body) unreachable; a statement after an unconditional `HALT`.
 
-    Two-pass variable analysis follows `EXECUTE SCRIPT` / `INCLUDE` chains and reads `SUB_INI` files at lint time. Exits 0 if no errors are found (warnings do not affect the exit code), 1 otherwise.
+    Each issue shows its rule code; the [lint rules reference](../reference/lint.md) explains every rule. Variable definitions are collected from the whole file, including `BEGIN SCRIPT` blocks it runs with `EXECUTE SCRIPT`, and from `SUB_INI` files; `INCLUDE`d files are not read. Exits 0 if no errors are found (warnings do not affect the exit code), 1 otherwise.
 
     ```sh
     execsql --lint script.sql
