@@ -838,3 +838,17 @@ class TestMessages:
     )
     def test_message(self, tmp_path, script, message):
         assert message in _messages(_lint(tmp_path, script))
+
+
+class TestScriptBlocks:
+    def test_issue_inside_a_block_has_its_line_and_no_block_prefix(self, tmp_path):
+        """The line already places the issue inside the block; the name would repeat it."""
+        script = "-- !x! BEGIN SCRIPT upsert_table\nSELECT !!nowhere!!;\n-- !x! END SCRIPT\n"
+        issues = [i for i in _lint(tmp_path, script) if i.code == "V001"]
+        assert len(issues) == 1
+        assert issues[0].line == 2
+        assert issues[0].message == "undefined variable !!nowhere!!"
+
+    def test_a_block_that_is_also_executed_is_reported_once(self, tmp_path):
+        script = "-- !x! EXECUTE SCRIPT helper\n-- !x! BEGIN SCRIPT helper\nSELECT !!nowhere!!;\n-- !x! END SCRIPT\n"
+        assert [i.code for i in _lint(tmp_path, script)].count("V001") == 1
