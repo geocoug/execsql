@@ -112,6 +112,43 @@ def lint_paths(targets: list[str]) -> int:
     return worst
 
 
+def _lint_cli(argv: list[str]) -> int:
+    """Argument parser for ``execsql lint``.
+
+    ``lint_paths`` does the work; this exists so the subcommand answers
+    ``--help`` like every other command rather than reading ``--help`` as a
+    file name.
+    """
+    import typer
+
+    app = typer.Typer(
+        name="execsql lint",
+        help="Statically check execsql scripts. No database connection is made.",
+        add_completion=False,
+        no_args_is_help=True,
+        rich_markup_mode="rich",
+    )
+
+    @app.command(context_settings={"allow_extra_args": False})
+    def _cmd(
+        targets: list[str] = typer.Argument(
+            ...,
+            metavar="FILE_OR_DIR",
+            help="Files or directories to check. Directories are searched recursively for *.sql files.",
+        ),
+    ) -> None:
+        raise typer.Exit(code=lint_paths(targets))
+
+    # standalone_mode lets click render --help, usage errors and exit codes
+    # itself, the same as every other command here; it signals all of them by
+    # raising SystemExit, which is the one thing to translate.
+    try:
+        app(argv, prog_name="execsql lint")
+    except SystemExit as exc:
+        return int(exc.code or 0)
+    return 0
+
+
 def dispatch() -> None:
     """Route ``sys.argv`` to a subcommand, or fall through to the runner."""
     target, rest = route(sys.argv)
@@ -126,7 +163,7 @@ def dispatch() -> None:
         return
 
     if target == "lint":
-        raise SystemExit(lint_paths(rest))
+        raise SystemExit(_lint_cli(rest))
 
     # "run" is the explicit spelling of the legacy form; both reach the same
     # parser with the same arguments.

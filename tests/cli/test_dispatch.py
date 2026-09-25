@@ -138,3 +138,46 @@ class TestLintSubcommandWalksDirectories:
         (tmp_path / "broken.sql").write_text("-- !x! IF(1=1)\nselect 1;\n", encoding="utf-8")
         assert lint_paths([str(tmp_path)]) == 1
         assert "broken.sql" in capsys.readouterr().out
+
+
+class TestHelpIsDiscoverable:
+    """The commands have to be findable, which is the point of having them.
+
+    Both of these were shipped broken: ``execsql --help`` listed no commands,
+    so the toolchain was invisible to anyone who did not read the README, and
+    ``execsql lint --help`` crashed because the verb had no argument parser
+    and read ``--help`` as a file name.
+    """
+
+    def _cli(self, *args):
+        """Invoke the console entry point the way a user does."""
+        import subprocess
+        import sys
+
+        code = "import sys; from execsql.cli.dispatch import dispatch; sys.argv=['execsql', *sys.argv[1:]]; dispatch()"
+        return subprocess.run([sys.executable, "-c", code, *args], capture_output=True, text=True)
+
+    def test_main_help_lists_the_commands(self):
+        out = self._cli("--help").stdout
+        for verb in ("run", "format", "lint"):
+            assert verb in out, f"{verb} missing from execsql --help"
+
+    def test_main_help_says_the_bare_form_still_works(self):
+        assert "no command" in self._cli("--help").stdout.lower()
+
+    def test_lint_help_does_not_crash(self):
+        result = self._cli("lint", "--help")
+        assert "Traceback" not in result.stderr, result.stderr
+        assert result.returncode == 0
+
+    def test_lint_help_names_the_subcommand(self):
+        assert "execsql lint" in self._cli("lint", "--help").stdout
+
+    def test_format_help_does_not_crash(self):
+        result = self._cli("format", "--help")
+        assert "Traceback" not in result.stderr, result.stderr
+        assert result.returncode == 0
+
+    def test_lint_with_no_arguments_shows_help_rather_than_failing(self):
+        result = self._cli("lint")
+        assert "Traceback" not in result.stderr, result.stderr

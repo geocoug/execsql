@@ -349,6 +349,15 @@ def main(
 ) -> None:
     """Run [bold]SQL_SCRIPT[/bold] against the specified database.
 
+    [green]Commands:[/green]
+      [bold]execsql run[/bold]     SQL_SCRIPT [SERVER DATABASE | DATABASE_FILE]
+      [bold]execsql format[/bold]  FILE_OR_DIR...   normalize keywords, indentation and SQL
+      [bold]execsql lint[/bold]    FILE_OR_DIR...   check structure without a database
+
+    [dim]format and lint need no database and take directories. 'fmt' is an
+    alias for 'format'. Run 'execsql <command> --help' for a command's own
+    options. Giving no command runs the script, as it always has.[/dim]
+
     [dim]Positional arguments after the script file:[/dim]
 
     [green]Client-server databases:[/green]

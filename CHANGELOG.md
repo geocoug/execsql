@@ -32,6 +32,8 @@ ______________________________________________________________________
 
 ### Fixed
 
+- `execsql --help` lists the commands. They were reachable but undocumented in the CLI itself, so the toolchain was invisible to anyone who had not read the README — which was the point of adding them.
+- `execsql lint --help` no longer fails with a traceback, and `execsql lint` with no arguments reports the usage instead of one. The verb had no argument parser of its own, so `--help` was read as a file name.
 - A script's reported location no longer depends on a second, synthetic copy of the statement being in sync with the parse tree. The executor built a stand-in legacy command object for every statement so that error messages, the debug REPL, and `api.run()` could read the current file and line; those now read the syntax tree directly.
 - `execsql.api.run()` no longer discards every `WRITE ... TO <file>` and `TEE` to a file. Those metacommands hand their output to a FileWriter subprocess that only the CLI started, so under the library API the file was never created and the run still reported success ([#46](https://github.com/geocoug/execsql/issues/46)). `run()` now starts the writer, and flushes and closes every file before returning, so output is readable as soon as it hands back control. A writer the caller started themselves is left untouched.
 - File output that cannot be written because no FileWriter is running now reports a warning instead of being dropped in silence. The write is still skipped — queueing to a subprocess that is not draining the queue deadlocks the caller — but a script's logfile no longer comes back empty with no indication anything was missed.
