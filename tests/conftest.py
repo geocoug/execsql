@@ -105,3 +105,24 @@ def noop_filewriter_close():
             except AttributeError:
                 pass
         yield
+
+
+@pytest.fixture(autouse=True)
+def _restore_cwd():
+    """Put the working directory back after every test.
+
+    The ``CD`` metacommand changes the process working directory, and a test
+    that exercises it leaves the whole session in a pytest ``tmp_path``. Every
+    later test that names a file by a repo-relative path then fails — but only
+    when the two run in that order, so with random ordering it surfaces as an
+    intermittent failure somewhere unrelated. Restoring here fixes the class
+    of bug rather than the one test that happened to expose it.
+    """
+    import os
+
+    original = os.getcwd()
+    try:
+        yield
+    finally:
+        if os.getcwd() != original:
+            os.chdir(original)
