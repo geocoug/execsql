@@ -206,6 +206,8 @@ ______________________________________________________________________
 
 The CLI framework changed from `optparse` to [Typer](https://typer.tiangolo.com/). Help is plain text, colored on a terminal; `NO_COLOR` or `EXECSQL_NO_COLOR` turns the color off. All original short flags (`-a` through `-z`) are preserved. The PyPI distribution is named `execsql2`, but the installed executable remains `execsql` for compatibility.
 
+Running `execsql` with no arguments prints the help and exits with status **2**, the conventional exit code for a usage error. Upstream printed the help and exited 0, so a CI step or shell script that invoked execsql without its arguments appeared to succeed.
+
 Seven upstream long-form flags were renamed underscore → hyphen and the underscore forms are **not** accepted: `--database-encoding`, `--script-encoding`, `--output-encoding`, `--import-encoding`, `--import-buffer`, `--user-logfile`, `--visible-prompts` (upstream wrote these with underscores). Scripts and CI pipelines that invoke the long-form flags must update the spelling; the short letters (`-e`, `-f`, `-g`, `-i`, `-l`, `-v`, `-z`) are unchanged.
 
 ### MySQL Connection Encoding

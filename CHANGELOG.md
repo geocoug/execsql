@@ -29,6 +29,7 @@ ______________________________________________________________________
 ### Changed
 
 - Requires Typer 0.26 or newer (previously 0.12).
+- `execsql` with no arguments prints the help and always exits with status 2. Previously the exit status depended on the installed Click version.
 - CLI help is plain text rather than bordered panels, colored on a terminal. `execsql --help` lists the commands, both invocation forms, and the global options `--version` and `-o`/`--online-help`; `execsql <command> --help` shows each command's options. Piped help has no color, and `NO_COLOR` or `EXECSQL_NO_COLOR` turns it off.
 - MySQL and MariaDB connections now default to `utf8mb4` instead of `latin1`. A latin1 connection could not carry CJK, emoji, Greek, or Cyrillic at all — inserting such text raised `UnicodeEncodeError` before reaching the server — so scripts had to pass `-e utf8mb4` to move most of Unicode. Existing latin1 databases are unaffected: the connection charset governs only client/server transfer, and MySQL transcodes to and from each column's own charset. Pass `-e latin1` to restore the previous behavior.
 

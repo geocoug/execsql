@@ -182,9 +182,12 @@ class ExecsqlGroup(TyperGroup):
         from execsql.cli.dispatch import normalize
 
         if not args:
-            # Click's no_args_is_help exits 0 for a group. Running execsql with
-            # no arguments is a usage error and has always exited non-zero, so
-            # the help goes out but the status does not change.
+            # Running execsql with no arguments is a usage error: the help goes
+            # to stdout, and the status is 2, as for any other usage error.
+            # Upstream exited 0 here; this is a recorded divergence
+            # (docs/about/divergence.md, "CLI Interface"). Click's own
+            # no_args_is_help exits 0 on Click 8.1 and 2 on 8.2+, so the status
+            # is set here rather than left to whichever Click is installed.
             typer.echo(ctx.get_help(), color=ctx.color)
             ctx.exit(2)
         return super().parse_args(ctx, normalize(args))

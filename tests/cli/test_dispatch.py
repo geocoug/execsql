@@ -357,3 +357,23 @@ class TestUpstreamFlagPositions:
         headings = [line for line in out.splitlines() if line.endswith(":") and not line.startswith(" ")]
         assert "Positional arguments:" not in headings
         assert headings.count("Arguments:") == 1
+
+
+class TestNoArguments:
+    """Bare ``execsql`` is a usage error: help on stdout, exit status 2.
+
+    Upstream exited 0 here. execsql2 deliberately returns 2 so a script that
+    forgets its arguments fails visibly (docs/about/divergence.md). Click's
+    own no_args_is_help gives 0 or 2 depending on the Click version, which is
+    why the status is pinned rather than inherited.
+    """
+
+    def test_help_on_stdout_and_exit_2(self):
+        import subprocess
+        import sys
+
+        code = "import sys; from execsql.cli.dispatch import dispatch; sys.argv=['execsql']; dispatch()"
+        result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
+        assert result.returncode == 2
+        assert result.stdout.startswith("Usage:")
+        assert "Commands:" in result.stdout
