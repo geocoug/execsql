@@ -658,20 +658,12 @@ def _lint_nodes(
         elif isinstance(node, (LoopBlock, BatchBlock, SqlBlock)):
             _lint_nodes(node.body, script_dir, defined_vars, script_blocks, issues, visited_scripts=visited_scripts)
         elif isinstance(node, ScriptBlock):
-            # Lint script block body (structural errors already caught by parser)
+            # Lint the block body once (structural errors are caught by the
+            # parser). Issues carry their own line, which already places them
+            # inside the block, so the message does not repeat the block name.
             if node.name not in visited_scripts:
                 visited_scripts.add(node.name)
-                sub_issues: list[_Issue] = []
-                _lint_nodes(
-                    node.body,
-                    script_dir,
-                    defined_vars,
-                    script_blocks,
-                    sub_issues,
-                    visited_scripts=visited_scripts,
-                )
-                for sub in sub_issues:
-                    issues.append(sub._replace(message=f"[script '{node.name}'] {sub.message}"))
+                _lint_nodes(node.body, script_dir, defined_vars, script_blocks, issues, visited_scripts=visited_scripts)
 
 
 # ---------------------------------------------------------------------------
