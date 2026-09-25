@@ -420,7 +420,8 @@ def current_script_line() -> tuple[str, int]:
     """Return ``(source_name, line_number)`` for the command currently executing.
 
     Reads from ``_state.last_command``, which the AST executor updates on
-    every statement via the ``_FakeScriptCmd`` shim.  Returns ``("", 0)``
+    every statement via :class:`~execsql.script.executor.ExecutingStatement`.
+    Returns ``("", 0)``
     when nothing has executed yet (e.g. during early initialization errors).
     """
     last = getattr(_state, "last_command", None)
