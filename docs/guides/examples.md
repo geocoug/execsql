@@ -1667,13 +1667,11 @@ execsql lint validate_orders.sql
 Produces output similar to:
 
 ``` text
-Lint: validate_orders.sql
+validate_orders.sql
+   2  warning  V002  variable !!report_dir!! is never used
+  10  warning  V001  undefined variable !!output_path!!
 
-  WARNING  validate_orders.sql:2   V002  variable !!report_dir!! is defined but never referenced
-  WARNING  validate_orders.sql:10  V001  Potentially undefined variable: !!output_path!! (not
-defined by a preceding SUB; may be set by a config file or -a arg)
-
-  2 warnings
+Found 2 issues in 1 file: 2 warnings (1 file checked)
 ```
 
 The two warnings are the two halves of the same typo: one name is defined and never read, the other is read and never defined. `V001` and `V002` are [rule codes](../reference/lint.md#rules); a library that sets variables in a configuration file can drop the undefined-variable check with `execsql lint scripts/ --ignore V001`.

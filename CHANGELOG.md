@@ -13,9 +13,9 @@ ______________________________________________________________________
 
 ### Added
 
-- Every lint issue names a rule code, such as `V001` (undefined variable) or `F002` (unreachable code), in both `execsql lint` and `--lint` output. `execsql lint --help` lists the rules, and the [lint rules reference](https://execsql2.readthedocs.io/en/latest/reference/lint/) explains each one.
+- Every lint issue names a rule code, such as `V001` (undefined variable) or `F002` (unreachable code), in both `execsql lint` and `--lint` output. The [lint rules reference](https://execsql2.readthedocs.io/en/latest/reference/lint/) explains each one.
 - `execsql lint --select` and `--ignore` choose rules by code or prefix (`--ignore V002`, `--select F`). Parse errors are always reported.
-- `execsql lint --output-format json` writes every issue as one JSON array for CI and editor tooling.
+- `execsql lint --output-format json` writes every issue as one JSON array for CI and editor tooling, and `--output-format concise` prints one `path:line: CODE message` line per issue.
 - `execsql lint --statistics` shows how many times each rule fired instead of listing every issue.
 - `execsql` now has commands: `execsql run`, `execsql format` (or `fmt`), and `execsql lint`. `format` and `lint` take files or directories and need no database — linting a whole script library is new, since `--lint` only ever linted the single script it was given.
 - The original positional invocation is unchanged: `execsql script.sql myserver mydb` still works, still means the same thing, and is not deprecated. A script named exactly `run`, `format`, `fmt`, or `lint` with no extension is still read as a file, not a command.
@@ -33,6 +33,8 @@ ______________________________________________________________________
 ### Changed
 
 - Requires Typer 0.26 or newer (previously 0.12).
+- Lint output groups issues under each file in line order, with shorter messages and one summary line, instead of a banner and error-first list per file.
+- A script that fails to parse under `--lint` or `execsql lint` is reported on one line with the line number of the problem, instead of a multi-line error with a timestamp.
 - `execsql` with no arguments prints the help and always exits with status 2. Previously the exit status depended on the installed Click version.
 - CLI help is plain text rather than bordered panels, colored on a terminal. `execsql --help` lists the commands, both invocation forms, and the global options `--version` and `-o`/`--online-help`; `execsql <command> --help` shows each command's options. Piped help has no color, and `NO_COLOR` or `EXECSQL_NO_COLOR` turns it off.
 - MySQL and MariaDB connections now default to `utf8mb4` instead of `latin1`. A latin1 connection could not carry CJK, emoji, Greek, or Cyrillic at all — inserting such text raised `UnicodeEncodeError` before reaching the server — so scripts had to pass `-e utf8mb4` to move most of Unicode. Existing latin1 databases are unaffected: the connection charset governs only client/server transfer, and MySQL transcodes to and from each column's own charset. Pass `-e latin1` to restore the previous behavior.
@@ -40,7 +42,6 @@ ______________________________________________________________________
 ### Fixed
 
 - `-h` works as a short form of `--help`, as it did in upstream execsql.
-- A script that fails to parse under `--lint` or `execsql lint` is reported on one line with the line number of the problem, instead of a multi-line error with a timestamp.
 - A script's reported location no longer depends on a second, synthetic copy of the statement being in sync with the parse tree. The executor built a stand-in legacy command object for every statement so that error messages, the debug REPL, and `api.run()` could read the current file and line; those now read the syntax tree directly.
 - `execsql.api.run()` no longer discards every `WRITE ... TO <file>` and `TEE` to a file. Those metacommands hand their output to a FileWriter subprocess that only the CLI started, so under the library API the file was never created and the run still reported success ([#46](https://github.com/geocoug/execsql/issues/46)). `run()` now starts the writer, and flushes and closes every file before returning, so output is readable as soon as it hands back control. A writer the caller started themselves is left untouched.
 - File output that cannot be written because no FileWriter is running now reports a warning instead of being dropped in silence. The write is still skipped — queueing to a subprocess that is not draining the queue deadlocks the caller — but a script's logfile no longer comes back empty with no indication anything was missed.

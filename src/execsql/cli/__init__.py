@@ -919,22 +919,11 @@ def fmt_cmd(
     )
 
 
-def _lint_rules_epilog() -> str:
-    """The rule table for ``execsql lint --help``, built from the registry.
-
-    ``\b`` stops Click rewrapping the table into one paragraph.
-    """
-    from execsql.cli.lint import RULES
-
-    width = max(len(rule.name) for rule in RULES.values())
-    rows = [f"  {rule.code}  {rule.name:<{width}}  {rule.severity}" for rule in RULES.values()]
-    return "\b\nRules:\n" + "\n".join(rows)
-
-
 class LintFormat(str, Enum):
     """Output formats for ``execsql lint``."""
 
     text = "text"
+    concise = "concise"
     json = "json"
 
 
@@ -945,9 +934,9 @@ class LintFormat(str, Enum):
         "Statically check scripts for problems. No database connection is made.\n\n"
         "Every issue names its rule code, which --select and --ignore accept, as a full "
         "code (V001) or a prefix (V). Parse errors (P001) are always reported. Exits 1 "
-        "when any error is found; warnings alone exit 0."
+        "when any error is found; warnings alone exit 0.\n\n"
+        "Rules: https://execsql2.readthedocs.io/en/latest/reference/lint/"
     ),
-    epilog=_lint_rules_epilog(),
 )
 def lint_cmd(
     targets: list[str] = typer.Argument(
@@ -970,7 +959,7 @@ def lint_cmd(
     output_format: LintFormat = typer.Option(
         LintFormat.text,
         "--output-format",
-        help="text for people, json for tools.",
+        help="text groups issues by file; concise is one path:line line per issue; json is for tools.",
     ),
     statistics: bool = typer.Option(
         False,

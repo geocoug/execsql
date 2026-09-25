@@ -98,8 +98,9 @@ def lint_paths(
         select: Rule-code prefixes to report (empty means all), already
             validated by :func:`execsql.cli.lint.resolve_selectors`.
         ignore: Rule-code prefixes to drop; wins over *select*.
-        output_format: ``"text"`` or ``"json"``. JSON writes one array to
-            stdout and nothing else.
+        output_format: ``"text"`` (grouped by file), ``"concise"`` (one line
+            per issue) or ``"json"``. JSON writes one array to stdout and
+            nothing else.
         statistics: Report a count per rule instead of each issue.
 
     Returns:
@@ -108,14 +109,16 @@ def lint_paths(
     """
     import json
 
-    from execsql.cli.help import _console, _err_console
+    from execsql.cli.help import _err_console
     from execsql.cli.lint import (
         Issue,
-        _print_lint_results,
         exit_code,
         filter_issues,
         lint as _lint_script,
         parse_error,
+        print_concise,
+        print_statistics,
+        print_text,
         render_json,
         rule_counts,
     )
@@ -151,20 +154,12 @@ def lint_paths(
             sys.stdout.write(render_json(reported) + "\n")
         return exit_code(reported)
 
-    if not reported:
-        _console.print(f"[green]Lint: {len(paths)} file(s) checked, no issues.[/green]")
-        return 0
-
     if statistics:
-        counts = rule_counts(reported)
-        width = max(len(str(n)) for _, n in counts)
-        for rule, n in counts:
-            _console.print(f"  {n:>{width}}  [magenta]{rule.code}[/magenta]  {rule.name}")
-        return exit_code(reported)
-
-    for label, issues in per_file:
-        if issues:
-            _print_lint_results(issues, label)
+        print_statistics(per_file, len(paths))
+    elif output_format == "concise":
+        print_concise(per_file, len(paths))
+    else:
+        print_text(per_file, len(paths))
     return exit_code(reported)
 
 

@@ -33,9 +33,10 @@ Public surface:
 - :func:`parse_error` — the :class:`Issue` for a script that fails to parse.
 - :func:`resolve_selectors` / :func:`filter_issues` — ``--select`` and
   ``--ignore`` handling.
-- :func:`_print_lint_results`, :func:`render_json`, :func:`rule_counts` —
-  output. ``_print_lint_results`` returns the process exit code (``1`` when
-  any error-severity issue is present, ``0`` otherwise).
+- :func:`print_text`, :func:`print_concise`, :func:`print_statistics`,
+  :func:`render_json` — output formats; :func:`exit_code` — ``1`` when any
+  reported issue is an error, ``0`` otherwise. :func:`_print_lint_results`
+  is the single-script form ``--lint`` uses.
 """
 
 from __future__ import annotations
@@ -67,9 +68,13 @@ __all__ = [
     "Issue",
     "Rule",
     "_print_lint_results",
+    "exit_code",
     "filter_issues",
     "lint",
     "parse_error",
+    "print_concise",
+    "print_statistics",
+    "print_text",
     "render_json",
     "resolve_selectors",
     "rule_counts",
@@ -172,7 +177,7 @@ def parse_error(source: str, exc: ErrInfo) -> Issue:
     """
     text = " ".join((exc.other or exc.exception or str(exc)).split())
     found = _RX_ON_LINE.search(text)
-    return _issue("P001", source, int(found.group(1)) if found else 0, f"Parse error: {text}")
+    return _issue("P001", source, int(found.group(1)) if found else 0, text.rstrip("."))
 
 
 # ---------------------------------------------------------------------------
@@ -388,8 +393,7 @@ def _check_var_ref(
             "V001",
             source,
             line_no,
-            f"Potentially undefined variable: !!{raw_name}!! "
-            "(not defined by a preceding SUB; may be set by a config file or -a arg)",
+            f"undefined variable !!{raw_name}!!",
         ),
     )
 
@@ -408,7 +412,7 @@ def _check_include_path(
 
     if not p.exists():
         issues.append(
-            _issue("I001", source, line_no, f"INCLUDE target does not exist: {raw_path!r}"),
+            _issue("I001", source, line_no, f"INCLUDE file does not exist: {raw_path}"),
         )
 
 
@@ -453,14 +457,20 @@ def _check_constant_condition(node: IfBlock, issues: list[_Issue]) -> None:
     """Report branches that a constant condition makes unreachable."""
     src, lno = node.span.file, node.span.start_line
     if _is_always_true(node):
-        dead = len(node.elseif_clauses) + (1 if node.else_body else 0)
+        n_elseif = len(node.elseif_clauses)
+        dead = []
+        if n_elseif:
+            dead.append("ELSEIF" if n_elseif == 1 else f"{n_elseif} ELSEIF branches")
+        if node.else_body:
+            dead.append("ELSE")
         if dead:
+            verb = "runs" if len(dead) == 1 and n_elseif <= 1 else "run"
             issues.append(
                 _issue(
                     "F001",
                     src,
                     lno,
-                    f"IF condition {node.condition!r} is always true, so the {dead} branch(es) after it can never run",
+                    f"IF({node.condition}) is always true; its {' and '.join(dead)} never {verb}",
                 ),
             )
     elif _is_always_false(node) and node.body:
@@ -469,7 +479,7 @@ def _check_constant_condition(node: IfBlock, issues: list[_Issue]) -> None:
                 "F001",
                 src,
                 lno,
-                f"IF condition {node.condition!r} is always false, so its body can never run",
+                f"IF({node.condition}) is always false; its body never runs",
             ),
         )
 
@@ -493,7 +503,7 @@ def _check_unreachable_after_halt(nodes: list[Node], issues: list[_Issue]) -> No
                     "F002",
                     after.span.file,
                     after.span.start_line,
-                    f"unreachable — HALT on line {node.span.start_line} always ends the script",
+                    f"unreachable: HALT on line {node.span.start_line} ends the script",
                 ),
             )
         return
@@ -545,7 +555,7 @@ def _check_unused_variables(script: Script, defined: set[str], issues: list[_Iss
                 "V002",
                 script.body[0].span.file if script.body else "<script>",
                 line,
-                f"variable !!{name.lower()}!! is defined but never referenced",
+                f"variable !!{name.lower()}!! is never used",
             ),
         )
 
@@ -605,7 +615,7 @@ def _lint_nodes(
                 if target not in script_blocks:
                     if not node.if_exists:
                         issues.append(
-                            _issue("I002", src, lno, f"EXECUTE SCRIPT target not found: '{target}'"),
+                            _issue("I002", src, lno, f"no BEGIN SCRIPT block named {target}"),
                         )
                 elif target not in visited_scripts:
                     visited_scripts.add(target)
@@ -686,7 +696,7 @@ def lint(
     issues: list[_Issue] = []
 
     if not script.body:
-        issues.append(_issue("S001", script_path or "<script>", 0, "Script is empty — no commands found"))
+        issues.append(_issue("S001", script_path or "<script>", 0, "script is empty"))
         return issues
 
     script_dir = Path(script_path).resolve().parent if script_path else None
@@ -773,55 +783,127 @@ def exit_code(issues: Iterable[Issue]) -> int:
 
 
 def _sorted(issues: Iterable[Issue]) -> list[Issue]:
-    """Errors first, then warnings; by line within each."""
-    order = {"error": 0, "warning": 1}
-    return sorted(issues, key=lambda i: (order.get(i.severity, 9), i.line, i.code))
+    """By line, then code: the order a reader works through a file."""
+    return sorted(issues, key=lambda i: (i.line, i.code))
 
 
-def _print_lint_results(issues: list[Issue], script_label: str) -> int:
-    """Print one script's issues to the console.
+#: One script's path and the issues reported for it.
+FileResult = tuple[str, list[Issue]]
 
-    Args:
-        issues: The issues to show, already filtered.
-        script_label: The script's path, or ``<inline>``.
+_SEVERITY_STYLE = {"error": "bold red", "warning": "yellow"}
 
-    Returns:
-        ``1`` if any errors were found, ``0`` if only warnings or nothing.
+
+def _plural(n: int, word: str) -> str:
+    return f"{n} {word}{'' if n == 1 else 's'}"
+
+
+def _summary(results: list[FileResult], checked: int) -> str:
+    """The closing line, as Rich markup."""
+    issues = [i for _, found in results for i in found]
+    checked_note = f"({_plural(checked, 'file')} checked)"
+    if not issues:
+        return f"[green]No issues found[/green] {checked_note}"
+    n_errors = sum(1 for i in issues if i.severity == "error")
+    n_files = sum(1 for _, found in results if found)
+    counts = []
+    if n_errors:
+        counts.append(f"[bold red]{_plural(n_errors, 'error')}[/bold red]")
+    if len(issues) - n_errors:
+        counts.append(f"[yellow]{_plural(len(issues) - n_errors, 'warning')}[/yellow]")
+    return f"Found {_plural(len(issues), 'issue')} in {_plural(n_files, 'file')}: {', '.join(counts)} {checked_note}"
+
+
+def print_text(results: list[FileResult], checked: int) -> None:
+    """Issues grouped under each file, one aligned row per issue.
+
+    ::
+
+        scripts/validate_orders.sql
+           2  warning  V002  variable !!report_dir!! is never used
+          10  warning  V001  undefined variable !!output_path!!
+
+        Found 2 issues in 1 file: 2 warnings (4 files checked)
+
+    On a terminal, a message too long for the window wraps under the message
+    column rather than back to the left margin. Piped output is never
+    wrapped, so each issue stays on one line for grep.
     """
+    import textwrap
+
     from rich.markup import escape
 
     from execsql.cli.help import _console
 
-    _console.print(f"\n[bold cyan]Lint:[/bold cyan] {escape(script_label)}")
-    _console.print()
+    for path, found in results:
+        if not found:
+            continue
+        ordered = _sorted(found)
+        line_width = max(len(str(i.line)) for i in ordered)
+        indent = 2 + line_width + 2 + 7 + 2 + 4 + 2
+        wrap_at = _console.width - indent if _console.is_terminal else 0
 
-    if not issues:
-        _console.print("[bold green]No issues found.[/bold green]")
+        _console.print(f"[bold]{escape(path)}[/bold]", highlight=False)
+        for issue in ordered:
+            line = str(issue.line) if issue.line else "-"
+            style = _SEVERITY_STYLE[issue.severity]
+            lines = (
+                # A variable or path is never split: a broken name is harder to
+                # read, and to search for, than one that runs past the edge.
+                textwrap.wrap(issue.message, wrap_at, break_long_words=False, break_on_hyphens=False)
+                if wrap_at >= 30
+                else [issue.message]
+            )
+            message = ("\n" + " " * indent).join(escape(part) for part in lines)
+            _console.print(
+                f"  [dim]{line:>{line_width}}[/dim]  [{style}]{issue.severity:<7}[/{style}]"
+                f"  [dim]{issue.code}[/dim]  {message}",
+                highlight=False,
+                soft_wrap=True,
+            )
         _console.print()
-        return 0
+    _console.print(_summary(results, checked), highlight=False)
 
-    ordered = _sorted(issues)
-    locs = [f"{i.source}:{i.line}" if i.line else i.source for i in ordered]
-    loc_width = max(len(loc) for loc in locs)
 
-    for issue, loc in zip(ordered, locs):
-        pad = " " * (loc_width - len(loc))
-        label = "[bold red]ERROR  [/bold red]" if issue.severity == "error" else "[bold yellow]WARNING[/bold yellow]"
-        _console.print(
-            f"  {label}  [dim]{escape(loc)}[/dim]{pad}  [magenta]{issue.code}[/magenta]  {escape(issue.message)}",
-        )
+def print_concise(results: list[FileResult], checked: int) -> None:
+    """One ``path:line: CODE message`` line per issue, for grep and editors."""
+    from rich.markup import escape
 
-    n_errors = sum(1 for i in issues if i.severity == "error")
-    n_warnings = len(issues) - n_errors
-    _console.print()
-    parts = []
-    if n_errors:
-        parts.append(f"[bold red]{n_errors} error{'s' if n_errors != 1 else ''}[/bold red]")
-    if n_warnings:
-        parts.append(f"[bold yellow]{n_warnings} warning{'s' if n_warnings != 1 else ''}[/bold yellow]")
-    _console.print("  " + ", ".join(parts))
-    _console.print()
+    from execsql.cli.help import _console
 
+    for path, found in results:
+        for issue in _sorted(found):
+            where = f"{path}:{issue.line}" if issue.line else path
+            style = _SEVERITY_STYLE[issue.severity]
+            _console.print(
+                f"{escape(where)}: [{style}]{issue.code}[/{style}] {escape(issue.message)}",
+                highlight=False,
+                soft_wrap=True,
+            )
+    if any(found for _, found in results):
+        _console.print()
+    _console.print(_summary(results, checked), highlight=False)
+
+
+def print_statistics(results: list[FileResult], checked: int) -> None:
+    """How often each rule fired, most frequent first."""
+    from execsql.cli.help import _console
+
+    counts = rule_counts(i for _, found in results for i in found)
+    if counts:
+        width = max(len(str(n)) for _, n in counts)
+        for rule, n in counts:
+            style = _SEVERITY_STYLE[rule.severity]
+            _console.print(f"  {n:>{width}}  [{style}]{rule.code}[/{style}]  {rule.name}", highlight=False)
+        _console.print()
+    _console.print(_summary(results, checked), highlight=False)
+
+
+def _print_lint_results(issues: list[Issue], script_label: str) -> int:
+    """Print one script's issues in the text layout; return the exit code.
+
+    The ``--lint`` option of ``run`` checks a single script and uses this.
+    """
+    print_text([(script_label, issues)], checked=1)
     return exit_code(issues)
 
 

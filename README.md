@@ -55,17 +55,15 @@ execsql lint scripts/             # find problems before they cost you a run
 
 ```text
 $ execsql lint load_data.sql
+load_data.sql
+  1  warning  V002  variable !!site_cd!! is never used
+  2  warning  I001  INCLUDE file does not exist: common/setup.sql
+  3  warning  V001  undefined variable !!site_code!!
 
-Lint: load_data.sql
-
-  WARNING  load_data.sql:2  V001  Potentially undefined variable: !!site_code!! (not defined by a
-preceding SUB; may be set by a config file or -a arg)
-  WARNING  load_data.sql:3  I001  INCLUDE target does not exist: 'common/setup.sql'
-
-  2 warnings
+Found 3 issues in 1 file: 3 warnings (1 file checked)
 ```
 
-Every issue has a rule code for `--select` and `--ignore`, and `--output-format json` feeds CI tools. See the [lint rules](https://execsql2.readthedocs.io/en/latest/reference/lint/).
+`V002` and `V001` together point at a typo: `site_cd` is defined and `site_code` is used. Every issue has a rule code for `--select` and `--ignore`; `--output-format concise` prints one `path:line` line per issue and `json` feeds CI tools. The [lint rules](https://execsql2.readthedocs.io/en/latest/reference/lint/) page explains each one.
 
 `execsql format` also runs as a [pre-commit hook](#formatting-scripts), so formatting is enforced without anyone remembering to run it.
 
