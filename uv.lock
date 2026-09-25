@@ -900,7 +900,7 @@ requires-dist = [
     { name = "tkintermapview", marker = "extra == 'map'", specifier = ">=1.29" },
     { name = "tox-uv", marker = "extra == 'dev'", specifier = ">=1.13.1" },
     { name = "twine", marker = "extra == 'dev'", specifier = ">=6.1.0" },
-    { name = "typer", specifier = ">=0.16" },
+    { name = "typer", specifier = ">=0.26" },
     { name = "xlrd", marker = "extra == 'formats'", specifier = ">=2.0" },
     { name = "zensical", marker = "extra == 'dev'", specifier = "==0.0.28" },
 ]

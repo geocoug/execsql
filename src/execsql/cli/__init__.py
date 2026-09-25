@@ -5,7 +5,7 @@ initialisation, database connection, and script execution.
 
 Submodules:
 
-- :mod:`execsql.cli.help`      — Rich-formatted help output & console objects
+- :mod:`execsql.cli.help`      — metacommand/encoding tables, --init-config, console objects
 - :mod:`execsql.cli.dsn`       — Connection-string (DSN URL) parser
 - :mod:`execsql.cli.run`       — Core execution logic (``_run``, ``_connect_initial_db``, ``_ping_db``, ``_print_dry_run``, ``_print_profile``)
 - :mod:`execsql.cli.lint`      — AST-based ``--lint`` static analyser and Rich result printer
@@ -129,6 +129,12 @@ class _PlainHelpMixin:
                 pieces.extend(param.get_usage_pieces(ctx))
         formatter.write_usage(ctx.command_path, " ".join(pieces), prefix=_usage_prefix())
 
+    def format_arguments(self, ctx: Any, formatter: Any) -> None:
+        # Click 8.5 added this step, with its own "Positional arguments"
+        # heading. format_options below already renders the arguments, and a
+        # Typer built on the standalone Click would otherwise list them twice.
+        pass
+
     def format_options(self, ctx: Any, formatter: Any) -> None:
         args: list[tuple[str, str]] = []
         opts: list[tuple[str, str]] = []
@@ -237,6 +243,8 @@ app = typer.Typer(
     ),
     add_completion=False,
     no_args_is_help=True,
+    # Upstream's optparse answered -h as well as --help. Commands inherit this.
+    context_settings={"help_option_names": ["-h", "--help"]},
 )
 
 
@@ -432,9 +440,8 @@ def main(
         False,
         "--lint",
         help=(
-            "Parse the script and perform static analysis without connecting to a database or executing anything. "
-            "Reports unmatched IF/ENDIF/LOOP/BATCH blocks (errors), potentially undefined variables, "
-            "and missing INCLUDE files (warnings). Exits 0 if no errors, 1 if errors found."
+            "Statically check this script without connecting to a database or executing anything. "
+            "Exits 0 if no errors, 1 if errors found. execsql lint does the same for files and directories."
         ),
     ),
     parse_tree: bool = typer.Option(
@@ -553,6 +560,24 @@ def main(
             "or the error message on failure (exit 1). "
             "No script file is required."
         ),
+    ),
+    # The global options again, hidden. Upstream's optparse accepted them
+    # anywhere, so `execsql script.sql db --version` still has to print the
+    # version rather than read "--version" as a database name.
+    _online_help: bool = typer.Option(
+        False,
+        "-o",
+        "--online-help",
+        callback=_online_help_callback,
+        is_eager=True,
+        hidden=True,
+    ),
+    _version: bool | None = typer.Option(
+        None,
+        "--version",
+        callback=_version_callback,
+        is_eager=True,
+        hidden=True,
     ),
 ) -> None:
     """Run SQL_SCRIPT against the specified database.
@@ -879,7 +904,7 @@ def fmt_cmd(
     leading_comma: bool = typer.Option(False, "--leading-comma"),
     encoding: str = typer.Option("utf-8", "--encoding", metavar="NAME"),
 ) -> None:
-    """Alias for format, hidden so the command list shows one spelling."""
+    """Alias for format."""
     format_cmd(
         targets,
         check=check,

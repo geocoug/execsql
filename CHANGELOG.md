@@ -28,17 +28,13 @@ ______________________________________________________________________
 
 ### Changed
 
+- Requires Typer 0.26 or newer (previously 0.12).
+- CLI help is plain text rather than bordered panels, colored on a terminal. `execsql --help` lists the commands, both invocation forms, and the global options `--version` and `-o`/`--online-help`; `execsql <command> --help` shows each command's options. Piped help has no color, and `NO_COLOR` or `EXECSQL_NO_COLOR` turns it off.
 - MySQL and MariaDB connections now default to `utf8mb4` instead of `latin1`. A latin1 connection could not carry CJK, emoji, Greek, or Cyrillic at all — inserting such text raised `UnicodeEncodeError` before reaching the server — so scripts had to pass `-e utf8mb4` to move most of Unicode. Existing latin1 databases are unaffected: the connection charset governs only client/server transfer, and MySQL transcodes to and from each column's own charset. Pass `-e latin1` to restore the previous behavior.
 
 ### Fixed
 
-- execsql2 now requires Typer 0.16 or newer (previously 0.12). Older Typer releases paired with Click 8.2 or newer misread execsql's command-line flags, and Typer 0.12.0–0.12.3 could not start the CLI at all.
-- The `execsql lint` and `execsql format` usage lines end in `FILE_OR_DIR...`, showing that several files or directories can be given. Usage lines no longer change with the installed Typer version.
-- `execsql --help` lists the commands and shows both invocation forms, so the original `execsql script.sql server db` is stated as a first-class usage rather than left to be discovered. `run`, `format`, and `lint` are real commands, so `execsql <command> --help` works for each.
-- `execsql format` documents its own options — `--check`, `--in-place`, `--indent`, `--leading-comma`, `--no-sql`, `--encoding` — which the command had been hiding.
-- `--online-help` and `--version` are global options, listed under their own heading. They describe execsql itself rather than a run, so they work before any command. `--config` stays on `run`: only `run` reads a configuration file.
-- CLI help is plain text rather than bordered panels, with color on a terminal: headings in green, option flags and command names in cyan. Piped help stays plain. Set `NO_COLOR` or `EXECSQL_NO_COLOR` to turn color off.
-- `execsql lint --help` no longer fails with a traceback, and `execsql lint` with no arguments reports the usage instead of one. The verb had no argument parser of its own, so `--help` was read as a file name.
+- `-h` works as a short form of `--help`, as it did in upstream execsql.
 - A script's reported location no longer depends on a second, synthetic copy of the statement being in sync with the parse tree. The executor built a stand-in legacy command object for every statement so that error messages, the debug REPL, and `api.run()` could read the current file and line; those now read the syntax tree directly.
 - `execsql.api.run()` no longer discards every `WRITE ... TO <file>` and `TEE` to a file. Those metacommands hand their output to a FileWriter subprocess that only the CLI started, so under the library API the file was never created and the run still reported success ([#46](https://github.com/geocoug/execsql/issues/46)). `run()` now starts the writer, and flushes and closes every file before returning, so output is readable as soon as it hands back control. A writer the caller started themselves is left untouched.
 - File output that cannot be written because no FileWriter is running now reports a warning instead of being dropped in silence. The write is still skipped — queueing to a subprocess that is not draining the queue deadlocks the caller — but a script's logfile no longer comes back empty with no indication anything was missed.

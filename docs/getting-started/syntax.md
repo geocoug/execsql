@@ -132,6 +132,13 @@ When `-t` is not specified, the default is SQLite (`l`).
 
 ## Options Reference { #options }
 
+The options below belong to `run`, so they work with `execsql run` and with
+the bare form (`execsql -tl script.sql mydb.sqlite`). `execsql run --help`
+lists them all. `-h`/`--help`, `--version`, and `-o`/`--online-help` also work
+on their own (`execsql --version`) and anywhere on the command line.
+`format` has its own options, described in the [formatter guide](../guides/formatter.md),
+and `lint` takes only files or directories.
+
 ### Connection options
 
 `-t`, `--type` *{a,d,f,k,l,m,o,p,s}*

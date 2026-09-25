@@ -172,12 +172,12 @@ silences.
 | `-v {0,1,2,3}`                                    | GUI level (0=none, 1=password, 2=selection, 3=full)             |
 | `--config FILE`                                   | Load an explicit config file                                    |
 | `--dry-run`                                       | Parse the script and report commands without executing          |
-| `--lint`                                          | Static analysis: check structure and warn on issues (no DB)     |
+| `--lint`                                          | Static analysis of the script (no DB); `execsql lint` for dirs  |
 | `--ping`                                          | Test database connectivity and exit                             |
 | `--debug`                                         | Start in step-through debug mode (REPL pauses before each stmt) |
 | `--no-system-cmd` / `--no-rm-file` / `--no-serve` | Disable the `SYSTEM_CMD` / `RM_FILE` / `SERVE` metacommands     |
 
-See the [full options reference](https://execsql2.readthedocs.io/en/latest/getting-started/syntax/#options) or run `execsql --help` for the complete list, and `execsql -m` for all metacommands.
+See the [full options reference](https://execsql2.readthedocs.io/en/latest/getting-started/syntax/#options) or run `execsql run --help` for the complete list, and `execsql -m` for all metacommands.
 
 ## Features
 

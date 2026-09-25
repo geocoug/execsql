@@ -297,3 +297,63 @@ class TestUsageLines:
 
         output = CliRunner().invoke(app, [command, "--help"]).output
         assert " ".join(output.split("\n\n", 1)[0].split()) == usage
+
+
+class TestUpstreamFlagPositions:
+    """Upstream's optparse accepted -h, --version and -o anywhere.
+
+    ``execsql script.sql db --version`` printed the version in v1.130.1, so it
+    must not read ``--version`` as a database name now that the options live
+    on the app rather than on the run.
+    """
+
+    def _invoke(self, args):
+        from typer.testing import CliRunner
+
+        from execsql.cli import app
+
+        return CliRunner().invoke(app, args)
+
+    @pytest.mark.parametrize(
+        "args",
+        [["--version"], ["run", "--version"], ["s.sql", "--version"], ["s.sql", "srv", "db", "--version"]],
+        ids=" ".join,
+    )
+    def test_version_anywhere(self, args):
+        from execsql import __version__
+
+        result = self._invoke(args)
+        assert result.exit_code == 0, result.output
+        assert __version__ in result.output
+
+    @pytest.mark.parametrize(
+        "args",
+        [["-h"], ["run", "-h"], ["lint", "-h"], ["format", "-h"], ["s.sql", "-h"]],
+        ids=" ".join,
+    )
+    def test_short_help(self, args):
+        result = self._invoke(args)
+        assert result.exit_code == 0, result.output
+        assert result.output.startswith("Usage:")
+
+    def test_online_help_after_the_script(self, monkeypatch):
+        import webbrowser
+
+        opened = []
+        monkeypatch.setattr(webbrowser, "open", lambda url, *a, **k: opened.append(url) or True)
+        result = self._invoke(["s.sql", "-o"])
+        assert result.exit_code == 0, result.output
+        assert opened == ["https://execsql2.readthedocs.io/en/latest/"]
+
+    def test_hidden_copies_stay_out_of_run_help(self):
+        out = self._invoke(["run", "--help"]).output
+        assert "--version" not in out
+        assert "--online-help" not in out
+
+    @pytest.mark.parametrize("command", ["run", "format", "lint"])
+    def test_arguments_listed_once(self, command):
+        """Click 8.5 renders arguments in a separate step; they must not appear twice."""
+        out = self._invoke([command, "--help"]).output
+        headings = [line for line in out.splitlines() if line.endswith(":") and not line.startswith(" ")]
+        assert "Positional arguments:" not in headings
+        assert headings.count("Arguments:") == 1
