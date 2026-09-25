@@ -1638,11 +1638,11 @@ To start in step-through mode from the command line without inserting any `BREAK
 execsql --debug myscript.sql mydb.sqlite
 ```
 
-## **Example 37:** Static Analysis with --lint { #example37 }
+## **Example 37:** Static Analysis with lint { #example37 }
 
-The `--lint` flag parses a script and performs static analysis without connecting to a database or executing anything. It reports structural errors (unmatched `IF`/`ENDIF`, `LOOP`/`END LOOP`, `BEGIN BATCH`/`END BATCH`) and warnings (potentially undefined variable references, missing `INCLUDE` files, empty scripts). The linter requires no database connection and is safe to run in CI.
+`execsql lint` parses scripts and checks them without connecting to a database or executing anything, so it is safe to run in CI. It reports structural errors (unmatched `IF`/`ENDIF`, `LOOP`/`END LOOP`, `BEGIN BATCH`/`END BATCH`) and warnings: variables that are used but never defined, variables that are defined but never used, `IF` conditions that are always true or always false, statements after an unconditional `HALT`, missing `INCLUDE` files, and empty scripts.
 
-Consider a script with a typo: the variable `!!output_path!!` is used but never defined by a `SUB` metacommand.
+Consider a script with a typo: the export path is defined as `report_dir` but referenced as `!!output_path!!`.
 
 ``` sql
 -- validate_orders.sql
@@ -1661,7 +1661,7 @@ create temporary view stale_orders as
 Running the linter:
 
 ``` bash
-execsql --lint validate_orders.sql
+execsql lint validate_orders.sql
 ```
 
 Produces output similar to:
@@ -1669,14 +1669,22 @@ Produces output similar to:
 ``` text
 Lint: validate_orders.sql
 
-  WARNING  validate_orders.sql:10  Potentially undefined variable: !!output_path!!
-                                   (not defined by a preceding SUB; may be set by a
-                                   config file or -a arg)
+  WARNING  validate_orders.sql:2   variable !!report_dir!! is defined but never referenced
+  WARNING  validate_orders.sql:10  Potentially undefined variable: !!output_path!! (not defined by a
+preceding SUB; may be set by a config file or -a arg)
 
-  1 warning
+  2 warnings
 ```
 
-Errors appear as `ERROR` and cause `--lint` to exit with code 1. Warnings exit with code 0. This makes it straightforward to gate a CI step on `execsql --lint` — the step fails only when there is a structural error, not for warnings.
+The two warnings are the two halves of the same typo: one name is defined and never read, the other is read and never defined.
+
+Errors appear as `ERROR` and make `execsql lint` exit with code 1. Warnings alone exit with code 0, so a CI step gated on `execsql lint` fails only on a structural error. Pass a directory to check every `*.sql` file under it:
+
+``` bash
+execsql lint scripts/
+```
+
+The `--lint` option of `run` does the same check for the one script it is given: `execsql --lint validate_orders.sql`.
 
 The linter performs a two-pass analysis: it first collects all variable definitions across the entire script (including `BEGIN SCRIPT` blocks), then checks all references. This means a variable defined after its first use is not flagged as undefined.
 

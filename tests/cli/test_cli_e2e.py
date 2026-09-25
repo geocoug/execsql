@@ -32,9 +32,14 @@ def _run_execsql(*args: str, **kwargs) -> subprocess.CompletedProcess[str]:
 
 
 def _run_formatter(*args: str) -> subprocess.CompletedProcess[str]:
-    """Invoke the formatter entry point via Python."""
+    """Invoke ``execsql format`` via Python.
+
+    The formatter's options are declared on the ``format`` command rather
+    than on an app of its own, so it is reached through the main CLI.
+    """
+    code = "import sys; from execsql.cli import app; sys.argv = ['execsql', 'format', *sys.argv[1:]]; app()"
     return subprocess.run(
-        [sys.executable, "-c", "from execsql.format import main; main()", *args],
+        [sys.executable, "-c", code, *args],
         capture_output=True,
         text=True,
         env=_SUBPROCESS_ENV,

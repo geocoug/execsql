@@ -10,7 +10,7 @@ When a user runs `execsql script.sql mydb.sqlite -t l`, the following sequence o
 
 ```mermaid
 flowchart TD
-    CLI["CLI entry point<br/><code>cli/__init__.py</code><br/>Typer parses args"]
+    CLI["CLI entry point<br/><code>cli/dispatch.py</code> → <code>cli/__init__.py</code><br/>Typer parses args"]
     RUN["<code>_run()</code><br/><code>cli/run.py</code><br/>Initialize state, config, subvars"]
     CONF["Load configuration<br/><code>ConfigData</code><br/>Merge execsql.conf files"]
     INIT["Initialize state<br/><code>state.initialize()</code><br/>Create singletons"]
@@ -81,7 +81,7 @@ flowchart LR
 
 | Package         | Purpose                                                                                                                       |
 | --------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `cli/`          | Typer app, `_run()` orchestration, DSN URL parsing, Rich help output, `--lint` entry points                                   |
+| `cli/`          | Typer app and help rendering, `run`/`format`/`lint` commands, `_run()` orchestration, DSN URL parsing, Rich `-m`/`-y` tables  |
 | `api.py`        | Public `execsql.run()` Python entry point for notebooks, pipelines, and library use                                           |
 | `config.py`     | `ConfigData` (INI merging), `StatObj` (runtime flags), `WriteHooks` (stdout/stderr redirection)                               |
 | `state.py`      | Thread-local runtime store — all shared mutable state lives here, isolated per-thread                                         |
