@@ -11,28 +11,24 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
-### Fixed
-
-- `execsql.api.run()` no longer discards every `WRITE ... TO <file>` and `TEE` to a file. Those metacommands hand their output to a FileWriter subprocess that only the CLI started, so under the library API the file was never created and the run still reported success ([#46](https://github.com/geocoug/execsql/issues/46)). `run()` now starts the writer, and flushes and closes every file before returning, so output is readable as soon as it hands back control. A writer the caller started themselves is left untouched.
-- File output that cannot be written because no FileWriter is running now reports a warning instead of being dropped in silence. The write is still skipped — queueing to a subprocess that is not draining the queue deadlocks the caller — but a script's logfile no longer comes back empty with no indication anything was missed.
-
 ### Added
 
 - Database support tiers. PostgreSQL, MySQL/MariaDB, MS SQL Server, SQLite, and DuckDB are **supported** — verified against a live server or real database file on every CI run. MS Access, Firebird, Oracle, and ODBC DSN are **best effort** — present, unverified in CI, and may break. No adapter changes behavior or is scheduled for removal.
 - `support_tier_notice` configuration option (`[interface]` section, default `Yes`). Opening a best-effort database connection writes one line to stderr naming the tier, once per DBMS per run. Set it to `No` to silence.
 
-### Fixed
-
-- `EXPORT ... AS CSV` (and the other delimited formats) no longer corrupts values containing a newline when run on Windows. Universal-newline translation rewrote every `\n` as `\r\n` on write, including newlines *inside* a quoted field, so an exported value did not match the one in the database. Delimited files now use `\n` row terminators on every platform, so the same query produces the same bytes everywhere.
-
 ### Changed
 
+- MySQL and MariaDB connections now default to `utf8mb4` instead of `latin1`. A latin1 connection could not carry CJK, emoji, Greek, or Cyrillic at all — inserting such text raised `UnicodeEncodeError` before reaching the server — so scripts had to pass `-e utf8mb4` to move most of Unicode. Existing latin1 databases are unaffected: the connection charset governs only client/server transfer, and MySQL transcodes to and from each column's own charset. Pass `-e latin1` to restore the previous behavior.
+
+### Fixed
+
+- `execsql.api.run()` no longer discards every `WRITE ... TO <file>` and `TEE` to a file. Those metacommands hand their output to a FileWriter subprocess that only the CLI started, so under the library API the file was never created and the run still reported success ([#46](https://github.com/geocoug/execsql/issues/46)). `run()` now starts the writer, and flushes and closes every file before returning, so output is readable as soon as it hands back control. A writer the caller started themselves is left untouched.
+- File output that cannot be written because no FileWriter is running now reports a warning instead of being dropped in silence. The write is still skipped — queueing to a subprocess that is not draining the queue deadlocks the caller — but a script's logfile no longer comes back empty with no indication anything was missed.
 - `IMPORT` reads CSV files containing a quoted field with a newline. RFC 4180 allows it and execsql's own CSV export produces it, but format diagnosis scanned physical lines, so the delimiter looked inconsistent and was rejected: the header arrived as a single column and the record split into two rows with the quote characters still in the data. Exporting a multi-line value and importing it back now round-trips.
 - `IMPORT` to MySQL writes an empty field as NULL instead of the column's zero value. `LOAD DATA` coerced an empty numeric to `0` and an empty date to `0000-00-00`, so the same file imported to MySQL differed from every other backend.
 - `IMPORT` to MySQL reads CRLF files correctly. `LOAD DATA` defaults to `\n` as its line terminator, so every row's last field kept a trailing carriage return — enough to turn an empty date column into `0000-00-00`.
+- `EXPORT ... AS CSV` (and the other delimited formats) no longer corrupts values containing a newline when run on Windows. Universal-newline translation rewrote every `\n` as `\r\n` on write, including newlines *inside* a quoted field, so an exported value did not match the one in the database. Delimited files now use `\n` row terminators on every platform, so the same query produces the same bytes everywhere.
 - `EXPORT ... AS TAB`/console pretty-printing keeps every row on one line. A newline or tab inside a value split the row across physical lines and misaligned every column after it; both are now shown as `\\n` and `\\t`, so the table stays square and the break is still visible.
-- Jinja2 report templates with an `.html`, `.htm`, or `.xml` extension now escape the values rendered into them. Autoescaping was off, so a database value containing markup — `<script>`, `&`, a quote — became live markup in the generated report. Templates with any other extension (`.csv`, `.tex`, `.txt`, `.sql`, `.md`) are unchanged, since escaping those would corrupt them. A template that means to emit markup uses `{{ value|safe }}`.
-- Exports and copies to DuckDB no longer lose floating-point precision. `DT_Float` is IEEE double precision and a Python float always is one, but DuckDB columns were declared `REAL` — single precision — so `1234.567` came back as `1234.5670166015625`. DuckDB columns are now `DOUBLE`, matching every other backend. Affects `EXPORT ... AS DUCKDB` and `COPY` into a DuckDB database.
 - `EXPORT ... AS VALUES` quotes dates, timestamps, and every other non-numeric value in the generated `INSERT`. Only strings were quoted, so a date was written bare as `2026-09-24` — which SQL reads as arithmetic, not a date. PostgreSQL accepted the statement and stored `1993` without complaint; a timestamp, carrying a space, was a syntax error instead. Numbers are still written bare, and `NULL` is unchanged.
 - `EXPORT ... AS LATEX` escapes every LaTeX special character, not only `_`. An `&` in a value acted as a column separator and produced a table with the wrong number of columns, which LaTeX refuses to compile ("Extra alignment tab has been changed to \\cr"); a `%` commented out the rest of the row. `\\ & % $ # _ { } ~ ^` are now all escaped.
 - `EXPORT ... AS LATEX` writes NULL as an empty cell instead of the literal text `None`.
@@ -41,7 +37,8 @@ ______________________________________________________________________
 - `EXPORT ... AS ODS` writes `numeric`/`decimal` columns as typed numbers. PostgreSQL, MySQL, and DuckDB return `Decimal` for those columns, which was written with an `office:value` but no `office:value-type` — not valid ODF, leaving a reader free to treat the number as text or ignore it.
 - `EXPORT ... AS ODS` keeps newlines inside a value instead of replacing them with spaces. Multi-line text is now written as one line per `<text:p>`, which is how ODF represents it; previously the exported cell did not match the value in the database.
 - `EXPORT ... AS XLSX` writes `numeric`/`decimal` columns as numbers instead of text. PostgreSQL, MySQL, and DuckDB return `Decimal` for those columns, which fell through to a string cell — a measurement column arrived in Excel as text and could not be summed, sorted, or charted. Integer and float columns were unaffected.
-- MySQL and MariaDB connections now default to `utf8mb4` instead of `latin1`. A latin1 connection could not carry CJK, emoji, Greek, or Cyrillic at all — inserting such text raised `UnicodeEncodeError` before reaching the server — so scripts had to pass `-e utf8mb4` to move most of Unicode. Existing latin1 databases are unaffected: the connection charset governs only client/server transfer, and MySQL transcodes to and from each column's own charset. Pass `-e latin1` to restore the previous behavior.
+- Exports and copies to DuckDB no longer lose floating-point precision. `DT_Float` is IEEE double precision and a Python float always is one, but DuckDB columns were declared `REAL` — single precision — so `1234.567` came back as `1234.5670166015625`. DuckDB columns are now `DOUBLE`, matching every other backend. Affects `EXPORT ... AS DUCKDB` and `COPY` into a DuckDB database.
+- Jinja2 report templates with an `.html`, `.htm`, or `.xml` extension now escape the values rendered into them. Autoescaping was off, so a database value containing markup — `<script>`, `&`, a quote — became live markup in the generated report. Templates with any other extension (`.csv`, `.tex`, `.txt`, `.sql`, `.md`) are unchanged, since escaping those would corrupt them. A template that means to emit markup uses `{{ value|safe }}`.
 
 ______________________________________________________________________
 
