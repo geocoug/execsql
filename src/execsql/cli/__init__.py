@@ -17,7 +17,9 @@ import sys
 import traceback
 from pathlib import Path
 
+import click
 import typer
+from typer.core import TyperGroup
 
 from execsql import __version__
 from execsql.cli.dsn import _parse_connection_string, _SCHEME_TO_DBTYPE  # noqa: F401 — re-export
@@ -45,9 +47,39 @@ __all__ = [
 # Typer app
 # ---------------------------------------------------------------------------
 
+
+class _RunByDefaultGroup(TyperGroup):
+    """A command group whose default command is ``run``.
+
+    ``execsql script.sql server db`` has been the invocation since upstream
+    v1.130.1, so an argument list carrying no command name gets ``run``
+    inserted before the parser sees it. Doing that here rather than in the
+    console-script wrapper means the app behaves the same however it is
+    reached — the entry point, ``python -m execsql``, or a test driving
+    ``app`` directly.
+    """
+
+    def parse_args(self, ctx: click.Context, args: list[str]) -> list[str]:
+        from execsql.cli.dispatch import normalize
+
+        if not args:
+            # Click's no_args_is_help exits 0 for a group. Running execsql with
+            # no arguments is a usage error and has always exited non-zero, so
+            # the help goes out but the status does not change.
+            click.echo(ctx.get_help(), color=ctx.color)
+            ctx.exit(2)
+        return super().parse_args(ctx, normalize(args))
+
+
 app = typer.Typer(
+    cls=_RunByDefaultGroup,
     name="execsql",
-    help="Run a SQL script against a database with metacommand support.",
+    help=(
+        "Write, format, lint and run SQL scripts with metacommands.\n\n"
+        "[dim]format and lint need no database. Giving no command runs the "
+        "script, so [bold]execsql script.sql server db[/bold] works exactly as "
+        "it always has.[/dim]"
+    ),
     add_completion=False,
     rich_markup_mode="rich",
     no_args_is_help=True,
@@ -61,6 +93,7 @@ def _version_callback(value: bool) -> None:
 
 
 @app.command(
+    name="run",
     context_settings={"allow_extra_args": True, "ignore_unknown_options": True},
 )
 def main(
@@ -349,15 +382,6 @@ def main(
 ) -> None:
     """Run [bold]SQL_SCRIPT[/bold] against the specified database.
 
-    [green]Commands:[/green]
-      [bold]execsql run[/bold]     SQL_SCRIPT [SERVER DATABASE | DATABASE_FILE]
-      [bold]execsql format[/bold]  FILE_OR_DIR...   normalize keywords, indentation and SQL
-      [bold]execsql lint[/bold]    FILE_OR_DIR...   check structure without a database
-
-    [dim]format and lint need no database and take directories. 'fmt' is an
-    alias for 'format'. Run 'execsql <command> --help' for a command's own
-    options. Giving no command runs the script, as it always has.[/dim]
-
     [dim]Positional arguments after the script file:[/dim]
 
     [green]Client-server databases:[/green]
@@ -625,6 +649,67 @@ def main(
         no_serve=no_serve,
         config_file=config_file,
     )
+
+
+# ---------------------------------------------------------------------------
+# format / lint commands
+#
+# Registered here rather than dispatched by hand so that ``execsql --help``
+# lists them: a Typer app with one command has no command list to show.
+# ---------------------------------------------------------------------------
+
+
+@app.command(
+    name="format",
+    context_settings={"allow_extra_args": True, "ignore_unknown_options": True},
+    help="Normalize metacommand keywords, block indentation, and SQL layout.",
+)
+def format_cmd(ctx: typer.Context) -> None:
+    """Format execsql scripts.
+
+    The formatter owns its own options, so the arguments are handed to it
+    whole rather than redeclared here — one definition of ``--check``,
+    ``--in-place``, ``--indent`` and the rest.
+    """
+    from execsql.format import main as _format_main
+
+    argv = sys.argv
+    try:
+        sys.argv = ["execsql format", *ctx.args]
+        _format_main()
+    finally:
+        sys.argv = argv
+
+
+@app.command(
+    name="fmt",
+    context_settings={"allow_extra_args": True, "ignore_unknown_options": True},
+    hidden=True,
+    help="Alias for format.",
+)
+def fmt_cmd(ctx: typer.Context) -> None:
+    """Alias for :func:`format_cmd`, hidden so the list shows one spelling."""
+    format_cmd(ctx)
+
+
+@app.command(
+    name="lint",
+    help="Statically check scripts for problems. No database connection is made.",
+)
+def lint_cmd(
+    targets: list[str] = typer.Argument(
+        ...,
+        metavar="FILE_OR_DIR",
+        help="Files or directories to check. Directories are searched recursively for *.sql files.",
+    ),
+) -> None:
+    """Report unmatched blocks, undefined variables, unreachable branches, and
+    missing INCLUDE / EXECUTE SCRIPT targets. Exits 1 when any error is found;
+    warnings do not affect the exit code.
+    """
+    from execsql.cli.dispatch import lint_paths
+
+    raise typer.Exit(code=lint_paths(targets))
 
 
 # ---------------------------------------------------------------------------

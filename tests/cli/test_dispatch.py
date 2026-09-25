@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-from execsql.cli.dispatch import VERBS, route
+from execsql.cli.dispatch import COMMANDS, GLOBAL_FLAGS, normalize
 
 # Every legacy shape the documentation shows, plus the bare and flag-only
 # forms.  All of these must reach the runner with argv untouched.
@@ -33,64 +33,67 @@ LEGACY_INVOCATIONS = [
 
 
 class TestLegacyFormIsUntouched:
+    """Every documented invocation must still reach the runner, unchanged.
+
+    ``normalize`` inserts ``run``; the arguments after it must be exactly what
+    the user typed, in the same order.
+    """
+
     @pytest.mark.parametrize("argv", LEGACY_INVOCATIONS, ids=lambda a: " ".join(a[1:]) or "<bare>")
-    def test_routes_to_legacy(self, argv):
-        target, _ = route(argv)
-        assert target == "legacy", f"{' '.join(argv)} changed meaning"
+    def test_routes_to_run(self, argv):
+        out = normalize(argv[1:])
+        if not argv[1:] or argv[1] in GLOBAL_FLAGS:
+            return  # bare execsql and --help are answered by the app itself
+        assert out[0] == "run", f"{' '.join(argv)} no longer runs the script"
 
     @pytest.mark.parametrize("argv", LEGACY_INVOCATIONS, ids=lambda a: " ".join(a[1:]) or "<bare>")
     def test_arguments_arrive_unchanged(self, argv):
-        """The runner parser must see exactly what the user typed."""
-        _, rest = route(argv)
-        assert rest == argv[1:]
+        out = normalize(argv[1:])
+        tail = out[1:] if out and out[0] == "run" else out
+        assert tail == argv[1:]
+
+    def test_help_is_answered_by_the_app(self):
+        """``execsql --help`` must list the commands, not run a script."""
+        assert normalize(["--help"]) == ["--help"]
+
+    @pytest.mark.parametrize("flag", ["--version", "-m", "--encodings", "--init-config"])
+    def test_early_exit_options_still_reach_the_runner(self, flag):
+        """These are declared on run, so they need the verb in front."""
+        assert normalize([flag]) == ["run", flag]
 
 
-class TestVerbsSelectSubcommands:
-    @pytest.mark.parametrize(
-        "head,expected",
-        [("run", "run"), ("format", "format"), ("fmt", "format"), ("lint", "lint")],
-    )
-    def test_verb_routes(self, head, expected):
-        target, rest = route(["execsql", head, "scripts/"])
-        assert target == expected
-        assert rest == ["scripts/"]
+class TestCommandsAreLeftAlone:
+    @pytest.mark.parametrize("head", ["run", "format", "fmt", "lint"])
+    def test_a_command_is_not_prefixed(self, head):
+        assert normalize([head, "scripts/"]) == [head, "scripts/"]
 
-    def test_fmt_is_an_alias_for_format(self):
-        assert route(["execsql", "fmt", "-i", "x/"]) == route(["execsql", "format", "-i", "x/"])
-
-    def test_run_strips_only_the_verb(self):
-        _, rest = route(["execsql", "run", "-tp", "s.sql", "srv", "db"])
-        assert rest == ["-tp", "s.sql", "srv", "db"]
+    def test_run_keeps_its_arguments(self):
+        assert normalize(["run", "-tp", "s.sql", "srv", "db"]) == ["run", "-tp", "s.sql", "srv", "db"]
 
 
-class TestAFileAlwaysWinsOverAVerb:
-    """A script named after a verb must still run.
+class TestAFileAlwaysWinsOverACommand:
+    """A script named after a command must still run.
 
-    This is the only way adding subcommands could change an existing command
+    This is the only way adding commands could change an existing command
     line's meaning, so it is resolved in favour of the file.
     """
 
-    @pytest.mark.parametrize("name", VERBS)
-    def test_existing_file_shadows_the_verb(self, name, tmp_path, monkeypatch):
+    @pytest.mark.parametrize("name", COMMANDS)
+    def test_existing_file_shadows_the_command(self, name, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
         (tmp_path / name).write_text("select 1;", encoding="utf-8")
-        target, rest = route(["execsql", name, "myserver", "mydb"])
-        assert target == "legacy"
-        assert rest == [name, "myserver", "mydb"]
+        assert normalize([name, "myserver", "mydb"]) == ["run", name, "myserver", "mydb"]
 
-    @pytest.mark.parametrize("name", VERBS)
-    def test_verb_wins_when_no_such_file(self, name, tmp_path, monkeypatch):
+    @pytest.mark.parametrize("name", COMMANDS)
+    def test_command_wins_when_no_such_file(self, name, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
-        target, _ = route(["execsql", name, "scripts/"])
-        assert target != "legacy"
+        assert normalize([name, "scripts/"])[0] == name
 
     def test_a_dotted_name_was_never_ambiguous(self, tmp_path, monkeypatch):
-        """``lint.sql`` is a path, not a verb, whether or not it exists."""
+        """``lint.sql`` is a path, not a command, whether or not it exists."""
         monkeypatch.chdir(tmp_path)
         (tmp_path / "lint.sql").write_text("select 1;", encoding="utf-8")
-        target, rest = route(["execsql", "lint.sql"])
-        assert target == "legacy"
-        assert rest == ["lint.sql"]
+        assert normalize(["lint.sql"]) == ["run", "lint.sql"]
 
 
 class TestLintSubcommandWalksDirectories:
@@ -138,6 +141,32 @@ class TestLintSubcommandWalksDirectories:
         (tmp_path / "broken.sql").write_text("-- !x! IF(1=1)\nselect 1;\n", encoding="utf-8")
         assert lint_paths([str(tmp_path)]) == 1
         assert "broken.sql" in capsys.readouterr().out
+
+
+class TestTheCommandListIsRendered:
+    """``execsql --help`` must show a Commands panel, like any grouped CLI.
+
+    A Typer app carrying one command has no list to render, which is what
+    made the commands invisible when they were dispatched by hand.
+    """
+
+    def _help(self):
+        import subprocess
+        import sys
+
+        code = "import sys; from execsql.cli.dispatch import dispatch; sys.argv=['execsql','--help']; dispatch()"
+        return subprocess.run([sys.executable, "-c", code], capture_output=True, text=True).stdout
+
+    def test_a_commands_section_exists(self):
+        assert "Commands" in self._help()
+
+    @pytest.mark.parametrize("name", ["run", "format", "lint"])
+    def test_each_command_is_listed(self, name):
+        assert name in self._help()
+
+    def test_the_alias_is_not_listed_twice(self):
+        """fmt is hidden so the list shows one spelling of the formatter."""
+        assert self._help().count("fmt") == 0
 
 
 class TestHelpIsDiscoverable:

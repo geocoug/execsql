@@ -32,7 +32,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- `execsql --help` lists the commands. They were reachable but undocumented in the CLI itself, so the toolchain was invisible to anyone who had not read the README — which was the point of adding them.
+- `execsql --help` lists the commands in a Commands section, the way any grouped CLI does. `run`, `format`, and `lint` are real commands rather than names matched before the parser ran, so `execsql <command> --help` works for each and the toolchain is discoverable from the CLI itself.
 - `execsql lint --help` no longer fails with a traceback, and `execsql lint` with no arguments reports the usage instead of one. The verb had no argument parser of its own, so `--help` was read as a file name.
 - A script's reported location no longer depends on a second, synthetic copy of the statement being in sync with the parse tree. The executor built a stand-in legacy command object for every statement so that error messages, the debug REPL, and `api.run()` could read the current file and line; those now read the syntax tree directly.
 - `execsql.api.run()` no longer discards every `WRITE ... TO <file>` and `TEE` to a file. Those metacommands hand their output to a FileWriter subprocess that only the CLI started, so under the library API the file was never created and the run still reported success ([#46](https://github.com/geocoug/execsql/issues/46)). `run()` now starts the writer, and flushes and closes every file before returning, so output is readable as soon as it hands back control. A writer the caller started themselves is left untouched.
