@@ -134,7 +134,7 @@ class TestLintSubcommandWalksDirectories:
 
         (tmp_path / "ok.sql").write_text("-- !x! SUB a 1\nselect '!!a!!';\n", encoding="utf-8")
         assert lint_paths([str(tmp_path)]) == 0
-        assert "no issues" in capsys.readouterr().out
+        assert "No issues found (1 file checked)" in capsys.readouterr().out
 
     def test_no_sql_files_is_an_error(self, tmp_path):
         from execsql.cli.dispatch import lint_paths

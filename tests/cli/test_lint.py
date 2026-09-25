@@ -108,16 +108,14 @@ class TestPrintLintResultsFormatting:
 
     def test_no_issues_prints_no_issues_found(self, capsys):
         _print_lint_results([], "scriptname.sql")
-        captured = capsys.readouterr()
-        assert "No issues found" in captured.out
-        assert "scriptname.sql" in captured.out
+        out = capsys.readouterr().out
+        assert "No issues found (1 file checked)" in out
 
-    def test_issue_includes_source_and_line(self, capsys):
-        issues = [_error("foo.sql", 42, "bad thing")]
-        _print_lint_results(issues, "foo.sql")
-        captured = capsys.readouterr()
-        assert "foo.sql:42" in captured.out
-        assert "bad thing" in captured.out
+    def test_issues_sit_under_their_file(self, capsys):
+        _print_lint_results([_error("foo.sql", 42, "bad thing")], "foo.sql")
+        lines = capsys.readouterr().out.splitlines()
+        assert lines[0] == "foo.sql"
+        assert lines[1].split() == ["42", "error", "P001", "bad", "thing"]
 
     def test_issue_without_line_omits_colon_lineno(self, capsys):
         issues = [_error("foo.sql", 0, "global problem")]
@@ -127,15 +125,15 @@ class TestPrintLintResultsFormatting:
         assert "global problem" in captured.out
         assert "foo.sql" in captured.out
 
-    def test_errors_sort_before_warnings(self, capsys):
+    def test_issues_are_in_line_order(self, capsys):
+        """A reader works down the file, so rows follow the lines, whatever the severity."""
         issues = [
-            _warning("a.sql", 5, "MARK_W"),
             _error("a.sql", 9, "MARK_E"),
+            _warning("a.sql", 5, "MARK_W"),
         ]
         _print_lint_results(issues, "a.sql")
         out = capsys.readouterr().out
-        # ERROR row must appear before WARNING row in the output.
-        assert out.index("MARK_E") < out.index("MARK_W")
+        assert out.index("MARK_W") < out.index("MARK_E")
 
     def test_summary_line_counts(self, capsys):
         issues = [
@@ -365,43 +363,50 @@ def _messages(issues) -> str:
     return " | ".join(i.message for i in issues)
 
 
+def _codes(issues) -> set[str]:
+    """Which rules fired. Detection tests check codes, not wording: an
+    assertion that some text is *absent* passes forever once the text changes."""
+    return {i.code for i in issues}
+
+
 class TestConstantConditionMakesBranchesUnreachable:
     """`IF(True)` left in after debugging is what kills every other branch."""
 
     def test_always_true_reports_the_dead_else(self, tmp_path):
         issues = _lint(tmp_path, "-- !x! IF(True)\nSELECT 1;\n-- !x! ELSE\nSELECT 2;\n-- !x! ENDIF\n")
-        assert "can never run" in _messages(issues)
+        assert "F001" in _codes(issues)
 
     def test_always_true_with_no_else_is_not_reported(self, tmp_path):
         """Nothing is unreachable, so there is nothing to say."""
         issues = _lint(tmp_path, "-- !x! IF(True)\nSELECT 1;\n-- !x! ENDIF\n")
-        assert "can never run" not in _messages(issues)
+        assert "F001" not in _codes(issues)
 
     def test_always_false_reports_the_dead_body(self, tmp_path):
         issues = _lint(tmp_path, "-- !x! IF(FALSE)\nSELECT 1;\n-- !x! ENDIF\n")
+        assert "F001" in _codes(issues)
         assert "always false" in _messages(issues)
 
     @pytest.mark.parametrize("cond", ["1=1", "1 = 1", "true", "TRUE", "(True)", "yes"])
     def test_spellings_of_always_true(self, tmp_path, cond):
         issues = _lint(tmp_path, f"-- !x! IF({cond})\nSELECT 1;\n-- !x! ELSE\nSELECT 2;\n-- !x! ENDIF\n")
-        assert "can never run" in _messages(issues), cond
+        assert "F001" in _codes(issues), cond
 
     def test_a_real_condition_is_left_alone(self, tmp_path):
         """The rule must not fire on a condition with actual content."""
         issues = _lint(tmp_path, "-- !x! IF(hasrows(mytable))\nSELECT 1;\n-- !x! ELSE\nSELECT 2;\n-- !x! ENDIF\n")
-        assert "can never run" not in _messages(issues)
+        assert "F001" not in _codes(issues)
 
     def test_a_modifier_suppresses_the_rule(self, tmp_path):
         """An ANDIF can make the whole condition false, so it is not constant."""
         body = "-- !x! IF(True)\n-- !x! ANDIF(hasrows(t))\nSELECT 1;\n-- !x! ELSE\nSELECT 2;\n-- !x! ENDIF\n"
         issues = _lint(tmp_path, body)
-        assert "can never run" not in _messages(issues)
+        assert "F001" not in _codes(issues)
 
 
 class TestUnreachableAfterHalt:
     def test_a_statement_after_halt_is_reported(self, tmp_path):
         issues = _lint(tmp_path, '-- !x! HALT MESSAGE "done"\nSELECT 1;\n')
-        assert "unreachable" in _messages(issues)
+        assert "F002" in _codes(issues)
 
     def test_the_halt_line_is_named(self, tmp_path):
         issues = _lint(tmp_path, '-- !x! HALT MESSAGE "done"\nSELECT 1;\n')
@@ -409,18 +414,18 @@ class TestUnreachableAfterHalt:
 
     def test_halt_at_the_end_is_fine(self, tmp_path):
         issues = _lint(tmp_path, 'SELECT 1;\n-- !x! HALT MESSAGE "done"\n')
-        assert "unreachable" not in _messages(issues)
+        assert "F002" not in _codes(issues)
 
     def test_halt_display_is_not_terminal(self, tmp_path):
         """HALT DISPLAY shows a message and can be cancelled."""
         issues = _lint(tmp_path, "-- !x! HALT DISPLAY mytable\nSELECT 1;\n")
-        assert "unreachable" not in _messages(issues)
+        assert "F002" not in _codes(issues)
 
     def test_halt_inside_a_branch_does_not_condemn_the_rest(self, tmp_path):
         """Only the enclosing block is unreachable, not what follows ENDIF."""
         body = '-- !x! IF(hasrows(t))\n-- !x! HALT MESSAGE "stop"\n-- !x! ENDIF\nSELECT 1;\n'
         issues = _lint(tmp_path, body)
-        assert "unreachable" not in _messages(issues)
+        assert "F002" not in _codes(issues)
 
 
 class TestUnusedVariables:
@@ -428,26 +433,26 @@ class TestUnusedVariables:
 
     def test_an_unreferenced_sub_is_reported(self, tmp_path):
         issues = _lint(tmp_path, "-- !x! SUB orphan value\nSELECT 1;\n")
-        assert "defined but never referenced" in _messages(issues)
+        assert "V002" in _codes(issues)
 
     def test_a_referenced_sub_is_not_reported(self, tmp_path):
         issues = _lint(tmp_path, "-- !x! SUB used value\nSELECT '!!used!!';\n")
-        assert "defined but never referenced" not in _messages(issues)
+        assert "V002" not in _codes(issues)
 
     def test_a_reference_from_a_condition_counts(self, tmp_path):
         body = "-- !x! SUB flag 1\n-- !x! IF(!!flag!! = 1)\nSELECT 1;\n-- !x! ENDIF\n"
         issues = _lint(tmp_path, body)
-        assert "defined but never referenced" not in _messages(issues)
+        assert "V002" not in _codes(issues)
 
     def test_a_reference_from_inside_a_block_counts(self, tmp_path):
         body = "-- !x! SUB deep v\n-- !x! IF(hasrows(t))\nSELECT '!!deep!!';\n-- !x! ENDIF\n"
         issues = _lint(tmp_path, body)
-        assert "defined but never referenced" not in _messages(issues)
+        assert "V002" not in _codes(issues)
 
     def test_the_definition_line_is_reported(self, tmp_path):
         issues = _lint(tmp_path, "SELECT 1;\n-- !x! SUB orphan value\n")
-        unused = [i for i in issues if "never referenced" in i[3]]
-        assert unused and unused[0][2] == 2, unused
+        unused = [i for i in issues if i.code == "V002"]
+        assert unused and unused[0].line == 2, unused
 
 
 class TestTheProjectsOwnScriptsStayQuiet:
@@ -471,7 +476,7 @@ class TestTheProjectsOwnScriptsStayQuiet:
             "-- !x! ENDIF\n"
         )
         issues = _lint(tmp_path, body)
-        structural = [i for i in issues if any(k in i[3] for k in ("can never run", "unreachable", "never referenced"))]
+        structural = [i for i in issues if i.code in ("F001", "F002", "V002")]
         assert not structural, structural
 
 
@@ -677,7 +682,7 @@ class TestLintCommand:
     def test_ignore_everything_reports_clean(self, library):
         result = self._run(str(library), "--ignore", "V,F")
         assert result.exit_code == 0
-        assert "no issues" in result.output
+        assert "No issues found (3 files checked)" in result.output
 
     def test_json_is_the_only_thing_on_stdout(self, library):
         import json
@@ -729,7 +734,107 @@ class TestLintCommand:
         result = CliRunner().invoke(app, ["--lint", str(library / "sub" / "flow.sql")])
         assert "F002" in result.output
 
-    def test_help_lists_every_rule(self):
+    def test_help_points_at_the_rules_page_instead_of_listing_rules(self):
+        """Rules are explained in the docs, not in --help."""
         out = self._run("--help").output
-        for code, rule in RULES.items():
-            assert code in out and rule.name in out, code
+        assert "reference/lint" in out
+        assert not any(rule.name in out for rule in RULES.values())
+
+
+# ---------------------------------------------------------------------------
+# Text layouts
+# ---------------------------------------------------------------------------
+
+
+class TestTextLayouts:
+    RESULTS = [
+        ("b.sql", [_warning("b.sql", 10, "second"), _warning("b.sql", 2, "first")]),
+        ("clean.sql", []),
+        ("a.sql", [_error("a.sql", 0, "no line")]),
+    ]
+
+    def test_grouped_layout(self, capsys):
+        from execsql.cli.lint import print_text
+
+        print_text(self.RESULTS, checked=3)
+        assert capsys.readouterr().out.splitlines() == [
+            "b.sql",
+            "   2  warning  V001  first",
+            "  10  warning  V001  second",
+            "",
+            "a.sql",
+            "  -  error    P001  no line",
+            "",
+            "Found 3 issues in 2 files: 1 error, 2 warnings (3 files checked)",
+        ]
+
+    def test_concise_layout(self, capsys):
+        from execsql.cli.lint import print_concise
+
+        print_concise(self.RESULTS, checked=3)
+        assert capsys.readouterr().out.splitlines() == [
+            "b.sql:2: V001 first",
+            "b.sql:10: V001 second",
+            "a.sql: P001 no line",
+            "",
+            "Found 3 issues in 2 files: 1 error, 2 warnings (3 files checked)",
+        ]
+
+    def test_piped_output_never_wraps(self, capsys):
+        from execsql.cli.lint import print_text
+
+        long = "word " * 60
+        print_text([("x.sql", [_warning("x.sql", 1, long.strip())])], checked=1)
+        rows = [line for line in capsys.readouterr().out.splitlines() if "V001" in line]
+        assert len(rows) == 1 and rows[0].endswith("word")
+
+    def test_statistics_layout(self, capsys):
+        from execsql.cli.lint import print_statistics
+
+        print_statistics(self.RESULTS, checked=3)
+        assert capsys.readouterr().out.splitlines() == [
+            "  2  V001  undefined-variable",
+            "  1  P001  parse-error",
+            "",
+            "Found 3 issues in 2 files: 1 error, 2 warnings (3 files checked)",
+        ]
+
+    def test_concise_from_the_command_line(self, tmp_path):
+        from typer.testing import CliRunner
+
+        from execsql.cli import app
+
+        (tmp_path / "f.sql").write_text("-- !x! HALT\nSELECT 1;\n", encoding="utf-8")
+        out = CliRunner().invoke(app, ["lint", str(tmp_path / "f.sql"), "--output-format", "concise"]).output
+        assert out.splitlines()[0] == f"{tmp_path / 'f.sql'}:2: F002 unreachable: HALT on line 1 ends the script"
+
+
+class TestMessages:
+    """Messages are short; the rules page carries the explanation."""
+
+    @pytest.mark.parametrize(
+        ("script", "message"),
+        [
+            ("SELECT !!nowhere!!;\n", "undefined variable !!nowhere!!"),
+            ("-- !x! SUB spare 1\nSELECT 1;\n", "variable !!spare!! is never used"),
+            ("-- !x! INCLUDE gone.sql\n", "INCLUDE file does not exist: gone.sql"),
+            ("-- !x! EXECUTE SCRIPT nope\n", "no BEGIN SCRIPT block named nope"),
+            (
+                "-- !x! IF(True)\nSELECT 1;\n-- !x! ELSE\nSELECT 2;\n-- !x! ENDIF\n",
+                "IF(True) is always true; its ELSE never runs",
+            ),
+            (
+                "-- !x! IF(True)\nSELECT 1;\n-- !x! ELSEIF(x)\nSELECT 2;\n-- !x! ELSE\nSELECT 3;\n-- !x! ENDIF\n",
+                "IF(True) is always true; its ELSEIF and ELSE never run",
+            ),
+            (
+                "-- !x! IF(True)\nSELECT 1;\n-- !x! ELSEIF(x)\nSELECT 2;\n-- !x! ELSEIF(y)\nSELECT 3;\n-- !x! ENDIF\n",
+                "IF(True) is always true; its 2 ELSEIF branches never run",
+            ),
+            ("-- !x! IF(False)\nSELECT 1;\n-- !x! ENDIF\n", "IF(False) is always false; its body never runs"),
+            ("-- !x! HALT\nSELECT 1;\n", "unreachable: HALT on line 1 ends the script"),
+            ("", "script is empty"),
+        ],
+    )
+    def test_message(self, tmp_path, script, message):
+        assert message in _messages(_lint(tmp_path, script))

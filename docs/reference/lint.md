@@ -7,22 +7,26 @@ execsql lint scripts/                         # every *.sql file under scripts/,
 execsql lint load.sql transform.sql           # specific files
 execsql lint scripts/ --ignore V002           # skip one rule
 execsql lint scripts/ --select F              # only the control-flow rules
+execsql lint scripts/ --output-format concise # one path:line line per issue
 execsql lint scripts/ --output-format json    # for tools and CI annotations
 execsql lint scripts/ --statistics            # how often each rule fired
 ```
 
-Every issue names its rule code:
+Issues are grouped under each file, in line order, and every issue names its rule code:
 
 ```text
-Lint: scripts/validate_orders.sql
+scripts/validate_orders.sql
+   2  warning  V002  variable !!report_dir!! is never used
+  10  warning  V001  undefined variable !!output_path!!
 
-  WARNING  scripts/validate_orders.sql:2   V002  variable !!report_dir!! is defined but never referenced
-  WARNING  scripts/validate_orders.sql:10  V001  Potentially undefined variable: !!output_path!! (...)
+scripts/sub/flow.sql
+  1  warning  F001  IF(True) is always true; its ELSE never runs
+  7  warning  F002  unreachable: HALT on line 6 ends the script
 
-  2 warnings
+Found 4 issues in 2 files: 4 warnings (12 files checked)
 ```
 
-`execsql lint --help` lists the rules. The `--lint` option of `run` applies the same checks to the one script it is given, and prints the same codes, but has no `--select`, `--ignore`, or output-format options.
+The [rules](#rules) below explain each code. The `--lint` option of `run` applies the same checks to the one script it is given, in the same layout, but has no `--select`, `--ignore`, or output-format options.
 
 ## Exit status { #exit_status }
 
@@ -50,7 +54,19 @@ An entry that matches no rule is a usage error (exit status 2), so a typo in `--
 
 ## Output formats { #output }
 
-`--output-format text` (the default) is for people. `--output-format json` writes a single JSON array to stdout and nothing else, covering every file checked. Each element has these fields:
+`--output-format text` (the default) groups issues under each file, as shown above. On a terminal, a message too long for the window wraps under the message column; piped output is never wrapped.
+
+`--output-format concise` prints one line per issue, which suits `grep` and editors that jump to `path:line`:
+
+```text
+$ execsql lint scripts/ --output-format concise
+scripts/validate_orders.sql:2: V002 variable !!report_dir!! is never used
+scripts/validate_orders.sql:10: V001 undefined variable !!output_path!!
+
+Found 2 issues in 1 file: 2 warnings (12 files checked)
+```
+
+`--output-format json` writes a single JSON array to stdout and nothing else, covering every file checked. Each element has these fields:
 
 | Field      | Value                                                             |
 | ---------- | ----------------------------------------------------------------- |
@@ -69,7 +85,7 @@ An entry that matches no rule is a usage error (exit status 2), so a typo in `--
     "code": "V002",
     "rule": "unused-variable",
     "severity": "warning",
-    "message": "variable !!report_dir!! is defined but never referenced"
+    "message": "variable !!report_dir!! is never used"
   }
 ]
 ```
@@ -83,6 +99,8 @@ $ execsql lint scripts/ --statistics
   14  V001  undefined-variable
    3  V002  unused-variable
    1  F002  unreachable-code
+
+Found 18 issues in 7 files: 18 warnings (12 files checked)
 ```
 
 ## CI { #ci }
@@ -130,7 +148,8 @@ insert into orders select * from staging.orders;
 ```
 
 ```text
-ERROR  load.sql:1  P001  Parse error: Unmatched IF block starting on line 1 at end of file load.sql.
+load.sql
+  1  error    P001  Unmatched IF block starting on line 1 at end of file load.sql
 ```
 
 No other rule runs on a script that does not parse. Fix this one first.
