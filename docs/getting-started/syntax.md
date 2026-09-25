@@ -38,6 +38,24 @@ recursively for `*.sql`. A CI job runs them as two steps, so both report.
     no extension — is treated as a file, not a command, so even that case is
     unambiguous.
 
+### Help and color { #help_color }
+
+`execsql --help` lists the commands and the global options;
+`execsql <command> --help` shows that command's own options, for example
+`execsql run --help` for every connection and output flag below.
+
+On a terminal, help is colored: headings in green, option flags and command
+names in cyan. Piped or redirected help (`execsql run --help | less`,
+`execsql --help > options.txt`) is always plain text. To turn color off on a
+terminal as well, set either environment variable to any value:
+
+```sh
+export NO_COLOR=1           # the cross-tool convention, https://no-color.org
+export EXECSQL_NO_COLOR=1   # execsql only
+```
+
+The same two variables also turn off color in the [debug REPL](../reference/metacommands.md#breakpoint).
+
 ## Basic Usage { #basic_usage }
 
 ```text

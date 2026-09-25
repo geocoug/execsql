@@ -8,6 +8,8 @@ it is that no existing command line changed meaning when they were added.
 
 from __future__ import annotations
 
+import re
+
 import pytest
 
 from execsql.cli.dispatch import COMMANDS, GLOBAL_FLAGS, normalize
@@ -215,3 +217,56 @@ class TestHelpIsDiscoverable:
     def test_lint_with_no_arguments_shows_help_rather_than_failing(self):
         result = self._cli("lint")
         assert "Traceback" not in result.stderr, result.stderr
+
+
+class TestHelpColor:
+    """Help is colored on a terminal and nowhere else.
+
+    The styling is ANSI wrapped around text the plain renderer already
+    produced, so the strongest check is that stripping the codes gives back
+    exactly the uncolored help: same words, same columns, same wrapping.
+    """
+
+    ANSI = re.compile(r"\x1b\[[0-9;]*m")
+    PAGES = [["--help"], ["run", "--help"], ["format", "--help"], ["lint", "--help"]]
+
+    @pytest.fixture(autouse=True)
+    def _color_allowed(self, monkeypatch):
+        monkeypatch.delenv("NO_COLOR", raising=False)
+        monkeypatch.delenv("EXECSQL_NO_COLOR", raising=False)
+
+    def _help(self, args, *, color):
+        from typer.testing import CliRunner
+
+        from execsql.cli import app
+
+        result = CliRunner().invoke(app, args, color=color)
+        assert result.exit_code == 0, result.output
+        return result.output
+
+    @pytest.mark.parametrize("args", PAGES, ids=" ".join)
+    def test_help_is_colored_on_a_terminal(self, args):
+        assert self.ANSI.search(self._help(args, color=True))
+
+    @pytest.mark.parametrize("args", PAGES, ids=" ".join)
+    def test_color_changes_nothing_but_color(self, args):
+        colored = self._help(args, color=True)
+        assert self.ANSI.sub("", colored) == self._help(args, color=False)
+
+    @pytest.mark.parametrize("variable", ["NO_COLOR", "EXECSQL_NO_COLOR"])
+    def test_no_color_variables_turn_it_off(self, monkeypatch, variable):
+        monkeypatch.setenv(variable, "1")
+        assert not self.ANSI.search(self._help(["--help"], color=True))
+
+    def test_piped_help_has_no_escape_codes(self):
+        """A real pipe, not the test runner's stand-in for one."""
+        import subprocess
+        import sys
+
+        code = "import sys; from execsql.cli.dispatch import dispatch; sys.argv=['execsql', '--help']; dispatch()"
+        out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True).stdout
+        assert "Commands:" in out
+        assert "\x1b[" not in out
+
+    def test_hidden_alias_stays_hidden(self):
+        assert "fmt" not in self.ANSI.sub("", self._help(["--help"], color=True))

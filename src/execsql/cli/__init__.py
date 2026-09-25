@@ -15,6 +15,8 @@ from __future__ import annotations
 
 import sys
 import traceback
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -26,6 +28,7 @@ from execsql.cli.dsn import _parse_connection_string, _SCHEME_TO_DBTYPE  # noqa:
 from execsql.cli.help import _console, _err_console, _init_config, _print_encodings, _print_metacommands  # noqa: F401 — re-export
 from execsql.cli.run import _connect_initial_db, _run  # noqa: F401 — re-export
 from execsql.exceptions import ConfigError, ErrInfo
+from execsql.utils.color import color_disabled_by_env
 
 __all__ = [
     "_SCHEME_TO_DBTYPE",
@@ -65,6 +68,44 @@ def _unescape(record: tuple[str, str]) -> tuple[str, str]:
     return name.replace("\\[", "["), help_text.replace("\\[", "[")
 
 
+# Help color follows uv and cargo: headings bold green, names cyan with the
+# option flags bold. Click's echo drops ANSI when stdout is not a terminal,
+# and its column widths ignore escape codes, so styling costs no alignment
+# and never reaches a pipe; NO_COLOR is the one case left to handle here.
+
+
+def _style(text: str, **styles: Any) -> str:
+    if not text or color_disabled_by_env():
+        return text
+    return typer.style(text, **styles)
+
+
+@contextmanager
+def _section(formatter: Any, name: str) -> Iterator[None]:
+    """``formatter.section`` with a colored heading, colon included."""
+    formatter.write_paragraph()
+    formatter.write(f"{'':>{formatter.current_indent}}{_style(name + ':', fg='green', bold=True)}\n")
+    formatter.indent()
+    try:
+        yield
+    finally:
+        formatter.dedent()
+
+
+def _usage_prefix() -> str:
+    return _style("Usage:", fg="green", bold=True) + " "
+
+
+def _styled_record(param: Any, record: tuple[str, str]) -> tuple[str, str]:
+    """Color one help row: the flags bold, any metavar after them plain."""
+    name, help_text = _unescape(record)
+    if param.param_type_name == "argument":
+        return _style(name, fg="cyan"), help_text
+    flags = [*param.opts, *param.secondary_opts]
+    end = max((name.find(flag) + len(flag) for flag in flags if flag in name), default=len(name))
+    return _style(name[:end], fg="cyan", bold=True) + _style(name[end:], fg="cyan"), help_text
+
+
 # Typer 0.26 stopped depending on Click and vendors it as ``typer._click``, so
 # ``click.Context`` is the wrong class on newer Typer and ``click`` may not be
 # installed at all. The overrides below take ``ctx`` and ``formatter`` as
@@ -75,6 +116,10 @@ def _unescape(record: tuple[str, str]) -> tuple[str, str]:
 class _PlainHelpMixin:
     """Render option help without Typer's Rich escaping."""
 
+    def format_usage(self, ctx: Any, formatter: Any) -> None:
+        pieces = self.collect_usage_pieces(ctx)  # type: ignore[attr-defined]
+        formatter.write_usage(ctx.command_path, " ".join(pieces), prefix=_usage_prefix())
+
     def format_options(self, ctx: Any, formatter: Any) -> None:
         args: list[tuple[str, str]] = []
         opts: list[tuple[str, str]] = []
@@ -83,12 +128,12 @@ class _PlainHelpMixin:
             if not record:
                 continue
             bucket = args if param.param_type_name == "argument" else opts
-            bucket.append(_unescape(record))
+            bucket.append(_styled_record(param, record))
         if args:
-            with formatter.section("Arguments"):
+            with _section(formatter, "Arguments"):
                 formatter.write_dl(args)
         if opts:
-            with formatter.section("Options"):
+            with _section(formatter, "Options"):
                 formatter.write_dl(opts)
 
 
@@ -130,7 +175,7 @@ class ExecsqlGroup(TyperGroup):
         return super().parse_args(ctx, normalize(args))
 
     def format_usage(self, ctx: Any, formatter: Any) -> None:
-        formatter.write_usage(ctx.command_path, "[OPTIONS] COMMAND [ARGS]...")
+        formatter.write_usage(ctx.command_path, "[OPTIONS] COMMAND [ARGS]...", prefix=_usage_prefix())
         formatter.write_usage(
             ctx.command_path,
             "[OPTIONS] SQL_SCRIPT [SERVER DATABASE | DATABASE_FILE]",
@@ -145,15 +190,30 @@ class ExecsqlGroup(TyperGroup):
             if not record:
                 continue
             bucket = globals_ if any(o in param.opts for o in _GLOBAL_OPTIONS) else rest
-            bucket.append(_unescape(record))
+            bucket.append(_styled_record(param, record))
 
         if globals_:
-            with formatter.section("Global options"):
+            with _section(formatter, "Global options"):
                 formatter.write_dl(globals_)
         if rest:
-            with formatter.section("Options"):
+            with _section(formatter, "Options"):
                 formatter.write_dl(rest)
         self.format_commands(ctx, formatter)
+
+    def format_commands(self, ctx: Any, formatter: Any) -> None:
+        # Click's own version, with the command names colored.
+        commands = [
+            (name, cmd)
+            for name in self.list_commands(ctx)
+            if (cmd := self.get_command(ctx, name)) is not None and not cmd.hidden
+        ]
+        if not commands:
+            return
+        limit = formatter.width - 6 - max(len(name) for name, _ in commands)
+        with _section(formatter, "Commands"):
+            formatter.write_dl(
+                [(_style(name, fg="cyan", bold=True), cmd.get_short_help_str(limit)) for name, cmd in commands],
+            )
 
 
 app = typer.Typer(

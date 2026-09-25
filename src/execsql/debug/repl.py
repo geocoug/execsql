@@ -38,12 +38,12 @@ In non-interactive environments (CI, piped input, ``sys.stdin.isatty()`` is
 blocked.
 """
 
-import os
 import sys
 from pathlib import Path
 from typing import Any
 
 import execsql.state as _state
+from execsql.utils.color import color_disabled_by_env
 
 __all__ = ["x_breakpoint"]
 
@@ -77,7 +77,7 @@ def _use_color() -> bool:
     global _color_cache  # noqa: PLW0603
     if _color_cache is not None:
         return _color_cache
-    if os.environ.get("NO_COLOR") is not None or os.environ.get("EXECSQL_NO_COLOR") is not None:
+    if color_disabled_by_env():
         _color_cache = False
     else:
         output = _state.output
