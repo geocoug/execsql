@@ -13,6 +13,10 @@ ______________________________________________________________________
 
 ### Added
 
+- Every lint issue names a rule code, such as `V001` (undefined variable) or `F002` (unreachable code), in both `execsql lint` and `--lint` output. The [lint rules reference](https://execsql2.readthedocs.io/en/latest/reference/lint/) explains each one.
+- `execsql lint --select` and `--ignore` choose rules by code or prefix (`--ignore V002`, `--select F`). Parse errors are always reported.
+- `execsql lint --output-format json` writes every issue as one JSON array for CI and editor tooling, and `--output-format concise` prints one `path:line: CODE message` line per issue.
+- `execsql lint --statistics` shows how many times each rule fired instead of listing every issue.
 - `execsql` now has commands: `execsql run`, `execsql format` (or `fmt`), and `execsql lint`. `format` and `lint` take files or directories and need no database — linting a whole script library is new, since `--lint` only ever linted the single script it was given.
 - The original positional invocation is unchanged: `execsql script.sql myserver mydb` still works, still means the same thing, and is not deprecated. A script named exactly `run`, `format`, `fmt`, or `lint` with no extension is still read as a file, not a command.
 - `execsql lint` gained three structural checks that previously only a live run would reveal: a variable defined by `SUB` that nothing ever reads (almost always a spelling mismatch between the definition and the reference); an `IF` whose condition is a constant, making its `ELSE` — or its own body — unreachable; and a statement after an unconditional `HALT`. `HALT DISPLAY` is not treated as terminal, and an `IF` carrying an `ANDIF`/`ORIF` modifier is never reported as constant.
@@ -29,6 +33,8 @@ ______________________________________________________________________
 ### Changed
 
 - Requires Typer 0.26 or newer (previously 0.12).
+- Lint output groups issues under each file in line order, with shorter messages and one summary line, instead of a banner and error-first list per file.
+- A script that fails to parse under `--lint` or `execsql lint` is reported on one line with the line number of the problem, instead of a multi-line error with a timestamp.
 - `execsql` with no arguments prints the help and always exits with status 2. Previously the exit status depended on the installed Click version.
 - CLI help is plain text rather than bordered panels, colored on a terminal. `execsql --help` lists the commands, both invocation forms, and the global options `--version` and `-o`/`--online-help`; `execsql <command> --help` shows each command's options. Piped help has no color, and `NO_COLOR` or `EXECSQL_NO_COLOR` turns it off.
 - MySQL and MariaDB connections now default to `utf8mb4` instead of `latin1`. A latin1 connection could not carry CJK, emoji, Greek, or Cyrillic at all — inserting such text raised `UnicodeEncodeError` before reaching the server — so scripts had to pass `-e utf8mb4` to move most of Unicode. Existing latin1 databases are unaffected: the connection charset governs only client/server transfer, and MySQL transcodes to and from each column's own charset. Pass `-e latin1` to restore the previous behavior.

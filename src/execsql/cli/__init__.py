@@ -17,6 +17,7 @@ import sys
 import traceback
 from collections.abc import Iterator
 from contextlib import contextmanager
+from enum import Enum
 from pathlib import Path
 from typing import Any
 
@@ -782,7 +783,7 @@ def main(
     # Lint: AST-based static analysis (no DB connection needed)
     # ------------------------------------------------------------------
     if lint:
-        from execsql.cli.lint import _print_lint_results, lint as _lint_script
+        from execsql.cli.lint import _print_lint_results, lint as _lint_script, parse_error
         from execsql.script.parser import parse_script, parse_string
 
         label = script_name or "<inline>"
@@ -799,8 +800,7 @@ def main(
                 raise typer.Exit(code=1)
         except ErrInfo as exc:
             # Parse failure IS a lint error — report it
-            issues = [("error", label, 0, f"Parse error: {exc.errmsg()}")]
-            exit_code = _print_lint_results(issues, label)
+            exit_code = _print_lint_results([parse_error(label, exc)], label)
             raise typer.Exit(code=exit_code) from exc
 
         issues = _lint_script(tree, script_path=script_name)
@@ -919,10 +919,24 @@ def fmt_cmd(
     )
 
 
+class LintFormat(str, Enum):
+    """Output formats for ``execsql lint``."""
+
+    text = "text"
+    concise = "concise"
+    json = "json"
+
+
 @app.command(
     cls=ExecsqlCommand,
     name="lint",
-    help="Statically check scripts for problems. No database connection is made.",
+    help=(
+        "Statically check scripts for problems. No database connection is made.\n\n"
+        "Every issue names its rule code, which --select and --ignore accept, as a full "
+        "code (V001) or a prefix (V). Parse errors (P001) are always reported. Exits 1 "
+        "when any error is found; warnings alone exit 0.\n\n"
+        "Rules: https://execsql2.readthedocs.io/en/latest/reference/lint/"
+    ),
 )
 def lint_cmd(
     targets: list[str] = typer.Argument(
@@ -930,14 +944,48 @@ def lint_cmd(
         metavar="FILE_OR_DIR...",
         help="Files or directories to check. Directories are searched recursively for *.sql files.",
     ),
+    select: list[str] | None = typer.Option(
+        None,
+        "--select",
+        metavar="CODES",
+        help="Report only these rules: codes or prefixes, comma-separated (e.g. V001,F). Repeatable.",
+    ),
+    ignore: list[str] | None = typer.Option(
+        None,
+        "--ignore",
+        metavar="CODES",
+        help="Do not report these rules: codes or prefixes, comma-separated. Wins over --select. Repeatable.",
+    ),
+    output_format: LintFormat = typer.Option(
+        LintFormat.text,
+        "--output-format",
+        help="text groups issues by file; concise is one path:line line per issue; json is for tools.",
+    ),
+    statistics: bool = typer.Option(
+        False,
+        "--statistics",
+        help="Show how many times each rule fired instead of listing every issue.",
+    ),
 ) -> None:
-    """Report unmatched blocks, undefined variables, unreachable branches, and
-    missing INCLUDE / EXECUTE SCRIPT targets. Exits 1 when any error is found;
-    warnings do not affect the exit code.
-    """
+    """The ``lint`` command; its user-facing help is the decorator's ``help``."""
     from execsql.cli.dispatch import lint_paths
+    from execsql.cli.lint import resolve_selectors
 
-    raise typer.Exit(code=lint_paths(targets))
+    try:
+        selected = resolve_selectors(select)
+        ignored = resolve_selectors(ignore)
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+    raise typer.Exit(
+        code=lint_paths(
+            targets,
+            select=selected,
+            ignore=ignored,
+            output_format=output_format.value,
+            statistics=statistics,
+        ),
+    )
 
 
 # ---------------------------------------------------------------------------
