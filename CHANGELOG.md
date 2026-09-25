@@ -32,7 +32,10 @@ ______________________________________________________________________
 
 ### Fixed
 
-- `execsql --help` lists the commands in a Commands section, the way any grouped CLI does. `run`, `format`, and `lint` are real commands rather than names matched before the parser ran, so `execsql <command> --help` works for each and the toolchain is discoverable from the CLI itself.
+- `execsql --help` lists the commands and shows both invocation forms, so the original `execsql script.sql server db` is stated as a first-class usage rather than left to be discovered. `run`, `format`, and `lint` are real commands, so `execsql <command> --help` works for each.
+- `execsql format` documents its own options — `--check`, `--in-place`, `--indent`, `--leading-comma`, `--no-sql`, `--encoding` — which the command had been hiding.
+- `--online-help` and `--version` are global options, listed under their own heading. They describe execsql itself rather than a run, so they work before any command. `--config` stays on `run`: only `run` reads a configuration file.
+- CLI help is plain text rather than bordered panels.
 - `execsql lint --help` no longer fails with a traceback, and `execsql lint` with no arguments reports the usage instead of one. The verb had no argument parser of its own, so `--help` was read as a file name.
 - A script's reported location no longer depends on a second, synthetic copy of the statement being in sync with the parse tree. The executor built a stand-in legacy command object for every statement so that error messages, the debug REPL, and `api.run()` could read the current file and line; those now read the syntax tree directly.
 - `execsql.api.run()` no longer discards every `WRITE ... TO <file>` and `TEE` to a file. Those metacommands hand their output to a FileWriter subprocess that only the CLI started, so under the library API the file was never created and the run still reported success ([#46](https://github.com/geocoug/execsql/issues/46)). `run()` now starts the writer, and flushes and closes every file before returning, so output is readable as soon as it hands back control. A writer the caller started themselves is left untouched.

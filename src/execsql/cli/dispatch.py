@@ -13,10 +13,10 @@ v1.130.1 — it is in shell scripts, cron entries, and every page of the
 documentation — so :func:`normalize` inserts the verb rather than asking
 users to. There is no deprecation of the bare form and none is planned.
 
-Two things must not have ``run`` inserted: a real command, and ``--help``,
-which the app answers itself.  Everything else — including ``--version``,
-``-m`` and the other early-exit options, which are declared on ``run`` — is a
-run.
+Two things must not have ``run`` inserted: a real command, and an option the
+app declares itself — ``--help``, ``--version``, ``--online-help``.
+Everything else, including ``-m`` and the other early-exit options that are
+declared on ``run``, is a run.
 
 The one ambiguity this could introduce is a script named exactly ``run``,
 ``format``, ``fmt`` or ``lint`` *with no extension*.  :func:`_is_command`
@@ -35,11 +35,11 @@ __all__ = ["COMMANDS", "GLOBAL_FLAGS", "dispatch", "normalize"]
 #: spells it ``format`` and most people type ``fmt``.
 COMMANDS = ("run", "format", "fmt", "lint")
 
-#: Options the app answers itself rather than passing to a command.  Only
-#: help qualifies: ``--version``, ``-m``, ``--encodings`` and the rest are
-#: declared on ``run``, so they reach it the same way every other run option
-#: does.
-GLOBAL_FLAGS = ("--help", "-h")
+#: Options declared on the app rather than on a command, which must reach
+#: the parser without ``run`` in front of them. ``-m``, ``--encodings`` and
+#: the other early-exit options are declared on ``run``, so they are not
+#: here — they get the verb inserted like any other run invocation.
+GLOBAL_FLAGS = ("--help", "-h", "--version", "-o", "--online-help")
 
 
 def _is_command(token: str) -> bool:

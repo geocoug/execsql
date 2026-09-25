@@ -56,10 +56,15 @@ class TestLegacyFormIsUntouched:
         """``execsql --help`` must list the commands, not run a script."""
         assert normalize(["--help"]) == ["--help"]
 
-    @pytest.mark.parametrize("flag", ["--version", "-m", "--encodings", "--init-config"])
-    def test_early_exit_options_still_reach_the_runner(self, flag):
+    @pytest.mark.parametrize("flag", ["-m", "--encodings", "--init-config"])
+    def test_run_options_get_the_verb(self, flag):
         """These are declared on run, so they need the verb in front."""
         assert normalize([flag]) == ["run", flag]
+
+    @pytest.mark.parametrize("flag", ["--version", "--online-help", "-o"])
+    def test_app_options_do_not(self, flag):
+        """These are declared on the app itself and must reach it directly."""
+        assert normalize([flag]) == [flag]
 
 
 class TestCommandsAreLeftAlone:
