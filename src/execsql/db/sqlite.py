@@ -33,17 +33,16 @@ class SQLiteDatabase(Database):
             fatal_error("The sqlite3 module is required.")
         from execsql.types import dbt_sqlite
 
+        super().__init__(
+            server_name=None,
+            db_name=SQLite_fn,
+            user_name=None,
+            need_passwd=False,
+            encoding="UTF-8",
+        )
         self.type = dbt_sqlite
-        self.server_name = None
-        self.db_name = SQLite_fn
-        self.user = None
-        self.need_passwd = False
-        self.encoding = "UTF-8"
         self.encode_commands = False
-        self.paramstr = "?"
         self.timeout = timeout
-        self.conn = None
-        self.autocommit = True
         self.open_db()
 
     def __repr__(self) -> str:

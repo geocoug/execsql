@@ -44,18 +44,18 @@ class FirebirdDatabase(Database):
             )
         from execsql.types import dbt_firebird
 
+        super().__init__(
+            server_name=str(server_name),
+            db_name=str(db_name),
+            user_name=str(user_name),
+            need_passwd=need_passwd,
+            port=port if port else 3050,
+        )
         self.type = dbt_firebird
-        self.server_name = str(server_name)
-        self.db_name = str(db_name)
-        self.user = str(user_name)
-        self.need_passwd = need_passwd
         self.password = password
-        self.port = port if port else 3050
         self.encoding = encoding or "latin1"
         self.encode_commands = True
         self.paramstr = "?"
-        self.conn = None
-        self.autocommit = True
         self.open_db()
         self.password = None  # Clear cleartext password after successful connection
 

@@ -203,6 +203,13 @@ jobs:
                   sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18 unixodbc-dev
                   odbcinst -j
                   odbcinst -q -d
+            - name: Enable MySQL LOAD DATA LOCAL INFILE
+              # The MySQL importer uses LOAD DATA LOCAL INFILE, which MySQL 8
+              # disables server-side by default. A service container takes no
+              # command line, so it is switched on here; without it the import
+              # round-trip tests skip instead of running.
+              run: |
+                  mysql -h 127.0.0.1 -P 3306 -u root -proot -e "SET GLOBAL local_infile = 1;"
             - name: Install dependencies
               run: |
                   python -m pip install --upgrade pip

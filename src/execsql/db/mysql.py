@@ -32,6 +32,20 @@ _PYTHON_TO_MYSQL_CHARSET: dict[str, str] = {
 }
 
 
+def _crlf_terminated(filename: str) -> bool:
+    """True if the file's first line ends with CRLF.
+
+    Read as bytes so no decoding or newline translation can hide the answer.
+    """
+    try:
+        with open(filename, "rb") as f:
+            chunk = f.read(65536)
+    except OSError:
+        return False
+    i = chunk.find(b"\n")
+    return i > 0 and chunk[i - 1 : i] == b"\r"
+
+
 class MySQLDatabase(Database):
     """MySQL and MariaDB adapter using the pymysql package."""
 
@@ -53,13 +67,15 @@ class MySQLDatabase(Database):
             )
         from execsql.types import dbt_mysql
 
+        super().__init__(
+            server_name=str(server_name) if server_name is not None else None,
+            db_name=str(db_name) if db_name is not None else None,
+            user_name=str(user_name) if user_name is not None else None,
+            need_passwd=need_passwd,
+            port=port if port else 3306,
+        )
         self.type = dbt_mysql
-        self.server_name = str(server_name) if server_name is not None else None
-        self.db_name = str(db_name) if db_name is not None else None
-        self.user = str(user_name) if user_name is not None else None
-        self.need_passwd = need_passwd
         self.password = password
-        self.port = port if port else 3306
         # utf8mb4, not latin1: the connection charset only governs how text moves
         # between client and server, and MySQL transcodes to and from each
         # column's own charset.  A latin1 connection cannot carry CJK, emoji,
@@ -68,8 +84,6 @@ class MySQLDatabase(Database):
         self.encoding = encoding or "utf8mb4"
         self.encode_commands = True
         self.paramstr = "%s"
-        self.conn = None
-        self.autocommit = True
         self.open_db()
         self.password = None  # Clear cleartext password after successful connection
 
@@ -303,8 +317,22 @@ class MySQLDatabase(Database):
                 if csv_file_obj.quotechar:
                     safe_quote = csv_file_obj.quotechar.replace("'", "''")
                     import_sql = f"{import_sql} optionally enclosed by '{safe_quote}'"
+            # Tell LOAD DATA what ends a line.  Its default is "\n", so a CRLF
+            # file left a carriage return on the last field of every row: the
+            # value was not empty, NULLIF below could not see it, and a date
+            # column silently became 0000-00-00.  Every other backend reads the
+            # same file correctly.
+            if _crlf_terminated(csv_file_obj.csvfname):
+                import_sql = f"{import_sql} lines terminated by '\\r\\n'"
             import_sql = f"{import_sql} ignore {1 + csv_file_obj.junk_header_lines} lines"
-            import_sql = f"{import_sql} ({input_col_list});"
+            # Read every column into a user variable and NULLIF it back.  LOAD
+            # DATA otherwise coerces an empty field to the column's zero value
+            # — an empty numeric became 0 and an empty date 0000-00-00 — so the
+            # same CSV imported to MySQL differed from every other backend,
+            # where an empty field is NULL.
+            vars_list = ",".join(f"@ecs_{i}" for i in range(len(import_cols)))
+            set_list = ",".join(f"{col}=nullif(@ecs_{i},'')" for i, col in enumerate(import_cols))
+            import_sql = f"{import_sql} ({vars_list}) set {set_list};"
             if _state.exec_log is not None:
                 _state.exec_log.log_status_info(
                     f"IMPORTing {csv_file_obj.csvfname} using the DBMS' fast file reading routine",

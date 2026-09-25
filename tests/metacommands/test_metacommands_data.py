@@ -7,13 +7,17 @@ x_subdata, x_selectsub, counter operations, flag setters, and x_max_int.
 from __future__ import annotations
 
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+import queue
+from unittest.mock import MagicMock, create_autospec, patch
 
 import pytest
 
 import execsql.state as _state
 from execsql.exceptions import ErrInfo
 from execsql.script import CounterVars, SubVarSet
+
+# Captured before any patch("queue.Queue") replaces the real class.
+_REAL_QUEUE = queue.Queue
 
 
 # ---------------------------------------------------------------------------
@@ -542,7 +546,7 @@ class TestXPromptSelectsub:
         sv = self._setup_base_state()
         minimal_conf.log_datavars = False
         self._setup_db("public.people", ["name", "age"], [("Alice", "30"), ("Bob", "25")])
-        mock_queue = MagicMock()
+        mock_queue = create_autospec(_REAL_QUEUE, instance=True)
         _state.gui_manager_queue = mock_queue
 
         with (
@@ -550,7 +554,7 @@ class TestXPromptSelectsub:
             patch("execsql.metacommands.data.current_script_line", return_value=("t.sql", 1)),
             patch("queue.Queue") as mock_q_cls,
         ):
-            rq = MagicMock()
+            rq = create_autospec(_REAL_QUEUE, instance=True)
             # User selected row index 0 with OK (button=1)
             rq.get.return_value = {"button": 1, "return_value": [0]}
             mock_q_cls.return_value = rq
@@ -571,7 +575,7 @@ class TestXPromptSelectsub:
         self._setup_base_state()
         minimal_conf.log_datavars = False
         self._setup_db("dbo.items", ["item"], [("Widget",)])
-        mock_queue = MagicMock()
+        mock_queue = create_autospec(_REAL_QUEUE, instance=True)
         _state.gui_manager_queue = mock_queue
 
         with (
@@ -579,7 +583,7 @@ class TestXPromptSelectsub:
             patch("execsql.metacommands.data.current_script_line", return_value=("t.sql", 1)),
             patch("queue.Queue") as mock_q_cls,
         ):
-            rq = MagicMock()
+            rq = create_autospec(_REAL_QUEUE, instance=True)
             rq.get.return_value = {"button": 1, "return_value": [0]}
             mock_q_cls.return_value = rq
             x_prompt_selectsub(
@@ -602,7 +606,7 @@ class TestXPromptSelectsub:
         minimal_conf.log_datavars = False
         _state.status.cancel_halt = True
         self._setup_db("dbo.items", ["item"], [("Widget",)])
-        mock_queue = MagicMock()
+        mock_queue = create_autospec(_REAL_QUEUE, instance=True)
         _state.gui_manager_queue = mock_queue
 
         with (
@@ -611,7 +615,7 @@ class TestXPromptSelectsub:
             patch("execsql.metacommands.data.exit_now") as mock_exit,
             patch("queue.Queue") as mock_q_cls,
         ):
-            rq = MagicMock()
+            rq = create_autospec(_REAL_QUEUE, instance=True)
             # User closed dialog without selecting
             rq.get.return_value = {"button": None, "return_value": None}
             mock_q_cls.return_value = rq
@@ -632,7 +636,7 @@ class TestXPromptSelectsub:
         minimal_conf.log_datavars = False
         _state.status.cancel_halt = False
         self._setup_db("dbo.items", ["item"], [("Widget",)])
-        mock_queue = MagicMock()
+        mock_queue = create_autospec(_REAL_QUEUE, instance=True)
         _state.gui_manager_queue = mock_queue
 
         with (
@@ -641,7 +645,7 @@ class TestXPromptSelectsub:
             patch("execsql.metacommands.data.exit_now") as mock_exit,
             patch("queue.Queue") as mock_q_cls,
         ):
-            rq = MagicMock()
+            rq = create_autospec(_REAL_QUEUE, instance=True)
             rq.get.return_value = {"button": None, "return_value": None}
             mock_q_cls.return_value = rq
             x_prompt_selectsub(
@@ -660,7 +664,7 @@ class TestXPromptSelectsub:
         self._setup_base_state()
         minimal_conf.log_datavars = False
         self._setup_db("dbo.items", ["item"], [("Widget",)])
-        mock_queue = MagicMock()
+        mock_queue = create_autospec(_REAL_QUEUE, instance=True)
         _state.gui_manager_queue = mock_queue
 
         with (
@@ -668,7 +672,7 @@ class TestXPromptSelectsub:
             patch("execsql.metacommands.data.current_script_line", return_value=("t.sql", 1)),
             patch("queue.Queue") as mock_q_cls,
         ):
-            rq = MagicMock()
+            rq = create_autospec(_REAL_QUEUE, instance=True)
             rq.get.return_value = {"button": 1, "return_value": [0]}
             mock_q_cls.return_value = rq
             x_prompt_selectsub(
@@ -689,7 +693,7 @@ class TestXPromptSelectsub:
         minimal_conf.log_datavars = False
         # Row contains a None value in the second column
         self._setup_db("dbo.tbl", ["a", "b"], [("hello", None)])
-        mock_queue = MagicMock()
+        mock_queue = create_autospec(_REAL_QUEUE, instance=True)
         _state.gui_manager_queue = mock_queue
 
         with (
@@ -697,7 +701,7 @@ class TestXPromptSelectsub:
             patch("execsql.metacommands.data.current_script_line", return_value=("t.sql", 1)),
             patch("queue.Queue") as mock_q_cls,
         ):
-            rq = MagicMock()
+            rq = create_autospec(_REAL_QUEUE, instance=True)
             rq.get.return_value = {"button": 1, "return_value": [0]}
             mock_q_cls.return_value = rq
             x_prompt_selectsub(
@@ -717,7 +721,7 @@ class TestXPromptSelectsub:
         self._setup_base_state()
         minimal_conf.log_datavars = True
         self._setup_db("dbo.tbl", ["x"], [("val",)])
-        mock_queue = MagicMock()
+        mock_queue = create_autospec(_REAL_QUEUE, instance=True)
         _state.gui_manager_queue = mock_queue
 
         with (
@@ -725,7 +729,7 @@ class TestXPromptSelectsub:
             patch("execsql.metacommands.data.current_script_line", return_value=("t.sql", 1)),
             patch("queue.Queue") as mock_q_cls,
         ):
-            rq = MagicMock()
+            rq = create_autospec(_REAL_QUEUE, instance=True)
             rq.get.return_value = {"button": 1, "return_value": [0]}
             mock_q_cls.return_value = rq
             x_prompt_selectsub(
@@ -745,7 +749,7 @@ class TestXPromptSelectsub:
         minimal_conf.log_datavars = False
         sv.add_substitution("@col1", "stale_value")
         self._setup_db("dbo.tbl", ["col1"], [("fresh_value",)])
-        mock_queue = MagicMock()
+        mock_queue = create_autospec(_REAL_QUEUE, instance=True)
         _state.gui_manager_queue = mock_queue
 
         with (
@@ -753,7 +757,7 @@ class TestXPromptSelectsub:
             patch("execsql.metacommands.data.current_script_line", return_value=("t.sql", 1)),
             patch("queue.Queue") as mock_q_cls,
         ):
-            rq = MagicMock()
+            rq = create_autospec(_REAL_QUEUE, instance=True)
             rq.get.return_value = {"button": 1, "return_value": [0]}
             mock_q_cls.return_value = rq
             x_prompt_selectsub(
@@ -772,7 +776,7 @@ class TestXPromptSelectsub:
         sv = self._setup_base_state()
         minimal_conf.log_datavars = False
         self._setup_db("dbo.tbl", ["col1"], [("value",)])
-        mock_queue = MagicMock()
+        mock_queue = create_autospec(_REAL_QUEUE, instance=True)
         _state.gui_manager_queue = mock_queue
 
         with (
@@ -780,7 +784,7 @@ class TestXPromptSelectsub:
             patch("execsql.metacommands.data.current_script_line", return_value=("t.sql", 1)),
             patch("queue.Queue") as mock_q_cls,
         ):
-            rq = MagicMock()
+            rq = create_autospec(_REAL_QUEUE, instance=True)
             rq.get.return_value = {"button": 2, "return_value": None}
             mock_q_cls.return_value = rq
             x_prompt_selectsub(

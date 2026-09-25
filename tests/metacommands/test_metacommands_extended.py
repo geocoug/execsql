@@ -16,7 +16,8 @@ Coverage targets:
 from __future__ import annotations
 
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+import queue
+from unittest.mock import MagicMock, create_autospec, patch
 
 import pytest
 
@@ -27,6 +28,11 @@ from execsql.script import (
     CounterVars,
     BatchLevels,
 )
+
+# Captured before any patch("queue.Queue") swaps the real class for a Mock:
+# create_autospec cannot spec a Mock, and a spec'd queue is the point — it
+# rejects an assertion naming a method queue.Queue does not have.
+_REAL_QUEUE = queue.Queue
 
 
 # ---------------------------------------------------------------------------
@@ -1327,7 +1333,7 @@ class TestControlHaltExtended:
 
         minimal_conf.tee_write_log = False
         minimal_conf.gui_level = 2  # opt into the dialog path
-        mock_queue = MagicMock()
+        mock_queue = create_autospec(_REAL_QUEUE, instance=True)
         _state.gui_manager_queue = mock_queue
 
         # Simulate the return_queue.get() returning immediately
@@ -1337,7 +1343,7 @@ class TestControlHaltExtended:
             patch("execsql.metacommands.control.current_script_line", return_value=("t.sql", 1)),
             patch("queue.Queue") as mock_q_cls,
         ):
-            rq = MagicMock()
+            rq = create_autospec(_REAL_QUEUE, instance=True)
             rq.get.return_value = None
             mock_q_cls.return_value = rq
             x_halt_msg(
@@ -1358,7 +1364,7 @@ class TestControlHaltExtended:
 
         minimal_conf.tee_write_log = False
         minimal_conf.gui_level = 2  # opt into the dialog path
-        mock_queue = MagicMock()
+        mock_queue = create_autospec(_REAL_QUEUE, instance=True)
         _state.gui_manager_queue = mock_queue
 
         mock_db = MagicMock()
@@ -1374,7 +1380,7 @@ class TestControlHaltExtended:
             patch("execsql.metacommands.control.current_script_line", return_value=("t.sql", 1)),
             patch("queue.Queue") as mock_q_cls,
         ):
-            rq = MagicMock()
+            rq = create_autospec(_REAL_QUEUE, instance=True)
             rq.get.return_value = None
             mock_q_cls.return_value = rq
             x_halt_msg(
@@ -1396,7 +1402,7 @@ class TestControlHaltExtended:
 
         minimal_conf.tee_write_log = False
         minimal_conf.gui_level = 2  # opt into the dialog path
-        mock_queue = MagicMock()
+        mock_queue = create_autospec(_REAL_QUEUE, instance=True)
         _state.gui_manager_queue = mock_queue
         outfile = tmp_path / "haltmsg.txt"
 
@@ -1406,7 +1412,7 @@ class TestControlHaltExtended:
             patch("execsql.metacommands.control.current_script_line", return_value=("t.sql", 1)),
             patch("queue.Queue") as mock_q_cls,
         ):
-            rq = MagicMock()
+            rq = create_autospec(_REAL_QUEUE, instance=True)
             rq.get.return_value = None
             mock_q_cls.return_value = rq
             x_halt_msg(
@@ -1426,7 +1432,7 @@ class TestControlHaltExtended:
 
         minimal_conf.tee_write_log = False
         minimal_conf.gui_level = 2  # opt into the dialog path
-        mock_queue = MagicMock()
+        mock_queue = create_autospec(_REAL_QUEUE, instance=True)
         _state.gui_manager_queue = mock_queue
 
         with (
@@ -1435,7 +1441,7 @@ class TestControlHaltExtended:
             patch("execsql.metacommands.control.current_script_line", return_value=("t.sql", 1)),
             patch("queue.Queue") as mock_q_cls,
         ):
-            rq = MagicMock()
+            rq = create_autospec(_REAL_QUEUE, instance=True)
             rq.get.return_value = None
             mock_q_cls.return_value = rq
             x_halt_msg(
@@ -1454,7 +1460,7 @@ class TestControlHaltExtended:
 
         minimal_conf.tee_write_log = False
         minimal_conf.gui_level = 2  # opt into the dialog path
-        mock_queue = MagicMock()
+        mock_queue = create_autospec(_REAL_QUEUE, instance=True)
         _state.gui_manager_queue = mock_queue
 
         with (
@@ -1463,7 +1469,7 @@ class TestControlHaltExtended:
             patch("execsql.metacommands.control.current_script_line", return_value=("t.sql", 1)),
             patch("queue.Queue") as mock_q_cls,
         ):
-            rq = MagicMock()
+            rq = create_autospec(_REAL_QUEUE, instance=True)
             rq.get.return_value = None
             mock_q_cls.return_value = rq
             x_halt_msg(
@@ -1484,7 +1490,7 @@ class TestControlHaltExtended:
 
         minimal_conf.tee_write_log = False
         minimal_conf.gui_level = 0
-        mock_queue = MagicMock()
+        mock_queue = create_autospec(_REAL_QUEUE, instance=True)
         _state.gui_manager_queue = mock_queue
 
         with (
@@ -1572,7 +1578,7 @@ class TestControlHaltExtended:
 
         minimal_conf.tee_write_log = False
         minimal_conf.gui_level = 0
-        mock_queue = MagicMock()
+        mock_queue = create_autospec(_REAL_QUEUE, instance=True)
         _state.gui_manager_queue = mock_queue
 
         with (
@@ -1582,7 +1588,7 @@ class TestControlHaltExtended:
             patch("execsql.metacommands.control.current_script_line", return_value=("t.sql", 1)),
             patch("queue.Queue") as mock_q_cls,
         ):
-            rq = MagicMock()
+            rq = create_autospec(_REAL_QUEUE, instance=True)
             rq.get.return_value = None
             mock_q_cls.return_value = rq
             x_halt_msg(
