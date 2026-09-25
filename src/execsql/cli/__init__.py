@@ -223,9 +223,8 @@ app = typer.Typer(
     rich_markup_mode=None,
     help=(
         "Write, format, lint and run SQL scripts with metacommands.\n\n"
-        "format and lint need no database. Giving no command runs the "
-        "script, so execsql script.sql server db works exactly as "
-        "it always has."
+        "format and lint need no database. Giving no command is the same "
+        "as run."
     ),
     add_completion=False,
     no_args_is_help=True,
