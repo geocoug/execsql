@@ -105,7 +105,24 @@ class JinjaTemplateReport:
         inf = EncodedFile(template_file, conf.script_encoding)
         fh = inf.open("r")
         try:
-            self.template = SandboxedEnvironment().from_string(fh.read())
+            # Autoescape by template extension.  The sandbox guards against a
+            # hostile *template*; nothing guarded against hostile *data*, so a
+            # value from the database rendered into an .html report as live
+            # markup — a `<script>` in a text column became a script tag.
+            # Keying on the extension leaves every non-markup template (csv,
+            # tex, txt, sql) byte-identical; only html/htm/xml change, and a
+            # template that genuinely wants raw markup asks for it with the
+            # standard `{{ value|safe }}`.
+            autoescape = self._jinja2.select_autoescape(
+                enabled_extensions=("html", "htm", "xml"),
+                default_for_string=False,
+                default=False,
+            )
+            env = SandboxedEnvironment(autoescape=autoescape)
+            # from_string() has no filename to inspect, so resolve the policy
+            # against the template's own path and pass the decision through.
+            env.autoescape = autoescape(template_file)
+            self.template = env.from_string(fh.read())
         finally:
             fh.close()
 

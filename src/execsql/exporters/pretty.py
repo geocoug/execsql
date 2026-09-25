@@ -36,6 +36,19 @@ def prettyprint_rowset(
         if s is None:
             return and_val
         if isinstance(s, str):
+            # A newline or tab inside a value destroys a fixed-width table: the
+            # row is split across physical lines and every column after it is
+            # misaligned.  This is a display format, so they are shown as their
+            # two-character escapes — the row stays one line, the columns line
+            # up, and the reader can still see that a break is there.
+            if "\n" in s or "\r" in s or "\t" in s:
+                return (
+                    s.replace("\\", "\\\\")
+                    .replace("\r\n", "\\n")
+                    .replace("\r", "\\r")
+                    .replace("\n", "\\n")
+                    .replace("\t", "\\t")
+                )
             return s
         if type(s) in (type(memoryview(b"")), bytes, bytearray):
             return f"Binary data ({len(s)} bytes)"

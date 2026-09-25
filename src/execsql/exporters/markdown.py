@@ -35,15 +35,21 @@ def _cell(value: Any) -> str:
 
     Args:
         value: The cell value from the result set.  ``None`` is rendered as
-            an empty string.  Pipe characters are escaped so they do not
-            break the table structure.
+            an empty string.  Pipe characters are escaped, and newlines
+            become ``<br>``, so neither breaks the table structure.
 
     Returns:
         A string safe to embed between pipe characters in a GFM table row.
     """
     if value is None:
         return ""
-    return str(value).translate(_PIPE_ESCAPE)
+    text = str(value).translate(_PIPE_ESCAPE)
+    if "\n" in text or "\r" in text:
+        # A GFM table row is one line: a literal newline ends the row mid-cell
+        # and leaves the rest of the values outside the table entirely. <br> is
+        # how GFM expresses a line break inside a cell.
+        text = text.replace("\r\n", "\n").replace("\r", "\n").replace("\n", "<br>")
+    return text
 
 
 def write_query_to_markdown(

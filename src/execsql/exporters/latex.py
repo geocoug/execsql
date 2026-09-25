@@ -20,6 +20,39 @@ import execsql.state as _state
 __all__ = ["export_latex", "write_query_to_latex"]
 
 
+#: Every character LaTeX treats specially, with its text-mode replacement.
+#: ``&`` matters most here: it is the column separator this exporter writes, so
+#: an ampersand in a value silently added a column and the .tex file no longer
+#: compiled.  ``%`` is nearly as bad — it comments out the rest of the line.
+#: str.translate applies these simultaneously, so the backslash replacement
+#: cannot be re-escaped by a later rule.
+_LATEX_ESCAPE = str.maketrans(
+    {
+        "\\": r"\textbackslash{}",
+        "&": r"\&",
+        "%": r"\%",
+        "$": r"\$",
+        "#": r"\#",
+        "_": r"\_",
+        "{": r"\{",
+        "}": r"\}",
+        "~": r"\textasciitilde{}",
+        "^": r"\textasciicircum{}",
+    },
+)
+
+
+def _latex_cell(value: Any) -> str:
+    """Render a value as LaTeX table-cell text.
+
+    ``None`` becomes an empty cell rather than the literal string "None",
+    matching every other exporter.
+    """
+    if value is None:
+        return ""
+    return str(value).translate(_LATEX_ESCAPE)
+
+
 def export_latex(
     outfile: str,
     hdrs: list[str],
@@ -39,10 +72,10 @@ def export_latex(
             f.write(f"  \\caption{{{desc}}}\n")
         f.write(f"  \\begin{{tabular}} {{{' l' * len(hdrs)} }}\n")
         f.write("  \\hline\n")
-        f.write("  " + " & ".join([h.replace("_", r"\_") for h in hdrs]) + " \\\\\n")
+        f.write("  " + " & ".join([_latex_cell(h) for h in hdrs]) + " \\\\\n")
         f.write("  \\hline\n")
         for r in rows:
-            f.write("  " + " & ".join([str(c).replace("_", r"\_") for c in r]) + " \\\\\n")
+            f.write("  " + " & ".join([_latex_cell(c) for c in r]) + " \\\\\n")
         f.write("  \\hline\n")
         f.write("  \\end{tabular}\n")
         f.write("  \\end{table}\n")

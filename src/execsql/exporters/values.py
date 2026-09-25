@@ -8,6 +8,7 @@ set as a series of SQL ``INSERT INTO … VALUES (…)`` statements, suitable
 for loading data into a database from a plain SQL file.
 """
 
+import decimal
 from typing import Any
 
 import execsql.state as _state
@@ -17,6 +18,29 @@ from execsql.utils.errors import exception_desc
 from execsql.utils.fileio import filewriter_close
 
 __all__ = ["export_values", "write_query_to_values"]
+
+
+def _sql_literal(value: Any) -> str:
+    """Render a value as a SQL literal for an INSERT ... VALUES list.
+
+    Only numbers are emitted bare.  Everything else is quoted, with embedded
+    single quotes doubled — the SQL standard escape.
+
+    Quoting is the safe default rather than the exception.  Previously anything
+    that was not a string went out through ``str()`` unquoted, so a date became
+    ``2026-09-24``, which SQL reads as arithmetic: PostgreSQL inserted 1993 and
+    reported no error at all.  A timestamp, carrying a space, was a syntax
+    error instead.  Any type this function has not been taught about is safer
+    quoted than bare.
+    """
+    if value is None:
+        return "NULL"
+    if isinstance(value, bool):
+        # Checked before int — bool is a subclass of it.
+        return "TRUE" if value else "FALSE"
+    if isinstance(value, int | float | decimal.Decimal):
+        return str(value)
+    return "'" + str(value).replace("'", "''") + "'"
 
 
 def export_values(
@@ -54,10 +78,7 @@ def export_values(
                 firstrow = False
             else:
                 f.write(",\n")
-            quoted_row = [
-                f"'{v.replace(chr(39), chr(39) * 2)}'" if isinstance(v, str) else str(v) if v is not None else "NULL"
-                for v in r
-            ]
+            quoted_row = [_sql_literal(v) for v in r]
             f.write(f"    ({', '.join(quoted_row)})")
         f.write("\n    ;\n")
     finally:

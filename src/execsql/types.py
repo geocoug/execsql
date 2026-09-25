@@ -773,7 +773,10 @@ dbt_duckdb.name_datatype(DT_Date, "DATE")
 dbt_duckdb.name_datatype(DT_Time, "TIME")
 dbt_duckdb.name_datatype(DT_Integer, "INTEGER")
 dbt_duckdb.name_datatype(DT_Long, "BIGINT")
-dbt_duckdb.name_datatype(DT_Float, "REAL")
+# DOUBLE, not REAL: DT_Float is IEEE double precision and a Python float
+# always is one.  DuckDB's REAL is single precision, so 1234.567 came back
+# as 1234.5670166015625.  Every other backend maps DT_Float to a double.
+dbt_duckdb.name_datatype(DT_Float, "DOUBLE")
 dbt_duckdb.name_datatype(DT_Decimal, "NUMERIC")
 dbt_duckdb.name_datatype(DT_Boolean, "BOOLEAN")
 dbt_duckdb.name_datatype(DT_Character, "TEXT")
