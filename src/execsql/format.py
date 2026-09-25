@@ -21,7 +21,7 @@ __all__ = ["collect_paths", "format_file", "main", "parse_keyword"]
 
 
 _SQLGLOT_MISSING_MSG = (
-    "execsql-format requires sqlglot for SQL reformatting.\n"
+    "execsql format requires sqlglot for SQL reformatting.\n"
     "  Install with:  pip install execsql2[formatter]\n"
     "  Or skip SQL reformatting with the --no-sql flag."
 )
@@ -122,7 +122,7 @@ CONTINUATION = frozenset({"ANDIF", "ORIF"})  # emit at depth-1, no depth change
 # Inline IF: "IF (cond) { command }" — self-contained, no ENDIF, no depth
 # change. Pattern must accept the same payloads as
 # src/execsql/script/parser.py:_IF_INLINE_RX. Kept as a separate compiled
-# pattern (not an import) so execsql-format doesn't pull in the AST parser
+# pattern (not an import) so the formatter doesn't pull in the AST parser
 # module graph at startup; tests/test_format.py has a drift check that
 # asserts both regexes recognise the same inputs.
 _IF_INLINE_RE = re.compile(r"^\s*IF\s*\(\s*.+\s*\)\s*\{.+\}\s*$", re.I)
@@ -1204,12 +1204,17 @@ def collect_paths(inputs: list[Path]) -> list[Path]:
 
 
 # ---------------------------------------------------------------------------
-# Entry point (execsql-format)
+# Entry point (execsql format)
 # ---------------------------------------------------------------------------
 
 
 def main() -> None:
-    """CLI entry point for the execsql-format console script."""
+    """Formatter entry point, reached as ``execsql format``.
+
+    Kept as a standalone ``main()`` rather than a Typer subcommand so the
+    formatter keeps its own argument parser — the runner takes one script
+    plus connection arguments, and the formatter takes files and directories.
+    """
     import sys
 
     import typer
@@ -1219,7 +1224,7 @@ def main() -> None:
     _err_console = Console(stderr=True)
 
     app = typer.Typer(
-        name="execsql-format",
+        name="execsql format",
         help="Format execsql scripts: normalize metacommand indentation and uppercase keywords.",
         rich_markup_mode="rich",
         no_args_is_help=True,

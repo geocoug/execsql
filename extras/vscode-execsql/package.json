@@ -1,15 +1,37 @@
 {
   "name": "execsql-syntax",
-  "displayName": "execsql Syntax Highlighting",
-  "description": "Syntax highlighting for execsql metacommands in SQL files",
+  "displayName": "execsql",
+  "description": "Syntax highlighting for execsql metacommands, substitution variables, and export formats in SQL files.",
   "version": "0.1.0",
   "publisher": "geocoug",
+  "license": "GPL-3.0-or-later",
+  "icon": "icon.png",
+  "homepage": "https://execsql2.readthedocs.io",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/geocoug/execsql.git",
+    "directory": "extras/vscode-execsql"
+  },
+  "bugs": {
+    "url": "https://github.com/geocoug/execsql/issues"
+  },
   "engines": {
     "vscode": "^1.74.0"
   },
   "categories": [
     "Programming Languages"
   ],
+  "keywords": [
+    "sql",
+    "execsql",
+    "metacommands",
+    "postgresql",
+    "duckdb"
+  ],
+  "galleryBanner": {
+    "color": "#1f2430",
+    "theme": "dark"
+  },
   "contributes": {
     "grammars": [
       {

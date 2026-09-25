@@ -14,7 +14,7 @@ Or with [uv](https://docs.astral.sh/uv/):
 uv add execsql2
 ```
 
-This installs the `execsql` and `execsql-format` command-line tools. The PyPI distribution is named
+This installs the `execsql` command-line tool. The PyPI distribution is named
 `execsql2`; the executable remains `execsql` for compatibility.
 
 To install with optional dependencies:
@@ -28,7 +28,7 @@ pip install "execsql2[odbc]"              # Generic ODBC DSN (pyodbc)
 pip install "execsql2[firebird]"          # Firebird
 pip install "execsql2[oracle]"            # Oracle
 pip install "execsql2[formats]"           # ODS, Excel, Jinja2, Feather/Parquet, HDF5, YAML
-pip install "execsql2[formatter]"         # SQL pass for execsql-format (sqlglot)
+pip install "execsql2[formatter]"         # SQL pass for `execsql format` (sqlglot)
 pip install "execsql2[auth]"              # OS keyring integration (desktop/native)
 pip install "execsql2[auth-plaintext]"    # Headless keyring (plaintext file backend)
 pip install "execsql2[auth-encrypted]"    # Headless keyring (encrypted file backend)

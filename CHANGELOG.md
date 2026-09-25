@@ -13,9 +13,16 @@ ______________________________________________________________________
 
 ### Added
 
+- `execsql` now has commands: `execsql run`, `execsql format` (or `fmt`), and `execsql lint`. `format` and `lint` take files or directories and need no database — linting a whole script library is new, since `--lint` only ever linted the single script it was given.
+- The original positional invocation is unchanged: `execsql script.sql myserver mydb` still works, still means the same thing, and is not deprecated. A script named exactly `run`, `format`, `fmt`, or `lint` with no extension is still read as a file, not a command.
+- `execsql lint` gained three structural checks that previously only a live run would reveal: a variable defined by `SUB` that nothing ever reads (almost always a spelling mismatch between the definition and the reference); an `IF` whose condition is a constant, making its `ELSE` — or its own body — unreachable; and a statement after an unconditional `HALT`. `HALT DISPLAY` is not treated as terminal, and an `IF` carrying an `ANDIF`/`ORIF` modifier is never reported as constant.
 - `just corpus` and `just corpus-external` run the formatter's real-SQL corpus checks. `corpus-external` takes a path to a read-only copy of an outside SQL library, so checking the formatter against production SQL is one command rather than a remembered incantation.
 - Database support tiers. PostgreSQL, MySQL/MariaDB, MS SQL Server, SQLite, and DuckDB are **supported** — verified against a live server or real database file on every CI run. MS Access, Firebird, Oracle, and ODBC DSN are **best effort** — present, unverified in CI, and may break. No adapter changes behavior or is scheduled for removal.
 - `support_tier_notice` configuration option (`[interface]` section, default `Yes`). Opening a best-effort database connection writes one line to stderr naming the tier, once per DBMS per run. Set it to `No` to silence.
+
+### Removed
+
+- The `execsql-format` command has been removed. Use `execsql format` — the options are identical, so `execsql-format --check scripts/` becomes `execsql format --check scripts/`. **Pre-commit users need no change**: the published hook id is still `execsql-format` and only its internal entry point moved, so existing `.pre-commit-config.yaml` files keep working as they are. Shell scripts, Makefiles, and CI steps that invoke `execsql-format` directly must be updated.
 
 ### Changed
 

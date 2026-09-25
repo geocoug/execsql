@@ -27,30 +27,34 @@
 
 Scripts are ordinary SQL plus metacommands embedded in comments (`-- !x!`), which add importing and exporting data, copying between databases, conditional execution, looping, substitution variables, and interactive prompts. Because the metacommands live in comments, the scripts stay valid SQL and other tools — `psql`, `sqlcmd`, your editor — ignore them.
 
-| Tool                                       | What it does                                                 | Needs a database? |
+| Command                                    | What it does                                                 | Needs a database? |
 | ------------------------------------------ | ------------------------------------------------------------ | ----------------- |
-| `execsql-format`                           | Normalize keywords, indentation, and SQL layout              | No                |
-| `execsql --lint`                           | Static analysis: structure, undefined variables, bad targets | No                |
-| `execsql --dry-run`                        | Parse and report what would run, without executing           | No                |
-| `execsql`                                  | Run the script against PostgreSQL, MySQL, SQLite, DuckDB, …  | Yes               |
+| `execsql format`                           | Normalize keywords, indentation, and SQL layout              | No                |
+| `execsql lint`                             | Static analysis: structure, undefined variables, bad targets | No                |
+| `execsql run`                              | Run the script against PostgreSQL, MySQL, SQLite, DuckDB, …  | Yes               |
 | [VS Code extension](extras/vscode-execsql) | Syntax highlighting for metacommands and variables           | No                |
+
+`format` and `lint` take files or directories; `fmt` is an alias for `format`.
+
+The original positional form — `execsql script.sql myserver mydb` — is unchanged
+and will stay supported; `execsql run` is the same thing spelled explicitly.
 
 ## Quick start — no database required
 
-Two of the four tools work on a bare `.sql` file. Try them first:
+Two of the three commands work on a bare `.sql` file — no server, no config. Try them first:
 
 ```bash
 pip install execsql2[formatter]
 
-execsql-format --check script.sql   # is it formatted?
-execsql-format --in-place script.sql # format it
-execsql --lint script.sql            # find problems before they cost you a run
+execsql format --check scripts/   # is it formatted?
+execsql format -i scripts/        # format it
+execsql lint scripts/             # find problems before they cost you a run
 ```
 
-`--lint` reports unmatched blocks, undefined substitution variables, and `INCLUDE`/`SCRIPT` targets that do not exist — the failures that otherwise surface halfway through a run against a live database:
+`lint` reports unmatched blocks, undefined substitution variables, and `INCLUDE`/`SCRIPT` targets that do not exist — the failures that otherwise surface halfway through a run against a live database:
 
 ```text
-$ execsql --lint load_data.sql
+$ execsql lint load_data.sql
 WARNING  load_data.sql:2  Potentially undefined variable: !!site_code!!
                           (not defined by a preceding SUB; may be set by a
                           config file or -a arg)
@@ -59,7 +63,7 @@ WARNING  load_data.sql:3  INCLUDE target does not exist: 'common/setup.sql'
 2 warnings
 ```
 
-`execsql-format` also runs as a [pre-commit hook](#formatting-scripts), so formatting is enforced without anyone remembering to run it.
+`execsql format` also runs as a [pre-commit hook](#formatting-scripts), so formatting is enforced without anyone remembering to run it.
 
 ## Example
 
@@ -112,7 +116,11 @@ Feature extras cover spreadsheet and Parquet/Feather formats, keyring authentica
 ## Usage
 
 ```text
-execsql [OPTIONS] SQL_SCRIPT [SERVER DATABASE | DATABASE_FILE]
+execsql run    [OPTIONS] SQL_SCRIPT [SERVER DATABASE | DATABASE_FILE]
+execsql format [--check | -i] [--indent N] FILE_OR_DIR...
+execsql lint   FILE_OR_DIR...
+
+execsql [OPTIONS] SQL_SCRIPT [SERVER DATABASE | DATABASE_FILE]   # original form, unchanged
 ```
 
 Examples:
@@ -277,23 +285,23 @@ Each call to `run()` uses an isolated `RuntimeContext`, so multiple calls do not
 
 ## Formatting Scripts
 
-The `execsql-format` command normalizes execsql script files: it uppercases metacommand keywords, corrects block indentation, and optionally reformats SQL via `sqlglot`. The metacommand / indent / keyword reformatting is built into `execsql2`; SQL reformatting requires the `[formatter]` extra (or pass `--no-sql` to skip it):
+The `execsql format` command normalizes execsql script files: it uppercases metacommand keywords, corrects block indentation, and optionally reformats SQL via `sqlglot`. The metacommand / indent / keyword reformatting is built into `execsql2`; SQL reformatting requires the `[formatter]` extra (or pass `--no-sql` to skip it):
 
 ```bash
 # Install with the SQL-reformatting extra
 pip install execsql2[formatter]
 
 # Format files in place
-execsql-format --in-place scripts/
+execsql format --in-place scripts/
 
 # Check formatting without writing (useful in CI)
-execsql-format --check scripts/
+execsql format --check scripts/
 
 # Run the formatter without sqlglot — keyword/indent normalization only
-execsql-format --no-sql --in-place scripts/
+execsql format --no-sql --in-place scripts/
 ```
 
-`execsql-format` is also available as a [pre-commit](https://pre-commit.com/) hook:
+`execsql format` is also available as a [pre-commit](https://pre-commit.com/) hook. The hook id is unchanged, so existing configs keep working:
 
 ```yaml
 repos:

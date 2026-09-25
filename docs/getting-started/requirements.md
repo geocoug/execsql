@@ -18,7 +18,7 @@ pip install "execsql2[odbc]"        # ODBC DSN (pyodbc)
 
 # Feature bundles
 pip install "execsql2[formats]"     # ODS, Excel, Jinja2, Feather, Parquet, HDF5
-pip install "execsql2[formatter]"   # SQL pass for execsql-format (sqlglot)
+pip install "execsql2[formatter]"   # SQL pass for `execsql format` (sqlglot)
 pip install "execsql2[upsert]"      # PG_UPSERT metacommand (pg-upsert)
 pip install "execsql2[map]"         # PROMPT MAP widget (tkintermapview)
 pip install "execsql2[auth]"        # OS keyring integration (desktop / native)
@@ -88,11 +88,11 @@ tests that run against something real.
 
 ### `formatter` extra
 
-Required for the SQL-formatting pass of the `execsql-format` CLI. Without this extra, `execsql-format` still normalizes metacommand indentation and keyword casing (use `--no-sql` or import scripts without SQL); the SQL pretty-printing pass calls [sqlglot](https://sqlglot.com/) and raises `ModuleNotFoundError` if it isn't installed.
+Required for the SQL-formatting pass of `execsql format`. Without this extra, `execsql format` still normalizes metacommand indentation and keyword casing (use `--no-sql` or import scripts without SQL); the SQL pretty-printing pass calls [sqlglot](https://sqlglot.com/) and raises `ModuleNotFoundError` if it isn't installed.
 
 | Feature                               | Library                                      |
 | ------------------------------------- | -------------------------------------------- |
-| SQL reformatting via `execsql-format` | [sqlglot](https://pypi.org/project/sqlglot/) |
+| SQL reformatting via `execsql format` | [sqlglot](https://pypi.org/project/sqlglot/) |
 
 ### `upsert` extra
 
