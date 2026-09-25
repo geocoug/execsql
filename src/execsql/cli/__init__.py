@@ -16,8 +16,8 @@ from __future__ import annotations
 import sys
 import traceback
 from pathlib import Path
+from typing import Any
 
-import click
 import typer
 from typer.core import TyperCommand, TyperGroup
 
@@ -65,10 +65,17 @@ def _unescape(record: tuple[str, str]) -> tuple[str, str]:
     return name.replace("\\[", "["), help_text.replace("\\[", "[")
 
 
+# Typer 0.26 stopped depending on Click and vendors it as ``typer._click``, so
+# ``click.Context`` is the wrong class on newer Typer and ``click`` may not be
+# installed at all. The overrides below take ``ctx`` and ``formatter`` as
+# ``Any`` because no public import names the right type across the supported
+# Typer range; they rely only on methods both Click lineages provide.
+
+
 class _PlainHelpMixin:
     """Render option help without Typer's Rich escaping."""
 
-    def format_options(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
+    def format_options(self, ctx: Any, formatter: Any) -> None:
         args: list[tuple[str, str]] = []
         opts: list[tuple[str, str]] = []
         for param in self.get_params(ctx):  # type: ignore[attr-defined]
@@ -111,18 +118,18 @@ class ExecsqlGroup(TyperGroup):
     ``--help``.
     """
 
-    def parse_args(self, ctx: click.Context, args: list[str]) -> list[str]:
+    def parse_args(self, ctx: Any, args: list[str]) -> list[str]:
         from execsql.cli.dispatch import normalize
 
         if not args:
             # Click's no_args_is_help exits 0 for a group. Running execsql with
             # no arguments is a usage error and has always exited non-zero, so
             # the help goes out but the status does not change.
-            click.echo(ctx.get_help(), color=ctx.color)
+            typer.echo(ctx.get_help(), color=ctx.color)
             ctx.exit(2)
         return super().parse_args(ctx, normalize(args))
 
-    def format_usage(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
+    def format_usage(self, ctx: Any, formatter: Any) -> None:
         formatter.write_usage(ctx.command_path, "[OPTIONS] COMMAND [ARGS]...")
         formatter.write_usage(
             ctx.command_path,
@@ -130,7 +137,7 @@ class ExecsqlGroup(TyperGroup):
             prefix=" " * len("Usage: "),
         )
 
-    def format_options(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
+    def format_options(self, ctx: Any, formatter: Any) -> None:
         globals_: list[tuple[str, str]] = []
         rest: list[tuple[str, str]] = []
         for param in self.get_params(ctx):
