@@ -13,6 +13,10 @@ ______________________________________________________________________
 
 ### Added
 
+- Every lint issue names a rule code, such as `V001` (undefined variable) or `F002` (unreachable code), in both `execsql lint` and `--lint` output. `execsql lint --help` lists the rules, and the [lint rules reference](https://execsql2.readthedocs.io/en/latest/reference/lint/) explains each one.
+- `execsql lint --select` and `--ignore` choose rules by code or prefix (`--ignore V002`, `--select F`). Parse errors are always reported.
+- `execsql lint --output-format json` writes every issue as one JSON array for CI and editor tooling.
+- `execsql lint --statistics` shows how many times each rule fired instead of listing every issue.
 - `execsql` now has commands: `execsql run`, `execsql format` (or `fmt`), and `execsql lint`. `format` and `lint` take files or directories and need no database — linting a whole script library is new, since `--lint` only ever linted the single script it was given.
 - The original positional invocation is unchanged: `execsql script.sql myserver mydb` still works, still means the same thing, and is not deprecated. A script named exactly `run`, `format`, `fmt`, or `lint` with no extension is still read as a file, not a command.
 - `execsql lint` gained three structural checks that previously only a live run would reveal: a variable defined by `SUB` that nothing ever reads (almost always a spelling mismatch between the definition and the reference); an `IF` whose condition is a constant, making its `ELSE` — or its own body — unreachable; and a statement after an unconditional `HALT`. `HALT DISPLAY` is not treated as terminal, and an `IF` carrying an `ANDIF`/`ORIF` modifier is never reported as constant.
@@ -36,6 +40,7 @@ ______________________________________________________________________
 ### Fixed
 
 - `-h` works as a short form of `--help`, as it did in upstream execsql.
+- A script that fails to parse under `--lint` or `execsql lint` is reported on one line with the line number of the problem, instead of a multi-line error with a timestamp.
 - A script's reported location no longer depends on a second, synthetic copy of the statement being in sync with the parse tree. The executor built a stand-in legacy command object for every statement so that error messages, the debug REPL, and `api.run()` could read the current file and line; those now read the syntax tree directly.
 - `execsql.api.run()` no longer discards every `WRITE ... TO <file>` and `TEE` to a file. Those metacommands hand their output to a FileWriter subprocess that only the CLI started, so under the library API the file was never created and the run still reported success ([#46](https://github.com/geocoug/execsql/issues/46)). `run()` now starts the writer, and flushes and closes every file before returning, so output is readable as soon as it hands back control. A writer the caller started themselves is left untouched.
 - File output that cannot be written because no FileWriter is running now reports a warning instead of being dropped in silence. The write is still skipped — queueing to a subprocess that is not draining the queue deadlocks the caller — but a script's logfile no longer comes back empty with no indication anything was missed.

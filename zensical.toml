@@ -18,6 +18,7 @@ nav = [
         { "Configuration" = "reference/configuration.md" },
         { "Substitution Variables" = "reference/substitution_vars.md" },
         { "Metacommands" = "reference/metacommands.md" },
+        { "Lint Rules" = "reference/lint.md" },
         { "Security" = "reference/security.md" }
     ] },
     { "Guides" = [

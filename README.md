@@ -51,17 +51,21 @@ execsql format -i scripts/        # format it
 execsql lint scripts/             # find problems before they cost you a run
 ```
 
-`lint` reports unmatched blocks, undefined substitution variables, and `INCLUDE`/`SCRIPT` targets that do not exist — the failures that otherwise surface halfway through a run against a live database:
+`lint` reports unmatched blocks, undefined and unused substitution variables, unreachable branches, and `INCLUDE`/`SCRIPT` targets that do not exist — the failures that otherwise surface halfway through a run against a live database:
 
 ```text
 $ execsql lint load_data.sql
-WARNING  load_data.sql:2  Potentially undefined variable: !!site_code!!
-                          (not defined by a preceding SUB; may be set by a
-                          config file or -a arg)
-WARNING  load_data.sql:3  INCLUDE target does not exist: 'common/setup.sql'
 
-2 warnings
+Lint: load_data.sql
+
+  WARNING  load_data.sql:2  V001  Potentially undefined variable: !!site_code!! (not defined by a
+preceding SUB; may be set by a config file or -a arg)
+  WARNING  load_data.sql:3  I001  INCLUDE target does not exist: 'common/setup.sql'
+
+  2 warnings
 ```
+
+Every issue has a rule code for `--select` and `--ignore`, and `--output-format json` feeds CI tools. See the [lint rules](https://execsql2.readthedocs.io/en/latest/reference/lint/).
 
 `execsql format` also runs as a [pre-commit hook](#formatting-scripts), so formatting is enforced without anyone remembering to run it.
 

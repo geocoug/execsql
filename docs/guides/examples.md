@@ -1669,14 +1669,14 @@ Produces output similar to:
 ``` text
 Lint: validate_orders.sql
 
-  WARNING  validate_orders.sql:2   variable !!report_dir!! is defined but never referenced
-  WARNING  validate_orders.sql:10  Potentially undefined variable: !!output_path!! (not defined by a
-preceding SUB; may be set by a config file or -a arg)
+  WARNING  validate_orders.sql:2   V002  variable !!report_dir!! is defined but never referenced
+  WARNING  validate_orders.sql:10  V001  Potentially undefined variable: !!output_path!! (not
+defined by a preceding SUB; may be set by a config file or -a arg)
 
   2 warnings
 ```
 
-The two warnings are the two halves of the same typo: one name is defined and never read, the other is read and never defined.
+The two warnings are the two halves of the same typo: one name is defined and never read, the other is read and never defined. `V001` and `V002` are [rule codes](../reference/lint.md#rules); a library that sets variables in a configuration file can drop the undefined-variable check with `execsql lint scripts/ --ignore V001`.
 
 Errors appear as `ERROR` and make `execsql lint` exit with code 1. Warnings alone exit with code 0, so a CI step gated on `execsql lint` fails only on a structural error. Pass a directory to check every `*.sql` file under it:
 
