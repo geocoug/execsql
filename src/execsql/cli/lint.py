@@ -41,6 +41,7 @@ from pathlib import Path
 
 from execsql.script.ast import (
     BatchBlock,
+    Comment,
     IfBlock,
     IncludeDirective,
     LoopBlock,
@@ -308,6 +309,154 @@ def _check_include_path(
 
 
 # ---------------------------------------------------------------------------
+# Structural rules
+#
+# These are the checks a compiler performs for every other language and that
+# an execsql script has only ever got by being run: a branch that cannot be
+# reached, a statement after a HALT, a variable defined and never used.
+# Today those are found by running the script against a live database and
+# watching it do the wrong thing halfway through.
+# ---------------------------------------------------------------------------
+
+#: Conditions whose value is fixed at parse time.  ``IF(True)`` is a real and
+#: reasonable thing to write while developing; leaving it in is what makes
+#: every other branch dead code.
+_RX_CONST_TRUE = re.compile(r"^\s*\(?\s*(?:true|1\s*=\s*1|yes)\s*\)?\s*$", re.I)
+_RX_CONST_FALSE = re.compile(r"^\s*\(?\s*(?:false|0\s*=\s*1|1\s*=\s*0|no)\s*\)?\s*$", re.I)
+
+#: Metacommands after which nothing in the same block can run.
+_RX_TERMINAL = re.compile(r"^\s*HALT\b(?!\s+DISPLAY)", re.I)
+
+
+def _is_always_true(node: IfBlock) -> bool:
+    """True when the IF condition is a literal that cannot be false.
+
+    Compounding modifiers are not analysed — an ANDIF could make the whole
+    condition false, so a modified IF is never reported.
+    """
+    if node.condition_modifiers:
+        return False
+    return bool(_RX_CONST_TRUE.match(node.condition))
+
+
+def _is_always_false(node: IfBlock) -> bool:
+    if node.condition_modifiers:
+        return False
+    return bool(_RX_CONST_FALSE.match(node.condition))
+
+
+def _check_constant_condition(node: IfBlock, issues: list[_Issue]) -> None:
+    """Report branches that a constant condition makes unreachable."""
+    src, lno = node.span.file, node.span.start_line
+    if _is_always_true(node):
+        dead = len(node.elseif_clauses) + (1 if node.else_body else 0)
+        if dead:
+            issues.append(
+                _warning(
+                    src,
+                    lno,
+                    f"IF condition {node.condition!r} is always true, so the {dead} branch(es) after it can never run",
+                ),
+            )
+    elif _is_always_false(node) and node.body:
+        issues.append(
+            _warning(
+                src,
+                lno,
+                f"IF condition {node.condition!r} is always false, so its body can never run",
+            ),
+        )
+
+
+def _check_unreachable_after_halt(nodes: list[Node], issues: list[_Issue]) -> None:
+    """Report statements that follow an unconditional HALT in the same block.
+
+    ``HALT DISPLAY`` shows a message and can be cancelled, so it is not
+    treated as terminal.
+    """
+    for i, node in enumerate(nodes):
+        if not isinstance(node, MetaCommandStatement):
+            continue
+        if not _RX_TERMINAL.match(node.command):
+            continue
+        rest = [n for n in nodes[i + 1 :] if not isinstance(n, Comment)]
+        if rest:
+            after = rest[0]
+            issues.append(
+                _warning(
+                    after.span.file,
+                    after.span.start_line,
+                    f"unreachable — HALT on line {node.span.start_line} always ends the script",
+                ),
+            )
+        return
+
+
+def _collect_var_references(nodes: list[Node], seen: set[str]) -> None:
+    """Record every ``!!var!!`` reference anywhere beneath *nodes*."""
+    for node in nodes:
+        for text in _referencing_text(node):
+            for m in _RX_VAR_REF.finditer(text):
+                seen.add(m.group(1).lstrip("$@&~#+").upper())
+        for child in node.children():
+            _collect_var_references([child], seen)
+
+
+def _referencing_text(node: Node) -> list[str]:
+    """Every string on *node* in which a variable reference may appear."""
+    texts: list[str] = []
+    if isinstance(node, SqlStatement):
+        texts.append(node.text)
+    elif isinstance(node, MetaCommandStatement):
+        texts.append(node.command)
+    elif isinstance(node, IncludeDirective):
+        texts.append(node.target)
+    if isinstance(node, IfBlock):
+        texts.append(node.condition)
+        texts.extend(m.condition for m in node.condition_modifiers)
+        texts.extend(c.condition for c in node.elseif_clauses)
+    elif isinstance(node, LoopBlock):
+        texts.append(node.condition)
+    return texts
+
+
+def _check_unused_variables(script: Script, defined: set[str], issues: list[_Issue]) -> None:
+    """Report variables a SUB defines that nothing ever reads.
+
+    Almost always a typo in either the definition or the reference — the two
+    spellings differ and neither the script nor the database complains.
+    Variables a script *exports* for a caller are the false positive here, so
+    this is a warning.
+    """
+    referenced: set[str] = set()
+    _collect_var_references(script.body, referenced)
+    unused = sorted(defined - referenced)
+    for name in unused:
+        line = _definition_line(script.body, name)
+        issues.append(
+            _warning(
+                script.body[0].span.file if script.body else "<script>",
+                line,
+                f"variable !!{name.lower()}!! is defined but never referenced",
+            ),
+        )
+
+
+def _definition_line(nodes: list[Node], name: str) -> int:
+    """Line of the SUB that defines *name*, or 0 when it cannot be located."""
+    for node in nodes:
+        if isinstance(node, MetaCommandStatement):
+            probe: set[str] = set()
+            _extract_var_definition(node.command, None, probe)
+            if name in probe:
+                return node.span.start_line
+        found = _definition_line(list(node.children()), name)
+        if found:
+            return found
+    return 0
+
+
+# ---------------------------------------------------------------------------
 # Core lint walk
 # ---------------------------------------------------------------------------
 
@@ -324,6 +473,8 @@ def _lint_nodes(
     """Walk a list of AST nodes and collect lint issues."""
     if visited_scripts is None:
         visited_scripts = set()
+
+    _check_unreachable_after_halt(nodes, issues)
 
     for node in nodes:
         src = node.span.file
@@ -367,6 +518,7 @@ def _lint_nodes(
 
         # -- Recurse into block children --
         if isinstance(node, IfBlock):
+            _check_constant_condition(node, issues)
             _lint_nodes(node.body, script_dir, defined_vars, script_blocks, issues, visited_scripts=visited_scripts)
             for clause in node.elseif_clauses:
                 _lint_nodes(
@@ -444,6 +596,9 @@ def lint(
         script_blocks,
         issues,
     )
+
+    # Pass 3: whole-script rules, which need every reference collected first
+    _check_unused_variables(script, all_defined, issues)
 
     return issues
 

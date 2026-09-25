@@ -12,7 +12,7 @@ Targets:
 - INCLUDE / INCLUDE IF EXISTS / circular detection / tilde expansion
 - ELSEIF and ELSE branches in IF
 - Profiling (ctx.profile_data) and step_mode
-- _FakeScriptCmd / _node_cmd_type / _node_cmd_text helpers
+- ExecutingStatement / _node_cmd_type / _node_cmd_text helpers
 - _convert_deferred_vars regex
 """
 
@@ -36,7 +36,7 @@ from execsql.script.executor import (
     _BreakLoop,
     _BREAK_RX,
     _convert_deferred_vars,
-    _FakeScriptCmd,
+    ExecutingStatement,
     _node_cmd_text,
     _node_cmd_type,
 )
@@ -132,22 +132,54 @@ class TestNodeCmdHelpers:
         assert "EXECUTE SCRIPT" in _node_cmd_text(ex_node)
 
 
-class TestFakeScriptCmd:
-    def test_fake_for_sql(self) -> None:
+class TestExecutingStatement:
+    """What ``ctx.last_command`` exposes, read straight off the AST node.
+
+    Error reporting, the debug REPL and ``api.run()`` read these attributes,
+    so each one is derived from the node rather than copied — there is no
+    second representation of a statement to fall out of sync.
+    """
+
+    def _sql_node(self):
+        tree = parse_string("SELECT 1;", source_name="s.sql")
+        return tree.body[0].body[0] if isinstance(tree.body[0], SqlBlock) else tree.body[0]
+
+    def test_sql_statement_reports_its_type(self) -> None:
+        assert ExecutingStatement(self._sql_node()).command_type == "sql"
+
+    def test_sql_statement_reports_its_source(self) -> None:
+        stmt = ExecutingStatement(self._sql_node())
+        assert stmt.source == "s.sql"
+        assert stmt.source_name == "s.sql"
+
+    def test_sql_statement_reports_its_line(self) -> None:
+        assert ExecutingStatement(self._sql_node()).line_no >= 1
+
+    def test_sql_commandline_is_the_statement(self) -> None:
+        assert "SELECT 1" in ExecutingStatement(self._sql_node()).command.commandline()
+
+    def test_metacommand_reports_its_type(self) -> None:
+        tree = parse_string("-- !x! SUB x 1\n", source_name="src.sql")
+        assert ExecutingStatement(tree.body[0]).command_type == "cmd"
+
+    def test_metacommand_commandline_keeps_its_marker(self) -> None:
+        """A metacommand must come back as it was written, marker included."""
+        tree = parse_string("-- !x! SUB x 1\n", source_name="src.sql")
+        line = ExecutingStatement(tree.body[0]).command.commandline()
+        assert line.startswith("-- !x!")
+        assert "SUB x 1" in line
+
+    def test_the_node_is_not_copied(self) -> None:
+        """The AST node stays the single source of truth."""
+        node = self._sql_node()
+        assert ExecutingStatement(node).node is node
+
+    def test_source_dir_is_absolute(self) -> None:
+        import os
+
         tree = parse_string("SELECT 1;", source_name="s.sql")
         node = tree.body[0].body[0] if isinstance(tree.body[0], SqlBlock) else tree.body[0]
-        fake = _FakeScriptCmd(node)
-        assert fake.command_type == "sql"
-        assert fake.source == "s.sql"
-        loc, line = fake.current_script_line()
-        assert loc == "s.sql"
-        assert fake.commandline()
-
-    def test_fake_for_meta(self) -> None:
-        tree = parse_string("-- !x! SUB x 1\n", source_name="src.sql")
-        fake = _FakeScriptCmd(tree.body[0])
-        assert fake.command_type == "cmd"
-        assert "SUB x 1" in fake.commandline()
+        assert os.path.isabs(ExecutingStatement(node).source_dir)
 
 
 # ---------------------------------------------------------------------------

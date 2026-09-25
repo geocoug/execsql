@@ -13,8 +13,18 @@ ______________________________________________________________________
 
 ### Added
 
+- `execsql` now has commands: `execsql run`, `execsql format` (or `fmt`), and `execsql lint`. `format` and `lint` take files or directories and need no database — linting a whole script library is new, since `--lint` only ever linted the single script it was given.
+- The original positional invocation is unchanged: `execsql script.sql myserver mydb` still works, still means the same thing, and is not deprecated. A script named exactly `run`, `format`, `fmt`, or `lint` with no extension is still read as a file, not a command.
+- `execsql lint` gained three structural checks that previously only a live run would reveal: a variable defined by `SUB` that nothing ever reads (almost always a spelling mismatch between the definition and the reference); an `IF` whose condition is a constant, making its `ELSE` — or its own body — unreachable; and a statement after an unconditional `HALT`. `HALT DISPLAY` is not treated as terminal, and an `IF` carrying an `ANDIF`/`ORIF` modifier is never reported as constant.
+- The VS Code extension is packaged for the Marketplace and published on a version tag. `just package-vscode` builds a `.vsix` locally. Publishing needs a Marketplace publisher account and a `VSCE_PAT` repository secret; without the secret the release job skips rather than fails, so releases still complete without it. The extension version tracks the tag.
+- `just corpus` and `just corpus-external` run the formatter's real-SQL corpus checks. `corpus-external` takes a path to a read-only copy of an outside SQL library, so checking the formatter against production SQL is one command rather than a remembered incantation.
 - Database support tiers. PostgreSQL, MySQL/MariaDB, MS SQL Server, SQLite, and DuckDB are **supported** — verified against a live server or real database file on every CI run. MS Access, Firebird, Oracle, and ODBC DSN are **best effort** — present, unverified in CI, and may break. No adapter changes behavior or is scheduled for removal.
 - `support_tier_notice` configuration option (`[interface]` section, default `Yes`). Opening a best-effort database connection writes one line to stderr naming the tier, once per DBMS per run. Set it to `No` to silence.
+
+### Removed
+
+- `SqlStmt`, `MetacommandStmt`, and `ScriptCmd` are removed from `execsql.script`. They were statement wrappers from the pre-AST engine; nothing has constructed one since the AST executor became the only engine, and the parse tree now describes an executing statement on its own. Nothing in execsql imported them, and a script cannot reference them — only code importing `execsql.script` directly is affected.
+- The `execsql-format` command has been removed. Use `execsql format` — the options are identical, so `execsql-format --check scripts/` becomes `execsql format --check scripts/`. **Pre-commit users need no change**: the published hook id is still `execsql-format` and only its internal entry point moved, so existing `.pre-commit-config.yaml` files keep working as they are. Shell scripts, Makefiles, and CI steps that invoke `execsql-format` directly must be updated.
 
 ### Changed
 
@@ -22,6 +32,7 @@ ______________________________________________________________________
 
 ### Fixed
 
+- A script's reported location no longer depends on a second, synthetic copy of the statement being in sync with the parse tree. The executor built a stand-in legacy command object for every statement so that error messages, the debug REPL, and `api.run()` could read the current file and line; those now read the syntax tree directly.
 - `execsql.api.run()` no longer discards every `WRITE ... TO <file>` and `TEE` to a file. Those metacommands hand their output to a FileWriter subprocess that only the CLI started, so under the library API the file was never created and the run still reported success ([#46](https://github.com/geocoug/execsql/issues/46)). `run()` now starts the writer, and flushes and closes every file before returning, so output is readable as soon as it hands back control. A writer the caller started themselves is left untouched.
 - File output that cannot be written because no FileWriter is running now reports a warning instead of being dropped in silence. The write is still skipped — queueing to a subprocess that is not draining the queue deadlocks the caller — but a script's logfile no longer comes back empty with no indication anything was missed.
 - `IMPORT` reads CSV files containing a quoted field with a newline. RFC 4180 allows it and execsql's own CSV export produces it, but format diagnosis scanned physical lines, so the delimiter looked inconsistent and was rejected: the header arrived as a single column and the record split into two rows with the quote characters still in the data. Exporting a multi-line value and importing it back now round-trips.

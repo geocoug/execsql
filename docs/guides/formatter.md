@@ -1,10 +1,10 @@
-# execsql-format
+# execsql format
 
-`execsql-format` is a code formatter for execsql script files. It normalizes metacommand indentation, uppercases metacommand keywords, and optionally reformats SQL statements. Run it before committing scripts, in CI, or any time you want consistent formatting across a codebase.
+`execsql format` is a code formatter for execsql script files. It normalizes metacommand indentation, uppercases metacommand keywords, and optionally reformats SQL statements. Run it before committing scripts, in CI, or any time you want consistent formatting across a codebase.
 
 ## Installation { #installation }
 
-The `execsql-format` command is installed automatically with the `execsql2` package and is available on your PATH after install:
+The `execsql format` command is installed automatically with the `execsql2` package and is available on your PATH after install:
 
 ```bash
 pip install execsql2
@@ -16,12 +16,12 @@ The metacommand-indentation and keyword-casing passes work out of the box. **SQL
 pip install "execsql2[formatter]"
 ```
 
-Without the extra, `execsql-format` works in `--no-sql` mode (metacommand indentation and keyword casing only); invoking the SQL pass without `[formatter]` installed raises `ModuleNotFoundError: No module named 'sqlglot'`.
+Without the extra, `execsql format` works in `--no-sql` mode (metacommand indentation and keyword casing only); invoking the SQL pass without `[formatter]` installed raises `ModuleNotFoundError: No module named 'sqlglot'`.
 
 ## Usage { #usage }
 
 ```bash
-execsql-format [OPTIONS] FILE_OR_DIR [FILE_OR_DIR ...]
+execsql format [OPTIONS] FILE_OR_DIR [FILE_OR_DIR ...]
 ```
 
 Pass one or more files or directories. Directories are searched recursively for `*.sql` files.
@@ -128,13 +128,13 @@ Use `--no-sql` to skip SQL reformatting entirely and only normalize metacommands
 ## Examples { #examples }
 
 ```bash
-execsql-format myscript.sql                      # Preview to stdout
-execsql-format --in-place myscript.sql           # Rewrite in place
-execsql-format --in-place scripts/               # Recurse into a directory
-execsql-format --check scripts/                  # Exit 1 if any file would change (for CI)
-execsql-format --indent 2 --in-place myscript.sql        # Two-space indent
-execsql-format --leading-comma --in-place myscript.sql   # Commas at line start
-execsql-format --no-sql --in-place myscript.sql          # Only re-indent metacommands; leave SQL alone
+execsql format myscript.sql                      # Preview to stdout
+execsql format --in-place myscript.sql           # Rewrite in place
+execsql format --in-place scripts/               # Recurse into a directory
+execsql format --check scripts/                  # Exit 1 if any file would change (for CI)
+execsql format --indent 2 --in-place myscript.sql        # Two-space indent
+execsql format --leading-comma --in-place myscript.sql   # Commas at line start
+execsql format --no-sql --in-place myscript.sql          # Only re-indent metacommands; leave SQL alone
 ```
 
 `--leading-comma` produces output like:
@@ -162,7 +162,7 @@ select id,name,created_at from users where active = true order by name;
 -- !x! endif
 ```
 
-**After (`execsql-format myscript.sql`):**
+**After (`execsql format myscript.sql`):**
 
 ```sql
 -- !x! SUB schema "public"
@@ -183,7 +183,7 @@ select id,name,created_at from users where active = true order by name;
 
 ## Pre-commit Hook { #pre-commit }
 
-`execsql-format` can be used as a [pre-commit](https://pre-commit.com/) hook. Add to `.pre-commit-config.yaml`:
+`execsql format` can be used as a [pre-commit](https://pre-commit.com/) hook. The hook id is still `execsql-format`, so existing configs need no change. Add to `.pre-commit-config.yaml`:
 
 ```yaml
 repos:

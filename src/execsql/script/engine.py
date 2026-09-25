@@ -11,9 +11,6 @@ live in :mod:`execsql.script.parser` and
 Classes:
 - :class:`MetaCommand` — one entry in the metacommand dispatch table.
 - :class:`MetaCommandList` — ordered list of :class:`MetaCommand` entries with a keyword index.
-- :class:`SqlStmt` — wraps a single SQL string for execution.
-- :class:`MetacommandStmt` — wraps a metacommand line for dispatch.
-- :class:`ScriptCmd` — pairs a statement with its source-file location.
 - :class:`ScriptExecSpec` — specification for deferred script execution.
 
 Functions:
@@ -28,7 +25,7 @@ import os
 import re
 import uuid
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 import execsql.state as _state
 from execsql.exceptions import ErrInfo
@@ -38,9 +35,6 @@ from execsql.utils.errors import exception_desc
 __all__ = [
     "MetaCommand",
     "MetaCommandList",
-    "SqlStmt",
-    "MetacommandStmt",
-    "ScriptCmd",
     "ScriptExecSpec",
     "set_system_vars",
     "substitute_vars",
@@ -240,89 +234,6 @@ class MetaCommandList:
 
 
 # ---------------------------------------------------------------------------
-# SqlStmt / MetacommandStmt
-# ---------------------------------------------------------------------------
-
-
-class SqlStmt:
-    """A single SQL statement ready to be executed against the active database.
-
-    Data class only — the legacy ``.run()`` method was removed when the AST
-    executor became the sole engine.  SQL execution now goes through
-    :func:`execsql.script.executor._exec_sql`.
-    """
-
-    def __init__(self, sql_statement: str) -> None:
-        self.statement = re.sub(r"\s*;(\s*;\s*)+$", ";", sql_statement)
-
-    def __repr__(self) -> str:
-        return f"SqlStmt({self.statement})"
-
-    def commandline(self) -> str:
-        """Return the raw SQL statement text."""
-        return self.statement
-
-
-class MetacommandStmt:
-    """A single execsql metacommand line.
-
-    Data class only — the legacy ``.run()`` method was removed when the AST
-    executor became the sole engine.  Metacommand dispatch now goes through
-    :func:`execsql.script.executor._exec_metacommand`.
-    """
-
-    def __init__(self, metacommand_statement: str) -> None:
-        self.statement = metacommand_statement
-
-    def __repr__(self) -> str:
-        return f"MetacommandStmt({self.statement})"
-
-    def commandline(self) -> str:
-        """Return the metacommand line in its canonical ``-- !x! ...`` form."""
-        return "-- !x! " + self.statement
-
-
-# ---------------------------------------------------------------------------
-# ScriptCmd
-# ---------------------------------------------------------------------------
-
-
-class ScriptCmd:
-    """A parsed script item: either a :class:`SqlStmt` or a :class:`MetacommandStmt`, with source location."""
-
-    # A SQL script object that is either a SQL statement or a metacommand.
-    def __init__(
-        self,
-        command_source_name: str,
-        command_line_no: int,
-        command_type: str,
-        script_command: Any,
-    ) -> None:
-        self.source = command_source_name
-        self.line_no = command_line_no
-        self.command_type = command_type
-        self.command = script_command
-        # MIGRATION NOTE: differs from monolith (execsql.py) — source_dir and source_name are
-        # resolved once at construction rather than on every statement execution.  For absolute
-        # paths (the common case) the result is identical.  For relative paths the value is
-        # anchored to the CWD at script-load time rather than at each statement's execution time;
-        # the original per-statement resolve could yield inconsistent values across statements of
-        # the same script if a CD metacommand ran between them.
-        _p = Path(command_source_name)
-        self.source_dir: str = str(_p.resolve().parent) + os.sep
-        self.source_name: str = _p.name
-
-    def __repr__(self) -> str:
-        return f"ScriptCmd({self.source!r}, {self.line_no!r}, {self.command_type!r}, {repr(self.command)!r})"
-
-    def current_script_line(self) -> tuple[str, int]:
-        return (self.source, self.line_no)
-
-    def commandline(self) -> str:
-        return cast(str, self.command.statement if self.command_type == "sql" else "-- !x! " + self.command.statement)
-
-
-# ---------------------------------------------------------------------------
 # ScriptExecSpec
 # ---------------------------------------------------------------------------
 
@@ -509,7 +420,8 @@ def current_script_line() -> tuple[str, int]:
     """Return ``(source_name, line_number)`` for the command currently executing.
 
     Reads from ``_state.last_command``, which the AST executor updates on
-    every statement via the ``_FakeScriptCmd`` shim.  Returns ``("", 0)``
+    every statement via :class:`~execsql.script.executor.ExecutingStatement`.
+    Returns ``("", 0)``
     when nothing has executed yet (e.g. during early initialization errors).
     """
     last = getattr(_state, "last_command", None)

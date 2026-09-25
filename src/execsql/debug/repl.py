@@ -371,7 +371,7 @@ def _write(text: str) -> None:
 def _print_where() -> None:
     """Print the current script location and the upcoming statement.
 
-    Reads ``_state.last_command`` (a :class:`ScriptCmd`) and displays the
+    Reads ``_state.last_command`` and displays the
     filename, line number, command type, and (truncated) statement text.
     If ``last_command`` is ``None``, reports that the position is unknown.
     """

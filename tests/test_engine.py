@@ -3,8 +3,6 @@
 Covers the classes and functions that remain after the legacy execution
 engine was replaced by the AST executor:
 - MetaCommand / MetaCommandList — dispatch table
-- SqlStmt / MetacommandStmt — command wrappers
-- ScriptCmd — named-script wrapper used by EXECUTE SCRIPT dispatch
 - ScriptExecSpec — deferred execution spec (construction only)
 - substitute_vars() — variable expansion
 - set_system_vars() — system variable population
@@ -26,12 +24,9 @@ from execsql.script import (
     CounterVars,
     MetaCommand,
     MetaCommandList,
-    MetacommandStmt,
-    SqlStmt,
     SubVarSet,
 )
 from execsql.script.engine import (
-    ScriptCmd,
     ScriptExecSpec,
     current_script_line,
     set_system_vars,
@@ -273,79 +268,6 @@ class TestMetaCommandList:
 
 
 # ---------------------------------------------------------------------------
-# SqlStmt
-# ---------------------------------------------------------------------------
-
-
-class TestSqlStmt:
-    def test_constructor_collapses_double_semicolons(self):
-        stmt = SqlStmt("SELECT 1;;")
-        assert stmt.statement.endswith(";")
-        assert ";;" not in stmt.statement
-
-    def test_commandline_returns_statement(self):
-        stmt = SqlStmt("SELECT 1;")
-        assert stmt.commandline() == "SELECT 1;"
-
-    def test_repr(self):
-        stmt = SqlStmt("SELECT 1;")
-        assert "SELECT 1;" in repr(stmt)
-
-
-# ---------------------------------------------------------------------------
-# MetacommandStmt
-# ---------------------------------------------------------------------------
-
-
-class TestMetacommandStmt:
-    def test_constructor_stores_statement(self):
-        ms = MetacommandStmt("SET myvar = hello")
-        assert ms.statement == "SET myvar = hello"
-
-    def test_commandline_prefixes_metacommand(self):
-        ms = MetacommandStmt("SET myvar = hello")
-        assert ms.commandline() == "-- !x! SET myvar = hello"
-
-    def test_repr(self):
-        ms = MetacommandStmt("SET x = 1")
-        assert "SET x = 1" in repr(ms)
-
-    # MetacommandStmt.run was removed when the AST executor became the only
-    # engine. Dispatch now happens through executor._exec_metacommand. See
-    # tests/test_executor.py for the new coverage.
-
-
-# ---------------------------------------------------------------------------
-# ScriptCmd
-# ---------------------------------------------------------------------------
-
-
-class TestScriptCmd:
-    def test_current_script_line(self):
-        sc = ScriptCmd("myfile.sql", 42, "sql", SqlStmt("SELECT 1;"))
-        assert sc.current_script_line() == ("myfile.sql", 42)
-
-    def test_commandline_sql_type(self):
-        sc = ScriptCmd("f.sql", 1, "sql", SqlStmt("SELECT 1;"))
-        assert sc.commandline() == "SELECT 1;"
-
-    def test_commandline_cmd_type(self):
-        sc = ScriptCmd("f.sql", 1, "cmd", MetacommandStmt("SET x = 1"))
-        assert sc.commandline() == "-- !x! SET x = 1"
-
-    def test_repr(self):
-        sc = ScriptCmd("f.sql", 10, "sql", SqlStmt("SELECT 1;"))
-        r = repr(sc)
-        assert "f.sql" in r
-        assert "10" in r
-
-
-# CommandList was removed in the legacy-engine elimination. See
-# ExecFrame in execsql.state plus the scope-frame helpers on
-# RuntimeContext for the replacement.
-
-
-# ---------------------------------------------------------------------------
 # substitute_vars()
 # ---------------------------------------------------------------------------
 
@@ -514,9 +436,16 @@ class TestCurrentScriptLine:
         assert current_script_line() == ("", 0)
 
     def test_last_command_returns_source_and_lineno(self, engine_state):
-        sc = ScriptCmd("myscript.sql", 7, "sql", SqlStmt("SELECT 1;"))
-        _state.last_command = sc
-        assert current_script_line() == ("myscript.sql", 7)
+        """The location comes off the AST node the executor is on."""
+        from execsql.script.executor import ExecutingStatement
+        from execsql.script.parser import parse_string
+
+        tree = parse_string("SELECT 1;", source_name="myscript.sql")
+        node = tree.body[0].body[0] if hasattr(tree.body[0], "body") else tree.body[0]
+        _state.last_command = ExecutingStatement(node)
+        source, line = current_script_line()
+        assert source == "myscript.sql"
+        assert line >= 1
 
 
 # Legacy parser tests (_parse_script_lines, read_sqlstring, read_sqlfile,

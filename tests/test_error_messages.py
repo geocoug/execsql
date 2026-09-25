@@ -1,6 +1,6 @@
 """Tests for error-message quality fixes — script location, $ERROR_MESSAGE, and warnings.
 
-Covers Findings 1/5 (stamp_errinfo), 2 ($ERROR_MESSAGE updates), 4 (MetacommandStmt
+Covers Findings 1/5 (stamp_errinfo), 2 ($ERROR_MESSAGE updates), 4 (metacommand
 preserves original ErrInfo), 6 (empty-script guard), and 7 (write_warning always=).
 """
 
@@ -19,7 +19,7 @@ from execsql.exceptions import ErrInfo
 
 
 def _make_script_cmd(source: str = "test.sql", line_no: int = 42, command_type: str = "sql"):
-    """Build a minimal ScriptCmd-like object with only the fields stamp_errinfo reads."""
+    """Build a stand-in carrying only the fields stamp_errinfo reads."""
     cmd = SimpleNamespace(
         source=source,
         line_no=line_no,
@@ -182,7 +182,7 @@ class TestExitNowStampsErrinfo:
 # ---------------------------------------------------------------------------
 
 
-# The SqlStmt.run / MetacommandStmt.run tests were removed when those
+# The statement-wrapper .run() tests were removed when those
 # methods were deleted along with the legacy command-list engine. The
 # equivalent error-message and ErrInfo-preservation behavior is now
 # exercised by tests/test_executor.py via the _exec_sql / _exec_metacommand

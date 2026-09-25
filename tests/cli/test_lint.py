@@ -327,3 +327,126 @@ class TestReturnShape:
         # Should not raise even with script_path=None.
         issues = lint(tree, script_path=None)
         assert isinstance(issues, list)
+
+
+# ---------------------------------------------------------------------------
+# Structural rules
+#
+# The checks a compiler does for every other language. Before these, a dead
+# branch or a mistyped variable was found by running the script against a live
+# database and watching it do the wrong thing halfway through.
+# ---------------------------------------------------------------------------
+
+
+def _messages(issues) -> str:
+    return " | ".join(m for _, _, _, m in issues)
+
+
+class TestConstantConditionMakesBranchesUnreachable:
+    """`IF(True)` left in after debugging is what kills every other branch."""
+
+    def test_always_true_reports_the_dead_else(self, tmp_path):
+        issues = _lint(tmp_path, "-- !x! IF(True)\nSELECT 1;\n-- !x! ELSE\nSELECT 2;\n-- !x! ENDIF\n")
+        assert "can never run" in _messages(issues)
+
+    def test_always_true_with_no_else_is_not_reported(self, tmp_path):
+        """Nothing is unreachable, so there is nothing to say."""
+        issues = _lint(tmp_path, "-- !x! IF(True)\nSELECT 1;\n-- !x! ENDIF\n")
+        assert "can never run" not in _messages(issues)
+
+    def test_always_false_reports_the_dead_body(self, tmp_path):
+        issues = _lint(tmp_path, "-- !x! IF(FALSE)\nSELECT 1;\n-- !x! ENDIF\n")
+        assert "always false" in _messages(issues)
+
+    @pytest.mark.parametrize("cond", ["1=1", "1 = 1", "true", "TRUE", "(True)", "yes"])
+    def test_spellings_of_always_true(self, tmp_path, cond):
+        issues = _lint(tmp_path, f"-- !x! IF({cond})\nSELECT 1;\n-- !x! ELSE\nSELECT 2;\n-- !x! ENDIF\n")
+        assert "can never run" in _messages(issues), cond
+
+    def test_a_real_condition_is_left_alone(self, tmp_path):
+        """The rule must not fire on a condition with actual content."""
+        issues = _lint(tmp_path, "-- !x! IF(hasrows(mytable))\nSELECT 1;\n-- !x! ELSE\nSELECT 2;\n-- !x! ENDIF\n")
+        assert "can never run" not in _messages(issues)
+
+    def test_a_modifier_suppresses_the_rule(self, tmp_path):
+        """An ANDIF can make the whole condition false, so it is not constant."""
+        body = "-- !x! IF(True)\n-- !x! ANDIF(hasrows(t))\nSELECT 1;\n-- !x! ELSE\nSELECT 2;\n-- !x! ENDIF\n"
+        issues = _lint(tmp_path, body)
+        assert "can never run" not in _messages(issues)
+
+
+class TestUnreachableAfterHalt:
+    def test_a_statement_after_halt_is_reported(self, tmp_path):
+        issues = _lint(tmp_path, '-- !x! HALT MESSAGE "done"\nSELECT 1;\n')
+        assert "unreachable" in _messages(issues)
+
+    def test_the_halt_line_is_named(self, tmp_path):
+        issues = _lint(tmp_path, '-- !x! HALT MESSAGE "done"\nSELECT 1;\n')
+        assert "line 1" in _messages(issues)
+
+    def test_halt_at_the_end_is_fine(self, tmp_path):
+        issues = _lint(tmp_path, 'SELECT 1;\n-- !x! HALT MESSAGE "done"\n')
+        assert "unreachable" not in _messages(issues)
+
+    def test_halt_display_is_not_terminal(self, tmp_path):
+        """HALT DISPLAY shows a message and can be cancelled."""
+        issues = _lint(tmp_path, "-- !x! HALT DISPLAY mytable\nSELECT 1;\n")
+        assert "unreachable" not in _messages(issues)
+
+    def test_halt_inside_a_branch_does_not_condemn_the_rest(self, tmp_path):
+        """Only the enclosing block is unreachable, not what follows ENDIF."""
+        body = '-- !x! IF(hasrows(t))\n-- !x! HALT MESSAGE "stop"\n-- !x! ENDIF\nSELECT 1;\n'
+        issues = _lint(tmp_path, body)
+        assert "unreachable" not in _messages(issues)
+
+
+class TestUnusedVariables:
+    """A defined-but-unread variable is nearly always a spelling mismatch."""
+
+    def test_an_unreferenced_sub_is_reported(self, tmp_path):
+        issues = _lint(tmp_path, "-- !x! SUB orphan value\nSELECT 1;\n")
+        assert "defined but never referenced" in _messages(issues)
+
+    def test_a_referenced_sub_is_not_reported(self, tmp_path):
+        issues = _lint(tmp_path, "-- !x! SUB used value\nSELECT '!!used!!';\n")
+        assert "defined but never referenced" not in _messages(issues)
+
+    def test_a_reference_from_a_condition_counts(self, tmp_path):
+        body = "-- !x! SUB flag 1\n-- !x! IF(!!flag!! = 1)\nSELECT 1;\n-- !x! ENDIF\n"
+        issues = _lint(tmp_path, body)
+        assert "defined but never referenced" not in _messages(issues)
+
+    def test_a_reference_from_inside_a_block_counts(self, tmp_path):
+        body = "-- !x! SUB deep v\n-- !x! IF(hasrows(t))\nSELECT '!!deep!!';\n-- !x! ENDIF\n"
+        issues = _lint(tmp_path, body)
+        assert "defined but never referenced" not in _messages(issues)
+
+    def test_the_definition_line_is_reported(self, tmp_path):
+        issues = _lint(tmp_path, "SELECT 1;\n-- !x! SUB orphan value\n")
+        unused = [i for i in issues if "never referenced" in i[3]]
+        assert unused and unused[0][2] == 2, unused
+
+
+class TestTheProjectsOwnScriptsStayQuiet:
+    """A rule that fires on correct scripts is worse than no rule.
+
+    These rules were run across every template and fixture in the repo; the
+    only finding was a fixture whose dead branch is named ``should_not_run``.
+    """
+
+    def test_a_realistic_script_produces_no_structural_findings(self, tmp_path):
+        body = (
+            "-- !x! SUB indir data\n"
+            "-- !x! SUB outdir reports\n"
+            "-- !x! IF(file_exists(!!indir!!/in.csv))\n"
+            "    -- !x! IMPORT TO staging FROM !!indir!!/in.csv\n"
+            "    -- !x! IF(HASROWS(staging))\n"
+            "        -- !x! EXPORT staging TO !!outdir!!/out.csv AS CSV\n"
+            "    -- !x! ELSE\n"
+            '        -- !x! WRITE "nothing to export"\n'
+            "    -- !x! ENDIF\n"
+            "-- !x! ENDIF\n"
+        )
+        issues = _lint(tmp_path, body)
+        structural = [i for i in issues if any(k in i[3] for k in ("can never run", "unreachable", "never referenced"))]
+        assert not structural, structural

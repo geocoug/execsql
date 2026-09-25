@@ -102,9 +102,33 @@ New options in `execsql.conf`:
 
 ### Tools
 
-| Tool             | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `execsql-format` | Standalone CLI for normalizing metacommand indentation and uppercasing SQL keywords. Supports `--check`, `--in-place`, `--indent N` (controls both metacommand and SQL indentation), and `--leading-comma` (commas at start of lines) modes. Also available as a [pre-commit hook](../guides/formatter.md) — the published hook defaults to `args: [--in-place]` so downstream consumers get formatting on commit without extra wiring. SQL reformatting (the optional sqlglot pass) requires the `[formatter]` extra as of 2.19.0; `--no-sql` works without it. |
+Upstream's statement wrappers — `SqlStmt`, `MetacommandStmt`, and `ScriptCmd`
+— no longer exist. The monolith paired a statement object with its source
+location and executed it through a `.run()` method; execsql2 parses to a
+syntax tree and walks it, so a node already carries both the statement and
+its span. The wrappers survived the migration as data classes that nothing
+constructed, and the executor built a synthetic `ScriptCmd` per statement so
+that error reporting could still read `ctx.last_command`. That second
+representation is gone: `ExecutingStatement` wraps the node and derives what
+its readers need.
+
+The `execsql` command gained subcommands, which upstream never had. Upstream
+v1.130.1 has one invocation — `execsql SCRIPT [SERVER DATABASE]` — and that
+form is still the default here: dispatch reads `argv[1]`, and only a known
+verb selects a subcommand, so every upstream-compatible command line reaches
+the same parser with the same arguments. A file whose name matches a verb
+wins over the verb, so no existing invocation can change meaning. There is no
+deprecation of the positional form and none is planned.
+
+| Command          | Description                                                                                                                                                                                                                                                                                                               |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `execsql run`    | The explicit spelling of the upstream positional form. Identical behavior.                                                                                                                                                                                                                                                |
+| `execsql format` | The formatter, reached through the main command; `fmt` is an alias. It replaced the standalone `execsql-format` console script, which was removed. The published pre-commit hook **id** is still `execsql-format`, so downstream `.pre-commit-config.yaml` files need no change — only the hook's internal `entry` moved. |
+| `execsql lint`   | `--lint` over files *and directories*. The flag lints the single script it is given, which is the wrong shape for checking a script library; the subcommand walks directories recursively for `*.sql`.                                                                                                                    |
+
+| Tool             | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `execsql format` | Formatter for normalizing metacommand indentation and uppercasing SQL keywords. Supports `--check`, `--in-place`, `--indent N` (controls both metacommand and SQL indentation), and `--leading-comma` (commas at start of lines) modes. Also available as a [pre-commit hook](../guides/formatter.md) — the published hook defaults to `args: [--in-place]` so downstream consumers get formatting on commit without extra wiring. SQL reformatting (the optional sqlglot pass) requires the `[formatter]` extra as of 2.19.0; `--no-sql` works without it. |
 
 Formatter correctness notes added in the 2.19.x line:
 
