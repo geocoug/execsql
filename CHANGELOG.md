@@ -32,6 +32,8 @@ ______________________________________________________________________
 
 ### Fixed
 
+- execsql2 now requires Typer 0.16 or newer (previously 0.12). Older Typer releases paired with Click 8.2 or newer misread execsql's command-line flags, and Typer 0.12.0–0.12.3 could not start the CLI at all.
+- The `execsql lint` and `execsql format` usage lines end in `FILE_OR_DIR...`, showing that several files or directories can be given. Usage lines no longer change with the installed Typer version.
 - `execsql --help` lists the commands and shows both invocation forms, so the original `execsql script.sql server db` is stated as a first-class usage rather than left to be discovered. `run`, `format`, and `lint` are real commands, so `execsql <command> --help` works for each.
 - `execsql format` documents its own options — `--check`, `--in-place`, `--indent`, `--leading-comma`, `--no-sql`, `--encoding` — which the command had been hiding.
 - `--online-help` and `--version` are global options, listed under their own heading. They describe execsql itself rather than a run, so they work before any command. `--config` stays on `run`: only `run` reads a configuration file.

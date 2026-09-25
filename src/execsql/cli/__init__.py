@@ -117,7 +117,16 @@ class _PlainHelpMixin:
     """Render option help without Typer's Rich escaping."""
 
     def format_usage(self, ctx: Any, formatter: Any) -> None:
-        pieces = self.collect_usage_pieces(ctx)  # type: ignore[attr-defined]
+        # Every argument here carries an explicit metavar, and it is printed as
+        # written. Typer 0.27 decorates it instead, wrapping required arguments
+        # in braces and optional ones in brackets, so the same command would
+        # print a different usage line depending on the installed Typer.
+        pieces = [self.options_metavar] if self.options_metavar else []  # type: ignore[attr-defined]
+        for param in self.get_params(ctx):  # type: ignore[attr-defined]
+            if param.param_type_name == "argument" and param.metavar:
+                pieces.append(param.metavar)
+            else:
+                pieces.extend(param.get_usage_pieces(ctx))
         formatter.write_usage(ctx.command_path, " ".join(pieces), prefix=_usage_prefix())
 
     def format_options(self, ctx: Any, formatter: Any) -> None:
@@ -822,7 +831,7 @@ def main(
 def format_cmd(
     targets: list[Path] = typer.Argument(
         ...,
-        metavar="FILE_OR_DIR",
+        metavar="FILE_OR_DIR...",
         help="Files or directories to format. Directories are searched recursively for *.sql files.",
     ),
     check: bool = typer.Option(False, "--check", help="Exit 1 if any file needs changes; write nothing."),
@@ -862,7 +871,7 @@ def format_cmd(
 
 @app.command(cls=ExecsqlCommand, name="fmt", hidden=True)
 def fmt_cmd(
-    targets: list[Path] = typer.Argument(..., metavar="FILE_OR_DIR"),
+    targets: list[Path] = typer.Argument(..., metavar="FILE_OR_DIR..."),
     check: bool = typer.Option(False, "--check"),
     in_place: bool = typer.Option(False, "-i", "--in-place"),
     no_sql: bool = typer.Option(False, "--no-sql"),
@@ -890,7 +899,7 @@ def fmt_cmd(
 def lint_cmd(
     targets: list[str] = typer.Argument(
         ...,
-        metavar="FILE_OR_DIR",
+        metavar="FILE_OR_DIR...",
         help="Files or directories to check. Directories are searched recursively for *.sql files.",
     ),
 ) -> None:

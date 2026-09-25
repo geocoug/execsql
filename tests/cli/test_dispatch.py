@@ -270,3 +270,30 @@ class TestHelpColor:
 
     def test_hidden_alias_stays_hidden(self):
         assert "fmt" not in self.ANSI.sub("", self._help(["--help"], color=True))
+
+
+class TestUsageLines:
+    """The usage line is the same whatever Typer is installed.
+
+    Typer 0.27 started decorating argument metavars (``{FILE_OR_DIR}`` for a
+    required argument, ``[...]`` around an optional one), so these lines
+    changed with a dependency upgrade. They are drawn from the metavar as
+    written, and the variadic arguments say so with ``...``. Wrapping depends
+    on the Click version and terminal width, so whitespace is normalized.
+    """
+
+    @pytest.mark.parametrize(
+        ("command", "usage"),
+        [
+            ("lint", "Usage: execsql lint [OPTIONS] FILE_OR_DIR..."),
+            ("format", "Usage: execsql format [OPTIONS] FILE_OR_DIR..."),
+            ("run", "Usage: execsql run [OPTIONS] SQL_SCRIPT [SERVER DATABASE | DATABASE_FILE]"),
+        ],
+    )
+    def test_usage_line(self, command, usage):
+        from typer.testing import CliRunner
+
+        from execsql.cli import app
+
+        output = CliRunner().invoke(app, [command, "--help"]).output
+        assert " ".join(output.split("\n\n", 1)[0].split()) == usage
