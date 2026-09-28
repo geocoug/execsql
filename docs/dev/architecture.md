@@ -150,6 +150,8 @@ ______________________________________________________________________
 
 execsql supports plugins via Python entry points. Plugins can register custom metacommands, export formats, and import formats.
 
+Plugins cannot add CLI commands. The command set (`run`, `format`, `lint`, `ping`, `config`, `list`) is defined only in `src/execsql/cli/commands/` and pinned by `tests/cli/test_cli_surface.py`, so every change to it is reviewed in one place.
+
 - **Entry point groups**: `execsql.metacommands`, `execsql.exporters`, `execsql.importers`
 - **Discovery**: `plugins.discover_metacommand_plugins()` is called during `state.initialize()`. Exporter/importer plugins are discovered via `discover_exporter_plugins()` / `discover_importer_plugins()`.
 - **Error handling**: Broken plugins are logged and skipped -- they cannot prevent execsql from starting.
