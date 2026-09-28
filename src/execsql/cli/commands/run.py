@@ -234,15 +234,17 @@ def main(
         hidden=True,
     ),
 ) -> None:
-    """Run SQL_SCRIPT against the specified database.
+    """Run a script against a database.
 
     Positional arguments after the script file:
 
     Client-server databases:
-      execsql script.sql [SERVER] [DATABASE]
+      execsql run script.sql [SERVER] [DATABASE]
 
     File-based databases (SQLite, DuckDB, Access):
-      execsql script.sql [DATABASE_FILE]
+      execsql run script.sql [DATABASE_FILE]
+
+    execsql script.sql ... (without run) is the same command.
     """
     if lint:
         _err_console.print("[bold red]Error:[/bold red] run --lint was removed; use execsql lint")

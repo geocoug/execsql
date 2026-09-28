@@ -70,7 +70,7 @@ class TestLegacyFormIsUntouched:
 
 
 class TestCommandsAreLeftAlone:
-    @pytest.mark.parametrize("head", ["run", "format", "fmt", "lint"])
+    @pytest.mark.parametrize("head", COMMANDS)
     def test_a_command_is_not_prefixed(self, head):
         assert normalize([head, "scripts/"]) == [head, "scripts/"]
 
@@ -78,29 +78,44 @@ class TestCommandsAreLeftAlone:
         assert normalize(["run", "-tp", "s.sql", "srv", "db"]) == ["run", "-tp", "s.sql", "srv", "db"]
 
 
-class TestAFileAlwaysWinsOverACommand:
-    """A script named after a command must still run.
+class TestACommandAlwaysWinsOverAFile:
+    """A command name is a command, whatever the working directory holds.
 
-    This is the only way adding commands could change an existing command
-    line's meaning, so it is resolved in favour of the file.
+    A linter must never be able to execute a script because a file named
+    ``lint`` happens to sit in the working directory. A script named exactly
+    like a command runs with ``execsql run NAME``.
     """
 
     @pytest.mark.parametrize("name", COMMANDS)
-    def test_existing_file_shadows_the_command(self, name, tmp_path, monkeypatch):
+    def test_existing_file_does_not_shadow_the_command(self, name, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
         (tmp_path / name).write_text("select 1;", encoding="utf-8")
-        assert normalize([name, "myserver", "mydb"]) == ["run", name, "myserver", "mydb"]
+        assert normalize([name, "myserver", "mydb"]) == [name, "myserver", "mydb"]
 
     @pytest.mark.parametrize("name", COMMANDS)
-    def test_command_wins_when_no_such_file(self, name, tmp_path, monkeypatch):
+    def test_run_reaches_a_file_named_like_a_command(self, name, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
-        assert normalize([name, "scripts/"])[0] == name
+        (tmp_path / name).write_text("select 1;", encoding="utf-8")
+        assert normalize(["run", name, "mydb"]) == ["run", name, "mydb"]
 
     def test_a_dotted_name_was_never_ambiguous(self, tmp_path, monkeypatch):
         """``lint.sql`` is a path, not a command, whether or not it exists."""
         monkeypatch.chdir(tmp_path)
         (tmp_path / "lint.sql").write_text("select 1;", encoding="utf-8")
         assert normalize(["lint.sql"]) == ["run", "lint.sql"]
+
+    def test_lint_never_runs_a_script_named_lint(self, tmp_path, monkeypatch):
+        """End to end: with a script called ``lint`` present, ``execsql lint`` lints."""
+        from typer.testing import CliRunner
+
+        from execsql.cli import app
+
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / "lint").write_text("create table t (x integer);\n", encoding="utf-8")
+        (tmp_path / "ok.sql").write_text("select 1;\n", encoding="utf-8")
+        result = CliRunner().invoke(app, ["lint", "ok.sql"])
+        assert result.exit_code == 0
+        assert "1 file checked" in result.output
 
 
 class TestLintSubcommandWalksDirectories:
@@ -199,7 +214,7 @@ class TestHelpIsDiscoverable:
             assert verb in out, f"{verb} missing from execsql --help"
 
     def test_main_help_says_the_bare_form_still_works(self):
-        assert "no command" in self._cli("--help").stdout.lower()
+        assert "shorthand for execsql run" in " ".join(self._cli("--help").stdout.split())
 
     def test_lint_help_does_not_crash(self):
         result = self._cli("lint", "--help")

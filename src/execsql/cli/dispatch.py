@@ -1,10 +1,8 @@
 """Command dispatch for the ``execsql`` console script.
 
-execsql is three tools with three argument shapes: a runner taking one script
-plus connection arguments, a formatter taking files and directories, and a
-linter that wants directories too.  Each is a real
-:class:`typer.Typer` command, so ``execsql --help`` lists them the way any
-multi-command CLI does.
+execsql is six commands behind one program — ``run``, ``format``, ``lint``,
+``ping``, ``config`` and ``list`` — each a real :class:`typer.Typer` command,
+so ``execsql --help`` lists them the way any multi-command CLI does.
 
 What this module adds on top is one rule, applied before the parser sees
 anything: **an argument list with no command in it means** ``run``.
@@ -13,20 +11,20 @@ v1.130.1 — it is in shell scripts, cron entries, and every page of the
 documentation — so :func:`normalize` inserts the verb rather than asking
 users to. There is no deprecation of the bare form and none is planned.
 
-Two things must not have ``run`` inserted: a real command, and an option the
+Two things must not have ``run`` inserted: a command name, and an option the
 app declares itself — ``--help``, ``--version``, ``--online-help``.
-Everything else, including ``-m`` and the other early-exit options that are
-declared on ``run``, is a run.
+Everything else, including ``-m`` and the other hidden aliases declared on
+``run``, is a run.
 
-The one ambiguity this could introduce is a script named exactly ``run``,
-``format``, ``fmt`` or ``lint`` *with no extension*.  :func:`_is_command`
-refuses to read a token as a command when a file of that name exists, so the
-file wins and no existing invocation can change meaning.
+A command name is always a command, whatever files the working directory
+holds: a linter must never be able to execute a script because a file named
+``lint`` happens to be present. A script named exactly like a command, with
+no extension, runs with ``execsql run NAME`` (or ``./NAME``). That is a
+recorded, maintainer-approved break from upstream (docs/about/divergence.md).
 """
 
 from __future__ import annotations
 
-import os
 
 __all__ = ["COMMANDS", "GLOBAL_FLAGS", "dispatch", "normalize"]
 
@@ -41,17 +39,6 @@ COMMANDS = ("run", "format", "fmt", "lint", "ping", "config", "list")
 GLOBAL_FLAGS = ("--help", "-h", "--version", "-o", "--online-help")
 
 
-def _is_command(token: str) -> bool:
-    """True when *token* names a command rather than a path.
-
-    A real file of that name wins: a script called ``lint`` must still run,
-    not be read as a request to lint nothing.
-    """
-    if token not in COMMANDS:
-        return False
-    return not os.path.exists(token)
-
-
 def normalize(argv: list[str]) -> list[str]:
     """Insert ``run`` when *argv* carries no command.
 
@@ -60,7 +47,7 @@ def normalize(argv: list[str]) -> list[str]:
     if not argv:
         return argv
     head = argv[0]
-    if _is_command(head) or head in GLOBAL_FLAGS:
+    if head in COMMANDS or head in GLOBAL_FLAGS:
         return argv
     return ["run", *argv]
 

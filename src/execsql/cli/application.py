@@ -138,9 +138,9 @@ class ExecsqlGroup(TyperGroup):
     same however it is reached: the entry point, ``python -m execsql``, or a
     test driving ``app`` directly.
 
-    *Two usage lines.* The bare form is not a shorthand to be discovered in
-    prose; it is how most people invoke execsql, so it is stated as an
-    invocation in its own right.
+    *One usage line, and the shorthand stated.* Help documents one form,
+    ``execsql COMMAND``; the bare ``execsql SCRIPT ...`` is named once, as the
+    permanent shorthand for ``execsql run SCRIPT ...``.
 
     *Grouped options.* Click lists every option in one block. The four that
     apply to the whole tool rather than to a run are worth separating from
@@ -163,11 +163,6 @@ class ExecsqlGroup(TyperGroup):
 
     def format_usage(self, ctx: Any, formatter: Any) -> None:
         formatter.write_usage(ctx.command_path, "[OPTIONS] COMMAND [ARGS]...", prefix=_usage_prefix())
-        formatter.write_usage(
-            ctx.command_path,
-            "[OPTIONS] SQL_SCRIPT [SERVER DATABASE | DATABASE_FILE]",
-            prefix=" " * len("Usage: "),
-        )
 
     def format_options(self, ctx: Any, formatter: Any) -> None:
         globals_: list[tuple[str, str]] = []
@@ -209,9 +204,8 @@ app = typer.Typer(
     # Plain click rendering: no panels, and format_options below can group.
     rich_markup_mode=None,
     help=(
-        "Write, format, lint and run SQL scripts with metacommands.\n\n"
-        "format and lint need no database. Giving no command is the same "
-        "as run."
+        "Run, format and lint SQL scripts with metacommands.\n\n"
+        "execsql SCRIPT ... is shorthand for execsql run SCRIPT ..."
     ),
     add_completion=False,
     no_args_is_help=True,

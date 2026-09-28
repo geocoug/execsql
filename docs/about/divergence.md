@@ -116,9 +116,10 @@ The `execsql` command gained subcommands, which upstream never had. Upstream
 v1.130.1 has one invocation — `execsql SCRIPT [SERVER DATABASE]` — and that
 form is still the default here: dispatch reads `argv[1]`, and only a known
 verb selects a subcommand, so every upstream-compatible command line reaches
-the same parser with the same arguments. A file whose name matches a verb
-wins over the verb, so no existing invocation can change meaning. There is no
-deprecation of the positional form and none is planned.
+the same parser with the same arguments. There is no deprecation of the
+positional form and none is planned. The one exception — a script named
+exactly like a command — is recorded under
+[Changed Behavior](#cli-interface).
 
 | Command          | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -210,6 +211,8 @@ ______________________________________________________________________
 The CLI framework changed from `optparse` to [Typer](https://typer.tiangolo.com/). Help is plain text, colored on a terminal; `NO_COLOR` or `EXECSQL_NO_COLOR` turns the color off. All original short flags (`-a` through `-z`) are preserved. The PyPI distribution is named `execsql2`, but the installed executable remains `execsql` for compatibility.
 
 Running `execsql` with no arguments prints the help and exits with status **2**, the conventional exit code for a usage error. Upstream printed the help and exited 0, so a CI step or shell script that invoked execsql without its arguments appeared to succeed.
+
+A command name — `run`, `format`, `fmt`, `lint`, `ping`, `config`, `list` — always selects the command, even when a file of that name is in the working directory. A script named exactly like a command, with no extension, now runs with `execsql run NAME` (or `execsql ./NAME`); upstream ran `execsql NAME` as a script. The alternative, letting a file win, would let `execsql lint scripts/` execute a script called `lint` that happened to be in the working directory. Names with an extension (`lint.sql`) were never ambiguous.
 
 Seven upstream long-form flags were renamed underscore → hyphen and the underscore forms are **not** accepted: `--database-encoding`, `--script-encoding`, `--output-encoding`, `--import-encoding`, `--import-buffer`, `--user-logfile`, `--visible-prompts` (upstream wrote these with underscores). Scripts and CI pipelines that invoke the long-form flags must update the spelling; the short letters (`-e`, `-f`, `-g`, `-i`, `-l`, `-v`, `-z`) are unchanged.
 

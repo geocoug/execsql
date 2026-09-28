@@ -45,9 +45,11 @@ once per invocation, not from each script's directory.
     identical to `execsql run script.sql myserver mydb`. There is no
     deprecation and none is planned.
 
-    A script named exactly `run`, `format`, `fmt`, `lint`, `ping`, `config`
-    or `list` — with no extension — is treated as a file, not a command, so
-    even that case is unambiguous.
+    The one exception is a script named exactly like a command — `run`,
+    `format`, `fmt`, `lint`, `ping`, `config` or `list`, with no extension.
+    A command name always selects the command, so run such a script with
+    `execsql run lint` or `execsql ./lint`. Names with an extension, such as
+    `lint.sql`, are never ambiguous.
 
 ### ping { #ping }
 
