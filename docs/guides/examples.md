@@ -313,7 +313,7 @@ insert into todo (todo) values ('!!$arg_1!!');
 This script can be used with a command line like:
 
 ``` sql
-execsql -tl -a "Share your dog food" -a 2015-11-21 add.sql todo.db
+execsql run -tl -a "Share your dog food" -a 2015-11-21 add.sql todo.db
 ```
 
 ## **Example 10:** Using CANCEL_HALT to Control Looping with Dialogs { #example10 }
@@ -1635,7 +1635,7 @@ At the REPL prompt, typing a variable name (e.g. `report_dir` or `$DATE_TAG`) pr
 To start in step-through mode from the command line without inserting any `BREAKPOINT` metacommands:
 
 ``` bash
-execsql --debug myscript.sql mydb.sqlite
+execsql run --debug myscript.sql mydb.sqlite
 ```
 
 ## **Example 37:** Static Analysis with lint { #example37 }
@@ -1712,7 +1712,7 @@ Consider a script with nested `IF` and `LOOP` blocks:
 Running:
 
 ``` bash
-execsql --parse-tree pipeline.sql
+execsql run --parse-tree pipeline.sql
 ```
 
 Prints a tree like:
@@ -1735,7 +1735,7 @@ Each node is labeled with its line number (or range), a type tag (`<SQL>`, `<CMD
 The `--profile` flag records per-statement execution time and prints a timing summary after the script completes. Use it to find the statements that consume the most wall-clock time in a long-running ETL script.
 
 ``` bash
-execsql --profile --profile-limit 10 etl_pipeline.sql myserver mydb
+execsql run --profile --profile-limit 10 etl_pipeline.sql myserver mydb
 ```
 
 After the script finishes, execsql prints a table sorted by elapsed time, showing the top statements by duration:

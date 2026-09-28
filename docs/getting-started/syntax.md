@@ -173,11 +173,11 @@ At minimum, provide a SQL script file to run. If database connection information
 For client-server databases (PostgreSQL, MySQL/MariaDB, SQL Server, Oracle, Firebird), provide the server and database name after the script file:
 
 ```sh
-execsql -tp script.sql myserver mydb        # PostgreSQL
-execsql -tm script.sql myserver mydb        # MySQL / MariaDB
-execsql -ts script.sql myserver mydb        # SQL Server
-execsql -to script.sql myserver myservice   # Oracle
-execsql -tf script.sql myserver mydb        # Firebird
+execsql run -tp script.sql myserver mydb        # PostgreSQL
+execsql run -tm script.sql myserver mydb        # MySQL / MariaDB
+execsql run -ts script.sql myserver mydb        # SQL Server
+execsql run -to script.sql myserver myservice   # Oracle
+execsql run -tf script.sql myserver mydb        # Firebird
 ```
 
 If only one argument is provided after the script file, it is interpreted as the database name when the server name has been set in a configuration file; otherwise it is interpreted as the server name.
@@ -187,9 +187,9 @@ If only one argument is provided after the script file, it is interpreted as the
 For file-based databases (SQLite, DuckDB, MS Access), provide the database file path:
 
 ```sh
-execsql -tl script.sql mydb.sqlite          # SQLite
-execsql -tk script.sql mydb.duckdb          # DuckDB
-execsql -ta script.sql mydb.accdb           # MS Access
+execsql run -tl script.sql mydb.sqlite          # SQLite
+execsql run -tk script.sql mydb.duckdb          # DuckDB
+execsql run -ta script.sql mydb.accdb           # MS Access
 ```
 
 ### DSN and connection URLs
@@ -197,8 +197,8 @@ execsql -ta script.sql mydb.accdb           # MS Access
 Connect via an ODBC DSN or a connection URL:
 
 ```sh
-execsql -td script.sql my_dsn_name                          # ODBC DSN
-execsql --dsn postgresql://user:pass@host:5432/db script.sql # Connection URL
+execsql run -td script.sql my_dsn_name                          # ODBC DSN
+execsql run --dsn postgresql://user:pass@host:5432/db script.sql # Connection URL
 ```
 
 ### Inline scripts
@@ -206,7 +206,7 @@ execsql --dsn postgresql://user:pass@host:5432/db script.sql # Connection URL
 Use `-c` to execute a SQL or metacommand string directly, without a script file:
 
 ```sh
-execsql -tl -c "SELECT sqlite_version();" mydb.sqlite
+execsql run -tl -c "SELECT sqlite_version();" mydb.sqlite
 ```
 
 ### Config-only invocation
@@ -214,7 +214,7 @@ execsql -tl -c "SELECT sqlite_version();" mydb.sqlite
 When all connection parameters are in a [configuration file](../reference/configuration.md#configuration):
 
 ```sh
-execsql script.sql
+execsql run script.sql
 ```
 
 ## Database Types { #db_types }
@@ -355,7 +355,7 @@ Valid encoding names can be displayed with `execsql list encodings`. See also [C
 :   Parse the script into an Abstract Syntax Tree and print a visual tree showing block nesting (IF/LOOP/BATCH/SCRIPT), source line ranges, compound conditions (ANDIF/ORIF), and all metacommands. Does not connect to a database or execute anything. Useful for understanding script structure.
 
     ```sh
-    execsql --parse-tree script.sql
+    execsql run --parse-tree script.sql
     ```
 
 `--debug`

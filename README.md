@@ -134,13 +134,13 @@ execsql [OPTIONS] SQL_SCRIPT [SERVER DATABASE | DATABASE_FILE]   # original form
 Examples:
 
 ```bash
-execsql -tp script.sql myserver mydb        # PostgreSQL
-execsql -tm script.sql myserver mydb        # MySQL / MariaDB
-execsql -ts script.sql myserver mydb        # SQL Server
-execsql -tl script.sql mydb.sqlite          # SQLite
-execsql -tk script.sql mydb.duckdb          # DuckDB
-execsql -to script.sql myserver myservice   # Oracle
-execsql script.sql                          # read connection from config file
+execsql run -tp script.sql myserver mydb        # PostgreSQL
+execsql run -tm script.sql myserver mydb        # MySQL / MariaDB
+execsql run -ts script.sql myserver mydb        # SQL Server
+execsql run -tl script.sql mydb.sqlite          # SQLite
+execsql run -tk script.sql mydb.duckdb          # DuckDB
+execsql run -to script.sql myserver myservice   # Oracle
+execsql run script.sql                          # read connection from config file
 ```
 
 ### Supported Databases
