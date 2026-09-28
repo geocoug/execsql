@@ -8,9 +8,11 @@ it is that no existing command line changed meaning when they were added.
 
 from __future__ import annotations
 
+import re
+
 import pytest
 
-from execsql.cli.dispatch import VERBS, route
+from execsql.cli.dispatch import COMMANDS, GLOBAL_FLAGS, normalize
 
 # Every legacy shape the documentation shows, plus the bare and flag-only
 # forms.  All of these must reach the runner with argv untouched.
@@ -33,64 +35,72 @@ LEGACY_INVOCATIONS = [
 
 
 class TestLegacyFormIsUntouched:
+    """Every documented invocation must still reach the runner, unchanged.
+
+    ``normalize`` inserts ``run``; the arguments after it must be exactly what
+    the user typed, in the same order.
+    """
+
     @pytest.mark.parametrize("argv", LEGACY_INVOCATIONS, ids=lambda a: " ".join(a[1:]) or "<bare>")
-    def test_routes_to_legacy(self, argv):
-        target, _ = route(argv)
-        assert target == "legacy", f"{' '.join(argv)} changed meaning"
+    def test_routes_to_run(self, argv):
+        out = normalize(argv[1:])
+        if not argv[1:] or argv[1] in GLOBAL_FLAGS:
+            return  # bare execsql and --help are answered by the app itself
+        assert out[0] == "run", f"{' '.join(argv)} no longer runs the script"
 
     @pytest.mark.parametrize("argv", LEGACY_INVOCATIONS, ids=lambda a: " ".join(a[1:]) or "<bare>")
     def test_arguments_arrive_unchanged(self, argv):
-        """The runner parser must see exactly what the user typed."""
-        _, rest = route(argv)
-        assert rest == argv[1:]
+        out = normalize(argv[1:])
+        tail = out[1:] if out and out[0] == "run" else out
+        assert tail == argv[1:]
+
+    def test_help_is_answered_by_the_app(self):
+        """``execsql --help`` must list the commands, not run a script."""
+        assert normalize(["--help"]) == ["--help"]
+
+    @pytest.mark.parametrize("flag", ["-m", "--encodings", "--init-config"])
+    def test_run_options_get_the_verb(self, flag):
+        """These are declared on run, so they need the verb in front."""
+        assert normalize([flag]) == ["run", flag]
+
+    @pytest.mark.parametrize("flag", ["--version", "--online-help", "-o"])
+    def test_app_options_do_not(self, flag):
+        """These are declared on the app itself and must reach it directly."""
+        assert normalize([flag]) == [flag]
 
 
-class TestVerbsSelectSubcommands:
-    @pytest.mark.parametrize(
-        "head,expected",
-        [("run", "run"), ("format", "format"), ("fmt", "format"), ("lint", "lint")],
-    )
-    def test_verb_routes(self, head, expected):
-        target, rest = route(["execsql", head, "scripts/"])
-        assert target == expected
-        assert rest == ["scripts/"]
+class TestCommandsAreLeftAlone:
+    @pytest.mark.parametrize("head", ["run", "format", "fmt", "lint"])
+    def test_a_command_is_not_prefixed(self, head):
+        assert normalize([head, "scripts/"]) == [head, "scripts/"]
 
-    def test_fmt_is_an_alias_for_format(self):
-        assert route(["execsql", "fmt", "-i", "x/"]) == route(["execsql", "format", "-i", "x/"])
-
-    def test_run_strips_only_the_verb(self):
-        _, rest = route(["execsql", "run", "-tp", "s.sql", "srv", "db"])
-        assert rest == ["-tp", "s.sql", "srv", "db"]
+    def test_run_keeps_its_arguments(self):
+        assert normalize(["run", "-tp", "s.sql", "srv", "db"]) == ["run", "-tp", "s.sql", "srv", "db"]
 
 
-class TestAFileAlwaysWinsOverAVerb:
-    """A script named after a verb must still run.
+class TestAFileAlwaysWinsOverACommand:
+    """A script named after a command must still run.
 
-    This is the only way adding subcommands could change an existing command
+    This is the only way adding commands could change an existing command
     line's meaning, so it is resolved in favour of the file.
     """
 
-    @pytest.mark.parametrize("name", VERBS)
-    def test_existing_file_shadows_the_verb(self, name, tmp_path, monkeypatch):
+    @pytest.mark.parametrize("name", COMMANDS)
+    def test_existing_file_shadows_the_command(self, name, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
         (tmp_path / name).write_text("select 1;", encoding="utf-8")
-        target, rest = route(["execsql", name, "myserver", "mydb"])
-        assert target == "legacy"
-        assert rest == [name, "myserver", "mydb"]
+        assert normalize([name, "myserver", "mydb"]) == ["run", name, "myserver", "mydb"]
 
-    @pytest.mark.parametrize("name", VERBS)
-    def test_verb_wins_when_no_such_file(self, name, tmp_path, monkeypatch):
+    @pytest.mark.parametrize("name", COMMANDS)
+    def test_command_wins_when_no_such_file(self, name, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
-        target, _ = route(["execsql", name, "scripts/"])
-        assert target != "legacy"
+        assert normalize([name, "scripts/"])[0] == name
 
     def test_a_dotted_name_was_never_ambiguous(self, tmp_path, monkeypatch):
-        """``lint.sql`` is a path, not a verb, whether or not it exists."""
+        """``lint.sql`` is a path, not a command, whether or not it exists."""
         monkeypatch.chdir(tmp_path)
         (tmp_path / "lint.sql").write_text("select 1;", encoding="utf-8")
-        target, rest = route(["execsql", "lint.sql"])
-        assert target == "legacy"
-        assert rest == ["lint.sql"]
+        assert normalize(["lint.sql"]) == ["run", "lint.sql"]
 
 
 class TestLintSubcommandWalksDirectories:
@@ -138,3 +148,232 @@ class TestLintSubcommandWalksDirectories:
         (tmp_path / "broken.sql").write_text("-- !x! IF(1=1)\nselect 1;\n", encoding="utf-8")
         assert lint_paths([str(tmp_path)]) == 1
         assert "broken.sql" in capsys.readouterr().out
+
+
+class TestTheCommandListIsRendered:
+    """``execsql --help`` must show a Commands panel, like any grouped CLI.
+
+    A Typer app carrying one command has no list to render, which is what
+    made the commands invisible when they were dispatched by hand.
+    """
+
+    def _help(self):
+        import subprocess
+        import sys
+
+        code = "import sys; from execsql.cli.dispatch import dispatch; sys.argv=['execsql','--help']; dispatch()"
+        return subprocess.run([sys.executable, "-c", code], capture_output=True, text=True).stdout
+
+    def test_a_commands_section_exists(self):
+        assert "Commands" in self._help()
+
+    @pytest.mark.parametrize("name", ["run", "format", "lint"])
+    def test_each_command_is_listed(self, name):
+        assert name in self._help()
+
+    def test_the_alias_is_not_listed_twice(self):
+        """fmt is hidden so the list shows one spelling of the formatter."""
+        assert self._help().count("fmt") == 0
+
+
+class TestHelpIsDiscoverable:
+    """The commands have to be findable, which is the point of having them.
+
+    Both of these were shipped broken: ``execsql --help`` listed no commands,
+    so the toolchain was invisible to anyone who did not read the README, and
+    ``execsql lint --help`` crashed because the verb had no argument parser
+    and read ``--help`` as a file name.
+    """
+
+    def _cli(self, *args):
+        """Invoke the console entry point the way a user does."""
+        import subprocess
+        import sys
+
+        code = "import sys; from execsql.cli.dispatch import dispatch; sys.argv=['execsql', *sys.argv[1:]]; dispatch()"
+        return subprocess.run([sys.executable, "-c", code, *args], capture_output=True, text=True)
+
+    def test_main_help_lists_the_commands(self):
+        out = self._cli("--help").stdout
+        for verb in ("run", "format", "lint"):
+            assert verb in out, f"{verb} missing from execsql --help"
+
+    def test_main_help_says_the_bare_form_still_works(self):
+        assert "no command" in self._cli("--help").stdout.lower()
+
+    def test_lint_help_does_not_crash(self):
+        result = self._cli("lint", "--help")
+        assert "Traceback" not in result.stderr, result.stderr
+        assert result.returncode == 0
+
+    def test_lint_help_names_the_subcommand(self):
+        assert "execsql lint" in self._cli("lint", "--help").stdout
+
+    def test_format_help_does_not_crash(self):
+        result = self._cli("format", "--help")
+        assert "Traceback" not in result.stderr, result.stderr
+        assert result.returncode == 0
+
+    def test_lint_with_no_arguments_shows_help_rather_than_failing(self):
+        result = self._cli("lint")
+        assert "Traceback" not in result.stderr, result.stderr
+
+
+class TestHelpColor:
+    """Help is colored on a terminal and nowhere else.
+
+    The styling is ANSI wrapped around text the plain renderer already
+    produced, so the strongest check is that stripping the codes gives back
+    exactly the uncolored help: same words, same columns, same wrapping.
+    """
+
+    ANSI = re.compile(r"\x1b\[[0-9;]*m")
+    PAGES = [["--help"], ["run", "--help"], ["format", "--help"], ["lint", "--help"]]
+
+    @pytest.fixture(autouse=True)
+    def _color_allowed(self, monkeypatch):
+        monkeypatch.delenv("NO_COLOR", raising=False)
+        monkeypatch.delenv("EXECSQL_NO_COLOR", raising=False)
+
+    def _help(self, args, *, color):
+        from typer.testing import CliRunner
+
+        from execsql.cli import app
+
+        result = CliRunner().invoke(app, args, color=color)
+        assert result.exit_code == 0, result.output
+        return result.output
+
+    @pytest.mark.parametrize("args", PAGES, ids=" ".join)
+    def test_help_is_colored_on_a_terminal(self, args):
+        assert self.ANSI.search(self._help(args, color=True))
+
+    @pytest.mark.parametrize("args", PAGES, ids=" ".join)
+    def test_color_changes_nothing_but_color(self, args):
+        colored = self._help(args, color=True)
+        assert self.ANSI.sub("", colored) == self._help(args, color=False)
+
+    @pytest.mark.parametrize("variable", ["NO_COLOR", "EXECSQL_NO_COLOR"])
+    def test_no_color_variables_turn_it_off(self, monkeypatch, variable):
+        monkeypatch.setenv(variable, "1")
+        assert not self.ANSI.search(self._help(["--help"], color=True))
+
+    def test_piped_help_has_no_escape_codes(self):
+        """A real pipe, not the test runner's stand-in for one."""
+        import subprocess
+        import sys
+
+        code = "import sys; from execsql.cli.dispatch import dispatch; sys.argv=['execsql', '--help']; dispatch()"
+        out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True).stdout
+        assert "Commands:" in out
+        assert "\x1b[" not in out
+
+    def test_hidden_alias_stays_hidden(self):
+        assert "fmt" not in self.ANSI.sub("", self._help(["--help"], color=True))
+
+
+class TestUsageLines:
+    """The usage line is the same whatever Typer is installed.
+
+    Typer 0.27 started decorating argument metavars (``{FILE_OR_DIR}`` for a
+    required argument, ``[...]`` around an optional one), so these lines
+    changed with a dependency upgrade. They are drawn from the metavar as
+    written, and the variadic arguments say so with ``...``. Wrapping depends
+    on the Click version and terminal width, so whitespace is normalized.
+    """
+
+    @pytest.mark.parametrize(
+        ("command", "usage"),
+        [
+            ("lint", "Usage: execsql lint [OPTIONS] FILE_OR_DIR..."),
+            ("format", "Usage: execsql format [OPTIONS] FILE_OR_DIR..."),
+            ("run", "Usage: execsql run [OPTIONS] SQL_SCRIPT [SERVER DATABASE | DATABASE_FILE]"),
+        ],
+    )
+    def test_usage_line(self, command, usage):
+        from typer.testing import CliRunner
+
+        from execsql.cli import app
+
+        output = CliRunner().invoke(app, [command, "--help"]).output
+        assert " ".join(output.split("\n\n", 1)[0].split()) == usage
+
+
+class TestUpstreamFlagPositions:
+    """Upstream's optparse accepted -h, --version and -o anywhere.
+
+    ``execsql script.sql db --version`` printed the version in v1.130.1, so it
+    must not read ``--version`` as a database name now that the options live
+    on the app rather than on the run.
+    """
+
+    def _invoke(self, args):
+        from typer.testing import CliRunner
+
+        from execsql.cli import app
+
+        return CliRunner().invoke(app, args)
+
+    @pytest.mark.parametrize(
+        "args",
+        [["--version"], ["run", "--version"], ["s.sql", "--version"], ["s.sql", "srv", "db", "--version"]],
+        ids=" ".join,
+    )
+    def test_version_anywhere(self, args):
+        from execsql import __version__
+
+        result = self._invoke(args)
+        assert result.exit_code == 0, result.output
+        assert __version__ in result.output
+
+    @pytest.mark.parametrize(
+        "args",
+        [["-h"], ["run", "-h"], ["lint", "-h"], ["format", "-h"], ["s.sql", "-h"]],
+        ids=" ".join,
+    )
+    def test_short_help(self, args):
+        result = self._invoke(args)
+        assert result.exit_code == 0, result.output
+        assert result.output.startswith("Usage:")
+
+    def test_online_help_after_the_script(self, monkeypatch):
+        import webbrowser
+
+        opened = []
+        monkeypatch.setattr(webbrowser, "open", lambda url, *a, **k: opened.append(url) or True)
+        result = self._invoke(["s.sql", "-o"])
+        assert result.exit_code == 0, result.output
+        assert opened == ["https://execsql2.readthedocs.io/en/latest/"]
+
+    def test_hidden_copies_stay_out_of_run_help(self):
+        out = self._invoke(["run", "--help"]).output
+        assert "--version" not in out
+        assert "--online-help" not in out
+
+    @pytest.mark.parametrize("command", ["run", "format", "lint"])
+    def test_arguments_listed_once(self, command):
+        """Click 8.5 renders arguments in a separate step; they must not appear twice."""
+        out = self._invoke([command, "--help"]).output
+        headings = [line for line in out.splitlines() if line.endswith(":") and not line.startswith(" ")]
+        assert "Positional arguments:" not in headings
+        assert headings.count("Arguments:") == 1
+
+
+class TestNoArguments:
+    """Bare ``execsql`` is a usage error: help on stdout, exit status 2.
+
+    Upstream exited 0 here. execsql2 deliberately returns 2 so a script that
+    forgets its arguments fails visibly (docs/about/divergence.md). Click's
+    own no_args_is_help gives 0 or 2 depending on the Click version, which is
+    why the status is pinned rather than inherited.
+    """
+
+    def test_help_on_stdout_and_exit_2(self):
+        import subprocess
+        import sys
+
+        code = "import sys; from execsql.cli.dispatch import dispatch; sys.argv=['execsql']; dispatch()"
+        result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
+        assert result.returncode == 2
+        assert result.stdout.startswith("Usage:")
+        assert "Commands:" in result.stdout

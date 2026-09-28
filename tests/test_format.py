@@ -488,8 +488,9 @@ class TestMainCLI:
     """Tests for the formatter CLI via subprocess."""
 
     def _run(self, *args: str) -> subprocess.CompletedProcess:
+        code = "import sys; from execsql.cli import app; sys.argv = ['execsql', 'format', *sys.argv[1:]]; app()"
         return subprocess.run(
-            [sys.executable, "-c", "from execsql.format import main; main()", *args],
+            [sys.executable, "-c", code, *args],
             capture_output=True,
             text=True,
             encoding="utf-8",
@@ -543,14 +544,19 @@ class TestMainCLI:
 
 
 class TestMainCLIDirect:
-    """Call main() directly in the test process via sys.argv patching."""
+    """Drive ``execsql format`` in-process via sys.argv patching.
+
+    The formatter no longer owns a Typer app of its own — its options are
+    declared on the ``format`` command so that ``execsql format --help``
+    lists them — so these go through the real CLI.
+    """
 
     def _invoke(self, args, capsys=None):
-        from execsql.format import main
+        from execsql.cli import app
 
-        with patch("sys.argv", ["execsql format"] + args):
+        with patch("sys.argv", ["execsql", "format"] + args):
             try:
-                main()
+                app()
             except SystemExit:
                 pass
 
@@ -659,12 +665,12 @@ class TestMainCLIDirect:
         # (b) good file needs reformatting in --check mode.
         with (
             patch.object(Path, "read_text", fake_read),
-            patch("sys.argv", ["execsql format", "--check", str(tmp_path)]),
+            patch("sys.argv", ["execsql", "format", "--check", str(tmp_path)]),
         ):
-            from execsql.format import main
+            from execsql.cli import app
 
             try:
-                main()
+                app()
             except SystemExit as exc:
                 assert exc.code == 1
 

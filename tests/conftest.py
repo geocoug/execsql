@@ -126,3 +126,32 @@ def _restore_cwd():
     finally:
         if os.getcwd() != original:
             os.chdir(original)
+
+
+@pytest.fixture(autouse=True)
+def _no_real_browser(monkeypatch):
+    """Fail any test that would open a real browser tab.
+
+    ``--online-help`` and the GUI Help buttons call ``webbrowser.open``. When a
+    Typer/Click pairing misreads flags, that callback fires on every CLI
+    invocation, and a test run opens one tab per test. In-process calls fail
+    the test instead.
+
+    Child processes (tests that run the real entry point) cannot be patched,
+    so ``BROWSER`` points them at ``true``. It must be a bare executable:
+    :mod:`webbrowser` runs it as ``[BROWSER, url]`` without splitting, and if
+    it fails to launch, falls back to the user's real browser. Windows has no
+    ``true``, so there only the in-process guard applies.
+    """
+    import shutil
+    import webbrowser
+
+    def _refuse(url, *args, **kwargs):
+        pytest.fail(f"test tried to open a real browser: {url}")
+
+    monkeypatch.setattr(webbrowser, "open", _refuse)
+    monkeypatch.setattr(webbrowser, "open_new", _refuse)
+    monkeypatch.setattr(webbrowser, "open_new_tab", _refuse)
+    true = shutil.which("true")
+    if true:
+        monkeypatch.setenv("BROWSER", true)

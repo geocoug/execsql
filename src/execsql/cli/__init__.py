@@ -5,7 +5,7 @@ initialisation, database connection, and script execution.
 
 Submodules:
 
-- :mod:`execsql.cli.help`      — Rich-formatted help output & console objects
+- :mod:`execsql.cli.help`      — metacommand/encoding tables, --init-config, console objects
 - :mod:`execsql.cli.dsn`       — Connection-string (DSN URL) parser
 - :mod:`execsql.cli.run`       — Core execution logic (``_run``, ``_connect_initial_db``, ``_ping_db``, ``_print_dry_run``, ``_print_profile``)
 - :mod:`execsql.cli.lint`      — AST-based ``--lint`` static analyser and Rich result printer
@@ -15,15 +15,20 @@ from __future__ import annotations
 
 import sys
 import traceback
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
+from typing import Any
 
 import typer
+from typer.core import TyperCommand, TyperGroup
 
 from execsql import __version__
 from execsql.cli.dsn import _parse_connection_string, _SCHEME_TO_DBTYPE  # noqa: F401 — re-export
 from execsql.cli.help import _console, _err_console, _init_config, _print_encodings, _print_metacommands  # noqa: F401 — re-export
 from execsql.cli.run import _connect_initial_db, _run  # noqa: F401 — re-export
 from execsql.exceptions import ConfigError, ErrInfo
+from execsql.utils.color import color_disabled_by_env
 
 __all__ = [
     "_SCHEME_TO_DBTYPE",
@@ -45,12 +50,204 @@ __all__ = [
 # Typer app
 # ---------------------------------------------------------------------------
 
+
+#: Options the app answers about itself rather than about a run, shown under
+#: their own heading. ``--config`` is deliberately not here: only ``run``
+#: reads an execsql config file, so listing it as global would be a lie.
+_GLOBAL_OPTIONS = ("--online-help", "--version")
+
+
+def _unescape(record: tuple[str, str]) -> tuple[str, str]:
+    """Undo Typer's Rich bracket escaping for plain help output.
+
+    Typer escapes ``[`` as ``\\[`` so Rich does not read ``[required]`` as
+    markup. With Rich rendering off those backslashes are literal text, so
+    every default and required marker would print as ``\\[default: 4]``.
+    """
+    name, help_text = record
+    return name.replace("\\[", "["), help_text.replace("\\[", "[")
+
+
+# Help color follows uv and cargo: headings bold green, names cyan with the
+# option flags bold. Click's echo drops ANSI when stdout is not a terminal,
+# and its column widths ignore escape codes, so styling costs no alignment
+# and never reaches a pipe; NO_COLOR is the one case left to handle here.
+
+
+def _style(text: str, **styles: Any) -> str:
+    if not text or color_disabled_by_env():
+        return text
+    return typer.style(text, **styles)
+
+
+@contextmanager
+def _section(formatter: Any, name: str) -> Iterator[None]:
+    """``formatter.section`` with a colored heading, colon included."""
+    formatter.write_paragraph()
+    formatter.write(f"{'':>{formatter.current_indent}}{_style(name + ':', fg='green', bold=True)}\n")
+    formatter.indent()
+    try:
+        yield
+    finally:
+        formatter.dedent()
+
+
+def _usage_prefix() -> str:
+    return _style("Usage:", fg="green", bold=True) + " "
+
+
+def _styled_record(param: Any, record: tuple[str, str]) -> tuple[str, str]:
+    """Color one help row: the flags bold, any metavar after them plain."""
+    name, help_text = _unescape(record)
+    if param.param_type_name == "argument":
+        return _style(name, fg="cyan"), help_text
+    flags = [*param.opts, *param.secondary_opts]
+    end = max((name.find(flag) + len(flag) for flag in flags if flag in name), default=len(name))
+    return _style(name[:end], fg="cyan", bold=True) + _style(name[end:], fg="cyan"), help_text
+
+
+# Typer 0.26 stopped depending on Click and vendors it as ``typer._click``, so
+# ``click.Context`` is the wrong class on newer Typer and ``click`` may not be
+# installed at all. The overrides below take ``ctx`` and ``formatter`` as
+# ``Any`` because no public import names the right type across the supported
+# Typer range; they rely only on methods both Click lineages provide.
+
+
+class _PlainHelpMixin:
+    """Render option help without Typer's Rich escaping."""
+
+    def format_usage(self, ctx: Any, formatter: Any) -> None:
+        # Every argument here carries an explicit metavar, and it is printed as
+        # written. Typer 0.27 decorates it instead, wrapping required arguments
+        # in braces and optional ones in brackets, so the same command would
+        # print a different usage line depending on the installed Typer.
+        pieces = [self.options_metavar] if self.options_metavar else []  # type: ignore[attr-defined]
+        for param in self.get_params(ctx):  # type: ignore[attr-defined]
+            if param.param_type_name == "argument" and param.metavar:
+                pieces.append(param.metavar)
+            else:
+                pieces.extend(param.get_usage_pieces(ctx))
+        formatter.write_usage(ctx.command_path, " ".join(pieces), prefix=_usage_prefix())
+
+    def format_arguments(self, ctx: Any, formatter: Any) -> None:
+        # Click 8.5 added this step, with its own "Positional arguments"
+        # heading. format_options below already renders the arguments, and a
+        # Typer built on the standalone Click would otherwise list them twice.
+        pass
+
+    def format_options(self, ctx: Any, formatter: Any) -> None:
+        args: list[tuple[str, str]] = []
+        opts: list[tuple[str, str]] = []
+        for param in self.get_params(ctx):  # type: ignore[attr-defined]
+            record = param.get_help_record(ctx)
+            if not record:
+                continue
+            bucket = args if param.param_type_name == "argument" else opts
+            bucket.append(_styled_record(param, record))
+        if args:
+            with _section(formatter, "Arguments"):
+                formatter.write_dl(args)
+        if opts:
+            with _section(formatter, "Options"):
+                formatter.write_dl(opts)
+
+
+class ExecsqlCommand(_PlainHelpMixin, TyperCommand):
+    """A command whose help is plain text, brackets and all."""
+
+
+class ExecsqlGroup(TyperGroup):
+    """The top-level command group: default command, dual usage, grouped options.
+
+    Three departures from Click's defaults, each for a reason:
+
+    *Default command.* ``execsql script.sql server db`` has been the
+    invocation since upstream v1.130.1 — it is in shell scripts, cron entries
+    and every page of the documentation — so an argument list carrying no
+    command name gets ``run`` inserted before the parser sees it. Doing that
+    here rather than in the console-script wrapper means the app behaves the
+    same however it is reached: the entry point, ``python -m execsql``, or a
+    test driving ``app`` directly.
+
+    *Two usage lines.* The bare form is not a shorthand to be discovered in
+    prose; it is how most people invoke execsql, so it is stated as an
+    invocation in its own right.
+
+    *Grouped options.* Click lists every option in one block. The four that
+    apply to the whole tool rather than to a run are worth separating from
+    ``--help``.
+    """
+
+    def parse_args(self, ctx: Any, args: list[str]) -> list[str]:
+        from execsql.cli.dispatch import normalize
+
+        if not args:
+            # Running execsql with no arguments is a usage error: the help goes
+            # to stdout, and the status is 2, as for any other usage error.
+            # Upstream exited 0 here; this is a recorded divergence
+            # (docs/about/divergence.md, "CLI Interface"). Click's own
+            # no_args_is_help exits 0 on Click 8.1 and 2 on 8.2+, so the status
+            # is set here rather than left to whichever Click is installed.
+            typer.echo(ctx.get_help(), color=ctx.color)
+            ctx.exit(2)
+        return super().parse_args(ctx, normalize(args))
+
+    def format_usage(self, ctx: Any, formatter: Any) -> None:
+        formatter.write_usage(ctx.command_path, "[OPTIONS] COMMAND [ARGS]...", prefix=_usage_prefix())
+        formatter.write_usage(
+            ctx.command_path,
+            "[OPTIONS] SQL_SCRIPT [SERVER DATABASE | DATABASE_FILE]",
+            prefix=" " * len("Usage: "),
+        )
+
+    def format_options(self, ctx: Any, formatter: Any) -> None:
+        globals_: list[tuple[str, str]] = []
+        rest: list[tuple[str, str]] = []
+        for param in self.get_params(ctx):
+            record = param.get_help_record(ctx)
+            if not record:
+                continue
+            bucket = globals_ if any(o in param.opts for o in _GLOBAL_OPTIONS) else rest
+            bucket.append(_styled_record(param, record))
+
+        if globals_:
+            with _section(formatter, "Global options"):
+                formatter.write_dl(globals_)
+        if rest:
+            with _section(formatter, "Options"):
+                formatter.write_dl(rest)
+        self.format_commands(ctx, formatter)
+
+    def format_commands(self, ctx: Any, formatter: Any) -> None:
+        # Click's own version, with the command names colored.
+        commands = [
+            (name, cmd)
+            for name in self.list_commands(ctx)
+            if (cmd := self.get_command(ctx, name)) is not None and not cmd.hidden
+        ]
+        if not commands:
+            return
+        limit = formatter.width - 6 - max(len(name) for name, _ in commands)
+        with _section(formatter, "Commands"):
+            formatter.write_dl(
+                [(_style(name, fg="cyan", bold=True), cmd.get_short_help_str(limit)) for name, cmd in commands],
+            )
+
+
 app = typer.Typer(
+    cls=ExecsqlGroup,
     name="execsql",
-    help="Run a SQL script against a database with metacommand support.",
+    # Plain click rendering: no panels, and format_options below can group.
+    rich_markup_mode=None,
+    help=(
+        "Write, format, lint and run SQL scripts with metacommands.\n\n"
+        "format and lint need no database. Giving no command is the same "
+        "as run."
+    ),
     add_completion=False,
-    rich_markup_mode="rich",
     no_args_is_help=True,
+    # Upstream's optparse answered -h as well as --help. Commands inherit this.
+    context_settings={"help_option_names": ["-h", "--help"]},
 )
 
 
@@ -60,7 +257,42 @@ def _version_callback(value: bool) -> None:
         raise typer.Exit()
 
 
+def _online_help_callback(value: bool) -> None:
+    if value:
+        import webbrowser
+
+        webbrowser.open("https://execsql2.readthedocs.io/en/latest/", new=2, autoraise=True)
+        raise typer.Exit()
+
+
+@app.callback()
+def _global_options(
+    online_help: bool = typer.Option(
+        False,
+        "-o",
+        "--online-help",
+        callback=_online_help_callback,
+        is_eager=True,
+        help="Open the online documentation in the default browser.",
+    ),
+    version: bool | None = typer.Option(
+        None,
+        "--version",
+        callback=_version_callback,
+        is_eager=True,
+        help="Show version and exit.",
+    ),
+) -> None:
+    """Options about execsql itself rather than about one run.
+
+    Both are eager and exit on their own, so neither needs to reach a
+    command; the callback body has nothing to do.
+    """
+
+
 @app.command(
+    cls=ExecsqlCommand,
+    name="run",
     context_settings={"allow_extra_args": True, "ignore_unknown_options": True},
 )
 def main(
@@ -81,10 +313,10 @@ def main(
         "--type",
         metavar="{a,d,p,s,l,m,k,o,f}",
         help=(
-            "Database type: [bold]a[/bold]=MS-Access, [bold]p[/bold]=PostgreSQL, "
-            "[bold]s[/bold]=SQL Server, [bold]l[/bold]=SQLite, [bold]m[/bold]=MySQL/MariaDB, "
-            "[bold]k[/bold]=DuckDB, [bold]o[/bold]=Oracle, [bold]f[/bold]=Firebird, "
-            "[bold]d[/bold]=DSN."
+            "Database type: a=MS-Access, p=PostgreSQL, "
+            "s=SQL Server, l=SQLite, m=MySQL/MariaDB, "
+            "k=DuckDB, o=Oracle, f=Firebird, "
+            "d=DSN."
         ),
     ),
     dsn: str | None = typer.Option(
@@ -93,9 +325,9 @@ def main(
         "--connection-string",
         metavar="URL",
         help=(
-            "Database connection URL, e.g. [cyan]postgresql://user:pass@host:5432/db[/cyan]. "
+            "Database connection URL, e.g. postgresql://user:pass@host:5432/db. "
             "Supported schemes: postgresql, mysql, mssql, oracle, firebird, sqlite, duckdb. "
-            "Overrides [cyan]-t[/cyan]/[cyan]-u[/cyan]/[cyan]-p[/cyan] and positional server/db args."
+            "Overrides -t/-u/-p and positional server/db args."
         ),
     ),
     user: str | None = typer.Option(
@@ -133,7 +365,7 @@ def main(
         None,
         "-f",
         "--script-encoding",
-        help="Character encoding of the script file. [dim]Default: UTF-8[/dim]",
+        help="Character encoding of the script file. Default: UTF-8",
     ),
     output_encoding: str | None = typer.Option(
         None,
@@ -153,14 +385,14 @@ def main(
         "-z",
         "--import-buffer",
         metavar="KB",
-        help="Import buffer size in KB. [dim]Default: 32[/dim]",
+        help="Import buffer size in KB. Default: 32",
     ),
     scanlines: int | None = typer.Option(
         None,
         "-s",
         "--scan-lines",
         metavar="N",
-        help="Lines to scan for IMPORT format detection. [dim]0 = scan entire file.[/dim]",
+        help="Lines to scan for IMPORT format detection. 0 = scan entire file.",
     ),
     boolean_int: str | None = typer.Option(
         None,
@@ -174,7 +406,7 @@ def main(
         "-d",
         "--directories",
         metavar="{0,1,t,f,y,n}",
-        help="Auto-create directories for EXPORT metacommand. [dim]n=no (default), y=yes[/dim]",
+        help="Auto-create directories for EXPORT metacommand. n=no (default), y=yes",
     ),
     output_dir: str | None = typer.Option(
         None,
@@ -183,7 +415,7 @@ def main(
         help=(
             "Default base directory for EXPORT output files. "
             "Relative paths in EXPORT metacommands are joined to this directory. "
-            "Absolute paths and [cyan]stdout[/cyan] are unaffected."
+            "Absolute paths and stdout are unaffected."
         ),
     ),
     progress: bool = typer.Option(
@@ -199,7 +431,7 @@ def main(
         metavar="SCRIPT",
         help=(
             "Execute an inline SQL/metacommand script string instead of a script file. "
-            "Use shell [cyan]$'line1\\nline2'[/cyan] syntax for multi-line scripts."
+            "Use shell $'line1\\nline2' syntax for multi-line scripts."
         ),
     ),
     dry_run: bool = typer.Option(
@@ -211,9 +443,8 @@ def main(
         False,
         "--lint",
         help=(
-            "Parse the script and perform static analysis without connecting to a database or executing anything. "
-            "Reports unmatched IF/ENDIF/LOOP/BATCH blocks (errors), potentially undefined variables, "
-            "and missing INCLUDE files (warnings). Exits 0 if no errors, 1 if errors found."
+            "Statically check this script without connecting to a database or executing anything. "
+            "Exits 0 if no errors, 1 if errors found. execsql lint does the same for files and directories."
         ),
     ),
     parse_tree: bool = typer.Option(
@@ -261,15 +492,15 @@ def main(
         "--visible-prompts",
         metavar="{0,1,2,3}",
         help=(
-            "GUI level: [bold]0[/bold]=none (default), [bold]1[/bold]=GUI for password/pause, "
-            "[bold]2[/bold]=GUI for password/pause + DB selection, [bold]3[/bold]=full GUI console."
+            "GUI level: 0=none (default), 1=GUI for password/pause, "
+            "2=GUI for password/pause + DB selection, 3=full GUI console."
         ),
     ),
     gui_framework: str | None = typer.Option(
         None,
         "--gui-framework",
         metavar="{tkinter,textual}",
-        help="GUI framework to use with [cyan]--visible-prompts[/cyan]. [dim]Default: tkinter[/dim]",
+        help="GUI framework to use with --visible-prompts. Default: tkinter",
     ),
     # -- Configuration -----------------------------------------------------
     config_file: str | None = typer.Option(
@@ -279,26 +510,26 @@ def main(
         help=(
             "Path to an execsql configuration file. "
             "Loaded after the implicit search paths so its values take precedence. "
-            "The file may chain additional configs via its [cyan][config][/cyan] section."
+            "The file may chain additional configs via its [config] section."
         ),
     ),
     init_config: bool = typer.Option(
         False,
         "--init-config",
-        help="Print a default [cyan]execsql.conf[/cyan] template to stdout and exit.",
+        help="Print a default execsql.conf template to stdout and exit.",
     ),
     sub_vars: list[str] | None = typer.Option(
         None,
         "-a",
         "--assign-arg",
         metavar="VALUE",
-        help="Define the replacement string for a substitution variable [cyan]$ARG_x[/cyan].",
+        help="Define the replacement string for a substitution variable $ARG_x.",
     ),
     user_logfile: bool = typer.Option(
         False,
         "-l",
         "--user-logfile",
-        help="Write a log file to [cyan]~/execsql.log[/cyan].",
+        help="Write a log file to ~/execsql.log.",
     ),
     # -- Information -------------------------------------------------------
     metacommands: bool = typer.Option(
@@ -333,28 +564,33 @@ def main(
             "No script file is required."
         ),
     ),
-    online_help: bool = typer.Option(
+    # The global options again, hidden. Upstream's optparse accepted them
+    # anywhere, so `execsql script.sql db --version` still has to print the
+    # version rather than read "--version" as a database name.
+    _online_help: bool = typer.Option(
         False,
         "-o",
         "--online-help",
-        help="Open the online documentation in the default browser.",
+        callback=_online_help_callback,
+        is_eager=True,
+        hidden=True,
     ),
-    version: bool | None = typer.Option(
+    _version: bool | None = typer.Option(
         None,
         "--version",
         callback=_version_callback,
         is_eager=True,
-        help="Show version and exit.",
+        hidden=True,
     ),
 ) -> None:
-    """Run [bold]SQL_SCRIPT[/bold] against the specified database.
+    """Run SQL_SCRIPT against the specified database.
 
-    [dim]Positional arguments after the script file:[/dim]
+    Positional arguments after the script file:
 
-    [green]Client-server databases:[/green]
+    Client-server databases:
       execsql script.sql [SERVER] [DATABASE]
 
-    [green]File-based databases (SQLite, DuckDB, Access):[/green]
+    File-based databases (SQLite, DuckDB, Access):
       execsql script.sql [DATABASE_FILE]
     """
     # ------------------------------------------------------------------
@@ -463,15 +699,9 @@ def main(
         _console.print()
         raise typer.Exit()
 
-    if online_help:
-        import webbrowser
-
-        webbrowser.open("https://execsql2.readthedocs.io/en/latest/", new=2, autoraise=True)
-        raise typer.Exit()
-
     if config_file and not Path(config_file).is_file():
         _err_console.print(
-            f"[bold red]Error:[/bold red] Config file [cyan]{config_file!r}[/cyan] does not exist.",
+            f"[bold red]Error:[/bold red] Config file {config_file!r} does not exist.",
         )
         raise typer.Exit(code=2)
 
@@ -485,13 +715,13 @@ def main(
     else:
         if not positional:
             _err_console.print(
-                "[bold red]Error:[/bold red] No SQL script file specified. Use [cyan]-c[/cyan] to run an inline script.",
+                "[bold red]Error:[/bold red] No SQL script file specified. Use -c to run an inline script.",
             )
             raise typer.Exit(code=1)
         script_name = positional[0]
         if not Path(script_name).exists():
             _err_console.print(
-                f'[bold red]Error:[/bold red] SQL script file [cyan]"{script_name}"[/cyan] does not exist.',
+                f'[bold red]Error:[/bold red] SQL script file "{script_name}" does not exist.',
             )
             raise typer.Exit(code=1)
 
@@ -501,26 +731,25 @@ def main(
 
     if db_type and db_type not in ("a", "d", "p", "s", "l", "m", "k", "o", "f"):
         _err_console.print(
-            f"[bold red]Error:[/bold red] Invalid database type [cyan]{db_type!r}[/cyan]. "
-            "Choose from: a, d, p, s, l, m, k, o, f",
+            f"[bold red]Error:[/bold red] Invalid database type {db_type!r}. Choose from: a, d, p, s, l, m, k, o, f",
         )
         raise typer.Exit(code=2)
 
     if use_gui and use_gui not in ("0", "1", "2", "3"):
         _err_console.print(
-            f"[bold red]Error:[/bold red] Invalid GUI level [cyan]{use_gui!r}[/cyan]. Choose from: 0, 1, 2, 3",
+            f"[bold red]Error:[/bold red] Invalid GUI level {use_gui!r}. Choose from: 0, 1, 2, 3",
         )
         raise typer.Exit(code=2)
 
     if gui_framework and gui_framework.lower() not in ("tkinter", "textual"):
         _err_console.print(
-            f"[bold red]Error:[/bold red] Invalid GUI framework [cyan]{gui_framework!r}[/cyan]. Choose from: tkinter, textual",
+            f"[bold red]Error:[/bold red] Invalid GUI framework {gui_framework!r}. Choose from: tkinter, textual",
         )
         raise typer.Exit(code=2)
 
     if boolean_int and boolean_int.lower() not in ("0", "1", "t", "f", "y", "n"):
         _err_console.print(
-            f"[bold red]Error:[/bold red] Invalid --boolean-int value [cyan]{boolean_int!r}[/cyan].",
+            f"[bold red]Error:[/bold red] Invalid --boolean-int value {boolean_int!r}.",
         )
         raise typer.Exit(code=2)
 
@@ -616,6 +845,99 @@ def main(
         no_serve=no_serve,
         config_file=config_file,
     )
+
+
+# ---------------------------------------------------------------------------
+# format / lint commands
+#
+# Registered here rather than dispatched by hand so that ``execsql --help``
+# lists them: a Typer app with one command has no command list to show.
+# ---------------------------------------------------------------------------
+
+
+@app.command(cls=ExecsqlCommand, name="format")
+def format_cmd(
+    targets: list[Path] = typer.Argument(
+        ...,
+        metavar="FILE_OR_DIR...",
+        help="Files or directories to format. Directories are searched recursively for *.sql files.",
+    ),
+    check: bool = typer.Option(False, "--check", help="Exit 1 if any file needs changes; write nothing."),
+    in_place: bool = typer.Option(False, "-i", "--in-place", help="Modify files in place."),
+    no_sql: bool = typer.Option(False, "--no-sql", help="Skip SQL reformatting via sqlglot."),
+    indent: int = typer.Option(4, "--indent", metavar="N", help="Spaces per indent level."),
+    leading_comma: bool = typer.Option(
+        False,
+        "--leading-comma",
+        help="Place commas at the start of lines instead of the end.",
+    ),
+    encoding: str = typer.Option(
+        "utf-8",
+        "--encoding",
+        metavar="NAME",
+        help="Text encoding used to read and write SQL files.",
+    ),
+) -> None:
+    """Normalize metacommand keywords, block indentation, and SQL layout.
+
+    SQL reformatting needs the [formatter] extra; --no-sql works without it.
+    """
+    from execsql.format import run_formatter
+
+    raise typer.Exit(
+        code=run_formatter(
+            targets,
+            check=check,
+            in_place=in_place,
+            no_sql=no_sql,
+            indent=indent,
+            leading_comma=leading_comma,
+            encoding=encoding,
+        ),
+    )
+
+
+@app.command(cls=ExecsqlCommand, name="fmt", hidden=True)
+def fmt_cmd(
+    targets: list[Path] = typer.Argument(..., metavar="FILE_OR_DIR..."),
+    check: bool = typer.Option(False, "--check"),
+    in_place: bool = typer.Option(False, "-i", "--in-place"),
+    no_sql: bool = typer.Option(False, "--no-sql"),
+    indent: int = typer.Option(4, "--indent", metavar="N"),
+    leading_comma: bool = typer.Option(False, "--leading-comma"),
+    encoding: str = typer.Option("utf-8", "--encoding", metavar="NAME"),
+) -> None:
+    """Alias for format."""
+    format_cmd(
+        targets,
+        check=check,
+        in_place=in_place,
+        no_sql=no_sql,
+        indent=indent,
+        leading_comma=leading_comma,
+        encoding=encoding,
+    )
+
+
+@app.command(
+    cls=ExecsqlCommand,
+    name="lint",
+    help="Statically check scripts for problems. No database connection is made.",
+)
+def lint_cmd(
+    targets: list[str] = typer.Argument(
+        ...,
+        metavar="FILE_OR_DIR...",
+        help="Files or directories to check. Directories are searched recursively for *.sql files.",
+    ),
+) -> None:
+    """Report unmatched blocks, undefined variables, unreachable branches, and
+    missing INCLUDE / EXECUTE SCRIPT targets. Exits 1 when any error is found;
+    warnings do not affect the exit code.
+    """
+    from execsql.cli.dispatch import lint_paths
+
+    raise typer.Exit(code=lint_paths(targets))
 
 
 # ---------------------------------------------------------------------------
