@@ -32,14 +32,9 @@ def _run_execsql(*args: str, **kwargs) -> subprocess.CompletedProcess[str]:
 
 
 def _run_formatter(*args: str) -> subprocess.CompletedProcess[str]:
-    """Invoke ``execsql format`` via Python.
-
-    The formatter's options are declared on the ``format`` command rather
-    than on an app of its own, so it is reached through the main CLI.
-    """
-    code = "import sys; from execsql.cli import app; sys.argv = ['execsql', 'format', *sys.argv[1:]]; app()"
+    """Invoke the execsql-format entry point via Python."""
     return subprocess.run(
-        [sys.executable, "-c", code, *args],
+        [sys.executable, "-c", "from execsql.format import main; main()", *args],
         capture_output=True,
         text=True,
         env=_SUBPROCESS_ENV,
@@ -244,7 +239,7 @@ def test_nonexistent_script_error_message(tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# execsql format CLI
+# execsql-format CLI
 # ---------------------------------------------------------------------------
 
 

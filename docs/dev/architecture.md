@@ -10,7 +10,7 @@ When a user runs `execsql script.sql mydb.sqlite -t l`, the following sequence o
 
 ```mermaid
 flowchart TD
-    CLI["CLI entry point<br/><code>cli/dispatch.py</code> → <code>cli/__init__.py</code><br/>Typer parses args"]
+    CLI["CLI entry point<br/><code>cli/__init__.py</code><br/>Typer parses args"]
     RUN["<code>_run()</code><br/><code>cli/run.py</code><br/>Initialize state, config, subvars"]
     CONF["Load configuration<br/><code>ConfigData</code><br/>Merge execsql.conf files"]
     INIT["Initialize state<br/><code>state.initialize()</code><br/>Create singletons"]
@@ -81,7 +81,7 @@ flowchart LR
 
 | Package         | Purpose                                                                                                                       |
 | --------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `cli/`          | Typer app and help rendering, `run`/`format`/`lint` commands, `_run()` orchestration, DSN URL parsing, Rich `-m`/`-y` tables  |
+| `cli/`          | Typer app, `_run()` orchestration, DSN URL parsing, Rich help output, `--lint` entry points                                   |
 | `api.py`        | Public `execsql.run()` Python entry point for notebooks, pipelines, and library use                                           |
 | `config.py`     | `ConfigData` (INI merging), `StatObj` (runtime flags), `WriteHooks` (stdout/stderr redirection)                               |
 | `state.py`      | Thread-local runtime store — all shared mutable state lives here, isolated per-thread                                         |
@@ -95,7 +95,7 @@ flowchart LR
 | `parser.py`     | Recursive-descent parsers for conditional (`IF`) and arithmetic (`SET`) expressions                                           |
 | `types.py`      | `DataType` subclasses and `DbType` per-DBMS type dialect mappings                                                             |
 | `models.py`     | `Column`, `DataTable`, `JsonDatatype`                                                                                         |
-| `format.py`     | `execsql format` formatter — opinionated formatter for execsql scripts                                                        |
+| `format.py`     | `execsql-format` CLI — opinionated formatter for execsql scripts                                                              |
 | `exceptions.py` | `ExecSqlError` base, `ErrInfo`, `ConfigError`, `DataTypeError`, `DbTypeError`, etc.                                           |
 | `plugins.py`    | Entry-point plugin discovery for metacommands, exporters, and importers                                                       |
 | `debug/`        | Interactive REPL debugger for stepping through script execution                                                               |

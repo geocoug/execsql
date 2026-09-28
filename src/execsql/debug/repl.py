@@ -38,12 +38,12 @@ In non-interactive environments (CI, piped input, ``sys.stdin.isatty()`` is
 blocked.
 """
 
+import os
 import sys
 from pathlib import Path
 from typing import Any
 
 import execsql.state as _state
-from execsql.utils.color import color_disabled_by_env
 
 __all__ = ["x_breakpoint"]
 
@@ -77,7 +77,7 @@ def _use_color() -> bool:
     global _color_cache  # noqa: PLW0603
     if _color_cache is not None:
         return _color_cache
-    if color_disabled_by_env():
+    if os.environ.get("NO_COLOR") is not None or os.environ.get("EXECSQL_NO_COLOR") is not None:
         _color_cache = False
     else:
         output = _state.output
@@ -371,7 +371,7 @@ def _write(text: str) -> None:
 def _print_where() -> None:
     """Print the current script location and the upcoming statement.
 
-    Reads ``_state.last_command`` and displays the
+    Reads ``_state.last_command`` (a :class:`ScriptCmd`) and displays the
     filename, line number, command type, and (truncated) statement text.
     If ``last_command`` is ``None``, reports that the position is unknown.
     """
