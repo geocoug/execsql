@@ -13,12 +13,15 @@ ______________________________________________________________________
 
 ### Added
 
-- Every lint issue names a rule code, such as `V001` (undefined variable) or `F002` (unreachable code), in both `execsql lint` and `--lint` output. The [lint rules reference](https://execsql2.readthedocs.io/en/latest/reference/lint/) explains each one.
+- Every lint issue names a rule code, such as `V001` (undefined variable) or `F002` (unreachable code), in `execsql lint` output. The [lint rules reference](https://execsql2.readthedocs.io/en/latest/reference/lint/) explains each one.
 - `execsql lint --select` and `--ignore` choose rules by code or prefix (`--ignore V002`, `--select F`). Parse errors are always reported.
 - `execsql lint --output-format json` writes every issue as one JSON array for CI and editor tooling, and `--output-format concise` prints one `path:line: CODE message` line per issue.
 - `execsql lint --statistics` shows how many times each rule fired instead of listing every issue.
-- `execsql` now has commands: `execsql run`, `execsql format` (or `fmt`), and `execsql lint`. `format` and `lint` take files or directories and need no database — linting a whole script library is new, since `--lint` only ever linted the single script it was given.
-- The original positional invocation is unchanged: `execsql script.sql myserver mydb` still works, still means the same thing, and is not deprecated. A script named exactly `run`, `format`, `fmt`, or `lint` with no extension is still read as a file, not a command.
+- `execsql` now has commands: `execsql run`, `execsql format` (or `fmt`), `execsql lint`, `execsql ping`, `execsql config`, and `execsql list`. `format` and `lint` take files or directories and need no database — linting a whole script library is new, since `--lint` only ever linted the single script it was given.
+- `execsql ping` tests a database connection and prints the DBMS, its version and location. `--output-format json` prints one object for health checks. Unlike `--ping`, it never creates a database: it has no `-n`, and `new_db = yes` in a config file is ignored.
+- `execsql config` lists every config option with its current value, its default, and the file that set it, reading config files from the same places a run does. `execsql config scripts/etl.sql` includes the `execsql.conf` next to that script. Passwords are shown as `***`. `--output-format json` is available, and `execsql config --init` prints the `execsql.conf` template.
+- `execsql list metacommands|encodings|plugins|keywords` prints each reference list as text or, with `--output-format json`, as JSON. `list keywords --output-format json` is the output of `--dump-keywords`, unchanged.
+- The original positional invocation is unchanged: `execsql script.sql myserver mydb` still works, still means the same thing, and is not deprecated. A script named exactly `run`, `format`, `fmt`, `lint`, `ping`, `config`, or `list` with no extension is still read as a file, not a command.
 - `execsql lint` gained three structural checks that previously only a live run would reveal: a variable defined by `SUB` that nothing ever reads (almost always a spelling mismatch between the definition and the reference); an `IF` whose condition is a constant, making its `ELSE` — or its own body — unreachable; and a statement after an unconditional `HALT`. `HALT DISPLAY` is not treated as terminal, and an `IF` carrying an `ANDIF`/`ORIF` modifier is never reported as constant.
 - The VS Code extension is packaged for the Marketplace and published on a version tag. `just package-vscode` builds a `.vsix` locally. Publishing needs a Marketplace publisher account and a `VSCE_PAT` repository secret; without the secret the release job skips rather than fails, so releases still complete without it. The extension version tracks the tag.
 - `just corpus` and `just corpus-external` run the formatter's real-SQL corpus checks. `corpus-external` takes a path to a read-only copy of an outside SQL library, so checking the formatter against production SQL is one command rather than a remembered incantation.
@@ -27,14 +30,16 @@ ______________________________________________________________________
 
 ### Removed
 
+- `--lint` is removed; use `execsql lint`, which takes files and directories. `execsql run --lint` and `execsql script.sql --lint` now exit with status 2 and the message `run --lint was removed; use execsql lint`, without running the script. Update CI steps and pre-commit hooks that call `--lint`.
 - `SqlStmt`, `MetacommandStmt`, and `ScriptCmd` are removed from `execsql.script`. They were statement wrappers from the pre-AST engine; nothing has constructed one since the AST executor became the only engine, and the parse tree now describes an executing statement on its own. Nothing in execsql imported them, and a script cannot reference them — only code importing `execsql.script` directly is affected.
 - The `execsql-format` command has been removed. Use `execsql format` — the options are identical, so `execsql-format --check scripts/` becomes `execsql format --check scripts/`. **Pre-commit users need no change**: the published hook id is still `execsql-format` and only its internal entry point moved, so existing `.pre-commit-config.yaml` files keep working as they are. Shell scripts, Makefiles, and CI steps that invoke `execsql-format` directly must be updated.
 
 ### Changed
 
+- `-m`, `-y`, `--list-plugins`, `--dump-keywords`, `--init-config`, and `--ping` are no longer listed in `execsql run --help`. They still work and print exactly what their replacements print: `execsql list metacommands`, `list encodings`, `list plugins`, `list keywords --output-format json`, `execsql config --init`, and `execsql ping`. `--ping -n` still creates a missing database.
 - Requires Typer 0.26 or newer (previously 0.12).
 - Lint output groups issues under each file in line order, with shorter messages and one summary line, instead of a banner and error-first list per file.
-- A script that fails to parse under `--lint` or `execsql lint` is reported on one line with the line number of the problem, instead of a multi-line error with a timestamp.
+- A script that fails to parse under `execsql lint` is reported on one line with the line number of the problem, instead of a multi-line error with a timestamp.
 - `execsql` with no arguments prints the help and always exits with status 2. Previously the exit status depended on the installed Click version.
 - CLI help is plain text rather than bordered panels, colored on a terminal. `execsql --help` lists the commands, both invocation forms, and the global options `--version` and `-o`/`--online-help`; `execsql <command> --help` shows each command's options. Piped help has no color, and `NO_COLOR` or `EXECSQL_NO_COLOR` turns it off.
 - MySQL and MariaDB connections now default to `utf8mb4` instead of `latin1`. A latin1 connection could not carry CJK, emoji, Greek, or Cyrillic at all — inserting such text raised `UnicodeEncodeError` before reaching the server — so scripts had to pass `-e utf8mb4` to move most of Unicode. Existing latin1 databases are unaffected: the connection charset governs only client/server transfer, and MySQL transcodes to and from each column's own charset. Pass `-e latin1` to restore the previous behavior.

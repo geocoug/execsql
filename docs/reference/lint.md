@@ -26,7 +26,7 @@ scripts/sub/flow.sql
 Found 4 issues in 2 files: 4 warnings (12 files checked)
 ```
 
-The [rules](#rules) below explain each code. The `--lint` option of `run` applies the same checks to the one script it is given, in the same layout, but has no `--select`, `--ignore`, or output-format options.
+The [rules](#rules) below explain each code. `execsql lint` replaced the `--lint` option of `run`, which was removed.
 
 ## Exit status { #exit_status }
 

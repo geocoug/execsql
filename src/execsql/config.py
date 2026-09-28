@@ -91,10 +91,17 @@ class ConfigData:
     # adding a new option below automatically makes it appear in the dump.
     _schema: dict[str, tuple[str, str, str]] = {}
 
+    # Every (section, ini_key, attr) spelling that sets an attribute. Unlike
+    # ``_schema`` this keeps aliases — ``db`` and ``database`` both set ``db``,
+    # and ``enc_password`` sets ``smtp_password`` — so ``sources`` can name the
+    # file whichever spelling it used.
+    _option_keys: set[tuple[str, str, str]] = {("email", "enc_password", "smtp_password")}
+
     @classmethod
     def _register_option(cls, section: str, key: str, attr: str, type_label: str) -> None:
         """Record ``attr`` in the schema registry so config introspection sees it."""
         cls._schema[attr] = (section, key, type_label)
+        cls._option_keys.add((section, key, attr))
 
     def _get_str(self, cp: ConfigParser, section: str, key: str, attr: str, *, required: bool = False) -> None:
         """Read a string option and set ``self.<attr>``.
@@ -489,6 +496,11 @@ class ConfigData:
         # DEBUG WRITE CONFIG / DEBUG LOG CONFIG see the full option set even
         # when no execsql.conf files exist on the system.
         self._read_known_options(ConfigParser())
+        # What each registered option holds before any file is read, and the
+        # last file that set it: together they let ``execsql config`` say
+        # where every value came from.
+        self.defaults: dict[str, object] = {attr: getattr(self, attr) for attr in self._schema}
+        self.sources: dict[str, str] = {}
         while config_queue:
             configfile = config_queue.popleft()
             if len(self.files_read) >= _MAX_CONFIG_CHAIN:
@@ -620,6 +632,9 @@ class ConfigData:
                         ):
                             u_files.append(f)
                     self.include_opt.extend(u_files)
+                for section, key, attr in self._option_keys:
+                    if cp.has_option(section, key):
+                        self.sources[attr] = configfile
 
 
 class WriteHooks:

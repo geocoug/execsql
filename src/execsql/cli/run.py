@@ -33,7 +33,6 @@ __all__ = ["_connect_initial_db", "_ping_db", "_print_dry_run", "_print_profile"
 
 # Lint helper — imported lazily inside _run() to keep start-up cost low, but
 # re-exported here so that tests and callers can reach it via cli.run.
-from execsql.cli.lint import _print_lint_results  # noqa: F401 — re-export (used by cli/__init__.py)
 
 
 # ---------------------------------------------------------------------------
@@ -150,7 +149,7 @@ def _print_profile(profile_data: list[tuple], limit: int = 20) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _ping_db(db: Any) -> None:
+def _ping_db(db: Any, output_format: str = "text") -> None:
     """Test connectivity for *db*, print connection details, and exit.
 
     Attempts to execute ``SELECT version()`` (or ``SELECT sqlite_version()``
@@ -160,6 +159,9 @@ def _ping_db(db: Any) -> None:
 
     Args:
         db: An open :class:`~execsql.db.base.Database` instance.
+        output_format: ``"text"`` for one colored line, ``"json"`` for one
+            object with ``dbms``, ``version`` (``null`` when unknown) and
+            ``location`` on stdout and nothing else.
     """
     dbms_id: str = db.type.dbms_id if db.type else "unknown"
 
@@ -189,7 +191,11 @@ def _ping_db(db: Any) -> None:
     else:
         location = db.db_name or "<in-memory>"
 
-    if version_str:
+    if output_format == "json":
+        import json
+
+        sys.stdout.write(json.dumps({"dbms": dbms_id, "version": version_str, "location": location}) + "\n")
+    elif version_str:
         _console.print(
             f"[bold green]Connected[/bold green] to [bold]{dbms_id}[/bold] "
             f"[dim]{version_str}[/dim] at [cyan]{location}[/cyan]",
@@ -587,12 +593,13 @@ def _run(
     profile: bool = False,
     profile_limit: int = 20,
     ping: bool = False,
-    lint: bool = False,
     debug: bool = False,
     no_system_cmd: bool = False,
     no_rm_file: bool = False,
     no_serve: bool = False,
     config_file: str | None = None,
+    ping_format: str = "text",
+    ping_may_create_db: bool = True,
 ) -> None:
     """Initialise state, connect to the database, load the script, and run it.
 
@@ -605,12 +612,10 @@ def _run(
     connection details (DBMS name, server version, and location), and calls
     :func:`_ping_db` which raises ``SystemExit(0)``.  No script is loaded or
     executed.  *script_name* and *command* may both be ``None`` in ping mode.
-
-    When *lint* is ``True``, the script is parsed and statically analysed for
-    structural issues (unmatched IF/ENDIF/LOOP/BATCH blocks, potentially
-    undefined variables, missing INCLUDE files, empty scripts) without
-    connecting to a database or executing anything.  Exits with code 0 if no
-    errors were found, or code 1 if errors were found.
+    *ping_format* is passed to :func:`_ping_db`. ``execsql ping`` sets
+    *ping_may_create_db* to ``False`` so that neither ``-n`` nor
+    ``new_db = yes`` in a config file can make a ping create a database; the
+    ``--ping`` alias on ``run`` keeps its original behavior.
     """
     import execsql.state as _state
 
@@ -703,6 +708,8 @@ def _run(
         raise SystemExit(0)
 
     if ping:
+        if not ping_may_create_db:
+            conf.new_db = False
         if conf.server is None and conf.db is None and conf.db_file is None:
             from execsql.utils.errors import fatal_error
 
@@ -711,7 +718,7 @@ def _run(
             )
         db = _connect_initial_db(conf)
         _state.dbs.add("initial", db)
-        _ping_db(db)  # raises SystemExit
+        _ping_db(db, ping_format)  # raises SystemExit
 
     import execsql.utils.fileio as _fileio
 
@@ -764,11 +771,6 @@ def _run(
     # Load the SQL script (--dry-run / --ping already exited above)
     # ------------------------------------------------------------------
     _ast_tree = _load_script(command, script_name, conf.script_encoding)
-
-    # ------------------------------------------------------------------
-    # NOTE: --lint is handled as an early exit in cli/__init__.py (AST
-    # linter) before _run() is called.  No lint code path here.
-    # ------------------------------------------------------------------
 
     # ------------------------------------------------------------------
     # Start GUI console if requested

@@ -7,11 +7,25 @@ Contains the metacommand reference table, encoding list, and the shared
 from __future__ import annotations
 
 from encodings.aliases import aliases as codec_dict
+from typing import Any
 
 from rich.console import Console
 from rich.table import Table
 
-__all__ = ["_console", "_err_console", "_init_config", "_print_encodings", "_print_metacommands"]
+__all__ = [
+    "_console",
+    "_encoding_names",
+    "_err_console",
+    "_init_config",
+    "_keywords_data",
+    "_metacommand_rows",
+    "_plugins_data",
+    "_print_encodings",
+    "_print_keywords_json",
+    "_print_keywords_text",
+    "_print_metacommands",
+    "_print_plugins",
+]
 
 _console = Console()
 _err_console = Console(stderr=True)
@@ -86,25 +100,14 @@ def _init_config() -> None:
     sys.stdout.write(template)
 
 
-def _print_metacommands() -> None:
-    """Print the metacommands table using Rich.
+def _metacommand_rows() -> list[tuple[str, str]]:
+    """``(name, syntax)`` for every metacommand, in the order they are listed.
 
     Keyword list is derived from the dispatch table; syntax hints come from
-    the ``_SYNTAX`` dict above.  Keywords not in ``_SYNTAX`` are shown without
-    a syntax column.
+    the ``_SYNTAX`` dict above.  Keywords not in ``_SYNTAX`` get an empty
+    syntax hint.
     """
     from execsql.metacommands import DISPATCH_TABLE
-
-    table = Table(
-        title="execsql Metacommands",
-        caption="Embed in SQL comment lines following the [bold]!x![/bold] token.",
-        show_header=True,
-        header_style="bold cyan",
-        border_style="dim",
-        expand=False,
-    )
-    table.add_column("Metacommand", style="bold green", no_wrap=True)
-    table.add_column("Syntax", style="white")
 
     # Collect unique keyword names from the dispatch table.
     seen: set[str] = set()
@@ -119,21 +122,42 @@ def _print_metacommands() -> None:
             seen.add(extra)
             keywords.append(extra)
 
+    rows: list[tuple[str, str]] = []
     for kw in sorted(keywords):
         if kw in _SYNTAX:
-            name, syntax = _SYNTAX[kw]
-            table.add_row(name, syntax)
+            rows.append(_SYNTAX[kw])
         elif kw.startswith("CONFIG ") or kw.startswith("CONSOLE_") or "_" in kw:
             continue  # skip config options / internal entries
         else:
-            table.add_row(kw, "")
+            rows.append((kw, ""))
+    return rows
 
+
+def _print_metacommands() -> None:
+    """Print the metacommands table using Rich."""
+    table = Table(
+        title="execsql Metacommands",
+        caption="Embed in SQL comment lines following the [bold]!x![/bold] token.",
+        show_header=True,
+        header_style="bold cyan",
+        border_style="dim",
+        expand=False,
+    )
+    table.add_column("Metacommand", style="bold green", no_wrap=True)
+    table.add_column("Syntax", style="white")
+    for name, syntax in _metacommand_rows():
+        table.add_row(name, syntax)
     _console.print(table)
+
+
+def _encoding_names() -> list[str]:
+    """Every encoding name Python accepts, sorted."""
+    return sorted(codec_dict.keys())
 
 
 def _print_encodings() -> None:
     """Print available encodings using Rich."""
-    enc = sorted(codec_dict.keys())
+    enc = _encoding_names()
     table = Table(
         title="Available Encodings",
         show_header=False,
@@ -149,3 +173,124 @@ def _print_encodings() -> None:
             row.append("")
         table.add_row(*row)
     _console.print(table)
+
+
+def _keywords_data() -> dict[str, Any]:
+    """The full keyword vocabulary: the data behind ``execsql list keywords``.
+
+    The VS Code grammar build and ``tests/test_registry.py`` read its JSON
+    form, so the shape of this dict is a contract.
+    """
+    from execsql.metacommands import (
+        ALL_EXPORT_FORMATS,
+        DATABASE_TYPES,
+        DISPATCH_TABLE,
+        JSON_VARIANT_FORMATS,
+        METADATA_FORMATS,
+        QUERY_EXPORT_FORMATS,
+        SERVE_FORMATS,
+        TABLE_EXPORT_FORMATS,
+    )
+    from execsql.metacommands.conditions import CONDITIONAL_TABLE
+
+    mc_kw = DISPATCH_TABLE.keywords_by_category()
+    cond_kw = CONDITIONAL_TABLE.keywords_by_category()
+
+    data = {
+        "metacommands": {
+            "control": sorted(mc_kw.get("control", [])),
+            "block": sorted(
+                mc_kw.get("block", []) + ["BEGIN SCRIPT", "END SCRIPT", "BEGIN SQL", "END SQL"],
+            ),
+            "action": sorted(mc_kw.get("action", [])),
+            "config": sorted(mc_kw.get("config", [])),
+            "prompt": sorted(mc_kw.get("prompt", [])),
+        },
+        "conditions": sorted(cond_kw.get("condition", []) + ["IS_FALSE", "NOT", "OR"]),
+        "config_options": sorted(mc_kw.get("config_option", [])),
+        "export_formats": {
+            "query": sorted(QUERY_EXPORT_FORMATS),
+            "table": sorted(TABLE_EXPORT_FORMATS),
+            "serve": sorted(SERVE_FORMATS),
+            "metadata": sorted(METADATA_FORMATS),
+            "json_variants": sorted(JSON_VARIANT_FORMATS),
+            "all": sorted(ALL_EXPORT_FORMATS),
+        },
+        "database_types": sorted(DATABASE_TYPES),
+        "variable_patterns": {
+            "system": "!!$name!!",
+            "environment": "!!&name!!",
+            "parameter": "!!#name!!",
+            "column": "!!@name!!",
+            "local": "!!~name!!",
+            "local_alt": "!!+name!!",
+            "regular": "!!name!!",
+            "deferred": "!{name}!",
+        },
+    }
+    return data
+
+
+def _print_keywords_json() -> None:
+    """Print :func:`_keywords_data` as JSON, exactly as ``--dump-keywords`` always has."""
+    import json
+
+    _console.print_json(json.dumps(_keywords_data(), indent=2))
+
+
+def _print_keywords_text() -> None:
+    """Print :func:`_keywords_data` grouped under headings, for reading."""
+    import textwrap
+
+    data = _keywords_data()
+
+    def group(title: str, words: list[str]) -> None:
+        _console.print(f"[bold]{title}[/bold] ({len(words)})")
+        _console.print(textwrap.fill(", ".join(words), width=88, initial_indent="  ", subsequent_indent="  "))
+        _console.print()
+
+    for category, words in data["metacommands"].items():
+        group(f"Metacommands: {category}", words)
+    group("Conditions", data["conditions"])
+    group("CONFIG options", data["config_options"])
+    group("Export formats", data["export_formats"]["all"])
+    group("Database types", data["database_types"])
+    _console.print("[bold]Variable patterns[/bold]")
+    for name, pattern in data["variable_patterns"].items():
+        _console.print(f"  {pattern:<12} {name}")
+
+
+def _plugins_data() -> dict[str, list[str]]:
+    """Names of the installed plugins, by kind."""
+    from execsql.plugins import (
+        EXPORTER_GROUP,
+        IMPORTER_GROUP,
+        METACOMMAND_GROUP,
+        _load_entry_points,
+    )
+
+    return {
+        "metacommands": [name for name, _ in _load_entry_points(METACOMMAND_GROUP)],
+        "exporters": [name for name, _ in _load_entry_points(EXPORTER_GROUP)],
+        "importers": [name for name, _ in _load_entry_points(IMPORTER_GROUP)],
+    }
+
+
+def _print_plugins() -> None:
+    """Print the installed plugins, or how to write one when there are none."""
+    plugins = _plugins_data()
+    _console.print("\n[bold cyan]Installed plugins:[/bold cyan]\n")
+    if not any(plugins.values()):
+        _console.print("  [dim]No plugins found.[/dim]")
+        _console.print()
+        _console.print(
+            "  Plugins are discovered via Python entry points.\n"
+            "  See the execsql documentation for how to create plugins.",
+        )
+    else:
+        for kind, names in plugins.items():
+            if names:
+                _console.print(f"  [bold]{kind.capitalize()}[/bold] ({len(names)}):")
+                for name in names:
+                    _console.print(f"    - {name}")
+    _console.print()

@@ -35,15 +35,15 @@ def test_template_lints_cleanly(template_name: str) -> None:
     """Every bundled .sql template must lint without a parser/syntax error."""
     template_path = TEMPLATES_DIR / template_name
     result = subprocess.run(
-        [sys.executable, "-m", "execsql", "--lint", str(template_path)],
+        [sys.executable, "-m", "execsql", "lint", str(template_path)],
         capture_output=True,
         text=True,
         timeout=30,
     )
-    # --lint returns 0 even when warnings exist; non-zero indicates a fatal
+    # `execsql lint` returns 0 even when warnings exist; non-zero indicates a fatal
     # parse/syntax error (e.g. the F053 unterminated-string regression).
     assert result.returncode == 0, (
-        f"--lint failed for {template_name} (exit {result.returncode}).\n"
+        f"execsql lint failed for {template_name} (exit {result.returncode}).\n"
         f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
     )
 

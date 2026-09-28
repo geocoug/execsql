@@ -6,7 +6,7 @@ Defines the node types that make up the execsql AST.
 
 Design principles:
     - Every node carries a :class:`SourceSpan` so that error messages,
-      ``--lint``, and the formatter can report precise source locations.
+      ``execsql lint``, and the formatter can report precise source locations.
     - Block structures (IF, LOOP, BATCH, SCRIPT) are represented as nodes
       whose ``body`` (and optional ``else_body``, ``elseif_clauses``) contain
       child nodes, forming the tree structure.

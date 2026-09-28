@@ -146,11 +146,11 @@ def test_audit_smoke(tmp_path: Path, variant: str, extra_flags: list[str]) -> No
 
 
 def test_audit_lint_bad(tmp_path: Path) -> None:
-    """``execsql --lint`` on the intentionally broken fixture should
+    """``execsql lint`` on the intentionally broken fixture should
     report both planted diagnostics: an undefined substitution variable
     and a missing INCLUDE target."""
     result = subprocess.run(
-        [sys.executable, "-m", "execsql", "--lint", str(_AUDIT_LINT_BAD)],
+        [sys.executable, "-m", "execsql", "lint", str(_AUDIT_LINT_BAD)],
         cwd=str(tmp_path),
         capture_output=True,
         text=True,

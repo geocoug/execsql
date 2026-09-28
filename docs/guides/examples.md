@@ -1682,8 +1682,6 @@ Errors appear as `ERROR` and make `execsql lint` exit with code 1. Warnings alon
 execsql lint scripts/
 ```
 
-The `--lint` option of `run` does the same check for the one script it is given: `execsql --lint validate_orders.sql`.
-
 The linter performs a two-pass analysis: it first collects all variable definitions across the entire script (including `BEGIN SCRIPT` blocks), then checks all references. This means a variable defined after its first use is not flagged as undefined.
 
 ## **Example 38:** Visualizing Script Structure with --parse-tree { #example38 }
@@ -1765,7 +1763,7 @@ Each row shows:
 
 `--profile-limit N` controls how many rows appear in the table (default: 20). All statements contribute to the totals regardless of the limit. Combine `--profile` with `--profile-limit 0` to see every statement.
 
-The `--profile` flag has no effect on `--dry-run` or `--lint` (neither executes statements).
+The `--profile` flag has no effect on `--dry-run`, which executes no statements.
 
 ## **Example 40:** Copying Data Between Databases { #example40 }
 

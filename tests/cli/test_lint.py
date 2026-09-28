@@ -21,8 +21,14 @@ from pathlib import Path
 
 import pytest
 
-from execsql.cli.lint import RULES, Issue, _issue, _print_lint_results, lint
+from execsql.cli.lint import RULES, Issue, _issue, exit_code, lint, print_text
 from execsql.script.parser import parse_script
+
+
+def _print_lint_results(issues: list[Issue], script_label: str) -> int:
+    """One script's issues in the text layout, and the exit code for them."""
+    print_text([(script_label, issues)], checked=1)
+    return exit_code(issues)
 
 
 def _error(source: str, line: int, message: str) -> Issue:
@@ -726,13 +732,28 @@ class TestLintCommand:
     def test_bad_output_format_is_a_usage_error(self, library):
         assert self._run(str(library), "--output-format", "xml").exit_code == 2
 
-    def test_run_lint_flag_shows_codes_too(self, library):
+    def test_run_lint_flag_is_refused_with_a_pointer(self, library):
+        """``run --lint`` was removed: exit 2, name the replacement, lint nothing."""
         from typer.testing import CliRunner
 
         from execsql.cli import app
 
         result = CliRunner().invoke(app, ["--lint", str(library / "sub" / "flow.sql")])
-        assert "F002" in result.output
+        assert result.exit_code == 2
+        assert "use execsql lint" in result.output
+        assert "F002" not in result.output
+
+    def test_run_lint_flag_never_runs_the_script(self, tmp_path):
+        from typer.testing import CliRunner
+
+        from execsql.cli import app
+
+        db = tmp_path / "out.db"
+        script = tmp_path / "create.sql"
+        script.write_text("CREATE TABLE t (x integer);\n")
+        result = CliRunner().invoke(app, [str(script), str(db), "-t", "l", "-n", "--lint"])
+        assert result.exit_code == 2
+        assert not db.exists()
 
     def test_help_points_at_the_rules_page_instead_of_listing_rules(self):
         """Rules are explained in the docs, not in --help."""

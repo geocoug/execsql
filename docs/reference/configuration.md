@@ -16,7 +16,15 @@ An explicit configuration file can also be specified with the `--config FILE` co
 To generate a starter configuration file with all options commented out and documented, use:
 
 ```bash
-execsql --init-config > execsql.conf
+execsql config --init > execsql.conf
+```
+
+To see which configuration files are read, and which file set each option, use
+[`execsql config`](../getting-started/syntax.md#config_command). Pass a script to
+include the `execsql.conf` in its directory, as a run of that script would:
+
+```bash
+execsql config scripts/etl.sql
 ```
 
 In addition, *execsql* will read additional configuration files if they are specified in any of the standard configuration files ([see below](#config_config)).

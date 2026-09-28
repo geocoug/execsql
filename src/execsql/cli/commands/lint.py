@@ -35,9 +35,8 @@ def lint_paths(
 ) -> int:
     """Lint every script named by *targets*; return the process exit code.
 
-    This is the multi-file half that ``--lint`` never had: the flag lints the
-    one script you were about to run, while the ``lint`` command is aimed at a
-    whole library.
+    Directories are searched recursively, so one call checks a whole script
+    library.
 
     Args:
         targets: Files and directories; directories are searched for ``*.sql``.

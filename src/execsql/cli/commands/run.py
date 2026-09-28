@@ -7,7 +7,16 @@ from pathlib import Path
 import typer
 
 from execsql.cli.application import ExecsqlCommand, _online_help_callback, _version_callback, app
-from execsql.cli.help import _console, _err_console, _init_config, _print_encodings, _print_metacommands
+from execsql.cli.help import _console, _err_console, _init_config
+from execsql.cli.options import (
+    ConfigFileOpt,
+    DbTypeOpt,
+    DsnOpt,
+    NoPasswdOpt,
+    OutputFormat,
+    PortOpt,
+    UserOpt,
+)
 from execsql.cli.run import _run
 from execsql.exceptions import ErrInfo
 
@@ -31,47 +40,11 @@ def main(
         ),
     ),
     # -- Connection --------------------------------------------------------
-    db_type: str | None = typer.Option(
-        None,
-        "-t",
-        "--type",
-        metavar="{a,d,p,s,l,m,k,o,f}",
-        help=(
-            "Database type: a=MS-Access, p=PostgreSQL, "
-            "s=SQL Server, l=SQLite, m=MySQL/MariaDB, "
-            "k=DuckDB, o=Oracle, f=Firebird, "
-            "d=DSN."
-        ),
-    ),
-    dsn: str | None = typer.Option(
-        None,
-        "--dsn",
-        "--connection-string",
-        metavar="URL",
-        help=(
-            "Database connection URL, e.g. postgresql://user:pass@host:5432/db. "
-            "Supported schemes: postgresql, mysql, mssql, oracle, firebird, sqlite, duckdb. "
-            "Overrides -t/-u/-p and positional server/db args."
-        ),
-    ),
-    user: str | None = typer.Option(
-        None,
-        "-u",
-        "--user",
-        help="Database user name.",
-    ),
-    port: int | None = typer.Option(
-        None,
-        "-p",
-        "--port",
-        help="Database server port.",
-    ),
-    no_passwd: bool = typer.Option(
-        False,
-        "-w",
-        "--no-passwd",
-        help="Skip password prompt when user is specified.",
-    ),
+    db_type: DbTypeOpt = None,
+    dsn: DsnOpt = None,
+    user: UserOpt = None,
+    port: PortOpt = None,
+    no_passwd: NoPasswdOpt = False,
     new_db: bool = typer.Option(
         False,
         "-n",
@@ -163,14 +136,9 @@ def main(
         "--dry-run",
         help="Parse the script and print the command list without connecting to a database or executing anything.",
     ),
-    lint: bool = typer.Option(
-        False,
-        "--lint",
-        help=(
-            "Statically check this script without connecting to a database or executing anything. "
-            "Exits 0 if no errors, 1 if errors found. execsql lint does the same for files and directories."
-        ),
-    ),
+    # Removed: `execsql lint` replaces it. Still declared so the flag is
+    # refused with a pointer instead of Click's generic "no such option".
+    lint: bool = typer.Option(False, "--lint", hidden=True),
     parse_tree: bool = typer.Option(
         False,
         "--parse-tree",
@@ -227,21 +195,8 @@ def main(
         help="GUI framework to use with --visible-prompts. Default: tkinter",
     ),
     # -- Configuration -----------------------------------------------------
-    config_file: str | None = typer.Option(
-        None,
-        "--config",
-        metavar="FILE",
-        help=(
-            "Path to an execsql configuration file. "
-            "Loaded after the implicit search paths so its values take precedence. "
-            "The file may chain additional configs via its [config] section."
-        ),
-    ),
-    init_config: bool = typer.Option(
-        False,
-        "--init-config",
-        help="Print a default execsql.conf template to stdout and exit.",
-    ),
+    config_file: ConfigFileOpt = None,
+    init_config: bool = typer.Option(False, "--init-config", hidden=True),  # alias: execsql config --init
     sub_vars: list[str] | None = typer.Option(
         None,
         "-a",
@@ -255,39 +210,15 @@ def main(
         "--user-logfile",
         help="Write a log file to ~/execsql.log.",
     ),
-    # -- Information -------------------------------------------------------
-    metacommands: bool = typer.Option(
-        False,
-        "-m",
-        "--metacommands",
-        help="List metacommands and exit.",
-    ),
-    encodings: bool = typer.Option(
-        False,
-        "-y",
-        "--encodings",
-        help="List available encoding names and exit.",
-    ),
-    dump_keywords: bool = typer.Option(
-        False,
-        "--dump-keywords",
-        help="Dump all metacommand keywords as JSON and exit.",
-    ),
-    list_plugins: bool = typer.Option(
-        False,
-        "--list-plugins",
-        help="List all discovered plugins (metacommands, exporters, importers) and exit.",
-    ),
-    ping: bool = typer.Option(
-        False,
-        "--ping",
-        help=(
-            "Test database connectivity and exit. "
-            "Prints connection details and the server version on success (exit 0), "
-            "or the error message on failure (exit 1). "
-            "No script file is required."
-        ),
-    ),
+    # -- Hidden aliases for flags that became commands ----------------------
+    # Each still works and runs the command's own code; see
+    # docs/about/divergence.md. -m and -y are upstream v1.130.1 flags.
+    metacommands: bool = typer.Option(False, "-m", "--metacommands", hidden=True),  # list metacommands
+    encodings: bool = typer.Option(False, "-y", "--encodings", hidden=True),  # list encodings
+    dump_keywords: bool = typer.Option(False, "--dump-keywords", hidden=True),  # list keywords --output-format json
+    list_plugins: bool = typer.Option(False, "--list-plugins", hidden=True),  # list plugins
+    # ping, except that -n and new_db = yes still create a missing database.
+    ping: bool = typer.Option(False, "--ping", hidden=True),
     # The global options again, hidden. Upstream's optparse accepted them
     # anywhere, so `execsql script.sql db --version` still has to print the
     # version rather than read "--version" as a database name.
@@ -317,15 +248,24 @@ def main(
     File-based databases (SQLite, DuckDB, Access):
       execsql script.sql [DATABASE_FILE]
     """
+    if lint:
+        _err_console.print("[bold red]Error:[/bold red] run --lint was removed; use execsql lint")
+        raise typer.Exit(code=2)
+
     # ------------------------------------------------------------------
-    # Early exits (no script file needed)
+    # Hidden aliases for flags that became commands (no script file needed)
     # ------------------------------------------------------------------
+    # Imported here, not at module level: importing the listing module
+    # registers `list`, and the import order is the order --help lists
+    # commands in.
+    from execsql.cli.commands.listing import Listing, print_listing
+
     if metacommands:
-        _print_metacommands()
+        print_listing(Listing.metacommands, OutputFormat.text)
         raise typer.Exit()
 
     if encodings:
-        _print_encodings()
+        print_listing(Listing.encodings, OutputFormat.text)
         raise typer.Exit()
 
     if init_config:
@@ -333,94 +273,11 @@ def main(
         raise typer.Exit()
 
     if dump_keywords:
-        import json as _json
-
-        from execsql.metacommands import (
-            ALL_EXPORT_FORMATS,
-            DATABASE_TYPES,
-            DISPATCH_TABLE,
-            JSON_VARIANT_FORMATS,
-            METADATA_FORMATS,
-            QUERY_EXPORT_FORMATS,
-            SERVE_FORMATS,
-            TABLE_EXPORT_FORMATS,
-        )
-        from execsql.metacommands.conditions import CONDITIONAL_TABLE
-
-        mc_kw = DISPATCH_TABLE.keywords_by_category()
-        cond_kw = CONDITIONAL_TABLE.keywords_by_category()
-
-        data = {
-            "metacommands": {
-                "control": sorted(mc_kw.get("control", [])),
-                "block": sorted(
-                    mc_kw.get("block", []) + ["BEGIN SCRIPT", "END SCRIPT", "BEGIN SQL", "END SQL"],
-                ),
-                "action": sorted(mc_kw.get("action", [])),
-                "config": sorted(mc_kw.get("config", [])),
-                "prompt": sorted(mc_kw.get("prompt", [])),
-            },
-            "conditions": sorted(cond_kw.get("condition", []) + ["IS_FALSE", "NOT", "OR"]),
-            "config_options": sorted(mc_kw.get("config_option", [])),
-            "export_formats": {
-                "query": sorted(QUERY_EXPORT_FORMATS),
-                "table": sorted(TABLE_EXPORT_FORMATS),
-                "serve": sorted(SERVE_FORMATS),
-                "metadata": sorted(METADATA_FORMATS),
-                "json_variants": sorted(JSON_VARIANT_FORMATS),
-                "all": sorted(ALL_EXPORT_FORMATS),
-            },
-            "database_types": sorted(DATABASE_TYPES),
-            "variable_patterns": {
-                "system": "!!$name!!",
-                "environment": "!!&name!!",
-                "parameter": "!!#name!!",
-                "column": "!!@name!!",
-                "local": "!!~name!!",
-                "local_alt": "!!+name!!",
-                "regular": "!!name!!",
-                "deferred": "!{name}!",
-            },
-        }
-        _console.print_json(_json.dumps(data, indent=2))
+        print_listing(Listing.keywords, OutputFormat.json)
         raise typer.Exit()
 
     if list_plugins:
-        from execsql.plugins import (
-            EXPORTER_GROUP,
-            IMPORTER_GROUP,
-            METACOMMAND_GROUP,
-            _load_entry_points,
-        )
-
-        _console.print("\n[bold cyan]Installed plugins:[/bold cyan]\n")
-
-        mc_plugins = _load_entry_points(METACOMMAND_GROUP)
-        ex_plugins = _load_entry_points(EXPORTER_GROUP)
-        im_plugins = _load_entry_points(IMPORTER_GROUP)
-
-        if not mc_plugins and not ex_plugins and not im_plugins:
-            _console.print("  [dim]No plugins found.[/dim]")
-            _console.print()
-            _console.print(
-                "  Plugins are discovered via Python entry points.\n"
-                "  See the execsql documentation for how to create plugins.",
-            )
-        else:
-            if mc_plugins:
-                _console.print(f"  [bold]Metacommands[/bold] ({len(mc_plugins)}):")
-                for name, _ in mc_plugins:
-                    _console.print(f"    - {name}")
-            if ex_plugins:
-                _console.print(f"  [bold]Exporters[/bold] ({len(ex_plugins)}):")
-                for name, _ in ex_plugins:
-                    _console.print(f"    - {name}")
-            if im_plugins:
-                _console.print(f"  [bold]Importers[/bold] ({len(im_plugins)}):")
-                for name, _ in im_plugins:
-                    _console.print(f"    - {name}")
-
-        _console.print()
+        print_listing(Listing.plugins, OutputFormat.text)
         raise typer.Exit()
 
     if config_file and not Path(config_file).is_file():
@@ -503,34 +360,6 @@ def main(
         raise typer.Exit()
 
     # ------------------------------------------------------------------
-    # Lint: AST-based static analysis (no DB connection needed)
-    # ------------------------------------------------------------------
-    if lint:
-        from execsql.cli.lint import _print_lint_results, lint as _lint_script, parse_error
-        from execsql.script.parser import parse_script, parse_string
-
-        label = script_name or "<inline>"
-        try:
-            if command is not None:
-                tree = parse_string(command.replace("\\n", "\n").replace("\\t", "\t"), "<inline>")
-            elif script_name is not None:
-                encoding = script_encoding or "utf-8"
-                tree = parse_script(script_name, encoding=encoding)
-            else:
-                _err_console.print(
-                    "[bold red]Error:[/bold red] --lint requires a script file or -c command.",
-                )
-                raise typer.Exit(code=1)
-        except ErrInfo as exc:
-            # Parse failure IS a lint error — report it
-            exit_code = _print_lint_results([parse_error(label, exc)], label)
-            raise typer.Exit(code=exit_code) from exc
-
-        issues = _lint_script(tree, script_path=script_name)
-        exit_code = _print_lint_results(issues, label)
-        raise typer.Exit(code=exit_code)
-
-    # ------------------------------------------------------------------
     # Delegate to the real main implementation
     # ------------------------------------------------------------------
     _run(
@@ -561,7 +390,6 @@ def main(
         profile=profile,
         profile_limit=profile_limit,
         ping=ping,
-        lint=lint,
         debug=debug,
         no_system_cmd=no_system_cmd,
         no_rm_file=no_rm_file,

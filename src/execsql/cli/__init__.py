@@ -11,7 +11,7 @@ Submodules:
 - :mod:`execsql.cli.help`      — metacommand/encoding tables, --init-config, console objects
 - :mod:`execsql.cli.dsn`       — Connection-string (DSN URL) parser
 - :mod:`execsql.cli.run`       — Core execution logic (``_run``, ``_connect_initial_db``, ``_ping_db``, ``_print_dry_run``, ``_print_profile``)
-- :mod:`execsql.cli.lint`      — AST-based ``--lint`` static analyser and Rich result printer
+- :mod:`execsql.cli.lint`      — AST-based static analyser behind ``execsql lint``, and its output formats
 """
 
 from __future__ import annotations

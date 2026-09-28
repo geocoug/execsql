@@ -79,27 +79,27 @@ flowchart LR
 
 ### Package summary
 
-| Package         | Purpose                                                                                                                       |
-| --------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `cli/`          | Typer app and help rendering, `run`/`format`/`lint` commands, `_run()` orchestration, DSN URL parsing, Rich `-m`/`-y` tables  |
-| `api.py`        | Public `execsql.run()` Python entry point for notebooks, pipelines, and library use                                           |
-| `config.py`     | `ConfigData` (INI merging), `StatObj` (runtime flags), `WriteHooks` (stdout/stderr redirection)                               |
-| `state.py`      | Thread-local runtime store — all shared mutable state lives here, isolated per-thread                                         |
-| `script/`       | AST node types, parser, `MetaCommandList`, `SubVarSet`, `BatchLevels`, `ScriptExecSpec`, `set_system_vars()`                  |
-| `metacommands/` | `build_dispatch_table()`, all `x_*` handlers, `build_conditional_table()`, all `xf_*` predicates                              |
-| `db/`           | `Database` ABC, `DatabasePool`, 9 adapter modules (postgres, sqlite, duckdb, mysql, sqlserver, oracle, firebird, access, dsn) |
-| `exporters/`    | `ExportRecord`, `ExportMetadata`, `WriteSpec`, 20+ format writers (CSV, JSON, XML, HTML, etc.)                                |
-| `importers/`    | `CsvFile`, `OdsFile`, `XlsFile`, `FeatherFile` — data import backends                                                         |
-| `gui/`          | `GuiBackend` ABC, `TkinterBackend`, `TextualBackend`, `ConsoleBackend`                                                        |
-| `utils/`        | Shared utilities: file I/O, encryption, mail, regex helpers, string manipulation, timers                                      |
-| `parser.py`     | Recursive-descent parsers for conditional (`IF`) and arithmetic (`SET`) expressions                                           |
-| `types.py`      | `DataType` subclasses and `DbType` per-DBMS type dialect mappings                                                             |
-| `models.py`     | `Column`, `DataTable`, `JsonDatatype`                                                                                         |
-| `format.py`     | `execsql format` formatter — opinionated formatter for execsql scripts                                                        |
-| `exceptions.py` | `ExecSqlError` base, `ErrInfo`, `ConfigError`, `DataTypeError`, `DbTypeError`, etc.                                           |
-| `plugins.py`    | Entry-point plugin discovery for metacommands, exporters, and importers                                                       |
-| `debug/`        | Interactive REPL debugger for stepping through script execution                                                               |
-| `data/`         | Bundled package data (`execsql.conf.template` powers `--init-config`)                                                         |
+| Package         | Purpose                                                                                                                                                 |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cli/`          | Typer app and help rendering, one module per command under `cli/commands/`, shared options, `_run()` orchestration, DSN URL parsing, reference listings |
+| `api.py`        | Public `execsql.run()` Python entry point for notebooks, pipelines, and library use                                                                     |
+| `config.py`     | `ConfigData` (INI merging), `StatObj` (runtime flags), `WriteHooks` (stdout/stderr redirection)                                                         |
+| `state.py`      | Thread-local runtime store — all shared mutable state lives here, isolated per-thread                                                                   |
+| `script/`       | AST node types, parser, `MetaCommandList`, `SubVarSet`, `BatchLevels`, `ScriptExecSpec`, `set_system_vars()`                                            |
+| `metacommands/` | `build_dispatch_table()`, all `x_*` handlers, `build_conditional_table()`, all `xf_*` predicates                                                        |
+| `db/`           | `Database` ABC, `DatabasePool`, 9 adapter modules (postgres, sqlite, duckdb, mysql, sqlserver, oracle, firebird, access, dsn)                           |
+| `exporters/`    | `ExportRecord`, `ExportMetadata`, `WriteSpec`, 20+ format writers (CSV, JSON, XML, HTML, etc.)                                                          |
+| `importers/`    | `CsvFile`, `OdsFile`, `XlsFile`, `FeatherFile` — data import backends                                                                                   |
+| `gui/`          | `GuiBackend` ABC, `TkinterBackend`, `TextualBackend`, `ConsoleBackend`                                                                                  |
+| `utils/`        | Shared utilities: file I/O, encryption, mail, regex helpers, string manipulation, timers                                                                |
+| `parser.py`     | Recursive-descent parsers for conditional (`IF`) and arithmetic (`SET`) expressions                                                                     |
+| `types.py`      | `DataType` subclasses and `DbType` per-DBMS type dialect mappings                                                                                       |
+| `models.py`     | `Column`, `DataTable`, `JsonDatatype`                                                                                                                   |
+| `format.py`     | `execsql format` formatter — opinionated formatter for execsql scripts                                                                                  |
+| `exceptions.py` | `ExecSqlError` base, `ErrInfo`, `ConfigError`, `DataTypeError`, `DbTypeError`, etc.                                                                     |
+| `plugins.py`    | Entry-point plugin discovery for metacommands, exporters, and importers                                                                                 |
+| `debug/`        | Interactive REPL debugger for stepping through script execution                                                                                         |
+| `data/`         | Bundled package data (`execsql.conf.template` powers `execsql config --init`)                                                                           |
 
 ______________________________________________________________________
 
@@ -130,7 +130,7 @@ A handful of keywords appear in **both** the metacommand dispatch table and the 
 
 What the stubs are for:
 
-- **`--dump-keywords`** walks the dispatch table to emit the canonical keyword list. The VS Code grammar in `extras/vscode-execsql/syntaxes/execsql.tmLanguage.json` is regenerated from `--dump-keywords` output (see `scripts/generate_vscode_grammar.py`). Removing the dispatch entries would silently shrink that grammar and lose highlighting for the affected keywords.
+- **`execsql list keywords`** walks the dispatch table to emit the canonical keyword list. The VS Code grammar in `extras/vscode-execsql/syntaxes/execsql.tmLanguage.json` is regenerated from its JSON output (see `scripts/generate_vscode_grammar.py`). Removing the dispatch entries would silently shrink that grammar and lose highlighting for the affected keywords.
 - **Reachability is impossible at runtime.** The AST parser owns these constructs and they never bottom out in `_exec_metacommand()`. If a stub *does* raise, that means the parser missed a structural case — file a bug rather than implementing the dispatch path.
 
 A new contributor who greps for `ErrInfo: AST-only` lands in `metacommands/control.py:_ast_only_stub`; the same logic applies to any future keyword that the AST parser owns.
@@ -155,7 +155,7 @@ execsql supports plugins via Python entry points. Plugins can register custom me
 - **Error handling**: Broken plugins are logged and skipped -- they cannot prevent execsql from starting.
 - **Template**: `extras/plugin-template/` provides a starting point for creating plugins.
 
-See `--list-plugins` to view discovered plugins.
+Run `execsql list plugins` to view discovered plugins.
 
 ______________________________________________________________________
 

@@ -14,14 +14,14 @@ GRAMMAR_PATH = ROOT / "extras" / "vscode-execsql" / "syntaxes" / "execsql.tmLang
 
 
 # ---------------------------------------------------------------------------
-# --dump-keywords sanity
+# `execsql list keywords` sanity (the --dump-keywords alias is checked in tests/cli/test_commands.py)
 # ---------------------------------------------------------------------------
 
 
 def test_dump_keywords_produces_valid_json():
-    """``execsql --dump-keywords`` exits 0 and returns valid JSON with expected keys."""
+    """``execsql list keywords --output-format json`` exits 0 and returns valid JSON with expected keys."""
     result = subprocess.run(
-        [sys.executable, "-m", "execsql", "--dump-keywords"],
+        [sys.executable, "-m", "execsql", "list", "keywords", "--output-format", "json"],
         capture_output=True,
         text=True,
     )
@@ -38,7 +38,7 @@ def test_dump_keywords_produces_valid_json():
 def test_dump_keywords_metacommand_categories():
     """All expected metacommand categories are present and non-empty."""
     result = subprocess.run(
-        [sys.executable, "-m", "execsql", "--dump-keywords"],
+        [sys.executable, "-m", "execsql", "list", "keywords", "--output-format", "json"],
         capture_output=True,
         text=True,
     )
@@ -131,13 +131,13 @@ def test_grammar_is_valid_json():
 
 @pytest.mark.skipif(not GRAMMAR_PATH.exists(), reason="Grammar file not generated yet")
 def test_grammar_matches_dump_keywords():
-    """Keywords in the grammar match what --dump-keywords produces.
+    """Keywords in the grammar match what ``execsql list keywords`` produces.
 
     If this fails, run ``just generate-vscode-grammar`` to regenerate.
     """
     # Get keywords from CLI
     result = subprocess.run(
-        [sys.executable, "-m", "execsql", "--dump-keywords"],
+        [sys.executable, "-m", "execsql", "list", "keywords", "--output-format", "json"],
         capture_output=True,
         text=True,
     )

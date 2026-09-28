@@ -1,4 +1,4 @@
-"""AST-based static analysis (``--lint``) for execsql scripts.
+"""AST-based static analysis (``execsql lint``) for execsql scripts.
 
 Operates on the :class:`~execsql.script.ast.Script` tree produced by
 :func:`execsql.script.parser.parse_script` / ``parse_string``. Runs as
@@ -35,8 +35,7 @@ Public surface:
   ``--ignore`` handling.
 - :func:`print_text`, :func:`print_concise`, :func:`print_statistics`,
   :func:`render_json` — output formats; :func:`exit_code` — ``1`` when any
-  reported issue is an error, ``0`` otherwise. :func:`_print_lint_results`
-  is the single-script form ``--lint`` uses.
+  reported issue is an error, ``0`` otherwise.
 """
 
 from __future__ import annotations
@@ -67,7 +66,6 @@ __all__ = [
     "RULES",
     "Issue",
     "Rule",
-    "_print_lint_results",
     "exit_code",
     "filter_issues",
     "lint",
@@ -888,15 +886,6 @@ def print_statistics(results: list[FileResult], checked: int) -> None:
             _console.print(f"  {n:>{width}}  [{style}]{rule.code}[/{style}]  {rule.name}", highlight=False)
         _console.print()
     _console.print(_summary(results, checked), highlight=False)
-
-
-def _print_lint_results(issues: list[Issue], script_label: str) -> int:
-    """Print one script's issues in the text layout; return the exit code.
-
-    The ``--lint`` option of ``run`` checks a single script and uses this.
-    """
-    print_text([(script_label, issues)], checked=1)
-    return exit_code(issues)
 
 
 def render_json(issues: Iterable[Issue]) -> str:
