@@ -1,4 +1,4 @@
-"""Rich tables and console objects for the execsql CLI.
+"""Rich-formatted help output for the execsql CLI.
 
 Contains the metacommand reference table, encoding list, and the shared
 ``Console`` instances used by the other CLI submodules.
