@@ -201,7 +201,10 @@ repos:
     rev: v2.22.9
     hooks:
       - id: execsql-format
+      - id: execsql-lint # optional: fail the commit on lint errors
 ```
+
+The `execsql-lint` hook is described in the [lint reference](../reference/lint.md#pre-commit).
 
 The hook runs on `*.sql` files and rewrites them in place by default (`args: [--in-place]` is baked into the published hook). To run in CI-style check-only mode that fails without modifying files, override with `args: [--check]`. To combine in-place rewriting with a custom indent width, use `args: [--in-place, --indent, "2"]` — note that any explicit `args:` you supply replaces the default, so include `--in-place` when adding more flags if you still want in-place behavior. Run `pre-commit autoupdate` periodically to bump the `rev`.
 

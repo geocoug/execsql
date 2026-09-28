@@ -17,6 +17,7 @@ ______________________________________________________________________
 - `execsql lint --select` and `--ignore` choose rules by code or prefix (`--ignore V002`, `--select F`). Parse errors are always reported.
 - `execsql lint --output-format json` writes every issue as one JSON array for CI and editor tooling, and `--output-format concise` prints one `path:line: CODE message` line per issue.
 - `execsql lint --statistics` shows how many times each rule fired instead of listing every issue.
+- `execsql-lint` pre-commit hook: runs `execsql lint` on staged `*.sql` files and fails the commit on lint errors. Add `- id: execsql-lint` next to `execsql-format`.
 - `execsql format -` and `execsql lint -` read one script from stdin; `format` writes the result to stdout.
 - `execsql format` and `execsql lint` read scripts in the encoding given by `-f`/`--script-encoding`, or by `[encoding] script` in a config file, and take `--config`. Config files are read once, from the system, user and working-directory locations — not from each script's directory. `lint` reports a script it cannot decode as `P001` instead of stopping.
 - `execsql` now has commands: `execsql run`, `execsql format` (or `fmt`), `execsql lint`, `execsql ping`, `execsql config`, and `execsql list`. `format` and `lint` take files or directories and need no database — linting a whole script library is new, since `--lint` only ever linted the single script it was given.

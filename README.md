@@ -307,7 +307,7 @@ execsql format --check scripts/
 execsql format --no-sql --in-place scripts/
 ```
 
-`execsql format` is also available as a [pre-commit](https://pre-commit.com/) hook. The hook id is unchanged, so existing configs keep working:
+`execsql format` and `execsql lint` are also available as [pre-commit](https://pre-commit.com/) hooks. The format hook id is unchanged, so existing configs keep working:
 
 ```yaml
 repos:
@@ -315,9 +315,10 @@ repos:
     rev: v2.22.9
     hooks:
       - id: execsql-format
+      - id: execsql-lint
 ```
 
-The hook rewrites `*.sql` files in place by default. See the [formatter documentation](https://execsql2.readthedocs.io/en/latest/guides/formatter/) for `--check`, `--indent`, and other options.
+The format hook rewrites `*.sql` files in place by default; the lint hook fails the commit when a script has a lint error. See the [formatter documentation](https://execsql2.readthedocs.io/en/latest/guides/formatter/) for `--check`, `--indent`, and other options.
 
 ## VS Code Syntax Highlighting
 

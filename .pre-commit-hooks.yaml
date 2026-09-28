@@ -7,3 +7,11 @@
   files: \.sql$
   args: [--in-place]
   additional_dependencies: ["sqlglot>=25.0,<31"]
+
+- id: execsql-lint
+  name: execsql-lint
+  description: Statically check execsql SQL scripts without a database — unclosed blocks, undefined or unused variables, missing INCLUDE targets, unreachable code.
+  entry: execsql lint
+  language: python
+  types: [file]
+  files: \.sql$

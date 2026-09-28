@@ -130,6 +130,19 @@ To turn each issue into a GitHub annotation on the pull request, convert the JSO
 
 Replace the last line with `test "$(jq length lint.json)" -eq 0` to fail on warnings too.
 
+### Pre-commit { #pre-commit }
+
+The `execsql-lint` [pre-commit](https://pre-commit.com/) hook runs `execsql lint` on every staged `*.sql` file and fails the commit when any has an error. Warnings are reported but do not fail it.
+
+```yaml
+repos:
+  - repo: https://github.com/geocoug/execsql
+    rev: v2.22.9
+    hooks:
+      - id: execsql-lint
+        args: [--ignore, V002] # optional: any execsql lint option
+```
+
 ## Rules { #rules }
 
 Codes are grouped by subject: `P` parsing, `S` the script as a whole, `V` variables, `I` `INCLUDE` and `EXECUTE SCRIPT` targets, `F` control flow. A code is never renumbered or reused, so `--ignore` lists keep working across upgrades.

@@ -205,6 +205,11 @@ filename = "docs/guides/formatter.md"
 search = "rev: v{current_version}"
 replace = "rev: v{new_version}"
 
+[[tool.bumpversion.files]]
+filename = "docs/reference/lint.md"
+search = "rev: v{current_version}"
+replace = "rev: v{new_version}"
+
 [tool.pytest.ini_options]
 addopts = [
     "--cov=execsql",
