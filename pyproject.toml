@@ -264,6 +264,9 @@ caf = "caf"
 # renames smtplib.ehlo_or_helo_if_needed() into a method that does not exist,
 # which is exactly how every EMAIL send broke in 2.22.9.
 helo = "helo"
+# Deliberate misspelling of [connect]: `execsql config --validate` tests and
+# docs show it being caught. Correcting it breaks the very test it is in.
+conect = "conect"
 
 [tool.tox]
 required = ["tox-uv"]

@@ -27,6 +27,10 @@ include the `execsql.conf` in its directory, as a run of that script would:
 execsql config scripts/etl.sql
 ```
 
+To check config files for mistakes — misspelled keys and sections, keys in the
+wrong section, invalid values — before a run trips over them, use
+[`execsql config --validate`](../getting-started/syntax.md#config_validate).
+
 In addition, *execsql* will read additional configuration files if they are specified in any of the standard configuration files ([see below](#config_config)).
 
 Configuration files use the [INI](https://en.wikipedia.org/wiki/INI_file) file format. Section names are case sensitive and must be all in lowercase. Property names are not case sensitive. Property values are read as-is and may or may not be case sensitive, depending on their use. Comments can be included in configuration files; each comment line must start with the "#" character.

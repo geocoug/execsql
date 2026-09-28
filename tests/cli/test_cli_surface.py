@@ -109,7 +109,7 @@ SURFACE: dict[str, dict[str, object]] = {
     },
     "config": {
         "arguments": ["[SQL_SCRIPT]"],
-        "options": {"--config", "--init", "--output-format"},
+        "options": {"--config", "--init", "--output-format", "--validate"},
         "hidden": set(),
     },
     "list": {
