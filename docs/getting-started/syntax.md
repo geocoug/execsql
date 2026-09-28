@@ -4,10 +4,44 @@
 
 *execsql* requires Python 3.10 or later.
 
+## Commands { #commands }
+
+*execsql* is three tools behind one command. Two of them need no database:
+
+```text
+execsql run    [OPTIONS] SQL_SCRIPT [SERVER DATABASE | DATABASE_FILE]
+execsql format [--check | -i] [--indent N] FILE_OR_DIR...
+execsql lint   FILE_OR_DIR...
+```
+
+| Command  | Purpose                                                                             |
+| -------- | ----------------------------------------------------------------------------------- |
+| `run`    | Execute a script against a database. The default when no command is given.          |
+| `format` | Normalize metacommand keywords, block indentation, and SQL layout. `fmt` works too. |
+| `lint`   | Static analysis without a database. Exits 1 when any error is found.                |
+
+`format` and `lint` accept files or directories; directories are searched
+recursively for `*.sql`. A CI job runs them as two steps, so both report.
+
+!!! note "The original form still works"
+
+    ```text
+    execsql [OPTIONS] SQL_SCRIPT [SERVER DATABASE | DATABASE_FILE]
+    ```
+
+    Every invocation that worked before commands were added still works and
+    still means the same thing — `execsql script.sql myserver mydb` is
+    identical to `execsql run script.sql myserver mydb`. There is no
+    deprecation and none is planned.
+
+    A script named exactly `run`, `format`, `fmt`, or `lint` — with
+    no extension — is treated as a file, not a command, so even that case is
+    unambiguous.
+
 ## Basic Usage { #basic_usage }
 
 ```text
-execsql [OPTIONS] SQL_SCRIPT [SERVER DATABASE | DATABASE_FILE]
+execsql run [OPTIONS] SQL_SCRIPT [SERVER DATABASE | DATABASE_FILE]
 ```
 
 At minimum, provide a SQL script file to run. If database connection information is specified in a [configuration file](../reference/configuration.md#configuration), only the script file is required.
@@ -200,7 +234,13 @@ Valid encoding names can be displayed with the `-y` option. See also [Character 
 
 `--lint`
 
-:   Parse and statically check the script without connecting to a database. Reports unmatched IF / LOOP / BEGIN BATCH blocks (errors); undefined `!!$VAR!!` references, missing INCLUDE files, and unknown `EXECUTE SCRIPT` targets (warnings). Two-pass variable analysis follows EXECUTE SCRIPT / INCLUDE chains and reads `SUB_INI` files at lint time. Exits 0 if no errors are found (warnings do not affect exit code), 1 otherwise.
+:   Parse and statically check the script without connecting to a database. Prefer the `execsql lint` command, which takes directories as well.
+
+    **Errors** — unmatched `IF` / `LOOP` / `BEGIN BATCH` blocks, and any parse failure.
+
+    **Warnings** — undefined `!!$VAR!!` references; missing `INCLUDE` files; unknown `EXECUTE SCRIPT` targets; a variable defined by `SUB` that nothing ever reads; a constant `IF` condition that makes its `ELSE` (or its own body) unreachable; a statement after an unconditional `HALT`.
+
+    Two-pass variable analysis follows `EXECUTE SCRIPT` / `INCLUDE` chains and reads `SUB_INI` files at lint time. Exits 0 if no errors are found (warnings do not affect the exit code), 1 otherwise.
 
     ```sh
     execsql --lint script.sql

@@ -534,7 +534,7 @@ def _make_script_cmd(
     command_type: str = "sql",
     cmdline: str = "SELECT 1;",
 ) -> MagicMock:
-    """Return a mock ScriptCmd."""
+    """Return a stand-in for the executing statement."""
     cmd = MagicMock()
     cmd.source = source
     cmd.line_no = line_no

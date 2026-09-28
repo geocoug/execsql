@@ -96,10 +96,10 @@ if TYPE_CHECKING:
     from execsql.script import (
         CounterVars,
         MetaCommandList,
-        ScriptCmd,
         ScriptExecSpec,
         SubVarSet,
     )
+    from execsql.script.executor import ExecutingStatement
     from execsql.utils.fileio import FileWriter, Logger, TempFileMgr
     from execsql.utils.mail import MailSpec
     from execsql.utils.timer import Timer
@@ -305,7 +305,7 @@ class RuntimeContext:
         self.logfile_encoding: str = "utf8"
 
         # Runtime flags
-        self.last_command: ScriptCmd | None = None
+        self.last_command: ExecutingStatement | None = None
         self.upass: str | None = None
         self.err_halt_writespec: WriteSpec | None = None
         self.err_halt_email: MailSpec | None = None

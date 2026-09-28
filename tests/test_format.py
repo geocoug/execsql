@@ -485,7 +485,7 @@ class TestFormatSqlBlockUseSql:
 
 
 class TestMainCLI:
-    """Tests for the execsql-format CLI via subprocess."""
+    """Tests for the formatter CLI via subprocess."""
 
     def _run(self, *args: str) -> subprocess.CompletedProcess:
         return subprocess.run(
@@ -548,7 +548,7 @@ class TestMainCLIDirect:
     def _invoke(self, args, capsys=None):
         from execsql.format import main
 
-        with patch("sys.argv", ["execsql-format"] + args):
+        with patch("sys.argv", ["execsql format"] + args):
             try:
                 main()
             except SystemExit:
@@ -659,7 +659,7 @@ class TestMainCLIDirect:
         # (b) good file needs reformatting in --check mode.
         with (
             patch.object(Path, "read_text", fake_read),
-            patch("sys.argv", ["execsql-format", "--check", str(tmp_path)]),
+            patch("sys.argv", ["execsql format", "--check", str(tmp_path)]),
         ):
             from execsql.format import main
 
@@ -1556,6 +1556,22 @@ class TestCorpusLiteralFidelity:
     def test_corpus_is_populated(self):
         """Guard against the corpus silently emptying and the checks passing."""
         assert len(_CORPUS) >= 20, f"expected the project's .sql corpus, found {len(_CORPUS)} files"
+
+    def test_shape_corpus_is_populated(self):
+        """The synthetic shapes are the only CI-visible cover for some constructs.
+
+        ``tests/data/formatter_shapes/`` holds non-client stand-ins for the
+        production SQL each formatter bug was reported from — tagged dollar
+        quotes, ``ON CONFLICT DO NOTHING``, window ``EXCLUDE`` frames.  Nothing
+        else in the repo contains them, so deleting a shape file silently
+        removes the only gate on that class of bug while every check still
+        passes.
+        """
+        shapes = sorted((_REPO_ROOT / "tests" / "data" / "formatter_shapes").glob("*.sql"))
+        assert len(shapes) >= 4, f"expected the formatter shape corpus, found {len(shapes)} files"
+        corpus = set(_CORPUS)
+        missing = [s.name for s in shapes if s not in corpus]
+        assert not missing, f"shape files are not being checked by the corpus: {missing}"
 
     @pytest.mark.parametrize("path", _CORPUS, ids=_corpus_id)
     def test_no_literal_lost(self, path):
@@ -2595,7 +2611,7 @@ class TestDollarQuotedStrings:
         """Formatting a dollar-quoted body must be idempotent (no drift).
 
         Prior to the fix, each SQL-enabled pass re-indented the body's comment
-        and control-flow lines by one more space, so `execsql-format --check`
+        and control-flow lines by one more space, so `execsql format --check`
         never converged. Assert `first == second == third`.
         """
         first = format_file(source, use_sql=True)
@@ -2606,7 +2622,7 @@ class TestDollarQuotedStrings:
     def test_if_inline_regex_agrees_with_parser(self):
         """`_IF_INLINE_RE` (formatter) and `_IF_INLINE_RX` (AST parser) must
         recognise the same inline-IF payloads. They are intentionally kept
-        as separate compiled patterns so execsql-format doesn't import the
+        as separate compiled patterns so the formatter doesn't import the
         AST parser module graph at startup, but they must not drift —
         otherwise the formatter's depth tracking and the parser's block
         recognition diverge.

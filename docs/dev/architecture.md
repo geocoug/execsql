@@ -95,7 +95,7 @@ flowchart LR
 | `parser.py`     | Recursive-descent parsers for conditional (`IF`) and arithmetic (`SET`) expressions                                           |
 | `types.py`      | `DataType` subclasses and `DbType` per-DBMS type dialect mappings                                                             |
 | `models.py`     | `Column`, `DataTable`, `JsonDatatype`                                                                                         |
-| `format.py`     | `execsql-format` CLI — opinionated formatter for execsql scripts                                                              |
+| `format.py`     | `execsql format` formatter — opinionated formatter for execsql scripts                                                        |
 | `exceptions.py` | `ExecSqlError` base, `ErrInfo`, `ConfigError`, `DataTypeError`, `DbTypeError`, etc.                                           |
 | `plugins.py`    | Entry-point plugin discovery for metacommands, exporters, and importers                                                       |
 | `debug/`        | Interactive REPL debugger for stepping through script execution                                                               |

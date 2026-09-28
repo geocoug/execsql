@@ -28,7 +28,7 @@ nav = [
         { "Using Script Files" = "guides/using_scripts.md" },
         { "Documenting Script Actions" = "guides/documentation.md" },
         { "Debugging" = "guides/debugging.md" },
-        { "execsql-format" = "guides/formatter.md" },
+        { "execsql format" = "guides/formatter.md" },
         { "Examples" = "guides/examples.md" }
     ] },
     { "Contributing" = [
