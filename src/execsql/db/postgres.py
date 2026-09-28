@@ -318,8 +318,16 @@ class PostgresDatabase(Database):
         input_enc = csv_file_obj.encoding.lower()
         if input_enc in enc_xlates:
             input_enc = enc_xlates[input_enc]
+        # COPY's CSV format always has a quote character — `"` unless told
+        # otherwise — so it cannot read a file that has none: with QUOTE NONE,
+        # or when none is detected, it would strip the `"` from `Well "A" 12`.
+        # Nor is it told about a detected escape character, so `\"` inside a
+        # quoted field came out as `\`. Both kinds of file take the row-by-row
+        # path, which reads the format that was detected.
         if (
-            encodings_match(input_enc, self.encoding)
+            csv_file_obj.quotechar is not None
+            and csv_file_obj.escapechar is None
+            and encodings_match(input_enc, self.encoding)
             and data_table_cols == csv_file_cols
             and _state.conf.empty_strings
             and _state.conf.empty_rows

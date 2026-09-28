@@ -263,6 +263,75 @@ class TestImportCSV:
 
         _exec_pg("DROP TABLE IF EXISTS students")
 
+    # Issue #54: COPY's CSV format treats `"` as a quote character unless told
+    # otherwise, so a file read with no quote character lost its double quotes.
+
+    def test_quote_none_keeps_double_quotes(self, tmp_path):
+        """The reproduction from #54: IMPORT TO REPLACEMENT ... WITH QUOTE NONE."""
+        _exec_pg("DROP TABLE IF EXISTS quote_repro")
+        _write_conf(tmp_path)
+        (tmp_path / "names.txt").write_text('name\nWell "A" 12\nplain\n')
+        script = write_script(
+            tmp_path,
+            """\
+            -- !x! IMPORT TO REPLACEMENT public.quote_repro FROM "names.txt" WITH QUOTE NONE DELIMITER TAB
+            """,
+        )
+        result = _run_execsql_pg(tmp_path, script)
+        assert result.returncode == 0, f"stderr: {result.stderr}"
+        assert sorted(_query_pg("SELECT name FROM quote_repro")) == [('Well "A" 12',), ("plain",)]
+        _exec_pg("DROP TABLE IF EXISTS quote_repro")
+
+    def test_quote_none_into_existing_table(self, tmp_path):
+        _exec_pg("DROP TABLE IF EXISTS quote_existing")
+        _write_conf(tmp_path)
+        (tmp_path / "files.txt").write_text('id\tpath\n1\t"quoted".sql\n2\ta, b.sql\n')
+        script = write_script(
+            tmp_path,
+            """\
+            CREATE TABLE quote_existing (id INTEGER, path TEXT);
+            -- !x! IMPORT TO quote_existing FROM "files.txt" WITH QUOTE NONE DELIMITER TAB
+            """,
+        )
+        result = _run_execsql_pg(tmp_path, script)
+        assert result.returncode == 0, f"stderr: {result.stderr}"
+        assert _query_pg("SELECT id, path FROM quote_existing ORDER BY id") == [(1, '"quoted".sql'), (2, "a, b.sql")]
+        _exec_pg("DROP TABLE IF EXISTS quote_existing")
+
+    def test_detected_no_quote_keeps_double_quotes(self, tmp_path):
+        """No QUOTE clause: a " inside an unquoted field means the file has no quote character."""
+        _exec_pg("DROP TABLE IF EXISTS quote_detected")
+        _write_conf(tmp_path)
+        (tmp_path / "sizes.txt").write_text('id\tsize\n1\t12" pipe\n2\t3 ft\n')
+        script = write_script(
+            tmp_path,
+            """\
+            CREATE TABLE quote_detected (id INTEGER, size TEXT);
+            -- !x! IMPORT TO quote_detected FROM "sizes.txt"
+            """,
+        )
+        result = _run_execsql_pg(tmp_path, script)
+        assert result.returncode == 0, f"stderr: {result.stderr}"
+        assert _query_pg("SELECT id, size FROM quote_detected ORDER BY id") == [(1, '12" pipe'), (2, "3 ft")]
+        _exec_pg("DROP TABLE IF EXISTS quote_detected")
+
+    def test_detected_backslash_escape_is_honored(self, tmp_path):
+        """COPY was not told about a detected escape character, so `\\"` became `\\`."""
+        _exec_pg("DROP TABLE IF EXISTS quote_escaped")
+        _write_conf(tmp_path)
+        (tmp_path / "escaped.csv").write_text('id,name\n1,"Well \\"A\\" 12"\n2,"plain"\n')
+        script = write_script(
+            tmp_path,
+            """\
+            CREATE TABLE quote_escaped (id INTEGER, name TEXT);
+            -- !x! IMPORT TO quote_escaped FROM "escaped.csv"
+            """,
+        )
+        result = _run_execsql_pg(tmp_path, script)
+        assert result.returncode == 0, f"stderr: {result.stderr}"
+        assert _query_pg("SELECT id, name FROM quote_escaped ORDER BY id") == [(1, 'Well "A" 12'), (2, "plain")]
+        _exec_pg("DROP TABLE IF EXISTS quote_escaped")
+
 
 # ---------------------------------------------------------------------------
 # Test: conditional execution (IF / ENDIF)
