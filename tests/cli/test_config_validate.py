@@ -134,9 +134,12 @@ class TestValues:
         assert [(line, severity) for line, severity, _ in problems] == [(2, "error"), (3, "error"), (5, "error")]
 
     def test_missing_required_include(self, work):
-        problems = _problems(work, "[include_required]\n1 = /no/such/file.sql\n")
+        missing = work / "no" / "such" / "file.sql"
+        problems = _problems(work, f"[include_required]\n1 = {missing}\n")
+        # A run resolves the path, so the message names the resolved file
+        # (on Windows, with a drive letter).
         assert problems == [
-            (2, "error", "1 = /no/such/file.sql: Required include file /no/such/file.sql does not exist."),
+            (2, "error", f"1 = {missing}: Required include file {missing.resolve()} does not exist."),
         ]
 
     def test_include_keys_must_be_numbers(self, work):
