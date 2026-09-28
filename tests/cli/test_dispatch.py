@@ -117,33 +117,33 @@ class TestLintSubcommandWalksDirectories:
         return tmp_path
 
     def test_every_file_is_visited(self, tmp_path, capsys):
-        from execsql.cli.dispatch import lint_paths
+        from execsql.cli.commands.lint import lint_paths
 
         lint_paths([str(self._library(tmp_path))])
         assert "bad.sql" in capsys.readouterr().out
 
     def test_a_nested_directory_is_searched(self, tmp_path, capsys):
-        from execsql.cli.dispatch import lint_paths
+        from execsql.cli.commands.lint import lint_paths
 
         lint_paths([str(self._library(tmp_path))])
         out = capsys.readouterr().out
         assert "never_set" in out, "a script in a subdirectory was not linted"
 
     def test_a_clean_library_says_so(self, tmp_path, capsys):
-        from execsql.cli.dispatch import lint_paths
+        from execsql.cli.commands.lint import lint_paths
 
         (tmp_path / "ok.sql").write_text("-- !x! SUB a 1\nselect '!!a!!';\n", encoding="utf-8")
         assert lint_paths([str(tmp_path)]) == 0
         assert "No issues found (1 file checked)" in capsys.readouterr().out
 
     def test_no_sql_files_is_an_error(self, tmp_path):
-        from execsql.cli.dispatch import lint_paths
+        from execsql.cli.commands.lint import lint_paths
 
         assert lint_paths([str(tmp_path)]) == 1
 
     def test_a_parse_error_is_reported_not_raised(self, tmp_path, capsys):
         """An unparsable script is a lint finding, not a crash."""
-        from execsql.cli.dispatch import lint_paths
+        from execsql.cli.commands.lint import lint_paths
 
         (tmp_path / "broken.sql").write_text("-- !x! IF(1=1)\nselect 1;\n", encoding="utf-8")
         assert lint_paths([str(tmp_path)]) == 1

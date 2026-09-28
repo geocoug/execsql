@@ -168,7 +168,7 @@ class TestOptionParsing:
         Mocks ``_run`` so the test only exercises Typer argument parsing and
         the CLI's own validation, not the full execution pipeline.
         """
-        with patch("execsql.cli._run", return_value=None):
+        with patch("execsql.cli.commands.run._run", return_value=None):
             result = runner.invoke(app, list(args), catch_exceptions=False)
         # Exit 0 = clean; exit 1 = CLI validation error (e.g. bad db-type)
         # Exit 2 = Typer arg-parse error — that's the failure we guard against
@@ -252,21 +252,21 @@ class TestPositionalArgs:
     def test_script_only_accepted(self, tmp_path):
         script = tmp_path / "s.sql"
         script.write_text("-- empty")
-        with patch("execsql.cli._run", return_value=None):
+        with patch("execsql.cli.commands.run._run", return_value=None):
             result = runner.invoke(app, [str(script)], catch_exceptions=False)
         assert result.exit_code != 2
 
     def test_script_server_db_accepted(self, tmp_path):
         script = tmp_path / "s.sql"
         script.write_text("-- empty")
-        with patch("execsql.cli._run", return_value=None):
+        with patch("execsql.cli.commands.run._run", return_value=None):
             result = runner.invoke(app, [str(script), "myserver", "mydb"], catch_exceptions=False)
         assert result.exit_code != 2
 
     def test_script_dbfile_accepted(self, tmp_path):
         script = tmp_path / "s.sql"
         script.write_text("-- empty")
-        with patch("execsql.cli._run", return_value=None):
+        with patch("execsql.cli.commands.run._run", return_value=None):
             result = runner.invoke(app, ["-t", "l", str(script), str(tmp_path / "db.sqlite")], catch_exceptions=False)
         assert result.exit_code != 2
 
@@ -551,7 +551,7 @@ class TestParseConnectionString:
         """--dsn flag is accepted at parse time without error."""
         script = tmp_path / "s.sql"
         script.write_text("-- empty")
-        with patch("execsql.cli._run", return_value=None):
+        with patch("execsql.cli.commands.run._run", return_value=None):
             result = runner.invoke(
                 app,
                 ["--dsn", "postgresql://user@host/db", str(script)],
@@ -563,7 +563,7 @@ class TestParseConnectionString:
         """--connection-string is an alias for --dsn."""
         script = tmp_path / "s.sql"
         script.write_text("-- empty")
-        with patch("execsql.cli._run", return_value=None):
+        with patch("execsql.cli.commands.run._run", return_value=None):
             result = runner.invoke(
                 app,
                 ["--connection-string", "postgresql://user@host/db", str(script)],
@@ -1004,7 +1004,7 @@ class TestConfigFlag:
         script.write_text("-- empty")
         conf = tmp_path / "test.conf"
         conf.write_text("[connect]\ndb_type = p\n")
-        with patch("execsql.cli._run", return_value=None) as mock_run:
+        with patch("execsql.cli.commands.run._run", return_value=None) as mock_run:
             result = runner.invoke(
                 app,
                 ["--config", str(conf), str(script)],

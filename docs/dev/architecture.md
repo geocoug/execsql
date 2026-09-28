@@ -10,7 +10,7 @@ When a user runs `execsql script.sql mydb.sqlite -t l`, the following sequence o
 
 ```mermaid
 flowchart TD
-    CLI["CLI entry point<br/><code>cli/dispatch.py</code> → <code>cli/__init__.py</code><br/>Typer parses args"]
+    CLI["CLI entry point<br/><code>cli/dispatch.py</code> → <code>cli/commands/</code><br/>Typer parses args"]
     RUN["<code>_run()</code><br/><code>cli/run.py</code><br/>Initialize state, config, subvars"]
     CONF["Load configuration<br/><code>ConfigData</code><br/>Merge execsql.conf files"]
     INIT["Initialize state<br/><code>state.initialize()</code><br/>Create singletons"]

@@ -27,8 +27,6 @@ file wins and no existing invocation can change meaning.
 from __future__ import annotations
 
 import os
-import sys
-from pathlib import Path
 
 __all__ = ["COMMANDS", "GLOBAL_FLAGS", "dispatch", "normalize"]
 
@@ -65,102 +63,6 @@ def normalize(argv: list[str]) -> list[str]:
     if _is_command(head) or head in GLOBAL_FLAGS:
         return argv
     return ["run", *argv]
-
-
-def sql_files(targets: list[str]) -> list[Path]:
-    """Every ``.sql`` file named by *targets*, directories walked recursively."""
-    found: list[Path] = []
-    for raw in targets:
-        p = Path(raw)
-        if p.is_dir():
-            found.extend(sorted(q for q in p.rglob("*.sql")))
-        else:
-            found.append(p)
-    return found
-
-
-def lint_paths(
-    targets: list[str],
-    *,
-    select: tuple[str, ...] = (),
-    ignore: tuple[str, ...] = (),
-    output_format: str = "text",
-    statistics: bool = False,
-) -> int:
-    """Lint every script named by *targets*; return the process exit code.
-
-    This is the multi-file half that ``--lint`` never had: the flag lints the
-    one script you were about to run, while the ``lint`` command is aimed at a
-    whole library.
-
-    Args:
-        targets: Files and directories; directories are searched for ``*.sql``.
-        select: Rule-code prefixes to report (empty means all), already
-            validated by :func:`execsql.cli.lint.resolve_selectors`.
-        ignore: Rule-code prefixes to drop; wins over *select*.
-        output_format: ``"text"`` (grouped by file), ``"concise"`` (one line
-            per issue) or ``"json"``. JSON writes one array to stdout and
-            nothing else.
-        statistics: Report a count per rule instead of each issue.
-
-    Returns:
-        ``1`` when any reported issue is an error or no ``.sql`` file was
-        found, otherwise ``0``.
-    """
-    import json
-
-    from execsql.cli.help import _err_console
-    from execsql.cli.lint import (
-        Issue,
-        exit_code,
-        filter_issues,
-        lint as _lint_script,
-        parse_error,
-        print_concise,
-        print_statistics,
-        print_text,
-        render_json,
-        rule_counts,
-    )
-    from execsql.exceptions import ErrInfo
-    from execsql.script.parser import parse_script
-
-    paths = sql_files(targets)
-    if not paths:
-        _err_console.print("[bold red]Error:[/bold red] no .sql files found in the given paths.")
-        return 1
-
-    per_file: list[tuple[str, list[Issue]]] = []
-    for path in paths:
-        label = str(path)
-        try:
-            tree = parse_script(str(path), encoding="utf-8")
-        except ErrInfo as exc:
-            found = [parse_error(label, exc)]
-        else:
-            found = _lint_script(tree, script_path=label)
-        per_file.append((label, sorted(filter_issues(found, select, ignore), key=lambda i: (i.line, i.code))))
-
-    reported = [issue for _, issues in per_file for issue in issues]
-
-    if output_format == "json":
-        if statistics:
-            rows = [
-                {"code": rule.code, "rule": rule.name, "severity": rule.severity, "count": n}
-                for rule, n in rule_counts(reported)
-            ]
-            sys.stdout.write(json.dumps(rows, indent=2) + "\n")
-        else:
-            sys.stdout.write(render_json(reported) + "\n")
-        return exit_code(reported)
-
-    if statistics:
-        print_statistics(per_file, len(paths))
-    elif output_format == "concise":
-        print_concise(per_file, len(paths))
-    else:
-        print_text(per_file, len(paths))
-    return exit_code(reported)
 
 
 def dispatch() -> None:
