@@ -295,6 +295,18 @@ def _load_config(
     return ConfigData(script_path, subvars, config_file=config_file)
 
 
+def _configured_script_encoding(config_file: str | None) -> str | None:
+    """``[encoding] script`` from the config files, or ``None`` when none sets it.
+
+    ``execsql format`` and ``execsql lint`` read config once per invocation,
+    from the system, user and working-directory locations plus *config_file*
+    — not per script, so a script directory's own ``execsql.conf`` applies
+    only when passed with ``--config``.
+    """
+    conf = _load_config(None, _seed_early_subvars(), config_file)
+    return conf.script_encoding if "script_encoding" in conf.sources else None
+
+
 def _seed_script_subvars(subvars: SubVarSet, script_name: str | None) -> None:
     """Add substitution variables that depend on the script path."""
     from execsql.utils.errors import file_size_date

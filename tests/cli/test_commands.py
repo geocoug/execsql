@@ -271,3 +271,125 @@ class TestPing:
 
     def test_missing_config_file_is_a_usage_error(self, isolated):
         assert _invoke("ping", "--config", "nope.conf", "x.db").exit_code == 2
+
+
+# ---------------------------------------------------------------------------
+# format and lint input: stdin, --script-encoding, --config
+# ---------------------------------------------------------------------------
+
+LATIN1_SCRIPT = "-- caf\xe9\nselect 1;\n".encode("latin-1")
+
+
+class TestFormatInput:
+    def test_stdin_to_stdout(self):
+        result = runner.invoke(app, ["format", "--no-sql", "-"], input="-- !x! write 'hi'\n")
+        assert result.exit_code == 0
+        assert result.output == "-- !x! WRITE 'hi'\n"
+
+    def test_stdin_check(self):
+        assert runner.invoke(app, ["format", "--no-sql", "--check", "-"], input="-- !x! write 'hi'\n").exit_code == 1
+        assert runner.invoke(app, ["format", "--no-sql", "--check", "-"], input="-- !x! WRITE 'hi'\n").exit_code == 0
+
+    def test_stdin_cannot_be_formatted_in_place(self):
+        assert runner.invoke(app, ["format", "-i", "-"], input="select 1;\n").exit_code == 2
+
+    def test_stdin_cannot_be_mixed_with_paths(self, tmp_path):
+        (tmp_path / "a.sql").write_text("select 1;\n")
+        assert runner.invoke(app, ["format", "-", str(tmp_path / "a.sql")], input="").exit_code == 2
+
+    def test_script_encoding(self, tmp_path, isolated):
+        path = tmp_path / "latin.sql"
+        path.write_bytes(LATIN1_SCRIPT)
+        assert runner.invoke(app, ["format", "--no-sql", "--check", str(path)]).exit_code == 1
+        assert runner.invoke(app, ["format", "--no-sql", "--check", "-f", "latin1", str(path)]).exit_code == 0
+
+    def test_decode_error_names_the_option(self, tmp_path, isolated):
+        path = tmp_path / "latin.sql"
+        path.write_bytes(LATIN1_SCRIPT)
+        result = runner.invoke(app, ["format", "--no-sql", str(path)])
+        assert "--script-encoding" in result.output
+
+    def test_old_encoding_option_still_works_and_is_hidden(self, tmp_path, isolated):
+        path = tmp_path / "latin.sql"
+        path.write_bytes(LATIN1_SCRIPT)
+        assert runner.invoke(app, ["format", "--no-sql", "--check", "--encoding", "latin1", str(path)]).exit_code == 0
+        assert "--encoding" not in runner.invoke(app, ["format", "--help"]).output
+
+    def test_encoding_from_config(self, tmp_path, isolated):
+        path = tmp_path / "latin.sql"
+        path.write_bytes(LATIN1_SCRIPT)
+        (isolated / "execsql.conf").write_text("[encoding]\nscript = latin1\n")
+        assert runner.invoke(app, ["format", "--no-sql", "--check", str(path)]).exit_code == 0
+
+    def test_encoding_from_config_option(self, tmp_path, isolated):
+        path = tmp_path / "latin.sql"
+        path.write_bytes(LATIN1_SCRIPT)
+        conf = tmp_path / "ci.conf"
+        conf.write_text("[encoding]\nscript = latin1\n")
+        assert runner.invoke(app, ["format", "--no-sql", "--check", "--config", str(conf), str(path)]).exit_code == 0
+
+    def test_script_encoding_beats_config(self, tmp_path, isolated):
+        path = tmp_path / "latin.sql"
+        path.write_bytes(LATIN1_SCRIPT)
+        (isolated / "execsql.conf").write_text("[encoding]\nscript = latin1\n")
+        assert runner.invoke(app, ["format", "--no-sql", "--check", "-f", "utf-8", str(path)]).exit_code == 1
+
+    def test_missing_config_file_is_a_usage_error(self, tmp_path):
+        (tmp_path / "a.sql").write_text("select 1;\n")
+        assert runner.invoke(app, ["format", "--config", "nope.conf", str(tmp_path / "a.sql")]).exit_code == 2
+
+    def test_fmt_has_the_same_options(self):
+        fmt_help = runner.invoke(app, ["fmt", "--help"]).output
+        for option in ("--check", "--in-place", "--script-encoding", "--config", "--leading-comma"):
+            assert option in fmt_help
+
+
+class TestLintInput:
+    def test_stdin(self):
+        result = runner.invoke(app, ["lint", "-", "--output-format", "json"], input='-- !x! write "!!nope!!"\n')
+        assert result.exit_code == 0
+        issues = json.loads(result.output)
+        assert [(i["file"], i["code"]) for i in issues] == [("<stdin>", "V001")]
+
+    def test_empty_stdin_is_labelled_stdin(self):
+        issues = json.loads(runner.invoke(app, ["lint", "-", "--output-format", "json"], input="").output)
+        assert [(i["file"], i["code"]) for i in issues] == [("<stdin>", "S001")]
+
+    def test_stdin_cannot_be_mixed_with_paths(self, tmp_path):
+        (tmp_path / "a.sql").write_text("select 1;\n")
+        assert runner.invoke(app, ["lint", "-", str(tmp_path / "a.sql")], input="").exit_code == 2
+
+    def test_undecodable_script_is_a_parse_error(self, tmp_path, isolated):
+        path = tmp_path / "latin.sql"
+        path.write_bytes(LATIN1_SCRIPT)
+        result = runner.invoke(app, ["lint", str(path), "--output-format", "json"])
+        assert result.exit_code == 1
+        (issue,) = json.loads(result.output)
+        assert issue["code"] == "P001"
+        assert "--script-encoding" in issue["message"]
+
+    def test_script_encoding(self, tmp_path, isolated):
+        path = tmp_path / "latin.sql"
+        path.write_bytes(LATIN1_SCRIPT)
+        assert runner.invoke(app, ["lint", "-f", "latin1", str(path)]).exit_code == 0
+
+    def test_encoding_from_config(self, tmp_path, isolated):
+        path = tmp_path / "latin.sql"
+        path.write_bytes(LATIN1_SCRIPT)
+        (isolated / "execsql.conf").write_text("[encoding]\nscript = latin1\n")
+        assert runner.invoke(app, ["lint", str(path)]).exit_code == 0
+
+    def test_script_directory_config_is_not_read(self, tmp_path, isolated):
+        """format and lint read config once, from where they run — not per script."""
+        sub = tmp_path / "sub"
+        sub.mkdir()
+        (sub / "execsql.conf").write_text("[encoding]\nscript = latin1\n")
+        (sub / "latin.sql").write_bytes(LATIN1_SCRIPT)
+        assert runner.invoke(app, ["lint", str(sub / "latin.sql")]).exit_code == 1
+        assert (
+            runner.invoke(app, ["lint", "--config", str(sub / "execsql.conf"), str(sub / "latin.sql")]).exit_code == 0
+        )
+
+    def test_missing_config_file_is_a_usage_error(self, tmp_path):
+        (tmp_path / "a.sql").write_text("select 1;\n")
+        assert runner.invoke(app, ["lint", "--config", "nope.conf", str(tmp_path / "a.sql")]).exit_code == 2

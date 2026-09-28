@@ -28,17 +28,27 @@ Pass one or more files or directories. Directories are searched recursively for 
 
 By default, formatted output is written to stdout. Use `--in-place` to overwrite files, or `--check` to report which files need changes without modifying them.
 
+Pass `-` instead of a path to format one script read from stdin; the result goes to stdout. Editors and shell pipelines use this form:
+
+```sh
+execsql format - < load.sql > load.formatted.sql
+cat load.sql | execsql format --check -   # exit 1 if it would change
+```
+
+`-` cannot be combined with other paths or with `--in-place`.
+
 ### Options { #options }
 
-| Option             | Default  | Description                                                                                                                       |
-| ------------------ | -------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `FILE_OR_DIR`      | required | One or more files or directories to format. Directories are searched recursively for `*.sql` files.                               |
-| `--check`          | off      | Exit with code 1 if any file would be reformatted. Does not write any changes. Useful in CI.                                      |
-| `-i`, `--in-place` | off      | Modify files in place instead of writing to stdout.                                                                               |
-| `--no-sql`         | off      | Skip SQL reformatting via sqlglot. Only normalizes metacommand indentation and keyword casing.                                    |
-| `--indent N`       | `4`      | Spaces per indent level. Controls both metacommand block depth and SQL indentation (columns, subqueries, etc).                    |
-| `--leading-comma`  | off      | Place commas at the start of lines instead of the end (e.g. `  , col2` instead of `col1,`).                                       |
-| `--encoding NAME`  | `utf-8`  | Text encoding used to read and write SQL files. Pass `cp1252`, `latin-1`, `shift_jis`, etc. for files saved by non-UTF-8 editors. |
+| Option                         | Default              | Description                                                                                                                                                                                                                                                                             |
+| ------------------------------ | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `FILE_OR_DIR`                  | required             | One or more files or directories to format. Directories are searched recursively for `*.sql` files. `-` reads one script from stdin.                                                                                                                                                    |
+| `--check`                      | off                  | Exit with code 1 if any file would be reformatted. Does not write any changes. Useful in CI.                                                                                                                                                                                            |
+| `-i`, `--in-place`             | off                  | Modify files in place instead of writing to stdout.                                                                                                                                                                                                                                     |
+| `--no-sql`                     | off                  | Skip SQL reformatting via sqlglot. Only normalizes metacommand indentation and keyword casing.                                                                                                                                                                                          |
+| `--indent N`                   | `4`                  | Spaces per indent level. Controls both metacommand block depth and SQL indentation (columns, subqueries, etc).                                                                                                                                                                          |
+| `--leading-comma`              | off                  | Place commas at the start of lines instead of the end (e.g. `  , col2` instead of `col1,`).                                                                                                                                                                                             |
+| `-f`, `--script-encoding NAME` | config, else `utf-8` | Text encoding used to read and write SQL files. Pass `cp1252`, `latin-1`, `shift_jis`, etc. for files saved by non-UTF-8 editors. Without it, `[encoding] script` from a [config file](../reference/configuration.md#configuration) applies. The old spelling `--encoding` still works. |
+| `--config FILE`                | —                    | An extra config file to read `[encoding] script` from. Config files are read once, from the system, user and working-directory locations plus this file — not from each script's directory.                                                                                             |
 
 ## What Gets Formatted { #what-gets-formatted }
 

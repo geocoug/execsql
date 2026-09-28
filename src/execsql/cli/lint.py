@@ -686,7 +686,7 @@ def lint(
     issues: list[_Issue] = []
 
     if not script.body:
-        issues.append(_issue("S001", script_path or "<script>", 0, "script is empty"))
+        issues.append(_issue("S001", script_path or script.source, 0, "script is empty"))
         return issues
 
     script_dir = Path(script_path).resolve().parent if script_path else None

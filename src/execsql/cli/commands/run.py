@@ -15,6 +15,7 @@ from execsql.cli.options import (
     NoPasswdOpt,
     OutputFormat,
     PortOpt,
+    ScriptEncodingOpt,
     UserOpt,
 )
 from execsql.cli.run import _run
@@ -58,12 +59,7 @@ def main(
         "--database-encoding",
         help="Character encoding used in the database.",
     ),
-    script_encoding: str | None = typer.Option(
-        None,
-        "-f",
-        "--script-encoding",
-        help="Character encoding of the script file. Default: UTF-8",
-    ),
+    script_encoding: ScriptEncodingOpt = None,
     output_encoding: str | None = typer.Option(
         None,
         "-g",

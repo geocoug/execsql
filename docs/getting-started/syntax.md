@@ -27,7 +27,10 @@ execsql list   metacommands|encodings|plugins|keywords
 | `list`   | Print metacommands, encoding names, installed plugins, or the full keyword vocabulary.     |
 
 `format` and `lint` accept files or directories; directories are searched
-recursively for `*.sql`. A CI job runs them as two steps, so both report.
+recursively for `*.sql`, and `-` reads one script from stdin. A CI job runs them
+as two steps, so both report. Both read scripts with `-f`/`--script-encoding`, or
+`[encoding] script` from a config file, and take `--config`; config files are read
+once per invocation, not from each script's directory.
 `lint` options and every rule it checks are described in the
 [lint rules reference](../reference/lint.md).
 
@@ -271,7 +274,7 @@ are described [above](#ping).
 :   Character encoding used by the database. Only used for some database types.
 
 `-f`, `--script-encoding` *ENCODING*
-:   Character encoding of the script file. Default: UTF-8.
+:   Character encoding of the script file. Default: `[encoding] script` from a config file, else UTF-8. `format` and `lint` take the same option.
 
 `-g`, `--output-encoding` *ENCODING*
 :   Character encoding for WRITE and EXPORT output.

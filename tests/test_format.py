@@ -626,7 +626,7 @@ class TestMainCLIDirect:
 
     def test_encoding_decode_error_emits_hint(self, tmp_path, capsys):
         """A UnicodeDecodeError surfaces a friendly message instead of a
-        bare traceback, naming the file and suggesting --encoding.
+        bare traceback, naming the file and suggesting --script-encoding.
         """
         sql_file = tmp_path / "win.sql"
         # cp1252 byte 0x80 (euro sign); invalid as the first byte of a UTF-8 sequence.
@@ -635,9 +635,9 @@ class TestMainCLIDirect:
             self._invoke(["--check", str(sql_file)])
         except SystemExit:
             pass
-        captured = capsys.readouterr()
-        assert "--encoding" in captured.err
-        assert "win.sql" in captured.err
+        err = "".join(capsys.readouterr().err.split())  # Rich wraps long lines
+        assert "--script-encoding" in err
+        assert "win.sql" in err
 
     def test_check_continues_past_unreadable_file(self, tmp_path, capsys):
         """An unreadable file should be reported but must not short-circuit

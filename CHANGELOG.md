@@ -17,6 +17,8 @@ ______________________________________________________________________
 - `execsql lint --select` and `--ignore` choose rules by code or prefix (`--ignore V002`, `--select F`). Parse errors are always reported.
 - `execsql lint --output-format json` writes every issue as one JSON array for CI and editor tooling, and `--output-format concise` prints one `path:line: CODE message` line per issue.
 - `execsql lint --statistics` shows how many times each rule fired instead of listing every issue.
+- `execsql format -` and `execsql lint -` read one script from stdin; `format` writes the result to stdout.
+- `execsql format` and `execsql lint` read scripts in the encoding given by `-f`/`--script-encoding`, or by `[encoding] script` in a config file, and take `--config`. Config files are read once, from the system, user and working-directory locations — not from each script's directory. `lint` reports a script it cannot decode as `P001` instead of stopping.
 - `execsql` now has commands: `execsql run`, `execsql format` (or `fmt`), `execsql lint`, `execsql ping`, `execsql config`, and `execsql list`. `format` and `lint` take files or directories and need no database — linting a whole script library is new, since `--lint` only ever linted the single script it was given.
 - `execsql ping` tests a database connection and prints the DBMS, its version and location. `--output-format json` prints one object for health checks. Unlike `--ping`, it never creates a database: it has no `-n`, and `new_db = yes` in a config file is ignored.
 - `execsql config` lists every config option with its current value, its default, and the file that set it, reading config files from the same places a run does. `execsql config scripts/etl.sql` includes the `execsql.conf` next to that script. Passwords are shown as `***`. `--output-format json` is available, and `execsql config --init` prints the `execsql.conf` template.
@@ -36,6 +38,7 @@ ______________________________________________________________________
 
 ### Changed
 
+- `execsql format --encoding` is now `-f`/`--script-encoding`, the same option `run` has. `--encoding` still works.
 - `-m`, `-y`, `--list-plugins`, `--dump-keywords`, `--init-config`, and `--ping` are no longer listed in `execsql run --help`. They still work and print exactly what their replacements print: `execsql list metacommands`, `list encodings`, `list plugins`, `list keywords --output-format json`, `execsql config --init`, and `execsql ping`. `--ping -n` still creates a missing database.
 - Requires Typer 0.26 or newer (previously 0.12).
 - Lint output groups issues under each file in line order, with shorter messages and one summary line, instead of a banner and error-first list per file.

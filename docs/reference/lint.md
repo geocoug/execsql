@@ -10,6 +10,8 @@ execsql lint scripts/ --select F              # only the control-flow rules
 execsql lint scripts/ --output-format concise # one path:line line per issue
 execsql lint scripts/ --output-format json    # for tools and CI annotations
 execsql lint scripts/ --statistics            # how often each rule fired
+execsql lint -f latin1 legacy/                # scripts saved in Latin-1
+cat load.sql | execsql lint -                 # one script from stdin, reported as <stdin>
 ```
 
 Issues are grouped under each file, in line order, and every issue names its rule code:
@@ -27,6 +29,12 @@ Found 4 issues in 2 files: 4 warnings (12 files checked)
 ```
 
 The [rules](#rules) below explain each code. `execsql lint` replaced the `--lint` option of `run`, which was removed.
+
+## Reading scripts { #reading }
+
+Scripts are read as UTF-8 unless `-f`/`--script-encoding` names another encoding, or `[encoding] script` is set in a [config file](configuration.md#configuration). Config files are read once, from the system, user and working-directory locations, plus any file passed with `--config` — not from each script's own directory, so pass a script folder's `execsql.conf` with `--config` if it sets the encoding. A script that does not decode is reported as [`P001`](#p001).
+
+`-` in place of a path reads one script from stdin and reports it as `<stdin>`. It cannot be combined with other paths. `INCLUDE` targets in a stdin script are resolved from the working directory.
 
 ## Exit status { #exit_status }
 
@@ -151,6 +159,8 @@ insert into orders select * from staging.orders;
 load.sql
   1  error    P001  Unmatched IF block starting on line 1 at end of file load.sql
 ```
+
+A script that cannot be decoded with the chosen encoding is also reported as `P001`, with the message `cannot decode as utf-8 (...); set -f/--script-encoding`.
 
 No other rule runs on a script that does not parse. Fix this one first.
 

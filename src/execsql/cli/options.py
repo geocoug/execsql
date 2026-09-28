@@ -21,6 +21,7 @@ __all__ = [
     "OutputFormat",
     "OutputFormatOpt",
     "PortOpt",
+    "ScriptEncodingOpt",
     "UserOpt",
 ]
 
@@ -76,6 +77,18 @@ ConfigFileOpt = Annotated[
             "Loaded after the implicit search paths so its values take precedence. "
             "The file may chain additional configs via its [config] section."
         ),
+    ),
+]
+
+# -- Script files (run, format, lint) ------------------------------------------
+
+ScriptEncodingOpt = Annotated[
+    str | None,
+    typer.Option(
+        "-f",
+        "--script-encoding",
+        metavar="NAME",
+        help="Character encoding of the script file. Default: [encoding] script from a config file, else UTF-8.",
     ),
 ]
 

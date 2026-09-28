@@ -9,6 +9,8 @@ from pathlib import Path
 import typer
 
 from execsql.cli.application import ExecsqlCommand, app
+from execsql.cli.help import _err_console
+from execsql.cli.options import ConfigFileOpt, ScriptEncodingOpt
 
 __all__ = ["LintFormat", "lint_cmd", "lint_paths", "sql_files"]
 
@@ -32,6 +34,7 @@ def lint_paths(
     ignore: tuple[str, ...] = (),
     output_format: str = "text",
     statistics: bool = False,
+    encoding: str = "utf-8",
 ) -> int:
     """Lint every script named by *targets*; return the process exit code.
 
@@ -40,6 +43,7 @@ def lint_paths(
 
     Args:
         targets: Files and directories; directories are searched for ``*.sql``.
+            ``-`` reads one script from stdin, reported as ``<stdin>``.
         select: Rule-code prefixes to report (empty means all), already
             validated by :func:`execsql.cli.lint.resolve_selectors`.
         ignore: Rule-code prefixes to drop; wins over *select*.
@@ -47,6 +51,8 @@ def lint_paths(
             per issue) or ``"json"``. JSON writes one array to stdout and
             nothing else.
         statistics: Report a count per rule instead of each issue.
+        encoding: Character encoding every script is read with. A script that
+            does not decode is reported as a parse error (``P001``).
 
     Returns:
         ``1`` when any reported issue is an error or no ``.sql`` file was
@@ -57,6 +63,7 @@ def lint_paths(
     from execsql.cli.help import _err_console
     from execsql.cli.lint import (
         Issue,
+        _issue,
         exit_code,
         filter_issues,
         lint as _lint_script,
@@ -68,7 +75,7 @@ def lint_paths(
         rule_counts,
     )
     from execsql.exceptions import ErrInfo
-    from execsql.script.parser import parse_script
+    from execsql.script.parser import parse_string
 
     paths = sql_files(targets)
     if not paths:
@@ -77,13 +84,21 @@ def lint_paths(
 
     per_file: list[tuple[str, list[Issue]]] = []
     for path in paths:
-        label = str(path)
+        stdin = str(path) == "-"
+        label = "<stdin>" if stdin else str(path)
         try:
-            tree = parse_script(str(path), encoding="utf-8")
-        except ErrInfo as exc:
-            found = [parse_error(label, exc)]
+            source = sys.stdin.buffer.read().decode(encoding) if stdin else path.read_text(encoding=encoding)
+        except UnicodeDecodeError as exc:
+            found = [_issue("P001", label, 0, f"cannot decode as {encoding} ({exc.reason}); set -f/--script-encoding")]
+        except OSError as exc:
+            found = [_issue("P001", label, 0, f"cannot read: {exc.strerror or exc}")]
         else:
-            found = _lint_script(tree, script_path=label)
+            try:
+                tree = parse_string(source, label)
+            except ErrInfo as exc:
+                found = [parse_error(label, exc)]
+            else:
+                found = _lint_script(tree, script_path=None if stdin else label)
         per_file.append((label, sorted(filter_issues(found, select, ignore), key=lambda i: (i.line, i.code))))
 
     reported = [issue for _, issues in per_file for issue in issues]
@@ -131,7 +146,10 @@ def lint_cmd(
     targets: list[str] = typer.Argument(
         ...,
         metavar="FILE_OR_DIR...",
-        help="Files or directories to check. Directories are searched recursively for *.sql files.",
+        help=(
+            "Files or directories to check. Directories are searched recursively for *.sql files. "
+            "- reads one script from stdin."
+        ),
     ),
     select: list[str] | None = typer.Option(
         None,
@@ -155,9 +173,18 @@ def lint_cmd(
         "--statistics",
         help="Show how many times each rule fired instead of listing every issue.",
     ),
+    script_encoding: ScriptEncodingOpt = None,
+    config_file: ConfigFileOpt = None,
 ) -> None:
     """The ``lint`` command; its user-facing help is the decorator's ``help``."""
     from execsql.cli.lint import resolve_selectors
+    from execsql.cli.run import _configured_script_encoding
+
+    if "-" in targets and len(targets) > 1:
+        raise typer.BadParameter("- (stdin) cannot be combined with other paths.", param_hint="FILE_OR_DIR")
+    if config_file and not Path(config_file).is_file():
+        _err_console.print(f"[bold red]Error:[/bold red] Config file {config_file!r} does not exist.")
+        raise typer.Exit(code=2)
 
     try:
         selected = resolve_selectors(select)
@@ -172,5 +199,6 @@ def lint_cmd(
             ignore=ignored,
             output_format=output_format.value,
             statistics=statistics,
+            encoding=script_encoding or _configured_script_encoding(config_file) or "utf-8",
         ),
     )

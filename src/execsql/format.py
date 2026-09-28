@@ -1241,18 +1241,20 @@ def run_formatter(
     any_changed = False
     any_errors = False
     for path in paths:
+        stdin = str(path) == "-"
+        label = "<stdin>" if stdin else str(path)
         try:
-            source = path.read_text(encoding=encoding)
+            source = sys.stdin.buffer.read().decode(encoding) if stdin else path.read_text(encoding=encoding)
         except OSError as exc:
-            _err_console.print(f"[bold red]Error:[/bold red] reading {path}: {exc}")
+            _err_console.print(f"[bold red]Error:[/bold red] reading {label}: {exc}")
             any_errors = True
             # Collect read errors instead of short-circuiting so a single
             # unreadable file doesn't hide the rest of the report.
             continue
         except UnicodeDecodeError as exc:
             _err_console.print(
-                f"[bold red]Error:[/bold red] decoding {path} as {encoding}: {exc}. "
-                f"Try [bold]--encoding cp1252[/bold] or another text encoding.",
+                f"[bold red]Error:[/bold red] decoding {label} as {encoding}: {exc}. "
+                f"Try [bold]--script-encoding cp1252[/bold] or another text encoding.",
             )
             any_errors = True
             continue
@@ -1261,7 +1263,7 @@ def run_formatter(
 
         if check:
             if formatted != source:
-                _console.print(f"would reformat {path}")
+                _console.print(f"would reformat {label}")
                 any_changed = True
         elif in_place:
             if formatted != source:
