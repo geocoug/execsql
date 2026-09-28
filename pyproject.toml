@@ -105,7 +105,8 @@ dev = [
 ]
 
 [project.scripts]
-execsql = "execsql.cli.dispatch:dispatch"
+execsql = "execsql.cli:_legacy_main"
+execsql-format = "execsql.format:main"
 
 [project.urls]
 Homepage = "https://execsql2.readthedocs.io"

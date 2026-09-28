@@ -23,6 +23,9 @@ Key classes:
   handler function + flags).
 - :class:`MetaCommandList` — ordered list of :class:`MetaCommand` entries
   with a keyword index for fast dispatch.
+- :class:`SqlStmt` / :class:`MetacommandStmt` / :class:`ScriptCmd` —
+  statement wrappers carried in the AST and used by ``ctx.last_command``
+  for source-location tracking.
 - :class:`ScriptExecSpec` — specification for deferred script execution
   (used by ``ON ERROR_HALT`` / ``ON CANCEL_HALT EXECUTE SCRIPT``).
 
@@ -43,7 +46,10 @@ from execsql.script.control import BatchLevels
 from execsql.script.engine import (
     MetaCommand,
     MetaCommandList,
+    MetacommandStmt,
+    ScriptCmd,
     ScriptExecSpec,
+    SqlStmt,
     current_script_line,
     set_dynamic_system_vars,
     set_static_system_vars,
@@ -78,6 +84,9 @@ __all__ = [
     "ScriptArgSubVarSet",
     "MetaCommand",
     "MetaCommandList",
+    "SqlStmt",
+    "MetacommandStmt",
+    "ScriptCmd",
     "ScriptExecSpec",
     "set_dynamic_system_vars",
     "set_static_system_vars",
