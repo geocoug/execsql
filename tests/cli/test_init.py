@@ -38,18 +38,22 @@ class TestFreshProject:
 
     def test_config_is_the_template(self, work):
         _init("proj")
-        assert runner.invoke(app, ["config", "--init"]).output == (work / "proj" / "execsql.conf").read_text()
+        assert runner.invoke(app, ["config", "--init"]).output == (work / "proj" / "execsql.conf").read_text(
+            encoding="utf-8",
+        )
 
     def test_script_has_a_header_with_name_and_date(self, work):
         _init("proj")
-        text = (work / "proj" / "main.sql").read_text()
+        text = (work / "proj" / "main.sql").read_text(encoding="utf-8")
         assert text.startswith("-- main.sql\n")
         assert f"{datetime.date.today().isoformat()}  Created." in text
         assert "-- PURPOSE" in text and "-- HISTORY" in text
 
     def test_pre_commit_config_has_both_hooks_at_this_version(self, work):
         _init("proj")
-        assert (work / "proj" / ".pre-commit-config.yaml").read_text() == "repos:\n" + pre_commit_snippet()
+        assert (work / "proj" / ".pre-commit-config.yaml").read_text(
+            encoding="utf-8",
+        ) == "repos:\n" + pre_commit_snippet()
         assert f"rev: v{__version__}" in pre_commit_snippet()
 
     def test_created_script_passes_the_hooks_it_installs(self, work):
@@ -67,7 +71,7 @@ class TestFreshProject:
 class TestOptions:
     def test_script_name_gets_sql_suffix_and_parent_dirs(self, work):
         _init("proj", "--script", "scripts/load")
-        assert (work / "proj" / "scripts" / "load.sql").read_text().startswith("-- load.sql\n")
+        assert (work / "proj" / "scripts" / "load.sql").read_text(encoding="utf-8").startswith("-- load.sql\n")
 
     def test_no_flags(self, work):
         _init("proj", "--no-config", "--no-pre-commit", "--script", "load.sql")
@@ -84,32 +88,32 @@ class TestOptions:
 class TestExistingFiles:
     def test_existing_files_are_skipped(self, work):
         _init("proj")
-        (work / "proj" / "main.sql").write_text("select 1;\n")
+        (work / "proj" / "main.sql").write_text("select 1;\n", encoding="utf-8")
         result = _init("proj")
-        assert (work / "proj" / "main.sql").read_text() == "select 1;\n"
+        assert (work / "proj" / "main.sql").read_text(encoding="utf-8") == "select 1;\n"
         assert "exists; --force to overwrite" in result.output
         assert "already has the execsql hooks" in result.output
 
     def test_force_overwrites_config_and_script_but_not_pre_commit(self, work):
         _init("proj")
-        (work / "proj" / "main.sql").write_text("select 1;\n")
-        (work / "proj" / ".pre-commit-config.yaml").write_text("# mine\nrepos: []\n")
+        (work / "proj" / "main.sql").write_text("select 1;\n", encoding="utf-8")
+        (work / "proj" / ".pre-commit-config.yaml").write_text("# mine\nrepos: []\n", encoding="utf-8")
         result = _init("proj", "--force")
-        assert (work / "proj" / "main.sql").read_text() == script_header("main.sql")
+        assert (work / "proj" / "main.sql").read_text(encoding="utf-8") == script_header("main.sql")
         assert "overwrote" in result.output
-        assert (work / "proj" / ".pre-commit-config.yaml").read_text().startswith("# mine\n")
+        assert (work / "proj" / ".pre-commit-config.yaml").read_text(encoding="utf-8").startswith("# mine\n")
 
     def test_hooks_appended_with_the_files_indentation(self, work):
         existing = "# project hooks\nrepos:\n- repo: https://github.com/pre-commit/pre-commit-hooks\n  rev: v5.0.0\n  hooks:\n  - id: trailing-whitespace\n"
-        (work / ".pre-commit-config.yaml").write_text(existing)
+        (work / ".pre-commit-config.yaml").write_text(existing, encoding="utf-8")
         result = _init("--no-config", "--no-script")
         assert "added" in result.output
-        assert (work / ".pre-commit-config.yaml").read_text() == existing + pre_commit_snippet("")
+        assert (work / ".pre-commit-config.yaml").read_text(encoding="utf-8") == existing + pre_commit_snippet("")
 
     def test_repos_not_last_is_left_alone_and_the_snippet_printed(self, work):
         existing = "repos:\n  - repo: local\n    hooks: []\nci:\n  autofix_prs: false\n"
-        (work / ".pre-commit-config.yaml").write_text(existing)
+        (work / ".pre-commit-config.yaml").write_text(existing, encoding="utf-8")
         result = _init("--no-config", "--no-script")
-        assert (work / ".pre-commit-config.yaml").read_text() == existing
+        assert (work / ".pre-commit-config.yaml").read_text(encoding="utf-8") == existing
         assert "add by hand" in result.output
         assert "execsql-lint" in result.output
