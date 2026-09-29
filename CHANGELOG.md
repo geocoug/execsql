@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.23.0] - 2026-09-29
+
 ### Added
 
 - Database support tiers. PostgreSQL, MySQL/MariaDB, MS SQL Server, SQLite, and DuckDB are **supported** — verified against a live server or real database file on every CI run. MS Access, Firebird, Oracle, and ODBC DSN are **best effort** — present, unverified in CI, and may break. No adapter changes behavior or is scheduled for removal.
