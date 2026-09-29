@@ -25,7 +25,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from execsql.config import ConfigData
+from execsql.config import ConfigData, describe_parse_error
 from execsql.exceptions import ConfigError
 
 if TYPE_CHECKING:
@@ -172,21 +172,17 @@ def _check_file(
     cp = configparser.ConfigParser()
     try:
         cp.read_string(text, source=path)
-    except configparser.MissingSectionHeaderError as exc:
-        problem(exc.lineno, "error", "a section header such as [connect] must come before the first option")
-        return problems, []
     except configparser.ParsingError as exc:
-        for err_line, err_text in exc.errors:
-            problem(err_line, "error", f"cannot parse line: {err_text.strip()}")
-        return problems, []
-    except configparser.DuplicateOptionError as exc:
-        problem(exc.lineno or 0, "error", f"{exc.option} is set twice in [{exc.section}]")
-        return problems, []
-    except configparser.DuplicateSectionError as exc:
-        problem(exc.lineno or 0, "error", f"[{exc.section}] appears twice")
+        if isinstance(exc, configparser.MissingSectionHeaderError):
+            line, text = describe_parse_error(exc)
+            problem(line, "error", text)
+        else:  # every unparsable line, not only the first
+            for err_line, err_text in exc.errors:
+                problem(err_line, "error", f"cannot parse line: {err_text.strip()}")
         return problems, []
     except configparser.Error as exc:
-        problem(getattr(exc, "lineno", 0) or 0, "error", exc.message.split("\n")[0])
+        line, text = describe_parse_error(exc)
+        problem(line, "error", text)
         return problems, []
 
     section_lines, key_lines = _line_numbers(text)
@@ -219,11 +215,8 @@ def _check_file(
             continue
         try:
             value = cp.get(section, key)
-        except configparser.InterpolationSyntaxError:
-            problem(line, "error", f"{key}: a literal % must be written %%")
-            continue
         except configparser.Error as exc:
-            problem(line, "error", f"{key}: {exc.message.splitlines()[0]}")
+            problem(line, "error", describe_parse_error(exc)[1])
             continue
         if key in _CHAIN_KEYS:
             platform = _CHAIN_KEYS[key]

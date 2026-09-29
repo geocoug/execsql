@@ -253,3 +253,33 @@ def test_known_options_cover_every_registered_key():
     for section, key, _attr in ConfigData._option_keys:
         assert key in known[section]
     assert {"config_file", "linux_config_file", "macos_config_file", "win_config_file"} <= known["config"]
+
+
+class TestRunErrors:
+    """A run stops at the first bad file entry; the error names the file and the line where known."""
+
+    def test_invalid_value_names_the_file(self, work):
+        from execsql.exceptions import ConfigFileError
+
+        (work / "execsql.conf").write_text("[connect]\ndb_type = q\n")
+        with pytest.raises(ConfigFileError, match=r"execsql\.conf: Invalid database type: q"):
+            ConfigData(str(work), SubVarSet())
+
+    def test_duplicate_key_names_file_and_line(self, work):
+        from execsql.exceptions import ConfigFileError
+
+        (work / "execsql.conf").write_text("[connect]\nserver = a\nserver = b\n")
+        with pytest.raises(ConfigFileError, match=r"execsql\.conf, line 3: server is set twice in \[connect\]"):
+            ConfigData(str(work), SubVarSet())
+
+    def test_bare_percent_names_the_key(self, work):
+        from execsql.exceptions import ConfigFileError
+
+        (work / "execsql.conf").write_text("[connect]\nserver = 50%\n")
+        with pytest.raises(ConfigFileError, match="server: a literal % must be written %%"):
+            ConfigData(str(work), SubVarSet())
+
+    def test_is_still_a_config_error(self, work):
+        (work / "execsql.conf").write_text("[connect]\ndb_type = q\n")
+        with pytest.raises(ConfigError):
+            ConfigData(str(work), SubVarSet())

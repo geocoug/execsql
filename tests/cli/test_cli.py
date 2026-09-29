@@ -900,21 +900,28 @@ class TestLegacyMain:
 
         # sys.exit was called with a string message, not just a code
         msg = exc_info.value.code
-        assert isinstance(msg, str)
-        assert "Configuration error" in msg
-        assert "execsql" in msg
+        assert msg == "Configuration error: bad config value"
 
-    def test_config_error_message_contains_line_number(self):
-        """ConfigError exit message includes a line number from the traceback."""
+    def test_config_error_does_not_cite_execsql_source(self):
+        """Upstream printed "on line N of execsql", a line of its own source; that locates nothing."""
         from execsql.exceptions import ConfigError
 
         with patch("execsql.cli.app", side_effect=ConfigError("oops")), pytest.raises(SystemExit) as exc_info:
             _legacy_main()
 
-        msg = exc_info.value.code
-        # The message format is "Configuration error on line <N> of execsql: <msg>"
-        assert "line" in msg
-        assert "oops" in msg
+        assert "of execsql" not in exc_info.value.code
+
+    def test_config_file_error_points_at_validate(self):
+        from execsql.exceptions import ConfigFileError
+
+        err = ConfigFileError("/etc/execsql.conf: Invalid database type: q")
+        with patch("execsql.cli.app", side_effect=err), pytest.raises(SystemExit) as exc_info:
+            _legacy_main()
+
+        assert exc_info.value.code == (
+            "Configuration error: /etc/execsql.conf: Invalid database type: q\n"
+            "Run `execsql config --validate` to list every problem in the config files."
+        )
 
     def test_generic_exception_wraps_in_errinfo(self):
         """An unexpected Exception is wrapped in ErrInfo and passed to exit_now."""

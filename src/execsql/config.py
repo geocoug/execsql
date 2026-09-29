@@ -18,11 +18,12 @@ Provides three classes:
 import os
 import sys
 from collections.abc import Callable
+import configparser
 from configparser import ConfigParser
 from pathlib import Path
 from typing import Protocol
 
-from execsql.exceptions import ConfigError
+from execsql.exceptions import ConfigError, ConfigFileError
 from execsql.utils.crypto import Encrypt
 
 __all__ = [
@@ -63,6 +64,27 @@ class StatObj:
         from execsql.script import BatchLevels
 
         self.batch = BatchLevels()
+
+
+def describe_parse_error(exc: configparser.Error) -> tuple[int, str]:
+    """``(line, message)`` for a :mod:`configparser` error, in words a user can act on.
+
+    ``line`` is 0 when the error has no single line. Shared by a run, which
+    stops at the first such error, and ``execsql config --validate``, which
+    reports them all.
+    """
+    if isinstance(exc, configparser.DuplicateOptionError):
+        return exc.lineno or 0, f"{exc.option} is set twice in [{exc.section}]"
+    if isinstance(exc, configparser.DuplicateSectionError):
+        return exc.lineno or 0, f"[{exc.section}] appears twice"
+    if isinstance(exc, configparser.MissingSectionHeaderError):
+        return exc.lineno, "a section header such as [connect] must come before the first option"
+    if isinstance(exc, configparser.ParsingError):
+        line, text = exc.errors[0]
+        return line, f"cannot parse line: {text.strip()}"
+    if isinstance(exc, configparser.InterpolationSyntaxError):
+        return 0, f"{exc.option}: a literal % must be written %%"
+    return getattr(exc, "lineno", 0) or 0, exc.message.splitlines()[0]
 
 
 class ConfigData:
@@ -414,8 +436,16 @@ class ConfigData:
             if configfile not in self.files_read and Path(configfile).is_file():
                 self.files_read.append(configfile)
                 cp = ConfigParser()
-                cp.read(configfile)
-                for chained in self._apply_file(cp, variable_pool, current_script):
+                try:
+                    cp.read(configfile)
+                    chained_files = self._apply_file(cp, variable_pool, current_script)
+                except ConfigError as exc:
+                    raise ConfigFileError(f"{configfile}: {exc}") from exc
+                except configparser.Error as exc:
+                    line, text = describe_parse_error(exc)
+                    where = f"{configfile}, line {line}" if line else configfile
+                    raise ConfigFileError(f"{where}: {text}") from exc
+                for chained in chained_files:
                     config_queue.appendleft(chained)
                 for section, key, attr in self._option_keys:
                     if cp.has_option(section, key):

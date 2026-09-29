@@ -278,6 +278,7 @@ The legacy flat command-list engine (`_parse_script_lines` / `runscripts` / `Com
 
 - **Exception hierarchy** — All custom exceptions inherit from `ExecSqlError`, enabling `except ExecSqlError` to catch any execsql-originated error.
 - **Exception chaining** — All `raise` statements inside `except` blocks preserve the original traceback via `from`.
+- **Config file errors** — An invalid value in `execsql.conf` stops a run with `Configuration error: <file>: <problem>` (and the line, for an unreadable file) plus a pointer to `execsql config --validate`. Upstream printed `Configuration error on line N of execsql.py`, where N was a line of its own source. A duplicate key, a missing section header or a bare `%` is reported the same way; upstream failed with an uncaught exception. Errors raised by `ConfigData` for a file are `ConfigFileError`, a subclass of `ConfigError`.
 - **ASSERT error type** — `ASSERT` failures now use a dedicated `"assert"` error type that produces `**** Assertion failed.` instead of `**** Error in metacommand.`. This distinguishes intentional script-level checks from actual metacommand errors. Upstream did not have `ASSERT`.
 
 ______________________________________________________________________

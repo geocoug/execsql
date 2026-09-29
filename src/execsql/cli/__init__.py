@@ -26,7 +26,7 @@ from execsql.cli.commands.run import main
 from execsql.cli.dsn import _parse_connection_string, _SCHEME_TO_DBTYPE  # noqa: F401 — re-export
 from execsql.cli.help import _console, _err_console, _init_config, _print_encodings, _print_metacommands  # noqa: F401 — re-export
 from execsql.cli.run import _connect_initial_db, _run  # noqa: F401 — re-export
-from execsql.exceptions import ConfigError, ErrInfo
+from execsql.exceptions import ConfigError, ConfigFileError, ErrInfo
 
 __all__ = [
     "_SCHEME_TO_DBTYPE",
@@ -60,9 +60,14 @@ def _legacy_main() -> None:
 
         exit_now(1, exc)
     except ConfigError as exc:
-        strace = traceback.extract_tb(sys.exc_info()[2])[-1:]
-        lno = strace[0][1]
-        sys.exit(f"Configuration error on line {lno} of execsql: {exc}")
+        # Upstream printed the line of its own source that raised, which
+        # located nothing for the user. A file error names the file instead.
+        hint = (
+            "\nRun `execsql config --validate` to list every problem in the config files."
+            if isinstance(exc, ConfigFileError)
+            else ""
+        )
+        sys.exit(f"Configuration error: {exc}{hint}")
     except Exception:
         strace = traceback.extract_tb(sys.exc_info()[2])[-1:]
         lno = strace[0][1]
