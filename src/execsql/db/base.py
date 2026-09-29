@@ -29,6 +29,21 @@ import execsql.state as _state
 
 __all__ = ["Database", "DatabasePool"]
 
+# Leading whitespace and comments, skipped to find a statement's first words.
+_LEADING_NOISE_RX = re.compile(r"(?:\s+|--[^\n]*(?:\n|$)|/\*.*?\*/)*", re.S)
+
+# Statements that manage a transaction themselves; one is never opened in front of them.
+_TRANSACTION_CONTROL_RX = re.compile(
+    r"(?:BEGIN|START\s+TRANSACTION|COMMIT|END|ROLLBACK|ABORT|SAVEPOINT|RELEASE)\b",
+    re.I,
+)
+
+
+def statement_start(sql: str) -> str:
+    """*sql* from its first keyword on: leading whitespace and comments removed."""
+    match = _LEADING_NOISE_RX.match(sql)
+    return sql[match.end() :] if match else sql
+
 
 def _default_dt_cast() -> dict[type, Callable]:
     """Build the default type-cast mapping used by all database backends."""
@@ -222,6 +237,7 @@ class Database(ABC):
         """
         if type(sql) in (tuple, list):
             sql = " ".join(sql)
+        self.before_statement(sql)
         try:
             with self._cursor() as curs:
                 if paramlist is None:
@@ -243,6 +259,81 @@ class Database(ABC):
     def exec_cmd(self, querycommand: str) -> None:
         """Execute a stored procedure or function by name."""
         ...
+
+    # ------------------------------------------------------------------
+    # Holding statements until commit (AUTOCOMMIT OFF, BEGIN BATCH)
+    # ------------------------------------------------------------------
+
+    #: Statements the DBMS commits on its own, with everything run before
+    #: them, even inside a transaction (MySQL and Oracle DDL).  Matched against
+    #: the start of the statement; a warning names each one run while holding.
+    implicit_commit_rx: ClassVar[re.Pattern[str] | None] = None
+
+    #: Statements that cannot run inside a transaction on this DBMS; one is
+    #: not opened in front of them.
+    no_transaction_rx: ClassVar[re.Pattern[str] | None] = None
+
+    #: Set on a connection whose driver could only connect in autocommit mode
+    #: (an ODBC DSN without transactions): nothing can be held back.
+    driver_autocommits: bool = False
+
+    def holding(self) -> bool:
+        """Whether statements on this connection wait for a commit.
+
+        True while AUTOCOMMIT is OFF for this database, or inside BEGIN BATCH
+        (which holds every database).
+        """
+        if not self.autocommit:
+            return True
+        status = _state.status
+        return status is not None and status.batch.in_batch()
+
+    def before_statement(self, sql: str) -> None:
+        """Make sure *sql* is held until commit when execsql is holding statements.
+
+        Most drivers already hold every statement: they open a transaction
+        before the first one and keep it open until commit or rollback.  An
+        adapter whose driver does not (SQLite for DDL, DuckDB for everything)
+        overrides :meth:`begin_transaction`.  Where the DBMS itself commits a
+        statement regardless, a warning says so, since the work cannot be
+        rolled back.
+        """
+        if not self.holding():
+            return
+        if self.driver_autocommits:
+            self.warn_once(
+                "driver",
+                f"{self.name()} cannot hold statements until COMMIT: its driver commits each one as it runs. "
+                "AUTOCOMMIT OFF and BEGIN BATCH have no effect on it.",
+            )
+            return
+        start = statement_start(sql)
+        if self.implicit_commit_rx is not None and (m := self.implicit_commit_rx.match(start)):
+            from execsql.utils.errors import write_warning
+
+            write_warning(
+                f"{self.type.dbms_id} commits {' '.join(m.group(0).upper().split())} immediately, together with "
+                "everything run before it; it cannot be rolled back.",
+                always=True,
+            )
+        if _TRANSACTION_CONTROL_RX.match(start):
+            return
+        if self.no_transaction_rx is not None and self.no_transaction_rx.match(start):
+            return
+        self.begin_transaction()
+
+    def begin_transaction(self) -> None:
+        """Open a transaction if none is open.  Most drivers do this themselves; a no-op here."""
+
+    def warn_once(self, key: str, message: str) -> None:
+        """Write *message* as a warning the first time *key* comes up on this connection."""
+        warned: set[str] = self.__dict__.setdefault("_warned", set())
+        if key in warned:
+            return
+        warned.add(key)
+        from execsql.utils.errors import write_warning
+
+        write_warning(message, always=True)
 
     def autocommit_on(self) -> None:
         """Enable autocommit mode so each statement is committed immediately."""
@@ -562,6 +653,7 @@ class Database(ABC):
         rows = iter(rowsource)
         eof = False
         total_rows = 0
+        self.before_statement(sql)
 
         # Optional rich progress bar for long-running imports.
         use_progress = getattr(_state.conf, "show_progress", False)
@@ -745,6 +837,7 @@ class Database(ABC):
         sq_name = self.schema_qualified_table_name(schema_name, table_name)
         quoted_col = self.quote_identifier(column_name)
         sql = f"insert into {sq_name} ({quoted_col}) values ({self.paramsubs(1)});"
+        self.before_statement(sql)
         with self._cursor() as curs:
             curs.execute(sql, (filedata,))
 
