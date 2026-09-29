@@ -37,6 +37,14 @@ def _unescape(record: tuple[str, str]) -> tuple[str, str]:
     return name.replace("\\[", "["), help_text.replace("\\[", "[")
 
 
+# Help fills the terminal, as ruff's and uv's do. Click caps it at 80 columns
+# unless told otherwise; piped help still wraps at 80, since there is no
+# terminal to measure. The option column is wide enough for the longest
+# names here ("--gui-framework {tkinter,textual}"), so their descriptions
+# start on the same line instead of the next.
+_HELP_MAX_WIDTH = 10_000
+_OPTION_COLUMN = 36
+
 # Help color follows uv and cargo: headings bold green, names cyan with the
 # option flags bold. Click's echo drops ANSI when stdout is not a terminal,
 # and its column widths ignore escape codes, so styling costs no alignment
@@ -115,10 +123,10 @@ class _PlainHelpMixin:
             bucket.append(_styled_record(param, record))
         if args:
             with _section(formatter, "Arguments"):
-                formatter.write_dl(args)
+                formatter.write_dl(args, col_max=_OPTION_COLUMN)
         if opts:
             with _section(formatter, "Options"):
-                formatter.write_dl(opts)
+                formatter.write_dl(opts, col_max=_OPTION_COLUMN)
 
 
 class ExecsqlCommand(_PlainHelpMixin, TyperCommand):
@@ -176,10 +184,10 @@ class ExecsqlGroup(TyperGroup):
 
         if globals_:
             with _section(formatter, "Global options"):
-                formatter.write_dl(globals_)
+                formatter.write_dl(globals_, col_max=_OPTION_COLUMN)
         if rest:
             with _section(formatter, "Options"):
-                formatter.write_dl(rest)
+                formatter.write_dl(rest, col_max=_OPTION_COLUMN)
         self.format_commands(ctx, formatter)
 
     def format_commands(self, ctx: Any, formatter: Any) -> None:
@@ -210,7 +218,7 @@ app = typer.Typer(
     add_completion=False,
     no_args_is_help=True,
     # Upstream's optparse answered -h as well as --help. Commands inherit this.
-    context_settings={"help_option_names": ["-h", "--help"]},
+    context_settings={"help_option_names": ["-h", "--help"], "max_content_width": _HELP_MAX_WIDTH},
 )
 
 

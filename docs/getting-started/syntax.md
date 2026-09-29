@@ -167,7 +167,8 @@ such as the VS Code grammar generator reads.
 
 `execsql --help` lists the commands and the global options;
 `execsql <command> --help` shows that command's own options, for example
-`execsql run --help` for every connection and output flag below.
+`execsql run --help` for every connection and output flag below. Help uses the
+full width of the terminal; piped help wraps at 80 columns.
 
 On a terminal, help is colored: headings in green, option flags and command
 names in cyan. Piped or redirected help (`execsql run --help | less`,

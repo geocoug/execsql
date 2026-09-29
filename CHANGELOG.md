@@ -40,6 +40,7 @@ ______________________________________________________________________
 
 ### Changed
 
+- CLI help uses the full width of the terminal instead of stopping at 80 columns, and option descriptions start on the same line as the option. Piped help still wraps at 80 columns.
 - A config file error names the file, and the line when the file cannot be read, and suggests `execsql config --validate`: `Configuration error: /etc/execsql.conf: Invalid database type: q`. It used to say `Configuration error on line 516 of execsql`, a line of execsql's own source. A duplicate key, a missing section header or a bare `%` in a config file now report the same way instead of an uncaught exception.
 - A script named exactly like a command — `run`, `format`, `fmt`, `lint`, `ping`, `config`, or `list`, with no extension — must now be run as `execsql run NAME` or `execsql ./NAME`. A command name always selects the command, so a file in the working directory can never change what `execsql lint` does.
 - `execsql format --encoding` is now `-f`/`--script-encoding`, the same option `run` has. `--encoding` still works.

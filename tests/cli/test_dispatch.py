@@ -392,3 +392,27 @@ class TestNoArguments:
         assert result.returncode == 2
         assert result.stdout.startswith("Usage:")
         assert "Commands:" in result.stdout
+
+
+class TestHelpWidth:
+    """Help fills the terminal, as ruff's does, instead of Click's 80-column cap."""
+
+    def _help(self, columns: str) -> str:
+        # A subprocess, because CliRunner pins help to 80 columns.
+        import os
+        import subprocess
+        import sys
+
+        code = "import sys; from execsql.cli.dispatch import dispatch; sys.argv=['execsql','run','--help']; dispatch()"
+        env = {**os.environ, "COLUMNS": columns, "NO_COLOR": "1"}
+        return subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, env=env).stdout
+
+    def test_wide_terminal_keeps_descriptions_beside_their_options(self):
+        line = next(line for line in self._help("160").splitlines() if "--gui-framework" in line)
+        assert "Default: tkinter" in line
+
+    def test_wide_terminal_is_used(self):
+        assert max(len(line) for line in self._help("160").splitlines()) > 100
+
+    def test_narrow_terminal_still_wraps(self):
+        assert max(len(line) for line in self._help("80").splitlines()) <= 80
