@@ -36,6 +36,22 @@ Scripts are read as UTF-8 unless `-f`/`--script-encoding` names another encoding
 
 `-` in place of a path reads one script from stdin and reports it as `<stdin>`. It cannot be combined with other paths. `INCLUDE` targets in a stdin script are resolved from the working directory.
 
+## Project settings { #config }
+
+`--select` and `--ignore` can live in the `[lint]` section of a
+[config file](configuration.md#config_lint), so every run — terminal, CI, the
+pre-commit hook — checks the same rules:
+
+```ini
+[lint]
+ignore = V002
+```
+
+A flag replaces the config value rather than adding to it: with the file above,
+`execsql lint --ignore F002` reports `V002` again. An unknown code in the file is
+a usage error (exit 2), and [`execsql config --validate`](../getting-started/syntax.md#config_validate)
+reports it with its line.
+
 ## Exit status { #exit_status }
 
 | Status | Meaning                                                                                  |

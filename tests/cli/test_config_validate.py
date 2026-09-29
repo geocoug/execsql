@@ -153,6 +153,16 @@ class TestValues:
         problems = _problems(work, "[variables]\nbad name = 1\n")
         assert [(line, severity) for line, severity, _ in problems] == [(2, "error")]
 
+    def test_unknown_lint_rule_code(self, work):
+        assert _problems(work, "[lint]\nignore = V002, Z9\n") == [
+            (2, "error", "ignore = V002, Z9: unknown rule code or prefix: 'Z9'"),
+        ]
+
+    def test_format_indent_must_be_a_number(self, work):
+        assert _problems(work, "[format]\nindent = two\n") == [
+            (2, "error", "indent = two: Invalid argument for indent."),
+        ]
+
     def test_bare_percent(self, work):
         assert _problems(work, "[connect]\nserver = 50%\n") == [(2, "error", "server: a literal % must be written %%")]
 

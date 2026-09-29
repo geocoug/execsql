@@ -376,6 +376,38 @@ The section and property names that may be used in a configuration file are list
 `user_logfile`
 :   Uses an *execsql.log* file in the user's home directory instead of in the directory from which the script was run. This setting may need to be used if multiple users will be running scripts from the same directory.
 
+## Section `format` { #config_format }
+
+Layout defaults for [`execsql format`](../guides/formatter.md#options). A flag on
+the command line always wins. A run ignores this section.
+
+`indent`
+:   Spaces per indent level, for metacommand blocks and SQL. Default: 4. Equivalent to `--indent`.
+
+`leading_comma`
+:   Put commas at the start of lines instead of the end. Default: No. Equivalent to `--leading-comma` / `--no-leading-comma`.
+
+`sql`
+:   Reformat SQL with sqlglot (needs the `[formatter]` extra). `No` normalizes metacommands only. Default: Yes. Equivalent to `--sql` / `--no-sql`.
+
+## Section `lint` { #config_lint }
+
+Rule selection for [`execsql lint`](lint.md#config). A run ignores this section.
+
+`select`
+:   Report only these rules: codes or prefixes, comma-separated (for example `V001,F`). Default: every rule. `--select` on the command line replaces it.
+
+`ignore`
+:   Do not report these rules. Wins over `select`. `--ignore` on the command line replaces it.
+
+```ini
+[format]
+indent = 2
+
+[lint]
+ignore = V002
+```
+
 ## Section `variables`
 
 There are no fixed properties for this section. All property names and their values that are specified in this section will be used to define substitution variables, just as if a series of SUB metacommands had been used at the beginning of the script. All variables defined in this section will be global.

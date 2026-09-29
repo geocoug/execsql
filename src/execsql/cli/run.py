@@ -295,15 +295,18 @@ def _load_config(
     return ConfigData(script_path, subvars, config_file=config_file)
 
 
-def _configured_script_encoding(config_file: str | None) -> str | None:
-    """``[encoding] script`` from the config files, or ``None`` when none sets it.
+def _tool_config(config_file: str | None) -> ConfigData:
+    """The config ``execsql format`` and ``execsql lint`` read.
 
-    ``execsql format`` and ``execsql lint`` read config once per invocation,
-    from the system, user and working-directory locations plus *config_file*
-    — not per script, so a script directory's own ``execsql.conf`` applies
-    only when passed with ``--config``.
+    Read once per invocation, from the system, user and working-directory
+    locations plus *config_file* — not per script, so a script directory's
+    own ``execsql.conf`` applies only when passed with ``--config``.
     """
-    conf = _load_config(None, _seed_early_subvars(), config_file)
+    return _load_config(None, _seed_early_subvars(), config_file)
+
+
+def _configured_script_encoding(conf: ConfigData) -> str | None:
+    """``[encoding] script`` from *conf*, or ``None`` when no config file sets it."""
     return conf.script_encoding if "script_encoding" in conf.sources else None
 
 

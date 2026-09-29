@@ -139,6 +139,17 @@ def _check_value(
     return None
 
 
+def _check_rule_codes(value: str) -> str | None:
+    """Rule codes in ``[lint] select`` / ``ignore``, checked as ``execsql lint`` checks them."""
+    from execsql.cli.lint import resolve_selectors
+
+    try:
+        resolve_selectors([value])
+    except ValueError as exc:
+        return str(exc)
+    return None
+
+
 def _check_file(
     path: str,
     known: dict[str, set[str]],
@@ -226,6 +237,8 @@ def _check_file(
                 problem(line, "warning", f"{key} = {value}: no such file; a run skips it")
             continue
         failure = _check_value(section, key, value, variable_pool, current_script)
+        if failure is None and section == ConfigData._LINT_SECTION:
+            failure = _check_rule_codes(value)
         if failure:
             problem(line, "error", f"{key} = {value}: {failure}")
 

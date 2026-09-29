@@ -84,6 +84,8 @@ class ConfigData:
     _VARIABLES_SECTION = "variables"
     _INCLUDE_REQ_SECTION = "include_required"
     _INCLUDE_OPT_SECTION = "include_optional"
+    _FORMAT_SECTION = "format"
+    _LINT_SECTION = "lint"
 
     # Schema registry: maps attribute name -> (section, ini_key, type_label).
     # Populated by the _get_* methods on every option they read.  This is the
@@ -349,6 +351,12 @@ class ConfigData:
         self._get_bool(cp, self._EMAIL_SECTION, "use_ssl", "smtp_ssl")
         self._get_bool(cp, self._EMAIL_SECTION, "use_tls", "smtp_tls")
         self._get_str(cp, self._EMAIL_SECTION, "message_css", "email_css")
+        # --- [format] and [lint]: read by `execsql format` / `execsql lint`; a run ignores them ---
+        self._get_int(cp, self._FORMAT_SECTION, "indent", "format_indent")
+        self._get_bool(cp, self._FORMAT_SECTION, "leading_comma", "format_leading_comma")
+        self._get_bool(cp, self._FORMAT_SECTION, "sql", "format_sql")
+        self._get_str(cp, self._LINT_SECTION, "select", "lint_select")
+        self._get_str(cp, self._LINT_SECTION, "ignore", "lint_ignore")
 
         # Register options whose loading lives inline in __init__ (because they
         # need special-case validation or side effects) so they still appear in
@@ -507,6 +515,13 @@ class ConfigData:
         # default (10 MB).
         self.max_substitution_bytes: int | None = None
         self.zip_buffer_mb = 10
+        # [format] and [lint]: the defaults `execsql format` and `execsql lint`
+        # use when neither a flag nor a config file says otherwise.
+        self.format_indent = 4
+        self.format_leading_comma = False
+        self.format_sql = True
+        self.lint_select: str | None = None
+        self.lint_ignore: str | None = None
 
     @classmethod
     def _search_paths(cls, script_path: str, config_file: str | None) -> list[str]:

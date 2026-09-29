@@ -24,12 +24,27 @@ def format_cmd(
     ),
     check: bool = typer.Option(False, "--check", help="Exit 1 if any file needs changes; write nothing."),
     in_place: bool = typer.Option(False, "-i", "--in-place", help="Modify files in place."),
-    no_sql: bool = typer.Option(False, "--no-sql", help="Skip SQL reformatting via sqlglot."),
-    indent: int = typer.Option(4, "--indent", metavar="N", help="Spaces per indent level."),
-    leading_comma: bool = typer.Option(
-        False,
-        "--leading-comma",
-        help="Place commas at the start of lines instead of the end.",
+    # The three layout options default to None — "not given" — so that
+    # [format] in a config file applies unless the command line says otherwise,
+    # in either direction.
+    sql: bool | None = typer.Option(
+        None,
+        "--sql/--no-sql",
+        help="Reformat SQL with sqlglot, or only metacommands. Default: [format] sql, else --sql.",
+        show_default=False,
+    ),
+    indent: int | None = typer.Option(
+        None,
+        "--indent",
+        metavar="N",
+        help="Spaces per indent level. Default: [format] indent, else 4.",
+        show_default=False,
+    ),
+    leading_comma: bool | None = typer.Option(
+        None,
+        "--leading-comma/--no-leading-comma",
+        help="Commas at the start of lines instead of the end. Default: [format] leading_comma, else off.",
+        show_default=False,
     ),
     script_encoding: ScriptEncodingOpt = None,
     # The old spelling of --script-encoding, kept working but out of --help.
@@ -39,8 +54,9 @@ def format_cmd(
     """Normalize metacommand keywords, block indentation, and SQL layout.
 
     SQL reformatting needs the [formatter] extra; --no-sql works without it.
+    Layout options not given here come from [format] in a config file.
     """
-    from execsql.cli.run import _configured_script_encoding
+    from execsql.cli.run import _configured_script_encoding, _tool_config
     from execsql.format import run_formatter
 
     if Path("-") in targets:
@@ -52,15 +68,16 @@ def format_cmd(
         _err_console.print(f"[bold red]Error:[/bold red] Config file {config_file!r} does not exist.")
         raise typer.Exit(code=2)
 
+    conf = _tool_config(config_file)
     raise typer.Exit(
         code=run_formatter(
             targets,
             check=check,
             in_place=in_place,
-            no_sql=no_sql,
-            indent=indent,
-            leading_comma=leading_comma,
-            encoding=script_encoding or encoding or _configured_script_encoding(config_file) or "utf-8",
+            no_sql=not (conf.format_sql if sql is None else sql),
+            indent=conf.format_indent if indent is None else indent,
+            leading_comma=conf.format_leading_comma if leading_comma is None else leading_comma,
+            encoding=script_encoding or encoding or _configured_script_encoding(conf) or "utf-8",
         ),
     )
 

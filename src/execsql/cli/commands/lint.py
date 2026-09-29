@@ -178,7 +178,7 @@ def lint_cmd(
 ) -> None:
     """The ``lint`` command; its user-facing help is the decorator's ``help``."""
     from execsql.cli.lint import resolve_selectors
-    from execsql.cli.run import _configured_script_encoding
+    from execsql.cli.run import _configured_script_encoding, _tool_config
 
     if "-" in targets and len(targets) > 1:
         raise typer.BadParameter("- (stdin) cannot be combined with other paths.", param_hint="FILE_OR_DIR")
@@ -186,11 +186,21 @@ def lint_cmd(
         _err_console.print(f"[bold red]Error:[/bold red] Config file {config_file!r} does not exist.")
         raise typer.Exit(code=2)
 
+    conf = _tool_config(config_file)
+    # A flag replaces the [lint] setting rather than adding to it, as in ruff.
     try:
         selected = resolve_selectors(select)
         ignored = resolve_selectors(ignore)
     except ValueError as exc:
         raise typer.BadParameter(str(exc)) from exc
+    try:
+        if not select and conf.lint_select:
+            selected = resolve_selectors([conf.lint_select])
+        if not ignore and conf.lint_ignore:
+            ignored = resolve_selectors([conf.lint_ignore])
+    except ValueError as exc:
+        _err_console.print(f"[bold red]Error:[/bold red] \\[lint] in config: {exc}", highlight=False)
+        raise typer.Exit(code=2) from exc
 
     raise typer.Exit(
         code=lint_paths(
@@ -199,6 +209,6 @@ def lint_cmd(
             ignore=ignored,
             output_format=output_format.value,
             statistics=statistics,
-            encoding=script_encoding or _configured_script_encoding(config_file) or "utf-8",
+            encoding=script_encoding or _configured_script_encoding(conf) or "utf-8",
         ),
     )

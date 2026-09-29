@@ -393,3 +393,86 @@ class TestLintInput:
     def test_missing_config_file_is_a_usage_error(self, tmp_path):
         (tmp_path / "a.sql").write_text("select 1;\n")
         assert runner.invoke(app, ["lint", "--config", "nope.conf", str(tmp_path / "a.sql")]).exit_code == 2
+
+
+# ---------------------------------------------------------------------------
+# [format] and [lint] config sections
+# ---------------------------------------------------------------------------
+
+UNFORMATTED = "-- !x! if (true)\n-- !x! write 'hi'\n-- !x! endif\n"
+
+
+class TestFormatConfig:
+    def _format(self, work, *args):
+        (work / "s.sql").write_text(UNFORMATTED)
+        return runner.invoke(app, ["format", *args, "s.sql"]).output
+
+    def test_defaults_without_config(self, isolated):
+        assert "\n    -- !x! WRITE" in self._format(isolated, "--no-sql")
+
+    def test_indent_from_config(self, isolated):
+        (isolated / "execsql.conf").write_text("[format]\nindent = 2\nsql = no\n")
+        assert "\n  -- !x! WRITE" in self._format(isolated)
+
+    def test_flag_beats_config(self, isolated):
+        (isolated / "execsql.conf").write_text("[format]\nindent = 2\nsql = no\n")
+        assert "\n        -- !x! WRITE" in self._format(isolated, "--indent", "8")
+
+    def test_sql_from_config_and_overridden_by_flag(self, isolated):
+        (isolated / "s.sql").write_text("select a,b from t;\n")
+        (isolated / "execsql.conf").write_text("[format]\nsql = no\n")
+        assert runner.invoke(app, ["format", "s.sql"]).output == "select a,b from t;\n"
+        pytest.importorskip("sqlglot")
+        assert runner.invoke(app, ["format", "--sql", "s.sql"]).output != "select a,b from t;\n"
+
+    def test_leading_comma_from_config_and_turned_off_by_flag(self, isolated):
+        pytest.importorskip("sqlglot")
+        (isolated / "s.sql").write_text("select a, b from t;\n")
+        (isolated / "execsql.conf").write_text("[format]\nleading_comma = yes\n")
+        with_config = runner.invoke(app, ["format", "s.sql"]).output
+        overridden = runner.invoke(app, ["format", "--no-leading-comma", "s.sql"]).output
+        assert "\n    , b" in with_config
+        assert "\n    , b" not in overridden
+
+    def test_config_option_file(self, isolated, tmp_path):
+        conf = tmp_path / "ci.conf"
+        conf.write_text("[format]\nindent = 2\nsql = no\n")
+        assert "\n  -- !x! WRITE" in self._format(isolated, "--config", str(conf))
+
+
+class TestLintConfig:
+    SCRIPT = '-- !x! sub unused 1\n-- !x! write "!!nope!!"\n'
+
+    def _codes(self, work, *args):
+        (work / "s.sql").write_text(self.SCRIPT)
+        out = runner.invoke(app, ["lint", *args, "s.sql", "--output-format", "json"]).output
+        return sorted(i["code"] for i in json.loads(out))
+
+    def test_all_rules_without_config(self, isolated):
+        assert self._codes(isolated) == ["V001", "V002"]
+
+    def test_ignore_from_config(self, isolated):
+        (isolated / "execsql.conf").write_text("[lint]\nignore = V002\n")
+        assert self._codes(isolated) == ["V001"]
+
+    def test_select_from_config(self, isolated):
+        (isolated / "execsql.conf").write_text("[lint]\nselect = V002\n")
+        assert self._codes(isolated) == ["V002"]
+
+    def test_flag_replaces_config(self, isolated):
+        (isolated / "execsql.conf").write_text("[lint]\nignore = V002\n")
+        assert self._codes(isolated, "--ignore", "V001") == ["V002"]
+
+    def test_unknown_code_in_config_is_a_usage_error(self, isolated):
+        (isolated / "execsql.conf").write_text("[lint]\nselect = Z9\n")
+        (isolated / "s.sql").write_text(self.SCRIPT)
+        result = runner.invoke(app, ["lint", "s.sql"])
+        assert result.exit_code == 2
+        assert "[lint] in config" in result.output
+
+    def test_config_lists_the_sections(self, isolated):
+        data = json.loads(runner.invoke(app, ["config", "--output-format", "json"]).output)
+        keys = {(o["section"], o["key"]): o["default"] for o in data["options"]}
+        assert keys[("format", "indent")] == 4
+        assert keys[("format", "sql")] is True
+        assert keys[("lint", "select")] is None
