@@ -26,6 +26,10 @@ DEFAULT_CONNECT_TIMEOUT = 30  # seconds
 class SQLiteDatabase(Database):
     """SQLite adapter using the Python standard-library sqlite3 module."""
 
+    #: SQLite refuses VACUUM, ATTACH and DETACH inside a transaction, and
+    #: ignores some PRAGMAs there (``foreign_keys``).
+    no_transaction_rx = re.compile(r"(?:VACUUM|ATTACH|DETACH|PRAGMA)\b", re.I)
+
     def __init__(self, SQLite_fn: str, timeout: float = DEFAULT_CONNECT_TIMEOUT) -> None:
         try:
             import sqlite3  # noqa: F401
@@ -47,6 +51,18 @@ class SQLiteDatabase(Database):
 
     def __repr__(self) -> str:
         return f"SQLiteDatabase({self.db_name!r})"
+
+    def begin_transaction(self) -> None:
+        """Open a transaction if none is open.
+
+        Python's sqlite3 module opens one on its own only before INSERT,
+        UPDATE, DELETE and REPLACE.  Without this, a CREATE TABLE or DROP run
+        under AUTOCOMMIT OFF or in a batch would be committed at once.
+        """
+        if self.conn is None:
+            self.open_db()
+        if not self.conn.in_transaction:
+            self.conn.execute("BEGIN")
 
     def open_db(self) -> None:
         """Open a connection to the SQLite database file."""

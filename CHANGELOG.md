@@ -40,6 +40,8 @@ ______________________________________________________________________
 - `execsql lint` gained three structural checks that previously only a live run would reveal: a variable defined by `SUB` that nothing ever reads (almost always a spelling mismatch between the definition and the reference); an `IF` whose condition is a constant, making its `ELSE` — or its own body — unreachable; and a statement after an unconditional `HALT`. `HALT DISPLAY` is not treated as terminal, and an `IF` carrying an `ANDIF`/`ORIF` modifier is never reported as constant.
 - The VS Code extension is packaged for the Marketplace and published on a version tag. `just package-vscode` builds a `.vsix` locally. Publishing needs a Marketplace publisher account and a `VSCE_PAT` repository secret; without the secret the release job skips rather than fails, so releases still complete without it. The extension version tracks the tag.
 - `just corpus` and `just corpus-external` run the formatter's real-SQL corpus checks. `corpus-external` takes a path to a read-only copy of an outside SQL library, so checking the formatter against production SQL is one command rather than a remembered incantation.
+- A warning when MySQL, MariaDB or Oracle commits a statement on its own while `AUTOCOMMIT` is `OFF` or a batch is open — `CREATE TABLE`, `DROP`, `TRUNCATE` and other DDL, which the server commits together with everything before it, so none of it can be rolled back.
+- A warning when `AUTOCOMMIT OFF` or `BEGIN BATCH` cannot hold statements at all: an ODBC DSN whose driver has no transactions, or an MS Access `CREATE TEMPORARY QUERY`, which reopens the connection and rolls back what was not yet committed.
 
 ### Removed
 
@@ -67,6 +69,8 @@ ______________________________________________________________________
 - `-h` works as a short form of `--help`, as it did in upstream execsql.
 - The debug REPL's `.set VAR VALUE` keeps the value's case; it was lowercased. `.vars all` lists environment variables, as the REPL's own hint says; it looked up a variable named `all`.
 - A script's reported location no longer depends on a second, synthetic copy of the statement being in sync with the parse tree. The executor built a stand-in legacy command object for every statement so that error messages, the debug REPL, and `api.run()` could read the current file and line; those now read the syntax tree directly.
+- SQLite: `CREATE TABLE`, `DROP` and other DDL run while `AUTOCOMMIT` is `OFF` or inside `BEGIN BATCH` are held until commit. They were committed at once, so `AUTOCOMMIT ON WITH ROLLBACK` and `ROLLBACK BATCH` left them in place.
+- DuckDB: `AUTOCOMMIT OFF` and `BEGIN BATCH` hold statements until commit. Every statement, rows included, was committed as it ran, so nothing could be rolled back. A script's own `BEGIN;` and `COMMIT;` now work too; `COMMIT;` failed with "no transaction is active".
 
 ______________________________________________________________________
 

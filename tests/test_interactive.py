@@ -243,3 +243,18 @@ class TestExecuteFetch:
             result = object.__new__(OracleDatabase).execute("select 1 from dual;", fetch=True)
         base.assert_called_once_with("select 1 from dual", None, fetch=True)
         assert result == (["x"], [(1,)])
+
+    def test_duckdb_reports_changed_rows_not_a_count_table(self, tmp_path):
+        pytest.importorskip("duckdb")
+        from execsql.db.duckdb import DuckDBDatabase
+
+        db = DuckDBDatabase(str(tmp_path / "f.duckdb"))
+        subvars = MagicMock()
+        _state.subvars = subvars
+        try:
+            assert db.execute("create table f (a integer)", fetch=True) is None
+            assert db.execute("insert into f values (1), (2)", fetch=True) is None
+            subvars.add_substitution.assert_called_with("$LAST_ROWCOUNT", 2)
+            assert db.execute('select count(*) as "Count" from f', fetch=True) == (["Count"], [(2,)])
+        finally:
+            db.close()

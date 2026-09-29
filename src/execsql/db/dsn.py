@@ -109,6 +109,8 @@ class DsnDatabase(Database):
                 if "Optional feature not implemented" in excdesc:
                     try:
                         _dsn_connect(autocommit=True)
+                        # This ODBC driver has no transactions: nothing can be held.
+                        self.driver_autocommits = True
                     except Exception as e:
                         raise ErrInfo(
                             type="exception",

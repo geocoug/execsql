@@ -49,6 +49,17 @@ def _crlf_terminated(filename: str) -> bool:
 class MySQLDatabase(Database):
     """MySQL and MariaDB adapter using the pymysql package."""
 
+    #: Statements MySQL commits at once, together with everything before them
+    #: ("Statements That Cause an Implicit Commit" in the MySQL manual).
+    #: CREATE and DROP TEMPORARY TABLE are the exception.
+    implicit_commit_rx = re.compile(
+        r"(?:CREATE|ALTER|DROP)\s+(?!TEMPORARY\b)(?:OR\s+REPLACE\s+)?(?:UNIQUE\s+|FULLTEXT\s+|SPATIAL\s+)?\w+"
+        r"|RENAME\s+\w+|TRUNCATE\b|GRANT\b|REVOKE\b|LOCK\s+TABLES?\b|UNLOCK\s+TABLES?\b"
+        r"|BEGIN\b|START\s+TRANSACTION\b|(?:ANALYZE|CHECK|OPTIMIZE|REPAIR)\s+TABLE\b|FLUSH\b"
+        r"|(?:UN)?INSTALL\s+PLUGIN\b|SET\s+PASSWORD\b|SET\s+(?:SESSION\s+|@@)?autocommit\b",
+        re.I,
+    )
+
     def __init__(
         self,
         server_name: str,

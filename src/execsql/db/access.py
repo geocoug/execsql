@@ -248,6 +248,12 @@ class AccessDatabase(Database):
         def exec1(sql: str, paramlist: list | None) -> tuple[list[str], list] | None:
             tqd = self.temp_rx.match(sql)
             if tqd:
+                if self.conn is not None and self.holding():
+                    self.warn_once(
+                        "temporary query",
+                        "CREATE TEMPORARY QUERY reopens the Access connection, which rolls back statements "
+                        "not yet committed under AUTOCOMMIT OFF or BEGIN BATCH.",
+                    )
                 qn = tqd.group(3)
                 qsql = sql[tqd.end() :]
                 if self.dao_conn is None:
@@ -266,6 +272,7 @@ class AccessDatabase(Database):
                     self.temp_query_names.append(qn)
                 return None
             else:
+                self.before_statement(sql)
                 self.dao_flush_check()
                 with self._cursor() as curs:
                     encoded_sql: Any
