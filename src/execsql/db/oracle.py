@@ -8,6 +8,7 @@ via the ``oracledb`` driver (python-oracledb).  Corresponds to ``-t o``
 on the CLI.
 """
 
+import re
 from typing import Any
 
 from execsql.db.base import Database
@@ -22,6 +23,14 @@ __all__ = ["OracleDatabase"]
 
 class OracleDatabase(Database):
     """Oracle adapter using the cx_Oracle (python-oracledb) driver."""
+
+    #: Oracle commits every DDL statement at once, together with everything
+    #: before it, including CREATE GLOBAL TEMPORARY TABLE.
+    implicit_commit_rx = re.compile(
+        r"(?:CREATE|ALTER|DROP)\s+(?:OR\s+REPLACE\s+)?(?:GLOBAL\s+TEMPORARY\s+|UNIQUE\s+|BITMAP\s+)?\w+"
+        r"|TRUNCATE\s+\w+|RENAME\b|GRANT\b|REVOKE\b|COMMENT\s+ON\b|(?:NO)?AUDIT\b|ANALYZE\b|PURGE\b|FLASHBACK\b",
+        re.I,
+    )
 
     #: No Oracle server runs in CI; this adapter has no tests.
     support_tier = SupportTier.BEST_EFFORT

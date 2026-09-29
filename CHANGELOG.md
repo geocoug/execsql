@@ -11,6 +11,16 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Added
+
+- A warning when MySQL, MariaDB or Oracle commits a statement on its own while `AUTOCOMMIT` is `OFF` or a batch is open — `CREATE TABLE`, `DROP`, `TRUNCATE` and other DDL, which the server commits together with everything before it, so none of it can be rolled back.
+- A warning when `AUTOCOMMIT OFF` or `BEGIN BATCH` cannot hold statements at all: an ODBC DSN whose driver has no transactions, or an MS Access `CREATE TEMPORARY QUERY`, which reopens the connection and rolls back what was not yet committed.
+
+### Fixed
+
+- SQLite: `CREATE TABLE`, `DROP` and other DDL run while `AUTOCOMMIT` is `OFF` or inside `BEGIN BATCH` are held until commit. They were committed at once, so `AUTOCOMMIT ON WITH ROLLBACK` and `ROLLBACK BATCH` left them in place.
+- DuckDB: `AUTOCOMMIT OFF` and `BEGIN BATCH` hold statements until commit. Every statement, rows included, was committed as it ran, so nothing could be rolled back. A script's own `BEGIN;` and `COMMIT;` now work too; `COMMIT;` failed with "no transaction is active".
+
 ______________________________________________________________________
 
 ## [2.23.0] - 2026-09-29
