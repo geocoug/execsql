@@ -46,7 +46,7 @@ class TestCommandSet:
         out = _invoke("--help").output
         section = out[out.index("Commands:") :]
         names = [line.split()[0] for line in section.splitlines()[1:] if line.strip()]
-        assert names == ["run", "format", "lint", "inspect", "ping", "config", "list", "init"]
+        assert names == ["run", "shell", "format", "lint", "inspect", "ping", "config", "list", "init"]
 
     @pytest.mark.parametrize(
         "flag",

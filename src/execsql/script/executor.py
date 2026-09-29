@@ -1018,13 +1018,15 @@ def _node_cmd_text(node: Node) -> str:
 # ---------------------------------------------------------------------------
 
 
-def execute(script: Script, *, ctx: RuntimeContext | None = None) -> None:
+def execute(script: Script, *, ctx: RuntimeContext | None = None, session: bool = False) -> None:
     """Execute an AST-parsed script.
 
     Args:
         script: The parsed :class:`Script` tree to execute.
         ctx: The :class:`RuntimeContext` to use.  Defaults to the global
             context via :func:`get_context` if not provided.
+        session: *script* is one more input in a longer session (``execsql
+            shell``): SCRIPT blocks registered by earlier inputs are kept.
     """
     if ctx is None:
         ctx = get_context()
@@ -1034,7 +1036,8 @@ def execute(script: Script, *, ctx: RuntimeContext | None = None) -> None:
     # it.  This gives full isolation without modifying 200+ handler
     # function signatures.
     with active_context(ctx):
-        ctx.ast_scripts.clear()
+        if not session:
+            ctx.ast_scripts.clear()
         ctx.include_chain.clear()
         ctx.ast_exec_stack.clear()
         ctx.last_command = None

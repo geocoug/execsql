@@ -115,3 +115,25 @@ def test_finish_writes_once(tmp_path):
     first = (tmp_path / "m.json").read_text()
     manifest.finish(1, RuntimeError("late"))
     assert (tmp_path / "m.json").read_text() == first
+
+
+def test_record_metacommand_classifies_with_the_dispatch_table(tmp_path):
+    from execsql.metacommands import DISPATCH_TABLE
+
+    manifest = RunManifest(str(tmp_path / "m.json"), "x.sql", ["region"])
+    manifest.record_metacommand("EXPORT QUERY <<select 1;>> TO out/west.csv AS CSV", "x.sql", 4, DISPATCH_TABLE)
+    manifest.record_metacommand("CONNECT TO SQLITE(FILE=o.db, NEW) AS other", "x.sql", 5, DISPATCH_TABLE)
+    manifest.record_metacommand("RM_FILE old.csv", "x.sql", 6, DISPATCH_TABLE)
+    manifest.record_metacommand("IMPORT TO t FROM in.csv", "x.sql", 7, DISPATCH_TABLE)
+    manifest.record_metacommand("NOT A METACOMMAND AT ALL", "x.sql", 8, DISPATCH_TABLE)
+    manifest.record_include("inc.sql", "x.sql", 9)
+    manifest.record_sql()
+    manifest.finish(1, RuntimeError("boom\nsecond line"))
+    data = json.loads((tmp_path / "m.json").read_text())
+    assert data["statements"] == {"sql": 1, "metacommands": 5}
+    assert data["files_written"] == [{"source": "x.sql", "line": 4, "by": "EXPORT QUERY", "path": "out/west.csv"}]
+    assert data["connections"][0]["target"] == "other: o.db"
+    assert data["files_deleted"][0]["path"] == "old.csv"
+    assert [f["path"] for f in data["files_read"]] == ["in.csv", "inc.sql"]
+    assert data["errors"][0]["message"] == "boom second line"
+    assert data["exit_status"] == 1

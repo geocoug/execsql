@@ -625,6 +625,7 @@ def _run(
     ping_may_create_db: bool = True,
     named_vars: list[tuple[str, str]] | None = None,
     manifest_path: str | None = None,
+    shell: bool = False,
 ) -> None:
     """Initialise state, connect to the database, load the script, and run it.
 
@@ -641,6 +642,10 @@ def _run(
     *ping_may_create_db* to ``False`` so that neither ``-n`` nor
     ``new_db = yes`` in a config file can make a ping create a database; the
     ``--ping`` alias on ``run`` keeps its original behavior.
+
+    With *shell*, no script is read: after the same setup a run gets, the
+    interactive loop in :mod:`execsql.shell` runs instead. When nothing names
+    a database, the shell opens an in-memory SQLite database.
     """
     import execsql.state as _state
 
@@ -694,7 +699,9 @@ def _run(
     # ------------------------------------------------------------------
     # Positional arguments → server/db/db_file
     # ------------------------------------------------------------------
-    _route_positionals(positional, conf, command=command, ping=ping)
+    _route_positionals(positional, conf, command=command, ping=ping or shell)
+    if shell and conf.db_type == "l" and not (conf.db_file or conf.server or conf.db):
+        conf.db_file = ":memory:"
 
     # ------------------------------------------------------------------
     # Script substitution variables that depend on the script path
@@ -861,6 +868,15 @@ def _run(
 
     if no_serve:
         conf.allow_serve = False
+
+    if shell:
+        from execsql.shell import run_shell
+
+        run_shell()
+        # Each statement was committed as it ran; leave the rest as a
+        # completed script would, rather than rolling back at exit.
+        _state.dbs.do_rollback = False
+        return
 
     if _ast_tree is not None:
         _execute_script_ast(_ast_tree, conf, profile=profile, profile_limit=profile_limit)

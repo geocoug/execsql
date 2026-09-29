@@ -574,6 +574,11 @@ def _run_sql(sql: str) -> None:
         _write(f"  {_c(_RED, 'SQL error:')} {exc}\n")
         return
 
+    _print_table(colnames, rows)
+
+
+def _print_table(colnames: list[str], rows: list[Any]) -> None:
+    """Print query results as a boxed text table, NULLs dimmed; shared with ``execsql shell``."""
     if not colnames:
         _write("  (query returned no columns)\n")
         return

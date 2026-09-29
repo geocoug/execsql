@@ -6,10 +6,11 @@
 
 ## Commands { #commands }
 
-*execsql* is eight commands behind one program. Only `run` and `ping` connect to a database:
+*execsql* is nine commands behind one program. Only `run`, `shell` and `ping` connect to a database:
 
 ```text
 execsql run    [OPTIONS] SQL_SCRIPT [SERVER DATABASE | DATABASE_FILE]
+execsql shell  [OPTIONS] [SERVER DATABASE | DATABASE_FILE]
 execsql format [--check | -i] [--indent N] FILE_OR_DIR...
 execsql lint   [OPTIONS] FILE_OR_DIR...
 execsql inspect SQL_SCRIPT [-f NAME] [--output-format text|json]
@@ -22,6 +23,7 @@ execsql init   [DIR] [--script NAME | --no-script] [--no-config] [--no-pre-commi
 | Command   | Purpose                                                                                                                             |
 | --------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | `run`     | Execute a script against a database. The default when no command is given.                                                          |
+| `shell`   | An interactive session for SQL and metacommands; an in-memory SQLite database when none is named.                                   |
 | `format`  | Normalize metacommand keywords, block indentation, and SQL layout. `fmt` works too.                                                 |
 | `lint`    | Static analysis without a database. Exits 1 when any error is found.                                                                |
 | `inspect` | Show what a script needs and touches — outside values, includes, files read, written and deleted, connections — without running it. |
@@ -50,10 +52,54 @@ once per invocation, not from each script's directory.
     deprecation and none is planned.
 
     The one exception is a script named exactly like a command — `run`,
-    `format`, `fmt`, `lint`, `inspect`, `ping`, `config`, `list` or `init`, with no extension.
+    `shell`, `format`, `fmt`, `lint`, `inspect`, `ping`, `config`, `list` or `init`, with no extension.
     A command name always selects the command, so run such a script with
     `execsql run lint` or `execsql ./lint`. Names with an extension, such as
     `lint.sql`, are never ambiguous.
+
+### shell { #shell }
+
+```text
+execsql shell [OPTIONS] [SERVER DATABASE | DATABASE_FILE]
+```
+
+An interactive session for SQL and metacommands, with the same connection
+options as `run` (`-t`, `--dsn`, `-u`, `-p`, `-w`, `-n`, `--config`). When nothing
+names a database — no argument, no `--dsn`, nothing in a config file — it opens
+an in-memory SQLite database, a scratchpad for trying metacommands.
+
+```text
+$ execsql shell
+execsql shell — SQLite an in-memory SQLite database (nothing is saved)
+  SQL ends with ;. .help for commands, .quit to leave.
+execsql> create table t (id integer, name text);
+execsql> insert into t values (1, 'a'), (2, 'b');
+  (2 rows affected)
+execsql> !x! sub who world
+execsql> select name, '!!who!!' as greeting from t;
+  +------+----------+
+  | name | greeting |
+  +------+----------+
+  | a    | world    |
+  | b    | world    |
+  +------+----------+
+  (2 rows)
+```
+
+- **SQL** ends with `;` and may span lines. Variables are substituted first, as
+    in a script; `SELECT` results are shown as a table; each statement is committed
+    unless a `BEGIN BATCH` is open.
+- **Metacommands** are typed as in a script, `-- !x! EXPORT …`, or as `!x! EXPORT …`.
+- **Blocks** — `IF` … `ENDIF`, `LOOP` … `END LOOP`, `BEGIN BATCH` … `END BATCH`,
+    `BEGIN SCRIPT` … `END SCRIPT` — keep the prompt open until closed. A `SCRIPT`
+    defined in one input can be run with `EXECUTE SCRIPT` in a later one.
+- **Shell commands** start with `.`: `.vars [VAR]`, `.set VAR VALUE`, `.cancel`,
+    `.help`, `.quit` (or Ctrl-D).
+- A missing SQLite or DuckDB file is an error unless `-n` is given, as for `run`.
+    `HALT` ends the shell with its exit status.
+
+When stdin is not a terminal, lines are read without prompts, so a session can
+be piped in: `execsql shell data.db < session.sql`.
 
 ### inspect { #inspect }
 

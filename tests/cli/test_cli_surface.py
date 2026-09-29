@@ -78,6 +78,19 @@ SURFACE: dict[str, dict[str, object]] = {
             "-o --online-help",
         },
     },
+    "shell": {
+        "arguments": ["[SERVER DATABASE | DATABASE_FILE]"],
+        "options": {
+            "--config",
+            "--dsn --connection-string",
+            "-n --new-db",
+            "-p --port",
+            "-t --type",
+            "-u --user",
+            "-w --no-passwd",
+        },
+        "hidden": set(),
+    },
     "format": {
         "arguments": ["FILE_OR_DIR..."],
         "options": {
