@@ -127,6 +127,11 @@ SURFACE: dict[str, dict[str, object]] = {
         "options": {"--output-format"},
         "hidden": set(),
     },
+    "init": {
+        "arguments": ["[DIR]"],
+        "options": {"--force", "--no-config", "--no-pre-commit", "--no-script", "--script"},
+        "hidden": set(),
+    },
 }
 
 #: Commands that exist but are not listed in ``execsql --help``.

@@ -27,15 +27,16 @@
 
 Scripts are ordinary SQL plus metacommands embedded in comments (`-- !x!`), which add importing and exporting data, copying between databases, conditional execution, looping, substitution variables, and interactive prompts. Because the metacommands live in comments, the scripts stay valid SQL and other tools — `psql`, `sqlcmd`, your editor — ignore them.
 
-| Command                                    | What it does                                                  | Needs a database? |
-| ------------------------------------------ | ------------------------------------------------------------- | ----------------- |
-| `execsql format`                           | Normalize keywords, indentation, and SQL layout               | No                |
-| `execsql lint`                             | Static analysis: structure, undefined variables, bad targets  | No                |
-| `execsql run`                              | Run the script against PostgreSQL, MySQL, SQLite, DuckDB, …   | Yes               |
-| `execsql ping`                             | Test a database connection and print the server version       | Yes               |
-| `execsql config`                           | Show every config option, its value, and the file that set it | No                |
-| `execsql list`                             | Metacommands, encodings, plugins, or the keyword vocabulary   | No                |
-| [VS Code extension](extras/vscode-execsql) | Syntax highlighting for metacommands and variables            | No                |
+| Command                                    | What it does                                                            | Needs a database? |
+| ------------------------------------------ | ----------------------------------------------------------------------- | ----------------- |
+| `execsql format`                           | Normalize keywords, indentation, and SQL layout                         | No                |
+| `execsql lint`                             | Static analysis: structure, undefined variables, bad targets            | No                |
+| `execsql run`                              | Run the script against PostgreSQL, MySQL, SQLite, DuckDB, …             | Yes               |
+| `execsql ping`                             | Test a database connection and print the server version                 | Yes               |
+| `execsql config`                           | Show every config option, its value, and the file that set it           | No                |
+| `execsql list`                             | Metacommands, encodings, plugins, or the keyword vocabulary             | No                |
+| `execsql init`                             | Set up a project: config file, a script with a header, pre-commit hooks | No                |
+| [VS Code extension](extras/vscode-execsql) | Syntax highlighting for metacommands and variables                      | No                |
 
 `format` and `lint` take files or directories; `fmt` is an alias for `format`.
 
@@ -127,6 +128,7 @@ execsql lint   [OPTIONS] FILE_OR_DIR...
 execsql ping   [OPTIONS] [SERVER DATABASE | DATABASE_FILE]
 execsql config [SQL_SCRIPT] [--init] [--config FILE]
 execsql list   metacommands|encodings|plugins|keywords
+execsql init   [DIR] [--script NAME] [--no-script] [--no-config] [--no-pre-commit]
 
 execsql [OPTIONS] SQL_SCRIPT [SERVER DATABASE | DATABASE_FILE]   # original form, unchanged
 ```

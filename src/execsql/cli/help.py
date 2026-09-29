@@ -17,6 +17,7 @@ __all__ = [
     "_encoding_names",
     "_err_console",
     "_init_config",
+    "_init_config_text",
     "_keywords_data",
     "_metacommand_rows",
     "_plugins_data",
@@ -91,13 +92,18 @@ _SKIP_FROM_DISPATCH = {
 }
 
 
+def _init_config_text() -> str:
+    """The default execsql.conf template, every option commented out and documented."""
+    import importlib.resources
+
+    return importlib.resources.files("execsql.data").joinpath("execsql.conf.template").read_text(encoding="utf-8")
+
+
 def _init_config() -> None:
     """Print the default execsql.conf template to stdout."""
-    import importlib.resources
     import sys
 
-    template = importlib.resources.files("execsql.data").joinpath("execsql.conf.template").read_text(encoding="utf-8")
-    sys.stdout.write(template)
+    sys.stdout.write(_init_config_text())
 
 
 def _metacommand_rows() -> list[tuple[str, str]]:

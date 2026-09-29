@@ -11,3 +11,4 @@ from execsql.cli.commands import lint  # noqa: F401
 from execsql.cli.commands import ping  # noqa: F401
 from execsql.cli.commands import config  # noqa: F401
 from execsql.cli.commands import listing  # noqa: F401
+from execsql.cli.commands import init  # noqa: F401

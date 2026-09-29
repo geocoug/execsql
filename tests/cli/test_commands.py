@@ -42,11 +42,11 @@ def _invoke(*args: str):
 
 
 class TestCommandSet:
-    def test_help_lists_the_six_commands_in_order(self):
+    def test_help_lists_the_commands_in_order(self):
         out = _invoke("--help").output
         section = out[out.index("Commands:") :]
         names = [line.split()[0] for line in section.splitlines()[1:] if line.strip()]
-        assert names == ["run", "format", "lint", "ping", "config", "list"]
+        assert names == ["run", "format", "lint", "ping", "config", "list", "init"]
 
     @pytest.mark.parametrize(
         "flag",

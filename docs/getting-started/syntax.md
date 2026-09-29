@@ -6,7 +6,7 @@
 
 ## Commands { #commands }
 
-*execsql* is six commands behind one program. Only `run` and `ping` connect to a database:
+*execsql* is seven commands behind one program. Only `run` and `ping` connect to a database:
 
 ```text
 execsql run    [OPTIONS] SQL_SCRIPT [SERVER DATABASE | DATABASE_FILE]
@@ -15,6 +15,7 @@ execsql lint   [OPTIONS] FILE_OR_DIR...
 execsql ping   [OPTIONS] [SERVER DATABASE | DATABASE_FILE]
 execsql config [SQL_SCRIPT] [--init] [--config FILE]
 execsql list   metacommands|encodings|plugins|keywords
+execsql init   [DIR] [--script NAME | --no-script] [--no-config] [--no-pre-commit] [--force]
 ```
 
 | Command  | Purpose                                                                                    |
@@ -25,6 +26,7 @@ execsql list   metacommands|encodings|plugins|keywords
 | `ping`   | Test a database connection and print the server version.                                   |
 | `config` | List every config option with its value, default and source; `--init` prints the template. |
 | `list`   | Print metacommands, encoding names, installed plugins, or the full keyword vocabulary.     |
+| `init`   | Set up a project: `execsql.conf`, a script with a header, and the pre-commit hooks.        |
 
 `format` and `lint` accept files or directories; directories are searched
 recursively for `*.sql`, and `-` reads one script from stdin. A CI job runs them
@@ -46,7 +48,7 @@ once per invocation, not from each script's directory.
     deprecation and none is planned.
 
     The one exception is a script named exactly like a command — `run`,
-    `format`, `fmt`, `lint`, `ping`, `config` or `list`, with no extension.
+    `format`, `fmt`, `lint`, `ping`, `config`, `list` or `init`, with no extension.
     A command name always selects the command, so run such a script with
     `execsql run lint` or `execsql ./lint`. Names with an extension, such as
     `lint.sql`, are never ambiguous.
@@ -162,6 +164,40 @@ execsql list metacommands|encodings|plugins|keywords [--output-format text|json]
 
 With `--output-format json`, `keywords` prints the JSON that editor tooling
 such as the VS Code grammar generator reads.
+
+### init { #init }
+
+```text
+execsql init [DIR] [--script NAME | --no-script] [--no-config] [--no-pre-commit] [--force]
+```
+
+Sets up execsql in `DIR` (default: the current directory, created if missing):
+
+| File                           | Content                                                                              | Skip with         |
+| ------------------------------ | ------------------------------------------------------------------------------------ | ----------------- |
+| `execsql.conf`                 | The commented template, as `execsql config --init` prints it                         | `--no-config`     |
+| `main.sql`, or `--script NAME` | A header: PURPOSE, NOTES, PROJECT, COPYRIGHT, AUTHORS, and HISTORY with today's date | `--no-script`     |
+| `.pre-commit-config.yaml`      | The `execsql-format` and `execsql-lint` hooks at this version                        | `--no-pre-commit` |
+
+```text
+$ execsql init warehouse --script load
+  created     warehouse/execsql.conf
+  created     warehouse/load.sql
+  created     warehouse/.pre-commit-config.yaml
+```
+
+Existing files are never changed unless `--force` is given, and even then
+`.pre-commit-config.yaml` is only ever added to: if it exists without the
+execsql hooks, they are appended under `repos:` in the file's own
+indentation, or — when `repos:` is not the file's last key — printed for you to
+add by hand. `.sql` is added to a `--script` name without one, and folders in it
+are created. To add a script to an existing project:
+
+```sh
+execsql init --no-config --no-pre-commit --script scripts/transform.sql
+```
+
+The new script passes the `execsql-format` and `execsql-lint` hooks as written.
 
 ### Help and color { #help_color }
 
