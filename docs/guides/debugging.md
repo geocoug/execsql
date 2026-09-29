@@ -53,33 +53,44 @@ On entry, the REPL prints a horizontal rule with the label (`Breakpoint` or `Ste
 execsql debug>
 ```
 
-**Available commands:**
+**What you type runs as if it were the next lines of the script.** The REPL uses the same engine as [`execsql shell`](../getting-started/syntax.md#shell), and input runs where the script paused: in its variable scope, its transaction and its loop.
 
-| Command         | Shortcut | Description                                                               |
-| --------------- | -------- | ------------------------------------------------------------------------- |
-| `.continue`     | `.c`     | Resume script execution                                                   |
-| `.quit`         | `.q`     | Halt the script (exit 1). `.abort` is accepted as an alias.               |
-| `.vars`         | `.v`     | List all execsql substitution variables                                   |
-| `.vars VAR`     | `.v VAR` | Print the value of one variable (e.g. `.vars logfile`, `.vars $ARG_1`)    |
-| `.next`         | `.n`     | Execute the next statement, then pause again (step mode)                  |
-| `.where`        | `.w`     | Re-display the current script location and upcoming statement             |
-| `.stack`        |          | Show the command-list stack (script name, cursor position, nesting depth) |
-| `.set VAR VAL`  | `.s`     | Set or update a substitution variable                                     |
-| `.scripts`      |          | List all registered SCRIPT definitions with parameters and source         |
-| `.scripts NAME` |          | Show detail for a specific SCRIPT (parameters, source file/line range)    |
-| `.cancel`       |          | Discard the current partial multi-line SQL buffer (also Ctrl-C / EOF)     |
-| `.help`         | `.h`     | Show available commands                                                   |
+- **SQL** ends with `;` and may span lines; the prompt changes to `...>` until the statement is complete. Variables are substituted, as in the script. Rows print as a table; `INSERT` / `UPDATE` / `DELETE` print `(N rows affected)`; DDL and transaction control print `(statement executed)`.
+- **Metacommands** are typed as in the script (`-- !x! SUB count 10`) or without the comment marker (`!x! SUB count 10`).
+- **Blocks** (`IF` … `ENDIF`, `LOOP` … `END LOOP`, `BEGIN BATCH` … `END BATCH`, `BEGIN SCRIPT` … `END SCRIPT`) keep the prompt reading until they are closed, then run as a whole.
 
-**Dispatch is two-way** (changed in 2.19.0): input starting with `.` is a REPL command, everything else is SQL. There is no bare-name variable lookup — use `.vars VAR` to print a single variable.
+Because input runs inside the paused script, it changes what the script sees after `.continue`:
 
-**SQL execution:**
+| You type at the breakpoint        | Effect on the script                                                                  |
+| --------------------------------- | ------------------------------------------------------------------------------------- |
+| `!x! SUB threshold 50`            | `!!threshold!!` is 50 for the rest of the run                                         |
+| `select '!!~counter!!';`          | Reads the paused SCRIPT's `~local` and `#param` variables                             |
+| `insert into staging values (1);` | Committed as the script's own SQL would be: now, unless `AUTOCOMMIT OFF` or a batch   |
+| `!x! USE other_db`                | The script continues against `other_db`                                               |
+| `!x! BREAK`                       | Inside a `LOOP` (or a looping `EXECUTE SCRIPT`), leaves that loop, as a `BREAK` would |
+| `!x! HALT`                        | Ends the run                                                                          |
 
-- Input is buffered as SQL until a line ends with `;`, at which point the buffered statement is sent to the live connection. Multi-line statements are accepted; the prompt switches to a continuation indicator while a partial statement is being entered.
-- `SELECT` (and other row-returning statements) print the result rows in tabular form.
-- DML (`INSERT` / `UPDATE` / `DELETE`) prints `(N rows affected)`.
-- DDL and transaction-control statements (`CREATE`, `DROP`, `BEGIN`, `COMMIT`, `ROLLBACK`, …) print `(statement executed)`.
-- A SQL error prints the database error inline and returns to the prompt — the REPL session is not terminated.
-- `.cancel` (or Ctrl-C / EOF mid-statement) discards a partial buffer without executing it.
+**Errors end only the input that caused them.** A SQL or metacommand error that would halt the script is printed, and the prompt reads the next input; `ON ERROR_HALT` actions do not run. `HALT` and `.quit` still end the run.
+
+**Transactions follow the script's rules.** Each SQL statement is committed as it runs unless `AUTOCOMMIT OFF` is in effect or the breakpoint is inside `BEGIN BATCH`. The prompt then reads `execsql debug*>`, so you can see that what you type is not committed yet.
+
+**Commands to the REPL** start with `.`:
+
+| Command           | Shortcut | Description                                                               |
+| ----------------- | -------- | ------------------------------------------------------------------------- |
+| `.continue`       | `.c`     | Resume script execution                                                   |
+| `.next`           | `.n`     | Execute the next statement, then pause again (step mode)                  |
+| `.quit`           | `.q`     | Halt the script (exit 1). `.abort` is accepted as an alias.               |
+| `.where`          | `.w`     | Re-display the current script location and upcoming statement             |
+| `.stack`          |          | Show the execution stack (scripts, includes, IF/LOOP/BATCH blocks)        |
+| `.vars`           | `.v`     | List substitution variables; `.vars all` adds environment (`&`) variables |
+| `.vars VAR`       | `.v VAR` | Print the value of one variable (e.g. `.vars logfile`, `.vars $ARG_1`)    |
+| `.set VAR VAL`    | `.s`     | Set or update a substitution variable                                     |
+| `.scripts [NAME]` |          | List SCRIPT definitions, or show one (parameters, source lines)           |
+| `.cancel`         |          | Discard a statement or block you are typing (also Ctrl-C / Ctrl-D)        |
+| `.help`           | `.h`     | Show available commands                                                   |
+
+`.vars`, `.set`, `.scripts` and `.cancel` work the same way in `execsql shell`. Ctrl-D or Ctrl-C at an empty prompt resumes the script.
 
 The `--debug` CLI flag starts execution in step mode, pausing before every statement.
 

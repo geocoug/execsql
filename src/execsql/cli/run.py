@@ -873,8 +873,8 @@ def _run(
         from execsql.shell import run_shell
 
         run_shell()
-        # Each statement was committed as it ran; leave the rest as a
-        # completed script would, rather than rolling back at exit.
+        # Close connections as a finished script does. Work not committed
+        # under AUTOCOMMIT OFF is discarded as they close; run_shell said so.
         _state.dbs.do_rollback = False
         return
 

@@ -86,17 +86,27 @@ execsql> select name, '!!who!!' as greeting from t;
   (2 rows)
 ```
 
+The session is a script you type one input at a time, and each input runs as
+its next lines. The [debug REPL](../guides/debugging.md#interactive-debug-repl-breakpoint)
+a `BREAKPOINT` opens uses the same engine, so what works here works there.
+
 - **SQL** ends with `;` and may span lines. Variables are substituted first, as
-    in a script; `SELECT` results are shown as a table; each statement is committed
-    unless a `BEGIN BATCH` is open.
+    in a script; `SELECT` results are shown as a table.
 - **Metacommands** are typed as in a script, `-- !x! EXPORT …`, or as `!x! EXPORT …`.
 - **Blocks** — `IF` … `ENDIF`, `LOOP` … `END LOOP`, `BEGIN BATCH` … `END BATCH`,
     `BEGIN SCRIPT` … `END SCRIPT` — keep the prompt open until closed. A `SCRIPT`
-    defined in one input can be run with `EXECUTE SCRIPT` in a later one.
-- **Shell commands** start with `.`: `.vars [VAR]`, `.set VAR VALUE`, `.cancel`,
-    `.help`, `.quit` (or Ctrl-D).
+    defined in one input can be run with `EXECUTE SCRIPT` in a later one, and
+    `~local` variables last for the whole session.
+- **Transactions** follow script rules: each statement is committed as it runs
+    unless `AUTOCOMMIT OFF` is in effect. The prompt then reads `execsql*>`; end
+    the work with `COMMIT;` or `ROLLBACK;`. Leaving the shell with work not
+    committed says so, and that work is rolled back.
+- **Errors** end only the input that caused them: the error is printed and the
+    prompt reads the next input. An error inside an `INCLUDE`d file says which
+    line of which file. `HALT` ends the shell with its exit status.
+- **Shell commands** start with `.`: `.vars [VAR | all]`, `.set VAR VALUE`,
+    `.scripts [NAME]`, `.cancel`, `.help`, `.quit` (or Ctrl-D).
 - A missing SQLite or DuckDB file is an error unless `-n` is given, as for `run`.
-    `HALT` ends the shell with its exit status.
 
 When stdin is not a terminal, lines are read without prompts, so a session can
 be piped in: `execsql shell data.db < session.sql`.

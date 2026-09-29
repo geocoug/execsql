@@ -65,6 +65,37 @@ class TestSession:
         assert "| five |" in result.stdout
         assert result.returncode == 0
 
+    def test_local_variables_last_from_one_input_to_the_next(self, work):
+        result = _shell(work, "-- !x! sub ~colour blue\nselect '!!~colour!!' as colour;\n")
+        assert "| blue   |" in result.stdout
+
+    def test_a_metacommand_error_does_not_end_the_session(self, work):
+        result = _shell(work, '-- !x! frobnicate\n-- !x! write "still here"\n')
+        assert "Unknown metacommand: frobnicate" in result.stdout
+        assert "still here" in result.stdout
+
+    def test_break_outside_a_loop_is_an_error(self, work):
+        result = _shell(work, "-- !x! break\nselect 1 as one;\n")
+        assert "BREAK metacommand outside of a LOOP block." in result.stdout
+        assert "| one |" in result.stdout
+
+    def test_an_included_file_shows_its_results_and_where_it_failed(self, work):
+        (work / "part.sql").write_text("select 3 as three;\nselect * from missing;\n", encoding="utf-8")
+        result = _shell(work, "-- !x! include part.sql\n")
+        assert "| three |" in result.stdout
+        assert "no such table: missing (line 2 of " in result.stdout
+
+    def test_leaving_with_autocommit_off_says_what_is_lost(self, work):
+        session = "create table k (x integer);\n-- !x! autocommit off\ninsert into k values (1);\n"
+        result = _shell(work, session, "-tl", "k.db", "-n")
+        assert "Not committed: AUTOCOMMIT is OFF" in result.stdout
+        assert sqlite3.connect(work / "k.db").execute("select count(*) from k").fetchone() == (0,)
+
+    def test_commit_keeps_work_done_with_autocommit_off(self, work):
+        session = "create table k (x integer);\n-- !x! autocommit off\ninsert into k values (1);\ncommit;\n"
+        _shell(work, session, "-tl", "k.db", "-n")
+        assert sqlite3.connect(work / "k.db").execute("select count(*) from k").fetchone() == (1,)
+
     def test_unfinished_block_at_end_of_input_is_not_run(self, work):
         result = _shell(work, '-- !x! if (true)\n-- !x! write "never"\n')
         assert "never" not in result.stdout
@@ -80,11 +111,15 @@ class TestDotCommands:
         result = _shell(work, 'select 1;\n.quit\n-- !x! write "not reached"\n')
         assert "not reached" not in result.stdout
 
+    def test_scripts(self, work):
+        result = _shell(work, "-- !x! begin script greet\n-- !x! end script\n.scripts\n")
+        assert "greet()" in result.stdout
+
     def test_help(self, work):
-        assert ".vars [VAR]" in _shell(work, ".help\n").stdout
+        assert ".vars [VAR | all]" in _shell(work, ".help\n").stdout
 
     def test_unknown_command(self, work):
-        assert "Unknown command .nope" in _shell(work, ".nope\n").stdout
+        assert "Unknown command: '.nope'" in _shell(work, ".nope\n").stdout
 
 
 class TestDatabases:
@@ -190,7 +225,7 @@ class TestInProcess:
             ".set colour blue\n"
             ".vars colour\n"
             ".vars\n"
-            ".set nothing\n"
+            ".set\n"
             ".nope\n"
             ".help\n"
         )
@@ -198,7 +233,7 @@ class TestInProcess:
         assert "| 42     |" in out
         assert "colour = blue" in out
         assert "Usage: .set VAR VALUE" in out
-        assert "Unknown command .nope" in out
+        assert "Unknown command: '.nope'" in out
         assert ".quit" in out
 
     def test_errors_and_unfinished_input(self, in_process):
@@ -206,6 +241,16 @@ class TestInProcess:
         assert "SQL error:" in out
         assert "has no matching IF" in out
         assert "input ended inside an unfinished statement or block" in out
+
+    def test_local_variables_break_and_autocommit(self, in_process):
+        session = (
+            "-- !x! sub ~colour blue\nselect '!!~colour!!' as colour;\n-- !x! break\n.vars all\n-- !x! autocommit off\n"
+        )
+        out = in_process(session)
+        assert "| blue   |" in out
+        assert "BREAK metacommand outside of a LOOP block." in out
+        assert "Environment (&)" in out
+        assert "Not committed: AUTOCOMMIT is OFF" in out
 
     def test_quit(self, in_process):
         out = in_process("select 1 as one;\n.quit\nselect 2 as two;\n")

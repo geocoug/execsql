@@ -76,8 +76,10 @@ class TestBreakRegex:
 
 
 class TestBreakLoopException:
-    def test_is_exception_class(self) -> None:
-        assert issubclass(_BreakLoop, Exception)
+    def test_passes_except_exception_handlers(self) -> None:
+        # So a BREAK typed at a BREAKPOINT prompt reaches its loop.
+        assert issubclass(_BreakLoop, BaseException)
+        assert not issubclass(_BreakLoop, Exception)
         with pytest.raises(_BreakLoop):
             raise _BreakLoop
 

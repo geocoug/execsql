@@ -1,37 +1,21 @@
 from __future__ import annotations
 
-"""Interactive debug REPL metacommand handler for execsql.
+"""The debug REPL a ``BREAKPOINT`` (or ``run --debug``) opens.
 
-Implements ``x_breakpoint`` — the ``BREAKPOINT`` metacommand — which pauses
-script execution and drops into an interactive read-eval-print loop.
+Input runs as if it were written where the script paused, through the engine
+``execsql shell`` also uses (:mod:`execsql.interactive`): SQL (ending with
+``;``, results shown as tables), metacommands and blocks, in the paused
+script's variable scope and transaction. A ``SUB`` typed here is still set
+when the script resumes; a ``BREAK`` inside a LOOP leaves the loop; ``HALT``
+ends the run. An error ends only the input that caused it.
 
-The REPL allows the user to:
+Commands to the REPL itself start with ``.``: ``.continue`` and ``.next``
+resume the script, ``.where`` and ``.stack`` show where it paused, ``.quit``
+halts it; ``.vars``, ``.set``, ``.scripts`` and ``.cancel`` work as in the
+shell.
 
-- Inspect and print substitution variables.
-- Run ad-hoc SQL queries against the current database.
-- Step through the script one statement at a time.
-- Resume or abort execution.
-
-Dispatch is two-way (psql-style): input starting with ``.`` is a REPL
-command (``.continue``, ``.vars [VAR]``, ``.next``, etc.), everything
-else is SQL.  Multi-line SQL is supported: any non-``.`` input opens a
-buffer whose continuation prompt is ``  ...        > ``, accumulating
-until a line ends with ``;``.  ``.cancel`` (or Ctrl-C / EOF) discards
-the partial buffer.
-
-Variable lookup is explicit — ``.vars LOGFILE`` prints one variable;
-``.vars`` lists them all.  There is no bare-identifier lookup, so any
-SQL keyword you type starts a buffer the moment you press Enter.
-
-The trailing ``;`` is the SQL terminator both within one line and across
-multiple lines — the REPL has no read-only mode and DDL on most adapters
-is irreversible, so requiring ``;`` is a small intent gate against
-accidental DML/DDL on mistyped input.  Use SQL ``BEGIN; … ROLLBACK;`` to
-bracket exploratory DML if you need recoverability.
-
-Errors raised by any REPL helper — bad SQL, malformed dot-commands, etc. —
-are caught at the loop level so the session re-prompts instead of escaping
-through ``x_breakpoint`` and being stamped as a "Metacommand error".
+This module also holds the display helpers both prompts use (colors, tables,
+variable listings).
 
 In non-interactive environments (CI, piped input, ``sys.stdin.isatty()`` is
 ``False``) the metacommand is silently skipped so automated pipelines are not
@@ -43,6 +27,7 @@ from pathlib import Path
 from typing import Any
 
 import execsql.state as _state
+from execsql.interactive import Prompt, common_dot_command, read_eval_loop, unknown_dot_command
 from execsql.utils.color import color_disabled_by_env
 
 __all__ = ["x_breakpoint"]
@@ -123,18 +108,20 @@ _HELP_COMMANDS = [
     (".quit", ".q", "Halt the script (exit 1)"),
     (".vars", ".v", "List all execsql substitution variables"),
     (".vars VAR", ".v VAR", "Print the value of a single variable (e.g. .vars logfile)"),
+    (".vars all", "", "Also list environment (&) variables"),
     (".next", ".n", "Execute the next statement then pause again (step mode)"),
     (".where", ".w", "Show the current script location and upcoming statement"),
     (".stack", "", "Show the command-list stack (script name, line, depth)"),
     (".set VAR VAL", ".s", "Set or update a substitution variable"),
     (".scripts", "", "List all registered SCRIPT definitions"),
     (".scripts NAME", "", "Show detail for a specific SCRIPT"),
-    (".cancel", "", "Discard a partial multi-line SQL buffer"),
+    (".cancel", "", "Discard a statement or block you are typing"),
     (".help", ".h", "Show this help text"),
 ]
 
 _HELP_OTHER = [
-    ("SELECT ...;", "Run SQL — multi-line accepted, terminate with ';' to execute"),
+    ("SELECT ...;", "Run SQL, as the script would here; it may span lines and ends with ';'"),
+    ("-- !x! SUB ...", "Run a metacommand (!x! SUB ... works too); blocks stay open until closed"),
 ]
 
 _HELP_CMD_WIDTH = 13  # width of the command column
@@ -196,8 +183,8 @@ def _write_rule(label: str) -> None:
 def _debug_repl(*, step: bool = False) -> None:
     """Interactive read-eval-print loop for script debugging.
 
-    Reads commands from stdin until the user types ``.continue`` or ``.abort``,
-    or until EOF / KeyboardInterrupt.
+    Reads input until ``.continue``, ``.next`` or ``.quit``, or until Ctrl-D /
+    Ctrl-C on an empty line, which resume the script.
 
     Args:
         step: When ``True``, the entry banner says "Step" instead of
@@ -232,125 +219,37 @@ def _debug_repl(*, step: bool = False) -> None:
     _hint_c = _c(_DIM, "'.c'")
     _write(f"  Type {_hint_help} for commands, {_hint_c} to resume.\n\n")
 
-    sql_buffer: list[str] = []
-
-    while True:
-        prompt = "  ...        > " if sql_buffer else "execsql debug> "
-        try:
-            line = input(prompt).strip()
-        except EOFError:
-            if sql_buffer:
-                sql_buffer.clear()
-                _write("\n  (input discarded)\n")
-                continue
-            _write("\n")
-            return
-        except KeyboardInterrupt:
-            if sql_buffer:
-                sql_buffer.clear()
-                _write("\n  (input discarded)\n")
-                continue
-            _write("\n")
-            return
-
-        if not line:
-            continue
-
-        try:
-            if line.startswith("."):
-                cmd = line[1:].strip().lower()
-                if cmd == "cancel":
-                    if sql_buffer:
-                        sql_buffer.clear()
-                        _write("  (input discarded)\n")
-                    continue
-                _handle_dot_command(line)
-                if cmd in ("continue", "c"):
-                    return
-                if cmd in ("abort", "q", "quit"):
-                    return
-                if cmd in ("next", "n"):
-                    return
-                continue
-
-            if sql_buffer:
-                sql_buffer.append(line)
-                joined = " ".join(sql_buffer)
-                if joined.rstrip().endswith(";"):
-                    _run_sql(joined)
-                    sql_buffer.clear()
-                continue
-
-            if line.rstrip().endswith(";"):
-                _run_sql(line)
-                continue
-
-            sql_buffer.append(line)
-        except SystemExit:
-            raise
-        except KeyboardInterrupt:
-            sql_buffer.clear()
-            _write("\n  (interrupted)\n")
-            continue
-        except Exception as exc:
-            sql_buffer.clear()
-            _write(f"  {_c(_RED, 'Error:')} {exc}\n")
-            continue
+    read_eval_loop(_DebugPrompt(), interactive=True)
 
 
-def _handle_dot_command(line: str) -> None:
-    """Dispatch a dot-prefixed REPL command."""
-    # Strip the leading dot and normalize
-    cmd = line[1:].strip().lower()
+class _DebugPrompt(Prompt):
+    name = "execsql debug"
+    source = "<breakpoint>"
 
-    if cmd in ("continue", "c"):
-        return  # caller checks and returns from _debug_repl
-    elif cmd in ("abort", "q", "quit"):
+    def dot_command(self, command: str, argument: str, line: str) -> bool:
+        return _handle_dot_command(line)
+
+
+def _handle_dot_command(line: str) -> bool:
+    """Dispatch a ``.`` command; return ``False`` when the script should resume."""
+    command, _, argument = line.strip()[1:].partition(" ")
+    command = command.lower()
+    if command in ("continue", "c"):
+        return False
+    if command in ("abort", "q", "quit"):
         raise SystemExit(1)
-    elif cmd in ("help", "h"):
-        _write(_format_help())
-    elif cmd in ("vars", "v"):
-        _print_all_vars()
-    elif cmd.startswith("vars ") or cmd.startswith("v "):
-        rest = cmd.split(None, 1)[1].strip() if " " in cmd else ""
-        if rest:
-            _print_var(rest)
-        else:
-            _print_all_vars()
-    elif cmd in ("where", "w"):
-        _print_where()
-    elif cmd == "stack":
-        _print_stack()
-    elif cmd in ("next", "n"):
+    if command in ("next", "n"):
         _enable_step_mode()
-    elif cmd.startswith("set ") or cmd == "set":
-        # .set VAR VAL — set or update a substitution variable
-        rest = cmd[4:].strip() if cmd.startswith("set ") else ""
-        if not rest:
-            _write("  Usage: .set VAR VALUE\n")
-        else:
-            parts = rest.split(None, 1)
-            varname = parts[0]
-            value = parts[1] if len(parts) > 1 else ""
-            _set_var(varname, value)
-    elif cmd.startswith("s ") or cmd == "s":
-        # .s VAR VAL — shorthand for .set
-        rest = cmd[2:].strip() if cmd.startswith("s ") else ""
-        if not rest:
-            _write("  Usage: .s VAR VALUE\n")
-        else:
-            parts = rest.split(None, 1)
-            varname = parts[0]
-            value = parts[1] if len(parts) > 1 else ""
-            _set_var(varname, value)
-    elif cmd.startswith("scripts"):
-        rest = cmd[7:].strip()
-        if rest:
-            _print_script_detail(rest)
-        else:
-            _print_scripts()
-    else:
-        _write(f"  {_c(_RED, 'Unknown command:')} {line!r}. Type '.help' for available commands.\n")
+        return False
+    if command in ("help", "h"):
+        _write(_format_help())
+    elif command in ("where", "w"):
+        _print_where()
+    elif command == "stack":
+        _print_stack()
+    elif not common_dot_command(command, argument.strip(), line):
+        unknown_dot_command(line)
+    return True
 
 
 # ---------------------------------------------------------------------------
@@ -529,52 +428,6 @@ def _print_stack() -> None:
             src = _c(_DIM, f"  {src_name}:{frame.line}" if frame.line else f"  {src_name}")
         _write(f"  [{depth}] {desc}{src}\n")
     _write("\n")
-
-
-def _run_sql(sql: str) -> None:
-    """Execute ad-hoc SQL and pretty-print results or affected rowcount."""
-    dbs = _state.dbs
-    if dbs is None:
-        _write("  (no database connection is active)\n")
-        return
-    db = dbs.current()
-    if db is None:
-        _write("  (no database connection is active)\n")
-        return
-
-    try:
-        with db._cursor() as curs:
-            try:
-                curs.execute(sql)
-            except Exception as exc:
-                try:
-                    db.rollback()
-                except Exception:
-                    pass
-                _write(f"  {_c(_RED, 'SQL error:')} {exc}\n")
-                return
-
-            try:
-                _state.subvars.add_substitution("$LAST_ROWCOUNT", curs.rowcount)
-            except Exception:
-                pass
-
-            if curs.description is None:
-                rowcount = curs.rowcount if curs.rowcount is not None else -1
-                if rowcount >= 0:
-                    row_word = "row" if rowcount == 1 else "rows"
-                    _write(f"  {_c(_DIM, f'({rowcount} {row_word} affected)')}\n")
-                else:
-                    _write(f"  {_c(_DIM, '(statement executed)')}\n")
-                return
-
-            colnames = [d[0] for d in curs.description]
-            rows = curs.fetchall()
-    except Exception as exc:
-        _write(f"  {_c(_RED, 'SQL error:')} {exc}\n")
-        return
-
-    _print_table(colnames, rows)
 
 
 def _print_table(colnames: list[str], rows: list[Any]) -> None:

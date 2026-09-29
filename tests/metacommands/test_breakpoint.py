@@ -40,7 +40,6 @@ from execsql.debug.repl import (
     _print_stack,
     _print_var,
     _print_where,
-    _run_sql,
     _set_var,
     _reset_color_cache,
     _use_color,
@@ -394,105 +393,6 @@ class TestPrintStack:
         combined = "".join(written)
         assert "my_script.sql" in combined
         assert "<main>" in combined
-
-
-# ---------------------------------------------------------------------------
-# _run_sql
-# ---------------------------------------------------------------------------
-
-
-class TestRunSql:
-    """_run_sql executes SQL and pretty-prints results."""
-
-    def test_no_db_connection(self) -> None:
-        written: list[str] = []
-        with (
-            patch.object(_state, "dbs", None),
-            patch("execsql.debug.repl._write", side_effect=written.append),
-        ):
-            _run_sql("SELECT 1;")
-        assert any("no database connection" in s for s in written)
-
-    def _wire_db(self, description=None, fetchall=None, rowcount=0, execute_raises=None):
-        cursor = MagicMock()
-        cursor.description = description
-        cursor.rowcount = rowcount
-        if fetchall is not None:
-            cursor.fetchall.return_value = fetchall
-        if execute_raises is not None:
-            cursor.execute.side_effect = execute_raises
-        db = MagicMock()
-        cm = MagicMock()
-        cm.__enter__.return_value = cursor
-        cm.__exit__.return_value = False
-        db._cursor.return_value = cm
-        dbs = MagicMock()
-        dbs.current.return_value = db
-        return db, dbs, cursor
-
-    def test_sql_error(self) -> None:
-        _, dbs, _ = self._wire_db(execute_raises=Exception("syntax error"))
-        written: list[str] = []
-        with (
-            patch.object(_state, "dbs", dbs),
-            patch("execsql.debug.repl._write", side_effect=written.append),
-        ):
-            _run_sql("INVALID;")
-        assert any("SQL error" in s for s in written)
-        assert any("syntax error" in s for s in written)
-
-    def test_pretty_print_results(self) -> None:
-        _, dbs, _ = self._wire_db(
-            description=[("id",), ("name",)],
-            fetchall=[[1, "Alice"], [2, "Bob"]],
-            rowcount=2,
-        )
-        written: list[str] = []
-        with (
-            patch.object(_state, "dbs", dbs),
-            patch("execsql.debug.repl._write", side_effect=written.append),
-        ):
-            _run_sql("SELECT id, name FROM users;")
-        combined = "".join(written)
-        assert "id" in combined
-        assert "name" in combined
-        assert "Alice" in combined
-        assert "Bob" in combined
-        assert "2 rows" in combined
-
-    def test_single_row_label(self) -> None:
-        _, dbs, _ = self._wire_db(description=[("val",)], fetchall=[[42]], rowcount=1)
-        written: list[str] = []
-        with (
-            patch.object(_state, "dbs", dbs),
-            patch("execsql.debug.repl._write", side_effect=written.append),
-        ):
-            _run_sql("SELECT 42;")
-        combined = "".join(written)
-        assert "1 row" in combined
-        assert "1 rows" not in combined
-
-    def test_null_value_displayed(self) -> None:
-        _, dbs, _ = self._wire_db(description=[("col",)], fetchall=[[None]], rowcount=1)
-        written: list[str] = []
-        with (
-            patch.object(_state, "dbs", dbs),
-            patch("execsql.debug.repl._write", side_effect=written.append),
-        ):
-            _run_sql("SELECT NULL;")
-        combined = "".join(written)
-        assert "NULL" in combined
-
-    def test_sql_executed_from_repl(self) -> None:
-        _, dbs, cursor = self._wire_db(description=[("n",)], fetchall=[[7]], rowcount=1)
-        written: list[str] = []
-        with (
-            patch("builtins.input", side_effect=["SELECT 7;", ".c"]),
-            patch.object(_state, "dbs", dbs),
-            patch("execsql.debug.repl._write", side_effect=written.append),
-        ):
-            _debug_repl()
-        cursor.execute.assert_called_once_with("SELECT 7;")
 
 
 # ---------------------------------------------------------------------------

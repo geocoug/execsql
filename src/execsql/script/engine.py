@@ -91,8 +91,9 @@ class MetaCommand:
                 raise
             except ErrInfo as errinf:
                 er = errinf
-            except Exception:
+            except Exception as exc:
                 er = ErrInfo("cmd", command_text=cmd_str, exception_msg=exception_desc())
+                er.__cause__ = exc
             if er:
                 if _state.status.halt_on_metacommand_err:
                     from execsql.utils.errors import exit_now

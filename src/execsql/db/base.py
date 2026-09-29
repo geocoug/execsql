@@ -46,6 +46,13 @@ def _default_dt_cast() -> dict[type, Callable]:
     }
 
 
+def _fetched(curs: Any) -> tuple[list[str], list] | None:
+    """The rows a just-executed cursor produced, as ``(column_names, rows)``; ``None`` if none."""
+    if curs.description is None:
+        return None
+    return [d[0] for d in curs.description], curs.fetchall()
+
+
 class Database(ABC):
     """Abstract base class for every DBMS adapter.
 
@@ -215,8 +222,11 @@ class Database(ABC):
         """Return a comma-separated string of *paramcount* parameter placeholders."""
         return ",".join((self.paramstr,) * paramcount)
 
-    def execute(self, sql: Any, paramlist: list | None = None) -> None:
+    def execute(self, sql: Any, paramlist: list | None = None, *, fetch: bool = False) -> tuple[list[str], list] | None:
         """Execute *sql* (optionally with *paramlist*), updating ``$LAST_ROWCOUNT``.
+
+        With *fetch*, return ``(column_names, rows)`` when the statement
+        produces rows (a prompt shows them), else ``None``.
 
         Rolls back the current transaction and re-raises on any driver error.
         """
@@ -232,6 +242,7 @@ class Database(ABC):
                     _state.subvars.add_substitution("$LAST_ROWCOUNT", curs.rowcount)
                 except Exception:
                     pass  # Non-critical: some drivers lack rowcount support.
+                return _fetched(curs) if fetch else None
         except Exception:
             try:
                 self.rollback()

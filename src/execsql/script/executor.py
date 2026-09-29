@@ -48,6 +48,7 @@ import re
 import time as _time
 from pathlib import Path
 from typing import Any, cast
+from collections.abc import Callable
 
 from execsql.exceptions import ErrInfo
 from execsql.script.ast import (
@@ -70,7 +71,7 @@ from execsql.script.variables import SubVarSet
 from execsql.state import ExecFrame, RuntimeContext, active_context, get_context, xcmd_test
 from execsql.utils.errors import exception_desc, exit_now, stamp_errinfo
 
-__all__ = ["execute"]
+__all__ = ["execute", "execute_input", "open_session"]
 
 
 # ---------------------------------------------------------------------------
@@ -257,19 +258,24 @@ def _exec_sql(
             f"Warning: There is a potential un-substituted variable in the command\n     {cmd}\n",
         )
     e = None
+    result = None
     try:
         db = dbs.current()
         if conf.log_sql and ctx.exec_log:
             ctx.exec_log.log_sql_query(cmd, db.name(), line_no)
-        db.execute(cmd)
+        if ctx.prompt_input is not None:
+            result = db.execute(cmd, fetch=True)
+        else:
+            db.execute(cmd)
         if commit:
             db.commit()
     except ErrInfo as errinfo:
         e = errinfo
     except SystemExit:
         raise
-    except Exception:
+    except Exception as exc:
         e = ErrInfo(type="exception", exception_msg=exception_desc())
+        e.__cause__ = exc  # the driver's own message, which a prompt shows
     if e:
         stamp_errinfo(e)
         subvars.add_substitution("$LAST_ERROR", cmd)
@@ -282,6 +288,8 @@ def _exec_sql(
         status.error_history.append((source, line_no, cmd, e.errmsg()))
         return
     subvars.add_substitution("$LAST_SQL", cmd)
+    if ctx.prompt_input is not None:
+        ctx.prompt_input(result)
 
 
 # ---------------------------------------------------------------------------
@@ -327,8 +335,9 @@ def _exec_metacommand(
         e = errinfo
     except SystemExit:
         raise
-    except Exception:
+    except Exception as exc:
         e = ErrInfo(type="exception", exception_msg=exception_desc())
+        e.__cause__ = exc
     if e:
         stamp_errinfo(e)
         status.metacommand_error = True
@@ -892,8 +901,24 @@ def _execute_include_native(
 # ---------------------------------------------------------------------------
 
 
-class _BreakLoop(Exception):
-    """Raised by BREAK metacommand to exit the innermost loop."""
+class _BreakLoop(BaseException):
+    """Raised by BREAK metacommand to exit the innermost loop.
+
+    A ``BaseException``, like ``KeyboardInterrupt``, so the ``except
+    Exception`` handlers it may pass on its way to the loop leave it alone:
+    a BREAK typed at a BREAKPOINT prompt travels out through the BREAKPOINT
+    metacommand's handler.
+    """
+
+
+def _inside_loop(ctx: RuntimeContext) -> bool:
+    """Whether a BREAK at the current statement would leave a loop within its scope."""
+    for frame in reversed(ctx.ast_exec_stack):
+        if frame.kind in ("loop_while", "loop_until"):
+            return True
+        if frame.kind in ("script", "main"):
+            return frame.kind == "script" and frame.iteration > 0
+    return False
 
 
 _BREAK_RX = re.compile(r"^\s*BREAK\s*$", re.I)
@@ -1018,15 +1043,13 @@ def _node_cmd_text(node: Node) -> str:
 # ---------------------------------------------------------------------------
 
 
-def execute(script: Script, *, ctx: RuntimeContext | None = None, session: bool = False) -> None:
+def execute(script: Script, *, ctx: RuntimeContext | None = None) -> None:
     """Execute an AST-parsed script.
 
     Args:
         script: The parsed :class:`Script` tree to execute.
         ctx: The :class:`RuntimeContext` to use.  Defaults to the global
             context via :func:`get_context` if not provided.
-        session: *script* is one more input in a longer session (``execsql
-            shell``): SCRIPT blocks registered by earlier inputs are kept.
     """
     if ctx is None:
         ctx = get_context()
@@ -1036,8 +1059,7 @@ def execute(script: Script, *, ctx: RuntimeContext | None = None, session: bool 
     # it.  This gives full isolation without modifying 200+ handler
     # function signatures.
     with active_context(ctx):
-        if not session:
-            ctx.ast_scripts.clear()
+        ctx.ast_scripts.clear()
         ctx.include_chain.clear()
         ctx.ast_exec_stack.clear()
         ctx.last_command = None
@@ -1066,3 +1088,62 @@ def execute(script: Script, *, ctx: RuntimeContext | None = None, session: bool 
             ) from exc
         finally:
             _pop_frame(ctx)
+
+
+# ---------------------------------------------------------------------------
+# Input typed at a prompt
+# ---------------------------------------------------------------------------
+
+
+def open_session(source: str, *, ctx: RuntimeContext | None = None) -> None:
+    """Start a run whose script arrives one input at a time (``execsql shell``).
+
+    Does what :func:`execute` does before running a script, and pushes the
+    ``<main>`` scope frame that every later :func:`execute_input` shares, so
+    ``~local`` variables and SCRIPT blocks last from one input to the next.
+    """
+    if ctx is None:
+        ctx = get_context()
+    with active_context(ctx):
+        ctx.ast_scripts.clear()
+        ctx.include_chain.clear()
+        ctx.ast_exec_stack.clear()
+        ctx.last_command = None
+        set_static_system_vars(ctx)
+        _push_frame(ctx, "<main>", source, line_no=1, kind="main")
+
+
+def execute_input(
+    script: Script,
+    show: Callable[[tuple[list[str], list] | None], None],
+    *,
+    ctx: RuntimeContext | None = None,
+) -> None:
+    """Run input typed at a prompt as the next lines of the run in progress.
+
+    In ``execsql shell`` the run is the session :func:`open_session` began.
+    At a BREAKPOINT it is the paused script, and the input runs as if it were
+    written where the script paused: in its variable scope, its batch and its
+    loop, so a BREAK leaves that loop.  Unlike :func:`execute`, nothing is
+    reset.
+
+    *show* receives the result of each SQL statement run.  An error that
+    would halt the run is raised to the caller instead (see ``exit_now``).
+    The paused script's current statement is restored afterwards, so the
+    debug REPL's ``.where`` still shows it.
+    """
+    if ctx is None:
+        ctx = get_context()
+    with active_context(ctx):
+        _pre_register_scripts(ctx, script.body)
+        last_command, prompt_input = ctx.last_command, ctx.prompt_input
+        ctx.prompt_input = show
+        try:
+            _execute_nodes(ctx, script.body, script.source)
+        except _BreakLoop as exc:
+            if not _inside_loop(ctx):
+                raise ErrInfo(type="cmd", other_msg="BREAK metacommand outside of a LOOP block.") from exc
+            raise
+        finally:
+            ctx.prompt_input = prompt_input
+            ctx.last_command = last_command
