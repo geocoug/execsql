@@ -16,6 +16,7 @@ import re
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
+from execsql.metacommands.effects import effects
 from execsql.script.ast import IncludeDirective, MetaCommandStatement, Script
 
 __all__ = ["Inspection", "Touch", "inspect_script"]
@@ -60,76 +61,6 @@ class Inspection:
         }
 
 
-#: Handler name → {regex group: role}. A role is "read", "write" or "delete".
-#: Groups not listed (passwords, encodings, prompts) are never reported.
-_FILE_ROLES: dict[str, dict[str, str]] = {
-    **{
-        name: {"filename": "read"}
-        for name in (
-            "x_import",
-            "x_import_file",
-            "x_import_feather",
-            "x_import_json",
-            "x_import_ods",
-            "x_import_ods_pattern",
-            "x_import_parquet",
-            "x_import_xls",
-            "x_import_xls_pattern",
-            "x_sub_ini",
-            "x_serve",
-        )
-    },
-    **{
-        name: {"filename": "write", "zipfilename": "write", "template": "read"}
-        for name in (
-            "x_export",
-            "x_export_query",
-            "x_export_metadata",
-            "x_export_with_template",
-            "x_export_query_with_template",
-            "x_export_ods_multiple",
-            "x_export_xlsx_multiple",
-        )
-    },
-    **{
-        name: {"filename": "write"}
-        for name in (
-            "x_write",
-            "x_writescript",
-            "x_consolesave",
-            "x_cancel_halt_write",
-            "x_error_halt_write",
-            "x_debug_write_config",
-            "x_debug_write_metacommands",
-            "x_debug_write_odbc_drivers",
-            "x_debug_write_subvars",
-        )
-    },
-    **{
-        name: {"filename": "read", "outfile": "write"}
-        for name in ("x_write_create_table", "x_write_create_table_ods", "x_write_create_table_xls")
-    },
-    "x_write_create_table_alias": {"filename": "read"},
-    **{
-        name: {"att_file": "read", "msg_file": "read"}
-        for name in ("x_email", "x_cancel_halt_email", "x_error_halt_email")
-    },
-    "x_zip": {"filename": "read", "zipfilename": "write"},
-    "x_rm_file": {"filename": "delete"},
-}
-
-_DBMS = {
-    "pg": "PostgreSQL",
-    "mysql": "MySQL",
-    "ssvr": "SQL Server",
-    "ora": "Oracle",
-    "fb": "Firebird",
-    "sqlite": "SQLite",
-    "duckdb": "DuckDB",
-    "access": "MS Access",
-    "dsn": "ODBC DSN",
-}
-
 _RX_KEYWORD = re.compile(r"^\s*(\w+)")
 _RX_ANY_VAR = re.compile(r"!!([$@&~#+]?\w+)!!|![{]\w+[}]!|!'!\w+!'!|!\"!\w+!\"!")
 
@@ -170,21 +101,6 @@ def _keyword(command: str, description: str | None) -> str:
         return description
     m = _RX_KEYWORD.match(command)
     return m.group(1).upper() if m else "?"
-
-
-def _connection(handler: str, groups: dict) -> Touch | None:
-    if handler == "x_use":
-        return Touch(0, "USE", groups.get("db_alias") or "")
-    if not handler.startswith("x_connect_"):
-        return None
-    kind = handler.removeprefix("x_connect_").removeprefix("user_")
-    target = groups.get("filename") or groups.get("dsn") or ""
-    if groups.get("server"):
-        target = f"{groups['server']}/{groups.get('db_name') or ''}"
-    detail = _DBMS.get(kind, kind)
-    if groups.get("user"):
-        detail += f", user {groups['user']}"
-    return Touch(0, "CONNECT", f"{groups.get('db_alias') or ''}: {target}".strip(), detail)
 
 
 def inspect_script(script: Script, script_path: str | None) -> Inspection:
@@ -254,16 +170,11 @@ def inspect_script(script: Script, script_path: str | None) -> Inspection:
         if hit is None:
             continue
         mc, groups = hit
-        handler = mc.exec_fn.__name__
-        connection = _connection(handler, groups)
-        if connection is not None:
-            result.connections.append(Touch(line, connection.by, connection.target, connection.detail))
-            continue
         by = _keyword(node.command, mc.description)
-        for group, role in _FILE_ROLES.get(handler, {}).items():
-            value = groups.get(group)
-            if not value:
-                continue
-            touch = Touch(line, by, value.strip().strip('"'))
-            {"read": result.reads, "write": result.writes, "delete": result.deletes}[role].append(touch)
+        for effect in effects(mc.exec_fn.__name__, groups):
+            if effect.role in ("connect", "use"):
+                result.connections.append(Touch(line, effect.role.upper(), effect.target, effect.detail))
+            else:
+                touch = Touch(line, by, effect.target)
+                {"read": result.reads, "write": result.writes, "delete": result.deletes}[effect.role].append(touch)
     return result

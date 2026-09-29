@@ -13,6 +13,7 @@ ______________________________________________________________________
 
 ### Added
 
+- `execsql run --manifest FILE` writes a JSON record of the run when it ends, even if it fails: the script, database, statement counts, the files it read, wrote and deleted (with variables substituted), the connections it opened, and any error with its line. Variable values and passwords are never written.
 - `execsql run --var NAME=VALUE` sets the named substitution variable `!!NAME!!` from the command line. It wins over `[variables]` in config files, a `SUB` in the script can reassign it, and its value is hidden in the log. `-a` (`$ARG_1`, `$ARG_2`, …) is unchanged.
 - Every lint issue names a rule code, such as `V001` (undefined variable) or `F002` (unreachable code), in `execsql lint` output. The [lint rules reference](https://execsql2.readthedocs.io/en/latest/reference/lint/) explains each one.
 - `execsql lint --select` and `--ignore` choose rules by code or prefix (`--ignore V002`, `--select F`). Parse errors are always reported.

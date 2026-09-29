@@ -172,21 +172,22 @@ silences.
 
 ### Common options
 
-| Flag                                              | Description                                                     |
-| ------------------------------------------------- | --------------------------------------------------------------- |
-| `-t {p,m,s,l,k,a,f,o,d}`                          | Database type                                                   |
-| `-u USER`                                         | Database username                                               |
-| `-p PORT`                                         | Server port                                                     |
-| `--dsn URL`                                       | Connection string (e.g. `postgresql://user:pass@host/db`)       |
-| `-n`                                              | Create a new SQLite or PostgreSQL database if it does not exist |
-| `-c SCRIPT`                                       | Execute inline SQL or metacommand string                        |
-| `-a VALUE`                                        | Set substitution variable `$ARG_x`                              |
-| `--var NAME=VALUE`                                | Set the substitution variable `!!NAME!!`                        |
-| `-v {0,1,2,3}`                                    | GUI level (0=none, 1=password, 2=selection, 3=full)             |
-| `--config FILE`                                   | Load an explicit config file                                    |
-| `--dry-run`                                       | Parse the script and report commands without executing          |
-| `--debug`                                         | Start in step-through debug mode (REPL pauses before each stmt) |
-| `--no-system-cmd` / `--no-rm-file` / `--no-serve` | Disable the `SYSTEM_CMD` / `RM_FILE` / `SERVE` metacommands     |
+| Flag                                              | Description                                                                |
+| ------------------------------------------------- | -------------------------------------------------------------------------- |
+| `-t {p,m,s,l,k,a,f,o,d}`                          | Database type                                                              |
+| `-u USER`                                         | Database username                                                          |
+| `-p PORT`                                         | Server port                                                                |
+| `--dsn URL`                                       | Connection string (e.g. `postgresql://user:pass@host/db`)                  |
+| `-n`                                              | Create a new SQLite or PostgreSQL database if it does not exist            |
+| `-c SCRIPT`                                       | Execute inline SQL or metacommand string                                   |
+| `-a VALUE`                                        | Set substitution variable `$ARG_x`                                         |
+| `--var NAME=VALUE`                                | Set the substitution variable `!!NAME!!`                                   |
+| `-v {0,1,2,3}`                                    | GUI level (0=none, 1=password, 2=selection, 3=full)                        |
+| `--config FILE`                                   | Load an explicit config file                                               |
+| `--dry-run`                                       | Parse the script and report commands without executing                     |
+| `--manifest FILE`                                 | Write a JSON record of the run: files read and written, statements, errors |
+| `--debug`                                         | Start in step-through debug mode (REPL pauses before each stmt)            |
+| `--no-system-cmd` / `--no-rm-file` / `--no-serve` | Disable the `SYSTEM_CMD` / `RM_FILE` / `SERVE` metacommands                |
 
 See the [full options reference](https://execsql2.readthedocs.io/en/latest/getting-started/syntax/#options) or run `execsql run --help` for the complete list, `execsql ping` to test a connection, `execsql config` to see which config files set what, and `execsql list metacommands` for all metacommands.
 

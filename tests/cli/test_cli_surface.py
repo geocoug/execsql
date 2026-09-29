@@ -35,6 +35,7 @@ SURFACE: dict[str, dict[str, object]] = {
             "--dry-run",
             "--dsn --connection-string",
             "--gui-framework",
+            "--manifest",
             "--no-rm-file",
             "--no-serve",
             "--no-system-cmd",

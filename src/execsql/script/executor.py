@@ -64,6 +64,7 @@ from execsql.script.ast import (
     SqlBlock,
     SqlStatement,
 )
+from execsql import manifest as _manifest
 from execsql.script.engine import set_dynamic_system_vars, set_static_system_vars, substitute_vars
 from execsql.script.variables import SubVarSet
 from execsql.state import ExecFrame, RuntimeContext, active_context, get_context, xcmd_test
@@ -319,6 +320,8 @@ def _exec_metacommand(
     try:
         applies, result = metacommandlist.eval(cmd)
         if applies:
+            if (manifest := _manifest.current()) is not None:
+                manifest.record_metacommand(cmd, source, line_no, metacommandlist)
             return result
     except ErrInfo as errinfo:
         e = errinfo
@@ -413,6 +416,8 @@ def _execute_node(
             localvars,
             commit=not ctx.status.batch.in_batch(),
         )
+        if (manifest := _manifest.current()) is not None:
+            manifest.record_sql()
 
     elif isinstance(node, MetaCommandStatement):
         command = node.command
@@ -861,6 +866,8 @@ def _execute_include_native(
     # Parse with AST parser
     encoding = ctx.conf.script_encoding if ctx.conf is not None else "utf-8"
     included_tree = parse_script(target, encoding=encoding)
+    if (manifest := _manifest.current()) is not None:
+        manifest.record_include(target, node.span.file, node.span.start_line)
 
     # Pre-register SCRIPT blocks in the included file so forward references work.
     _pre_register_scripts(ctx, included_tree.body)

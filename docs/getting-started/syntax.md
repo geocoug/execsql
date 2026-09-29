@@ -515,6 +515,32 @@ Valid encoding names can be displayed with `execsql list encodings`. See also [C
 
 :   Number of top statements to display in the `--profile` summary (default: 20). Remaining statements are counted and noted in the output footer.
 
+`--manifest` *FILE*
+
+:   Write a JSON record of the run to *FILE* when it ends — whether it succeeded, failed or was halted — for orchestrators and audits that should not have to parse the log. Written atomically; folders in the path are created. Not written for `--dry-run`.
+
+    ```json
+    {
+      "execsql_version": "2.24.0",
+      "script": "load.sql",
+      "started": "2026-09-29T14:02:11+00:00",
+      "finished": "2026-09-29T14:02:23+00:00",
+      "duration_s": 12.4,
+      "exit_status": 0,
+      "config_files": ["/home/etl/.config/execsql.conf"],
+      "database": {"dbms": "PostgreSQL", "server": "db.example.com", "database": "warehouse", "user": "etl"},
+      "variables": ["$ARG_1", "region"],
+      "statements": {"sql": 42, "metacommands": 17},
+      "files_read": [{"source": "load.sql", "line": 12, "by": "IMPORT", "path": "data/orders.csv"}],
+      "files_written": [{"source": "load.sql", "line": 30, "by": "EXPORT QUERY", "path": "out/west.csv"}],
+      "files_deleted": [],
+      "connections": [{"source": "load.sql", "line": 5, "by": "CONNECT", "target": "stage: db2.example.com/staging", "detail": "PostgreSQL, user etl"}],
+      "errors": []
+    }
+    ```
+
+    Files and connections are recorded as each metacommand succeeds, after variable substitution, so paths are the ones used (`out/west.csv`, not `out/!!region!!.csv`); `INCLUDE`d scripts count as files read. When a run fails, `exit_status` is its exit code and `errors` holds the message, its `type`, `source`, `line` and the failing `command`. `variables` lists the names set with `-a` and `--var`; their values are never written, for the same reason the log hides them, and neither are passwords.
+
 `--no-system-cmd`
 
 :   Disable the `SYSTEM_CMD` metacommand. Scripts that attempt to execute an OS command will fail with a clear error. Useful for CI pipelines, shared execution environments, or running semi-trusted scripts. Equivalent to `allow_system_cmd = No` in `execsql.conf` `[config]` section or `allow_system_cmd=False` in the [library API](../api/index.md#library-api). The CLI flag always takes precedence over the config file.

@@ -624,6 +624,7 @@ def _run(
     ping_format: str = "text",
     ping_may_create_db: bool = True,
     named_vars: list[tuple[str, str]] | None = None,
+    manifest_path: str | None = None,
 ) -> None:
     """Initialise state, connect to the database, load the script, and run it.
 
@@ -746,6 +747,16 @@ def _run(
         _state.dbs.add("initial", db)
         _ping_db(db, ping_format)  # raises SystemExit
 
+    manifest = None
+    if manifest_path:
+        from execsql import manifest as _manifest
+
+        variables = [f"$ARG_{n + 1}" for n in range(len(sub_vars or ()))] + [name for name, _ in named_vars or ()]
+        manifest = _manifest.start(manifest_path, script_name, variables)
+        manifest.config_files = list(conf.files_read)
+        # Written by exit_now on an error, below on success; this catches anything else.
+        atexit.register(manifest.finish, None)
+
     import execsql.utils.fileio as _fileio
 
     if _state.filewriter is None or not _state.filewriter.is_alive():
@@ -823,6 +834,8 @@ def _run(
         _state.dbs.add("initial", db)
 
     _state.exec_log.log_db_connect(db)
+    if manifest is not None:
+        manifest.set_database(db)
     _state.subvars.add_substitution("$CURRENT_DBMS", db.type.dbms_id)
     _state.subvars.add_substitution("$CURRENT_DATABASE", db.name())
     _state.subvars.add_substitution("$DB_SERVER", db.server_name)
@@ -851,6 +864,8 @@ def _run(
 
     if _ast_tree is not None:
         _execute_script_ast(_ast_tree, conf, profile=profile, profile_limit=profile_limit)
+    if manifest is not None:
+        manifest.finish(0)
 
 
 # ---------------------------------------------------------------------------

@@ -209,6 +209,15 @@ def main(
             "it wins over config files, and a SUB in the script can reassign it. Repeatable."
         ),
     ),
+    manifest_path: str | None = typer.Option(
+        None,
+        "--manifest",
+        metavar="FILE",
+        help=(
+            "Write a JSON record of the run to FILE when it ends, even if it fails: script, database, "
+            "statement counts, files read, written and deleted, connections, errors. No values or passwords."
+        ),
+    ),
     user_logfile: bool = typer.Option(
         False,
         "-l",
@@ -405,6 +414,7 @@ def main(
         no_serve=no_serve,
         config_file=config_file,
         named_vars=parsed_vars,
+        manifest_path=manifest_path,
     )
 
 

@@ -189,6 +189,11 @@ def exit_now(exit_status: int, errinfo: ErrInfo | None, logmsg: str | None = Non
     from execsql.utils.fileio import filewriter_end
 
     filewriter_end()
+    # Last, so the ON ERROR_HALT / ON CANCEL_HALT actions above are in it.
+    from execsql import manifest as _manifest
+
+    if (manifest := _manifest.current()) is not None:
+        manifest.finish(exit_status, errinfo)
     sys.exit(exit_status)
 
 
