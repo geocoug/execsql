@@ -177,6 +177,7 @@ silences.
 | `-n`                                              | Create a new SQLite or PostgreSQL database if it does not exist |
 | `-c SCRIPT`                                       | Execute inline SQL or metacommand string                        |
 | `-a VALUE`                                        | Set substitution variable `$ARG_x`                              |
+| `--var NAME=VALUE`                                | Set the substitution variable `!!NAME!!`                        |
 | `-v {0,1,2,3}`                                    | GUI level (0=none, 1=password, 2=selection, 3=full)             |
 | `--config FILE`                                   | Load an explicit config file                                    |
 | `--dry-run`                                       | Parse the script and report commands without executing          |

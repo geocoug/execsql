@@ -43,6 +43,7 @@ SURFACE: dict[str, dict[str, object]] = {
             "--profile",
             "--profile-limit",
             "--progress",
+            "--var",
             "-a --assign-arg",
             "-b --boolean-int",
             "-c --command",

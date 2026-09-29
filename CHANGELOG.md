@@ -13,6 +13,7 @@ ______________________________________________________________________
 
 ### Added
 
+- `execsql run --var NAME=VALUE` sets the named substitution variable `!!NAME!!` from the command line. It wins over `[variables]` in config files, a `SUB` in the script can reassign it, and its value is hidden in the log. `-a` (`$ARG_1`, `$ARG_2`, …) is unchanged.
 - Every lint issue names a rule code, such as `V001` (undefined variable) or `F002` (unreachable code), in `execsql lint` output. The [lint rules reference](https://execsql2.readthedocs.io/en/latest/reference/lint/) explains each one.
 - `execsql lint --select` and `--ignore` choose rules by code or prefix (`--ignore V002`, `--select F`). Parse errors are always reported.
 - `execsql lint --output-format json` writes every issue as one JSON array for CI and editor tooling, and `--output-format concise` prints one `path:line: CODE message` line per issue.

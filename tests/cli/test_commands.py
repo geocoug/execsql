@@ -536,3 +536,52 @@ class TestLintStrict:
     def test_a_clean_script_passes_strict(self, isolated):
         (isolated / "ok.sql").write_text("select 1;\n")
         assert runner.invoke(app, ["lint", "--strict", "ok.sql"]).exit_code == 0
+
+
+# ---------------------------------------------------------------------------
+# run --var NAME=VALUE
+# ---------------------------------------------------------------------------
+
+
+class TestRunVar:
+    def _run(self, work, script: str, *args: str):
+        import os
+        import subprocess
+        import sys
+
+        (work / "v.sql").write_text(script)
+        env = {**os.environ, "HOME": str(work), "USERPROFILE": str(work), "NO_COLOR": "1"}
+        cmd = [sys.executable, "-m", "execsql", "run", "v.sql", "-tl", "db.sqlite", "-n", *args]
+        return subprocess.run(cmd, cwd=work, capture_output=True, text=True, env=env)
+
+    def test_sets_a_named_variable(self, isolated):
+        result = self._run(isolated, '-- !x! write "region=!!region!!"\n', "--var", "region=west")
+        assert result.returncode == 0, result.stderr
+        assert "region=west" in result.stdout
+
+    def test_wins_over_config_variables(self, isolated):
+        (isolated / "execsql.conf").write_text("[variables]\nregion = north\n")
+        result = self._run(isolated, '-- !x! write "region=!!region!!"\n', "--var", "region=west")
+        assert "region=west" in result.stdout
+
+    def test_a_sub_in_the_script_can_reassign_it(self, isolated):
+        script = '-- !x! sub region east\n-- !x! write "region=!!region!!"\n'
+        assert "region=east" in self._run(isolated, script, "--var", "region=west").stdout
+
+    def test_works_with_assign_arg(self, isolated):
+        script = '-- !x! write "!!region!! !!$ARG_1!!"\n'
+        assert "west 2026-09" in self._run(isolated, script, "--var", "region=west", "-a", "2026-09").stdout
+
+    def test_value_may_contain_equals(self, isolated):
+        assert "q=a=b" in self._run(isolated, '-- !x! write "q=!!q!!"\n', "--var", "q=a=b").stdout
+
+    def test_value_is_redacted_in_the_log(self, isolated):
+        self._run(isolated, "select 1;\n", "--var", "token=s3cret-value")
+        log = (isolated / "execsql.log").read_text()
+        assert "token set to {***}" in log
+        assert "s3cret-value" not in log
+
+    @pytest.mark.parametrize("bad", ["region", "$region=x", "&home=x", "my-var=x", "=x"])
+    def test_invalid_is_a_usage_error(self, isolated, bad):
+        (isolated / "v.sql").write_text("select 1;\n")
+        assert runner.invoke(app, ["run", "v.sql", "-tl", "db.sqlite", "--var", bad]).exit_code == 2

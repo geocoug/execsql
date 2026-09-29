@@ -200,6 +200,15 @@ def main(
         metavar="VALUE",
         help="Define the replacement string for a substitution variable $ARG_x.",
     ),
+    named_vars: list[str] | None = typer.Option(
+        None,
+        "--var",
+        metavar="NAME=VALUE",
+        help=(
+            "Set the substitution variable !!NAME!!, as a [variables] entry in a config file would; "
+            "it wins over config files, and a SUB in the script can reassign it. Repeatable."
+        ),
+    ),
     user_logfile: bool = typer.Option(
         False,
         "-l",
@@ -277,6 +286,8 @@ def main(
     if list_plugins:
         print_listing(Listing.plugins, OutputFormat.text)
         raise typer.Exit()
+
+    parsed_vars = _parse_named_vars(named_vars)
 
     if config_file and not Path(config_file).is_file():
         _err_console.print(
@@ -393,4 +404,25 @@ def main(
         no_rm_file=no_rm_file,
         no_serve=no_serve,
         config_file=config_file,
+        named_vars=parsed_vars,
     )
+
+
+def _parse_named_vars(values: list[str] | None) -> list[tuple[str, str]]:
+    """``--var NAME=VALUE`` pairs, in order. Rejects a missing ``=`` or a name execsql reserves."""
+    import re
+
+    pairs: list[tuple[str, str]] = []
+    for raw in values or ():
+        name, sep, value = raw.partition("=")
+        name = name.strip()
+        if not sep:
+            raise typer.BadParameter(f"{raw!r} has no '='; write NAME=VALUE.", param_hint="'--var'")
+        if not re.fullmatch(r"\w+", name):
+            raise typer.BadParameter(
+                f"{name!r} is not a variable name: use letters, digits and _ only. "
+                "Names starting with $, & or @ are execsql's own (system, environment and column variables).",
+                param_hint="'--var'",
+            )
+        pairs.append((name, value))
+    return pairs

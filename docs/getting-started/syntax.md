@@ -315,10 +315,22 @@ are described [above](#ping).
 ### Script options
 
 `-c`, `--command` *SCRIPT*
+
 :   Execute an inline SQL/metacommand script string instead of reading from a file. Use shell `$'line1\nline2'` syntax for multi-line scripts. When `-c` is used, no script file argument is required.
 
 `-a`, `--assign-arg` *VALUE*
-:   Define the replacement string for a [substitution variable](../reference/substitution_vars.md#substitution_vars) `$ARG_x`. Can be used repeatedly to define `$ARG_1`, `$ARG_2`, etc. Assignments are [logged](../guides/logging.md#logging). See [Example 9](../guides/examples.md#example9).
+
+:   Define the replacement string for a [substitution variable](../reference/substitution_vars.md#substitution_vars) `$ARG_x`. Can be used repeatedly to define `$ARG_1`, `$ARG_2`, etc., in order — the script's positional arguments, like `$1` and `$2` in a shell script. Assignments are [logged](../guides/logging.md#logging). See [Example 9](../guides/examples.md#example9).
+
+`--var` *NAME=VALUE*
+
+:   Set the named substitution variable `!!NAME!!`. Repeatable. It acts like a `[variables]` entry in a [config file](../reference/configuration.md#configuration) but wins over one, and a `SUB` in the script can still reassign it. Names use letters, digits and `_`; the `$`, `&` and `@` prefixes are execsql's own. The value may contain `=`. Assignments are logged with the value hidden.
+
+    ```sh
+    execsql run load.sql -tp db.example.com warehouse --var region=west --var month=2026-09
+    ```
+
+    Use `-a` when a script takes positional arguments and `--var` when it reads variables by name; both can be given together.
 
 ### Encoding options
 
@@ -384,7 +396,7 @@ Valid encoding names can be displayed with `execsql list encodings`. See also [C
 
 `--dry-run`
 
-:   Parse the script (or `-c` command) and print the full command list with source locations, without connecting to a database. Substitution variables already populated at parse time (environment variables, `--assign-arg` values, start-time built-ins) are expanded; execution-time variables (`$CURRENT_TIME`, `$DB_NAME`, etc.) and `~`-prefixed locals remain literal.
+:   Parse the script (or `-c` command) and print the full command list with source locations, without connecting to a database. Substitution variables already populated at parse time (environment variables, `--assign-arg` and `--var` values, start-time built-ins) are expanded; execution-time variables (`$CURRENT_TIME`, `$DB_NAME`, etc.) and `~`-prefixed locals remain literal.
 
 `--parse-tree`
 

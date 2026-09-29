@@ -513,8 +513,9 @@ def _setup_logging(
     use_gui: str | None,
     no_passwd: bool,
     import_buffer: int | None,
+    named_vars: list[tuple[str, str]] | None = None,
 ) -> Logger:
-    """Create the execution logger, log initial info, and seed ``$RUN_ID``."""
+    """Create the execution logger, log initial info, and seed ``$RUN_ID``, ``-a`` and ``--var`` values."""
     from execsql.utils.errors import file_size_date
 
     opts_dict = {
@@ -571,6 +572,13 @@ def _setup_logging(
             logger.log_status_info(
                 f"Command-line substitution variable assignment: {var} set to {{***}}",
             )
+    # --var values: named, set after config files so they win over
+    # [variables]; a SUB in the script can still reassign them. Values are
+    # redacted for the same reason as -a's.
+    for name, value in named_vars or ():
+        subvars.add_substitution(name, value)
+        logger.add_redaction_value(value)
+        logger.log_status_info(f"Command-line substitution variable assignment: {name} set to {{***}}")
 
     return logger
 
@@ -615,6 +623,7 @@ def _run(
     config_file: str | None = None,
     ping_format: str = "text",
     ping_may_create_db: bool = True,
+    named_vars: list[tuple[str, str]] | None = None,
 ) -> None:
     """Initialise state, connect to the database, load the script, and run it.
 
@@ -718,6 +727,8 @@ def _run(
         if sub_vars:
             for n, repl in enumerate(sub_vars):
                 _state.subvars.add_substitution(f"$ARG_{n + 1}", repl)
+        for name, value in named_vars or ():
+            _state.subvars.add_substitution(name, value)
         _ast_tree = _load_script(command, script_name, conf.script_encoding)
         _print_dry_run(_ast_tree)
         raise SystemExit(0)
@@ -780,6 +791,7 @@ def _run(
         use_gui=use_gui,
         no_passwd=no_passwd,
         import_buffer=import_buffer,
+        named_vars=named_vars,
     )
 
     # ------------------------------------------------------------------
