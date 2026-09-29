@@ -476,3 +476,63 @@ class TestLintConfig:
         assert keys[("format", "indent")] == 4
         assert keys[("format", "sql")] is True
         assert keys[("lint", "select")] is None
+
+
+# ---------------------------------------------------------------------------
+# format --diff and lint --strict
+# ---------------------------------------------------------------------------
+
+
+class TestFormatDiff:
+    def test_diff_of_a_file_that_would_change(self, isolated):
+        (isolated / "a.sql").write_text(UNFORMATTED)
+        result = runner.invoke(app, ["format", "--no-sql", "--diff", "a.sql"])
+        assert result.exit_code == 1
+        assert "--- a.sql\n+++ a.sql\n" in result.output
+        assert "-  -- !x! if (true)" not in result.output  # removed lines are the originals
+        assert "--- !x! if (true)\n" in result.output
+        assert "+-- !x! IF (true)\n" in result.output
+        assert (isolated / "a.sql").read_text() == UNFORMATTED  # nothing written
+
+    def test_no_diff_when_already_formatted(self, isolated):
+        (isolated / "b.sql").write_text("-- !x! WRITE 'ok'\n")
+        result = runner.invoke(app, ["format", "--no-sql", "--diff", "b.sql"])
+        assert result.exit_code == 0
+        assert result.output == ""
+
+    def test_stdin(self):
+        result = runner.invoke(app, ["format", "--no-sql", "--diff", "-"], input=UNFORMATTED)
+        assert result.exit_code == 1
+        assert "--- <stdin>\n+++ <stdin>\n" in result.output
+
+    def test_cannot_combine_with_in_place(self, isolated):
+        (isolated / "a.sql").write_text(UNFORMATTED)
+        assert runner.invoke(app, ["format", "--diff", "-i", "a.sql"]).exit_code == 2
+        assert (isolated / "a.sql").read_text() == UNFORMATTED
+
+
+class TestLintStrict:
+    WARNING_ONLY = '-- !x! write "!!nope!!"\n'
+
+    def _exit(self, work, *args):
+        (work / "w.sql").write_text(self.WARNING_ONLY)
+        return runner.invoke(app, ["lint", *args, "w.sql"]).exit_code
+
+    def test_warnings_alone_pass_by_default(self, isolated):
+        assert self._exit(isolated) == 0
+
+    def test_strict_fails_on_warnings(self, isolated):
+        assert self._exit(isolated, "--strict") == 1
+
+    def test_strict_with_json_and_statistics(self, isolated):
+        assert self._exit(isolated, "--strict", "--output-format", "json") == 1
+        assert self._exit(isolated, "--strict", "--statistics") == 1
+
+    def test_strict_from_config_and_turned_off_by_flag(self, isolated):
+        (isolated / "execsql.conf").write_text("[lint]\nstrict = yes\n")
+        assert self._exit(isolated) == 1
+        assert self._exit(isolated, "--no-strict") == 0
+
+    def test_a_clean_script_passes_strict(self, isolated):
+        (isolated / "ok.sql").write_text("select 1;\n")
+        assert runner.invoke(app, ["lint", "--strict", "ok.sql"]).exit_code == 0

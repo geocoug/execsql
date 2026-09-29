@@ -37,6 +37,24 @@ cat load.sql | execsql format --check -   # exit 1 if it would change
 
 `-` cannot be combined with other paths or with `--in-place`.
 
+To see what the formatter would change without changing anything, use `--diff`:
+
+```sh
+execsql format --diff scripts/load.sql
+```
+
+```diff
+--- scripts/load.sql
++++ scripts/load.sql
+@@ -1,3 +1,3 @@
+--- !x! if (hasrows(staging.orders))
+--- !x! write "loading"
+--- !x! endif
++-- !x! IF (hasrows(staging.orders))
++    -- !x! WRITE "loading"
++-- !x! ENDIF
+```
+
 ### Options { #options }
 
 Layout options that are not given on the command line come from the `[format]`
@@ -57,6 +75,7 @@ one run.
 | --------------------------------------- | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `FILE_OR_DIR`                           | required                           | One or more files or directories to format. Directories are searched recursively for `*.sql` files. `-` reads one script from stdin.                                                                                                                                                    |
 | `--check`                               | off                                | Exit with code 1 if any file would be reformatted. Does not write any changes. Useful in CI.                                                                                                                                                                                            |
+| `--diff`                                | off                                | Print a unified diff of each file that would change, and write nothing. Exits 1 if any file would change, like `--check`. Cannot be combined with `-i`.                                                                                                                                 |
 | `-i`, `--in-place`                      | off                                | Modify files in place instead of writing to stdout.                                                                                                                                                                                                                                     |
 | `--sql`, `--no-sql`                     | `[format] sql`, else `--sql`       | Reformat SQL via sqlglot, or skip it and only normalize metacommand indentation and keyword casing. `--no-sql` works without the `[formatter]` extra.                                                                                                                                   |
 | `--indent N`                            | `[format] indent`, else `4`        | Spaces per indent level. Controls both metacommand block depth and SQL indentation (columns, subqueries, etc).                                                                                                                                                                          |

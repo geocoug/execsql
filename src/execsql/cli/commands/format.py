@@ -23,6 +23,11 @@ def format_cmd(
         ),
     ),
     check: bool = typer.Option(False, "--check", help="Exit 1 if any file needs changes; write nothing."),
+    diff: bool = typer.Option(
+        False,
+        "--diff",
+        help="Print a unified diff of each file that would change; write nothing. Exits 1 if any would.",
+    ),
     in_place: bool = typer.Option(False, "-i", "--in-place", help="Modify files in place."),
     # The three layout options default to None — "not given" — so that
     # [format] in a config file applies unless the command line says otherwise,
@@ -64,6 +69,8 @@ def format_cmd(
             raise typer.BadParameter("- (stdin) cannot be combined with other paths.", param_hint="FILE_OR_DIR")
         if in_place:
             raise typer.BadParameter("stdin cannot be formatted in place; drop -i.", param_hint="'-i'")
+    if diff and in_place:
+        raise typer.BadParameter("--diff writes nothing, so it cannot be combined with -i.", param_hint="'--diff'")
     if config_file and not Path(config_file).is_file():
         _err_console.print(f"[bold red]Error:[/bold red] Config file {config_file!r} does not exist.")
         raise typer.Exit(code=2)
@@ -73,6 +80,7 @@ def format_cmd(
         code=run_formatter(
             targets,
             check=check,
+            diff=diff,
             in_place=in_place,
             no_sql=not (conf.format_sql if sql is None else sql),
             indent=conf.format_indent if indent is None else indent,

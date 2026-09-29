@@ -368,6 +368,8 @@
 
 #select=
 #ignore=
+# Yes = exit 1 on warnings too, not only on errors (--strict / --no-strict).
+#strict=No
 
 
 [variables]

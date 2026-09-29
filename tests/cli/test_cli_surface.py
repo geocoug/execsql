@@ -81,6 +81,7 @@ SURFACE: dict[str, dict[str, object]] = {
         "options": {
             "--check",
             "--config",
+            "--diff",
             "--indent",
             "--leading-comma --no-leading-comma",
             "--sql --no-sql",
@@ -91,7 +92,15 @@ SURFACE: dict[str, dict[str, object]] = {
     },
     "lint": {
         "arguments": ["FILE_OR_DIR..."],
-        "options": {"--config", "--ignore", "--output-format", "--select", "--statistics", "-f --script-encoding"},
+        "options": {
+            "--config",
+            "--ignore",
+            "--output-format",
+            "--select",
+            "--statistics",
+            "--strict --no-strict",
+            "-f --script-encoding",
+        },
         "hidden": set(),
     },
     "ping": {
@@ -191,6 +200,7 @@ def files(tmp_path, monkeypatch):
     (tmp_path / "clean.sql").write_text("-- !x! WRITE 'hi'\n")
     (tmp_path / "broken.sql").write_text("-- !x! IF (true)\n")
     (tmp_path / "messy.sql").write_text("-- !x! write 'hi'\n")
+    (tmp_path / "warned.sql").write_text('-- !x! WRITE "!!nope!!"\n')
     sqlite3.connect(tmp_path / "db.sqlite").close()
     return tmp_path
 
@@ -199,11 +209,13 @@ EXIT_CODES = [
     # format
     (["format", "--no-sql", "--check", "clean.sql"], 0),
     (["format", "--no-sql", "--check", "messy.sql"], 1),
+    (["format", "--no-sql", "--diff", "messy.sql"], 1),
     (["format", "--bogus", "clean.sql"], 2),
     (["format"], 2),
     # lint
     (["lint", "clean.sql"], 0),
     (["lint", "broken.sql"], 1),
+    (["lint", "--strict", "warned.sql"], 1),
     (["lint", "--select", "Z9", "clean.sql"], 2),
     (["lint"], 2),
     # ping

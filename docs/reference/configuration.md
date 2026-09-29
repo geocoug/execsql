@@ -400,6 +400,9 @@ Rule selection for [`execsql lint`](lint.md#config). A run ignores this section.
 `ignore`
 :   Do not report these rules. Wins over `select`. `--ignore` on the command line replaces it.
 
+`strict`
+:   Exit 1 on warnings too, not only on errors. Default: No. Equivalent to `--strict` / `--no-strict`.
+
 ```ini
 [format]
 indent = 2

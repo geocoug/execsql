@@ -1217,6 +1217,7 @@ def run_formatter(
     indent: int = 4,
     leading_comma: bool = False,
     encoding: str = "utf-8",
+    diff: bool = False,
 ) -> int:
     """Format or check *targets*; return the process exit code.
 
@@ -1224,6 +1225,9 @@ def run_formatter(
     arrive here as arguments. Previously they lived on a Typer app built
     inside ``main()``, which meant the command that wrapped it had no options
     of its own to show and ``execsql format --help`` listed nothing.
+
+    With *diff*, nothing is written: each file that would change is printed
+    as a unified diff, and the exit code is 1 when any would, as for *check*.
     """
     import sys
 
@@ -1261,7 +1265,11 @@ def run_formatter(
 
         formatted = format_file(source, indent=indent, use_sql=use_sql, leading_comma=leading_comma)
 
-        if check:
+        if diff:
+            if formatted != source:
+                any_changed = True
+                _write_diff(source, formatted, label)
+        elif check:
             if formatted != source:
                 _console.print(f"would reformat {label}")
                 any_changed = True
@@ -1272,4 +1280,26 @@ def run_formatter(
         else:
             sys.stdout.write(formatted)
 
-    return 1 if (any_errors or (check and any_changed)) else 0
+    return 1 if (any_errors or ((check or diff) and any_changed)) else 0
+
+
+def _write_diff(before: str, after: str, label: str) -> None:
+    """Print a unified diff of one file, colored when stdout is a terminal."""
+    import difflib
+    import sys
+
+    from execsql.utils.color import color_disabled_by_env
+
+    lines = difflib.unified_diff(
+        before.splitlines(keepends=True),
+        after.splitlines(keepends=True),
+        fromfile=label,
+        tofile=label,
+    )
+    color = sys.stdout.isatty() and not color_disabled_by_env()
+    styles = {"+": "\033[32m", "-": "\033[31m", "@": "\033[36m"}
+    for line in lines:
+        if not line.endswith("\n"):
+            line += "\n\\ No newline at end of file\n"
+        style = styles.get(line[0]) if color and not line.startswith(("+++", "---")) else None
+        sys.stdout.write(f"{style}{line.rstrip(chr(10))}\033[0m\n" if style else line)

@@ -35,6 +35,7 @@ def lint_paths(
     output_format: str = "text",
     statistics: bool = False,
     encoding: str = "utf-8",
+    strict: bool = False,
 ) -> int:
     """Lint every script named by *targets*; return the process exit code.
 
@@ -53,6 +54,7 @@ def lint_paths(
         statistics: Report a count per rule instead of each issue.
         encoding: Character encoding every script is read with. A script that
             does not decode is reported as a parse error (``P001``).
+        strict: Warnings fail too: exit ``1`` when any issue is reported.
 
     Returns:
         ``1`` when any reported issue is an error or no ``.sql`` file was
@@ -112,7 +114,7 @@ def lint_paths(
             sys.stdout.write(json.dumps(rows, indent=2) + "\n")
         else:
             sys.stdout.write(render_json(reported) + "\n")
-        return exit_code(reported)
+        return exit_code(reported, strict=strict)
 
     if statistics:
         print_statistics(per_file, len(paths))
@@ -120,7 +122,7 @@ def lint_paths(
         print_concise(per_file, len(paths))
     else:
         print_text(per_file, len(paths))
-    return exit_code(reported)
+    return exit_code(reported, strict=strict)
 
 
 class LintFormat(str, Enum):
@@ -138,7 +140,7 @@ class LintFormat(str, Enum):
         "Statically check scripts for problems. No database connection is made.\n\n"
         "Every issue names its rule code, which --select and --ignore accept, as a full "
         "code (V001) or a prefix (V). Parse errors (P001) are always reported. Exits 1 "
-        "when any error is found; warnings alone exit 0.\n\n"
+        "when any error is found; warnings alone exit 0 unless --strict is given.\n\n"
         "Rules: https://execsql2.readthedocs.io/en/latest/reference/lint/"
     ),
 )
@@ -172,6 +174,12 @@ def lint_cmd(
         False,
         "--statistics",
         help="Show how many times each rule fired instead of listing every issue.",
+    ),
+    strict: bool | None = typer.Option(
+        None,
+        "--strict/--no-strict",
+        help="Exit 1 on warnings too, not only on errors. Default: [lint] strict, else off.",
+        show_default=False,
     ),
     script_encoding: ScriptEncodingOpt = None,
     config_file: ConfigFileOpt = None,
@@ -210,5 +218,6 @@ def lint_cmd(
             output_format=output_format.value,
             statistics=statistics,
             encoding=script_encoding or _configured_script_encoding(conf) or "utf-8",
+            strict=conf.lint_strict if strict is None else strict,
         ),
     )

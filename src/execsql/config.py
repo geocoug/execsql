@@ -379,6 +379,7 @@ class ConfigData:
         self._get_bool(cp, self._FORMAT_SECTION, "sql", "format_sql")
         self._get_str(cp, self._LINT_SECTION, "select", "lint_select")
         self._get_str(cp, self._LINT_SECTION, "ignore", "lint_ignore")
+        self._get_bool(cp, self._LINT_SECTION, "strict", "lint_strict")
 
         # Register options whose loading lives inline in __init__ (because they
         # need special-case validation or side effects) so they still appear in
@@ -552,6 +553,7 @@ class ConfigData:
         self.format_sql = True
         self.lint_select: str | None = None
         self.lint_ignore: str | None = None
+        self.lint_strict = False
 
     @classmethod
     def _search_paths(cls, script_path: str, config_file: str | None) -> list[str]:

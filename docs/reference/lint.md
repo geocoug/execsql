@@ -54,13 +54,13 @@ reports it with its line.
 
 ## Exit status { #exit_status }
 
-| Status | Meaning                                                                                  |
-| ------ | ---------------------------------------------------------------------------------------- |
-| 0      | No errors. Warnings alone do not fail the run.                                           |
-| 1      | At least one reported issue is an error, or no `.sql` file was found in the given paths. |
-| 2      | Usage error, such as an unknown rule code in `--select` or `--ignore`.                   |
+| Status | Meaning                                                                                                                           |
+| ------ | --------------------------------------------------------------------------------------------------------------------------------- |
+| 0      | No errors. Warnings alone do not fail the run, unless `--strict` is given.                                                        |
+| 1      | At least one reported issue is an error — or, with `--strict`, any issue at all — or no `.sql` file was found in the given paths. |
+| 2      | Usage error, such as an unknown rule code in `--select` or `--ignore`.                                                            |
 
-Only `P001` is an error today; every other rule is a warning. To fail a CI step on warnings as well, use JSON output and test for an empty array (see [CI](#ci)).
+Only `P001` is an error today; every other rule is a warning. To fail a CI step on warnings as well, add `--strict` (or `strict = yes` in the [`[lint]` section](#config) of a config file); `--no-strict` turns it off for one run.
 
 ## Choosing rules { #select }
 
@@ -144,7 +144,7 @@ To turn each issue into a GitHub annotation on the pull request, convert the JSO
     test "$(jq 'map(select(.severity == "error")) | length' lint.json)" -eq 0
 ```
 
-Replace the last line with `test "$(jq length lint.json)" -eq 0` to fail on warnings too.
+To fail on warnings too, run `execsql lint --strict scripts/` as its own step.
 
 ### Pre-commit { #pre-commit }
 

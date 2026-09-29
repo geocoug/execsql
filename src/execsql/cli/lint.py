@@ -767,9 +767,9 @@ def filter_issues(
 # ---------------------------------------------------------------------------
 
 
-def exit_code(issues: Iterable[Issue]) -> int:
-    """``1`` when any issue is an error, otherwise ``0``."""
-    return 1 if any(issue.severity == "error" for issue in issues) else 0
+def exit_code(issues: Iterable[Issue], *, strict: bool = False) -> int:
+    """``1`` when any issue is an error — or, with *strict*, any issue at all — otherwise ``0``."""
+    return 1 if any(strict or issue.severity == "error" for issue in issues) else 0
 
 
 def _sorted(issues: Iterable[Issue]) -> list[Issue]:

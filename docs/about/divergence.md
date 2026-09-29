@@ -100,7 +100,7 @@ New options in `execsql.conf`:
 | `template_root`                  | `[config]`    | Path-containment root for Jinja2 / `string.Template` loaders (default: none). Same semantics as `include_root`.                                                                                                  |
 | `max_substitution_bytes`         | `[config]`    | Byte ceiling on a single substitution-variable expansion (default: `10485760` = 10 MB) to defeat exponential-expansion bombs.                                                                                    |
 | `indent`, `leading_comma`, `sql` | `[format]`    | Layout defaults for `execsql format`; a flag on the command line wins.                                                                                                                                           |
-| `select`, `ignore`               | `[lint]`      | Rule selection for `execsql lint`; `--select` / `--ignore` replace them.                                                                                                                                         |
+| `select`, `ignore`, `strict`     | `[lint]`      | Rule selection and strictness for `execsql lint`; `--select` / `--ignore` replace the lists, `--strict` / `--no-strict` override `strict`.                                                                       |
 
 ### Tools
 

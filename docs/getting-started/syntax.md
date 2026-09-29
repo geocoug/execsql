@@ -187,11 +187,11 @@ The same two variables also turn off color in the [debug REPL](../reference/meta
 Every command uses the same three exit codes, so a CI step or shell script can
 tell a problem in the scripts from a mistake in the command line.
 
-| Code | Meaning                           | Examples                                                                                                                           |
-| ---- | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `0`  | Success                           | The script ran; `lint` found no errors (warnings allowed); `format --check` found nothing to change; `ping` connected.             |
-| `1`  | The task failed or found problems | A script error; `lint` found an error; `format --check` would change a file; `ping` could not connect; no `.sql` files were found. |
-| `2`  | Bad command line                  | An unknown option or command, an invalid choice, a missing config file named by `--config`, `run --lint`.                          |
+| Code | Meaning                           | Examples                                                                                                                                                                       |
+| ---- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `0`  | Success                           | The script ran; `lint` found no errors (warnings allowed); `format --check` found nothing to change; `ping` connected.                                                         |
+| `1`  | The task failed or found problems | A script error; `lint` found an error (or any issue, with `--strict`); `format --check` or `--diff` would change a file; `ping` could not connect; no `.sql` files were found. |
+| `2`  | Bad command line                  | An unknown option or command, an invalid choice, a missing config file named by `--config`, `run --lint`.                                                                      |
 
 `run` keeps upstream execsql's exit codes where they differ: a missing script
 file exits `1`, and unknown options after the script are not rejected.
