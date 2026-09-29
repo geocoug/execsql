@@ -423,6 +423,7 @@ def _make_csv_file_obj(tmp_path, headers, rows, *, delimiter=",", quotechar='"',
             self.encoding = encoding
             self.delimiter = delimiter
             self.quotechar = quotechar
+            self.escapechar = None
 
         def evaluate_line_format(self):
             pass
@@ -453,6 +454,17 @@ class TestImportTabularFile:
         db.commit()
         _hdrs, rows = db.select_data(f"SELECT id, name FROM {fresh_table} ORDER BY id;")
         assert rows == [(1, "a"), (2, "b")]
+
+    def test_no_quote_character_keeps_double_quotes(self, db, fresh_table, tmp_path):
+        """#54: with no quote character, `"` is data — COPY's CSV format would strip it."""
+        with db._cursor() as curs:
+            curs.execute(f"CREATE TABLE {fresh_table} (id INT, name TEXT);")
+        db.commit()
+        csv = _make_csv_file_obj(tmp_path, ["id", "name"], [(1, 'Well "A" 12')], delimiter="\t", quotechar=None)
+        db.import_tabular_file(None, fresh_table, csv, skipheader=True)
+        db.commit()
+        _h, rows = db.select_data(f"SELECT id, name FROM {fresh_table};")
+        assert rows == [(1, 'Well "A" 12')]
 
     def test_missing_table_raises(self, db, tmp_path):
         csv = _make_csv_file_obj(tmp_path, ["id"], [(1,)])
