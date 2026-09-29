@@ -17,6 +17,7 @@ ______________________________________________________________________
 - Every lint issue names a rule code, such as `V001` (undefined variable) or `F002` (unreachable code), in `execsql lint` output. The [lint rules reference](https://execsql2.readthedocs.io/en/latest/reference/lint/) explains each one.
 - `execsql lint --select` and `--ignore` choose rules by code or prefix (`--ignore V002`, `--select F`). Parse errors are always reported.
 - `execsql lint --output-format json` writes every issue as one JSON array for CI and editor tooling, and `--output-format concise` prints one `path:line: CODE message` line per issue.
+- `execsql lint --output-format github` prints each issue as a GitHub Actions annotation, shown on the pull request next to the line it names: `- run: execsql lint --output-format github scripts/`.
 - `execsql lint --statistics` shows how many times each rule fired instead of listing every issue.
 - `execsql-lint` pre-commit hook: runs `execsql lint` on staged `*.sql` files and fails the commit on lint errors. Add `- id: execsql-lint` next to `execsql-format`.
 - `execsql format -` and `execsql lint -` read one script from stdin; `format` writes the result to stdout.

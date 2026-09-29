@@ -80,6 +80,8 @@ An entry that matches no rule is a usage error (exit status 2), so a typo in `--
 
 `--output-format text` (the default) groups issues under each file, as shown above. On a terminal, a message too long for the window wraps under the message column; piped output is never wrapped.
 
+`--output-format github` prints one [GitHub Actions workflow command](https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/workflow-commands-for-github-actions#setting-a-warning-message) per issue and nothing else, so GitHub shows each issue on the pull request; see [CI](#ci).
+
 `--output-format concise` prints one line per issue, which suits `grep` and editors that jump to `path:line`:
 
 ```text
@@ -135,13 +137,16 @@ Run `execsql lint` as its own step. It needs no database, and it exits 1 only on
 - run: execsql lint scripts/
 ```
 
-To turn each issue into a GitHub annotation on the pull request, convert the JSON:
+On GitHub Actions, `--output-format github` turns each issue into an annotation
+shown on the pull request next to the line it names, and the step still fails on
+errors:
 
 ```yaml
-- run: |
-    execsql lint scripts/ --output-format json > lint.json || true
-    jq -r '.[] | "::\(.severity) file=\(.file),line=\(.line // 1),title=\(.code)::\(.message)"' lint.json
-    test "$(jq 'map(select(.severity == "error")) | length' lint.json)" -eq 0
+- run: execsql lint --output-format github scripts/
+```
+
+```text
+::warning file=scripts/validate_orders.sql,line=10,title=V001 undefined-variable::undefined variable !!output_path!!
 ```
 
 To fail on warnings too, run `execsql lint --strict scripts/` as its own step.

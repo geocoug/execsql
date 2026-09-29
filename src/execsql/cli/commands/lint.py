@@ -49,7 +49,7 @@ def lint_paths(
             validated by :func:`execsql.cli.lint.resolve_selectors`.
         ignore: Rule-code prefixes to drop; wins over *select*.
         output_format: ``"text"`` (grouped by file), ``"concise"`` (one line
-            per issue) or ``"json"``. JSON writes one array to stdout and
+            per issue), ``"github"`` (GitHub Actions workflow commands) or ``"json"``. JSON writes one array to stdout and
             nothing else.
         statistics: Report a count per rule instead of each issue.
         encoding: Character encoding every script is read with. A script that
@@ -71,6 +71,7 @@ def lint_paths(
         lint as _lint_script,
         parse_error,
         print_concise,
+        render_github,
         print_statistics,
         print_text,
         render_json,
@@ -120,6 +121,11 @@ def lint_paths(
         print_statistics(per_file, len(paths))
     elif output_format == "concise":
         print_concise(per_file, len(paths))
+    elif output_format == "github":
+        # Workflow commands only: any other line in the step's log is noise.
+        annotations = render_github(per_file)
+        if annotations:
+            sys.stdout.write(annotations + "\n")
     else:
         print_text(per_file, len(paths))
     return exit_code(reported, strict=strict)
@@ -131,6 +137,7 @@ class LintFormat(str, Enum):
     text = "text"
     concise = "concise"
     json = "json"
+    github = "github"
 
 
 @app.command(
@@ -168,7 +175,10 @@ def lint_cmd(
     output_format: LintFormat = typer.Option(
         LintFormat.text,
         "--output-format",
-        help="text groups issues by file; concise is one path:line line per issue; json is for tools.",
+        help=(
+            "text groups issues by file; concise is one path:line line per issue; json is for tools; "
+            "github prints GitHub Actions annotations."
+        ),
     ),
     statistics: bool = typer.Option(
         False,

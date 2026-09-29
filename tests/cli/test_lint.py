@@ -873,3 +873,51 @@ class TestScriptBlocks:
     def test_a_block_that_is_also_executed_is_reported_once(self, tmp_path):
         script = "-- !x! EXECUTE SCRIPT helper\n-- !x! BEGIN SCRIPT helper\nSELECT !!nowhere!!;\n-- !x! END SCRIPT\n"
         assert [i.code for i in _lint(tmp_path, script)].count("V001") == 1
+
+
+class TestGithubOutput:
+    """``--output-format github``: one GitHub Actions workflow command per issue."""
+
+    def test_one_annotation_per_issue(self, tmp_path):
+        from typer.testing import CliRunner
+
+        from execsql.cli import app
+
+        (tmp_path / "a.sql").write_text('-- !x! sub unused 1\n-- !x! write "!!nope!!"\n')
+        (tmp_path / "b.sql").write_text("-- !x! if (true)\n")
+        result = CliRunner().invoke(app, ["lint", "--output-format", "github", str(tmp_path)])
+        assert result.exit_code == 1
+        a, b = str(tmp_path / "a.sql"), str(tmp_path / "b.sql")
+        from execsql.cli.lint import _github_property
+
+        assert result.output.splitlines() == [
+            f"::warning file={_github_property(a)},line=1,title=V002 unused-variable::variable !!unused!! is never used",
+            f"::warning file={_github_property(a)},line=2,title=V001 undefined-variable::undefined variable !!nope!!",
+            f"::error file={_github_property(b)},line=1,title=P001 parse-error::"
+            f"Unmatched IF block starting on line 1 at end of file {b}",
+        ]
+
+    def test_file_level_issue_has_no_line(self):
+        from execsql.cli.lint import _issue, render_github
+
+        assert render_github([("e.sql", [_issue("S001", "e.sql", 0, "script is empty")])]) == (
+            "::warning file=e.sql,title=S001 empty-script::script is empty"
+        )
+
+    def test_escaping(self):
+        from execsql.cli.lint import _issue, render_github
+
+        issue = _issue("V001", "a,b:c.sql", 3, "100% done\nnext")
+        assert render_github([("a,b:c.sql", [issue])]) == (
+            "::warning file=a%2Cb%3Ac.sql,line=3,title=V001 undefined-variable::100%25 done%0Anext"
+        )
+
+    def test_clean_library_prints_nothing(self, tmp_path):
+        from typer.testing import CliRunner
+
+        from execsql.cli import app
+
+        (tmp_path / "ok.sql").write_text("select 1;\n")
+        result = CliRunner().invoke(app, ["lint", "--output-format", "github", str(tmp_path)])
+        assert result.exit_code == 0
+        assert result.output == ""

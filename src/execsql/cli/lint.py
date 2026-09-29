@@ -874,6 +874,35 @@ def print_concise(results: list[FileResult], checked: int) -> None:
     _console.print(_summary(results, checked), highlight=False)
 
 
+def _github_data(text: str) -> str:
+    """Escape a workflow-command message, as GitHub's own toolkit does."""
+    return text.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+
+
+def _github_property(text: str) -> str:
+    """Escape a workflow-command property value (``file=``, ``title=``)."""
+    return _github_data(text).replace(":", "%3A").replace(",", "%2C")
+
+
+def render_github(results: list[FileResult]) -> str:
+    """Every issue as a GitHub Actions workflow command, one per line.
+
+    In a GitHub Actions step, each line becomes an annotation on the pull
+    request, next to the line it names: ``::warning file=load.sql,line=12,
+    title=V001 undefined-variable::undefined variable !!x!!``. An issue with
+    no single line annotates the file.
+    """
+    lines: list[str] = []
+    for path, found in results:
+        for issue in _sorted(found):
+            props = [f"file={_github_property(path)}"]
+            if issue.line:
+                props.append(f"line={issue.line}")
+            props.append(f"title={_github_property(f'{issue.code} {RULES[issue.code].name}')}")
+            lines.append(f"::{issue.severity} {','.join(props)}::{_github_data(issue.message)}")
+    return "\n".join(lines)
+
+
 def print_statistics(results: list[FileResult], checked: int) -> None:
     """How often each rule fired, most frequent first."""
     from execsql.cli.help import _console
