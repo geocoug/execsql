@@ -6,27 +6,29 @@
 
 ## Commands { #commands }
 
-*execsql* is seven commands behind one program. Only `run` and `ping` connect to a database:
+*execsql* is eight commands behind one program. Only `run` and `ping` connect to a database:
 
 ```text
 execsql run    [OPTIONS] SQL_SCRIPT [SERVER DATABASE | DATABASE_FILE]
 execsql format [--check | -i] [--indent N] FILE_OR_DIR...
 execsql lint   [OPTIONS] FILE_OR_DIR...
+execsql inspect SQL_SCRIPT [-f NAME] [--output-format text|json]
 execsql ping   [OPTIONS] [SERVER DATABASE | DATABASE_FILE]
 execsql config [SQL_SCRIPT] [--init] [--config FILE]
 execsql list   metacommands|encodings|plugins|keywords
 execsql init   [DIR] [--script NAME | --no-script] [--no-config] [--no-pre-commit] [--force]
 ```
 
-| Command  | Purpose                                                                                    |
-| -------- | ------------------------------------------------------------------------------------------ |
-| `run`    | Execute a script against a database. The default when no command is given.                 |
-| `format` | Normalize metacommand keywords, block indentation, and SQL layout. `fmt` works too.        |
-| `lint`   | Static analysis without a database. Exits 1 when any error is found.                       |
-| `ping`   | Test a database connection and print the server version.                                   |
-| `config` | List every config option with its value, default and source; `--init` prints the template. |
-| `list`   | Print metacommands, encoding names, installed plugins, or the full keyword vocabulary.     |
-| `init`   | Set up a project: `execsql.conf`, a script with a header, and the pre-commit hooks.        |
+| Command   | Purpose                                                                                                                             |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `run`     | Execute a script against a database. The default when no command is given.                                                          |
+| `format`  | Normalize metacommand keywords, block indentation, and SQL layout. `fmt` works too.                                                 |
+| `lint`    | Static analysis without a database. Exits 1 when any error is found.                                                                |
+| `inspect` | Show what a script needs and touches — outside values, includes, files read, written and deleted, connections — without running it. |
+| `ping`    | Test a database connection and print the server version.                                                                            |
+| `config`  | List every config option with its value, default and source; `--init` prints the template.                                          |
+| `list`    | Print metacommands, encoding names, installed plugins, or the full keyword vocabulary.                                              |
+| `init`    | Set up a project: `execsql.conf`, a script with a header, and the pre-commit hooks.                                                 |
 
 `format` and `lint` accept files or directories; directories are searched
 recursively for `*.sql`, and `-` reads one script from stdin. A CI job runs them
@@ -48,10 +50,69 @@ once per invocation, not from each script's directory.
     deprecation and none is planned.
 
     The one exception is a script named exactly like a command — `run`,
-    `format`, `fmt`, `lint`, `ping`, `config`, `list` or `init`, with no extension.
+    `format`, `fmt`, `lint`, `inspect`, `ping`, `config`, `list` or `init`, with no extension.
     A command name always selects the command, so run such a script with
     `execsql run lint` or `execsql ./lint`. Names with an extension, such as
     `lint.sql`, are never ambiguous.
+
+### inspect { #inspect }
+
+```text
+execsql inspect SQL_SCRIPT [-f NAME] [--config FILE] [--output-format text|json]
+```
+
+Shows what a script needs from outside and what it touches, without running it
+or connecting to anything:
+
+```text
+$ execsql inspect load.sql
+load.sql
+
+Needs from outside
+  $ARG_1      -a on the command line
+  &DATA_HOME  environment variable
+  region      --var, [variables] in a config file, or SUB_INI
+
+Includes
+   2  INCLUDE         common.sql
+   3  INCLUDE         missing.sql                   does not exist
+  15  EXECUTE SCRIPT  build_summary                 defined in this file
+
+Reads
+   5  IMPORT          data/orders.csv
+   6  IMPORT          !!&DATA_HOME!!/regions.csv
+
+Writes
+   8  EXPORT QUERY    !!outdir!!/summary.xlsx
+   9  WRITE           run.log
+
+Deletes
+  11  RM_FILE         out/old.csv
+
+Connections
+   1  CONNECT         wh: db.example.com/warehouse  PostgreSQL, user etl
+   7  USE             wh
+
+Defines
+  variables  OUTDIR
+  scripts    build_summary
+```
+
+- **Needs from outside** lists the variables the script reads but never sets —
+    the same ones `lint` reports as undefined (V001) — split into command-line
+    arguments (`-a`), environment variables, and everything else (`--var`,
+    `[variables]`, `SUB_INI`).
+- **Reads, Writes, Deletes** come from `IMPORT`, `EXPORT`, `WRITE`, `ZIP`,
+    `RM_FILE`, `SUB_INI`, `SERVE`, `EMAIL` attachments and the other metacommands
+    that name files, read with the same patterns a run uses. Paths are shown as
+    written, variables and all.
+- **Connections** never show a password.
+- `INCLUDE`d files are listed but not inspected in turn.
+
+`-` reads the script from stdin. A script that does not parse exits 1.
+`--output-format json` prints `script`, `needs`, `defines`, `includes`,
+`reads`, `writes`, `deletes` and `connections`; each touch has `line`, `by`,
+`target` and `detail`.
 
 ### ping { #ping }
 

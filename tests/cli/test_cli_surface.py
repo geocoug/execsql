@@ -104,6 +104,11 @@ SURFACE: dict[str, dict[str, object]] = {
         },
         "hidden": set(),
     },
+    "inspect": {
+        "arguments": ["SQL_SCRIPT"],
+        "options": {"--config", "--output-format", "-f --script-encoding"},
+        "hidden": set(),
+    },
     "ping": {
         "arguments": ["[SERVER DATABASE | DATABASE_FILE]"],
         "options": {

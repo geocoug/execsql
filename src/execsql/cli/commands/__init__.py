@@ -8,6 +8,7 @@ Importing this package registers every command on
 from execsql.cli.commands import run  # noqa: F401
 from execsql.cli.commands import format  # noqa: F401, A004
 from execsql.cli.commands import lint  # noqa: F401
+from execsql.cli.commands import inspection  # noqa: F401
 from execsql.cli.commands import ping  # noqa: F401
 from execsql.cli.commands import config  # noqa: F401
 from execsql.cli.commands import listing  # noqa: F401
