@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.23.1] - 2026-09-29
+
 ### Added
 
 - A warning when MySQL, MariaDB or Oracle commits a statement on its own while `AUTOCOMMIT` is `OFF` or a batch is open — `CREATE TABLE`, `DROP`, `TRUNCATE` and other DDL, which the server commits together with everything before it, so none of it can be rolled back.
