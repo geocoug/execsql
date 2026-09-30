@@ -267,6 +267,10 @@ helo = "helo"
 # Deliberate misspelling of [connect]: `execsql config --validate` tests and
 # docs show it being caught. Correcting it breaks the very test it is in.
 conect = "conect"
+# Deliberate misspellings of the config and format commands: the CLI's
+# did-you-mean error, its tests and its docs use them as examples.
+confg = "confg"
+fromat = "fromat"
 
 [tool.tox]
 required = ["tox-uv"]

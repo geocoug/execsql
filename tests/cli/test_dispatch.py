@@ -12,7 +12,7 @@ import re
 
 import pytest
 
-from execsql.cli.dispatch import COMMANDS, GLOBAL_FLAGS, normalize
+from execsql.cli.dispatch import COMMANDS, GLOBAL_FLAGS, normalize, suggest_command
 
 # Every legacy shape the documentation shows, plus the bare and flag-only
 # forms.  All of these must reach the runner with argv untouched.
@@ -372,6 +372,43 @@ class TestUpstreamFlagPositions:
         headings = [line for line in out.splitlines() if line.endswith(":") and not line.startswith(" ")]
         assert "Positional arguments:" not in headings
         assert headings.count("Arguments:") == 1
+
+
+class TestAMisspelledCommand:
+    """``execsql confg --help`` is a usage error naming the command, not run's help."""
+
+    @pytest.mark.parametrize(
+        ("typed", "meant"),
+        [("confg", ["config"]), ("lnt", ["lint"]), ("fromat", ["format"]), ("rn", ["run"])],
+    )
+    def test_is_recognized(self, typed, meant, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        assert suggest_command(typed) == meant
+
+    def test_a_close_call_names_both(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        assert set(suggest_command("inti")) == {"init", "lint"}
+
+    @pytest.mark.parametrize("typed", [*COMMANDS, "main", "load", "confg.sql", "dir/confg", "-m", ""])
+    def test_commands_scripts_and_options_are_not(self, typed, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        assert suggest_command(typed) == []
+
+    def test_an_existing_file_is_a_script(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / "confg").write_text("select 1;\n", encoding="utf-8")
+        assert suggest_command("confg") == []
+
+    def test_exits_2_with_the_suggestion(self, tmp_path, monkeypatch):
+        from typer.testing import CliRunner
+
+        from execsql.cli import app
+
+        monkeypatch.chdir(tmp_path)
+        result = CliRunner().invoke(app, ["confg", "--help"])
+        assert result.exit_code == 2
+        assert "No such command 'confg'. Did you mean 'config'?" in result.output
+        assert "SQL_SCRIPT" not in result.output
 
 
 class TestNoArguments:
