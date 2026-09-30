@@ -49,9 +49,6 @@ once per invocation, not from each script's directory.
     `execsql run lint` or `execsql ./lint`. Names with an extension, such as
     `lint.sql`, are never ambiguous.
 
-    A bare word close to a command name that is not a file, such as `confg`,
-    is taken as a misspelled command: `No such command 'confg'. Did you mean 'config'?` (exit 2).
-
 ### config { #config_command }
 
 ```text

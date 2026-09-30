@@ -156,7 +156,7 @@ class ExecsqlGroup(TyperGroup):
     """
 
     def parse_args(self, ctx: Any, args: list[str]) -> list[str]:
-        from execsql.cli.dispatch import normalize, suggest_command
+        from execsql.cli.dispatch import normalize
 
         if not args:
             # Running execsql with no arguments is a usage error: the help goes
@@ -167,8 +167,6 @@ class ExecsqlGroup(TyperGroup):
             # is set here rather than left to whichever Click is installed.
             typer.echo(ctx.get_help(), color=ctx.color)
             ctx.exit(2)
-        if suggestions := suggest_command(args[0]):
-            ctx.fail(f"No such command '{args[0]}'. Did you mean {' or '.join(repr(s) for s in suggestions)}?")
         return super().parse_args(ctx, normalize(args))
 
     def format_usage(self, ctx: Any, formatter: Any) -> None:

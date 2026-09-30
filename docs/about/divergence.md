@@ -217,8 +217,6 @@ Running `execsql` with no arguments prints the help and exits with status **2**,
 
 A command name — `run`, `format`, `fmt`, `lint`, `config`, `init` — always selects the command, even when a file of that name is in the working directory. A script named exactly like a command, with no extension, now runs with `execsql run NAME` (or `execsql ./NAME`); upstream ran `execsql NAME` as a script. The alternative, letting a file win, would let `execsql lint scripts/` execute a script called `lint` that happened to be in the working directory. Names with an extension (`lint.sql`) were never ambiguous.
 
-A misspelled command — a bare word that is not a file and is close to a command name, such as `confg` — is a usage error with a suggestion (`Did you mean 'config'?`, exit 2). Upstream would have tried to run a script by that name and reported it missing (exit 1).
-
 Seven upstream long-form flags were renamed underscore → hyphen and the underscore forms are **not** accepted: `--database-encoding`, `--script-encoding`, `--output-encoding`, `--import-encoding`, `--import-buffer`, `--user-logfile`, `--visible-prompts` (upstream wrote these with underscores). Scripts and CI pipelines that invoke the long-form flags must update the spelling; the short letters (`-e`, `-f`, `-g`, `-i`, `-l`, `-v`, `-z`) are unchanged.
 
 ### MySQL Connection Encoding

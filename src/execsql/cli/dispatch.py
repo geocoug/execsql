@@ -1,8 +1,8 @@
 """Command dispatch for the ``execsql`` console script.
 
-execsql is five commands behind one program — ``run``, ``format``, ``lint``,
-``config`` and ``init`` — each a real :class:`typer.Typer` command, so
-``execsql --help`` lists them the way any multi-command CLI does.
+execsql is six commands behind one program — ``run``, ``format``, ``lint``,
+``ping``, ``config`` and ``list`` — each a real :class:`typer.Typer` command,
+so ``execsql --help`` lists them the way any multi-command CLI does.
 
 What this module adds on top is one rule, applied before the parser sees
 anything: **an argument list with no command in it means** ``run``.
@@ -13,9 +13,8 @@ users to. There is no deprecation of the bare form and none is planned.
 
 Two things must not have ``run`` inserted: a command name, and an option the
 app declares itself — ``--help``, ``--version``, ``--online-help``.
-Everything else, including ``-m`` and the other options declared on ``run``,
-is a run — except a misspelled command (:func:`suggest_command`), which is a
-usage error rather than a script that does not exist.
+Everything else, including ``-m`` and the other hidden aliases declared on
+``run``, is a run.
 
 A command name is always a command, whatever files the working directory
 holds: a linter must never be able to execute a script because a file named
@@ -26,10 +25,8 @@ recorded, maintainer-approved break from upstream (docs/about/divergence.md).
 
 from __future__ import annotations
 
-import difflib
-from pathlib import Path
 
-__all__ = ["COMMANDS", "GLOBAL_FLAGS", "dispatch", "normalize", "suggest_command"]
+__all__ = ["COMMANDS", "GLOBAL_FLAGS", "dispatch", "normalize"]
 
 #: Tokens that name a command.  ``fmt`` is an alias for ``format``: ruff
 #: spells it ``format`` and most people type ``fmt``.
@@ -53,27 +50,6 @@ def normalize(argv: list[str]) -> list[str]:
     if head in COMMANDS or head in GLOBAL_FLAGS:
         return argv
     return ["run", *argv]
-
-
-def suggest_command(head: str) -> list[str]:
-    """The commands *head* was probably meant to be; empty if it is a script.
-
-    ``execsql confg --help`` would otherwise become ``execsql run confg
-    --help`` and print run's help. Only a bare word can be a misspelled
-    command: an option, a name with a path separator or an extension, and an
-    existing file are scripts, as they always were.
-    """
-    if (
-        head in COMMANDS
-        or not head
-        or head.startswith("-")
-        or "/" in head
-        or "\\" in head
-        or "." in head
-        or Path(head).exists()
-    ):
-        return []
-    return difflib.get_close_matches(head.lower(), COMMANDS, n=2, cutoff=0.75)
 
 
 def dispatch() -> None:
