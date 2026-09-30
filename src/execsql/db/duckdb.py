@@ -98,20 +98,27 @@ class DuckDBDatabase(Database):
             self.in_transaction = True
 
     def execute(self, sql: Any, paramlist: list | None = None, *, fetch: bool = False) -> tuple[list[str], list] | None:
-        """Execute *sql*, noting a transaction the statement itself begins or ends."""
+        """Execute *sql*, noting a transaction the statement itself begins or ends.
+
+        The driver's ``rowcount`` is always -1: DuckDB answers an INSERT,
+        UPDATE or DELETE with a one-column ``Count`` result instead, which is
+        read here to set ``$LAST_ROWCOUNT`` as other drivers do.
+        """
         text = " ".join(sql) if type(sql) in (tuple, list) else sql
-        m = _TRANSACTION_RX.match(statement_start(text))
+        start = statement_start(text)
+        m = _TRANSACTION_RX.match(start)
         if m and m.group("begin"):
             self.in_transaction = True  # so the BEGIN itself runs on the connection
-        result = super().execute(sql, paramlist, fetch=fetch)
+        query = bool(_QUERY_RX.match(start))
+        result = super().execute(sql, paramlist, fetch=fetch or not query)
         if m and m.group("end"):
             self.in_transaction = False
-        if result is not None and result[0] == ["Count"] and not _QUERY_RX.match(statement_start(text)):
-            # Not rows to show: how many the statement changed, as other drivers report it.
+        if not query and result is not None and result[0] == ["Count"]:
             rows = result[1]
-            _state.subvars.add_substitution("$LAST_ROWCOUNT", rows[0][0] if rows else -1)
+            if _state.subvars is not None:
+                _state.subvars.add_substitution("$LAST_ROWCOUNT", rows[0][0] if rows else -1)
             return None
-        return result
+        return result if fetch else None
 
     def commit(self) -> None:
         """Commit the open transaction if autocommit is enabled."""
