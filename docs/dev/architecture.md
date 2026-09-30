@@ -131,7 +131,7 @@ A handful of keywords appear in **both** the metacommand dispatch table and the 
 
 What the stubs are for:
 
-- **`execsql --dump-keywords`** walks the dispatch table to emit the canonical keyword list. The VS Code grammar in `extras/vscode-execsql/syntaxes/execsql.tmLanguage.json` is regenerated from its JSON output (see `scripts/generate_vscode_grammar.py`). Removing the dispatch entries would silently shrink that grammar and lose highlighting for the affected keywords.
+- **`execsql list keywords`** walks the dispatch table to emit the canonical keyword list. The VS Code grammar in `extras/vscode-execsql/syntaxes/execsql.tmLanguage.json` is regenerated from its JSON output (see `scripts/generate_vscode_grammar.py`). Removing the dispatch entries would silently shrink that grammar and lose highlighting for the affected keywords.
 - **Reachability is impossible at runtime.** The AST parser owns these constructs and they never bottom out in `_exec_metacommand()`. If a stub *does* raise, that means the parser missed a structural case — file a bug rather than implementing the dispatch path.
 
 A new contributor who greps for `ErrInfo: AST-only` lands in `metacommands/control.py:_ast_only_stub`; the same logic applies to any future keyword that the AST parser owns.
@@ -151,7 +151,7 @@ ______________________________________________________________________
 
 execsql supports plugins via Python entry points. Plugins can register custom metacommands, export formats, and import formats.
 
-Plugins cannot add CLI commands. The command set (`run`, `format`, `lint`, `config`, `init`) is defined only in `src/execsql/cli/commands/` and pinned by `tests/cli/test_cli_surface.py`, so every change to it is reviewed in one place.
+Plugins cannot add CLI commands. The command set (`run`, `format`, `lint`, `config`, `list`, `init`) is defined only in `src/execsql/cli/commands/` and pinned by `tests/cli/test_cli_surface.py`, so every change to it is reviewed in one place.
 
 - **Entry point groups**: `execsql.metacommands`, `execsql.exporters`, `execsql.importers`
 - **Discovery**: `plugins.discover_metacommand_plugins()` is called during `state.initialize()`. Exporter/importer plugins are discovered via `discover_exporter_plugins()` / `discover_importer_plugins()`.

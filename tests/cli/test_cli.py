@@ -709,7 +709,7 @@ class TestEndToEndExecution:
 
 
 class TestDumpKeywords:
-    """In-process tests for the --dump-keywords early-exit branch.
+    """In-process tests for `execsql list keywords --output-format json` (formerly --dump-keywords).
 
     These use CliRunner so that every line inside the branch is counted
     for coverage (the subprocess-based test in TestEndToEndExecution does not
@@ -717,17 +717,17 @@ class TestDumpKeywords:
     """
 
     def _data(self):
-        """Invoke --dump-keywords and return the parsed JSON dict."""
-        result = runner.invoke(app, ["--dump-keywords"], catch_exceptions=False)
+        """Invoke `list keywords --output-format json` and return the parsed JSON dict."""
+        result = runner.invoke(app, ["list", "keywords", "--output-format", "json"], catch_exceptions=False)
         assert result.exit_code == 0, f"Non-zero exit: {result.output}"
         return json.loads(result.output)
 
     def test_exits_zero(self):
-        result = runner.invoke(app, ["--dump-keywords"], catch_exceptions=False)
+        result = runner.invoke(app, ["list", "keywords", "--output-format", "json"], catch_exceptions=False)
         assert result.exit_code == 0
 
     def test_output_is_valid_json(self):
-        result = runner.invoke(app, ["--dump-keywords"], catch_exceptions=False)
+        result = runner.invoke(app, ["list", "keywords", "--output-format", "json"], catch_exceptions=False)
         # Must not raise
         json.loads(result.output)
 

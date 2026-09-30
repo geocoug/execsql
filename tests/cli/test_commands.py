@@ -1,4 +1,4 @@
-"""The config command, and run's information flags (-m, -y, --list-plugins, --dump-keywords, --ping)."""
+"""The config and list commands, and the run flags they replace (-m, -y, --list-plugins, --dump-keywords, --init-config)."""
 
 from __future__ import annotations
 
@@ -41,31 +41,45 @@ class TestCommandSet:
         out = _invoke("--help").output
         section = out[out.index("Commands:") :]
         names = [line.split()[0] for line in section.splitlines()[1:] if line.strip()]
-        assert names == ["run", "format", "lint", "config", "init"]
+        assert names == ["run", "format", "lint", "config", "list", "init"]
 
-    @pytest.mark.parametrize("flag", ["--ping", "--metacommands", "--encodings", "--dump-keywords", "--list-plugins"])
-    def test_information_flags_are_listed_in_run_help(self, flag):
-        assert flag in _invoke("run", "--help").output
+    def test_ping_is_listed_in_run_help(self):
+        assert "--ping" in _invoke("run", "--help").output
 
-    @pytest.mark.parametrize("flag", ["--lint", "--init-config"])
+    @pytest.mark.parametrize(
+        "flag",
+        ["--lint", "--init-config", "--metacommands", "--encodings", "--dump-keywords", "--list-plugins"],
+    )
     def test_moved_flags_are_hidden_from_run_help(self, flag):
         assert flag not in _invoke("run", "--help").output
 
 
 # ---------------------------------------------------------------------------
-# -m / -y / --list-plugins / --dump-keywords
+# list, and the -m / -y / --list-plugins / --dump-keywords aliases
 # ---------------------------------------------------------------------------
 
 
-class TestInformationFlags:
-    @pytest.mark.parametrize(("flag", "expected"), [("-m", "EXPORT"), ("-y", "latin1"), ("--list-plugins", "")])
-    def test_prints_and_exits(self, flag, expected):
-        result = _invoke(flag)
-        assert result.exit_code == 0
-        assert expected in result.output
+class TestList:
+    @pytest.mark.parametrize(
+        ("alias", "thing", "fmt"),
+        [
+            ("-m", "metacommands", "text"),
+            ("--metacommands", "metacommands", "text"),
+            ("-y", "encodings", "text"),
+            ("--encodings", "encodings", "text"),
+            ("--list-plugins", "plugins", "text"),
+            ("--dump-keywords", "keywords", "json"),
+        ],
+    )
+    def test_alias_prints_what_the_command_prints(self, alias, thing, fmt):
+        # Through `run`, which prints no deprecation warning into the output.
+        via_alias = _invoke("run", alias)
+        via_command = _invoke("list", thing, "--output-format", fmt)
+        assert via_alias.exit_code == via_command.exit_code == 0
+        assert via_alias.output == via_command.output
 
-    def test_dump_keywords_shape(self):
-        data = json.loads(_invoke("--dump-keywords").output)
+    def test_keywords_json_keeps_the_dump_keywords_shape(self):
+        data = json.loads(_invoke("list", "keywords", "--output-format", "json").output)
         assert set(data) == {
             "metacommands",
             "conditions",
@@ -74,6 +88,32 @@ class TestInformationFlags:
             "database_types",
             "variable_patterns",
         }
+
+    def test_keywords_text_is_readable_not_json(self):
+        out = _invoke("list", "keywords").output
+        assert "Conditions" in out
+        assert not out.lstrip().startswith("{")
+
+    def test_metacommands_json(self):
+        rows = json.loads(_invoke("list", "metacommands", "--output-format", "json").output)
+        assert {"name": "EXPORT", "syntax": "<queryname> TO <format> <filename> ..."} in rows
+
+    def test_encodings_json(self):
+        names = json.loads(_invoke("list", "encodings", "--output-format", "json").output)
+        assert "latin1" in names
+        assert names == sorted(names)
+
+    def test_plugins_json(self):
+        data = json.loads(_invoke("list", "plugins", "--output-format", "json").output)
+        assert set(data) == {"metacommands", "exporters", "importers"}
+
+    def test_unknown_list_is_a_usage_error(self):
+        assert _invoke("list", "tables").exit_code == 2
+
+    def test_bare_list_prints_its_help_and_exits_2(self):
+        result = _invoke("list")
+        assert result.exit_code == 2
+        assert "metacommands" in result.output
 
 
 # ---------------------------------------------------------------------------
@@ -87,7 +127,7 @@ class TestConfig:
         assert "[connect]" in out
 
     def test_init_config_alias_matches(self):
-        assert _invoke("--init-config").output == _invoke("config", "--init").output
+        assert _invoke("run", "--init-config").output == _invoke("config", "--init").output
 
     def test_no_files_means_every_option_is_default(self, isolated):
         data = json.loads(_invoke("config", "--output-format", "json").output)

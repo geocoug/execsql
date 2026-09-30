@@ -7,7 +7,7 @@ Quick start:
     1. Copy this directory and rename everything marked YOURNAME
     2. Implement your handler functions below
     3. Install with: pip install -e .
-    4. Verify with:  execsql --list-plugins
+    4. Verify with:  execsql list plugins
     5. Use in scripts: -- !x! YOUR_COMMAND arg1 arg2
 """
 
@@ -30,7 +30,7 @@ def register_metacommands(mcl: Any) -> None:
     Each registration needs:
         - regex: Pattern to match (use named groups for arguments)
         - handler: Function receiving regex groups as **kwargs
-        - description: Name for --dump-keywords output
+        - description: Name in `execsql list keywords` output
         - category: "action", "control", "config", "prompt", or "block"
     """
     mcl.add(

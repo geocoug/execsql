@@ -1,15 +1,15 @@
 """Command dispatch for the ``execsql`` console script.
 
 execsql is six commands behind one program — ``run``, ``format``, ``lint``,
-``ping``, ``config`` and ``list`` — each a real :class:`typer.Typer` command,
+``config``, ``list`` and ``init`` — each a real :class:`typer.Typer` command,
 so ``execsql --help`` lists them the way any multi-command CLI does.
 
 What this module adds on top is one rule, applied before the parser sees
 anything: **an argument list with no command in it means** ``run``.
 ``execsql script.sql server db`` has been the invocation since upstream
-v1.130.1 — it is in shell scripts, cron entries, and every page of the
-documentation — so :func:`normalize` inserts the verb rather than asking
-users to. There is no deprecation of the bare form and none is planned.
+v1.130.1 — it is in shell scripts and cron entries — so :func:`normalize`
+still inserts the verb. That form is deprecated: the app warns when it
+inserts ``run``, and the form stops working in execsql2 3.0.
 
 Two things must not have ``run`` inserted: a command name, and an option the
 app declares itself — ``--help``, ``--version``, ``--online-help``.
@@ -30,7 +30,7 @@ __all__ = ["COMMANDS", "GLOBAL_FLAGS", "dispatch", "normalize"]
 
 #: Tokens that name a command.  ``fmt`` is an alias for ``format``: ruff
 #: spells it ``format`` and most people type ``fmt``.
-COMMANDS = ("run", "format", "fmt", "lint", "config", "init")
+COMMANDS = ("run", "format", "fmt", "lint", "config", "list", "init")
 
 #: Options declared on the app rather than on a command, which must reach
 #: the parser without ``run`` in front of them. ``-m``, ``--encodings`` and
@@ -42,7 +42,9 @@ GLOBAL_FLAGS = ("--help", "-h", "--version", "-o", "--online-help")
 def normalize(argv: list[str]) -> list[str]:
     """Insert ``run`` when *argv* carries no command.
 
-    Takes and returns the arguments after the program name.
+    Takes and returns the arguments after the program name. *argv* itself is
+    returned when nothing is inserted, so a caller can tell the deprecated
+    bare form by identity.
     """
     if not argv:
         return argv

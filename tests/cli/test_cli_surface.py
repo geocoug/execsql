@@ -45,12 +45,7 @@ SURFACE: dict[str, dict[str, object]] = {
             "--profile-limit",
             "--progress",
             "--var",
-            # Information: print and exit.
-            "--dump-keywords",
-            "--list-plugins",
             "--ping",
-            "-m --metacommands",
-            "-y --encodings",
             "-a --assign-arg",
             "-b --boolean-int",
             "-c --command",
@@ -70,8 +65,12 @@ SURFACE: dict[str, dict[str, object]] = {
             "-z --import-buffer",
         },
         "hidden": {
-            # Became `execsql config --init`, kept working (docs/about/divergence.md).
+            # Flags that became commands, kept working (docs/about/divergence.md).
+            "--dump-keywords",
             "--init-config",
+            "--list-plugins",
+            "-m --metacommands",
+            "-y --encodings",
             # Removed; declared only to refuse it with a pointer to `execsql lint`.
             "--lint",
             # The global options again: upstream accepted them anywhere.
@@ -111,6 +110,7 @@ SURFACE: dict[str, dict[str, object]] = {
         "options": {"--config", "--init", "--output-format", "--validate"},
         "hidden": set(),
     },
+    "list": {"arguments": [], "options": set(), "hidden": set()},
     "init": {
         "arguments": ["[DIR]"],
         "options": {"--force", "--no-config", "--no-pre-commit", "--no-script", "--script"},
@@ -120,6 +120,9 @@ SURFACE: dict[str, dict[str, object]] = {
 
 #: Commands that exist but are not listed in ``execsql --help``.
 HIDDEN_COMMANDS = {"fmt": "format"}
+
+#: ``execsql list`` is a group: one command per reference list.
+LIST_COMMANDS = {name: {"--output-format"} for name in ("metacommands", "encodings", "plugins", "keywords")}
 
 
 def _spellings(param) -> str:
@@ -144,8 +147,15 @@ class TestSurface:
         assert _options(group, hidden=False) == GLOBAL_OPTIONS
 
     def test_listed_commands_in_help_order(self, group):
-        listed = [name for name, cmd in group.commands.items() if not cmd.hidden]
+        listed = [name for name in group.list_commands(None) if not group.commands[name].hidden]
         assert listed == list(SURFACE)
+
+    def test_list_commands(self, group):
+        lists = group.commands["list"]
+        assert list(lists.list_commands(None)) == list(LIST_COMMANDS)
+        for name, options in LIST_COMMANDS.items():
+            assert _options(lists.commands[name], hidden=False) == options
+            assert _options(lists.commands[name], hidden=True) == set()
 
     def test_hidden_commands(self, group):
         assert {name for name, cmd in group.commands.items() if cmd.hidden} == set(HIDDEN_COMMANDS)
@@ -208,6 +218,10 @@ EXIT_CODES = [
     (["lint", "--strict", "warned.sql"], 1),
     (["lint", "--select", "Z9", "clean.sql"], 2),
     (["lint"], 2),
+    # list
+    (["list", "keywords"], 0),
+    (["list", "tables"], 2),
+    (["list"], 2),
     # config
     (["config"], 0),
     (["config", "--config", "missing.conf"], 2),

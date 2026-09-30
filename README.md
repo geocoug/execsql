@@ -33,13 +33,15 @@ Scripts are ordinary SQL plus metacommands embedded in comments (`-- !x!`), whic
 | `execsql lint`                             | Static analysis: structure, undefined variables, bad targets            | No                |
 | `execsql run`                              | Run the script against PostgreSQL, MySQL, SQLite, DuckDB, …             | Yes               |
 | `execsql config`                           | Show every config option, its value, and the file that set it           | No                |
+| `execsql list`                             | Metacommands, encodings, plugins, or the keyword vocabulary             | No                |
 | `execsql init`                             | Set up a project: config file, a script with a header, pre-commit hooks | No                |
 | [VS Code extension](extras/vscode-execsql) | Syntax highlighting for metacommands and variables                      | No                |
 
 `format` and `lint` take files or directories; `fmt` is an alias for `format`.
 
-The original positional form — `execsql script.sql myserver mydb` — is unchanged
-and will stay supported; `execsql run` is the same thing spelled explicitly.
+The original positional form — `execsql script.sql myserver mydb` — still works
+but is deprecated: it prints a warning and stops working in execsql2 3.0. Use
+`execsql run script.sql myserver mydb`.
 
 ## Quick start — no database required
 
@@ -124,9 +126,8 @@ execsql run    [OPTIONS] SQL_SCRIPT [SERVER DATABASE | DATABASE_FILE]
 execsql format [--check | -i] [--indent N] FILE_OR_DIR...
 execsql lint   [OPTIONS] FILE_OR_DIR...
 execsql config [SQL_SCRIPT] [--init] [--config FILE]
+execsql list   metacommands|encodings|plugins|keywords
 execsql init   [DIR] [--script NAME] [--no-script] [--no-config] [--no-pre-commit]
-
-execsql [OPTIONS] SQL_SCRIPT [SERVER DATABASE | DATABASE_FILE]   # original form, unchanged
 ```
 
 Examples:
@@ -183,7 +184,7 @@ silences.
 | `--debug`                                         | Start in step-through debug mode (REPL pauses before each stmt)            |
 | `--no-system-cmd` / `--no-rm-file` / `--no-serve` | Disable the `SYSTEM_CMD` / `RM_FILE` / `SERVE` metacommands                |
 
-See the [full options reference](https://execsql2.readthedocs.io/en/latest/getting-started/syntax/#options) or run `execsql run --help` for the complete list, `execsql run --ping` to test a connection, `execsql config` to see which config files set what, and `execsql run -m` for all metacommands.
+See the [full options reference](https://execsql2.readthedocs.io/en/latest/getting-started/syntax/#options) or run `execsql run --help` for the complete list, `execsql run --ping` to test a connection, `execsql config` to see which config files set what, and `execsql list metacommands` for all metacommands.
 
 ## Features
 

@@ -14,16 +14,40 @@ import typer
 from typer.core import TyperCommand, TyperGroup
 
 from execsql import __version__
-from execsql.cli.help import _console
+from execsql.cli.help import _console, _err_console
 from execsql.utils.color import color_disabled_by_env
 
-__all__ = ["ExecsqlCommand", "ExecsqlGroup", "app"]
+__all__ = ["ExecsqlCommand", "ExecsqlGroup", "ExecsqlSubGroup", "app"]
 
 
 #: Options the app answers about itself rather than about a run, shown under
 #: their own heading. ``--config`` is deliberately not here: only ``run``
 #: reads an execsql config file, so listing it as global would be a lie.
 _GLOBAL_OPTIONS = ("--online-help", "--version")
+
+#: What to type instead of a flag that, used without a command, implies ``run``.
+_REPLACEMENTS = {
+    "-m": "execsql list metacommands",
+    "--metacommands": "execsql list metacommands",
+    "-y": "execsql list encodings",
+    "--encodings": "execsql list encodings",
+    "--list-plugins": "execsql list plugins",
+    "--dump-keywords": "execsql list keywords --output-format json",
+    "--init-config": "execsql config --init",
+    "--ping": "execsql run --ping",
+}
+
+
+def deprecated_bare_form(head: str) -> str:
+    """The warning printed when ``run`` is implied rather than typed; *head* is the first argument."""
+    if head in _REPLACEMENTS:
+        return (
+            f"Deprecated: `execsql {head}` is now `{_REPLACEMENTS[head]}`; the old form stops working in execsql2 3.0."
+        )
+    return (
+        "Deprecated: running a script without the run command. Use `execsql run SCRIPT ...`; "
+        "`execsql SCRIPT ...` stops working in execsql2 3.0."
+    )
 
 
 def _unescape(record: tuple[str, str]) -> tuple[str, str]:
@@ -138,17 +162,16 @@ class ExecsqlGroup(TyperGroup):
 
     Three departures from Click's defaults, each for a reason:
 
-    *Default command.* ``execsql script.sql server db`` has been the
-    invocation since upstream v1.130.1 — it is in shell scripts, cron entries
-    and every page of the documentation — so an argument list carrying no
-    command name gets ``run`` inserted before the parser sees it. Doing that
-    here rather than in the console-script wrapper means the app behaves the
-    same however it is reached: the entry point, ``python -m execsql``, or a
-    test driving ``app`` directly.
+    *Default command, deprecated.* ``execsql script.sql server db`` has been
+    the invocation since upstream v1.130.1 — it is in shell scripts and cron
+    entries — so an argument list carrying no command name still gets ``run``
+    inserted before the parser sees it, with a deprecation warning on stderr;
+    the form stops working in execsql2 3.0. Doing that here rather than in the
+    console-script wrapper means the app behaves the same however it is
+    reached: the entry point, ``python -m execsql``, or a test driving ``app``
+    directly.
 
-    *One usage line, and the shorthand stated.* Help documents one form,
-    ``execsql COMMAND``; the bare ``execsql SCRIPT ...`` is named once, as the
-    permanent shorthand for ``execsql run SCRIPT ...``.
+    *One usage line.* Help documents one form, ``execsql COMMAND``.
 
     *Grouped options.* Click lists every option in one block. The four that
     apply to the whole tool rather than to a run are worth separating from
@@ -167,7 +190,18 @@ class ExecsqlGroup(TyperGroup):
             # is set here rather than left to whichever Click is installed.
             typer.echo(ctx.get_help(), color=ctx.color)
             ctx.exit(2)
-        return super().parse_args(ctx, normalize(args))
+        normalized = normalize(args)
+        if normalized is not args:
+            _err_console.print(f"[yellow]{deprecated_bare_form(args[0])}[/yellow]", highlight=False, soft_wrap=True)
+        return super().parse_args(ctx, normalized)
+
+    def list_commands(self, ctx: Any) -> list[str]:
+        # Typer registers command groups (``list``) after plain commands; help
+        # follows the order COMMANDS gives instead.
+        from execsql.cli.dispatch import COMMANDS
+
+        names = super().list_commands(ctx)
+        return sorted(names, key=lambda n: COMMANDS.index(n) if n in COMMANDS else len(COMMANDS))
 
     def format_usage(self, ctx: Any, formatter: Any) -> None:
         formatter.write_usage(ctx.command_path, "[OPTIONS] COMMAND [ARGS]...", prefix=_usage_prefix())
@@ -206,15 +240,29 @@ class ExecsqlGroup(TyperGroup):
             )
 
 
+class ExecsqlSubGroup(ExecsqlGroup):
+    """A command with commands of its own (``execsql list``).
+
+    The app's help layout, without the app's ``run`` insertion; with no
+    arguments it prints its help and exits 2, as the app does.
+    """
+
+    def parse_args(self, ctx: Any, args: list[str]) -> list[str]:
+        if not args:
+            typer.echo(ctx.get_help(), color=ctx.color)
+            ctx.exit(2)
+        return TyperGroup.parse_args(self, ctx, args)
+
+    def list_commands(self, ctx: Any) -> list[str]:
+        return TyperGroup.list_commands(self, ctx)
+
+
 app = typer.Typer(
     cls=ExecsqlGroup,
     name="execsql",
     # Plain click rendering: no panels, and format_options below can group.
     rich_markup_mode=None,
-    help=(
-        "Run, format and lint SQL scripts with metacommands.\n\n"
-        "execsql SCRIPT ... is shorthand for execsql run SCRIPT ..."
-    ),
+    help="Run, format and lint SQL scripts with metacommands.",
     add_completion=False,
     no_args_is_help=True,
     # Upstream's optparse answered -h as well as --help. Commands inherit this.

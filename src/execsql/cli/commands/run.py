@@ -231,19 +231,11 @@ def main(
         "--user-logfile",
         help="Write a log file to ~/execsql.log.",
     ),
-    # -- Information: print and exit, no script file needed -----------------
-    metacommands: bool = typer.Option(False, "-m", "--metacommands", help="List metacommands and exit."),
-    encodings: bool = typer.Option(False, "-y", "--encodings", help="List available encoding names and exit."),
-    dump_keywords: bool = typer.Option(
-        False,
-        "--dump-keywords",
-        help="Dump all metacommand keywords as JSON and exit.",
-    ),
-    list_plugins: bool = typer.Option(
-        False,
-        "--list-plugins",
-        help="List all discovered plugins (metacommands, exporters, importers) and exit.",
-    ),
+    # -- Hidden aliases of `execsql list ...`; -m and -y are upstream flags.
+    metacommands: bool = typer.Option(False, "-m", "--metacommands", hidden=True),  # list metacommands
+    encodings: bool = typer.Option(False, "-y", "--encodings", hidden=True),  # list encodings
+    dump_keywords: bool = typer.Option(False, "--dump-keywords", hidden=True),  # list keywords --output-format json
+    list_plugins: bool = typer.Option(False, "--list-plugins", hidden=True),  # list plugins
     ping: bool = typer.Option(
         False,
         "--ping",

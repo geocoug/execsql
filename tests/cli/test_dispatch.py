@@ -213,8 +213,8 @@ class TestHelpIsDiscoverable:
         for verb in ("run", "format", "lint"):
             assert verb in out, f"{verb} missing from execsql --help"
 
-    def test_main_help_says_the_bare_form_still_works(self):
-        assert "shorthand for execsql run" in " ".join(self._cli("--help").stdout.split())
+    def test_main_help_does_not_offer_the_bare_form(self):
+        assert "SCRIPT ..." not in self._cli("--help").stdout
 
     def test_lint_help_does_not_crash(self):
         result = self._cli("lint", "--help")
@@ -349,7 +349,9 @@ class TestUpstreamFlagPositions:
     def test_short_help(self, args):
         result = self._invoke(args)
         assert result.exit_code == 0, result.output
-        assert result.output.startswith("Usage:")
+        # The bare form (s.sql -h) prints its deprecation warning first.
+        assert result.output.lstrip().startswith(("Usage:", "Deprecated:"))
+        assert "Usage:" in result.output
 
     def test_online_help_after_the_script(self, monkeypatch):
         import webbrowser
@@ -372,6 +374,39 @@ class TestUpstreamFlagPositions:
         headings = [line for line in out.splitlines() if line.endswith(":") and not line.startswith(" ")]
         assert "Positional arguments:" not in headings
         assert headings.count("Arguments:") == 1
+
+
+class TestTheBareFormIsDeprecated:
+    """``execsql SCRIPT ...`` still runs, with a warning on stderr naming what to type instead."""
+
+    @staticmethod
+    def _cli(*args):
+        import subprocess
+        import sys
+
+        return subprocess.run([sys.executable, "-m", "execsql", *args], capture_output=True, text=True)
+
+    def test_a_script_still_runs_and_warns(self, tmp_path):
+        script = tmp_path / "s.sql"
+        script.write_text("create table t (x integer);\n", encoding="utf-8")
+        result = self._cli(str(script), str(tmp_path / "db.sqlite"), "-tl", "-n")
+        assert result.returncode == 0, result.stderr
+        assert "Use `execsql run SCRIPT ...`" in result.stderr
+        assert "execsql2 3.0" in result.stderr
+        assert "Deprecated" not in result.stdout
+
+    @pytest.mark.parametrize(
+        ("flag", "replacement"),
+        [("-m", "execsql list metacommands"), ("--dump-keywords", "execsql list keywords --output-format json")],
+    )
+    def test_a_moved_flag_names_its_command(self, flag, replacement):
+        result = self._cli(flag)
+        assert result.returncode == 0
+        assert f"`execsql {flag}` is now `{replacement}`" in result.stderr
+
+    @pytest.mark.parametrize("args", [["run", "--help"], ["list", "encodings"], ["--version"], ["--help"]])
+    def test_commands_and_app_options_do_not_warn(self, args):
+        assert "Deprecated" not in self._cli(*args).stderr
 
 
 class TestNoArguments:
