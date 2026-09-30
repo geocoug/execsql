@@ -349,6 +349,29 @@
 #win_config_file=
 
 
+[format]
+# Layout for `execsql format`. A flag on the command line wins over these.
+# A run ignores this section.
+
+# Spaces per indent level, for metacommand blocks and SQL.
+#indent=4
+# Put commas at the start of lines instead of the end.
+#leading_comma=No
+# Reformat SQL with sqlglot (needs the [formatter] extra). No = metacommands only.
+#sql=Yes
+
+
+[lint]
+# Rules for `execsql lint`: codes or prefixes, comma-separated (e.g. V001,F).
+# --select or --ignore on the command line replaces the value here.
+# A run ignores this section.
+
+#select=
+#ignore=
+# Yes = exit 1 on warnings too, not only on errors (--strict / --no-strict).
+#strict=No
+
+
 [variables]
 # Substitution variables defined at startup. No pre-defined keys.
 # Example:

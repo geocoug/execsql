@@ -33,7 +33,6 @@ __all__ = ["_connect_initial_db", "_ping_db", "_print_dry_run", "_print_profile"
 
 # Lint helper — imported lazily inside _run() to keep start-up cost low, but
 # re-exported here so that tests and callers can reach it via cli.run.
-from execsql.cli.lint import _print_lint_results  # noqa: F401 — re-export (used by cli/__init__.py)
 
 
 # ---------------------------------------------------------------------------
@@ -289,6 +288,21 @@ def _load_config(
     return ConfigData(script_path, subvars, config_file=config_file)
 
 
+def _tool_config(config_file: str | None) -> ConfigData:
+    """The config ``execsql format`` and ``execsql lint`` read.
+
+    Read once per invocation, from the system, user and working-directory
+    locations plus *config_file* — not per script, so a script directory's
+    own ``execsql.conf`` applies only when passed with ``--config``.
+    """
+    return _load_config(None, _seed_early_subvars(), config_file)
+
+
+def _configured_script_encoding(conf: ConfigData) -> str | None:
+    """``[encoding] script`` from *conf*, or ``None`` when no config file sets it."""
+    return conf.script_encoding if "script_encoding" in conf.sources else None
+
+
 def _seed_script_subvars(subvars: SubVarSet, script_name: str | None) -> None:
     """Add substitution variables that depend on the script path."""
     from execsql.utils.errors import file_size_date
@@ -492,8 +506,9 @@ def _setup_logging(
     use_gui: str | None,
     no_passwd: bool,
     import_buffer: int | None,
+    named_vars: list[tuple[str, str]] | None = None,
 ) -> Logger:
-    """Create the execution logger, log initial info, and seed ``$RUN_ID``."""
+    """Create the execution logger, log initial info, and seed ``$RUN_ID``, ``-a`` and ``--var`` values."""
     from execsql.utils.errors import file_size_date
 
     opts_dict = {
@@ -550,6 +565,13 @@ def _setup_logging(
             logger.log_status_info(
                 f"Command-line substitution variable assignment: {var} set to {{***}}",
             )
+    # --var values: named, set after config files so they win over
+    # [variables]; a SUB in the script can still reassign them. Values are
+    # redacted for the same reason as -a's.
+    for name, value in named_vars or ():
+        subvars.add_substitution(name, value)
+        logger.add_redaction_value(value)
+        logger.log_status_info(f"Command-line substitution variable assignment: {name} set to {{***}}")
 
     return logger
 
@@ -587,12 +609,13 @@ def _run(
     profile: bool = False,
     profile_limit: int = 20,
     ping: bool = False,
-    lint: bool = False,
     debug: bool = False,
     no_system_cmd: bool = False,
     no_rm_file: bool = False,
     no_serve: bool = False,
     config_file: str | None = None,
+    named_vars: list[tuple[str, str]] | None = None,
+    manifest_path: str | None = None,
 ) -> None:
     """Initialise state, connect to the database, load the script, and run it.
 
@@ -605,12 +628,6 @@ def _run(
     connection details (DBMS name, server version, and location), and calls
     :func:`_ping_db` which raises ``SystemExit(0)``.  No script is loaded or
     executed.  *script_name* and *command* may both be ``None`` in ping mode.
-
-    When *lint* is ``True``, the script is parsed and statically analysed for
-    structural issues (unmatched IF/ENDIF/LOOP/BATCH blocks, potentially
-    undefined variables, missing INCLUDE files, empty scripts) without
-    connecting to a database or executing anything.  Exits with code 0 if no
-    errors were found, or code 1 if errors were found.
     """
     import execsql.state as _state
 
@@ -698,6 +715,8 @@ def _run(
         if sub_vars:
             for n, repl in enumerate(sub_vars):
                 _state.subvars.add_substitution(f"$ARG_{n + 1}", repl)
+        for name, value in named_vars or ():
+            _state.subvars.add_substitution(name, value)
         _ast_tree = _load_script(command, script_name, conf.script_encoding)
         _print_dry_run(_ast_tree)
         raise SystemExit(0)
@@ -712,6 +731,16 @@ def _run(
         db = _connect_initial_db(conf)
         _state.dbs.add("initial", db)
         _ping_db(db)  # raises SystemExit
+
+    manifest = None
+    if manifest_path:
+        from execsql import manifest as _manifest
+
+        variables = [f"$ARG_{n + 1}" for n in range(len(sub_vars or ()))] + [name for name, _ in named_vars or ()]
+        manifest = _manifest.start(manifest_path, script_name, variables)
+        manifest.config_files = list(conf.files_read)
+        # Written by exit_now on an error, below on success; this catches anything else.
+        atexit.register(manifest.finish, None)
 
     import execsql.utils.fileio as _fileio
 
@@ -758,17 +787,13 @@ def _run(
         use_gui=use_gui,
         no_passwd=no_passwd,
         import_buffer=import_buffer,
+        named_vars=named_vars,
     )
 
     # ------------------------------------------------------------------
     # Load the SQL script (--dry-run / --ping already exited above)
     # ------------------------------------------------------------------
     _ast_tree = _load_script(command, script_name, conf.script_encoding)
-
-    # ------------------------------------------------------------------
-    # NOTE: --lint is handled as an early exit in cli/__init__.py (AST
-    # linter) before _run() is called.  No lint code path here.
-    # ------------------------------------------------------------------
 
     # ------------------------------------------------------------------
     # Start GUI console if requested
@@ -794,6 +819,8 @@ def _run(
         _state.dbs.add("initial", db)
 
     _state.exec_log.log_db_connect(db)
+    if manifest is not None:
+        manifest.set_database(db)
     _state.subvars.add_substitution("$CURRENT_DBMS", db.type.dbms_id)
     _state.subvars.add_substitution("$CURRENT_DATABASE", db.name())
     _state.subvars.add_substitution("$DB_SERVER", db.server_name)
@@ -822,6 +849,8 @@ def _run(
 
     if _ast_tree is not None:
         _execute_script_ast(_ast_tree, conf, profile=profile, profile_limit=profile_limit)
+    if manifest is not None:
+        manifest.finish(0)
 
 
 # ---------------------------------------------------------------------------

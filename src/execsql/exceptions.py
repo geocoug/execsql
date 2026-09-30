@@ -35,6 +35,7 @@ Note:
 __all__ = [
     "ExecSqlError",
     "ConfigError",
+    "ConfigFileError",
     "ExecSqlTimeoutError",
     "ErrInfo",
     "DataTypeError",
@@ -72,6 +73,14 @@ class ExecSqlError(Exception):
 
 class ConfigError(ExecSqlError):
     """Raised for invalid or missing execsql configuration values."""
+
+
+class ConfigFileError(ConfigError):
+    """A :class:`ConfigError` found while reading one config file.
+
+    The message starts with the file's path. ``execsql config --validate``
+    reports every problem in the file, with line numbers.
+    """
 
 
 class ExecSqlTimeoutError(ExecSqlError):

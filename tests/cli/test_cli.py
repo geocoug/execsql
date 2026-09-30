@@ -168,7 +168,7 @@ class TestOptionParsing:
         Mocks ``_run`` so the test only exercises Typer argument parsing and
         the CLI's own validation, not the full execution pipeline.
         """
-        with patch("execsql.cli._run", return_value=None):
+        with patch("execsql.cli.commands.run._run", return_value=None):
             result = runner.invoke(app, list(args), catch_exceptions=False)
         # Exit 0 = clean; exit 1 = CLI validation error (e.g. bad db-type)
         # Exit 2 = Typer arg-parse error — that's the failure we guard against
@@ -252,21 +252,21 @@ class TestPositionalArgs:
     def test_script_only_accepted(self, tmp_path):
         script = tmp_path / "s.sql"
         script.write_text("-- empty")
-        with patch("execsql.cli._run", return_value=None):
+        with patch("execsql.cli.commands.run._run", return_value=None):
             result = runner.invoke(app, [str(script)], catch_exceptions=False)
         assert result.exit_code != 2
 
     def test_script_server_db_accepted(self, tmp_path):
         script = tmp_path / "s.sql"
         script.write_text("-- empty")
-        with patch("execsql.cli._run", return_value=None):
+        with patch("execsql.cli.commands.run._run", return_value=None):
             result = runner.invoke(app, [str(script), "myserver", "mydb"], catch_exceptions=False)
         assert result.exit_code != 2
 
     def test_script_dbfile_accepted(self, tmp_path):
         script = tmp_path / "s.sql"
         script.write_text("-- empty")
-        with patch("execsql.cli._run", return_value=None):
+        with patch("execsql.cli.commands.run._run", return_value=None):
             result = runner.invoke(app, ["-t", "l", str(script), str(tmp_path / "db.sqlite")], catch_exceptions=False)
         assert result.exit_code != 2
 
@@ -551,7 +551,7 @@ class TestParseConnectionString:
         """--dsn flag is accepted at parse time without error."""
         script = tmp_path / "s.sql"
         script.write_text("-- empty")
-        with patch("execsql.cli._run", return_value=None):
+        with patch("execsql.cli.commands.run._run", return_value=None):
             result = runner.invoke(
                 app,
                 ["--dsn", "postgresql://user@host/db", str(script)],
@@ -563,7 +563,7 @@ class TestParseConnectionString:
         """--connection-string is an alias for --dsn."""
         script = tmp_path / "s.sql"
         script.write_text("-- empty")
-        with patch("execsql.cli._run", return_value=None):
+        with patch("execsql.cli.commands.run._run", return_value=None):
             result = runner.invoke(
                 app,
                 ["--connection-string", "postgresql://user@host/db", str(script)],
@@ -709,7 +709,7 @@ class TestEndToEndExecution:
 
 
 class TestDumpKeywords:
-    """In-process tests for the --dump-keywords early-exit branch.
+    """In-process tests for `execsql list keywords --output-format json` (formerly --dump-keywords).
 
     These use CliRunner so that every line inside the branch is counted
     for coverage (the subprocess-based test in TestEndToEndExecution does not
@@ -717,17 +717,17 @@ class TestDumpKeywords:
     """
 
     def _data(self):
-        """Invoke --dump-keywords and return the parsed JSON dict."""
-        result = runner.invoke(app, ["--dump-keywords"], catch_exceptions=False)
+        """Invoke `list keywords --output-format json` and return the parsed JSON dict."""
+        result = runner.invoke(app, ["list", "keywords", "--output-format", "json"], catch_exceptions=False)
         assert result.exit_code == 0, f"Non-zero exit: {result.output}"
         return json.loads(result.output)
 
     def test_exits_zero(self):
-        result = runner.invoke(app, ["--dump-keywords"], catch_exceptions=False)
+        result = runner.invoke(app, ["list", "keywords", "--output-format", "json"], catch_exceptions=False)
         assert result.exit_code == 0
 
     def test_output_is_valid_json(self):
-        result = runner.invoke(app, ["--dump-keywords"], catch_exceptions=False)
+        result = runner.invoke(app, ["list", "keywords", "--output-format", "json"], catch_exceptions=False)
         # Must not raise
         json.loads(result.output)
 
@@ -900,21 +900,28 @@ class TestLegacyMain:
 
         # sys.exit was called with a string message, not just a code
         msg = exc_info.value.code
-        assert isinstance(msg, str)
-        assert "Configuration error" in msg
-        assert "execsql" in msg
+        assert msg == "Configuration error: bad config value"
 
-    def test_config_error_message_contains_line_number(self):
-        """ConfigError exit message includes a line number from the traceback."""
+    def test_config_error_does_not_cite_execsql_source(self):
+        """Upstream printed "on line N of execsql", a line of its own source; that locates nothing."""
         from execsql.exceptions import ConfigError
 
         with patch("execsql.cli.app", side_effect=ConfigError("oops")), pytest.raises(SystemExit) as exc_info:
             _legacy_main()
 
-        msg = exc_info.value.code
-        # The message format is "Configuration error on line <N> of execsql: <msg>"
-        assert "line" in msg
-        assert "oops" in msg
+        assert "of execsql" not in exc_info.value.code
+
+    def test_config_file_error_points_at_validate(self):
+        from execsql.exceptions import ConfigFileError
+
+        err = ConfigFileError("/etc/execsql.conf: Invalid database type: q")
+        with patch("execsql.cli.app", side_effect=err), pytest.raises(SystemExit) as exc_info:
+            _legacy_main()
+
+        assert exc_info.value.code == (
+            "Configuration error: /etc/execsql.conf: Invalid database type: q\n"
+            "Run `execsql config --validate` to list every problem in the config files."
+        )
 
     def test_generic_exception_wraps_in_errinfo(self):
         """An unexpected Exception is wrapped in ErrInfo and passed to exit_now."""
@@ -1004,7 +1011,7 @@ class TestConfigFlag:
         script.write_text("-- empty")
         conf = tmp_path / "test.conf"
         conf.write_text("[connect]\ndb_type = p\n")
-        with patch("execsql.cli._run", return_value=None) as mock_run:
+        with patch("execsql.cli.commands.run._run", return_value=None) as mock_run:
             result = runner.invoke(
                 app,
                 ["--config", str(conf), str(script)],

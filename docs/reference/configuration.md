@@ -16,8 +16,20 @@ An explicit configuration file can also be specified with the `--config FILE` co
 To generate a starter configuration file with all options commented out and documented, use:
 
 ```bash
-execsql --init-config > execsql.conf
+execsql config --init > execsql.conf
 ```
+
+To see which configuration files are read, and which file set each option, use
+[`execsql config`](../getting-started/syntax.md#config_command). Pass a script to
+include the `execsql.conf` in its directory, as a run of that script would:
+
+```bash
+execsql config scripts/etl.sql
+```
+
+To check config files for mistakes — misspelled keys and sections, keys in the
+wrong section, invalid values — before a run trips over them, use
+[`execsql config --validate`](../getting-started/syntax.md#config_validate).
 
 In addition, *execsql* will read additional configuration files if they are specified in any of the standard configuration files ([see below](#config_config)).
 
@@ -363,6 +375,41 @@ The section and property names that may be used in a configuration file are list
 
 `user_logfile`
 :   Uses an *execsql.log* file in the user's home directory instead of in the directory from which the script was run. This setting may need to be used if multiple users will be running scripts from the same directory.
+
+## Section `format` { #config_format }
+
+Layout defaults for [`execsql format`](../guides/formatter.md#options). A flag on
+the command line always wins. A run ignores this section.
+
+`indent`
+:   Spaces per indent level, for metacommand blocks and SQL. Default: 4. Equivalent to `--indent`.
+
+`leading_comma`
+:   Put commas at the start of lines instead of the end. Default: No. Equivalent to `--leading-comma` / `--no-leading-comma`.
+
+`sql`
+:   Reformat SQL with sqlglot (needs the `[formatter]` extra). `No` normalizes metacommands only. Default: Yes. Equivalent to `--sql` / `--no-sql`.
+
+## Section `lint` { #config_lint }
+
+Rule selection for [`execsql lint`](lint.md#config). A run ignores this section.
+
+`select`
+:   Report only these rules: codes or prefixes, comma-separated (for example `V001,F`). Default: every rule. `--select` on the command line replaces it.
+
+`ignore`
+:   Do not report these rules. Wins over `select`. `--ignore` on the command line replaces it.
+
+`strict`
+:   Exit 1 on warnings too, not only on errors. Default: No. Equivalent to `--strict` / `--no-strict`.
+
+```ini
+[format]
+indent = 2
+
+[lint]
+ignore = V002
+```
 
 ## Section `variables`
 

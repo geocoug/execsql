@@ -18,11 +18,12 @@ Provides three classes:
 import os
 import sys
 from collections.abc import Callable
+import configparser
 from configparser import ConfigParser
 from pathlib import Path
 from typing import Protocol
 
-from execsql.exceptions import ConfigError
+from execsql.exceptions import ConfigError, ConfigFileError
 from execsql.utils.crypto import Encrypt
 
 __all__ = [
@@ -65,6 +66,27 @@ class StatObj:
         self.batch = BatchLevels()
 
 
+def describe_parse_error(exc: configparser.Error) -> tuple[int, str]:
+    """``(line, message)`` for a :mod:`configparser` error, in words a user can act on.
+
+    ``line`` is 0 when the error has no single line. Shared by a run, which
+    stops at the first such error, and ``execsql config --validate``, which
+    reports them all.
+    """
+    if isinstance(exc, configparser.DuplicateOptionError):
+        return exc.lineno or 0, f"{exc.option} is set twice in [{exc.section}]"
+    if isinstance(exc, configparser.DuplicateSectionError):
+        return exc.lineno or 0, f"[{exc.section}] appears twice"
+    if isinstance(exc, configparser.MissingSectionHeaderError):
+        return exc.lineno, "a section header such as [connect] must come before the first option"
+    if isinstance(exc, configparser.ParsingError):
+        line, text = exc.errors[0]
+        return line, f"cannot parse line: {text.strip()}"
+    if isinstance(exc, configparser.InterpolationSyntaxError):
+        return 0, f"{exc.option}: a literal % must be written %%"
+    return getattr(exc, "lineno", 0) or 0, exc.message.splitlines()[0]
+
+
 class ConfigData:
     """Reads and merges ``execsql.conf`` INI files, exposing all options as attributes.
 
@@ -84,6 +106,8 @@ class ConfigData:
     _VARIABLES_SECTION = "variables"
     _INCLUDE_REQ_SECTION = "include_required"
     _INCLUDE_OPT_SECTION = "include_optional"
+    _FORMAT_SECTION = "format"
+    _LINT_SECTION = "lint"
 
     # Schema registry: maps attribute name -> (section, ini_key, type_label).
     # Populated by the _get_* methods on every option they read.  This is the
@@ -91,10 +115,17 @@ class ConfigData:
     # adding a new option below automatically makes it appear in the dump.
     _schema: dict[str, tuple[str, str, str]] = {}
 
+    # Every (section, ini_key, attr) spelling that sets an attribute. Unlike
+    # ``_schema`` this keeps aliases — ``db`` and ``database`` both set ``db``,
+    # and ``enc_password`` sets ``smtp_password`` — so ``sources`` can name the
+    # file whichever spelling it used.
+    _option_keys: set[tuple[str, str, str]] = {("email", "enc_password", "smtp_password")}
+
     @classmethod
     def _register_option(cls, section: str, key: str, attr: str, type_label: str) -> None:
         """Record ``attr`` in the schema registry so config introspection sees it."""
         cls._schema[attr] = (section, key, type_label)
+        cls._option_keys.add((section, key, attr))
 
     def _get_str(self, cp: ConfigParser, section: str, key: str, attr: str, *, required: bool = False) -> None:
         """Read a string option and set ``self.<attr>``.
@@ -342,6 +373,13 @@ class ConfigData:
         self._get_bool(cp, self._EMAIL_SECTION, "use_ssl", "smtp_ssl")
         self._get_bool(cp, self._EMAIL_SECTION, "use_tls", "smtp_tls")
         self._get_str(cp, self._EMAIL_SECTION, "message_css", "email_css")
+        # --- [format] and [lint]: read by `execsql format` / `execsql lint`; a run ignores them ---
+        self._get_int(cp, self._FORMAT_SECTION, "indent", "format_indent")
+        self._get_bool(cp, self._FORMAT_SECTION, "leading_comma", "format_leading_comma")
+        self._get_bool(cp, self._FORMAT_SECTION, "sql", "format_sql")
+        self._get_str(cp, self._LINT_SECTION, "select", "lint_select")
+        self._get_str(cp, self._LINT_SECTION, "ignore", "lint_ignore")
+        self._get_bool(cp, self._LINT_SECTION, "strict", "lint_strict")
 
         # Register options whose loading lives inline in __init__ (because they
         # need special-case validation or side effects) so they still appear in
@@ -374,6 +412,51 @@ class ConfigData:
                 precedence over system, user, script, and working-directory
                 config files.
         """
+        self._set_defaults()
+        current_script = str(Path(sys.argv[0]).resolve())
+        from collections import deque
+
+        config_queue: deque[str] = deque(self._search_paths(script_path, config_file))
+        self.files_read: list = []
+        # Warm the schema registry by running the option reader against an
+        # empty ConfigParser. cp.has_option() is False for everything so no
+        # attribute values change, but every _get_* call registers its
+        # (section, ini_key, attr) tuple in ConfigData._schema. This means
+        # DEBUG WRITE CONFIG / DEBUG LOG CONFIG see the full option set even
+        # when no execsql.conf files exist on the system.
+        self._read_known_options(ConfigParser())
+        # What each registered option holds before any file is read, and the
+        # last file that set it: together they let ``execsql config`` say
+        # where every value came from.
+        self.defaults: dict[str, object] = {attr: getattr(self, attr) for attr in self._schema}
+        self.sources: dict[str, str] = {}
+        while config_queue:
+            configfile = config_queue.popleft()
+            if len(self.files_read) >= self._MAX_CONFIG_CHAIN:
+                break
+            if configfile not in self.files_read and Path(configfile).is_file():
+                self.files_read.append(configfile)
+                cp = ConfigParser()
+                try:
+                    cp.read(configfile)
+                    chained_files = self._apply_file(cp, variable_pool, current_script)
+                except ConfigError as exc:
+                    raise ConfigFileError(f"{configfile}: {exc}") from exc
+                except configparser.Error as exc:
+                    line, text = describe_parse_error(exc)
+                    where = f"{configfile}, line {line}" if line else configfile
+                    raise ConfigFileError(f"{where}: {text}") from exc
+                for chained in chained_files:
+                    config_queue.appendleft(chained)
+                for section, key, attr in self._option_keys:
+                    if cp.has_option(section, key):
+                        self.sources[attr] = configfile
+
+    #: Guard against circular config_file references.
+    _MAX_CONFIG_CHAIN = 20
+
+    def _set_defaults(self) -> None:
+        """Give every option its built-in default, before any file is read."""
         self.db_type: str | None = "l"
         self.server: str | None = None
         self.port: int | None = None
@@ -434,14 +517,14 @@ class ConfigData:
         self.log_datavars = True
         self.log_sql = False
         self.max_log_size_mb = 0
-        self.smtp_host = None
-        self.smtp_port = None
-        self.smtp_username = None
-        self.smtp_password = None
+        self.smtp_host: str | None = None
+        self.smtp_port: int | None = None
+        self.smtp_username: str | None = None
+        self.smtp_password: str | None = None
         self.smtp_ssl = False
         self.smtp_tls = False
         self.email_format = "plain"
-        self.email_css = None
+        self.email_css: str | None = None
         self.include_req: list = []
         self.include_opt: list = []
         self.export_output_dir: str | None = None
@@ -463,163 +546,177 @@ class ConfigData:
         # default (10 MB).
         self.max_substitution_bytes: int | None = None
         self.zip_buffer_mb = 10
+        # [format] and [lint]: the defaults `execsql format` and `execsql lint`
+        # use when neither a flag nor a config file says otherwise.
+        self.format_indent = 4
+        self.format_leading_comma = False
+        self.format_sql = True
+        self.lint_select: str | None = None
+        self.lint_ignore: str | None = None
+        self.lint_strict = False
+
+    @classmethod
+    def _search_paths(cls, script_path: str, config_file: str | None) -> list[str]:
+        """The files a run reads, lowest precedence first: system, user, script dir, working dir, ``--config``.
+
+        Files that ``[config] config_file`` and its OS-specific variants chain
+        to are found while reading, by :meth:`_apply_file`.
+        """
         if os.name == "posix":
-            sys_config_file = str(Path("/etc") / self.config_file_name)
+            sys_config_file = str(Path("/etc") / cls.config_file_name)
         else:
-            sys_config_file = str(Path(os.path.expandvars(r"%APPDATA%")) / self.config_file_name)
-        current_script = str(Path(sys.argv[0]).resolve())
-        user_config_file = str(Path("~/.config").expanduser() / self.config_file_name)
-        script_config_file = str(Path(script_path) / self.config_file_name)
-        startdir_config_file = str(Path(".").resolve() / self.config_file_name)
+            sys_config_file = str(Path(os.path.expandvars(r"%APPDATA%")) / cls.config_file_name)
+        user_config_file = str(Path("~/.config").expanduser() / cls.config_file_name)
+        script_config_file = str(Path(script_path) / cls.config_file_name)
+        startdir_config_file = str(Path(".").resolve() / cls.config_file_name)
         if startdir_config_file != script_config_file:
             config_files = [sys_config_file, user_config_file, script_config_file, startdir_config_file]
         else:
             config_files = [sys_config_file, user_config_file, startdir_config_file]
         if config_file:
             config_files.append(str(Path(config_file).resolve()))
-        from collections import deque
+        return config_files
 
-        _MAX_CONFIG_CHAIN = 20  # Guard against circular config_file references.
-        config_queue: deque[str] = deque(config_files)
-        self.files_read: list = []
-        # Warm the schema registry by running the option reader against an
-        # empty ConfigParser. cp.has_option() is False for everything so no
-        # attribute values change, but every _get_* call registers its
-        # (section, ini_key, attr) tuple in ConfigData._schema. This means
-        # DEBUG WRITE CONFIG / DEBUG LOG CONFIG see the full option set even
-        # when no execsql.conf files exist on the system.
-        self._read_known_options(ConfigParser())
-        while config_queue:
-            configfile = config_queue.popleft()
-            if len(self.files_read) >= _MAX_CONFIG_CHAIN:
-                break
-            if configfile not in self.files_read and Path(configfile).is_file():
-                self.files_read.append(configfile)
-                cp = ConfigParser()
-                cp.read(configfile)
-                # --- [connect] ---
-                if cp.has_option(self._CONNECT_SECTION, "db_type"):
-                    t = cp.get(self._CONNECT_SECTION, "db_type").lower()
-                    if t not in ("a", "d", "f", "k", "l", "m", "o", "p", "s"):
-                        raise ConfigError(f"Invalid database type: {t}")
-                    self.db_type = t
-                self._read_known_options(cp)
-                # write_prefix / write_suffix have special "clear" → None handling
-                if cp.has_option(self._INTERFACE_SECTION, "write_prefix"):
-                    try:
-                        self.write_prefix = cp.get(self._INTERFACE_SECTION, "write_prefix")
-                    except Exception as e:
-                        raise ConfigError("Invalid or missing argument to write_prefix.") from e
-                    if self.write_prefix.lower() == "clear":
-                        self.write_prefix = None
-                if cp.has_option(self._INTERFACE_SECTION, "write_suffix"):
-                    try:
-                        self.write_suffix = cp.get(self._INTERFACE_SECTION, "write_suffix")
-                    except Exception as e:
-                        raise ConfigError("Invalid or missing argument to write_suffix.") from e
-                    if self.write_suffix.lower() == "clear":
-                        self.write_suffix = None
-                # gui_level is an integer enum — keep inline to preserve exact error message
-                if cp.has_option(self._INTERFACE_SECTION, "gui_level"):
-                    self.gui_level = cp.getint(self._INTERFACE_SECTION, "gui_level")
-                    if self.gui_level not in (0, 1, 2, 3):
-                        raise ConfigError(f"Invalid GUI level: {self.gui_level}")
-                # gui_framework has a specific error message — keep inline
-                if cp.has_option(self._INTERFACE_SECTION, "gui_framework"):
-                    fw = cp.get(self._INTERFACE_SECTION, "gui_framework").lower()
-                    if fw not in ("tkinter", "textual"):
-                        raise ConfigError("gui_framework must be 'tkinter' or 'textual'.")
-                    self.gui_framework = fw
-                # --- [config] ---
-                # config_file / OS-specific config files retain special chaining logic
-                if cp.has_option(self._CONFIG_SECTION, "config_file"):
-                    conffile = cp.get(self._CONFIG_SECTION, "config_file")
-                    if os.name == "posix" and conffile[0] == "~":
-                        if len(conffile) == 1:
-                            conffile = str(Path("~").expanduser())
-                        elif len(conffile) > 1 and conffile[1] == os.sep:
-                            conffile = str(Path("~").expanduser() / conffile[2:])
-                    conffile = variable_pool.substitute(conffile)[0]
-                    if not Path(conffile).is_file():
-                        conffile = str(Path(conffile) / self.config_file_name)
-                    if Path(conffile).is_file():
-                        # Silently ignore a non-existent file, for cross-OS compatibility.
-                        config_queue.appendleft(conffile)
-                # OS-specific additional config files.
-                _os_config_key: str | None = None
-                if sys.platform == "linux" and cp.has_option(self._CONFIG_SECTION, "linux_config_file"):
-                    _os_config_key = "linux_config_file"
-                elif sys.platform == "darwin" and cp.has_option(self._CONFIG_SECTION, "macos_config_file"):
-                    _os_config_key = "macos_config_file"
-                elif os.name == "nt" and cp.has_option(self._CONFIG_SECTION, "win_config_file"):
-                    _os_config_key = "win_config_file"
-                if _os_config_key:
-                    conffile = cp.get(self._CONFIG_SECTION, _os_config_key)
-                    if conffile and conffile[0] == "~":
-                        if len(conffile) == 1:
-                            conffile = str(Path("~").expanduser())
-                        elif len(conffile) > 1 and conffile[1] == os.sep:
-                            conffile = str(Path("~").expanduser() / conffile[2:])
-                    conffile = variable_pool.substitute(conffile)[0]
-                    if not Path(conffile).is_file():
-                        conffile = str(Path(conffile) / self.config_file_name)
-                    if Path(conffile).is_file():
-                        config_queue.appendleft(conffile)
-                # dao_flush_delay_secs has a specific error message — keep inline
-                if cp.has_option(self._CONFIG_SECTION, "dao_flush_delay_secs"):
-                    self.dao_flush_delay_secs = cp.getfloat(self._CONFIG_SECTION, "dao_flush_delay_secs")
-                    if self.dao_flush_delay_secs < 5.0:
-                        raise ConfigError(
-                            f"Invalid DAO flush delay: {self.dao_flush_delay_secs}; must be >= 5.0.",
-                        )
-                # --- [email] ---
-                # enc_password has special decryption logic — keep inline
-                if cp.has_option(self._EMAIL_SECTION, "enc_password"):
-                    import warnings
+    @classmethod
+    def _chain_target(cls, value: str, variable_pool: _VariablePool, *, expand_home: bool) -> str:
+        """Resolve a ``config_file``-style value to the file it names.
 
-                    warnings.warn(
-                        "enc_password provides obfuscation only, not encryption. "
-                        "Use keyring or environment variables for credential storage.",
-                        DeprecationWarning,
-                        stacklevel=1,
-                    )
-                    self.smtp_password = Encrypt().decrypt(cp.get(self._EMAIL_SECTION, "enc_password"))
-                # email_format has a specific error message — keep inline
-                if cp.has_option(self._EMAIL_SECTION, "email_format"):
-                    fmt = cp.get(self._EMAIL_SECTION, "email_format").lower()
-                    if fmt not in ("plain", "html"):
-                        raise ConfigError(f"Invalid email format: {fmt}")
-                    self.email_format = fmt
-                if cp.has_section(self._VARIABLES_SECTION) and variable_pool:
-                    varsect = cp.items(self._VARIABLES_SECTION)
-                    for sub, repl in varsect:
-                        if not variable_pool.var_name_ok(sub):
-                            raise ConfigError(f"Invalid variable name: {sub}")
-                        variable_pool.add_substitution(sub, repl)
-                if cp.has_section(self._INCLUDE_REQ_SECTION):
-                    imp_items = cp.items(self._INCLUDE_REQ_SECTION)
-                    ord_items = sorted([(int(i[0]), i[1]) for i in imp_items], key=lambda x: x[0])
-                    newfiles = [str(Path(f[1]).resolve()) for f in ord_items]
-                    u_files = []
-                    for f in newfiles:
-                        if not (f in u_files or f in self.include_req or f in self.include_opt) and f != current_script:
-                            if not Path(f).exists():
-                                raise ConfigError(f"Required include file {f} does not exist.")
-                            u_files.append(f)
-                    self.include_req.extend(u_files)
-                if cp.has_section(self._INCLUDE_OPT_SECTION):
-                    imp_items = cp.items(self._INCLUDE_OPT_SECTION)
-                    ord_items = sorted([(int(i[0]), i[1]) for i in imp_items], key=lambda x: x[0])
-                    newfiles = [str(Path(f[1]).resolve()) for f in ord_items]
-                    u_files = []
-                    for f in newfiles:
-                        if (
-                            not (f in u_files or f in self.include_req or f in self.include_opt)
-                            and f != current_script
-                            and Path(f).exists()
-                        ):
-                            u_files.append(f)
-                    self.include_opt.extend(u_files)
+        A leading ``~`` is expanded when *expand_home* is true, substitution
+        variables are replaced, and a directory means the ``execsql.conf``
+        inside it. The result may not exist; callers decide what that means.
+        """
+        conffile = value
+        if expand_home and conffile and conffile[0] == "~":
+            if len(conffile) == 1:
+                conffile = str(Path("~").expanduser())
+            elif len(conffile) > 1 and conffile[1] == os.sep:
+                conffile = str(Path("~").expanduser() / conffile[2:])
+        conffile = variable_pool.substitute(conffile)[0]
+        if not Path(conffile).is_file():
+            conffile = str(Path(conffile) / cls.config_file_name)
+        return conffile
+
+    def _apply_file(self, cp: ConfigParser, variable_pool: _VariablePool, current_script: str) -> list[str]:
+        """Apply one parsed config file to ``self``; return the files it chains to.
+
+        Raises :class:`ConfigError` on the first invalid value. The chained
+        files are in the order the caller must push them to the front of its
+        queue. ``execsql config --validate`` calls this once per option, on a
+        fresh instance, so validation and a run apply exactly the same rules.
+        """
+        chained: list[str] = []
+        # --- [connect] ---
+        if cp.has_option(self._CONNECT_SECTION, "db_type"):
+            t = cp.get(self._CONNECT_SECTION, "db_type").lower()
+            if t not in ("a", "d", "f", "k", "l", "m", "o", "p", "s"):
+                raise ConfigError(f"Invalid database type: {t}")
+            self.db_type = t
+        self._read_known_options(cp)
+        # write_prefix / write_suffix have special "clear" → None handling
+        if cp.has_option(self._INTERFACE_SECTION, "write_prefix"):
+            try:
+                self.write_prefix = cp.get(self._INTERFACE_SECTION, "write_prefix")
+            except Exception as e:
+                raise ConfigError("Invalid or missing argument to write_prefix.") from e
+            if self.write_prefix.lower() == "clear":
+                self.write_prefix = None
+        if cp.has_option(self._INTERFACE_SECTION, "write_suffix"):
+            try:
+                self.write_suffix = cp.get(self._INTERFACE_SECTION, "write_suffix")
+            except Exception as e:
+                raise ConfigError("Invalid or missing argument to write_suffix.") from e
+            if self.write_suffix.lower() == "clear":
+                self.write_suffix = None
+        # gui_level is an integer enum — keep inline to preserve exact error message
+        if cp.has_option(self._INTERFACE_SECTION, "gui_level"):
+            self.gui_level = cp.getint(self._INTERFACE_SECTION, "gui_level")
+            if self.gui_level not in (0, 1, 2, 3):
+                raise ConfigError(f"Invalid GUI level: {self.gui_level}")
+        # gui_framework has a specific error message — keep inline
+        if cp.has_option(self._INTERFACE_SECTION, "gui_framework"):
+            fw = cp.get(self._INTERFACE_SECTION, "gui_framework").lower()
+            if fw not in ("tkinter", "textual"):
+                raise ConfigError("gui_framework must be 'tkinter' or 'textual'.")
+            self.gui_framework = fw
+        # --- [config] ---
+        # config_file / OS-specific config files retain special chaining logic
+        if cp.has_option(self._CONFIG_SECTION, "config_file"):
+            conffile = self._chain_target(
+                cp.get(self._CONFIG_SECTION, "config_file"),
+                variable_pool,
+                expand_home=os.name == "posix",
+            )
+            if Path(conffile).is_file():
+                # Silently ignore a non-existent file, for cross-OS compatibility.
+                chained.append(conffile)
+        # OS-specific additional config files.
+        _os_config_key: str | None = None
+        if sys.platform == "linux" and cp.has_option(self._CONFIG_SECTION, "linux_config_file"):
+            _os_config_key = "linux_config_file"
+        elif sys.platform == "darwin" and cp.has_option(self._CONFIG_SECTION, "macos_config_file"):
+            _os_config_key = "macos_config_file"
+        elif os.name == "nt" and cp.has_option(self._CONFIG_SECTION, "win_config_file"):
+            _os_config_key = "win_config_file"
+        if _os_config_key:
+            conffile = self._chain_target(cp.get(self._CONFIG_SECTION, _os_config_key), variable_pool, expand_home=True)
+            if Path(conffile).is_file():
+                chained.append(conffile)
+        # dao_flush_delay_secs has a specific error message — keep inline
+        if cp.has_option(self._CONFIG_SECTION, "dao_flush_delay_secs"):
+            self.dao_flush_delay_secs = cp.getfloat(self._CONFIG_SECTION, "dao_flush_delay_secs")
+            if self.dao_flush_delay_secs < 5.0:
+                raise ConfigError(
+                    f"Invalid DAO flush delay: {self.dao_flush_delay_secs}; must be >= 5.0.",
+                )
+        # --- [email] ---
+        # enc_password has special decryption logic — keep inline
+        if cp.has_option(self._EMAIL_SECTION, "enc_password"):
+            import warnings
+
+            warnings.warn(
+                "enc_password provides obfuscation only, not encryption. "
+                "Use keyring or environment variables for credential storage.",
+                DeprecationWarning,
+                stacklevel=1,
+            )
+            self.smtp_password = Encrypt().decrypt(cp.get(self._EMAIL_SECTION, "enc_password"))
+        # email_format has a specific error message — keep inline
+        if cp.has_option(self._EMAIL_SECTION, "email_format"):
+            fmt = cp.get(self._EMAIL_SECTION, "email_format").lower()
+            if fmt not in ("plain", "html"):
+                raise ConfigError(f"Invalid email format: {fmt}")
+            self.email_format = fmt
+        if cp.has_section(self._VARIABLES_SECTION) and variable_pool:
+            varsect = cp.items(self._VARIABLES_SECTION)
+            for sub, repl in varsect:
+                if not variable_pool.var_name_ok(sub):
+                    raise ConfigError(f"Invalid variable name: {sub}")
+                variable_pool.add_substitution(sub, repl)
+        if cp.has_section(self._INCLUDE_REQ_SECTION):
+            imp_items = cp.items(self._INCLUDE_REQ_SECTION)
+            ord_items = sorted([(int(i[0]), i[1]) for i in imp_items], key=lambda x: x[0])
+            newfiles = [str(Path(f[1]).resolve()) for f in ord_items]
+            u_files = []
+            for f in newfiles:
+                if not (f in u_files or f in self.include_req or f in self.include_opt) and f != current_script:
+                    if not Path(f).exists():
+                        raise ConfigError(f"Required include file {f} does not exist.")
+                    u_files.append(f)
+            self.include_req.extend(u_files)
+        if cp.has_section(self._INCLUDE_OPT_SECTION):
+            imp_items = cp.items(self._INCLUDE_OPT_SECTION)
+            ord_items = sorted([(int(i[0]), i[1]) for i in imp_items], key=lambda x: x[0])
+            newfiles = [str(Path(f[1]).resolve()) for f in ord_items]
+            u_files = []
+            for f in newfiles:
+                if (
+                    not (f in u_files or f in self.include_req or f in self.include_opt)
+                    and f != current_script
+                    and Path(f).exists()
+                ):
+                    u_files.append(f)
+            self.include_opt.extend(u_files)
+        return chained
 
 
 class WriteHooks:

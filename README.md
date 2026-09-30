@@ -23,7 +23,53 @@
 
 ## Overview
 
-*execsql* runs SQL scripts against PostgreSQL, MySQL/MariaDB, SQLite, DuckDB, MS-SQL-Server, MS-Access, Firebird, Oracle, or an ODBC DSN. In addition to standard SQL, it supports a set of metacommands (embedded in SQL comments) for importing and exporting data, copying data between databases, conditional execution, looping, substitution variables, and interactive prompts. Because metacommands live in SQL comments, scripts remain valid SQL and are ignored by other tools such as `psql` or `sqlcmd`.
+*execsql* is a toolchain for SQL scripts: **write** them with editor support, **format** them consistently, **lint** them without a database, and **run** them against nine DBMSs.
+
+Scripts are ordinary SQL plus metacommands embedded in comments (`-- !x!`), which add importing and exporting data, copying between databases, conditional execution, looping, substitution variables, and interactive prompts. Because the metacommands live in comments, the scripts stay valid SQL and other tools — `psql`, `sqlcmd`, your editor — ignore them.
+
+| Command                                    | What it does                                                            | Needs a database? |
+| ------------------------------------------ | ----------------------------------------------------------------------- | ----------------- |
+| `execsql format`                           | Normalize keywords, indentation, and SQL layout                         | No                |
+| `execsql lint`                             | Static analysis: structure, undefined variables, bad targets            | No                |
+| `execsql run`                              | Run the script against PostgreSQL, MySQL, SQLite, DuckDB, …             | Yes               |
+| `execsql config`                           | Show every config option, its value, and the file that set it           | No                |
+| `execsql list`                             | Metacommands, encodings, plugins, or the keyword vocabulary             | No                |
+| `execsql init`                             | Set up a project: config file, a script with a header, pre-commit hooks | No                |
+| [VS Code extension](extras/vscode-execsql) | Syntax highlighting for metacommands and variables                      | No                |
+
+`format` and `lint` take files or directories; `fmt` is an alias for `format`.
+
+The original positional form — `execsql script.sql myserver mydb` — still works
+but is deprecated: it prints a warning and stops working in execsql2 3.0. Use
+`execsql run script.sql myserver mydb`.
+
+## Quick start — no database required
+
+Two of the three commands work on a bare `.sql` file — no server, no config. Try them first:
+
+```bash
+pip install execsql2[formatter]
+
+execsql format --check scripts/   # is it formatted?
+execsql format -i scripts/        # format it
+execsql lint scripts/             # find problems before they cost you a run
+```
+
+`lint` reports unmatched blocks, undefined and unused substitution variables, unreachable branches, and `INCLUDE`/`SCRIPT` targets that do not exist — the failures that otherwise surface halfway through a run against a live database:
+
+```text
+$ execsql lint load_data.sql
+load_data.sql
+  1  warning  V002  variable !!site_cd!! is never used
+  2  warning  I001  INCLUDE file does not exist: common/setup.sql
+  3  warning  V001  undefined variable !!site_code!!
+
+Found 3 issues in 1 file: 3 warnings (1 file checked)
+```
+
+`V002` and `V001` together point at a typo: `site_cd` is defined and `site_code` is used. Every issue has a rule code for `--select` and `--ignore`; `--output-format concise` prints one `path:line` line per issue and `json` feeds CI tools. The [lint rules](https://execsql2.readthedocs.io/en/latest/reference/lint/) page explains each one.
+
+`execsql format` also runs as a [pre-commit hook](#formatting-scripts), so formatting is enforced without anyone remembering to run it.
 
 ## Example
 
@@ -76,19 +122,24 @@ Feature extras cover spreadsheet and Parquet/Feather formats, keyring authentica
 ## Usage
 
 ```text
-execsql [OPTIONS] SQL_SCRIPT [SERVER DATABASE | DATABASE_FILE]
+execsql run    [OPTIONS] SQL_SCRIPT [SERVER DATABASE | DATABASE_FILE]
+execsql format [--check | -i] [--indent N] FILE_OR_DIR...
+execsql lint   [OPTIONS] FILE_OR_DIR...
+execsql config [SQL_SCRIPT] [--init] [--config FILE]
+execsql list   metacommands|encodings|plugins|keywords
+execsql init   [DIR] [--script NAME] [--no-script] [--no-config] [--no-pre-commit]
 ```
 
 Examples:
 
 ```bash
-execsql -tp script.sql myserver mydb        # PostgreSQL
-execsql -tm script.sql myserver mydb        # MySQL / MariaDB
-execsql -ts script.sql myserver mydb        # SQL Server
-execsql -tl script.sql mydb.sqlite          # SQLite
-execsql -tk script.sql mydb.duckdb          # DuckDB
-execsql -to script.sql myserver myservice   # Oracle
-execsql script.sql                          # read connection from config file
+execsql run -tp script.sql myserver mydb        # PostgreSQL
+execsql run -tm script.sql myserver mydb        # MySQL / MariaDB
+execsql run -ts script.sql myserver mydb        # SQL Server
+execsql run -tl script.sql mydb.sqlite          # SQLite
+execsql run -tk script.sql mydb.duckdb          # DuckDB
+execsql run -to script.sql myserver myservice   # Oracle
+execsql run script.sql                          # read connection from config file
 ```
 
 ### Supported Databases
@@ -116,24 +167,24 @@ silences.
 
 ### Common options
 
-| Flag                                              | Description                                                     |
-| ------------------------------------------------- | --------------------------------------------------------------- |
-| `-t {p,m,s,l,k,a,f,o,d}`                          | Database type                                                   |
-| `-u USER`                                         | Database username                                               |
-| `-p PORT`                                         | Server port                                                     |
-| `--dsn URL`                                       | Connection string (e.g. `postgresql://user:pass@host/db`)       |
-| `-n`                                              | Create a new SQLite or PostgreSQL database if it does not exist |
-| `-c SCRIPT`                                       | Execute inline SQL or metacommand string                        |
-| `-a VALUE`                                        | Set substitution variable `$ARG_x`                              |
-| `-v {0,1,2,3}`                                    | GUI level (0=none, 1=password, 2=selection, 3=full)             |
-| `--config FILE`                                   | Load an explicit config file                                    |
-| `--dry-run`                                       | Parse the script and report commands without executing          |
-| `--lint`                                          | Static analysis: check structure and warn on issues (no DB)     |
-| `--ping`                                          | Test database connectivity and exit                             |
-| `--debug`                                         | Start in step-through debug mode (REPL pauses before each stmt) |
-| `--no-system-cmd` / `--no-rm-file` / `--no-serve` | Disable the `SYSTEM_CMD` / `RM_FILE` / `SERVE` metacommands     |
+| Flag                                              | Description                                                                |
+| ------------------------------------------------- | -------------------------------------------------------------------------- |
+| `-t {p,m,s,l,k,a,f,o,d}`                          | Database type                                                              |
+| `-u USER`                                         | Database username                                                          |
+| `-p PORT`                                         | Server port                                                                |
+| `--dsn URL`                                       | Connection string (e.g. `postgresql://user:pass@host/db`)                  |
+| `-n`                                              | Create a new SQLite or PostgreSQL database if it does not exist            |
+| `-c SCRIPT`                                       | Execute inline SQL or metacommand string                                   |
+| `-a VALUE`                                        | Set substitution variable `$ARG_x`                                         |
+| `--var NAME=VALUE`                                | Set the substitution variable `!!NAME!!`                                   |
+| `-v {0,1,2,3}`                                    | GUI level (0=none, 1=password, 2=selection, 3=full)                        |
+| `--config FILE`                                   | Load an explicit config file                                               |
+| `--dry-run`                                       | Parse the script and report commands without executing                     |
+| `--manifest FILE`                                 | Write a JSON record of the run: files read and written, statements, errors |
+| `--debug`                                         | Start in step-through debug mode (REPL pauses before each stmt)            |
+| `--no-system-cmd` / `--no-rm-file` / `--no-serve` | Disable the `SYSTEM_CMD` / `RM_FILE` / `SERVE` metacommands                |
 
-See the [full options reference](https://execsql2.readthedocs.io/en/latest/getting-started/syntax/#options) or run `execsql --help` for the complete list, and `execsql -m` for all metacommands.
+See the [full options reference](https://execsql2.readthedocs.io/en/latest/getting-started/syntax/#options) or run `execsql run --help` for the complete list, `execsql run --ping` to test a connection, `execsql config` to see which config files set what, and `execsql list metacommands` for all metacommands.
 
 ## Features
 
@@ -241,23 +292,23 @@ Each call to `run()` uses an isolated `RuntimeContext`, so multiple calls do not
 
 ## Formatting Scripts
 
-The `execsql-format` command normalizes execsql script files: it uppercases metacommand keywords, corrects block indentation, and optionally reformats SQL via `sqlglot`. The metacommand / indent / keyword reformatting is built into `execsql2`; SQL reformatting requires the `[formatter]` extra (or pass `--no-sql` to skip it):
+The `execsql format` command normalizes execsql script files: it uppercases metacommand keywords, corrects block indentation, and optionally reformats SQL via `sqlglot`. The metacommand / indent / keyword reformatting is built into `execsql2`; SQL reformatting requires the `[formatter]` extra (or pass `--no-sql` to skip it):
 
 ```bash
 # Install with the SQL-reformatting extra
 pip install execsql2[formatter]
 
 # Format files in place
-execsql-format --in-place scripts/
+execsql format --in-place scripts/
 
 # Check formatting without writing (useful in CI)
-execsql-format --check scripts/
+execsql format --check scripts/
 
 # Run the formatter without sqlglot — keyword/indent normalization only
-execsql-format --no-sql --in-place scripts/
+execsql format --no-sql --in-place scripts/
 ```
 
-`execsql-format` is also available as a [pre-commit](https://pre-commit.com/) hook:
+`execsql format` and `execsql lint` are also available as [pre-commit](https://pre-commit.com/) hooks. The format hook id is unchanged, so existing configs keep working:
 
 ```yaml
 repos:
@@ -265,9 +316,10 @@ repos:
     rev: v2.23.1
     hooks:
       - id: execsql-format
+      - id: execsql-lint
 ```
 
-The hook rewrites `*.sql` files in place by default. See the [formatter documentation](https://execsql2.readthedocs.io/en/latest/guides/formatter/) for `--check`, `--indent`, and other options.
+The format hook rewrites `*.sql` files in place by default; the lint hook fails the commit when a script has a lint error. See the [formatter documentation](https://execsql2.readthedocs.io/en/latest/guides/formatter/) for `--check`, `--indent`, and other options.
 
 ## VS Code Syntax Highlighting
 

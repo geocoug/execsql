@@ -63,6 +63,20 @@ test-all:
 coverage:
     uv run pytest --cov-report=term-missing
 
+# Run the formatter corpus checks over every .sql file in the repo
+[group('quality')]
+corpus:
+    uv run pytest tests/test_format.py -k corpus --no-cov -q
+
+# Run the corpus checks over an external library of real SQL as well.
+# CORPUS must be a read-only copy — never the original library.
+# Refresh one with:
+#   rsync -a --delete --include='*/' --include='*.sql' --exclude='*' \
+#       <library>/ ~/.cache/execsql-format-corpus/
+[group('quality')]
+corpus-external CORPUS='~/.cache/execsql-format-corpus':
+    EXECSQL_FORMAT_CORPUS={{ CORPUS }} uv run pytest tests/test_format.py -k corpus --no-cov -q
+
 # Clean up Python build artifacts and caches
 [group('quality')]
 clean:
@@ -88,6 +102,21 @@ install-vscode:
     uv run python scripts/generate_vscode_grammar.py
     ln -sfn "$(pwd)/extras/vscode-execsql" ~/.vscode/extensions/execsql-syntax
     @echo "Restart VS Code to activate the execsql extension."
+
+# Build the VS Code extension into a .vsix (needs: npm i -g @vscode/vsce)
+package-vscode:
+    uv run python scripts/generate_vscode_grammar.py
+    cd extras/vscode-execsql && vsce package --out execsql-syntax.vsix
+    @echo "Built extras/vscode-execsql/execsql-syntax.vsix — install with:"
+    @echo "  code --install-extension extras/vscode-execsql/execsql-syntax.vsix"
+
+# Publish the extension to the VS Code Marketplace.
+# Requires a Marketplace publisher named 'geocoug' and a PAT:
+#   https://marketplace.visualstudio.com/manage
+#   export VSCE_PAT=<token from dev.azure.com, scope: Marketplace > Manage>
+publish-vscode:
+    uv run python scripts/generate_vscode_grammar.py
+    cd extras/vscode-execsql && vsce publish
 
 
 # ── Documentation──────────────────────────────────────────────────────────────

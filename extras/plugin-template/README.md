@@ -7,7 +7,7 @@ everything marked `YOURNAME`, and implement your handlers.
 
 ```bash
 pip install execsql-plugin-YOURNAME
-execsql --list-plugins  # verify it's detected
+execsql list plugins  # verify it's detected
 ```
 
 That's it — execsql discovers installed plugins automatically via Python
@@ -34,7 +34,7 @@ entry points. No configuration needed.
 1. Verify execsql discovers it:
 
     ```bash
-    execsql --list-plugins
+    execsql list plugins
     ```
 
 1. Test in a script:

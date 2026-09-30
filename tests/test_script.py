@@ -14,9 +14,7 @@ from execsql.script import (
     LocalSubVarSet,
     MetaCommand,
     MetaCommandList,
-    MetacommandStmt,
     ScriptArgSubVarSet,
-    SqlStmt,
     SubVarSet,
 )
 
@@ -962,50 +960,3 @@ class TestMetaCommandListKeywordIndex:
         mcl.add(r"^\s*HELLO\s*$", lambda **kw: None)
         assert mcl.get_match("") is None
         assert mcl.get_match("   ") is None
-
-
-# ---------------------------------------------------------------------------
-# SqlStmt
-# ---------------------------------------------------------------------------
-
-
-class TestSqlStmt:
-    def test_stores_statement(self):
-        stmt = SqlStmt("SELECT 1")
-        assert stmt.statement == "SELECT 1"
-
-    def test_repr(self):
-        stmt = SqlStmt("SELECT 1")
-        assert repr(stmt) == "SqlStmt(SELECT 1)"
-
-    def test_commandline_returns_statement(self):
-        stmt = SqlStmt("SELECT 1")
-        assert stmt.commandline() == "SELECT 1"
-
-    def test_deduplicates_trailing_semicolons(self):
-        # Multiple semicolons at the end should be reduced to one.
-        stmt = SqlStmt("SELECT 1;;")
-        assert stmt.statement == "SELECT 1;"
-
-    def test_single_semicolon_preserved(self):
-        stmt = SqlStmt("SELECT 1;")
-        assert stmt.statement == "SELECT 1;"
-
-    def test_no_semicolon_preserved(self):
-        stmt = SqlStmt("SELECT 1")
-        assert stmt.statement == "SELECT 1"
-
-
-# ---------------------------------------------------------------------------
-# MetacommandStmt
-# ---------------------------------------------------------------------------
-
-
-class TestMetacommandStmt:
-    def test_stores_statement(self):
-        stmt = MetacommandStmt("EXPORT myquery TO output.csv")
-        assert stmt.statement == "EXPORT myquery TO output.csv"
-
-    def test_repr(self):
-        stmt = MetacommandStmt("WRITE hello")
-        assert repr(stmt) == "MetacommandStmt(WRITE hello)"

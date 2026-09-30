@@ -33,6 +33,7 @@ import threading
 import types
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
+from collections.abc import Callable
 
 
 @dataclass
@@ -96,10 +97,10 @@ if TYPE_CHECKING:
     from execsql.script import (
         CounterVars,
         MetaCommandList,
-        ScriptCmd,
         ScriptExecSpec,
         SubVarSet,
     )
+    from execsql.script.executor import ExecutingStatement
     from execsql.utils.fileio import FileWriter, Logger, TempFileMgr
     from execsql.utils.mail import MailSpec
     from execsql.utils.timer import Timer
@@ -143,6 +144,7 @@ __all__ = [
     "profile_data",
     # Debug REPL
     "step_mode",
+    "prompt_input",
     # Version
     "primary_vno",
     "secondary_vno",
@@ -239,6 +241,7 @@ _CONTEXT_ATTRS: frozenset[str] = frozenset(
         "profile_data",
         # Debug REPL
         "step_mode",
+        "prompt_input",
         # AST executor
         "ast_scripts",
         "include_chain",
@@ -293,6 +296,7 @@ class RuntimeContext:
         "profile_data",
         # Debug REPL
         "step_mode",
+        "prompt_input",
         # AST executor
         "ast_scripts",
         "include_chain",
@@ -305,7 +309,7 @@ class RuntimeContext:
         self.logfile_encoding: str = "utf8"
 
         # Runtime flags
-        self.last_command: ScriptCmd | None = None
+        self.last_command: ExecutingStatement | None = None
         self.upass: str | None = None
         self.err_halt_writespec: WriteSpec | None = None
         self.err_halt_email: MailSpec | None = None
@@ -347,6 +351,11 @@ class RuntimeContext:
 
         # Debug REPL — True after a ``next`` command; engine re-enters REPL after next statement.
         self.step_mode: bool = False
+        # Set while input typed at a BREAKPOINT prompt runs:
+        # called with each SQL statement's result, as ``(column_names, rows)``
+        # or ``None``.  An error that would halt the run instead returns to the
+        # prompt (see ``exit_now``).
+        self.prompt_input: Callable[[tuple[list[str], list] | None], None] | None = None
 
         # AST executor — script block registry and include-chain tracking.
         self.ast_scripts: dict = {}

@@ -30,7 +30,7 @@ If `outdir` is derived from user input, validate or sanitize it before use in a 
 To prevent scripts from executing OS commands entirely, use the `--no-system-cmd` CLI flag:
 
 ```bash
-execsql --no-system-cmd script.sql mydb
+execsql run --no-system-cmd script.sql mydb
 ```
 
 Any script that uses `SYSTEM_CMD` will fail with an error. This is useful for CI pipelines, shared execution environments, or running semi-trusted scripts where shell access is not appropriate.

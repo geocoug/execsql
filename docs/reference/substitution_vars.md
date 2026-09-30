@@ -14,6 +14,8 @@ The \<match_string> identifies the substitution variable; the \<replacement_stri
 - `!'!name!'!` — wrap the value in single quotes, doubling any embedded apostrophe. Suitable for SQL string literals containing user data.
 - `!"!name!"!` — wrap the value in double quotes. Suitable for SQL quoted identifiers, or for metacommand arguments that must be quoted.
 
+Variables can also be set before the script starts: with `--var NAME=VALUE` on the [command line](../getting-started/syntax.md#options), or in the `[variables]` section of a [config file](configuration.md#configuration). `--var` wins over the config file, and a `SUB` in the script can reassign either.
+
 For example, to use a data variable that may contain apostrophes in a SQL string literal:
 
 ```sql

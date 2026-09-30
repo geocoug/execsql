@@ -259,7 +259,7 @@ class TestPingCLILayer:
             captured_kwargs.update(kwargs)
             raise SystemExit(0)
 
-        with patch("execsql.cli._run", side_effect=_capture):
+        with patch("execsql.cli.commands.run._run", side_effect=_capture):
             result = runner.invoke(app, ["--ping", "--dsn", f"sqlite:///{db_file}"], catch_exceptions=False)
 
         assert result.exit_code == 0
@@ -271,7 +271,7 @@ class TestPingCLILayer:
         conn = sqlite3.connect(str(db_file))
         conn.close()
 
-        with patch("execsql.cli._run", side_effect=SystemExit(0)):
+        with patch("execsql.cli.commands.run._run", side_effect=SystemExit(0)):
             result = runner.invoke(app, ["--ping", "--dsn", f"sqlite:///{db_file}"])
 
         # A 2 exit code would mean "no such option" from Typer
@@ -283,7 +283,7 @@ class TestPingCLILayer:
         conn = sqlite3.connect(str(db_file))
         conn.close()
 
-        with patch("execsql.cli._run", side_effect=SystemExit(0)):
+        with patch("execsql.cli.commands.run._run", side_effect=SystemExit(0)):
             result = runner.invoke(app, ["--ping", "--dsn", f"sqlite:///{db_file}"])
 
         # "No SQL script file specified" error should NOT appear

@@ -48,6 +48,7 @@ import re
 import time as _time
 from pathlib import Path
 from typing import Any, cast
+from collections.abc import Callable
 
 from execsql.exceptions import ErrInfo
 from execsql.script.ast import (
@@ -64,12 +65,13 @@ from execsql.script.ast import (
     SqlBlock,
     SqlStatement,
 )
+from execsql import manifest as _manifest
 from execsql.script.engine import set_dynamic_system_vars, set_static_system_vars, substitute_vars
 from execsql.script.variables import SubVarSet
 from execsql.state import ExecFrame, RuntimeContext, active_context, get_context, xcmd_test
 from execsql.utils.errors import exception_desc, exit_now, stamp_errinfo
 
-__all__ = ["execute"]
+__all__ = ["execute", "execute_input"]
 
 
 # ---------------------------------------------------------------------------
@@ -256,19 +258,24 @@ def _exec_sql(
             f"Warning: There is a potential un-substituted variable in the command\n     {cmd}\n",
         )
     e = None
+    result = None
     try:
         db = dbs.current()
         if conf.log_sql and ctx.exec_log:
             ctx.exec_log.log_sql_query(cmd, db.name(), line_no)
-        db.execute(cmd)
+        if ctx.prompt_input is not None:
+            result = db.execute(cmd, fetch=True)
+        else:
+            db.execute(cmd)
         if commit:
             db.commit()
     except ErrInfo as errinfo:
         e = errinfo
     except SystemExit:
         raise
-    except Exception:
+    except Exception as exc:
         e = ErrInfo(type="exception", exception_msg=exception_desc())
+        e.__cause__ = exc  # the driver's own message, which a prompt shows
     if e:
         stamp_errinfo(e)
         subvars.add_substitution("$LAST_ERROR", cmd)
@@ -281,6 +288,8 @@ def _exec_sql(
         status.error_history.append((source, line_no, cmd, e.errmsg()))
         return
     subvars.add_substitution("$LAST_SQL", cmd)
+    if ctx.prompt_input is not None:
+        ctx.prompt_input(result)
 
 
 # ---------------------------------------------------------------------------
@@ -319,13 +328,16 @@ def _exec_metacommand(
     try:
         applies, result = metacommandlist.eval(cmd)
         if applies:
+            if (manifest := _manifest.current()) is not None:
+                manifest.record_metacommand(cmd, source, line_no, metacommandlist)
             return result
     except ErrInfo as errinfo:
         e = errinfo
     except SystemExit:
         raise
-    except Exception:
+    except Exception as exc:
         e = ErrInfo(type="exception", exception_msg=exception_desc())
+        e.__cause__ = exc
     if e:
         stamp_errinfo(e)
         status.metacommand_error = True
@@ -402,9 +414,9 @@ def _execute_node(
         text = node.text
         if in_loop:
             text = _convert_deferred_vars(text)
-        # Deduplicate trailing semicolons (matches SqlStmt.__init__)
+        # Deduplicate trailing semicolons
         text = re.sub(r"\s*;(\s*;\s*)+$", ";", text)
-        ctx.last_command = _FakeScriptCmd(node)
+        ctx.last_command = ExecutingStatement(node)
         _exec_sql(
             ctx,
             text,
@@ -413,6 +425,8 @@ def _execute_node(
             localvars,
             commit=not ctx.status.batch.in_batch(),
         )
+        if (manifest := _manifest.current()) is not None:
+            manifest.record_sql()
 
     elif isinstance(node, MetaCommandStatement):
         command = node.command
@@ -425,31 +439,31 @@ def _execute_node(
         expanded = substitute_vars(command, effective_locals, ctx=ctx)
         if _BREAK_RX.match(expanded):
             raise _BreakLoop
-        ctx.last_command = _FakeScriptCmd(node)
+        ctx.last_command = ExecutingStatement(node)
         _exec_metacommand(ctx, expanded, node.span.file, node.span.start_line)
 
     elif isinstance(node, IfBlock):
-        ctx.last_command = _FakeScriptCmd(node)
+        ctx.last_command = ExecutingStatement(node)
         _execute_if(ctx, node, localvars, in_loop=in_loop)
 
     elif isinstance(node, LoopBlock):
-        ctx.last_command = _FakeScriptCmd(node)
+        ctx.last_command = ExecutingStatement(node)
         _execute_loop(ctx, node, localvars)
 
     elif isinstance(node, BatchBlock):
-        ctx.last_command = _FakeScriptCmd(node)
+        ctx.last_command = ExecutingStatement(node)
         _execute_batch(ctx, node, localvars, in_loop=in_loop)
 
     elif isinstance(node, ScriptBlock):
-        ctx.last_command = _FakeScriptCmd(node)
+        ctx.last_command = ExecutingStatement(node)
         _register_script_block(ctx, node)
 
     elif isinstance(node, SqlBlock):
-        ctx.last_command = _FakeScriptCmd(node)
+        ctx.last_command = ExecutingStatement(node)
         _execute_sql_block(ctx, node, localvars, in_loop=in_loop)
 
     elif isinstance(node, IncludeDirective):
-        ctx.last_command = _FakeScriptCmd(node)
+        ctx.last_command = ExecutingStatement(node)
         _execute_include(ctx, node, localvars)
 
     else:
@@ -861,6 +875,8 @@ def _execute_include_native(
     # Parse with AST parser
     encoding = ctx.conf.script_encoding if ctx.conf is not None else "utf-8"
     included_tree = parse_script(target, encoding=encoding)
+    if (manifest := _manifest.current()) is not None:
+        manifest.record_include(target, node.span.file, node.span.start_line)
 
     # Pre-register SCRIPT blocks in the included file so forward references work.
     _pre_register_scripts(ctx, included_tree.body)
@@ -885,40 +901,104 @@ def _execute_include_native(
 # ---------------------------------------------------------------------------
 
 
-class _BreakLoop(Exception):
-    """Raised by BREAK metacommand to exit the innermost loop."""
+class _BreakLoop(BaseException):
+    """Raised by BREAK metacommand to exit the innermost loop.
+
+    A ``BaseException``, like ``KeyboardInterrupt``, so the ``except
+    Exception`` handlers it may pass on its way to the loop leave it alone:
+    a BREAK typed at a BREAKPOINT prompt travels out through the BREAKPOINT
+    metacommand's handler.
+    """
+
+
+def _inside_loop(ctx: RuntimeContext) -> bool:
+    """Whether a BREAK at the current statement would leave a loop within its scope."""
+    for frame in reversed(ctx.ast_exec_stack):
+        if frame.kind in ("loop_while", "loop_until"):
+            return True
+        if frame.kind in ("script", "main"):
+            return frame.kind == "script" and frame.iteration > 0
+    return False
 
 
 _BREAK_RX = re.compile(r"^\s*BREAK\s*$", re.I)
 
 
 # ---------------------------------------------------------------------------
-# Fake ScriptCmd for ctx.last_command compatibility
+# The statement the executor is currently on
 # ---------------------------------------------------------------------------
 
 
-class _FakeScriptCmd:
-    """Minimal stand-in for ScriptCmd to satisfy ctx.last_command readers."""
+class _StatementText:
+    """The text of one statement, in the two spellings its readers expect.
 
-    __slots__ = ("source", "line_no", "source_dir", "source_name", "command", "command_type")
+    ``statement`` is the raw text; ``commandline()`` is the text as it
+    appeared in the source, so a metacommand gets its ``-- !x!`` marker back.
+    """
+
+    __slots__ = ("statement", "_prefix")
+
+    def __init__(self, statement: str, prefix: str = "") -> None:
+        self.statement = statement
+        self._prefix = prefix
+
+    def commandline(self) -> str:
+        return self._prefix + self.statement
+
+
+class ExecutingStatement:
+    """Where the executor is, as ``ctx.last_command`` exposes it.
+
+    The AST node is the single representation of a statement.  This wraps one
+    rather than copying fields out of it, so there is nothing to keep in sync
+    and no second source of truth about what is executing.  Error reporting
+    (:mod:`execsql.utils.errors`), the debug REPL, and ``api.run()`` read
+    these five attributes; everything is derived from ``node`` on access, so
+    constructing one costs a single small object per statement rather than
+    the two classes the previous shim built each time.
+    """
+
+    __slots__ = ("node", "_source_dir")
 
     def __init__(self, node: Node) -> None:
-        self.source = node.span.file
-        self.line_no = node.span.start_line
-        _p = Path(node.span.file)
-        self.source_dir = str(_p.resolve().parent) + os.sep
-        self.source_name = _p.name
-        self.command_type = "sql" if isinstance(node, SqlStatement) else "cmd"
+        self.node = node
+        self._source_dir: str | None = None
+
+    @property
+    def source(self) -> str:
+        return self.node.span.file
+
+    @property
+    def line_no(self) -> int:
+        return self.node.span.start_line
+
+    @property
+    def source_name(self) -> str:
+        return Path(self.node.span.file).name
+
+    @property
+    def source_dir(self) -> str:
+        # resolve() touches the filesystem, so it is done once per statement
+        # object rather than on every read.
+        if self._source_dir is None:
+            self._source_dir = str(Path(self.node.span.file).resolve().parent) + os.sep
+        return self._source_dir
+
+    @property
+    def command_type(self) -> str:
+        return "sql" if isinstance(self.node, SqlStatement) else "cmd"
+
+    @property
+    def command(self) -> _StatementText:
+        node = self.node
         if isinstance(node, SqlStatement):
-            self.command = type("_cmd", (), {"statement": node.text, "commandline": lambda self: self.statement})()
-        elif isinstance(node, MetaCommandStatement):
-            self.command = type(
-                "_cmd",
-                (),
-                {"statement": node.command, "commandline": lambda self: "-- !x! " + self.statement},
-            )()
-        else:
-            self.command = type("_cmd", (), {"statement": "", "commandline": lambda self: ""})()
+            return _StatementText(node.text)
+        if isinstance(node, MetaCommandStatement):
+            return _StatementText(node.command, "-- !x! ")
+        return _StatementText("")
+
+    def __repr__(self) -> str:
+        return f"ExecutingStatement({self.source}:{self.line_no}, {self.command_type})"
 
     def current_script_line(self) -> tuple[str, int]:
         return (self.source, self.line_no)
@@ -1008,3 +1088,42 @@ def execute(script: Script, *, ctx: RuntimeContext | None = None) -> None:
             ) from exc
         finally:
             _pop_frame(ctx)
+
+
+# ---------------------------------------------------------------------------
+# Input typed at a prompt
+# ---------------------------------------------------------------------------
+
+
+def execute_input(
+    script: Script,
+    show: Callable[[tuple[list[str], list] | None], None],
+    *,
+    ctx: RuntimeContext | None = None,
+) -> None:
+    """Run input typed at a BREAKPOINT prompt as the next lines of the paused script.
+
+    The input runs as if it were written where the script paused: in its
+    variable scope, its batch and its loop, so a BREAK leaves that loop.
+    Unlike :func:`execute`, nothing is reset.
+
+    *show* receives the result of each SQL statement run.  An error that
+    would halt the run is raised to the caller instead (see ``exit_now``).
+    The paused script's current statement is restored afterwards, so the
+    debug REPL's ``.where`` still shows it.
+    """
+    if ctx is None:
+        ctx = get_context()
+    with active_context(ctx):
+        _pre_register_scripts(ctx, script.body)
+        last_command, prompt_input = ctx.last_command, ctx.prompt_input
+        ctx.prompt_input = show
+        try:
+            _execute_nodes(ctx, script.body, script.source)
+        except _BreakLoop as exc:
+            if not _inside_loop(ctx):
+                raise ErrInfo(type="cmd", other_msg="BREAK metacommand outside of a LOOP block.") from exc
+            raise
+        finally:
+            ctx.prompt_input = prompt_input
+            ctx.last_command = last_command

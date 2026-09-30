@@ -313,7 +313,7 @@ insert into todo (todo) values ('!!$arg_1!!');
 This script can be used with a command line like:
 
 ``` sql
-execsql -tl -a "Share your dog food" -a 2015-11-21 add.sql todo.db
+execsql run -tl -a "Share your dog food" -a 2015-11-21 add.sql todo.db
 ```
 
 ## **Example 10:** Using CANCEL_HALT to Control Looping with Dialogs { #example10 }
@@ -1635,14 +1635,14 @@ At the REPL prompt, typing a variable name (e.g. `report_dir` or `$DATE_TAG`) pr
 To start in step-through mode from the command line without inserting any `BREAKPOINT` metacommands:
 
 ``` bash
-execsql --debug myscript.sql mydb.sqlite
+execsql run --debug myscript.sql mydb.sqlite
 ```
 
-## **Example 37:** Static Analysis with --lint { #example37 }
+## **Example 37:** Static Analysis with lint { #example37 }
 
-The `--lint` flag parses a script and performs static analysis without connecting to a database or executing anything. It reports structural errors (unmatched `IF`/`ENDIF`, `LOOP`/`END LOOP`, `BEGIN BATCH`/`END BATCH`) and warnings (potentially undefined variable references, missing `INCLUDE` files, empty scripts). The linter requires no database connection and is safe to run in CI.
+`execsql lint` parses scripts and checks them without connecting to a database or executing anything, so it is safe to run in CI. It reports structural errors (unmatched `IF`/`ENDIF`, `LOOP`/`END LOOP`, `BEGIN BATCH`/`END BATCH`) and warnings: variables that are used but never defined, variables that are defined but never used, `IF` conditions that are always true or always false, statements after an unconditional `HALT`, missing `INCLUDE` files, and empty scripts.
 
-Consider a script with a typo: the variable `!!output_path!!` is used but never defined by a `SUB` metacommand.
+Consider a script with a typo: the export path is defined as `report_dir` but referenced as `!!output_path!!`.
 
 ``` sql
 -- validate_orders.sql
@@ -1661,22 +1661,26 @@ create temporary view stale_orders as
 Running the linter:
 
 ``` bash
-execsql --lint validate_orders.sql
+execsql lint validate_orders.sql
 ```
 
 Produces output similar to:
 
 ``` text
-Lint: validate_orders.sql
+validate_orders.sql
+   2  warning  V002  variable !!report_dir!! is never used
+  10  warning  V001  undefined variable !!output_path!!
 
-  WARNING  validate_orders.sql:10  Potentially undefined variable: !!output_path!!
-                                   (not defined by a preceding SUB; may be set by a
-                                   config file or -a arg)
-
-  1 warning
+Found 2 issues in 1 file: 2 warnings (1 file checked)
 ```
 
-Errors appear as `ERROR` and cause `--lint` to exit with code 1. Warnings exit with code 0. This makes it straightforward to gate a CI step on `execsql --lint` — the step fails only when there is a structural error, not for warnings.
+The two warnings are the two halves of the same typo: one name is defined and never read, the other is read and never defined. `V001` and `V002` are [rule codes](../reference/lint.md#rules); a library that sets variables in a configuration file can drop the undefined-variable check with `execsql lint scripts/ --ignore V001`.
+
+Errors appear as `ERROR` and make `execsql lint` exit with code 1. Warnings alone exit with code 0, so a CI step gated on `execsql lint` fails only on a structural error. Pass a directory to check every `*.sql` file under it:
+
+``` bash
+execsql lint scripts/
+```
 
 The linter performs a two-pass analysis: it first collects all variable definitions across the entire script (including `BEGIN SCRIPT` blocks), then checks all references. This means a variable defined after its first use is not flagged as undefined.
 
@@ -1708,7 +1712,7 @@ Consider a script with nested `IF` and `LOOP` blocks:
 Running:
 
 ``` bash
-execsql --parse-tree pipeline.sql
+execsql run --parse-tree pipeline.sql
 ```
 
 Prints a tree like:
@@ -1731,7 +1735,7 @@ Each node is labeled with its line number (or range), a type tag (`<SQL>`, `<CMD
 The `--profile` flag records per-statement execution time and prints a timing summary after the script completes. Use it to find the statements that consume the most wall-clock time in a long-running ETL script.
 
 ``` bash
-execsql --profile --profile-limit 10 etl_pipeline.sql myserver mydb
+execsql run --profile --profile-limit 10 etl_pipeline.sql myserver mydb
 ```
 
 After the script finishes, execsql prints a table sorted by elapsed time, showing the top statements by duration:
@@ -1759,7 +1763,7 @@ Each row shows:
 
 `--profile-limit N` controls how many rows appear in the table (default: 20). All statements contribute to the totals regardless of the limit. Combine `--profile` with `--profile-limit 0` to see every statement.
 
-The `--profile` flag has no effect on `--dry-run` or `--lint` (neither executes statements).
+The `--profile` flag has no effect on `--dry-run`, which executes no statements.
 
 ## **Example 40:** Copying Data Between Databases { #example40 }
 

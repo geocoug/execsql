@@ -17,11 +17,11 @@ import re
 from collections.abc import Iterator
 from pathlib import Path
 
-__all__ = ["collect_paths", "format_file", "main", "parse_keyword"]
+__all__ = ["collect_paths", "format_file", "parse_keyword", "run_formatter"]
 
 
 _SQLGLOT_MISSING_MSG = (
-    "execsql-format requires sqlglot for SQL reformatting.\n"
+    "execsql format requires sqlglot for SQL reformatting.\n"
     "  Install with:  pip install execsql2[formatter]\n"
     "  Or skip SQL reformatting with the --no-sql flag."
 )
@@ -122,7 +122,7 @@ CONTINUATION = frozenset({"ANDIF", "ORIF"})  # emit at depth-1, no depth change
 # Inline IF: "IF (cond) { command }" — self-contained, no ENDIF, no depth
 # change. Pattern must accept the same payloads as
 # src/execsql/script/parser.py:_IF_INLINE_RX. Kept as a separate compiled
-# pattern (not an import) so execsql-format doesn't pull in the AST parser
+# pattern (not an import) so the formatter doesn't pull in the AST parser
 # module graph at startup; tests/test_format.py has a drift check that
 # asserts both regexes recognise the same inputs.
 _IF_INLINE_RE = re.compile(r"^\s*IF\s*\(\s*.+\s*\)\s*\{.+\}\s*$", re.I)
@@ -1204,90 +1204,102 @@ def collect_paths(inputs: list[Path]) -> list[Path]:
 
 
 # ---------------------------------------------------------------------------
-# Entry point (execsql-format)
+# Entry point (execsql format)
 # ---------------------------------------------------------------------------
 
 
-def main() -> None:
-    """CLI entry point for the execsql-format console script."""
+def run_formatter(
+    targets: list[Path],
+    *,
+    check: bool = False,
+    in_place: bool = False,
+    no_sql: bool = False,
+    indent: int = 4,
+    leading_comma: bool = False,
+    encoding: str = "utf-8",
+    diff: bool = False,
+) -> int:
+    """Format or check *targets*; return the process exit code.
+
+    The options are declared once, on the ``execsql format`` command, and
+    arrive here as arguments. Previously they lived on a Typer app built
+    inside ``main()``, which meant the command that wrapped it had no options
+    of its own to show and ``execsql format --help`` listed nothing.
+
+    With *diff*, nothing is written: each file that would change is printed
+    as a unified diff, and the exit code is 1 when any would, as for *check*.
+    """
     import sys
 
-    import typer
     from rich.console import Console
 
     _console = Console()
     _err_console = Console(stderr=True)
 
-    app = typer.Typer(
-        name="execsql-format",
-        help="Format execsql scripts: normalize metacommand indentation and uppercase keywords.",
-        rich_markup_mode="rich",
-        no_args_is_help=True,
-        add_completion=False,
+    use_sql = not no_sql
+    paths = collect_paths(targets)
+    if not paths:
+        _err_console.print("[bold red]Error:[/bold red] No .sql files found.")
+        return 1
+
+    any_changed = False
+    any_errors = False
+    for path in paths:
+        stdin = str(path) == "-"
+        label = "<stdin>" if stdin else str(path)
+        try:
+            source = sys.stdin.buffer.read().decode(encoding) if stdin else path.read_text(encoding=encoding)
+        except OSError as exc:
+            _err_console.print(f"[bold red]Error:[/bold red] reading {label}: {exc}")
+            any_errors = True
+            # Collect read errors instead of short-circuiting so a single
+            # unreadable file doesn't hide the rest of the report.
+            continue
+        except UnicodeDecodeError as exc:
+            _err_console.print(
+                f"[bold red]Error:[/bold red] decoding {label} as {encoding}: {exc}. "
+                f"Try [bold]--script-encoding cp1252[/bold] or another text encoding.",
+            )
+            any_errors = True
+            continue
+
+        formatted = format_file(source, indent=indent, use_sql=use_sql, leading_comma=leading_comma)
+
+        if diff:
+            if formatted != source:
+                any_changed = True
+                _write_diff(source, formatted, label)
+        elif check:
+            if formatted != source:
+                _console.print(f"would reformat {label}")
+                any_changed = True
+        elif in_place:
+            if formatted != source:
+                path.write_text(formatted, encoding=encoding)
+                _console.print(f"reformatted {path}")
+        else:
+            sys.stdout.write(formatted)
+
+    return 1 if (any_errors or ((check or diff) and any_changed)) else 0
+
+
+def _write_diff(before: str, after: str, label: str) -> None:
+    """Print a unified diff of one file, colored when stdout is a terminal."""
+    import difflib
+    import sys
+
+    from execsql.utils.color import color_disabled_by_env
+
+    lines = difflib.unified_diff(
+        before.splitlines(keepends=True),
+        after.splitlines(keepends=True),
+        fromfile=label,
+        tofile=label,
     )
-
-    @app.command(context_settings={"allow_extra_args": False})
-    def _cmd(
-        targets: list[Path] = typer.Argument(
-            ...,
-            metavar="FILE_OR_DIR",
-            help="Files or directories to format. Directories are searched recursively for *.sql files.",
-        ),
-        check: bool = typer.Option(False, "--check", help="Exit 1 if any file needs changes (don't write)."),
-        in_place: bool = typer.Option(False, "-i", "--in-place", help="Modify files in place."),
-        no_sql: bool = typer.Option(False, "--no-sql", help="Skip SQL formatting via sqlglot."),
-        indent: int = typer.Option(4, "--indent", metavar="N", help="Spaces per indent level."),
-        leading_comma: bool = typer.Option(
-            False,
-            "--leading-comma",
-            help="Place commas at the start of lines instead of the end.",
-        ),
-        encoding: str = typer.Option(
-            "utf-8",
-            "--encoding",
-            metavar="NAME",
-            help="Text encoding used to read and write SQL files (default utf-8).",
-        ),
-    ) -> None:
-        use_sql = not no_sql
-        paths = collect_paths(targets)
-        if not paths:
-            _err_console.print("[bold red]Error:[/bold red] No .sql files found.")
-            raise typer.Exit(code=1)
-
-        any_changed = False
-        any_errors = False
-        for path in paths:
-            try:
-                source = path.read_text(encoding=encoding)
-            except OSError as exc:
-                _err_console.print(f"[bold red]Error:[/bold red] reading {path}: {exc}")
-                any_errors = True
-                # Collect read errors instead of short-circuiting so a single
-                # unreadable file doesn't hide the rest of the report.
-                continue
-            except UnicodeDecodeError as exc:
-                _err_console.print(
-                    f"[bold red]Error:[/bold red] decoding {path} as {encoding}: {exc}. "
-                    f"Try [bold]--encoding cp1252[/bold] or another text encoding.",
-                )
-                any_errors = True
-                continue
-
-            formatted = format_file(source, indent=indent, use_sql=use_sql, leading_comma=leading_comma)
-
-            if check:
-                if formatted != source:
-                    _console.print(f"would reformat {path}")
-                    any_changed = True
-            elif in_place:
-                if formatted != source:
-                    path.write_text(formatted, encoding=encoding)
-                    _console.print(f"reformatted {path}")
-            else:
-                sys.stdout.write(formatted)
-
-        if any_errors or (check and any_changed):
-            raise typer.Exit(code=1)
-
-    app()
+    color = sys.stdout.isatty() and not color_disabled_by_env()
+    styles = {"+": "\033[32m", "-": "\033[31m", "@": "\033[36m"}
+    for line in lines:
+        if not line.endswith("\n"):
+            line += "\n\\ No newline at end of file\n"
+        style = styles.get(line[0]) if color and not line.startswith(("+++", "---")) else None
+        sys.stdout.write(f"{style}{line.rstrip(chr(10))}\033[0m\n" if style else line)

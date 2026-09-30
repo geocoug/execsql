@@ -306,8 +306,10 @@ class TestCliProfileFlag:
         """--profile must be a registered option on the Typer CLI."""
         from typer.main import get_command
 
-        params = get_command(app).params
-        opts = {opt for p in params for opt in getattr(p, "opts", [])}
+        # The run options live on the `run` command now that the app groups
+        # run / format / lint.
+        run_cmd = get_command(app).commands["run"]
+        opts = {opt for p in run_cmd.params for opt in getattr(p, "opts", [])}
         assert "--profile" in opts
 
     def test_profile_flag_requires_script(self):
@@ -321,8 +323,8 @@ class TestCliProfileFlag:
         """--profile-limit must be a registered option on the Typer CLI."""
         from typer.main import get_command
 
-        params = get_command(app).params
-        opts = {opt for p in params for opt in getattr(p, "opts", [])}
+        run_cmd = get_command(app).commands["run"]
+        opts = {opt for p in run_cmd.params for opt in getattr(p, "opts", [])}
         assert "--profile-limit" in opts
 
     def test_profile_limit_default_is_20(self):

@@ -2,7 +2,7 @@
 Unit tests for execsql.debug.repl — the interactive debug REPL.
 
 These tests exercise the internal helper functions (_print_var, _set_var,
-_print_where, _print_stack, _print_all_vars, _format_help, _run_sql,
+_print_where, _print_stack, _print_all_vars, _format_help,
 _handle_dot_command, _use_color, _c, _enable_step_mode) and the public
 x_breakpoint entry point.
 
@@ -16,7 +16,7 @@ import io
 import os
 import sys
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -32,7 +32,6 @@ from execsql.debug.repl import (
     _print_stack,
     _print_var,
     _print_where,
-    _run_sql,
     _set_var,
     _reset_color_cache,
     _use_color,
@@ -307,112 +306,6 @@ class TestEnableStepMode:
 
 
 # ---------------------------------------------------------------------------
-# _run_sql
-# ---------------------------------------------------------------------------
-
-
-def _wire_mock_cursor(description=None, fetchall=None, rowcount=0, execute_raises=None):
-    """Wire ``_state.dbs`` with a MagicMock db whose ``_cursor()`` context
-    manager yields a cursor with the given description / fetchall / rowcount.
-
-    Returns (db, cursor) for assertion on calls.
-    """
-    cursor = MagicMock()
-    cursor.description = description
-    cursor.rowcount = rowcount
-    if fetchall is not None:
-        cursor.fetchall.return_value = fetchall
-    if execute_raises is not None:
-        cursor.execute.side_effect = execute_raises
-    db = MagicMock()
-    cm = MagicMock()
-    cm.__enter__.return_value = cursor
-    cm.__exit__.return_value = False
-    db._cursor.return_value = cm
-    pool = MagicMock()
-    pool.current.return_value = db
-    _state.dbs = pool
-    return db, cursor
-
-
-class TestRunSql:
-    def test_no_dbs(self, capture):
-        _state.dbs = None
-        with patch("execsql.debug.repl._use_color", return_value=False):
-            _run_sql("SELECT 1;")
-        assert "no database" in capture.getvalue()
-
-    def test_successful_query(self, capture):
-        _wire_mock_cursor(
-            description=[("id",), ("name",)],
-            fetchall=[(1, "Alice"), (2, "Bob")],
-            rowcount=2,
-        )
-        with patch("execsql.debug.repl._use_color", return_value=False):
-            _run_sql("SELECT * FROM people;")
-        out = capture.getvalue()
-        assert "Alice" in out
-        assert "Bob" in out
-        assert "2 rows" in out
-
-    def test_single_row(self, capture):
-        _wire_mock_cursor(
-            description=[("val",)],
-            fetchall=[(42,)],
-            rowcount=1,
-        )
-        with patch("execsql.debug.repl._use_color", return_value=False):
-            _run_sql("SELECT 42;")
-        out = capture.getvalue()
-        assert "42" in out
-        assert "1 row" in out
-
-    def test_null_values(self, capture):
-        _wire_mock_cursor(
-            description=[("col",)],
-            fetchall=[(None,)],
-            rowcount=1,
-        )
-        with patch("execsql.debug.repl._use_color", return_value=False):
-            _run_sql("SELECT NULL;")
-        assert "NULL" in capture.getvalue()
-
-    def test_query_error(self, capture):
-        _wire_mock_cursor(execute_raises=Exception("table not found"))
-        with patch("execsql.debug.repl._use_color", return_value=False):
-            _run_sql("SELECT * FROM missing;")
-        assert "SQL error" in capture.getvalue()
-
-    def test_dml_reports_rowcount(self, capture):
-        """DELETE / UPDATE / INSERT report ``(N rows affected)`` instead of choking on a None description.
-
-        Regression: previously _run_sql routed through db.select_data, which assumed
-        cursor.description was non-None and crashed with ``'NoneType' object is not
-        iterable`` for any DML — the statement had already executed.
-        """
-        _wire_mock_cursor(description=None, rowcount=3)
-        with patch("execsql.debug.repl._use_color", return_value=False):
-            _run_sql("DELETE FROM test;")
-        out = capture.getvalue()
-        assert "3 rows affected" in out
-        assert "SQL error" not in out
-        assert "NoneType" not in out
-
-    def test_dml_single_row_uses_singular(self, capture):
-        _wire_mock_cursor(description=None, rowcount=1)
-        with patch("execsql.debug.repl._use_color", return_value=False):
-            _run_sql("UPDATE test SET x = 1 WHERE id = 7;")
-        assert "1 row affected" in capture.getvalue()
-
-    def test_ddl_or_transaction_reports_executed(self, capture):
-        """DDL / BEGIN / COMMIT / ROLLBACK report ``(statement executed)`` when rowcount is -1 or None."""
-        _wire_mock_cursor(description=None, rowcount=-1)
-        with patch("execsql.debug.repl._use_color", return_value=False):
-            _run_sql("BEGIN;")
-        assert "statement executed" in capture.getvalue()
-
-
-# ---------------------------------------------------------------------------
 # _handle_dot_command
 # ---------------------------------------------------------------------------
 
@@ -609,15 +502,6 @@ class TestDebugReplIntegration:
             _debug_repl()
         assert "/tmp/test.log" in capture.getvalue()
 
-    def test_sql_query_then_continue(self, capture, last_command):
-        _wire_mock_cursor(description=[("x",)], fetchall=[(1,)], rowcount=1)
-        with (
-            patch("builtins.input", side_effect=["SELECT 1;", ".c"]),
-            patch("execsql.debug.repl._use_color", return_value=False),
-        ):
-            _debug_repl()
-        assert "1" in capture.getvalue()
-
     def test_abort_raises(self, capture, last_command):
         with (
             patch("builtins.input", side_effect=[".abort"]),
@@ -648,19 +532,6 @@ class TestDebugReplIntegration:
             _debug_repl()
         assert "Breakpoint" in capture.getvalue()
 
-    def test_bad_sql_does_not_exit_repl(self, capture, last_command):
-        """Bad SQL prints ``SQL error`` and re-prompts instead of ending the session."""
-        _wire_mock_cursor(execute_raises=Exception("table not found"))
-        # First input bad SQL with ``;``; second is .c to exit normally.
-        with (
-            patch("builtins.input", side_effect=["SELECT * FROM missing;", ".c"]),
-            patch("execsql.debug.repl._use_color", return_value=False),
-        ):
-            _debug_repl()
-        out = capture.getvalue()
-        assert "SQL error" in out
-        assert "table not found" in out
-
     def test_unexpected_exception_caught_by_outer_handler(self, capture, last_command):
         """An unexpected exception from a REPL helper prints ``Error:`` and re-prompts."""
         # Simulate a buggy dot-command by patching _handle_dot_command to raise.
@@ -673,17 +544,6 @@ class TestDebugReplIntegration:
         out = capture.getvalue()
         assert "Error:" in out
         assert "boom" in out
-
-    def test_multiline_sql_accumulates_until_semicolon(self, capture, last_command):
-        """Multi-line SQL accumulates lines until ``;``, then executes the joined buffer."""
-        _, cursor = _wire_mock_cursor(description=[("x",)], fetchall=[(7,)], rowcount=1)
-        with (
-            patch("builtins.input", side_effect=["SELECT 7", "FROM dual;", ".c"]),
-            patch("execsql.debug.repl._use_color", return_value=False),
-        ):
-            _debug_repl()
-        cursor.execute.assert_called_once_with("SELECT 7 FROM dual;")
-        assert "7" in capture.getvalue()
 
     def test_multiline_cancel_discards_buffer(self, capture, last_command):
         """``.cancel`` while buffering discards the partial SQL and re-prompts."""
@@ -702,32 +562,3 @@ class TestDebugReplIntegration:
         ):
             _debug_repl()
         assert "input discarded" in capture.getvalue()
-
-    def test_multiline_dotcommand_still_works(self, capture, last_command, subvars):
-        """Dot-commands fire even mid-buffer (they can never be valid SQL).
-
-        Practical effect: ``.vars`` mid-SQL-buffer prints variables without
-        appending to the buffer.  After the dot command the buffer is intact
-        and the next ``;``-terminated input flushes it.
-        """
-        _, cursor = _wire_mock_cursor(description=[("x",)], fetchall=[(1,)], rowcount=1)
-        with (
-            patch("builtins.input", side_effect=["SELECT 1", ".vars", "FROM dual;", ".c"]),
-            patch("execsql.debug.repl._use_color", return_value=False),
-        ):
-            _debug_repl()
-        cursor.execute.assert_called_once_with("SELECT 1 FROM dual;")
-        # .vars output (logfile is set by the subvars fixture) appears between the buffer lines.
-        assert "logfile" in capture.getvalue()
-
-    def test_bare_identifier_starts_sql_buffer(self, capture, last_command, subvars):
-        """Bare ``logfile`` at fresh prompt starts a multi-line SQL buffer (no lookup)."""
-        _, cursor = _wire_mock_cursor(description=None, rowcount=1)
-        with (
-            patch("builtins.input", side_effect=["logfile", "= 1;", ".c"]),
-            patch("execsql.debug.repl._use_color", return_value=False),
-        ):
-            _debug_repl()
-        # Buffer joined to "logfile = 1;" and sent to execute — bare identifier
-        # is no longer interpreted as a variable lookup at the top level.
-        cursor.execute.assert_called_once_with("logfile = 1;")

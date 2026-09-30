@@ -5,6 +5,7 @@ import threading
 from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from typing import Any
+from collections.abc import Callable
 
 from execsql.config import ConfigData, StatObj
 from execsql.db.base import DatabasePool
@@ -65,6 +66,7 @@ gui_manager_queue: Any
 gui_manager_thread: threading.Thread | None
 profile_data: list[tuple[Any, ...]] | None
 step_mode: bool
+prompt_input: Callable[[tuple[list[str], list[Any]] | None], None] | None
 ast_scripts: dict[str, Any]
 include_chain: list[str]
 ast_exec_stack: list[ExecFrame]
@@ -99,6 +101,7 @@ class RuntimeContext:
     gui_manager_thread: threading.Thread | None
     profile_data: list[tuple[Any, ...]] | None
     step_mode: bool
+    prompt_input: Callable[[tuple[list[str], list[Any]] | None], None] | None
     ast_scripts: dict[str, Any]
     include_chain: list[str]
     ast_exec_stack: list[ExecFrame]

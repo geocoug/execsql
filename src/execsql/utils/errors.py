@@ -75,7 +75,7 @@ def stamp_errinfo(errinfo: ErrInfo) -> ErrInfo:
     """Attach script location from ``_state.last_command`` to an :class:`~execsql.exceptions.ErrInfo`.
 
     Reads the source file name, line number, command text, and command type from
-    the most-recently-executed :class:`~execsql.script.engine.ScriptCmd` and
+    the most-recently-executed statement and
     populates any ``None`` fields on *errinfo*.  This ensures that error messages
     include "Line N of script foo.sql" context even when the ErrInfo was originally
     created deep inside a handler that had no access to execution state.
@@ -125,6 +125,11 @@ def _run_deferred_script(spec: Any) -> None:
 
 
 def exit_now(exit_status: int, errinfo: ErrInfo | None, logmsg: str | None = None) -> None:
+    # An error in input typed at a BREAKPOINT prompt ends
+    # that input, not the run: the prompt reports it and reads the next one.
+    # HALT and a canceled prompt carry no error and still end the run.
+    if errinfo is not None and _state.prompt_input is not None:
+        raise errinfo
     em = None
     if errinfo is not None:
         stamp_errinfo(errinfo)
@@ -189,6 +194,11 @@ def exit_now(exit_status: int, errinfo: ErrInfo | None, logmsg: str | None = Non
     from execsql.utils.fileio import filewriter_end
 
     filewriter_end()
+    # Last, so the ON ERROR_HALT / ON CANCEL_HALT actions above are in it.
+    from execsql import manifest as _manifest
+
+    if (manifest := _manifest.current()) is not None:
+        manifest.finish(exit_status, errinfo)
     sys.exit(exit_status)
 
 

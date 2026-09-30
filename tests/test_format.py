@@ -485,11 +485,12 @@ class TestFormatSqlBlockUseSql:
 
 
 class TestMainCLI:
-    """Tests for the execsql-format CLI via subprocess."""
+    """Tests for the formatter CLI via subprocess."""
 
     def _run(self, *args: str) -> subprocess.CompletedProcess:
+        code = "import sys; from execsql.cli import app; sys.argv = ['execsql', 'format', *sys.argv[1:]]; app()"
         return subprocess.run(
-            [sys.executable, "-c", "from execsql.format import main; main()", *args],
+            [sys.executable, "-c", code, *args],
             capture_output=True,
             text=True,
             encoding="utf-8",
@@ -543,14 +544,19 @@ class TestMainCLI:
 
 
 class TestMainCLIDirect:
-    """Call main() directly in the test process via sys.argv patching."""
+    """Drive ``execsql format`` in-process via sys.argv patching.
+
+    The formatter no longer owns a Typer app of its own — its options are
+    declared on the ``format`` command so that ``execsql format --help``
+    lists them — so these go through the real CLI.
+    """
 
     def _invoke(self, args, capsys=None):
-        from execsql.format import main
+        from execsql.cli import app
 
-        with patch("sys.argv", ["execsql-format"] + args):
+        with patch("sys.argv", ["execsql", "format"] + args):
             try:
-                main()
+                app()
             except SystemExit:
                 pass
 
@@ -620,7 +626,7 @@ class TestMainCLIDirect:
 
     def test_encoding_decode_error_emits_hint(self, tmp_path, capsys):
         """A UnicodeDecodeError surfaces a friendly message instead of a
-        bare traceback, naming the file and suggesting --encoding.
+        bare traceback, naming the file and suggesting --script-encoding.
         """
         sql_file = tmp_path / "win.sql"
         # cp1252 byte 0x80 (euro sign); invalid as the first byte of a UTF-8 sequence.
@@ -629,9 +635,9 @@ class TestMainCLIDirect:
             self._invoke(["--check", str(sql_file)])
         except SystemExit:
             pass
-        captured = capsys.readouterr()
-        assert "--encoding" in captured.err
-        assert "win.sql" in captured.err
+        err = "".join(capsys.readouterr().err.split())  # Rich wraps long lines
+        assert "--script-encoding" in err
+        assert "win.sql" in err
 
     def test_check_continues_past_unreadable_file(self, tmp_path, capsys):
         """An unreadable file should be reported but must not short-circuit
@@ -659,12 +665,12 @@ class TestMainCLIDirect:
         # (b) good file needs reformatting in --check mode.
         with (
             patch.object(Path, "read_text", fake_read),
-            patch("sys.argv", ["execsql-format", "--check", str(tmp_path)]),
+            patch("sys.argv", ["execsql", "format", "--check", str(tmp_path)]),
         ):
-            from execsql.format import main
+            from execsql.cli import app
 
             try:
-                main()
+                app()
             except SystemExit as exc:
                 assert exc.code == 1
 
@@ -1556,6 +1562,22 @@ class TestCorpusLiteralFidelity:
     def test_corpus_is_populated(self):
         """Guard against the corpus silently emptying and the checks passing."""
         assert len(_CORPUS) >= 20, f"expected the project's .sql corpus, found {len(_CORPUS)} files"
+
+    def test_shape_corpus_is_populated(self):
+        """The synthetic shapes are the only CI-visible cover for some constructs.
+
+        ``tests/data/formatter_shapes/`` holds non-client stand-ins for the
+        production SQL each formatter bug was reported from — tagged dollar
+        quotes, ``ON CONFLICT DO NOTHING``, window ``EXCLUDE`` frames.  Nothing
+        else in the repo contains them, so deleting a shape file silently
+        removes the only gate on that class of bug while every check still
+        passes.
+        """
+        shapes = sorted((_REPO_ROOT / "tests" / "data" / "formatter_shapes").glob("*.sql"))
+        assert len(shapes) >= 4, f"expected the formatter shape corpus, found {len(shapes)} files"
+        corpus = set(_CORPUS)
+        missing = [s.name for s in shapes if s not in corpus]
+        assert not missing, f"shape files are not being checked by the corpus: {missing}"
 
     @pytest.mark.parametrize("path", _CORPUS, ids=_corpus_id)
     def test_no_literal_lost(self, path):
@@ -2595,7 +2617,7 @@ class TestDollarQuotedStrings:
         """Formatting a dollar-quoted body must be idempotent (no drift).
 
         Prior to the fix, each SQL-enabled pass re-indented the body's comment
-        and control-flow lines by one more space, so `execsql-format --check`
+        and control-flow lines by one more space, so `execsql format --check`
         never converged. Assert `first == second == third`.
         """
         first = format_file(source, use_sql=True)
@@ -2606,7 +2628,7 @@ class TestDollarQuotedStrings:
     def test_if_inline_regex_agrees_with_parser(self):
         """`_IF_INLINE_RE` (formatter) and `_IF_INLINE_RX` (AST parser) must
         recognise the same inline-IF payloads. They are intentionally kept
-        as separate compiled patterns so execsql-format doesn't import the
+        as separate compiled patterns so the formatter doesn't import the
         AST parser module graph at startup, but they must not drift —
         otherwise the formatter's depth tracking and the parser's block
         recognition diverge.

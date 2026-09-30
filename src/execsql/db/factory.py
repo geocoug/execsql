@@ -84,7 +84,7 @@ def db_SQLite(
         if not Path(sqlite_fn).exists():
             raise ErrInfo(
                 type="error",
-                other_msg=f'SQLite database file "{sqlite_fn}" does not exist.',
+                other_msg=f'SQLite database file "{sqlite_fn}" does not exist. Use -n (--new-db) to create it.',
             )
     return SQLiteDatabase(sqlite_fn)
 
@@ -129,7 +129,7 @@ def db_DuckDB(
         if not Path(duckdb_fn).exists():
             raise ErrInfo(
                 type="error",
-                other_msg=f'DuckDB database file "{duckdb_fn}" does not exist.',
+                other_msg=f'DuckDB database file "{duckdb_fn}" does not exist. Use -n (--new-db) to create it.',
             )
     return DuckDBDatabase(duckdb_fn)
 

@@ -186,7 +186,7 @@ elif conf.db_type == "y":
     return db_MyDB(conf.db_file, new_db=conf.new_db)
 ```
 
-Also add the new code to the validation tuple in `cli/__init__.py` (search for the `("a", "d", "p", ...)` check) so Typer accepts it.
+Also add the new code to the validation tuple in `cli/commands/run.py` (search for the `("a", "d", "p", ...)` check) so Typer accepts it.
 
 Define the `dbt_mydb` type token in `src/execsql/types.py` following the pattern used by `dbt_sqlite` / `dbt_duckdb` — instantiate `DbType("MyDB")` and call `name_datatype()` for every `DT_*` type your DBMS supports.
 
@@ -229,7 +229,7 @@ ______________________________________________________________________
 - [ ] All required methods implemented (`open_db`, `table_exists`, `column_exists`, `table_columns`, `view_exists`, `schema_exists`, `drop_table`, `populate_table`)
 - [ ] Factory function `db_MyDB()` added to `src/execsql/db/factory.py`
 - [ ] Type token `dbt_mydb` defined in `src/execsql/types.py`
-- [ ] CLI dispatch branch added in `_connect_initial_db()` (`src/execsql/cli/run.py`) and new type code added to the validator tuple in `cli/__init__.py`
+- [ ] CLI dispatch branch added in `_connect_initial_db()` (`src/execsql/cli/run.py`) and new type code added to the validator tuple in `cli/commands/run.py`
 - [ ] Integration test added to `tests/db/`
 - [ ] `pytest` passes locally
 - [ ] New type code added to the `-t` flag table in [Syntax & Options](../getting-started/syntax.md#db_types)

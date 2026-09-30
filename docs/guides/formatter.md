@@ -1,10 +1,10 @@
-# execsql-format
+# execsql format
 
-`execsql-format` is a code formatter for execsql script files. It normalizes metacommand indentation, uppercases metacommand keywords, and optionally reformats SQL statements. Run it before committing scripts, in CI, or any time you want consistent formatting across a codebase.
+`execsql format` is a code formatter for execsql script files. It normalizes metacommand indentation, uppercases metacommand keywords, and optionally reformats SQL statements. Run it before committing scripts, in CI, or any time you want consistent formatting across a codebase.
 
 ## Installation { #installation }
 
-The `execsql-format` command is installed automatically with the `execsql2` package and is available on your PATH after install:
+The `execsql format` command is installed automatically with the `execsql2` package and is available on your PATH after install:
 
 ```bash
 pip install execsql2
@@ -16,29 +16,72 @@ The metacommand-indentation and keyword-casing passes work out of the box. **SQL
 pip install "execsql2[formatter]"
 ```
 
-Without the extra, `execsql-format` works in `--no-sql` mode (metacommand indentation and keyword casing only); invoking the SQL pass without `[formatter]` installed raises `ModuleNotFoundError: No module named 'sqlglot'`.
+Without the extra, `execsql format` works in `--no-sql` mode (metacommand indentation and keyword casing only); invoking the SQL pass without `[formatter]` installed raises `ModuleNotFoundError: No module named 'sqlglot'`.
 
 ## Usage { #usage }
 
 ```bash
-execsql-format [OPTIONS] FILE_OR_DIR [FILE_OR_DIR ...]
+execsql format [OPTIONS] FILE_OR_DIR [FILE_OR_DIR ...]
 ```
 
 Pass one or more files or directories. Directories are searched recursively for `*.sql` files.
 
 By default, formatted output is written to stdout. Use `--in-place` to overwrite files, or `--check` to report which files need changes without modifying them.
 
+Pass `-` instead of a path to format one script read from stdin; the result goes to stdout. Editors and shell pipelines use this form:
+
+```sh
+execsql format - < load.sql > load.formatted.sql
+cat load.sql | execsql format --check -   # exit 1 if it would change
+```
+
+`-` cannot be combined with other paths or with `--in-place`.
+
+To see what the formatter would change without changing anything, use `--diff`:
+
+```sh
+execsql format --diff scripts/load.sql
+```
+
+```diff
+--- scripts/load.sql
++++ scripts/load.sql
+@@ -1,3 +1,3 @@
+--- !x! if (hasrows(staging.orders))
+--- !x! write "loading"
+--- !x! endif
++-- !x! IF (hasrows(staging.orders))
++    -- !x! WRITE "loading"
++-- !x! ENDIF
+```
+
 ### Options { #options }
 
-| Option             | Default  | Description                                                                                                                       |
-| ------------------ | -------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `FILE_OR_DIR`      | required | One or more files or directories to format. Directories are searched recursively for `*.sql` files.                               |
-| `--check`          | off      | Exit with code 1 if any file would be reformatted. Does not write any changes. Useful in CI.                                      |
-| `-i`, `--in-place` | off      | Modify files in place instead of writing to stdout.                                                                               |
-| `--no-sql`         | off      | Skip SQL reformatting via sqlglot. Only normalizes metacommand indentation and keyword casing.                                    |
-| `--indent N`       | `4`      | Spaces per indent level. Controls both metacommand block depth and SQL indentation (columns, subqueries, etc).                    |
-| `--leading-comma`  | off      | Place commas at the start of lines instead of the end (e.g. `  , col2` instead of `col1,`).                                       |
-| `--encoding NAME`  | `utf-8`  | Text encoding used to read and write SQL files. Pass `cp1252`, `latin-1`, `shift_jis`, etc. for files saved by non-UTF-8 editors. |
+Layout options that are not given on the command line come from the `[format]`
+section of a [config file](../reference/configuration.md#config_format), so a
+project can set its layout once for the pre-commit hook, the terminal and an
+editor alike:
+
+```ini
+[format]
+indent = 2
+leading_comma = yes
+```
+
+A flag always wins: `--indent 4` or `--no-leading-comma` overrides the file for
+one run.
+
+| Option                                  | Default                            | Description                                                                                                                                                                                                                                                                             |
+| --------------------------------------- | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `FILE_OR_DIR`                           | required                           | One or more files or directories to format. Directories are searched recursively for `*.sql` files. `-` reads one script from stdin.                                                                                                                                                    |
+| `--check`                               | off                                | Exit with code 1 if any file would be reformatted. Does not write any changes. Useful in CI.                                                                                                                                                                                            |
+| `--diff`                                | off                                | Print a unified diff of each file that would change, and write nothing. Exits 1 if any file would change, like `--check`. Cannot be combined with `-i`.                                                                                                                                 |
+| `-i`, `--in-place`                      | off                                | Modify files in place instead of writing to stdout.                                                                                                                                                                                                                                     |
+| `--sql`, `--no-sql`                     | `[format] sql`, else `--sql`       | Reformat SQL via sqlglot, or skip it and only normalize metacommand indentation and keyword casing. `--no-sql` works without the `[formatter]` extra.                                                                                                                                   |
+| `--indent N`                            | `[format] indent`, else `4`        | Spaces per indent level. Controls both metacommand block depth and SQL indentation (columns, subqueries, etc).                                                                                                                                                                          |
+| `--leading-comma`, `--no-leading-comma` | `[format] leading_comma`, else off | Place commas at the start of lines instead of the end (e.g. `  , col2` instead of `col1,`).                                                                                                                                                                                             |
+| `-f`, `--script-encoding NAME`          | config, else `utf-8`               | Text encoding used to read and write SQL files. Pass `cp1252`, `latin-1`, `shift_jis`, etc. for files saved by non-UTF-8 editors. Without it, `[encoding] script` from a [config file](../reference/configuration.md#configuration) applies. The old spelling `--encoding` still works. |
+| `--config FILE`                         | —                                  | An extra config file to read `[encoding] script` from. Config files are read once, from the system, user and working-directory locations plus this file — not from each script's directory.                                                                                             |
 
 ## What Gets Formatted { #what-gets-formatted }
 
@@ -128,13 +171,13 @@ Use `--no-sql` to skip SQL reformatting entirely and only normalize metacommands
 ## Examples { #examples }
 
 ```bash
-execsql-format myscript.sql                      # Preview to stdout
-execsql-format --in-place myscript.sql           # Rewrite in place
-execsql-format --in-place scripts/               # Recurse into a directory
-execsql-format --check scripts/                  # Exit 1 if any file would change (for CI)
-execsql-format --indent 2 --in-place myscript.sql        # Two-space indent
-execsql-format --leading-comma --in-place myscript.sql   # Commas at line start
-execsql-format --no-sql --in-place myscript.sql          # Only re-indent metacommands; leave SQL alone
+execsql format myscript.sql                      # Preview to stdout
+execsql format --in-place myscript.sql           # Rewrite in place
+execsql format --in-place scripts/               # Recurse into a directory
+execsql format --check scripts/                  # Exit 1 if any file would change (for CI)
+execsql format --indent 2 --in-place myscript.sql        # Two-space indent
+execsql format --leading-comma --in-place myscript.sql   # Commas at line start
+execsql format --no-sql --in-place myscript.sql          # Only re-indent metacommands; leave SQL alone
 ```
 
 `--leading-comma` produces output like:
@@ -162,7 +205,7 @@ select id,name,created_at from users where active = true order by name;
 -- !x! endif
 ```
 
-**After (`execsql-format myscript.sql`):**
+**After (`execsql format myscript.sql`):**
 
 ```sql
 -- !x! SUB schema "public"
@@ -183,7 +226,7 @@ select id,name,created_at from users where active = true order by name;
 
 ## Pre-commit Hook { #pre-commit }
 
-`execsql-format` can be used as a [pre-commit](https://pre-commit.com/) hook. Add to `.pre-commit-config.yaml`:
+`execsql format` can be used as a [pre-commit](https://pre-commit.com/) hook. The hook id is still `execsql-format`, so existing configs need no change. Add to `.pre-commit-config.yaml`:
 
 ```yaml
 repos:
@@ -191,7 +234,10 @@ repos:
     rev: v2.23.1
     hooks:
       - id: execsql-format
+      - id: execsql-lint # optional: fail the commit on lint errors
 ```
+
+The `execsql-lint` hook is described in the [lint reference](../reference/lint.md#pre-commit).
 
 The hook runs on `*.sql` files and rewrites them in place by default (`args: [--in-place]` is baked into the published hook). To run in CI-style check-only mode that fails without modifying files, override with `args: [--check]`. To combine in-place rewriting with a custom indent width, use `args: [--in-place, --indent, "2"]` — note that any explicit `args:` you supply replaces the default, so include `--in-place` when adding more flags if you still want in-place behavior. Run `pre-commit autoupdate` periodically to bump the `rev`.
 

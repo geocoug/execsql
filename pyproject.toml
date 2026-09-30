@@ -43,7 +43,7 @@ dependencies = [
     "python-dateutil>=2.8",
     "rich>=13.0",
     "textual>=1.0",
-    "typer>=0.12",
+    "typer>=0.26",
 ]
 
 [project.optional-dependencies]
@@ -105,8 +105,7 @@ dev = [
 ]
 
 [project.scripts]
-execsql = "execsql.cli:_legacy_main"
-execsql-format = "execsql.format:main"
+execsql = "execsql.cli.dispatch:dispatch"
 
 [project.urls]
 Homepage = "https://execsql2.readthedocs.io"
@@ -206,6 +205,11 @@ filename = "docs/guides/formatter.md"
 search = "rev: v{current_version}"
 replace = "rev: v{new_version}"
 
+[[tool.bumpversion.files]]
+filename = "docs/reference/lint.md"
+search = "rev: v{current_version}"
+replace = "rev: v{new_version}"
+
 [tool.pytest.ini_options]
 addopts = [
     "--cov=execsql",
@@ -260,6 +264,9 @@ caf = "caf"
 # renames smtplib.ehlo_or_helo_if_needed() into a method that does not exist,
 # which is exactly how every EMAIL send broke in 2.23.1.
 helo = "helo"
+# Deliberate misspelling of [connect]: `execsql config --validate` tests and
+# docs show it being caught. Correcting it breaks the very test it is in.
+conect = "conect"
 
 [tool.tox]
 required = ["tox-uv"]

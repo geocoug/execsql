@@ -11,6 +11,62 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Added
+
+- `execsql run --manifest FILE` writes a JSON record of the run when it ends, even if it fails: the script, database, statement counts, the files it read, wrote and deleted (with variables substituted), the connections it opened, and any error with its line. Variable values and passwords are never written.
+- `execsql run --var NAME=VALUE` sets the named substitution variable `!!NAME!!` from the command line. It wins over `[variables]` in config files, a `SUB` in the script can reassign it, and its value is hidden in the log. `-a` (`$ARG_1`, `$ARG_2`, …) is unchanged.
+- Every lint issue names a rule code, such as `V001` (undefined variable) or `F002` (unreachable code), in `execsql lint` output. The [lint rules reference](https://execsql2.readthedocs.io/en/latest/reference/lint/) explains each one.
+- `execsql lint --select` and `--ignore` choose rules by code or prefix (`--ignore V002`, `--select F`). Parse errors are always reported.
+- `execsql lint --output-format json` writes every issue as one JSON array for CI and editor tooling, and `--output-format concise` prints one `path:line: CODE message` line per issue.
+- `execsql lint --output-format github` prints each issue as a GitHub Actions annotation, shown on the pull request next to the line it names: `- run: execsql lint --output-format github scripts/`.
+- `execsql lint --statistics` shows how many times each rule fired instead of listing every issue.
+- `execsql-lint` pre-commit hook: runs `execsql lint` on staged `*.sql` files and fails the commit on lint errors. Add `- id: execsql-lint` next to `execsql-format`.
+- `execsql format -` and `execsql lint -` read one script from stdin; `format` writes the result to stdout.
+- `execsql format` and `execsql lint` read scripts in the encoding given by `-f`/`--script-encoding`, or by `[encoding] script` in a config file, and take `--config`. Config files are read once, from the system, user and working-directory locations — not from each script's directory. `lint` reports a script it cannot decode as `P001` instead of stopping.
+- `execsql` now has commands: `execsql run`, `execsql format` (or `fmt`), `execsql lint`, `execsql config`, `execsql list`, and `execsql init`. `format` and `lint` take files or directories and need no database — linting a whole script library is new, since `--lint` only ever linted the single script it was given.
+- `execsql config` lists every config option with its current value, its default, and the file that set it, reading config files from the same places a run does. `execsql config scripts/etl.sql` includes the `execsql.conf` next to that script. Passwords are shown as `***`. `--output-format json` is available, and `execsql config --init` prints the `execsql.conf` template.
+- `[format]` and `[lint]` sections in `execsql.conf` set `execsql format`'s layout (`indent`, `leading_comma`, `sql`) and `execsql lint`'s rules (`select`, `ignore`) for a project, so the pre-commit hook, the terminal and an editor agree. A flag on the command line wins over the file.
+- `execsql format --diff` prints a unified diff of each file that would change and writes nothing; it exits 1 if any would.
+- `execsql lint --strict` exits 1 on warnings too, for CI that allows no warnings. `strict = yes` in `[lint]` sets it for a project; `--no-strict` turns it off for one run.
+- `execsql format --sql` and `--no-leading-comma` turn those settings back on or off for one run when a config file sets them.
+- `execsql config --validate` checks every config file a run would read and reports every problem with its file and line: invalid values, unparsable files and missing `[include_required]` files as errors; misspelled or misplaced sections and keys as warnings, with the likely intended name. It exits 1 on any error. Previously a misspelled key did nothing, and a run stopped at the first invalid value.
+- `execsql init` sets up a project: `execsql.conf`, a script with a header (`main.sql`, or `--script NAME`), and the `execsql-format` and `execsql-lint` pre-commit hooks. `--no-config`, `--no-script` and `--no-pre-commit` skip each; existing files are never overwritten without `--force`.
+- `execsql list metacommands`, `list encodings`, `list plugins` and `list keywords` print each reference list as text or, with `--output-format json`, as JSON. `list keywords --output-format json` is the output of `--dump-keywords`, unchanged.
+- `execsql lint` gained three structural checks that previously only a live run would reveal: a variable defined by `SUB` that nothing ever reads (almost always a spelling mismatch between the definition and the reference); an `IF` whose condition is a constant, making its `ELSE` — or its own body — unreachable; and a statement after an unconditional `HALT`. `HALT DISPLAY` is not treated as terminal, and an `IF` carrying an `ANDIF`/`ORIF` modifier is never reported as constant.
+- The VS Code extension is packaged for the Marketplace and published on a version tag. `just package-vscode` builds a `.vsix` locally. Publishing needs a Marketplace publisher account and a `VSCE_PAT` repository secret; without the secret the release job skips rather than fails, so releases still complete without it. The extension version tracks the tag.
+- `just corpus` and `just corpus-external` run the formatter's real-SQL corpus checks. `corpus-external` takes a path to a read-only copy of an outside SQL library, so checking the formatter against production SQL is one command rather than a remembered incantation.
+
+### Deprecated
+
+- Running a script without a command — `execsql script.sql myserver mydb` — prints a deprecation warning on stderr and stops working in execsql2 3.0. Put `run` first: `execsql run script.sql myserver mydb`. `-m`, `-y`, `--list-plugins`, `--dump-keywords`, `--init-config` and `--ping` used without a command warn the same way and name their replacement (`execsql list metacommands`, …, `execsql run --ping`).
+
+### Removed
+
+- `--lint` is removed; use `execsql lint`, which takes files and directories. `execsql run --lint` and `execsql script.sql --lint` now exit with status 2 and the message `run --lint was removed; use execsql lint`, without running the script. Update CI steps and pre-commit hooks that call `--lint`.
+- `SqlStmt`, `MetacommandStmt`, and `ScriptCmd` are removed from `execsql.script`. They were statement wrappers from the pre-AST engine; nothing has constructed one since the AST executor became the only engine, and the parse tree now describes an executing statement on its own. Nothing in execsql imported them, and a script cannot reference them — only code importing `execsql.script` directly is affected.
+- The `execsql-format` command has been removed. Use `execsql format` — the options are identical, so `execsql-format --check scripts/` becomes `execsql format --check scripts/`. **Pre-commit users need no change**: the published hook id is still `execsql-format` and only its internal entry point moved, so existing `.pre-commit-config.yaml` files keep working as they are. Shell scripts, Makefiles, and CI steps that invoke `execsql-format` directly must be updated.
+
+### Changed
+
+- A missing SQLite or DuckDB database file is reported with the fix: `SQLite database file "x.db" does not exist. Use -n (--new-db) to create it.`
+- CLI help uses the full width of the terminal instead of stopping at 80 columns, and option descriptions start on the same line as the option. Piped help still wraps at 80 columns.
+- A config file error names the file, and the line when the file cannot be read, and suggests `execsql config --validate`: `Configuration error: /etc/execsql.conf: Invalid database type: q`. It used to say `Configuration error on line 516 of execsql`, a line of execsql's own source. A duplicate key, a missing section header or a bare `%` in a config file now report the same way instead of an uncaught exception.
+- A script named exactly like a command — `run`, `format`, `fmt`, `lint`, `config`, `list`, or `init`, with no extension — must now be run as `execsql run NAME` or `execsql ./NAME`. A command name always selects the command, so a file in the working directory can never change what `execsql lint` does.
+- `execsql format --encoding` is now `-f`/`--script-encoding`, the same option `run` has. `--encoding` still works.
+- `-m`, `-y`, `--list-plugins`, `--dump-keywords`, and `--init-config` are no longer listed in `execsql run --help`. They still work and print exactly what their replacements print: `execsql list metacommands`, `list encodings`, `list plugins`, `list keywords --output-format json`, and `execsql config --init`.
+- Requires Typer 0.26 or newer (previously 0.12).
+- Lint output groups issues under each file in line order, with shorter messages and one summary line, instead of a banner and error-first list per file.
+- A script that fails to parse under `execsql lint` is reported on one line with the line number of the problem, instead of a multi-line error with a timestamp.
+- `execsql` with no arguments prints the help and always exits with status 2. Previously the exit status depended on the installed Click version.
+- The debug REPL (`BREAKPOINT`, `--debug`) runs metacommands and blocks as well as SQL: input runs as if it were the next lines of the script where it paused. A `SUB` typed there is still set when the script resumes, `BREAK` leaves the loop the script paused in, and SQL is committed as the script's own SQL would be (`execsql debug*>` when it is not). Variables in SQL are now substituted, and a failing input no longer runs `ON ERROR_HALT` actions.
+- CLI help is plain text rather than bordered panels, colored on a terminal. `execsql --help` lists the commands, both invocation forms, and the global options `--version` and `-o`/`--online-help`; `execsql <command> --help` shows each command's options. Piped help has no color, and `NO_COLOR` or `EXECSQL_NO_COLOR` turns it off.
+
+### Fixed
+
+- `-h` works as a short form of `--help`, as it did in upstream execsql.
+- The debug REPL's `.set VAR VALUE` keeps the value's case; it was lowercased. `.vars all` lists environment variables, as the REPL's own hint says; it looked up a variable named `all`.
+- A script's reported location no longer depends on a second, synthetic copy of the statement being in sync with the parse tree. The executor built a stand-in legacy command object for every statement so that error messages, the debug REPL, and `api.run()` could read the current file and line; those now read the syntax tree directly.
+
 ______________________________________________________________________
 
 ## [2.23.1] - 2026-09-29
