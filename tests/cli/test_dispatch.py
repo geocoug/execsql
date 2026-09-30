@@ -8,6 +8,7 @@ it is that no existing command line changed meaning when they were added.
 
 from __future__ import annotations
 
+import os
 import re
 
 import pytest
@@ -384,7 +385,16 @@ class TestTheBareFormIsDeprecated:
         import subprocess
         import sys
 
-        return subprocess.run([sys.executable, "-m", "execsql", *args], capture_output=True, text=True)
+        # UTF-8 both ways: the reference lists draw tables, which Windows' cp1252 cannot decode.
+        env = {**os.environ, "PYTHONIOENCODING": "utf-8"}
+        return subprocess.run(
+            [sys.executable, "-m", "execsql", *args],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            env=env,
+        )
 
     def test_a_script_still_runs_and_warns(self, tmp_path):
         script = tmp_path / "s.sql"
