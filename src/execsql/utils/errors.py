@@ -125,7 +125,7 @@ def _run_deferred_script(spec: Any) -> None:
 
 
 def exit_now(exit_status: int, errinfo: ErrInfo | None, logmsg: str | None = None) -> None:
-    # An error in input typed at a prompt (execsql shell, BREAKPOINT) ends
+    # An error in input typed at a BREAKPOINT prompt ends
     # that input, not the run: the prompt reports it and reads the next one.
     # HALT and a canceled prompt carry no error and still end the run.
     if errinfo is not None and _state.prompt_input is not None:

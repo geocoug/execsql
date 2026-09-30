@@ -53,7 +53,7 @@ On entry, the REPL prints a horizontal rule with the label (`Breakpoint` or `Ste
 execsql debug>
 ```
 
-**What you type runs as if it were the next lines of the script.** The REPL uses the same engine as [`execsql shell`](../getting-started/syntax.md#shell), and input runs where the script paused: in its variable scope, its transaction and its loop.
+**What you type runs as if it were the next lines of the script.** Input runs where the script paused: in its variable scope, its transaction and its loop.
 
 - **SQL** ends with `;` and may span lines; the prompt changes to `...>` until the statement is complete. Variables are substituted, as in the script. Rows print as a table; `INSERT` / `UPDATE` / `DELETE` print `(N rows affected)`; DDL and transaction control print `(statement executed)`.
 - **Metacommands** are typed as in the script (`-- !x! SUB count 10`) or without the comment marker (`!x! SUB count 10`).
@@ -90,7 +90,7 @@ Because input runs inside the paused script, it changes what the script sees aft
 | `.cancel`         |          | Discard a statement or block you are typing (also Ctrl-C / Ctrl-D)        |
 | `.help`           | `.h`     | Show available commands                                                   |
 
-`.vars`, `.set`, `.scripts` and `.cancel` work the same way in `execsql shell`. Ctrl-D or Ctrl-C at an empty prompt resumes the script.
+Ctrl-D or Ctrl-C at an empty prompt resumes the script.
 
 The `--debug` CLI flag starts execution in step mode, pausing before every statement.
 

@@ -1,9 +1,4 @@
-"""The ping, config and list commands, and the run flags they replace.
-
-Each hidden alias on ``run`` must produce what its command produces: the
-aliases exist so old invocations keep working, and they only keep working if
-they cannot drift from the command they point at.
-"""
+"""The config command, and run's information flags (-m, -y, --list-plugins, --dump-keywords, --ping)."""
 
 from __future__ import annotations
 
@@ -46,41 +41,31 @@ class TestCommandSet:
         out = _invoke("--help").output
         section = out[out.index("Commands:") :]
         names = [line.split()[0] for line in section.splitlines()[1:] if line.strip()]
-        assert names == ["run", "shell", "format", "lint", "inspect", "ping", "config", "list", "init"]
+        assert names == ["run", "format", "lint", "config", "init"]
 
-    @pytest.mark.parametrize(
-        "flag",
-        ["--lint", "--ping", "--init-config", "--metacommands", "--encodings", "--dump-keywords", "--list-plugins"],
-    )
+    @pytest.mark.parametrize("flag", ["--ping", "--metacommands", "--encodings", "--dump-keywords", "--list-plugins"])
+    def test_information_flags_are_listed_in_run_help(self, flag):
+        assert flag in _invoke("run", "--help").output
+
+    @pytest.mark.parametrize("flag", ["--lint", "--init-config"])
     def test_moved_flags_are_hidden_from_run_help(self, flag):
         assert flag not in _invoke("run", "--help").output
 
 
 # ---------------------------------------------------------------------------
-# list, and the -m / -y / --list-plugins / --dump-keywords aliases
+# -m / -y / --list-plugins / --dump-keywords
 # ---------------------------------------------------------------------------
 
 
-class TestList:
-    @pytest.mark.parametrize(
-        ("alias", "thing", "fmt"),
-        [
-            ("-m", "metacommands", "text"),
-            ("--metacommands", "metacommands", "text"),
-            ("-y", "encodings", "text"),
-            ("--encodings", "encodings", "text"),
-            ("--list-plugins", "plugins", "text"),
-            ("--dump-keywords", "keywords", "json"),
-        ],
-    )
-    def test_alias_prints_what_the_command_prints(self, alias, thing, fmt):
-        via_alias = _invoke(alias)
-        via_command = _invoke("list", thing, "--output-format", fmt)
-        assert via_alias.exit_code == via_command.exit_code == 0
-        assert via_alias.output == via_command.output
+class TestInformationFlags:
+    @pytest.mark.parametrize(("flag", "expected"), [("-m", "EXPORT"), ("-y", "latin1"), ("--list-plugins", "")])
+    def test_prints_and_exits(self, flag, expected):
+        result = _invoke(flag)
+        assert result.exit_code == 0
+        assert expected in result.output
 
-    def test_keywords_json_keeps_the_dump_keywords_shape(self):
-        data = json.loads(_invoke("list", "keywords", "--output-format", "json").output)
+    def test_dump_keywords_shape(self):
+        data = json.loads(_invoke("--dump-keywords").output)
         assert set(data) == {
             "metacommands",
             "conditions",
@@ -89,30 +74,6 @@ class TestList:
             "database_types",
             "variable_patterns",
         }
-
-    def test_keywords_text_is_readable_not_json(self):
-        out = _invoke("list", "keywords").output
-        assert "Conditions" in out
-        assert not out.lstrip().startswith("{")
-
-    def test_metacommands_json(self):
-        rows = json.loads(_invoke("list", "metacommands", "--output-format", "json").output)
-        assert {"name": "EXPORT", "syntax": "<queryname> TO <format> <filename> ..."} in rows
-
-    def test_encodings_json(self):
-        names = json.loads(_invoke("list", "encodings", "--output-format", "json").output)
-        assert "latin1" in names
-        assert names == sorted(names)
-
-    def test_plugins_json(self):
-        data = json.loads(_invoke("list", "plugins", "--output-format", "json").output)
-        assert set(data) == {"metacommands", "exporters", "importers"}
-
-    def test_unknown_thing_is_a_usage_error(self):
-        assert _invoke("list", "tables").exit_code == 2
-
-    def test_thing_is_required(self):
-        assert _invoke("list").exit_code == 2
 
 
 # ---------------------------------------------------------------------------
@@ -227,50 +188,23 @@ class TestPing:
         sqlite3.connect(path).close()
         return path
 
-    def test_text(self, db, isolated):
-        result = _invoke("ping", "-t", "l", str(db))
+    def test_connects_and_reports(self, db, isolated):
+        result = _invoke("--ping", "-t", "l", str(db))
         assert result.exit_code == 0
         assert "Connected" in result.output
 
-    def test_json(self, db, isolated):
-        result = _invoke("ping", "-t", "l", str(db), "--output-format", "json")
-        assert result.exit_code == 0
-        data = json.loads(result.output)
-        assert data["dbms"] == "SQLite"
-        assert data["location"] == str(db)
-        assert data["version"]
-
     def test_dsn(self, db, isolated):
-        assert _invoke("ping", "--dsn", f"sqlite:///{db}").exit_code == 0
+        assert _invoke("--ping", "--dsn", f"sqlite:///{db}").exit_code == 0
 
     def test_missing_database_fails_and_is_not_created(self, tmp_path, isolated):
         missing = tmp_path / "missing.db"
-        result = _invoke("ping", "-t", "l", str(missing))
-        assert result.exit_code == 1
+        assert _invoke("--ping", "-t", "l", str(missing)).exit_code == 1
         assert not missing.exists()
 
-    def test_new_db_option_is_refused(self, tmp_path, isolated):
-        missing = tmp_path / "missing.db"
-        assert _invoke("ping", "-t", "l", "-n", str(missing)).exit_code == 2
-        assert not missing.exists()
-
-    def test_new_db_in_config_does_not_create(self, tmp_path, isolated):
-        (isolated / "execsql.conf").write_text("[connect]\nnew_db = yes\n")
-        missing = tmp_path / "missing.db"
-        assert _invoke("ping", "-t", "l", str(missing)).exit_code == 1
-        assert not missing.exists()
-
-    def test_ping_alias_still_creates_with_new_db(self, tmp_path, isolated):
-        """The --ping alias keeps its original behavior, -n included."""
+    def test_new_db_creates(self, tmp_path, isolated):
         created = tmp_path / "created.db"
         assert _invoke("--ping", "-t", "l", "-n", str(created)).exit_code == 0
         assert created.exists()
-
-    def test_bad_type_is_a_usage_error(self, isolated):
-        assert _invoke("ping", "-t", "z", "x.db").exit_code == 2
-
-    def test_missing_config_file_is_a_usage_error(self, isolated):
-        assert _invoke("ping", "--config", "nope.conf", "x.db").exit_code == 2
 
 
 # ---------------------------------------------------------------------------

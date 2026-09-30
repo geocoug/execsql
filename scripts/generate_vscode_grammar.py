@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Generate the VS Code tmLanguage grammar from ``execsql list keywords --output-format json``.
+"""Generate the VS Code tmLanguage grammar from execsql's --dump-keywords output.
 
 Usage:
     uv run python scripts/generate_vscode_grammar.py
 
-The script calls ``execsql list keywords --output-format json`` to introspect the dispatch table,
+The script calls ``execsql --dump-keywords`` to introspect the dispatch table,
 then writes ``extras/vscode-execsql/syntaxes/execsql.tmLanguage.json``.
 """
 
@@ -22,7 +22,7 @@ ROOT = Path(__file__).resolve().parent.parent
 OUTPUT = ROOT / "extras" / "vscode-execsql" / "syntaxes" / "execsql.tmLanguage.json"
 
 # ---------------------------------------------------------------------------
-# Static data not available from `execsql list keywords`
+# Static data not available from --dump-keywords
 # ---------------------------------------------------------------------------
 
 # Secondary operators / modifier keywords (these aren't metacommands)
@@ -286,14 +286,14 @@ def _build_grammar(data: dict) -> dict:
 
 
 def main() -> None:
-    # Get keyword data from `execsql list keywords --output-format json`
+    # Get keyword data from execsql --dump-keywords
     result = subprocess.run(
-        [sys.executable, "-m", "execsql", "list", "keywords", "--output-format", "json"],
+        [sys.executable, "-m", "execsql", "--dump-keywords"],
         capture_output=True,
         text=True,
     )
     if result.returncode != 0:
-        print(f"Error running execsql list keywords:\n{result.stderr}", file=sys.stderr)
+        print(f"Error running execsql --dump-keywords:\n{result.stderr}", file=sys.stderr)
         sys.exit(1)
 
     data = json.loads(result.stdout)

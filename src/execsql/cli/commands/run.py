@@ -7,13 +7,20 @@ from pathlib import Path
 import typer
 
 from execsql.cli.application import ExecsqlCommand, _online_help_callback, _version_callback, app
-from execsql.cli.help import _console, _err_console, _init_config
+from execsql.cli.help import (
+    _console,
+    _err_console,
+    _init_config,
+    _print_encodings,
+    _print_keywords_json,
+    _print_metacommands,
+    _print_plugins,
+)
 from execsql.cli.options import (
     ConfigFileOpt,
     DbTypeOpt,
     DsnOpt,
     NoPasswdOpt,
-    OutputFormat,
     PortOpt,
     ScriptEncodingOpt,
     UserOpt,
@@ -224,15 +231,27 @@ def main(
         "--user-logfile",
         help="Write a log file to ~/execsql.log.",
     ),
-    # -- Hidden aliases for flags that became commands ----------------------
-    # Each still works and runs the command's own code; see
-    # docs/about/divergence.md. -m and -y are upstream v1.130.1 flags.
-    metacommands: bool = typer.Option(False, "-m", "--metacommands", hidden=True),  # list metacommands
-    encodings: bool = typer.Option(False, "-y", "--encodings", hidden=True),  # list encodings
-    dump_keywords: bool = typer.Option(False, "--dump-keywords", hidden=True),  # list keywords --output-format json
-    list_plugins: bool = typer.Option(False, "--list-plugins", hidden=True),  # list plugins
-    # ping, except that -n and new_db = yes still create a missing database.
-    ping: bool = typer.Option(False, "--ping", hidden=True),
+    # -- Information: print and exit, no script file needed -----------------
+    metacommands: bool = typer.Option(False, "-m", "--metacommands", help="List metacommands and exit."),
+    encodings: bool = typer.Option(False, "-y", "--encodings", help="List available encoding names and exit."),
+    dump_keywords: bool = typer.Option(
+        False,
+        "--dump-keywords",
+        help="Dump all metacommand keywords as JSON and exit.",
+    ),
+    list_plugins: bool = typer.Option(
+        False,
+        "--list-plugins",
+        help="List all discovered plugins (metacommands, exporters, importers) and exit.",
+    ),
+    ping: bool = typer.Option(
+        False,
+        "--ping",
+        help=(
+            "Test database connectivity and exit. Prints connection details and the server version on success "
+            "(exit 0), or the error message on failure (exit 1). No script file is required."
+        ),
+    ),
     # The global options again, hidden. Upstream's optparse accepted them
     # anywhere, so `execsql script.sql db --version` still has to print the
     # version rather than read "--version" as a database name.
@@ -269,19 +288,14 @@ def main(
         raise typer.Exit(code=2)
 
     # ------------------------------------------------------------------
-    # Hidden aliases for flags that became commands (no script file needed)
+    # Information flags and the --init-config alias (no script file needed)
     # ------------------------------------------------------------------
-    # Imported here, not at module level: importing the listing module
-    # registers `list`, and the import order is the order --help lists
-    # commands in.
-    from execsql.cli.commands.listing import Listing, print_listing
-
     if metacommands:
-        print_listing(Listing.metacommands, OutputFormat.text)
+        _print_metacommands()
         raise typer.Exit()
 
     if encodings:
-        print_listing(Listing.encodings, OutputFormat.text)
+        _print_encodings()
         raise typer.Exit()
 
     if init_config:
@@ -289,11 +303,11 @@ def main(
         raise typer.Exit()
 
     if dump_keywords:
-        print_listing(Listing.keywords, OutputFormat.json)
+        _print_keywords_json()
         raise typer.Exit()
 
     if list_plugins:
-        print_listing(Listing.plugins, OutputFormat.text)
+        _print_plugins()
         raise typer.Exit()
 
     parsed_vars = _parse_named_vars(named_vars)

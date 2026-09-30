@@ -2,20 +2,20 @@ from __future__ import annotations
 
 """The debug REPL a ``BREAKPOINT`` (or ``run --debug``) opens.
 
-Input runs as if it were written where the script paused, through the engine
-``execsql shell`` also uses (:mod:`execsql.interactive`): SQL (ending with
-``;``, results shown as tables), metacommands and blocks, in the paused
-script's variable scope and transaction. A ``SUB`` typed here is still set
+Input runs as if it were written where the script paused, through
+:mod:`execsql.interactive`: SQL (ending with ``;``, results shown as tables),
+metacommands and blocks, in the paused script's variable scope and
+transaction. A ``SUB`` typed here is still set
 when the script resumes; a ``BREAK`` inside a LOOP leaves the loop; ``HALT``
 ends the run. An error ends only the input that caused it.
 
 Commands to the REPL itself start with ``.``: ``.continue`` and ``.next``
 resume the script, ``.where`` and ``.stack`` show where it paused, ``.quit``
-halts it; ``.vars``, ``.set``, ``.scripts`` and ``.cancel`` work as in the
-shell.
+halts it; ``.vars``, ``.set``, ``.scripts`` and ``.cancel`` inspect and
+change the run.
 
-This module also holds the display helpers both prompts use (colors, tables,
-variable listings).
+This module also holds the REPL's display helpers (colors, tables, variable
+listings).
 
 In non-interactive environments (CI, piped input, ``sys.stdin.isatty()`` is
 ``False``) the metacommand is silently skipped so automated pipelines are not
@@ -219,7 +219,7 @@ def _debug_repl(*, step: bool = False) -> None:
     _hint_c = _c(_DIM, "'.c'")
     _write(f"  Type {_hint_help} for commands, {_hint_c} to resume.\n\n")
 
-    read_eval_loop(_DebugPrompt(), interactive=True)
+    read_eval_loop(_DebugPrompt())
 
 
 class _DebugPrompt(Prompt):
@@ -431,7 +431,7 @@ def _print_stack() -> None:
 
 
 def _print_table(colnames: list[str], rows: list[Any]) -> None:
-    """Print query results as a boxed text table, NULLs dimmed; shared with ``execsql shell``."""
+    """Print query results as a boxed text table, NULLs dimmed."""
     if not colnames:
         _write("  (query returned no columns)\n")
         return

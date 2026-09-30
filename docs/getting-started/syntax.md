@@ -6,31 +6,23 @@
 
 ## Commands { #commands }
 
-*execsql* is nine commands behind one program. Only `run`, `shell` and `ping` connect to a database:
+*execsql* is five commands behind one program. Only `run` connects to a database:
 
 ```text
 execsql run    [OPTIONS] SQL_SCRIPT [SERVER DATABASE | DATABASE_FILE]
-execsql shell  [OPTIONS] [SERVER DATABASE | DATABASE_FILE]
 execsql format [--check | -i] [--indent N] FILE_OR_DIR...
 execsql lint   [OPTIONS] FILE_OR_DIR...
-execsql inspect SQL_SCRIPT [-f NAME] [--output-format text|json]
-execsql ping   [OPTIONS] [SERVER DATABASE | DATABASE_FILE]
 execsql config [SQL_SCRIPT] [--init] [--config FILE]
-execsql list   metacommands|encodings|plugins|keywords
 execsql init   [DIR] [--script NAME | --no-script] [--no-config] [--no-pre-commit] [--force]
 ```
 
-| Command   | Purpose                                                                                                                             |
-| --------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `run`     | Execute a script against a database. The default when no command is given.                                                          |
-| `shell`   | An interactive session for SQL and metacommands; an in-memory SQLite database when none is named.                                   |
-| `format`  | Normalize metacommand keywords, block indentation, and SQL layout. `fmt` works too.                                                 |
-| `lint`    | Static analysis without a database. Exits 1 when any error is found.                                                                |
-| `inspect` | Show what a script needs and touches — outside values, includes, files read, written and deleted, connections — without running it. |
-| `ping`    | Test a database connection and print the server version.                                                                            |
-| `config`  | List every config option with its value, default and source; `--init` prints the template.                                          |
-| `list`    | Print metacommands, encoding names, installed plugins, or the full keyword vocabulary.                                              |
-| `init`    | Set up a project: `execsql.conf`, a script with a header, and the pre-commit hooks.                                                 |
+| Command  | Purpose                                                                                    |
+| -------- | ------------------------------------------------------------------------------------------ |
+| `run`    | Execute a script against a database. The default when no command is given.                 |
+| `format` | Normalize metacommand keywords, block indentation, and SQL layout. `fmt` works too.        |
+| `lint`   | Static analysis without a database. Exits 1 when any error is found.                       |
+| `config` | List every config option with its value, default and source; `--init` prints the template. |
+| `init`   | Set up a project: `execsql.conf`, a script with a header, and the pre-commit hooks.        |
 
 `format` and `lint` accept files or directories; directories are searched
 recursively for `*.sql`, and `-` reads one script from stdin. A CI job runs them
@@ -52,152 +44,10 @@ once per invocation, not from each script's directory.
     deprecation and none is planned.
 
     The one exception is a script named exactly like a command — `run`,
-    `shell`, `format`, `fmt`, `lint`, `inspect`, `ping`, `config`, `list` or `init`, with no extension.
+    `format`, `fmt`, `lint`, `config` or `init`, with no extension.
     A command name always selects the command, so run such a script with
     `execsql run lint` or `execsql ./lint`. Names with an extension, such as
     `lint.sql`, are never ambiguous.
-
-### shell { #shell }
-
-```text
-execsql shell [OPTIONS] [SERVER DATABASE | DATABASE_FILE]
-```
-
-An interactive session for SQL and metacommands, with the same connection
-options as `run` (`-t`, `--dsn`, `-u`, `-p`, `-w`, `-n`, `--config`). When nothing
-names a database — no argument, no `--dsn`, nothing in a config file — it opens
-an in-memory SQLite database, a scratchpad for trying metacommands.
-
-```text
-$ execsql shell
-execsql shell — SQLite an in-memory SQLite database (nothing is saved)
-  SQL ends with ;. .help for commands, .quit to leave.
-execsql> create table t (id integer, name text);
-execsql> insert into t values (1, 'a'), (2, 'b');
-  (2 rows affected)
-execsql> !x! sub who world
-execsql> select name, '!!who!!' as greeting from t;
-  +------+----------+
-  | name | greeting |
-  +------+----------+
-  | a    | world    |
-  | b    | world    |
-  +------+----------+
-  (2 rows)
-```
-
-The session is a script you type one input at a time, and each input runs as
-its next lines. The [debug REPL](../guides/debugging.md#interactive-debug-repl-breakpoint)
-a `BREAKPOINT` opens uses the same engine, so what works here works there.
-
-- **SQL** ends with `;` and may span lines. Variables are substituted first, as
-    in a script; `SELECT` results are shown as a table.
-- **Metacommands** are typed as in a script, `-- !x! EXPORT …`, or as `!x! EXPORT …`.
-- **Blocks** — `IF` … `ENDIF`, `LOOP` … `END LOOP`, `BEGIN BATCH` … `END BATCH`,
-    `BEGIN SCRIPT` … `END SCRIPT` — keep the prompt open until closed. A `SCRIPT`
-    defined in one input can be run with `EXECUTE SCRIPT` in a later one, and
-    `~local` variables last for the whole session.
-- **Transactions** follow script rules: each statement is committed as it runs
-    unless `AUTOCOMMIT OFF` is in effect. The prompt then reads `execsql*>`; end
-    the work with `COMMIT;` or `ROLLBACK;`. Leaving the shell with work not
-    committed says so, and that work is rolled back.
-- **Errors** end only the input that caused them: the error is printed and the
-    prompt reads the next input. An error inside an `INCLUDE`d file says which
-    line of which file. `HALT` ends the shell with its exit status.
-- **Shell commands** start with `.`: `.vars [VAR | all]`, `.set VAR VALUE`,
-    `.scripts [NAME]`, `.cancel`, `.help`, `.quit` (or Ctrl-D).
-- A missing SQLite or DuckDB file is an error unless `-n` is given, as for `run`.
-
-When stdin is not a terminal, lines are read without prompts, so a session can
-be piped in: `execsql shell data.db < session.sql`.
-
-### inspect { #inspect }
-
-```text
-execsql inspect SQL_SCRIPT [-f NAME] [--config FILE] [--output-format text|json]
-```
-
-Shows what a script needs from outside and what it touches, without running it
-or connecting to anything:
-
-```text
-$ execsql inspect load.sql
-load.sql
-
-Needs from outside
-  $ARG_1      -a on the command line
-  &DATA_HOME  environment variable
-  region      --var, [variables] in a config file, or SUB_INI
-
-Includes
-   2  INCLUDE         common.sql
-   3  INCLUDE         missing.sql                   does not exist
-  15  EXECUTE SCRIPT  build_summary                 defined in this file
-
-Reads
-   5  IMPORT          data/orders.csv
-   6  IMPORT          !!&DATA_HOME!!/regions.csv
-
-Writes
-   8  EXPORT QUERY    !!outdir!!/summary.xlsx
-   9  WRITE           run.log
-
-Deletes
-  11  RM_FILE         out/old.csv
-
-Connections
-   1  CONNECT         wh: db.example.com/warehouse  PostgreSQL, user etl
-   7  USE             wh
-
-Defines
-  variables  OUTDIR
-  scripts    build_summary
-```
-
-- **Needs from outside** lists the variables the script reads but never sets —
-    the same ones `lint` reports as undefined (V001) — split into command-line
-    arguments (`-a`), environment variables, and everything else (`--var`,
-    `[variables]`, `SUB_INI`).
-- **Reads, Writes, Deletes** come from `IMPORT`, `EXPORT`, `WRITE`, `ZIP`,
-    `RM_FILE`, `SUB_INI`, `SERVE`, `EMAIL` attachments and the other metacommands
-    that name files, read with the same patterns a run uses. Paths are shown as
-    written, variables and all.
-- **Connections** never show a password.
-- `INCLUDE`d files are listed but not inspected in turn.
-
-`-` reads the script from stdin. A script that does not parse exits 1.
-`--output-format json` prints `script`, `needs`, `defines`, `includes`,
-`reads`, `writes`, `deletes` and `connections`; each touch has `line`, `by`,
-`target` and `detail`.
-
-### ping { #ping }
-
-```text
-execsql ping [OPTIONS] [SERVER DATABASE | DATABASE_FILE]
-```
-
-Connects, prints the DBMS, its version and where it is, and disconnects. No
-script is read. Exits 0 when the connection succeeds and 1 when it fails,
-with the error on stderr. The database comes from the same places `run` gets
-it: positional arguments, `--dsn`, or a [configuration file](../reference/configuration.md#configuration).
-
-```sh
-execsql ping -t p db.example.com warehouse
-execsql ping --dsn postgresql://etl@db.example.com/warehouse
-execsql ping -t l data.db --output-format json
-```
-
-```text
-Connected to PostgreSQL 16.4 at db.example.com/warehouse
-{"dbms": "SQLite", "version": "3.50.4", "location": "data.db"}
-```
-
-`ping` never creates a database: it has no `-n`, and `new_db = yes` in a
-config file is ignored. In JSON, `version` is `null` when the server does not
-report one.
-
-Options: `-t`, `--dsn`, `-u`, `-p`, `-w` and `--config`, exactly as for
-[`run`](#connection-options), plus `--output-format text|json`.
 
 ### config { #config_command }
 
@@ -266,22 +116,6 @@ alone exit `0`. With `--output-format json` it prints
 `{"files_checked": [...], "problems": [...]}`, each problem with `file`,
 `line`, `severity` and `message`.
 
-### list { #list }
-
-```text
-execsql list metacommands|encodings|plugins|keywords [--output-format text|json]
-```
-
-| Thing          | Prints                                                                                                                        |
-| -------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `metacommands` | Every metacommand and its syntax.                                                                                             |
-| `encodings`    | Every character encoding name accepted by `-e`, `-f`, `-g` and `-i`.                                                          |
-| `plugins`      | Installed plugins: metacommands, exporters, importers. See [Plugin System](../dev/architecture.md#plugin-system).             |
-| `keywords`     | The full vocabulary: metacommands by category, conditions, CONFIG options, export formats, database types, variable patterns. |
-
-With `--output-format json`, `keywords` prints the JSON that editor tooling
-such as the VS Code grammar generator reads.
-
 ### init { #init }
 
 ```text
@@ -340,11 +174,11 @@ The same two variables also turn off color in the [debug REPL](../reference/meta
 Every command uses the same three exit codes, so a CI step or shell script can
 tell a problem in the scripts from a mistake in the command line.
 
-| Code | Meaning                           | Examples                                                                                                                                                                       |
-| ---- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `0`  | Success                           | The script ran; `lint` found no errors (warnings allowed); `format --check` found nothing to change; `ping` connected.                                                         |
-| `1`  | The task failed or found problems | A script error; `lint` found an error (or any issue, with `--strict`); `format --check` or `--diff` would change a file; `ping` could not connect; no `.sql` files were found. |
-| `2`  | Bad command line                  | An unknown option or command, an invalid choice, a missing config file named by `--config`, `run --lint`.                                                                      |
+| Code | Meaning                           | Examples                                                                                                                                                                             |
+| ---- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `0`  | Success                           | The script ran; `lint` found no errors (warnings allowed); `format --check` found nothing to change; `run --ping` connected.                                                         |
+| `1`  | The task failed or found problems | A script error; `lint` found an error (or any issue, with `--strict`); `format --check` or `--diff` would change a file; `run --ping` could not connect; no `.sql` files were found. |
+| `2`  | Bad command line                  | An unknown option or command, an invalid choice, a missing config file named by `--config`, `run --lint`.                                                                            |
 
 `run` keeps upstream execsql's exit codes where they differ: a missing script
 file exits `1`, and unknown options after the script are not rejected.
@@ -430,8 +264,8 @@ the bare form (`execsql -tl script.sql mydb.sqlite`). `execsql run --help`
 lists them all. `-h`/`--help`, `--version`, and `-o`/`--online-help` also work
 on their own (`execsql --version`) and anywhere on the command line.
 `format` has its own options, described in the [formatter guide](../guides/formatter.md);
-`lint`'s are in the [lint rules reference](../reference/lint.md); `ping`, `config` and `list`
-are described [above](#ping).
+`lint`'s are in the [lint rules reference](../reference/lint.md); `config` and `init`
+are described [above](#config_command).
 
 ### Connection options
 
@@ -499,7 +333,7 @@ are described [above](#ping).
 `-i`, `--import-encoding` *ENCODING*
 :   Character encoding for data files used with IMPORT.
 
-Valid encoding names can be displayed with `execsql list encodings`. See also [Character Encoding](../guides/encoding.md#encoding).
+Valid encoding names can be displayed with `execsql -y`. See also [Character Encoding](../guides/encoding.md#encoding).
 
 ### Output options
 
@@ -540,6 +374,35 @@ Valid encoding names can be displayed with `execsql list encodings`. See also [C
 `--gui-framework` *{tkinter,textual}*
 
 :   GUI framework to use with `--visible-prompts`. Default: `tkinter`. Use `textual` for a terminal-based UI.
+
+### Information options { #information_options }
+
+These print and exit; none needs a script file.
+
+`-m`, `--metacommands`
+
+:   List all metacommands and their syntax.
+
+`-y`, `--encodings`
+
+:   List all valid character encoding names.
+
+`--list-plugins`
+
+:   List all discovered plugins (metacommands, exporters, importers). Plugins are Python packages that register extensions via entry points. See the [Plugin System](../dev/architecture.md#plugin-system) section in the developer guide.
+
+`--dump-keywords`
+
+:   Dump all metacommand keywords, conditional functions, config options, and export formats as JSON. Useful for tooling that consumes execsql's keyword registry (e.g., the VS Code grammar generator).
+
+`--ping`
+
+:   Test database connectivity. Connects to the configured database, queries the server version if possible, and prints a one-line summary on success (exit 0). On failure, prints the error message and exits with code 1. `--ping` can be combined with `--dsn` or other connection flags without a `.sql` file, and `-n` creates a missing SQLite, DuckDB or PostgreSQL database as it does for a run.
+
+    ```sh
+    execsql --ping --dsn postgresql://user@host/db
+    execsql --ping -t l mydb.sqlite
+    ```
 
 ### Preview, debugging and safety options
 
@@ -621,16 +484,7 @@ See [Configuration Files](../reference/configuration.md#configuration) for the f
 
 ### Flags that became commands { #former_flags }
 
-These `run` flags are now commands. Each old spelling still works, is hidden
-from `execsql run --help`, and prints exactly what its command prints — except
-`--lint`, which was removed.
-
-| Old flag               | Use instead                                  | Old flag still works?                                                                  |
-| ---------------------- | -------------------------------------------- | -------------------------------------------------------------------------------------- |
-| `-m`, `--metacommands` | `execsql list metacommands`                  | Yes                                                                                    |
-| `-y`, `--encodings`    | `execsql list encodings`                     | Yes                                                                                    |
-| `--list-plugins`       | `execsql list plugins`                       | Yes                                                                                    |
-| `--dump-keywords`      | `execsql list keywords --output-format json` | Yes                                                                                    |
-| `--init-config`        | `execsql config --init`                      | Yes                                                                                    |
-| `--ping`               | `execsql ping`                               | Yes; unlike `ping`, `--ping -n` still creates a missing database                       |
-| `--lint`               | `execsql lint`                               | No: exits 2 with `run --lint was removed; use execsql lint`, and never runs the script |
+| Old flag        | Use instead             | Old flag still works?                                                                  |
+| --------------- | ----------------------- | -------------------------------------------------------------------------------------- |
+| `--init-config` | `execsql config --init` | Yes; hidden from `execsql run --help`, and prints exactly what `config --init` prints  |
+| `--lint`        | `execsql lint`          | No: exits 2 with `run --lint was removed; use execsql lint`, and never runs the script |

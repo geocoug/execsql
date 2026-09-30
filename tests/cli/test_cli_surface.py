@@ -45,6 +45,12 @@ SURFACE: dict[str, dict[str, object]] = {
             "--profile-limit",
             "--progress",
             "--var",
+            # Information: print and exit.
+            "--dump-keywords",
+            "--list-plugins",
+            "--ping",
+            "-m --metacommands",
+            "-y --encodings",
             "-a --assign-arg",
             "-b --boolean-int",
             "-c --command",
@@ -64,32 +70,14 @@ SURFACE: dict[str, dict[str, object]] = {
             "-z --import-buffer",
         },
         "hidden": {
-            # Flags that became commands, kept working (docs/about/divergence.md).
-            "--dump-keywords",
+            # Became `execsql config --init`, kept working (docs/about/divergence.md).
             "--init-config",
-            "--list-plugins",
-            "--ping",
-            "-m --metacommands",
-            "-y --encodings",
             # Removed; declared only to refuse it with a pointer to `execsql lint`.
             "--lint",
             # The global options again: upstream accepted them anywhere.
             "--version",
             "-o --online-help",
         },
-    },
-    "shell": {
-        "arguments": ["[SERVER DATABASE | DATABASE_FILE]"],
-        "options": {
-            "--config",
-            "--dsn --connection-string",
-            "-n --new-db",
-            "-p --port",
-            "-t --type",
-            "-u --user",
-            "-w --no-passwd",
-        },
-        "hidden": set(),
     },
     "format": {
         "arguments": ["FILE_OR_DIR..."],
@@ -118,32 +106,9 @@ SURFACE: dict[str, dict[str, object]] = {
         },
         "hidden": set(),
     },
-    "inspect": {
-        "arguments": ["SQL_SCRIPT"],
-        "options": {"--config", "--output-format", "-f --script-encoding"},
-        "hidden": set(),
-    },
-    "ping": {
-        "arguments": ["[SERVER DATABASE | DATABASE_FILE]"],
-        "options": {
-            "--config",
-            "--dsn --connection-string",
-            "--output-format",
-            "-p --port",
-            "-t --type",
-            "-u --user",
-            "-w --no-passwd",
-        },
-        "hidden": set(),
-    },
     "config": {
         "arguments": ["[SQL_SCRIPT]"],
         "options": {"--config", "--init", "--output-format", "--validate"},
-        "hidden": set(),
-    },
-    "list": {
-        "arguments": ["THING"],
-        "options": {"--output-format"},
         "hidden": set(),
     },
     "init": {
@@ -243,22 +208,16 @@ EXIT_CODES = [
     (["lint", "--strict", "warned.sql"], 1),
     (["lint", "--select", "Z9", "clean.sql"], 2),
     (["lint"], 2),
-    # ping
-    (["ping", "-t", "l", "db.sqlite"], 0),
-    (["ping", "-t", "l", "missing.sqlite"], 1),
-    (["ping", "-t", "z", "db.sqlite"], 2),
-    (["ping", "-n", "db.sqlite"], 2),
     # config
     (["config"], 0),
     (["config", "--config", "missing.conf"], 2),
     (["config", "missing.sql"], 2),
-    # list
-    (["list", "keywords"], 0),
-    (["list", "tables"], 2),
     # run keeps upstream's codes: a missing script is a failed task, and
     # unknown options are not rejected (upstream let them through). The
     # removed --lint is a usage error and runs nothing.
     (["run", "missing.sql"], 1),
+    (["run", "--ping", "-t", "l", "db.sqlite"], 0),
+    (["run", "--ping", "-t", "l", "missing.sqlite"], 1),
     (["run", "--lint", "clean.sql"], 2),
 ]
 

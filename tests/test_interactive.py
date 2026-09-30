@@ -1,4 +1,4 @@
-"""The engine shared by ``execsql shell`` and the debug REPL (``execsql.interactive``).
+"""The debug REPL's engine (``execsql.interactive``).
 
 Breakpoint tests run a real script through ``execsql.run()`` with stdin
 reported as a terminal and ``input()`` fed from a list, so input typed at the
@@ -185,7 +185,7 @@ class TestDescribeError:
 
     def test_input_typed_at_the_prompt_has_no_location(self):
         err = ErrInfo("cmd", other_msg="Bad thing")
-        err.script_file, err.script_line_no = "<shell>", 1
+        err.script_file, err.script_line_no = "<breakpoint>", 1
         assert describe_error(err) == "Error: Bad thing"
 
     def test_other_exceptions(self):

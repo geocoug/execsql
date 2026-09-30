@@ -149,7 +149,7 @@ def _print_profile(profile_data: list[tuple], limit: int = 20) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _ping_db(db: Any, output_format: str = "text") -> None:
+def _ping_db(db: Any) -> None:
     """Test connectivity for *db*, print connection details, and exit.
 
     Attempts to execute ``SELECT version()`` (or ``SELECT sqlite_version()``
@@ -159,9 +159,6 @@ def _ping_db(db: Any, output_format: str = "text") -> None:
 
     Args:
         db: An open :class:`~execsql.db.base.Database` instance.
-        output_format: ``"text"`` for one colored line, ``"json"`` for one
-            object with ``dbms``, ``version`` (``null`` when unknown) and
-            ``location`` on stdout and nothing else.
     """
     dbms_id: str = db.type.dbms_id if db.type else "unknown"
 
@@ -191,11 +188,7 @@ def _ping_db(db: Any, output_format: str = "text") -> None:
     else:
         location = db.db_name or "<in-memory>"
 
-    if output_format == "json":
-        import json
-
-        sys.stdout.write(json.dumps({"dbms": dbms_id, "version": version_str, "location": location}) + "\n")
-    elif version_str:
+    if version_str:
         _console.print(
             f"[bold green]Connected[/bold green] to [bold]{dbms_id}[/bold] "
             f"[dim]{version_str}[/dim] at [cyan]{location}[/cyan]",
@@ -621,11 +614,8 @@ def _run(
     no_rm_file: bool = False,
     no_serve: bool = False,
     config_file: str | None = None,
-    ping_format: str = "text",
-    ping_may_create_db: bool = True,
     named_vars: list[tuple[str, str]] | None = None,
     manifest_path: str | None = None,
-    shell: bool = False,
 ) -> None:
     """Initialise state, connect to the database, load the script, and run it.
 
@@ -638,14 +628,6 @@ def _run(
     connection details (DBMS name, server version, and location), and calls
     :func:`_ping_db` which raises ``SystemExit(0)``.  No script is loaded or
     executed.  *script_name* and *command* may both be ``None`` in ping mode.
-    *ping_format* is passed to :func:`_ping_db`. ``execsql ping`` sets
-    *ping_may_create_db* to ``False`` so that neither ``-n`` nor
-    ``new_db = yes`` in a config file can make a ping create a database; the
-    ``--ping`` alias on ``run`` keeps its original behavior.
-
-    With *shell*, no script is read: after the same setup a run gets, the
-    interactive loop in :mod:`execsql.shell` runs instead. When nothing names
-    a database, the shell opens an in-memory SQLite database.
     """
     import execsql.state as _state
 
@@ -699,9 +681,7 @@ def _run(
     # ------------------------------------------------------------------
     # Positional arguments → server/db/db_file
     # ------------------------------------------------------------------
-    _route_positionals(positional, conf, command=command, ping=ping or shell)
-    if shell and conf.db_type == "l" and not (conf.db_file or conf.server or conf.db):
-        conf.db_file = ":memory:"
+    _route_positionals(positional, conf, command=command, ping=ping)
 
     # ------------------------------------------------------------------
     # Script substitution variables that depend on the script path
@@ -742,8 +722,6 @@ def _run(
         raise SystemExit(0)
 
     if ping:
-        if not ping_may_create_db:
-            conf.new_db = False
         if conf.server is None and conf.db is None and conf.db_file is None:
             from execsql.utils.errors import fatal_error
 
@@ -752,7 +730,7 @@ def _run(
             )
         db = _connect_initial_db(conf)
         _state.dbs.add("initial", db)
-        _ping_db(db, ping_format)  # raises SystemExit
+        _ping_db(db)  # raises SystemExit
 
     manifest = None
     if manifest_path:
@@ -868,15 +846,6 @@ def _run(
 
     if no_serve:
         conf.allow_serve = False
-
-    if shell:
-        from execsql.shell import run_shell
-
-        run_shell()
-        # Close connections as a finished script does. Work not committed
-        # under AUTOCOMMIT OFF is discarded as they close; run_shell said so.
-        _state.dbs.do_rollback = False
-        return
 
     if _ast_tree is not None:
         _execute_script_ast(_ast_tree, conf, profile=profile, profile_limit=profile_limit)

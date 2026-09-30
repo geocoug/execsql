@@ -1,9 +1,9 @@
 """What a matched metacommand touches: files it reads, writes or deletes, and connections.
 
-Shared by ``execsql inspect``, which classifies a script's metacommands without
-running them, and ``run --manifest``, which records the ones a run executed.
-Both classify from the handler a metacommand dispatched to and the groups its
-regex captured, so they cannot disagree about what a metacommand does.
+Used by ``run --manifest``, which records the metacommands a run executed.
+It classifies from the handler a metacommand dispatched to and the groups its
+regex captured, so any other reader of a script (a static inspector) can share
+the same answer.
 """
 
 from __future__ import annotations

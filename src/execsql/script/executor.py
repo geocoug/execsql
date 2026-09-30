@@ -71,7 +71,7 @@ from execsql.script.variables import SubVarSet
 from execsql.state import ExecFrame, RuntimeContext, active_context, get_context, xcmd_test
 from execsql.utils.errors import exception_desc, exit_now, stamp_errinfo
 
-__all__ = ["execute", "execute_input", "open_session"]
+__all__ = ["execute", "execute_input"]
 
 
 # ---------------------------------------------------------------------------
@@ -1095,37 +1095,17 @@ def execute(script: Script, *, ctx: RuntimeContext | None = None) -> None:
 # ---------------------------------------------------------------------------
 
 
-def open_session(source: str, *, ctx: RuntimeContext | None = None) -> None:
-    """Start a run whose script arrives one input at a time (``execsql shell``).
-
-    Does what :func:`execute` does before running a script, and pushes the
-    ``<main>`` scope frame that every later :func:`execute_input` shares, so
-    ``~local`` variables and SCRIPT blocks last from one input to the next.
-    """
-    if ctx is None:
-        ctx = get_context()
-    with active_context(ctx):
-        ctx.ast_scripts.clear()
-        ctx.include_chain.clear()
-        ctx.ast_exec_stack.clear()
-        ctx.last_command = None
-        set_static_system_vars(ctx)
-        _push_frame(ctx, "<main>", source, line_no=1, kind="main")
-
-
 def execute_input(
     script: Script,
     show: Callable[[tuple[list[str], list] | None], None],
     *,
     ctx: RuntimeContext | None = None,
 ) -> None:
-    """Run input typed at a prompt as the next lines of the run in progress.
+    """Run input typed at a BREAKPOINT prompt as the next lines of the paused script.
 
-    In ``execsql shell`` the run is the session :func:`open_session` began.
-    At a BREAKPOINT it is the paused script, and the input runs as if it were
-    written where the script paused: in its variable scope, its batch and its
-    loop, so a BREAK leaves that loop.  Unlike :func:`execute`, nothing is
-    reset.
+    The input runs as if it were written where the script paused: in its
+    variable scope, its batch and its loop, so a BREAK leaves that loop.
+    Unlike :func:`execute`, nothing is reset.
 
     *show* receives the result of each SQL statement run.  An error that
     would halt the run is raised to the caller instead (see ``exit_now``).

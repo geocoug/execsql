@@ -1,10 +1,8 @@
-"""The engine behind execsql's two prompts: ``execsql shell`` and the debug REPL.
+"""The engine behind the debug REPL a ``BREAKPOINT`` (or ``run --debug``) opens.
 
-Both prompts read input the same way and run it the same way: as the next
-lines of the run in progress (:func:`~execsql.script.executor.execute_input`).
-In ``execsql shell`` the run is the session itself; at a ``BREAKPOINT`` it is
-the paused script, so input runs where the script paused, in its variable
-scope and transaction.
+Input runs as the next lines of the paused script
+(:func:`~execsql.script.executor.execute_input`): where the script paused, in
+its variable scope and transaction.
 
 What runs, and how it runs, follows script rules:
 
@@ -21,8 +19,8 @@ the input that caused it. The prompt reports it and reads the next input.
 ``HALT`` still ends the run.
 
 A line starting with ``.`` is a command to the prompt itself. :class:`Prompt`
-holds what differs between the two prompts: their names and their own
-commands. ``.vars``, ``.set``, ``.scripts`` and ``.cancel`` are common to both.
+holds a prompt's name and its own commands; ``.vars``, ``.set``, ``.scripts``
+and ``.cancel`` are handled here for any prompt.
 
 Display helpers (colors, tables, variable listings) live in
 :mod:`execsql.debug.repl` and are reached through the module, so tests that
@@ -31,7 +29,6 @@ patch them there see every caller.
 
 from __future__ import annotations
 
-import sys
 
 import execsql.state as _state
 from execsql.exceptions import ErrInfo
@@ -177,23 +174,12 @@ def unknown_dot_command(line: str) -> None:
     _ui._write(f"  {_ui._c(_ui._RED, 'Unknown command:')} {line!r}. Type '.help' for available commands.\n")
 
 
-def _read_line(prompt_text: str, interactive: bool) -> str:
-    """One line of input, without its newline; ``EOFError`` at the end."""
-    if interactive:
-        return input(prompt_text)
-    line = sys.stdin.readline()
-    if line == "":
-        raise EOFError
-    return line.rstrip("\n")
-
-
-def read_eval_loop(prompt: Prompt, *, interactive: bool) -> None:
+def read_eval_loop(prompt: Prompt) -> None:
     """Read and run inputs until the prompt's own command ends it, or input ends.
 
-    With *interactive*, lines are read with ``input()`` (line editing, a
-    prompt); Ctrl-D or Ctrl-C discards a half-typed input, and on an empty
-    line leaves the prompt. Otherwise lines are read from stdin without a
-    prompt, and input ending inside a statement or block is reported.
+    Lines are read with ``input()`` (line editing, a prompt). Ctrl-D or
+    Ctrl-C discards a half-typed input, and on an empty line leaves the
+    prompt.
     """
     from execsql.debug import repl as _ui
 
@@ -201,19 +187,13 @@ def read_eval_loop(prompt: Prompt, *, interactive: bool) -> None:
     while True:
         first, more = _prompts(prompt)
         try:
-            line = _read_line(more if buffer else first, interactive)
-        except (EOFError, KeyboardInterrupt) as exc:
-            if interactive and buffer:
+            line = input(more if buffer else first)
+        except (EOFError, KeyboardInterrupt):
+            if buffer:
                 buffer.clear()
                 _ui._write("\n  (input discarded)\n")
                 continue
-            if interactive:
-                _ui._write("\n")
-            elif buffer and isinstance(exc, EOFError):
-                _ui._write(
-                    f"  {_ui._c(_ui._RED, 'Error:')} input ended inside an unfinished statement or block; "
-                    "it was not run.\n",
-                )
+            _ui._write("\n")
             return
         stripped = line.strip()
         if not stripped and not buffer:

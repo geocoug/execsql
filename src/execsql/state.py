@@ -351,7 +351,7 @@ class RuntimeContext:
 
         # Debug REPL — True after a ``next`` command; engine re-enters REPL after next statement.
         self.step_mode: bool = False
-        # Set while input typed at a prompt (``execsql shell``, BREAKPOINT) runs:
+        # Set while input typed at a BREAKPOINT prompt runs:
         # called with each SQL statement's result, as ``(column_names, rows)``
         # or ``None``.  An error that would halt the run instead returns to the
         # prompt (see ``exit_now``).

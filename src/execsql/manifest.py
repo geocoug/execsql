@@ -8,8 +8,7 @@ succeeded, failed or was cancelled.
 
 Files are recorded as the executor runs each metacommand, after variable
 substitution, so paths are the ones actually used. What a metacommand touches
-is decided by :mod:`execsql.metacommands.effects`, the same classification
-``execsql inspect`` uses. Variable values and passwords are never written:
+is decided by :mod:`execsql.metacommands.effects`. Variable values and passwords are never written:
 the run log hides ``-a`` and ``--var`` values because they can be secrets, and
 the manifest lists only their names.
 

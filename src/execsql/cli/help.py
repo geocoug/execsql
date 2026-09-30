@@ -23,7 +23,6 @@ __all__ = [
     "_plugins_data",
     "_print_encodings",
     "_print_keywords_json",
-    "_print_keywords_text",
     "_print_metacommands",
     "_print_plugins",
 ]
@@ -182,7 +181,7 @@ def _print_encodings() -> None:
 
 
 def _keywords_data() -> dict[str, Any]:
-    """The full keyword vocabulary: the data behind ``execsql list keywords``.
+    """The full keyword vocabulary: the data behind ``--dump-keywords``.
 
     The VS Code grammar build and ``tests/test_registry.py`` read its JSON
     form, so the shape of this dict is a contract.
@@ -242,28 +241,6 @@ def _print_keywords_json() -> None:
     import json
 
     _console.print_json(json.dumps(_keywords_data(), indent=2))
-
-
-def _print_keywords_text() -> None:
-    """Print :func:`_keywords_data` grouped under headings, for reading."""
-    import textwrap
-
-    data = _keywords_data()
-
-    def group(title: str, words: list[str]) -> None:
-        _console.print(f"[bold]{title}[/bold] ({len(words)})")
-        _console.print(textwrap.fill(", ".join(words), width=88, initial_indent="  ", subsequent_indent="  "))
-        _console.print()
-
-    for category, words in data["metacommands"].items():
-        group(f"Metacommands: {category}", words)
-    group("Conditions", data["conditions"])
-    group("CONFIG options", data["config_options"])
-    group("Export formats", data["export_formats"]["all"])
-    group("Database types", data["database_types"])
-    _console.print("[bold]Variable patterns[/bold]")
-    for name, pattern in data["variable_patterns"].items():
-        _console.print(f"  {pattern:<12} {name}")
 
 
 def _plugins_data() -> dict[str, list[str]]:

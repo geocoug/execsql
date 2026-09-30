@@ -30,7 +30,7 @@ def register_metacommands(mcl: Any) -> None:
     Each registration needs:
         - regex: Pattern to match (use named groups for arguments)
         - handler: Function receiving regex groups as **kwargs
-        - description: Name in `execsql list keywords` output
+        - description: Name for --dump-keywords output
         - category: "action", "control", "config", "prompt", or "block"
     """
     mcl.add(

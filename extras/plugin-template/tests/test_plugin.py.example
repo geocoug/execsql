@@ -99,9 +99,9 @@ class TestIntegration:
         assert "YOUR_COMMAND received: hello world" in result.stdout
 
     def test_plugin_appears_in_list(self):
-        """Verify the plugin shows up in `execsql list plugins`."""
+        """Verify the plugin shows up in --list-plugins."""
         result = subprocess.run(
-            [sys.executable, "-m", "execsql", "list", "plugins"],
+            [sys.executable, "-m", "execsql", "--list-plugins"],
             capture_output=True,
             text=True,
             timeout=10,

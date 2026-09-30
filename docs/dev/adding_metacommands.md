@@ -9,7 +9,7 @@ This guide walks through every step required to add a new metacommand to execsql
     to the core codebase. Plugins use Python entry points to register metacommands
     at startup — no changes to execsql source required. See
     `extras/plugin-template/` for a ready-to-use starting point, or run
-    `execsql list plugins` to see installed plugins.
+    `execsql --list-plugins` to see installed plugins.
 
 ______________________________________________________________________
 
@@ -109,13 +109,13 @@ mcl.add(
 
 `MetaCommandList.add()` accepts these parameters:
 
-| Parameter          | Type                       | Default  | Purpose                                                                                                                 |
-| ------------------ | -------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `matching_regexes` | `str` or `tuple[str, ...]` | required | One regex string, or a tuple of strings all mapped to the same handler                                                  |
-| `exec_func`        | callable                   | required | The handler function                                                                                                    |
-| `description`      | `str \| None`              | `None`   | Human-readable keyword name (shown in `DEBUG WRITE METACOMMANDLIST` and `--dump-keywords`)                              |
-| `set_error_flag`   | `bool`                     | `True`   | Update `_state.status.metacommand_error` on success/failure                                                             |
-| `category`         | `str \| None`              | `None`   | Keyword category for `execsql list keywords` and VS Code grammar generation (e.g., `"action"`, `"control"`, `"config"`) |
+| Parameter          | Type                       | Default  | Purpose                                                                                                           |
+| ------------------ | -------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------- |
+| `matching_regexes` | `str` or `tuple[str, ...]` | required | One regex string, or a tuple of strings all mapped to the same handler                                            |
+| `exec_func`        | callable                   | required | The handler function                                                                                              |
+| `description`      | `str \| None`              | `None`   | Human-readable keyword name (shown in `DEBUG WRITE METACOMMANDLIST` and `--dump-keywords`)                        |
+| `set_error_flag`   | `bool`                     | `True`   | Update `_state.status.metacommand_error` on success/failure                                                       |
+| `category`         | `str \| None`              | `None`   | Keyword category for `--dump-keywords` and VS Code grammar generation (e.g., `"action"`, `"control"`, `"config"`) |
 
 All regexes are compiled with `re.I` (case-insensitive) automatically.
 
