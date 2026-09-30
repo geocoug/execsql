@@ -157,6 +157,23 @@ class TestAutocommitOn:
         warn.assert_not_called()
 
 
+class TestLastRowcount:
+    """``$LAST_ROWCOUNT`` after each statement, the same on every backend."""
+
+    def test_insert_update_delete(self, dbms, tmp_path):
+        sql = (
+            f"create table {TABLE} (x integer);\n"
+            f"insert into {TABLE} values (1), (2), (3);\n-- !x! sub inserted !!$LAST_ROWCOUNT!!\n"
+            f"update {TABLE} set x = 9 where x > 1;\n-- !x! sub updated !!$LAST_ROWCOUNT!!\n"
+            f"delete from {TABLE} where x = 9;\n-- !x! sub deleted !!$LAST_ROWCOUNT!!\n"
+        )
+        db = _open(dbms, tmp_path)
+        result = run(sql=sql, connection=db)
+        db.close()
+        assert result.success, result.errors
+        assert [result.variables[k] for k in ("inserted", "updated", "deleted")] == ["3", "2", "2"]
+
+
 # ---------------------------------------------------------------------------
 # The pieces, without a live server
 # ---------------------------------------------------------------------------
@@ -235,6 +252,20 @@ class TestDuckDB:
         db.rollback()
         assert not db.in_transaction
         assert not db.table_exists("t")
+
+    def test_the_count_duckdb_returns_is_the_rowcount(self, db):
+        from unittest.mock import MagicMock
+
+        import execsql.state as _state
+
+        subvars = MagicMock()
+        _state.subvars = subvars
+        assert db.execute("create table t (x integer);") is None
+        db.execute("insert into t values (1), (2);")
+        subvars.add_substitution.assert_called_with("$LAST_ROWCOUNT", 2)
+        # A query's own "Count" column is a result, not a rowcount.
+        assert db.execute('select count(*) as "Count" from t;', fetch=True) == (["Count"], [(2,)])
+        assert db.execute("select 1;") is None
 
     def test_a_failed_statement_ends_the_transaction(self, db):
         db.autocommit = False

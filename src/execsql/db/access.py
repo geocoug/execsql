@@ -14,7 +14,7 @@ import time
 from pathlib import Path
 from typing import Any, cast
 
-from execsql.db.base import Database
+from execsql.db.base import Database, _fetched
 from execsql.db.tiers import SupportTier
 from execsql.exceptions import ErrInfo
 from execsql.utils.errors import exception_desc, fatal_error
@@ -231,7 +231,13 @@ class AccessDatabase(Database):
         if time.time() - self.last_dao_time < 5.0:
             time.sleep(5 - (time.time() - self.last_dao_time))
 
-    def execute(self, sqlcmd: Any, paramlist: list | None = None) -> None:
+    def execute(
+        self,
+        sqlcmd: Any,
+        paramlist: list | None = None,
+        *,
+        fetch: bool = False,
+    ) -> tuple[list[str], list] | None:
         """Execute a SQL command, handling encoding, DAO flush, and temporary queries."""
 
         # A shortcut to self.cursor().execute() that handles encoding and that
@@ -239,7 +245,7 @@ class AccessDatabase(Database):
         # to allow Jet's read buffer to be flushed (see https://support.microsoft.com/en-us/kb/225048).
         # This also handles the 'CREATE TEMPORARY QUERY' extension to Access.
         # For Access, commands in a tuple (batch) are executed singly.
-        def exec1(sql: str, paramlist: list | None) -> None:
+        def exec1(sql: str, paramlist: list | None) -> tuple[list[str], list] | None:
             tqd = self.temp_rx.match(sql)
             if tqd:
                 if self.conn is not None and self.holding():
@@ -264,6 +270,7 @@ class AccessDatabase(Database):
                     self.conn = None
                 if tqd.group(1) and tqd.group(1).strip().lower()[:4] == "temp" and qn not in self.temp_query_names:
                     self.temp_query_names.append(qn)
+                return None
             else:
                 self.before_statement(sql)
                 self.dao_flush_check()
@@ -278,12 +285,14 @@ class AccessDatabase(Database):
                     else:
                         curs.execute(encoded_sql, paramlist)
                     _state.subvars.add_substitution("$LAST_ROWCOUNT", curs.rowcount)
+                    return _fetched(curs) if fetch else None
 
         if type(sqlcmd) in (list, tuple):
+            result = None
             for sql in sqlcmd:
-                exec1(sql, paramlist)
-        else:
-            exec1(sqlcmd, paramlist)
+                result = exec1(sql, paramlist)
+            return result
+        return exec1(sqlcmd, paramlist)
 
     def exec_cmd(self, querycommand: str) -> None:
         """Execute a stored query command via DAO."""

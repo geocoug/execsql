@@ -148,7 +148,7 @@ $LAST_ERROR
 :   The text of the last SQL statement or metacommand that caused an error. This value will only be available if the [ERROR_HALT OFF](metacommands.md#error_halt) or [METACOMMAND_ERROR_HALT OFF](metacommands.md#metacommanderrorhalt) metacommand has been used, or in an [ON ERROR_HALT EMAIL](metacommands.md#error_halt_email), [ON ERROR_HALT WRITE](metacommands.md#error_halt_write), or [ON ERROR_HALT EXECUTE SCRIPT](metacommands.md#error_halt_exec) metacommand.
 
 $LAST_ROWCOUNT
-:   The number of rows that were affected by the last INSERT, UPDATE, or SELECT statement. Note that support for $LAST_ROWCOUNT varies among DBMSs. For example, for SELECT statements, Postgres provides an accurate count, SQLite always returns -1, Firebird always returns 0, and DuckDB does not provide a value.
+:   The number of rows that were affected by the last INSERT, UPDATE, or SELECT statement. Note that support for $LAST_ROWCOUNT varies among DBMSs. For example, for SELECT statements, Postgres provides an accurate count, SQLite and DuckDB always return -1, and Firebird always returns 0. For INSERT, UPDATE and DELETE, every supported DBMS reports the number of rows changed.
 
 $LAST_SQL
 :   The text of the last SQL statement that ran without error.

@@ -119,13 +119,12 @@ class OracleDatabase(Database):
                 msg = f"Failed to open Oracle database {self.db_name} on {self.server_name}"
                 raise ErrInfo(type="exception", exception_msg=exception_desc(), other_msg=msg) from e
 
-    def execute(self, sql: Any, paramlist: list | None = None) -> None:
+    def execute(self, sql: Any, paramlist: list | None = None, *, fetch: bool = False) -> tuple[list[str], list] | None:
         """Execute a SQL command, stripping any trailing semicolon for Oracle."""
         # Strip any semicolon off the end and pass to the parent method.
         if sql[-1:] == ";":
-            super().execute(sql[:-1], paramlist)
-        else:
-            super().execute(sql, paramlist)
+            return super().execute(sql[:-1], paramlist, fetch=fetch)
+        return super().execute(sql, paramlist, fetch=fetch)
 
     def select_data(self, sql: str) -> tuple[list[str], list]:
         """Return column names and all rows from a SELECT statement."""
