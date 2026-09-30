@@ -19,6 +19,10 @@ import execsql.state as _state
 
 __all__ = ["DuckDBDatabase"]
 
+# Statements that return rows; any other statement DuckDB answers with a
+# one-column "Count" result (rows inserted, updated or deleted).
+_QUERY_RX = re.compile(r"(?:SELECT|WITH|VALUES|FROM|TABLE|SHOW|DESCRIBE|SUMMARIZE|EXPLAIN|PRAGMA|CALL)\b|\(", re.I)
+
 # A statement that opens a transaction, or one that ends it.
 _TRANSACTION_RX = re.compile(r"(?P<begin>BEGIN|START\s+TRANSACTION)\b|(?P<end>COMMIT|END|ROLLBACK|ABORT)\b", re.I)
 
@@ -93,15 +97,28 @@ class DuckDBDatabase(Database):
             self.conn.execute("BEGIN TRANSACTION")
             self.in_transaction = True
 
-    def execute(self, sql: Any, paramlist: list | None = None) -> None:
-        """Execute *sql*, noting a transaction the statement itself begins or ends."""
+    def execute(self, sql: Any, paramlist: list | None = None, *, fetch: bool = False) -> tuple[list[str], list] | None:
+        """Execute *sql*, noting a transaction the statement itself begins or ends.
+
+        The driver's ``rowcount`` is always -1: DuckDB answers an INSERT,
+        UPDATE or DELETE with a one-column ``Count`` result instead, which is
+        read here to set ``$LAST_ROWCOUNT`` as other drivers do.
+        """
         text = " ".join(sql) if type(sql) in (tuple, list) else sql
-        m = _TRANSACTION_RX.match(statement_start(text))
+        start = statement_start(text)
+        m = _TRANSACTION_RX.match(start)
         if m and m.group("begin"):
             self.in_transaction = True  # so the BEGIN itself runs on the connection
-        super().execute(sql, paramlist)
+        query = bool(_QUERY_RX.match(start))
+        result = super().execute(sql, paramlist, fetch=fetch or not query)
         if m and m.group("end"):
             self.in_transaction = False
+        if not query and result is not None and result[0] == ["Count"]:
+            rows = result[1]
+            if _state.subvars is not None:
+                _state.subvars.add_substitution("$LAST_ROWCOUNT", rows[0][0] if rows else -1)
+            return None
+        return result if fetch else None
 
     def commit(self) -> None:
         """Commit the open transaction if autocommit is enabled."""

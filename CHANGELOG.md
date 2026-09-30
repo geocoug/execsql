@@ -20,6 +20,7 @@ ______________________________________________________________________
 
 - SQLite: `CREATE TABLE`, `DROP` and other DDL run while `AUTOCOMMIT` is `OFF` or inside `BEGIN BATCH` are held until commit. They were committed at once, so `AUTOCOMMIT ON WITH ROLLBACK` and `ROLLBACK BATCH` left them in place.
 - DuckDB: `AUTOCOMMIT OFF` and `BEGIN BATCH` hold statements until commit. Every statement, rows included, was committed as it ran, so nothing could be rolled back. A script's own `BEGIN;` and `COMMIT;` now work too; `COMMIT;` failed with "no transaction is active".
+- DuckDB: `$LAST_ROWCOUNT` holds the number of rows an `INSERT`, `UPDATE` or `DELETE` changed. It was always `-1`.
 
 ______________________________________________________________________
 
