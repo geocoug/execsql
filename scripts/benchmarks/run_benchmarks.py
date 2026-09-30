@@ -79,7 +79,7 @@ class Runner:
         sf = self.workdir / "bench_script.sql"
         sf.write_text(script)
         db = self.workdir / "bench.sqlite"
-        argv = [*self.cmd, *(extra_args or []), "-tl", "-n", str(sf), str(db)]
+        argv = [*self.cmd, "run", *(extra_args or []), "-tl", "-n", str(sf), str(db)]
         t0 = time.perf_counter()
         proc = subprocess.run(argv, cwd=self.workdir, capture_output=True, text=True)
         elapsed = time.perf_counter() - t0

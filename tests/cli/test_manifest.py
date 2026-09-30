@@ -108,6 +108,39 @@ class TestNotWritten:
         assert result.returncode == 0
         assert m is None
 
+    def test_an_unwritable_path_fails_before_the_run(self, work):
+        (work / "runs").write_text("a file, not a directory\n")
+        result, _ = _run(work, "create table ran (x integer);\n", "--manifest", "runs/m.json")
+        assert result.returncode == 2
+        assert "Cannot write --manifest runs/m.json" in result.stderr
+        assert not (work / "db.sqlite").exists()
+
+
+def test_writing_ends_the_recording(tmp_path):
+    import execsql.manifest as manifest_module
+
+    manifest = manifest_module.start(str(tmp_path / "m.json"), "x.sql", [])
+    assert manifest_module.current() is manifest
+    manifest.finish(0)
+    assert manifest_module.current() is None
+
+
+def test_a_write_failure_is_reported_not_raised(tmp_path, capsys):
+    (tmp_path / "blocker").write_text("x")
+    manifest = RunManifest(str(tmp_path / "blocker" / "m.json"), "x.sql", [])
+    manifest.finish(0)
+    assert "could not write --manifest" in capsys.readouterr().err
+    assert manifest.written
+
+
+def test_check_writable(tmp_path):
+    from execsql.manifest import check_writable
+
+    assert check_writable(str(tmp_path / "new" / "m.json")) is None
+    assert check_writable(str(tmp_path)) is not None
+    (tmp_path / "f").write_text("x")
+    assert check_writable(str(tmp_path / "f" / "m.json")) is not None
+
 
 def test_finish_writes_once(tmp_path):
     manifest = RunManifest(str(tmp_path / "m.json"), "x.sql", [])

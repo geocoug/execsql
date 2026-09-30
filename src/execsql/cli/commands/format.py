@@ -62,7 +62,7 @@ def format_cmd(
     Layout options not given here come from [format] in a config file.
     """
     from execsql.cli.run import _configured_script_encoding, _tool_config
-    from execsql.format import run_formatter
+    from execsql.format import _require_sqlglot, run_formatter
 
     if Path("-") in targets:
         if len(targets) > 1:
@@ -76,13 +76,20 @@ def format_cmd(
         raise typer.Exit(code=2)
 
     conf = _tool_config(config_file)
+    no_sql = not (conf.format_sql if sql is None else sql)
+    if not no_sql:
+        try:
+            _require_sqlglot()
+        except ImportError as exc:
+            _err_console.print(f"[bold red]Error:[/bold red] {exc}", highlight=False)
+            raise typer.Exit(code=1) from exc
     raise typer.Exit(
         code=run_formatter(
             targets,
             check=check,
             diff=diff,
             in_place=in_place,
-            no_sql=not (conf.format_sql if sql is None else sql),
+            no_sql=no_sql,
             indent=conf.format_indent if indent is None else indent,
             leading_comma=conf.format_leading_comma if leading_comma is None else leading_comma,
             encoding=script_encoding or encoding or _configured_script_encoding(conf) or "utf-8",

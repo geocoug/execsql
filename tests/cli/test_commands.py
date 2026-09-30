@@ -376,6 +376,27 @@ class TestLintInput:
 UNFORMATTED = "-- !x! if (true)\n-- !x! write 'hi'\n-- !x! endif\n"
 
 
+class TestFormatWithoutSqlglot:
+    def test_a_clean_error_names_the_extra(self, tmp_path, isolated):
+        from unittest.mock import patch
+
+        script = tmp_path / "s.sql"
+        script.write_text("select 1;\n", encoding="utf-8")
+        with patch("execsql.format._require_sqlglot", side_effect=ImportError("execsql format requires sqlglot")):
+            result = _invoke("format", "--sql", "--check", str(script))
+        assert result.exit_code == 1
+        assert "execsql format requires sqlglot" in result.output
+        assert "Traceback" not in result.output
+
+    def test_no_sql_does_not_need_it(self, tmp_path, isolated):
+        from unittest.mock import patch
+
+        script = tmp_path / "s.sql"
+        script.write_text("select 1;\n", encoding="utf-8")
+        with patch("execsql.format._require_sqlglot", side_effect=ImportError("missing")):
+            assert _invoke("format", "--no-sql", "--check", str(script)).exit_code == 0
+
+
 class TestFormatConfig:
     def _format(self, work, *args):
         (work / "s.sql").write_text(UNFORMATTED)

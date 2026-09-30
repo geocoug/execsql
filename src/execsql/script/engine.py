@@ -200,7 +200,7 @@ class MetaCommandList:
     def keywords_by_category(self) -> dict[str, list[str]]:
         """Return ``{category: [keyword, ...]}`` from entries that have both.
 
-        Used by ``--dump-keywords`` to introspect the dispatch table.
+        Used by ``execsql list keywords`` to introspect the dispatch table.
         """
         result: dict[str, list[str]] = {}
         for mc in self._commands:

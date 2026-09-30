@@ -12,7 +12,7 @@
 #   4. Working directory: current directory
 #
 # Later files override earlier ones. CLI arguments override everything.
-# Generate this template with: execsql --init-config > execsql.conf
+# Generate this template with: execsql config --init > execsql.conf
 
 
 [connect]

@@ -103,7 +103,7 @@ These features can be used to run *execsql* from within the editor, and if an er
 
 ![An execsql error displayed in Geany](../images/data_error1_screenshot.jpg)
 
-To enable this capability, use the *Build/Set Build Commands* menu item. A dialog box like that shown below will be displayed. This will allow you to create a new build command to run *execsql* on the script being edited. You should enter a label for this command (e.g., "Run with execsql"); the command to run, using *%f* as a placeholder for the name of the current script (e.g., "execsql -v2 %f"); and the regular expression that Geany will use to extract the line number and file name out of *execsql's* error message--this should be "Line\\s(\\d+)\\sof\\sscript\\s(.+)".
+To enable this capability, use the *Build/Set Build Commands* menu item. A dialog box like that shown below will be displayed. This will allow you to create a new build command to run *execsql* on the script being edited. You should enter a label for this command (e.g., "Run with execsql"); the command to run, using *%f* as a placeholder for the name of the current script (e.g., "execsql run -v2 %f"); and the regular expression that Geany will use to extract the line number and file name out of *execsql's* error message--this should be "Line\\s(\\d+)\\sof\\sscript\\s(.+)".
 
 ![The Geany dialog to set build commands](../images/set_build_commands.jpg)
 
