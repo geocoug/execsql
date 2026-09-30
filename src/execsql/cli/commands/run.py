@@ -41,10 +41,11 @@ def main(
     # Positional args collected manually (script + optional server/db/file)
     args: list[str] | None = typer.Argument(
         None,
-        metavar="SQL_SCRIPT [SERVER DATABASE | DATABASE_FILE]",
+        metavar="[SQL_SCRIPT [SERVER DATABASE | DATABASE_FILE]]",
         help=(
             "SQL script file to execute. Optionally followed by server and database "
-            "name (client-server DBs) or a database file path (file-based DBs)."
+            "name (client-server DBs) or a database file path (file-based DBs). "
+            "Not needed with -c or --ping."
         ),
     ),
     # -- Connection --------------------------------------------------------
@@ -265,15 +266,14 @@ def main(
 ) -> None:
     """Run a script against a database.
 
-    Positional arguments after the script file:
+    \b
+    Client-server databases:  execsql run script.sql SERVER DATABASE
+    File-based databases:     execsql run script.sql DATABASE_FILE
+    An inline script:         execsql run -c "select 1;" DATABASE_FILE
+    A connection test:        execsql run --ping DATABASE_FILE
 
-    Client-server databases:
-      execsql run script.sql [SERVER] [DATABASE]
-
-    File-based databases (SQLite, DuckDB, Access):
-      execsql run script.sql [DATABASE_FILE]
-
-    execsql script.sql ... (without run) is the same command.
+    Running a script without run (execsql script.sql ...) is deprecated and
+    stops working in execsql2 3.0.
     """
     if lint:
         _err_console.print("[bold red]Error:[/bold red] run --lint was removed; use execsql lint")
@@ -309,6 +309,13 @@ def main(
             f"[bold red]Error:[/bold red] Config file {config_file!r} does not exist.",
         )
         raise typer.Exit(code=2)
+
+    if manifest_path and not dry_run:
+        from execsql.manifest import check_writable
+
+        if (problem := check_writable(manifest_path)) is not None:
+            _err_console.print(f"[bold red]Error:[/bold red] Cannot write --manifest {manifest_path}: {problem}")
+            raise typer.Exit(code=2)
 
     positional = args or []
     if command is not None:

@@ -2943,7 +2943,7 @@ Parameters:
 Load data from staging into the target table.
 ```
 
-The detail view (`SHOW SCRIPTS <name>`) shows the full source path so the file can be located unambiguously when multiple scripts share a basename. Scripts loaded inline via `execsql -c '<command>'` show `<inline>` as the source.
+The detail view (`SHOW SCRIPTS <name>`) shows the full source path so the file can be located unambiguously when multiple scripts share a basename. Scripts loaded inline via `execsql run -c '<command>'` show `<inline>` as the source.
 
 If no scripts are registered, prints `No scripts registered.` If the named script is not found, prints `No script named '<name>' is registered.`
 

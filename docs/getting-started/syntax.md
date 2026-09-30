@@ -58,7 +58,7 @@ once per invocation, not from each script's directory.
 
     Until then, a script named exactly like a command — `run`, `format`,
     `fmt`, `lint`, `config`, `list` or `init`, with no extension — must be run
-    as `execsql run lint` or `execsql ./lint`: a command name always selects
+    as `execsql run lint`: a command name always selects
     the command. Names with an extension, such as `lint.sql`, are never
     ambiguous.
 
@@ -82,12 +82,12 @@ execsql config --init > execsql.conf # start a new config file from the template
 
 ```text
 Config files read, in order:
-  ~/.config/execsql.conf
-  scripts/execsql.conf
+  /home/etl/.config/execsql.conf
+  /home/etl/project/scripts/execsql.conf
 
 [connect]
-  server    db.example.com  ~/.config/execsql.conf
-  db_type   p               scripts/execsql.conf
+  server    db.example.com  /home/etl/.config/execsql.conf
+  db_type   p               /home/etl/project/scripts/execsql.conf
   port                      default
 ```
 
@@ -204,11 +204,11 @@ The same two variables also turn off color in the [debug REPL](../reference/meta
 Every command uses the same three exit codes, so a CI step or shell script can
 tell a problem in the scripts from a mistake in the command line.
 
-| Code | Meaning                           | Examples                                                                                                                                                                             |
-| ---- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `0`  | Success                           | The script ran; `lint` found no errors (warnings allowed); `format --check` found nothing to change; `run --ping` connected.                                                         |
-| `1`  | The task failed or found problems | A script error; `lint` found an error (or any issue, with `--strict`); `format --check` or `--diff` would change a file; `run --ping` could not connect; no `.sql` files were found. |
-| `2`  | Bad command line                  | An unknown option or command, an invalid choice, a missing config file named by `--config`, `run --lint`.                                                                            |
+| Code | Meaning                           | Examples                                                                                                                                                                                                                                                                                   |
+| ---- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `0`  | Success                           | The script ran; `lint` found no errors (warnings allowed); `format --check` found nothing to change; `run --ping` connected.                                                                                                                                                               |
+| `1`  | The task failed or found problems | A script error; `lint` found an error (or any issue, with `--strict`); `format --check` or `--diff` would change a file; `run --ping` could not connect; no `.sql` files were found.                                                                                                       |
+| `2`  | Bad command line                  | An unknown option or command, an invalid choice, a missing config file named by `--config`, `run --lint`. Until execsql2 3.0, a first word that is not a command is taken as a script (the deprecated bare form), so a mistyped command exits `1`: `SQL script file "lnt" does not exist`. |
 
 `run` keeps upstream execsql's exit codes where they differ: a missing script
 file exits `1`, and unknown options after the script are not rejected.
@@ -290,8 +290,9 @@ When `-t` is not specified, the default is SQLite (`l`).
 ## Options Reference { #options }
 
 The options below belong to `run`: `execsql run -tl script.sql mydb.sqlite`.
-`execsql run --help` lists them all. `-h`/`--help`, `--version`, and `-o`/`--online-help` also work
-on their own (`execsql --version`) and anywhere on the command line.
+`execsql run --help` lists them all. `-h`/`--help` works on every command.
+`--version` and `-o`/`--online-help` work on their own (`execsql --version`)
+and anywhere on a `run` command line.
 `format` has its own options, described in the [formatter guide](../guides/formatter.md);
 `lint`'s are in the [lint rules reference](../reference/lint.md); `config`, `list` and `init`
 are described [above](#config_command).
@@ -470,6 +471,8 @@ Valid encoding names can be displayed with `execsql list encodings`. See also [C
     ```
 
     Files and connections are recorded as each metacommand succeeds, after variable substitution, so paths are the ones used (`out/west.csv`, not `out/!!region!!.csv`); `INCLUDE`d scripts count as files read. When a run fails, `exit_status` is its exit code and `errors` holds the message, its `type`, `source`, `line` and the failing `command`. `variables` lists the names set with `-a` and `--var`; their values are never written, for the same reason the log hides them, and neither are passwords.
+
+    The path is checked before the run starts: if *FILE* cannot be written (its folder is a file, or not writable), `execsql run` exits 2 before any SQL runs.
 
 `--no-system-cmd`
 

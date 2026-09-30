@@ -129,6 +129,15 @@ class TestValues:
             (3, "error", "db_type = q: Invalid database type: q"),
         ]
 
+    def test_a_password_is_never_printed(self, work):
+        secret = "s3cr3t-not-base64!!"
+        (work / "execsql.conf").write_text(f"[email]\nenc_password = {secret}\n")
+        for fmt in ("text", "json"):
+            result = runner.invoke(app, ["config", "--validate", "--output-format", fmt])
+            assert result.exit_code == 1
+            assert secret not in result.output
+            assert "enc_password = ***" in result.output
+
     def test_every_error_is_reported_not_just_the_first(self, work):
         problems = _problems(work, "[connect]\ndb_type = q\nport = abc\n[interface]\ngui_level = 9\n")
         assert [(line, severity) for line, severity, _ in problems] == [(2, "error"), (3, "error"), (5, "error")]

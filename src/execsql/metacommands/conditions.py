@@ -22,7 +22,7 @@ registration time for quoted, unquoted, and bracketed arguments):
   ``xf_row_count_eq``, ``xf_row_count_lt``.
 - Runtime state: ``xf_sqlerror``, ``xf_dialogcanceled``, ``xf_dbms``.
 
-The full list is also surfaced by ``execsql --dump-keywords``.
+The full list is also surfaced by ``execsql list keywords``.
 """
 
 import os

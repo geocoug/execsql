@@ -186,7 +186,7 @@ class TestMyCommand:
 The `script_runner` fixture:
 
 - Writes the script to a temp `.sql` file.
-- Invokes `execsql <script> <db> -t l -n` via `typer.testing.CliRunner`.
+- Invokes `execsql <script> <db> -t l -n` via `typer.testing.CliRunner` (the bare form; new tests should pass `run` first).
 - Waits for the `FileWriter` subprocess to flush all pending writes.
 - Returns `(result, db_path)`.
 

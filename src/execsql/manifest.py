@@ -13,21 +13,24 @@ the run log hides ``-a`` and ``--var`` values because they can be secrets, and
 the manifest lists only their names.
 
 One recorder is active per run; :func:`current` returns it, or ``None`` when
-no manifest was asked for, so the executor's hooks cost one check.
+no manifest was asked for, so the executor's hooks cost one check. Writing the
+manifest ends the recording, so a later run in the same process starts clean.
 """
 
 from __future__ import annotations
 
+import atexit
 import datetime
 import json
 import os
+import sys
 import tempfile
 from pathlib import Path
 from typing import Any
 
 from execsql import __version__
 
-__all__ = ["RunManifest", "current", "start"]
+__all__ = ["RunManifest", "check_writable", "current", "start"]
 
 _current: RunManifest | None = None
 
@@ -37,10 +40,34 @@ def current() -> RunManifest | None:
     return _current
 
 
+def check_writable(path: str) -> str | None:
+    """Why a manifest cannot be written to *path*, or ``None`` if it can.
+
+    Checked before a run starts, so a bad ``--manifest`` path fails before any
+    SQL runs rather than after.
+    """
+    target = Path(path)
+    if target.is_dir():
+        return f"{path} is a directory"
+    try:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        fd, probe = tempfile.mkstemp(dir=target.parent, prefix=f".{target.name}.", suffix=".tmp")
+        os.close(fd)
+        os.unlink(probe)
+    except OSError as exc:
+        return exc.strerror or str(exc)
+    return None
+
+
 def start(path: str, script: str | None, variables: list[str]) -> RunManifest:
-    """Begin recording a run; the manifest is written to *path* when it ends."""
+    """Begin recording a run; the manifest is written to *path* when it ends.
+
+    If nothing else writes it (``exit_now`` on an error, the end of a run), an
+    ``atexit`` fallback does.
+    """
     global _current
     _current = RunManifest(path, script, variables)
+    atexit.register(_current.finish, None)
     return _current
 
 
@@ -144,11 +171,19 @@ class RunManifest:
             "connections": self.connections,
             "errors": self.errors,
         }
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        # Write beside the target and rename, so a reader never sees half a file.
-        fd, tmp = tempfile.mkstemp(dir=self.path.parent, prefix=f".{self.path.name}.", suffix=".tmp")
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, default=str)
-            f.write("\n")
-        os.replace(tmp, self.path)
         self.written = True
+        global _current
+        if _current is self:
+            _current = None
+        atexit.unregister(self.finish)
+        try:
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            # Write beside the target and rename, so a reader never sees half a file.
+            fd, tmp = tempfile.mkstemp(dir=self.path.parent, prefix=f".{self.path.name}.", suffix=".tmp")
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2, default=str)
+                f.write("\n")
+            os.replace(tmp, self.path)
+        except OSError as exc:
+            # The run itself is over; report the lost manifest without a traceback.
+            sys.stderr.write(f"execsql: could not write --manifest {self.path}: {exc.strerror or exc}\n")

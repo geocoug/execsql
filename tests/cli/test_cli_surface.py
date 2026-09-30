@@ -28,7 +28,7 @@ GLOBAL_OPTIONS = {"--version", "-o --online-help"}
 
 SURFACE: dict[str, dict[str, object]] = {
     "run": {
-        "arguments": ["SQL_SCRIPT [SERVER DATABASE | DATABASE_FILE]"],
+        "arguments": ["[SQL_SCRIPT [SERVER DATABASE | DATABASE_FILE]]"],
         "options": {
             "--config",
             "--debug",

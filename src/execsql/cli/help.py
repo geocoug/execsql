@@ -238,7 +238,7 @@ def _keywords_data() -> dict[str, Any]:
 
 
 def _print_keywords_json() -> None:
-    """Print :func:`_keywords_data` as JSON, exactly as ``--dump-keywords`` always has."""
+    """Print :func:`_keywords_data` as JSON: ``list keywords --output-format json``, and ``--dump-keywords`` as it always has."""
     import json
 
     _console.print_json(json.dumps(_keywords_data(), indent=2))

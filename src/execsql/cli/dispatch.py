@@ -19,7 +19,7 @@ Everything else, including ``-m`` and the other hidden aliases declared on
 A command name is always a command, whatever files the working directory
 holds: a linter must never be able to execute a script because a file named
 ``lint`` happens to be present. A script named exactly like a command, with
-no extension, runs with ``execsql run NAME`` (or ``./NAME``). That is a
+no extension, runs with ``execsql run NAME``. That is a
 recorded, maintainer-approved break from upstream (docs/about/divergence.md).
 """
 

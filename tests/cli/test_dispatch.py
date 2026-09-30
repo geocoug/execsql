@@ -302,7 +302,7 @@ class TestUsageLines:
         [
             ("lint", "Usage: execsql lint [OPTIONS] FILE_OR_DIR..."),
             ("format", "Usage: execsql format [OPTIONS] FILE_OR_DIR..."),
-            ("run", "Usage: execsql run [OPTIONS] SQL_SCRIPT [SERVER DATABASE | DATABASE_FILE]"),
+            ("run", "Usage: execsql run [OPTIONS] [SQL_SCRIPT [SERVER DATABASE | DATABASE_FILE]]"),
         ],
     )
     def test_usage_line(self, command, usage):

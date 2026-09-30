@@ -150,6 +150,11 @@ def _check_rule_codes(value: str) -> str | None:
     return None
 
 
+def _is_secret(key: str) -> bool:
+    """Whether *key* holds a password (``password``, ``enc_password``, ``passwd``)."""
+    return "passw" in key.lower()
+
+
 def _check_file(
     path: str,
     known: dict[str, set[str]],
@@ -233,6 +238,10 @@ def _check_file(
         if failure is None and section == ConfigData._LINT_SECTION:
             failure = _check_rule_codes(value)
         if failure:
+            if _is_secret(key):
+                # Never echo a password, even an obfuscated one, into logs.
+                failure = failure.replace(value, "***") if value else failure
+                value = "***"
             problem(line, "error", f"{key} = {value}: {failure}")
 
     return problems, chained

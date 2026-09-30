@@ -77,9 +77,8 @@ def x_assert(**kwargs: Any) -> None:
 def _ast_only_stub(name: str):
     """Return an ErrInfo for a metacommand the AST executor handles structurally.
 
-    These handlers stay registered in the dispatch table so ``--dump-keywords``,
-    the VS Code grammar generator, and ``--list-keywords`` still see the
-    keyword.  The AST parser converts the source form (``IF`` / ``ENDIF`` /
+    These handlers stay registered in the dispatch table so ``execsql list
+    keywords`` and the VS Code grammar generator still see the keyword.  The AST parser converts the source form (``IF`` / ``ENDIF`` /
     ``LOOP`` / ``BEGIN BATCH`` / ``BREAK`` / ``ELSE`` / ``ELSEIF`` / ``ANDIF``
     / ``ORIF``) into structural AST nodes that the executor walks directly —
     none of these dispatch handlers fire for parsed scripts.  Reaching one

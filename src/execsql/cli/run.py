@@ -739,8 +739,6 @@ def _run(
         variables = [f"$ARG_{n + 1}" for n in range(len(sub_vars or ()))] + [name for name, _ in named_vars or ()]
         manifest = _manifest.start(manifest_path, script_name, variables)
         manifest.config_files = list(conf.files_read)
-        # Written by exit_now on an error, below on success; this catches anything else.
-        atexit.register(manifest.finish, None)
 
     import execsql.utils.fileio as _fileio
 
