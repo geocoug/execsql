@@ -220,6 +220,9 @@ addopts = [
     "--strict-config",
     "--color=yes",
     "-ra",
+    # Name the slowest tests on every run, so a CI job creeping toward its
+    # time limit shows where the time went.
+    "--durations=25",
 ]
 testpaths = ["tests"]
 log_cli = true

@@ -17,7 +17,7 @@ from unittest.mock import patch
 import pytest
 
 from execsql import run
-from tests.live_db import BACKEND_NAMES, open_backend
+from tests.live_db import BACKEND_NAMES, _server_listening, open_backend
 
 TABLE = "txn_probe"
 
@@ -37,12 +37,23 @@ def _stop_the_file_writer():
     fileio.filewriter = _state.filewriter = None
 
 
+#: Why SQL Server is unusable, once found: every test would otherwise wait out
+#: the ODBC connect timeout again (Windows runners have the driver but no server,
+#: which cost 62 s per test).
+_sqlserver_unusable: list[str] = []
+
+
 def _sqlserver_db(tmp_path):
+    if _sqlserver_unusable:
+        pytest.skip(_sqlserver_unusable[0])
     pytest.importorskip("pyodbc", reason="pyodbc not installed")
     from execsql.db.sqlserver import SqlServerDatabase
 
     host = os.environ.get("EXECSQL_MSSQL_HOST", "localhost")
     port = os.environ.get("EXECSQL_MSSQL_PORT", "1433")
+    if not _server_listening(host, int(port)):
+        _sqlserver_unusable.append(f"sqlserver not reachable: nothing listening at {host}:{port}")
+        pytest.skip(_sqlserver_unusable[0])
     try:
         return SqlServerDatabase(
             server_name=f"{host},{port}",
@@ -51,7 +62,8 @@ def _sqlserver_db(tmp_path):
             password=os.environ.get("EXECSQL_MSSQL_PASSWORD", "ExecSql_Test123!"),
         )
     except Exception as exc:
-        pytest.skip(f"sqlserver not reachable: {type(exc).__name__}: {exc}")
+        _sqlserver_unusable.append(f"sqlserver not reachable: {type(exc).__name__}: {exc}")
+        pytest.skip(_sqlserver_unusable[0])
 
 
 def _open(dbms, tmp_path):
