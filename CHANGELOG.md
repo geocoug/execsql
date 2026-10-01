@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.24.0] - 2026-10-01
+
 ### Added
 
 - **Commands:** `execsql run`, `format`, `lint`, `config`, `list` and `init`. `format` and `lint` take files or directories and need no database, so a whole script library can be linted at once. See [Commands](https://execsql2.readthedocs.io/en/latest/getting-started/syntax/#commands).
