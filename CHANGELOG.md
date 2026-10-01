@@ -14,6 +14,7 @@ ______________________________________________________________________
 ### Fixed
 
 - **`WRITE` / `EXPORT` to a locked file:** when the file stays locked past `outfile_open_timeout`, the run now fails with an error naming the file and how many lines were lost, instead of hanging at `SYSTEM_CMD` or the end of the script, or exiting 0 with the output gone. The CLI waits up to `outfile_open_timeout` at the end of a script for a locked file to free up.
+- **`execsql.run()` in a long-lived process:** repeated calls no longer pile up exit hooks or duplicate plugin metacommands, temp files are removed when the call returns, and a run interrupted with Ctrl-C closes the connection it opened. A run no longer records into a `--manifest` belonging to another run in the same thread.
 
 ______________________________________________________________________
 

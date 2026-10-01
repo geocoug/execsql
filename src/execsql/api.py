@@ -492,92 +492,96 @@ def run(
         # Connect to database
         # ------------------------------------------------------------------
         owns_connection = connection is None
-        if dsn is not None:
-            db = _connect_from_dsn(dsn, new_db=new_db)
-        else:
-            db = connection
-
-        assert db is not None
-        assert ctx.dbs is not None
-        ctx.dbs.add("initial", db)
-        ctx.subvars.add_substitution("$CURRENT_DBMS", db.type.dbms_id)
-        ctx.subvars.add_substitution("$CURRENT_DATABASE", db.name())
-        ctx.subvars.add_substitution("$SYSTEM_CMD_EXIT_STATUS", "0")
-
-        # ------------------------------------------------------------------
-        # Execute
-        # ------------------------------------------------------------------
-        from execsql.script.executor import execute
-
-        errors: list[ScriptError] = []
-        t0 = time.perf_counter()
-
-        # WRITE ... TO <file> and TEE are handled by a FileWriter subprocess,
-        # and fileio drops every write when none is running.  Start one here so
-        # the API behaves like the CLI.
-        _ensure_filewriter(conf)
-
+        # Everything from here on runs inside try/finally so an owned
+        # connection is closed and temp files removed however run() exits,
+        # including KeyboardInterrupt in a notebook.
         try:
-            execute(tree, ctx=ctx)
-        except SystemExit:
-            # exit_now() calls sys.exit() — catch and convert to error
-            _capture_errors(ctx, errors)
-        except ErrInfo as exc:
-            errors.append(
-                ScriptError(
-                    message=exc.errmsg(),
-                    source=_last_source(ctx),
-                    line=_last_line(ctx),
-                    sql=getattr(exc, "command_text", None),
-                ),
-            )
-        except Exception as exc:
-            errors.append(ScriptError(message=str(exc), source="<runtime>"))
+            if dsn is not None:
+                db = _connect_from_dsn(dsn, new_db=new_db)
+            else:
+                db = connection
 
-        # Non-halting errors (halt_on_error=False, METACOMMAND_ERROR_HALT OFF)
-        # are recorded in status.error_history as execution continues; a
-        # halting error never reaches the history, so there is no overlap
-        # with the exception paths above.
-        if ctx.status is not None:
-            for err_source, err_line, err_cmd, err_msg in ctx.status.error_history:
-                errors.append(ScriptError(message=err_msg, source=err_source, line=err_line, sql=err_cmd))
+            assert db is not None
+            assert ctx.dbs is not None
+            ctx.dbs.add("initial", db)
+            ctx.subvars.add_substitution("$CURRENT_DBMS", db.type.dbms_id)
+            ctx.subvars.add_substitution("$CURRENT_DATABASE", db.name())
+            ctx.subvars.add_substitution("$SYSTEM_CMD_EXIT_STATUS", "0")
 
-        elapsed = time.perf_counter() - t0
+            # ------------------------------------------------------------------
+            # Execute
+            # ------------------------------------------------------------------
+            from execsql.script.executor import execute
 
-        # Flush and close every file the script wrote, so the caller can read
-        # them the moment run() returns.  The subprocess itself is left running
-        # for reuse by a later run() and is reaped by the atexit handler; a
-        # writer the caller started is theirs and is never shut down here.
-        # Output to a file that could not be opened is reported as an error.
-        from execsql.utils.fileio import filewriter_close_all_after_write
+            errors: list[ScriptError] = []
+            t0 = time.perf_counter()
 
-        try:
-            filewriter_close_all_after_write()
-        except ErrInfo as exc:
-            errors.append(ScriptError(message=exc.errmsg(), source="<output>"))
-        except Exception:
-            pass  # Best-effort: a failed flush must not mask a script error.
+            # WRITE ... TO <file> and TEE are handled by a FileWriter subprocess,
+            # and fileio drops every write when none is running.  Start one here so
+            # the API behaves like the CLI.
+            _ensure_filewriter(conf)
 
-        # ------------------------------------------------------------------
-        # Collect results
-        # ------------------------------------------------------------------
-        final_vars = {}
-        if ctx.subvars is not None:
-            for name, value in ctx.subvars.substitutions:
-                # Include user vars and $-prefixed system vars
-                # Skip environment (&), column (@), local (~), parameter (#) vars
-                if not name or name[0] in ("&", "@", "~", "#"):
-                    continue
-                key = name.lstrip("$")
-                final_vars[key] = str(value) if value is not None else ""
-
-        # Close connection if we own it
-        if owns_connection:
             try:
-                assert ctx.dbs is not None
-                ctx.dbs.closeall()
+                execute(tree, ctx=ctx)
+            except SystemExit:
+                # exit_now() calls sys.exit() — catch and convert to error
+                _capture_errors(ctx, errors)
+            except ErrInfo as exc:
+                errors.append(
+                    ScriptError(
+                        message=exc.errmsg(),
+                        source=_last_source(ctx),
+                        line=_last_line(ctx),
+                        sql=getattr(exc, "command_text", None),
+                    ),
+                )
+            except Exception as exc:
+                errors.append(ScriptError(message=str(exc), source="<runtime>"))
+
+            # Non-halting errors (halt_on_error=False, METACOMMAND_ERROR_HALT OFF)
+            # are recorded in status.error_history as execution continues; a
+            # halting error never reaches the history, so there is no overlap
+            # with the exception paths above.
+            if ctx.status is not None:
+                for err_source, err_line, err_cmd, err_msg in ctx.status.error_history:
+                    errors.append(ScriptError(message=err_msg, source=err_source, line=err_line, sql=err_cmd))
+
+            elapsed = time.perf_counter() - t0
+
+            # Flush and close every file the script wrote, so the caller can read
+            # them the moment run() returns.  The subprocess itself is left running
+            # for reuse by a later run() and is reaped by the atexit handler; a
+            # writer the caller started is theirs and is never shut down here.
+            # Output to a file that could not be opened is reported as an error.
+            from execsql.utils.fileio import filewriter_close_all_after_write
+
+            try:
+                filewriter_close_all_after_write()
+            except ErrInfo as exc:
+                errors.append(ScriptError(message=exc.errmsg(), source="<output>"))
             except Exception:
-                pass
+                pass  # Best-effort: a failed flush must not mask a script error.
+
+            # ------------------------------------------------------------------
+            # Collect results
+            # ------------------------------------------------------------------
+            final_vars = {}
+            if ctx.subvars is not None:
+                for name, value in ctx.subvars.substitutions:
+                    # Include user vars and $-prefixed system vars
+                    # Skip environment (&), column (@), local (~), parameter (#) vars
+                    if not name or name[0] in ("&", "@", "~", "#"):
+                        continue
+                    key = name.lstrip("$")
+                    final_vars[key] = str(value) if value is not None else ""
+        finally:
+            if owns_connection and ctx.dbs is not None:
+                try:
+                    ctx.dbs.closeall()
+                except Exception:
+                    pass
+            if ctx.tempfiles is not None:
+                ctx.tempfiles.remove_all()
 
     return ScriptResult(
         success=len(errors) == 0,

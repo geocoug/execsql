@@ -61,6 +61,8 @@ adds entries::
 from __future__ import annotations
 
 import logging
+import threading
+import weakref
 from collections.abc import Callable
 from importlib.metadata import entry_points
 from typing import Any
@@ -71,6 +73,7 @@ __all__ = [
     "ImporterEntry",
     "ImporterRegistry",
     "discover_metacommand_plugins",
+    "register_metacommand_plugins_once",
     "discover_exporter_plugins",
     "discover_importer_plugins",
     "discover_all_plugins",
@@ -342,6 +345,27 @@ def discover_metacommand_plugins(mcl: Any) -> int:
         except Exception:
             _log.warning("Metacommand plugin %r failed during registration", name, exc_info=True)
     return loaded
+
+
+_registered_tables: weakref.WeakSet[Any] = weakref.WeakSet()
+_registration_lock = threading.Lock()
+
+
+def register_metacommand_plugins_once(mcl: Any) -> int:
+    """Register metacommand plugins into *mcl* unless that was already done.
+
+    Every run in a process shares one dispatch table, so registering on each
+    run would prepend another copy of every plugin command each time, while
+    other threads may be dispatching from the table.
+
+    Returns:
+        Number of plugins loaded by this call (0 if *mcl* already had them).
+    """
+    with _registration_lock:
+        if mcl in _registered_tables:
+            return 0
+        _registered_tables.add(mcl)
+        return discover_metacommand_plugins(mcl)
 
 
 def discover_exporter_plugins(registry: ExporterRegistry | None = None) -> int:

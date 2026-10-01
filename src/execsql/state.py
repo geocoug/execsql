@@ -101,6 +101,7 @@ if TYPE_CHECKING:
         SubVarSet,
     )
     from execsql.script.executor import ExecutingStatement
+    from execsql.manifest import RunManifest
     from execsql.utils.fileio import FileWriter, Logger, TempFileMgr
     from execsql.utils.mail import MailSpec
     from execsql.utils.timer import Timer
@@ -225,6 +226,7 @@ _CONTEXT_ATTRS: frozenset[str] = frozenset(
         "output",
         "filewriter",
         "tier_notices_shown",
+        "manifest",
         # Lazy singletons
         "counters",
         "timer",
@@ -280,6 +282,7 @@ class RuntimeContext:
         "output",
         "filewriter",
         "tier_notices_shown",
+        "manifest",
         # Lazy singletons
         "counters",
         "timer",
@@ -330,6 +333,8 @@ class RuntimeContext:
         # DBMS names whose best-effort support notice has already been shown,
         # so repeated connections to the same backend announce it only once.
         self.tier_notices_shown: set[str] = set()
+        # ``--manifest`` recorder for this run, or None.
+        self.manifest: RunManifest | None = None
 
         # Lazy singletons
         self.counters: CounterVars | None = None
@@ -614,10 +619,11 @@ def initialize(
     ctx.conditionallist = conditional_table
 
     # Discover and register metacommand plugins via entry points.
-    # Runs here (not at import time) to avoid I/O side effects during import.
-    from execsql.plugins import discover_metacommand_plugins
+    # Runs here (not at import time) to avoid I/O side effects during import,
+    # and only once per dispatch table: every run shares the table.
+    from execsql.plugins import register_metacommand_plugins_once
 
-    discover_metacommand_plugins(dispatch_table)
+    register_metacommand_plugins_once(dispatch_table)
 
 
 # ---------------------------------------------------------------------------
