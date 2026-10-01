@@ -2248,19 +2248,19 @@ Double quotes (as shown above), apostrophes, or square brackets can be used to d
 ```
 PG_UPSERT FROM <staging_schema> TO <base_schema> TABLES <table1>, <table2> [options]
 PG_UPSERT QA FROM <staging_schema> TO <base_schema> TABLES <table1>, <table2> [options]
-PG_UPSERT CHECK FROM <staging_schema> TO <base_schema> TABLES <table1>, <table2>
+PG_UPSERT CHECK FROM <staging_schema> TO <base_schema> TABLES <table1>, <table2> [options]
 ```
 
 Performs QA-checked, FK-dependency-ordered upserts from a staging schema to a base schema on PostgreSQL. Integrates [pg-upsert](https://pg-upsert.readthedocs.io/) as an optional dependency.
 
-**Requires:** `pip install execsql2[upsert]`
+**Requires:** `pip install execsql2[upsert]` (pg-upsert 1.25.0 or later)
 
 **Requires:** A PostgreSQL connection. Raises an error if the current DBMS is not PostgreSQL.
 
 ### Modes
 
 - **Full pipeline** (`PG_UPSERT FROM ... TO ... TABLES ...`): Runs all QA checks, then upserts data (update + insert by default), with optional commit.
-- **QA only** (`PG_UPSERT QA FROM ... TO ... TABLES ...`): Runs all QA checks without upserting. Never commits.
+- **QA only** (`PG_UPSERT QA FROM ... TO ... TABLES ...`): Runs all QA checks without upserting: column existence, type compatibility, character length, NOT NULL, primary key, unique, foreign key and check constraints. Never commits.
 - **Schema check** (`PG_UPSERT CHECK FROM ... TO ... TABLES ...`): Checks column existence and type compatibility only. Never commits.
 
 ### Optional keywords
@@ -2269,9 +2269,9 @@ Keywords can appear in any order after the table list.
 
 | Keyword | Description |
 |---------|-------------|
-| `METHOD upsert\|update\|insert` | Upsert strategy. `upsert` (default) updates existing + inserts new rows. `update` only updates. `insert` only inserts. Full mode only. |
+| `METHOD upsert\|update\|insert` | Upsert strategy. `upsert` (default) updates existing + inserts new rows. `update` only updates. `insert` only inserts. Applies to all three modes: QA checks the rows this method would write (see [QA follows METHOD and EXCLUDE](#pg_upsert_qa_method)). |
 | `COMMIT` | Commit changes if QA passes. Without it, changes are rolled back (dry-run). Full mode only. |
-| `EXCLUDE col1, col2` | Columns to skip during upsert. |
+| `EXCLUDE col1, col2` | Columns to skip during upsert. QA checks an excluded column as it will end up: the base value in updated rows, NULL in inserted rows. |
 | `EXCLUDE_NULL col1, col2` | Columns to skip in null QA checks. |
 | `INTERACTIVE` | Enable pg-upsert's interactive UI dialogs (tkinter or textual) for reviewing QA failures. Without it, runs non-interactively. |
 | `COMPACT` | Use compact grid format for QA summary instead of detailed per-table panels. |
@@ -2280,6 +2280,38 @@ Keywords can appear in any order after the table list.
 | `EXPORT_FAILURES <dir>` | Write a "fix sheet" of failing QA rows into `<dir>` (directory is created if missing). One row per unique violating staging row, with an `_issues` column summarizing every problem on that row. Supports quoted paths for spaces. Export runs even when QA fails — that is the whole point. A confirmation message (`PG_UPSERT: exported QA failures to <dir> (<format>)`) is written to the terminal, the execsql log, and the `LOGFILE` target if one is given. |
 | `EXPORT_FORMAT csv\|json\|xlsx` | Fix sheet format when `EXPORT_FAILURES` is given. `csv` (default) writes one file per table; `json` writes a single nested file; `xlsx` writes a single workbook with one sheet per table (requires `openpyxl`). |
 | `EXPORT_MAX_ROWS <n>` | Maximum rows to capture per check per table for the fix sheet. Default `1000`. Only meaningful with `EXPORT_FAILURES`. |
+
+### QA follows METHOD and EXCLUDE { #pg_upsert_qa_method }
+
+QA answers "will this load succeed with this `METHOD` and these `EXCLUDE` columns?", so all three modes check only the staging rows the load would write:
+
+| `METHOD` | Rows QA checks |
+|----------|----------------|
+| `upsert` | Every staging row |
+| `update` | Rows whose primary key already exists in the base table |
+| `insert` | Rows whose primary key is not yet in the base table |
+
+Pass the same `METHOD` and `EXCLUDE` to `PG_UPSERT QA` as to the load that follows it. A QA run without `METHOD update` checks the rows an `upsert` would insert as well, and can fail on them:
+
+```sql
+-- Staging holds edits to existing books plus some incomplete new ones.
+-- Checking as an upsert fails on the new rows' NULL titles:
+-- !x! PG_UPSERT QA FROM staging TO public TABLES books
+-- Checking as the update that will actually run passes:
+-- !x! PG_UPSERT QA FROM staging TO public TABLES books METHOD update
+-- !x! IF (IS_TRUE(!!$PG_UPSERT_QA_PASSED!!))
+-- !x!   PG_UPSERT FROM staging TO public TABLES books METHOD update COMMIT
+-- !x! ENDIF
+```
+
+Other effects of `METHOD`:
+
+- **Unique and foreign key checks** compare against the base table as it will be after the load, so a new row whose unique key already belongs to a base row fails QA. A foreign key parent counts only if it is in the base table or among the `TABLES` being loaded.
+- **`CHECK` mode:** a base `NOT NULL` column with no default that is missing from staging is a warning for `METHOD update` (listed in `$PG_UPSERT_QA_WARNINGS`), not a failure, because no rows are inserted.
+
+The character-length check reports staging values longer than a `varchar(n)` or `char(n)` base column allows. Its failures appear in the `EXPORT_FAILURES` fix sheet with the other row-level issues.
+
+For the full rules and known limits, see [How QA Models the Load](https://pg-upsert.readthedocs.io/en/latest/qa_checks/#how-qa-models-the-load) in the pg-upsert docs.
 
 ### Substitution variables
 
@@ -2320,7 +2352,7 @@ Set after every `PG_UPSERT` execution:
 ```sql
 -- Soft failure: branch on the result, keep running.
 -- !x! PG_UPSERT FROM staging TO public TABLES books, authors EXPORT_FAILURES "qa/"
--- !x! IF !!$PG_UPSERT_QA_PASSED!! = TRUE
+-- !x! IF (IS_TRUE(!!$PG_UPSERT_QA_PASSED!!))
 -- !x!   PG_UPSERT FROM staging TO public TABLES books, authors COMMIT
 -- !x! ELSE
 -- !x!   WRITE "QA failed — fix sheet at !!$PG_UPSERT_EXPORT_PATH!!"
@@ -2328,7 +2360,7 @@ Set after every `PG_UPSERT` execution:
 
 -- Hard failure: halt the script when QA fails.
 -- !x! PG_UPSERT QA FROM staging TO public TABLES books, authors
--- !x! ASSERT !!$PG_UPSERT_QA_PASSED!! = TRUE "Pre-load QA failed; aborting."
+-- !x! ASSERT IS_TRUE(!!$PG_UPSERT_QA_PASSED!!) "Pre-load QA failed; aborting."
 ```
 
 ### Temporary objects
@@ -2373,7 +2405,7 @@ For the full list of temporary objects and their schemas, see the [pg-upsert Tem
 
 -- Conditional logic based on QA results
 -- !x! PG_UPSERT FROM staging TO public TABLES books, authors
--- !x! IF !!$PG_UPSERT_QA_PASSED!! = TRUE
+-- !x! IF (IS_TRUE(!!$PG_UPSERT_QA_PASSED!!))
 -- !x!   WRITE "All QA checks passed — proceeding with commit"
 -- !x! ELSE
 -- !x!   WRITE "QA failed — inspect ups_control for details"
