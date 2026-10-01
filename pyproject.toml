@@ -69,7 +69,7 @@ formats = [
 auth = ["keyring>=25.0"]
 auth-plaintext = ["keyring>=25.0", "keyrings.alt>=5.0"]
 auth-encrypted = ["keyring>=25.0", "keyrings.alt>=5.0", "pycryptodome>=3.20"]
-upsert = ["pg-upsert>=1.23.0"]
+upsert = ["pg-upsert>=1.25.0"]
 map = ["tkintermapview>=1.29"]
 formatter = ["sqlglot>=25.0"]
 # Convenience groups

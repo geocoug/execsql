@@ -14,25 +14,46 @@ ______________________________________________________________________
 ### Added
 
 - `execsql run --manifest FILE` writes a JSON record of the run when it ends, even if it fails: the script, database, statement counts, the files it read, wrote and deleted (with variables substituted), the connections it opened, and any error with its line. Variable values and passwords are never written. A path that cannot be written stops the run before any SQL runs (exit 2).
+
 - `execsql run --var NAME=VALUE` sets the named substitution variable `!!NAME!!` from the command line. It wins over `[variables]` in config files, a `SUB` in the script can reassign it, and its value is hidden in the log. `-a` (`$ARG_1`, `$ARG_2`, …) is unchanged.
+
 - Every lint issue names a rule code, such as `V001` (undefined variable) or `F002` (unreachable code), in `execsql lint` output. The [lint rules reference](https://execsql2.readthedocs.io/en/latest/reference/lint/) explains each one.
+
 - `execsql lint --select` and `--ignore` choose rules by code or prefix (`--ignore V002`, `--select F`). Parse errors are always reported.
+
 - `execsql lint --output-format json` writes every issue as one JSON array for CI and editor tooling, and `--output-format concise` prints one `path:line: CODE message` line per issue.
+
 - `execsql lint --output-format github` prints each issue as a GitHub Actions annotation, shown on the pull request next to the line it names: `- run: execsql lint --output-format github scripts/`.
+
 - `execsql lint --statistics` shows how many times each rule fired instead of listing every issue.
+
 - `execsql-lint` pre-commit hook: runs `execsql lint` on staged `*.sql` files and fails the commit on lint errors. Add `- id: execsql-lint` next to `execsql-format`.
+
 - `execsql format -` and `execsql lint -` read one script from stdin; `format` writes the result to stdout.
+
 - `execsql format` and `execsql lint` read scripts in the encoding given by `-f`/`--script-encoding`, or by `[encoding] script` in a config file, and take `--config`. Config files are read once, from the system, user and working-directory locations — not from each script's directory. `lint` reports a script it cannot decode as `P001` instead of stopping.
+
 - `execsql` now has commands: `execsql run`, `execsql format` (or `fmt`), `execsql lint`, `execsql config`, `execsql list`, and `execsql init`. `format` and `lint` take files or directories and need no database — linting a whole script library is new, since `--lint` only ever linted the single script it was given.
+
 - `execsql config` lists every config option with its current value, its default, and the file that set it, reading config files from the same places a run does. `execsql config scripts/etl.sql` includes the `execsql.conf` next to that script. Passwords are shown as `***`. `--output-format json` is available, and `execsql config --init` prints the `execsql.conf` template.
+
 - `[format]` and `[lint]` sections in `execsql.conf` set `execsql format`'s layout (`indent`, `leading_comma`, `sql`) and `execsql lint`'s rules (`select`, `ignore`) for a project, so the pre-commit hook, the terminal and an editor agree. A flag on the command line wins over the file.
+
 - `execsql format --diff` prints a unified diff of each file that would change and writes nothing; it exits 1 if any would.
+
 - `execsql lint --strict` exits 1 on warnings too, for CI that allows no warnings. `strict = yes` in `[lint]` sets it for a project; `--no-strict` turns it off for one run.
+
 - `execsql format --sql` and `--no-leading-comma` turn those settings back on or off for one run when a config file sets them.
+
 - `execsql config --validate` checks every config file a run would read and reports every problem with its file and line: invalid values, unparsable files and missing `[include_required]` files as errors; misspelled or misplaced sections and keys as warnings, with the likely intended name. It exits 1 on any error. Previously a misspelled key did nothing, and a run stopped at the first invalid value.
+
 - `execsql init` sets up a project: `execsql.conf`, a script with a header (`main.sql`, or `--script NAME`), and the `execsql-format` and `execsql-lint` pre-commit hooks. `--no-config`, `--no-script` and `--no-pre-commit` skip each; existing files are never overwritten without `--force`.
+
 - `execsql list metacommands`, `list encodings`, `list plugins` and `list keywords` print each reference list as text or, with `--output-format json`, as JSON. `list keywords --output-format json` is the output of `--dump-keywords`, unchanged.
+
 - `execsql lint` gained three structural checks that previously only a live run would reveal: a variable defined by `SUB` that nothing ever reads (almost always a spelling mismatch between the definition and the reference); an `IF` whose condition is a constant, making its `ELSE` — or its own body — unreachable; and a statement after an unconditional `HALT`. `HALT DISPLAY` is not treated as terminal, and an `IF` carrying an `ANDIF`/`ORIF` modifier is never reported as constant.
+
+- `PG_UPSERT` and `PG_UPSERT QA` check character length: a staging value longer than its `varchar(n)` or `char(n)` base column fails QA and is listed in the `EXPORT_FAILURES` fix sheet.
 
 ### Deprecated
 
@@ -58,6 +79,10 @@ ______________________________________________________________________
 - `execsql` with no arguments prints the help and always exits with status 2. Previously the exit status depended on the installed Click version.
 - The debug REPL (`BREAKPOINT`, `--debug`) runs metacommands and blocks as well as SQL: input runs as if it were the next lines of the script where it paused. A `SUB` typed there is still set when the script resumes, `BREAK` leaves the loop the script paused in, and SQL is committed as the script's own SQL would be (`execsql debug*>` when it is not). Variables in SQL are now substituted, and a failing input no longer runs `ON ERROR_HALT` actions.
 - CLI help is plain text rather than bordered panels, colored on a terminal. `execsql --help` lists the commands and the global options `--version` and `-o`/`--online-help`; `execsql <command> --help` shows each command's options. Piped help has no color, and `NO_COLOR` or `EXECSQL_NO_COLOR` turns it off.
+- `PG_UPSERT`, `PG_UPSERT QA` and `PG_UPSERT CHECK` check only the staging rows the given `METHOD` would write, and check `EXCLUDE` columns as the load will leave them, so rows an `update` or `insert` load skips no longer fail QA. Pass `PG_UPSERT QA` the same `METHOD` and `EXCLUDE` as the load that follows it.
+- `PG_UPSERT` and `PG_UPSERT QA` now fail QA on problems that used to surface as an error during the load: a unique key that collides with an existing base row (including keys enforced only by `CREATE UNIQUE INDEX`), a foreign key parent that is not in `TABLES`, and an excluded `NOT NULL` column on an inserted row. A script that passed QA before can fail it now.
+- `PG_UPSERT CHECK ... METHOD update` reports a `NOT NULL` base column missing from staging as a warning instead of a failure.
+- The `upsert` extra requires pg-upsert 1.25.0 or newer (previously 1.23.0).
 
 ### Fixed
 

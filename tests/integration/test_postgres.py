@@ -532,3 +532,94 @@ class TestCachedPlanRegression:
 
         _exec_pg("DROP VIEW IF EXISTS val_summ")
         _exec_pg("DROP TABLE IF EXISTS val_src")
+
+
+# ---------------------------------------------------------------------------
+# Test: PG_UPSERT against the real pg-upsert package
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def upsert_schemas():
+    """Base table ``ups_base.books`` (title varchar(5) NOT NULL) holding id 1,
+    and an unconstrained staging copy ``ups_stg.books``.  Dropped afterwards."""
+    pytest.importorskip("pg_upsert", reason="pg-upsert package required (execsql2[upsert])")
+    _exec_pg("DROP SCHEMA IF EXISTS ups_stg CASCADE")
+    _exec_pg("DROP SCHEMA IF EXISTS ups_base CASCADE")
+    _exec_pg("CREATE SCHEMA ups_base")
+    _exec_pg("CREATE SCHEMA ups_stg")
+    _exec_pg("CREATE TABLE ups_base.books (id INTEGER PRIMARY KEY, title VARCHAR(5) NOT NULL)")
+    _exec_pg("INSERT INTO ups_base.books VALUES (1, 'old')")
+    _exec_pg("CREATE TABLE ups_stg.books (id INTEGER, title TEXT)")
+    yield
+    _exec_pg("DROP SCHEMA IF EXISTS ups_stg CASCADE")
+    _exec_pg("DROP SCHEMA IF EXISTS ups_base CASCADE")
+
+
+def _upsert_outcomes(tmp_path, metacommands: str) -> dict[str, str]:
+    """Run *metacommands* and return the ``key=value`` lines they WRITE to out.txt."""
+    _write_conf(tmp_path)
+    out = tmp_path / "out.txt"
+    script = write_script(tmp_path, metacommands.replace("OUT", str(out)))
+    result = _run_execsql_pg(tmp_path, script, timeout=60)
+    assert result.returncode == 0, f"stderr: {result.stderr}"
+    return dict(line.split("=", 1) for line in out.read_text().splitlines())
+
+
+class TestPgUpsert:
+    def test_qa_follows_method(self, tmp_path, upsert_schemas):
+        """A NULL title on a new row fails QA for upsert, but update never writes that row."""
+        _exec_pg("INSERT INTO ups_stg.books VALUES (1, 'new'), (2, NULL)")
+        outcomes = _upsert_outcomes(
+            tmp_path,
+            """\
+            -- !x! PG_UPSERT QA FROM ups_stg TO ups_base TABLES books
+            -- !x! WRITE "upsert=!!$PG_UPSERT_QA_PASSED!!" TO OUT
+            -- !x! PG_UPSERT QA FROM ups_stg TO ups_base TABLES books METHOD update
+            -- !x! WRITE "update=!!$PG_UPSERT_QA_PASSED!!" TO OUT
+            """,
+        )
+        assert outcomes == {"upsert": "FALSE", "update": "TRUE"}
+
+    def test_update_loads_only_existing_rows(self, tmp_path, upsert_schemas):
+        _exec_pg("INSERT INTO ups_stg.books VALUES (1, 'new'), (2, NULL)")
+        outcomes = _upsert_outcomes(
+            tmp_path,
+            """\
+            -- !x! PG_UPSERT FROM ups_stg TO ups_base TABLES books METHOD update COMMIT
+            -- !x! WRITE "committed=!!$PG_UPSERT_COMMITTED!!" TO OUT
+            -- !x! WRITE "updated=!!$PG_UPSERT_ROWS_UPDATED!!" TO OUT
+            -- !x! WRITE "inserted=!!$PG_UPSERT_ROWS_INSERTED!!" TO OUT
+            """,
+        )
+        assert outcomes == {"committed": "TRUE", "updated": "1", "inserted": "0"}
+        assert _query_pg("SELECT id, title FROM ups_base.books ORDER BY id") == [(1, "new")]
+
+    def test_length_check_fails_qa_and_reaches_the_fix_sheet(self, tmp_path, upsert_schemas):
+        _exec_pg("INSERT INTO ups_stg.books VALUES (1, 'toolong')")
+        outcomes = _upsert_outcomes(
+            tmp_path,
+            """\
+            -- !x! PG_UPSERT QA FROM ups_stg TO ups_base TABLES books EXPORT_FAILURES fixes
+            -- !x! WRITE "passed=!!$PG_UPSERT_QA_PASSED!!" TO OUT
+            """,
+        )
+        assert outcomes == {"passed": "FALSE"}
+        fix_sheet = "".join(p.read_text() for p in (tmp_path / "fixes").glob("*.csv"))
+        assert "toolong" in fix_sheet
+        assert "length" in fix_sheet
+
+    def test_check_warns_on_missing_required_column_for_update(self, tmp_path, upsert_schemas):
+        """A missing NOT NULL column blocks an upsert but is only a warning for update."""
+        _exec_pg("ALTER TABLE ups_stg.books DROP COLUMN title")
+        outcomes = _upsert_outcomes(
+            tmp_path,
+            """\
+            -- !x! PG_UPSERT CHECK FROM ups_stg TO ups_base TABLES books
+            -- !x! WRITE "upsert=!!$PG_UPSERT_QA_PASSED!!" TO OUT
+            -- !x! PG_UPSERT CHECK FROM ups_stg TO ups_base TABLES books METHOD update
+            -- !x! WRITE "update=!!$PG_UPSERT_QA_PASSED!!" TO OUT
+            -- !x! WRITE "warnings=!!$PG_UPSERT_QA_WARNINGS!!" TO OUT
+            """,
+        )
+        assert outcomes == {"upsert": "FALSE", "update": "TRUE", "warnings": "books"}
