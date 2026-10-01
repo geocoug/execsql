@@ -182,9 +182,26 @@ commit = true
 tag = true
 tag_name = "v{new_version}"
 pre_commit_hooks = ["uv lock", "git add uv.lock"]
+# PEP 440 pre-releases (2.0.0a1, 2.0.0b1, 2.0.0rc1) as well as final versions.
+# Without the optional pre-release group, `just bump-pre 2.0.0a1` silently
+# serializes to the final 2.0.0 and tags it.
+parse = """(?x)
+    (?P<major>0|[1-9]\\d*)\\.
+    (?P<minor>0|[1-9]\\d*)\\.
+    (?P<patch>0|[1-9]\\d*)
+    (?:(?P<pre_l>a|b|rc)(?P<pre_n>0|[1-9]\\d*))?
+"""
+serialize = ["{major}.{minor}.{patch}{pre_l}{pre_n}", "{major}.{minor}.{patch}"]
+
+[tool.bumpversion.parts.pre_l]
+values = ["a", "b", "rc", "final"]
+first_value = "final"
+optional_value = "final"
 
 [[tool.bumpversion.files]]
 filename = "pyproject.toml"
+search = 'version = "{current_version}"'
+replace = 'version = "{new_version}"'
 
 [[tool.bumpversion.files]]
 filename = "CHANGELOG.md"
@@ -265,7 +282,7 @@ odf = "odf"
 caf = "caf"
 # SMTP verb: EHLO-or-HELO, not the English word. Correcting it to "hello"
 # renames smtplib.ehlo_or_helo_if_needed() into a method that does not exist,
-# which is exactly how every EMAIL send broke in 2.24.0.
+# which is exactly how every EMAIL send broke in 2.22.8.
 helo = "helo"
 # Deliberate misspelling of [connect]: `execsql config --validate` tests and
 # docs show it being caught. Correcting it breaks the very test it is in.

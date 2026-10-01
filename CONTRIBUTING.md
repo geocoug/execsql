@@ -98,6 +98,10 @@ git push origin <branch> --follow-tags
 
 Pre-releases are published to PyPI but are not installed by default — `pip install execsql2` will not pick them up unless `--pre` is passed.
 
+The GitHub Release for a pre-release tag is marked as a pre-release. Promote to the final version with the same recipe and the final version string (`just bump-pre 2.0.0`). `just bump-patch` from `2.0.0rc1` would skip ahead to `2.0.1`.
+
+Always preview a bump first: `uv run bump-my-version bump --new-version 2.0.0a1 patch --dry-run -v` should print `New version will be '2.0.0a1'`.
+
 ### CI/CD pipeline (`ci-cd.yml`)
 
 Triggered on pushes to `main`, any `v*.*.*` tag, and pull requests.

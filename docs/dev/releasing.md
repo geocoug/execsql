@@ -20,12 +20,12 @@ the trigger; `.github/workflows/ci-cd.yml` does the rest.
 
 ## Choose the bump level
 
-| Recipe                   | Use when                                                                                                                                       |
-| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `just bump-patch`        | Bug fixes, doc fixes, dependency hygiene, anything user-invisible. Most releases.                                                              |
-| `just bump-minor`        | New features, new metacommands / flags / formats, backwards-compatible behavior changes.                                                       |
-| `just bump-major`        | Breaking changes. Public-API signature changes, removed metacommands, dropped Python versions.                                                 |
-| `just bump-pre 2.20.0a1` | Cut an explicit pre-release (alpha / beta / rc). Doesn't fire the publish workflow unless `--allow-dirty` and a tag-style argument trigger it. |
+| Recipe                   | Use when                                                                                                                                                                                |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `just bump-patch`        | Bug fixes, doc fixes, dependency hygiene, anything user-invisible. Most releases.                                                                                                       |
+| `just bump-minor`        | New features, new metacommands / flags / formats, backwards-compatible behavior changes.                                                                                                |
+| `just bump-major`        | Breaking changes. Public-API signature changes, removed metacommands, dropped Python versions.                                                                                          |
+| `just bump-pre 2.20.0a1` | Cut an explicit pre-release (alpha / beta / rc). The tag publishes to PyPI like any release; pip and uv skip it unless `--pre` is passed, and the GitHub Release is marked pre-release. |
 
 What each one does (per `[tool.bumpversion]` in `pyproject.toml`):
 

@@ -67,6 +67,7 @@ repos:
     rev: v1.44.0
     hooks:
       - id: typos
+        args: [--force-exclude]
   # Lint & format with ruff
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.15.7
