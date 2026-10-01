@@ -1,4 +1,4 @@
-"""The ``format`` command, and its hidden ``fmt`` alias."""
+"""The ``format`` command."""
 
 from __future__ import annotations
 
@@ -97,6 +97,4 @@ def format_cmd(
     )
 
 
-# One function, two names: `fmt` cannot drift from `format`.
 app.command(cls=ExecsqlCommand, name="format")(format_cmd)
-app.command(cls=ExecsqlCommand, name="fmt", hidden=True, help="Alias for format.")(format_cmd)

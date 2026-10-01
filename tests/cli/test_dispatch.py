@@ -187,10 +187,6 @@ class TestTheCommandListIsRendered:
     def test_each_command_is_listed(self, name):
         assert name in self._help()
 
-    def test_the_alias_is_not_listed_twice(self):
-        """fmt is hidden so the list shows one spelling of the formatter."""
-        assert self._help().count("fmt") == 0
-
 
 class TestHelpIsDiscoverable:
     """The commands have to be findable, which is the point of having them.
@@ -283,9 +279,6 @@ class TestHelpColor:
         out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True).stdout
         assert "Commands:" in out
         assert "\x1b[" not in out
-
-    def test_hidden_alias_stays_hidden(self):
-        assert "fmt" not in self.ANSI.sub("", self._help(["--help"], color=True))
 
 
 class TestUsageLines:

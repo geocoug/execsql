@@ -13,7 +13,7 @@ ______________________________________________________________________
 
 ### Added
 
-- **Commands:** `execsql run`, `format` (alias `fmt`), `lint`, `config`, `list` and `init`. `format` and `lint` take files or directories and need no database, so a whole script library can be linted at once. See [Commands](https://execsql2.readthedocs.io/en/latest/getting-started/syntax/#commands).
+- **Commands:** `execsql run`, `format`, `lint`, `config`, `list` and `init`. `format` and `lint` take files or directories and need no database, so a whole script library can be linted at once. See [Commands](https://execsql2.readthedocs.io/en/latest/getting-started/syntax/#commands).
 - **`run`:** `--manifest FILE` writes a JSON record of the run (files read and written, connections, statement counts and any error), even when the run fails. `--var NAME=VALUE` sets `!!NAME!!` from the command line.
 - **`lint`:** every issue has a rule code (`V001`, `F002`, …) that `--select` and `--ignore` filter on. `--output-format json|concise|github`, `--statistics`, and `--strict` to fail on warnings. New checks for a `SUB` variable nothing reads, an `IF` whose condition never changes, and statements after `HALT`. See the [lint rules reference](https://execsql2.readthedocs.io/en/latest/reference/lint/).
 - **`execsql-lint` pre-commit hook**, alongside `execsql-format`.
@@ -39,7 +39,7 @@ ______________________________________________________________________
 
 - **`PG_UPSERT` QA follows `METHOD` and `EXCLUDE`:** all three modes check only the staging rows the load would write, so pass `PG_UPSERT QA` the same `METHOD` and `EXCLUDE` as the load that follows it. `CHECK ... METHOD update` treats a missing `NOT NULL` column as a warning. The `upsert` extra now requires pg-upsert 1.25.0 or newer. See [QA follows METHOD and EXCLUDE](https://execsql2.readthedocs.io/en/latest/reference/metacommands/#pg_upsert_qa_method).
 - **`PG_UPSERT` QA can fail where it passed before:** it now catches a unique key that collides with an existing base row, a foreign key parent that is not in `TABLES`, and an excluded `NOT NULL` column on an inserted row, all of which used to fail during the load.
-- A script named exactly like a command (`run`, `format`, `fmt`, `lint`, `config`, `list` or `init`, with no extension) must be run as `execsql run NAME`.
+- A script named exactly like a command (`run`, `format`, `lint`, `config`, `list` or `init`, with no extension) must be run as `execsql run NAME`.
 - `execsql format --encoding` is now `-f`/`--script-encoding`, matching `run`. `--encoding` still works.
 - The debug REPL (`BREAKPOINT`, `--debug`) runs metacommands and blocks as well as SQL, as if they were the next lines of the script where it paused: a `SUB` stays set when the script resumes, and SQL is committed as the script's own SQL would be. See [Debugging](https://execsql2.readthedocs.io/en/latest/guides/debugging/).
 - CLI help is plain text, colored on a terminal (`NO_COLOR` or `EXECSQL_NO_COLOR` turns color off), and uses the terminal's full width. `execsql` with no arguments prints it and exits with status 2.
