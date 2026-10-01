@@ -283,3 +283,16 @@ def test_formatter_no_args_shows_usage():
     result = _run_formatter()
     combined = (result.stdout or "") + (result.stderr or "")
     assert "Usage" in combined or "FILE_OR_DIR" in combined
+
+
+def test_lost_write_output_fails_the_run(tmp_path):
+    """A WRITE target that can never be opened makes the run exit non-zero."""
+    target = tmp_path / "is_a_directory"
+    target.mkdir()
+    (tmp_path / "execsql.conf").write_text("[output]\noutfile_open_timeout=1\n")
+    script = tmp_path / "s.sql"
+    script.write_text(f'-- !x! write "lost" to {target}\nselect 1;\n')
+    db = tmp_path / "test.db"
+    result = _run_execsql("run", str(script), str(db), "-t", "l", "-n", cwd=tmp_path, timeout=60)
+    assert result.returncode != 0
+    assert "is_a_directory" in result.stderr + result.stdout
