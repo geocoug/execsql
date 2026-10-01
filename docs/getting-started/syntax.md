@@ -20,7 +20,7 @@ execsql init   [DIR] [--script NAME | --no-script] [--no-config] [--no-pre-commi
 | Command  | Purpose                                                                                    |
 | -------- | ------------------------------------------------------------------------------------------ |
 | `run`    | Execute a script against a database.                                                       |
-| `format` | Normalize metacommand keywords, block indentation, and SQL layout. `fmt` works too.        |
+| `format` | Normalize metacommand keywords, block indentation, and SQL layout.                         |
 | `lint`   | Static analysis without a database. Exits 1 when any error is found.                       |
 | `config` | List every config option with its value, default and source; `--init` prints the template. |
 | `list`   | Print metacommands, encoding names, installed plugins, or the full keyword vocabulary.     |
@@ -57,7 +57,7 @@ once per invocation, not from each script's directory.
     | `execsql --ping …`        | `execsql run --ping …`                       |
 
     Until then, a script named exactly like a command — `run`, `format`,
-    `fmt`, `lint`, `config`, `list` or `init`, with no extension — must be run
+    `lint`, `config`, `list` or `init`, with no extension — must be run
     as `execsql run lint`: a command name always selects
     the command. Names with an extension, such as `lint.sql`, are never
     ambiguous.

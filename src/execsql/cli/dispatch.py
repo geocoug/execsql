@@ -28,9 +28,8 @@ from __future__ import annotations
 
 __all__ = ["COMMANDS", "GLOBAL_FLAGS", "dispatch", "normalize"]
 
-#: Tokens that name a command.  ``fmt`` is an alias for ``format``: ruff
-#: spells it ``format`` and most people type ``fmt``.
-COMMANDS = ("run", "format", "fmt", "lint", "config", "list", "init")
+#: Tokens that name a command.
+COMMANDS = ("run", "format", "lint", "config", "list", "init")
 
 #: Options declared on the app rather than on a command, which must reach
 #: the parser without ``run`` in front of them. ``-m``, ``--encodings`` and

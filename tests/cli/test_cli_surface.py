@@ -118,9 +118,6 @@ SURFACE: dict[str, dict[str, object]] = {
     },
 }
 
-#: Commands that exist but are not listed in ``execsql --help``.
-HIDDEN_COMMANDS = {"fmt": "format"}
-
 #: ``execsql list`` is a group: one command per reference list.
 LIST_COMMANDS = {name: {"--output-format"} for name in ("metacommands", "encodings", "plugins", "keywords")}
 
@@ -157,8 +154,8 @@ class TestSurface:
             assert _options(lists.commands[name], hidden=False) == options
             assert _options(lists.commands[name], hidden=True) == set()
 
-    def test_hidden_commands(self, group):
-        assert {name for name, cmd in group.commands.items() if cmd.hidden} == set(HIDDEN_COMMANDS)
+    def test_no_hidden_commands(self, group):
+        assert [name for name, cmd in group.commands.items() if cmd.hidden] == []
 
     @pytest.mark.parametrize("name", list(SURFACE))
     def test_arguments(self, group, name):
@@ -173,13 +170,7 @@ class TestSurface:
     def test_hidden_options(self, group, name):
         assert _options(group.commands[name], hidden=True) == SURFACE[name]["hidden"]
 
-    @pytest.mark.parametrize(("alias", "target"), list(HIDDEN_COMMANDS.items()))
-    def test_hidden_command_mirrors_its_target(self, group, alias, target):
-        a, t = group.commands[alias], group.commands[target]
-        assert _options(a, hidden=False) == _options(t, hidden=False)
-        assert _options(a, hidden=True) == _options(t, hidden=True)
-
-    @pytest.mark.parametrize("name", [*SURFACE, *HIDDEN_COMMANDS])
+    @pytest.mark.parametrize("name", list(SURFACE))
     def test_every_command_answers_short_help(self, group, name):
         assert "-h" in group.commands[name].context_settings.get("help_option_names", ["-h", "--help"])
 

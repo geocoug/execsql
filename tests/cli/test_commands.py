@@ -312,11 +312,6 @@ class TestFormatInput:
         (tmp_path / "a.sql").write_text("select 1;\n")
         assert runner.invoke(app, ["format", "--config", "nope.conf", str(tmp_path / "a.sql")]).exit_code == 2
 
-    def test_fmt_has_the_same_options(self):
-        fmt_help = runner.invoke(app, ["fmt", "--help"]).output
-        for option in ("--check", "--in-place", "--script-encoding", "--config", "--leading-comma"):
-            assert option in fmt_help
-
 
 class TestLintInput:
     def test_stdin(self):
