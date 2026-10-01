@@ -25,7 +25,7 @@
 
 *execsql* is a toolchain for SQL scripts: **write** them with editor support, **format** them consistently, **lint** them without a database, and **run** them against nine DBMSs.
 
-Scripts are ordinary SQL plus metacommands embedded in comments (`-- !x!`), which add importing and exporting data, copying between databases, conditional execution, looping, substitution variables, and interactive prompts. Because the metacommands live in comments, the scripts stay valid SQL and other tools — `psql`, `sqlcmd`, your editor — ignore them.
+Scripts are ordinary SQL plus metacommands embedded in comments (`-- !x!`), which add importing and exporting data, copying between databases, conditional execution, looping, substitution variables, and interactive prompts. Because the metacommands live in comments, the scripts stay valid SQL and other tools (`psql`, `sqlcmd`, your editor) ignore them.
 
 | Command                                    | What it does                                                            | Needs a database? |
 | ------------------------------------------ | ----------------------------------------------------------------------- | ----------------- |
@@ -37,15 +37,16 @@ Scripts are ordinary SQL plus metacommands embedded in comments (`-- !x!`), whic
 | `execsql init`                             | Set up a project: config file, a script with a header, pre-commit hooks | No                |
 | [VS Code extension](extras/vscode-execsql) | Syntax highlighting for metacommands and variables                      | No                |
 
-`format` and `lint` take files or directories; `fmt` is an alias for `format`.
+`format` and `lint` take files or directories.
 
-The original positional form — `execsql script.sql myserver mydb` — still works
-but is deprecated: it prints a warning and stops working in execsql2 3.0. Use
-`execsql run script.sql myserver mydb`.
+> [!WARNING]
+> The original positional form, `execsql script.sql myserver mydb`, still works
+> but is deprecated: it prints a warning and stops working in execsql2 3.0. Use
+> `execsql run script.sql myserver mydb`.
 
-## Quick start — no database required
+## Quick start: no database required
 
-Two of the three commands work on a bare `.sql` file — no server, no config. Try them first:
+`format` and `lint` work on a bare `.sql` file, with no server and no config. Try them first:
 
 ```bash
 pip install execsql2[formatter]
@@ -55,7 +56,7 @@ execsql format -i scripts/        # format it
 execsql lint scripts/             # find problems before they cost you a run
 ```
 
-`lint` reports unmatched blocks, undefined and unused substitution variables, unreachable branches, and `INCLUDE`/`SCRIPT` targets that do not exist — the failures that otherwise surface halfway through a run against a live database:
+`lint` reports unmatched blocks, undefined and unused substitution variables, unreachable branches, and `INCLUDE`/`SCRIPT` targets that do not exist: the failures that otherwise surface halfway through a run against a live database:
 
 ```text
 $ execsql lint load_data.sql
@@ -112,12 +113,12 @@ The `PROMPT` metacommand produces a GUI display of the data:
 ## Installation
 
 ```bash
-pip install execsql2                # core — SQLite works with no extras
+pip install execsql2                # core: SQLite works with no extras
 pip install "execsql2[postgres]"    # add a driver: postgres, mysql, mssql, duckdb, firebird, oracle, odbc
 pip install "execsql2[all]"         # everything: all drivers plus all feature extras
 ```
 
-Feature extras cover spreadsheet and Parquet/Feather formats, keyring authentication, PostgreSQL upsert, and more — see the [installation guide](https://execsql2.readthedocs.io/en/latest/getting-started/installation/) for the full list.
+Feature extras cover spreadsheet and Parquet/Feather formats, keyring authentication, PostgreSQL upsert, and more. See the [installation guide](https://execsql2.readthedocs.io/en/latest/getting-started/installation/) for the full list.
 
 ## Usage
 
@@ -144,22 +145,22 @@ execsql run script.sql                          # read connection from config fi
 
 ### Supported Databases
 
-| Flag | Database        | Support                                          |
-| ---- | --------------- | ------------------------------------------------ |
-| `p`  | PostgreSQL      | Supported — verified against a live server in CI |
-| `m`  | MySQL / MariaDB | Supported — verified against a live server in CI |
-| `s`  | MS SQL Server   | Supported — verified against a live server in CI |
-| `l`  | SQLite          | Supported — verified against real files in CI    |
-| `k`  | DuckDB          | Supported — verified against real files in CI    |
-| `a`  | MS Access       | Best effort — not verified in CI                 |
-| `f`  | Firebird        | Best effort — not verified in CI                 |
-| `o`  | Oracle          | Best effort — not verified in CI                 |
-| `d`  | ODBC DSN        | Best effort — not verified in CI                 |
+| Flag | Database        | Support                                         |
+| ---- | --------------- | ----------------------------------------------- |
+| `p`  | PostgreSQL      | Supported: verified against a live server in CI |
+| `m`  | MySQL / MariaDB | Supported: verified against a live server in CI |
+| `s`  | MS SQL Server   | Supported: verified against a live server in CI |
+| `l`  | SQLite          | Supported: verified against real files in CI    |
+| `k`  | DuckDB          | Supported: verified against real files in CI    |
+| `a`  | MS Access       | Best effort: not verified in CI                 |
+| `f`  | Firebird        | Best effort: not verified in CI                 |
+| `o`  | Oracle          | Best effort: not verified in CI                 |
+| `d`  | ODBC DSN        | Best effort: not verified in CI                 |
 
 **Supported** adapters run against a live server or a real database file on
 every CI run; a regression blocks the release and bugs get fixed. **Best
 effort** adapters are carried forward from the upstream monolith and are not
-exercised anywhere in CI — the code is there and may work, but nothing proves
+exercised anywhere in CI. The code is there and may work, but nothing proves
 it still does. Issues and pull requests are welcome for them; no guarantee is
 made. Opening a best-effort connection prints one informational line, which
 `support_tier_notice=No` in the `[interface]` section of `execsql.conf`
@@ -199,7 +200,7 @@ See the [full options reference](https://execsql2.readthedocs.io/en/latest/getti
 - Conditionally execute SQL and metacommands using `IF`/`ELSE`/`ENDIF` based on data values, DBMS type, or user input.
 - Loop over blocks of SQL and metacommands using `LOOP`/`ENDLOOP`; include or chain scripts with `INCLUDE` and `SCRIPT`.
 - Use substitution variables (`SUB`, `$ARG_x`, built-in variables like `$date_tag`) to parameterize scripts.
-- Validate data with `ASSERT` — halt the script with a clear error message if a condition is false (ideal for CI pipelines).
+- Validate data with `ASSERT`: halt the script with a clear error message if a condition is false (ideal for CI pipelines).
 
 **Interaction & observability**
 
@@ -254,7 +255,7 @@ if not result.success:
 result.raise_on_error()  # raises ExecSqlError
 ```
 
-Use a pre-existing database connection instead of a DSN — useful for reusing one connection across multiple `run()` calls, or when connection parameters come from your application's configuration rather than a URL:
+Use a pre-existing database connection instead of a DSN. This is useful for reusing one connection across multiple `run()` calls, or when connection parameters come from your application's configuration rather than a URL:
 
 ```python
 from execsql import run
@@ -277,7 +278,7 @@ loaded = run(
     variables={"RUN_DATE": "2026-07-03"},
 )
 
-# run() does NOT close the connection — you manage its lifecycle
+# run() does NOT close the connection; you manage its lifecycle
 conn.close()
 
 # SQLite works the same way
@@ -286,7 +287,7 @@ result = run(sql="SELECT 1;", connection=conn)
 conn.close()
 ```
 
-Factory functions exist for every supported backend (`db_Postgres`, `db_MySQL`, `db_SQLite`, `db_DuckDB`, `db_SqlServer`, `db_Oracle`, `db_Firebird`, `db_Access`, `db_Dsn`) — see [`execsql.db.factory`](https://execsql2.readthedocs.io/en/latest/api/db/).
+Factory functions exist for every supported backend (`db_Postgres`, `db_MySQL`, `db_SQLite`, `db_DuckDB`, `db_SqlServer`, `db_Oracle`, `db_Firebird`, `db_Access`, `db_Dsn`). See [`execsql.db.factory`](https://execsql2.readthedocs.io/en/latest/api/db/).
 
 Each call to `run()` uses an isolated `RuntimeContext`, so multiple calls do not share state.
 
@@ -304,7 +305,7 @@ execsql format --in-place scripts/
 # Check formatting without writing (useful in CI)
 execsql format --check scripts/
 
-# Run the formatter without sqlglot — keyword/indent normalization only
+# Run the formatter without sqlglot: keyword/indent normalization only
 execsql format --no-sql --in-place scripts/
 ```
 
@@ -323,7 +324,7 @@ The format hook rewrites `*.sql` files in place by default; the lint hook fails 
 
 ## VS Code Syntax Highlighting
 
-A VS Code extension for execsql syntax highlighting is included in [`extras/vscode-execsql`](extras/vscode-execsql). It injects a TextMate grammar into `.sql` files, adding highlighting for `-- !x!` metacommand markers, keywords (control flow, block, action, directive), variable substitutions (`!!var!!`, `!{var}!`), built-in functions, export formats, and config options — all layered on top of standard SQL highlighting.
+A VS Code extension for execsql syntax highlighting is included in [`extras/vscode-execsql`](extras/vscode-execsql). It injects a TextMate grammar into `.sql` files, adding highlighting for `-- !x!` metacommand markers, keywords (control flow, block, action, directive), variable substitutions (`!!var!!`, `!{var}!`), built-in functions, export formats, and config options, all layered on top of standard SQL highlighting.
 
 To install, symlink the extension folder into your VS Code extensions directory:
 
