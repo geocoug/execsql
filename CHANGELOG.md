@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Fixed
+
+- **`WRITE` / `EXPORT` to a locked file:** when the file stays locked past `outfile_open_timeout`, the run now fails with an error naming the file and how many lines were lost, instead of hanging at `SYSTEM_CMD` or the end of the script, or exiting 0 with the output gone. The CLI waits up to `outfile_open_timeout` at the end of a script for a locked file to free up.
+
 ______________________________________________________________________
 
 ## [2.24.0] - 2026-10-01

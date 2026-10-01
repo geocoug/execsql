@@ -908,6 +908,7 @@ def _execute_script_ast(
         exit_now(1, ErrInfo("exception", exception_msg=msg))
 
     _state.dbs.do_rollback = False
+    _flush_output_files()
     if gui_console_isrunning() and conf.gui_wait_on_exit:
         gui_console_wait_user(
             "Script complete; close the console window to exit execsql.",
@@ -970,8 +971,28 @@ def _execute_script_textual_console(tree: Any, conf: ConfigData) -> None:
             exit_now(1, ErrInfo("exception", exception_msg=msg))
 
     _state.dbs.do_rollback = False
+    _flush_output_files()
     _state.exec_log.log_status_info(f"{_state.cmds_run} commands run")
     _state.exec_log.log_exit_end()
+
+
+def _flush_output_files() -> None:
+    """Flush file output at the normal end of a script; lost output fails the run.
+
+    A WRITE/EXPORT target that stays locked past ``outfile_open_timeout`` has
+    its output discarded.  That must not end in a successful exit status.
+    """
+    from execsql.utils.fileio import filewriter_close_all_after_write
+
+    try:
+        filewriter_close_all_after_write()
+    except ErrInfo as exc:
+        from execsql.utils.errors import exit_now
+
+        # The loss belongs to no particular statement; keep exit_now from
+        # attributing it to whatever line happened to run last.
+        exc.script_file = ""
+        exit_now(1, exc)
 
 
 # ---------------------------------------------------------------------------

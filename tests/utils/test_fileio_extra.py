@@ -7,6 +7,7 @@ from unittest.mock import MagicMock
 import pytest
 
 import execsql.state as _state
+from execsql.exceptions import ErrInfo
 from execsql.utils.fileio import FileWriter, Logger
 
 
@@ -221,14 +222,25 @@ class TestFileControlWrite:
         captured = capsys.readouterr()
         assert "Closing" in captured.err
 
-    def test_open_failure_after_timeout(self, tmp_path, capsys):
+    def test_open_failure_after_timeout_discards_and_counts(self, tmp_path):
         bad_path = str(tmp_path / "no_dir" / "test.txt")
         fc = FileWriter.FileControl(bad_path, open_timeout=0)
+        fc.output_queue.extendleft(["one\n", "two\n"])
+        fc.close_after_write = True
         fc.open_start_time = 0  # Force timeout
         fc.try_open()
         assert fc.status == fc.STATUS_OPENFAILURE
-        captured = capsys.readouterr()
-        assert "Could not open" in captured.err
+        assert fc.dropped == 2
+        assert len(fc.output_queue) == 0
+        assert fc.close_after_write is False
+
+    def test_write_after_open_failure_is_counted_not_buffered(self, tmp_path):
+        fc = FileWriter.FileControl(str(tmp_path / "no_dir" / "test.txt"), open_timeout=0)
+        fc.open_start_time = 0
+        fc.try_open()
+        fc.write("late\n")
+        assert fc.dropped == 1
+        assert len(fc.output_queue) == 0
 
 
 # ---------------------------------------------------------------------------
@@ -326,3 +338,89 @@ class TestFileWriterMethods:
         fw.return_msg_queue = multiprocessing.Queue()
         fw.ping("test_token")
         assert fw.return_msg_queue.get() == "test_token"
+
+
+# ---------------------------------------------------------------------------
+# Files that stay locked: idle retry, timeout, and reporting the loss
+# ---------------------------------------------------------------------------
+
+
+class TestLockedOutputFile:
+    @staticmethod
+    def _writer(open_timeout):
+        import multiprocessing
+
+        fw = FileWriter.__new__(FileWriter)
+        fw.files = {}
+        fw.file_encoding = "utf-8"
+        fw.open_timeout = open_timeout
+        fw.return_msg_queue = multiprocessing.Queue()
+        return fw
+
+    def test_idle_retry_opens_a_file_once_it_is_unlocked(self, tmp_path):
+        target = tmp_path / "later" / "out.txt"
+        fw = self._writer(open_timeout=600)
+        fw.write(str(target), "hello\n")
+        fc = fw.files[str(target.resolve())]
+        assert fc.status == fc.STATUS_WAITING
+        target.parent.mkdir()
+        fw.retry_waiting()
+        assert fc.status == fc.STATUS_OPEN
+        fw.close_all()
+        assert target.read_text() == "hello\n"
+
+    def test_idle_retry_honours_open_timeout_without_further_writes(self, tmp_path):
+        """A waiting file must reach OPENFAILURE even if nothing else is written."""
+        fw = self._writer(open_timeout=600)
+        fw.write(str(tmp_path / "no_dir" / "out.txt"), "hello\n")
+        fc = next(iter(fw.files.values()))
+        fc.open_start_time = 0  # Pretend the timeout has elapsed.
+        fw.retry_waiting()
+        assert fc.status == fc.STATUS_OPENFAILURE
+        assert fc.dropped == 1
+
+    def test_open_failures_reports_and_forgets_failed_files(self, tmp_path):
+        target = str((tmp_path / "no_dir" / "out.txt").resolve())
+        fw = self._writer(open_timeout=0)
+        fw.write(target, "a\n")
+        fw.files[target].open_start_time = 0
+        fw.retry_waiting()
+        fw.open_failures()
+        assert fw.return_msg_queue.get(timeout=5) == [(target, 1)]
+        assert target not in fw.files
+
+
+class TestCloseAllAfterWriteWithLockedFile:
+    """The real subprocess: a locked file must fail the flush, not hang it."""
+
+    def test_returns_within_timeout_and_names_the_file(self, tmp_path):
+        import threading
+
+        import execsql.utils.fileio as fileio
+
+        # A directory can never be opened as a text file, on any platform.
+        target = tmp_path / "is_a_directory"
+        target.mkdir()
+
+        fileio.filewriter_end()
+        fileio.filewriter = FileWriter(fileio.fw_input, fileio.fw_output, file_encoding="utf-8", open_timeout=1)
+        fileio.filewriter.start()
+        outcome: dict = {}
+
+        def flush():
+            try:
+                fileio.filewriter_close_all_after_write()
+            except ErrInfo as exc:
+                outcome["error"] = exc.errmsg()
+
+        try:
+            fileio.filewriter_write(str(target), "lost line\n")
+            t = threading.Thread(target=flush, daemon=True)
+            t.start()
+            t.join(timeout=15)
+            assert not t.is_alive(), "flush hung on a file that can never be opened"
+            assert "is_a_directory" in outcome.get("error", "")
+            assert "1 line(s)" in outcome["error"]
+        finally:
+            fileio.filewriter_end()
+            fileio.filewriter = None

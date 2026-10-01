@@ -156,3 +156,25 @@ class TestDroppedWriteIsReported:
         monkeypatch.setattr(fileio, "filewriter", None)
         monkeypatch.setattr(fileio, "_drop_warned", True)
         fileio.filewriter_write("/tmp/nowhere.txt", "x")  # must return, not hang
+
+
+class TestLostOutputIsAnError:
+    def test_unopenable_output_file_fails_the_run(self, tmp_path):
+        """A WRITE target that never opens is reported, not silently dropped."""
+        import execsql.utils.fileio as fileio
+
+        target = tmp_path / "is_a_directory"
+        target.mkdir()
+        fileio.filewriter_end()
+        fileio.filewriter = fileio.FileWriter(fileio.fw_input, fileio.fw_output, file_encoding="utf-8", open_timeout=1)
+        fileio.filewriter.start()
+        try:
+            result = api.run(
+                sql=f'-- !x! WRITE "lost" to {target}\nselect 1;\n',
+                dsn=_sqlite_dsn(tmp_path),
+                new_db=True,
+            )
+            assert not result.success
+            assert any("is_a_directory" in e.message for e in result.errors), result.errors
+        finally:
+            fileio.filewriter_end()

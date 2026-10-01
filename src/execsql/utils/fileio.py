@@ -201,7 +201,8 @@ class FileWriter(multiprocessing.Process):
         CMD_CLOSE_ALL_AFTER_WRITE,
         CMD_CLOSED_STATUS,
         CMD_PING,
-    ) = range(9)
+        CMD_OPEN_FAILURES,
+    ) = range(10)
 
     class FileControl:
         STATUS_OPEN, STATUS_WAITING, STATUS_UNOPENED, STATUS_CLOSED, STATUS_OPENFAILURE = range(5)
@@ -214,9 +215,11 @@ class FileWriter(multiprocessing.Process):
             self.handle: io.TextIOWrapper | None = None
             self.status = self.STATUS_UNOPENED
             self.open_start_time: float | None = None
-            self.fail_message_written = False
             self.output_queue: collections.deque[str] = collections.deque()
             self.close_after_write = False
+            # Lines discarded because the file could not be opened within
+            # open_timeout; reported back to the caller, never silently lost.
+            self.dropped = 0
 
         def __del__(self) -> None:
             try:
@@ -258,14 +261,13 @@ class FileWriter(multiprocessing.Process):
                         self.status = self.STATUS_OPEN
                         self.openmode = "a"  # Return to default for next open command.
                         self.open_start_time = None
-                        self.fail_message_written = False
                 else:
+                    # Give up: discard what was buffered (counting it so the
+                    # caller can report the loss) and stop buffering.
                     self.status = self.STATUS_OPENFAILURE
-                    if not self.fail_message_written:
-                        sys.stderr.write(
-                            f"Could not open {self.filename} for writing after retrying for {self.open_timeout} seconds",
-                        )
-                        self.fail_message_written = True
+                    self.dropped += len(self.output_queue)
+                    self.output_queue.clear()
+                    self.close_after_write = False
 
         def close(self) -> None:
             if self.status == self.STATUS_WAITING:
@@ -287,6 +289,9 @@ class FileWriter(multiprocessing.Process):
                 self.close()
 
         def write(self, content: str) -> None:
+            if self.status == self.STATUS_OPENFAILURE:
+                self.dropped += 1
+                return
             self.output_queue.appendleft(content)
             self.try_open()
             if self.status == self.STATUS_OPEN:
@@ -319,6 +324,7 @@ class FileWriter(multiprocessing.Process):
             self.close_all_after_write,
             self.closed_status,
             self.ping,
+            self.open_failures,
         )
 
     def __del__(self) -> None:
@@ -354,6 +360,32 @@ class FileWriter(multiprocessing.Process):
     def ping(self, token: object) -> None:
         """Echo *token* back on the return queue — used to synchronize callers."""
         self.return_msg_queue.put(token)
+
+    def retry_waiting(self) -> None:
+        """Re-attempt opening every file still waiting on a lock.
+
+        Called periodically from the writer loop, so a locked file is retried
+        (and its ``open_timeout`` honoured) even when the script writes nothing
+        more to it.  Without this a waiting file never reached
+        ``STATUS_OPENFAILURE`` and a flush waited on it forever.
+        """
+        for fc in self.files.values():
+            if fc.status == self.FileControl.STATUS_WAITING:
+                fc.try_open()
+                if fc.status == self.FileControl.STATUS_OPEN:
+                    fc.write_queue()
+
+    def open_failures(self) -> None:
+        """Report, and forget, every file that could not be opened in time.
+
+        Puts a list of ``(filename, lines_dropped)`` on the return queue.  The
+        failed entries are removed so a later write to the same path starts a
+        fresh open attempt.
+        """
+        failed = [(fn, fc.dropped) for fn, fc in self.files.items() if fc.status == self.FileControl.STATUS_OPENFAILURE]
+        for fn, _ in failed:
+            del self.files[fn]
+        self.return_msg_queue.put(failed)
 
     def open_as_new(self, fn: str) -> None:
         filename = str(Path(fn).resolve())
@@ -400,12 +432,19 @@ class FileWriter(multiprocessing.Process):
         # Messages in the input queue consist of a 2-tuple, of which the first element
         # is a command and the second is a tuple of arguments for the function indicated
         # by that command.
+        # Waiting files are retried on a timer rather than only when the queue
+        # is idle: a caller polling CMD_CLOSED_STATUS keeps the queue busy.
+        last_retry = time.monotonic()
         while self.active:
             try:
                 command, argtuple = self.input_queue.get(timeout=0.1)
             except queue.Empty:
-                continue
-            self.execvec[command](*argtuple)
+                pass
+            else:
+                self.execvec[command](*argtuple)
+            if time.monotonic() - last_retry >= 0.1:
+                self.retry_waiting()
+                last_retry = time.monotonic()
 
 
 # Subprocess objects for asynchronous writing to text files.
@@ -428,11 +467,34 @@ def _writer_alive() -> bool:
     return filewriter is not None and filewriter.is_alive()
 
 
+#: Sentinel returned by :func:`_writer_reply` when the writer died before
+#: answering.
+_NO_REPLY = object()
+
+
+def _writer_reply() -> Any:
+    """Wait for the writer's answer to the command just sent.
+
+    Polls with a short timeout and re-checks liveness between polls, so a
+    writer that dies mid-request cannot block the caller forever.  Returns
+    :data:`_NO_REPLY` if it died.
+    """
+    while True:
+        try:
+            return fw_output.get(timeout=2.0)
+        except queue.Empty:
+            if not _writer_alive():
+                return _NO_REPLY
+
+
 def filewriter_filestatus(filename: str) -> int:
     if not _writer_alive():
         return FileWriter.FileControl.STATUS_CLOSED
     fw_input.put((FileWriter.CMD_GET_STATUS, (filename,)))
-    return cast(int, fw_output.get())
+    reply = _writer_reply()
+    if reply is _NO_REPLY:
+        return FileWriter.FileControl.STATUS_CLOSED
+    return cast(int, reply)
 
 
 #: Set once the first dropped write has been reported, so a script writing
@@ -493,24 +555,45 @@ def filewriter_close(filename: str) -> None:
 
 
 def filewriter_close_all_after_write() -> None:
+    """Flush and close every file the writer holds, then report lost output.
+
+    Waits for files still locked by another process for up to the writer's
+    ``open_timeout`` (plus a small margin).  Any file that could not be opened
+    in that time has its output discarded, and this raises :class:`ErrInfo`
+    naming each such file — a lost write is an error, not a silent success.
+    """
     if not _writer_alive():
         return
+    assert filewriter is not None
+    deadline = time.monotonic() + filewriter.open_timeout + 5.0
     fw_input.put((FileWriter.CMD_CLOSE_ALL_AFTER_WRITE, ()))
-    all_closed = False
-    while not all_closed:
-        # Re-check liveness on every iteration: if the subprocess dies
-        # mid-loop, fw_output.get() would block forever otherwise.
+    timed_out = False
+    while True:
         if not _writer_alive():
             return
         fw_input.put((FileWriter.CMD_CLOSED_STATUS, ()))
-        try:
-            close_status = fw_output.get(timeout=2.0)
-        except queue.Empty:
-            # Either the writer is too slow or it died after the alive
-            # check above — recheck on the next iteration.
-            continue
-        all_closed = close_status == FileWriter.FileControl.STATUS_CLOSED
+        close_status = _writer_reply()
+        if close_status is _NO_REPLY:
+            return
+        if close_status == FileWriter.FileControl.STATUS_CLOSED:
+            break
+        if time.monotonic() > deadline:
+            timed_out = True
+            break
         time.sleep(0.05)
+    fw_input.put((FileWriter.CMD_OPEN_FAILURES, ()))
+    failures = _writer_reply()
+    if failures is _NO_REPLY:
+        failures = []
+    messages = [
+        f"could not open {fn} for writing within {filewriter.open_timeout} seconds; "
+        f"{dropped} line(s) of output to it were discarded"
+        for fn, dropped in failures
+    ]
+    if timed_out:
+        messages.append(f"one or more output files were still locked after {filewriter.open_timeout} seconds")
+    if messages:
+        raise ErrInfo("error", other_msg="File output lost: " + "; ".join(messages) + ".")
 
 
 def filewriter_closeall() -> None:

@@ -548,10 +548,13 @@ def run(
         # them the moment run() returns.  The subprocess itself is left running
         # for reuse by a later run() and is reaped by the atexit handler; a
         # writer the caller started is theirs and is never shut down here.
+        # Output to a file that could not be opened is reported as an error.
         from execsql.utils.fileio import filewriter_close_all_after_write
 
         try:
             filewriter_close_all_after_write()
+        except ErrInfo as exc:
+            errors.append(ScriptError(message=exc.errmsg(), source="<output>"))
         except Exception:
             pass  # Best-effort: a failed flush must not mask a script error.
 
