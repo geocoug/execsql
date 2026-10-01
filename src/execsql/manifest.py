@@ -32,12 +32,16 @@ from execsql import __version__
 
 __all__ = ["RunManifest", "check_writable", "current", "start"]
 
-_current: RunManifest | None = None
-
 
 def current() -> RunManifest | None:
-    """The active manifest recorder, or ``None`` when ``--manifest`` was not given."""
-    return _current
+    """The active run's manifest recorder, or ``None`` when ``--manifest`` was not given.
+
+    Held on the run's :class:`~execsql.state.RuntimeContext`, so a library
+    ``execsql.run()`` in the same process never records into a CLI manifest.
+    """
+    import execsql.state as _state
+
+    return _state.manifest
 
 
 def check_writable(path: str) -> str | None:
@@ -65,10 +69,12 @@ def start(path: str, script: str | None, variables: list[str]) -> RunManifest:
     If nothing else writes it (``exit_now`` on an error, the end of a run), an
     ``atexit`` fallback does.
     """
-    global _current
-    _current = RunManifest(path, script, variables)
-    atexit.register(_current.finish, None)
-    return _current
+    import execsql.state as _state
+
+    manifest = RunManifest(path, script, variables)
+    _state.manifest = manifest
+    atexit.register(manifest.finish, None)
+    return manifest
 
 
 def _now() -> datetime.datetime:
@@ -172,9 +178,10 @@ class RunManifest:
             "errors": self.errors,
         }
         self.written = True
-        global _current
-        if _current is self:
-            _current = None
+        import execsql.state as _state
+
+        if _state.manifest is self:
+            _state.manifest = None
         atexit.unregister(self.finish)
         try:
             self.path.parent.mkdir(parents=True, exist_ok=True)

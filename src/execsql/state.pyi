@@ -11,6 +11,7 @@ from execsql.config import ConfigData, StatObj
 from execsql.db.base import DatabasePool
 from execsql.exporters.base import ExportMetadata, WriteSpec
 from execsql.script import CounterVars, MetaCommandList, ScriptExecSpec, SubVarSet
+from execsql.manifest import RunManifest
 from execsql.utils.fileio import FileWriter, Logger, TempFileMgr
 from execsql.utils.mail import MailSpec
 from execsql.utils.timer import Timer
@@ -54,6 +55,7 @@ status: StatObj
 output: Any
 tier_notices_shown: set[str]
 filewriter: FileWriter | None
+manifest: RunManifest | None
 counters: CounterVars
 timer: Timer
 dbs: DatabasePool
@@ -89,6 +91,7 @@ class RuntimeContext:
     output: Any
     tier_notices_shown: set[str]
     filewriter: FileWriter | None
+    manifest: RunManifest | None
     counters: CounterVars | None
     timer: Timer | None
     dbs: DatabasePool | None

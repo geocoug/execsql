@@ -33,6 +33,7 @@ import stat
 import sys
 import tempfile
 import time
+import weakref
 from collections.abc import Callable
 from encodings.aliases import aliases as codec_dict
 from typing import Any, cast
@@ -967,7 +968,9 @@ class TempFileMgr:
     def __init__(self) -> None:
         # Initialize a list of temporary file names.
         self.temp_file_names: list = []
-        atexit.register(self.remove_all)
+        # One process-wide exit hook cleans every live manager; registering a
+        # hook per instance would add one for every execsql.run() call.
+        _live_tempfile_mgrs.add(self)
 
     def new_temp_fn(self) -> str:
         # Create a temp file securely via mkstemp (avoids TOCTOU race).
@@ -984,6 +987,16 @@ class TempFileMgr:
                     os.unlink(fn)
                 except Exception:
                     pass
+        self.temp_file_names = []
+
+
+_live_tempfile_mgrs: weakref.WeakSet[TempFileMgr] = weakref.WeakSet()
+
+
+@atexit.register
+def _remove_all_temp_files() -> None:
+    for mgr in list(_live_tempfile_mgrs):
+        mgr.remove_all()
 
 
 def list_encodings() -> None:
