@@ -280,19 +280,19 @@ class TestPopulateTableEmptyRows:
         _, result = db_with_table.select_data("SELECT * FROM items;")
         assert result == []
 
-    def test_too_few_values_raises_errrinfo(self, db_with_table):
-        """A row with fewer values than columns raises ErrInfo (lines 183-187)."""
+    def test_too_few_values_are_padded_with_null(self, db_with_table):
+        """A row with fewer values than columns gets NULL for the missing trailing values."""
         tablespec_src = _make_tablespec(["id", "name", "score"])
         rows = [[1]]  # only 1 value, but 3 columns expected
-        with pytest.raises(ErrInfo) as exc_info:
-            db_with_table.populate_table(
-                schema_name=None,
-                table_name="items",
-                rowsource=iter(rows),
-                column_list=["id", "name", "score"],
-                tablespec_src=tablespec_src,
-            )
-        assert "Too few values" in str(exc_info.value)
+        db_with_table.populate_table(
+            schema_name=None,
+            table_name="items",
+            rowsource=iter(rows),
+            column_list=["id", "name", "score"],
+            tablespec_src=tablespec_src,
+        )
+        _, result = db_with_table.select_data("SELECT id, name, score FROM items;")
+        assert [tuple(r) for r in result] == [(1, None, None)]
 
     def test_all_none_row_skipped_when_empty_rows_false(self, db_with_table, minimal_conf):
         """Rows where all selected values are None are skipped when empty_rows=False (lines 203-204)."""

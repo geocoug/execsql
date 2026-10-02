@@ -750,6 +750,8 @@ class Database(ABC):
                                             )
                                         if not _state.conf.empty_strings and line[i].strip() == "":
                                             line[i] = None
+                            # Trailing values left off the line are NULL.
+                            line = list(line) + [None] * (len(ts_colnames) - len(line))
                             lt = [
                                 type_objs[i].from_data(val) if val is not None else None for i, val in enumerate(line)
                             ]

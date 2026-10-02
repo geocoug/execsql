@@ -307,6 +307,9 @@ class DataTable:
                             raise DataTableError(errmsg)
                 for i in range(chkcols):
                     self.cols[i].eval_types(datarow[i])
+                # Trailing values left off a short row are imported as NULL.
+                for i in range(chkcols, len(self.cols)):
+                    self.cols[i].eval_types(None)
         for col in self.cols:
             col.column_type()
 
