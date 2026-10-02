@@ -16,13 +16,43 @@ from execsql import run, ScriptResult, ScriptError, ExecSqlError
 result: ScriptResult = run(
     script="pipeline.sql",       # or sql="SELECT 1;"
     dsn="sqlite:///my.db",       # or connection=existing_db_object
-    variables={"KEY": "value"},  # optional substitution variables
+    variables={"KEY": "value"},  # optional; referenced as !!$KEY!! in the script
     halt_on_error=True,          # stop on first error (default)
     new_db=False,                # create DB if missing
 )
 ```
 
 See the [README](https://github.com/geocoug/execsql#library-api) for full examples.
+
+### Variables
+
+Each `variables` key becomes a `$` substitution variable, whether or not you write the `$`: `variables={"SCHEMA": "public"}` and `variables={"$SCHEMA": "public"}` both define `!!$SCHEMA!!`. (The CLI's `--var SCHEMA=public` defines `!!SCHEMA!!` instead.)
+
+```python
+run(sql='-- !x! WRITE "loading into !!$SCHEMA!!"\n', dsn="sqlite:///my.db", variables={"SCHEMA": "public"})
+```
+
+`result.variables` holds every variable's final value, keyed by lower-case name without the sigil: `result.variables["schema"]`.
+
+### Errors
+
+`run()` never raises for a failed run. It returns `success=False`, and `result.errors` lists what went wrong in the order it happened. Each `ScriptError` has a `message`, a `source`, a `line`, and, for a failed SQL statement, the statement in `sql`.
+
+| `source`                   | What failed                                                                                |
+| -------------------------- | ------------------------------------------------------------------------------------------ |
+| script path or `<inline>`  | The script could not be read or parsed, or a statement or metacommand in it failed; `line` is its line number |
+| `<config>`                 | The `config_file` does not exist or has an invalid setting                                 |
+| `<connect>`                | The `dsn` could not be parsed or the database could not be opened                          |
+| `<output>`                 | A file written by `WRITE`, `EXPORT` or `TEE` could not be opened before `outfile_open_timeout` |
+
+```python
+result = run(sql="select * from nope;", dsn="sqlite:///my.db")
+result.success            # False
+result.errors[0].message  # "... no such table: nope ..."
+result.errors[0].sql      # "select * from nope;"
+```
+
+`run()` raises only `ValueError`, for an invalid combination of arguments (both or neither of `script`/`sql`, both or neither of `dsn`/`connection`). Call `result.raise_on_error()` to turn a failed result into an `ExecSqlError`.
 
 ### Thread Safety
 

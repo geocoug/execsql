@@ -229,7 +229,8 @@ result = run(
     new_db=True,
 )
 
-# With substitution variables
+# With substitution variables: each key becomes a $ variable,
+# so the script refers to these as !!$SCHEMA!! and !!$DATE!!
 result = run(
     script="etl.sql",
     dsn="sqlite:///data.db",
@@ -240,7 +241,7 @@ result = run(
 print(result.success)       # True
 print(result.commands_run)  # 2
 print(result.elapsed)       # 0.003 (seconds)
-print(result.variables)     # {"SCHEMA": "public", ...}
+print(result.variables)     # {"schema": "public", ...} (names lower-cased, no $)
 ```
 
 Error handling:

@@ -131,6 +131,7 @@ def exit_now(exit_status: int, errinfo: ErrInfo | None, logmsg: str | None = Non
     if errinfo is not None and _state.prompt_input is not None:
         raise errinfo
     em = None
+    _state.halt_error = errinfo
     if errinfo is not None:
         stamp_errinfo(errinfo)
         if _state.subvars is not None:

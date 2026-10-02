@@ -101,6 +101,7 @@ if TYPE_CHECKING:
         SubVarSet,
     )
     from execsql.script.executor import ExecutingStatement
+    from execsql.exceptions import ErrInfo
     from execsql.manifest import RunManifest
     from execsql.utils.fileio import FileWriter, Logger, TempFileMgr
     from execsql.utils.mail import MailSpec
@@ -227,6 +228,7 @@ _CONTEXT_ATTRS: frozenset[str] = frozenset(
         "filewriter",
         "tier_notices_shown",
         "manifest",
+        "halt_error",
         # Lazy singletons
         "counters",
         "timer",
@@ -283,6 +285,7 @@ class RuntimeContext:
         "filewriter",
         "tier_notices_shown",
         "manifest",
+        "halt_error",
         # Lazy singletons
         "counters",
         "timer",
@@ -335,6 +338,8 @@ class RuntimeContext:
         self.tier_notices_shown: set[str] = set()
         # ``--manifest`` recorder for this run, or None.
         self.manifest: RunManifest | None = None
+        # The error that halted this run (set by ``exit_now``), or None.
+        self.halt_error: ErrInfo | None = None
 
         # Lazy singletons
         self.counters: CounterVars | None = None

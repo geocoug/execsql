@@ -15,7 +15,7 @@ Usage::
     result = run(sql="CREATE TABLE t (id INT); INSERT INTO t VALUES (1);",
                  dsn="sqlite:///my.db")
 
-    # With substitution variables
+    # With substitution variables (referenced as !!$SCHEMA!! and !!$DATE!!)
     result = run(script="etl.sql",
                  dsn="postgresql://user:pass@host/db",
                  variables={"SCHEMA": "public", "DATE": "2026-01-01"})
@@ -56,7 +56,9 @@ class ScriptError:
 
     Attributes:
         message: Human-readable error description.
-        source: Script file path or ``"<inline>"``.
+        source: Script file path or ``"<inline>"`` for an error in the
+            script; ``"<config>"``, ``"<connect>"`` or ``"<output>"`` for a
+            config file, connection or output file that failed.
         line: Source line number, or ``None`` if unknown.
         sql: The SQL statement that caused the error, if applicable.
     """
@@ -76,10 +78,10 @@ class ScriptResult:
         commands_run: Number of SQL statements and metacommands executed.
         elapsed: Wall-clock execution time in seconds.
         errors: List of errors encountered (empty on success).
-        variables: Final state of substitution variables, keyed by name
-            without any sigil. Includes user-defined variables (no prefix)
-            and system variables (the leading ``$`` is stripped, so
-            ``$DATE_TAG`` appears as ``"DATE_TAG"``). Environment (``&``),
+        variables: Final state of substitution variables, keyed by
+            lower-case name without any sigil. Includes user-defined
+            variables (no prefix) and system variables (the leading ``$`` is
+            stripped, so ``$DATE_TAG`` appears as ``"date_tag"``). Environment (``&``),
             column-data (``@``), script-local (``~``), and script-parameter
             (``#``) variables are excluded.
     """
@@ -351,7 +353,8 @@ def run(
         connection: A pre-existing :class:`~execsql.db.base.Database`
             instance.  ``run()`` will NOT close this connection on exit.
         variables: Substitution variables as ``{"NAME": "value"}``.
-            Keys without a ``$`` prefix get one added automatically.
+            Keys without a ``$`` prefix get one added automatically, so
+            ``{"SCHEMA": "public"}`` is referenced as ``!!$SCHEMA!!``.
         config_file: Optional execsql configuration file to load.
         encoding: Script file encoding (default ``"utf-8"``).
         halt_on_error: If ``True`` (default), stop on the first SQL
@@ -372,7 +375,9 @@ def run(
 
     Returns:
         A :class:`ScriptResult` with execution outcome, timing, errors,
-        and final variable state.
+        and final variable state.  A script that cannot be read, a bad
+        *config_file*, and a *dsn* that cannot be parsed or opened all
+        return ``success=False`` rather than raising.
 
     Raises:
         ValueError: If the argument combination is invalid (e.g. both
@@ -403,14 +408,8 @@ def run(
         else:
             assert sql is not None
             tree = parse_string(sql, source_name="<inline>")
-    except ErrInfo as exc:
-        return ScriptResult(
-            success=False,
-            commands_run=0,
-            elapsed=0.0,
-            errors=[ScriptError(message=exc.errmsg(), source=str(script) if script else "<inline>")],
-            variables={},
-        )
+    except (ErrInfo, OSError) as exc:
+        return _failed(_error_text(exc), str(script) if script else "<inline>")
 
     # ------------------------------------------------------------------
     # Build an isolated RuntimeContext
@@ -424,9 +423,14 @@ def run(
         # Load a real ConfigData with the explicit config file
         from execsql.script.variables import SubVarSet
 
+        if not Path(config_file).is_file():
+            return _failed(f"Config file {str(config_file)!r} does not exist.", "<config>")
         temp_subvars = SubVarSet()
         script_dir = str(Path(script).resolve().parent) if script else os.getcwd()
-        conf = ConfigData(script_dir, temp_subvars, config_file=str(config_file))
+        try:
+            conf = ConfigData(script_dir, temp_subvars, config_file=str(config_file))
+        except Exception as exc:
+            return _failed(_error_text(exc), "<config>")
         # Apply any overrides
         for k, v in conf_overrides.items():
             setattr(conf, k, v)
@@ -496,7 +500,10 @@ def run(
         # including KeyboardInterrupt in a notebook.
         try:
             if dsn is not None:
-                db = _connect_from_dsn(dsn, new_db=new_db)
+                try:
+                    db = _connect_from_dsn(dsn, new_db=new_db)
+                except Exception as exc:
+                    return _failed(_error_text(exc), "<connect>")
             else:
                 db = connection
 
@@ -522,9 +529,9 @@ def run(
 
             try:
                 execute(tree, ctx=ctx)
-            except SystemExit:
+            except SystemExit as exc:
                 # exit_now() calls sys.exit() — catch and convert to error
-                _capture_errors(ctx, errors)
+                _capture_errors(ctx, errors, exc.code)
             except ErrInfo as exc:
                 errors.append(
                     ScriptError(
@@ -537,13 +544,15 @@ def run(
             except Exception as exc:
                 errors.append(ScriptError(message=str(exc), source="<runtime>"))
 
-            # Non-halting errors (halt_on_error=False, METACOMMAND_ERROR_HALT OFF)
-            # are recorded in status.error_history as execution continues; a
-            # halting error never reaches the history, so there is no overlap
-            # with the exception paths above.
+            # Non-halting SQL errors (halt_on_error=False) are recorded in
+            # status.error_history as execution continues; a halting error never
+            # reaches the history, so there is no overlap with the exception
+            # paths above.  They happened first, so they are listed first.
             if ctx.status is not None:
-                for err_source, err_line, err_cmd, err_msg in ctx.status.error_history:
-                    errors.append(ScriptError(message=err_msg, source=err_source, line=err_line, sql=err_cmd))
+                errors[:0] = [
+                    ScriptError(message=err_msg, source=err_source, line=err_line, sql=err_cmd)
+                    for err_source, err_line, err_cmd, err_msg in ctx.status.error_history
+                ]
 
             elapsed = time.perf_counter() - t0
 
@@ -615,24 +624,48 @@ def _start_filewriter(ctx: RuntimeContext, conf: Any) -> None:
     ctx.filewriter.start()
 
 
-def _capture_errors(ctx: RuntimeContext, errors: list[ScriptError]) -> None:
-    """Extract error info from the current context after a SystemExit."""
-    last_error = None
-    error_msg = None
-    if ctx.subvars is not None:
-        subs = dict(ctx.subvars.substitutions)
-        last_error = subs.get("$LAST_ERROR")
-        error_msg = subs.get("$ERROR_MESSAGE")
+def _capture_errors(ctx: RuntimeContext, errors: list[ScriptError], exit_code: Any) -> None:
+    """Record the error that halted the run, after ``exit_now()`` raised ``SystemExit``.
 
-    msg = error_msg or last_error or "Script execution failed"
+    ``exit_now`` leaves the halting :class:`ErrInfo` on the context.  A failed
+    SQL statement's text is in ``$LAST_ERROR``, which the executor sets just
+    before halting; it is reported only when the halt came from SQL, so a
+    metacommand error is never paired with an earlier statement.  A ``HALT``
+    carries no error, only its exit status.
+    """
+    err = ctx.halt_error
+    if err is None:
+        msg = f"Script halted by HALT with exit status {exit_code}."
+    else:
+        msg = err.errmsg()
+    sql = None
+    lc = ctx.last_command
+    if err is not None and lc is not None and lc.command_type == "sql" and ctx.subvars is not None:
+        sql = ctx.subvars.varvalue("$LAST_ERROR") or None
     errors.append(
         ScriptError(
-            message=str(msg),
+            message=msg,
             source=_last_source(ctx),
             line=_last_line(ctx),
-            sql=str(last_error) if last_error else None,
+            sql=sql,
         ),
     )
+
+
+def _failed(message: str, source: str) -> ScriptResult:
+    """A result for a run that failed before any of the script ran."""
+    return ScriptResult(
+        success=False,
+        commands_run=0,
+        elapsed=0.0,
+        errors=[ScriptError(message=message, source=source)],
+        variables={},
+    )
+
+
+def _error_text(exc: BaseException) -> str:
+    """The message of *exc*: the full text for an :class:`ErrInfo`, else ``str()``."""
+    return exc.errmsg() if isinstance(exc, ErrInfo) else str(exc)
 
 
 def _last_source(ctx: RuntimeContext) -> str:
