@@ -143,7 +143,7 @@ def db_Oracle(
     encoding: str | None = None,
     password: str | None = None,
 ) -> OracleDatabase:
-    """Open an Oracle database connection via cx_Oracle (python-oracledb)."""
+    """Open an Oracle database connection via python-oracledb."""
     return OracleDatabase(server_name, database_name, user, pw_needed, port, encoding, password=password)
 
 
