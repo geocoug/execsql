@@ -87,16 +87,18 @@ one run.
 
 ### Metacommand keyword casing { #keyword-casing }
 
-All metacommand keywords are uppercased. Arguments after the keyword are preserved exactly as written.
+All metacommand keywords are uppercased and followed by one space. Arguments after the keyword are preserved exactly as written, including the case of condition functions such as `hasrows(...)`.
 
 ```sql
 -- before
--- !x! if(!!myvar!! = "yes")
--- !x! sub_add mykey myvalue
+-- !x! if(hasrows(staging))
+-- !x! sub mykey myvalue
+-- !x! endif
 
 -- after
--- !x! IF(!!myvar!! = "yes")
--- !x! SUB_ADD mykey myvalue
+-- !x! IF (hasrows(staging))
+    -- !x! SUB mykey myvalue
+-- !x! ENDIF
 ```
 
 ### Metacommand indentation { #indentation }
@@ -106,10 +108,10 @@ Metacommands that open a block (`IF`, `LOOP`, `BEGIN SCRIPT`, `BEGIN BATCH`, `BE
 `ELSE` and `ELSEIF` pivot at the same depth as their `IF`. `ANDIF` and `ORIF` are emitted at one level above the current depth without changing the depth counter.
 
 ```sql
--- !x! IF(!!status!! = "active")
-    -- !x! SUB_ADD result "found"
+-- !x! IF (!!status!! = "active")
+    -- !x! SUB result found
 -- !x! ELSE
-    -- !x! SUB_ADD result "not found"
+    -- !x! SUB result not found
 -- !x! ENDIF
 ```
 
@@ -210,7 +212,7 @@ select id,name,created_at from users where active = true order by name;
 ```sql
 -- !x! SUB schema "public"
 
--- !x! IF(EQUAL(!!schema!!, "public"))
+-- !x! IF (equal(!!schema!!, "public"))
     -- !x! WRITE "Checking public schema..."
     SELECT
         id,

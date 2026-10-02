@@ -22,6 +22,12 @@ Checks performed:
 5. **EXECUTE SCRIPT target resolution** — warns when a target name does
    not correspond to a :class:`ScriptBlock` in the same file (skipped
    when ``IF EXISTS`` is present).
+6. **Unknown metacommands** — reports a metacommand that no entry in the
+   dispatch table ``execsql run`` uses (plus installed plugins) matches,
+   skipping commands that contain a substitution variable.
+7. **Unknown conditions** — parses (never evaluates) every IF, ELSEIF,
+   ANDIF, ORIF, LOOP and EXECUTE SCRIPT ... WHILE/UNTIL condition, and the
+   condition in ASSERT and WAIT_UNTIL, against the conditional-test table.
 
 Every check has a rule code (:data:`RULES`), so a caller can select or
 ignore rules and machine-readable output can name them.
@@ -31,6 +37,8 @@ Public surface:
 - :func:`lint` — entry point; returns a list of :class:`Issue`.
 - :data:`RULES` / :class:`Rule` — the rule registry: code, name, severity.
 - :func:`parse_error` — the :class:`Issue` for a script that fails to parse.
+- :func:`lint_unparsed` — the metacommand and condition checks, line by
+  line, for a script that fails to parse.
 - :func:`resolve_selectors` / :func:`filter_issues` — ``--select`` and
   ``--ignore`` handling.
 - :func:`print_text`, :func:`print_concise`, :func:`print_statistics`,
@@ -45,7 +53,7 @@ import re
 from collections import Counter
 from collections.abc import Iterable
 from pathlib import Path
-from typing import NamedTuple
+from typing import TYPE_CHECKING, NamedTuple
 
 from execsql.exceptions import ErrInfo
 from execsql.script.ast import (
@@ -58,9 +66,14 @@ from execsql.script.ast import (
     Node,
     Script,
     ScriptBlock,
+    SourceSpan,
     SqlBlock,
     SqlStatement,
 )
+
+if TYPE_CHECKING:
+    from execsql.script.engine import MetaCommandList
+    from execsql.script.ast import ConditionModifier
 
 __all__ = [
     "RULES",
@@ -69,6 +82,7 @@ __all__ = [
     "exit_code",
     "filter_issues",
     "lint",
+    "lint_unparsed",
     "parse_error",
     "print_concise",
     "print_statistics",
@@ -114,6 +128,18 @@ RULES: dict[str, Rule] = {
             "split-dollar-quote",
             "error",
             "A dollar-quoted body ($$ ... $$) is split into separate statements at a line ending in ';'.",
+        ),
+        Rule(
+            "P003",
+            "unknown-metacommand",
+            "error",
+            "A metacommand is misspelled or malformed: no form of any metacommand matches it.",
+        ),
+        Rule(
+            "P004",
+            "unknown-condition",
+            "error",
+            "A condition (IF, ELSEIF, ANDIF, ORIF, LOOP, ASSERT, ...) uses an unknown test or cannot be parsed.",
         ),
         Rule("S001", "empty-script", "warning", "The script contains no statements."),
         Rule(
@@ -249,6 +275,39 @@ def _get_builtin_vars() -> frozenset[str]:
     if _BUILTIN_VARS is None:
         _BUILTIN_VARS = _discover_builtin_vars()
     return _BUILTIN_VARS
+
+
+_DISPATCH_TABLE: MetaCommandList | None = None
+
+
+def _dispatch_table() -> MetaCommandList:
+    """Return the metacommand table ``execsql run`` dispatches from, built on first call.
+
+    A private copy, with installed metacommand plugins registered, so that
+    linting never adds entries to the table a run in this process uses.
+    """
+    global _DISPATCH_TABLE
+    if _DISPATCH_TABLE is None:
+        from execsql.metacommands.dispatch import build_dispatch_table
+        from execsql.plugins import discover_metacommand_plugins
+
+        table = build_dispatch_table()
+        discover_metacommand_plugins(table)
+        _DISPATCH_TABLE = table
+    return _DISPATCH_TABLE
+
+
+_CONDITIONAL_TABLE: MetaCommandList | None = None
+
+
+def _conditional_table() -> MetaCommandList:
+    """Return the table of conditional tests ``execsql run`` evaluates with, built on first call."""
+    global _CONDITIONAL_TABLE
+    if _CONDITIONAL_TABLE is None:
+        from execsql.metacommands.conditions import build_conditional_table
+
+        _CONDITIONAL_TABLE = build_conditional_table()
+    return _CONDITIONAL_TABLE
 
 
 # ---------------------------------------------------------------------------
@@ -517,6 +576,80 @@ def _check_split_dollar_quotes(nodes: list[Node], issues: list[_Issue]) -> None:
             )
 
 
+# A command holding a variable (!!v!!, !'!v!'!, !"!v!"! or deferred !{v}!) is
+# only known after substitution at run time.
+_RX_ANY_VAR = re.compile(r"!(['\"]?)![$&@~#+]?\w+!\1!|!\{[$&@~#+]?\w+\}!")
+
+
+# Named groups that capture a condition in a metacommand's pattern: ASSERT,
+# WAIT_UNTIL, and the WHILE / UNTIL of ON ... EXECUTE SCRIPT.
+_CONDITION_GROUPS = ("condtest", "condition", "loopcond")
+
+
+def _check_metacommand(node: MetaCommandStatement, issues: list[_Issue]) -> None:
+    """Report a metacommand that no dispatch-table entry matches, or whose condition does not parse.
+
+    ``execsql run`` halts on such a command with "Unknown metacommand",
+    whether the keyword is misspelled or the arguments don't fit any form.
+    """
+    if _RX_ANY_VAR.search(node.command):
+        return
+    match = _dispatch_table().get_match(node.command)
+    if match is None:
+        issues.append(
+            _issue(
+                "P003",
+                node.span.file,
+                node.span.start_line,
+                f"unknown or malformed metacommand: {node.command.strip()}",
+            ),
+        )
+        return
+    groups = match[1].groupdict()
+    for name in _CONDITION_GROUPS:
+        if groups.get(name):
+            _check_condition(groups[name], node.span.file, node.span.start_line, issues)
+
+
+def _check_condition(condition: str, source: str, line_no: int, issues: list[_Issue]) -> None:
+    """Report a condition that the conditional-expression parser rejects.
+
+    Only parses: no test is evaluated, so nothing touches a database.  A
+    condition holding a variable is skipped, as its text is only known at
+    run time.
+    """
+    from execsql.exceptions import CondParserError
+    from execsql.parser import CondParser
+
+    if _RX_ANY_VAR.search(condition):
+        return
+    try:
+        CondParser(condition, _conditional_table()).parse()
+    except CondParserError:
+        issues.append(
+            _issue("P004", source, line_no, f"unknown or malformed condition: {condition.strip()}"),
+        )
+
+
+def _check_modifiers(modifiers: list[ConditionModifier], issues: list[_Issue]) -> None:
+    for mod in modifiers:
+        _check_condition(mod.condition, mod.span.file, mod.span.start_line, issues)
+
+
+def _check_block_conditions(node: Node, issues: list[_Issue]) -> None:
+    """Check the conditions an IF (with its ANDIF / ORIF / ELSEIF), LOOP or EXECUTE SCRIPT carries."""
+    if isinstance(node, IfBlock):
+        _check_condition(node.condition, node.span.file, node.span.start_line, issues)
+        _check_modifiers(node.condition_modifiers, issues)
+        for clause in node.elseif_clauses:
+            _check_condition(clause.condition, clause.span.file, clause.span.start_line, issues)
+            _check_modifiers(clause.condition_modifiers, issues)
+    elif isinstance(node, LoopBlock):
+        _check_condition(node.condition, node.span.file, node.span.start_line, issues)
+    elif isinstance(node, IncludeDirective) and node.loop_condition:
+        _check_condition(node.loop_condition, node.span.file, node.span.start_line, issues)
+
+
 def _check_unreachable_after_halt(nodes: list[Node], issues: list[_Issue]) -> None:
     """Report statements that follow an unconditional HALT in the same block.
 
@@ -631,6 +764,7 @@ def _lint_nodes(
     for node in nodes:
         src = node.span.file
         lno = node.span.start_line
+        _check_block_conditions(node, issues)
 
         # -- Variable references in SQL --
         if isinstance(node, SqlStatement):
@@ -639,6 +773,7 @@ def _lint_nodes(
 
         # -- Metacommand checks --
         elif isinstance(node, MetaCommandStatement):
+            _check_metacommand(node, issues)
             for m in _RX_VAR_REF.finditer(node.command):
                 _check_var_ref(m.group(1), src, lno, defined_vars, issues)
 
@@ -744,6 +879,28 @@ def lint(
     # Pass 3: whole-script rules, which need every reference collected first
     _check_unused_variables(script, all_defined, issues)
 
+    return issues
+
+
+def lint_unparsed(source: str, label: str) -> list[_Issue]:
+    """Check each metacommand line of a script that does not parse (P003, P004).
+
+    A misspelled ``IF`` or ``ENDIF`` is a common reason a script does not
+    parse, and it is a ``P003`` on its own line, so these checks still run
+    line by line while every other rule waits for a script that parses.
+    """
+    from execsql.script.parser import metacommand_lines
+
+    issues: list[_Issue] = []
+    for mc in metacommand_lines(source):
+        if mc.dispatched:
+            _check_metacommand(MetaCommandStatement(span=SourceSpan(label, mc.line_no), command=mc.command), issues)
+            continue
+        for condition in mc.conditions:
+            _check_condition(condition, label, mc.line_no, issues)
+        if mc.inline_command is not None:
+            inner = MetaCommandStatement(span=SourceSpan(label, mc.line_no), command=mc.inline_command)
+            _check_metacommand(inner, issues)
     return issues
 
 

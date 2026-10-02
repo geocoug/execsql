@@ -69,6 +69,7 @@ def lint_paths(
         exit_code,
         filter_issues,
         lint as _lint_script,
+        lint_unparsed,
         parse_error,
         print_concise,
         render_github,
@@ -99,7 +100,7 @@ def lint_paths(
             try:
                 tree = parse_string(source, label)
             except ErrInfo as exc:
-                found = [parse_error(label, exc)]
+                found = [parse_error(label, exc), *lint_unparsed(source, label)]
             else:
                 found = _lint_script(tree, script_path=None if stdin else label)
         per_file.append((label, sorted(filter_issues(found, select, ignore), key=lambda i: (i.line, i.code))))

@@ -2100,7 +2100,7 @@ The METACOMMAND_ERROR_HALT metacommand does not itself set or reset the internal
 
 ```
 -- !x! metacommand_error_halt off
--- !x! connect to postgresql(server=none, db=imaginary, user=nobody, need_pw=False) as pg
+-- !x! connect to postgresql(server=none, db=imaginary, user=nobody, need_pwd=False) as pg
 -- !x! metacommand_error_halt on
 -- !x! if(metacommand_error())
 ```
