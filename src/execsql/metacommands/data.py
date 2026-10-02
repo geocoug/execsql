@@ -36,6 +36,7 @@ from execsql.parser import NumericParser
 from execsql.script import current_script_line
 from execsql.utils.crypto import Encrypt
 from execsql.utils.errors import exception_desc, exit_now
+from execsql.utils.fileio import register_secret
 from execsql.utils.gui import GUI_SELECTSUB, GuiSpec, enable_gui
 from execsql.utils.strings import get_subvarset, unquoted
 
@@ -126,7 +127,9 @@ def x_sub_encrypt(**kwargs: Any) -> None:
 def x_sub_decrypt(**kwargs: Any) -> None:
     varname = kwargs["match"]
     subvarset, varname = get_subvarset(varname, kwargs["metacommandline"])
-    subvarset.add_substitution(varname, Encrypt().decrypt(kwargs["crypttext"]))
+    plaintext = Encrypt().decrypt(kwargs["crypttext"])
+    register_secret(plaintext)
+    subvarset.add_substitution(varname, plaintext)
     return None
 
 

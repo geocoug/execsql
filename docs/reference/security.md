@@ -105,7 +105,21 @@ This catches mainstream cloud, payment, observability, and VCS conventions: `AWS
 - `DATABASE_URL` and other URL-encoded DSNs (`postgresql://user:pass@host/db`) are NOT filtered. Use `*_DSN` or `*_SECRET` naming when the URL contains credentials.
 - Any custom secret name that doesn't match a listed substring (e.g. `MY_MAGIC_VALUE`) passes through. Rename it or wrap your script in a process that strips it from the environment before invoking execsql.
 
-`-a` (positional `$ARG_n`) assignments are always redacted to `***` in the log — `$ARG_n` is a positional name with no naming convention to denylist, and the value is opaque user input that may contain any high-entropy secret. The value is still passed to the substitution machinery normally; only the log line hides it.
+`-a` (positional `$ARG_n`) assignments are always redacted to `***` in the log — `$ARG_n` is a positional name with no naming convention to denylist, and the value is opaque user input that may contain any high-entropy secret. The value is still passed to the substitution machinery normally; only the log line hides it. The `run` record that opens each run in the log lists only how many `-a` values were given (`sub_vars: 2 value(s)`), never the values.
+
+Beyond `-a`, every secret a run handles is registered with the log as it arrives, and any later log line that contains it — a SQL statement logged with `LOG_SQL ON`, a `SYSTEM_CMD` echo, an error message — shows `***` in its place:
+
+| Secret                                | Registered when                          |
+| ------------------------------------- | ---------------------------------------- |
+| `-a` and `--var` values               | the run starts                           |
+| Database password in a `--dsn` URL    | the run starts                           |
+| `[email]` SMTP password               | the run starts                           |
+| Database password typed at the prompt | it is entered (or read from the keyring) |
+| `PROMPT ENTER_SUB ... PASSWORD`       | the value is entered                     |
+| `PROMPT CREDENTIALS` password         | the value is entered                     |
+| `SUB_DECRYPT` result                  | the value is decrypted                   |
+
+The same replacement applies to the console warning about a possibly un-substituted variable, which echoes the command. Replacement is by value: any text in the log that happens to equal a registered secret is masked too, so a password that is also the user name or database name hides those as well.
 
 ## File System Access { #filesystem }
 

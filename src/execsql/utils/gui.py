@@ -533,6 +533,9 @@ def gui_credentials(
         _state.subvars.add_substitution(username, uname)
     if pwtext:
         _state.subvars.add_substitution(pwtext, passwd)
+        from execsql.utils.fileio import register_secret
+
+        register_secret(passwd)
 
 
 # ---------------------------------------------------------------------------

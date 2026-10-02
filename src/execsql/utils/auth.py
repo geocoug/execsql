@@ -29,6 +29,7 @@ import getpass
 from typing import Any, cast
 
 import execsql.state as _state
+from execsql.utils.fileio import register_secret
 
 __all__ = ["clear_stored_password", "get_password", "is_plaintext_keyring", "password_from_keyring"]
 
@@ -172,6 +173,7 @@ def get_password(
         if stored is not None:
             _last_from_keyring = True
             _state.upass = stored
+            register_secret(stored)
             return stored
 
     script_name = ""
@@ -239,6 +241,7 @@ def get_password(
         passwd = getpass.getpass(str(prompt_text))
 
     _state.upass = passwd
+    register_secret(passwd)
 
     # --- Offer to store in keyring after interactive prompt ---
     if use_keyring and passwd:

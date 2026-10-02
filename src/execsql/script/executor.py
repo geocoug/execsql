@@ -254,8 +254,10 @@ def _exec_sql(
     effective_locals = _stack_localvars(ctx) or localvars
     cmd = substitute_vars(text, effective_locals, ctx=ctx)
     if _VARLIKE.search(cmd):
+        from execsql.utils.fileio import redact
+
         output.write(
-            f"Warning: There is a potential un-substituted variable in the command\n     {cmd}\n",
+            f"Warning: There is a potential un-substituted variable in the command\n     {redact(cmd)}\n",
         )
     e = None
     result = None
@@ -321,8 +323,10 @@ def _exec_metacommand(
     assert subvars is not None
 
     if _VARLIKE.search(cmd):
+        from execsql.utils.fileio import redact
+
         output.write(
-            f"Warning: There is a potential un-substituted variable in the command\n     {cmd}\n",
+            f"Warning: There is a potential un-substituted variable in the command\n     {redact(cmd)}\n",
         )
     e = None
     try:

@@ -56,6 +56,8 @@ __all__ = [
     "filewriter_closeall",
     "filewriter_shutdown",
     "filewriter_end",
+    "redact",
+    "register_secret",
 ]
 
 
@@ -804,7 +806,7 @@ class Logger:
             self.user,
             ", ".join([f"{k}: {cmdline_options[k]}" for k in cmdline_options]),
         )
-        self.writelog(msg)
+        self.writelog(self._redact(msg) or "")
         if server_name:
             msg = f"run_db_server\t{self.run_id}\t{server_name}\t{db_name}\n"
         else:
@@ -965,6 +967,29 @@ class Logger:
             elapsed,
         )
         self.writelog(wmsg)
+
+
+def register_secret(value: str | None) -> None:
+    """Keep *value* out of the active run's log from now on.
+
+    Called wherever a secret enters the run — a password typed at a prompt,
+    one read from a config file, DSN or keyring, a decrypted value — so a
+    later SQL statement, ``SYSTEM_CMD`` or error message that contains it is
+    logged with ``***`` instead.  A no-op when the run has no log.
+    """
+    import execsql.state as _state
+
+    add = getattr(_state.exec_log, "add_redaction_value", None)
+    if add is not None:
+        add(value)
+
+
+def redact(text: str) -> str:
+    """*text* with the active run's registered secrets and common secret shapes replaced by ``***``."""
+    import execsql.state as _state
+
+    redactor = getattr(_state.exec_log, "_redact", None)
+    return redactor(text) if redactor is not None else text
 
 
 class TempFileMgr:

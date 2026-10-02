@@ -67,6 +67,7 @@ from execsql.utils.gui import (
     pause,
     pause_win,
 )
+from execsql.utils.fileio import register_secret
 from execsql.utils.strings import unquoted
 
 
@@ -144,6 +145,7 @@ def x_prompt_enter(**kwargs: Any) -> None:
         subvarset.add_substitution(sub_var, txtval)
         script_name, lno = current_script_line()
         if as_pw:
+            register_secret(txtval)
             _state.exec_log.log_status_info(f"Password assigned to variable {{{sub_var}}} on line {lno}.")
         else:
             _state.exec_log.log_status_info(f"Variable {{{sub_var}}} set to {{{txtval}}} on line {lno}.")
