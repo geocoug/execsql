@@ -261,6 +261,15 @@
 # Values: Yes or No.  Default: No.
 #use_tls=No
 
+# Whether to verify the SMTP server's certificate when use_ssl or use_tls is on.
+# Turn off only for a test relay; prefer ca_file for an internal certificate.
+# Values: Yes or No.  Default: Yes.
+#verify_certificate=Yes
+
+# CA certificate file (PEM) to trust, for a server with an internal or
+# self-signed certificate.  Default: the system's trusted CAs.
+#ca_file=
+
 # Email body format.
 # Values: plain or html.  Default: plain.
 #email_format=plain

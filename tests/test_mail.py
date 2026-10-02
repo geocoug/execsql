@@ -103,7 +103,8 @@ class TestMailerConfigValidation:
         _state.conf.smtp_username = None
         _state.conf.smtp_password = None
         m = Mailer()
-        mock_smtp_cls.assert_called_once_with("mail.example.com", timeout=30)
+        # Port 0 is smtplib's "use the default port".
+        mock_smtp_cls.assert_called_once_with("mail.example.com", 0, timeout=30)
         mock_conn.ehlo_or_helo_if_needed.assert_called_once()
         # Clean up to avoid __del__ issues
         del m.smtpconn
@@ -133,7 +134,12 @@ class TestMailerConfigValidation:
         _state.conf.smtp_username = None
         _state.conf.smtp_password = None
         m = Mailer()
-        mock_smtp_ssl_cls.assert_called_once_with("mail.example.com", timeout=30)
+        import ssl
+        from unittest.mock import ANY
+
+        mock_smtp_ssl_cls.assert_called_once_with("mail.example.com", 0, timeout=30, context=ANY)
+        ctx = mock_smtp_ssl_cls.call_args.kwargs["context"]
+        assert ctx.verify_mode == ssl.CERT_REQUIRED and ctx.check_hostname
         del m.smtpconn
 
     @patch("smtplib.SMTP")
