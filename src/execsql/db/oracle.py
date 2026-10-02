@@ -21,8 +21,29 @@ import execsql.state as _state
 __all__ = ["OracleDatabase"]
 
 
+def _oracle_driver() -> Any:
+    """The Oracle driver module: python-oracledb, or else the legacy cx_Oracle.
+
+    ``execsql2[oracle]`` installs oracledb.  cx_Oracle, the driver it replaced
+    (same ``makedsn`` / ``connect`` calls), is used only when it is the one
+    installed.  ``None`` if neither is.
+    """
+    try:
+        import oracledb
+
+        return oracledb
+    except ImportError:
+        pass
+    try:
+        import cx_Oracle
+
+        return cx_Oracle
+    except ImportError:
+        return None
+
+
 class OracleDatabase(Database):
-    """Oracle adapter using the cx_Oracle (python-oracledb) driver."""
+    """Oracle adapter using the python-oracledb driver."""
 
     #: Oracle commits every DDL statement at once, together with everything
     #: before it, including CREATE GLOBAL TEMPORARY TABLE.
@@ -46,11 +67,9 @@ class OracleDatabase(Database):
         encoding: str | None = "UTF8",
         password: str | None = None,
     ) -> None:
-        try:
-            import cx_Oracle  # noqa: F401
-        except Exception:
+        if _oracle_driver() is None:
             fatal_error(
-                "The cx-Oracle module is required to connect to Oracle.   See https://pypi.org/project/cx-Oracle/",
+                'The oracledb module is required to connect to Oracle. Install it with: pip install "execsql2[oracle]"',
             )
         from execsql.types import dbt_oracle
 
@@ -77,14 +96,14 @@ class OracleDatabase(Database):
 
     def open_db(self) -> None:
         """Open a connection to the Oracle database."""
-        import cx_Oracle
+        driver = _oracle_driver()
 
         def db_conn(db: OracleDatabase, db_name: str):
-            dsn = cx_Oracle.makedsn(db.server_name, db.port, service_name=db_name)
+            dsn = driver.makedsn(db.server_name, db.port, service_name=db_name)
             if db.user and db.password:
-                return cx_Oracle.connect(user=db.user, password=db.password, dsn=dsn)
+                return driver.connect(user=db.user, password=db.password, dsn=dsn)
             else:
-                return cx_Oracle.connect(dsn=dsn)
+                return driver.connect(dsn=dsn)
 
         if self.conn is None:
             try:

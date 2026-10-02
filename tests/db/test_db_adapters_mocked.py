@@ -3,7 +3,7 @@ from __future__ import annotations
 """
 Mocked unit tests for Oracle, SQL Server, Firebird, and MS Access adapters.
 
-None of these adapters' driver libraries (cx_Oracle, pyodbc, firebird-driver,
+None of these adapters' driver libraries (oracledb, pyodbc, firebird-driver,
 win32com) are installed in the test environment.  Each class section injects
 a ``MagicMock`` module into ``sys.modules`` before importing the adapter, so
 the import guard inside each ``__init__`` succeeds without a real driver.
@@ -50,17 +50,18 @@ def _mock_conn(rowcount: int = 0) -> MagicMock:
 # ===========================================================================
 
 
-def _ensure_cx_oracle_mock() -> MagicMock:
-    """Inject a MagicMock for cx_Oracle into sys.modules if not already present."""
-    if "cx_Oracle" not in sys.modules:
-        mock = types.ModuleType("cx_Oracle")
+def _ensure_oracledb_mock() -> None:
+    """Inject a stand-in for oracledb into sys.modules if the driver is not installed."""
+    try:
+        import oracledb  # noqa: F401
+    except ImportError:
+        mock = types.ModuleType("oracledb")
         mock.connect = MagicMock()
         mock.makedsn = MagicMock(return_value="fake_dsn")
-        sys.modules["cx_Oracle"] = mock
-    return sys.modules["cx_Oracle"]
+        sys.modules["oracledb"] = mock
 
 
-_ensure_cx_oracle_mock()
+_ensure_oracledb_mock()
 
 from execsql.db.oracle import OracleDatabase  # noqa: E402
 
