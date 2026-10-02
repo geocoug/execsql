@@ -28,7 +28,14 @@ from execsql.utils.errors import exception_desc
 from execsql.utils.fileio import filewriter_close
 from execsql.utils.strings import clean_words, dedup_words, fold_words
 
-__all__ = ["LineDelimiter", "CsvFile", "CsvWriter", "DelimitedWriter", "write_delimited_file"]
+__all__ = [
+    "LineDelimiter",
+    "CsvFile",
+    "CsvWriter",
+    "DelimitedWriter",
+    "blank_lines_as_empty_rows",
+    "write_delimited_file",
+]
 
 _SPACE_DELIM_RX = re.compile(r" +")
 
@@ -618,6 +625,9 @@ class CsvFile(EncodedFile):
                 prev_state = state
                 state = exec_vector[state]()
         end()
+        # An empty result is either a blank line or the end of the file; the
+        # reader needs to know which.
+        self._at_eof = c == ""
         if len(self.parse_errors) > 0:
             raise ErrInfo("error", other_msg=", ".join(self.parse_errors))
         return elements
@@ -653,44 +663,63 @@ class CsvFile(EncodedFile):
                 doublequote=True,
                 strict=False,
             )
-            for elements in csv_reader:
-                if len(elements) == 0:
-                    break
-                # Normalize empty strings to None for parity with the slow reader.
-                normalized_elements = [e if e != "" else None for e in elements]
-                if conf.del_empty_cols and len(self.blank_cols) > 0:
-                    blanks = copy.copy(self.blank_cols)
-                    while len(blanks) > 0:
-                        b = blanks.pop()
-                        del normalized_elements[b]
-                yield normalized_elements
+            # Normalize empty strings to None for parity with the slow reader.
+            raw = ([e if e != "" else None for e in elements] for elements in csv_reader)
+            yield from self._rows(raw, conf)
         finally:
             f.close()
 
     def _slow_reader(self, conf: Any) -> Any:
         """Read using the character-at-a-time state machine (fallback for non-standard formats)."""
         f = self.openclean("rt")
-        line_no = 0
-        try:
+
+        def raw() -> Any:
+            line_no = 0
             while True:
                 line_no += 1
                 try:
                     elements = self.read_and_parse_line(f)
                 except ErrInfo as e:
                     raise ErrInfo("error", other_msg=f"{e.other} on line {line_no}.") from e
-                except:
-                    raise
-                if len(elements) > 0:
-                    if conf.del_empty_cols and len(self.blank_cols) > 0:
-                        blanks = copy.copy(self.blank_cols)
-                        while len(blanks) > 0:
-                            b = blanks.pop()
-                            del elements[b]
-                    yield elements
-                else:
-                    break
+                if not elements and self._at_eof:
+                    return
+                yield elements
+
+        try:
+            yield from self._rows(raw(), conf)
         finally:
             f.close()
+
+    def _rows(self, raw: Any, conf: Any) -> Any:
+        """Yield parsed rows, turning a blank line inside the data into an empty row.
+
+        A blank line (no fields at all) is an all-``None`` row as wide as the
+        header, so ``CONFIG EMPTY_ROWS`` decides whether it is loaded, as it
+        does for a row of empty fields.  Blank lines with no data after them
+        end the file, as they always have, so a trailing newline does not add
+        an empty row.
+        """
+        width = None
+        pending_blank = 0
+        for elements in raw:
+            if not elements:
+                if width is not None:
+                    pending_blank += 1
+                continue
+            if width is None:
+                width = len(elements)
+            for _ in range(pending_blank):
+                yield self._without_blank_cols([None] * width, conf)
+            pending_blank = 0
+            yield self._without_blank_cols(elements, conf)
+
+    def _without_blank_cols(self, elements: list, conf: Any) -> list:
+        if conf.del_empty_cols and len(self.blank_cols) > 0:
+            blanks = copy.copy(self.blank_cols)
+            while len(blanks) > 0:
+                b = blanks.pop()
+                del elements[b]
+        return elements
 
     def writer(self, append: bool = False) -> CsvWriter:
         """Return a :class:`CsvWriter` configured with this file's format settings."""
@@ -762,6 +791,40 @@ class CsvFile(EncodedFile):
         """Generate a CREATE TABLE SQL statement for this file's inferred schema."""
         assert self.table_data is not None
         return self.table_data.create_table(database_type, schemaname, tablename, pretty)
+
+
+def blank_lines_as_empty_rows(f: Any, delimiter: str, quotechar: str | None, columns: int, chunk_size: int) -> Any:
+    """Yield the text of *f* in chunks of about *chunk_size*, with each blank line inside the data made an empty row.
+
+    For a reader of the raw file, such as PostgreSQL's COPY, which rejects a
+    blank line.  The line becomes *columns* empty fields (``,,`` for three),
+    matching what the row-by-row reader loads; blank lines at the end of the
+    file are dropped, as there.  A blank line inside a quoted value is part
+    of that value and is kept: quote characters are counted, and a doubled
+    quote (the only escape a raw CSV reader is given) counts twice.
+    """
+    empty_row = delimiter * (columns - 1) + "\n"
+    in_quotes = False
+    pending_blank = 0
+    buf: list[str] = []
+    size = 0
+    for line in f:
+        if not in_quotes and line in ("\n", "\r\n"):
+            pending_blank += 1
+            continue
+        if pending_blank:
+            buf.append(empty_row * pending_blank)
+            size += len(empty_row) * pending_blank
+            pending_blank = 0
+        if quotechar and line.count(quotechar) % 2:
+            in_quotes = not in_quotes
+        buf.append(line)
+        size += len(line)
+        if size >= chunk_size:
+            yield "".join(buf)
+            buf, size = [], 0
+    if buf:
+        yield "".join(buf)
 
 
 def write_delimited_file(

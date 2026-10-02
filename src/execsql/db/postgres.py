@@ -336,6 +336,8 @@ class PostgresDatabase(Database):
             and not _state.conf.trim_strings
             and not _state.conf.replace_newlines
         ):
+            from execsql.exporters.delimited import blank_lines_as_empty_rows
+
             # Use Postgres' COPY FROM method via psycopg3's cursor.copy() context manager.
             rf = csv_file_obj.open("rt")
             if skipheader:
@@ -364,7 +366,14 @@ class PostgresDatabase(Database):
             with self._cursor() as curs:
                 try:
                     with curs.copy(copy_cmd) as copy:
-                        while chunk := rf.read(_state.conf.import_buffer):
+                        # COPY rejects a blank line; the row path reads it as an empty row.
+                        for chunk in blank_lines_as_empty_rows(
+                            rf,
+                            delim,
+                            csv_file_obj.quotechar,
+                            len(csv_file_cols),
+                            _state.conf.import_buffer,
+                        ):
                             copy.write(chunk)
                 except ErrInfo:
                     raise
