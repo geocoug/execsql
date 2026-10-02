@@ -30,6 +30,7 @@ ______________________________________________________________________
 
 ### Fixed
 
+- **`IMPORT ... TO NEW` / `REPLACEMENT` of a timestamp column mixing values with and without a UTC offset:** the column is created as text and keeps every value as written. It was created as a plain timestamp and the offset values were converted with the importing machine's time zone, so `2024-01-01 10:00+05:00` could be stored as `2023-12-31 23:00:00`. A column where every value has an offset is still `timestamptz`.
 - **`execsql lint` `V001` (`undefined-variable`):** variables set by `PROMPT ENTER_SUB`, `ASK ... SUB`, `PROMPT ASK ... SUB`, `PROMPT OPENFILE` / `SAVEFILE` / `DIRECTORY SUB`, `PROMPT CREDENTIALS`, `SUB_TEMPFILE` and the keys of `SUB_QUERYSTRING` are no longer reported as undefined. A user variable named like a system variable without its `$` (`!!date_tag!!`), or a `SUB` variable written with a `$` (`!!$region!!`), is now reported.
 - **`execsql lint` `V002` (`unused-variable`):** a variable read only by `sub_defined(...)` or `sub_empty(...)` is no longer reported as unused.
 - **`WRITE` / `EXPORT` to a locked file:** when the file stays locked past `outfile_open_timeout`, the run now fails with an error naming the file and how many lines were lost, instead of hanging at `SYSTEM_CMD` or the end of the script, or exiting 0 with the output gone. The CLI waits up to `outfile_open_timeout` at the end of a script for a locked file to free up.
