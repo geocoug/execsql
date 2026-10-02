@@ -17,7 +17,7 @@ import re
 from collections.abc import Iterator
 from pathlib import Path
 
-__all__ = ["collect_paths", "format_file", "parse_keyword", "run_formatter"]
+__all__ = ["collect_paths", "format_file", "open_dollar_quote", "parse_keyword", "run_formatter"]
 
 
 _SQLGLOT_MISSING_MSG = (
@@ -284,6 +284,33 @@ def _iter_sql_spans(sql: str) -> Iterator[tuple[int, int, str]]:
             continue
 
         i += 1
+
+
+def open_dollar_quote(sql: str, open_tag: str | None = None) -> str | None:
+    """The dollar-quote tag (``$$`` or ``$tag$``) still open at the end of *sql*, or ``None``.
+
+    *open_tag* is a tag already open where *sql* starts, as when a script is
+    split at a ``;`` inside a dollar-quoted body and *sql* is a later piece.
+    Comments, quoted identifiers and ``'...'`` literals are skipped, so a
+    ``$$`` inside them is not taken for a marker.
+    """
+    start = 0
+    if open_tag is not None:
+        close = sql.find(open_tag)
+        if close < 0:
+            return open_tag
+        start = close + len(open_tag)
+    rest = sql[start:]
+    for span_start, span_stop, kind in _iter_sql_spans(rest):
+        if kind != "dollar":
+            continue
+        m = _DOLLAR_QUOTE_RE.match(rest, span_start)
+        assert m is not None
+        tag = m.group(0)
+        body = rest[span_start:span_stop]
+        if len(body) < 2 * len(tag) or not body.endswith(tag):
+            return tag
+    return None
 
 
 def _iter_sql_literals(sql: str) -> Iterator[tuple[int, int, str]]:

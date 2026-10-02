@@ -341,7 +341,7 @@ However, the BEGIN SCRIPT and END SCRIPT metacommands can be used in a separate 
 "CREATE SCRIPT" can be used as an alias for "BEGIN SCRIPT".
 
 
-## BEGIN SQL and END SQL
+## BEGIN SQL and END SQL { #beginsql }
 
 ```
 BEGIN SQL
@@ -354,6 +354,20 @@ END SQL
 The BEGIN SQL and END SQL metacommands define a block of lines in the script file that will be treated as a single SQL statement. Within the block of lines defined by these metacommands, a semicolon at the end of the line will *not* be treated as the end of a SQL statement.
 
 The primary intended use case for these metacommands is to bracket procedure and function definitions. A function definition may contain multiple SQL statements, each of which is ended by a semicolon, but which should all be sent to the DBMS as a single statement, not as a series of individual SQL statements.
+
+!!! warning "Dollar-quoted bodies need BEGIN SQL"
+
+    *execsql* does not look inside `$$ ... $$` or `$tag$ ... $tag$` when it splits a script into statements: a line ending in `;` inside the body ends the statement there. A PostgreSQL function or `DO` block whose body has such a line must be between BEGIN SQL and END SQL. Without them, the first piece fails with `unterminated dollar-quoted string`, and with [ERROR_HALT](#error_halt) OFF the statements inside the body run on their own. [`execsql lint`](lint.md#p002) reports these as `P002`.
+
+    ```sql
+    -- !x! BEGIN SQL
+    create or replace function purge_staging() returns void as $body$
+    begin
+        delete from staging.orders;
+    end;
+    $body$ language plpgsql;
+    -- !x! END SQL
+    ```
 
 The BEGIN SQL and END SQL metacommands are an alternative to the use of [line continuation characters](../guides/usage.md#continuationchars).
 

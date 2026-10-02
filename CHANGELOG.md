@@ -13,6 +13,7 @@ ______________________________________________________________________
 
 ### Added
 
+- **`execsql lint` rule `P002` (`split-dollar-quote`):** reports a `$$ ... $$` function or `DO` body that is not between `BEGIN SQL` and `END SQL`, which execsql would send in pieces at the first line ending in `;`.
 - **`[email] ca_file` and `verify_certificate` settings** for the SMTP server's TLS certificate: trust an internal CA, or turn verification off for a test relay.
 
 ### Removed
