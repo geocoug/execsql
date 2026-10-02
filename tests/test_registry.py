@@ -86,6 +86,22 @@ def test_dispatch_table_keywords_by_category():
         )
 
 
+def test_lint_judges_metacommands_by_the_dispatch_table():
+    """``execsql lint`` (rule P003) accepts exactly the metacommands that ``execsql run`` dispatches."""
+    from execsql.cli.lint import _dispatch_table
+    from execsql.metacommands.dispatch import build_dispatch_table
+
+    assert [mc.pattern for mc in build_dispatch_table()] == [mc.pattern for mc in _dispatch_table()]
+
+
+def test_lint_judges_conditions_by_the_conditional_table():
+    """``execsql lint`` (rule P004) parses conditions against the table ``execsql run`` evaluates with."""
+    from execsql.cli.lint import _conditional_table
+    from execsql.metacommands.conditions import build_conditional_table
+
+    assert [mc.pattern for mc in build_conditional_table()] == [mc.pattern for mc in _conditional_table()]
+
+
 def test_conditional_table_keywords():
     """All conditional functions have a keyword name and category."""
     from execsql.metacommands.conditions import CONDITIONAL_TABLE

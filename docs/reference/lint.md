@@ -60,7 +60,7 @@ reports it with its line.
 | 1      | At least one reported issue is an error — or, with `--strict`, any issue at all — or no `.sql` file was found in the given paths. |
 | 2      | Usage error, such as an unknown rule code in `--select` or `--ignore`.                                                            |
 
-`P001` and `P002` are errors; every other rule is a warning. To fail a CI step on warnings as well, add `--strict` (or `strict = yes` in the [`[lint]` section](#config) of a config file); `--no-strict` turns it off for one run.
+`P001` to `P004` are errors; every other rule is a warning. To fail a CI step on warnings as well, add `--strict` (or `strict = yes` in the [`[lint]` section](#config) of a config file); `--no-strict` turns it off for one run.
 
 ## Choosing rules { #select }
 
@@ -168,17 +168,19 @@ repos:
 
 Codes are grouped by subject: `P` parsing, `S` the script as a whole, `V` variables, `I` `INCLUDE` and `EXECUTE SCRIPT` targets, `F` control flow. A code is never renumbered or reused, so `--ignore` lists keep working across upgrades.
 
-| Code          | Name                 | Severity |
-| ------------- | -------------------- | -------- |
-| [P001](#p001) | `parse-error`        | error    |
-| [P002](#p002) | `split-dollar-quote` | error    |
-| [S001](#s001) | `empty-script`       | warning  |
-| [V001](#v001) | `undefined-variable` | warning  |
-| [V002](#v002) | `unused-variable`    | warning  |
-| [I001](#i001) | `missing-include`    | warning  |
-| [I002](#i002) | `missing-script`     | warning  |
-| [F001](#f001) | `constant-condition` | warning  |
-| [F002](#f002) | `unreachable-code`   | warning  |
+| Code          | Name                  | Severity |
+| ------------- | --------------------- | -------- |
+| [P001](#p001) | `parse-error`         | error    |
+| [P002](#p002) | `split-dollar-quote`  | error    |
+| [P003](#p003) | `unknown-metacommand` | error    |
+| [P004](#p004) | `unknown-condition`   | error    |
+| [S001](#s001) | `empty-script`        | warning  |
+| [V001](#v001) | `undefined-variable`  | warning  |
+| [V002](#v002) | `unused-variable`     | warning  |
+| [I001](#i001) | `missing-include`     | warning  |
+| [I002](#i002) | `missing-script`      | warning  |
+| [F001](#f001) | `constant-condition`  | warning  |
+| [F002](#f002) | `unreachable-code`    | warning  |
 
 ### P001 `parse-error` { #p001 }
 
@@ -197,7 +199,23 @@ load.sql
 
 A script that cannot be decoded with the chosen encoding is also reported as `P001`, with the message `cannot decode as utf-8 (...); set -f/--script-encoding`.
 
-No other rule runs on a script that does not parse. Fix this one first.
+On a script that does not parse, only [`P003`](#p003) and [`P004`](#p004) also run, checking each metacommand line on its own. A misspelled block keyword is a common cause of the parse error, and it shows up as a `P003` on its own line:
+
+```sql
+-- !x! IF(HASROWS(staging.orders))
+-- !x! iff(HASROWS(staging.returns))
+insert into returns select * from staging.returns;
+-- !x! ENDIF
+-- !x! ENDIF
+```
+
+```text
+load.sql
+  2  error    P003  unknown or malformed metacommand: iff(HASROWS(staging.returns))
+  5  error    P001  ENDIF on line 5 of load.sql has no matching IF
+```
+
+Every other rule waits until the script parses, so fix these first.
 
 ### P002 `split-dollar-quote` { #p002 }
 
@@ -229,6 +247,50 @@ $body$ language plpgsql;
 ```
 
 A body that opens and closes on one line, and `$$` inside a comment, a `'...'` literal or a quoted identifier, are not reported. One issue is reported per body, on the line where it opens.
+
+### P003 `unknown-metacommand` { #p003 }
+
+A metacommand that *execsql* does not recognize: the keyword is misspelled, or the keyword is right but the rest of the line fits none of its forms. `execsql run` stops at such a line with `Unknown metacommand`, even with `METACOMMAND_ERROR_HALT OFF`, so a typo in a branch that rarely runs stays hidden until that branch does.
+
+```sql
+-- !x! SUBSTITUTE region north
+-- !x! EXPORT staging.orders TOO orders.csv AS CSV
+-- !x! WRITE "Configuration file not found" halt
+```
+
+```text
+load.sql
+  1  error    P003  unknown or malformed metacommand: SUBSTITUTE region north
+  2  error    P003  unknown or malformed metacommand: EXPORT staging.orders TOO orders.csv AS CSV
+  3  error    P003  unknown or malformed metacommand: WRITE "Configuration file not found" halt
+```
+
+Each metacommand is checked against the same list `execsql run` uses, including metacommands added by installed plugins (`execsql list plugins`; see [Adding metacommands](../dev/adding_metacommands.md)). The [metacommand reference](metacommands.md) gives the forms each one accepts.
+
+A metacommand that contains a substitution variable (`!!var!!`, `!'!var!'!`, `!"!var!"!` or a deferred `!{var}!`) is not checked, because its text is not known until the variable is replaced at run time.
+
+### P004 `unknown-condition` { #p004 }
+
+A condition uses a test *execsql* does not have, such as `hasrowz(...)` for `hasrows(...)`, or cannot be parsed, such as an unbalanced parenthesis or a dangling `and`. Every condition is checked: `IF`, `ELSEIF`, `ANDIF`, `ORIF`, `LOOP WHILE` / `UNTIL`, `EXECUTE SCRIPT ... WHILE` / `UNTIL`, and the conditions in `ASSERT` and `WAIT_UNTIL`.
+
+```sql
+-- !x! IF(hasrowz(staging.orders))
+-- !x! ANDIF(table_exists(staging.orders) and)
+insert into orders select * from staging.orders;
+-- !x! ENDIF
+-- !x! ASSERT hasrowz(orders) "orders is empty"
+```
+
+```text
+load.sql
+  1  error    P004  unknown or malformed condition: hasrowz(staging.orders)
+  2  error    P004  unknown or malformed condition: table_exists(staging.orders) and
+  5  error    P004  unknown or malformed condition: hasrowz(orders)
+```
+
+`execsql run` stops at an `IF`, `ELSEIF`, `ANDIF`, `ORIF` or `LOOP` whose condition does not parse, even with `METACOMMAND_ERROR_HALT OFF`. In `ASSERT` and `WAIT_UNTIL` it is a metacommand error, so with `METACOMMAND_ERROR_HALT OFF` the run carries on and the `ASSERT` never checks anything. The [`IF` metacommand](metacommands.md#if_cmd) lists every conditional test and its arguments.
+
+Conditions are parsed, never evaluated: lint does not connect to a database, so it cannot tell whether `hasrows(staging.orders)` would be true, only that it is a valid test. A condition that contains a substitution variable is not checked, for the same reason as in [`P003`](#p003).
 
 ### S001 `empty-script` { #s001 }
 

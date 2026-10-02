@@ -215,10 +215,17 @@ class CondParser(CondTokens):
     """Recursive-descent parser for boolean conditional expressions."""
 
     # Takes a conditional expression string.
-    def __init__(self, condexpr: str) -> None:
-        """Initialise the parser with the conditional expression string."""
+    def __init__(self, condexpr: str, conditionallist: Any = None) -> None:
+        """Initialise the parser with the conditional expression string.
+
+        *conditionallist* is the table of conditional tests to match against;
+        ``None`` means the current run's ``conditionallist``.  Passing one lets
+        a caller with no run in progress, such as ``execsql lint``, parse
+        (without evaluating) a condition.
+        """
         self.condexpr = condexpr
         self.cond_expr = SourceString(condexpr)
+        self.conditionallist = conditionallist
 
     def match_not(self) -> int | None:
         """Match a NOT operator and return its token type, or None."""
@@ -251,10 +258,12 @@ class CondParser(CondTokens):
             m1 = self.factor()
             return CondAstNode(self.NOT, m1, None)
         # Find the matching metacommand -- get a tuple consisting of (metacommand, groupdict)
-        # conditionallist is a module-level global in the main execsql module
-        import execsql.state as _state
+        conditionallist = self.conditionallist
+        if conditionallist is None:
+            import execsql.state as _state
 
-        matched_metacommand = self.cond_expr.match_metacommand(_state.conditionallist)
+            conditionallist = _state.conditionallist
+        matched_metacommand = self.cond_expr.match_metacommand(conditionallist)
         if matched_metacommand is not None:
             matched_metacommand[1]["metacommandline"] = self.condexpr
             return CondAstNode(self.CONDITIONAL, matched_metacommand, None)

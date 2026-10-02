@@ -320,6 +320,18 @@ class TestLintInput:
         issues = json.loads(result.output)
         assert [(i["file"], i["code"]) for i in issues] == [("<stdin>", "V001")]
 
+    def test_unknown_metacommands_fail_the_lint(self):
+        script = "-- !x! FROBNICATE now\n-- !x! EXPORT nosuch TOO x.csv AS CSV\n"
+        result = runner.invoke(app, ["lint", "-", "--output-format", "json"], input=script)
+        assert result.exit_code == 1
+        assert [(i["line"], i["code"]) for i in json.loads(result.output)] == [(1, "P003"), (2, "P003")]
+
+    def test_a_script_that_does_not_parse_still_gets_metacommand_checks(self):
+        script = "-- !x! IF(True)\n-- !x! iff(True)\n-- !x! ENDIF\n-- !x! ENDIF\n"
+        result = runner.invoke(app, ["lint", "-", "--output-format", "json"], input=script)
+        assert result.exit_code == 1
+        assert [(i["line"], i["code"]) for i in json.loads(result.output)] == [(2, "P003"), (4, "P001")]
+
     def test_empty_stdin_is_labelled_stdin(self):
         issues = json.loads(runner.invoke(app, ["lint", "-", "--output-format", "json"], input="").output)
         assert [(i["file"], i["code"]) for i in issues] == [("<stdin>", "S001")]

@@ -25,9 +25,9 @@ Usage::
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
 from pathlib import Path
-from typing import cast
+from typing import NamedTuple, cast
 
 from execsql.exceptions import ErrInfo
 from execsql.utils.errors import write_warning
@@ -50,6 +50,8 @@ from execsql.script.ast import (
 )
 
 __all__ = [
+    "MetaCommandLine",
+    "metacommand_lines",
     "parse_script",
     "parse_string",
 ]
@@ -900,3 +902,92 @@ def parse_string(content: str, source_name: str = "<inline>") -> Script:
         A :class:`Script` tree representing the parsed content.
     """
     return _parse_lines(content.splitlines(), source_name)
+
+
+class MetaCommandLine(NamedTuple):
+    """One ``-- !x!`` line, as :func:`metacommand_lines` reads it.
+
+    Attributes:
+        line_no: 1-based line number.
+        command: The text after ``-- !x!``, stripped.
+        dispatched: ``True`` for a metacommand looked up in the dispatch
+            table at run time; ``False`` for a line the parser handles
+            itself (block structure, ``INCLUDE``, ``EXECUTE SCRIPT``).
+        conditions: The conditions a parser-handled line carries: an IF,
+            ELSEIF, ANDIF, ORIF or LOOP condition, or the WHILE / UNTIL
+            condition of ``EXECUTE SCRIPT``.
+        inline_command: The ``{ ... }`` metacommand of a one-line IF.
+    """
+
+    line_no: int
+    command: str
+    dispatched: bool
+    conditions: tuple[str, ...] = ()
+    inline_command: str | None = None
+
+
+# Lines the parser handles itself, in the order it tries them, with the
+# groups that hold a condition.
+_PARSER_HANDLED: tuple[tuple[re.Pattern[str], tuple[str, ...]], ...] = (
+    (_BEGIN_SCRIPT_RX, ()),
+    (_END_SCRIPT_RX, ()),
+    (_IF_BLOCK_RX, ("cond",)),
+    (_IF_INLINE_RX, ("cond",)),
+    (_ELSEIF_RX, ("cond",)),
+    (_ANDIF_RX, ("cond",)),
+    (_ORIF_RX, ("cond",)),
+    (_ELSE_RX, ()),
+    (_ENDIF_RX, ()),
+    (_LOOP_RX, ("loopcond",)),
+    (_ENDLOOP_RX, ()),
+    (_BEGIN_BATCH_RX, ()),
+    (_END_BATCH_RX, ()),
+    (_INCLUDE_RX, ()),
+    (_EXEC_SCRIPT_RX, ("loopcond",)),
+)
+
+
+def metacommand_lines(content: str) -> Iterator[MetaCommandLine]:
+    """Yield each metacommand line of *content* the way the parser reads it, without building blocks.
+
+    Skips what the parser skips: lines inside a ``/* ... */`` block comment
+    and metacommands between ``BEGIN SQL`` and ``END SQL``.  Unlike
+    :func:`parse_string` it never fails on block structure, so a tool can
+    still look at every metacommand in a script that does not parse.
+    """
+    in_block_comment = False
+    in_sql_block = False
+    for line_no, raw_line in enumerate(content.splitlines(), 1):
+        line = raw_line.rstrip()
+        if not line:
+            continue
+        if in_block_comment:
+            if len(line) > 1 and line.endswith("*/"):
+                in_block_comment = False
+            continue
+        metacommand = _EXEC_LINE_RX.match(line)
+        if not metacommand:
+            stripped = line.strip()
+            if len(stripped) > 1 and stripped.startswith("/*") and not _COMMENT_LINE_RX.match(line):
+                in_block_comment = not stripped.endswith("*/")
+            continue
+        cmd_text = metacommand.group("cmd").strip()
+        if _BEGIN_SQL_RX.match(cmd_text):
+            in_sql_block = True
+            yield MetaCommandLine(line_no, cmd_text, dispatched=False)
+            continue
+        if _END_SQL_RX.match(cmd_text):
+            in_sql_block = False
+            yield MetaCommandLine(line_no, cmd_text, dispatched=False)
+            continue
+        if in_sql_block:
+            continue
+        for rx, condition_groups in _PARSER_HANDLED:
+            m = rx.match(cmd_text)
+            if m:
+                conditions = tuple(m.group(g).strip() for g in condition_groups if m.group(g))
+                inline = m.group("cmd").strip() if rx is _IF_INLINE_RX else None
+                yield MetaCommandLine(line_no, cmd_text, False, conditions, inline)
+                break
+        else:
+            yield MetaCommandLine(line_no, cmd_text, dispatched=True)

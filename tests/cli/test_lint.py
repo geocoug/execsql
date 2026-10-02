@@ -158,6 +158,12 @@ class TestPrintLintResultsFormatting:
 # ---------------------------------------------------------------------------
 
 
+def parse_script_text(body: str):
+    from execsql.script.parser import parse_string
+
+    return parse_string(body, "s.sql")
+
+
 def _lint(tmp_path: Path, body: str) -> list[tuple[str, str, int, str]]:
     """Helper: write *body* to a temp .sql, parse, lint, return issues."""
     src = tmp_path / "script.sql"
@@ -479,6 +485,198 @@ class TestSplitDollarQuote:
         assert "P002" in _codes(_lint(tmp_path, body))
 
 
+class TestUnknownMetacommand:
+    """A metacommand that no dispatch-table entry matches fails at run time with "Unknown metacommand"."""
+
+    def test_unknown_keyword_and_malformed_syntax_are_both_errors(self, tmp_path):
+        body = "-- !x! FROBNICATE now\n-- !x! EXPORT nosuch TOO x.csv AS CSV\n"
+        issues = [i for i in _lint(tmp_path, body) if i.code == "P003"]
+        assert [(i.line, i.severity) for i in issues] == [(1, "error"), (2, "error")]
+        assert "FROBNICATE now" in issues[0].message
+        assert exit_code(issues) == 1
+
+    @pytest.mark.parametrize(
+        "command",
+        [
+            "EXPORT staging TO out.csv AS CSV",
+            "export staging to out.csv as csv",
+            "ERROR_HALT OFF",
+            'WRITE "hello"',
+            "SUB x 1",
+            "BREAK",
+            'LOG "done"',
+        ],
+    )
+    def test_valid_metacommands_are_fine(self, tmp_path, command):
+        assert "P003" not in _codes(_lint(tmp_path, f"-- !x! {command}\n"))
+
+    @pytest.mark.parametrize(
+        "command",
+        [
+            "!!verb!! now",
+            "EXPORT t TO out.csv AS !!fmt!!",
+            "EXPORT t TO out.csv AS !{fmt}!",
+            'EXPORT !"!tbl!"! TO out.csv AS CSV',
+            "EXPORT !'!tbl!'! TO out.csv AS CSV",
+        ],
+        ids=["variable-keyword", "variable-argument", "deferred-variable", "double-quoted", "single-quoted"],
+    )
+    def test_a_command_with_a_variable_is_not_judged(self, tmp_path, command):
+        """The text after substitution is unknown until the script runs."""
+        assert "P003" not in _codes(_lint(tmp_path, f"-- !x! SUB verb WRITE\n-- !x! {command}\n"))
+
+    def test_commands_inside_blocks_are_checked(self, tmp_path):
+        body = (
+            "-- !x! IF(hasrows(t))\n"
+            "-- !x! FROBNICATE\n"
+            "-- !x! ENDIF\n"
+            "-- !x! BEGIN SCRIPT s\n"
+            "-- !x! FROBNICATE\n"
+            "-- !x! END SCRIPT\n"
+        )
+        assert [i.line for i in _lint(tmp_path, body) if i.code == "P003"] == [2, 5]
+
+    def test_a_plugin_metacommand_is_known(self, tmp_path, monkeypatch):
+        import execsql.cli.lint as lint_mod
+        import execsql.plugins as plugins
+
+        def register(mcl):
+            mcl.add(r"^\s*FROBNICATE(?:\s+\w+)?\s*$", lambda **kw: None)
+
+        monkeypatch.setattr(plugins, "_load_entry_points", lambda group: [("frob", register)])
+        monkeypatch.setattr(lint_mod, "_DISPATCH_TABLE", None)
+        assert "P003" not in _codes(_lint(tmp_path, "-- !x! FROBNICATE now\n"))
+
+
+class TestUnknownCondition:
+    """A condition that does not parse halts the run when execsql reaches it."""
+
+    def _lines(self, tmp_path, body):
+        return [i.line for i in _lint(tmp_path, body) if i.code == "P004"]
+
+    def test_a_misspelled_test_is_an_error(self, tmp_path):
+        issues = [i for i in _lint(tmp_path, "-- !x! IF(hasrowz(t))\nSELECT 1;\n-- !x! ENDIF\n") if i.code == "P004"]
+        assert [(i.line, i.severity) for i in issues] == [(1, "error")]
+        assert "hasrowz(t)" in issues[0].message
+        assert exit_code(issues) == 1
+
+    @pytest.mark.parametrize(
+        "condition",
+        [
+            "hasrows(t)",
+            "HASROWS(t)",
+            "not hasrows(t) and table_exists(s.t)",
+            "(sub_defined(x) or file_exists(a.csv)) and not dialog_canceled()",
+            "row_count_gt(t, 10)",
+            "True",
+        ],
+    )
+    def test_valid_conditions_are_fine(self, tmp_path, condition):
+        assert "P004" not in _codes(_lint(tmp_path, f"-- !x! IF({condition})\nSELECT 1;\n-- !x! ENDIF\n"))
+
+    def test_every_branch_and_modifier_is_checked(self, tmp_path):
+        body = (
+            "-- !x! IF(hasrows(t))\n"
+            "-- !x! ANDIF(frob(t))\n"
+            "SELECT 1;\n"
+            "-- !x! ELSEIF(frob(u))\n"
+            "-- !x! ORIF(hasrows(u) and frob)\n"
+            "SELECT 2;\n"
+            "-- !x! ENDIF\n"
+        )
+        assert self._lines(tmp_path, body) == [2, 4, 5]
+
+    def test_loop_and_inline_if_conditions_are_checked(self, tmp_path):
+        body = '-- !x! LOOP WHILE (frob(t))\nSELECT 1;\n-- !x! END LOOP\n-- !x! IF(frob(t)) { WRITE "x" }\n'
+        assert self._lines(tmp_path, body) == [1, 4]
+
+    def test_conditions_inside_metacommands_are_checked(self, tmp_path):
+        body = (
+            "-- !x! BEGIN SCRIPT s\n"
+            "SELECT 1;\n"
+            "-- !x! END SCRIPT\n"
+            '-- !x! ASSERT frob(t) "no rows"\n'
+            "-- !x! WAIT_UNTIL frob(t) HALT AFTER 5 SECONDS\n"
+            "-- !x! EXECUTE SCRIPT s WHILE (frob(t))\n"
+            "-- !x! ON ERROR_HALT EXECUTE SCRIPT s WHILE (frob(t))\n"
+            '-- !x! ASSERT hasrows(t) "no rows"\n'
+        )
+        assert self._lines(tmp_path, body) == [4, 5, 6, 7]
+
+    @pytest.mark.parametrize(
+        "condition",
+        ["!!flag!!", "frob(!!t!!)", "!{flag}!", 'equals("!\'!a!\'!", "b")'],
+        ids=["whole-condition", "argument", "deferred", "quoted"],
+    )
+    def test_a_condition_with_a_variable_is_not_judged(self, tmp_path, condition):
+        body = f"-- !x! SUB flag 1\n-- !x! IF({condition})\nSELECT 1;\n-- !x! ENDIF\n"
+        assert "P004" not in _codes(_lint(tmp_path, body))
+
+
+class TestMetacommandsInAScriptThatDoesNotParse:
+    """A misspelled IF or ENDIF is a usual cause of a parse error, so P003 / P004 still run line by line."""
+
+    def _issues(self, body):
+        from execsql.cli.lint import lint_unparsed
+
+        return [(i.line, i.code) for i in lint_unparsed(body, "s.sql")]
+
+    def test_the_misspelling_behind_the_parse_error_is_reported(self):
+        body = '-- !x! IF(hasrowz(t))\n-- !x! WRIT "hey"\n-- !x! ENDIF\n-- !x! iff(true)\n-- !x! ENDIF\n'
+        with pytest.raises(Exception, match="no matching IF"):
+            parse_script_text(body)
+        assert self._issues(body) == [(1, "P004"), (2, "P003"), (4, "P003")]
+
+    def test_lines_the_parser_handles_are_not_dispatched(self):
+        body = (
+            "-- !x! BEGIN SCRIPT s WITH PARAMETERS (a, b)\n"
+            "-- !x! END SCRIPT s\n"
+            "-- !x! LOOP WHILE (hasrows(t))\n"
+            "-- !x! END LOOP\n"
+            "-- !x! BEGIN BATCH\n"
+            "-- !x! END BATCH\n"
+            "-- !x! INCLUDE other.sql\n"
+            "-- !x! EXECUTE SCRIPT s WHILE (frob(t))\n"
+            '-- !x! IF(frob(t)) { WRIT "x" }\n'
+            "-- !x! ELSEIF(frob(t))\n"
+        )
+        assert self._issues(body) == [(8, "P004"), (9, "P004"), (9, "P003"), (10, "P004")]
+
+    def test_comments_and_begin_sql_bodies_are_skipped(self):
+        body = (
+            "/*\n"
+            "-- !x! FROBNICATE\n"
+            "*/\n"
+            "-- !x! BEGIN SQL\n"
+            "-- !x! FROBNICATE\n"
+            "select 1;\n"
+            "-- !x! END SQL\n"
+            "-- !x! FROBNICATE\n"
+        )
+        assert self._issues(body) == [(8, "P003")]
+
+    def test_it_agrees_with_the_full_lint_on_every_script_in_the_repo(self):
+        """On a script that parses, the line-by-line pass finds exactly what the full lint finds."""
+        from execsql.cli.lint import lint_unparsed
+        from execsql.script.parser import parse_string
+
+        root = Path(__file__).resolve().parents[2]
+        checked = 0
+        for path in sorted(root.glob("**/*.sql")):
+            if any(part in {"_execsql", ".venv", ".tox", "node_modules", "site"} for part in path.parts):
+                continue
+            source = path.read_text(encoding="utf-8")
+            try:
+                tree = parse_string(source, str(path))
+            except Exception:
+                continue
+            full = sorted((i.line, i.code, i.message) for i in lint(tree, str(path)) if i.code in ("P003", "P004"))
+            by_line = sorted((i.line, i.code, i.message) for i in lint_unparsed(source, str(path)))
+            assert by_line == full, path
+            checked += 1
+        assert checked > 30
+
+
 class TestUnusedVariables:
     """A defined-but-unread variable is nearly always a spelling mismatch."""
 
@@ -550,8 +748,21 @@ class TestEachCheckHasItsCode:
             ("-- !x! IF(True)\nSELECT 1;\n-- !x! ELSE\nSELECT 2;\n-- !x! ENDIF\n", "F001"),
             ("-- !x! IF(False)\nSELECT 1;\n-- !x! ENDIF\n", "F001"),
             ("-- !x! HALT\nSELECT 1;\n", "F002"),
+            ("-- !x! FROBNICATE\n", "P003"),
+            ("-- !x! IF(hasrowz(t))\nSELECT 1;\n-- !x! ENDIF\n", "P004"),
         ],
-        ids=["empty", "undefined", "unused", "include", "execute-script", "always-true", "always-false", "halt"],
+        ids=[
+            "empty",
+            "undefined",
+            "unused",
+            "include",
+            "execute-script",
+            "always-true",
+            "always-false",
+            "halt",
+            "unknown-metacommand",
+            "unknown-condition",
+        ],
     )
     def test_code(self, tmp_path, script, code):
         assert code in {i.code for i in _lint(tmp_path, script)}
