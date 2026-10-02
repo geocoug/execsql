@@ -14,7 +14,7 @@ ______________________________________________________________________
 ### Added
 
 - **`execsql lint` rule `P002` (`split-dollar-quote`):** reports a `$$ ... $$` function or `DO` body that is not between `BEGIN SQL` and `END SQL`, which execsql would send in pieces at the first line ending in `;`.
-- **`execsql lint` rule `P003` (`unknown-metacommand`):** reports a misspelled or malformed metacommand, such as `SUBSTITUTE x 1` for `SUB x 1`, or `EXPORT t TOO out.csv`, that `execsql run` would stop at with `Unknown metacommand`. `P003` and `P004` also run on a script that does not parse, so a misspelled `IF` or `ENDIF` is reported on its own line next to the `P001`.
+- **`execsql lint` rule `P003` (`unknown-metacommand`):** reports a misspelled or malformed metacommand, such as `SUBSTITUTE x 1` for `SUB x 1`, or `EXPORT t TOO out.csv`, that `execsql run` would stop at with `Unknown metacommand`.
 - **`execsql lint` rule `P004` (`unknown-condition`):** reports a condition with an unknown test, such as `IF(hasrowz(t))`, or one that cannot be parsed, in `IF`, `ELSEIF`, `ANDIF`, `ORIF`, `LOOP`, `EXECUTE SCRIPT ... WHILE`, `ASSERT` and `WAIT_UNTIL`.
 - **`[email] ca_file` and `verify_certificate` settings** for the SMTP server's TLS certificate: trust an internal CA, or turn verification off for a test relay.
 
@@ -24,6 +24,7 @@ ______________________________________________________________________
 
 ### Changed
 
+- **`execsql lint` on a script with block-structure errors:** every unmatched or unclosed `IF`, `LOOP`, `BEGIN BATCH`, `BEGIN SCRIPT` and `BEGIN SQL` is reported as a `P001` on its own line, and all other rules still run on the rest of the script. Lint reported only the first such error and checked nothing else.
 - **Faster start-up:** every `execsql` command and `import execsql` start about 0.7 s sooner; a one-line `execsql run` takes about 0.15 s instead of 0.9 s.
 - **`EMAIL` over TLS verifies the server certificate.** With `use_ssl` or `use_tls`, a mail server whose certificate is not signed by a trusted authority, or does not match `host`, now stops the `EMAIL` metacommand before the password is sent. For a relay with an internal certificate, set `[email] ca_file`; to turn the check off, set `verify_certificate = No`.
 

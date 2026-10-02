@@ -1216,3 +1216,127 @@ class TestBlockMismatchRealScenarios:
         # the parser can't read minds.
         with pytest.raises(ErrInfo, match=r"LOOP on line 1 of <inline> has no matching ENDLOOP\."):
             parse_string(script)
+
+
+class TestErrorRecovery:
+    """With ``errors=[]`` the parser records block-structure errors and parses the whole script.
+
+    ``execsql lint`` relies on this to report every structural error and run
+    its other rules; ``execsql run`` passes nothing and still stops at the
+    first error.
+    """
+
+    MALFORMED = [
+        "-- !x! ENDIF",
+        "-- !x! ELSE",
+        "-- !x! ANDIF (X)",
+        "-- !x! END SCRIPT",
+        "-- !x! END SQL",
+        "-- !x! LOOP WHILE (X)\n-- !x! IF (Y)\nSELECT 1;\n-- !x! ENDLOOP",
+        "-- !x! BEGIN SCRIPT s\n-- !x! END SCRIPT t",
+        "-- !x! BEGIN SCRIPT s WITH PARAMETERS (a=1, b)\n-- !x! END SCRIPT",
+        "-- !x! BEGIN SCRIPT s junk here\n-- !x! END SCRIPT",
+        "-- !x! IF (X)\nSELECT 1;",
+        "SELECT 1",
+        "-- !x! IF (X)\n-- !x! LOOP WHILE (Y)\nSELECT 1",
+    ]
+
+    @pytest.mark.parametrize("script", MALFORMED)
+    def test_the_first_recorded_error_is_the_one_raised_without_recovery(self, script):
+        with pytest.raises(ErrInfo) as raised:
+            parse_string(script)
+        errors: list[ErrInfo] = []
+        parse_string(script, errors=errors)
+        assert errors, script
+        assert errors[0].other == raised.value.other
+
+    @pytest.mark.parametrize(
+        ("script", "raised", "recorded"),
+        [
+            (
+                "-- !x! IF (X)\n-- !x! ENDLOOP",
+                "IF on line 1 of <inline> has no matching ENDIF.",
+                [
+                    "ENDLOOP on line 2 of <inline> has no matching LOOP.",
+                    "Unmatched IF block starting on line 1 at end of file <inline>.",
+                ],
+            ),
+            (
+                "-- !x! LOOP WHILE (A)\n-- !x! IF (B)\n-- !x! ENDIF\n-- !x! ENDIF\n-- !x! ENDLOOP",
+                "LOOP on line 1 of <inline> has no matching ENDLOOP.",
+                ["ENDIF on line 4 of <inline> has no matching IF."],
+            ),
+        ],
+        ids=["closer-of-another-kind", "extra-endif"],
+    )
+    def test_a_closer_with_nothing_of_its_kind_open_is_named_itself(self, script, raised, recorded):
+        """Stopping at the first error has to blame the open block; recovering can see the closer was the stray."""
+        with pytest.raises(ErrInfo) as exc:
+            parse_string(script)
+        assert exc.value.other == raised
+        errors: list[ErrInfo] = []
+        parse_string(script, errors=errors)
+        assert [e.other for e in errors] == recorded
+
+    def test_a_script_that_parses_records_nothing(self):
+        errors: list[ErrInfo] = []
+        parse_string("-- !x! IF (X)\nSELECT 1;\n-- !x! ENDIF\n", errors=errors)
+        assert errors == []
+
+    def _parse(self, script: str) -> tuple[list[Node], list[str]]:
+        errors: list[ErrInfo] = []
+        body = parse_string(script, errors=errors).body
+        return body, [e.other for e in errors]
+
+    def test_a_closer_with_nothing_to_close_is_skipped(self):
+        body, errors = self._parse("-- !x! ENDIF\nSELECT 1;\n-- !x! END LOOP\nSELECT 2;\n")
+        assert errors == [
+            "ENDIF on line 1 of <inline> has no matching IF.",
+            "ENDLOOP on line 3 of <inline> has no matching LOOP.",
+        ]
+        assert [n.text for n in body if isinstance(n, SqlStatement)] == ["SELECT 1;", "SELECT 2;"]
+
+    def test_an_extra_endif_is_named_and_the_loop_still_closes(self):
+        script = (
+            "-- !x! LOOP WHILE (A)\n-- !x! IF (B)\nSELECT 1;\n-- !x! ENDIF\n-- !x! ENDIF\n-- !x! ENDLOOP\nSELECT 2;\n"
+        )
+        body, errors = self._parse(script)
+        assert errors == ["ENDIF on line 5 of <inline> has no matching IF."]  # see the trade-off test above
+        assert isinstance(body[0], LoopBlock) and isinstance(body[0].body[0], IfBlock)
+        assert isinstance(body[1], SqlStatement)
+
+    def test_a_closer_that_skips_an_open_block_closes_it(self):
+        script = "-- !x! LOOP WHILE (A)\n-- !x! IF (B)\nSELECT 1;\n-- !x! ENDLOOP\nSELECT 2;\n"
+        body, errors = self._parse(script)
+        assert errors == ["IF on line 2 of <inline> has no matching ENDIF."]
+        loop = body[0]
+        assert isinstance(loop, LoopBlock) and loop.span.end_line == 4
+        assert isinstance(loop.body[0], IfBlock) and isinstance(loop.body[0].body[0], SqlStatement)
+        assert isinstance(body[1], SqlStatement)
+
+    def test_blocks_open_at_the_end_are_each_reported_and_closed(self):
+        script = "-- !x! IF (A)\n-- !x! LOOP WHILE (B)\nSELECT 1\n"
+        body, errors = self._parse(script)
+        assert errors == [
+            "Unmatched LOOP block starting on line 2 at end of file <inline>.",
+            "Unmatched IF block starting on line 1 at end of file <inline>.",
+            "Incomplete SQL statement starting on line 3 at end of file <inline>. "
+            "Metacommands must be prefixed with '-- !x!'.",
+        ]
+        assert isinstance(body[0], IfBlock)
+        assert isinstance(body[0].body[0], LoopBlock)
+        assert body[0].body[0].body[0].text == "SELECT 1"
+
+    def test_a_script_block_with_bad_parameters_or_end_name_is_kept(self):
+        script = (
+            "-- !x! BEGIN SCRIPT s WITH PARAMETERS (a=1, b)\n"
+            "SELECT 1;\n"
+            "-- !x! END SCRIPT other\n"
+            "-- !x! EXECUTE SCRIPT s\n"
+        )
+        body, errors = self._parse(script)
+        assert len(errors) == 2
+        assert "Required parameter 'b' after optional parameter 'a'" in errors[0]
+        assert errors[1].startswith("Mismatched script name in the END SCRIPT metacommand on line 3")
+        assert isinstance(body[0], ScriptBlock) and body[0].name == "s" and body[0].param_defs is None
+        assert isinstance(body[1], IncludeDirective)

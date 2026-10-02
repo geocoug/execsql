@@ -7,10 +7,10 @@ required.
 
 Checks performed:
 
-1. **Parse errors** — the AST parser rejects unmatched IF / LOOP /
-   BATCH / SCRIPT blocks at parse time with precise source spans;
-   ``cli/__init__.py`` reports any parse failure as a lint error before
-   :func:`lint` is even called.
+1. **Parse errors** — :func:`lint_source` parses with error recovery, so
+   every unmatched or unclosed IF / LOOP / BATCH / SCRIPT / SQL block is a
+   ``P001`` at its own line and the remaining checks run on the recovered
+   tree.
 2. **Empty scripts** — warns when no nodes were parsed.
 3. **Potentially undefined variables** — flags ``!!$VAR!!`` references
    with no preceding ``SUB``-family definition, ignoring built-in
@@ -37,8 +37,8 @@ Public surface:
 - :func:`lint` — entry point; returns a list of :class:`Issue`.
 - :data:`RULES` / :class:`Rule` — the rule registry: code, name, severity.
 - :func:`parse_error` — the :class:`Issue` for a script that fails to parse.
-- :func:`lint_unparsed` — the metacommand and condition checks, line by
-  line, for a script that fails to parse.
+- :func:`lint_source` — parse script text and lint it: every block-structure
+  error as a ``P001``, plus every other rule on the recovered tree.
 - :func:`resolve_selectors` / :func:`filter_issues` — ``--select`` and
   ``--ignore`` handling.
 - :func:`print_text`, :func:`print_concise`, :func:`print_statistics`,
@@ -66,7 +66,6 @@ from execsql.script.ast import (
     Node,
     Script,
     ScriptBlock,
-    SourceSpan,
     SqlBlock,
     SqlStatement,
 )
@@ -82,7 +81,7 @@ __all__ = [
     "exit_code",
     "filter_issues",
     "lint",
-    "lint_unparsed",
+    "lint_source",
     "parse_error",
     "print_concise",
     "print_statistics",
@@ -912,26 +911,18 @@ def lint(
     return issues
 
 
-def lint_unparsed(source: str, label: str) -> list[_Issue]:
-    """Check each metacommand line of a script that does not parse (P003, P004).
+def lint_source(source: str, label: str, script_path: str | None = None) -> list[_Issue]:
+    """Parse *source* and lint it, unfiltered.
 
-    A misspelled ``IF`` or ``ENDIF`` is a common reason a script does not
-    parse, and it is a ``P003`` on its own line, so these checks still run
-    line by line while every other rule waits for a script that parses.
+    Each block-structure error (an IF without ENDIF, a stray END LOOP, ...)
+    is a ``P001`` at its own line.  The parser recovers from them, so every
+    other rule still runs on the rest of the script.
     """
-    from execsql.script.parser import metacommand_lines
+    from execsql.script.parser import parse_string
 
-    issues: list[_Issue] = []
-    for mc in metacommand_lines(source):
-        if mc.dispatched:
-            _check_metacommand(MetaCommandStatement(span=SourceSpan(label, mc.line_no), command=mc.command), issues)
-            continue
-        for condition in mc.conditions:
-            _check_condition(condition, label, mc.line_no, issues)
-        if mc.inline_command is not None:
-            inner = MetaCommandStatement(span=SourceSpan(label, mc.line_no), command=mc.inline_command)
-            _check_metacommand(inner, issues)
-    return issues
+    errors: list[ErrInfo] = []
+    tree = parse_string(source, label, errors=errors)
+    return [parse_error(label, exc) for exc in errors] + lint(tree, script_path=script_path)
 
 
 # ---------------------------------------------------------------------------

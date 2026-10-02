@@ -23,12 +23,14 @@ from typer.testing import CliRunner
 from execsql.cli import app
 from execsql.cli.lint import _conditional_table, _dispatch_table, _extract_var_definition
 from execsql.parser import CondAstNode, CondParser
-from execsql.script.parser import metacommand_lines
 
 FIXTURES = Path(__file__).resolve().parents[1] / "data" / "lint"
 VALID = ("every_metacommand.sql", "conditions_and_blocks.sql")
 
 _EXPECT = re.compile(r"^\s*--\s*expect:\s*(?P<codes>.+?)\s*$")
+_METACOMMAND = re.compile(r"^\s*--\s*!x!\s*(?P<command>.+?)\s*$", re.I)
+# Block keywords only the script parser knows; the dispatch table has no entry for them.
+_PARSER_ONLY = re.compile(r"^(?:(?:BEGIN|CREATE)\s+SCRIPT|END\s+SCRIPT|END\s*LOOP|BEGIN\s+SQL|END\s+SQL)\b", re.I)
 # Named groups in which a metacommand's pattern captures a condition.
 _CONDITION_GROUPS = ("condtest", "condition", "loopcond")
 
@@ -62,20 +64,29 @@ def test_the_valid_fixtures_have_no_annotations():
 
 
 def _matches():
-    """``(fixture line, MetaCommand, re.Match)`` for every metacommand in the valid fixtures."""
+    """``(command, MetaCommand, re.Match)`` for every metacommand line in the valid fixtures.
+
+    IF, ELSE, LOOP, BEGIN BATCH and the like are in the dispatch table too, so
+    they count; a one-line IF's ``{ command }`` is matched as well.
+    The valid fixtures keep no metacommand inside a block comment or BEGIN SQL.
+    """
     table = _dispatch_table()
     for name in VALID:
-        for mc in metacommand_lines((FIXTURES / name).read_text(encoding="utf-8")):
-            for command in filter(None, (mc.command, mc.inline_command)):
+        for line in (FIXTURES / name).read_text(encoding="utf-8").splitlines():
+            m = _METACOMMAND.match(line)
+            if not m or _PARSER_ONLY.match(m.group("command")):
+                continue
+            commands = [m.group("command")]
+            while commands:
+                command = commands.pop()
                 match = table.get_match(command)
-                if match is not None:
-                    yield command, match[0], match[1]
+                assert match is not None, command
+                yield command, match[0], match[1]
+                if match[1].groupdict().get("condcmd"):
+                    commands.append(match[1].group("condcmd"))
 
 
 def _conditions():
-    for name in VALID:
-        for mc in metacommand_lines((FIXTURES / name).read_text(encoding="utf-8")):
-            yield from mc.conditions
     for _command, _mc, match in _matches():
         yield from (v for g, v in match.groupdict().items() if g in _CONDITION_GROUPS and v)
 
