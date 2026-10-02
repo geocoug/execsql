@@ -30,6 +30,7 @@ ______________________________________________________________________
 
 ### Fixed
 
+- **`IMPORT` of a data line with fewer values than the header:** the values left off the end load as NULL on every DBMS. SQLite and DuckDB stopped the import, and with `TO NEW` / `REPLACEMENT` every DBMS, PostgreSQL included, could create the column `NOT NULL` and then reject the line.
 - **`IMPORT ... TO NEW` / `REPLACEMENT` of a timestamp column mixing values with and without a UTC offset:** the column is created as text and keeps every value as written. It was created as a plain timestamp and the offset values were converted with the importing machine's time zone, so `2024-01-01 10:00+05:00` could be stored as `2023-12-31 23:00:00`. A column where every value has an offset is still `timestamptz`.
 - **`execsql lint` `V001` (`undefined-variable`):** variables set by `PROMPT ENTER_SUB`, `ASK ... SUB`, `PROMPT ASK ... SUB`, `PROMPT OPENFILE` / `SAVEFILE` / `DIRECTORY SUB`, `PROMPT CREDENTIALS`, `SUB_TEMPFILE` and the keys of `SUB_QUERYSTRING` are no longer reported as undefined. A user variable named like a system variable without its `$` (`!!date_tag!!`), or a `SUB` variable written with a `$` (`!!$region!!`), is now reported.
 - **`execsql lint` `V002` (`unused-variable`):** a variable read only by `sub_defined(...)` or `sub_empty(...)` is no longer reported as unused.

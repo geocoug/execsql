@@ -230,17 +230,12 @@ class TestInconsistentColumns:
             importtable(db, None, "extra_tbl", str(csv_file), is_new=1)
 
     def test_fewer_columns_in_data_row(self, db, tmp_path):
-        """A data row with fewer columns than the header should raise ErrInfo.
-
-        populate_table enforces ``len(line) < len(columns)`` and raises
-        ErrInfo("Too few values on data line ...") when a row is short.
-        Row 1 (id=1, name=Alice) is missing the 'value' column — this
-        triggers the error before any rows are committed.
-        """
+        """A data row with fewer columns than the header gets NULL for the missing values."""
         csv_file = tmp_path / "fewer_cols.csv"
         csv_file.write_text("id,name,value\n1,Alice\n2,Bob,42\n", encoding="utf-8")
-        with pytest.raises(ErrInfo):
-            importtable(db, None, "short_tbl", str(csv_file), is_new=1)
+        importtable(db, None, "short_tbl", str(csv_file), is_new=1)
+        _, rows = db.select_data("SELECT id, name, value FROM short_tbl ORDER BY id;")
+        assert [tuple(r) for r in rows] == [(1, "Alice", None), (2, "Bob", 42)]
 
 
 # ===========================================================================

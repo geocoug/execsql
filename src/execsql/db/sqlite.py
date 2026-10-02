@@ -237,14 +237,11 @@ class SQLiteDatabase(Database):
 
         last_line: list[Any] = []
         try:
-            for datalineno, line in enumerate(rowsource):
+            for line in rowsource:
                 # Skip empty rows.
                 if not (len(line) == 1 and line[0] is None):
-                    if len(line) < len(columns):
-                        raise ErrInfo(
-                            type="error",
-                            other_msg=f"Too few values on data line {datalineno} of input.",
-                        )
+                    # Trailing values left off the line are NULL.
+                    line = list(line) + [None] * (len(ts_colnames) - len(line))
                     if _state.conf.trim_strings or _state.conf.replace_newlines or not _state.conf.empty_strings:
                         for i in range(len(line)):
                             if line[i] is not None and isinstance(line[i], _state.stringtypes):
