@@ -321,6 +321,21 @@ The section and property names that may be used in a configuration file are list
 
 :   SSL/TLS encryption will be used after the initial connection is made using unencrypted text.
 
+`verify_certificate`
+
+:   Whether the SMTP server's certificate is verified when `use_ssl` or `use_tls` is on: it must be signed by a trusted certificate authority and match `host`. The default is `Yes`, and a server whose certificate fails the check stops the `EMAIL` metacommand with an error. Set it to `No` only for a test relay; for a server with an internal or self-signed certificate, set `ca_file` instead.
+
+`ca_file`
+
+:   A PEM file of certificate authority certificates to trust for the SMTP server, in place of the system's trusted authorities. Use it for a mail relay with an internal or self-signed certificate:
+
+    ```ini
+    [email]
+    host = relay.corp.example
+    use_tls = yes
+    ca_file = /etc/ssl/certs/corp-root-ca.pem
+    ```
+
 `email_format`
 
 :   Specifies whether the message will be sent as plain text or as HTML email. The only valid values for this property are "plain" and "html". If not specified, emails will be sent in plain text.

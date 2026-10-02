@@ -12,6 +12,7 @@ metacommand and the halt/cancel email-notification hooks.
 
 import re
 import smtplib
+import ssl
 from email import encoders
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
@@ -23,6 +24,20 @@ import execsql.state as _state
 from execsql.exceptions import ErrInfo
 
 __all__ = ["MailSpec", "Mailer"]
+
+
+def _tls_context(conf: object) -> ssl.SSLContext:
+    """The TLS context for the SMTP connection: verifying, unless ``[email] verify_certificate`` is off.
+
+    ``smtplib`` given no context uses an unverified one, which accepts any
+    certificate and hands the SMTP password to whoever answers.
+    """
+    if not getattr(conf, "smtp_verify_certificate", True):
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        return ctx
+    return ssl.create_default_context(cafile=getattr(conf, "smtp_ca_file", None))
 
 
 class Mailer:
@@ -56,20 +71,30 @@ class Mailer:
         # 30 s connect/read timeout matches the DB-adapter default so a
         # silently-dropped SMTP peer can't hang a script (or a CI run).
         smtp_timeout = 30
-        if conf.smtp_port is None:
+        port = conf.smtp_port or 0
+        try:
             if conf.smtp_ssl:
-                self.smtpconn = smtplib.SMTP_SSL(conf.smtp_host, timeout=smtp_timeout)
+                self.smtpconn = smtplib.SMTP_SSL(
+                    conf.smtp_host,
+                    port,
+                    timeout=smtp_timeout,
+                    context=_tls_context(conf),
+                )
             else:
-                self.smtpconn = smtplib.SMTP(conf.smtp_host, timeout=smtp_timeout)
-        else:
-            if conf.smtp_ssl:
-                self.smtpconn = smtplib.SMTP_SSL(conf.smtp_host, conf.smtp_port, timeout=smtp_timeout)
-            else:
-                self.smtpconn = smtplib.SMTP(conf.smtp_host, conf.smtp_port, timeout=smtp_timeout)
-        self.smtpconn.ehlo_or_helo_if_needed()
-        if conf.smtp_tls:
-            self.smtpconn.starttls()
-            self.smtpconn.ehlo(conf.smtp_host)
+                self.smtpconn = smtplib.SMTP(conf.smtp_host, port, timeout=smtp_timeout)
+            self.smtpconn.ehlo_or_helo_if_needed()
+            if conf.smtp_tls:
+                self.smtpconn.starttls(context=_tls_context(conf))
+                self.smtpconn.ehlo(conf.smtp_host)
+        except ssl.SSLCertVerificationError as exc:
+            raise ErrInfo(
+                type="error",
+                other_msg=(
+                    f"Can't send email; the certificate of SMTP server {conf.smtp_host} could not be verified "
+                    f"({exc.verify_message}). For a server with an internal or self-signed certificate, set "
+                    "[email] ca_file to its CA certificate, or set verify_certificate = No."
+                ),
+            ) from exc
         if conf.smtp_username:
             if not conf.smtp_password:
                 # smtplib.login() requires a password; calling it with only a

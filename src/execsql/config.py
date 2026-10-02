@@ -372,6 +372,8 @@ class ConfigData:
         self._get_str(cp, self._EMAIL_SECTION, "password", "smtp_password")
         self._get_bool(cp, self._EMAIL_SECTION, "use_ssl", "smtp_ssl")
         self._get_bool(cp, self._EMAIL_SECTION, "use_tls", "smtp_tls")
+        self._get_bool(cp, self._EMAIL_SECTION, "verify_certificate", "smtp_verify_certificate")
+        self._get_str(cp, self._EMAIL_SECTION, "ca_file", "smtp_ca_file")
         self._get_str(cp, self._EMAIL_SECTION, "message_css", "email_css")
         # --- [format] and [lint]: read by `execsql format` / `execsql lint`; a run ignores them ---
         self._get_int(cp, self._FORMAT_SECTION, "indent", "format_indent")
@@ -523,6 +525,8 @@ class ConfigData:
         self.smtp_password: str | None = None
         self.smtp_ssl = False
         self.smtp_tls = False
+        self.smtp_verify_certificate = True
+        self.smtp_ca_file: str | None = None
         self.email_format = "plain"
         self.email_css: str | None = None
         self.include_req: list = []

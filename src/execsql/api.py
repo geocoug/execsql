@@ -218,6 +218,8 @@ class _LibraryConfig:
         self.smtp_password: str | None = None
         self.smtp_ssl = False
         self.smtp_tls = False
+        self.smtp_verify_certificate = True
+        self.smtp_ca_file: str | None = None
         self.email_format = "plain"
         self.email_css: str | None = None
 

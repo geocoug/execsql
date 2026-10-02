@@ -157,9 +157,11 @@ host = mail.example.com
 port = 587
 use_tls = yes   # STARTTLS after initial plaintext connection
 use_ssl = yes   # implicit TLS from connection start (preferred)
+verify_certificate = yes   # default
+ca_file = /etc/ssl/certs/corp-root-ca.pem   # only for an internal CA
 ```
 
-When `use_tls = yes` is set, execsql calls `STARTTLS` but does not explicitly verify the server certificate (Python's default `smtplib` behavior). For production deployments:
+With either TLS mode, execsql verifies the server's certificate: it must chain to a trusted certificate authority and match `host`, or the `EMAIL` metacommand fails before the SMTP password is sent. For a relay with an internal or self-signed certificate, point `ca_file` at its CA certificate. `verify_certificate = no` turns the check off, which lets anyone on the network path pose as the server; use it only for a test relay. For production deployments:
 
 - Prefer `use_ssl = yes` (implicit TLS, port 465) over `use_tls = yes` (STARTTLS, port 587).
 - Ensure your SMTP server is configured to reject unauthenticated relay.

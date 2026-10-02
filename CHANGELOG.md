@@ -11,6 +11,18 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Added
+
+- **`[email] ca_file` and `verify_certificate` settings** for the SMTP server's TLS certificate: trust an internal CA, or turn verification off for a test relay.
+
+### Removed
+
+- **`execsql.utils.fileio` writer globals:** `filewriter`, `fw_input` and `fw_output` are gone, and `FileWriter` no longer takes queue arguments. Code that started a writer by hand before calling `execsql.run()` (the workaround for [#46](https://github.com/geocoug/execsql/issues/46) before 2.23.0) can drop it; `run()` always uses its own.
+
+### Changed
+
+- **`EMAIL` over TLS verifies the server certificate.** With `use_ssl` or `use_tls`, a mail server whose certificate is not signed by a trusted authority, or does not match `host`, now stops the `EMAIL` metacommand before the password is sent. For a relay with an internal certificate, set `[email] ca_file`; to turn the check off, set `verify_certificate = No`.
+
 ### Fixed
 
 - **`WRITE` / `EXPORT` to a locked file:** when the file stays locked past `outfile_open_timeout`, the run now fails with an error naming the file and how many lines were lost, instead of hanging at `SYSTEM_CMD` or the end of the script, or exiting 0 with the output gone. The CLI waits up to `outfile_open_timeout` at the end of a script for a locked file to free up.
@@ -23,10 +35,6 @@ ______________________________________________________________________
 - **`IMPORT` of a delimited file with a blank line:** the rows after the blank line are imported instead of being dropped without a warning. The blank line itself is an empty row: loaded as all NULLs by default, dropped with `CONFIG EMPTY_ROWS NO`. Blank lines at the end of the file are still ignored. On PostgreSQL, a quoted file with a blank line no longer fails with `missing data for column`.
 - **Secrets in `execsql.log`:** `-a` values no longer appear in the `run` record at the top of each run (it now shows how many were given). Passwords from a `--dsn` URL, the `[email]` section, the password prompt or keyring, `PROMPT ENTER_SUB ... PASSWORD`, `PROMPT CREDENTIALS` and `SUB_DECRYPT` are now replaced with `***` wherever they would appear later in the log, such as SQL logged with `LOG_SQL ON` or a `SYSTEM_CMD` line.
 - **`WRITE ... TO` after `CD`:** a relative output path now lands in the new directory, as `EXPORT` output already did, instead of the directory execsql started in.
-
-### Removed
-
-- **`execsql.utils.fileio` writer globals:** `filewriter`, `fw_input` and `fw_output` are gone, and `FileWriter` no longer takes queue arguments. Code that started a writer by hand before calling `execsql.run()` (the workaround for [#46](https://github.com/geocoug/execsql/issues/46) before 2.23.0) can drop it; `run()` always uses its own.
 
 ______________________________________________________________________
 
