@@ -305,7 +305,14 @@ A `!!variable!!` is referenced, but nothing in the script defines it. At run tim
 -- !x! EXPORT stale_orders TO !!output_path!!/stale.csv AS CSV
 ```
 
-A definition is any SUB-family metacommand in the same file: `SUB`, `SUB_EMPTY`, `SUB_ADD`, `SUB_APPEND`, `SUBDATA`, `SUB_LOCAL`, `SUB_TEMPFILE`, `SUB_ENCRYPT`, `SUB_DECRYPT`, `SUB_QUERYSTRING`, and the keys of a `SUB_INI` file that exists at lint time. Definitions inside `BEGIN SCRIPT` blocks that the file runs with `EXECUTE SCRIPT` count too, and so does a definition that comes after the first use.
+A definition is any metacommand in the same file that sets a variable:
+
+- the SUB family: `SUB`, `SUB_EMPTY`, `SUB_ADD`, `SUB_APPEND`, `SUBDATA`, `SUB_LOCAL`, `SUB_TEMPFILE`, `SUB_ENCRYPT`, `SUB_DECRYPT`, the keys of `SUB_QUERYSTRING`, and the keys of a `SUB_INI` file that exists at lint time;
+- the prompts that store an answer: `PROMPT ENTER_SUB`, `ASK ... SUB`, `PROMPT ASK ... SUB` (with or without `COMPARE`), `PROMPT OPENFILE SUB`, `PROMPT SAVEFILE SUB` and `PROMPT DIRECTORY SUB` (every variable named after `SUB`), and both variables of `PROMPT CREDENTIALS`.
+
+Definitions inside `BEGIN SCRIPT` blocks that the file runs with `EXECUTE SCRIPT` count too, and so does a definition that comes after the first use.
+
+System variables start with `$` and user variables do not, so the two never stand in for each other: `!!date_tag!!` is reported (the system variable is `!!$DATE_TAG!!`), and so is `!!$region!!` after `SUB region north`.
 
 Not reported:
 
@@ -316,7 +323,7 @@ Variables defined somewhere lint cannot see are reported: in a configuration fil
 
 ### V002 `unused-variable` { #v002 }
 
-A SUB-family metacommand defines a variable that nothing in the script references. Almost always one half of a spelling mistake: the example under [V001](#v001) reports `!!report_dir!!` here and `!!output_path!!` there, and together the two warnings point at the typo.
+A metacommand defines a variable that nothing in the script reads, either as `!!variable!!` or with the `sub_defined(variable)` and `sub_empty(variable)` conditional tests. Almost always one half of a spelling mistake: the example under [V001](#v001) reports `!!report_dir!!` here and `!!output_path!!` there, and together the two warnings point at the typo.
 
 A variable that a script sets for an `INCLUDE`d file, or for whoever `INCLUDE`s it, is also reported, because lint checks each file on its own. Ignore the rule for such files.
 
