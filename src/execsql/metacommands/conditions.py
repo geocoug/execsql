@@ -428,7 +428,7 @@ def xf_newer_date(**kwargs: Any) -> bool:
     datestr = unquoted(kwargs["datestr"])
     if not Path(file1).exists():
         raise ErrInfo(type="cmd", other_msg=f"File {file1} does not exist.")
-    dt_value = parse_datetime(datestr)
+    dt_value = parse_datetime(datestr, strict=False)
     if not dt_value:
         raise ErrInfo(type="cmd", other_msg=f"{datestr} can't be interpreted as a date/time.")
     return os.stat(file1).st_mtime > time.mktime(dt_value.timetuple())
