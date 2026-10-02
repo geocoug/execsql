@@ -22,6 +22,7 @@ ______________________________________________________________________
 
 ### Changed
 
+- **Faster start-up:** every `execsql` command and `import execsql` start about 0.7 s sooner; a one-line `execsql run` takes about 0.15 s instead of 0.9 s.
 - **`EMAIL` over TLS verifies the server certificate.** With `use_ssl` or `use_tls`, a mail server whose certificate is not signed by a trusted authority, or does not match `host`, now stops the `EMAIL` metacommand before the password is sent. For a relay with an internal certificate, set `[email] ca_file`; to turn the check off, set `verify_certificate = No`.
 
 ### Fixed

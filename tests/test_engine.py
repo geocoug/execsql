@@ -484,3 +484,45 @@ class TestScriptExecSpec:
         self._make_saved_script("s_up")
         spec = ScriptExecSpec(script_id="s_up", argexp=None, looptype="while", loopcond="1==2")
         assert spec.looptype == "WHILE"
+
+
+class TestLazyCompilation:
+    """Patterns are compiled on first match, not when the table is built.
+
+    Compiling all ~1,700 dispatch patterns at import cost most of a second on
+    every run; a script uses a few dozen.
+    """
+
+    def test_building_the_table_compiles_nothing(self):
+        from execsql.metacommands.dispatch import build_dispatch_table
+
+        table = build_dispatch_table()
+        assert len(table._commands) > 1000
+        assert not any(mc.compiled for mc in table)
+
+    def test_matching_compiles_only_the_candidates_for_the_keyword(self):
+        from execsql.metacommands.dispatch import build_dispatch_table
+
+        table = build_dispatch_table()
+        hit = table.get_match('WRITE "hello"')
+        assert hit is not None and hit[0].exec_fn.__name__ == "x_write"
+        compiled = {id(mc) for mc in table if mc.compiled}
+        candidates = {id(mc) for mc in table._by_keyword["WRITE"] + table._unkeyed}
+        assert compiled
+        assert compiled <= candidates
+        assert len(compiled) < len(table._commands) / 10
+
+    @pytest.mark.parametrize("which", ["metacommands", "conditions"])
+    def test_every_registered_pattern_compiles(self, which):
+        """A bad pattern used to fail at import; now it must fail here instead of mid-script."""
+        from execsql.metacommands import DISPATCH_TABLE
+        from execsql.metacommands.conditions import CONDITIONAL_TABLE
+
+        table = DISPATCH_TABLE if which == "metacommands" else CONDITIONAL_TABLE
+        for mc in table:
+            re.compile(mc.pattern, re.I)
+
+    def test_rx_still_accepts_a_compiled_pattern(self):
+        rx = re.compile(r"^\s*HELLO\s*$", re.I)
+        mc = MetaCommand(rx, lambda **kw: None)
+        assert mc.rx is rx and mc.pattern == rx.pattern and mc.compiled

@@ -50,12 +50,16 @@ __all__ = [
 class MetaCommand:
     """A single entry in the metacommand dispatch table.
 
-    Holds a compiled regex, a handler function, and execution-control flags.
-    Call :meth:`run` with a raw command string to attempt a match and invoke
-    the handler.
+    Holds a regex, a handler function, and execution-control flags.  Call
+    :meth:`run` with a raw command string to attempt a match and invoke the
+    handler.
+
+    *rx* is a compiled pattern, or a pattern string that is compiled
+    (case-insensitively) the first time :attr:`rx` is read.  The dispatch
+    table registers some 1,700 patterns and a script uses a few dozen, so
+    compiling them all up front cost most of a second on every run.
     """
 
-    # A compiled metacommand that can be run if it matches a metacommand command string.
     def __init__(
         self,
         rx: Any,
@@ -64,6 +68,8 @@ class MetaCommand:
         set_error_flag: bool = True,
         category: str | None = None,
     ) -> None:
+        self._pattern: str
+        self._rx: Any = None
         self.rx = rx
         self.exec_fn = exec_func
         self.description = description
@@ -71,8 +77,32 @@ class MetaCommand:
         self.category = category
         self.hitcount = 0
 
+    @property
+    def rx(self) -> Any:
+        """The compiled pattern, compiled on first use."""
+        if self._rx is None:
+            self._rx = re.compile(self._pattern, re.I)
+        return self._rx
+
+    @rx.setter
+    def rx(self, value: Any) -> None:
+        if isinstance(value, str):
+            self._pattern, self._rx = value, None
+        else:
+            self._pattern, self._rx = value.pattern, value
+
+    @property
+    def pattern(self) -> str:
+        """The pattern string, without compiling it."""
+        return self._pattern
+
+    @property
+    def compiled(self) -> bool:
+        """Whether :attr:`rx` has been compiled yet."""
+        return self._rx is not None
+
     def __repr__(self) -> str:
-        return f"MetaCommand({self.rx.pattern!r}, {self.exec_fn!r}, {self.description!r})"
+        return f"MetaCommand({self.pattern!r}, {self.exec_fn!r}, {self.description!r})"
 
     def run(self, cmd_str: str) -> tuple:
         """Match *cmd_str* against this entry's regex and, if it matches, invoke the handler.
@@ -165,18 +195,17 @@ class MetaCommandList:
         """Register one or more regex patterns as a new :class:`MetaCommand` entry.
 
         *matching_regexes* may be a single pattern string or a list/tuple of
-        patterns; each compiles into a separate :class:`MetaCommand` prepended to
-        the dispatch list so that later registrations take priority.
+        patterns; each becomes a separate :class:`MetaCommand` prepended to
+        the dispatch list so that later registrations take priority.  The
+        patterns are compiled when first matched, not here.
         """
         if isinstance(matching_regexes, (tuple, list)):
             raw_patterns = list(matching_regexes)
-            regexes = [re.compile(rx, re.I) for rx in raw_patterns]
         else:
             raw_patterns = [matching_regexes]
-            regexes = [re.compile(matching_regexes, re.I)]
-        for rx, raw in zip(regexes, raw_patterns):
+        for raw in raw_patterns:
             mc = MetaCommand(
-                rx,
+                raw,
                 exec_func,
                 description,
                 set_error_flag,
