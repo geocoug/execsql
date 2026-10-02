@@ -514,7 +514,8 @@ def _setup_logging(
     opts_dict = {
         k: v
         for k, v in {
-            "sub_vars": sub_vars,
+            # Count only: -a values are opaque and often secrets.
+            "sub_vars": f"{len(sub_vars)} value(s)" if sub_vars else None,
             "boolean_int": boolean_int,
             "make_dirs": make_dirs,
             "database_encoding": database_encoding,
@@ -552,6 +553,9 @@ def _setup_logging(
         )
 
     subvars.add_substitution("$RUN_ID", logger.run_id)
+    # Passwords from the DSN or config files, known before the first connection.
+    logger.add_redaction_value(getattr(conf, "db_password", None))
+    logger.add_redaction_value(getattr(conf, "smtp_password", None))
 
     if sub_vars:
         for n, repl in enumerate(sub_vars):
