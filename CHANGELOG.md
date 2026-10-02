@@ -15,6 +15,13 @@ ______________________________________________________________________
 
 - **`WRITE` / `EXPORT` to a locked file:** when the file stays locked past `outfile_open_timeout`, the run now fails with an error naming the file and how many lines were lost, instead of hanging at `SYSTEM_CMD` or the end of the script, or exiting 0 with the output gone. The CLI waits up to `outfile_open_timeout` at the end of a script for a locked file to free up.
 - **`execsql.run()` in a long-lived process:** repeated calls no longer pile up exit hooks or duplicate plugin metacommands, temp files are removed when the call returns, and a run interrupted with Ctrl-C closes the connection it opened. A run no longer records into a `--manifest` belonging to another run in the same thread.
+- **`execsql.run()` from a script without an `if __name__ == "__main__":` guard:** on macOS and Windows the script's SQL no longer runs twice.
+- **Concurrent `execsql.run()` calls:** each run writes files through its own writer, so two threads writing files at the same time both get complete output, and a run that halts no longer discards another run's file output.
+- **`WRITE ... TO` after `CD`:** a relative output path now lands in the new directory, as `EXPORT` output already did, instead of the directory execsql started in.
+
+### Removed
+
+- **`execsql.utils.fileio` writer globals:** `filewriter`, `fw_input` and `fw_output` are gone, and `FileWriter` no longer takes queue arguments. Code that started a writer by hand before calling `execsql.run()` (the workaround for [#46](https://github.com/geocoug/execsql/issues/46) before 2.23.0) can drop it; `run()` always uses its own.
 
 ______________________________________________________________________
 

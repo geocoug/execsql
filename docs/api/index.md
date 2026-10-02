@@ -26,7 +26,7 @@ See the [README](https://github.com/geocoug/execsql#library-api) for full exampl
 
 ### Thread Safety
 
-`run()` is **thread-safe**. Each call creates an isolated `RuntimeContext` stored in thread-local storage, so concurrent calls from different threads do not share database connections, substitution variables, or execution state.
+`run()` can be called from several threads at once. Each call gets its own `RuntimeContext` in thread-local storage, so concurrent runs do not share database connections, substitution variables, IF/LOOP stacks, error state, or file output.
 
 ```python
 import threading
@@ -46,11 +46,17 @@ for t in threads:
     t.join()
 ```
 
-Each thread gets its own database connections, IF/LOOP stacks, substitution variables, and error state. No locking is required.
+Each run has its own [file writer](#file-output), so two runs writing files at the same time both get complete files, and a run that halts on an error stops only its own output. Plugin metacommands are registered once per process, not once per call, and a `--manifest` recorder belongs to the run that started it.
+
+Three things are still shared by every thread in the process, so keep them apart yourself:
+
+- **The working directory.** `CD` calls `os.chdir()`, which moves every thread. Use absolute paths in scripts that run concurrently, or don't use `CD` in them.
+- **The same output file.** Two runs writing one file at the same time can interleave their lines. Give each run its own output paths.
+- **Interactive prompts.** `PROMPT` and the other GUI metacommands are not meant to be driven from several threads at once.
 
 ### File Output { #file-output }
 
-`WRITE ... TO <file>`, `TEE`, and the other metacommands that write text files hand their output to a separate FileWriter process. `run()` starts one if none is running, and flushes and closes every file before returning — so a file a script wrote is on disk and complete the moment `run()` hands back control.
+`WRITE ... TO <file>`, `TEE`, and the other metacommands that write text files hand their output to a background writer thread. Each `run()` starts its own, then flushes and closes every file and stops the thread before returning, so a file a script wrote is on disk and complete the moment `run()` hands back control.
 
 ```python
 from execsql import run
@@ -59,11 +65,9 @@ result = run(sql='-- !x! WRITE "done" to report.txt\nselect 1;\n', dsn="sqlite:/
 open("report.txt").read()   # "done\n" — readable immediately
 ```
 
-The writer process stays up afterwards and is reused by later `run()` calls, exactly as the CLI keeps one for the life of the process; it is shut down automatically at interpreter exit. A writer you started yourself is left alone — `run()` neither replaces nor stops it.
+The writer is a thread in your process, not a child process, so `run()` works the same from a `.py` file with or without an `if __name__ == "__main__":` guard, from a REPL, from a notebook, and from `python -c`.
 
-!!! warning "Interactive interpreters"
-
-    On macOS and Windows, Python starts subprocesses with the `spawn` method, which re-imports the calling program's `__main__` module. That fails in a REPL, a notebook, or `python -c`, so the writer cannot start and file output is discarded — with a warning on stderr rather than in silence. Run scripts that write files from a `.py` file, guarded by `if __name__ == "__main__":`.
+If a file stays locked (by a sync client, a backup, or a spreadsheet that has it open) for longer than [`outfile_open_timeout`](../reference/configuration.md#setting_outfile_open_timeout), `run()` returns `success=False` with an error naming the file and how many lines were lost.
 
 ## Extension Guides
 

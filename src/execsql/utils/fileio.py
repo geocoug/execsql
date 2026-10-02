@@ -7,7 +7,7 @@ Provides:
 
 - :class:`EncodedFile` — opens files with a specific encoding and error
   handler; supports the script-, output-, and import-encoding settings.
-- :class:`FileWriter` — asynchronous multiprocessing text-file writer
+- :class:`FileWriter` — asynchronous text-file writer thread, one per run,
   used for export output to avoid blocking the main execution loop.
 - :class:`Logger` — wraps a log file with timestamped write methods;
   mirrors output to stderr when ``tee_write_log`` is set.
@@ -24,7 +24,6 @@ import codecs
 import collections
 import errno
 import io
-import multiprocessing
 import os
 import queue
 import re
@@ -32,6 +31,7 @@ from pathlib import Path
 import stat
 import sys
 import tempfile
+import threading
 import time
 import weakref
 from collections.abc import Callable
@@ -185,8 +185,12 @@ def safe_output_path(user_path: str, root: str | os.PathLike[str] | None) -> str
     return str(resolved)
 
 
-class FileWriter(multiprocessing.Process):
-    # An object of this class is intended to be used as a subprocess.
+class FileWriter(threading.Thread):
+    # Each run owns one of these, held on its RuntimeContext and running as a
+    # daemon thread.  (Upstream used a subprocess; under the ``spawn`` start
+    # method that re-imported the caller's __main__, so a library caller's
+    # unguarded script ran a second time, and one writer was shared by every
+    # run in the process.)
     # All files that are to be written to are kept open until explicitly closed or the object is destroyed.
     # When writing to a file is requested, the file will be opened if it is not already open.  If the
     # file cannot be opened for writing, the content to be written will be queued up and opening will
@@ -298,18 +302,14 @@ class FileWriter(multiprocessing.Process):
             if self.status == self.STATUS_OPEN:
                 self.write_queue()
 
-    def __init__(
-        self,
-        input_queue: multiprocessing.Queue,
-        return_msg_queue: multiprocessing.Queue,
-        file_encoding: str = "utf-8",
-        open_timeout: int = 600,
-    ) -> None:
+    def __init__(self, file_encoding: str = "utf-8", open_timeout: int = 600) -> None:
         # open_timeout is the maximum time, in seconds, that opening will be retried
         # if a file cannot be initially opened for writing.
-        super().__init__()
-        self.input_queue = input_queue
-        self.return_msg_queue = return_msg_queue
+        # Daemon, so a run that never reaches filewriter_end() cannot hold the
+        # interpreter open; the atexit handlers flush before daemons stop.
+        super().__init__(name="execsql-filewriter", daemon=True)
+        self.input_queue: queue.Queue[tuple[int, tuple[Any, ...]]] = queue.Queue()
+        self.return_msg_queue: queue.Queue[Any] = queue.Queue()
         self.file_encoding = file_encoding
         self.open_timeout = open_timeout
         self.files: dict[str, FileWriter.FileControl] = {}
@@ -421,15 +421,7 @@ class FileWriter(multiprocessing.Process):
         self.active = False
         self.close_all()
 
-    def run(self) -> None:  # pragma: no cover – runs in a subprocess
-        # Ignore SIGINT in the child process — the parent owns Ctrl+C handling
-        # and will shut us down via CMD_SHUTDOWN on the queue.  Without this,
-        # KeyboardInterrupt races through queue.get() and close_all(), producing
-        # ugly tracebacks on stderr.
-        import signal
-
-        signal.signal(signal.SIGINT, signal.SIG_IGN)
-
+    def run(self) -> None:
         # Messages in the input queue consist of a 2-tuple, of which the first element
         # is a command and the second is a tuple of arguments for the function indicated
         # by that command.
@@ -448,24 +440,27 @@ class FileWriter(multiprocessing.Process):
                 last_retry = time.monotonic()
 
 
-# Subprocess objects for asynchronous writing to text files.
-# filewriter is initialized in main(), so it can take configurable arguments.
-filewriter: FileWriter | None = None
-fw_input: multiprocessing.Queue = multiprocessing.Queue()
-fw_output: multiprocessing.Queue = multiprocessing.Queue()
+def _active_writer() -> FileWriter | None:
+    """The active run's writer if it is running, else ``None``.
 
-
-def _writer_alive() -> bool:
-    """True if the FileWriter subprocess is running and consuming fw_input.
-
-    Every entry-point that puts a command on ``fw_input`` should guard on this:
-    if the subprocess isn't running (test contexts that bypass
-    ``_state.initialize()``, or a subprocess that crashed), unbounded ``put()``
-    calls eventually fill the OS pipe buffer (smaller on macOS than Linux) and
-    deadlock the caller. ``fw_output.get()`` calls would block forever on a
-    dead writer for the same reason.
+    Every entry point that puts a command on a writer's queue guards on this:
+    with no writer running (test contexts that bypass the CLI and
+    :func:`execsql.api.run`, or a writer that crashed) a queued write would
+    never be written, and a wait for a reply would block forever.
     """
-    return filewriter is not None and filewriter.is_alive()
+    import execsql.state as _state
+
+    fw = _state.filewriter
+    return fw if fw is not None and fw.is_alive() else None
+
+
+def _abspath(filename: str) -> str:
+    """*filename* made absolute against the working directory as it is now.
+
+    Resolved here, on the run's thread, rather than in the writer: a ``CD``
+    later in the script must not redirect output already queued.
+    """
+    return str(Path(filename).resolve())
 
 
 #: Sentinel returned by :func:`_writer_reply` when the writer died before
@@ -473,8 +468,8 @@ def _writer_alive() -> bool:
 _NO_REPLY = object()
 
 
-def _writer_reply() -> Any:
-    """Wait for the writer's answer to the command just sent.
+def _writer_reply(fw: FileWriter) -> Any:
+    """Wait for *fw*'s answer to the command just sent.
 
     Polls with a short timeout and re-checks liveness between polls, so a
     writer that dies mid-request cannot block the caller forever.  Returns
@@ -482,17 +477,18 @@ def _writer_reply() -> Any:
     """
     while True:
         try:
-            return fw_output.get(timeout=2.0)
+            return fw.return_msg_queue.get(timeout=2.0)
         except queue.Empty:
-            if not _writer_alive():
+            if not fw.is_alive():
                 return _NO_REPLY
 
 
 def filewriter_filestatus(filename: str) -> int:
-    if not _writer_alive():
+    fw = _active_writer()
+    if fw is None:
         return FileWriter.FileControl.STATUS_CLOSED
-    fw_input.put((FileWriter.CMD_GET_STATUS, (filename,)))
-    reply = _writer_reply()
+    fw.input_queue.put((FileWriter.CMD_GET_STATUS, (_abspath(filename),)))
+    reply = _writer_reply(fw)
     if reply is _NO_REPLY:
         return FileWriter.FileControl.STATUS_CLOSED
     return cast(int, reply)
@@ -507,10 +503,9 @@ def _warn_write_dropped(filename: str) -> None:
     """Report, once per process, that file output is being discarded.
 
     Silently dropping a write is not a safe default: a script's logfile simply
-    comes back empty and the run still reports success.  The guard itself has
-    to stay — putting on a queue no subprocess is draining fills the OS pipe
-    buffer and deadlocks the caller — so the write is still dropped, but no
-    longer without saying so.
+    comes back empty and the run still reports success.  With no writer
+    running there is nothing to hand the write to, so it is still dropped,
+    but no longer without saying so.
     """
     global _drop_warned
     if _drop_warned:
@@ -521,8 +516,7 @@ def _warn_write_dropped(filename: str) -> None:
 
         write_warning(
             f'no file writer is running; output to "{filename}" and any later file '
-            "is discarded. Start one with execsql.utils.fileio.FileWriter, or run "
-            "the script through the CLI or execsql.api.run().",
+            "is discarded. Run the script through the CLI or execsql.api.run().",
             always=True,
         )
     except Exception:
@@ -530,50 +524,54 @@ def _warn_write_dropped(filename: str) -> None:
 
 
 def filewriter_write(filename: str, message: str) -> None:
-    if not _writer_alive():
+    fw = _active_writer()
+    if fw is None:
         _warn_write_dropped(filename)
         return
-    fw_input.put((FileWriter.CMD_WRITE, (filename, message)))
+    fw.input_queue.put((FileWriter.CMD_WRITE, (_abspath(filename), message)))
 
 
 def filewriter_open_as_new(filename: str) -> None:
     # FileWriter opens files in append mode ("a") by default.  This ensures that it
     # will be opened in write mode ("w") instead.  If the file is open, it will be closed.
-    if not _writer_alive():
+    fw = _active_writer()
+    if fw is None:
         _warn_write_dropped(filename)
         return
-    fw_input.put((FileWriter.CMD_OPEN_AS_NEW, (filename,)))
+    fw.input_queue.put((FileWriter.CMD_OPEN_AS_NEW, (_abspath(filename),)))
 
 
 def filewriter_close(filename: str) -> None:
-    # This is intended to be used by the main process to ensure that a file
-    # is closed before that process writes to it.
-    if not _writer_alive():
+    # This is intended to be used by the executing thread to ensure that a
+    # file is closed before it writes to that file itself.
+    fw = _active_writer()
+    if fw is None:
         return
-    fw_input.put((FileWriter.CMD_CLOSE_IF_OPEN, (filename,)))
+    filename = _abspath(filename)
+    fw.input_queue.put((FileWriter.CMD_CLOSE_IF_OPEN, (filename,)))
     while filewriter_filestatus(filename) == FileWriter.FileControl.STATUS_OPEN:
         time.sleep(0.05)
 
 
 def filewriter_close_all_after_write() -> None:
-    """Flush and close every file the writer holds, then report lost output.
+    """Flush and close every file the active run's writer holds, then report lost output.
 
     Waits for files still locked by another process for up to the writer's
     ``open_timeout`` (plus a small margin).  Any file that could not be opened
     in that time has its output discarded, and this raises :class:`ErrInfo`
     naming each such file — a lost write is an error, not a silent success.
     """
-    if not _writer_alive():
+    fw = _active_writer()
+    if fw is None:
         return
-    assert filewriter is not None
-    deadline = time.monotonic() + filewriter.open_timeout + 5.0
-    fw_input.put((FileWriter.CMD_CLOSE_ALL_AFTER_WRITE, ()))
+    deadline = time.monotonic() + fw.open_timeout + 5.0
+    fw.input_queue.put((FileWriter.CMD_CLOSE_ALL_AFTER_WRITE, ()))
     timed_out = False
     while True:
-        if not _writer_alive():
+        if not fw.is_alive():
             return
-        fw_input.put((FileWriter.CMD_CLOSED_STATUS, ()))
-        close_status = _writer_reply()
+        fw.input_queue.put((FileWriter.CMD_CLOSED_STATUS, ()))
+        close_status = _writer_reply(fw)
         if close_status is _NO_REPLY:
             return
         if close_status == FileWriter.FileControl.STATUS_CLOSED:
@@ -582,47 +580,55 @@ def filewriter_close_all_after_write() -> None:
             timed_out = True
             break
         time.sleep(0.05)
-    fw_input.put((FileWriter.CMD_OPEN_FAILURES, ()))
-    failures = _writer_reply()
+    fw.input_queue.put((FileWriter.CMD_OPEN_FAILURES, ()))
+    failures = _writer_reply(fw)
     if failures is _NO_REPLY:
         failures = []
     messages = [
-        f"could not open {fn} for writing within {filewriter.open_timeout} seconds; "
+        f"could not open {fn} for writing within {fw.open_timeout} seconds; "
         f"{dropped} line(s) of output to it were discarded"
         for fn, dropped in failures
     ]
     if timed_out:
-        messages.append(f"one or more output files were still locked after {filewriter.open_timeout} seconds")
+        messages.append(f"one or more output files were still locked after {fw.open_timeout} seconds")
     if messages:
         raise ErrInfo("error", other_msg="File output lost: " + "; ".join(messages) + ".")
 
 
 def filewriter_closeall() -> None:
-    if not _writer_alive():
+    fw = _active_writer()
+    if fw is None:
         return
-    fw_input.put((FileWriter.CMD_CLOSE_ALL, ()))
+    fw.input_queue.put((FileWriter.CMD_CLOSE_ALL, ()))
 
 
 def filewriter_shutdown() -> None:
-    if not _writer_alive():
+    fw = _active_writer()
+    if fw is None:
         return
-    fw_input.put((FileWriter.CMD_SHUTDOWN, ()))
+    fw.input_queue.put((FileWriter.CMD_SHUTDOWN, ()))
 
 
-def filewriter_end() -> None:
-    # join() with no timeout blocks forever if the subprocess is stuck;
-    # cap it so atexit handlers can't wedge Python shutdown.
-    if filewriter is None:
+def filewriter_end(writer: FileWriter | None = None) -> None:
+    """Close every file and stop *writer*, or the active run's writer if omitted.
+
+    Only that one writer is stopped: a run that halts leaves other runs'
+    output alone.  The join is capped so an ``atexit`` handler cannot wedge
+    interpreter shutdown on a writer stuck opening a file.
+    """
+    import execsql.state as _state
+
+    fw = writer if writer is not None else _state.filewriter
+    if fw is None:
         return
     try:
-        if filewriter.is_alive():
-            filewriter_shutdown()
-            filewriter.join(timeout=5.0)
-        if filewriter.is_alive():
-            filewriter.terminate()
-            filewriter.join(timeout=2.0)
+        if fw.is_alive():
+            fw.input_queue.put((FileWriter.CMD_SHUTDOWN, ()))
+            fw.join(timeout=5.0)
     except Exception:
         pass  # Best-effort cleanup at interpreter shutdown.
+    if _state.filewriter is fw:
+        _state.filewriter = None
 
 
 class EncodedFile:

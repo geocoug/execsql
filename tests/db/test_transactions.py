@@ -22,21 +22,6 @@ from tests.live_db import BACKEND_NAMES, _server_listening, open_backend
 TABLE = "txn_probe"
 
 
-@pytest.fixture(scope="module", autouse=True)
-def _stop_the_file_writer():
-    """Stop the FileWriter ``run()`` leaves up for reuse.
-
-    Later tests drive the CLI, which starts its own; sharing this one left
-    their WRITE ... TO files unwritten and an EXPORT waiting forever.
-    """
-    yield
-    import execsql.state as _state
-    import execsql.utils.fileio as fileio
-
-    fileio.filewriter_end()
-    fileio.filewriter = _state.filewriter = None
-
-
 #: Why SQL Server is unusable, once found: every test would otherwise wait out
 #: the ODBC connect timeout again (Windows runners have the driver but no server,
 #: which cost 62 s per test).

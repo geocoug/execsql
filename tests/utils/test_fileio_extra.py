@@ -283,26 +283,26 @@ class TestFileWriterMethods:
         assert len(fw.files) == 1
 
     def test_status_unopened(self, tmp_path):
-        import multiprocessing
+        import queue
 
         fw = FileWriter.__new__(FileWriter)
         fw.files = {}
         fw.file_encoding = "utf-8"
         fw.open_timeout = 5
-        fw.return_msg_queue = multiprocessing.Queue()
+        fw.return_msg_queue = queue.Queue()
 
         fw.status(str(tmp_path / "nonexistent.txt"))
         result = fw.return_msg_queue.get()
         assert result == FileWriter.FileControl.STATUS_UNOPENED
 
     def test_status_open(self, tmp_path):
-        import multiprocessing
+        import queue
 
         fw = FileWriter.__new__(FileWriter)
         fw.files = {}
         fw.file_encoding = "utf-8"
         fw.open_timeout = 5
-        fw.return_msg_queue = multiprocessing.Queue()
+        fw.return_msg_queue = queue.Queue()
 
         path = str(tmp_path / "out.txt")
         fw.write(path, "data\n")
@@ -312,13 +312,13 @@ class TestFileWriterMethods:
         fw.close_all()
 
     def test_closed_status_all_closed(self, tmp_path):
-        import multiprocessing
+        import queue
 
         fw = FileWriter.__new__(FileWriter)
         fw.files = {}
         fw.file_encoding = "utf-8"
         fw.open_timeout = 5
-        fw.return_msg_queue = multiprocessing.Queue()
+        fw.return_msg_queue = queue.Queue()
 
         fw.closed_status()
         result = fw.return_msg_queue.get()
@@ -332,10 +332,10 @@ class TestFileWriterMethods:
         assert fw.active is False
 
     def test_ping(self, tmp_path):
-        import multiprocessing
+        import queue
 
         fw = FileWriter.__new__(FileWriter)
-        fw.return_msg_queue = multiprocessing.Queue()
+        fw.return_msg_queue = queue.Queue()
         fw.ping("test_token")
         assert fw.return_msg_queue.get() == "test_token"
 
@@ -348,13 +348,13 @@ class TestFileWriterMethods:
 class TestLockedOutputFile:
     @staticmethod
     def _writer(open_timeout):
-        import multiprocessing
+        import queue
 
         fw = FileWriter.__new__(FileWriter)
         fw.files = {}
         fw.file_encoding = "utf-8"
         fw.open_timeout = open_timeout
-        fw.return_msg_queue = multiprocessing.Queue()
+        fw.return_msg_queue = queue.Queue()
         return fw
 
     def test_idle_retry_opens_a_file_once_it_is_unlocked(self, tmp_path):
@@ -391,11 +391,12 @@ class TestLockedOutputFile:
 
 
 class TestCloseAllAfterWriteWithLockedFile:
-    """The real subprocess: a locked file must fail the flush, not hang it."""
+    """The real writer thread: a locked file must fail the flush, not hang it."""
 
     def test_returns_within_timeout_and_names_the_file(self, tmp_path):
         import threading
 
+        import execsql.state as _state
         import execsql.utils.fileio as fileio
 
         # A directory can never be opened as a text file, on any platform.
@@ -403,15 +404,18 @@ class TestCloseAllAfterWriteWithLockedFile:
         target.mkdir()
 
         fileio.filewriter_end()
-        fileio.filewriter = FileWriter(fileio.fw_input, fileio.fw_output, file_encoding="utf-8", open_timeout=1)
-        fileio.filewriter.start()
+        _state.filewriter = FileWriter(file_encoding="utf-8", open_timeout=1)
+        _state.filewriter.start()
+        ctx = _state.get_context()
         outcome: dict = {}
 
         def flush():
-            try:
-                fileio.filewriter_close_all_after_write()
-            except ErrInfo as exc:
-                outcome["error"] = exc.errmsg()
+            # The writer belongs to this test's run context, not to the thread.
+            with _state.active_context(ctx):
+                try:
+                    fileio.filewriter_close_all_after_write()
+                except ErrInfo as exc:
+                    outcome["error"] = exc.errmsg()
 
         try:
             fileio.filewriter_write(str(target), "lost line\n")
@@ -423,4 +427,3 @@ class TestCloseAllAfterWriteWithLockedFile:
             assert "1 line(s)" in outcome["error"]
         finally:
             fileio.filewriter_end()
-            fileio.filewriter = None

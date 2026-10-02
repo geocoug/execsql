@@ -386,7 +386,7 @@ When CANCEL_HALT is set to ON, which is the default, if the user presses the "Ca
 CD <directory>
 ```
 
-Changes the current working directory.
+Changes the current working directory. Relative paths in later metacommands, including `WRITE ... TO`, are resolved against the new directory.
 
 
 ## CONFIG
@@ -3188,7 +3188,7 @@ Writes the specified text to the console or a file, or both. The text to be writ
 
 The text to be written may be enclosed in double quotes (as shown above), or in single quotes, matching square brackets, backticks, tildes, or hash marks (#).
 
-When the text is to be written to a file, the file is opened in a separate process to try to avoid access conflicts that may occur if that file has been temporarily opened by some other user or process (such as a backup or syncing process). If the output file cannot immediately be opened, the WRITE process will continue trying to open the file for a period determined by the [outfile_open_timeout](configuration.md#setting_outfile_open_timeout) configuration setting. The WRITE process will buffer multiple output to a blocked file until the file is successfully opened or the timeout period has expired. Text can be written to other output files during the timeout period. *execsql* waits for pending output before running a [SYSTEM_CMD](#system_cmd) and at the end of the script. If an output file cannot be opened before the timeout expires, all pending WRITE output to that file is lost, and the run fails with an error that names the file.
+When the text is to be written to a file, the file is opened by a background writer to try to avoid access conflicts that may occur if that file has been temporarily opened by some other user or process (such as a backup or syncing process). If the output file cannot immediately be opened, the WRITE process will continue trying to open the file for a period determined by the [outfile_open_timeout](configuration.md#setting_outfile_open_timeout) configuration setting. The WRITE process will buffer multiple output to a blocked file until the file is successfully opened or the timeout period has expired. Text can be written to other output files during the timeout period. *execsql* waits for pending output before running a [SYSTEM_CMD](#system_cmd) and at the end of the script. If an output file cannot be opened before the timeout expires, all pending WRITE output to that file is lost, and the run fails with an error that names the file.
 
 
 ## WRITE CREATE_TABLE
