@@ -679,6 +679,18 @@ class TestDTTimestamp:
         with pytest.raises(DataTypeError):
             self.dt._from_data("not-a-datetime")
 
+    @pytest.mark.parametrize(
+        "val",
+        ["2024-01-01 10:00+05:00", "2024-01-01T10:00:00Z", "2024-01-01 10:00:00 -0700"],
+    )
+    def test_a_string_with_an_offset_is_not_a_plain_timestamp(self, val):
+        """Storing it in a timestamp column would shift it by the client's time zone."""
+        assert self.dt.matches(val) is False
+
+    def test_an_aware_datetime_object_still_passes_through(self):
+        aware = datetime.datetime(2024, 1, 1, 10, tzinfo=datetime.timezone.utc)
+        assert self.dt.from_data(aware) == aware
+
 
 # ---------------------------------------------------------------------------
 # DT_TimestampTZ

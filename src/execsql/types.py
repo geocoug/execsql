@@ -180,6 +180,10 @@ class DT_Timestamp(DataType):
         dt = parse_datetime(data)
         if not dt:
             raise DataTypeError(self.data_type_name, self._CONV_ERR % data)
+        # A written UTC offset makes it a timestamptz: stored in a timestamp
+        # column, the driver would shift it by the client's time zone.
+        if isinstance(data, str) and dt.tzinfo is not None:
+            raise DataTypeError(self.data_type_name, self._CONV_ERR % data)
         return dt
 
 
