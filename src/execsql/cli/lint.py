@@ -109,6 +109,12 @@ RULES: dict[str, Rule] = {
             "error",
             "The script cannot be parsed, for example an IF, LOOP, BATCH or SCRIPT block that is never closed.",
         ),
+        Rule(
+            "P002",
+            "split-dollar-quote",
+            "error",
+            "A dollar-quoted body ($$ ... $$) is split into separate statements at a line ending in ';'.",
+        ),
         Rule("S001", "empty-script", "warning", "The script contains no statements."),
         Rule(
             "V001",
@@ -482,6 +488,35 @@ def _check_constant_condition(node: IfBlock, issues: list[_Issue]) -> None:
         )
 
 
+def _check_split_dollar_quotes(nodes: list[Node], issues: list[_Issue]) -> None:
+    """Report a dollar-quoted body that the script splits into several statements.
+
+    A statement ends at any line ending in ``;``, even inside ``$$ ... $$``,
+    so a function body is sent to the database in pieces: the first piece
+    fails, and with ERROR_HALT OFF the statements inside the body then run
+    on their own.  One issue is reported where the body opens; the pieces
+    that follow until it closes are part of the same problem.
+    """
+    from execsql.format import open_dollar_quote
+
+    open_tag: str | None = None
+    for node in nodes:
+        if not isinstance(node, SqlStatement):
+            continue
+        was_open = open_tag
+        open_tag = open_dollar_quote(node.text, open_tag)
+        if was_open is None and open_tag is not None:
+            issues.append(
+                _issue(
+                    "P002",
+                    node.span.file,
+                    node.span.start_line,
+                    f"dollar-quoted body {open_tag} is split at the first line ending in ';'; "
+                    "put the statement between BEGIN SQL and END SQL",
+                ),
+            )
+
+
 def _check_unreachable_after_halt(nodes: list[Node], issues: list[_Issue]) -> None:
     """Report statements that follow an unconditional HALT in the same block.
 
@@ -591,6 +626,7 @@ def _lint_nodes(
         visited_scripts = set()
 
     _check_unreachable_after_halt(nodes, issues)
+    _check_split_dollar_quotes(nodes, issues)
 
     for node in nodes:
         src = node.span.file

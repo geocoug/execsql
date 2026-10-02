@@ -434,6 +434,51 @@ class TestUnreachableAfterHalt:
         assert "F002" not in _codes(issues)
 
 
+class TestSplitDollarQuote:
+    """A $$ body is cut at the first line ending in ';' unless wrapped in BEGIN SQL / END SQL."""
+
+    FUNCTION = (
+        "create or replace function purge() returns void as $body$\n"
+        "begin\n"
+        "    delete from s;\n"
+        "end;\n"
+        "$body$ language plpgsql;\n"
+    )
+
+    def test_an_unwrapped_function_body_is_reported_once(self, tmp_path):
+        issues = [i for i in _lint(tmp_path, self.FUNCTION + "select 1;\n") if i.code == "P002"]
+        assert len(issues) == 1
+        assert issues[0].line == 1
+        assert issues[0].severity == "error"
+        assert "$body$" in issues[0].message and "BEGIN SQL" in issues[0].message
+
+    def test_begin_sql_block_is_fine(self, tmp_path):
+        body = "-- !x! BEGIN SQL\n" + self.FUNCTION + "-- !x! END SQL\n"
+        assert "P002" not in _codes(_lint(tmp_path, body))
+
+    @pytest.mark.parametrize(
+        "sql",
+        [
+            "select $$ one; line $$ as v;\n",
+            "select '$$' as v;\n",
+            "-- a $$ in a comment\nselect 1;\n",
+            "select $1, $2 from t;\n",
+            'select 1 as "$$weird$$";\n',
+        ],
+        ids=["one-line-body", "in-literal", "in-comment", "positional-params", "in-identifier"],
+    )
+    def test_closed_or_quoted_markers_are_fine(self, tmp_path, sql):
+        assert "P002" not in _codes(_lint(tmp_path, sql))
+
+    def test_each_split_body_is_reported(self, tmp_path):
+        issues = [i for i in _lint(tmp_path, self.FUNCTION + self.FUNCTION) if i.code == "P002"]
+        assert [i.line for i in issues] == [1, 6]
+
+    def test_a_split_body_inside_a_block_is_reported(self, tmp_path):
+        body = "-- !x! IF(hasrows(t))\n" + self.FUNCTION + "-- !x! ENDIF\n"
+        assert "P002" in _codes(_lint(tmp_path, body))
+
+
 class TestUnusedVariables:
     """A defined-but-unread variable is nearly always a spelling mismatch."""
 

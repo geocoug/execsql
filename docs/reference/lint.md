@@ -60,7 +60,7 @@ reports it with its line.
 | 1      | At least one reported issue is an error — or, with `--strict`, any issue at all — or no `.sql` file was found in the given paths. |
 | 2      | Usage error, such as an unknown rule code in `--select` or `--ignore`.                                                            |
 
-Only `P001` is an error today; every other rule is a warning. To fail a CI step on warnings as well, add `--strict` (or `strict = yes` in the [`[lint]` section](#config) of a config file); `--no-strict` turns it off for one run.
+`P001` and `P002` are errors; every other rule is a warning. To fail a CI step on warnings as well, add `--strict` (or `strict = yes` in the [`[lint]` section](#config) of a config file); `--no-strict` turns it off for one run.
 
 ## Choosing rules { #select }
 
@@ -171,6 +171,7 @@ Codes are grouped by subject: `P` parsing, `S` the script as a whole, `V` variab
 | Code          | Name                 | Severity |
 | ------------- | -------------------- | -------- |
 | [P001](#p001) | `parse-error`        | error    |
+| [P002](#p002) | `split-dollar-quote` | error    |
 | [S001](#s001) | `empty-script`       | warning  |
 | [V001](#v001) | `undefined-variable` | warning  |
 | [V002](#v002) | `unused-variable`    | warning  |
@@ -197,6 +198,37 @@ load.sql
 A script that cannot be decoded with the chosen encoding is also reported as `P001`, with the message `cannot decode as utf-8 (...); set -f/--script-encoding`.
 
 No other rule runs on a script that does not parse. Fix this one first.
+
+### P002 `split-dollar-quote` { #p002 }
+
+A dollar-quoted body (`$$ ... $$` or `$tag$ ... $tag$`), such as a PostgreSQL function or `DO` block, contains a line ending in `;`. *execsql* ends a SQL statement at every line that ends in `;`, including lines inside a dollar-quoted body, so the function is sent to the database in pieces. The first piece fails with `unterminated dollar-quoted string`. With `ERROR_HALT OFF` it is worse: the statements inside the body then run on their own, against live data, and the function is never created.
+
+```sql
+create or replace function purge_staging() returns void as $body$
+begin
+    delete from staging.orders;
+end;
+$body$ language plpgsql;
+```
+
+```text
+load.sql
+  1  error    P002  dollar-quoted body $body$ is split at the first line ending in ';'; put the statement between BEGIN SQL and END SQL
+```
+
+Put the statement between [`BEGIN SQL` and `END SQL`](metacommands.md#beginsql), which send everything between them as one statement:
+
+```sql
+-- !x! BEGIN SQL
+create or replace function purge_staging() returns void as $body$
+begin
+    delete from staging.orders;
+end;
+$body$ language plpgsql;
+-- !x! END SQL
+```
+
+A body that opens and closes on one line, and `$$` inside a comment, a `'...'` literal or a quoted identifier, are not reported. One issue is reported per body, on the line where it opens.
 
 ### S001 `empty-script` { #s001 }
 
