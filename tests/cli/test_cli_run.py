@@ -5,7 +5,7 @@ Strategy
 --------
 - Call ``_run()`` directly (bypassing Typer) with carefully crafted arguments.
 - Mock every external I/O boundary: file system config, database connections,
-  the ``runscripts`` execution loop, the ``FileWriter`` subprocess, and the
+  the ``runscripts`` execution loop, the ``FileWriter`` thread, and the
   GUI helpers.
 - Tests are grouped by the section of ``_run()`` they exercise.
 - The ``autouse`` ``minimal_conf`` fixture from conftest.py resets

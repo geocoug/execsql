@@ -557,7 +557,7 @@ def reset() -> None:
     """Reset all mutable state to initial values.
 
     Intended for use in tests.  Creates a fresh :class:`RuntimeContext`,
-    preserving only the ``filewriter`` subprocess (which is ``atexit``-managed
+    preserving only the ``filewriter`` thread (which is ``atexit``-managed
     and must not be discarded while alive).
     """
     ctx = _get_ctx()
@@ -599,8 +599,9 @@ def initialize(
     Note:
         ``subvars``, ``status``, ``output``, ``filewriter``, and ``exec_log``
         are **not** set here because they require CLI-specific arguments
-        (script path, subprocess queues, local class definitions).  Those are
-        assigned directly in ``_run()`` before and after this call.
+        (script path, output settings, local class definitions).  Those are
+        assigned directly in ``_run()`` (or :func:`execsql.api.run`) before
+        and after this call.
     """
     import execsql.db.base as _db_base
     import execsql.exporters.base as _exporters_base

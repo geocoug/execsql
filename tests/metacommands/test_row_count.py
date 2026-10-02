@@ -293,7 +293,10 @@ def _flush_filewriter() -> None:
         _state.filewriter.join(timeout=0.3)
         if not _state.filewriter.is_alive():
             return
-        from execsql.utils.fileio import FileWriter, fw_input, fw_output
+        from execsql.utils.fileio import FileWriter
+
+        fw_input = _state.filewriter.input_queue
+        fw_output = _state.filewriter.return_msg_queue
 
         token = ("_flush", time.monotonic())
         fw_input.put((FileWriter.CMD_CLOSE_ALL_AFTER_WRITE, ()))

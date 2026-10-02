@@ -262,7 +262,7 @@ ______________________________________________________________________
 1. The handler determines the output format from the metacommand arguments.
 1. It calls `select_data()` or `select_rowsource()` on the current database to fetch results.
 1. The appropriate exporter module (e.g., `exporters/delimited.py`, `exporters/json.py`) formats and writes the output.
-1. File writing is asynchronous via `FileWriter`, a background process that serializes writes through a shared queue.
+1. Text output from `WRITE`, `TEE` and similar metacommands is asynchronous via `FileWriter`, a background thread that each run owns (held on its `RuntimeContext`) and that serializes writes through its own queue.
 
 ### Import flow
 
@@ -323,7 +323,7 @@ This import pattern (always as `_state`, always accessed inside function/method 
 | `metacommandlist` | `MetaCommandList`        | Metacommand dispatch table                                       |
 | `conditionallist` | `MetaCommandList`        | Conditional predicate dispatch table                             |
 | `counters`        | `CounterVars`            | Auto-incrementing counters                                       |
-| `filewriter`      | `FileWriter`             | Background file-writing process                                  |
+| `filewriter`      | `FileWriter`             | This run's background file-writing thread                        |
 | `exec_log`        | `Logger`                 | Execution log                                                    |
 
 ______________________________________________________________________

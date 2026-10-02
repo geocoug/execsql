@@ -79,7 +79,7 @@ def minimal_conf():
 def noop_filewriter_close():
     """
     Patch filewriter_close in each exporter/importer module that imports it
-    directly, so that tests never block waiting on the FileWriter subprocess.
+    directly, so that tests never block waiting on the FileWriter thread.
     """
     targets = [
         "execsql.utils.fileio.filewriter_close",
