@@ -8,11 +8,14 @@ Implements ``x_include``, ``x_copy``, ``x_copy_query``, ``x_zip``,
 from __future__ import annotations
 
 import os
+import pickle
+import struct
 import sys
-from itertools import tee
+import tempfile
+from collections.abc import Iterator
 from pathlib import Path
 from shutil import copyfileobj
-from typing import Any, Literal, cast
+from typing import Any, Literal
 
 import execsql.state as _state
 from execsql.exceptions import ErrInfo
@@ -21,6 +24,39 @@ from execsql.script import current_script_line
 from execsql.utils.errors import exception_desc
 from execsql.utils.fileio import filewriter_close
 from execsql.utils.strings import unquoted
+
+
+class _RowSpool:
+    """Pass rows through while writing each to a temporary file, to be read back once more.
+
+    ``COPY ... TO NEW`` needs every row twice, once to describe the new table
+    and once to load it, but runs the source query once.  The rows are kept
+    in memory up to *max_size* bytes and on disk beyond that.  Each row is
+    pickled on its own, so neither pass keeps a reference to earlier rows.
+    """
+
+    _LENGTH = struct.Struct("<Q")
+
+    def __init__(self, rows: Any, max_size: int = 8 * 1024 * 1024) -> None:
+        self._rows = rows
+        self._file = tempfile.SpooledTemporaryFile(max_size=max_size)  # noqa: SIM115 - closed by close()
+
+    def __iter__(self) -> Iterator[Any]:
+        for row in self._rows:
+            data = pickle.dumps(row, protocol=pickle.HIGHEST_PROTOCOL)
+            self._file.write(self._LENGTH.pack(len(data)))
+            self._file.write(data)
+            yield row
+
+    def replay(self) -> Iterator[Any]:
+        """Yield the rows passed through, in order."""
+        self._file.seek(0)
+        while header := self._file.read(self._LENGTH.size):
+            (size,) = self._LENGTH.unpack(header)
+            yield pickle.loads(self._file.read(size))
+
+    def close(self) -> None:
+        self._file.close()
 
 
 def _close_rowsource(rows: Any) -> None:
@@ -86,6 +122,7 @@ def x_copy(**kwargs: Any) -> None:
 
     get_ts_tablespec = None
     rows_to_close = None
+    spool: _RowSpool | None = None
     rows_for_insert: Any
 
     if new_tbl2:
@@ -96,9 +133,10 @@ def x_copy(**kwargs: Any) -> None:
         except Exception as e:
             raise ErrInfo("db", select_stmt, exception_msg=exception_desc()) from e
         rows_to_close = rows
-        rows = cast(Any, rows)
-        rows_for_schema, rows_for_insert = tee(rows)
-        get_ts_tablespec = DataTable(hdrs, rows_for_schema)
+        # Values come from a database cursor, so a text value stays text.
+        spool = _RowSpool(rows)
+        get_ts_tablespec = DataTable(hdrs, spool, infer_strings=False)
+        rows_for_insert = spool.replay()
         tbl_desc = get_ts_tablespec
         create_tbl = tbl_desc.create_table(db2.type, schema2, table2)
         if new_tbl2 == "replacement":
@@ -129,7 +167,7 @@ def x_copy(**kwargs: Any) -> None:
         nonlocal get_ts_tablespec
         if get_ts_tablespec is None:
             ts_hdrs, ts_rows = db1.select_rowsource(select_stmt)
-            get_ts_tablespec = DataTable(ts_hdrs, ts_rows)
+            get_ts_tablespec = DataTable(ts_hdrs, ts_rows, infer_strings=False)
         return get_ts_tablespec
 
     try:
@@ -138,6 +176,9 @@ def x_copy(**kwargs: Any) -> None:
     except BaseException:
         _close_rowsource(rows_to_close)
         raise
+    finally:
+        if spool is not None:
+            spool.close()
 
 
 def x_copy_query(**kwargs: Any) -> None:
@@ -176,6 +217,7 @@ def x_copy_query(**kwargs: Any) -> None:
 
     get_ts_tablespec = None
     rows_to_close = None
+    spool: _RowSpool | None = None
     rows_for_insert: Any
 
     if new_tbl2:
@@ -186,9 +228,10 @@ def x_copy_query(**kwargs: Any) -> None:
         except Exception as e:
             raise ErrInfo("db", select_stmt, exception_msg=exception_desc()) from e
         rows_to_close = rows
-        rows = cast(Any, rows)
-        rows_for_schema, rows_for_insert = tee(rows)
-        get_ts_tablespec = DataTable(hdrs, rows_for_schema)
+        # Values come from a database cursor, so a text value stays text.
+        spool = _RowSpool(rows)
+        get_ts_tablespec = DataTable(hdrs, spool, infer_strings=False)
+        rows_for_insert = spool.replay()
         tbl_desc = get_ts_tablespec
         create_tbl = tbl_desc.create_table(db2.type, schema2, table2)
         if new_tbl2 == "replacement":
@@ -219,7 +262,7 @@ def x_copy_query(**kwargs: Any) -> None:
         nonlocal get_ts_tablespec
         if get_ts_tablespec is None:
             ts_hdrs, ts_rows = db1.select_rowsource(select_stmt)
-            get_ts_tablespec = DataTable(ts_hdrs, ts_rows)
+            get_ts_tablespec = DataTable(ts_hdrs, ts_rows, infer_strings=False)
         return get_ts_tablespec
 
     try:
@@ -228,6 +271,9 @@ def x_copy_query(**kwargs: Any) -> None:
     except BaseException:
         _close_rowsource(rows_to_close)
         raise
+    finally:
+        if spool is not None:
+            spool.close()
 
 
 def x_zip(**kwargs: Any) -> None:
