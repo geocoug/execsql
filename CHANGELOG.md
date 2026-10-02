@@ -29,6 +29,8 @@ ______________________________________________________________________
 
 ### Fixed
 
+- **`execsql lint` `V001` (`undefined-variable`):** variables set by `PROMPT ENTER_SUB`, `ASK ... SUB`, `PROMPT ASK ... SUB`, `PROMPT OPENFILE` / `SAVEFILE` / `DIRECTORY SUB`, `PROMPT CREDENTIALS`, `SUB_TEMPFILE` and the keys of `SUB_QUERYSTRING` are no longer reported as undefined. A user variable named like a system variable without its `$` (`!!date_tag!!`), or a `SUB` variable written with a `$` (`!!$region!!`), is now reported.
+- **`execsql lint` `V002` (`unused-variable`):** a variable read only by `sub_defined(...)` or `sub_empty(...)` is no longer reported as unused.
 - **`WRITE` / `EXPORT` to a locked file:** when the file stays locked past `outfile_open_timeout`, the run now fails with an error naming the file and how many lines were lost, instead of hanging at `SYSTEM_CMD` or the end of the script, or exiting 0 with the output gone. The CLI waits up to `outfile_open_timeout` at the end of a script for a locked file to free up.
 - **`execsql.run()` in a long-lived process:** repeated calls no longer pile up exit hooks or duplicate plugin metacommands, temp files are removed when the call returns, and a run interrupted with Ctrl-C closes the connection it opened. A run no longer records into a `--manifest` belonging to another run in the same thread.
 - **`execsql.run()` from a script without an `if __name__ == "__main__":` guard:** on macOS and Windows the script's SQL no longer runs twice.

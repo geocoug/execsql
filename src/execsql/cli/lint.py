@@ -226,10 +226,22 @@ _RX_SUB_INI = re.compile(
 )
 _RX_SELECTSUB = re.compile(r"^\s*(?:SELECT_?SUB|PROMPT\s+SELECT_?SUB)\s+", re.I)
 _RX_SUB_LOCAL = re.compile(r"^\s*SUB_LOCAL\s+(?P<name>\w+)\s+", re.I)
-_RX_SUB_TEMPFILE = re.compile(r"^\s*SUB_TEMPFILE\s+(?P<name>\w+)\s", re.I)
-_RX_SUB_DECRYPT = re.compile(r"^\s*SUB_DECRYPT\s+(?P<name>\w+)\s+", re.I)
-_RX_SUB_ENCRYPT = re.compile(r"^\s*SUB_ENCRYPT\s+(?P<name>\w+)\s+", re.I)
-_RX_SUB_QUERYSTRING = re.compile(r"^\s*SUB_QUERYSTRING\s+(?P<name>\w+)\s+", re.I)
+_RX_SUB_TEMPFILE = re.compile(r"^\s*SUB_TEMPFILE\s+(?P<name>[+~]?\w+)\s*$", re.I)
+_RX_SUB_DECRYPT = re.compile(r"^\s*SUB_DECRYPT\s+(?P<name>[+~]?\w+)\s+", re.I)
+_RX_SUB_ENCRYPT = re.compile(r"^\s*SUB_ENCRYPT\s+(?P<name>[+~]?\w+)\s+", re.I)
+_RX_SUB_QUERYSTRING = re.compile(r"^\s*SUB_QUERYSTRING\s+(?P<qstr>.+?)\s*$", re.I)
+# The prompts that store the answer in a variable.
+_RX_ASK_SUB = re.compile(r"""^\s*(?:PROMPT\s+)?ASK\s+(?:'.*'|".*")\s+SUB\s+(?P<name>~?\w+)(?:\s|$)""", re.I)
+_RX_PROMPT_ENTER_SUB = re.compile(r"^\s*PROMPT\s+ENTER_SUB\s+(?P<name>~?\w+)\s", re.I)
+_RX_PROMPT_DIRECTORY = re.compile(r"^\s*PROMPT\s+DIRECTORY\s+SUB\s+(?P<name>~?\w+)(?:\s|$)", re.I)
+_RX_PROMPT_FILE = re.compile(
+    r"^\s*PROMPT\s+(?:OPENFILE|SAVEFILE)\s+SUB\s+(?P<names>~?\w+(?:\s+~?\w+){0,4})(?=\s+FROM\s|\s*$)",
+    re.I,
+)
+_RX_PROMPT_CREDENTIALS = re.compile(
+    r'^\s*PROMPT(?:\s+MESSAGE)?(?:\s+"[^"]*")?\s+CREDENTIALS\s+(?P<user>\w+)\s+(?P<pw>\w+)\s*$',
+    re.I,
+)
 
 _RX_VAR_REF = re.compile(r"!!([$@&~#+]?\w+)!!", re.I)
 
@@ -367,7 +379,7 @@ def _extract_var_definition(
     script_dir: Path | None,
     defined: set[str],
 ) -> None:
-    """Extract variable name from a SUB-family metacommand into *defined*."""
+    """Add the variable(s) a metacommand defines to *defined*: the SUB family and the prompts that store an answer."""
     for rx in (
         _RX_SUB,
         _RX_SUB_EMPTY,
@@ -378,12 +390,31 @@ def _extract_var_definition(
         _RX_SUB_TEMPFILE,
         _RX_SUB_DECRYPT,
         _RX_SUB_ENCRYPT,
-        _RX_SUB_QUERYSTRING,
+        _RX_ASK_SUB,
+        _RX_PROMPT_ENTER_SUB,
+        _RX_PROMPT_DIRECTORY,
     ):
         m = rx.match(command)
         if m:
             defined.add(m.group("name").lstrip("+~").upper())
             return
+
+    m = _RX_PROMPT_FILE.match(command)
+    if m:
+        defined.update(name.lstrip("~").upper() for name in m.group("names").split())
+        return
+
+    m = _RX_PROMPT_CREDENTIALS.match(command)
+    if m:
+        defined.update((m.group("user").upper(), m.group("pw").upper()))
+        return
+
+    m = _RX_SUB_QUERYSTRING.match(command)
+    if m:
+        from urllib.parse import parse_qsl
+
+        defined.update(key.upper() for key, _value in parse_qsl(m.group("qstr")))
+        return
 
     # SUB_INI bulk-defines from INI file — read keys at lint time
     ini_m = _RX_SUB_INI.match(command)
@@ -435,20 +466,13 @@ def _check_var_ref(
     if sigil in ("@", "&", "~", "#", "+"):
         return
 
-    # $ARG_N is set via -a/--assign-arg at invocation time
-    if re.match(r"^ARG_\d+$", name, re.I):
-        return
-
-    # $COUNTER_N is managed by CounterVars
-    if re.match(r"^COUNTER_\d+$", name, re.I):
-        return
-
-    # Built-in system variables
-    if name.upper() in _get_builtin_vars():
-        return
-
-    # User-defined via SUB
-    if name.upper() in defined_vars:
+    if sigil == "$":
+        # System variables: $ARG_N is set with -a/--assign-arg, $COUNTER_N by
+        # CounterVars, the rest by execsql itself.  A SUB cannot define one.
+        if re.match(r"^(?:ARG|COUNTER)_\d+$", name, re.I) or name.upper() in _get_builtin_vars():
+            return
+    elif name.upper() in defined_vars:
+        # User variables, defined by a SUB-family metacommand or a prompt.
         return
 
     issues.append(
@@ -675,11 +699,17 @@ def _check_unreachable_after_halt(nodes: list[Node], issues: list[_Issue]) -> No
         return
 
 
+# The conditional tests that read a variable by its bare name.
+_RX_VAR_TEST = re.compile(r"\bSUB_(?:DEFINED|EMPTY)\s*\(\s*([$&@~#]?\w+)\s*\)", re.I)
+
+
 def _collect_var_references(nodes: list[Node], seen: set[str]) -> None:
-    """Record every ``!!var!!`` reference anywhere beneath *nodes*."""
+    """Record every variable read anywhere beneath *nodes*: ``!!var!!``, or ``sub_defined(var)`` / ``sub_empty(var)``."""
     for node in nodes:
         for text in _referencing_text(node):
             for m in _RX_VAR_REF.finditer(text):
+                seen.add(m.group(1).lstrip("$@&~#+").upper())
+            for m in _RX_VAR_TEST.finditer(text):
                 seen.add(m.group(1).lstrip("$@&~#+").upper())
         for child in node.children():
             _collect_var_references([child], seen)

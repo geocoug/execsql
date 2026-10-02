@@ -1,0 +1,289 @@
+-- Every metacommand execsql dispatches, written the way the reference documents
+-- it, with variants of case, quoting and optional clauses.
+--
+-- tests/cli/test_lint_fixtures.py requires `execsql lint` to report nothing on
+-- this file, and requires every metacommand handler in the dispatch table to
+-- be matched by at least one line here.  When you register a new metacommand,
+-- add a line for it below.  Nothing here is ever executed.
+
+-- ==== Connections ===========================================================
+-- !x! CONNECT TO SQLITE(FILE="data/lite.db", NEW) AS lite
+-- !x! connect to sqlite(file="data/other.db") as other
+-- !x! CONNECT TO DUCKDB(FILE="data/warehouse.duckdb", NEW) AS duck
+-- !x! CONNECT TO POSTGRESQL(SERVER=localhost, DB=gsidb, USER=loader, NEED_PWD=TRUE, PORT=5432) AS pg
+-- !x! CONNECT TO POSTGRESQL(SERVER=db.example.com, DB=gsidb, ENCODING=UTF8) AS pg_ro
+-- !x! CONNECT USER TO POSTGRESQL(SERVER=localhost, DB=gsidb) AS pg_user
+-- !x! CONNECT TO MYSQL(SERVER=localhost, DB=lab, USER=reader, NEED_PWD=FALSE) AS my
+-- !x! CONNECT USER TO MYSQL(SERVER=localhost, DB=lab, PORT=3306) AS my_user
+-- !x! CONNECT TO SQLSERVER(SERVER=sql01, DB=Lab, USER=reader, NEED_PWD=TRUE) AS ss
+-- !x! CONNECT USER TO SQLSERVER(SERVER=sql01, DB=Lab) AS ss_user
+-- !x! CONNECT TO ORACLE(SERVER=ora01, DB=orcl, USER=reader, NEED_PWD=TRUE, PORT=1521) AS ora
+-- !x! CONNECT USER TO ORACLE(SERVER=ora01, DB=orcl) AS ora_user
+-- !x! CONNECT TO FIREBIRD(SERVER=fb01, DB=employee, USER=sysdba, NEED_PWD=TRUE) AS fb
+-- !x! CONNECT USER TO FIREBIRD(SERVER=fb01, DB=employee) AS fb_user
+-- !x! CONNECT TO ACCESS(FILE="legacy/samples.accdb", NEED_PWD=FALSE) AS acc
+-- !x! CONNECT TO DSN(DSN=LabData, USER=reader, NEED_PWD=TRUE) AS dsn
+-- !x! PROMPT CONNECT AS picked
+-- !x! PROMPT "Choose the archive database" CONNECT AS archive
+-- !x! USE pg
+-- !x! use lite
+-- !x! DISCONNECT FROM other
+-- !x! DISCONNECT ss_user
+-- !x! DISCONNECT
+
+-- ==== Transactions and error handling =======================================
+-- !x! AUTOCOMMIT OFF
+-- !x! AUTOCOMMIT ON WITH COMMIT
+-- !x! autocommit on
+-- !x! BEGIN BATCH
+insert into audit_log (event) values ('batch');
+-- !x! ROLLBACK BATCH
+-- !x! END BATCH
+-- !x! ROLLBACK
+-- !x! ERROR_HALT ON
+-- !x! error_halt off
+-- !x! METACOMMAND_ERROR_HALT OFF
+-- !x! METACOMMAND_ERROR_HALT ON
+-- !x! CANCEL_HALT ON
+-- !x! ON ERROR_HALT WRITE "The load failed; see execsql.log"
+-- !x! ON ERROR_HALT WRITE "The load failed" TEE TO "logs/errors.txt"
+-- !x! ON ERROR_HALT WRITE CLEAR
+-- !x! ON ERROR_HALT EMAIL FROM loader@example.com TO data-team@example.com SUBJECT "Load failed" MESSAGE "See the attached log" ATTACH_FILE "logs/errors.txt"
+-- !x! ON ERROR_HALT EMAIL CLEAR
+-- !x! ON ERROR_HALT EXECUTE SCRIPT cleanup
+-- !x! ON ERROR_HALT EXEC CLEAR
+-- !x! ON CANCEL_HALT WRITE "Cancelled by the user"
+-- !x! ON CANCEL_HALT WRITE CLEAR
+-- !x! ON CANCEL_HALT EMAIL FROM loader@example.com TO data-team@example.com SUBJECT "Load cancelled" MESSAGE "Cancelled"
+-- !x! ON CANCEL_HALT EMAIL CLEAR
+-- !x! ON CANCEL_HALT EXEC SCRIPT cleanup
+-- !x! ON CANCEL_HALT EXEC CLEAR
+
+-- ==== Substitution variables ================================================
+-- !x! SUB region north
+-- !x! sub ~local_region south
+-- !x! SUB_LOCAL batch_label nightly
+-- !x! SUB_EMPTY optional_filter
+-- !x! SUB load_count 0
+-- !x! SUB_ADD load_count 1
+-- !x! SUB_ADD load_count (2 * 3) - 1
+-- !x! SUB_APPEND notes first line
+-- !x! SUB_TEMPFILE scratch_file
+-- !x! SUB_ENCRYPT secret_token hunter2
+-- !x! SUB_DECRYPT plain_token !!secret_token!!
+-- !x! SUB_INI FILE "settings/missing.ini" SECTION connection
+-- !x! SUB_INI "settings/missing.ini" defaults
+-- !x! SUB_QUERYSTRING site=north&year=2024
+-- !x! SUBDATA first_order orders
+-- !x! SELECT_SUB orders
+-- !x! RM_SUB optional_filter
+-- !x! SET COUNTER 1 TO 10
+-- !x! SET COUNTER 2 TO (3 + 4) * 2
+-- !x! RESET COUNTER 1
+-- !x! RESET COUNTERS
+
+-- ==== Prompts =================================================================
+-- !x! PROMPT MESSAGE "The load is about to start."
+-- !x! PROMPT "Plain message without the MESSAGE keyword."
+-- !x! PROMPT DISPLAY orders MESSAGE "Review the orders" HELP https://example.com/help
+-- !x! PROMPT MESSAGE "Review the orders" DISPLAY staging.orders
+-- !x! PROMPT ENTER_SUB entered_site MESSAGE "Site code?"
+-- !x! PROMPT ENTER_SUB entered_pw PASSWORD MESSAGE "Password?"
+-- !x! PROMPT ENTER_SUB entered_year MESSAGE "Year?" TYPE INT INITIALLY "2024"
+-- !x! PROMPT ENTRY_FORM form_spec MESSAGE "Fill in the run settings"
+-- !x! PROMPT SELECT_SUB sites MESSAGE "Pick a site"
+-- !x! PROMPT SELECT_SUB sites MESSAGE "Pick a site" CONTINUE
+-- !x! PROMPT ACTION actions MESSAGE "What next?"
+-- !x! PROMPT ACTION actions MESSAGE "What next?" DISPLAY orders COMPACT 3 CONTINUE
+-- !x! PROMPT SELECT_ROWS FROM orders INTO picked_orders MESSAGE "Pick the orders to load"
+-- !x! PROMPT PAUSE 'Waiting for the upstream export' CONTINUE AFTER 5 SECONDS
+-- !x! PAUSE "Check the staging tables"
+-- !x! PAUSE "Check the staging tables" HALT AFTER 2 MINUTES
+-- !x! ASK 'Load the archived rows too?' SUB load_archive
+-- !x! PROMPT ASK "Replace the existing rows?" SUB replace_rows
+-- !x! PROMPT ASK "Replace these rows?" SUB replace_shown DISPLAY orders
+-- !x! PROMPT ASK "Do these match?" SUB tables_match COMPARE staging.orders AND orders PK (order_id)
+-- !x! PROMPT COMPARE staging.orders BESIDE orders KEY (order_id, line_no) MESSAGE "Compare" HELP https://example.com/help
+-- !x! PROMPT MESSAGE "Sample locations" MAP sites LAT latitude LON longitude LABEL site_code
+-- !x! PROMPT OPENFILE SUB input_file
+-- !x! PROMPT OPENFILE SUB picked_path picked_name picked_dir picked_ext picked_base FROM "data"
+-- !x! PROMPT SAVEFILE SUB output_file FROM "exports"
+-- !x! PROMPT DIRECTORY SUB output_dir FULLPATH
+-- !x! PROMPT CREDENTIALS db_login db_password
+-- !x! PROMPT "Sign in to the archive" CREDENTIALS archive_login archive_password
+-- !x! RESET DIALOG_CANCELED
+
+-- ==== Import ==================================================================
+-- !x! IMPORT TO NEW staging.orders FROM "data/orders.csv"
+-- !x! IMPORT TO REPLACEMENT orders FROM "data/orders.txt" WITH QUOTE NONE DELIMITER TAB ENCODING utf8 SKIP 1
+-- !x! import to orders from data/orders.csv
+-- !x! IMPORT TO NEW staging.sheet FROM "data/book.ods" SHEET Results SKIP 2
+-- !x! IMPORT TO NEW staging.excel FROM EXCEL "data/book.xlsx" SHEET Results
+-- !x! IMPORT TO NEW TABLES IN SCHEMA staging FROM "data/book.ods" SHEETS MATCHING ^res
+-- !x! IMPORT TO REPLACEMENT TABLES IN staging FROM EXCEL "data/book.xlsx" SHEETS MATCHING .*
+-- !x! IMPORT TO NEW staging.pq FROM PARQUET "data/results.parquet"
+-- !x! IMPORT TO NEW staging.ft FROM FEATHER "data/results.feather"
+-- !x! IMPORT TO NEW staging.js FROM JSON "data/results.json"
+-- !x! IMPORT_FILE TO TABLE documents COLUMN body FROM "docs/readme.txt"
+-- !x! COPY orders FROM pg TO NEW staging.orders IN lite
+-- !x! COPY QUERY <<select * from orders where region = 'north';>> FROM pg TO REPLACEMENT north_orders IN lite
+
+-- ==== Export ==================================================================
+-- !x! EXPORT orders TO "exports/orders.csv" AS CSV
+-- !x! export staging.orders tee append to "exports/orders.txt" as txt
+-- !x! EXPORT orders TO stdout AS CSV
+-- !x! EXPORT orders TO "exports/orders.json" AS JSON_TS NOTYPE DESCRIPTION "Order schema"
+-- !x! EXPORT orders TO "orders.html" IN ZIPFILE "exports/bundle.zip" AS HTML
+-- !x! EXPORT orders TO "exports/report.html" WITH TEMPLATE "templates/report.j2"
+-- !x! EXPORT orders, staging.returns TO "exports/both.ods" AS ODS
+-- !x! EXPORT orders, returns TO "exports/both.xlsx" AS XLSX DESCRIPTION "Orders and returns"
+-- !x! EXPORT QUERY <<select * from orders;>> TO "exports/query.csv" AS CSV
+-- !x! EXPORT QUERY <<select count(*) from orders;>> TO "exports/count.html" WITH TEMPLATE "templates/count.j2"
+-- !x! EXPORT_METADATA TO "exports/metadata.csv" AS CSV
+-- !x! EXPORT_METADATA ALL INTO NEW TABLE export_log
+-- !x! ZIP exports/orders.csv TO ZIPFILE "exports/orders.zip"
+-- !x! ZIP exports/*.txt APPEND TO ZIPFILE "exports/orders.zip"
+-- !x! SERVE "exports/orders.csv" AS CSV
+
+-- ==== Writing and logging =====================================================
+-- !x! WRITE "Starting the load"
+-- !x! write "Starting the load" tee to "logs/progress.txt"
+-- !x! WRITE "Done" TO "logs/progress.txt"
+-- !x! WRITE CREATE_TABLE staging.orders FROM "data/orders.csv"
+-- !x! WRITE CREATE_TABLE staging.orders FROM "data/orders.txt" WITH QUOTE " DELIMITER TAB COMMENT "from the lab" TO "ddl/orders.sql"
+-- !x! WRITE CREATE_TABLE staging.sheet FROM "data/book.ods" SHEET Results
+-- !x! WRITE CREATE_TABLE staging.excel FROM EXCEL "data/book.xlsx" SHEET Results SKIP 1
+-- !x! WRITE CREATE_TABLE orders_copy FROM orders IN pg COMMENT "copy of orders"
+-- !x! WRITE SCRIPT cleanup
+-- !x! WRITE SCRIPT cleanup APPEND TO "logs/scripts.sql"
+-- !x! LOG "Load started"
+-- !x! LOG_WRITE_MESSAGES ON
+-- !x! TIMER ON
+-- !x! TIMER OFF
+-- !x! EMAIL FROM loader@example.com TO a@example.com; b@example.com SUBJECT "Load finished" MESSAGE "All tables loaded" MESSAGE_FILE "logs/summary.txt"
+
+-- ==== Configuration ===========================================================
+-- !x! CONFIG QUOTE_ALL_TEXT Yes
+-- !x! CONFIG IMPORT_ROW_BUFFER 5000
+-- !x! CONFIG EXPORT_ROW_BUFFER 2000
+-- !x! CONFIG SHOW_PROGRESS Off
+-- !x! CONFIG ZIP_BUFFER_MB 10
+-- !x! CONFIG REPLACE_NEWLINES NO
+-- !x! CONFIG EMPTY_ROWS YES
+-- !x! CONFIG ONLY_STRINGS FALSE
+-- !x! CONFIG FOLD_COLUMN_HEADERS lower
+-- !x! CONFIG TRIM_COLUMN_HEADERS BOTH
+-- !x! CONFIG DELETE_EMPTY_COLUMNS ON
+-- !x! CONFIG CREATE_COLUMN_HEADERS ON
+-- !x! CONFIG DEDUP_COLUMN_HEADERS YES
+-- !x! CONFIG GUI_LEVEL 1
+-- !x! CONFIG WRITE_PREFIX >>
+-- !x! CONFIG WRITE_SUFFIX <<
+-- !x! CONFIG SCAN_LINES 200
+-- !x! CONFIG HDF5_TEXT_LEN 1000
+-- !x! CONFIG LOG_DATAVARS No
+-- !x! CONFIG LOG_SQL Yes
+-- !x! CONFIG DAO_FLUSH_DELAY_SECS 0.5
+-- !x! CONFIG BOOLEAN_INT YES
+-- !x! BOOLEAN_INT NO
+-- !x! BOOLEAN_WORDS ON
+-- !x! EMPTY_STRINGS NO
+-- !x! TRIM_STRINGS YES
+-- !x! CLEAN_COLUMN_HEADERS YES
+-- !x! IMPORT_COMMON_COLUMNS_ONLY YES
+-- !x! MAKE_EXPORT_DIRS Yes
+-- !x! WRITE_WARNINGS YES
+-- !x! MAX_INT 2147483647
+
+-- ==== Console =================================================================
+-- !x! CONSOLE ON
+-- !x! CONSOLE HIDE
+-- !x! CONSOLE SHOW
+-- !x! CONSOLE WIDTH 100
+-- !x! CONSOLE HEIGHT 30
+-- !x! CONSOLE STATUS "Loading orders"
+-- !x! CONSOLE PROGRESS 40
+-- !x! CONSOLE PROGRESS 3 / 12
+-- !x! CONSOLE SAVE TO "logs/console.txt"
+-- !x! CONSOLE SAVE APPEND TO "logs/console.txt"
+-- !x! CONSOLE WAIT_WHEN_ERROR ON
+-- !x! CONSOLE WAIT_WHEN_DONE OFF
+-- !x! CONSOLE WAIT "Press Continue to close"
+-- !x! CONSOLE OFF
+
+-- ==== Files and the system ====================================================
+-- !x! CD exports
+-- !x! RM_FILE exports/old.csv
+-- !x! SYSTEM_CMD (gzip -k exports/orders.csv)
+-- !x! SYSTEM_CMD (ls -l) CONTINUE
+-- !x! INCLUDE IF EXISTS "optional/extra_checks.sql"
+
+-- ==== Scripts =================================================================
+-- !x! BEGIN SCRIPT cleanup
+drop table if exists staging.orders;
+-- !x! END SCRIPT
+-- !x! BEGIN SCRIPT log_step WITH PARAMETERS (step)
+-- !x! WRITE "Step: !!#step!!"
+-- !x! END SCRIPT log_step
+-- !x! EXECUTE SCRIPT cleanup
+-- !x! RUN SCRIPT log_step WITH ARGUMENTS (step=import)
+-- !x! EXTEND SCRIPT cleanup WITH METACOMMAND WRITE "cleanup done"
+-- !x! EXTEND SCRIPT cleanup WITH SQL drop table if exists staging.returns;
+-- !x! APPEND SCRIPT log_step TO cleanup
+-- !x! SHOW SCRIPTS
+-- !x! SHOW SCRIPTS cleanup
+-- !x! EXECUTE refresh_summary
+-- !x! RUN refresh_summary
+
+-- ==== Control flow and checks =================================================
+-- !x! IF(hasrows(orders)) { WRITE "There are orders" }
+-- !x! LOOP WHILE (is_gt(!!$counter_1!!, 0))
+-- !x! BREAK
+-- !x! END LOOP
+-- !x! WAIT_UNTIL hasrows(orders) CONTINUE AFTER 30 SECONDS
+-- !x! ASSERT hasrows(orders)
+-- !x! ASSERT table_exists(staging.orders) "staging.orders is missing"
+-- !x! BREAKPOINT
+-- !x! IF(sql_error())
+-- !x! HALT
+-- !x! ELSEIF(metacommand_error())
+-- !x! HALT MESSAGE "A metacommand failed" EXIT_STATUS 3
+-- !x! ELSE
+-- !x! HALT "Stopping here" DISPLAY orders
+-- !x! ENDIF
+
+-- ==== PostgreSQL ==============================================================
+-- !x! PG_VACUUM
+-- !x! PG_VACUUM ANALYZE
+-- !x! PG_UPSERT FROM staging TO public TABLES orders, returns
+-- !x! PG_UPSERT CHECK FROM staging TO public TABLES orders
+-- !x! PG_UPSERT QA FROM staging TO public TABLES orders
+
+-- ==== Debugging ===============================================================
+-- !x! DEBUG WRITE METACOMMANDLIST TO "logs/metacommands.txt"
+-- !x! DEBUG WRITE COMMANDLISTSTACK
+-- !x! DEBUG WRITE IFLEVELS
+-- !x! DEBUG WRITE ODBC_DRIVERS
+-- !x! DEBUG LOG SUBVARS
+-- !x! DEBUG LOG LOCAL SUBVARS
+-- !x! DEBUG LOG CONFIG
+-- !x! DEBUG WRITE SUBVARS
+-- !x! DEBUG WRITE USER SUBVARS APPEND TO "logs/vars.txt"
+-- !x! DEBUG WRITE CONFIG TO "logs/config.txt"
+-- !x! DEBUG WRITE SCRIPT cleanup
+
+-- ==== SQL passed through whole ================================================
+-- !x! BEGIN SQL
+create or replace function touch() returns void as $$
+begin
+    update audit_log set touched = now();
+end;
+$$ language plpgsql;
+-- !x! END SQL
+
+-- Every variable defined above, read once so none is reported as unused.
+-- !x! WRITE "!!region!! !!~local_region!! !!batch_label!! !!optional_filter!! !!load_count!! !!notes!!"
+-- !x! WRITE "!!scratch_file!! !!plain_token!! !!first_order!! !!entered_site!! !!entered_pw!! !!entered_year!!"
+-- !x! WRITE "!!load_archive!! !!replace_rows!! !!replace_shown!! !!tables_match!! !!input_file!! !!output_file!!"
+-- !x! WRITE "!!output_dir!! !!db_login!! !!db_password!! !!archive_login!! !!archive_password!!"
+-- !x! WRITE "!!picked_path!! !!picked_name!! !!picked_dir!! !!picked_ext!! !!picked_base!! !!site!! !!year!!"
