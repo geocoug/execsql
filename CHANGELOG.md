@@ -19,6 +19,7 @@ ______________________________________________________________________
 - **Concurrent `execsql.run()` calls:** each run writes files through its own writer, so two threads writing files at the same time both get complete output, and a run that halts no longer discards another run's file output.
 - **`execsql.run()` error details:** a run halted by a failed SQL statement or metacommand reports that error's message (and the failed statement in `ScriptError.sql`) instead of "Script execution failed"; a `HALT` reports its exit status. `result.errors` lists errors in the order they happened.
 - **`execsql.run()` setup failures:** a script that cannot be read, a missing or invalid `config_file`, and a `dsn` that cannot be parsed or opened now return `success=False` with an error whose `source` is the script, `<config>` or `<connect>`, instead of raising `FileNotFoundError`, `ConfigError` or `ErrInfo`.
+- **`IMPORT ... TO NEW` / `REPLACEMENT` type inference:** values such as `1-2`, `10-12`, `5/6`, `March 5`, `Jan` or `Monday` are no longer taken for dates in the current year. A column of them is created as text and keeps its values; on DuckDB, SQL Server, MySQL, Oracle, Firebird and Access, and for ODS, XLSX, JSON, Parquet and Feather imports, they were stored as dates. A date must give the year (`2024-01-05`, `1/5/2024`), or a two-digit year month-first (`1/5/24`, `01-05-24`).
 - **`WRITE ... TO` after `CD`:** a relative output path now lands in the new directory, as `EXPORT` output already did, instead of the directory execsql started in.
 
 ### Removed

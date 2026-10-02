@@ -303,3 +303,35 @@ class TestZeroByteFile:
         csv_file.write_bytes(b"")
         with pytest.raises(ErrInfo):
             importtable(db, None, "zero_tbl", str(csv_file), is_new=1)
+
+
+# ---------------------------------------------------------------------------
+# Type inference: partial dates stay text
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("scheme", ["sqlite", "duckdb"])
+def test_depth_intervals_are_imported_as_text_not_dates(tmp_path, scheme):
+    """``1-2`` is a depth interval, not January 2nd of the current year."""
+    if scheme == "duckdb":
+        pytest.importorskip("duckdb")
+    import sqlite3
+
+    from execsql import run
+
+    csv = tmp_path / "depths.csv"
+    csv.write_text("loc,depth\nA,1-2\nB,2-4\nC,10-12\n")
+    out = tmp_path / "depths.txt"
+    result = run(
+        sql=f"-- !x! IMPORT TO NEW depths FROM {csv}\n"
+        "-- !x! EXPORT QUERY <<select cast(depth as varchar) as depth from depths order by loc;>> "
+        f"TO {out} AS CSV\n",
+        dsn=f"{scheme}:///{tmp_path / ('d.' + scheme)}",
+        new_db=True,
+    )
+    assert result.success, result.errors
+    assert out.read_text().split() == ["depth", "1-2", "2-4", "10-12"]
+    if scheme == "sqlite":
+        with sqlite3.connect(tmp_path / "d.sqlite") as conn:
+            coltype = conn.execute("select type from pragma_table_info('depths') where name = 'depth'").fetchone()[0]
+        assert "timestamp" not in coltype.lower()

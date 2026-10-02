@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import datetime
 
+import pytest
+
 from execsql.utils.datetime import parse_datetime, parse_datetimetz
 
 
@@ -210,3 +212,65 @@ class TestParseDatetimetzExtended:
         assert result is not None
         offset = result.tzinfo.utcoffset(result)
         assert offset == datetime.timedelta(hours=9, minutes=30)
+
+
+class TestInferenceRejectsPartialDates:
+    """A value is a timestamp only if it writes out a full date.
+
+    dateutil fills missing fields from today's date, so depth intervals,
+    ratios, month and weekday names parsed as this year's dates and were
+    stored that way on import.
+    """
+
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "1-2",
+            "2-4",
+            "10-12",
+            "5/6",
+            "12/31",
+            "Jan",
+            "may",
+            "March 5",
+            "Monday",
+            "1st",
+            "1 2 3",
+            "3.5.7",
+            "4-5-6",
+            "2024-01",
+            "Jan 2024",
+            "10:30 2024",
+            "13-05-24",
+            "13/05/24",
+            "1-5-2",
+        ],
+    )
+    def test_partial_or_ambiguous_dates_are_not_timestamps(self, text):
+        from execsql.types import DT_Timestamp, DT_TimestampTZ
+
+        assert parse_datetime(text) is None
+        assert not DT_Timestamp().matches(text)
+        assert not DT_TimestampTZ().matches(text + " +05:00")
+
+    @pytest.mark.parametrize(
+        ("text", "expected"),
+        [
+            ("2024-01-05", datetime.datetime(2024, 1, 5)),
+            ("2024-01-05T10:30:00", datetime.datetime(2024, 1, 5, 10, 30)),
+            ("1/5/2024", datetime.datetime(2024, 1, 5)),
+            ("1/5/24", datetime.datetime(2024, 1, 5)),
+            ("01-05-24", datetime.datetime(2024, 1, 5)),
+            ("12-31-99 23:59", datetime.datetime(1999, 12, 31, 23, 59)),
+            ("Jan 5, 2024", datetime.datetime(2024, 1, 5)),
+            ("5 January 2024 10:30 PM", datetime.datetime(2024, 1, 5, 22, 30)),
+        ],
+    )
+    def test_full_dates_still_parse(self, text, expected):
+        assert parse_datetime(text) == expected
+
+    def test_offset_timestamps_still_parse(self):
+        assert parse_datetimetz("2024-01-05 10:00+05:00") is not None
+
+    def test_lenient_parse_accepts_a_typed_partial_date(self):
+        assert parse_datetime("March 5", strict=False) is not None
