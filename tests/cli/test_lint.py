@@ -613,68 +613,48 @@ class TestUnknownCondition:
         assert "P004" not in _codes(_lint(tmp_path, body))
 
 
-class TestMetacommandsInAScriptThatDoesNotParse:
-    """A misspelled IF or ENDIF is a usual cause of a parse error, so P003 / P004 still run line by line."""
+class TestAScriptThatDoesNotParse:
+    """Each block-structure error is a P001 at its own line, and every other rule still runs."""
 
     def _issues(self, body):
-        from execsql.cli.lint import lint_unparsed
+        from execsql.cli.lint import lint_source
 
-        return [(i.line, i.code) for i in lint_unparsed(body, "s.sql")]
+        return sorted((i.line, i.code) for i in lint_source(body, "s.sql"))
 
     def test_the_misspelling_behind_the_parse_error_is_reported(self):
         body = '-- !x! IF(hasrowz(t))\n-- !x! WRIT "hey"\n-- !x! ENDIF\n-- !x! iff(true)\n-- !x! ENDIF\n'
         with pytest.raises(Exception, match="no matching IF"):
             parse_script_text(body)
-        assert self._issues(body) == [(1, "P004"), (2, "P003"), (4, "P003")]
+        assert self._issues(body) == [(1, "P004"), (2, "P003"), (4, "P003"), (5, "P001")]
 
-    def test_lines_the_parser_handles_are_not_dispatched(self):
+    def test_every_other_rule_still_runs(self):
         body = (
-            "-- !x! BEGIN SCRIPT s WITH PARAMETERS (a, b)\n"
-            "-- !x! END SCRIPT s\n"
-            "-- !x! LOOP WHILE (hasrows(t))\n"
-            "-- !x! END LOOP\n"
-            "-- !x! BEGIN BATCH\n"
-            "-- !x! END BATCH\n"
-            "-- !x! INCLUDE other.sql\n"
-            "-- !x! EXECUTE SCRIPT s WHILE (frob(t))\n"
-            '-- !x! IF(frob(t)) { WRIT "x" }\n'
-            "-- !x! ELSEIF(frob(t))\n"
-        )
-        assert self._issues(body) == [(8, "P004"), (9, "P004"), (9, "P003"), (10, "P004")]
-
-    def test_comments_and_begin_sql_bodies_are_skipped(self):
-        body = (
-            "/*\n"
-            "-- !x! FROBNICATE\n"
-            "*/\n"
-            "-- !x! BEGIN SQL\n"
-            "-- !x! FROBNICATE\n"
+            "-- !x! ENDIF\n"
+            "select !!nowhere!!;\n"
+            "-- !x! INCLUDE missing.sql\n"
+            "-- !x! EXECUTE SCRIPT no_such_script\n"
+            "-- !x! IF(False)\n"
             "select 1;\n"
-            "-- !x! END SQL\n"
-            "-- !x! FROBNICATE\n"
+            "-- !x! ENDIF\n"
         )
-        assert self._issues(body) == [(8, "P003")]
+        assert self._issues(body) == [(1, "P001"), (2, "V001"), (3, "I001"), (4, "I002"), (5, "F001")]
 
-    def test_it_agrees_with_the_full_lint_on_every_script_in_the_repo(self):
-        """On a script that parses, the line-by-line pass finds exactly what the full lint finds."""
-        from execsql.cli.lint import lint_unparsed
-        from execsql.script.parser import parse_string
+    def test_each_structural_error_is_reported(self):
+        body = (
+            "-- !x! ELSE\n"
+            "-- !x! LOOP WHILE (hasrows(t))\n"
+            "-- !x! IF(hasrows(t))\n"
+            "select 1;\n"
+            "-- !x! END LOOP\n"
+            "-- !x! END BATCH\n"
+            "-- !x! BEGIN SCRIPT s\n"
+        )
+        # ELSE with no IF; the IF the END LOOP skips past; END BATCH with no
+        # BEGIN BATCH; the script still open at the end of the file.
+        assert [line for line, code in self._issues(body) if code == "P001"] == [1, 3, 6, 7]
 
-        root = Path(__file__).resolve().parents[2]
-        checked = 0
-        for path in sorted(root.glob("**/*.sql")):
-            if any(part in {"_execsql", ".venv", ".tox", "node_modules", "site"} for part in path.parts):
-                continue
-            source = path.read_text(encoding="utf-8")
-            try:
-                tree = parse_string(source, str(path))
-            except Exception:
-                continue
-            full = sorted((i.line, i.code, i.message) for i in lint(tree, str(path)) if i.code in ("P003", "P004"))
-            by_line = sorted((i.line, i.code, i.message) for i in lint_unparsed(source, str(path)))
-            assert by_line == full, path
-            checked += 1
-        assert checked > 30
+    def test_a_script_that_parses_has_no_p001(self):
+        assert self._issues("-- !x! IF(hasrows(t))\nselect 1;\n-- !x! ENDIF\n") == []
 
 
 class TestUnusedVariables:

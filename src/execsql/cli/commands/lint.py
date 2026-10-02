@@ -68,9 +68,7 @@ def lint_paths(
         _issue,
         exit_code,
         filter_issues,
-        lint as _lint_script,
-        lint_unparsed,
-        parse_error,
+        lint_source,
         print_concise,
         render_github,
         print_statistics,
@@ -78,8 +76,6 @@ def lint_paths(
         render_json,
         rule_counts,
     )
-    from execsql.exceptions import ErrInfo
-    from execsql.script.parser import parse_string
 
     paths = sql_files(targets)
     if not paths:
@@ -97,12 +93,7 @@ def lint_paths(
         except OSError as exc:
             found = [_issue("P001", label, 0, f"cannot read: {exc.strerror or exc}")]
         else:
-            try:
-                tree = parse_string(source, label)
-            except ErrInfo as exc:
-                found = [parse_error(label, exc), *lint_unparsed(source, label)]
-            else:
-                found = _lint_script(tree, script_path=None if stdin else label)
+            found = lint_source(source, label, script_path=None if stdin else label)
         per_file.append((label, sorted(filter_issues(found, select, ignore), key=lambda i: (i.line, i.code))))
 
     reported = [issue for _, issues in per_file for issue in issues]

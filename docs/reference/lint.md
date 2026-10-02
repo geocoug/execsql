@@ -74,7 +74,7 @@ execsql lint scripts/ --select V --ignore V002   # --ignore wins over --select
 
 An entry that matches no rule is a usage error (exit status 2), so a typo in `--ignore` cannot quietly ignore nothing.
 
-`P001` (the script does not parse) is always reported, whatever `--select` and `--ignore` say. A script that does not parse has not been checked, so reporting "no issues" for it would be false.
+`P001` (the script does not parse) is always reported, whatever `--select` and `--ignore` say. A script that does not parse cannot run, so reporting "no issues" for it would be false.
 
 ## Output formats { #output }
 
@@ -199,23 +199,27 @@ load.sql
 
 A script that cannot be decoded with the chosen encoding is also reported as `P001`, with the message `cannot decode as utf-8 (...); set -f/--script-encoding`.
 
-On a script that does not parse, only [`P003`](#p003) and [`P004`](#p004) also run, checking each metacommand line on its own. A misspelled block keyword is a common cause of the parse error, and it shows up as a `P003` on its own line:
+Every block-structure error is reported, each on its own line, and every other rule still checks the rest of the script: lint recovers from the error by skipping a closing keyword that has nothing to close, and closing a block that is still open where a closing keyword or the end of the file says it should be. A misspelled block keyword is a common cause, and it shows up as a [`P003`](#p003) next to the `P001` it leads to:
 
 ```sql
 -- !x! IF(HASROWS(staging.orders))
 -- !x! iff(HASROWS(staging.returns))
-insert into returns select * from staging.returns;
+insert into returns select * from !!source_schema!!.returns;
 -- !x! ENDIF
 -- !x! ENDIF
+-- !x! LOOP WHILE (HASROWS(staging.pending))
+delete from staging.pending where id = (select min(id) from staging.pending);
 ```
 
 ```text
 load.sql
   2  error    P003  unknown or malformed metacommand: iff(HASROWS(staging.returns))
+  3  warning  V001  undefined variable !!source_schema!!
   5  error    P001  ENDIF on line 5 of load.sql has no matching IF
+  6  error    P001  Unmatched LOOP block starting on line 6 at end of file load.sql
 ```
 
-Every other rule waits until the script parses, so fix these first.
+`execsql run` stops at the first of these. Fix the `P001`s first: a finding the recovery leads to can go away once the blocks match.
 
 ### P002 `split-dollar-quote` { #p002 }
 

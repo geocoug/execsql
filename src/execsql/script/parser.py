@@ -25,9 +25,9 @@ Usage::
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable, Iterator
+from collections.abc import Iterable
 from pathlib import Path
-from typing import NamedTuple, cast
+from typing import cast
 
 from execsql.exceptions import ErrInfo
 from execsql.utils.errors import write_warning
@@ -50,8 +50,6 @@ from execsql.script.ast import (
 )
 
 __all__ = [
-    "MetaCommandLine",
-    "metacommand_lines",
     "parse_script",
     "parse_string",
 ]
@@ -259,8 +257,15 @@ class _BlockFrame:
 # ---------------------------------------------------------------------------
 
 
-def _parse_lines(lines: Iterable[str], source_name: str) -> Script:
-    """Core parsing logic: convert an iterable of lines into a Script AST."""
+def _parse_lines(lines: Iterable[str], source_name: str, errors: list[ErrInfo] | None = None) -> Script:
+    """Core parsing logic: convert an iterable of lines into a Script AST.
+
+    A block-structure error raises :class:`ErrInfo`, unless *errors* is a
+    list: then each error is appended to it and parsing recovers (a closing
+    keyword with nothing to close is skipped, one that skips past an open
+    block closes that block too, and blocks still open at the end are
+    closed), so the whole script is parsed.
+    """
     body: list[Node] = []
     block_stack: list[_BlockFrame] = []
     in_block_comment = False
@@ -289,6 +294,38 @@ def _parse_lines(lines: Iterable[str], source_name: str) -> Script:
         if isinstance(node, (LoopBlock, BatchBlock, ScriptBlock, SqlBlock)):
             return node.body
         return body  # pragma: no cover — defensive fallback
+
+    def _structural_error(exc: ErrInfo) -> None:
+        """Raise *exc*, or record it when the caller collects errors and lets parsing recover."""
+        if errors is None:
+            raise exc
+        errors.append(exc)
+
+    def _close_block(frame: _BlockFrame, line_no: int) -> None:
+        """Give a popped block its end line and add it to the enclosing body."""
+        frame.node.span = SourceSpan(source_name, frame.start_line, line_no)
+        _current_body().append(frame.node)
+
+    def _pop_block(kind: str, line: str, line_no: int, no_match_msg: str) -> _BlockFrame | None:
+        """Pop the open block of *kind* that the closing keyword on *line* ends.
+
+        ``None`` (after reporting the error) when no such block is open.  A
+        block of another kind opened inside it and left open is an error of
+        its own; when recovering, it is closed here too.
+        """
+        if block_stack and block_stack[-1].kind == kind:
+            return block_stack.pop()
+        if errors is None:
+            msg = _unclosed_block_msg(block_stack[-1]) if block_stack else no_match_msg
+            raise ErrInfo(type="cmd", command_text=line, other_msg=msg)
+        if not any(frame.kind == kind for frame in block_stack):
+            errors.append(ErrInfo(type="cmd", command_text=line, other_msg=no_match_msg))
+            return None
+        while block_stack[-1].kind != kind:
+            frame = block_stack.pop()
+            errors.append(ErrInfo(type="cmd", command_text=line, other_msg=_unclosed_block_msg(frame)))
+            _close_block(frame, line_no)
+        return block_stack.pop()
 
     def _flush_sql(line_no: int) -> None:
         """If there's accumulated SQL text, emit a SqlStatement node."""
@@ -324,6 +361,7 @@ def _parse_lines(lines: Iterable[str], source_name: str) -> Script:
                 if doc_text and isinstance(frame.node, ScriptBlock):
                     frame.node.doc = doc_text
 
+    file_lineno = 0
     for file_lineno, raw_line in enumerate(lines, 1):
         line = raw_line.rstrip()
 
@@ -487,14 +525,15 @@ def _parse_lines(lines: Iterable[str], source_name: str) -> Script:
                 _flush_sql(file_lineno)
                 in_sql_block = False
                 if not block_stack or block_stack[-1].kind != "sqlblock":
-                    raise ErrInfo(
-                        type="cmd",
-                        command_text=line,
-                        other_msg=f"Unmatched END SQL on line {file_lineno} of {source_name}.",
+                    _structural_error(
+                        ErrInfo(
+                            type="cmd",
+                            command_text=line,
+                            other_msg=f"Unmatched END SQL on line {file_lineno} of {source_name}.",
+                        ),
                     )
-                frame = block_stack.pop()
-                frame.node.span = SourceSpan(source_name, frame.start_line, file_lineno)
-                _current_body().append(frame.node)
+                    continue
+                _close_block(block_stack.pop(), file_lineno)
                 continue
 
             # Inside a SQL block, non-END SQL metacommands are silently
@@ -519,12 +558,18 @@ def _parse_lines(lines: Iterable[str], source_name: str) -> Script:
                 if paramexpr:
                     wp = _WITH_PARAMS_RX.match(paramexpr)
                     if not wp:
-                        raise ErrInfo(
-                            type="cmd",
-                            command_text=line,
-                            other_msg=f"Invalid BEGIN SCRIPT metacommand on line {file_lineno} of file {source_name}.",
+                        _structural_error(
+                            ErrInfo(
+                                type="cmd",
+                                command_text=line,
+                                other_msg=f"Invalid BEGIN SCRIPT metacommand on line {file_lineno} of file {source_name}.",
+                            ),
                         )
-                    param_defs = _parse_param_defs(wp.group("params"), file_lineno, source_name)
+                    else:
+                        try:
+                            param_defs = _parse_param_defs(wp.group("params"), file_lineno, source_name)
+                        except ErrInfo as exc:
+                            _structural_error(exc)
                 block_stack.append(
                     _BlockFrame(
                         ScriptBlock(
@@ -545,38 +590,36 @@ def _parse_lines(lines: Iterable[str], source_name: str) -> Script:
                 end_name = m.group("name")
                 if end_name is not None:
                     end_name = end_name.lower()
-                if not block_stack:
-                    raise ErrInfo(
-                        type="cmd",
-                        command_text=line,
-                        other_msg=f"END SCRIPT on line {file_lineno} of {source_name} has no matching BEGIN SCRIPT.",
-                    )
-                if block_stack[-1].kind != "script":
-                    raise ErrInfo(
-                        type="cmd",
-                        command_text=line,
-                        other_msg=_unclosed_block_msg(block_stack[-1]),
-                    )
-                frame = block_stack[-1]
-                script_node = cast(ScriptBlock, frame.node)
-                if end_name is not None and end_name != script_node.name:  # type: ignore[union-attr]
-                    raise ErrInfo(
-                        type="cmd",
-                        command_text=line,
-                        other_msg=f"Mismatched script name in the END SCRIPT metacommand on line {file_lineno} of file {source_name}.",
-                    )
-                if sql_accum:
-                    raise ErrInfo(
-                        type="cmd",
-                        command_text=line,
-                        other_msg=(
-                            f"Incomplete SQL statement\n  ({sql_accum})\n"
-                            f"at END SCRIPT metacommand on line {file_lineno} of file {source_name}."
+                closed = _pop_block(
+                    "script",
+                    line,
+                    file_lineno,
+                    f"END SCRIPT on line {file_lineno} of {source_name} has no matching BEGIN SCRIPT.",
+                )
+                if closed is None:
+                    continue
+                script_node = cast(ScriptBlock, closed.node)
+                if end_name is not None and end_name != script_node.name:
+                    _structural_error(
+                        ErrInfo(
+                            type="cmd",
+                            command_text=line,
+                            other_msg=f"Mismatched script name in the END SCRIPT metacommand on line {file_lineno} of file {source_name}.",
                         ),
                     )
-                frame = block_stack.pop()
-                frame.node.span = SourceSpan(source_name, frame.start_line, file_lineno)
-                _current_body().append(frame.node)
+                if sql_accum:
+                    _structural_error(
+                        ErrInfo(
+                            type="cmd",
+                            command_text=line,
+                            other_msg=(
+                                f"Incomplete SQL statement\n  ({sql_accum})\n"
+                                f"at END SCRIPT metacommand on line {file_lineno} of file {source_name}."
+                            ),
+                        ),
+                    )
+                    _flush_sql(file_lineno)
+                _close_block(closed, file_lineno)
                 continue
 
             # -- IF (block form) --
@@ -614,11 +657,14 @@ def _parse_lines(lines: Iterable[str], source_name: str) -> Script:
             m = _ELSEIF_RX.match(cmd_text)
             if m:
                 if not block_stack or block_stack[-1].kind != "if":
-                    raise ErrInfo(
-                        type="cmd",
-                        command_text=line,
-                        other_msg=f"ELSEIF on line {file_lineno} of {source_name} has no matching IF.",
+                    _structural_error(
+                        ErrInfo(
+                            type="cmd",
+                            command_text=line,
+                            other_msg=f"ELSEIF on line {file_lineno} of {source_name} has no matching IF.",
+                        ),
                     )
+                    continue
                 frame = block_stack[-1]
                 frame._in_else = False
                 frame._in_elseif = True
@@ -635,11 +681,14 @@ def _parse_lines(lines: Iterable[str], source_name: str) -> Script:
             m = _ANDIF_RX.match(cmd_text)
             if m:
                 if not block_stack or block_stack[-1].kind != "if":
-                    raise ErrInfo(
-                        type="cmd",
-                        command_text=line,
-                        other_msg=f"ANDIF on line {file_lineno} of {source_name} has no matching IF.",
+                    _structural_error(
+                        ErrInfo(
+                            type="cmd",
+                            command_text=line,
+                            other_msg=f"ANDIF on line {file_lineno} of {source_name} has no matching IF.",
+                        ),
                     )
+                    continue
                 modifier = ConditionModifier(
                     kind="AND",
                     condition=m.group("cond").strip(),
@@ -657,11 +706,14 @@ def _parse_lines(lines: Iterable[str], source_name: str) -> Script:
             m = _ORIF_RX.match(cmd_text)
             if m:
                 if not block_stack or block_stack[-1].kind != "if":
-                    raise ErrInfo(
-                        type="cmd",
-                        command_text=line,
-                        other_msg=f"ORIF on line {file_lineno} of {source_name} has no matching IF.",
+                    _structural_error(
+                        ErrInfo(
+                            type="cmd",
+                            command_text=line,
+                            other_msg=f"ORIF on line {file_lineno} of {source_name} has no matching IF.",
+                        ),
                     )
+                    continue
                 modifier = ConditionModifier(
                     kind="OR",
                     condition=m.group("cond").strip(),
@@ -679,11 +731,14 @@ def _parse_lines(lines: Iterable[str], source_name: str) -> Script:
             m = _ELSE_RX.match(cmd_text)
             if m:
                 if not block_stack or block_stack[-1].kind != "if":
-                    raise ErrInfo(
-                        type="cmd",
-                        command_text=line,
-                        other_msg=f"ELSE on line {file_lineno} of {source_name} has no matching IF.",
+                    _structural_error(
+                        ErrInfo(
+                            type="cmd",
+                            command_text=line,
+                            other_msg=f"ELSE on line {file_lineno} of {source_name} has no matching IF.",
+                        ),
                     )
+                    continue
                 frame = block_stack[-1]
                 frame._in_else = True
                 frame._in_elseif = False
@@ -693,21 +748,14 @@ def _parse_lines(lines: Iterable[str], source_name: str) -> Script:
             # -- ENDIF --
             m = _ENDIF_RX.match(cmd_text)
             if m:
-                if not block_stack:
-                    raise ErrInfo(
-                        type="cmd",
-                        command_text=line,
-                        other_msg=f"ENDIF on line {file_lineno} of {source_name} has no matching IF.",
-                    )
-                if block_stack[-1].kind != "if":
-                    raise ErrInfo(
-                        type="cmd",
-                        command_text=line,
-                        other_msg=_unclosed_block_msg(block_stack[-1]),
-                    )
-                frame = block_stack.pop()
-                frame.node.span = SourceSpan(source_name, frame.start_line, file_lineno)
-                _current_body().append(frame.node)
+                closed = _pop_block(
+                    "if",
+                    line,
+                    file_lineno,
+                    f"ENDIF on line {file_lineno} of {source_name} has no matching IF.",
+                )
+                if closed is not None:
+                    _close_block(closed, file_lineno)
                 continue
 
             # -- LOOP --
@@ -730,21 +778,14 @@ def _parse_lines(lines: Iterable[str], source_name: str) -> Script:
             # -- ENDLOOP --
             m = _ENDLOOP_RX.match(cmd_text)
             if m:
-                if not block_stack:
-                    raise ErrInfo(
-                        type="cmd",
-                        command_text=line,
-                        other_msg=f"ENDLOOP on line {file_lineno} of {source_name} has no matching LOOP.",
-                    )
-                if block_stack[-1].kind != "loop":
-                    raise ErrInfo(
-                        type="cmd",
-                        command_text=line,
-                        other_msg=_unclosed_block_msg(block_stack[-1]),
-                    )
-                frame = block_stack.pop()
-                frame.node.span = SourceSpan(source_name, frame.start_line, file_lineno)
-                _current_body().append(frame.node)
+                closed = _pop_block(
+                    "loop",
+                    line,
+                    file_lineno,
+                    f"ENDLOOP on line {file_lineno} of {source_name} has no matching LOOP.",
+                )
+                if closed is not None:
+                    _close_block(closed, file_lineno)
                 continue
 
             # -- BEGIN BATCH --
@@ -763,21 +804,14 @@ def _parse_lines(lines: Iterable[str], source_name: str) -> Script:
             # -- END BATCH --
             m = _END_BATCH_RX.match(cmd_text)
             if m:
-                if not block_stack:
-                    raise ErrInfo(
-                        type="cmd",
-                        command_text=line,
-                        other_msg=f"END BATCH on line {file_lineno} of {source_name} has no matching BEGIN BATCH.",
-                    )
-                if block_stack[-1].kind != "batch":
-                    raise ErrInfo(
-                        type="cmd",
-                        command_text=line,
-                        other_msg=_unclosed_block_msg(block_stack[-1]),
-                    )
-                frame = block_stack.pop()
-                frame.node.span = SourceSpan(source_name, frame.start_line, file_lineno)
-                _current_body().append(frame.node)
+                closed = _pop_block(
+                    "batch",
+                    line,
+                    file_lineno,
+                    f"END BATCH on line {file_lineno} of {source_name} has no matching BEGIN BATCH.",
+                )
+                if closed is not None:
+                    _close_block(closed, file_lineno)
                 continue
 
             # -- INCLUDE --
@@ -848,23 +882,32 @@ def _parse_lines(lines: Iterable[str], source_name: str) -> Script:
     # Flush any trailing consecutive -- comments
     _flush_line_comments()
 
-    # Unclosed blocks
-    if block_stack:
-        frame = block_stack[-1]
-        raise ErrInfo(
-            type="error",
-            other_msg=f"Unmatched {frame.kind.upper()} block starting on line {frame.start_line} at end of file {source_name}.",
+    # Unclosed blocks, innermost first
+    for frame in reversed(block_stack):
+        _structural_error(
+            ErrInfo(
+                type="error",
+                other_msg=f"Unmatched {frame.kind.upper()} block starting on line {frame.start_line} at end of file {source_name}.",
+            ),
         )
 
     # Trailing SQL without semicolon
     if sql_accum:
-        raise ErrInfo(
-            type="error",
-            other_msg=(
-                f"Incomplete SQL statement starting on line {sql_start_line} at end of file {source_name}."
-                + (" Metacommands must be prefixed with '-- !x!'." if source_name == "<inline>" else "")
+        _structural_error(
+            ErrInfo(
+                type="error",
+                other_msg=(
+                    f"Incomplete SQL statement starting on line {sql_start_line} at end of file {source_name}."
+                    + (" Metacommands must be prefixed with '-- !x!'." if source_name == "<inline>" else "")
+                ),
             ),
         )
+
+    # When recovering, keep the trailing SQL and close what is still open;
+    # otherwise both are already empty here.
+    _flush_sql(file_lineno)
+    while block_stack:
+        _close_block(block_stack.pop(), file_lineno)
 
     return Script(source=source_name, body=body)
 
@@ -874,7 +917,7 @@ def _parse_lines(lines: Iterable[str], source_name: str) -> Script:
 # ---------------------------------------------------------------------------
 
 
-def parse_script(filename: str, encoding: str = "utf-8") -> Script:
+def parse_script(filename: str, encoding: str = "utf-8", *, errors: list[ErrInfo] | None = None) -> Script:
     """Parse a ``.sql`` file and return a :class:`Script` AST.
 
     Reads the file directly (no dependency on runtime state) so it can be
@@ -883,111 +926,26 @@ def parse_script(filename: str, encoding: str = "utf-8") -> Script:
     Args:
         filename: Path to the SQL script file.
         encoding: File encoding (default ``utf-8``).
+        errors: When a list, block-structure errors are appended to it
+            and parsing recovers instead of raising (see ``_parse_lines``).
 
     Returns:
         A :class:`Script` tree representing the parsed file.
     """
     text = Path(filename).read_text(encoding=encoding)
-    return _parse_lines(text.splitlines(), filename)
+    return _parse_lines(text.splitlines(), filename, errors)
 
 
-def parse_string(content: str, source_name: str = "<inline>") -> Script:
+def parse_string(content: str, source_name: str = "<inline>", *, errors: list[ErrInfo] | None = None) -> Script:
     """Parse an inline script string and return a :class:`Script` AST.
 
     Args:
         content: The script content as a string.
         source_name: Name to use in source spans (default ``"<inline>"``).
+        errors: When a list, block-structure errors are appended to it
+            and parsing recovers instead of raising (see ``_parse_lines``).
 
     Returns:
         A :class:`Script` tree representing the parsed content.
     """
-    return _parse_lines(content.splitlines(), source_name)
-
-
-class MetaCommandLine(NamedTuple):
-    """One ``-- !x!`` line, as :func:`metacommand_lines` reads it.
-
-    Attributes:
-        line_no: 1-based line number.
-        command: The text after ``-- !x!``, stripped.
-        dispatched: ``True`` for a metacommand looked up in the dispatch
-            table at run time; ``False`` for a line the parser handles
-            itself (block structure, ``INCLUDE``, ``EXECUTE SCRIPT``).
-        conditions: The conditions a parser-handled line carries: an IF,
-            ELSEIF, ANDIF, ORIF or LOOP condition, or the WHILE / UNTIL
-            condition of ``EXECUTE SCRIPT``.
-        inline_command: The ``{ ... }`` metacommand of a one-line IF.
-    """
-
-    line_no: int
-    command: str
-    dispatched: bool
-    conditions: tuple[str, ...] = ()
-    inline_command: str | None = None
-
-
-# Lines the parser handles itself, in the order it tries them, with the
-# groups that hold a condition.
-_PARSER_HANDLED: tuple[tuple[re.Pattern[str], tuple[str, ...]], ...] = (
-    (_BEGIN_SCRIPT_RX, ()),
-    (_END_SCRIPT_RX, ()),
-    (_IF_BLOCK_RX, ("cond",)),
-    (_IF_INLINE_RX, ("cond",)),
-    (_ELSEIF_RX, ("cond",)),
-    (_ANDIF_RX, ("cond",)),
-    (_ORIF_RX, ("cond",)),
-    (_ELSE_RX, ()),
-    (_ENDIF_RX, ()),
-    (_LOOP_RX, ("loopcond",)),
-    (_ENDLOOP_RX, ()),
-    (_BEGIN_BATCH_RX, ()),
-    (_END_BATCH_RX, ()),
-    (_INCLUDE_RX, ()),
-    (_EXEC_SCRIPT_RX, ("loopcond",)),
-)
-
-
-def metacommand_lines(content: str) -> Iterator[MetaCommandLine]:
-    """Yield each metacommand line of *content* the way the parser reads it, without building blocks.
-
-    Skips what the parser skips: lines inside a ``/* ... */`` block comment
-    and metacommands between ``BEGIN SQL`` and ``END SQL``.  Unlike
-    :func:`parse_string` it never fails on block structure, so a tool can
-    still look at every metacommand in a script that does not parse.
-    """
-    in_block_comment = False
-    in_sql_block = False
-    for line_no, raw_line in enumerate(content.splitlines(), 1):
-        line = raw_line.rstrip()
-        if not line:
-            continue
-        if in_block_comment:
-            if len(line) > 1 and line.endswith("*/"):
-                in_block_comment = False
-            continue
-        metacommand = _EXEC_LINE_RX.match(line)
-        if not metacommand:
-            stripped = line.strip()
-            if len(stripped) > 1 and stripped.startswith("/*") and not _COMMENT_LINE_RX.match(line):
-                in_block_comment = not stripped.endswith("*/")
-            continue
-        cmd_text = metacommand.group("cmd").strip()
-        if _BEGIN_SQL_RX.match(cmd_text):
-            in_sql_block = True
-            yield MetaCommandLine(line_no, cmd_text, dispatched=False)
-            continue
-        if _END_SQL_RX.match(cmd_text):
-            in_sql_block = False
-            yield MetaCommandLine(line_no, cmd_text, dispatched=False)
-            continue
-        if in_sql_block:
-            continue
-        for rx, condition_groups in _PARSER_HANDLED:
-            m = rx.match(cmd_text)
-            if m:
-                conditions = tuple(m.group(g).strip() for g in condition_groups if m.group(g))
-                inline = m.group("cmd").strip() if rx is _IF_INLINE_RX else None
-                yield MetaCommandLine(line_no, cmd_text, False, conditions, inline)
-                break
-        else:
-            yield MetaCommandLine(line_no, cmd_text, dispatched=True)
+    return _parse_lines(content.splitlines(), source_name, errors)
