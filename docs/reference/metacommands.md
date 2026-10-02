@@ -477,7 +477,7 @@ This metacommand has the same action as the `delete_empty_columns` [configuratio
 CONFIG EMPTY_ROWS YES|NO
 ```
 
-Controls whether empty rows are allowed in data that is saved using either the [IMPORT](#import) or [COPY](#copy) metacommands. The default is to allow empty rows. A metacommand of CONFIG EMPTY_ROWS NO will cause all empty rows to be omitted. A row containing only empty strings is not considered to be empty unless the [CONFIG EMPTY_STRINGS](#empty_strings) configuration setting is also set to NO.
+Controls whether empty rows are allowed in data that is saved using either the [IMPORT](#import) or [COPY](#copy) metacommands. The default is to allow empty rows. An empty row is one whose fields are all empty, such as `,,`. A completely blank line inside a delimited file is also an empty row, loaded as all NULLs unless EMPTY_ROWS is NO; blank lines at the end of the file are ignored. A metacommand of CONFIG EMPTY_ROWS NO will cause all empty rows to be omitted. A row containing only empty strings is not considered to be empty unless the [CONFIG EMPTY_STRINGS](#empty_strings) configuration setting is also set to NO.
 
 
 <a id="empty_strings"></a>
