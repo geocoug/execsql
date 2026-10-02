@@ -35,6 +35,7 @@ ______________________________________________________________________
 - **`IMPORT` of a delimited file with a blank line:** the rows after the blank line are imported instead of being dropped without a warning. The blank line itself is an empty row: loaded as all NULLs by default, dropped with `CONFIG EMPTY_ROWS NO`. Blank lines at the end of the file are still ignored. On PostgreSQL, a quoted file with a blank line no longer fails with `missing data for column`.
 - **Secrets in `execsql.log`:** `-a` values no longer appear in the `run` record at the top of each run (it now shows how many were given). Passwords from a `--dsn` URL, the `[email]` section, the password prompt or keyring, `PROMPT ENTER_SUB ... PASSWORD`, `PROMPT CREDENTIALS` and `SUB_DECRYPT` are now replaced with `***` wherever they would appear later in the log, such as SQL logged with `LOG_SQL ON` or a `SYSTEM_CMD` line.
 - **Oracle (`-t o`, `oracle://`) connects with the `oracledb` driver** that `execsql2[oracle]` installs. It stopped at "The cx-Oracle module is required" on every install that followed the docs.
+- **`IMPORT` / `COPY` into DuckDB that fails part-way:** no rows are kept, as on SQLite and PostgreSQL. DuckDB kept every batch loaded before the failure, so a re-run duplicated them.
 - **`WRITE ... TO` after `CD`:** a relative output path now lands in the new directory, as `EXPORT` output already did, instead of the directory execsql started in.
 
 ______________________________________________________________________

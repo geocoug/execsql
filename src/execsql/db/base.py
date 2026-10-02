@@ -665,6 +665,17 @@ class Database(ABC):
         eof = False
         total_rows = 0
         self.before_statement(sql)
+        # The rows go in as several batches and are committed once, by the
+        # caller.  Most drivers hold every batch in the transaction they open
+        # themselves; DuckDB's commits each statement unless one is open, so a
+        # failure would leave the batches before it behind.
+        self.begin_transaction()
+        if self.driver_autocommits:
+            self.warn_once(
+                "import",
+                f"{self.name()} commits each statement as it runs, so an IMPORT or COPY that fails part-way "
+                "leaves the rows already loaded.",
+            )
 
         # Optional rich progress bar for long-running imports.
         use_progress = getattr(_state.conf, "show_progress", False)
@@ -777,13 +788,19 @@ class Database(ABC):
                     break
             return total_rows
 
-        with self._cursor() as curs:
-            if use_progress and progress_ctx is not None:
-                with progress_ctx:
-                    task_id = progress_ctx.add_task(sq_name, total=None)
+        try:
+            with self._cursor() as curs:
+                if use_progress and progress_ctx is not None:
+                    with progress_ctx:
+                        task_id = progress_ctx.add_task(sq_name, total=None)
+                        _import_loop(curs)
+                else:
                     _import_loop(curs)
-            else:
-                _import_loop(curs)
+        except BaseException:
+            # A bad value or short row stops the load as surely as a failed
+            # insert does; either way none of it is kept.
+            self.rollback()
+            raise
 
         if _state.exec_log:
             _state.exec_log.log_status_info(
