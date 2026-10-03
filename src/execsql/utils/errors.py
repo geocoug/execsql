@@ -8,8 +8,10 @@ throughout the codebase:
 
 - :func:`exception_info` — extracts type, value, and source location
   from the current exception.
-- :func:`exception_desc` — formats exception information as a
-  human-readable string.
+- :func:`exception_desc` — ``Type: message`` for the exception being
+  handled, as shown on screen.
+- :func:`error_origin` / :func:`logged_error` — where in execsql an error
+  was raised, added to the message written to the log.
 - :func:`write_warning` — writes a non-fatal warning message.
 - :func:`exit_now` — terminates execution after optional halt hooks.
 - :func:`fatal_error` — logs a fatal error and calls :func:`exit_now`.
@@ -27,7 +29,9 @@ from execsql.exceptions import ErrInfo
 
 __all__ = [
     "exception_info",
+    "error_origin",
     "exception_desc",
+    "logged_error",
     "exit_now",
     "fatal_error",
     "stamp_errinfo",
@@ -67,8 +71,35 @@ def exception_info() -> tuple:
 
 
 def exception_desc() -> str:
-    exc_type, exc_strval, exc_filename, exc_lineno, exc_linetext = exception_info()
-    return f"{exc_type}: {exc_strval} in {exc_filename} on line {exc_lineno} of execsql."
+    """``Type: message`` for the exception being handled, as shown to the person running the script.
+
+    Where in execsql it was raised is for the log: see :func:`error_origin`.
+    """
+    exc_type, exc_strval, _filename, _lineno, _linetext = exception_info()
+    return f"{exc_type}: {exc_strval}"
+
+
+def error_origin(exc: BaseException) -> str | None:
+    """Where in the execsql package the error behind *exc* was raised, as ``execsql/db/base.py:254``.
+
+    Follows *exc* to the exception it was raised from, and returns the last
+    frame of that traceback inside the package, or ``None`` when there is none.
+    """
+    package = Path(__file__).resolve().parents[1]
+    cause = exc.__cause__ or exc.__context__ or exc
+    origin = None
+    for frame in traceback.extract_tb(cause.__traceback__):
+        path = Path(frame.filename).resolve()
+        if path.is_relative_to(package):
+            origin = f"{path.relative_to(package.parent).as_posix()}:{frame.lineno}"
+    return origin
+
+
+def logged_error(errinfo: ErrInfo) -> str:
+    """The error message for the log: what the screen shows, plus :func:`error_origin` when known."""
+    origin = error_origin(errinfo)
+    message = errinfo.errmsg()
+    return f"{message}\n     Raised at: {origin}" if origin else message
 
 
 def stamp_errinfo(errinfo: ErrInfo) -> ErrInfo:
@@ -130,13 +161,12 @@ def exit_now(exit_status: int, errinfo: ErrInfo | None, logmsg: str | None = Non
     # HALT and a canceled prompt carry no error and still end the run.
     if errinfo is not None and _state.prompt_input is not None:
         raise errinfo
-    em = None
     _state.halt_error = errinfo
     if errinfo is not None:
         stamp_errinfo(errinfo)
         if _state.subvars is not None:
             _state.subvars.add_substitution("$ERROR_MESSAGE", errinfo.errmsg())
-        em = errinfo.write()
+        errinfo.write()
         if _state.err_halt_writespec is not None:
             try:
                 _state.err_halt_writespec.write()
@@ -186,9 +216,8 @@ def exit_now(exit_status: int, errinfo: ErrInfo | None, logmsg: str | None = Non
     if exit_status > 0 and _state.exec_log:
         if logmsg:
             _state.exec_log.log_exit_error(logmsg)
-        else:
-            if em:
-                _state.exec_log.log_exit_error(em)
+        elif errinfo is not None:
+            _state.exec_log.log_exit_error(logged_error(errinfo))
     if _state.exec_log is not None:
         _state.exec_log.log_status_info(f"{_state.cmds_run} commands run")
         _state.exec_log.close()

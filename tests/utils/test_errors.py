@@ -93,6 +93,28 @@ class TestExceptionInfo:
             info = exception_info()
         assert info[0] == "RuntimeError"
 
+    def test_exception_desc_is_the_type_and_message_only(self):
+        """The code location is for the log (see error_origin), not for the person running the script."""
+        try:
+            raise TypeError("bad type")
+        except Exception:
+            desc = exception_desc()
+        assert desc == "TypeError: bad type"
+
+    def test_error_origin_is_where_execsql_raised_it(self):
+        from execsql.exceptions import ErrInfo
+        from execsql.utils.errors import error_origin
+
+        try:
+            try:
+                raise TypeError("bad type")
+            except TypeError as exc:
+                raise ErrInfo("exception", exception_msg=exception_desc()) from exc
+        except ErrInfo as err:
+            origin = error_origin(err)
+        # This test file is outside the package, so no execsql frame raised it.
+        assert origin is None
+
     def test_exception_desc_is_string(self):
         try:
             raise TypeError("bad type")
