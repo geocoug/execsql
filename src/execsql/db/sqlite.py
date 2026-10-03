@@ -170,8 +170,7 @@ class SQLiteDatabase(Database):
         return False
 
     def drop_table(self, tablename: str) -> None:
-        """Drop the named table from the SQLite database if it exists."""
-        tablename = self.type.quoted(tablename)
+        """Drop *tablename* (schema-qualified and quoted by the caller) if it exists."""
         self.execute(f"drop table if exists {tablename};")
 
     def populate_table(

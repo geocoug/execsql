@@ -406,3 +406,34 @@ class TestAccessParamstr:
     def test_paramsubs(self):
         db = _make_access()
         assert db.paramsubs(3) == "?,?,?"
+
+
+# ===========================================================================
+# drop_table receives a name that is already quoted and schema-qualified
+# ===========================================================================
+
+
+@pytest.mark.parametrize(
+    ("module", "cls", "dbtype"),
+    [
+        ("sqlite", "SQLiteDatabase", "dbt_sqlite"),
+        ("sqlserver", "SqlServerDatabase", "dbt_sqlserver"),
+        ("oracle", "OracleDatabase", "dbt_oracle"),
+        ("firebird", "FirebirdDatabase", "dbt_firebird"),
+        ("access", "AccessDatabase", "dbt_access"),
+    ],
+)
+def test_drop_table_does_not_quote_the_name_again(module, cls, dbtype):
+    """Callers pass ``schema_qualified_table_name()``; quoting it again names a table that does not exist."""
+    import importlib
+
+    import execsql.types as dbtypes
+
+    adapter = getattr(importlib.import_module(f"execsql.db.{module}"), cls)
+    dbt = getattr(dbtypes, dbtype)
+    name = f"{dbt.quoted('stage area')}.{dbt.quoted('my tbl')}"
+    fake = SimpleNamespace(type=dbt, execute=MagicMock(), conn=MagicMock(), dao_flush_check=lambda: None)
+    adapter.drop_table(fake, name)
+    executed = fake.execute.call_args[0][0]
+    assert f" {name}" in executed
+    assert dbt.quoted(name) not in executed

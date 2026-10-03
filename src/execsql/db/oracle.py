@@ -307,8 +307,7 @@ class OracleDatabase(Database):
         return len(rows) > 0
 
     def drop_table(self, tablename: str) -> None:
-        """Drop the named table with cascade constraints."""
-        tablename = self.type.quoted(tablename)
+        """Drop *tablename* (schema-qualified and quoted by the caller) with cascade constraints."""
         self.execute(f"drop table {tablename} cascade constraints")
 
     def paramsubs(self, paramcount: int) -> str:

@@ -243,8 +243,7 @@ class FirebirdDatabase(Database):
         return len(rows) > 0
 
     def drop_table(self, tablename: str) -> None:
-        """Drop the named table from the Firebird database."""
+        """Drop *tablename*, schema-qualified and quoted by the caller."""
         # Firebird will thrown an error if there are foreign keys into the table.
-        tablename = self.type.quoted(tablename)
         self.execute(f"DROP TABLE {tablename};")
         self.conn.commit()

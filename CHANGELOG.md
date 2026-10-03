@@ -30,6 +30,7 @@ ______________________________________________________________________
 
 ### Fixed
 
+- **`IMPORT` / `COPY ... TO REPLACEMENT` of a table whose name needs quoting** (a space, a hyphen, ...) now replaces it on SQLite, SQL Server, Oracle, Firebird and Access instead of failing with "table already exists", and a schema-qualified name such as `staging.t` is dropped correctly on SQL Server, Oracle and Firebird.
 - **`COPY` and `COPY QUERY`:** text values are copied as written. With `NEW` / `REPLACEMENT`, a text column of `1`/`0`, dates or numbers was created as boolean, timestamp or numeric, and copying into an existing text column stored `1` as `true`. A `NEW` / `REPLACEMENT` copy also no longer holds every source row in memory.
 - **`IMPORT` of a data line with fewer values than the header:** the values left off the end load as NULL on every DBMS. SQLite and DuckDB stopped the import, and with `TO NEW` / `REPLACEMENT` every DBMS, PostgreSQL included, could create the column `NOT NULL` and then reject the line.
 - **`IMPORT ... TO NEW` / `REPLACEMENT` of a timestamp column mixing values with and without a UTC offset:** the column is created as text and keeps every value as written. It was created as a plain timestamp and the offset values were converted with the importing machine's time zone, so `2024-01-01 10:00+05:00` could be stored as `2023-12-31 23:00:00`. A column where every value has an offset is still `timestamptz`.
