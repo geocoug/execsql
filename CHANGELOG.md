@@ -24,6 +24,7 @@ ______________________________________________________________________
 
 ### Changed
 
+- **Error messages from the database or a driver** show just the error, such as `OperationalError: table t already exists`. They ended with "in <path to an execsql or driver source file> on line N of execsql", which located nothing in the script; the script line is shown above it. `execsql.log` records where in execsql the error was raised (`Raised at: execsql/db/base.py:254`) for bug reports. `$ERROR_MESSAGE` holds the shorter message.
 - **`execsql lint` on a script with block-structure errors:** every unmatched or unclosed `IF`, `LOOP`, `BEGIN BATCH`, `BEGIN SCRIPT` and `BEGIN SQL` is reported as a `P001` on its own line, and all other rules still run on the rest of the script. Lint reported only the first such error and checked nothing else.
 - **Faster start-up:** every `execsql` command and `import execsql` start about 0.7 s sooner; a one-line `execsql run` takes about 0.15 s instead of 0.9 s.
 - **`EMAIL` over TLS verifies the server certificate.** With `use_ssl` or `use_tls`, a mail server whose certificate is not signed by a trusted authority, or does not match `host`, now stops the `EMAIL` metacommand before the password is sent. For a relay with an internal certificate, set `[email] ca_file`; to turn the check off, set `verify_certificate = No`.

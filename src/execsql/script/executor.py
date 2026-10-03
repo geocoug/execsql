@@ -69,7 +69,7 @@ from execsql import manifest as _manifest
 from execsql.script.engine import set_dynamic_system_vars, set_static_system_vars, substitute_vars
 from execsql.script.variables import SubVarSet
 from execsql.state import ExecFrame, RuntimeContext, active_context, get_context, xcmd_test
-from execsql.utils.errors import exception_desc, exit_now, stamp_errinfo
+from execsql.utils.errors import exception_desc, exit_now, logged_error, stamp_errinfo
 
 __all__ = ["execute", "execute_input"]
 
@@ -284,7 +284,7 @@ def _exec_sql(
         subvars.add_substitution("$ERROR_MESSAGE", e.errmsg())
         status.sql_error = True
         if ctx.exec_log is not None:
-            ctx.exec_log.log_status_info(f"SQL error: {e.errmsg()}")
+            ctx.exec_log.log_status_info(f"SQL error: {logged_error(e)}")
         if status.halt_on_err:
             exit_now(1, e)
         status.error_history.append((source, line_no, cmd, e.errmsg()))
@@ -348,7 +348,7 @@ def _exec_metacommand(
         subvars.add_substitution("$LAST_ERROR", cmd)
         subvars.add_substitution("$ERROR_MESSAGE", e.errmsg())
         if ctx.exec_log is not None:
-            ctx.exec_log.log_status_info(f"Metacommand error: {e.errmsg()}")
+            ctx.exec_log.log_status_info(f"Metacommand error: {logged_error(e)}")
         if status.halt_on_metacommand_err:
             raise e
         status.error_history.append((source, line_no, cmd, e.errmsg()))
