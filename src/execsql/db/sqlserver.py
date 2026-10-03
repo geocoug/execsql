@@ -193,9 +193,8 @@ class SqlServerDatabase(Database):
         return len(rows) > 0
 
     def drop_table(self, tablename: str) -> None:
-        """Drop the named table from the SQL Server database."""
+        """Drop *tablename*, schema-qualified and quoted by the caller."""
         # SQL Server and Firebird will throw an error if there are foreign keys to the table.
-        tablename = self.type.quoted(tablename)
         self.execute(f"drop table {tablename};")
 
     def import_entire_file(

@@ -418,9 +418,8 @@ class AccessDatabase(Database):
         return False
 
     def drop_table(self, tablename: str) -> None:
-        """Drop the named table from the Access database."""
+        """Drop *tablename*, quoted by the caller."""
         self.dao_flush_check()
-        tablename = self.type.quoted(tablename)
         self.execute(f"drop table {tablename};")
 
     def as_datetime(self, val: Any) -> datetime.datetime | datetime.date | datetime.time | None:
