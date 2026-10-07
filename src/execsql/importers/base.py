@@ -16,7 +16,29 @@ from execsql.exceptions import ErrInfo
 from execsql.db.base import Database
 import execsql.state as _state
 
-__all__ = ["import_data_table"]
+__all__ = ["import_data_table", "refuse_existing_table", "table_exists_if_known"]
+
+
+def table_exists_if_known(db: Database, table_name: str, schema_name: str | None = None) -> bool | None:
+    """Whether the table exists, or ``None`` when the database cannot say (no catalog access, ...)."""
+    try:
+        return db.table_exists(table_name, schema_name)
+    except Exception:
+        return None
+
+
+def refuse_existing_table(db: Database, schema_name: str | None, table_name: str) -> None:
+    """Stop a ``TO NEW`` before any DDL when the target table already exists.
+
+    Best effort: when the database cannot say, the command goes ahead and
+    the CREATE TABLE reports any conflict itself.
+    """
+    if table_exists_if_known(db, table_name, schema_name):
+        name = db.schema_qualified_table_name(schema_name, table_name)
+        raise ErrInfo(
+            type="cmd",
+            other_msg=f"Table {name} already exists",
+        )
 
 
 def import_data_table(
@@ -74,6 +96,8 @@ def import_data_table(
         return tablespec_cache
 
     if is_new:
+        if is_new == 1:
+            refuse_existing_table(db, schemaname, tablename)
         if is_new == 2:
             tblspec = db.schema_qualified_table_name(schemaname, tablename)
             try:

@@ -623,3 +623,40 @@ class TestPgUpsert:
             """,
         )
         assert outcomes == {"upsert": "FALSE", "update": "TRUE", "warnings": "books"}
+
+
+def test_copy_names_its_source_the_way_the_database_resolves_it(tmp_path):
+    """``COPY Orders_Mixed ...`` reads the folded ``orders_mixed``; an existence check in another case must not refuse it."""
+    from execsql import run
+
+    run(sql="drop table if exists orders_mixed;\n", dsn=_PG_DSN)
+    try:
+        result = run(
+            sql=(
+                "create table orders_mixed (id integer);\n"
+                "insert into orders_mixed values (1);\n"
+                f"-- !x! CONNECT TO SQLITE(FILE={tmp_path / 'dst.db'}, NEW) AS dst\n"
+                "-- !x! COPY Orders_Mixed FROM initial TO NEW copied IN dst\n"
+            ),
+            dsn=_PG_DSN,
+        )
+        assert result.success, result.errors
+    finally:
+        run(sql="drop table if exists orders_mixed;\n", dsn=_PG_DSN)
+
+
+def test_import_to_new_refuses_an_existing_table(tmp_path):
+    from execsql import run
+
+    csv = tmp_path / "q.csv"
+    csv.write_text("a,b\n1,2\n")
+    run(sql="drop table if exists new_target;\n", dsn=_PG_DSN)
+    try:
+        result = run(
+            sql=f"create table new_target (keep text);\n-- !x! IMPORT TO NEW new_target FROM {csv}\n",
+            dsn=_PG_DSN,
+        )
+        assert not result.success
+        assert "Table new_target already exists" in result.errors[0].message
+    finally:
+        run(sql="drop table if exists new_target;\n", dsn=_PG_DSN)

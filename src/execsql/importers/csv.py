@@ -14,6 +14,7 @@ from typing import Any
 
 from execsql.exceptions import ErrInfo
 from execsql.db.base import Database
+from execsql.importers.base import refuse_existing_table
 import execsql.state as _state
 from execsql.types import dbt_firebird
 
@@ -49,6 +50,8 @@ def importtable(
             quotechar = None
         inf.lineformat(delimchar, quotechar, None)
     if is_new in (1, 2):
+        if is_new == 1:
+            refuse_existing_table(db, schemaname, tablename)
         inf.evaluate_column_types()
         sql = inf.create_table(db.type, schemaname, tablename)
         if is_new == 2:
