@@ -61,3 +61,11 @@ def test_ctrl_c_is_recorded_as_interrupted(tmp_path):
     records = _exit_records(tmp_path)
     assert len(records) == 1, records
     assert records[0][2] == "interrupted"
+
+
+def test_run_db_file_names_the_database_file(tmp_path):
+    """The run header says which database file the run used (it was blank for SQLite, DuckDB and Access)."""
+    _run(tmp_path, "select 1;\n")
+    lines = (tmp_path / "execsql.log").read_text().splitlines()
+    (record,) = [line.split("\t") for line in lines if line.startswith("run_db_file\t")]
+    assert record[2].endswith("t.db")
