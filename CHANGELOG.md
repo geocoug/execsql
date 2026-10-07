@@ -31,6 +31,7 @@ ______________________________________________________________________
 
 ### Fixed
 
+- **`IMPORT ... TO NEW` and `COPY ... TO NEW` onto a table that already exists** stop with `Table <name> already exists` before creating anything, on every DBMS, instead of each database's own CREATE TABLE error.
 - **`IMPORT` / `COPY ... TO REPLACEMENT` of a table whose name needs quoting** (a space, a hyphen, ...) now replaces it on SQLite, SQL Server, Oracle, Firebird and Access instead of failing with "table already exists", and a schema-qualified name such as `staging.t` is dropped correctly on SQL Server, Oracle and Firebird.
 - **`COPY` and `COPY QUERY`:** text values are copied as written. With `NEW` / `REPLACEMENT`, a text column of `1`/`0`, dates or numbers was created as boolean, timestamp or numeric, and copying into an existing text column stored `1` as `true`. A `NEW` / `REPLACEMENT` copy also no longer holds every source row in memory.
 - **`IMPORT` of a data line with fewer values than the header:** the values left off the end load as NULL on every DBMS. SQLite and DuckDB stopped the import, and with `TO NEW` / `REPLACEMENT` every DBMS, PostgreSQL included, could create the column `NOT NULL` and then reject the line.

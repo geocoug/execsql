@@ -19,6 +19,7 @@ from typing import Any, Literal
 
 import execsql.state as _state
 from execsql.exceptions import ErrInfo
+from execsql.importers.base import refuse_existing_table
 from execsql.models import DataTable
 from execsql.script import current_script_line
 from execsql.utils.errors import exception_desc
@@ -99,25 +100,11 @@ def x_copy(**kwargs: Any) -> None:
     db2 = _state.dbs.aliased_as(alias2)
     tbl1 = db1.schema_qualified_table_name(schema1, table1)
     tbl2 = db2.schema_qualified_table_name(schema2, table2)
-    try:
-        if not db1.table_exists(table1, schema1):
-            raise ErrInfo(
-                type="cmd",
-                command_text=kwargs["metacommandline"],
-                other_msg=f"Table {tbl1} does not exist",
-            )
-    except Exception:
-        pass  # Best-effort check; some adapters lack information_schema.
+    # No check that the source exists: the database may fold an unquoted name
+    # (PostgreSQL reads Orders as orders), and the SELECT below names a missing
+    # source in the database's own words.
     if new_tbl2 and new_tbl2 == "new":
-        try:
-            if db2.table_exists(table2, schema2):
-                raise ErrInfo(
-                    type="cmd",
-                    command_text=kwargs["metacommandline"],
-                    other_msg=f"Table {tbl2} already exists",
-                )
-        except Exception:
-            pass  # Best-effort check; some adapters lack information_schema.
+        refuse_existing_table(db2, schema2, table2)
     select_stmt = f"select * from {tbl1};"
 
     get_ts_tablespec = None
@@ -205,15 +192,7 @@ def x_copy_query(**kwargs: Any) -> None:
     db2 = _state.dbs.aliased_as(alias2)
     tbl2 = db2.schema_qualified_table_name(schema2, table2)
     if new_tbl2 and new_tbl2 == "new":
-        try:
-            if db2.table_exists(table2, schema2):
-                raise ErrInfo(
-                    type="cmd",
-                    command_text=kwargs["metacommandline"],
-                    other_msg=f"Table {tbl2} already exists",
-                )
-        except Exception:
-            pass  # Best-effort check; some adapters lack information_schema.
+        refuse_existing_table(db2, schema2, table2)
 
     get_ts_tablespec = None
     rows_to_close = None
