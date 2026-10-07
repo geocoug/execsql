@@ -31,6 +31,7 @@ ______________________________________________________________________
 
 ### Fixed
 
+- **`execsql.log` `run_db_file` record** names the database file for SQLite, DuckDB and Access runs; it was blank.
 - **`execsql.log` `exit` record:** a run that ends with an error, a `HALT` or a cancelled prompt now writes its `exit` record (type `error` or `halt`, with the message); only successful runs did. Ctrl-C is recorded as `interrupted` instead of `unknown`.
 - **`IMPORT ... TO NEW` and `COPY ... TO NEW` onto a table that already exists** stop with `Table <name> already exists` before creating anything, on every DBMS, instead of each database's own CREATE TABLE error.
 - **`IMPORT` / `COPY ... TO REPLACEMENT` of a table whose name needs quoting** (a space, a hyphen, ...) now replaces it on SQLite, SQL Server, Oracle, Firebird and Access instead of failing with "table already exists", and a schema-qualified name such as `staging.t` is dropped correctly on SQL Server, Oracle and Firebird.

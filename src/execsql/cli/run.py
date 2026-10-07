@@ -536,7 +536,7 @@ def _setup_logging(
     }
     logger = Logger(
         script_name or "<inline>",
-        conf.db or "",
+        conf.db or conf.db_file or "",
         conf.server,
         opts_dict,
         conf.user_logfile,
