@@ -220,6 +220,7 @@ def exit_now(exit_status: int, errinfo: ErrInfo | None, logmsg: str | None = Non
             _state.exec_log.log_exit_error(logged_error(errinfo))
     if _state.exec_log is not None:
         _state.exec_log.log_status_info(f"{_state.cmds_run} commands run")
+        _state.exec_log.log_exit()
         _state.exec_log.close()
     from execsql.utils.fileio import filewriter_end
 
