@@ -885,6 +885,9 @@ def _execute_script_ast(
         sys.exit(exc.code)
     except ConfigError:
         raise
+    except KeyboardInterrupt:
+        _state.exec_log.log_exit_interrupted()
+        raise
     except ErrInfo as exc:
         from execsql.utils.errors import exit_now
 

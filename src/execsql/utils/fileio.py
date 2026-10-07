@@ -818,6 +818,7 @@ class Logger:
         self.exit_scriptfile: str | None = None
         self.exit_lno: int | None = None
         self.exit_description: str | None = None
+        self._exit_written = False
         atexit.register(self.log_exit)
 
     def _ts(self) -> str:
@@ -947,6 +948,13 @@ class Logger:
         self.exit_lno = None
         self.exit_description = self._redact(msg.replace("\n", ""))
 
+    def log_exit_interrupted(self) -> None:
+        # Save values to be used by exit() function triggered on program exit
+        self.exit_type = "interrupted"
+        self.exit_scriptfile = None
+        self.exit_lno = None
+        self.exit_description = None
+
     def log_exit_error(self, msg: str | None) -> None:
         # Save values to be used by exit() function triggered on program exit
         self.exit_type = "error"
@@ -955,8 +963,12 @@ class Logger:
         self.exit_description = self._redact(None if not msg else msg.replace("\n", ""))
 
     def log_exit(self) -> None:
+        """Write the run's ``exit`` record, once: ``exit_now`` writes it before closing the log, ``atexit`` otherwise."""
         import datetime as _datetime
 
+        if self._exit_written:
+            return
+        self._exit_written = True
         elapsed = (_datetime.datetime.now() - self.run_start).total_seconds()
         wmsg = "exit\t{}\t{}\t{}({})\t{}\t{:.1f}s\n".format(
             self.run_id,
