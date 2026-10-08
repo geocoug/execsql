@@ -17,14 +17,15 @@ execsql list   metacommands|encodings|plugins|keywords [--output-format text|jso
 execsql init   [DIR] [--script NAME | --no-script] [--no-config] [--no-pre-commit] [--force]
 ```
 
-| Command  | Purpose                                                                                    |
-| -------- | ------------------------------------------------------------------------------------------ |
-| `run`    | Execute a script against a database.                                                       |
-| `format` | Normalize metacommand keywords, block indentation, and SQL layout.                         |
-| `lint`   | Static analysis without a database. Exits 1 when any error is found.                       |
-| `config` | List every config option with its value, default and source; `--init` prints the template. |
-| `list`   | Print metacommands, encoding names, installed plugins, or the full keyword vocabulary.     |
-| `init`   | Set up a project: `execsql.conf`, a script with a header, and the pre-commit hooks.        |
+| Command  | Purpose                                                                                                 |
+| -------- | ------------------------------------------------------------------------------------------------------- |
+| `run`    | Execute a script against a database.                                                                    |
+| `format` | Normalize metacommand keywords, block indentation, and SQL layout.                                      |
+| `lint`   | Static analysis without a database. Exits 1 when any error is found.                                    |
+| `config` | List every config option with its value, default and source; `--init` prints the template.              |
+| `list`   | Print metacommands, encoding names, installed plugins, or the full keyword vocabulary.                  |
+| `init`   | Set up a project: `execsql.conf`, a script with a header, and the pre-commit hooks.                     |
+| `lsp`    | The language server editors start for `.sql` files; see [Editor Support](../guides/editors.md#editors). |
 
 `format` and `lint` accept files or directories; directories are searched
 recursively for `*.sql`, and `-` reads one script from stdin. A CI job runs them

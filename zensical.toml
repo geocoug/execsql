@@ -30,6 +30,7 @@ nav = [
         { "Documenting Script Actions" = "guides/documentation.md" },
         { "Debugging" = "guides/debugging.md" },
         { "execsql format" = "guides/formatter.md" },
+        { "Editor Support" = "guides/editors.md" },
         { "Examples" = "guides/examples.md" }
     ] },
     { "Contributing" = [

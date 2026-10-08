@@ -29,7 +29,7 @@ from __future__ import annotations
 __all__ = ["COMMANDS", "GLOBAL_FLAGS", "dispatch", "normalize"]
 
 #: Tokens that name a command.
-COMMANDS = ("run", "format", "lint", "config", "list", "init")
+COMMANDS = ("run", "format", "lint", "config", "list", "init", "lsp")
 
 #: Options declared on the app rather than on a command, which must reach
 #: the parser without ``run`` in front of them. ``-m``, ``--encodings`` and
