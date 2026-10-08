@@ -24,7 +24,7 @@ def run_execsql(tmp_path, script_path, extra_args=None, timeout=30):
     Returns the completed process.  The working directory is set to *tmp_path*
     so that execsql.conf is picked up automatically.
     """
-    cmd = [sys.executable, "-m", "execsql", str(script_path)]
+    cmd = [sys.executable, "-m", "execsql", "run", str(script_path)]
     if extra_args:
         cmd.extend(extra_args)
     return subprocess.run(

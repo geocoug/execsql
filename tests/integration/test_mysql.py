@@ -88,7 +88,7 @@ def _write_conf(tmp_path, extra=""):
 
 def _run_execsql_mysql(tmp_path, script_path, extra_args=None, timeout=30):
     """Run execsql on the given script via subprocess, connecting via --dsn."""
-    cmd = [sys.executable, "-m", "execsql", "--dsn", _MYSQL_DSN, str(script_path)]
+    cmd = [sys.executable, "-m", "execsql", "run", "--dsn", _MYSQL_DSN, str(script_path)]
     if extra_args:
         cmd.extend(extra_args)
     return subprocess.run(

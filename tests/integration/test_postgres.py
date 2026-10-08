@@ -87,7 +87,7 @@ def _run_execsql_pg(tmp_path, script_path, extra_args=None, timeout=30):
     import subprocess
     import sys
 
-    cmd = [sys.executable, "-m", "execsql", "--dsn", _PG_DSN, str(script_path)]
+    cmd = [sys.executable, "-m", "execsql", "run", "--dsn", _PG_DSN, str(script_path)]
     if extra_args:
         cmd.extend(extra_args)
     return subprocess.run(

@@ -17,7 +17,7 @@ from tests.integration.conftest import write_script
 
 def _run_execsql(tmp_path, script_path, dsn=None, extra_args=None, timeout=30):
     """Run execsql with optional --dsn flag."""
-    cmd = [sys.executable, "-m", "execsql"]
+    cmd = [sys.executable, "-m", "execsql", "run"]
     if dsn:
         cmd.extend(["--dsn", dsn])
     cmd.append(str(script_path))
