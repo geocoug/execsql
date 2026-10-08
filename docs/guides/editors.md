@@ -7,6 +7,7 @@ a program your editor starts in the background and talks to while you edit a
 - shows the problems `execsql lint` would report, underlined on their lines, as you type;
 - completes metacommands, conditional tests, variables and export formats;
 - explains what is under the cursor on hover;
+- offers quick fixes for misspelled metacommands, conditional tests and variables;
 - jumps to where a variable, SCRIPT or `INCLUDE`d file is defined, finds a variable's uses, and outlines the script.
 
 ```sql
@@ -54,6 +55,18 @@ Hold the pointer over (or ask your editor to describe) a:
 
 `INCLUDE` paths are resolved from the script's own folder, as execsql resolves
 them when the script runs from there.
+
+## Quick fixes { #quick-fixes }
+
+Some findings come with a fix (in VS Code: the light bulb, or Ctrl/Cmd-. on the
+underlined line). A fix is offered only when applying it clears the finding.
+
+| Finding                                                         | Fix                                                                                                                     |
+| --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| [P003](../reference/lint.md#p003) `-- !x! EXPROT orders TO ...` | `Change EXPROT to EXPORT`: any misspelled word of the metacommand, `TOO` to `TO` included                               |
+| [P004](../reference/lint.md#p004) `IF(hasrowz(orders))`         | `Change hasrowz to hasrows`                                                                                             |
+| [V001](../reference/lint.md#v001) `!!report_dri!!`              | `Change !!report_dri!! to !!report_dir!!`: the closest variables the script defines, or system variables for `!!$...!!` |
+| [P002](../reference/lint.md#p002) a split `$$ ... $$` body      | Put the statement between `BEGIN SQL` and `END SQL`                                                                     |
 
 ## Install { #install }
 

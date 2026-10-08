@@ -11,6 +11,7 @@ from pygls.lsp.server import LanguageServer
 from pygls.uris import to_fs_path
 
 from execsql import __version__
+from execsql.lsp.code_actions import code_actions
 from execsql.lsp.completion import completions
 from execsql.lsp.diagnostics import diagnostics
 from execsql.lsp.document import ScriptIndex, index_script
@@ -154,6 +155,15 @@ def create_server() -> ExecsqlLanguageServer:
     def on_symbols(ls: ExecsqlLanguageServer, params: types.DocumentSymbolParams) -> list[types.DocumentSymbol]:
         uri = params.text_document.uri
         return document_symbols(ls.index(uri), ls.workspace.get_text_document(uri).source)
+
+    @server.feature(
+        types.TEXT_DOCUMENT_CODE_ACTION,
+        types.CodeActionOptions(code_action_kinds=[types.CodeActionKind.QuickFix]),
+    )
+    def on_code_action(ls: ExecsqlLanguageServer, params: types.CodeActionParams) -> list[types.CodeAction]:
+        uri = params.text_document.uri
+        source = ls.workspace.get_text_document(uri).source
+        return code_actions(ls.index(uri), uri, source, params.context.diagnostics)
 
     @server.feature(types.TEXT_DOCUMENT_DOCUMENT_LINK)
     def on_links(ls: ExecsqlLanguageServer, params: types.DocumentLinkParams) -> list[types.DocumentLink]:
