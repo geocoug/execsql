@@ -413,3 +413,34 @@ class TestExportJSON:
         assert data[1]["label"] == "beta"
 
         _exec_mysql("DROP TABLE IF EXISTS items")
+
+
+class TestImportBackslashes:
+    r"""``LOAD DATA`` keeps backslashes in the data and in the file path, as every other backend does.
+
+    MySQL's default ``ESCAPED BY '\\'`` turned ``C:\new\tbl`` into a newline
+    and a tab, ``\N`` into NULL, and a backslash in the file path into an
+    escape inside the quoted file name.
+    """
+
+    VALUES = [r"C:\new\tbl", r"\N", r"a\\b", r"regex \d+\s*", r"\toc"]
+
+    def _import(self, tmp_path, directory):
+        directory.mkdir(parents=True, exist_ok=True)
+        csv = directory / "paths.csv"
+        csv.write_text("id,val\n" + "".join(f"{i},{v}\n" for i, v in enumerate(self.VALUES)), encoding="utf-8")
+        _exec_mysql("DROP TABLE IF EXISTS backslashes")
+        _exec_mysql("CREATE TABLE backslashes (id INTEGER, val VARCHAR(100))")
+        try:
+            script = write_script(tmp_path, f"-- !x! IMPORT TO backslashes FROM {csv}\n")
+            result = _run_execsql_mysql(tmp_path, script)
+            assert result.returncode == 0, f"stderr: {result.stderr}"
+            return [row[0] for row in _query_mysql("SELECT val FROM backslashes ORDER BY id")]
+        finally:
+            _exec_mysql("DROP TABLE IF EXISTS backslashes")
+
+    def test_backslashes_in_values_are_kept(self, tmp_path):
+        assert self._import(tmp_path, tmp_path / "plain") == self.VALUES
+
+    def test_a_backslash_in_the_file_path_is_kept(self, tmp_path):
+        assert self._import(tmp_path, tmp_path / "dir\\with\\backslashes") == self.VALUES

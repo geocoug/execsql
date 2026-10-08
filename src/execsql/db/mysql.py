@@ -306,8 +306,12 @@ class MySQLDatabase(Database):
                 )
             import_cols = csv_file_cols
         input_col_list = ",".join(import_cols)
+        # LOAD DATA is told the file has no escape character (ESCAPED BY ''),
+        # so a file where one was detected takes the row-by-row path, which
+        # reads the format that was detected.
         if (
-            data_table_cols == csv_file_cols
+            csv_file_obj.escapechar is None
+            and data_table_cols == csv_file_cols
             and _state.conf.empty_strings
             and _state.conf.empty_rows
             and not _state.conf.del_empty_cols
@@ -315,19 +319,21 @@ class MySQLDatabase(Database):
             and not _state.conf.trim_strings
             and not _state.conf.replace_newlines
         ):
-            safe_fname = csv_file_obj.csvfname.replace("'", "''")
-            import_sql = f"load data local infile '{safe_fname}' into table {sq_name}"
+            # String literals in this session treat a backslash as an escape,
+            # so the file name, delimiter and quote character are quoted with
+            # quote_literal, which doubles it.
+            import_sql = f"load data local infile {self.quote_literal(csv_file_obj.csvfname)} into table {sq_name}"
             if csv_file_obj.encoding:
                 charset = _PYTHON_TO_MYSQL_CHARSET.get(csv_file_obj.encoding.lower(), csv_file_obj.encoding)
                 import_sql = f"{import_sql} character set {charset}"
-            if csv_file_obj.delimiter or csv_file_obj.quotechar:
-                import_sql = import_sql + " columns"
-                if csv_file_obj.delimiter:
-                    safe_delim = csv_file_obj.delimiter.replace("'", "''")
-                    import_sql = f"{import_sql} terminated by '{safe_delim}'"
-                if csv_file_obj.quotechar:
-                    safe_quote = csv_file_obj.quotechar.replace("'", "''")
-                    import_sql = f"{import_sql} optionally enclosed by '{safe_quote}'"
+            import_sql = import_sql + " columns"
+            if csv_file_obj.delimiter:
+                import_sql = f"{import_sql} terminated by {self.quote_literal(csv_file_obj.delimiter)}"
+            if csv_file_obj.quotechar:
+                import_sql = f"{import_sql} optionally enclosed by {self.quote_literal(csv_file_obj.quotechar)}"
+            # MySQL's default ESCAPED BY '\\' turned C:\new into a newline and
+            # \N into NULL; every other backend keeps the text as written.
+            import_sql = f"{import_sql} escaped by ''"
             # Tell LOAD DATA what ends a line.  Its default is "\n", so a CRLF
             # file left a carriage return on the last field of every row: the
             # value was not empty, NULLIF below could not see it, and a date

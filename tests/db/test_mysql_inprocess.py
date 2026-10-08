@@ -340,6 +340,7 @@ def _make_csv_file_obj(tmp_path, headers, rows, *, delimiter=",", quotechar='"',
             self.encoding = encoding
             self.delimiter = delimiter
             self.quotechar = quotechar
+            self.escapechar = None
             self.junk_header_lines = 0
 
         def evaluate_line_format(self):

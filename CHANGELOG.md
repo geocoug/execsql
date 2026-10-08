@@ -31,6 +31,7 @@ ______________________________________________________________________
 
 ### Fixed
 
+- **MySQL `IMPORT` of values with backslashes:** `C:\new\tbl`, `\N` and regular expressions load as written. The fast `LOAD DATA` path read a backslash as an escape, storing a newline and a tab, or NULL. A file whose path contains a backslash also imports.
 - **`-n` with `-e` on PostgreSQL** creates the database with the given encoding, as `CONNECT TO POSTGRESQL(..., ENCODING=..., NEW)` already did. `-e` (or `[encoding] database` in a config file) was ignored and the database was always UTF8. PostgreSQL refuses an encoding other than its template database's, usually UTF8, so `-n -e LATIN1` on such a server now stops with PostgreSQL's error instead of quietly creating a UTF8 database.
 - **`execsql.log` `run_db_file` record** names the database file for SQLite, DuckDB and Access runs; it was blank.
 - **`execsql.log` `exit` record:** a run that ends with an error, a `HALT` or a cancelled prompt now writes its `exit` record (type `error` or `halt`, with the message); only successful runs did. Ctrl-C is recorded as `interrupted` instead of `unknown`.
