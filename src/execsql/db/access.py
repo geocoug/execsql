@@ -82,7 +82,6 @@ class AccessDatabase(Database):
         self.password = password
         # Encoding is only applicable to Jet < 4.0: non-accdb databases.
         self.encoding = encoding or "windows-1252"
-        self.encode_commands = True
         self.dao_conn: Any = None
         self.conn = None  # ODBC connection
         self.paramstr = "?"

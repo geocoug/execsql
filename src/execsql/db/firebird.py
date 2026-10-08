@@ -60,7 +60,6 @@ class FirebirdDatabase(Database):
         self.type = dbt_firebird
         self.password = password
         self.encoding = encoding or "latin1"
-        self.encode_commands = True
         self.paramstr = "?"
         self.open_db()
         self.password = None  # Clear cleartext password after successful connection

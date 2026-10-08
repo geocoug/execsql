@@ -62,7 +62,6 @@ class DsnDatabase(Database):
         self.type = dbt_dsn
         self.password = password
         self.encoding = encoding
-        self.encode_commands = True
         self.paramstr = "?"
         self.open_db()
         self.password = None  # Clear cleartext password after successful connection

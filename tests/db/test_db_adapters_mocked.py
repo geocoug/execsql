@@ -183,11 +183,6 @@ class TestOracleDatabase:
         db = _make_oracle()
         assert db.encoding == "UTF8"
 
-    def test_encode_commands_is_false(self):
-        """Oracle adapter does not encode SQL bytes — it passes strings directly."""
-        db = _make_oracle()
-        assert db.encode_commands is False
-
 
 # ===========================================================================
 # SQL Server adapter

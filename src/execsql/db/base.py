@@ -98,7 +98,6 @@ class Database(ABC):
     password: str | None
     port: int | None
     encoding: Any
-    encode_commands: bool
     paramstr: str
     conn: Any
     autocommit: bool
@@ -143,7 +142,6 @@ class Database(ABC):
         self.password: str | None = None
         self.port = port
         self.encoding = encoding
-        self.encode_commands = True
         self.paramstr = "?"
         self.conn = None
         self.autocommit = True

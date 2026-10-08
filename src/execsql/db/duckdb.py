@@ -74,7 +74,6 @@ class DuckDBDatabase(Database):
         )
         self.type = dbt_duckdb
         self.catalog_name = Path(DuckDB_fn).stem
-        self.encode_commands = False
         self.open_db()
 
     def __repr__(self) -> str:

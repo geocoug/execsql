@@ -66,7 +66,6 @@ class PostgresDatabase(Database):
         self.type = dbt_postgres
         self.password = password
         self.new_db = new_db
-        self.encode_commands = False
         self.paramstr = "%s"
         self.connect_timeout = connect_timeout
         self.open_db()

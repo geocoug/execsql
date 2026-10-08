@@ -89,7 +89,6 @@ class OracleDatabase(Database):
         self.type = dbt_oracle
         self.password = password
         self.encoding = encoding or "UTF8"
-        self.encode_commands = False
         self.paramstr = ":1"
         self.open_db()
         self.password = None  # Clear cleartext password after successful connection
