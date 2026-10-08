@@ -9,17 +9,21 @@ from __future__ import annotations
 
 import json
 import sys
+from typing import Annotated
 
 import typer
 
 from execsql.cli.application import ExecsqlCommand, ExecsqlSubGroup, app
 from execsql.cli.help import (
+    _err_console,
     _encoding_names,
-    _metacommand_rows,
+    _metacommand_entries,
+    _metacommand_json,
     _plugins_data,
     _print_encodings,
     _print_keywords_json,
     _print_keywords_text,
+    _print_metacommand,
     _print_metacommands,
     _print_plugins,
 )
@@ -43,10 +47,33 @@ def _json(data: object) -> None:
 
 
 @list_app.command(cls=ExecsqlCommand, name="metacommands")
-def metacommands_cmd(output_format: OutputFormatOpt = OutputFormat.text) -> None:
-    """Every metacommand and its syntax."""
-    if output_format is OutputFormat.json:
-        _json([{"name": name, "syntax": syntax} for name, syntax in _metacommand_rows()])
+def metacommands_cmd(
+    keyword: Annotated[
+        list[str] | None,
+        typer.Argument(metavar="[KEYWORD]", help="Show one metacommand's syntax, e.g. EXPORT or export query."),
+    ] = None,
+    output_format: OutputFormatOpt = OutputFormat.text,
+) -> None:
+    """Every metacommand with a one-line summary, or the syntax of one."""
+    if keyword:
+        from execsql.metacommands.reference import metacommand
+
+        wanted = " ".join(keyword)
+        entry = metacommand(wanted)
+        if entry is None:
+            import difflib
+
+            names = [m.keyword for m in _metacommand_entries()]
+            close = difflib.get_close_matches(wanted.upper(), names, n=3)
+            hint = f" Did you mean {', '.join(close)}?" if close else ""
+            _err_console.print(f"[bold red]Error:[/bold red] No metacommand {wanted!r}.{hint}", highlight=False)
+            raise typer.Exit(code=2)
+        if output_format is OutputFormat.json:
+            _json(_metacommand_json(entry))
+        else:
+            _print_metacommand(entry)
+    elif output_format is OutputFormat.json:
+        _json([_metacommand_json(m) for m in _metacommand_entries()])
     else:
         _print_metacommands()
 

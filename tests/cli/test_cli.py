@@ -289,11 +289,10 @@ class TestRichOutput:
         assert "WRITE" in result.output
         assert "IF" in result.output
 
-    def test_metacommands_output_contains_syntax(self):
+    def test_metacommands_output_contains_summaries(self):
         result = invoke("-m", "dummy.sql")
         assert result.exit_code == 0
-        # Syntax column content
-        assert "ON|OFF" in result.output
+        assert "Exports data to a file." in result.output
 
     def test_encodings_output_is_multi_column(self):
         result = invoke("-y", "dummy.sql")
