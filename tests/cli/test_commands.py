@@ -41,7 +41,7 @@ class TestCommandSet:
         out = _invoke("--help").output
         section = out[out.index("Commands:") :]
         names = [line.split()[0] for line in section.splitlines()[1:] if line.strip()]
-        assert names == ["run", "format", "lint", "config", "list", "init"]
+        assert names == ["run", "format", "lint", "config", "list", "init", "lsp"]
 
     def test_ping_is_listed_in_run_help(self):
         assert "--ping" in _invoke("run", "--help").output

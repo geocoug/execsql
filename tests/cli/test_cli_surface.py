@@ -117,6 +117,7 @@ SURFACE: dict[str, dict[str, object]] = {
         "options": {"--force", "--no-config", "--no-pre-commit", "--no-script", "--script"},
         "hidden": set(),
     },
+    "lsp": {"arguments": [], "options": set(), "hidden": set()},
 }
 
 #: ``execsql list`` is a group: one command per reference list.
