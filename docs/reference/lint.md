@@ -292,6 +292,8 @@ load.sql
   5  error    P004  unknown or malformed condition: hasrowz(orders)
 ```
 
+A substitution variable in a condition is read as a placeholder value, which fits wherever a variable can go: the whole condition (`IF(!!ready!!)`), a test's argument (`hasrows(!!table!!)`) or text in quotes. A condition that cannot parse with any value is still reported. There is no `=` comparison, so `ASSERT !!$PG_UPSERT_QA_PASSED!! = TRUE` is an error, and `ASSERT IS_TRUE(!!$PG_UPSERT_QA_PASSED!!)` is the form to use.
+
 `execsql run` stops at an `IF`, `ELSEIF`, `ANDIF`, `ORIF` or `LOOP` whose condition does not parse, even with `METACOMMAND_ERROR_HALT OFF`. In `ASSERT` and `WAIT_UNTIL` it is a metacommand error, so with `METACOMMAND_ERROR_HALT OFF` the run carries on and the `ASSERT` never checks anything. The [`IF` metacommand](metacommands.md#if_cmd) lists every conditional test and its arguments.
 
 Conditions are parsed, never evaluated: lint does not connect to a database, so it cannot tell whether `hasrows(staging.orders)` would be true, only that it is a valid test. A condition that contains a substitution variable is not checked, for the same reason as in [`P003`](#p003).

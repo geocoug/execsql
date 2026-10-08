@@ -605,12 +605,25 @@ class TestUnknownCondition:
 
     @pytest.mark.parametrize(
         "condition",
-        ["!!flag!!", "frob(!!t!!)", "!{flag}!", 'equals("!\'!a!\'!", "b")'],
-        ids=["whole-condition", "argument", "deferred", "quoted"],
+        ["!!flag!!", "hasrows(!!t!!)", "!{flag}!", 'equals("!\'!a!\'!", "b")', "is_true(!!$PG_UPSERT_QA_PASSED!!)"],
+        ids=["whole-condition", "argument", "deferred", "quoted", "is-true"],
     )
-    def test_a_condition_with_a_variable_is_not_judged(self, tmp_path, condition):
+    def test_a_variable_that_fits_the_condition_is_fine(self, tmp_path, condition):
         body = f"-- !x! SUB flag 1\n-- !x! IF({condition})\nSELECT 1;\n-- !x! ENDIF\n"
         assert "P004" not in _codes(_lint(tmp_path, body))
+
+    @pytest.mark.parametrize(
+        "line",
+        [
+            '-- !x! ASSERT !!$PG_UPSERT_QA_PASSED!! = TRUE "QA failed"',
+            '-- !x! IF(!!flag!! = 1) { WRITE "x" }',
+            '-- !x! IF(frob(!!t!!)) { WRITE "x" }',
+        ],
+        ids=["assert-equals", "if-equals", "unknown-test"],
+    )
+    def test_a_condition_with_a_variable_is_still_parsed(self, tmp_path, line):
+        """Variables are read as a literal, so an ``=`` comparison, which no condition supports, is caught."""
+        assert self._lines(tmp_path, f"-- !x! SUB flag 1\n{line}\n") == [2]
 
 
 class TestAScriptThatDoesNotParse:

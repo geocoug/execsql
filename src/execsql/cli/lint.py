@@ -604,6 +604,17 @@ def _check_split_dollar_quotes(nodes: list[Node], issues: list[_Issue]) -> None:
 _RX_ANY_VAR = re.compile(r"!(['\"]?)![$&@~#+]?\w+!\1!|!\{[$&@~#+]?\w+\}!")
 
 
+def _with_placeholders(text: str) -> str:
+    """Replace each substitution variable with the literal ``TRUE``.
+
+    A value fits wherever a variable can stand in a condition: as the whole
+    condition, a test's argument, or text inside quotes.  What does not parse
+    with it in place does not parse with any value, such as
+    ``!!flag!! = TRUE`` (there is no ``=`` comparison).
+    """
+    return _RX_ANY_VAR.sub("TRUE", text)
+
+
 # Named groups that capture a condition in a metacommand's pattern: ASSERT,
 # WAIT_UNTIL, and the WHILE / UNTIL of ON ... EXECUTE SCRIPT.
 _CONDITION_GROUPS = ("condtest", "condition", "loopcond")
@@ -615,9 +626,13 @@ def _check_metacommand(node: MetaCommandStatement, issues: list[_Issue]) -> None
     ``execsql run`` halts on such a command with "Unknown metacommand",
     whether the keyword is misspelled or the arguments don't fit any form.
     """
-    if _RX_ANY_VAR.search(node.command):
-        return
     match = _dispatch_table().get_match(node.command)
+    if match is None and _RX_ANY_VAR.search(node.command):
+        # A variable can stand for a keyword or a whole clause: try the
+        # command with placeholders, and judge it only if that matches.
+        match = _dispatch_table().get_match(_with_placeholders(node.command))
+        if match is None:
+            return
     if match is None:
         issues.append(
             _issue(
@@ -637,17 +652,14 @@ def _check_metacommand(node: MetaCommandStatement, issues: list[_Issue]) -> None
 def _check_condition(condition: str, source: str, line_no: int, issues: list[_Issue]) -> None:
     """Report a condition that the conditional-expression parser rejects.
 
-    Only parses: no test is evaluated, so nothing touches a database.  A
-    condition holding a variable is skipped, as its text is only known at
-    run time.
+    Only parses: no test is evaluated, so nothing touches a database.
+    Variables are parsed as a placeholder value (:func:`_with_placeholders`).
     """
     from execsql.exceptions import CondParserError
     from execsql.parser import CondParser
 
-    if _RX_ANY_VAR.search(condition):
-        return
     try:
-        CondParser(condition, _conditional_table()).parse()
+        CondParser(_with_placeholders(condition), _conditional_table()).parse()
     except CondParserError:
         issues.append(
             _issue("P004", source, line_no, f"unknown or malformed condition: {condition.strip()}"),
