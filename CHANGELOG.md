@@ -31,6 +31,8 @@ ______________________________________________________________________
 
 ### Fixed
 
+- **2.17.0 `PG_UPSERT` migration note** gave `ASSERT !!$PG_UPSERT_QA_PASSED!! = TRUE`, which fails on every run (there is no `=` comparison). Use `ASSERT IS_TRUE(!!$PG_UPSERT_QA_PASSED!!) "QA failed"`; the note is corrected.
+- **`execsql lint`** checks conditions that contain substitution variables (P004), so `ASSERT !!flag!! = TRUE` and `IF(frob(!!t!!))` are reported; they were skipped.
 - **`allow_serve` / `--no-serve` descriptions** (configuration reference, options reference, the template written by `execsql config --init` and `execsql init`): `SERVE` copies a file to stdout with HTTP headers for CGI use; it opens no network port. `run --help` and the options reference now agree on `-v 2` (adds HALT dialogs), the `--dsn` scheme aliases, and `-n`, `-l`, `-b` and `-s`.
 - **`-d` / `--directories`** rejects a value other than `0`, `1`, `t`, `f`, `y` or `n` (exit 2), as upstream did, so `-d script.sql` names the bad `-d` value instead of reporting that no script was given. Option values are now checked before the script file. `run --help` and the options reference say the setting also covers `WRITE` and that it takes a value.
 - **`access_use_numeric`** (config section `input`) works again: with `Yes`, `IMPORT` and `COPY` create MS-Access columns for decimal data as `NUMERIC(precision,scale)` instead of `DOUBLE`. The setting was read but ignored.
@@ -449,7 +451,7 @@ ______________________________________________________________________
 
 ### Changed
 
-- **Behavior change.** `PG_UPSERT`, `PG_UPSERT QA`, and `PG_UPSERT CHECK` no longer raise a metacommand error when QA checks fail. The outcome is reported via `$PG_UPSERT_QA_PASSED`, `$PG_UPSERT_TABLE_QA_PASSED`, and `$PG_UPSERT_RESULT_JSON`, so the script controls flow with `IF` or `ASSERT`. `EXPORT_FAILURES` still runs and the upsert is still skipped on QA failure. Migration: add `ASSERT !!$PG_UPSERT_QA_PASSED!! = TRUE` at the call site to preserve the previous halt-on-failure behavior.
+- **Behavior change.** `PG_UPSERT`, `PG_UPSERT QA`, and `PG_UPSERT CHECK` no longer raise a metacommand error when QA checks fail. The outcome is reported via `$PG_UPSERT_QA_PASSED`, `$PG_UPSERT_TABLE_QA_PASSED`, and `$PG_UPSERT_RESULT_JSON`, so the script controls flow with `IF` or `ASSERT`. `EXPORT_FAILURES` still runs and the upsert is still skipped on QA failure. Migration: add `ASSERT IS_TRUE(!!$PG_UPSERT_QA_PASSED!!) "QA failed"` at the call site to preserve the previous halt-on-failure behavior. (Corrected after release: this note first gave an `=` comparison, which is not a valid condition and fails on every run.)
 
 ### Fixed
 
