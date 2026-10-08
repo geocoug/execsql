@@ -275,6 +275,8 @@ follow_imports_for_stubs = true
 [tool.typos.default.extend-words]
 # SQL table alias used throughout upsert templates
 ot = "ot"
+# Deliberate misspelling of EXPORT in tests of "did you mean" suggestions
+exprot = "exprot"
 # Partial string used as intentional test data in test_metacommands.py
 hel = "hel"
 # Legacy variable name (self.fo) in EncodedFile — from upstream monolith

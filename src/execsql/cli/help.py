@@ -19,7 +19,9 @@ __all__ = [
     "_init_config",
     "_init_config_text",
     "_keywords_data",
-    "_metacommand_rows",
+    "_metacommand_entries",
+    "_metacommand_json",
+    "_print_metacommand",
     "_plugins_data",
     "_print_encodings",
     "_print_keywords_json",
@@ -30,66 +32,6 @@ __all__ = [
 
 _console = Console()
 _err_console = Console(stderr=True)
-
-# ---------------------------------------------------------------------------
-# Metacommand syntax hints — paired with keywords from the dispatch table.
-# Keys must match the ``description`` values used in mcl.add() calls.
-# Entries here are validated by tests/test_registry.py.
-# ---------------------------------------------------------------------------
-
-_SYNTAX: dict[str, tuple[str, str]] = {
-    # (display_name, syntax_hint)
-    "ASK": ("ASK", '"<question>" SUB <match_string>'),
-    "AUTOCOMMIT": ("AUTOCOMMIT", "ON|OFF"),
-    "BEGIN BATCH": ("BEGIN BATCH / END BATCH / ROLLBACK BATCH", ""),
-    "BEGIN SCRIPT": ("BEGIN SCRIPT / END SCRIPT", ""),
-    "BEGIN SQL": ("BEGIN SQL / END SQL", ""),
-    "CANCEL_HALT": ("CANCEL_HALT", "ON|OFF"),
-    "CD": ("CD", "<directory>"),
-    "CONNECT": ("CONNECT", "<alias> [AS <alias_name>]"),
-    "COPY": ("COPY", "<source_file> TO <dest_file>"),
-    "DEBUG": ("DEBUG", "ON|OFF"),
-    "SUB": ("DEFINE SUB", "<variable> [AS] <value>"),
-    "EXPORT QUERY": ("EXPORT QUERY", "<queryname> [AS <alias>] ..."),
-    "EXPORT": ("EXPORT", "<queryname> TO <format> <filename> ..."),
-    "HALT": ("HALT [ON]", "ERROR|CANCEL"),
-    "IF": ("IF <condition>", "/ ELSE / ENDIF"),
-    "IMPORT_FILE": ("IMPORT FILE", "<filename> [OPTIONS ...]"),
-    "IMPORT": ("IMPORT TABLE", "<tablename> FROM FILE <filename> [OPTIONS ...]"),
-    "LOOP": ("LOOP <n> TIMES | WHILE | UNTIL", "/ END LOOP"),
-    "CONFIG": ("CONFIG", "<option> <value>"),
-    "ON CANCEL_HALT": ("ON CANCEL_HALT", "..."),
-    "ON ERROR_HALT": ("ON ERROR_HALT", "..."),
-    "PAUSE": ("PAUSE", "[<text>]"),
-    "PROMPT ACTION": ("PROMPT ACTION", "..."),
-    "PROMPT ENTRY_FORM": ("PROMPT ENTRY_FORM", "..."),
-    "PROMPT OPENFILE": ("PROMPT OPENFILE", "..."),
-    "PROMPT SAVEFILE": ("PROMPT SAVEFILE", "..."),
-    "PROMPT DIRECTORY": ("PROMPT DIRECTORY", "..."),
-    "PROMPT MAP": ("PROMPT MAP", "..."),
-    "ROLLBACK BATCH": ("ROLLBACK", ""),
-    "SERVE": ("SERVE", "<queryname> ..."),
-    "SYSTEM_CMD": ("SYSTEM_CMD", "(<operating system command line>)"),
-    "TIMER": ("TIMER", "ON|OFF"),
-    "USE": ("USE", "<alias_name>"),
-    "WAIT_UNTIL": ("WAIT_UNTIL", "<Boolean_expression> <HALT|CONTINUE> AFTER <n> SECONDS"),
-    "WRITE": ("WRITE", '"<text>" [[TEE] TO <output>]'),
-    "WRITE CREATE_TABLE": ("WRITE CREATE_TABLE FROM", "<filename> [TO <output>]"),
-    "WRITE SCRIPT": ("WRITE SCRIPT", "<script_name> [[APPEND] TO <output_file>]"),
-    "ZIP": ("ZIP", "<filename> [APPEND] TO ZIPFILE <zipfilename>"),
-    "SUB_TEMPFILE": ("SUB_TEMPFILE", "<variable>"),
-}
-
-# Keys from _SYNTAX that should be skipped when auto-generating from dispatch
-# table (they're variants covered by another entry).
-_SKIP_FROM_DISPATCH = {
-    "END BATCH",
-    "END SCRIPT",
-    "END SQL",
-    "ROLLBACK BATCH",
-    "BEGIN SCRIPT",
-    "BEGIN SQL",
-}
 
 
 def _init_config_text() -> str:
@@ -106,54 +48,60 @@ def _init_config() -> None:
     sys.stdout.write(_init_config_text())
 
 
-def _metacommand_rows() -> list[tuple[str, str]]:
-    """``(name, syntax)`` for every metacommand, in the order they are listed.
+_CATEGORY_ORDER = ("control", "block", "action", "config", "prompt")
 
-    Keyword list is derived from the dispatch table; syntax hints come from
-    the ``_SYNTAX`` dict above.  Keywords not in ``_SYNTAX`` get an empty
-    syntax hint.
-    """
-    from execsql.metacommands import DISPATCH_TABLE
 
-    # Collect unique keyword names from the dispatch table.
-    seen: set[str] = set()
-    keywords: list[str] = []
-    for mc in DISPATCH_TABLE:
-        if mc.description and mc.description not in seen and mc.description not in _SKIP_FROM_DISPATCH:
-            seen.add(mc.description)
-            keywords.append(mc.description)
-    # Add parser-level keywords not in the dispatch table.
-    for extra in ("BEGIN BATCH", "BEGIN SCRIPT", "BEGIN SQL"):
-        if extra not in seen:
-            seen.add(extra)
-            keywords.append(extra)
+def _metacommand_entries() -> list[Any]:
+    """Every metacommand's readable entry, by category, then keyword."""
+    from execsql.metacommands.reference import metacommands
 
-    rows: list[tuple[str, str]] = []
-    for kw in sorted(keywords):
-        if kw in _SYNTAX:
-            rows.append(_SYNTAX[kw])
-        elif kw.startswith("CONFIG ") or kw.startswith("CONSOLE_") or "_" in kw:
-            continue  # skip config options / internal entries
-        else:
-            rows.append((kw, ""))
-    return rows
+    order = {c: i for i, c in enumerate(_CATEGORY_ORDER)}
+    return sorted(metacommands(), key=lambda m: (order.get(m.category, len(order)), m.keyword))
+
+
+def _metacommand_json(entry: Any) -> dict[str, Any]:
+    return {
+        "name": entry.keyword,
+        "category": entry.category,
+        "syntax": entry.forms[0],
+        "forms": list(entry.forms),
+        "summary": entry.summary,
+        "url": entry.url,
+    }
 
 
 def _print_metacommands() -> None:
-    """Print the metacommands table using Rich."""
+    """Print every metacommand with its category and one-line summary."""
     table = Table(
         title="execsql Metacommands",
-        caption="Embed in SQL comment lines following the [bold]!x![/bold] token.",
+        caption=(
+            "Write them in a SQL comment after [bold]-- !x![/bold].  "
+            "[bold]execsql list metacommands <KEYWORD>[/bold] shows the syntax of one."
+        ),
         show_header=True,
         header_style="bold cyan",
         border_style="dim",
         expand=False,
     )
     table.add_column("Metacommand", style="bold green", no_wrap=True)
-    table.add_column("Syntax", style="white")
-    for name, syntax in _metacommand_rows():
-        table.add_row(name, syntax)
+    table.add_column("Category", style="dim", no_wrap=True)
+    table.add_column("Summary", style="white")
+    for entry in _metacommand_entries():
+        table.add_row(entry.keyword, entry.category, entry.summary)
     _console.print(table)
+
+
+def _print_metacommand(entry: Any) -> None:
+    """Print one metacommand's syntax lines, summary and docs link."""
+    from rich.markup import escape
+
+    _console.print(f"[bold green]{escape(entry.keyword)}[/bold green]  [dim]{entry.category}[/dim]")
+    _console.print(escape(entry.summary))
+    _console.print()
+    for form in entry.forms:
+        _console.print(f"  -- !x! {escape(form)}", highlight=False)
+    _console.print()
+    _console.print(f"[dim]{entry.url}[/dim]", highlight=False)
 
 
 def _encoding_names() -> list[str]:
