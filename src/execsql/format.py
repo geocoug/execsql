@@ -22,7 +22,7 @@ __all__ = ["collect_paths", "format_file", "open_dollar_quote", "parse_keyword",
 
 _SQLGLOT_MISSING_MSG = (
     "execsql format requires sqlglot for SQL reformatting.\n"
-    "  Install with:  pip install execsql2[formatter]\n"
+    '  Install the formatter extra:  uv tool install "execsql2[formatter]"  (or pip install "execsql2[formatter]")\n'
     "  Or skip SQL reformatting with the --no-sql flag."
 )
 

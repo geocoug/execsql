@@ -33,7 +33,7 @@ try:
     import textual  # noqa: F401
 except ImportError as _e:
     raise ImportError(
-        "Textual is not installed. Install it with: pip install 'execsql2[tui]'",
+        "Textual is not installed. It is a dependency of execsql2; reinstall execsql2 to restore it.",
     ) from _e
 
 from textual import on

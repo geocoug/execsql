@@ -1182,12 +1182,12 @@ MARKDOWN or MD
 
 XLSX
 
-:   [Excel](https://www.microsoft.com/en-us/microsoft-365/excel) workbook in the Office Open XML format. One or more tables (or views) can be exported to an XLSX workbook. Each table will be exported to a separate worksheet within the workbook, with the first row containing bold column headers. To export multiple tables, their names must be separated by commas. The "APPEND" keyword can be used to add worksheets to an existing workbook. The name of the view or table exported will be used as the worksheet name; if this conflicts with a sheet already in the workbook, a number will be appended to make the sheet name unique. A "Datasheets" inventory sheet is created with author, date, description, and source information for each data sheet. Data types are preserved natively (integers, floats, dates, datetimes, booleans). Text is always stored as text: a value, column name or description that starts with `=` (such as `=1+1`) appears literally and is never evaluated as a formula. The `openpyxl` library must be installed (`pip install execsql2[excel]`). Data exported in XLSX format cannot be written into a zipfile.
+:   [Excel](https://www.microsoft.com/en-us/microsoft-365/excel) workbook in the Office Open XML format. One or more tables (or views) can be exported to an XLSX workbook. Each table will be exported to a separate worksheet within the workbook, with the first row containing bold column headers. To export multiple tables, their names must be separated by commas. The "APPEND" keyword can be used to add worksheets to an existing workbook. The name of the view or table exported will be used as the worksheet name; if this conflicts with a sheet already in the workbook, a number will be appended to make the sheet name unique. A "Datasheets" inventory sheet is created with author, date, description, and source information for each data sheet. Data types are preserved natively (integers, floats, dates, datetimes, booleans). Text is always stored as text: a value, column name or description that starts with `=` (such as `=1+1`) appears literally and is never evaluated as a formula. The `openpyxl` library must be installed (the `formats` extra). Data exported in XLSX format cannot be written into a zipfile.
 
 
 YAML
 
-:   [YAML](https://yaml.org/) sequence of mappings. Each row is represented as a mapping (dictionary) with column names as keys. Python data types are preserved — integers remain integers, floats remain floats, and `None` becomes YAML `null`. If the "APPEND" keyword is used, a new YAML document is appended to the file (multi-document stream). The `PyYAML` library must be installed (`pip install execsql2[formats]`). No description text is included in the output even if provided.
+:   [YAML](https://yaml.org/) sequence of mappings. Each row is represented as a mapping (dictionary) with column names as keys. Python data types are preserved — integers remain integers, floats remain floats, and `None` becomes YAML `null`. If the "APPEND" keyword is used, a new YAML document is appended to the file (multi-document stream). The `PyYAML` library must be installed (the `formats` extra). No description text is included in the output even if provided.
 
 
 SQLITE
@@ -2271,7 +2271,7 @@ PG_UPSERT CHECK FROM <staging_schema> TO <base_schema> TABLES <table1>, <table2>
 
 Performs QA-checked, FK-dependency-ordered upserts from a staging schema to a base schema on PostgreSQL. Integrates [pg-upsert](https://pg-upsert.readthedocs.io/) as an optional dependency.
 
-**Requires:** `pip install execsql2[upsert]` (pg-upsert 1.25.0 or later)
+**Requires:** the `upsert` extra, `uv tool install "execsql2[upsert]"` (pg-upsert 1.25.0 or later)
 
 **Requires:** A PostgreSQL connection. Raises an error if the current DBMS is not PostgreSQL.
 
@@ -2747,7 +2747,7 @@ Opens a dialog showing the rows of the specified table or view as points on an i
 **Backend support and the `[map]` extra.** Interactive map rendering uses the [`tkintermapview`](https://github.com/TomSchimansky/TkinterMapView) package, which is **not** installed by default. Install it explicitly or via the bundled extra:
 
 ```sh
-pip install execsql2[map]
+uv tool install "execsql2[map]"
 ```
 
 When `tkintermapview` is not installed, when no valid `LAT`/`LON` values can be parsed from the rows, or when running under the Textual TUI / console backends, the dialog falls back to a tabular display of the same rows so the script can still proceed. The `SYMBOL` column is accepted for syntactic compatibility but is currently ignored — `tkintermapview` renders all markers as circles, with color taken from the `COLOR` column when present.

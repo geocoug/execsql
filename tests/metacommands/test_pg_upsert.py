@@ -464,7 +464,7 @@ class TestImportGuard:
                     tail="books",
                     metacommandline="PG_UPSERT FROM staging TO public TABLES books",
                 )
-            assert "pip install execsql2[upsert]" in str(exc_info.value)
+            assert 'uv tool install "execsql2[upsert]"' in str(exc_info.value)
 
 
 # ---------------------------------------------------------------------------

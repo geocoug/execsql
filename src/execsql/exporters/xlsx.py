@@ -38,7 +38,9 @@ def _require_openpyxl() -> Any:
 
         return openpyxl
     except ImportError:
-        fatal_error("The openpyxl library is needed to write Excel (.xlsx) spreadsheets (install execsql2[excel]).")
+        fatal_error(
+            "The openpyxl library is needed to write Excel (.xlsx) spreadsheets (install the formats extra, execsql2[formats]).",
+        )
 
 
 def _cell_value(item: Any) -> Any:

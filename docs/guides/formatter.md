@@ -7,13 +7,13 @@
 The `execsql format` command is installed automatically with the `execsql2` package and is available on your PATH after install:
 
 ```bash
-pip install execsql2
+uv tool install execsql2
 ```
 
 The metacommand-indentation and keyword-casing passes work out of the box. **SQL reformatting** (the optional sqlglot pass) requires the `[formatter]` extra, as of execsql2 2.19.0:
 
 ```bash
-pip install "execsql2[formatter]"
+uv tool install "execsql2[formatter]"
 ```
 
 Without the extra, `execsql format` works in `--no-sql` mode (metacommand indentation and keyword casing only); invoking the SQL pass without `[formatter]` installed stops with `Error: execsql format requires sqlglot for SQL reformatting.`, the install command, and a pointer to `--no-sql` (exit 1).

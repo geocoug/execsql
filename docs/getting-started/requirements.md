@@ -4,33 +4,7 @@
 
 *execsql* uses third-party Python libraries to communicate with different database and spreadsheet software. Only those libraries that are needed, based on the database type and [metacommands](../reference/metacommands.md#metacommands) in use, must be installed.
 
-The easiest way to install the required libraries is to use the optional dependency extras provided by the `execsql2` package:
-
-```sh
-# Database drivers
-pip install "execsql2[postgres]"    # PostgreSQL
-pip install "execsql2[mysql]"       # MySQL / MariaDB
-pip install "execsql2[mssql]"       # MS SQL Server (pyodbc)
-pip install "execsql2[duckdb]"      # DuckDB
-pip install "execsql2[firebird]"    # Firebird
-pip install "execsql2[oracle]"      # Oracle
-pip install "execsql2[odbc]"        # ODBC DSN (pyodbc)
-
-# Feature bundles
-pip install "execsql2[formats]"     # ODS, Excel, Jinja2, Feather, Parquet, HDF5
-pip install "execsql2[formatter]"   # SQL pass for `execsql format` (sqlglot)
-pip install "execsql2[upsert]"      # PG_UPSERT metacommand (pg-upsert)
-pip install "execsql2[map]"         # PROMPT MAP widget (tkintermapview)
-pip install "execsql2[auth]"        # OS keyring integration (desktop / native)
-pip install "execsql2[auth-plaintext]"  # Headless keyring (plaintext file backend)
-pip install "execsql2[auth-encrypted]"  # Headless keyring (encrypted file backend)
-
-# Convenience
-pip install "execsql2[all-db]"      # All database drivers
-pip install "execsql2[all]"         # Everything (all-db + formats + formatter + auth + upsert + map)
-```
-
-Multiple extras can be combined: `pip install "execsql2[postgres,duckdb,formats]"`.
+The easiest way to install the required libraries is to name the matching [extras](installation.md#extras) when installing `execsql2`, for example `uv tool install "execsql2[postgres,duckdb,formats]"`. The [Installation](installation.md#installation) page lists every extra and how to add one to an existing install.
 
 ## Libraries by Database/Format { #libraries }
 
@@ -125,7 +99,8 @@ To use MS Access, SQL Server, or an ODBC DSN, an appropriate ODBC driver must be
 In addition to the ODBC engine above, the MS Access adapter also needs [pywin32](https://pypi.org/project/pywin32/) to read certain Access-specific value types via the COM bridge. It is not declared in the `[mssql]` or any `execsql2` extra (the package is Windows-only and would noise up non-Windows installs); install it explicitly when you set up the rest of your Access stack:
 
 ```sh
-pip install "execsql2[mssql]" pywin32
+uv tool install "execsql2[mssql]" --with pywin32
+pipx install "execsql2[mssql]" --preinstall pywin32
 ```
 
 ### Oracle thin vs thick mode

@@ -4,7 +4,7 @@ Integrates pg-upsert (https://pg-upsert.readthedocs.io/) as an optional
 dependency, providing QA-checked, FK-dependency-ordered upserts from a
 staging schema to a base schema on PostgreSQL.
 
-Requires: ``pip install execsql2[upsert]``
+Requires the ``upsert`` extra (``execsql2[upsert]``).
 """
 
 from __future__ import annotations
@@ -213,7 +213,10 @@ def _require_pg_upsert() -> None:
     except ImportError as exc:
         raise ErrInfo(
             "exception",
-            other_msg=("PG_UPSERT requires the pg-upsert package. Install it with: pip install execsql2[upsert]"),
+            other_msg=(
+                'PG_UPSERT requires the pg-upsert package. Install the upsert extra: uv tool install "execsql2[upsert]"'
+                ' (or pip install "execsql2[upsert]").'
+            ),
         ) from exc
 
 

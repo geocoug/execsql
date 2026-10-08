@@ -234,7 +234,7 @@ In a multi-user environment, where more than one person may run a script, and ea
 
 ## Password Storage and the OS Keyring
 
-When installed with the `auth` extra (`pip install execsql2[auth]`), *execsql* uses the [keyring](https://pypi.org/project/keyring/) package to store database passwords in your OS credential store (macOS Keychain, Windows Credential Manager, or a SecretService-compatible backend on Linux). After a successful interactive prompt, the password is saved automatically and reused on later runs — so you typically see a password prompt only once per `db_type / server / database / username` combination.
+When installed with the `auth` extra (`uv tool install "execsql2[auth]"`), *execsql* uses the [keyring](https://pypi.org/project/keyring/) package to store database passwords in your OS credential store (macOS Keychain, Windows Credential Manager, or a SecretService-compatible backend on Linux). After a successful interactive prompt, the password is saved automatically and reused on later runs — so you typically see a password prompt only once per `db_type / server / database / username` combination.
 
 If a stored password is later rejected by the server (e.g. it was rotated), *execsql* clears the stale entry and re-prompts; the new password replaces the old one in the keyring.
 

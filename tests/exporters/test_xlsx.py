@@ -5,7 +5,7 @@ Tests focus on the low-level write_query_to_xlsx and write_queries_to_xlsx
 functions via a lightweight stub database, and on the XlsxFile reader
 (from exporters.xls) for round-trip verification.
 
-Requires the ``openpyxl`` package (``execsql2[excel]``).  The entire module
+Requires the ``openpyxl`` package (``execsql2[formats]``).  The entire module
 is skipped if openpyxl is not installed.
 """
 
@@ -24,7 +24,7 @@ except ImportError:
 
 pytestmark = pytest.mark.skipif(
     not _openpyxl_available,
-    reason="requires openpyxl (install with execsql2[excel])",
+    reason="requires openpyxl (install with execsql2[formats])",
 )
 
 # ---------------------------------------------------------------------------

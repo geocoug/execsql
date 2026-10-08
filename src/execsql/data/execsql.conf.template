@@ -46,7 +46,7 @@
 #password_prompt=Yes
 
 # Whether to use the OS credential store (keyring) for password storage.
-# Requires: pip install execsql2[auth]
+# Requires the auth extra: uv tool install "execsql2[auth]"
 # Values: Yes or No.  Default: Yes.
 #use_keyring=Yes
 

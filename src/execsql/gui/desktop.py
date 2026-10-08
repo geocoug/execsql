@@ -897,7 +897,7 @@ class MapDialog:
                 frame,
                 text=(
                     "(Interactive map requires the tkintermapview package — "
-                    "`pip install execsql2[map]` — showing tabular data)"
+                    "install the map extra, execsql2[map] — showing tabular data)"
                 ),
                 wraplength=580,
                 justify="left",
