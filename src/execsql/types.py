@@ -803,7 +803,24 @@ dbt_sqlserver.name_datatype(DT_Varchar, "varchar", True)
 dbt_sqlserver.name_datatype(DT_Text, "varchar(max)")
 dbt_sqlserver.name_datatype(DT_Binary, "varbinary(max)")
 
-dbt_access = DbType("Access")
+
+class _AccessDbType(DbType):
+    """Access dialect: decimal data becomes DOUBLE unless ``access_use_numeric`` is set.
+
+    Read from the run's config at use time, not applied to the shared
+    ``dt_xlate``, so one run's setting does not carry over to the next
+    ``execsql.run()`` in the same process.
+    """
+
+    def spec_type(self, data_type: type[DataType]) -> type[DataType]:
+        import execsql.state as _state
+
+        if data_type is DT_Decimal and getattr(_state.conf, "access_use_numeric", False):
+            return DT_Decimal
+        return super().spec_type(data_type)
+
+
+dbt_access = _AccessDbType("Access")
 dbt_access.name_datatype(DT_TimestampTZ, "VARCHAR", True)
 dbt_access.name_datatype(DT_Timestamp, "VARCHAR", True)
 dbt_access.name_datatype(DT_Date, "VARCHAR", True)

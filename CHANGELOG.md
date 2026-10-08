@@ -31,6 +31,7 @@ ______________________________________________________________________
 
 ### Fixed
 
+- **`access_use_numeric`** (config section `input`) works again: with `Yes`, `IMPORT` and `COPY` create MS-Access columns for decimal data as `NUMERIC(precision,scale)` instead of `DOUBLE`. The setting was read but ignored.
 - **SIGTERM** (`kill`, `timeout`, `docker stop`, a cancelled CI job) ends a `run` like Ctrl-C: the open transaction is rolled back, a running `SYSTEM_CMD` is stopped and `execsql.log` gets the run's records with an `exit` record of type `terminated` (exit status 143). The whole run's log was lost and the `SYSTEM_CMD` kept running.
 - **`EXPORT ... AS XLSX`:** text that starts with `=` (a value, a column name or the `DESCRIPTION`) is written as text. It was stored as a formula, so `=1+1` showed `2` and a `=HYPERLINK(...)` in the data became a live link when the workbook was opened.
 - **`--dsn` / `execsql.run(dsn=...)` with a percent-encoded user, password or database** (`postgresql://user:p%40ss%2Fw@host/db`): the decoded value is used. The encoded text was sent to the server, so a password containing `@`, `:`, `/`, `?`, `#` or `%` could not be given in a DSN. A password that literally contains `%` followed by two hex digits must now be written with `%25`.

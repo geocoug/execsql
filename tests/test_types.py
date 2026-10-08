@@ -842,3 +842,44 @@ class TestDbtDuckdbTemporalTypes:
 
     def test_time_maps_to_native(self):
         assert dbt_duckdb.datatype_name(DT_Time) == "TIME"
+
+
+class TestAccessUseNumeric:
+    """``access_use_numeric`` (section ``input``) creates Access decimal columns as NUMERIC, as upstream did."""
+
+    def test_default_creates_double(self, minimal_conf):
+        from execsql.types import dbt_access
+
+        assert dbt_access.spec_type(DT_Decimal) is DT_Float
+        assert dbt_access.column_spec("amount", DT_Decimal, None, True, 10, 2) == "amount DOUBLE"
+
+    def test_yes_creates_numeric(self, minimal_conf):
+        from execsql.types import dbt_access
+
+        minimal_conf.access_use_numeric = True
+        assert dbt_access.spec_type(DT_Decimal) is DT_Decimal
+        assert dbt_access.column_spec("amount", DT_Decimal, None, True, 10, 2) == "amount NUMERIC(10,2)"
+
+    def test_the_setting_applies_per_run(self, minimal_conf):
+        """``dbt_access`` is shared; a later run without the setting gets DOUBLE again."""
+        from execsql.types import dbt_access
+
+        minimal_conf.access_use_numeric = True
+        assert dbt_access.spec_type(DT_Decimal) is DT_Decimal
+        minimal_conf.access_use_numeric = False
+        assert dbt_access.spec_type(DT_Decimal) is DT_Float
+
+    def test_create_table_for_imported_decimals(self, minimal_conf):
+        from execsql.models import DataTable
+        from execsql.types import dbt_access
+
+        minimal_conf.access_use_numeric = True
+        table = DataTable(["amount"], iter([["12.50"], ["3.25"]]))
+        assert "NUMERIC(" in table.create_table(dbt_access, None, "t")
+
+    def test_other_types_and_dbms_unaffected(self, minimal_conf):
+        from execsql.types import dbt_access
+
+        minimal_conf.access_use_numeric = True
+        assert dbt_access.spec_type(DT_Float) is DT_Float
+        assert dbt_postgres.spec_type(DT_Decimal) is DT_Decimal

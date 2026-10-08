@@ -100,7 +100,7 @@ The section and property names that may be used in a configuration file are list
 
 `access_use_numeric`
 
-:   Whether or not to translate decimal (numeric) data types to double precision when the [IMPORT](metacommands.md#import) or [COPY](metacommands.md#copy) metacommands construct a CREATE TABLE statement for MS-Access. This property value should be either "Yes" or "No." The default value is "No".
+:   How [IMPORT](metacommands.md#import) and [COPY](metacommands.md#copy) declare columns of decimal data when they construct a CREATE TABLE statement for MS-Access. With "Yes", such columns are `NUMERIC(precision,scale)` and keep exact decimal values; with "No", they are `DOUBLE` (double-precision floating point). This property value should be either "Yes" or "No." The default value is "No".
 
 `boolean_int`
 
