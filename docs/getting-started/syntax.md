@@ -352,7 +352,7 @@ are described [above](#config_command).
 ### Encoding options
 
 `-e`, `--database-encoding` *ENCODING*
-:   Character encoding used by the database. Only used for some database types.
+:   Character encoding used by the database. Only used for some database types. With `-n` on PostgreSQL, the new database is created with this encoding (`CREATE DATABASE ... ENCODING`); PostgreSQL refuses an encoding that differs from its template database's, normally UTF8, and the run stops with its message. Without `-e`, a new PostgreSQL database is UTF8.
 
 `-f`, `--script-encoding` *ENCODING*
 :   Character encoding of the script file. Default: `[encoding] script` from a config file, else UTF-8. `format` and `lint` take the same option.
