@@ -16,7 +16,7 @@ BAD = "-- !x! EXPROT orders TO out.csv AS CSV\n"
 GOOD = "-- !x! EXPORT orders TO out.csv AS CSV\n"
 
 
-@pytest_lsp.fixture(config=ClientServerConfig(server_command=[sys.executable, "-m", "execsql", "lsp"]))
+@pytest_lsp.fixture(config=ClientServerConfig(server_command=[sys.executable, "-m", "execsql", "lsp", "--stdio"]))
 async def client(lsp_client: LanguageClient, tmp_path_factory):
     root = tmp_path_factory.mktemp("workspace")
     await lsp_client.initialize_session(
@@ -69,7 +69,7 @@ async def test_closing_a_script_clears_its_findings(client: LanguageClient):
     assert not client.diagnostics[uri]
 
 
-@pytest_lsp.fixture(config=ClientServerConfig(server_command=[sys.executable, "-m", "execsql", "lsp"]))
+@pytest_lsp.fixture(config=ClientServerConfig(server_command=[sys.executable, "-m", "execsql", "lsp", "--stdio"]))
 async def configured_client(lsp_client: LanguageClient, tmp_path_factory):
     root = tmp_path_factory.mktemp("configured")
     (root / "execsql.conf").write_text("[lint]\nignore = P003\n\n[format]\nindent = 2\n")
