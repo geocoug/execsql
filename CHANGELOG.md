@@ -31,6 +31,7 @@ ______________________________________________________________________
 
 ### Fixed
 
+- **`allow_serve` / `--no-serve` descriptions** (configuration reference, options reference, the template written by `execsql config --init` and `execsql init`): `SERVE` copies a file to stdout with HTTP headers for CGI use; it opens no network port. `run --help` and the options reference now agree on `-v 2` (adds HALT dialogs), the `--dsn` scheme aliases, and `-n`, `-l`, `-b` and `-s`.
 - **`-d` / `--directories`** rejects a value other than `0`, `1`, `t`, `f`, `y` or `n` (exit 2), as upstream did, so `-d script.sql` names the bad `-d` value instead of reporting that no script was given. Option values are now checked before the script file. `run --help` and the options reference say the setting also covers `WRITE` and that it takes a value.
 - **`access_use_numeric`** (config section `input`) works again: with `Yes`, `IMPORT` and `COPY` create MS-Access columns for decimal data as `NUMERIC(precision,scale)` instead of `DOUBLE`. The setting was read but ignored.
 - **SIGTERM** (`kill`, `timeout`, `docker stop`, a cancelled CI job) ends a `run` like Ctrl-C: the open transaction is rolled back, a running `SYSTEM_CMD` is stopped and `execsql.log` gets the run's records with an `exit` record of type `terminated` (exit status 143). The whole run's log was lost and the `SYSTEM_CMD` kept running.

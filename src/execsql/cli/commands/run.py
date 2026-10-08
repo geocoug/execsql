@@ -58,7 +58,7 @@ def main(
         False,
         "-n",
         "--new-db",
-        help="Create a new SQLite or Postgres database if it does not exist.",
+        help="Create a new SQLite, DuckDB or PostgreSQL database if it does not exist.",
     ),
     # -- Encoding ----------------------------------------------------------
     database_encoding: str | None = typer.Option(
@@ -93,14 +93,14 @@ def main(
         "-s",
         "--scan-lines",
         metavar="N",
-        help="Lines to scan for IMPORT format detection. 0 = scan entire file.",
+        help="Lines to scan for IMPORT format detection. Default: 100; 0 = scan entire file.",
     ),
     boolean_int: str | None = typer.Option(
         None,
         "-b",
         "--boolean-int",
         metavar="{0,1,t,f,y,n}",
-        help="Treat integers 0 and 1 as boolean values.",
+        help="Treat columns of only 0 and 1 as Boolean (y, default) or integer (n).",
     ),
     make_dirs: str | None = typer.Option(
         None,
@@ -189,7 +189,7 @@ def main(
         metavar="{0,1,2,3}",
         help=(
             "GUI level: 0=none (default), 1=GUI for password/pause, "
-            "2=GUI for password/pause + DB selection, 3=full GUI console."
+            "2=also HALT messages and initial DB selection, 3=full GUI console."
         ),
     ),
     gui_framework: str | None = typer.Option(
@@ -230,7 +230,7 @@ def main(
         False,
         "-l",
         "--user-logfile",
-        help="Write a log file to ~/execsql.log.",
+        help="Write the log to ~/execsql.log instead of ./execsql.log.",
     ),
     # -- Hidden aliases of `execsql list ...`; -m and -y are upstream flags.
     metacommands: bool = typer.Option(False, "-m", "--metacommands", hidden=True),  # list metacommands

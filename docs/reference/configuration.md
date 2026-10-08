@@ -371,7 +371,7 @@ The section and property names that may be used in a configuration file are list
 :   When set to "No", the `RM_FILE` metacommand (which deletes a file) is disabled. Any script that attempts to remove a file will fail with an error. The default is "Yes". This can also be set via the `--no-rm-file` CLI flag or `allow_rm_file=False` in the library API. Symmetric with `allow_system_cmd`.
 
 `allow_serve` { #allow_serve }
-:   When set to "No", the `SERVE` metacommand (which opens a one-shot HTTP server on a local port to deliver a file) is disabled. The default is "Yes". This can also be set via the `--no-serve` CLI flag or `allow_serve=False` in the library API. Symmetric with `allow_system_cmd`.
+:   When set to "No", the [`SERVE`](metacommands.md#serve) metacommand (which copies a file to stdout with Content-Type and Content-Disposition headers, for use as a CGI script) is disabled. The default is "Yes". This can also be set via the `--no-serve` CLI flag or `allow_serve=False` in the library API. Symmetric with `allow_system_cmd`.
 
 `include_root` { #include_root }
 :   Root directory under which `INCLUDE` and `EXECUTE SCRIPT` targets must resolve. When set, attempts to include files outside this root via `../`, absolute paths, drive letters, or UNC paths are rejected with an error. Default: no containment (any readable path is permitted). See [Security — Path containment roots](security.md#path-containment-roots) for the full per-handler matrix.
