@@ -71,7 +71,8 @@
 [input]
 # Settings for handling imported data.
 
-# Whether to convert numeric values to double precision when using MS Access.
+# MS Access: create columns for decimal data as NUMERIC(precision,scale)
+# (Yes) or as DOUBLE (No) when IMPORT or COPY creates a table.
 # Values: Yes or No.  Default: No.
 #access_use_numeric=No
 
