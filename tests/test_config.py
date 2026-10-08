@@ -66,17 +66,6 @@ class TestWriteHooks:
         wh.write_err("oops")
         assert any("oops" in s for s in received)
 
-    def test_write_status_no_op_without_func(self):
-        wh = WriteHooks()
-        # Should not raise
-        wh.write_status("status text")
-
-    def test_write_status_calls_func(self):
-        received = []
-        wh = WriteHooks(status_output_func=received.append)
-        wh.write_status("status")
-        assert received == ["status"]
-
     def test_reset_clears_hooks(self):
         received = []
         wh = WriteHooks(standard_output_func=received.append)
@@ -103,7 +92,8 @@ class TestWriteHooks:
         out = []
         err = []
         wh = WriteHooks()
-        wh.redir(out.append, err.append)
+        wh.redir_stdout(out.append)
+        wh.redir_stderr(err.append)
         wh.write("out")
         wh.write_err("err")
         assert out == ["out"]

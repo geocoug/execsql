@@ -472,24 +472,6 @@ class TestCsvFile:
         td = cf.data_table_def()
         assert td is not None
 
-    def test_writer_returns_csvwriter(self, tmp_path, noop_filewriter_close):
-        p = tmp_path / "data.csv"
-        p.write_text("id,name\n1,Alice\n", encoding="utf-8")
-        cf = CsvFile(str(p), "utf-8")
-        cf.column_headers()
-        w = cf.writer()
-        assert isinstance(w, CsvWriter)
-        w.close()
-
-    def test_writer_append_mode(self, tmp_path, noop_filewriter_close):
-        p = tmp_path / "data.csv"
-        p.write_text("id,name\n1,Alice\n", encoding="utf-8")
-        cf = CsvFile(str(p), "utf-8")
-        cf.lineformat(",", '"', None)
-        w = cf.writer(append=True)
-        assert isinstance(w, CsvWriter)
-        w.close()
-
     def test_openclean_skips_junk_lines(self, tmp_path):
         p = tmp_path / "data.csv"
         p.write_text("junk\nid,val\n1,x\n", encoding="utf-8")

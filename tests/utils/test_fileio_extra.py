@@ -93,10 +93,6 @@ class TestLoggerMethods:
         assert logger.exit_type == "halt"
         assert logger.exit_description == "User canceled"
 
-    def test_log_exit_exception(self, logger):
-        logger.log_exit_exception("traceback info")
-        assert logger.exit_type == "exception"
-
     def test_log_exit_error(self, logger):
         logger.log_exit_error("fatal error")
         assert logger.exit_type == "error"

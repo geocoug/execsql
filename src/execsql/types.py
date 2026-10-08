@@ -679,18 +679,6 @@ class DbType:
         # conv_mod_fn is a function that modifies the result of data_type().from_data(x).
         self.dialect[data_type] = (dbms_name, length_required, casting_name, conv_mod_fn, precision, scale)
 
-    def datatype_name(self, data_type: type[DataType]) -> str:
-        """Return the DBMS-specific SQL type name for the given DataType class."""
-        # A convenience function to simplify access to data type names.
-        try:
-            return self.dialect[data_type][0]
-        except Exception as e:
-            raise DbTypeError(
-                self.dbms_id,
-                data_type,
-                f"{self.dbms_id} DBMS type has no specification for data type {data_type.data_type_name}",
-            ) from e
-
     def quoted(self, dbms_object: str) -> str:
         """Quote a database identifier if it contains non-word characters."""
         if re.search(r"\W", dbms_object):

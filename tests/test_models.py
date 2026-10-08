@@ -232,9 +232,9 @@ class TestDataTable:
         sql = dt.create_table(dbt_postgres, None, "t", pretty=True)
         assert "\n" in sql
 
-    def test_short_row_counted(self):
+    def test_short_rows_are_accepted(self):
         dt = self._make_table(["a", "b", "c"], [["1", "2"], ["3", "4"], ["5", "6"]])
-        assert dt.shortrows == 3
+        assert dt.datarows == 3
 
     def test_too_many_columns_raises(self):
         with pytest.raises(DataTableError):

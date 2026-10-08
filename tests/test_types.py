@@ -812,12 +812,6 @@ class TestDbType:
         assert "10,2" in spec
         assert "NOT NULL" in spec
 
-    def test_datatype_name_error_path(self):
-        dbt = DbType("EmptyDB", '""')
-        dbt.dialect = {}
-        with pytest.raises(DbTypeError):
-            dbt.datatype_name(DT_Integer)
-
     def test_name_datatype_populates_dialect(self):
         dbt = DbType("NewDB", '""')
         assert dbt.dialect == {}
@@ -832,16 +826,16 @@ class TestDbType:
 
 class TestDbtDuckdbTemporalTypes:
     def test_timestamptz_maps_to_native(self):
-        assert dbt_duckdb.datatype_name(DT_TimestampTZ) == "TIMESTAMPTZ"
+        assert dbt_duckdb.dialect[DT_TimestampTZ][0] == "TIMESTAMPTZ"
 
     def test_timestamp_maps_to_native(self):
-        assert dbt_duckdb.datatype_name(DT_Timestamp) == "TIMESTAMP"
+        assert dbt_duckdb.dialect[DT_Timestamp][0] == "TIMESTAMP"
 
     def test_date_maps_to_native(self):
-        assert dbt_duckdb.datatype_name(DT_Date) == "DATE"
+        assert dbt_duckdb.dialect[DT_Date][0] == "DATE"
 
     def test_time_maps_to_native(self):
-        assert dbt_duckdb.datatype_name(DT_Time) == "TIME"
+        assert dbt_duckdb.dialect[DT_Time][0] == "TIME"
 
 
 class TestAccessUseNumeric:

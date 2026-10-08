@@ -100,12 +100,11 @@ def xf_hasrows(**kwargs: Any) -> bool:
     return bool(nrows > 0)
 
 
-def _row_count(queryname: str, sql_context: str, metacommandline: str) -> int:
+def _row_count(queryname: str, metacommandline: str) -> int:
     """Return the number of rows in *queryname*, raising ErrInfo on failure.
 
     Args:
         queryname: Table or view name to count rows in.
-        sql_context: The SQL string to include in error messages.
         metacommandline: The full metacommand line for error context.
 
     Returns:
@@ -167,7 +166,7 @@ def xf_row_count_gt(**kwargs: Any) -> bool:
     queryname = kwargs["queryname"]
     mcl = kwargs["metacommandline"]
     n = _parse_row_count_n(kwargs["n"], mcl)
-    return _row_count(queryname, f"select count(*) from {queryname};", mcl) > n
+    return _row_count(queryname, mcl) > n
 
 
 def xf_row_count_gte(**kwargs: Any) -> bool:
@@ -183,7 +182,7 @@ def xf_row_count_gte(**kwargs: Any) -> bool:
     queryname = kwargs["queryname"]
     mcl = kwargs["metacommandline"]
     n = _parse_row_count_n(kwargs["n"], mcl)
-    return _row_count(queryname, f"select count(*) from {queryname};", mcl) >= n
+    return _row_count(queryname, mcl) >= n
 
 
 def xf_row_count_eq(**kwargs: Any) -> bool:
@@ -199,7 +198,7 @@ def xf_row_count_eq(**kwargs: Any) -> bool:
     queryname = kwargs["queryname"]
     mcl = kwargs["metacommandline"]
     n = _parse_row_count_n(kwargs["n"], mcl)
-    return _row_count(queryname, f"select count(*) from {queryname};", mcl) == n
+    return _row_count(queryname, mcl) == n
 
 
 def xf_row_count_lt(**kwargs: Any) -> bool:
@@ -215,7 +214,7 @@ def xf_row_count_lt(**kwargs: Any) -> bool:
     queryname = kwargs["queryname"]
     mcl = kwargs["metacommandline"]
     n = _parse_row_count_n(kwargs["n"], mcl)
-    return _row_count(queryname, f"select count(*) from {queryname};", mcl) < n
+    return _row_count(queryname, mcl) < n
 
 
 def xf_sqlerror(**kwargs: Any) -> bool:
