@@ -1,4 +1,4 @@
-"""``execsql lsp`` without the lsp extra says how to install it."""
+"""``execsql lsp``: the flags editors start it with, and the message without the lsp extra."""
 
 from __future__ import annotations
 
@@ -15,6 +15,13 @@ def test_without_pygls_it_names_the_extra():
         result = CliRunner().invoke(app, ["lsp"])
     assert result.exit_code == 1
     assert "execsql2[lsp]" in result.output
+
+
+def test_accepts_the_stdio_flag_editors_pass():
+    with patch("execsql.lsp.server.create_server") as create:
+        result = CliRunner().invoke(app, ["lsp", "--stdio"])
+    assert result.exit_code == 0, result.output
+    create.return_value.start_io.assert_called_once_with()
 
 
 def test_lsp_is_a_command_not_a_script_name():

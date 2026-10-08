@@ -21,7 +21,10 @@ __all__ = ["lsp_cmd"]
         'uv tool install "execsql2[lsp]".'
     ),
 )
-def lsp_cmd() -> None:
+def lsp_cmd(
+    # Editors' language clients pass --stdio (VS Code always does); stdio is the only transport.
+    stdio: bool = typer.Option(False, "--stdio", hidden=True),
+) -> None:
     """The ``lsp`` command; its user-facing help is the decorator's ``help``."""
     try:
         from execsql.lsp.server import create_server
