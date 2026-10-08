@@ -51,3 +51,12 @@ updates:
           pre-commit-hooks:
               patterns:
                   - "*"
+    # The VS Code extension's language client and its packaging tool.
+    - package-ecosystem: npm
+      directory: /extras/vscode-execsql
+      schedule:
+          interval: weekly
+      groups:
+          vscode-extension:
+              patterns:
+                  - "*"

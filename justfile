@@ -100,13 +100,15 @@ clean:
 [group('vscode')]
 install-vscode:
     uv run python scripts/generate_vscode_grammar.py
+    cd extras/vscode-execsql && npm ci --ignore-scripts --no-audit --no-fund
     ln -sfn "$(pwd)/extras/vscode-execsql" ~/.vscode/extensions/execsql-syntax
     @echo "Restart VS Code to activate the execsql extension."
 
-# Build the VS Code extension into a .vsix (needs: npm i -g @vscode/vsce)
+# Build the VS Code extension into a .vsix (needs Node.js; vsce comes from package-lock.json)
 package-vscode:
     uv run python scripts/generate_vscode_grammar.py
-    cd extras/vscode-execsql && vsce package --out execsql-syntax.vsix
+    cd extras/vscode-execsql && npm ci --ignore-scripts --no-audit --no-fund
+    cd extras/vscode-execsql && ./node_modules/.bin/vsce package --out execsql-syntax.vsix
     @echo "Built extras/vscode-execsql/execsql-syntax.vsix — install with:"
     @echo "  code --install-extension extras/vscode-execsql/execsql-syntax.vsix"
 

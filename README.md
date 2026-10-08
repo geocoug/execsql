@@ -36,7 +36,7 @@ Scripts are ordinary SQL plus metacommands embedded in comments (`-- !x!`), whic
 | `execsql list`                             | Metacommands, encodings, plugins, or the keyword vocabulary                                                            | No                |
 | `execsql init`                             | Set up a project: config file, a script with a header, pre-commit hooks                                                | No                |
 | `execsql lsp`                              | [Language server](https://execsql2.readthedocs.io/en/latest/guides/editors/): lint findings in your editor as you type | No                |
-| [VS Code extension](extras/vscode-execsql) | Syntax highlighting for metacommands and variables                                                                     | No                |
+| [VS Code extension](extras/vscode-execsql) | Highlighting, lint findings as you type, completion                                                                    | No                |
 
 `format` and `lint` take files or directories.
 
@@ -329,17 +329,16 @@ repos:
 
 The format hook rewrites `*.sql` files in place by default; the lint hook fails the commit when a script has a lint error. See the [formatter documentation](https://execsql2.readthedocs.io/en/latest/guides/formatter/) for `--check`, `--indent`, and other options.
 
-## VS Code Syntax Highlighting
+## VS Code
 
-A VS Code extension for execsql syntax highlighting is included in [`extras/vscode-execsql`](extras/vscode-execsql). It injects a TextMate grammar into `.sql` files, adding highlighting for `-- !x!` metacommand markers, keywords (control flow, block, action, directive), variable substitutions (`!!var!!`, `!{var}!`), built-in functions, export formats, and config options, all layered on top of standard SQL highlighting.
-
-To install, symlink the extension folder into your VS Code extensions directory:
+The VS Code extension in [`extras/vscode-execsql`](extras/vscode-execsql) highlights execsql syntax in `.sql` files (metacommand markers, keywords, variable substitutions, export formats, config options) on top of standard SQL highlighting, and starts the execsql language server for lint findings as you type and completion. Each GitHub release has the extension attached as `execsql-syntax.vsix`:
 
 ```sh
-ln -s /path/to/execsql/extras/vscode-execsql ~/.vscode/extensions/execsql-syntax
+uv tool install "execsql2[lsp]"                     # the language server
+code --install-extension execsql-syntax.vsix        # the extension, from the release
 ```
 
-See the [extension README](extras/vscode-execsql/README.md) for Windows instructions, color customization, and troubleshooting.
+Other editors use the language server directly: see [Editor Support](https://execsql2.readthedocs.io/en/latest/guides/editors/). The [extension README](extras/vscode-execsql/README.md) covers settings, installing from a clone, color customization, and troubleshooting.
 
 ## Templates
 

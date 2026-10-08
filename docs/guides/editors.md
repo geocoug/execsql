@@ -51,6 +51,21 @@ section's `select` and `ignore` decide which rules are shown, exactly as on the
 command line; see [Configuration](../reference/lint.md#config). Restart the
 server (or the editor) after changing them.
 
+## VS Code { #vscode }
+
+The execsql extension starts the server for you. Each
+[GitHub release](https://github.com/geocoug/execsql/releases) has it attached
+as `execsql-syntax.vsix`:
+
+```sh
+code --install-extension execsql-syntax.vsix
+```
+
+If `execsql` is not on VS Code's PATH, set **execsql.server.path** to its full
+path (`which execsql`). After upgrading execsql, run **execsql: Restart
+Language Server** from the Command Palette. The extension also highlights
+execsql syntax; that works without the server.
+
 ## Neovim { #neovim }
 
 Neovim 0.11 and later:
