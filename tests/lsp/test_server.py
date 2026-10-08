@@ -128,3 +128,18 @@ async def test_go_to_definition_and_the_outline(client: LanguageClient):
         types.DocumentSymbolParams(text_document=types.TextDocumentIdentifier(uri=uri)),
     )
     assert [s.name for s in symbols] == ["out"]
+
+
+@pytest.mark.asyncio
+async def test_a_quick_fix_for_a_finding(client: LanguageClient):
+    uri = _open(client, "h.sql", BAD)
+    await client.wait_for_notification(types.TEXT_DOCUMENT_PUBLISH_DIAGNOSTICS)
+    found = client.diagnostics[uri]
+    actions = await client.text_document_code_action_async(
+        types.CodeActionParams(
+            text_document=types.TextDocumentIdentifier(uri=uri),
+            range=found[0].range,
+            context=types.CodeActionContext(diagnostics=list(found)),
+        ),
+    )
+    assert [a.title for a in actions] == ["Change EXPROT to EXPORT"]

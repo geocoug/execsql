@@ -17,7 +17,7 @@ __all__ = ["lsp_cmd"]
         "Run the execsql language server on stdin/stdout, for an editor to start. "
         "Shows execsql lint findings as you type, completes metacommands, "
         "conditional tests and variables, explains them on hover, and finds where variables, "
-        "SCRIPTs and included files are defined. Needs the lsp extra: "
+        "SCRIPTs and included files are defined, and offers quick fixes. Needs the lsp extra: "
         'uv tool install "execsql2[lsp]".'
     ),
 )
