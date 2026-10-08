@@ -72,7 +72,7 @@ async def test_closing_a_script_clears_its_findings(client: LanguageClient):
 @pytest_lsp.fixture(config=ClientServerConfig(server_command=[sys.executable, "-m", "execsql", "lsp"]))
 async def configured_client(lsp_client: LanguageClient, tmp_path_factory):
     root = tmp_path_factory.mktemp("configured")
-    (root / "execsql.conf").write_text("[lint]\nignore = P003\n")
+    (root / "execsql.conf").write_text("[lint]\nignore = P003\n\n[format]\nindent = 2\n")
     await lsp_client.initialize_session(
         types.InitializeParams(capabilities=types.ClientCapabilities(), root_uri=root.as_uri()),
     )
@@ -143,3 +143,15 @@ async def test_a_quick_fix_for_a_finding(client: LanguageClient):
         ),
     )
     assert [a.title for a in actions] == ["Change EXPROT to EXPORT"]
+
+
+@pytest.mark.asyncio
+async def test_format_document_uses_the_workspace_format_settings(configured_client: LanguageClient):
+    uri = _open(configured_client, "i.sql", '-- !x! if(hasrows(t))\n-- !x! write "x"\n-- !x! endif\n')
+    edits = await configured_client.text_document_formatting_async(
+        types.DocumentFormattingParams(
+            text_document=types.TextDocumentIdentifier(uri=uri),
+            options=types.FormattingOptions(tab_size=8, insert_spaces=True),
+        ),
+    )
+    assert edits[0].new_text == '-- !x! IF (hasrows(t))\n  -- !x! WRITE "x"\n-- !x! ENDIF\n'

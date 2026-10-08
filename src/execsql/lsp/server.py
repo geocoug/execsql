@@ -15,6 +15,7 @@ from execsql.lsp.code_actions import code_actions
 from execsql.lsp.completion import completions
 from execsql.lsp.diagnostics import diagnostics
 from execsql.lsp.document import ScriptIndex, index_script
+from execsql.lsp.formatting import format_document
 from execsql.lsp.hover import hover
 from execsql.lsp.navigation import definition, document_links, document_symbols, references
 
@@ -32,9 +33,10 @@ class ExecsqlLanguageServer(LanguageServer):
         self.select: tuple[str, ...] = ()
         self.ignore: tuple[str, ...] = ()
         self.pending: dict[str, asyncio.Task[Any]] = {}
+        self.format_options: dict[str, Any] = {}  # format_document keywords, from [format]
 
     def load_settings(self, root: str | None) -> None:
-        """Read ``[lint]`` select / ignore the way ``execsql lint`` run from *root* would.
+        """Read ``[lint]`` and ``[format]`` the way ``execsql lint`` / ``execsql format`` run from *root* would.
 
         execsql reads config files from the working directory, so the server
         works from the workspace root.  A config error is shown to the user
@@ -49,6 +51,11 @@ class ExecsqlLanguageServer(LanguageServer):
             conf = _tool_config(None)
             self.select = resolve_selectors([conf.lint_select]) if conf.lint_select else ()
             self.ignore = resolve_selectors([conf.lint_ignore]) if conf.lint_ignore else ()
+            self.format_options = {
+                "indent": conf.format_indent,
+                "use_sql": conf.format_sql,
+                "leading_comma": conf.format_leading_comma,
+            }
         except Exception as exc:  # a bad config must not take the server down
             self.window_show_message(
                 types.ShowMessageParams(type=types.MessageType.Warning, message=f"execsql config: {exc}"),
@@ -164,6 +171,17 @@ def create_server() -> ExecsqlLanguageServer:
         uri = params.text_document.uri
         source = ls.workspace.get_text_document(uri).source
         return code_actions(ls.index(uri), uri, source, params.context.diagnostics)
+
+    @server.feature(types.TEXT_DOCUMENT_FORMATTING)
+    def on_format(ls: ExecsqlLanguageServer, params: types.DocumentFormattingParams) -> list[types.TextEdit] | None:
+        source = ls.workspace.get_text_document(params.text_document.uri).source
+        try:
+            return format_document(source, **ls.format_options)
+        except Exception as exc:  # e.g. the formatter extra missing: say so, change nothing
+            ls.window_show_message(
+                types.ShowMessageParams(type=types.MessageType.Error, message=f"execsql format: {exc}"),
+            )
+            return None
 
     @server.feature(types.TEXT_DOCUMENT_DOCUMENT_LINK)
     def on_links(ls: ExecsqlLanguageServer, params: types.DocumentLinkParams) -> list[types.DocumentLink]:
