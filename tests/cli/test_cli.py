@@ -1215,3 +1215,27 @@ class TestParseTree:
         # EXPORT / IMPORT
         assert "EXPORT QUERY" in out
         assert "IMPORT TO NEW TABLE" in out
+
+
+class TestDirectoriesFlag:
+    """``-d`` takes a value, as upstream's ``-d {0,1,t,f,y,n}`` did; a bad one is a usage error."""
+
+    def test_a_script_path_after_d_is_rejected_as_its_value(self, tmp_path):
+        script = tmp_path / "t.sql"
+        script.write_text("select 1;\n")
+        result = runner.invoke(app, ["run", "-d", str(script), "--dry-run"])
+        assert result.exit_code == 2
+        assert "--directories" in result.output
+        assert "No SQL script file specified" not in result.output
+
+    @pytest.mark.parametrize("value", ["0", "1", "t", "f", "y", "n", "T", "F", "Y", "N"])
+    def test_documented_values_are_accepted(self, tmp_path, value):
+        script = tmp_path / "t.sql"
+        script.write_text("select 1;\n")
+        result = runner.invoke(app, ["run", "-d", value, "--dry-run", str(script)])
+        assert result.exit_code == 0, result.output
+
+    def test_bad_option_values_are_reported_before_a_missing_script(self, tmp_path):
+        result = runner.invoke(app, ["run", "-t", "x", str(tmp_path / "missing.sql")])
+        assert result.exit_code == 2
+        assert "Invalid database type" in result.output

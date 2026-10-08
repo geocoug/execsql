@@ -191,7 +191,7 @@ The section and property names that may be used in a configuration file are list
 `log_write_messages`
 :   Specifies whether output of the [WRITE](metacommands.md#write) metacommand will also be written to *execsql*'s log file. The property value should be either "Yes" or "No". The default is "No". This configuration property can also be controlled within a script with the [CONFIG LOG_WRITE_MESSAGES](metacommands.md#logwritemessages) metacommand.
 
-`make_export_dirs`
+`make_export_dirs` { #make_export_dirs }
 :   The output directories used in the [EXPORT](metacommands.md#export) and [WRITE](metacommands.md#write) metacommands will be automatically created if they do not exist (and the user has the necessary permission). The property value should be either "Yes" or "No". This is equivalent to the "-d" command-line option.
 
 `quote_all_text`

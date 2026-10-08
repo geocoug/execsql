@@ -107,7 +107,7 @@ def main(
         "-d",
         "--directories",
         metavar="{0,1,t,f,y,n}",
-        help="Auto-create directories for EXPORT metacommand. n=no (default), y=yes",
+        help="Create missing output directories for EXPORT and WRITE. n=no (default), y=yes",
     ),
     output_dir: str | None = typer.Option(
         None,
@@ -317,28 +317,10 @@ def main(
             _err_console.print(f"[bold red]Error:[/bold red] Cannot write --manifest {manifest_path}: {problem}")
             raise typer.Exit(code=2)
 
-    positional = args or []
-    if command is not None:
-        script_name = None  # inline mode — no script file
-    elif ping:
-        # --ping does not require a script file; positional args are still
-        # available for server/db arguments if --dsn is not used.
-        script_name = None
-    else:
-        if not positional:
-            _err_console.print(
-                "[bold red]Error:[/bold red] No SQL script file specified. Use -c to run an inline script.",
-            )
-            raise typer.Exit(code=1)
-        script_name = positional[0]
-        if not Path(script_name).exists():
-            _err_console.print(
-                f'[bold red]Error:[/bold red] SQL script file "{script_name}" does not exist.',
-            )
-            raise typer.Exit(code=1)
-
     # ------------------------------------------------------------------
-    # Validate positional args and db_type choice
+    # Validate option values, before the script is looked for: a value that
+    # is really the script path (`-d script.sql`) is reported as a bad value,
+    # as upstream's option parser did.
     # ------------------------------------------------------------------
 
     if db_type and db_type not in ("a", "d", "p", "s", "l", "m", "k", "o", "f"):
@@ -364,6 +346,32 @@ def main(
             f"[bold red]Error:[/bold red] Invalid --boolean-int value {boolean_int!r}.",
         )
         raise typer.Exit(code=2)
+
+    if make_dirs and make_dirs.lower() not in ("0", "1", "t", "f", "y", "n"):
+        _err_console.print(
+            f"[bold red]Error:[/bold red] Invalid --directories value {make_dirs!r}. Choose from: 0, 1, t, f, y, n",
+        )
+        raise typer.Exit(code=2)
+
+    positional = args or []
+    if command is not None:
+        script_name = None  # inline mode — no script file
+    elif ping:
+        # --ping does not require a script file; positional args are still
+        # available for server/db arguments if --dsn is not used.
+        script_name = None
+    else:
+        if not positional:
+            _err_console.print(
+                "[bold red]Error:[/bold red] No SQL script file specified. Use -c to run an inline script.",
+            )
+            raise typer.Exit(code=1)
+        script_name = positional[0]
+        if not Path(script_name).exists():
+            _err_console.print(
+                f'[bold red]Error:[/bold red] SQL script file "{script_name}" does not exist.',
+            )
+            raise typer.Exit(code=1)
 
     # ------------------------------------------------------------------
     # Parse tree: parse script into AST and print tree structure

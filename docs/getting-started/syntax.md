@@ -373,8 +373,8 @@ Valid encoding names can be displayed with `execsql list encodings`. See also [C
 
 ### Output options
 
-`-d`, `--directories`
-:   Auto-create directories used by the EXPORT and WRITE metacommands.
+`-d`, `--directories` *{0,1,t,f,y,n}*
+:   Create missing output directories for the EXPORT and WRITE metacommands (`y`), or stop with an error when the directory does not exist (`n`, the default). The value is required: `-d y script.sql`, not `-d script.sql`. Equivalent to the [`make_export_dirs`](../reference/configuration.md#make_export_dirs) configuration setting.
 
 `--output-dir` *DIR*
 :   Default base directory for EXPORT output files. Relative paths in EXPORT metacommands are joined to this directory. Absolute paths and `stdout` are unaffected.
