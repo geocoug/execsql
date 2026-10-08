@@ -307,8 +307,8 @@
 # Values: Yes or No.  Default: Yes.
 #allow_rm_file=Yes
 
-# Whether to allow the SERVE metacommand (which opens an HTTP server on
-# a local port to serve a single file). Set to No to disable.
+# Whether to allow the SERVE metacommand (which copies a file to stdout
+# with HTTP headers, for CGI use). Set to No to disable.
 # Also controllable via --no-serve CLI flag.
 # Values: Yes or No.  Default: Yes.
 #allow_serve=Yes

@@ -327,7 +327,7 @@ are described [above](#config_command).
 
 `-n`, `--new-db`
 
-:   Create a new SQLite or PostgreSQL database if the specified database does not exist.
+:   Create a new SQLite, DuckDB or PostgreSQL database if the specified database does not exist.
 
 `--dsn`, `--connection-string` *URL*
 
@@ -380,7 +380,7 @@ Valid encoding names can be displayed with `execsql list encodings`. See also [C
 :   Default base directory for EXPORT output files. Relative paths in EXPORT metacommands are joined to this directory. Absolute paths and `stdout` are unaffected.
 
 `-l`, `--user-logfile`
-:   Write the run log to `~/execsql.log` instead of the current directory.
+:   Write the run log to `~/execsql.log` instead of `execsql.log` in the current directory.
 
 ### Import options
 
@@ -490,7 +490,7 @@ Valid encoding names can be displayed with `execsql list encodings`. See also [C
 
 `--no-serve`
 
-:   Disable the `SERVE` metacommand, so scripts cannot stream files over HTTP. Fails with a clear error if a script attempts it. Equivalent to `allow_serve = No` in `execsql.conf` `[config]` section or `allow_serve=False` in the [library API](../api/index.md#library-api). The CLI flag always takes precedence over the config file.
+:   Disable the [`SERVE`](../reference/metacommands.md#serve) metacommand, so scripts cannot copy a file to stdout with HTTP headers (its CGI use). Fails with a clear error if a script attempts it. Equivalent to `allow_serve = No` in `execsql.conf` `[config]` section or `allow_serve=False` in the [library API](../api/index.md#library-api). The CLI flag always takes precedence over the config file.
 
 `--config` *FILE*
 

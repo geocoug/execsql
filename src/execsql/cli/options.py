@@ -50,7 +50,7 @@ DsnOpt = Annotated[
         metavar="URL",
         help=(
             "Database connection URL, e.g. postgresql://user:pass@host:5432/db. "
-            "Supported schemes: postgresql, mysql, mssql, oracle, firebird, sqlite, duckdb. "
+            "Supported schemes: postgresql (postgres), mysql (mariadb), mssql (sqlserver), oracle, firebird, sqlite, duckdb. "
             "Overrides -t/-u/-p and positional server/db args."
         ),
     ),
