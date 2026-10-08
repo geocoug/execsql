@@ -31,6 +31,8 @@ ______________________________________________________________________
 
 ### Fixed
 
+- **Installation instructions** (README, installation guide) install the `execsql` command with `uv tool install` or `pipx install`, quote every extra (`"execsql2[postgres]"`; zsh rejects it unquoted), explain how to add an extra later, and keep `uv add` / `pip install` for using the library inside a project.
+- **Install hints in messages:** the XLSX error named a nonexistent `execsql2[excel]` extra (it is `formats`), and the Textual error a nonexistent `execsql2[tui]` (Textual is a dependency of execsql2); the `format`, `PG_UPSERT` and map hints quote the extra.
 - **2.17.0 `PG_UPSERT` migration note** gave `ASSERT !!$PG_UPSERT_QA_PASSED!! = TRUE`, which fails on every run (there is no `=` comparison). Use `ASSERT IS_TRUE(!!$PG_UPSERT_QA_PASSED!!) "QA failed"`; the note is corrected.
 - **`execsql lint`** checks conditions that contain substitution variables (P004), so `ASSERT !!flag!! = TRUE` and `IF(frob(!!t!!))` are reported; they were skipped.
 - **`allow_serve` / `--no-serve` descriptions** (configuration reference, options reference, the template written by `execsql config --init` and `execsql init`): `SERVE` copies a file to stdout with HTTP headers for CGI use; it opens no network port. `run --help` and the options reference now agree on `-v 2` (adds HALT dialogs), the `--dsn` scheme aliases, and `-n`, `-l`, `-b` and `-s`.

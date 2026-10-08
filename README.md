@@ -49,7 +49,7 @@ Scripts are ordinary SQL plus metacommands embedded in comments (`-- !x!`), whic
 `format` and `lint` work on a bare `.sql` file, with no server and no config. Try them first:
 
 ```bash
-pip install execsql2[formatter]
+uv tool install "execsql2[formatter]"     # or: pipx install "execsql2[formatter]"
 
 execsql format --check scripts/   # is it formatted?
 execsql format -i scripts/        # format it
@@ -113,10 +113,15 @@ The `PROMPT` metacommand produces a GUI display of the data:
 ## Installation
 
 ```bash
-pip install execsql2                # core: SQLite works with no extras
-pip install "execsql2[postgres]"    # add a driver: postgres, mysql, mssql, duckdb, firebird, oracle, odbc
-pip install "execsql2[all]"         # everything: all drivers plus all feature extras
+uv tool install execsql2                  # core: SQLite works with no extras
+uv tool install "execsql2[postgres]"      # with a driver: postgres, mysql, mssql, duckdb, firebird, oracle, odbc
+uv tool install "execsql2[all]"           # everything: all drivers plus all feature extras
 ```
+
+`pipx install` takes the same arguments. Quote the name when it has extras
+(zsh reports `no matches found` otherwise). To call execsql from Python code,
+add it to that project instead: `uv add "execsql2[postgres]"` or
+`pip install "execsql2[postgres]"` in its virtual environment.
 
 Feature extras cover spreadsheet and Parquet/Feather formats, keyring authentication, PostgreSQL upsert, and more. See the [installation guide](https://execsql2.readthedocs.io/en/latest/getting-started/installation/) for the full list.
 
@@ -298,7 +303,7 @@ The `execsql format` command normalizes execsql script files: it uppercases meta
 
 ```bash
 # Install with the SQL-reformatting extra
-pip install execsql2[formatter]
+uv tool install "execsql2[formatter]"
 
 # Format files in place
 execsql format --in-place scripts/

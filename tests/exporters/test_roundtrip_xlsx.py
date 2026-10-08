@@ -15,7 +15,7 @@ import pytest
 
 from .conftest import HEADERS, TABLE_NAME
 
-openpyxl = pytest.importorskip("openpyxl", reason="requires openpyxl (execsql2[excel])")
+openpyxl = pytest.importorskip("openpyxl", reason="requires openpyxl (execsql2[formats])")
 
 from execsql.exporters.xlsx import write_query_to_xlsx  # noqa: E402
 

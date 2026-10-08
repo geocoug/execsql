@@ -59,7 +59,7 @@ When execsql needs a database password and none is stored or configured, it prom
 
 ### OS credential store (keyring)
 
-When the optional `keyring` package is installed (`pip install execsql2[auth]`), execsql checks the OS credential store before prompting. A password typed at the prompt is stored once the connection succeeds with it; a mistyped password is never stored. Keyring service names follow the pattern:
+When the optional `keyring` package is installed (`uv tool install "execsql2[auth]"`), execsql checks the OS credential store before prompting. A password typed at the prompt is stored once the connection succeeds with it; a mistyped password is never stored. Keyring service names follow the pattern:
 
 ```text
 execsql/<db_type>/<server>:<port>/<database>     # PostgreSQL, MySQL, SQL Server, Oracle, Firebird
