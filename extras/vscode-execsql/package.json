@@ -1,7 +1,7 @@
 {
   "name": "execsql-syntax",
   "displayName": "execsql",
-  "description": "Syntax highlighting, lint findings as you type, and completion for execsql scripts.",
+  "description": "Syntax highlighting, lint findings, completion, hover, navigation, quick fixes and formatting for execsql scripts.",
   "version": "0.1.0",
   "publisher": "geocoug",
   "license": "GPL-3.0-or-later",

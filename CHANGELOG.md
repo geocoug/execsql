@@ -39,7 +39,7 @@ ______________________________________________________________________
 
 ### Added
 
-- **VS Code extension** starts `execsql lsp` for `.sql` files (lint findings as you type, completion), with `execsql.server.path` and `execsql.server.enabled` settings and an **execsql: Restart Language Server** command. Each GitHub release attaches it as `execsql-syntax.vsix`; install with `code --install-extension execsql-syntax.vsix`.
+- **VS Code extension** starts `execsql lsp` for `.sql` files, with `execsql.server.path` and `execsql.server.enabled` settings and an **execsql: Restart Language Server** command. Each GitHub release attaches it as `execsql-syntax.vsix`; install with `code --install-extension execsql-syntax.vsix`.
 - **`execsql lsp`**, a language server for editors. Install the new `lsp` extra (`uv tool install "execsql2[lsp]"`); setup for VS Code, Neovim, Helix and other editors is in the new Editor Support guide. It provides:
     - `execsql lint` findings as you type, using the workspace's `[lint]` settings;
     - completion of metacommands (as fill-in templates of their documented syntax), conditional tests, variables and export formats;

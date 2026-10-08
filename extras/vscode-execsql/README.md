@@ -4,8 +4,9 @@ For [execsql](https://execsql2.readthedocs.io/) scripts in `.sql` files:
 
 - **Syntax highlighting** for metacommands and variable substitutions, layered on top of standard SQL highlighting.
 
-- **Lint findings as you type**, completion of metacommands, conditional tests and variables, from the
-    execsql language server (`execsql lsp`). This needs execsql with the `lsp` extra on your PATH:
+- **Lint findings as you type**, completion of metacommands, conditional tests and variables, hover
+    explanations, Go to Definition / Find All References / outline, quick fixes and Format Document, from
+    the execsql language server (`execsql lsp`). This needs execsql with the `lsp` extra on your PATH:
 
     ```sh
     uv tool install "execsql2[lsp]"     # or: pipx install "execsql2[lsp]"

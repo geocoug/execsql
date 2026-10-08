@@ -36,7 +36,7 @@ Scripts are ordinary SQL plus metacommands embedded in comments (`-- !x!`), whic
 | `execsql list`                             | Metacommands, encodings, plugins, or the keyword vocabulary                                                                                                           | No                |
 | `execsql init`                             | Set up a project: config file, a script with a header, pre-commit hooks                                                                                               | No                |
 | `execsql lsp`                              | [Language server](https://execsql2.readthedocs.io/en/latest/guides/editors/): lint findings, completion, hover, navigation, quick fixes and formatting in your editor | No                |
-| [VS Code extension](extras/vscode-execsql) | Highlighting, lint findings as you type, completion                                                                                                                   | No                |
+| [VS Code extension](extras/vscode-execsql) | Highlighting plus everything `execsql lsp` provides                                                                                                                   | No                |
 
 `format` and `lint` take files or directories.
 
