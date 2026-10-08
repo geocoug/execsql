@@ -182,7 +182,7 @@ def script_runner(tmp_path: Path):
         catch_exceptions: bool = False,
     ):
         script_file.write_text(textwrap.dedent(script).strip(), encoding="utf-8")
-        args = [str(script_file), str(db_path), "-t", "l"]
+        args = ["run", str(script_file), str(db_path), "-t", "l"]
         if new_db:
             args.append("-n")
         if gui_level:

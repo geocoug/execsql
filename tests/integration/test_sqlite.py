@@ -743,7 +743,7 @@ class TestInlineCommand:
         inline = "CREATE TABLE inline_test (val TEXT);\\nINSERT INTO inline_test VALUES ('hello');"
 
         result = subprocess.run(
-            [sys.executable, "-m", "execsql", "-c", inline],
+            [sys.executable, "-m", "execsql", "run", "-c", inline],
             cwd=str(tmp_path),
             capture_output=True,
             text=True,

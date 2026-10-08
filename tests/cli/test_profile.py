@@ -315,7 +315,7 @@ class TestCliProfileFlag:
     def test_profile_flag_requires_script(self):
         """--profile alone (no script) should exit with a non-zero code."""
         runner = CliRunner()
-        result = runner.invoke(app, ["--profile"])
+        result = runner.invoke(app, ["run", "--profile"])
         # Should fail because no script is given, not because the flag is invalid.
         assert result.exit_code != 0
 

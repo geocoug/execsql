@@ -36,6 +36,7 @@ def _run_ast(
         sys.executable,
         "-m",
         "execsql",
+        "run",
         str(script),
         str(db),
         "-t",
@@ -59,7 +60,7 @@ def _run_legacy(script_content: str, tmp_path: Path) -> subprocess.CompletedProc
     script.write_text(script_content)
     db = tmp_path / "test.db"
     return subprocess.run(
-        [sys.executable, "-m", "execsql", str(script), str(db), "-t", "l", "-n"],
+        [sys.executable, "-m", "execsql", "run", str(script), str(db), "-t", "l", "-n"],
         cwd=str(tmp_path),
         capture_output=True,
         text=True,
@@ -99,7 +100,7 @@ def test_fixture_scripts_with_ast(tmp_path: Path, sql_script: Path) -> None:
     """Execute each self-verifying fixture and assert exit-code 0."""
     db = tmp_path / "test.db"
     result = subprocess.run(
-        [sys.executable, "-m", "execsql", str(sql_script), str(db), "-t", "l", "-n"],
+        [sys.executable, "-m", "execsql", "run", str(sql_script), str(db), "-t", "l", "-n"],
         cwd=str(tmp_path),
         capture_output=True,
         text=True,
@@ -910,7 +911,7 @@ class TestInclude:
         )
         db = tmp_path / "test.db"
         result = subprocess.run(
-            [sys.executable, "-m", "execsql", str(script_file), str(db), "-t", "l", "-n"],
+            [sys.executable, "-m", "execsql", "run", str(script_file), str(db), "-t", "l", "-n"],
             cwd=str(tmp_path),
             capture_output=True,
             text=True,

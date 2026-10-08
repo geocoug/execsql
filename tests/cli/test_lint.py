@@ -974,7 +974,7 @@ class TestLintCommand:
 
         from execsql.cli import app
 
-        result = CliRunner().invoke(app, ["--lint", str(library / "sub" / "flow.sql")])
+        result = CliRunner().invoke(app, ["run", "--lint", str(library / "sub" / "flow.sql")])
         assert result.exit_code == 2
         assert "use execsql lint" in result.output
         assert "F002" not in result.output
@@ -987,7 +987,7 @@ class TestLintCommand:
         db = tmp_path / "out.db"
         script = tmp_path / "create.sql"
         script.write_text("CREATE TABLE t (x integer);\n")
-        result = CliRunner().invoke(app, [str(script), str(db), "-t", "l", "-n", "--lint"])
+        result = CliRunner().invoke(app, ["run", str(script), str(db), "-t", "l", "-n", "--lint"])
         assert result.exit_code == 2
         assert not db.exists()
 

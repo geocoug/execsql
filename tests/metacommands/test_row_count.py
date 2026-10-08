@@ -364,7 +364,7 @@ def script_runner(tmp_path: Path):
 
     def run(script: str, *, new_db: bool = True):
         script_file.write_text(textwrap.dedent(script).strip(), encoding="utf-8")
-        args = [str(script_file), str(db_path), "-t", "l"]
+        args = ["run", str(script_file), str(db_path), "-t", "l"]
         if new_db:
             args.append("-n")
         result = _runner.invoke(app, args, catch_exceptions=False)

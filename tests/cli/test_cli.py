@@ -106,32 +106,32 @@ class TestErrorHandling:
         assert result.exit_code != 0 or "Usage" in result.output
 
     def test_nonexistent_script_exits_1(self, tmp_path):
-        result = invoke("nonexistent_script_xyz.sql")
+        result = invoke("run", "nonexistent_script_xyz.sql")
         assert result.exit_code == 1
         assert "does not exist" in result.output or "does not exist" in (result.stderr or "")
 
     def test_invalid_db_type_exits_nonzero(self, tmp_path):
         script = tmp_path / "s.sql"
         script.write_text("-- nothing")
-        result = invoke("-t", "x", str(script))
+        result = invoke("run", "-t", "x", str(script))
         assert result.exit_code != 0
 
     def test_invalid_gui_level_exits_nonzero(self, tmp_path):
         script = tmp_path / "s.sql"
         script.write_text("-- nothing")
-        result = invoke("-v", "9", str(script))
+        result = invoke("run", "-v", "9", str(script))
         assert result.exit_code != 0
 
     def test_invalid_boolean_int_exits_nonzero(self, tmp_path):
         script = tmp_path / "s.sql"
         script.write_text("-- nothing")
-        result = invoke("-b", "x", str(script))
+        result = invoke("run", "-b", "x", str(script))
         assert result.exit_code != 0
 
     def test_invalid_gui_framework_exits_nonzero(self, tmp_path):
         script = tmp_path / "s.sql"
         script.write_text("-- nothing")
-        result = invoke("--gui-framework", "qt", str(script))
+        result = invoke("run", "--gui-framework", "qt", str(script))
         assert result.exit_code != 0
 
     def test_online_help_flag(self):
@@ -169,7 +169,7 @@ class TestOptionParsing:
         the CLI's own validation, not the full execution pipeline.
         """
         with patch("execsql.cli.commands.run._run", return_value=None):
-            result = runner.invoke(app, list(args), catch_exceptions=False)
+            result = runner.invoke(app, ["run", *args], catch_exceptions=False)
         # Exit 0 = clean; exit 1 = CLI validation error (e.g. bad db-type)
         # Exit 2 = Typer arg-parse error — that's the failure we guard against
         return result.exit_code != 2
@@ -253,21 +253,25 @@ class TestPositionalArgs:
         script = tmp_path / "s.sql"
         script.write_text("-- empty")
         with patch("execsql.cli.commands.run._run", return_value=None):
-            result = runner.invoke(app, [str(script)], catch_exceptions=False)
+            result = runner.invoke(app, ["run", str(script)], catch_exceptions=False)
         assert result.exit_code != 2
 
     def test_script_server_db_accepted(self, tmp_path):
         script = tmp_path / "s.sql"
         script.write_text("-- empty")
         with patch("execsql.cli.commands.run._run", return_value=None):
-            result = runner.invoke(app, [str(script), "myserver", "mydb"], catch_exceptions=False)
+            result = runner.invoke(app, ["run", str(script), "myserver", "mydb"], catch_exceptions=False)
         assert result.exit_code != 2
 
     def test_script_dbfile_accepted(self, tmp_path):
         script = tmp_path / "s.sql"
         script.write_text("-- empty")
         with patch("execsql.cli.commands.run._run", return_value=None):
-            result = runner.invoke(app, ["-t", "l", str(script), str(tmp_path / "db.sqlite")], catch_exceptions=False)
+            result = runner.invoke(
+                app,
+                ["run", "-t", "l", str(script), str(tmp_path / "db.sqlite")],
+                catch_exceptions=False,
+            )
         assert result.exit_code != 2
 
 
@@ -304,7 +308,7 @@ class TestRichOutput:
         assert __version__ in result.output
 
     def test_nonexistent_file_error_message_is_clear(self):
-        result = runner.invoke(app, ["not_a_real_file.sql"], catch_exceptions=False)
+        result = runner.invoke(app, ["run", "not_a_real_file.sql"], catch_exceptions=False)
         assert result.exit_code == 1
         # CliRunner mixes stderr into stdout by default; .stderr raises ValueError
         try:
@@ -330,20 +334,20 @@ class TestDryRun:
     def test_dry_run_sql_script_exits_zero(self, tmp_path):
         script = tmp_path / "test.sql"
         script.write_text("SELECT 1;\n")
-        result = runner.invoke(app, ["--dry-run", str(script)], catch_exceptions=False)
+        result = runner.invoke(app, ["run", "--dry-run", str(script)], catch_exceptions=False)
         assert result.exit_code == 0
 
     def test_dry_run_shows_sql_commands(self, tmp_path):
         script = tmp_path / "test.sql"
         script.write_text("SELECT 1;\nSELECT 2;\n")
-        result = runner.invoke(app, ["--dry-run", str(script)], catch_exceptions=False)
+        result = runner.invoke(app, ["run", "--dry-run", str(script)], catch_exceptions=False)
         assert result.exit_code == 0
         assert "SQL" in result.output
 
     def test_dry_run_shows_metacommands(self, tmp_path):
         script = tmp_path / "test.sql"
         script.write_text('-- !x! WRITE "hello"\n')
-        result = runner.invoke(app, ["--dry-run", str(script)], catch_exceptions=False)
+        result = runner.invoke(app, ["run", "--dry-run", str(script)], catch_exceptions=False)
         assert result.exit_code == 0
         assert "METACMD" in result.output
 
@@ -352,13 +356,13 @@ class TestDryRun:
         script = tmp_path / "test.sql"
         script.write_text("SELECT 1;\n")
         # No -t, no server, no db_file — would normally fail at the connection step
-        result = runner.invoke(app, ["--dry-run", str(script)], catch_exceptions=False)
+        result = runner.invoke(app, ["run", "--dry-run", str(script)], catch_exceptions=False)
         assert result.exit_code == 0
 
     def test_dry_run_with_inline_command(self):
         result = runner.invoke(
             app,
-            ["--dry-run", "-c", "SELECT 1;"],
+            ["run", "--dry-run", "-c", "SELECT 1;"],
             catch_exceptions=False,
         )
         assert result.exit_code == 0
@@ -367,7 +371,7 @@ class TestDryRun:
     def test_dry_run_shows_header(self, tmp_path):
         script = tmp_path / "test.sql"
         script.write_text("SELECT 1;\n")
-        result = runner.invoke(app, ["--dry-run", str(script)], catch_exceptions=False)
+        result = runner.invoke(app, ["run", "--dry-run", str(script)], catch_exceptions=False)
         assert "Dry Run" in result.output
         assert "command" in result.output.lower()
 
@@ -375,7 +379,7 @@ class TestDryRun:
         """A script with only comments produces no commands — print the 'no commands' message."""
         script = tmp_path / "empty.sql"
         script.write_text("-- just a comment\n")
-        result = runner.invoke(app, ["--dry-run", str(script)], catch_exceptions=False)
+        result = runner.invoke(app, ["run", "--dry-run", str(script)], catch_exceptions=False)
         assert result.exit_code == 0
         assert "No commands found" in result.output
 
@@ -385,7 +389,7 @@ class TestDryRun:
         script.write_text("SELECT 1;\n")
         result = runner.invoke(
             app,
-            ["--dry-run", "--dsn", "postgresql://user@localhost/mydb", str(script)],
+            ["run", "--dry-run", "--dsn", "postgresql://user@localhost/mydb", str(script)],
             catch_exceptions=False,
         )
         assert result.exit_code == 0
@@ -396,7 +400,7 @@ class TestDryRun:
         script.write_text("SELECT 1;\n")
         result = runner.invoke(
             app,
-            ["--dry-run", "--dsn", "sqlite:///myfile.db", str(script)],
+            ["run", "--dry-run", "--dsn", "sqlite:///myfile.db", str(script)],
             catch_exceptions=False,
         )
         assert result.exit_code == 0
@@ -407,7 +411,7 @@ class TestDryRun:
         script.write_text("SELECT 1;\n")
         result = runner.invoke(
             app,
-            ["--dry-run", "--dsn", "mongodb://host/db", str(script)],
+            ["run", "--dry-run", "--dsn", "mongodb://host/db", str(script)],
             catch_exceptions=False,
         )
         assert result.exit_code == 1
@@ -419,7 +423,7 @@ class TestDryRun:
         script.write_text("SELECT * FROM !!$ARG_1!!;\n")
         result = runner.invoke(
             app,
-            ["--dry-run", "-a", "my_table", str(script)],
+            ["run", "--dry-run", "-a", "my_table", str(script)],
             catch_exceptions=False,
         )
         assert result.exit_code == 0
@@ -433,7 +437,7 @@ class TestDryRun:
         script.write_text("SELECT !!$ARG_1!!, !!$ARG_2!! FROM dual;\n")
         result = runner.invoke(
             app,
-            ["--dry-run", "-a", "col_a", "-a", "col_b", str(script)],
+            ["run", "--dry-run", "-a", "col_a", "-a", "col_b", str(script)],
             catch_exceptions=False,
         )
         assert result.exit_code == 0
@@ -447,7 +451,7 @@ class TestDryRun:
         script.write_text("SELECT '!!&DRY_RUN_TEST_VAR!!';\n")
         result = runner.invoke(
             app,
-            ["--dry-run", str(script)],
+            ["run", "--dry-run", str(script)],
             catch_exceptions=False,
         )
         assert result.exit_code == 0
@@ -460,7 +464,7 @@ class TestDryRun:
         script.write_text("SELECT !!$UNKNOWN_XYZ_VAR!!;\n")
         result = runner.invoke(
             app,
-            ["--dry-run", str(script)],
+            ["run", "--dry-run", str(script)],
             catch_exceptions=False,
         )
         assert result.exit_code == 0
@@ -565,7 +569,7 @@ class TestParseConnectionString:
         with patch("execsql.cli.commands.run._run", return_value=None):
             result = runner.invoke(
                 app,
-                ["--dsn", "postgresql://user@host/db", str(script)],
+                ["run", "--dsn", "postgresql://user@host/db", str(script)],
                 catch_exceptions=False,
             )
         assert result.exit_code != 2, result.output
@@ -577,7 +581,7 @@ class TestParseConnectionString:
         with patch("execsql.cli.commands.run._run", return_value=None):
             result = runner.invoke(
                 app,
-                ["--connection-string", "postgresql://user@host/db", str(script)],
+                ["run", "--connection-string", "postgresql://user@host/db", str(script)],
                 catch_exceptions=False,
             )
         assert result.exit_code != 2, result.output
@@ -628,6 +632,7 @@ class TestEndToEndExecution:
         result = _run_cli(
             tmp_path,
             [
+                "run",
                 "-c",
                 "CREATE TABLE e2e (val TEXT);\\nINSERT INTO e2e VALUES ('works');",
             ],
@@ -650,6 +655,7 @@ class TestEndToEndExecution:
         result = _run_cli(
             tmp_path,
             [
+                "run",
                 "--dsn",
                 f"sqlite:///{db_path}",
                 "-n",
@@ -671,7 +677,7 @@ class TestEndToEndExecution:
             "CREATE TABLE args (val TEXT);\nINSERT INTO args VALUES ('!!$ARG_1!!');\n",
         )
 
-        result = _run_cli(tmp_path, ["-a", "hello_arg", str(script)])
+        result = _run_cli(tmp_path, ["run", "-a", "hello_arg", str(script)])
         assert result.returncode == 0, f"stderr: {result.stderr}"
 
         conn = sqlite3.connect(str(tmp_path / "test.db"))
@@ -685,7 +691,7 @@ class TestEndToEndExecution:
         script = tmp_path / "test.sql"
         script.write_text("CREATE TABLE t (id INTEGER);\n")
 
-        result = _run_cli(tmp_path, ["--dry-run", str(script)])
+        result = _run_cli(tmp_path, ["run", "--dry-run", str(script)])
         assert result.returncode == 0, f"stderr: {result.stderr}"
         assert not (tmp_path / "should_not_exist.db").exists()
 
@@ -710,7 +716,7 @@ class TestEndToEndExecution:
     def test_nonexistent_script_fails(self, tmp_path):
         """Passing a script that doesn't exist returns non-zero."""
         _write_conf(tmp_path)
-        result = _run_cli(tmp_path, ["no_such_file.sql"])
+        result = _run_cli(tmp_path, ["run", "no_such_file.sql"])
         assert result.returncode != 0
 
 
@@ -1010,7 +1016,7 @@ class TestConfigFlag:
         script.write_text("-- empty")
         result = runner.invoke(
             app,
-            ["--config", "/no/such/file.conf", str(script)],
+            ["run", "--config", "/no/such/file.conf", str(script)],
             catch_exceptions=False,
         )
         assert result.exit_code == 2
@@ -1025,7 +1031,7 @@ class TestConfigFlag:
         with patch("execsql.cli.commands.run._run", return_value=None) as mock_run:
             result = runner.invoke(
                 app,
-                ["--config", str(conf), str(script)],
+                ["run", "--config", str(conf), str(script)],
                 catch_exceptions=False,
             )
         assert result.exit_code == 0
@@ -1034,14 +1040,14 @@ class TestConfigFlag:
         assert kwargs["config_file"] == str(conf)
 
     def test_config_flag_without_value_errors(self):
-        result = runner.invoke(app, ["--config"], catch_exceptions=False)
+        result = runner.invoke(app, ["run", "--config"], catch_exceptions=False)
         assert result.exit_code != 0
 
     def test_config_flag_missing_file_before_script_check(self, tmp_path):
         """--config validation should fire even when no script file is given."""
         result = runner.invoke(
             app,
-            ["--config", "/no/such/file.conf"],
+            ["run", "--config", "/no/such/file.conf"],
             catch_exceptions=False,
         )
         assert result.exit_code == 2
@@ -1057,7 +1063,7 @@ class TestParseTree:
     def test_parse_tree_simple_script(self, tmp_path):
         script = tmp_path / "test.sql"
         script.write_text("SELECT 1;\nSELECT 2;\n")
-        result = invoke("--parse-tree", str(script))
+        result = invoke("run", "--parse-tree", str(script))
         assert result.exit_code == 0
         assert "Script:" in result.output
         assert "<SQL> SELECT 1;" in result.output
@@ -1068,13 +1074,13 @@ class TestParseTree:
         script.write_text(
             "-- !x! IF (HAS_ROWS)\nSELECT 1;\n-- !x! ELSE\nSELECT 2;\n-- !x! ENDIF\n",
         )
-        result = invoke("--parse-tree", str(script))
+        result = invoke("run", "--parse-tree", str(script))
         assert result.exit_code == 0
         assert "IF (HAS_ROWS)" in result.output
         assert "ELSE" in result.output
 
     def test_parse_tree_inline_command(self):
-        result = invoke("--parse-tree", "-c", "SELECT 1;")
+        result = invoke("run", "--parse-tree", "-c", "SELECT 1;")
         assert result.exit_code == 0
         assert "Script: <inline>" in result.output
         assert "<SQL> SELECT 1;" in result.output
@@ -1084,25 +1090,25 @@ class TestParseTree:
         script.write_text(
             "-- !x! LOOP WHILE (HAS_ROWS)\nDELETE FROM t LIMIT 100;\n-- !x! ENDLOOP\n",
         )
-        result = invoke("--parse-tree", str(script))
+        result = invoke("run", "--parse-tree", str(script))
         assert result.exit_code == 0
         assert "<LOOP>" in result.output
 
     def test_parse_tree_error_handling(self, tmp_path):
         script = tmp_path / "bad.sql"
         script.write_text("-- !x! IF (HAS_ROWS)\nSELECT 1;\n")  # missing ENDIF
-        result = runner.invoke(app, ["--parse-tree", str(script)])
+        result = runner.invoke(app, ["run", "--parse-tree", str(script)])
         assert result.exit_code == 1
 
     def test_parse_tree_no_script_errors(self):
-        result = runner.invoke(app, ["--parse-tree"])
+        result = runner.invoke(app, ["run", "--parse-tree"])
         # Should error because no script file specified
         assert result.exit_code != 0
 
     def test_parse_tree_comment_only_script(self, tmp_path):
         script = tmp_path / "empty.sql"
         script.write_text("-- just a comment\n")
-        result = invoke("--parse-tree", str(script))
+        result = invoke("run", "--parse-tree", str(script))
         assert result.exit_code == 0
         assert "1 nodes" in result.output
         assert "-- just a comment" in result.output
@@ -1112,13 +1118,13 @@ class TestParseTree:
         script.write_text(
             "-- !x! BEGIN SCRIPT loader (tbl)\nSELECT * FROM !!#tbl!!;\n-- !x! END SCRIPT\n",
         )
-        result = invoke("--parse-tree", str(script))
+        result = invoke("run", "--parse-tree", str(script))
         assert result.exit_code == 0
         assert "<SCRIPT> loader" in result.output
 
     def test_parse_tree_comprehensive_fixture(self):
         """Run --parse-tree against the comprehensive fixture and spot-check output."""
-        result = invoke("--parse-tree", "tests/scripts/fixtures/parse_only/parse_tree.sql")
+        result = invoke("run", "--parse-tree", "tests/scripts/fixtures/parse_only/parse_tree.sql")
         assert result.exit_code == 0
         out = result.output
 

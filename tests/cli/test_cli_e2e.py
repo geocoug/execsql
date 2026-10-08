@@ -120,14 +120,14 @@ def test_dump_keywords_metacommand_categories_nonempty():
 def test_inline_command_exits_zero(tmp_path):
     db = tmp_path / "test.db"
     db.touch()
-    result = _run_execsql("-c", '-- !x! write "hello world"', str(db), "-t", "l")
+    result = _run_execsql("run", "-c", '-- !x! write "hello world"', str(db), "-t", "l")
     assert result.returncode == 0, result.stderr
 
 
 def test_inline_command_output(tmp_path):
     db = tmp_path / "test.db"
     db.touch()
-    result = _run_execsql("-c", '-- !x! write "hello world"', str(db), "-t", "l")
+    result = _run_execsql("run", "-c", '-- !x! write "hello world"', str(db), "-t", "l")
     assert "hello world" in result.stdout
 
 
@@ -135,7 +135,7 @@ def test_inline_command_sub_and_write(tmp_path):
     db = tmp_path / "test.db"
     db.touch()
     script = '-- !x! sub myvar hello\n-- !x! write "!!myvar!!"'
-    result = _run_execsql("-c", script, str(db), "-t", "l")
+    result = _run_execsql("run", "-c", script, str(db), "-t", "l")
     assert result.returncode == 0, result.stderr
     assert "hello" in result.stdout
 
@@ -145,7 +145,7 @@ def test_inline_sql_create_and_query(tmp_path):
     db = tmp_path / "test.db"
     db.touch()
     script = "CREATE TABLE t (val INTEGER);\nINSERT INTO t VALUES (42);"
-    result = _run_execsql("-c", script, str(db), "-t", "l")
+    result = _run_execsql("run", "-c", script, str(db), "-t", "l")
     assert result.returncode == 0, result.stderr
 
 
@@ -159,7 +159,7 @@ def test_script_file_exits_zero(tmp_path):
     db.touch()
     script = tmp_path / "test.sql"
     script.write_text('-- !x! sub myvar hello\n-- !x! write "!!myvar!!"\n')
-    result = _run_execsql(str(script), str(db), "-t", "l")
+    result = _run_execsql("run", str(script), str(db), "-t", "l")
     assert result.returncode == 0, result.stderr
 
 
@@ -168,7 +168,7 @@ def test_script_file_output(tmp_path):
     db.touch()
     script = tmp_path / "test.sql"
     script.write_text('-- !x! sub myvar hello\n-- !x! write "!!myvar!!"\n')
-    result = _run_execsql(str(script), str(db), "-t", "l")
+    result = _run_execsql("run", str(script), str(db), "-t", "l")
     assert "hello" in result.stdout
 
 
@@ -178,7 +178,7 @@ def test_script_file_sql_statements(tmp_path):
     db.touch()
     script = tmp_path / "query.sql"
     script.write_text("CREATE TABLE t (val INTEGER);\nINSERT INTO t VALUES (42);\n")
-    result = _run_execsql(str(script), str(db), "-t", "l")
+    result = _run_execsql("run", str(script), str(db), "-t", "l")
     assert result.returncode == 0, result.stderr
 
 
@@ -190,14 +190,14 @@ def test_script_file_sql_statements(tmp_path):
 def test_dry_run_exits_zero(tmp_path):
     script = tmp_path / "test.sql"
     script.write_text('-- !x! sub myvar hello\n-- !x! write "!!myvar!!"\n')
-    result = _run_execsql("--dry-run", str(script))
+    result = _run_execsql("run", "--dry-run", str(script))
     assert result.returncode == 0, result.stderr
 
 
 def test_dry_run_shows_commands(tmp_path):
     script = tmp_path / "test.sql"
     script.write_text('-- !x! sub myvar hello\n-- !x! write "!!myvar!!"\n')
-    result = _run_execsql("--dry-run", str(script))
+    result = _run_execsql("run", "--dry-run", str(script))
     assert "2 command(s)" in result.stdout
     assert "METACMD" in result.stdout
 
@@ -206,7 +206,7 @@ def test_dry_run_does_not_connect_to_db(tmp_path):
     """Dry-run should not require a database — only parses the script."""
     script = tmp_path / "test.sql"
     script.write_text("CREATE TABLE t (id INTEGER);\n")
-    result = _run_execsql("--dry-run", str(script))
+    result = _run_execsql("run", "--dry-run", str(script))
     assert result.returncode == 0, result.stderr
     assert "1 command(s)" in result.stdout
 
@@ -230,13 +230,13 @@ def test_no_script_file_error_message():
 
 def test_nonexistent_script_exits_nonzero(tmp_path):
     fake = str(tmp_path / "this_file_does_not_exist_12345.sql")
-    result = _run_execsql(fake)
+    result = _run_execsql("run", fake)
     assert result.returncode == 1
 
 
 def test_nonexistent_script_error_message(tmp_path):
     fake = str(tmp_path / "this_file_does_not_exist_12345.sql")
-    result = _run_execsql(fake)
+    result = _run_execsql("run", fake)
     combined = (result.stdout or "") + (result.stderr or "")
     # Rich may wrap long paths across lines, so collapse whitespace before checking.
     collapsed = " ".join(combined.split())
