@@ -329,6 +329,8 @@ are described [above](#config_command).
 
 :   Database connection URL, e.g. `postgresql://user:pass@host:5432/db`. Supported schemes: `postgresql`, `postgres`, `mysql`, `mariadb`, `mssql`, `sqlserver`, `oracle`, `firebird`, `sqlite`, `duckdb`. Overrides `-t`, `-u`, `-p`, and positional server/database arguments. Passwords included in the URL are used directly without prompting.
 
+    As in any URL, characters with a meaning in the URL are percent-encoded in the user name, password and database: a password `p@ss/w:rd#1` is written `p%40ss%2Fw%3Ard%231`, and a literal `%` is `%25`. Python's `urllib.parse.quote(password, safe='')` produces the encoded form.
+
 ### Script options
 
 `-c`, `--command` *SCRIPT*

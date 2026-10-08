@@ -35,13 +35,17 @@ def _parse_connection_string(dsn: str) -> dict:
         sqlite:///path/to/file.db   -> db_file = /path/to/file.db
         duckdb:///path/to/file.db   -> db_file = /path/to/file.db
 
+    The user, password and database (or file path) are percent-decoded, so
+    a password containing ``@``, ``:``, ``/``, ``?``, ``#`` or ``%`` is
+    written ``%40``, ``%3A``, ``%2F``, ``%3F``, ``%23``, ``%25``.
+
     Returns a dict with keys: ``db_type``, ``server``, ``db``, ``db_file``,
     ``user``, ``password``, ``port``.  Absent components are ``None``.
 
     Raises :class:`~execsql.exceptions.ConfigError` for an unrecognised
     URL scheme or a completely un-parseable string.
     """
-    from urllib.parse import urlparse
+    from urllib.parse import unquote, urlparse
 
     parsed = urlparse(dsn)
     scheme = parsed.scheme.lower()
@@ -56,15 +60,18 @@ def _parse_connection_string(dsn: str) -> dict:
     db_type = _SCHEME_TO_DBTYPE[scheme]
     port: int | None = parsed.port
     server: str | None = parsed.hostname or None
-    user: str | None = parsed.username or None
-    password: str | None = parsed.password or None
+    # User, password and database are percent-encoded in a URL (a password
+    # containing @ : / ? # % is written %40 %3A %2F %3F %23 %25); urlparse
+    # leaves them encoded.
+    user: str | None = unquote(parsed.username) if parsed.username else None
+    password: str | None = unquote(parsed.password) if parsed.password else None
 
     # Database / file path
     # urlparse puts the path in parsed.path.  For three-slash URIs like
     # sqlite:///foo.db the path starts with "/"; strip exactly one leading
     # slash for relative paths (sqlite:///foo.db -> foo.db) and leave
     # absolute paths intact (sqlite:////abs/path -> /abs/path).
-    raw_path = parsed.path
+    raw_path = unquote(parsed.path)
     if db_type in ("l", "k", "a"):
         # File-based: no server component
         if raw_path.startswith("/") and not raw_path.startswith("//"):
