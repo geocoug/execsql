@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 from typing import Any
 
@@ -23,6 +24,19 @@ __all__ = ["ExecsqlLanguageServer", "create_server"]
 
 # Pause after the last keystroke before linting, so a burst of typing lints once.
 LINT_DELAY_SECONDS = 0.2
+
+
+class _DropLateCancels(logging.Filter):
+    """Drops pygls's warning about a cancel for a request already answered.
+
+    Editors cancel requests they no longer need (a hover after the cursor
+    moves); the handlers answer in milliseconds, so the cancel usually
+    arrives late.  That is normal, but the warning reaches the editor's
+    output as an error.
+    """
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        return not record.getMessage().startswith("Cancel notification for unknown message id")
 
 
 class ExecsqlLanguageServer(LanguageServer):
@@ -96,6 +110,9 @@ class ExecsqlLanguageServer(LanguageServer):
 def create_server() -> ExecsqlLanguageServer:
     """A server with every feature registered."""
     server = ExecsqlLanguageServer()
+    rpc_logger = logging.getLogger("pygls.protocol.json_rpc")
+    if not any(isinstance(f, _DropLateCancels) for f in rpc_logger.filters):
+        rpc_logger.addFilter(_DropLateCancels())
 
     @server.feature(types.INITIALIZED)
     def initialized(ls: ExecsqlLanguageServer, params: types.InitializedParams) -> None:
