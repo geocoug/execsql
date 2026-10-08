@@ -788,7 +788,7 @@ CONNECT USER TO ORACLE(SERVER=<server_name>, DB=<service_name>
 For a DSN:
 
 ```
-CONNECT TO DSN(DSN=<DSN_name>,
+CONNECT TO DSN(DSN=<DSN_name>
       [, USER=<user>, NEED_PWD=TRUE|FALSE] [,
       PASSWORD=<password>] [, ENCODING=<encoding>]) AS <alias_name>
 ```
@@ -1624,7 +1624,7 @@ Evaluates whether there is a disk file of the given name.
 ### *HASROWS*
 
 ```
-HASROWS(<table_or_view)
+HASROWS(<table_or_view>)
 ```
 
 Evaluates whether the specified table or view has a non-zero number of rows.
@@ -2738,8 +2738,8 @@ Although the PROMPT ENTRY_FORM metacommand supports validation of individual ent
 
 ```
 PROMPT MESSAGE "<text>" MAP <table_or_view>
-       LAT "<lat_col>" LON "<lon_col>"
-       [LABEL "<label_col>"] [COLOR "<color_col>"] [SYMBOL "<symbol_col>"]
+       LAT <lat_col> LON <lon_col>
+       [LABEL <label_col>] [COLOR <color_col>] [SYMBOL <symbol_col>]
 ```
 
 Opens a dialog showing the rows of the specified table or view as points on an interactive map. `LAT` and `LON` name the columns holding latitude and longitude (numeric). The optional `LABEL` and `COLOR` columns provide per-marker styling — values become the marker text and circle color respectively. The dialog has Continue and Cancel buttons; Cancel halts the script unless [CANCEL_HALT](#cancel_halt) is OFF.
