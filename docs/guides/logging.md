@@ -89,16 +89,16 @@ Status messages, typically errors.
 
 ### `exit`
 
-Program status at exit. Every run writes exactly one, as the last record of its section, whether it ends normally, with an error, at a `HALT` or a cancelled prompt, or with Ctrl-C. A section with no `exit` record belongs to a run that is still going or was killed.
+Program status at exit. Every run writes exactly one, as the last record of its section, whether it ends normally, with an error, at a `HALT` or a cancelled prompt, with Ctrl-C, or with SIGTERM (`kill`, `timeout`, `docker stop`, a cancelled CI job). A section with no `exit` record belongs to a run that is still going or was killed with SIGKILL.
 
-| Field          | Description                                                                                                                                                                                                |
-| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Record type    | `exit`                                                                                                                                                                                                     |
-| Run identifier | Compact date-time string                                                                                                                                                                                   |
-| Exit type      | `end_of_script` (normal), `halt` ([HALT](../reference/metacommands.md#halt) executed or a prompt cancelled), `error`, `exception`, `interrupted` (Ctrl-C), or `unknown` (the process ended some other way) |
-| Line number    | Script line that triggered the exit (may be null)                                                                                                                                                          |
-| Description    | Free text                                                                                                                                                                                                  |
-| Elapsed        | Total wall-clock run duration                                                                                                                                                                              |
+| Field          | Description                                                                                                                                                                                                                        |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Record type    | `exit`                                                                                                                                                                                                                             |
+| Run identifier | Compact date-time string                                                                                                                                                                                                           |
+| Exit type      | `end_of_script` (normal), `halt` ([HALT](../reference/metacommands.md#halt) executed or a prompt cancelled), `error`, `exception`, `interrupted` (Ctrl-C), `terminated` (SIGTERM), or `unknown` (the process ended some other way) |
+| Line number    | Script line that triggered the exit (may be null)                                                                                                                                                                                  |
+| Description    | Free text                                                                                                                                                                                                                          |
+| Elapsed        | Total wall-clock run duration                                                                                                                                                                                                      |
 
 ### `sql`
 

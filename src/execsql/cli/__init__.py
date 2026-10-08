@@ -26,6 +26,7 @@ from execsql.cli.commands.run import main
 from execsql.cli.dsn import _parse_connection_string, _SCHEME_TO_DBTYPE  # noqa: F401 — re-export
 from execsql.cli.help import _console, _err_console, _init_config, _print_encodings, _print_metacommands  # noqa: F401 — re-export
 from execsql.cli.run import _connect_initial_db, _run  # noqa: F401 — re-export
+from execsql.cli.run import _end_run_on_sigterm
 from execsql.exceptions import ConfigError, ConfigFileError, ErrInfo
 
 __all__ = [
@@ -51,6 +52,7 @@ __all__ = [
 
 def _legacy_main() -> None:
     """Entry point that wraps the Typer app for use as a console_scripts target."""
+    _end_run_on_sigterm()
     try:
         app()
     except SystemExit as exc:

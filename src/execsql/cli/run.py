@@ -846,6 +846,28 @@ def _run(
 # ---------------------------------------------------------------------------
 
 
+def _end_run_on_sigterm() -> None:
+    """Make SIGTERM end the process through ``SystemExit`` (exit status 143).
+
+    Python's default SIGTERM action stops the process without running
+    ``atexit`` handlers, so the run's log (buffered until close) was lost,
+    the open transaction was not rolled back explicitly, and a running
+    ``SYSTEM_CMD`` was left behind.  ``timeout``, ``docker stop``, systemd
+    and CI cancellation all send SIGTERM.  Installed by the console entry
+    point only: ``execsql.run()`` leaves the host program's signals alone.
+    """
+    import signal
+
+    def _terminate(signum: int, _frame: Any) -> None:
+        import execsql.state as _state
+
+        if _state.exec_log is not None:
+            _state.exec_log.log_exit_terminated()
+        raise SystemExit(128 + signum)
+
+    signal.signal(signal.SIGTERM, _terminate)
+
+
 def _execute_script_ast(
     tree: Any,
     conf: ConfigData,
@@ -873,7 +895,8 @@ def _execute_script_ast(
     try:
         execute(tree)
     except SystemExit as exc:
-        if gui_console_isrunning() and conf.gui_wait_on_exit:
+        terminated = _state.exec_log is not None and _state.exec_log.exit_type == "terminated"
+        if gui_console_isrunning() and conf.gui_wait_on_exit and not terminated:
             gui_console_wait_user(
                 "Script complete; close the console window to exit execsql.",
             )

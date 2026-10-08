@@ -955,6 +955,13 @@ class Logger:
         self.exit_lno = None
         self.exit_description = None
 
+    def log_exit_terminated(self) -> None:
+        # Save values to be used by exit() function triggered on program exit
+        self.exit_type = "terminated"
+        self.exit_scriptfile = None
+        self.exit_lno = None
+        self.exit_description = None
+
     def log_exit_error(self, msg: str | None) -> None:
         # Save values to be used by exit() function triggered on program exit
         self.exit_type = "error"

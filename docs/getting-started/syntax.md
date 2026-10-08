@@ -213,6 +213,10 @@ tell a problem in the scripts from a mistake in the command line.
 `run` keeps upstream execsql's exit codes where they differ: a missing script
 file exits `1`, and unknown options after the script are not rejected.
 
+A `run` stopped with SIGTERM (`kill`, `timeout`, `docker stop`, a cancelled CI
+job) exits `143`. It first stops a running `SYSTEM_CMD`, rolls back the open
+transaction and writes its log, ending with an `exit` record of type `terminated`.
+
 ## Basic Usage { #basic_usage }
 
 ```text
