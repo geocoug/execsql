@@ -1640,7 +1640,7 @@ execsql run --debug myscript.sql mydb.sqlite
 
 ## **Example 37:** Static Analysis with lint { #example37 }
 
-`execsql lint` parses scripts and checks them without connecting to a database or executing anything, so it is safe to run in CI. It reports structural errors (unmatched `IF`/`ENDIF`, `LOOP`/`END LOOP`, `BEGIN BATCH`/`END BATCH`) and warnings: variables that are used but never defined, variables that are defined but never used, `IF` conditions that are always true or always false, statements after an unconditional `HALT`, missing `INCLUDE` files, and empty scripts.
+`execsql lint` parses scripts and checks them without connecting to a database or executing anything, so it is safe to run in CI. It reports errors (unmatched `IF`/`ENDIF`, `LOOP`/`END LOOP`, `BEGIN BATCH`/`END BATCH`; a metacommand or condition *execsql* does not recognize; a dollar-quoted body that would be split) and warnings: variables that are used but never defined, variables that are defined but never used, `IF` conditions that are always true or always false, statements after an unconditional `HALT`, missing `INCLUDE` files, and empty scripts.
 
 Consider a script with a typo: the export path is defined as `report_dir` but referenced as `!!output_path!!`.
 

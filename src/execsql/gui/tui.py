@@ -12,7 +12,7 @@ SQL script in a background thread and keeps the main thread for the Textual
 ``_state.gui_manager_queue``; the conductor polls that queue and serves each
 request by pushing the appropriate ``ModalScreen`` via ``push_screen_wait()``.
 
-Install with: pip install "execsql2[tui]"
+Textual is a dependency of execsql2, so it is installed with the package.
 """
 
 from __future__ import annotations
