@@ -59,11 +59,16 @@ When execsql needs a database password and none is stored or configured, it prom
 
 ### OS credential store (keyring)
 
-When the optional `keyring` package is installed (`pip install execsql2[auth]`), execsql checks the OS credential store before prompting. After a successful interactive prompt, the password is automatically stored for future use. Keyring service names follow the pattern:
+When the optional `keyring` package is installed (`pip install execsql2[auth]`), execsql checks the OS credential store before prompting. A password typed at the prompt is stored once the connection succeeds with it; a mistyped password is never stored. Keyring service names follow the pattern:
 
 ```text
-execsql/<db_type>/<server>/<database>
+execsql/<db_type>/<server>:<port>/<database>     # PostgreSQL, MySQL, SQL Server, Oracle, Firebird
+execsql/<db_type>/local/<database>               # Access, ODBC DSN
 ```
+
+The port is part of the name, so two servers reached through one host, such as a local database on 5432 and an SSH tunnel to another server on 15432, keep separate passwords. An entry stored by an earlier version, without the port, is used only for a connection on the database's default port (5432, 3306, 1433, 1521 or 3050), and is saved under the new name once it works.
+
+When the server rejects a stored password (it was changed), execsql deletes the entry, prompts for the current password and stores that one once it works. Any other connection failure (a timeout, a closed port, a database that does not exist) is reported as an error and the stored password is kept, so an unattended run never stops at a password prompt because the server was briefly unreachable. PostgreSQL reports a rejected password only in its message text; a server set to report messages in another language is treated like any other failure, and you remove the stale entry yourself (for example with `keyring del "execsql/PostgreSQL/host:5432/db" user`).
 
 To disable keyring integration, set `use_keyring = No` in the `[connect]` section of `execsql.conf`.
 

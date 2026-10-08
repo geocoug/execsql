@@ -12,7 +12,13 @@ from execsql.db.base import Database
 from execsql.db.tiers import SupportTier
 from execsql.exceptions import ErrInfo
 from execsql.utils.errors import exception_desc, fatal_error
-from execsql.utils.auth import clear_stored_password, get_password, password_from_keyring
+from execsql.utils.auth import (
+    clear_stored_password,
+    get_password,
+    is_login_failure,
+    password_from_keyring,
+    remember_password,
+)
 import execsql.state as _state
 
 __all__ = ["FirebirdDatabase"]
@@ -106,22 +112,27 @@ class FirebirdDatabase(Database):
                         self.db_name,
                         self.user,
                         server_name=self.server_name,
+                        port=self.port,
                     )
                 try:
                     self.conn = db_conn()
-                except Exception:
-                    if not password_from_keyring():
+                except Exception as e:
+                    # Only a rejected password means the stored one is stale;
+                    # a timeout or a missing database leaves it alone.
+                    if not (password_from_keyring() and is_login_failure(e)):
                         raise
-                    clear_stored_password("Firebird", self.db_name, self.user, self.server_name)
+                    clear_stored_password("Firebird", self.db_name, self.user, self.server_name, port=self.port)
                     self.password = get_password(
                         "Firebird",
                         self.db_name,
                         self.user,
                         server_name=self.server_name,
+                        port=self.port,
                         skip_keyring=True,
                         other_msg="(stored credential failed — enter current password)",
                     )
                     self.conn = db_conn()
+                remember_password("Firebird", self.db_name, self.user, self.server_name, port=self.port)
             except SystemExit:
                 # If the user canceled the password prompt.
                 raise

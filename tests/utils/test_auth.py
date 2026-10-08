@@ -22,9 +22,9 @@ import execsql.utils.auth as auth_mod
 
 
 class TestKeyringService:
-    def test_with_server(self):
-        result = _keyring_service("PostgreSQL", "mydb", "pghost")
-        assert result == "execsql/PostgreSQL/pghost/mydb"
+    def test_with_server_the_name_includes_the_port(self):
+        assert _keyring_service("PostgreSQL", "mydb", "pghost") == "execsql/PostgreSQL/pghost:5432/mydb"
+        assert _keyring_service("PostgreSQL", "mydb", "pghost", 15432) == "execsql/PostgreSQL/pghost:15432/mydb"
 
     def test_without_server(self):
         result = _keyring_service("SQLite", "mydb", None)
@@ -32,7 +32,7 @@ class TestKeyringService:
 
     def test_different_dbms(self):
         result = _keyring_service("MySQL", "prod", "db.example.com")
-        assert result == "execsql/MySQL/db.example.com/prod"
+        assert result == "execsql/MySQL/db.example.com:3306/prod"
 
 
 def _make_mock_keyring(**overrides):
@@ -123,10 +123,17 @@ class TestClearStoredPassword:
         with patch.dict("sys.modules", {"keyring": mock_kr}):
             result = clear_stored_password("PostgreSQL", "mydb", "pguser", "pghost")
             assert result is True
-            mock_kr.delete_password.assert_called_once_with(
-                "execsql/PostgreSQL/pghost/mydb",
-                "pguser",
-            )
+            # The current name, and the pre-port name a default-port connection may have used.
+            assert [c.args for c in mock_kr.delete_password.call_args_list] == [
+                ("execsql/PostgreSQL/pghost:5432/mydb", "pguser"),
+                ("execsql/PostgreSQL/pghost/mydb", "pguser"),
+            ]
+
+    def test_a_non_default_port_leaves_the_pre_port_entry_alone(self):
+        mock_kr = _make_mock_keyring()
+        with patch.dict("sys.modules", {"keyring": mock_kr}):
+            clear_stored_password("PostgreSQL", "mydb", "pguser", "pghost", port=15432)
+            mock_kr.delete_password.assert_called_once_with("execsql/PostgreSQL/pghost:15432/mydb", "pguser")
 
     def test_without_server(self):
         mock_kr = _make_mock_keyring()

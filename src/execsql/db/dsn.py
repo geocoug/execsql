@@ -13,7 +13,13 @@ from execsql.db.base import Database
 from execsql.db.tiers import SupportTier
 from execsql.exceptions import ErrInfo
 from execsql.utils.errors import exception_desc, fatal_error
-from execsql.utils.auth import clear_stored_password, get_password, password_from_keyring
+from execsql.utils.auth import (
+    clear_stored_password,
+    get_password,
+    is_login_failure,
+    password_from_keyring,
+    remember_password,
+)
 import execsql.state as _state
 
 __all__ = ["DsnDatabase"]
@@ -126,8 +132,9 @@ class DsnDatabase(Database):
 
         try:
             _try_connect()
-        except ErrInfo:
-            if not password_from_keyring():
+        except ErrInfo as e:
+            # Only a rejected password means the stored one is stale.
+            if not (password_from_keyring() and is_login_failure(e)):
                 raise
             clear_stored_password("DSN", self.db_name, self.user)
             self.password = get_password(
@@ -139,6 +146,7 @@ class DsnDatabase(Database):
             )
             self.conn = None
             _try_connect()
+        remember_password("DSN", self.db_name, self.user or "")
 
     def exec_cmd(self, querycommand: str) -> None:
         """Execute a stored procedure by name."""
