@@ -72,6 +72,19 @@ def _cell_value(item: Any) -> Any:
     return str(item)
 
 
+def _write_cell(ws: Any, row: int, column: int, value: Any) -> Any:
+    """Write *value* to a cell as data, never as a formula, and return the cell.
+
+    openpyxl stores any string that starts with ``=`` as a formula, so text
+    from the database such as ``=1+1`` or ``=HYPERLINK(...)`` would be
+    evaluated when the workbook is opened.  Such cells are stored as text.
+    """
+    cell = ws.cell(row=row, column=column, value=value)
+    if cell.data_type == "f":
+        cell.data_type = "s"
+    return cell
+
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
@@ -145,7 +158,7 @@ def write_query_to_xlsx(
             ("datasheet_name", "created_on", "created_by", "description", "source"),
             start=1,
         ):
-            cell = inv_ws.cell(row=1, column=col_idx, value=hdr)
+            cell = _write_cell(inv_ws, 1, col_idx, hdr)
             cell.font = bold_font
     else:
         inv_ws = wb[inventory_name]
@@ -158,13 +171,13 @@ def write_query_to_xlsx(
 
     # Header row
     for col_idx, hdr in enumerate(hdrs, start=1):
-        cell = ws.cell(row=1, column=col_idx, value=str(hdr))
+        cell = _write_cell(ws, 1, col_idx, str(hdr))
         cell.font = bold_font
 
     # Data rows
     for row_idx, row in enumerate(rows, start=2):
         for col_idx, item in enumerate(row, start=1):
-            ws.cell(row=row_idx, column=col_idx, value=_cell_value(item))
+            _write_cell(ws, row_idx, col_idx, _cell_value(item))
 
     # ------------------------------------------------------------------
     # Update inventory sheet
@@ -185,7 +198,7 @@ def write_query_to_xlsx(
         ),
         start=1,
     ):
-        inv_ws.cell(row=next_row, column=col_idx, value=value)
+        _write_cell(inv_ws, next_row, col_idx, value)
 
     wb.save(outfile)
     wb.close()
@@ -256,7 +269,7 @@ def write_queries_to_xlsx(
             ("datasheet_name", "created_on", "created_by", "description", "source"),
             start=1,
         ):
-            cell = inv_ws.cell(row=1, column=col_idx, value=hdr)
+            cell = _write_cell(inv_ws, 1, col_idx, hdr)
             cell.font = bold_font
     else:
         inv_ws = wb[inventory_name]
@@ -297,12 +310,12 @@ def write_queries_to_xlsx(
         ws = wb.create_sheet(sheet_name)
 
         for col_idx, hdr in enumerate(hdrs, start=1):
-            cell = ws.cell(row=1, column=col_idx, value=str(hdr))
+            cell = _write_cell(ws, 1, col_idx, str(hdr))
             cell.font = bold_font
 
         for row_idx, row in enumerate(rows, start=2):
             for col_idx, item in enumerate(row, start=1):
-                ws.cell(row=row_idx, column=col_idx, value=_cell_value(item))
+                _write_cell(ws, row_idx, col_idx, _cell_value(item))
 
         # Determine per-sheet description.
         if desc is None:
@@ -326,7 +339,7 @@ def write_queries_to_xlsx(
             ),
             start=1,
         ):
-            inv_ws.cell(row=next_row, column=col_idx, value=value)
+            _write_cell(inv_ws, next_row, col_idx, value)
 
         if tee and outfile.lower() != "stdout":
             prettyprint_query(select_stmt, db, "stdout", False, desc=d)

@@ -31,6 +31,7 @@ ______________________________________________________________________
 
 ### Fixed
 
+- **`EXPORT ... AS XLSX`:** text that starts with `=` (a value, a column name or the `DESCRIPTION`) is written as text. It was stored as a formula, so `=1+1` showed `2` and a `=HYPERLINK(...)` in the data became a live link when the workbook was opened.
 - **`--dsn` / `execsql.run(dsn=...)` with a percent-encoded user, password or database** (`postgresql://user:p%40ss%2Fw@host/db`): the decoded value is used. The encoded text was sent to the server, so a password containing `@`, `:`, `/`, `?`, `#` or `%` could not be given in a DSN. A password that literally contains `%` followed by two hex digits must now be written with `%25`.
 - **Stored passwords (keyring):** a password is stored only after the connection succeeds with it, so a mistyped one is no longer saved. A stored password is deleted, and you are prompted again, only when the server rejects it; a timeout, a closed port or a missing database keeps it, and an unattended run no longer stops at a prompt. Entries are named with the server's port (`execsql/PostgreSQL/host:5432/db`), so two servers on one host no longer share a password; an entry stored without the port is still used on the default port and renamed once it works.
 - **MySQL `IMPORT` of values with backslashes:** `C:\new\tbl`, `\N` and regular expressions load as written. The fast `LOAD DATA` path read a backslash as an escape, storing a newline and a tab, or NULL. A file whose path contains a backslash also imports.
