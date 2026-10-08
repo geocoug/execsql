@@ -1,8 +1,27 @@
-# execsql Syntax Highlighting for VSCode
+# execsql for VS Code
 
-Adds syntax highlighting for [execsql](https://execsql2.readthedocs.io/) metacommands in `.sql` files.
-Standard SQL highlighting is preserved — execsql `-- !x!` lines and variable substitutions get
-distinct custom colors layered on top.
+For [execsql](https://execsql2.readthedocs.io/) scripts in `.sql` files:
+
+- **Syntax highlighting** for metacommands and variable substitutions, layered on top of standard SQL highlighting.
+
+- **Lint findings as you type**, completion of metacommands, conditional tests and variables, from the
+    execsql language server (`execsql lsp`). This needs execsql with the `lsp` extra on your PATH:
+
+    ```sh
+    uv tool install "execsql2[lsp]"     # or: pipx install "execsql2[lsp]"
+    ```
+
+    Without it, highlighting still works and VS Code shows a one-time warning. See
+    [Editor Support](https://execsql2.readthedocs.io/en/latest/guides/editors/) for what the server does.
+
+## Settings
+
+| Setting                  | Default   |                                                                                                         |
+| ------------------------ | --------- | ------------------------------------------------------------------------------------------------------- |
+| `execsql.server.enabled` | `true`    | Start the language server for SQL files.                                                                |
+| `execsql.server.path`    | `execsql` | The command to run as `<path> lsp`, if `execsql` is not on VS Code's PATH, e.g. `~/.local/bin/execsql`. |
+
+After installing or upgrading execsql, run **execsql: Restart Language Server** from the Command Palette.
 
 ## What gets highlighted
 
@@ -38,7 +57,25 @@ ______________________________________________________________________
 
 ## Installation
 
+### From a release
+
+Each [GitHub release](https://github.com/geocoug/execsql/releases) has an `execsql-syntax.vsix` attached.
+Download it, then:
+
+```sh
+code --install-extension execsql-syntax.vsix
+```
+
+or, in VS Code, **Extensions** → `…` menu → **Install from VSIX…**.
+
+### From a clone (to work on the extension)
+
+`just install-vscode` installs the extension's dependencies (`npm ci`, needs Node.js) and links the
+folder into VS Code. By hand:
+
 ### Mac / Linux
+
+Install the dependencies first: `cd extras/vscode-execsql && npm ci --ignore-scripts`.
 
 Create a symlink from the VSCode extensions directory to this folder:
 
@@ -146,6 +183,14 @@ ______________________________________________________________________
 
 - The `tokenColorCustomizations` block in your user settings must use the exact theme name in brackets.
 - Run **Developer: Reload Window** after changing settings.
+
+**No lint findings or completion**
+
+- Run `execsql lsp --help` in a terminal. If the command is missing or says the `lsp` extra is needed,
+    install `"execsql2[lsp]"`.
+- If `execsql` works in a terminal but not in VS Code, set `execsql.server.path` to its full path
+    (`which execsql`).
+- **Output** panel → choose **execsql** to see the server's log.
 
 **Extension not showing in the Extensions panel**
 

@@ -1,7 +1,7 @@
 {
   "name": "execsql-syntax",
   "displayName": "execsql",
-  "description": "Syntax highlighting for execsql metacommands, substitution variables, and export formats in SQL files.",
+  "description": "Syntax highlighting, lint findings as you type, and completion for execsql scripts.",
   "version": "0.1.0",
   "publisher": "geocoug",
   "license": "GPL-3.0-or-later",
@@ -16,10 +16,11 @@
     "url": "https://github.com/geocoug/execsql/issues"
   },
   "engines": {
-    "vscode": "^1.74.0"
+    "vscode": "^1.91.0"
   },
   "categories": [
-    "Programming Languages"
+    "Programming Languages",
+    "Linters"
   ],
   "keywords": [
     "sql",
@@ -32,6 +33,10 @@
     "color": "#1f2430",
     "theme": "dark"
   },
+  "main": "./extension.js",
+  "activationEvents": [
+    "onLanguage:sql"
+  ],
   "contributes": {
     "grammars": [
       {
@@ -41,6 +46,33 @@
           "source.sql"
         ]
       }
+    ],
+    "configuration": {
+      "title": "execsql",
+      "properties": {
+        "execsql.server.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Start the execsql language server (execsql lsp) for SQL files. Syntax highlighting works without it."
+        },
+        "execsql.server.path": {
+          "type": "string",
+          "default": "execsql",
+          "description": "The execsql command to run as `<path> lsp`, if `execsql` is not on PATH (e.g. ~/.local/bin/execsql)."
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "execsql.restartServer",
+        "title": "execsql: Restart Language Server"
+      }
     ]
+  },
+  "dependencies": {
+    "vscode-languageclient": "10.1.2"
+  },
+  "devDependencies": {
+    "@vscode/vsce": "4.0.0"
   }
 }
