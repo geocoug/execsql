@@ -112,3 +112,19 @@ async def test_hover_over_a_metacommand(client: LanguageClient):
         ),
     )
     assert result.contents.value.startswith("**EXPORT**")
+
+
+@pytest.mark.asyncio
+async def test_go_to_definition_and_the_outline(client: LanguageClient):
+    uri = _open(client, "g.sql", '-- !x! SUB out /tmp\n-- !x! WRITE "!!out!!"\n')
+    found = await client.text_document_definition_async(
+        types.DefinitionParams(
+            text_document=types.TextDocumentIdentifier(uri=uri),
+            position=types.Position(line=1, character=16),
+        ),
+    )
+    assert [(d.uri, d.range.start.line) for d in found] == [(uri, 0)]
+    symbols = await client.text_document_document_symbol_async(
+        types.DocumentSymbolParams(text_document=types.TextDocumentIdentifier(uri=uri)),
+    )
+    assert [s.name for s in symbols] == ["out"]

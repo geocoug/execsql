@@ -6,7 +6,8 @@ a program your editor starts in the background and talks to while you edit a
 
 - shows the problems `execsql lint` would report, underlined on their lines, as you type;
 - completes metacommands, conditional tests, variables and export formats;
-- explains what is under the cursor on hover.
+- explains what is under the cursor on hover;
+- jumps to where a variable, SCRIPT or `INCLUDE`d file is defined, finds a variable's uses, and outlines the script.
 
 ```sql
 -- !x! EXPROT orders TO out.csv AS CSV
@@ -39,6 +40,20 @@ Hold the pointer over (or ask your editor to describe) a:
 - **metacommand**: its summary, every syntax form and a link to its reference section;
 - **conditional test** such as `HASROWS(...)`: the same;
 - **variable**: where the script defines it, with the defining line (also in `INCLUDE`d files); for a system variable such as `$CURRENT_DATE`, what it holds; for `#name`, which SCRIPT declares the parameter. A variable defined nowhere says so (lint rule V001).
+
+## Navigation { #navigation }
+
+| Action (VS Code key)                      | On                                                    | Goes to                                                                                                      |
+| ----------------------------------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Go to Definition (F12, Ctrl/Cmd-click)    | `!!name!!`                                            | Every `SUB`, `SELECT_SUB`, `PROMPT ... SUB` or other metacommand that sets it, also in `INCLUDE`d files      |
+|                                           | `!!#param!!`                                          | The `BEGIN SCRIPT` that declares the parameter                                                               |
+|                                           | the name in `EXECUTE SCRIPT name` / `RUN SCRIPT name` | Its `BEGIN SCRIPT`                                                                                           |
+|                                           | the file in `INCLUDE file`                            | That file (the file name is also a clickable link)                                                           |
+| Find All References (Shift-F12)           | `!!name!!`                                            | Every use of the variable in this file, and where it is set                                                  |
+| Outline / Go to Symbol (Ctrl/Cmd-Shift-O) | the script                                            | `SCRIPT` blocks with their parameters, `IF`, `LOOP` and `BATCH` blocks, `INCLUDE`s and variables set, nested |
+
+`INCLUDE` paths are resolved from the script's own folder, as execsql resolves
+them when the script runs from there.
 
 ## Install { #install }
 
