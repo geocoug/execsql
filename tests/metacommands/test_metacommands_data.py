@@ -37,8 +37,8 @@ def _setup_exec_log():
     return mock_log
 
 
-def _setup_commandliststack():
-    """Set up a commandliststack with a localvars for SUB LOCAL tests."""
+def _setup_exec_frame():
+    """Set up a script execution frame with its own local variables, for SUB LOCAL tests."""
     from execsql.state import ExecFrame
 
     local_sv = SubVarSet()
@@ -220,7 +220,7 @@ class TestXSelectsub:
 
         sv = _setup_subvars()
         _setup_exec_log()
-        _setup_commandliststack()
+        _setup_exec_frame()
         minimal_conf.log_datavars = False
         self._setup_db(["name", "age"], [("Alice", 30)])
 
@@ -233,7 +233,7 @@ class TestXSelectsub:
 
         _setup_subvars()
         mock_log = _setup_exec_log()
-        _setup_commandliststack()
+        _setup_exec_frame()
         minimal_conf.log_datavars = False
         self._setup_db(["col1"], [])
 
@@ -245,7 +245,7 @@ class TestXSelectsub:
 
         sv = _setup_subvars()
         _setup_exec_log()
-        _setup_commandliststack()
+        _setup_exec_frame()
         minimal_conf.log_datavars = False
         self._setup_db(["val"], [(None,)])
 
@@ -257,7 +257,7 @@ class TestXSelectsub:
 
         _setup_subvars()
         mock_log = _setup_exec_log()
-        _setup_commandliststack()
+        _setup_exec_frame()
         minimal_conf.log_datavars = True
         self._setup_db(["x"], [("42",)])
 
@@ -270,7 +270,7 @@ class TestXSelectsub:
 
         sv = _setup_subvars()
         _setup_exec_log()
-        _setup_commandliststack()
+        _setup_exec_frame()
         minimal_conf.log_datavars = False
         sv.add_substitution("@col1", "old_value")
         self._setup_db(["col1"], [("new_value",)])

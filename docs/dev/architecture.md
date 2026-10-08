@@ -136,15 +136,6 @@ What the stubs are for:
 
 A new contributor who greps for `ErrInfo: AST-only` lands in `metacommands/control.py:_ast_only_stub`; the same logic applies to any future keyword that the AST parser owns.
 
-### Legacy `commandliststack` residue
-
-`state.py` still exposes `commandliststack` (and `if_stack`, `savedscripts`) as `RuntimeContext` attributes for backwards compatibility with two surfaces:
-
-- **`metacommands/debug.py`** — the `x_debug_commandliststack` REPL helper and a few diagnostic prints read `_state.commandliststack[-1]` to surface the active local-variable frame.
-- **`state.py` proxy** — kept as a slot on `RuntimeContext` so external code that imported `from execsql.state import commandliststack` keeps importing.
-
-These are **read-only diagnostic surfaces.** New control-flow or scope code must go through `ctx.ast_exec_stack` / `ExecFrame`; the legacy stack is no longer the source of truth and is not pushed/popped by the AST executor in the way the old flat-command-list engine did. Treat `commandliststack` as a debug-only window onto `ctx.localvars` / `ctx.paramvals`.
-
 ______________________________________________________________________
 
 ## Plugin System

@@ -93,46 +93,31 @@ class TestPrintDryRun:
         _print_dry_run(None)
         # Rich writes to its own console; no assertion on capsys, just no exception
 
-    def test_empty_cmdlist_does_not_raise(self, capsys):
-        mock_cmdlist = MagicMock()
-        mock_cmdlist.cmdlist = []
-        _print_dry_run(mock_cmdlist)  # should not raise
+    def _printed(self, script: str, monkeypatch) -> str:
+        import io
 
-    def test_sql_command_renders(self, capsys):
-        cmd = MagicMock()
-        cmd.command_type = "sql"
-        cmd.source = "test.sql"
-        cmd.line_no = 1
-        cmd.commandline.return_value = "SELECT 1;"
+        from rich.console import Console
 
-        mock_cmdlist = MagicMock()
-        mock_cmdlist.cmdlist = [cmd]
-        _print_dry_run(mock_cmdlist)  # must not raise
+        import execsql.cli.run as run_mod
+        from execsql.script.parser import parse_string
 
-    def test_metacmd_renders(self, capsys):
-        cmd = MagicMock()
-        cmd.command_type = "metacmd"
-        cmd.source = "test.sql"
-        cmd.line_no = 5
-        cmd.commandline.return_value = 'WRITE "hello"'
+        buf = io.StringIO()
+        monkeypatch.setattr(run_mod, "_console", Console(file=buf, width=200, color_system=None))
+        _print_dry_run(parse_string(script, "dry.sql"))
+        return buf.getvalue()
 
-        mock_cmdlist = MagicMock()
-        mock_cmdlist.cmdlist = [cmd]
-        _print_dry_run(mock_cmdlist)  # must not raise
+    def test_sql_and_metacommands_are_listed_with_their_location(self, monkeypatch):
+        out = self._printed('SELECT 1;\n-- !x! WRITE "hello"\nSELECT 2;\n', monkeypatch)
+        assert "3 command(s) parsed" in out
+        lines = [line for line in out.splitlines() if "dry.sql:" in line]
+        assert len(lines) == 3
+        assert "SQL" in lines[0] and "dry.sql:1" in lines[0] and "SELECT 1;" in lines[0]
+        assert "METACMD" in lines[1] and "dry.sql:2" in lines[1] and 'WRITE "hello"' in lines[1]
+        assert "dry.sql:3" in lines[2] and "SELECT 2;" in lines[2]
 
-    def test_multiple_commands_no_raise(self):
-        cmds = []
-        for i in range(3):
-            c = MagicMock()
-            c.command_type = "sql" if i % 2 == 0 else "metacmd"
-            c.source = "s.sql"
-            c.line_no = i + 1
-            c.commandline.return_value = f"CMD {i}"
-            cmds.append(c)
-
-        mock_cmdlist = MagicMock()
-        mock_cmdlist.cmdlist = cmds
-        _print_dry_run(mock_cmdlist)  # must not raise
+    def test_a_script_with_only_comments_has_no_commands(self, monkeypatch):
+        out = self._printed("-- just a comment\n", monkeypatch)
+        assert "No commands found in script." in out
 
 
 # ---------------------------------------------------------------------------

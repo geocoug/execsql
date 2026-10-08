@@ -52,10 +52,8 @@ def x_debug_commandliststack(**kwargs: Any) -> None:
     ``<main>`` script, ``EXECUTE SCRIPT`` calls, ``INCLUDE``'d files,
     ``IF``/``ELSEIF``/``ELSE`` branches, ``LOOP`` iterations (with iteration
     count), and ``BATCH`` blocks. Each frame shows source file and line.
-
-    The legacy ``commandliststack`` is reported separately as a secondary view
-    because it only records SCRIPT call frames; the unified ``ast_exec_stack``
-    is the authoritative debugger view.
+    The metacommand keeps its upstream name; what it prints is the AST
+    executor's ``ast_exec_stack``.
     """
     stack = getattr(_state, "ast_exec_stack", None) or []
     _state.output.write(f"Execution Stack (depth: {len(stack)}):\n")

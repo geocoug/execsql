@@ -374,9 +374,7 @@ class RuntimeContext:
         # nesting construct: top-level script, EXECUTE SCRIPT calls, INCLUDE'd
         # files, IF/ELSEIF/ELSE branches, LOOP iterations, BATCH blocks. See
         # :class:`ExecFrame` for frame structure. Read by the debug REPL's
-        # ``.stack`` command and ``DEBUG WRITE COMMANDLISTSTACK`` for genuine
-        # execution context — the legacy ``commandliststack`` only records
-        # SCRIPT call frames and is therefore insufficient for the debugger.
+        # ``.stack`` command and ``DEBUG WRITE COMMANDLISTSTACK``.
         self.ast_exec_stack: list[ExecFrame] = []
 
     # -----------------------------------------------------------------
