@@ -731,13 +731,12 @@ class WriteHooks:
     """
 
     def __repr__(self) -> str:
-        return f"WriteHooks({self.write_func!r}, {self.err_func!r}, {self.status_func!r})"
+        return f"WriteHooks({self.write_func!r}, {self.err_func!r})"
 
     def __init__(
         self,
         standard_output_func: Callable[[str], object] | None = None,
         error_output_func: Callable[[str], object] | None = None,
-        status_output_func: Callable[[str], object] | None = None,
     ) -> None:
         """Store optional hook callables; ``None`` means use the default stream.
 
@@ -746,8 +745,6 @@ class WriteHooks:
                 ``None`` to use ``sys.stdout``.
             error_output_func: Callable to receive error-output text, or
                 ``None`` to use ``sys.stderr``.
-            status_output_func: Callable to receive status-line text, or
-                ``None`` to suppress.
         """
         # Arguments should be functions that take a single string and
         # write it to the desired destination.  Both stdout and stderr can be hooked.
@@ -756,7 +753,6 @@ class WriteHooks:
         # The purpose is to allow writing to be redirected to a GUI.
         self.write_func = standard_output_func
         self.err_func = error_output_func
-        self.status_func = status_output_func
         self.tee_stderr = True
 
     def reset(self) -> None:
@@ -773,15 +769,6 @@ class WriteHooks:
         """Replace the error-output hook and optionally keep tee-to-stderr behaviour."""
         self.err_func = error_output_func
         self.tee_stderr = tee
-
-    def redir(
-        self,
-        standard_output_func: Callable[[str], object],
-        error_output_func: Callable[[str], object],
-    ) -> None:
-        """Redirect both stdout and stderr hooks in one call."""
-        self.redir_stdout(standard_output_func)
-        self.redir_stderr(error_output_func)
 
     def write(self, strval: str) -> None:
         """Write a string to the standard-output hook, or to sys.stdout if unset."""
@@ -803,8 +790,3 @@ class WriteHooks:
         else:
             sys.stderr.write(strval)
             sys.stderr.flush()
-
-    def write_status(self, strval: str) -> None:
-        """Forward a status string to the status hook if one is registered."""
-        if self.status_func:
-            self.status_func(strval)

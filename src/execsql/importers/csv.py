@@ -27,7 +27,6 @@ def importtable(
     tablename: str,
     filename: str,
     is_new: Any,
-    skip_header_line: bool = True,
     quotechar: str | None = None,
     delimchar: str | None = None,
     encoding: str | None = None,

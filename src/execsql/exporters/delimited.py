@@ -721,10 +721,6 @@ class CsvFile(EncodedFile):
                 del elements[b]
         return elements
 
-    def writer(self, append: bool = False) -> CsvWriter:
-        """Return a :class:`CsvWriter` configured with this file's format settings."""
-        return CsvWriter(self.filename, self.encoding, self.delimiter, self.quotechar, self.escapechar, append)
-
     def _colhdrs(self, inf: Any) -> list[str]:
         conf = _state.conf
         try:

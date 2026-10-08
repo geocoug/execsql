@@ -127,12 +127,12 @@ class TestHasRowsAndRowCount:
     def test_row_count_helper_db_error_wrapped(self, fake_state):
         fake_state.db.select_data.side_effect = RuntimeError("boom")
         with pytest.raises(ErrInfo):
-            _cond._row_count("t", "select count(*) from t;", "ROW_COUNT")
+            _cond._row_count("t", "ROW_COUNT")
 
     def test_row_count_helper_bad_result(self, fake_state):
         fake_state.db.select_data.return_value = (["count"], [("not-a-number",)])
         with pytest.raises(ErrInfo):
-            _cond._row_count("t", "select count(*) from t;", "ROW_COUNT")
+            _cond._row_count("t", "ROW_COUNT")
 
 
 class TestMiscPredicates:

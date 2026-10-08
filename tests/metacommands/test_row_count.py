@@ -92,7 +92,7 @@ class TestRowCountHelper:
         db = _mock_db_with_count(7)
         with patch.object(_state, "dbs") as mock_dbs:
             mock_dbs.current.return_value = db
-            result = _row_count("mytable", "select count(*) from mytable;", "ROW_COUNT_GT(mytable, 0)")
+            result = _row_count("mytable", "ROW_COUNT_GT(mytable, 0)")
         assert result == 7
 
     def test_re_raises_errinfo_from_db(self) -> None:
@@ -101,7 +101,7 @@ class TestRowCountHelper:
         with patch.object(_state, "dbs") as mock_dbs:
             mock_dbs.current.return_value = db
             with pytest.raises(ErrInfo):
-                _row_count("no_such_table", "select count(*) from no_such_table;", "ROW_COUNT_GT(no_such_table, 0)")
+                _row_count("no_such_table", "ROW_COUNT_GT(no_such_table, 0)")
 
     def test_wraps_generic_exception_as_errinfo(self) -> None:
         db = MagicMock()
@@ -109,7 +109,7 @@ class TestRowCountHelper:
         with patch.object(_state, "dbs") as mock_dbs:
             mock_dbs.current.return_value = db
             with pytest.raises(ErrInfo):
-                _row_count("t", "select count(*) from t;", "ROW_COUNT_GT(t, 0)")
+                _row_count("t", "ROW_COUNT_GT(t, 0)")
 
 
 # ---------------------------------------------------------------------------

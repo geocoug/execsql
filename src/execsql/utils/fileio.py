@@ -941,13 +941,6 @@ class Logger:
         self.exit_lno = line_no
         self.exit_description = msg
 
-    def log_exit_exception(self, msg: str) -> None:
-        # Save values to be used by exit() function triggered on program exit
-        self.exit_type = "exception"
-        self.exit_scriptfile = None
-        self.exit_lno = None
-        self.exit_description = self._redact(msg.replace("\n", ""))
-
     def log_exit_interrupted(self) -> None:
         # Save values to be used by exit() function triggered on program exit
         self.exit_type = "interrupted"

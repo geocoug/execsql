@@ -268,7 +268,6 @@ class DataTable:
 
         self.inputrows = 0  # Total number of rows in the row source.
         self.datarows = 0  # Number of non-empty rows (with data values).
-        self.shortrows = 0  # Number of rows without as many data values as column names.
         self.cols: list = []  # List of Column objects.
         for n in column_names:
             self.cols.append(Column(n, infer_strings=infer_strings))
@@ -281,7 +280,6 @@ class DataTable:
                 self.datarows += 1
                 chkcols = len(self.cols)
                 if dataitems < chkcols:
-                    self.shortrows += 1
                     chkcols = len(datarow)
                 else:
                     if dataitems > chkcols:

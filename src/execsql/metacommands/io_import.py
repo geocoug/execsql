@@ -74,7 +74,6 @@ def x_import(**kwargs: Any) -> None:
             tablename,
             filename,
             is_new,
-            skip_header_line=True,
             quotechar=quotechar,
             delimchar=delimchar,
             encoding=enc,

@@ -162,7 +162,6 @@ class MsgDialog:
 class PauseDialog:
     def __init__(self, root: tk.Tk, args: dict) -> None:
         self.result: dict = {}
-        self._quit = False
 
         win = tk.Toplevel(root)
         win.title(args.get("title", "Pause"))
@@ -177,7 +176,6 @@ class PauseDialog:
         )
 
         countdown = args.get("countdown")
-        self._remaining = countdown
 
         status_var = tk.StringVar(value="")
         ttk.Label(frame, textvariable=status_var).pack()
