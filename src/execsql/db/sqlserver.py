@@ -12,7 +12,13 @@ import re
 from execsql.db.base import Database
 from execsql.exceptions import ErrInfo
 from execsql.utils.errors import fatal_error
-from execsql.utils.auth import clear_stored_password, get_password, password_from_keyring
+from execsql.utils.auth import (
+    clear_stored_password,
+    get_password,
+    is_login_failure,
+    password_from_keyring,
+    remember_password,
+)
 import execsql.state as _state
 
 __all__ = ["SqlServerDatabase"]
@@ -81,6 +87,7 @@ class SqlServerDatabase(Database):
                     self.db_name,
                     self.user,
                     server_name=self.server_name,
+                    port=self.port,
                 )
             # Use pyodbc to connect.  Try different driver versions from newest to oldest.
             ssdrivers = (
@@ -93,6 +100,8 @@ class SqlServerDatabase(Database):
                 "SQL Native Client",
                 "SQL Server",
             )
+
+            errors: list[BaseException] = []
 
             def _try_drivers():
                 for drv in ssdrivers:
@@ -117,7 +126,8 @@ class SqlServerDatabase(Database):
                         # default; pyodbc treats `timeout` as the login-and-
                         # query timeout on the connection.
                         self.conn = pyodbc.connect(connstr, timeout=30)
-                    except Exception:
+                    except Exception as e:
+                        errors.append(e)
                         if _state.exec_log is not None:
                             _state.exec_log.log_status_info(
                                 f"Could not connect using: {re.sub(r'Pwd=[^;]*', 'Pwd=***', connstr)}",
@@ -130,18 +140,22 @@ class SqlServerDatabase(Database):
                         return True
                 return False
 
-            if not _try_drivers() and password_from_keyring():
-                # Stored credential is stale — clear it and re-prompt.
-                clear_stored_password("SQL Server", self.db_name, self.user, self.server_name)
+            # Only a rejected password means the stored one is stale; a
+            # timeout or a missing database leaves it alone.
+            if not _try_drivers() and password_from_keyring() and any(is_login_failure(e) for e in errors):
+                clear_stored_password("SQL Server", self.db_name, self.user, self.server_name, port=self.port)
                 self.password = get_password(
                     "SQL Server",
                     self.db_name,
                     self.user,
                     server_name=self.server_name,
+                    port=self.port,
                     skip_keyring=True,
                     other_msg="(stored credential failed — enter current password)",
                 )
                 _try_drivers()
+            if self.conn:
+                remember_password("SQL Server", self.db_name, self.user, self.server_name, port=self.port)
 
             if not self.conn:
                 raise ErrInfo(

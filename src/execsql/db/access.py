@@ -18,7 +18,13 @@ from execsql.db.base import Database, _fetched
 from execsql.db.tiers import SupportTier
 from execsql.exceptions import ErrInfo
 from execsql.utils.errors import exception_desc, fatal_error
-from execsql.utils.auth import clear_stored_password, get_password, password_from_keyring
+from execsql.utils.auth import (
+    clear_stored_password,
+    get_password,
+    is_login_failure,
+    password_from_keyring,
+    remember_password,
+)
 import execsql.state as _state
 
 __all__ = ["AccessDatabase"]
@@ -107,6 +113,8 @@ class AccessDatabase(Database):
         if self.need_passwd and self.user and self.password is None:
             self.password = get_password("MS-Access", self.db_name, self.user)
 
+        errors: list[BaseException] = []
+
         def _try_odbc_drivers():
             db_name = str(Path(self.db_name).resolve())
             for cs, jet4flag in self.connection_strings:
@@ -120,7 +128,8 @@ class AccessDatabase(Database):
                     # the connect attempt at 30 s to match the other
                     # adapters.
                     self.conn = pyodbc.connect(connstr, timeout=30)
-                except Exception:
+                except Exception as e:
+                    errors.append(e)
                     if _state.exec_log is not None:
                         _state.exec_log.log_status_info(
                             f"Could not connect via ODBC using: {re.sub(r'Pwd=[^;]*', 'Pwd=***', connstr)}",
@@ -134,7 +143,8 @@ class AccessDatabase(Database):
                     return True
             return False
 
-        if not _try_odbc_drivers() and password_from_keyring():
+        # Only a rejected password means the stored one is stale.
+        if not _try_odbc_drivers() and password_from_keyring() and any(is_login_failure(e) for e in errors):
             clear_stored_password("MS-Access", self.db_name, self.user)
             self.password = get_password(
                 "MS-Access",
@@ -144,6 +154,8 @@ class AccessDatabase(Database):
                 other_msg="(stored credential failed — enter current password)",
             )
             _try_odbc_drivers()
+        if self.conn and self.user:
+            remember_password("MS-Access", self.db_name, self.user)
 
         if not self.conn:
             raise ErrInfo(
@@ -162,6 +174,8 @@ class AccessDatabase(Database):
             self.password = get_password("MS-Access", self.db_name, self.user)
         dao_engines = ("DAO.DBEngine.120", "DAO.DBEngine.36")
 
+        dao_errors: list[BaseException] = []
+
         def _try_dao_engines():
             for engine in dao_engines:
                 try:
@@ -175,7 +189,8 @@ class AccessDatabase(Database):
                         )
                     else:
                         self.dao_conn = daoEngine.OpenDatabase(self.db_name)
-                except Exception:
+                except Exception as e:
+                    dao_errors.append(e)
                     if _state.exec_log is not None:
                         _state.exec_log.log_status_info(f"Could not connect via DAO using: {engine}")
                 else:
@@ -184,7 +199,7 @@ class AccessDatabase(Database):
                     return True
             return False
 
-        if not _try_dao_engines() and password_from_keyring():
+        if not _try_dao_engines() and password_from_keyring() and any(is_login_failure(e) for e in dao_errors):
             clear_stored_password("MS-Access", self.db_name, self.user)
             self.password = get_password(
                 "MS-Access",
@@ -194,6 +209,8 @@ class AccessDatabase(Database):
                 other_msg="(stored credential failed — enter current password)",
             )
             _try_dao_engines()
+        if self.dao_conn and self.user:
+            remember_password("MS-Access", self.db_name, self.user)
 
         if not self.dao_conn:
             raise ErrInfo(

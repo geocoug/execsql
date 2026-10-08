@@ -158,11 +158,11 @@ Formatter correctness notes added in the 2.19.x line:
 
 ### Authentication
 
-| Feature                        | Description                                                                                                                                                                                       |
-| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| OS keyring integration         | When the `keyring` package is installed, passwords are stored in and retrieved from the OS credential store (macOS Keychain, Windows Credential Manager, Linux SecretService).                    |
-| Keyring retry on auth failure  | If a stored password is rejected, the stale entry is deleted, the user is re-prompted, and the new password is saved automatically.                                                               |
-| Keyring auto-store in GUI mode | When a password is entered via a GUI prompt (Tkinter or Textual), it is stored to the OS keyring automatically without an explicit confirmation prompt. CLI password prompts behave the same way. |
+| Feature                       | Description                                                                                                                                                                                                                          |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| OS keyring integration        | When the `keyring` package is installed, passwords are stored in and retrieved from the OS credential store (macOS Keychain, Windows Credential Manager, Linux SecretService).                                                       |
+| Keyring retry on auth failure | If the server rejects a stored password, the stale entry is deleted, the user is re-prompted, and the new password is saved once it works. Other connection failures keep the stored password.                                       |
+| Keyring auto-store            | A password typed at a GUI or console prompt is stored in the OS keyring, without a confirmation prompt, once the connection succeeds with it. Entries are named by server and port (`execsql/<db_type>/<server>:<port>/<database>`). |
 
 ### Logging Enhancements
 

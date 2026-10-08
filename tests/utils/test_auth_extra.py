@@ -81,7 +81,10 @@ class TestGetPasswordInteractive:
         ):
             result = get_password("PostgreSQL", "mydb", "user1")
             assert result == "new_pass"
-            mock_kr.set_password.assert_called_once()
+            # Not stored until the connection it was typed for succeeds.
+            mock_kr.set_password.assert_not_called()
+            auth_mod.remember_password("PostgreSQL", "mydb", "user1")
+            mock_kr.set_password.assert_called_once_with("execsql/PostgreSQL/local/mydb", "user1", "new_pass")
 
     def test_empty_password_not_stored_in_keyring(self, minimal_conf):
         mock_kr = types.ModuleType("keyring")
