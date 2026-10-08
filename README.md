@@ -30,7 +30,7 @@ Scripts are ordinary SQL plus metacommands embedded in comments (`-- !x!`), whic
 | Command                                    | What it does                                                            | Needs a database? |
 | ------------------------------------------ | ----------------------------------------------------------------------- | ----------------- |
 | `execsql format`                           | Normalize keywords, indentation, and SQL layout                         | No                |
-| `execsql lint`                             | Static analysis: structure, undefined variables, bad targets            | No                |
+| `execsql lint`                             | Static analysis: structure, unknown metacommands, variables, targets    | No                |
 | `execsql run`                              | Run the script against PostgreSQL, MySQL, SQLite, DuckDB, …             | Yes               |
 | `execsql config`                           | Show every config option, its value, and the file that set it           | No                |
 | `execsql list`                             | Metacommands, encodings, plugins, or the keyword vocabulary             | No                |
@@ -56,7 +56,7 @@ execsql format -i scripts/        # format it
 execsql lint scripts/             # find problems before they cost you a run
 ```
 
-`lint` reports unmatched blocks, undefined and unused substitution variables, unreachable branches, and `INCLUDE`/`SCRIPT` targets that do not exist: the failures that otherwise surface halfway through a run against a live database:
+`lint` reports unmatched blocks, misspelled or malformed metacommands and conditions, undefined and unused substitution variables, unreachable branches, and `INCLUDE`/`SCRIPT` targets that do not exist: the failures that otherwise surface halfway through a run against a live database:
 
 ```text
 $ execsql lint load_data.sql
