@@ -9,6 +9,7 @@ installed.
 
 from __future__ import annotations
 
+import importlib.metadata
 import socket
 import sys
 import types
@@ -63,7 +64,12 @@ def test_no_driver_points_at_the_oracle_extra():
 
 def test_installed_oracledb_gets_as_far_as_the_network():
     """Unmocked: with the real driver, a refused connection is a connect error, not a missing module."""
-    pytest.importorskip("oracledb")
+    # Ask the installed packages, not sys.modules: without the driver, other
+    # test modules leave a stand-in oracledb there, and importorskip accepts it.
+    try:
+        importlib.metadata.version("oracledb")
+    except importlib.metadata.PackageNotFoundError:
+        pytest.skip("oracledb is not installed")
     with socket.socket() as s:
         s.bind(("127.0.0.1", 0))
         closed_port = s.getsockname()[1]
