@@ -5,7 +5,8 @@ a program your editor starts in the background and talks to while you edit a
 `.sql` file. Without running the script or connecting to a database, it:
 
 - shows the problems `execsql lint` would report, underlined on their lines, as you type;
-- completes metacommands, conditional tests, variables and export formats.
+- completes metacommands, conditional tests, variables and export formats;
+- explains what is under the cursor on hover.
 
 ```sql
 -- !x! EXPROT orders TO out.csv AS CSV
@@ -30,6 +31,14 @@ What is offered depends on where the cursor is:
 
 The syntax shown is the reference documentation's: `<value>` to fill in,
 `[...]` optional, `A|B` a choice.
+
+## Hover { #hover }
+
+Hold the pointer over (or ask your editor to describe) a:
+
+- **metacommand**: its summary, every syntax form and a link to its reference section;
+- **conditional test** such as `HASROWS(...)`: the same;
+- **variable**: where the script defines it, with the defining line (also in `INCLUDE`d files); for a system variable such as `$CURRENT_DATE`, what it holds; for `#name`, which SCRIPT declares the parameter. A variable defined nowhere says so (lint rule V001).
 
 ## Install { #install }
 

@@ -14,6 +14,7 @@ from execsql import __version__
 from execsql.lsp.completion import completions
 from execsql.lsp.diagnostics import diagnostics
 from execsql.lsp.document import ScriptIndex, index_script
+from execsql.lsp.hover import hover
 
 __all__ = ["ExecsqlLanguageServer", "create_server"]
 
@@ -125,5 +126,11 @@ def create_server() -> ExecsqlLanguageServer:
             params.position.character,
             snippets=ls.supports_snippets(),
         )
+
+    @server.feature(types.TEXT_DOCUMENT_HOVER)
+    def on_hover(ls: ExecsqlLanguageServer, params: types.HoverParams) -> types.Hover | None:
+        uri = params.text_document.uri
+        source = ls.workspace.get_text_document(uri).source
+        return hover(ls.index(uri), source, params.position.line, params.position.character)
 
     return server

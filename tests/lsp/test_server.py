@@ -100,3 +100,15 @@ async def test_completion_after_the_metacommand_marker(client: LanguageClient):
     )
     labels = {item.label for item in result.items}
     assert {"EXPORT", "EXPORT QUERY"} <= labels
+
+
+@pytest.mark.asyncio
+async def test_hover_over_a_metacommand(client: LanguageClient):
+    uri = _open(client, "f.sql", "-- !x! EXPORT t TO x.csv AS CSV\n")
+    result = await client.text_document_hover_async(
+        types.HoverParams(
+            text_document=types.TextDocumentIdentifier(uri=uri),
+            position=types.Position(line=0, character=9),
+        ),
+    )
+    assert result.contents.value.startswith("**EXPORT**")
