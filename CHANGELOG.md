@@ -39,7 +39,7 @@ ______________________________________________________________________
 
 ### Added
 
-- **`execsql lsp`**, a language server for editors: `execsql lint` findings appear in the editor as you type, using the workspace's `[lint]` settings. Install the new `lsp` extra (`uv tool install "execsql2[lsp]"`); setup for Neovim, Helix and other editors is in the new Editor Support guide.
+- **`execsql lsp`**, a language server for editors: `execsql lint` findings appear in the editor as you type, using the workspace's `[lint]` settings, and metacommands, conditional tests, variables and export formats complete, metacommands as fill-in templates of their documented syntax. Install the new `lsp` extra (`uv tool install "execsql2[lsp]"`); setup for Neovim, Helix and other editors is in the new Editor Support guide.
 - **`execsql lint` rule `P002` (`split-dollar-quote`):** reports a `$$ ... $$` function or `DO` body that is not between `BEGIN SQL` and `END SQL`, which execsql would send in pieces at the first line ending in `;`.
 - **`execsql lint` rule `P003` (`unknown-metacommand`):** reports a misspelled or malformed metacommand, such as `SUBSTITUTE x 1` for `SUB x 1`, or `EXPORT t TOO out.csv`, that `execsql run` would stop at with `Unknown metacommand`.
 - **`execsql lint` rule `P004` (`unknown-condition`):** reports a condition with an unknown test, such as `IF(hasrowz(t))`, or one that cannot be parsed, such as `ASSERT !!flag!! = TRUE`, in `IF`, `ELSEIF`, `ANDIF`, `ORIF`, `LOOP`, `EXECUTE SCRIPT ... WHILE`, `ASSERT` and `WAIT_UNTIL`.
