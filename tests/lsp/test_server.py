@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import sys
 
 import pytest
@@ -155,3 +156,16 @@ async def test_format_document_uses_the_workspace_format_settings(configured_cli
         ),
     )
     assert edits[0].new_text == '-- !x! IF (hasrows(t))\n  -- !x! WRITE "x"\n-- !x! ENDIF\n'
+
+
+def test_a_late_cancel_is_not_reported(caplog):
+    from execsql.lsp.server import _DropLateCancels, create_server
+
+    create_server()
+    create_server()  # a second server adds no second filter
+    rpc = logging.getLogger("pygls.protocol.json_rpc")
+    assert sum(isinstance(f, _DropLateCancels) for f in rpc.filters) == 1
+    with caplog.at_level(logging.WARNING):
+        rpc.warning('Cancel notification for unknown message id "%s"', 29)
+        rpc.warning("something else")
+    assert [r.getMessage() for r in caplog.records] == ["something else"]
