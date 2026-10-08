@@ -13,6 +13,7 @@ after a MagicMock is injected into ``sys.modules``.
 
 from __future__ import annotations
 
+import importlib
 import sys
 import types
 from types import SimpleNamespace
@@ -41,7 +42,16 @@ def _mock_conn_with_rows(rows: list, description: list | None = None) -> MagicMo
 
 
 def _ensure_mock(mod_name: str, **attrs) -> None:
-    if mod_name not in sys.modules:
+    """Put a stand-in for *mod_name* in sys.modules, unless the real driver imports.
+
+    A stand-in that replaced an installed driver would stay for the rest of
+    the session and reach tests that need the real one.
+    """
+    if mod_name in sys.modules:
+        return
+    try:
+        importlib.import_module(mod_name)
+    except ImportError:
         mock = types.ModuleType(mod_name)
         for k, v in attrs.items():
             setattr(mock, k, v)
