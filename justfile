@@ -110,14 +110,6 @@ package-vscode:
     @echo "Built extras/vscode-execsql/execsql-syntax.vsix — install with:"
     @echo "  code --install-extension extras/vscode-execsql/execsql-syntax.vsix"
 
-# Publish the extension to the VS Code Marketplace.
-# Requires a Marketplace publisher named 'geocoug' and a PAT:
-#   https://marketplace.visualstudio.com/manage
-#   export VSCE_PAT=<token from dev.azure.com, scope: Marketplace > Manage>
-publish-vscode:
-    uv run python scripts/generate_vscode_grammar.py
-    cd extras/vscode-execsql && vsce publish
-
 
 # ── Documentation──────────────────────────────────────────────────────────────
 

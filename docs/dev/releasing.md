@@ -53,19 +53,21 @@ fails. Stay on the command until it exits.
 
 ### What runs on a tag push
 
-| Job                    | Gating?                            | Purpose                                                          |
-| ---------------------- | ---------------------------------- | ---------------------------------------------------------------- |
-| `lint`                 | yes                                | ruff check + ruff format check                                   |
-| `tests` (matrix)       | yes                                | py3.10–3.14 × {ubuntu, macos, windows}                           |
-| `integration-tests`    | yes                                | PostgreSQL, MySQL, MSSQL service containers                      |
-| `access-tests-windows` | yes (when Access install succeeds) | Real Access driver on `windows-latest`                           |
-| `build`                | yes                                | `python -m build` produces sdist + wheel                         |
-| `publish`              | yes (tag-gated)                    | OIDC trusted-publisher PyPI upload                               |
-| `generate-release`     | yes (tag-gated)                    | Creates the GitHub release with auto-extracted CHANGELOG section |
+| Job                    | Gating?                            | Purpose                                                                           |
+| ---------------------- | ---------------------------------- | --------------------------------------------------------------------------------- |
+| `lint`                 | yes                                | ruff check + ruff format check                                                    |
+| `tests` (matrix)       | yes                                | py3.10–3.14 × {ubuntu, macos, windows}                                            |
+| `integration-tests`    | yes                                | PostgreSQL, MySQL, MSSQL service containers                                       |
+| `access-tests-windows` | yes (when Access install succeeds) | Real Access driver on `windows-latest`                                            |
+| `build`                | yes                                | Checks the tag equals `project.version`; `python -m build` produces sdist + wheel |
+| `publish`              | yes (tag-gated)                    | OIDC trusted-publisher PyPI upload                                                |
+| `generate-release`     | yes (tag-gated, after `publish`)   | Creates the GitHub release with auto-extracted CHANGELOG section                  |
 
-Build / publish / generate-release run only on tag refs
+Publish / generate-release run only on tag refs
 (`if: startsWith(github.ref, 'refs/tags/v')`), so a non-bump push to
-`main` doesn't publish.
+`main` doesn't publish. They run in the order `build → publish → generate-release`: no GitHub
+release goes out unless the PyPI upload succeeded. A version already on PyPI fails the
+upload rather than being skipped.
 
 ## When something goes wrong
 
@@ -81,19 +83,27 @@ fire. Fix:
     tag has been visible publicly, treat it as immutable).
 1. Push and re-watch.
 
+### `build` failed: tag does not match the package version
+
+The tag name (minus `v`) must equal `project.version` in `pyproject.toml`
+on the tagged commit. A mismatch means the tag was made by hand or points
+at the wrong commit; `just bump-*` always creates matching pairs. Nothing
+was published. Bump again from `main` with `just bump-patch` rather than
+moving the tag.
+
 ### `publish` failed but the tag is live
 
-This is the worst case: PyPI is unaware, GitHub thinks the release
-happened. Fix:
+PyPI does not have the version, and the GitHub release was not created
+(it waits for `publish`). Fix:
 
 1. `gh run view <RUN_ID> --log-failed` and read the publish job log.
 1. Common cause: OIDC trust-policy drift, transient PyPI 5xx, or a name
     collision with the pre-release tag.
-1. If transient: `gh run rerun --failed <RUN_ID>` and watch again.
-1. If structural (trust policy changed, package name conflict): delete
-    the GitHub release **but not the tag**, fix the cause, and re-trigger
-    the workflow manually via the Actions UI. The tag is the source of
-    truth for the version; don't reassign it.
+1. If transient, or once a cause outside the repository is fixed (the
+    trusted-publisher settings on PyPI): `gh run rerun --failed <RUN_ID>`
+    and watch again. This re-runs `publish` and `generate-release` after it.
+1. If the fix needs a code change: fix it on `main` and re-bump. The tag
+    is the source of truth for the version; don't reassign it.
 
 ### `generate-release` succeeded but the CHANGELOG section is wrong
 
