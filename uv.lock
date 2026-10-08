@@ -1038,6 +1038,7 @@ formatter = [
 ]
 lsp = [
     { name = "pygls" },
+    { name = "sqlglot" },
 ]
 map = [
     { name = "tkintermapview" },
@@ -1074,6 +1075,7 @@ requires-dist = [
     { name = "execsql2", extras = ["formats"], marker = "extra == 'dev'" },
     { name = "execsql2", extras = ["formatter"], marker = "extra == 'all'" },
     { name = "execsql2", extras = ["formatter"], marker = "extra == 'dev'" },
+    { name = "execsql2", extras = ["formatter"], marker = "extra == 'lsp'" },
     { name = "execsql2", extras = ["lsp"], marker = "extra == 'all'" },
     { name = "execsql2", extras = ["lsp"], marker = "extra == 'dev'" },
     { name = "execsql2", extras = ["map"], marker = "extra == 'all'" },

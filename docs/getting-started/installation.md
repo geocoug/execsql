@@ -57,25 +57,25 @@ while that environment is active.
 
 Combine as many as you need in one install: `"execsql2[postgres,duckdb,formats]"`.
 
-| Extra            | Adds                                                                  |
-| ---------------- | --------------------------------------------------------------------- |
-| `postgres`       | PostgreSQL (psycopg)                                                  |
-| `mysql`          | MySQL / MariaDB (pymysql)                                             |
-| `duckdb`         | DuckDB                                                                |
-| `mssql`          | MS SQL Server (pyodbc)                                                |
-| `odbc`           | Generic ODBC DSN (pyodbc)                                             |
-| `firebird`       | Firebird                                                              |
-| `oracle`         | Oracle (oracledb)                                                     |
-| `formats`        | ODS, Excel, Jinja2, Feather/Parquet, HDF5, YAML                       |
-| `formatter`      | SQL reformatting for `execsql format` (sqlglot)                       |
-| `lsp`            | `execsql lsp`, the language server for editors (pygls)                |
-| `auth`           | OS keyring integration (desktop/native)                               |
-| `auth-plaintext` | Headless keyring (plaintext file backend)                             |
-| `auth-encrypted` | Headless keyring (encrypted file backend)                             |
-| `upsert`         | `PG_UPSERT` metacommand (pg-upsert)                                   |
-| `map`            | `PROMPT MAP` widget (tkintermapview)                                  |
-| `all-db`         | All database drivers                                                  |
-| `all`            | Everything (all-db + formats + formatter + auth + upsert + map + lsp) |
+| Extra            | Adds                                                                         |
+| ---------------- | ---------------------------------------------------------------------------- |
+| `postgres`       | PostgreSQL (psycopg)                                                         |
+| `mysql`          | MySQL / MariaDB (pymysql)                                                    |
+| `duckdb`         | DuckDB                                                                       |
+| `mssql`          | MS SQL Server (pyodbc)                                                       |
+| `odbc`           | Generic ODBC DSN (pyodbc)                                                    |
+| `firebird`       | Firebird                                                                     |
+| `oracle`         | Oracle (oracledb)                                                            |
+| `formats`        | ODS, Excel, Jinja2, Feather/Parquet, HDF5, YAML                              |
+| `formatter`      | SQL reformatting for `execsql format` (sqlglot)                              |
+| `lsp`            | `execsql lsp`, the language server for editors (pygls; includes `formatter`) |
+| `auth`           | OS keyring integration (desktop/native)                                      |
+| `auth-plaintext` | Headless keyring (plaintext file backend)                                    |
+| `auth-encrypted` | Headless keyring (encrypted file backend)                                    |
+| `upsert`         | `PG_UPSERT` metacommand (pg-upsert)                                          |
+| `map`            | `PROMPT MAP` widget (tkintermapview)                                         |
+| `all-db`         | All database drivers                                                         |
+| `all`            | Everything (all-db + formats + formatter + auth + upsert + map + lsp)        |
 
 Some databases also need software outside Python, such as an ODBC driver or a
 client library. These are listed in the [Requirements](requirements.md#requirements) section.

@@ -8,6 +8,7 @@ a program your editor starts in the background and talks to while you edit a
 - completes metacommands, conditional tests, variables and export formats;
 - explains what is under the cursor on hover;
 - offers quick fixes for misspelled metacommands, conditional tests and variables;
+- formats the document as `execsql format` does.
 - jumps to where a variable, SCRIPT or `INCLUDE`d file is defined, finds a variable's uses, and outlines the script.
 
 ```sql
@@ -68,9 +69,19 @@ underlined line). A fix is offered only when applying it clears the finding.
 | [V001](../reference/lint.md#v001) `!!report_dri!!`              | `Change !!report_dri!! to !!report_dir!!`: the closest variables the script defines, or system variables for `!!$...!!` |
 | [P002](../reference/lint.md#p002) a split `$$ ... $$` body      | Put the statement between `BEGIN SQL` and `END SQL`                                                                     |
 
+## Formatting { #formatting }
+
+Format Document (VS Code: Shift-Alt-F, or `editor.formatOnSave`) runs
+[`execsql format`](formatter.md) on the editor's text, with the
+`[format]` settings of the workspace's configuration (`indent`, `sql`,
+`leading_comma`), so the editor, the command line and the `execsql-format`
+pre-commit hook agree. The editor's own tab-size setting is not used. Only
+whole documents are formatted, not selections: a statement's indentation
+depends on the IF, LOOP and SCRIPT blocks around it.
+
 ## Install { #install }
 
-The server needs the `lsp` extra:
+The server needs the `lsp` extra, which includes the `formatter` extra:
 
 ```sh
 uv tool install "execsql2[lsp]"     # or: pipx install "execsql2[lsp]"
@@ -85,7 +96,8 @@ Check it with `execsql lsp --help`.
 The server works from your editor's workspace (project) folder and reads the
 same configuration files `execsql lint` reads when run there. The `[lint]`
 section's `select` and `ignore` decide which rules are shown, exactly as on the
-command line; see [Configuration](../reference/lint.md#config). Restart the
+command line (see [Configuration](../reference/lint.md#config)), and the
+`[format]` section sets how Format Document lays the script out. Restart the
 server (or the editor) after changing them.
 
 ## VS Code { #vscode }
