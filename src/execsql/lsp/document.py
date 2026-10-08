@@ -62,6 +62,7 @@ class ScriptIndex:
     scripts: dict[str, Location] = field(default_factory=dict)  # BEGIN SCRIPT name (lower case) -> where
     script_params: dict[str, list[str]] = field(default_factory=dict)  # script name -> its #parameters
     includes: list[tuple[Location, str]] = field(default_factory=list)  # (where the target is written, resolved path)
+    script_calls: list[tuple[Location, str]] = field(default_factory=list)  # EXECUTE SCRIPT name, in this file
     references: list[Reference] = field(default_factory=list)  # in this file only
 
     def define(self, name: str, location: Location) -> None:
@@ -106,7 +107,11 @@ def _index_into(index: ScriptIndex, source: str, path: str | None, seen: set[str
             start, end = _span_of(node.name, text)
             index.scripts.setdefault(node.name.lower(), Location(path, row, start, end))
             index.script_params[node.name.lower()] = [p.name for p in node.param_defs or []]
-        elif isinstance(node, IncludeDirective) and not node.is_execute_script:
+        elif isinstance(node, IncludeDirective) and node.is_execute_script:
+            if top:
+                start, end = _span_of(node.target, text)
+                index.script_calls.append((Location(path, row, start, end), node.target.lower()))
+        elif isinstance(node, IncludeDirective):
             target = node.target.strip().strip("\"'")
             start, end = _span_of(target, text) if target else (0, len(text))
             resolved = Path(target) if Path(target).is_absolute() or script_dir is None else script_dir / target

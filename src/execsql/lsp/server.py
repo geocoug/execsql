@@ -15,6 +15,7 @@ from execsql.lsp.completion import completions
 from execsql.lsp.diagnostics import diagnostics
 from execsql.lsp.document import ScriptIndex, index_script
 from execsql.lsp.hover import hover
+from execsql.lsp.navigation import definition, document_links, document_symbols, references
 
 __all__ = ["ExecsqlLanguageServer", "create_server"]
 
@@ -132,5 +133,30 @@ def create_server() -> ExecsqlLanguageServer:
         uri = params.text_document.uri
         source = ls.workspace.get_text_document(uri).source
         return hover(ls.index(uri), source, params.position.line, params.position.character)
+
+    @server.feature(types.TEXT_DOCUMENT_DEFINITION)
+    def on_definition(ls: ExecsqlLanguageServer, params: types.DefinitionParams) -> list[types.Location]:
+        uri = params.text_document.uri
+        return definition(ls.index(uri), uri, params.position.line, params.position.character)
+
+    @server.feature(types.TEXT_DOCUMENT_REFERENCES)
+    def on_references(ls: ExecsqlLanguageServer, params: types.ReferenceParams) -> list[types.Location]:
+        uri = params.text_document.uri
+        return references(
+            ls.index(uri),
+            uri,
+            params.position.line,
+            params.position.character,
+            include_declaration=params.context.include_declaration,
+        )
+
+    @server.feature(types.TEXT_DOCUMENT_DOCUMENT_SYMBOL)
+    def on_symbols(ls: ExecsqlLanguageServer, params: types.DocumentSymbolParams) -> list[types.DocumentSymbol]:
+        uri = params.text_document.uri
+        return document_symbols(ls.index(uri), ls.workspace.get_text_document(uri).source)
+
+    @server.feature(types.TEXT_DOCUMENT_DOCUMENT_LINK)
+    def on_links(ls: ExecsqlLanguageServer, params: types.DocumentLinkParams) -> list[types.DocumentLink]:
+        return document_links(ls.index(params.text_document.uri))
 
     return server
