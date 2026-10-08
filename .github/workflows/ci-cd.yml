@@ -24,7 +24,13 @@ jobs:
             - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
               with:
                   python-version: "3.13"
-            - run: python -m pip install ruff
+            # The ruff that pre-commit runs, so the two jobs cannot disagree;
+            # tests/test_tooling_versions.py keeps uv.lock on the same version.
+            - name: Install the ruff pinned in .pre-commit-config.yaml
+              run: |
+                  version=$(grep -A1 'astral-sh/ruff-pre-commit' .pre-commit-config.yaml | grep -oP 'rev: v\K[0-9.]+')
+                  echo "ruff $version"
+                  python -m pip install "ruff==$version"
             - run: ruff check src/ tests/
             - run: ruff format --check src/ tests/
 
@@ -38,10 +44,12 @@ jobs:
             - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
               with:
                   python-version: "3.13"
-                  cache: "pip"
-            - run: python -m pip install --upgrade pip
-            - run: python -m pip install ".[dev]"
-            - run: mypy src/execsql/
+            - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7  # v10.2.0
+            # The environment `just setup` builds: mypy and the packages it
+            # type-checks against come from uv.lock, so CI and local runs agree.
+            # --locked also fails the job when uv.lock is out of date.
+            - run: uv sync --locked --all-extras
+            - run: uv run --no-sync mypy src/execsql/
 
     formatter-corpus:
         name: formatter-corpus

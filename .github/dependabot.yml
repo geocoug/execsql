@@ -19,3 +19,30 @@ updates:
               update-types:
                   - minor
                   - patch
+    # Python packages in uv.lock (the development environment; users resolve
+    # their own versions from pyproject.toml). ruff is bumped through the
+    # pre-commit entry below: tests/test_tooling_versions.py requires the
+    # uv.lock ruff to equal the pre-commit rev, so on that PR run
+    # `uv lock --upgrade-package ruff==<new version>` and push.
+    - package-ecosystem: uv
+      directory: /
+      schedule:
+          interval: weekly
+      ignore:
+          - dependency-name: ruff
+      groups:
+          python-minor-and-patch:
+              patterns:
+                  - "*"
+              update-types:
+                  - minor
+                  - patch
+    # Hook revs in .pre-commit-config.yaml.
+    - package-ecosystem: pre-commit
+      directory: /
+      schedule:
+          interval: weekly
+      groups:
+          pre-commit-hooks:
+              patterns:
+                  - "*"
