@@ -491,6 +491,17 @@ class TestParseConnectionString:
         assert r["password"] == "s3cr3t"
         assert r["port"] == 5432
 
+    def test_percent_encoded_user_password_and_database_are_decoded(self):
+        """A password containing @ : / ? # % is written percent-encoded, as in any URL."""
+        r = self._fn("postgresql://u%40x:p%40ss%2Fw%3A%23%3F%25@h:5432/my%20db")
+        assert (r["user"], r["password"], r["db"]) == ("u@x", "p@ss/w:#?%", "my db")
+
+    def test_a_percent_encoded_file_path_is_decoded(self):
+        assert self._fn("sqlite:///data/my%20file.db")["db_file"] == "data/my file.db"
+
+    def test_a_plain_password_is_unchanged(self):
+        assert self._fn("postgresql://alice:s3cr3t-pa$$@h/db")["password"] == "s3cr3t-pa$$"
+
     def test_postgres_scheme_alias(self):
         r = self._fn("postgres://host/db")
         assert r["db_type"] == "p"
