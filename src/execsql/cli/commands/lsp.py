@@ -15,8 +15,8 @@ __all__ = ["lsp_cmd"]
     name="lsp",
     help=(
         "Run the execsql language server on stdin/stdout, for an editor to start. "
-        "Shows execsql lint findings as you type and completes metacommands, "
-        "conditional tests and variables. Needs the lsp extra: "
+        "Shows execsql lint findings as you type, completes metacommands, "
+        "conditional tests and variables, and explains them on hover. Needs the lsp extra: "
         'uv tool install "execsql2[lsp]".'
     ),
 )
