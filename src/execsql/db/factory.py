@@ -64,7 +64,16 @@ def db_Postgres(
     password: str | None = None,
 ) -> PostgresDatabase:
     """Open a new PostgreSQL connection via psycopg (psycopg3)."""
-    return PostgresDatabase(server_name, database_name, user, pw_needed, port, new_db=new_db, password=password)
+    return PostgresDatabase(
+        server_name,
+        database_name,
+        user,
+        pw_needed,
+        port,
+        new_db=new_db,
+        encoding=encoding,
+        password=password,
+    )
 
 
 def db_SQLite(

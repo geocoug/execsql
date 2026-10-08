@@ -31,6 +31,7 @@ ______________________________________________________________________
 
 ### Fixed
 
+- **`-n` with `-e` on PostgreSQL** creates the database with the given encoding, as `CONNECT TO POSTGRESQL(..., ENCODING=..., NEW)` already did. `-e` (or `[encoding] database` in a config file) was ignored and the database was always UTF8. PostgreSQL refuses an encoding other than its template database's, usually UTF8, so `-n -e LATIN1` on such a server now stops with PostgreSQL's error instead of quietly creating a UTF8 database.
 - **`execsql.log` `run_db_file` record** names the database file for SQLite, DuckDB and Access runs; it was blank.
 - **`execsql.log` `exit` record:** a run that ends with an error, a `HALT` or a cancelled prompt now writes its `exit` record (type `error` or `halt`, with the message); only successful runs did. Ctrl-C is recorded as `interrupted` instead of `unknown`.
 - **`IMPORT ... TO NEW` and `COPY ... TO NEW` onto a table that already exists** stop with `Table <name> already exists` before creating anything, on every DBMS, instead of each database's own CREATE TABLE error.
