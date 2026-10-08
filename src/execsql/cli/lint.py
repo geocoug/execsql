@@ -82,6 +82,7 @@ __all__ = [
     "filter_issues",
     "lint",
     "lint_source",
+    "variables_defined_by",
     "parse_error",
     "print_concise",
     "print_statistics",
@@ -428,6 +429,18 @@ def _extract_var_definition(
         ini_section = ini_m.group("section")
         if ini_file and not _RX_VAR_REF.search(ini_file):
             _read_ini_vars(ini_file, ini_section, script_dir, defined)
+
+
+def variables_defined_by(command: str, script_dir: Path | None = None) -> set[str]:
+    """The variable names (upper case, without ``~``/``+``) a metacommand defines.
+
+    *command* is the text after ``-- !x!``.  Covers the SUB family, the
+    prompts that store an answer, SUB_QUERYSTRING and SUB_INI (whose INI file
+    is read, relative to *script_dir*).
+    """
+    defined: set[str] = set()
+    _extract_var_definition(command, script_dir, defined)
+    return defined
 
 
 # Larger than any real SUB_INI file; lint reads no more than this.

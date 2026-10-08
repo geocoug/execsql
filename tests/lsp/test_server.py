@@ -87,3 +87,16 @@ async def test_lint_settings_come_from_the_workspace_config(configured_client: L
     uri = _open(configured_client, "d.sql", BAD + "-- !x! IF(hasrowz(t))\n-- !x! ENDIF\n")
     await configured_client.wait_for_notification(types.TEXT_DOCUMENT_PUBLISH_DIAGNOSTICS)
     assert [d.code for d in configured_client.diagnostics[uri]] == ["P004"]
+
+
+@pytest.mark.asyncio
+async def test_completion_after_the_metacommand_marker(client: LanguageClient):
+    uri = _open(client, "e.sql", "-- !x! SUB report_dir /tmp\n-- !x! exp\n")
+    result = await client.text_document_completion_async(
+        types.CompletionParams(
+            text_document=types.TextDocumentIdentifier(uri=uri),
+            position=types.Position(line=1, character=10),
+        ),
+    )
+    labels = {item.label for item in result.items}
+    assert {"EXPORT", "EXPORT QUERY"} <= labels

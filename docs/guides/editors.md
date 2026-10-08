@@ -2,9 +2,10 @@
 
 `execsql lsp` is a [language server](https://microsoft.github.io/language-server-protocol/):
 a program your editor starts in the background and talks to while you edit a
-`.sql` file. It shows the problems `execsql lint` would report, underlined on
-the lines they are on, as you type, without running the script or connecting
-to a database.
+`.sql` file. Without running the script or connecting to a database, it:
+
+- shows the problems `execsql lint` would report, underlined on their lines, as you type;
+- completes metacommands, conditional tests, variables and export formats.
 
 ```sql
 -- !x! EXPROT orders TO out.csv AS CSV
@@ -15,6 +16,20 @@ to a database.
 
 Each finding carries its rule code; most editors link the code to its entry in
 the [lint rules reference](../reference/lint.md#lint).
+
+## Completion { #completion }
+
+What is offered depends on where the cursor is:
+
+| Where                                                                                                                       | Offered                                                                                                                                                                                                                            |
+| --------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| After `-- !x!`                                                                                                              | Every metacommand, one entry per syntax form, with its summary and a link to its reference. Choosing one inserts a template: `EXPORT ${table_or_view} TO ${filename} AS ${format}`, where Tab moves between the values to fill in. |
+| Inside a condition: `IF(`, `ELSEIF(`, `ANDIF(`, `ORIF(`, `LOOP WHILE (`, `ASSERT`, `WAIT_UNTIL`, after `AND` / `OR` / `NOT` | The conditional tests, e.g. `HASROWS(${table_or_view})`.                                                                                                                                                                           |
+| After `!!` (or `!{`, `!'!`, `!"!`)                                                                                          | The script's own variables, with the line that defines them (including variables set in `INCLUDE`d files), SCRIPT parameters (`#name`) and system variables (`$CURRENT_DATE`, ...). The closing `!!` is added.                     |
+| After `EXPORT ... AS`                                                                                                       | The export formats.                                                                                                                                                                                                                |
+
+The syntax shown is the reference documentation's: `<value>` to fill in,
+`[...]` optional, `A|B` a choice.
 
 ## Install { #install }
 

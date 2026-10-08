@@ -11,7 +11,9 @@ from pygls.lsp.server import LanguageServer
 from pygls.uris import to_fs_path
 
 from execsql import __version__
+from execsql.lsp.completion import completions
 from execsql.lsp.diagnostics import diagnostics
+from execsql.lsp.document import ScriptIndex, index_script
 
 __all__ = ["ExecsqlLanguageServer", "create_server"]
 
@@ -48,6 +50,16 @@ class ExecsqlLanguageServer(LanguageServer):
             self.window_show_message(
                 types.ShowMessageParams(type=types.MessageType.Warning, message=f"execsql config: {exc}"),
             )
+
+    def index(self, uri: str) -> ScriptIndex:
+        """The current document's index (rebuilt per request: a few milliseconds)."""
+        document = self.workspace.get_text_document(uri)
+        return index_script(document.source, to_fs_path(uri))
+
+    def supports_snippets(self) -> bool:
+        caps = self.client_capabilities.text_document
+        item = caps.completion.completion_item if caps and caps.completion else None
+        return bool(item and item.snippet_support)
 
     def publish(self, uri: str) -> None:
         """Lint the document's current text and publish the result."""
@@ -98,5 +110,20 @@ def create_server() -> ExecsqlLanguageServer:
         if pending is not None:
             pending.cancel()
         ls.text_document_publish_diagnostics(types.PublishDiagnosticsParams(uri=uri, diagnostics=[]))
+
+    @server.feature(
+        types.TEXT_DOCUMENT_COMPLETION,
+        types.CompletionOptions(trigger_characters=["!", "(", "{", "$", " "]),
+    )
+    def completion(ls: ExecsqlLanguageServer, params: types.CompletionParams) -> types.CompletionList:
+        uri = params.text_document.uri
+        source = ls.workspace.get_text_document(uri).source
+        return completions(
+            ls.index(uri),
+            source,
+            params.position.line,
+            params.position.character,
+            snippets=ls.supports_snippets(),
+        )
 
     return server
