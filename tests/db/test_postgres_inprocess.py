@@ -173,10 +173,6 @@ class TestConstructionAndConnection:
     def test_paramsubs(self, db):
         assert db.paramsubs(3) == "%s,%s,%s"
 
-    def test_encode_commands_false(self, db):
-        # PG accepts unicode strings directly
-        assert db.encode_commands is False
-
     def test_encoding_set_from_server(self, db):
         # After open_db(), encoding mirrors the server's encoding (usually UTF8)
         assert db.encoding.upper().replace("-", "") == "UTF8"

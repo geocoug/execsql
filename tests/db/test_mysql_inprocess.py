@@ -153,10 +153,6 @@ class TestConstructionAndConnection:
     def test_paramstr(self, db):
         assert db.paramstr == "%s"
 
-    def test_encode_commands_true(self, db):
-        # MySQL adapter encodes SQL bytes
-        assert db.encode_commands is True
-
     def test_connection_failure_raises(self):
         with pytest.raises(ErrInfo):
             MySQLDatabase(

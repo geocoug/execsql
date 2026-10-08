@@ -53,7 +53,6 @@ class SqlServerDatabase(Database):
         self.type = dbt_sqlserver
         self.password = password
         self.encoding = encoding or "latin1"  # Default on installation of SQL Server
-        self.encode_commands = True
         self.paramstr = "?"
         self.open_db()
         self.password = None  # Clear cleartext password after successful connection

@@ -58,7 +58,6 @@ class MyDBDatabase(Database):
         self.user = None
         self.need_passwd = False
         self.encoding = "UTF-8"
-        self.encode_commands = False
         self.paramstr = "?"      # placeholder style: "?" for most drivers, "%s" for psycopg
         self.conn = None
         self.autocommit = True
@@ -134,23 +133,22 @@ class MyDBDatabase(Database):
 
 These are the instance attributes and methods you must configure correctly:
 
-| Attribute / Method     | Type              | Purpose                                                                           |
-| ---------------------- | ----------------- | --------------------------------------------------------------------------------- |
-| `self.type`            | `DbType`          | DBMS type token (e.g., `dbt_sqlite`). Controls quoting and type-mapping.          |
-| `self.paramstr`        | `str`             | SQL parameter placeholder: `"?"` (most drivers) or `"%s"` (psycopg, PyMySQL).     |
-| `self.encoding`        | `str`             | Database character encoding. Detect from the database on connect if possible.     |
-| `self.encode_commands` | `bool`            | `True` if SQL strings should be encoded before passing to the driver.             |
-| `self.autocommit`      | `bool`            | `True` means the driver commits automatically; `False` requires explicit commits. |
-| `self.conn`            | driver connection | Set in `open_db()`.                                                               |
-| `open_db()`            | method            | **Must override.** Establish the connection and assign `self.conn`.               |
-| `table_exists()`       | method            | **Must override.** Query the DBMS catalog. Use parameterized queries.             |
-| `column_exists()`      | method            | **Must override.** Check column presence.                                         |
-| `table_columns()`      | method            | **Must override.** Return column names for a table.                               |
-| `view_exists()`        | method            | **Must override.** Check view presence.                                           |
-| `schema_exists()`      | method            | **Must override.** Return `False` if schemas are not supported.                   |
-| `drop_table()`         | method            | **Must override.** Drop a table (used by IMPORT when creating fresh).             |
-| `populate_table()`     | method            | **Must override.** Bulk-load rows from a generator (used by IMPORT).              |
-| `exec_cmd()`           | method            | Override if the DBMS can execute stored procedures or views as commands.          |
+| Attribute / Method | Type              | Purpose                                                                           |
+| ------------------ | ----------------- | --------------------------------------------------------------------------------- |
+| `self.type`        | `DbType`          | DBMS type token (e.g., `dbt_sqlite`). Controls quoting and type-mapping.          |
+| `self.paramstr`    | `str`             | SQL parameter placeholder: `"?"` (most drivers) or `"%s"` (psycopg, PyMySQL).     |
+| `self.encoding`    | `str`             | Database character encoding. Detect from the database on connect if possible.     |
+| `self.autocommit`  | `bool`            | `True` means the driver commits automatically; `False` requires explicit commits. |
+| `self.conn`        | driver connection | Set in `open_db()`.                                                               |
+| `open_db()`        | method            | **Must override.** Establish the connection and assign `self.conn`.               |
+| `table_exists()`   | method            | **Must override.** Query the DBMS catalog. Use parameterized queries.             |
+| `column_exists()`  | method            | **Must override.** Check column presence.                                         |
+| `table_columns()`  | method            | **Must override.** Return column names for a table.                               |
+| `view_exists()`    | method            | **Must override.** Check view presence.                                           |
+| `schema_exists()`  | method            | **Must override.** Return `False` if schemas are not supported.                   |
+| `drop_table()`     | method            | **Must override.** Drop a table (used by IMPORT when creating fresh).             |
+| `populate_table()` | method            | **Must override.** Bulk-load rows from a generator (used by IMPORT).              |
+| `exec_cmd()`       | method            | Override if the DBMS can execute stored procedures or views as commands.          |
 
 Methods inherited from `Database` that you get for free include `execute()`, `cursor()`, `close()`, `commit()`, `rollback()`, `select_rowsource()`, `select_data()`, `schema_qualified_table_name()`, `quote_identifier()`, and `paramsubs()`.
 

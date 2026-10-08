@@ -45,7 +45,6 @@ class SQLiteDatabase(Database):
             encoding="UTF-8",
         )
         self.type = dbt_sqlite
-        self.encode_commands = False
         self.timeout = timeout
         self.open_db()
 

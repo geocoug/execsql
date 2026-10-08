@@ -54,8 +54,7 @@ class WriteableZipfile:
             date_time=time.localtime(time.time())[:6],
         )
         self.current_zinfo.compress_type = self.zf.compression
-        if sys.version_info.major >= 3 and sys.version_info.minor >= 7:
-            self.current_zinfo._compresslevel = self.zf.compresslevel  # type: ignore[attr-defined]
+        self.current_zinfo._compresslevel = self.zf.compresslevel  # type: ignore[attr-defined]
         # See https://stackoverflow.com/questions/434641/how-do-i-set-permissions-attributes-on-a-file-in-a-zip-file-using-pythons-zip
         self.current_zinfo.external_attr = 0o100755 << 16  # ?rw-rw-rw-
         if sys.platform.startswith("win"):

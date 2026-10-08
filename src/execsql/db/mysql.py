@@ -99,7 +99,6 @@ class MySQLDatabase(Database):
         # Greek, or Cyrillic at all — it raises UnicodeEncodeError before the
         # server is reached — so it silently capped what execsql could move.
         self.encoding = encoding or "utf8mb4"
-        self.encode_commands = True
         self.paramstr = "%s"
         self.open_db()
         self.password = None  # Clear cleartext password after successful connection
