@@ -81,6 +81,7 @@ class ExecsqlLanguageServer(LanguageServer):
                 "indent": conf.format_indent,
                 "use_sql": conf.format_sql,
                 "leading_comma": conf.format_leading_comma,
+                "rewrite_sql": conf.format_rewrite_sql,
             }
         except Exception as exc:  # a bad config must not take the server down
             self.window_show_message(
