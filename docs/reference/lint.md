@@ -324,6 +324,7 @@ Not reported:
 
 - System variables (`!!$DATE_TAG!!`, `!!$DB_NAME!!`, …), `!!$ARG_n!!` set with `-a`, and `!!$COUNTER_n!!`.
 - References with the `&` (environment), `@` (column), `~` (local), `#` and `+` prefixes, which resolve only at run time.
+- A name built from another variable, such as `!!N_!!CHECK_GROUP!!_CHECKS!!`. execsql substitutes `!!CHECK_GROUP!!` first, so the outer name is only known at run time. Lint checks the inner variable: if `CHECK_GROUP` is undefined, `!!CHECK_GROUP!!` is reported, not the fragments `!!N_!!` and `!!_CHECKS!!`.
 
 Variables defined somewhere lint cannot see are reported: in a configuration file, on the command line other than as `$ARG_n`, or in a file pulled in with `INCLUDE` (lint does not read `INCLUDE`d files for definitions). If that is how a library works, `--ignore V001` for those scripts.
 

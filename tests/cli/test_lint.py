@@ -716,6 +716,46 @@ class TestUnusedVariables:
         unused = [i for i in issues if i.code == "V002"]
         assert unused and unused[0].line == 2, unused
 
+    def test_a_reference_inside_another_name_counts(self, tmp_path):
+        body = "-- !x! SUB grp east\n-- !x! SUB N_east_CHECKS 12\nSELECT !!N_!!grp!!_CHECKS!!;\n"
+        unused = [i.message for i in _lint(tmp_path, body) if i.code == "V002"]
+        assert not any("grp" in m for m in unused), unused
+
+
+class TestNestedVariableNames:
+    """``!!N_!!GROUP!!_CHECKS!!`` names the variable N_<value of GROUP>_CHECKS; execsql substitutes the inner one first."""
+
+    @staticmethod
+    def _undefined(tmp_path, body):
+        return [i.message for i in _lint(tmp_path, body) if i.code == "V001"]
+
+    def test_a_defined_inner_variable_is_not_reported(self, tmp_path):
+        body = (
+            "-- !x! SUB grp east\n"
+            "-- !x! SUB N_!!grp!!_CHECKS 12\n"
+            "-- !x! WRITE !!N_!!grp!!_CHECKS!!\n"
+            "SELECT !!N_!!grp!!_CHECKS!!;\n"
+        )
+        assert self._undefined(tmp_path, body) == []
+
+    def test_an_undefined_inner_variable_is_reported_not_the_fragments(self, tmp_path):
+        assert self._undefined(tmp_path, "SELECT !!N_!!nogrp!!_CHECKS!!;\n") == ["undefined variable !!nogrp!!"]
+
+    def test_three_levels(self, tmp_path):
+        assert self._undefined(tmp_path, "-- !x! SUB c X\nSELECT !!A_!!B_!!c!!_D!!_E!!;\n") == []
+
+    def test_a_system_variable_inside_a_name(self, tmp_path):
+        assert self._undefined(tmp_path, "SELECT !!N_!!$counter_1!!_X!!;\n") == []
+
+    def test_adjacent_references_are_each_checked(self, tmp_path):
+        assert self._undefined(tmp_path, "-- !x! SUB a 1\nSELECT !!a!!!!b!!;\n") == ["undefined variable !!b!!"]
+
+    def test_a_plain_undefined_variable_is_still_reported(self, tmp_path):
+        assert self._undefined(tmp_path, "SELECT !!a!!, !!b!!;\n") == [
+            "undefined variable !!a!!",
+            "undefined variable !!b!!",
+        ]
+
 
 class TestTheProjectsOwnScriptsStayQuiet:
     """A rule that fires on correct scripts is worse than no rule.
