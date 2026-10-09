@@ -86,6 +86,7 @@ SURFACE: dict[str, dict[str, object]] = {
             "--diff",
             "--indent",
             "--leading-comma --no-leading-comma",
+            "--rewrite-sql --no-rewrite-sql",
             "--sql --no-sql",
             "-f --script-encoding",
             "-i --in-place",

@@ -2804,3 +2804,57 @@ class TestRegressions:
         result = format_file(source, use_sql=True)
         for col in ["id", "name", "value"]:
             assert col in result, f"Column '{col}' dropped from INSERT"
+
+
+class TestLayoutOnly:
+    """By default only layout and keyword case change; sqlglot's rewrites need rewrite_sql (#72)."""
+
+    @pytest.fixture(autouse=True)
+    def _sqlglot(self):
+        pytest.importorskip("sqlglot")
+
+    @pytest.mark.parametrize(
+        "statement",
+        [
+            "select x::int from t;",
+            "select count(*) n from t;",
+            "create table t (a integer, b numeric(10,2));",
+            "select btrim(name) from t;",
+            "select a from t where a != b;",
+        ],
+    )
+    def test_a_statement_sqlglot_would_rewrite_is_kept_as_written(self, statement):
+        assert format_file(statement + "\n") == statement + "\n"
+
+    def test_rewrite_sql_accepts_the_rewrite(self):
+        assert "CAST(x AS INT)" in format_file("select x::int from t;\n", rewrite_sql=True)
+
+    def test_only_the_rewritten_statement_is_kept(self):
+        out = format_file("select a, b from t;\nselect btrim(n) from u;\nselect c from v;\n")
+        assert out == "SELECT\n    a,\n    b\nFROM t;\nselect btrim(n) from u;\nSELECT\n    c\nFROM v;\n"
+
+    def test_a_statement_already_in_sqlglot_form_is_formatted(self):
+        assert format_file("select cast(x as int) as n from t;\n") == "SELECT\n    CAST(x AS INT) AS n\nFROM t;\n"
+
+    def test_keyword_case_alone_is_not_a_rewrite(self):
+        assert format_file("select a from t where b = 'Mixed Case';\n") == (
+            "SELECT\n    a\nFROM t\nWHERE\n    b = 'Mixed Case';\n"
+        )
+
+    def test_a_kept_statement_keeps_its_comments_and_is_stable(self):
+        source = "select\n    x::int, -- the id\n    -- the name\n    y\nfrom t;\n"
+        once = format_file(source)
+        assert once == source
+        assert format_file(once) == once
+
+    def test_inside_a_block_the_kept_statement_is_stable(self):
+        source = "-- !x! IF(True)\nselect x::int from t;\nselect a from u;\n-- !x! ENDIF\n"
+        once = format_file(source)
+        assert "select x::int from t;" in once
+        assert format_file(once) == once
+
+    @pytest.mark.parametrize("rewrite_sql", [False, True])
+    def test_both_modes_are_idempotent(self, rewrite_sql):
+        source = "select x::int, count(*) n from t where a != b;\nselect a, b from u;\n"
+        once = format_file(source, rewrite_sql=rewrite_sql)
+        assert format_file(once, rewrite_sql=rewrite_sql) == once

@@ -51,6 +51,15 @@ def format_cmd(
         help="Commas at the start of lines instead of the end. Default: [format] leading_comma, else off.",
         show_default=False,
     ),
+    rewrite_sql: bool | None = typer.Option(
+        None,
+        "--rewrite-sql/--no-rewrite-sql",
+        help=(
+            "Also let sqlglot rewrite SQL text (x::int as CAST(x AS INT), BTRIM as TRIM, an alias with AS); "
+            "without it such a statement is kept as written. Default: [format] rewrite_sql, else off."
+        ),
+        show_default=False,
+    ),
     script_encoding: ScriptEncodingOpt = None,
     # The old spelling of --script-encoding, kept working but out of --help.
     encoding: str | None = typer.Option(None, "--encoding", metavar="NAME", hidden=True),
@@ -92,6 +101,7 @@ def format_cmd(
             no_sql=no_sql,
             indent=conf.format_indent if indent is None else indent,
             leading_comma=conf.format_leading_comma if leading_comma is None else leading_comma,
+            rewrite_sql=conf.format_rewrite_sql if rewrite_sql is None else rewrite_sql,
             encoding=script_encoding or encoding or _configured_script_encoding(conf) or "utf-8",
         ),
     )
