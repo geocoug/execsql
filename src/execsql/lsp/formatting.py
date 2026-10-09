@@ -14,12 +14,19 @@ def format_document(
     indent: int = 4,
     use_sql: bool = True,
     leading_comma: bool = False,
+    rewrite_sql: bool = False,
 ) -> list[types.TextEdit]:
     """One edit replacing the whole document with its formatted text; none when it is already formatted.
 
     The options are ``execsql format``'s, from the ``[format]`` config section.
     """
-    formatted = format_file(source, indent=indent, use_sql=use_sql, leading_comma=leading_comma)
+    formatted = format_file(
+        source,
+        indent=indent,
+        use_sql=use_sql,
+        leading_comma=leading_comma,
+        rewrite_sql=rewrite_sql,
+    )
     if formatted == source:
         return []
     lines = source.splitlines(keepends=True)

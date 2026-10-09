@@ -33,3 +33,10 @@ def test_format_options_apply():
     (edit,) = format_document(SCRIPT, indent=2, use_sql=False)
     assert edit.new_text == format_file(SCRIPT, indent=2, use_sql=False)
     assert "select a,b from t where x=1;" in edit.new_text
+
+
+def test_a_statement_sqlglot_would_rewrite_is_kept_unless_rewrite_sql():
+    source = "select x::int from t;\n"
+    assert format_document(source) == []  # layout only: nothing to change
+    [edit] = format_document(source, rewrite_sql=True)
+    assert "CAST(x AS INT)" in edit.new_text
