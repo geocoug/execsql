@@ -243,6 +243,12 @@ _RX_PROMPT_CREDENTIALS = re.compile(
 )
 
 _RX_VAR_REF = re.compile(r"!!([$@&~#+]?\w+)!!", re.I)
+# Every candidate reference, including one nested in another's name
+# (``!!N_!!GROUP!!_CHECKS!!``), which _RX_VAR_REF's left-to-right scan skips.
+_RX_VAR_REF_ANY = re.compile(r"(?=!!([$@&~#+]?\w+)!!)")
+# Stands for a substituted value in _unresolved_var_refs: a word character
+# (so an enclosing name still matches) that no script name contains.
+_SUBSTITUTED = "ª"
 
 
 # ---------------------------------------------------------------------------
@@ -447,6 +453,63 @@ def _read_ini_vars(
             defined_vars.add(key.upper())
 
 
+def _is_known_var(raw_name: str, defined_vars: set[str]) -> bool:
+    """Whether execsql may substitute *raw_name* (as written, with its sigil) at run time."""
+    sigil = raw_name[0] if raw_name[0] in ("$", "@", "&", "~", "#", "+") else ""
+    name = raw_name[len(sigil) :]
+
+    # Skip non-$ sigil prefixes — resolved at runtime
+    if sigil in ("@", "&", "~", "#", "+"):
+        return True
+
+    if sigil == "$":
+        # System variables: $ARG_N is set with -a/--assign-arg, $COUNTER_N by
+        # CounterVars, the rest by execsql itself.  A SUB cannot define one.
+        return bool(re.match(r"^(?:ARG|COUNTER)_\d+$", name, re.I)) or name.upper() in _get_builtin_vars()
+    # User variables, defined by a SUB-family metacommand or a prompt.
+    return name.upper() in defined_vars
+
+
+def _unresolved_var_refs(text: str, defined_vars: set[str]) -> list[str]:
+    """The variable names in *text* that execsql would leave unsubstituted, as written.
+
+    execsql substitutes a known variable wherever ``!!name!!`` appears and
+    repeats until nothing changes, so a variable written inside another's
+    name (``!!N_!!GROUP!!_CHECKS!!``) is replaced first, and the outer name
+    is only known at run time: it is not checked.  Here each known variable
+    is replaced by a placeholder character, a name holding one counts as
+    known, and that repeats until nothing is replaced.
+
+    In a run of unknown candidates that share delimiters, the inner ones
+    (every second, from the second) are reported: with ``GROUP`` undefined,
+    ``!!N_!!GROUP!!_CHECKS!!`` reports ``GROUP``, not the fragments ``N_``
+    and ``_CHECKS``.
+    """
+    while True:
+        parts: list[str] = []
+        end = 0
+        for m in _RX_VAR_REF_ANY.finditer(text):
+            name = m.group(1)
+            if m.start() >= end and (_SUBSTITUTED in name or _is_known_var(name, defined_vars)):
+                parts += [text[end : m.start()], _SUBSTITUTED]
+                end = m.start() + len(name) + 4
+        if not parts:
+            break
+        text = "".join([*parts, text[end:]])
+
+    unresolved: list[str] = []
+    run: list[str] = []
+    end = -1
+    for m in _RX_VAR_REF_ANY.finditer(text):
+        if run and m.start() != end - 2:  # not sharing the previous candidate's closing !!
+            unresolved.extend(run if len(run) == 1 else run[1::2])
+            run = []
+        run.append(m.group(1))
+        end = m.start() + len(m.group(1)) + 4
+    unresolved.extend(run if len(run) == 1 else run[1::2])
+    return unresolved
+
+
 def _check_var_ref(
     raw_name: str,
     source: str,
@@ -455,23 +518,7 @@ def _check_var_ref(
     issues: list[_Issue],
 ) -> None:
     """Emit a warning if *raw_name* looks like an undefined user variable."""
-    if not raw_name:
-        return
-
-    sigil = raw_name[0] if raw_name[0] in ("$", "@", "&", "~", "#", "+") else ""
-    name = raw_name[len(sigil) :]
-
-    # Skip non-$ sigil prefixes — resolved at runtime
-    if sigil in ("@", "&", "~", "#", "+"):
-        return
-
-    if sigil == "$":
-        # System variables: $ARG_N is set with -a/--assign-arg, $COUNTER_N by
-        # CounterVars, the rest by execsql itself.  A SUB cannot define one.
-        if re.match(r"^(?:ARG|COUNTER)_\d+$", name, re.I) or name.upper() in _get_builtin_vars():
-            return
-    elif name.upper() in defined_vars:
-        # User variables, defined by a SUB-family metacommand or a prompt.
+    if not raw_name or _is_known_var(raw_name, defined_vars):
         return
 
     issues.append(
@@ -735,7 +782,7 @@ def _collect_var_references(nodes: list[Node], seen: set[str]) -> None:
     """Record every variable read anywhere beneath *nodes*: ``!!var!!``, or ``sub_defined(var)`` / ``sub_empty(var)``."""
     for node in nodes:
         for text in _referencing_text(node):
-            for m in _RX_VAR_REF.finditer(text):
+            for m in _RX_VAR_REF_ANY.finditer(text):
                 seen.add(m.group(1).lstrip("$@&~#+").upper())
             for m in _RX_VAR_TEST.finditer(text):
                 seen.add(m.group(1).lstrip("$@&~#+").upper())
@@ -826,14 +873,14 @@ def _lint_nodes(
 
         # -- Variable references in SQL --
         if isinstance(node, SqlStatement):
-            for m in _RX_VAR_REF.finditer(node.text):
-                _check_var_ref(m.group(1), src, lno, defined_vars, issues)
+            for name in _unresolved_var_refs(node.text, defined_vars):
+                _check_var_ref(name, src, lno, defined_vars, issues)
 
         # -- Metacommand checks --
         elif isinstance(node, MetaCommandStatement):
             _check_metacommand(node, issues)
-            for m in _RX_VAR_REF.finditer(node.command):
-                _check_var_ref(m.group(1), src, lno, defined_vars, issues)
+            for name in _unresolved_var_refs(node.command, defined_vars):
+                _check_var_ref(name, src, lno, defined_vars, issues)
 
         # -- IncludeDirective checks --
         elif isinstance(node, IncludeDirective):
