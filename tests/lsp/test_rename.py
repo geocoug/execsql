@@ -6,7 +6,10 @@ import pytest
 
 pytest.importorskip("pygls")
 
+from pathlib import Path  # noqa: E402
+
 from lsprotocol import types  # noqa: E402
+from pygls.uris import to_fs_path  # noqa: E402
 
 from execsql.lsp.document import index_script  # noqa: E402
 from execsql.lsp.rename import RenameError, prepare_rename, rename  # noqa: E402
@@ -57,7 +60,8 @@ def test_uses_in_an_included_file_are_renamed(tmp_path):
     edit = rename(index_script(text, str(main)), main.as_uri(), 1, 11, "area")
     assert edit is not None and edit.changes is not None
     assert _apply(text, edit.changes[main.as_uri()]) == "-- !x! INCLUDE setup.sql\nSELECT '!!area!!';\n"
-    setup = (tmp_path / "setup.sql").as_uri()
+    [setup] = [u for u in edit.changes if u != main.as_uri()]
+    assert Path(to_fs_path(setup)).resolve() == (tmp_path / "setup.sql").resolve()  # c: or C: on Windows
     assert _apply("-- !x! SUB region north\n", edit.changes[setup]) == "-- !x! SUB area north\n"
 
 

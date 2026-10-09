@@ -9,9 +9,8 @@ from __future__ import annotations
 import re
 
 from lsprotocol import types
-from pygls.uris import from_fs_path
 
-from execsql.lsp.document import Location, ScriptIndex, variable_at
+from execsql.lsp.document import Location, ScriptIndex, uri_for, variable_at
 
 __all__ = ["RenameError", "prepare_rename", "rename"]
 
@@ -86,6 +85,7 @@ def rename(index: ScriptIndex, uri: str, line: int, character: int, new_name: st
 
     changes: dict[str, list[types.TextEdit]] = {}
     for loc in sorted(spans, key=lambda s: (s.path or "", s.line, s.start)):
-        target_uri = (from_fs_path(loc.path) if loc.path else None) or uri
-        changes.setdefault(target_uri, []).append(types.TextEdit(range=_range(loc), new_text=new_name))
+        changes.setdefault(uri_for(loc.path, index, uri), []).append(
+            types.TextEdit(range=_range(loc), new_text=new_name),
+        )
     return types.WorkspaceEdit(changes=changes)

@@ -7,7 +7,7 @@ from pathlib import Path
 from lsprotocol import types
 from pygls.uris import from_fs_path
 
-from execsql.lsp.document import Location, ScriptIndex, variable_at
+from execsql.lsp.document import Location, ScriptIndex, uri_for, variable_at
 from execsql.script.ast import (
     BatchBlock,
     IfBlock,
@@ -27,9 +27,8 @@ def _range(line: int, start: int, end: int) -> types.Range:
     return types.Range(start=types.Position(line=line, character=start), end=types.Position(line=line, character=end))
 
 
-def _lsp_location(loc: Location, uri: str) -> types.Location:
-    target = from_fs_path(loc.path) if loc.path else uri
-    return types.Location(uri=target or uri, range=_range(loc.line, loc.start, loc.end))
+def _lsp_location(loc: Location, index: ScriptIndex, uri: str) -> types.Location:
+    return types.Location(uri=uri_for(loc.path, index, uri), range=_range(loc.line, loc.start, loc.end))
 
 
 def _at(entries: list[tuple[Location, str]], line: int, character: int) -> str | None:
@@ -46,15 +45,15 @@ def definition(index: ScriptIndex, uri: str, line: int, character: int) -> list[
         if ref.name.startswith("#"):
             name = ref.name[1:].lower()
             return [
-                _lsp_location(index.scripts[script], uri)
+                _lsp_location(index.scripts[script], index, uri)
                 for script, params in index.script_params.items()
                 if name in (p.lower() for p in params) and script in index.scripts
             ]
-        return [_lsp_location(loc, uri) for loc in index.definitions.get(ref.key, [])]
+        return [_lsp_location(loc, index, uri) for loc in index.definitions.get(ref.key, [])]
 
     script = _at(index.script_calls, line, character)
     if script is not None and script in index.scripts:
-        return [_lsp_location(index.scripts[script], uri)]
+        return [_lsp_location(index.scripts[script], index, uri)]
 
     target = _at(index.includes, line, character)
     if target is not None and Path(target).is_file():
@@ -75,9 +74,9 @@ def references(
     ref = variable_at(index, line, character)
     if ref is None:
         return []
-    found = [_lsp_location(r.location, uri) for r in index.references if r.key == ref.key]
+    found = [_lsp_location(r.location, index, uri) for r in index.references if r.key == ref.key]
     if include_declaration and not ref.name.startswith(("$", "&", "@", "#")):
-        found += [_lsp_location(loc, uri) for loc in index.definitions.get(ref.key, [])]
+        found += [_lsp_location(loc, index, uri) for loc in index.definitions.get(ref.key, [])]
     return found
 
 

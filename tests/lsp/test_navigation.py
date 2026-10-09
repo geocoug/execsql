@@ -9,6 +9,7 @@ import pytest
 pytest.importorskip("pygls")
 
 from lsprotocol import types  # noqa: E402
+from pygls.uris import to_fs_path  # noqa: E402
 
 from execsql.lsp.document import index_script  # noqa: E402
 from execsql.lsp.navigation import definition, document_links, document_symbols, references  # noqa: E402
@@ -56,7 +57,7 @@ def test_include_goes_to_the_file_and_a_variable_into_it(tmp_path):
     text = "-- !x! INCLUDE setup.sql\nSELECT '!!region!!';\n"
     index = index_script(text, str(main))
     to_file = definition(index, main.as_uri(), 0, 17)
-    assert to_file[0].uri == (tmp_path / "setup.sql").resolve().as_uri()
+    assert Path(to_fs_path(to_file[0].uri)).resolve() == (tmp_path / "setup.sql").resolve()  # c: or C: on Windows
     to_var = definition(index, main.as_uri(), 1, 12)
     assert to_var[0].uri.endswith("/setup.sql") and to_var[0].range.start.line == 1
     assert [Path(link.target).name for link in document_links(index)] == ["setup.sql"]
@@ -82,3 +83,10 @@ def test_the_outline_nests_blocks():
 def test_nothing_where_there_is_nothing():
     assert definition(index_script(SCRIPT, None), URI, 4, 2) == []
     assert references(index_script(SCRIPT, None), URI, 4, 2) == []
+
+
+def test_locations_in_the_open_file_use_the_uri_the_client_sent(tmp_path):
+    main = tmp_path / "main.sql"
+    spelled = "file:///SOME/Client/Spelling.sql"  # whatever the client sent; not rebuilt from the path
+    index = index_script("-- !x! SUB x 1\nSELECT '!!x!!';\n", str(main))
+    assert {loc.uri for loc in references(index, spelled, 1, 10)} == {spelled}
