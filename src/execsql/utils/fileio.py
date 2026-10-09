@@ -29,7 +29,6 @@ import queue
 import re
 from pathlib import Path
 import stat
-import sys
 import tempfile
 import threading
 import time
@@ -194,7 +193,7 @@ class LostOutput(NamedTuple):
     filename: str  # "" for an error not tied to one file
     dropped: int  # writes discarded
     error: str | None  # the OS error; None for an open that timed out
-    during: str  # "open", "write" or "writer"
+    during: str  # "open", "write", "closed" (while still locked) or "writer"
 
 
 class FileWriter(threading.Thread):
@@ -241,6 +240,9 @@ class FileWriter(threading.Thread):
             self.dropped = 0
             # The OS error that failed the file; None for an open that timed out.
             self.error: str | None = None
+            # Lines discarded because the file was closed while still locked
+            # (a halt, or an exporter about to write the same path).
+            self.abandoned = 0
 
         def __del__(self) -> None:
             try:
@@ -314,10 +316,9 @@ class FileWriter(threading.Thread):
 
         def close(self) -> None:
             if self.status == self.STATUS_WAITING:
-                qlen = len(self.output_queue)
-                sys.stderr.write(
-                    f"Closing {self.filename} while still trying to open it (locked by another process?) -- {qlen} item(s) in queue to be written",
-                )
+                self.abandoned += len(self.output_queue)
+                self.output_queue.clear()
+                self.close_after_write = False
             if self.status == self.STATUS_OPEN and self.handle is not None:
                 self.write_queue()
                 if self.status == self.STATUS_WRITEFAILURE:
@@ -453,6 +454,10 @@ class FileWriter(threading.Thread):
         ]
         for lost in failed:
             del self.files[lost.filename]
+        for fn, fc in self.files.items():
+            if fc.abandoned:
+                failed.append(LostOutput(fn, fc.abandoned, None, "closed"))
+                fc.abandoned = 0
         failed += self.errors
         self.errors = []
         self.return_msg_queue.put(failed)
@@ -682,18 +687,20 @@ def filewriter_close(filename: str) -> None:
         time.sleep(0.05)
 
 
-def filewriter_close_all_after_write() -> None:
+def filewriter_close_all_after_write(max_wait: float | None = None) -> None:
     """Flush and close every file the active run's writer holds, then report lost output.
 
     Waits for files still locked by another process for up to the writer's
-    ``open_timeout`` (plus a small margin).  Any file that could not be opened
-    in that time has its output discarded, and this raises :class:`ErrInfo`
-    naming each such file — a lost write is an error, not a silent success.
+    ``open_timeout`` (plus a small margin), or *max_wait* seconds if that is
+    shorter.  A file still locked then is closed and its output discarded,
+    and this raises :class:`ErrInfo` naming each file whose output was lost
+    and how much — a lost write is an error, not a silent success.
     """
     fw = _active_writer()
     if fw is None:
         return
-    deadline = time.monotonic() + fw.open_timeout + 5.0
+    wait = fw.open_timeout + 5.0 if max_wait is None else min(fw.open_timeout + 5.0, max_wait)
+    deadline = time.monotonic() + wait
     fw.input_queue.put((FileWriter.CMD_CLOSE_ALL_AFTER_WRITE, ()))
     timed_out = False
     while True:
@@ -707,6 +714,8 @@ def filewriter_close_all_after_write() -> None:
             break
         if time.monotonic() > deadline:
             timed_out = True
+            # Close what is still locked, so its discarded output is counted.
+            fw.input_queue.put((FileWriter.CMD_CLOSE_ALL, ()))
             break
         time.sleep(0.05)
     fw.input_queue.put((FileWriter.CMD_OPEN_FAILURES, ()))
@@ -714,8 +723,8 @@ def filewriter_close_all_after_write() -> None:
     if failures is _NO_REPLY:
         raise _writer_stopped_error()
     messages = [_lost_output_message(lost, fw.open_timeout) for lost in failures]
-    if timed_out:
-        messages.append(f"one or more output files were still locked after {fw.open_timeout} seconds")
+    if timed_out and not messages:
+        messages.append(f"one or more output files were still locked after {wait:.0f} seconds")
     if messages:
         raise ErrInfo("error", other_msg="File output lost: " + "; ".join(messages) + ".")
 
@@ -727,6 +736,8 @@ def _lost_output_message(lost: LostOutput, open_timeout: int) -> str:
         cause = f"could not open {lost.filename} for writing ({lost.error})"
     elif lost.during == "write":
         cause = f"could not write {lost.filename} ({lost.error})"
+    elif lost.during == "closed":
+        cause = f"{lost.filename} was still locked by another process when it was closed"
     elif lost.filename:
         cause = f"file writer error on {lost.filename} ({lost.error})"
     else:

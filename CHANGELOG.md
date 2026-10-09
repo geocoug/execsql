@@ -32,6 +32,7 @@ ______________________________________________________________________
 
 ### Fixed
 
+- **Output lost when a script halts is reported.** A `WRITE`, `TEE` or `ON ERROR_HALT WRITE` file still locked by another process when the script halts is waited for up to 10 seconds; output that still cannot be written is reported on the console, in the log, in the `--manifest` file and in `execsql.run()`'s errors instead of being discarded silently.
 - **Installation instructions** (README, installation guide) install the `execsql` command with `uv tool install` or `pipx install`, quote every extra (`"execsql2[postgres]"`; zsh rejects it unquoted), explain how to add an extra later, and keep `uv add` / `pip install` for using the library inside a project.
 - **Install hints in messages:** the XLSX error named a nonexistent `execsql2[excel]` extra (it is `formats`), and the Textual error a nonexistent `execsql2[tui]` (Textual is a dependency of execsql2); the `format`, `PG_UPSERT` and map hints quote the extra.
 - **2.17.0 `PG_UPSERT` migration note** gave `ASSERT !!$PG_UPSERT_QA_PASSED!! = TRUE`, which fails on every run (there is no `=` comparison). Use `ASSERT IS_TRUE(!!$PG_UPSERT_QA_PASSED!!) "QA failed"`; the note is corrected.

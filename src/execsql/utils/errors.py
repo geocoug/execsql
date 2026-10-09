@@ -155,6 +155,26 @@ def _run_deferred_script(spec: Any) -> None:
         )
 
 
+#: How long a halt waits for an output file that another process has
+#: locked, before its pending output is counted as lost.
+HALT_FLUSH_SECONDS = 10.0
+
+
+def _flush_output_at_halt() -> ErrInfo | None:
+    """Write out what the run's files are still waiting for; the loss, if any, as an error."""
+    from execsql.utils.fileio import filewriter_close_all_after_write
+
+    try:
+        filewriter_close_all_after_write(max_wait=HALT_FLUSH_SECONDS)
+    except ErrInfo as lost:
+        # The loss belongs to no particular statement.
+        lost.script_file = ""
+        return lost
+    except Exception:
+        pass  # A failed flush must not hide the error that halted the run.
+    return None
+
+
 def exit_now(exit_status: int, errinfo: ErrInfo | None, logmsg: str | None = None) -> None:
     # An error in input typed at a BREAKPOINT prompt ends
     # that input, not the run: the prompt reports it and reads the next one.
@@ -213,11 +233,20 @@ def exit_now(exit_status: int, errinfo: ErrInfo | None, logmsg: str | None = Non
         cancelexec = _state.cancel_halt_exec
         _state.cancel_halt_exec = None
         _run_deferred_script(cancelexec)
+    # After the ON ERROR_HALT / ON CANCEL_HALT actions, which may write files
+    # themselves; before the writer is stopped, which discards what waits.
+    lost_output = _flush_output_at_halt()
+    if lost_output is not None:
+        _state.halt_output_error = lost_output
+        lost_output.write()
+        exit_status = exit_status or 1
     if exit_status > 0 and _state.exec_log:
         if logmsg:
             _state.exec_log.log_exit_error(logmsg)
         elif errinfo is not None:
             _state.exec_log.log_exit_error(logged_error(errinfo))
+        if lost_output is not None:
+            _state.exec_log.log_status_error(lost_output.errmsg())
     if _state.exec_log is not None:
         _state.exec_log.log_status_info(f"{_state.cmds_run} commands run")
         _state.exec_log.log_exit()
@@ -229,6 +258,8 @@ def exit_now(exit_status: int, errinfo: ErrInfo | None, logmsg: str | None = Non
     from execsql import manifest as _manifest
 
     if (manifest := _manifest.current()) is not None:
+        if lost_output is not None:
+            manifest.add_error(lost_output)
         manifest.finish(exit_status, errinfo)
     sys.exit(exit_status)
 

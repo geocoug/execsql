@@ -629,7 +629,8 @@ def _start_filewriter(ctx: RuntimeContext, conf: Any) -> None:
 def _capture_errors(ctx: RuntimeContext, errors: list[ScriptError], exit_code: Any) -> None:
     """Record the error that halted the run, after ``exit_now()`` raised ``SystemExit``.
 
-    ``exit_now`` leaves the halting :class:`ErrInfo` on the context.  A failed
+    ``exit_now`` leaves the halting :class:`ErrInfo` on the context, and any
+    file output lost at the halt as a second error.  A failed
     SQL statement's text is in ``$LAST_ERROR``, which the executor sets just
     before halting; it is reported only when the halt came from SQL, so a
     metacommand error is never paired with an earlier statement.  A ``HALT``
@@ -652,6 +653,8 @@ def _capture_errors(ctx: RuntimeContext, errors: list[ScriptError], exit_code: A
             sql=sql,
         ),
     )
+    if ctx.halt_output_error is not None:
+        errors.append(ScriptError(message=ctx.halt_output_error.errmsg(), source="<output>"))
 
 
 def _failed(message: str, source: str) -> ScriptResult:

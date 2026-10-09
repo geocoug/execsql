@@ -15,6 +15,11 @@ entire claim.
 
 from __future__ import annotations
 
+import os
+import sys
+
+import pytest
+
 from execsql import api
 
 
@@ -313,3 +318,28 @@ class TestWriteErrors:
             filewriter_write(str(tmp_path / "x.txt"), "x")
         with pytest.raises(ErrInfo, match="stopped"):
             filewriter_close_all_after_write()
+
+
+@pytest.mark.skipif(sys.platform == "win32" or os.geteuid() == 0, reason="chmod 000 does not lock a file here")
+class TestLostOutputAtAHalt:
+    def test_halted_run_reports_output_it_could_not_write(self, tmp_path):
+        """A halt still waits briefly for a locked file, and reports what was lost."""
+        locked = tmp_path / "locked.txt"
+        locked.write_text("")
+        locked.chmod(0)
+        conf = tmp_path / "execsql.conf"
+        conf.write_text("[output]\noutfile_open_timeout=2\n")
+        try:
+            result = api.run(
+                sql=f'-- !x! WRITE "important" TO {locked}\nselect * from nope;\n',
+                dsn=_sqlite_dsn(tmp_path),
+                new_db=True,
+                config_file=conf,
+            )
+        finally:
+            locked.chmod(0o644)
+        assert not result.success
+        lost = [e for e in result.errors if "locked.txt" in e.message]
+        assert lost, result.errors
+        assert "1 line(s)" in lost[0].message
+        assert any("nope" in e.message for e in result.errors), "the SQL error is still reported"

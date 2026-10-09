@@ -229,6 +229,7 @@ _CONTEXT_ATTRS: frozenset[str] = frozenset(
         "tier_notices_shown",
         "manifest",
         "halt_error",
+        "halt_output_error",
         # Lazy singletons
         "counters",
         "timer",
@@ -286,6 +287,7 @@ class RuntimeContext:
         "tier_notices_shown",
         "manifest",
         "halt_error",
+        "halt_output_error",
         # Lazy singletons
         "counters",
         "timer",
@@ -340,6 +342,8 @@ class RuntimeContext:
         self.manifest: RunManifest | None = None
         # The error that halted this run (set by ``exit_now``), or None.
         self.halt_error: ErrInfo | None = None
+        # File output lost when the run halted (set by ``exit_now``), or None.
+        self.halt_output_error: ErrInfo | None = None
 
         # Lazy singletons
         self.counters: CounterVars | None = None

@@ -143,22 +143,26 @@ class RunManifest:
 
     # -- finishing -------------------------------------------------------------
 
+    def add_error(self, error: Any) -> None:
+        """Record *error* (an :class:`ErrInfo`) in the manifest's ``errors``."""
+        # str(ErrInfo) is its concise message; errmsg() is the multi-line
+        # console block with a timestamp, which a reader of JSON does not want.
+        self.errors.append(
+            {
+                "message": " ".join(str(error).split()),
+                "type": getattr(error, "type", None),
+                "source": getattr(error, "script_file", None),
+                "line": getattr(error, "script_line_no", None),
+                "command": getattr(error, "cmd", None) or getattr(error, "command", None),
+            },
+        )
+
     def finish(self, exit_status: int | None, error: Any = None) -> None:
         """Write the manifest once. Later calls (the atexit fallback) do nothing."""
         if self.written:
             return
         if error is not None:
-            # str(ErrInfo) is its concise message; errmsg() is the multi-line
-            # console block with a timestamp, which a reader of JSON does not want.
-            self.errors.append(
-                {
-                    "message": " ".join(str(error).split()),
-                    "type": getattr(error, "type", None),
-                    "source": getattr(error, "script_file", None),
-                    "line": getattr(error, "script_line_no", None),
-                    "command": getattr(error, "cmd", None) or getattr(error, "command", None),
-                },
-            )
+            self.add_error(error)
         finished = _now()
         data = {
             "execsql_version": __version__,
