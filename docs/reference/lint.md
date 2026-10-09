@@ -158,7 +158,7 @@ The `execsql-lint` [pre-commit](https://pre-commit.com/) hook runs `execsql lint
 ```yaml
 repos:
   - repo: https://github.com/geocoug/execsql
-    rev: v2.24.0
+    rev: v2.25.0
     hooks:
       - id: execsql-lint
         args: [--ignore, V002] # optional: any execsql lint option
