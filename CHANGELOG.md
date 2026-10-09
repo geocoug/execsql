@@ -24,7 +24,7 @@ ______________________________________________________________________
     - `execsql lint` findings as you type, using the workspace's `[lint]` settings;
     - completion of metacommands (as fill-in templates of their documented syntax), conditional tests, variables and export formats;
     - hover explanations of metacommands, conditional tests and variables;
-    - Go to Definition, Find All References, the outline and `INCLUDE` links;
+    - Go to Definition, Find All References, Rename Symbol (variables), the outline and `INCLUDE` links;
     - folding of `IF` branches, `LOOP`, `SCRIPT`, `BATCH` and `SQL` blocks, multi-line statements and comments;
     - quick fixes for misspelled metacommands, conditional tests and variables (P003, P004, V001) and split dollar-quoted bodies (P002);
     - Format Document, the same as `execsql format` with the workspace's `[format]` settings;
