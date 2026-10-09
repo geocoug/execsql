@@ -11,13 +11,7 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
-______________________________________________________________________
-
-## [2.26.0] - 2026-10-09
-
 ### Added
-
-- **`execsql format --rewrite-sql`** (`[format] rewrite_sql`): accept sqlglot's rewrites of SQL text, such as `x::int` as `CAST(x AS INT)`.
 
 - **`execsql lsp`**, a language server for editors. Install the new `lsp` extra (`uv tool install "execsql2[lsp]"`); setup for VS Code, Neovim, Helix and other editors is in the new Editor Support guide. It provides:
 
@@ -37,16 +31,25 @@ ______________________________________________________________________
 
 ### Changed
 
-- **`execsql format` changes only layout and keyword case by default:** a statement sqlglot would rewrite (`x::int` as `CAST(x AS INT)`, an alias gaining `AS`, `BTRIM` as `TRIM`) is kept as written. Pass `--rewrite-sql`, or set `rewrite_sql = Yes` under `[format]`, for the previous behavior.
-
-- **`execsql format` and the `execsql-format` pre-commit hook use one sqlglot release:** the `[formatter]` extra requires sqlglot 30.21.x and the hook installs 30.21.0, so a script formats the same everywhere. The first run after upgrading can reformat files formatted with an older sqlglot, such as `BTRIM(x)` written as `TRIM(x)`; see [sqlglot version](https://execsql2.readthedocs.io/en/latest/guides/formatter/#sqlglot-version).
-
 - **`execsql list metacommands`** lists every metacommand (all 95; some were missing) with its category and a one-line summary, and `execsql list metacommands <KEYWORD>` shows that metacommand's syntax, as the reference docs write it, with a link. The syntax column it replaces was incomplete and in places wrong. In `--output-format json`, `syntax` is now the full first syntax line, and each entry adds `forms`, `category`, `summary` and `url`.
 
 ### Fixed
 
 - **`CONFIG MAX_INT <n>`** works as documented; it stopped with `Unknown metacommand`, and only the bare `MAX_INT <n>` (still accepted) was recognized.
 - **Metacommand reference syntax:** `PROMPT MAP` showed quoted column names (`LAT "<lat_col>"`), which execsql reads as a plain `PROMPT MESSAGE` with no map; the column names are unquoted. Also corrected: `CONNECT TO DSN` (a stray comma) and `HASROWS` (a missing `>`).
+
+______________________________________________________________________
+
+## [2.26.0] - 2026-10-09
+
+### Added
+
+- **`execsql format --rewrite-sql`** (`[format] rewrite_sql`): accept sqlglot's rewrites of SQL text, such as `x::int` as `CAST(x AS INT)`.
+
+### Changed
+
+- **`execsql format` changes only layout and keyword case by default:** a statement sqlglot would rewrite (`x::int` as `CAST(x AS INT)`, an alias gaining `AS`, `BTRIM` as `TRIM`) is kept as written. Pass `--rewrite-sql`, or set `rewrite_sql = Yes` under `[format]`, for the previous behavior.
+- **`execsql format` and the `execsql-format` pre-commit hook use one sqlglot release:** the `[formatter]` extra requires sqlglot 30.21.x and the hook installs 30.21.0, so a script formats the same everywhere. The first run after upgrading can reformat files formatted with an older sqlglot, such as `BTRIM(x)` written as `TRIM(x)`; see [sqlglot version](https://execsql2.readthedocs.io/en/latest/guides/formatter/#sqlglot-version).
 
 ______________________________________________________________________
 
