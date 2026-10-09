@@ -80,6 +80,7 @@ one run.
 | `--sql`, `--no-sql`                     | `[format] sql`, else `--sql`       | Reformat SQL via sqlglot, or skip it and only normalize metacommand indentation and keyword casing. `--no-sql` works without the `[formatter]` extra.                                                                                                                                   |
 | `--indent N`                            | `[format] indent`, else `4`        | Spaces per indent level. Controls both metacommand block depth and SQL indentation (columns, subqueries, etc).                                                                                                                                                                          |
 | `--leading-comma`, `--no-leading-comma` | `[format] leading_comma`, else off | Place commas at the start of lines instead of the end (e.g. `  , col2` instead of `col1,`).                                                                                                                                                                                             |
+| `--rewrite-sql`, `--no-rewrite-sql`     | `[format] rewrite_sql`, else off   | Also let sqlglot rewrite SQL text (`x::int` as `CAST(x AS INT)`, an alias with `AS`). Off, a statement sqlglot would rewrite is kept as written. See [Layout only](#layout-only).                                                                                                       |
 | `-f`, `--script-encoding NAME`          | config, else `utf-8`               | Text encoding used to read and write SQL files. Pass `cp1252`, `latin-1`, `shift_jis`, etc. for files saved by non-UTF-8 editors. Without it, `[encoding] script` from a [config file](../reference/configuration.md#configuration) applies. The old spelling `--encoding` still works. |
 | `--config FILE`                         | —                                  | An extra config file to read `[encoding] script` from. Config files are read once, from the system, user and working-directory locations plus this file — not from each script's directory.                                                                                             |
 
@@ -125,10 +126,28 @@ The `--indent` flag controls SQL indentation in addition to metacommand depth. F
 
 The SQL layout comes from sqlglot, and sqlglot's output changes between its releases. So that the same script formats the same way on every machine, in CI and in the pre-commit hook, execsql2 pins it: the `[formatter]` extra requires sqlglot 30.21.x and the `execsql-format` hook installs exactly 30.21.0. A new execsql2 release may move the pin; its changelog says so, and the first run after upgrading can reformat files whose content did not change.
 
-Two sqlglot behaviors are worth knowing when reading a diff:
+Conditions joined by `AND` / `OR` go on one line when their combined text is at most 120 characters, and one per line otherwise. sqlglot measures the conditions without the indentation and the spaces between them, so a joined line can run a few characters past 120.
 
-- Conditions joined by `AND` / `OR` go on one line when their combined text is at most 120 characters, and one per line otherwise. sqlglot measures the conditions without the indentation and the spaces between them, so a joined line can run a few characters past 120.
-- sqlglot writes some PostgreSQL functions in their standard form: `BTRIM(x)` becomes `TRIM(x)`, `BTRIM(x, 'ab')` becomes `TRIM('ab' FROM x)`, and `LTRIM(x, 'a')` becomes `TRIM(LEADING 'a' FROM x)`. PostgreSQL treats each pair the same.
+#### Layout only, or rewrite { #layout-only }
+
+sqlglot does more than lay SQL out: it writes the SQL it parsed in its own preferred form. By default the formatter changes only layout and keyword case. A statement sqlglot would also rewrite is kept exactly as written, while the statements around it are still formatted.
+
+| You wrote                   | sqlglot writes                        |
+| --------------------------- | ------------------------------------- |
+| `x::int`                    | `CAST(x AS INT)`                      |
+| `count(*) n`                | `COUNT(*) AS n`                       |
+| `integer`, `numeric(10,2)`  | `INT`, `DECIMAL(10, 2)`               |
+| `BTRIM(x)`, `LTRIM(x, 'a')` | `TRIM(x)`, `TRIM(LEADING 'a' FROM x)` |
+| `a != b`                    | `a <> b`                              |
+
+Each pair means the same to PostgreSQL. To accept sqlglot's form, so every statement is formatted, pass `--rewrite-sql` or set it in a config file:
+
+```ini
+[format]
+rewrite_sql = Yes
+```
+
+With it on, the rewrites a statement gets can change when the pinned sqlglot changes (see above). Turning it off later does not undo rewrites already written; it only stops new ones.
 
 #### Comment handling
 

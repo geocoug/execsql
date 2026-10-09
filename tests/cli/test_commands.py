@@ -436,6 +436,14 @@ class TestFormatConfig:
         assert "\n    , b" in with_config
         assert "\n    , b" not in overridden
 
+    def test_rewrite_sql_from_config_and_turned_off_by_flag(self, isolated):
+        pytest.importorskip("sqlglot")
+        (isolated / "s.sql").write_text("select x::int from t;\n")
+        assert runner.invoke(app, ["format", "s.sql"]).output == "select x::int from t;\n"  # kept as written
+        (isolated / "execsql.conf").write_text("[format]\nrewrite_sql = yes\n")
+        assert "CAST(x AS INT)" in runner.invoke(app, ["format", "s.sql"]).output
+        assert runner.invoke(app, ["format", "--no-rewrite-sql", "s.sql"]).output == "select x::int from t;\n"
+
     def test_config_option_file(self, isolated, tmp_path):
         conf = tmp_path / "ci.conf"
         conf.write_text("[format]\nindent = 2\nsql = no\n")
