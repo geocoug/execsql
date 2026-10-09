@@ -21,6 +21,7 @@ __all__ = [
     "Reference",
     "ScriptIndex",
     "index_script",
+    "read_included",
     "variable_at",
 ]
 
@@ -71,6 +72,26 @@ class ScriptIndex:
         self.spellings.setdefault(key, name.lstrip("~+"))
 
 
+# Limits on what INCLUDE indexing reads, so a script in an untrusted workspace
+# cannot make every request read a huge file or walk an endless include chain.
+MAX_INCLUDED_BYTES = 10 * 1024 * 1024
+MAX_INCLUDED_FILES = 200
+
+
+def read_included(path: Path) -> str | None:
+    """The text of an ``INCLUDE``d file, or ``None`` if it is not one to index.
+
+    Only a regular file (not a FIFO or a device, whose read could block or
+    never end) of at most :data:`MAX_INCLUDED_BYTES` that decodes as UTF-8.
+    """
+    try:
+        if not path.is_file() or path.stat().st_size > MAX_INCLUDED_BYTES:
+            return None
+        return path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return None
+
+
 def _span_of(word: str, line: str, start: int = 0) -> tuple[int, int]:
     """Columns of *word* in *line* at or after *start* (any case); the whole line if absent."""
     m = re.search(rf"(?<![\w$#@&~+]){re.escape(word)}(?!\w)", line[start:], re.I)
@@ -117,12 +138,10 @@ def _index_into(index: ScriptIndex, source: str, path: str | None, seen: set[str
             resolved = Path(target) if Path(target).is_absolute() or script_dir is None else script_dir / target
             if top:
                 index.includes.append((Location(path, row, start, end), str(resolved)))
-            if "!" not in target and resolved.is_file() and str(resolved.resolve()) not in seen:
-                try:
-                    included = resolved.read_text(encoding="utf-8")
-                except (OSError, UnicodeDecodeError):
-                    continue
-                _index_into(index, included, str(resolved), seen, top=False)
+            if "!" not in target and str(resolved.resolve()) not in seen and len(seen) < MAX_INCLUDED_FILES:
+                included = read_included(resolved)
+                if included is not None:
+                    _index_into(index, included, str(resolved), seen, top=False)
 
     if top:
         for row, text in enumerate(lines):
