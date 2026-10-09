@@ -14,7 +14,7 @@ from pygls.uris import to_fs_path
 from execsql import __version__
 from execsql.lsp.code_actions import code_actions
 from execsql.lsp.completion import completions
-from execsql.lsp.diagnostics import diagnostics
+from execsql.lsp.diagnostics import diagnostics, too_deep_diagnostic
 from execsql.lsp.document import ScriptIndex, index_script
 from execsql.lsp.formatting import format_document
 from execsql.lsp.hover import hover
@@ -76,9 +76,17 @@ class ExecsqlLanguageServer(LanguageServer):
             )
 
     def index(self, uri: str) -> ScriptIndex:
-        """The current document's index (rebuilt per request: a few milliseconds)."""
+        """The current document's index (rebuilt per request: a few milliseconds).
+
+        A script the parser cannot handle (nesting past Python's recursion
+        limit) gets an empty index, so features fall back to what needs none.
+        """
         document = self.workspace.get_text_document(uri)
-        return index_script(document.source, to_fs_path(uri))
+        path = to_fs_path(uri)
+        try:
+            return index_script(document.source, path)
+        except RecursionError:
+            return ScriptIndex(path=path)
 
     def supports_snippets(self) -> bool:
         caps = self.client_capabilities.text_document
@@ -88,7 +96,10 @@ class ExecsqlLanguageServer(LanguageServer):
     def publish(self, uri: str) -> None:
         """Lint the document's current text and publish the result."""
         document = self.workspace.get_text_document(uri)
-        found = diagnostics(document.source, to_fs_path(uri), self.select, self.ignore)
+        try:
+            found = diagnostics(document.source, to_fs_path(uri), self.select, self.ignore)
+        except RecursionError:
+            found = [too_deep_diagnostic()]
         self.text_document_publish_diagnostics(
             types.PublishDiagnosticsParams(uri=uri, version=document.version, diagnostics=found),
         )
@@ -178,7 +189,10 @@ def create_server() -> ExecsqlLanguageServer:
     @server.feature(types.TEXT_DOCUMENT_DOCUMENT_SYMBOL)
     def on_symbols(ls: ExecsqlLanguageServer, params: types.DocumentSymbolParams) -> list[types.DocumentSymbol]:
         uri = params.text_document.uri
-        return document_symbols(ls.index(uri), ls.workspace.get_text_document(uri).source)
+        try:
+            return document_symbols(ls.index(uri), ls.workspace.get_text_document(uri).source)
+        except RecursionError:  # nesting deeper than the outline can walk: no outline
+            return []
 
     @server.feature(
         types.TEXT_DOCUMENT_CODE_ACTION,

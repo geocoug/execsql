@@ -6,7 +6,7 @@ from lsprotocol import types
 
 from execsql.cli.lint import Issue, filter_issues, lint_source
 
-__all__ = ["LINT_DOCS_URL", "diagnostics", "to_diagnostic"]
+__all__ = ["LINT_DOCS_URL", "diagnostics", "to_diagnostic", "too_deep_diagnostic"]
 
 LINT_DOCS_URL = "https://execsql2.readthedocs.io/en/latest/reference/lint/"
 
@@ -54,3 +54,13 @@ def diagnostics(
     issues = filter_issues(lint_source(source, path or "<untitled>", path), select, ignore)
     lines = source.splitlines()
     return [to_diagnostic(issue, lines) for issue in sorted(issues, key=lambda i: (i.line, i.code))]
+
+
+def too_deep_diagnostic() -> types.Diagnostic:
+    """Stands in for lint's findings on a script nested too deeply to parse."""
+    return types.Diagnostic(
+        range=types.Range(start=types.Position(line=0, character=0), end=types.Position(line=0, character=0)),
+        message="The script nests blocks or conditions too deeply to check.",
+        severity=types.DiagnosticSeverity.Error,
+        source="execsql",
+    )

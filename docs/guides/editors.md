@@ -100,6 +100,15 @@ command line (see [Configuration](../reference/lint.md#config)), and the
 `[format]` section sets how Format Document lays the script out. Restart the
 server (or the editor) after changing them.
 
+The server only reads: it never connects to a database or runs a script, and
+nothing in the workspace can make it run code. The only code it loads besides
+execsql is the metacommand [plugins](../dev/architecture.md#plugin-system) installed in its own Python
+environment, so lint knows their keywords, as `execsql lint` does. Besides the
+open script and the configuration files, it reads the files the script names
+in `INCLUDE` (to find the variables they define: up to 200 files of at most
+10 MiB each) and in `SUB_INI` (at most 1 MiB). It reads only regular files,
+never a FIFO or a device.
+
 ## VS Code { #vscode }
 
 The execsql extension starts the server for you. Each
@@ -111,9 +120,16 @@ code --install-extension execsql-syntax.vsix
 ```
 
 If `execsql` is not on VS Code's PATH, set **execsql.server.path** to its full
-path (`which execsql`). After upgrading execsql, run **execsql: Restart
-Language Server** from the Command Palette. The extension also highlights
-execsql syntax; that works without the server.
+path (`which execsql`); a leading `~` is expanded, e.g. `~/.local/bin/execsql`.
+After upgrading execsql, run **execsql: Restart Language Server** from the
+Command Palette. The extension also highlights execsql syntax; that works
+without the server.
+
+In a folder you have not marked as trusted
+([Workspace Trust](https://code.visualstudio.com/docs/editor/workspace-trust)),
+VS Code ignores the folder's own `.vscode/settings.json` value of
+**execsql.server.path**, so a cloned repository cannot choose the program the
+extension runs; your user setting still applies.
 
 ## Neovim { #neovim }
 

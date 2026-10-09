@@ -169,3 +169,16 @@ def test_a_late_cancel_is_not_reported(caplog):
         rpc.warning('Cancel notification for unknown message id "%s"', 29)
         rpc.warning("something else")
     assert [r.getMessage() for r in caplog.records] == ["something else"]
+
+
+@pytest.mark.asyncio
+async def test_a_script_nested_too_deeply_gets_one_finding_and_the_server_keeps_answering(client: LanguageClient):
+    uri = _open(client, "deep.sql", "-- !x! IF(True)\n" * 3000)
+    await client.wait_for_notification(types.TEXT_DOCUMENT_PUBLISH_DIAGNOSTICS)
+    assert [d.message for d in client.diagnostics[uri]] == [
+        "The script nests blocks or conditions too deeply to check.",
+    ]
+    symbols = await client.text_document_document_symbol_async(
+        types.DocumentSymbolParams(text_document=types.TextDocumentIdentifier(uri=uri)),
+    )
+    assert symbols == []
