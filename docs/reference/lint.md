@@ -313,7 +313,7 @@ A `!!variable!!` is referenced, but nothing in the script defines it. At run tim
 
 A definition is any metacommand in the same file that sets a variable:
 
-- the SUB family: `SUB`, `SUB_EMPTY`, `SUB_ADD`, `SUB_APPEND`, `SUBDATA`, `SUB_LOCAL`, `SUB_TEMPFILE`, `SUB_ENCRYPT`, `SUB_DECRYPT`, the keys of `SUB_QUERYSTRING`, and the keys of a `SUB_INI` file that exists at lint time;
+- the SUB family: `SUB`, `SUB_EMPTY`, `SUB_ADD`, `SUB_APPEND`, `SUBDATA`, `SUB_LOCAL`, `SUB_TEMPFILE`, `SUB_ENCRYPT`, `SUB_DECRYPT`, the keys of `SUB_QUERYSTRING`, and the keys of a `SUB_INI` file that lint can read (a regular file of at most 1 MiB that parses as INI);
 - the prompts that store an answer: `PROMPT ENTER_SUB`, `ASK ... SUB`, `PROMPT ASK ... SUB` (with or without `COMPARE`), `PROMPT OPENFILE SUB`, `PROMPT SAVEFILE SUB` and `PROMPT DIRECTORY SUB` (every variable named after `SUB`), and both variables of `PROMPT CREDENTIALS`.
 
 Definitions inside `BEGIN SCRIPT` blocks that the file runs with `EXECUTE SCRIPT` count too, and so does a definition that comes after the first use.
