@@ -43,7 +43,7 @@ run(sql='-- !x! WRITE "loading into !!$SCHEMA!!"\n', dsn="sqlite:///my.db", vari
 | script path or `<inline>`  | The script could not be read or parsed, or a statement or metacommand in it failed; `line` is its line number |
 | `<config>`                 | The `config_file` does not exist or has an invalid setting                                 |
 | `<connect>`                | The `dsn` could not be parsed or the database could not be opened                          |
-| `<output>`                 | A file written by `WRITE`, `EXPORT` or `TEE` could not be opened before `outfile_open_timeout` |
+| `<output>`                 | A file written by `WRITE`, `EXPORT` or `TEE` could not be opened before `outfile_open_timeout`, or could not be written |
 
 ```python
 result = run(sql="select * from nope;", dsn="sqlite:///my.db")
@@ -97,7 +97,7 @@ open("report.txt").read()   # "done\n" — readable immediately
 
 The writer is a thread in your process, not a child process, so `run()` works the same from a `.py` file with or without an `if __name__ == "__main__":` guard, from a REPL, from a notebook, and from `python -c`.
 
-If a file stays locked (by a sync client, a backup, or a spreadsheet that has it open) for longer than [`outfile_open_timeout`](../reference/configuration.md#setting_outfile_open_timeout), `run()` returns `success=False` with an error naming the file and how many lines were lost.
+If a file stays locked (by a sync client, a backup, or a spreadsheet that has it open) for longer than [`outfile_open_timeout`](../reference/configuration.md#setting_outfile_open_timeout), `run()` returns `success=False` with an error naming the file and how many lines were lost. A write that fails (a full disk, a dropped network share) is reported the same way, with the OS error, and the run's other files are still written.
 
 ## Extension Guides
 

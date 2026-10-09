@@ -223,3 +223,93 @@ class TestRelativePaths:
         assert result.success, result.errors
         assert (tmp_path / "out.txt").read_text() == "before cd\n"
         assert (tmp_path / "sub" / "out.txt").read_text() == "after cd\n"
+
+
+class TestWriteErrors:
+    """A failed write or close loses that file's output, not the run's other files or its result."""
+
+    @staticmethod
+    def _disk_full_for(monkeypatch, name: str) -> None:
+        import errno
+
+        from execsql.utils.fileio import FileWriter
+
+        real = FileWriter.FileControl.write_queue
+
+        def write_queue(self):
+            if self.filename.endswith(name):
+                raise OSError(errno.ENOSPC, "No space left on device")
+            real(self)
+
+        monkeypatch.setattr(FileWriter.FileControl, "write_queue", write_queue)
+
+    def test_write_error_fails_the_run_and_other_files_are_written(self, tmp_path, monkeypatch):
+        self._disk_full_for(monkeypatch, "full.txt")
+        full, ok = tmp_path / "full.txt", tmp_path / "ok.txt"
+        result = api.run(
+            sql=f'-- !x! WRITE "a" TO {full}\n-- !x! WRITE "b" TO {ok}\nselect 1;\n',
+            dsn=_sqlite_dsn(tmp_path),
+            new_db=True,
+        )
+        assert not result.success
+        assert any("full.txt" in e.message and "No space left" in e.message for e in result.errors), result.errors
+        assert ok.read_text() == "b\n"
+
+    def test_error_writing_a_queued_line_counts_it(self, tmp_path):
+        import errno
+
+        from execsql.utils.fileio import FileWriter
+
+        fc = FileWriter.FileControl(str(tmp_path / "x.txt"), open_timeout=5)
+        fc.write("one\n")
+
+        class Full:
+            def write(self, _):
+                raise OSError(errno.ENOSPC, "No space left on device")
+
+            def close(self):
+                pass
+
+        fc.handle = Full()  # type: ignore[assignment]
+        fc.write("two\n")
+        fc.write("three\n")
+        assert fc.status == fc.STATUS_WRITEFAILURE
+        assert fc.dropped == 2
+        assert "No space left" in (fc.error or "")
+
+    def test_directory_target_fails_at_once(self, tmp_path):
+        """A path that can never be opened is not waited on for outfile_open_timeout."""
+        import time
+
+        target = tmp_path / "adir"
+        target.mkdir()
+        conf = tmp_path / "execsql.conf"
+        conf.write_text("[output]\noutfile_open_timeout=60\n")
+        started = time.monotonic()
+        result = api.run(
+            sql=f'-- !x! WRITE "hi" TO {target}\nselect 1;\n',
+            dsn=_sqlite_dsn(tmp_path),
+            new_db=True,
+            config_file=conf,
+        )
+        assert time.monotonic() - started < 5
+        assert not result.success
+        assert any("adir" in e.message for e in result.errors), result.errors
+
+    def test_writer_that_died_fails_the_flush(self, tmp_path, monkeypatch):
+        """A writer thread that stopped unexpectedly is an error, not 'no writer configured'."""
+        import execsql.state as _state
+        from execsql.utils.errors import ErrInfo
+        from execsql.utils.fileio import FileWriter, filewriter_close_all_after_write, filewriter_write
+
+        fw = FileWriter(open_timeout=1)
+        monkeypatch.setattr(fw, "run", lambda: None)  # starts, then ends without a shutdown
+        fw.start()
+        fw.join(5)
+        monkeypatch.setattr(_state, "filewriter", fw)
+        import pytest
+
+        with pytest.raises(ErrInfo, match="stopped"):
+            filewriter_write(str(tmp_path / "x.txt"), "x")
+        with pytest.raises(ErrInfo, match="stopped"):
+            filewriter_close_all_after_write()

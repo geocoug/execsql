@@ -198,7 +198,7 @@ The section and property names that may be used in a configuration file are list
 :   Controls whether all text values written to a delimited text file by the [EXPORT](metacommands.md#export) metacommand will be quoted. The property value should be either "Yes" or "No"--the default is "No".
 
 `outfile_open_timeout` { #setting_outfile_open_timeout }
-:   How long (in seconds) the WRITE background process keeps retrying when a target file is held open by another process (backup, sync, etc.); output is buffered during the wait. At the end of the script (and before a [SYSTEM_CMD](metacommands.md#system_cmd)) *execsql* waits up to this long for the file to open. If it never does, the buffered output is discarded and the run fails with an error naming the file. Default: 600.
+:   How long (in seconds) the WRITE background process keeps retrying when a target file is held open by another process (backup, sync, etc.); output is buffered during the wait. At the end of the script (and before a [SYSTEM_CMD](metacommands.md#system_cmd)) *execsql* waits up to this long for the file to open. If it never does, the buffered output is discarded and the run fails with an error naming the file. A target that can never be opened, such as an existing directory or a file on a read-only filesystem, is not waited for: the run fails at once. Default: 600.
 
 `export_row_buffer` { #setting_export_row_buffer }
 :   The number of data rows to be buffered from the database when exporting data. Larger values result in faster exports, up to a point, and at a diminishing rate of return. Larger values also require more memory. The setting value must be a positive integer greater than zero. The default value is 1000 rows. This value cannot be customized when using DuckDB.
