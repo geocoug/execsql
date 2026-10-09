@@ -12,13 +12,39 @@ pytest.importorskip("pygls")
 pytest_lsp = pytest.importorskip("pytest_lsp")
 
 from lsprotocol import types  # noqa: E402
+from pygls.protocol import default_converter  # noqa: E402
 from pytest_lsp import ClientServerConfig, LanguageClient  # noqa: E402
+from pytest_lsp.client import DEFAULT_CLIENT_FEATURES, register_lsp_features  # noqa: E402
 
 BAD = "-- !x! EXPROT orders TO out.csv AS CSV\n"
 GOOD = "-- !x! EXPORT orders TO out.csv AS CSV\n"
 
 
-@pytest_lsp.fixture(config=ClientServerConfig(server_command=[sys.executable, "-m", "execsql", "lsp", "--stdio"]))
+def _recording_client() -> LanguageClient:
+    """pytest-lsp's test client, also keeping every published URI in ``client.published``, in order.
+
+    ``wait_for_notification`` only sees a notification that arrives after it
+    is called, so a test expecting several (one per open script) can miss
+    one that arrives with another and wait forever.
+    """
+
+    def on_publish(client: LanguageClient, params: types.PublishDiagnosticsParams) -> None:
+        client.diagnostics[params.uri] = params.diagnostics
+        client.published.append(params.uri)
+
+    client = LanguageClient(converter_factory=default_converter)
+    client.published = []
+    register_lsp_features(client, {**DEFAULT_CLIENT_FEATURES, types.TEXT_DOCUMENT_PUBLISH_DIAGNOSTICS: on_publish})
+    return client
+
+
+SERVER = ClientServerConfig(
+    server_command=[sys.executable, "-m", "execsql", "lsp", "--stdio"],
+    client_factory=_recording_client,
+)
+
+
+@pytest_lsp.fixture(config=SERVER)
 async def client(lsp_client: LanguageClient, tmp_path_factory):
     root = tmp_path_factory.mktemp("workspace")
     await lsp_client.initialize_session(
@@ -27,6 +53,15 @@ async def client(lsp_client: LanguageClient, tmp_path_factory):
     lsp_client.root = root
     yield
     await lsp_client.shutdown_session()
+
+
+async def _published(client: LanguageClient, since: int, *uris: str) -> None:
+    """Wait until each of *uris* has been published after ``client.published[since]``."""
+    for _ in range(200):
+        if set(uris) <= set(client.published[since:]):
+            return
+        await asyncio.sleep(0.05)
+    raise AssertionError(f"not published: {set(uris) - set(client.published[since:])}")
 
 
 def _open(client: LanguageClient, name: str, text: str) -> str:
@@ -71,7 +106,7 @@ async def test_closing_a_script_clears_its_findings(client: LanguageClient):
     assert not client.diagnostics[uri]
 
 
-@pytest_lsp.fixture(config=ClientServerConfig(server_command=[sys.executable, "-m", "execsql", "lsp", "--stdio"]))
+@pytest_lsp.fixture(config=SERVER)
 async def configured_client(lsp_client: LanguageClient, tmp_path_factory):
     root = tmp_path_factory.mktemp("configured")
     (root / "execsql.conf").write_text("[lint]\nignore = P003\n\n[format]\nindent = 2\n")
@@ -197,16 +232,17 @@ def _change(client: LanguageClient, uri: str, version: int, text: str) -> None:
 @pytest.mark.asyncio
 async def test_a_changed_config_file_is_read_again(client: LanguageClient):
     uri = _open(client, "conf.sql", BAD)
-    await client.wait_for_notification(types.TEXT_DOCUMENT_PUBLISH_DIAGNOSTICS)
+    await _published(client, 0, uri)
     assert [d.code for d in client.diagnostics[uri]] == ["P003"]
     conf = client.root / "execsql.conf"
     conf.write_text("[lint]\nignore = P003\n", encoding="utf-8")
+    since = len(client.published)
     client.workspace_did_change_watched_files(
         types.DidChangeWatchedFilesParams(
             changes=[types.FileEvent(uri=conf.as_uri(), type=types.FileChangeType.Created)],
         ),
     )
-    await client.wait_for_notification(types.TEXT_DOCUMENT_PUBLISH_DIAGNOSTICS)
+    await _published(client, since, uri)
     assert not client.diagnostics[uri]
 
 
@@ -215,16 +251,13 @@ async def test_saving_a_script_lints_the_scripts_that_include_it_again(client: L
     setup = client.root / "setup.sql"
     setup.write_text("SELECT 1;\n", encoding="utf-8")
     main = _open(client, "main.sql", "-- !x! INCLUDE setup.sql\nSELECT '!!region!!';\n")
-    await client.wait_for_notification(types.TEXT_DOCUMENT_PUBLISH_DIAGNOSTICS)
     setup_uri = _open(client, "setup.sql", "SELECT 1;\n")
-    await client.wait_for_notification(types.TEXT_DOCUMENT_PUBLISH_DIAGNOSTICS)
-    published: list[str] = []
+    await _published(client, 0, main, setup_uri)
+    since = len(client.published)
     client.text_document_did_save(
         types.DidSaveTextDocumentParams(text_document=types.TextDocumentIdentifier(uri=setup_uri)),
     )
-    for _ in range(2):
-        published.append((await client.wait_for_notification(types.TEXT_DOCUMENT_PUBLISH_DIAGNOSTICS)).uri)
-    assert sorted(published) == sorted([main, setup_uri])
+    await _published(client, since, main, setup_uri)
 
 
 @pytest.mark.asyncio
@@ -241,7 +274,7 @@ async def test_an_included_file_open_in_the_editor_is_read_unsaved(client: Langu
     assert [loc.uri for loc in found] == [vars_uri]
 
 
-@pytest_lsp.fixture(config=ClientServerConfig(server_command=[sys.executable, "-m", "execsql", "lsp", "--stdio"]))
+@pytest_lsp.fixture(config=SERVER)
 async def watching_client(lsp_client: LanguageClient, tmp_path_factory):
     lsp_client.registrations = []
 
