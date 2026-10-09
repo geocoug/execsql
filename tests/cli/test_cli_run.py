@@ -268,6 +268,7 @@ class TestSubstitutionVarSetup:
         mock_db = _make_mock_db()
         mock_fw = MagicMock()
         mock_fw.is_alive.return_value = False
+        mock_fw.ident = None  # never started: no writer running
 
         defaults = {
             "positional": [script],
@@ -355,6 +356,7 @@ class TestSubstitutionVarSetup:
         mock_db = _make_mock_db()
         mock_fw = MagicMock()
         mock_fw.is_alive.return_value = False
+        mock_fw.ident = None  # never started: no writer running
 
         with (
             patch("execsql.cli.run._connect_initial_db", return_value=mock_db),
@@ -423,6 +425,7 @@ class TestOsPlatformBranches:
         mock_db = _make_mock_db()
         mock_fw = MagicMock()
         mock_fw.is_alive.return_value = False
+        mock_fw.ident = None  # never started: no writer running
 
         with (
             patch("execsql.cli.run._connect_initial_db", return_value=mock_db),
@@ -487,6 +490,7 @@ class TestConfigMerging:
         mock_db = _make_mock_db()
         mock_fw = MagicMock()
         mock_fw.is_alive.return_value = False
+        mock_fw.ident = None  # never started: no writer running
 
         base = {
             "positional": [script],
@@ -624,6 +628,7 @@ class TestConfigMerging:
         mock_db = _make_mock_db()
         mock_fw = MagicMock()
         mock_fw.is_alive.return_value = False
+        mock_fw.ident = None  # never started: no writer running
         with (
             patch("execsql.cli.run._connect_initial_db", return_value=mock_db),
             patch("execsql.script.executor.execute"),
@@ -673,6 +678,7 @@ class TestDsnMerging:
         mock_db = _make_mock_db()
         mock_fw = MagicMock()
         mock_fw.is_alive.return_value = False
+        mock_fw.ident = None  # never started: no writer running
         kwargs = {
             "positional": [script],
             "sub_vars": None,
@@ -804,6 +810,7 @@ class TestPositionalArgRouting:
         mock_db = _make_mock_db()
         mock_fw = MagicMock()
         mock_fw.is_alive.return_value = False
+        mock_fw.ident = None  # never started: no writer running
 
         with (
             patch("execsql.cli.run._connect_initial_db", return_value=mock_db),
@@ -852,6 +859,7 @@ class TestPositionalArgRouting:
         mock_db = _make_mock_db()
         mock_fw = MagicMock()
         mock_fw.is_alive.return_value = False
+        mock_fw.ident = None  # never started: no writer running
         with (
             patch("execsql.cli.run._connect_initial_db", return_value=mock_db),
             patch("execsql.script.executor.execute"),
@@ -892,6 +900,7 @@ class TestPositionalArgRouting:
         mock_db = _make_mock_db()
         mock_fw = MagicMock()
         mock_fw.is_alive.return_value = False
+        mock_fw.ident = None  # never started: no writer running
         with (
             patch("execsql.cli.run._connect_initial_db", return_value=mock_db),
             patch("execsql.script.executor.execute"),
@@ -967,6 +976,7 @@ class TestPositionalArgRouting:
         mock_db = _make_mock_db()
         mock_fw = MagicMock()
         mock_fw.is_alive.return_value = False
+        mock_fw.ident = None  # never started: no writer running
         with (
             patch("execsql.cli.run._connect_initial_db", return_value=mock_db),
             patch("execsql.script.executor.execute"),
@@ -1007,6 +1017,7 @@ class TestPositionalArgRouting:
         mock_db = _make_mock_db()
         mock_fw = MagicMock()
         mock_fw.is_alive.return_value = False
+        mock_fw.ident = None  # never started: no writer running
         with (
             patch("execsql.cli.run._connect_initial_db", return_value=mock_db),
             patch("execsql.script.executor.execute"),
@@ -1054,6 +1065,7 @@ class TestGuiLevelValidation:
         script = _make_sql_file(tmp_path, "SELECT 1;")
         mock_fw = MagicMock()
         mock_fw.is_alive.return_value = False
+        mock_fw.ident = None  # never started: no writer running
         with (
             patch("execsql.cli.run.FileWriter", return_value=mock_fw),
             pytest.raises(ConfigError, match="Invalid GUI level"),
@@ -1098,6 +1110,7 @@ class TestNoDatabaseSpecified:
         script = _make_sql_file(tmp_path, "SELECT 1;")
         mock_fw = MagicMock()
         mock_fw.is_alive.return_value = False
+        mock_fw.ident = None  # never started: no writer running
 
         with (
             patch("execsql.cli.run.FileWriter", return_value=mock_fw),
@@ -1153,6 +1166,7 @@ class TestDefaultEncodings:
         mock_db = _make_mock_db()
         mock_fw = MagicMock()
         mock_fw.is_alive.return_value = False
+        mock_fw.ident = None  # never started: no writer running
 
         with (
             patch("execsql.cli.run._connect_initial_db", return_value=mock_db),
@@ -1213,6 +1227,7 @@ class TestRunIdSubvar:
         mock_db = _make_mock_db()
         mock_fw = MagicMock()
         mock_fw.is_alive.return_value = False
+        mock_fw.ident = None  # never started: no writer running
 
         with (
             patch("execsql.cli.run._connect_initial_db", return_value=mock_db),
@@ -1266,6 +1281,7 @@ class TestPositionalNetworkRouting:
         mock_db = _make_mock_db()
         mock_fw = MagicMock()
         mock_fw.is_alive.return_value = False
+        mock_fw.ident = None  # never started: no writer running
 
         with (
             patch("execsql.cli.run._connect_initial_db", return_value=mock_db),

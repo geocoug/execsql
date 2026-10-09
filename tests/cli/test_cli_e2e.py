@@ -296,3 +296,18 @@ def test_lost_write_output_fails_the_run(tmp_path):
     result = _run_execsql("run", str(script), str(db), "-t", "l", "-n", cwd=tmp_path, timeout=60)
     assert result.returncode != 0
     assert "is_a_directory" in result.stderr + result.stdout
+
+
+def test_write_to_a_directory_fails_fast_with_exit_1(tmp_path):
+    """Output that can never be written ends the run with an error, not a long wait and exit 0."""
+    import time
+
+    (tmp_path / "adir").mkdir()
+    (tmp_path / "execsql.conf").write_text("[output]\noutfile_open_timeout=60\n")
+    script = tmp_path / "w.sql"
+    script.write_text('-- !x! WRITE "hi" TO adir\nselect 1;\n')
+    started = time.monotonic()
+    result = _run_execsql("run", str(script), str(tmp_path / "w.db"), "-t", "l", "-n", cwd=tmp_path, timeout=60)
+    assert time.monotonic() - started < 30
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert "adir" in result.stderr

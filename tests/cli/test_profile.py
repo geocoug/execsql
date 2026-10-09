@@ -195,6 +195,7 @@ def _invoke_run(tmp_path, *, profile: bool = False, runscripts_side_effect=None)
     mock_db = _make_mock_db()
     mock_fw = MagicMock()
     mock_fw.is_alive.return_value = False
+    mock_fw.ident = None  # never started: no writer running
 
     kwargs = {
         "positional": [script],

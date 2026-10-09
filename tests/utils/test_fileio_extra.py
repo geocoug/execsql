@@ -351,6 +351,7 @@ class TestLockedOutputFile:
         fw.file_encoding = "utf-8"
         fw.open_timeout = open_timeout
         fw.return_msg_queue = queue.Queue()
+        fw.errors = []
         return fw
 
     def test_idle_retry_opens_a_file_once_it_is_unlocked(self, tmp_path):
@@ -382,7 +383,7 @@ class TestLockedOutputFile:
         fw.files[target].open_start_time = 0
         fw.retry_waiting()
         fw.open_failures()
-        assert fw.return_msg_queue.get(timeout=5) == [(target, 1)]
+        assert fw.return_msg_queue.get(timeout=5) == [(target, 1, None, "open")]
         assert target not in fw.files
 
 
