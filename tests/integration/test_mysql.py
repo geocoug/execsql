@@ -265,6 +265,47 @@ class TestImportCSV:
         _exec_mysql("DROP TABLE IF EXISTS students")
 
 
+class TestImportToNewWithTheNameInAnotherDatabase:
+    """TO NEW checks the connection's own database, not every database the login can see."""
+
+    _OTHER = "execsql_other"
+
+    def _as_root(self, sql: str) -> None:
+        kwargs = {
+            **_MYSQL_CONNECT_KWARGS,
+            "user": "root",
+            "password": os.environ.get("EXECSQL_MYSQL_ROOT_PASSWORD", "root"),
+        }
+        kwargs.pop("database")
+        try:
+            conn = pymysql.connect(**kwargs)
+        except Exception as exc:  # noqa: BLE001
+            pytest.skip(f"needs root on the test server to create a second database: {exc}")
+        try:
+            conn.autocommit = True
+            with conn.cursor() as cur:
+                cur.execute(sql)
+        finally:
+            conn.close()
+
+    def test_a_table_in_another_database_does_not_block_import_to_new(self, tmp_path):
+        self._as_root(f"CREATE DATABASE IF NOT EXISTS {self._OTHER}")
+        self._as_root(f"CREATE TABLE IF NOT EXISTS {self._OTHER}.two (z INTEGER)")
+        self._as_root(f"GRANT SELECT ON {self._OTHER}.* TO '{_MYSQL_USER}'@'%'")
+        _exec_mysql("DROP TABLE IF EXISTS two")
+        _write_conf(tmp_path)
+        csv_path = tmp_path / "two.csv"
+        csv_path.write_text("a,b\n1,2\n")
+        script = write_script(tmp_path, f"-- !x! IMPORT TO NEW two FROM {csv_path}\n")
+        try:
+            result = _run_execsql_mysql(tmp_path, script)
+            assert result.returncode == 0, f"stderr: {result.stderr}"
+            assert _query_mysql("SELECT a, b FROM two") == [(1, 2)]
+        finally:
+            _exec_mysql("DROP TABLE IF EXISTS two")
+            self._as_root(f"DROP DATABASE IF EXISTS {self._OTHER}")
+
+
 # ---------------------------------------------------------------------------
 # Test: conditional execution (IF / ENDIF)
 # ---------------------------------------------------------------------------

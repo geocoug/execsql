@@ -76,6 +76,9 @@ class DuckDBDatabase(Database):
         self.catalog_name = Path(DuckDB_fn).stem
         self.open_db()
 
+    def current_schema(self) -> str | None:
+        return self._query_current_schema("select current_schema()")
+
     def __repr__(self) -> str:
         return f"DuckDBDatabase({self.db_name!r})"
 

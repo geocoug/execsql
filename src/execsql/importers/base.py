@@ -30,10 +30,20 @@ def table_exists_if_known(db: Database, table_name: str, schema_name: str | None
 def refuse_existing_table(db: Database, schema_name: str | None, table_name: str) -> None:
     """Stop a ``TO NEW`` before any DDL when the target table already exists.
 
-    Best effort: when the database cannot say, the command goes ahead and
-    the CREATE TABLE reports any conflict itself.
+    Only the schema the CREATE TABLE will use counts: for an unqualified
+    name, the database's current schema (MySQL: database).  Best effort:
+    when the database cannot say, the command goes ahead and the CREATE
+    TABLE reports any conflict itself.
     """
-    if table_exists_if_known(db, table_name, schema_name):
+    lookup_schema = schema_name
+    if schema_name is None and not db.unqualified_lookup_is_scoped:
+        try:
+            lookup_schema = db.current_schema()
+        except Exception:
+            lookup_schema = None
+        if lookup_schema is None:
+            return  # An unqualified lookup would search every schema.
+    if table_exists_if_known(db, table_name, lookup_schema):
         name = db.schema_qualified_table_name(schema_name, table_name)
         raise ErrInfo(
             type="cmd",

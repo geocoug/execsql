@@ -182,6 +182,9 @@ class OracleDatabase(Database):
 
         raise DatabaseNotImplementedError(self.name(), "schema_exists")
 
+    def current_schema(self) -> str | None:
+        return self._query_current_schema("select sys_context('USERENV', 'CURRENT_SCHEMA') from dual")
+
     def table_exists(self, table_name: str, schema_name: str | None = None) -> bool:
         """Return True if the named table exists in the Oracle database."""
         # Oracle folds unquoted identifiers to uppercase; normalise so a lookup

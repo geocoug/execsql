@@ -154,6 +154,9 @@ class MySQLDatabase(Database):
         """Lowercase *name* when the server is case-insensitive (LCTN 1/2)."""
         return name.lower() if self._lower_case_table_names() in (1, 2) else name
 
+    def current_schema(self) -> str | None:
+        return self._query_current_schema("select database()")
+
     # NB: schema_exists is overridden below to return False unconditionally
     # — MySQL's pre-existing behavior. The case-folding only matters for
     # adapters where schema lookups are meaningful, which MySQL skips.

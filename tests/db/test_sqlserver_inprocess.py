@@ -269,6 +269,31 @@ class TestSchemaQueries:
         db.commit()
         assert db.table_exists(fresh_table) is True
 
+    def test_to_new_ignores_a_same_named_table_in_another_schema(self, db, fresh_table):
+        """An unqualified TO NEW checks the default schema only, not every schema in the database."""
+        from execsql.importers.base import refuse_existing_table
+
+        with db._cursor() as curs:
+            curs.execute("IF SCHEMA_ID('execsql_other') IS NULL EXEC('CREATE SCHEMA execsql_other');")
+            curs.execute(
+                f"IF OBJECT_ID('execsql_other.{fresh_table}', 'U') IS NULL CREATE TABLE execsql_other.{fresh_table} (z INT);",
+            )
+        db.commit()
+        try:
+            assert db.current_schema() == "dbo"
+            refuse_existing_table(db, None, fresh_table)  # only execsql_other has it: no error
+            with db._cursor() as curs:
+                curs.execute(f"CREATE TABLE {fresh_table} (z INT);")
+            db.commit()
+            with pytest.raises(Exception, match="already exists"):
+                refuse_existing_table(db, None, fresh_table)
+        finally:
+            with db._cursor() as curs:
+                curs.execute(
+                    f"IF OBJECT_ID('execsql_other.{fresh_table}', 'U') IS NOT NULL DROP TABLE execsql_other.{fresh_table};",
+                )
+            db.commit()
+
     def test_column_exists(self, db, fresh_table):
         with db._cursor() as curs:
             curs.execute(f"CREATE TABLE {fresh_table} (id INT, label NVARCHAR(50));")

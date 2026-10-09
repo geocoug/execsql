@@ -355,6 +355,9 @@ class AccessDatabase(Database):
 
         return headers, iter(dict_row, None)
 
+    # table_exists() without a schema looks only where CREATE TABLE puts a table: one namespace.
+    unqualified_lookup_is_scoped = True
+
     def table_exists(self, table_name: str, schema_name: str | None = None) -> bool:
         """Return True if the named table exists in the Access database.
 

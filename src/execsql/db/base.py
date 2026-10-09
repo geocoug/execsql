@@ -492,6 +492,21 @@ class Database(ABC):
             rows = curs.fetchall()
         return len(rows) > 0
 
+    #: Whether :meth:`table_exists` without a schema already looks only where
+    #: an unqualified ``CREATE TABLE`` puts a table (one namespace, or the
+    #: search path).  When not, the check is narrowed to :meth:`current_schema`.
+    unqualified_lookup_is_scoped = False
+
+    def current_schema(self) -> str | None:
+        """The schema (MySQL: database) an unqualified table name is created in, or ``None`` if unknown."""
+        return None
+
+    def _query_current_schema(self, sql: str) -> str | None:
+        with self._cursor() as curs:
+            curs.execute(sql)
+            row = curs.fetchone()
+        return str(row[0]) if row and row[0] else None
+
     def table_exists(self, table_name: str, schema_name: str | None = None) -> bool:
         """Return ``True`` if *table_name* (optionally in *schema_name*) exists."""
         with self._cursor() as curs:
