@@ -28,7 +28,8 @@ ______________________________________________________________________
     - folding of `IF` branches, `LOOP`, `SCRIPT`, `BATCH` and `SQL` blocks, multi-line statements and comments;
     - quick fixes for misspelled metacommands, conditional tests and variables (P003, P004, V001) and split dollar-quoted bodies (P002);
     - Format Document, the same as `execsql format` with the workspace's `[format]` settings;
-    - `execsql.conf` read again when it changes, and open scripts linted again when a file they `INCLUDE` changes.
+    - `execsql.conf` read again when it changes, and open scripts linted again when a file they `INCLUDE` changes;
+    - each folder of a multi-root workspace linted and formatted with its own `execsql.conf`.
 
     The server never runs a script or connects to a database, and reads only regular files of bounded size.
 

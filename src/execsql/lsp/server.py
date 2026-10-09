@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -46,42 +47,81 @@ class _DropLateCancels(logging.Filter):
         return not record.getMessage().startswith("Cancel notification for unknown message id")
 
 
+@dataclass
+class Settings:
+    """What the configuration sets for one workspace folder: lint rule selection and format options."""
+
+    select: tuple[str, ...] = ()
+    ignore: tuple[str, ...] = ()
+    format_options: dict[str, Any] = field(default_factory=dict)  # format_document keywords, from [format]
+
+
 class ExecsqlLanguageServer(LanguageServer):
-    """Holds what the handlers share: lint rule selection and pending lint tasks."""
+    """Holds what the handlers share: each workspace folder's settings and pending lint tasks."""
 
     def __init__(self) -> None:
         super().__init__("execsql", __version__)
-        self.select: tuple[str, ...] = ()
-        self.ignore: tuple[str, ...] = ()
+        self.settings: dict[str, Settings] = {}  # by same_file_key of each workspace folder
+        self.fallback = Settings()  # for a file in no workspace folder
         self.pending: dict[str, asyncio.Task[Any]] = {}
-        self.format_options: dict[str, Any] = {}  # format_document keywords, from [format]
 
-    def load_settings(self, root: str | None) -> None:
-        """Read ``[lint]`` and ``[format]`` the way ``execsql lint`` / ``execsql format`` run from *root* would.
+    def load_settings(self) -> None:
+        """Read ``[lint]`` and ``[format]`` for each workspace folder, as ``execsql lint`` / ``execsql format`` run there would.
 
-        execsql reads config files from the working directory, so the server
-        works from the workspace root.  A config error is shown to the user
-        and leaves every rule on.
+        execsql reads config files from the working directory, so each
+        folder's settings are read from inside it.  The server itself works
+        from the workspace root: a file in no folder gets the settings read
+        there, and an unsaved script's relative ``INCLUDE`` resolves there.
+        """
+        root = self.workspace.root_path
+        if root and os.path.isdir(root):
+            os.chdir(root)
+        self.fallback = self._read_settings(None)
+        self.settings = {}
+        for folder in self.workspace.folders.values():
+            path = to_fs_path(folder.uri)
+            if path and os.path.isdir(path):
+                self.settings[same_file_key(path)] = self._read_settings(path)
+
+    def _read_settings(self, folder: str | None) -> Settings:
+        """The settings ``execsql lint`` run from *folder* (the working directory if ``None``) reads.
+
+        A config error is shown to the user and leaves every rule on.
         """
         from execsql.cli.lint import resolve_selectors
         from execsql.cli.run import _tool_config
 
-        if root and os.path.isdir(root):
-            os.chdir(root)
+        here = os.getcwd()
         try:
+            if folder is not None:
+                os.chdir(folder)
             conf = _tool_config(None)
-            self.select = resolve_selectors([conf.lint_select]) if conf.lint_select else ()
-            self.ignore = resolve_selectors([conf.lint_ignore]) if conf.lint_ignore else ()
-            self.format_options = {
-                "indent": conf.format_indent,
-                "use_sql": conf.format_sql,
-                "leading_comma": conf.format_leading_comma,
-                "rewrite_sql": conf.format_rewrite_sql,
-            }
+            return Settings(
+                select=resolve_selectors([conf.lint_select]) if conf.lint_select else (),
+                ignore=resolve_selectors([conf.lint_ignore]) if conf.lint_ignore else (),
+                format_options={
+                    "indent": conf.format_indent,
+                    "use_sql": conf.format_sql,
+                    "leading_comma": conf.format_leading_comma,
+                    "rewrite_sql": conf.format_rewrite_sql,
+                },
+            )
         except Exception as exc:  # a bad config must not take the server down
             self.window_show_message(
                 types.ShowMessageParams(type=types.MessageType.Warning, message=f"execsql config: {exc}"),
             )
+            return Settings()
+        finally:
+            os.chdir(here)
+
+    def settings_for(self, uri: str) -> Settings:
+        """The settings of the innermost workspace folder holding *uri*'s file, else :attr:`fallback`."""
+        path = to_fs_path(uri)
+        if path is None:
+            return self.fallback
+        key = same_file_key(path)
+        holding = [f for f in self.settings if key == f or key.startswith(f.rstrip(os.sep) + os.sep)]
+        return self.settings[max(holding, key=len)] if holding else self.fallback
 
     def index(self, uri: str) -> ScriptIndex:
         """The current document's index (rebuilt per request: a few milliseconds).
@@ -131,8 +171,9 @@ class ExecsqlLanguageServer(LanguageServer):
     def publish(self, uri: str) -> None:
         """Lint the document's current text and publish the result."""
         document = self.workspace.get_text_document(uri)
+        settings = self.settings_for(uri)
         try:
-            found = diagnostics(document.source, to_fs_path(uri), self.select, self.ignore)
+            found = diagnostics(document.source, to_fs_path(uri), settings.select, settings.ignore)
         except RecursionError:
             found = [too_deep_diagnostic()]
         self.text_document_publish_diagnostics(
@@ -187,7 +228,7 @@ def create_server() -> ExecsqlLanguageServer:
 
     @server.feature(types.INITIALIZED)
     def initialized(ls: ExecsqlLanguageServer, params: types.InitializedParams) -> None:
-        ls.load_settings(ls.workspace.root_path)
+        ls.load_settings()
         ls.watch_files()
 
     @server.feature(types.TEXT_DOCUMENT_DID_OPEN)
@@ -206,7 +247,13 @@ def create_server() -> ExecsqlLanguageServer:
     @server.feature(types.WORKSPACE_DID_CHANGE_WATCHED_FILES)
     def did_change_watched_files(ls: ExecsqlLanguageServer, params: types.DidChangeWatchedFilesParams) -> None:
         if any(Path(to_fs_path(change.uri) or "").name.lower() == "execsql.conf" for change in params.changes):
-            ls.load_settings(ls.workspace.root_path)
+            ls.load_settings()
+        ls.publish_all()
+
+    @server.feature(types.WORKSPACE_DID_CHANGE_WORKSPACE_FOLDERS)
+    def did_change_folders(ls: ExecsqlLanguageServer, params: types.DidChangeWorkspaceFoldersParams) -> None:
+        # pygls has already updated ls.workspace.folders.
+        ls.load_settings()
         ls.publish_all()
 
     @server.feature(types.TEXT_DOCUMENT_DID_CLOSE)
@@ -273,9 +320,10 @@ def create_server() -> ExecsqlLanguageServer:
 
     @server.feature(types.TEXT_DOCUMENT_FORMATTING)
     def on_format(ls: ExecsqlLanguageServer, params: types.DocumentFormattingParams) -> list[types.TextEdit] | None:
-        source = ls.workspace.get_text_document(params.text_document.uri).source
+        uri = params.text_document.uri
+        source = ls.workspace.get_text_document(uri).source
         try:
-            return format_document(source, **ls.format_options)
+            return format_document(source, **ls.settings_for(uri).format_options)
         except Exception as exc:  # e.g. the formatter extra missing: say so, change nothing
             ls.window_show_message(
                 types.ShowMessageParams(type=types.MessageType.Error, message=f"execsql format: {exc}"),

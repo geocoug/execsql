@@ -350,3 +350,78 @@ async def test_an_included_file_open_under_another_path_is_still_read_unsaved(cl
         ),
     )
     assert [loc.range.start.line for loc in found] == [0]
+
+
+@pytest_lsp.fixture(config=SERVER)
+async def two_folder_client(lsp_client: LanguageClient, tmp_path_factory):
+    """A multi-root workspace: folder ``a`` ignores P003 and indents by 2, folder ``b`` has no config."""
+    a = tmp_path_factory.mktemp("a")
+    b = tmp_path_factory.mktemp("b")
+    (a / "execsql.conf").write_text("[lint]\nignore = P003\n\n[format]\nindent = 2\n")
+    await lsp_client.initialize_session(
+        types.InitializeParams(
+            capabilities=types.ClientCapabilities(),
+            root_uri=a.as_uri(),
+            workspace_folders=[
+                types.WorkspaceFolder(uri=a.as_uri(), name="a"),
+                types.WorkspaceFolder(uri=b.as_uri(), name="b"),
+            ],
+        ),
+    )
+    lsp_client.folders = a, b
+    yield
+    await lsp_client.shutdown_session()
+
+
+def _open_at(client: LanguageClient, path, text: str) -> str:
+    client.text_document_did_open(
+        types.DidOpenTextDocumentParams(
+            text_document=types.TextDocumentItem(uri=path.as_uri(), language_id="sql", version=1, text=text),
+        ),
+    )
+    return path.as_uri()
+
+
+@pytest.mark.asyncio
+async def test_each_workspace_folder_lints_with_its_own_config(two_folder_client: LanguageClient):
+    a, b = two_folder_client.folders
+    in_a = _open_at(two_folder_client, a / "x.sql", BAD)
+    in_b = _open_at(two_folder_client, b / "x.sql", BAD)
+    await _published(two_folder_client, 0, in_a, in_b)
+    assert not two_folder_client.diagnostics[in_a]
+    assert [d.code for d in two_folder_client.diagnostics[in_b]] == ["P003"]
+
+
+@pytest.mark.asyncio
+async def test_each_workspace_folder_formats_with_its_own_config(two_folder_client: LanguageClient):
+    a, b = two_folder_client.folders
+    text = '-- !x! if(hasrows(t))\n-- !x! write "x"\n-- !x! endif\n'
+    found = []
+    for uri in (_open_at(two_folder_client, a / "f.sql", text), _open_at(two_folder_client, b / "f.sql", text)):
+        edits = await two_folder_client.text_document_formatting_async(
+            types.DocumentFormattingParams(
+                text_document=types.TextDocumentIdentifier(uri=uri),
+                options=types.FormattingOptions(tab_size=8, insert_spaces=True),
+            ),
+        )
+        found.append(edits[0].new_text.splitlines()[1])
+    assert found == ['  -- !x! WRITE "x"', '    -- !x! WRITE "x"']
+
+
+@pytest.mark.asyncio
+async def test_an_added_workspace_folder_brings_its_config(two_folder_client: LanguageClient, tmp_path_factory):
+    c = tmp_path_factory.mktemp("c")  # no execsql.conf: every rule on
+    uri = _open_at(two_folder_client, c / "x.sql", BAD)
+    await _published(two_folder_client, 0, uri)
+    assert not two_folder_client.diagnostics[uri]  # in no folder: the root's (folder a's) settings
+    since = len(two_folder_client.published)
+    two_folder_client.workspace_did_change_workspace_folders(
+        types.DidChangeWorkspaceFoldersParams(
+            event=types.WorkspaceFoldersChangeEvent(
+                added=[types.WorkspaceFolder(uri=c.as_uri(), name="c")],
+                removed=[],
+            ),
+        ),
+    )
+    await _published(two_folder_client, since, uri)
+    assert [d.code for d in two_folder_client.diagnostics[uri]] == ["P003"]
