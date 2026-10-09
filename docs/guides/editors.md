@@ -126,7 +126,21 @@ section's `select` and `ignore` decide which rules are shown, exactly as on the
 command line (see [Configuration](../reference/lint.md#config)), and the
 `[format]` section sets how Format Document lays the script out.
 
-The server reads the workspace's `execsql.conf` again when it changes, and
+In a workspace with several folders (a VS Code multi-root workspace), each
+folder has its own settings: a script is linted and formatted with the
+configuration `execsql lint` would read if run from the folder that holds it,
+or from the innermost one when folders are nested. A script outside every
+folder uses the settings of the workspace's first folder. For example, with
+
+```text
+reports/execsql.conf      [lint] ignore = P003
+loads/                    (no execsql.conf)
+```
+
+an unknown metacommand is reported in `loads/*.sql` but not in
+`reports/*.sql`. Adding or removing a folder takes effect at once.
+
+The server reads each folder's `execsql.conf` again when it changes, and
 lints every open script again when a `.sql` file in the workspace changes or
 is saved, so a script sees the variables an edited `INCLUDE` file now defines.
 An included file that is open in the editor is read as you have it, saved or
