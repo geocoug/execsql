@@ -13,12 +13,12 @@ repos:
       - id: check-hooks-apply
   # Protect secrets using Gitleaks
   - repo: https://github.com/zricethezav/gitleaks
-    rev: v8.30.0
+    rev: v8.30.1
     hooks:
       - id: gitleaks
   # uv lockfile management
   - repo: https://github.com/astral-sh/uv-pre-commit
-    rev: 0.11.1
+    rev: 0.12.23
     hooks:
       - id: uv-lock
   # Base hooks
@@ -44,7 +44,7 @@ repos:
       - id: mdformat
         language: python
         additional_dependencies:
-          - mdformat-mkdocs==5.1.1
+          - mdformat-mkdocs==5.3.0
         exclude: |
           (?x)^(
             \.claude/.*|
@@ -56,7 +56,7 @@ repos:
           )$
   # Markdown lint
   - repo: https://github.com/igorshubovych/markdownlint-cli
-    rev: v0.48.0
+    rev: v0.49.1
     hooks:
       - id: markdownlint
         types: [file]
@@ -64,13 +64,13 @@ repos:
         args: [--disable, MD013]
   # Spell check
   - repo: https://github.com/crate-ci/typos
-    rev: v1.44.0
+    rev: v1.51.0
     hooks:
       - id: typos
         args: [--force-exclude]
   # Lint & format with ruff
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.7
+    rev: v0.16.10
     hooks:
       - id: ruff-check
         args: [--config=pyproject.toml, --exit-non-zero-on-fix]
