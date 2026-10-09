@@ -67,3 +67,25 @@ def test_an_include_chain_stops_at_the_file_limit(tmp_path, monkeypatch):
     defined = index_script((tmp_path / "main.sql").read_text(), main).definitions
     assert {"V0", "V1"} <= set(defined)  # main.sql, f0 and f1 are the three files
     assert "V2" not in defined
+
+
+def test_a_variable_nested_in_another_name_is_a_reference():
+    index = index_script("SELECT !!N_!!grp!!_CHECKS!!;\n", None)
+    assert "grp" in [r.name for r in index.references]
+
+
+def test_a_local_definition_spans_the_bare_name():
+    index = index_script("-- !x! SUB ~tmp 1\n", None)
+    [loc] = index.definitions["TMP"]
+    assert (loc.start, loc.end) == (12, 15)
+
+
+def test_uses_in_included_files_are_references_but_not_under_the_cursor(tmp_path):
+    (tmp_path / "setup.sql").write_text("SELECT '!!region!!';\n", encoding="utf-8")
+    main = _main(tmp_path, "setup.sql")
+    index = index_script((tmp_path / "main.sql").read_text(), main)
+    paths = {r.location.path for r in index.references if r.key == "REGION"}
+    assert paths == {main, str(tmp_path / "setup.sql")}
+    from execsql.lsp.document import variable_at
+
+    assert variable_at(index, 0, 9) is None  # line 0 of main.sql is the INCLUDE, not setup.sql's use

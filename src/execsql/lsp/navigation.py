@@ -71,7 +71,7 @@ def references(
     character: int,
     include_declaration: bool = True,
 ) -> list[types.Location]:
-    """Every use of the variable under the cursor in this file (and its definitions)."""
+    """Every use of the variable under the cursor in this file and the files it includes (and its definitions)."""
     ref = variable_at(index, line, character)
     if ref is None:
         return []
