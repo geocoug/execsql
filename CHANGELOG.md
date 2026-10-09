@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.26.0] - 2026-10-09
+
 ### Added
 
 - **`execsql format --rewrite-sql`** (`[format] rewrite_sql`): accept sqlglot's rewrites of SQL text, such as `x::int` as `CAST(x AS INT)`.
