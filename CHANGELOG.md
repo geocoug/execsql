@@ -44,6 +44,7 @@ ______________________________________________________________________
 
 ### Fixed
 
+- **`CONFIG MAX_INT <n>`** works as documented; it stopped with `Unknown metacommand`, and only the bare `MAX_INT <n>` (still accepted) was recognized.
 - **Metacommand reference syntax:** `PROMPT MAP` showed quoted column names (`LAT "<lat_col>"`), which execsql reads as a plain `PROMPT MESSAGE` with no map; the column names are unquoted. Also corrected: `CONNECT TO DSN` (a stray comma) and `HASROWS` (a missing `>`).
 
 ______________________________________________________________________

@@ -589,7 +589,7 @@ Controls whether the [EXPORT](#export) and [WRITE](#write) metacommands will aut
 CONFIG MAX_INT <integer_value>
 ```
 
-Specifies the threshold between integer and bigint data types that is used by the [IMPORT](#import) and [COPY](#copy) metacommands when creating a new table. Any column with integer values less than or equal to this value (max_int) and greater than or equal to -1 × max_int - 1 will be considered to have an integer type. Any column with values outside this range will be considered to have a bigint type. The default value for max_int is 2147483647. The max_int value can also be altered using a configuration option.
+Specifies the threshold between integer and bigint data types that is used by the [IMPORT](#import) and [COPY](#copy) metacommands when creating a new table. Any column with integer values less than or equal to this value (max_int) and greater than or equal to -1 × max_int - 1 will be considered to have an integer type. Any column with values outside this range will be considered to have a bigint type. The default value for max_int is 2147483647. The max_int value can also be altered using a configuration option. The bare form `MAX_INT <integer_value>`, without `CONFIG`, does the same.
 
 
 ```
