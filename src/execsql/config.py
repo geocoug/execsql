@@ -379,6 +379,7 @@ class ConfigData:
         self._get_int(cp, self._FORMAT_SECTION, "indent", "format_indent")
         self._get_bool(cp, self._FORMAT_SECTION, "leading_comma", "format_leading_comma")
         self._get_bool(cp, self._FORMAT_SECTION, "sql", "format_sql")
+        self._get_bool(cp, self._FORMAT_SECTION, "rewrite_sql", "format_rewrite_sql")
         self._get_str(cp, self._LINT_SECTION, "select", "lint_select")
         self._get_str(cp, self._LINT_SECTION, "ignore", "lint_ignore")
         self._get_bool(cp, self._LINT_SECTION, "strict", "lint_strict")
@@ -555,6 +556,7 @@ class ConfigData:
         self.format_indent = 4
         self.format_leading_comma = False
         self.format_sql = True
+        self.format_rewrite_sql = False
         self.lint_select: str | None = None
         self.lint_ignore: str | None = None
         self.lint_strict = False

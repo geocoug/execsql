@@ -11,8 +11,13 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Added
+
+- **`execsql format --rewrite-sql`** (`[format] rewrite_sql`): accept sqlglot's rewrites of SQL text, such as `x::int` as `CAST(x AS INT)`.
+
 ### Changed
 
+- **`execsql format` changes only layout and keyword case by default:** a statement sqlglot would rewrite (`x::int` as `CAST(x AS INT)`, an alias gaining `AS`, `BTRIM` as `TRIM`) is kept as written. Pass `--rewrite-sql`, or set `rewrite_sql = Yes` under `[format]`, for the previous behavior.
 - **`execsql format` and the `execsql-format` pre-commit hook use one sqlglot release:** the `[formatter]` extra requires sqlglot 30.21.x and the hook installs 30.21.0, so a script formats the same everywhere. The first run after upgrading can reformat files formatted with an older sqlglot, such as `BTRIM(x)` written as `TRIM(x)`; see [sqlglot version](https://execsql2.readthedocs.io/en/latest/guides/formatter/#sqlglot-version).
 
 ______________________________________________________________________

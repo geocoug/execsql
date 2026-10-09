@@ -405,6 +405,9 @@ the command line always wins. A run ignores this section.
 `sql`
 :   Reformat SQL with sqlglot (needs the `[formatter]` extra). `No` normalizes metacommands only. Default: Yes. Equivalent to `--sql` / `--no-sql`.
 
+`rewrite_sql`
+:   Also let sqlglot rewrite SQL text, such as `x::int` as `CAST(x AS INT)` or an alias with `AS`. With `No`, a statement sqlglot would rewrite is kept as written (see [Layout only](../guides/formatter.md#layout-only)). Default: No. Equivalent to `--rewrite-sql` / `--no-rewrite-sql`.
+
 ## Section `lint` { #config_lint }
 
 Rule selection for [`execsql lint`](lint.md#config). A run ignores this section.

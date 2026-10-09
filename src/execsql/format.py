@@ -16,6 +16,7 @@ import io
 import re
 from collections.abc import Iterator
 from pathlib import Path
+from types import ModuleType
 
 __all__ = ["collect_paths", "format_file", "open_dollar_quote", "parse_keyword", "run_formatter"]
 
@@ -509,10 +510,47 @@ def _is_comment_line(line: str, in_block: bool) -> tuple[bool, bool]:
     return False, False
 
 
+def _statement_sources(sqlglot: ModuleType, sql: str) -> list[str]:
+    """The text of each statement in *sql*, split at the semicolons sqlglot's tokenizer sees.
+
+    Comments before a statement belong to it; a semicolon inside a string or
+    a quoted name is not a split.  A part holding no tokens (``;;``) is not a
+    statement, matching the ``None`` sqlglot's parser returns for it.
+    """
+    sources: list[str] = []
+    start = 0
+    has_tokens = False
+    for token in sqlglot.tokenize(sql, read="postgres"):
+        if token.token_type.name == "SEMICOLON":
+            if has_tokens:
+                sources.append(sql[start : token.start])
+            start, has_tokens = token.end + 1, False
+        else:
+            has_tokens = True
+    if has_tokens:
+        sources.append(sql[start:])
+    return sources
+
+
+def _layout_tokens(sqlglot: ModuleType, sql: str) -> list[str]:
+    """*sql*'s tokens with everything the formatter may change taken out.
+
+    Whitespace and comments are not tokens.  Keywords and unquoted names are
+    compared without case; strings and quoted names exactly.
+    """
+    return [
+        token.text
+        if token.token_type.name.endswith("STRING") or token.token_type.name == "IDENTIFIER"
+        else token.text.upper()
+        for token in sqlglot.tokenize(sql, read="postgres")
+    ]
+
+
 def _sqlglot_format(
     sql_lines: list[str],
     sql_indent: int = 4,
     leading_comma: bool = False,  # noqa: ARG001 — leading-comma layout is applied as a textual post-pass on the assembled output; sqlglot's own `leading_comma=True` is non-idempotent under inline comments.
+    rewrite_sql: bool = False,
 ) -> list[str]:
     """Format a list of SQL-only lines (no comment-only lines) via sqlglot.
 
@@ -521,6 +559,12 @@ def _sqlglot_format(
     ``format_file``. sqlglot's own ``leading_comma=True`` reshuffles inline
     comments and is therefore non-idempotent on SQL with mid-statement
     comments, which is the dominant real-world case.
+
+    sqlglot also rewrites SQL into its preferred form (``x::int`` ->
+    ``CAST(x AS INT)``, ``BTRIM`` -> ``TRIM``, an alias gains ``AS``), and
+    which rewrites it makes changes between its releases (#72).  Unless
+    *rewrite_sql*, a statement whose tokens would change beyond keyword case
+    is kept as written.
     """
     sqlglot = _require_sqlglot()
     import sqlglot.errors as sqlglot_errors
@@ -551,24 +595,28 @@ def _sqlglot_format(
             # understood the whole statement, so ask it: input that does not
             # parse is left exactly as written.
             ast = sqlglot.parse(protected, read="postgres", error_level=sqlglot_errors.ErrorLevel.RAISE)
+            nodes = [node for node in ast if node is not None]
+            sources = None if rewrite_sql else _statement_sources(sqlglot, protected)
+            if sources is not None and len(sources) != len(nodes):
+                return sql_lines
             statements: list[str] = []
-            for node in ast:
-                if node is None:
-                    continue
+            for i, node in enumerate(nodes):
                 # For Command nodes (psql backslash commands, ERROR:, etc.)
                 # use unpretty output to avoid mangling.
                 if type(node).__name__ == "Command":
-                    statements.append(node.sql(dialect="postgres"))
+                    generated = node.sql(dialect="postgres")
                 else:
-                    statements.append(
-                        node.sql(
-                            dialect="postgres",
-                            pretty=True,
-                            pad=sql_indent,
-                            indent=sql_indent,
-                            max_text_width=120,
-                        ),
+                    generated = node.sql(
+                        dialect="postgres",
+                        pretty=True,
+                        pad=sql_indent,
+                        indent=sql_indent,
+                        max_text_width=120,
                     )
+                generated = re.sub(r"\bINTO TEMPORARY\b(?!\s+TABLE)", "INTO TEMPORARY TABLE", generated)
+                if sources is not None and _layout_tokens(sqlglot, generated) != _layout_tokens(sqlglot, sources[i]):
+                    generated = sources[i].lstrip("\n").rstrip()  # layout only: keep it as written
+                statements.append(generated)
         stmts = [s for s in statements if s]
         if not stmts:
             return sql_lines
@@ -613,7 +661,6 @@ def _sqlglot_format(
         if set(_sql_literal_texts(protected)) - set(_sql_literal_texts(joined)):
             return sql_lines
 
-        joined = re.sub(r"\bINTO TEMPORARY\b(?!\s+TABLE)", "INTO TEMPORARY TABLE", joined)
         restored = _restore_estrings(joined, estrings)
         if restored is None:
             return sql_lines
@@ -701,6 +748,7 @@ def _format_preserving_comments(
     lines: list[str],
     sql_indent: int = 4,
     leading_comma: bool = False,
+    rewrite_sql: bool = False,
 ) -> list[str]:
     """Format SQL with interleaved comments via marker-based round-tripping.
 
@@ -744,8 +792,12 @@ def _format_preserving_comments(
             pending_markers.append(mid)
         else:
             # SQL line — prepend any pending markers as inline comments
+            # After the line's indentation, not before it: a statement that
+            # comes back as written (unparsable, or kept by layout-only) has
+            # its indentation read from this line once the marker is removed.
             prefix = " ".join(f"/* {m} */" for m in pending_markers)
-            processed.append(f"{prefix} {line}" if prefix else line)
+            body = line.lstrip()
+            processed.append(f"{line[: len(line) - len(body)]}{prefix} {body}" if prefix else line)
             for m in pending_markers:
                 anchor_sql[m] = stripped
                 anchor_line[m] = len(processed) - 1
@@ -760,7 +812,7 @@ def _format_preserving_comments(
     anchor_depth: dict[str, int] = {m: in_depths[i] for m, i in anchor_line.items()}
 
     # ---- Step 2: format through sqlglot ---------------------------------
-    formatted = _sqlglot_format(processed, sql_indent=sql_indent, leading_comma=leading_comma)
+    formatted = _sqlglot_format(processed, sql_indent=sql_indent, leading_comma=leading_comma, rewrite_sql=rewrite_sql)
 
     # ---- Step 3: restore surviving markers to comment lines -------------
     found_markers: set[str] = set()
@@ -908,6 +960,7 @@ def format_sql_block(
     indent: int,
     use_sql: bool,
     leading_comma: bool = False,
+    rewrite_sql: bool = False,
 ) -> list[str]:
     """Re-indent a SQL block to the current depth, optionally formatting via sqlglot."""
     if not lines:
@@ -940,7 +993,12 @@ def format_sql_block(
     # which preserves both comments AND sqlglot formatting.  When all
     # comments are between statements, the simpler segmentation works.
     if _has_mid_statement_comments(rebased):
-        formatted_lines = _format_preserving_comments(rebased, sql_indent=indent, leading_comma=leading_comma)
+        formatted_lines = _format_preserving_comments(
+            rebased,
+            sql_indent=indent,
+            leading_comma=leading_comma,
+            rewrite_sql=rewrite_sql,
+        )
         return [target_prefix + line if line.strip() else "" for line in formatted_lines]
 
     result: list[str] = []
@@ -954,7 +1012,7 @@ def format_sql_block(
         if seg_is_comment:
             result.extend(seg)
         else:
-            result.extend(_sqlglot_format(seg, sql_indent=indent, leading_comma=leading_comma))
+            result.extend(_sqlglot_format(seg, sql_indent=indent, leading_comma=leading_comma, rewrite_sql=rewrite_sql))
         seg.clear()
 
     for line in rebased:
@@ -1076,8 +1134,19 @@ def _apply_leading_comma(text: str) -> str:
     return "\n".join(lines)
 
 
-def format_file(source: str, indent: int = 4, use_sql: bool = True, leading_comma: bool = False) -> str:
-    """Format the source text of an execsql script and return the result."""
+def format_file(
+    source: str,
+    indent: int = 4,
+    use_sql: bool = True,
+    leading_comma: bool = False,
+    rewrite_sql: bool = False,
+) -> str:
+    """Format the source text of an execsql script and return the result.
+
+    SQL is laid out by sqlglot.  A statement sqlglot would also rewrite
+    (``x::int`` as ``CAST(x AS INT)``, ``BTRIM`` as ``TRIM``, an alias with
+    ``AS``) is kept as written unless *rewrite_sql*.
+    """
     # Normalize any leading-comma SQL in the source to trailing commas so
     # that sqlglot always sees the same comma shape regardless of how
     # the user saved the file. The post-pass at the bottom of this
@@ -1124,7 +1193,16 @@ def format_file(source: str, indent: int = 4, use_sql: bool = True, leading_comm
             # `sql_acc_contains_dollar_quote` catches the case where the region
             # already closed (`... $$;`) so `in_dollar_quote` is False at flush.
             safe_for_sqlglot = use_sql and not in_dollar_quote and not sql_acc_contains_dollar_quote
-            output.extend(format_sql_block(sql_acc, depth, indent, safe_for_sqlglot, leading_comma=leading_comma))
+            output.extend(
+                format_sql_block(
+                    sql_acc,
+                    depth,
+                    indent,
+                    safe_for_sqlglot,
+                    leading_comma=leading_comma,
+                    rewrite_sql=rewrite_sql,
+                ),
+            )
             sql_acc.clear()
         in_sql_statement = False
         sql_acc_contains_dollar_quote = False
@@ -1243,6 +1321,7 @@ def run_formatter(
     no_sql: bool = False,
     indent: int = 4,
     leading_comma: bool = False,
+    rewrite_sql: bool = False,
     encoding: str = "utf-8",
     diff: bool = False,
 ) -> int:
@@ -1290,7 +1369,13 @@ def run_formatter(
             any_errors = True
             continue
 
-        formatted = format_file(source, indent=indent, use_sql=use_sql, leading_comma=leading_comma)
+        formatted = format_file(
+            source,
+            indent=indent,
+            use_sql=use_sql,
+            leading_comma=leading_comma,
+            rewrite_sql=rewrite_sql,
+        )
 
         if diff:
             if formatted != source:

@@ -369,6 +369,9 @@
 #leading_comma=No
 # Reformat SQL with sqlglot (needs the [formatter] extra). No = metacommands only.
 #sql=Yes
+# Also let sqlglot rewrite SQL text: x::int as CAST(x AS INT), BTRIM as TRIM,
+# an alias with AS. No = a statement it would rewrite is kept as written.
+#rewrite_sql=No
 
 
 [lint]
