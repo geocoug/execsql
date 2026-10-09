@@ -398,10 +398,16 @@ class TestConstantConditionMakesBranchesUnreachable:
         assert "F001" in _codes(issues)
         assert "always false" in _messages(issues)
 
-    @pytest.mark.parametrize("cond", ["1=1", "1 = 1", "true", "TRUE", "(True)", "yes"])
+    @pytest.mark.parametrize("cond", ["true", "TRUE", "(True)", "yes"])
     def test_spellings_of_always_true(self, tmp_path, cond):
         issues = _lint(tmp_path, f"-- !x! IF({cond})\nSELECT 1;\n-- !x! ELSE\nSELECT 2;\n-- !x! ENDIF\n")
         assert "F001" in _codes(issues), cond
+
+    @pytest.mark.parametrize("cond", ["1=1", "1 = 1", "0=1", "1=0"])
+    def test_a_comparison_is_a_malformed_condition_not_a_constant(self, tmp_path, cond):
+        """There is no ``=`` test: ``IF(1=1)`` stops the run, so lint reports that and nothing else."""
+        issues = _lint(tmp_path, f"-- !x! IF({cond})\nSELECT 1;\n-- !x! ELSE\nSELECT 2;\n-- !x! ENDIF\n")
+        assert _codes(issues) == {"P004"}, cond
 
     def test_a_real_condition_is_left_alone(self, tmp_path):
         """The rule must not fire on a condition with actual content."""
@@ -605,8 +611,16 @@ class TestUnknownCondition:
 
     @pytest.mark.parametrize(
         "condition",
-        ["!!flag!!", "hasrows(!!t!!)", "!{flag}!", 'equals("!\'!a!\'!", "b")', "is_true(!!$PG_UPSERT_QA_PASSED!!)"],
-        ids=["whole-condition", "argument", "deferred", "quoted", "is-true"],
+        [
+            "!!flag!!",
+            "hasrows(!!t!!)",
+            "!{flag}!",
+            'equals("!\'!a!\'!", "b")',
+            "is_true(!!$PG_UPSERT_QA_PASSED!!)",
+            "row_count_eq(t, !!flag!!)",
+            "ROW_COUNT_GTE(!!t!!, !!flag!!)",
+        ],
+        ids=["whole-condition", "argument", "deferred", "quoted", "is-true", "row-count", "row-count-two-vars"],
     )
     def test_a_variable_that_fits_the_condition_is_fine(self, tmp_path, condition):
         body = f"-- !x! SUB flag 1\n-- !x! IF({condition})\nSELECT 1;\n-- !x! ENDIF\n"
@@ -624,6 +638,12 @@ class TestUnknownCondition:
     def test_a_condition_with_a_variable_is_still_parsed(self, tmp_path, line):
         """Variables are read as a literal, so an ``=`` comparison, which no condition supports, is caught."""
         assert self._lines(tmp_path, f"-- !x! SUB flag 1\n{line}\n") == [2]
+
+
+def test_a_deeply_nested_condition_is_reported_not_a_crash(tmp_path):
+    condition = "NOT(" * 3000 + "TRUE" + ")" * 3000
+    issues = _lint(tmp_path, f"-- !x! IF({condition})\nSELECT 1;\n-- !x! ENDIF\n")
+    assert _codes(issues) == {"P004"}
 
 
 class TestAScriptThatDoesNotParse:

@@ -515,8 +515,8 @@ def _check_include_path(
 #: Conditions whose value is fixed at parse time.  ``IF(True)`` is a real and
 #: reasonable thing to write while developing; leaving it in is what makes
 #: every other branch dead code.
-_RX_CONST_TRUE = re.compile(r"^\s*\(?\s*(?:true|1\s*=\s*1|yes)\s*\)?\s*$", re.I)
-_RX_CONST_FALSE = re.compile(r"^\s*\(?\s*(?:false|0\s*=\s*1|1\s*=\s*0|no)\s*\)?\s*$", re.I)
+_RX_CONST_TRUE = re.compile(r"^\s*\(?\s*(?:true|yes)\s*\)?\s*$", re.I)
+_RX_CONST_FALSE = re.compile(r"^\s*\(?\s*(?:false|no)\s*\)?\s*$", re.I)
 
 #: Metacommands after which nothing in the same block can run.
 _RX_TERMINAL = re.compile(r"^\s*HALT\b(?!\s+DISPLAY)", re.I)
@@ -604,15 +604,24 @@ def _check_split_dollar_quotes(nodes: list[Node], issues: list[_Issue]) -> None:
 _RX_ANY_VAR = re.compile(r"!(['\"]?)![$&@~#+]?\w+!\1!|!\{[$&@~#+]?\w+\}!")
 
 
-def _with_placeholders(text: str) -> str:
-    """Replace each substitution variable with the literal ``TRUE``.
+#: Values a variable is tried as: a boolean (a whole condition), a number
+#: (``ROW_COUNT_EQ(t, !!n!!)``) and a name (a table or column).  Between them
+#: they fit wherever a variable can stand in a condition or a metacommand.
+_PLACEHOLDERS = ("TRUE", "1", "x")
 
-    A value fits wherever a variable can stand in a condition: as the whole
-    condition, a test's argument, or text inside quotes.  What does not parse
-    with it in place does not parse with any value, such as
+
+def _with_placeholders(text: str, value: str = "TRUE") -> str:
+    """Replace each substitution variable with the literal *value*."""
+    return _RX_ANY_VAR.sub(value, text)
+
+
+def _placeholder_forms(text: str) -> list[str]:
+    """*text* with its variables replaced by each of :data:`_PLACEHOLDERS` in turn.
+
+    What none of them makes valid is not valid with any value, such as
     ``!!flag!! = TRUE`` (there is no ``=`` comparison).
     """
-    return _RX_ANY_VAR.sub("TRUE", text)
+    return [_with_placeholders(text, value) for value in _PLACEHOLDERS]
 
 
 # Named groups that capture a condition in a metacommand's pattern: ASSERT,
@@ -629,8 +638,11 @@ def _check_metacommand(node: MetaCommandStatement, issues: list[_Issue]) -> None
     match = _dispatch_table().get_match(node.command)
     if match is None and _RX_ANY_VAR.search(node.command):
         # A variable can stand for a keyword or a whole clause: try the
-        # command with placeholders, and judge it only if that matches.
-        match = _dispatch_table().get_match(_with_placeholders(node.command))
+        # command with placeholders, and judge it only if one matches.
+        match = next(
+            (m for form in _placeholder_forms(node.command) if (m := _dispatch_table().get_match(form)) is not None),
+            None,
+        )
         if match is None:
             return
     if match is None:
@@ -652,18 +664,23 @@ def _check_metacommand(node: MetaCommandStatement, issues: list[_Issue]) -> None
 def _check_condition(condition: str, source: str, line_no: int, issues: list[_Issue]) -> None:
     """Report a condition that the conditional-expression parser rejects.
 
-    Only parses: no test is evaluated, so nothing touches a database.
-    Variables are parsed as a placeholder value (:func:`_with_placeholders`).
+    Only parses: no test is evaluated, so nothing touches a database.  A
+    condition with variables is reported only when it parses with none of
+    the placeholder values (:func:`_placeholder_forms`).
     """
     from execsql.exceptions import CondParserError
     from execsql.parser import CondParser
 
-    try:
-        CondParser(_with_placeholders(condition), _conditional_table()).parse()
-    except CondParserError:
-        issues.append(
-            _issue("P004", source, line_no, f"unknown or malformed condition: {condition.strip()}"),
-        )
+    forms = _placeholder_forms(condition) if _RX_ANY_VAR.search(condition) else [condition]
+    for form in forms:
+        try:
+            CondParser(form, _conditional_table()).parse()
+        except (CondParserError, RecursionError):  # RecursionError: nested past the parser's depth
+            continue
+        return
+    issues.append(
+        _issue("P004", source, line_no, f"unknown or malformed condition: {condition.strip()}"),
+    )
 
 
 def _check_modifiers(modifiers: list[ConditionModifier], issues: list[_Issue]) -> None:
