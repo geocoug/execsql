@@ -31,12 +31,14 @@ the DBMS's default port, and is saved under the new name once it works.
 """
 
 import getpass
+import threading
 from typing import Any, cast
 
 import execsql.state as _state
 from execsql.utils.fileio import register_secret
 
 __all__ = [
+    "begin_login",
     "clear_stored_password",
     "get_password",
     "is_login_failure",
@@ -45,12 +47,37 @@ __all__ = [
     "remember_password",
 ]
 
-# Tracks whether the most recent get_password() call returned a keyring-stored value.
-_last_from_keyring: bool = False
 
-# (service, user, password) to store once the connection succeeds: a password
-# typed at the prompt, or one read under the pre-port service name.
-_pending_store: tuple[str, str, str] | None = None
+class _Login(threading.local):
+    """What the connection attempt in progress on this thread looked up.
+
+    Reset by :func:`begin_login` at the start of every attempt, so one
+    connection's answer never stands for another's, and per thread, so
+    concurrent ``execsql.run()`` calls never see each other's.
+    """
+
+    def __init__(self) -> None:
+        # Whether this attempt's get_password() returned a keyring-stored value.
+        self.from_keyring = False
+        # (service, user, password) to store once the connection succeeds: a
+        # password typed at the prompt, or one read under the pre-port name.
+        self.pending_store: tuple[str, str, str] | None = None
+
+
+_login = _Login()
+
+
+def begin_login() -> None:
+    """Start a connection attempt: forget what an earlier attempt looked up.
+
+    Every adapter calls this before deciding whether it needs
+    :func:`get_password`.  A connection handed its password by the caller
+    then never deletes or stores a keyring entry on the strength of an
+    earlier lookup for another server.
+    """
+    _login.from_keyring = False
+    _login.pending_store = None
+
 
 # The port each server DBMS uses when none is given.  Part of the keyring
 # service name, so two servers on one host do not share a stored password.
@@ -168,8 +195,8 @@ def _keyring_delete(service: str, username: str) -> bool:
 
 
 def password_from_keyring() -> bool:
-    """Return True if the last :func:`get_password` call used a keyring-stored value."""
-    return _last_from_keyring
+    """Return True if this connection attempt's :func:`get_password` call used a keyring-stored value."""
+    return _login.from_keyring
 
 
 def clear_stored_password(
@@ -199,8 +226,7 @@ def remember_password(
     A password typed for a connection that then failed is never stored,
     even if another connection succeeds afterwards.
     """
-    global _pending_store
-    pending, _pending_store = _pending_store, None
+    pending, _login.pending_store = _login.pending_store, None
     if pending is not None and pending[:2] == (
         _keyring_service(dbms_name, database_name, server_name, port),
         user_name,
@@ -268,12 +294,11 @@ def get_password(
     A typed password is not stored here: :func:`remember_password` stores
     it once the connection succeeds.
     """
-    global _last_from_keyring, _pending_store
     # Deferred imports to avoid circular dependencies at import time.
     from execsql.utils.errors import exit_now
 
-    _last_from_keyring = False
-    _pending_store = None
+    _login.from_keyring = False
+    _login.pending_store = None
 
     # --- Keyring lookup (before any prompting) ---
     conf = _state.conf
@@ -286,9 +311,9 @@ def get_password(
             if legacy is not None:
                 stored = _keyring_get(legacy, user_name)
                 if stored is not None:
-                    _pending_store = (service, user_name, stored)
+                    _login.pending_store = (service, user_name, stored)
         if stored is not None:
-            _last_from_keyring = True
+            _login.from_keyring = True
             _state.upass = stored
             register_secret(stored)
             return stored
@@ -362,6 +387,6 @@ def get_password(
 
     # --- Stored once the connection succeeds (remember_password) ---
     if use_keyring and passwd:
-        _pending_store = (service, user_name, passwd)
+        _login.pending_store = (service, user_name, passwd)
 
     return passwd
