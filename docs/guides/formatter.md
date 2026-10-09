@@ -233,7 +233,7 @@ select id,name,created_at from users where active = true order by name;
 ```yaml
 repos:
   - repo: https://github.com/geocoug/execsql
-    rev: v2.25.0
+    rev: v2.25.1
     hooks:
       - id: execsql-format
       - id: execsql-lint # optional: fail the commit on lint errors

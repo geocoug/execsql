@@ -905,7 +905,7 @@ wheels = [
 
 [[package]]
 name = "execsql2"
-version = "2.25.0"
+version = "2.25.1"
 source = { editable = "." }
 dependencies = [
     { name = "python-dateutil" },

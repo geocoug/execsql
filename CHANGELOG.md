@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.25.1] - 2026-10-09
+
 ### Fixed
 
 - **`execsql lint` `V001` / `V002` and nested variable names:** `!!N_!!CHECK_GROUP!!_CHECKS!!` no longer reports `!!N_!!` and `!!_CHECKS!!` as undefined; the inner `!!CHECK_GROUP!!` is checked, and counts as used.
