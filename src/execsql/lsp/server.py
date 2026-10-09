@@ -10,7 +10,7 @@ from typing import Any
 
 from lsprotocol import types
 from pygls.lsp.server import LanguageServer
-from pygls.uris import from_fs_path, to_fs_path
+from pygls.uris import to_fs_path
 
 from execsql import __version__
 from execsql.lsp.code_actions import code_actions
@@ -31,6 +31,11 @@ LINT_DELAY_SECONDS = 0.2
 # Files whose change can alter an open script's findings or index: the config
 # file (its [lint] and [format] sections) and any script it may INCLUDE.
 WATCHED_FILES = ("**/execsql.conf", "**/*.sql")
+
+
+def _same_file_key(path: str) -> str:
+    """*path* resolved and case-folded where the file system ignores case, for comparing files."""
+    return os.path.normcase(str(Path(path).resolve()))
 
 
 class _DropLateCancels(logging.Filter):
@@ -96,10 +101,16 @@ class ExecsqlLanguageServer(LanguageServer):
             return ScriptIndex(path=path)
 
     def read_included(self, path: Path) -> str | None:
-        """An ``INCLUDE``d file's text: the editor's copy if it is open (saved or not), else the file's."""
-        uri = from_fs_path(str(path.resolve()))
-        if uri is not None and uri in self.workspace.text_documents:
-            return self.workspace.get_text_document(uri).source
+        """An ``INCLUDE``d file's text: the editor's copy if it is open (saved or not), else the file's.
+
+        Open documents are matched by path, not URI: clients spell the same
+        file differently (``file:///c%3A/``, ``file:///C:/`` on Windows).
+        """
+        wanted = _same_file_key(str(path))
+        for uri in self.workspace.text_documents:
+            fs_path = to_fs_path(uri)
+            if fs_path is not None and _same_file_key(fs_path) == wanted:
+                return self.workspace.get_text_document(uri).source
         return read_included(path)
 
     def supports_snippets(self) -> bool:

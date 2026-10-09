@@ -13,6 +13,8 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from pygls.uris import from_fs_path
+
 from execsql.cli.lint import variables_defined_by
 from execsql.script.ast import IncludeDirective, MetaCommandStatement, ScriptBlock
 from execsql.script.parser import parse_string
@@ -23,6 +25,7 @@ __all__ = [
     "ScriptIndex",
     "index_script",
     "read_included",
+    "uri_for",
     "variable_at",
 ]
 
@@ -166,6 +169,18 @@ def _index_into(
         for m in _RX_VARIABLE.finditer(text):
             group = "deferred" if m.group("deferred") else "name"
             index.references.append(Reference(m.group(group), Location(path, row, m.start(group), m.end(group))))
+
+
+def uri_for(path: str | None, index: ScriptIndex, uri: str) -> str:
+    """The URI to report for a location in *path*.
+
+    For the indexed file it is the request's *uri*, as the client spelled it:
+    one rebuilt from the path can differ (``file:///c:/`` and ``file:///C:/``
+    on Windows), and a client may not match the two.
+    """
+    if path is None or path == index.path:
+        return uri
+    return from_fs_path(path) or uri
 
 
 def variable_at(index: ScriptIndex, line: int, character: int) -> Reference | None:

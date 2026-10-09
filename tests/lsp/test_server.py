@@ -321,3 +321,32 @@ async def test_rename_over_the_protocol(client: LanguageClient):
     )
     assert refused is None
     assert any("not a variable name" in m.message for m in client.messages)  # sent before the response
+
+
+@pytest.mark.asyncio
+async def test_an_included_file_open_under_another_path_is_still_read_unsaved(client: LanguageClient):
+    linked = client.root / "linked"
+    try:
+        linked.symlink_to(client.root, target_is_directory=True)
+    except OSError:
+        pytest.skip("cannot create a symlink here")
+    (client.root / "shared.sql").write_text("SELECT 1;\n", encoding="utf-8")
+    shared = linked / "shared.sql"  # the editor opened it through the link
+    client.text_document_did_open(
+        types.DidOpenTextDocumentParams(
+            text_document=types.TextDocumentItem(
+                uri=shared.as_uri(),
+                language_id="sql",
+                version=1,
+                text="-- !x! SUB region north\n",
+            ),
+        ),
+    )
+    main = _open(client, "uses2.sql", "-- !x! INCLUDE shared.sql\nSELECT '!!region!!';\n")
+    found = await client.text_document_definition_async(
+        types.DefinitionParams(
+            text_document=types.TextDocumentIdentifier(uri=main),
+            position=types.Position(line=1, character=11),
+        ),
+    )
+    assert [loc.range.start.line for loc in found] == [0]
