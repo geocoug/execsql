@@ -5,17 +5,18 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+from pathlib import Path
 from typing import Any
 
 from lsprotocol import types
 from pygls.lsp.server import LanguageServer
-from pygls.uris import to_fs_path
+from pygls.uris import from_fs_path, to_fs_path
 
 from execsql import __version__
 from execsql.lsp.code_actions import code_actions
 from execsql.lsp.completion import completions
 from execsql.lsp.diagnostics import diagnostics, too_deep_diagnostic
-from execsql.lsp.document import ScriptIndex, index_script
+from execsql.lsp.document import ScriptIndex, index_script, read_included
 from execsql.lsp.formatting import format_document
 from execsql.lsp.hover import hover
 from execsql.lsp.navigation import definition, document_links, document_symbols, references
@@ -24,6 +25,10 @@ __all__ = ["ExecsqlLanguageServer", "create_server"]
 
 # Pause after the last keystroke before linting, so a burst of typing lints once.
 LINT_DELAY_SECONDS = 0.2
+
+# Files whose change can alter an open script's findings or index: the config
+# file (its [lint] and [format] sections) and any script it may INCLUDE.
+WATCHED_FILES = ("**/execsql.conf", "**/*.sql")
 
 
 class _DropLateCancels(logging.Filter):
@@ -84,9 +89,16 @@ class ExecsqlLanguageServer(LanguageServer):
         document = self.workspace.get_text_document(uri)
         path = to_fs_path(uri)
         try:
-            return index_script(document.source, path)
+            return index_script(document.source, path, self.read_included)
         except RecursionError:
             return ScriptIndex(path=path)
+
+    def read_included(self, path: Path) -> str | None:
+        """An ``INCLUDE``d file's text: the editor's copy if it is open (saved or not), else the file's."""
+        uri = from_fs_path(str(path.resolve()))
+        if uri is not None and uri in self.workspace.text_documents:
+            return self.workspace.get_text_document(uri).source
+        return read_included(path)
 
     def supports_snippets(self) -> bool:
         caps = self.client_capabilities.text_document
@@ -102,6 +114,31 @@ class ExecsqlLanguageServer(LanguageServer):
             found = [too_deep_diagnostic()]
         self.text_document_publish_diagnostics(
             types.PublishDiagnosticsParams(uri=uri, version=document.version, diagnostics=found),
+        )
+
+    def publish_all(self) -> None:
+        """Lint every open document again: a file one of them includes, or the config, changed."""
+        for uri in list(self.workspace.text_documents):
+            self.publish(uri)
+
+    def watch_files(self) -> None:
+        """Ask the client to report changes to :data:`WATCHED_FILES`, if it can."""
+        caps = self.client_capabilities.workspace
+        watched = caps.did_change_watched_files if caps else None
+        if not (watched and watched.dynamic_registration):
+            return
+        self.client_register_capability(
+            types.RegistrationParams(
+                registrations=[
+                    types.Registration(
+                        id="execsql-watched-files",
+                        method=types.WORKSPACE_DID_CHANGE_WATCHED_FILES,
+                        register_options=types.DidChangeWatchedFilesRegistrationOptions(
+                            watchers=[types.FileSystemWatcher(glob_pattern=g) for g in WATCHED_FILES],
+                        ),
+                    ),
+                ],
+            ),
         )
 
     def publish_later(self, uri: str) -> None:
@@ -128,6 +165,7 @@ def create_server() -> ExecsqlLanguageServer:
     @server.feature(types.INITIALIZED)
     def initialized(ls: ExecsqlLanguageServer, params: types.InitializedParams) -> None:
         ls.load_settings(ls.workspace.root_path)
+        ls.watch_files()
 
     @server.feature(types.TEXT_DOCUMENT_DID_OPEN)
     def did_open(ls: ExecsqlLanguageServer, params: types.DidOpenTextDocumentParams) -> None:
@@ -139,7 +177,14 @@ def create_server() -> ExecsqlLanguageServer:
 
     @server.feature(types.TEXT_DOCUMENT_DID_SAVE)
     def did_save(ls: ExecsqlLanguageServer, params: types.DidSaveTextDocumentParams) -> None:
-        ls.publish(params.text_document.uri)
+        # Another open script may INCLUDE this one; a client that cannot watch files reports nothing else.
+        ls.publish_all()
+
+    @server.feature(types.WORKSPACE_DID_CHANGE_WATCHED_FILES)
+    def did_change_watched_files(ls: ExecsqlLanguageServer, params: types.DidChangeWatchedFilesParams) -> None:
+        if any(Path(to_fs_path(change.uri) or "").name.lower() == "execsql.conf" for change in params.changes):
+            ls.load_settings(ls.workspace.root_path)
+        ls.publish_all()
 
     @server.feature(types.TEXT_DOCUMENT_DID_CLOSE)
     def did_close(ls: ExecsqlLanguageServer, params: types.DidCloseTextDocumentParams) -> None:
