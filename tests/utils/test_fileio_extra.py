@@ -210,13 +210,15 @@ class TestFileControlWrite:
         fc.clean_close()
         assert fc.status == fc.STATUS_CLOSED
 
-    def test_close_while_waiting_writes_stderr(self, tmp_path, capsys):
+    def test_close_while_waiting_counts_the_abandoned_lines(self, tmp_path, capsys):
         fc = FileWriter.FileControl(str(tmp_path / "no_dir" / "test.txt"), open_timeout=5)
-        fc.output_queue.appendleft("queued data")
+        fc.output_queue.extendleft(["one\n", "two\n"])
         fc.status = fc.STATUS_WAITING
         fc.close()
-        captured = capsys.readouterr()
-        assert "Closing" in captured.err
+        assert fc.abandoned == 2
+        assert len(fc.output_queue) == 0
+        assert fc.status == fc.STATUS_CLOSED
+        assert capsys.readouterr().err == "", "the loss is reported to the run, not printed by the writer"
 
     def test_open_failure_after_timeout_discards_and_counts(self, tmp_path):
         bad_path = str(tmp_path / "no_dir" / "test.txt")
@@ -385,6 +387,16 @@ class TestLockedOutputFile:
         fw.open_failures()
         assert fw.return_msg_queue.get(timeout=5) == [(target, 1, None, "open")]
         assert target not in fw.files
+
+    def test_open_failures_reports_lines_abandoned_by_a_close(self, tmp_path):
+        target = str((tmp_path / "no_dir" / "out.txt").resolve())
+        fw = self._writer(open_timeout=600)
+        fw.write(target, "a\n")
+        fw.close_if_open(target)  # an exporter about to write the file itself
+        fw.open_failures()
+        assert fw.return_msg_queue.get(timeout=5) == [(target, 1, None, "closed")]
+        fw.open_failures()
+        assert fw.return_msg_queue.get(timeout=5) == [], "reported once"
 
 
 class TestCloseAllAfterWriteWithLockedFile:

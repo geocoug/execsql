@@ -58,6 +58,7 @@ tier_notices_shown: set[str]
 filewriter: FileWriter | None
 manifest: RunManifest | None
 halt_error: ErrInfo | None
+halt_output_error: ErrInfo | None
 counters: CounterVars
 timer: Timer
 dbs: DatabasePool
@@ -95,6 +96,7 @@ class RuntimeContext:
     filewriter: FileWriter | None
     manifest: RunManifest | None
     halt_error: ErrInfo | None
+    halt_output_error: ErrInfo | None
     counters: CounterVars | None
     timer: Timer | None
     dbs: DatabasePool | None
