@@ -19,10 +19,32 @@ ______________________________________________________________________
 
 - **`execsql format --rewrite-sql`** (`[format] rewrite_sql`): accept sqlglot's rewrites of SQL text, such as `x::int` as `CAST(x AS INT)`.
 
+- **`execsql lsp`**, a language server for editors. Install the new `lsp` extra (`uv tool install "execsql2[lsp]"`); setup for VS Code, Neovim, Helix and other editors is in the new Editor Support guide. It provides:
+
+    - `execsql lint` findings as you type, using the workspace's `[lint]` settings;
+    - completion of metacommands (as fill-in templates of their documented syntax), conditional tests, variables and export formats;
+    - hover explanations of metacommands, conditional tests and variables;
+    - Go to Definition, Find All References, the outline and `INCLUDE` links;
+    - folding of `IF` branches, `LOOP`, `SCRIPT`, `BATCH` and `SQL` blocks, multi-line statements and comments;
+    - quick fixes for misspelled metacommands, conditional tests and variables (P003, P004, V001) and split dollar-quoted bodies (P002);
+    - Format Document, the same as `execsql format` with the workspace's `[format]` settings;
+    - `execsql.conf` read again when it changes, and open scripts linted again when a file they `INCLUDE` changes.
+
+    The server never runs a script or connects to a database, and reads only regular files of bounded size.
+
+- **VS Code extension** starts `execsql lsp` for `.sql` files, with `execsql.server.path` and `execsql.server.enabled` settings and an **execsql: Restart Language Server** command. Each GitHub release attaches it as `execsql-syntax.vsix`; install with `code --install-extension execsql-syntax.vsix`. In a folder that is not trusted, the folder's own `execsql.server.path` setting is ignored.
+
 ### Changed
 
 - **`execsql format` changes only layout and keyword case by default:** a statement sqlglot would rewrite (`x::int` as `CAST(x AS INT)`, an alias gaining `AS`, `BTRIM` as `TRIM`) is kept as written. Pass `--rewrite-sql`, or set `rewrite_sql = Yes` under `[format]`, for the previous behavior.
+
 - **`execsql format` and the `execsql-format` pre-commit hook use one sqlglot release:** the `[formatter]` extra requires sqlglot 30.21.x and the hook installs 30.21.0, so a script formats the same everywhere. The first run after upgrading can reformat files formatted with an older sqlglot, such as `BTRIM(x)` written as `TRIM(x)`; see [sqlglot version](https://execsql2.readthedocs.io/en/latest/guides/formatter/#sqlglot-version).
+
+- **`execsql list metacommands`** lists every metacommand (all 95; some were missing) with its category and a one-line summary, and `execsql list metacommands <KEYWORD>` shows that metacommand's syntax, as the reference docs write it, with a link. The syntax column it replaces was incomplete and in places wrong. In `--output-format json`, `syntax` is now the full first syntax line, and each entry adds `forms`, `category`, `summary` and `url`.
+
+### Fixed
+
+- **Metacommand reference syntax:** `PROMPT MAP` showed quoted column names (`LAT "<lat_col>"`), which execsql reads as a plain `PROMPT MESSAGE` with no map; the column names are unquoted. Also corrected: `CONNECT TO DSN` (a stray comma) and `HASROWS` (a missing `>`).
 
 ______________________________________________________________________
 
@@ -39,14 +61,6 @@ ______________________________________________________________________
 
 ### Added
 
-- **VS Code extension** starts `execsql lsp` for `.sql` files, with `execsql.server.path` and `execsql.server.enabled` settings and an **execsql: Restart Language Server** command. Each GitHub release attaches it as `execsql-syntax.vsix`; install with `code --install-extension execsql-syntax.vsix`.
-- **`execsql lsp`**, a language server for editors. Install the new `lsp` extra (`uv tool install "execsql2[lsp]"`); setup for VS Code, Neovim, Helix and other editors is in the new Editor Support guide. It provides:
-    - `execsql lint` findings as you type, using the workspace's `[lint]` settings;
-    - completion of metacommands (as fill-in templates of their documented syntax), conditional tests, variables and export formats;
-    - hover explanations of metacommands, conditional tests and variables;
-    - Go to Definition, Find All References, the outline and `INCLUDE` links;
-    - quick fixes for misspelled metacommands, conditional tests and variables (P003, P004, V001) and split dollar-quoted bodies (P002);
-    - Format Document, the same as `execsql format` with the workspace's `[format]` settings.
 - **`execsql lint` rule `P002` (`split-dollar-quote`):** reports a `$$ ... $$` function or `DO` body that is not between `BEGIN SQL` and `END SQL`, which execsql would send in pieces at the first line ending in `;`.
 - **`execsql lint` rule `P003` (`unknown-metacommand`):** reports a misspelled or malformed metacommand, such as `SUBSTITUTE x 1` for `SUB x 1`, or `EXPORT t TOO out.csv`, that `execsql run` would stop at with `Unknown metacommand`.
 - **`execsql lint` rule `P004` (`unknown-condition`):** reports a condition with an unknown test, such as `IF(hasrowz(t))`, or one that cannot be parsed, such as `ASSERT !!flag!! = TRUE`, in `IF`, `ELSEIF`, `ANDIF`, `ORIF`, `LOOP`, `EXECUTE SCRIPT ... WHILE`, `ASSERT` and `WAIT_UNTIL`.
