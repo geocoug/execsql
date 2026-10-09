@@ -27,7 +27,9 @@ __all__ = [
 ]
 
 # A substitution variable as written: !!name!!, !'!name!'!, !"!name!"! or the deferred !{name}!.
-_RX_VARIABLE = re.compile(r"""!(['"]?)!(?P<name>[$&@~#+]?\w+)!\1!|!\{(?P<deferred>[$&@~#+]?\w+)\}!""")
+# The lookahead also finds one written inside another's name: in !!N_!!GROUP!!_CHECKS!!,
+# execsql substitutes !!GROUP!! first, so GROUP is a use (N_ and _CHECKS are found too).
+_RX_VARIABLE = re.compile(r"""(?=!(['"]?)!(?P<name>[$&@~#+]?\w+)!\1!)|!\{(?P<deferred>[$&@~#+]?\w+)\}!""")
 _RX_METACOMMAND = re.compile(r"^\s*--\s*!x!\s*", re.I)
 
 
@@ -65,7 +67,7 @@ class ScriptIndex:
     script_params: dict[str, list[str]] = field(default_factory=dict)  # script name -> its #parameters
     includes: list[tuple[Location, str]] = field(default_factory=list)  # (where the target is written, resolved path)
     script_calls: list[tuple[Location, str]] = field(default_factory=list)  # EXECUTE SCRIPT name, in this file
-    references: list[Reference] = field(default_factory=list)  # in this file only
+    references: list[Reference] = field(default_factory=list)  # in this file and the files it includes
 
     def define(self, name: str, location: Location) -> None:
         key = name.lstrip("~+").upper()
@@ -95,7 +97,7 @@ def read_included(path: Path) -> str | None:
 
 def _span_of(word: str, line: str, start: int = 0) -> tuple[int, int]:
     """Columns of *word* in *line* at or after *start* (any case); the whole line if absent."""
-    m = re.search(rf"(?<![\w$#@&~+]){re.escape(word)}(?!\w)", line[start:], re.I)
+    m = re.search(rf"(?<![\w$#@&]){re.escape(word)}(?!\w)", line[start:], re.I)  # after ~ or +: SUB ~name
     if m is None:
         return 0, len(line)
     return start + m.start(), start + m.end()
@@ -160,17 +162,16 @@ def _index_into(
                 if included is not None:
                     _index_into(index, included, str(resolved), seen, read, top=False)
 
-    if top:
-        for row, text in enumerate(lines):
-            for m in _RX_VARIABLE.finditer(text):
-                group = "deferred" if m.group("deferred") else "name"
-                index.references.append(Reference(m.group(group), Location(path, row, m.start(group), m.end(group))))
+    for row, text in enumerate(lines):
+        for m in _RX_VARIABLE.finditer(text):
+            group = "deferred" if m.group("deferred") else "name"
+            index.references.append(Reference(m.group(group), Location(path, row, m.start(group), m.end(group))))
 
 
 def variable_at(index: ScriptIndex, line: int, character: int) -> Reference | None:
-    """The variable reference under the cursor, if any."""
+    """The variable reference under the cursor in the indexed file, if any."""
     for ref in index.references:
         loc = ref.location
-        if loc.line == line and loc.start <= character <= loc.end:
+        if loc.path == index.path and loc.line == line and loc.start <= character <= loc.end:
             return ref
     return None
