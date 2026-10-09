@@ -17,6 +17,7 @@ on every node).
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import pytest
@@ -720,6 +721,38 @@ class TestUnusedVariables:
         body = "-- !x! SUB grp east\n-- !x! SUB N_east_CHECKS 12\nSELECT !!N_!!grp!!_CHECKS!!;\n"
         unused = [i.message for i in _lint(tmp_path, body) if i.code == "V002"]
         assert not any("grp" in m for m in unused), unused
+
+
+class TestSubIniDefinitions:
+    """SUB_INI defines the keys of a section in an INI file that lint can read."""
+
+    @staticmethod
+    def _undefined(tmp_path, ini_name):
+        body = f"-- !x! SUB_INI FILE {ini_name} SECTION vars\nSELECT !!region!!;\n"
+        return [i.message for i in _lint(tmp_path, body) if i.code == "V001"]
+
+    def test_keys_of_the_section_are_defined(self, tmp_path):
+        (tmp_path / "vars.ini").write_text("[vars]\nregion = north\n", encoding="utf-8")
+        assert self._undefined(tmp_path, "vars.ini") == []
+
+    def test_a_missing_file_defines_nothing(self, tmp_path):
+        assert self._undefined(tmp_path, "missing.ini") == ["undefined variable !!region!!"]
+
+    def test_a_file_that_is_not_ini_defines_nothing(self, tmp_path):
+        (tmp_path / "vars.ini").write_text("region = north\n", encoding="utf-8")  # no section header
+        assert self._undefined(tmp_path, "vars.ini") == ["undefined variable !!region!!"]
+
+    def test_an_oversized_file_is_not_read(self, tmp_path, monkeypatch):
+        import execsql.cli.lint as lint_module
+
+        (tmp_path / "vars.ini").write_text("[vars]\nregion = north\n", encoding="utf-8")
+        monkeypatch.setattr(lint_module, "_MAX_INI_BYTES", 8)
+        assert self._undefined(tmp_path, "vars.ini") == ["undefined variable !!region!!"]
+
+    @pytest.mark.skipif(not hasattr(os, "mkfifo"), reason="needs os.mkfifo")
+    def test_a_fifo_is_not_opened(self, tmp_path):
+        os.mkfifo(tmp_path / "vars.ini")  # opening it would block until a writer appears
+        assert self._undefined(tmp_path, "vars.ini") == ["undefined variable !!region!!"]
 
 
 class TestNestedVariableNames:

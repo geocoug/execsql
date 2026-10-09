@@ -430,24 +430,37 @@ def _extract_var_definition(
             _read_ini_vars(ini_file, ini_section, script_dir, defined)
 
 
+# Larger than any real SUB_INI file; lint reads no more than this.
+_MAX_INI_BYTES = 1024 * 1024
+
+
 def _read_ini_vars(
     ini_file: str,
     section: str,
     script_dir: Path | None,
     defined_vars: set[str],
 ) -> None:
-    """Read an INI file and register its section keys as defined variables."""
+    """Read an INI file and register its section keys as defined variables.
+
+    Only a regular file up to :data:`_MAX_INI_BYTES` is read, so a script
+    naming a FIFO or a device (``/dev/zero``) cannot hang lint or the
+    language server; a file that is unreadable or not valid INI defines
+    nothing.
+    """
     from configparser import ConfigParser
+    from configparser import Error as ConfigError
 
     p = Path(ini_file)
     if not p.is_absolute() and script_dir is not None:
         p = script_dir / p
 
-    if not p.exists():
-        return
-
     cp = ConfigParser()
-    cp.read(p)
+    try:
+        if not p.is_file() or p.stat().st_size > _MAX_INI_BYTES:
+            return
+        cp.read_string(p.read_text(encoding="utf-8"), source=str(p))
+    except (OSError, UnicodeDecodeError, ConfigError):
+        return
     if cp.has_section(section):
         for key, _value in cp.items(section):
             defined_vars.add(key.upper())

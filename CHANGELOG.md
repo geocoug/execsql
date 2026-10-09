@@ -14,6 +14,7 @@ ______________________________________________________________________
 ### Fixed
 
 - **`execsql lint` `V001` / `V002` and nested variable names:** `!!N_!!CHECK_GROUP!!_CHECKS!!` no longer reports `!!N_!!` and `!!_CHECKS!!` as undefined; the inner `!!CHECK_GROUP!!` is checked, and counts as used.
+- **`execsql lint` and `SUB_INI`:** a script whose `SUB_INI` names a FIFO or device (`/dev/zero`) no longer hangs lint, and an INI file that does not parse no longer stops it.
 
 ______________________________________________________________________
 
