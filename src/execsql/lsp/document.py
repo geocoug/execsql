@@ -8,6 +8,7 @@ script completes and resolves in the scripts that include it.
 
 from __future__ import annotations
 
+import os
 import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -23,8 +24,10 @@ __all__ = [
     "Location",
     "Reference",
     "ScriptIndex",
+    "file_uri",
     "index_script",
     "read_included",
+    "same_file_key",
     "uri_for",
     "variable_at",
 ]
@@ -71,6 +74,7 @@ class ScriptIndex:
     includes: list[tuple[Location, str]] = field(default_factory=list)  # (where the target is written, resolved path)
     script_calls: list[tuple[Location, str]] = field(default_factory=list)  # EXECUTE SCRIPT name, in this file
     references: list[Reference] = field(default_factory=list)  # in this file and the files it includes
+    open_uris: dict[str, str] = field(default_factory=dict)  # same_file_key(path) -> URI of the editor's open copy
 
     def define(self, name: str, location: Location) -> None:
         key = name.lstrip("~+").upper()
@@ -180,7 +184,17 @@ def uri_for(path: str | None, index: ScriptIndex, uri: str) -> str:
     """
     if path is None or path == index.path:
         return uri
-    return from_fs_path(path) or uri
+    return file_uri(path, index) or uri
+
+
+def file_uri(path: str, index: ScriptIndex) -> str | None:
+    """The URI for another file at *path*: as the client spelled it if the file is open, else one built from the path."""
+    return index.open_uris.get(same_file_key(path)) or from_fs_path(path)
+
+
+def same_file_key(path: str) -> str:
+    """*path* resolved and case-folded where the file system ignores case, for comparing files."""
+    return os.path.normcase(str(Path(path).resolve()))
 
 
 def variable_at(index: ScriptIndex, line: int, character: int) -> Reference | None:

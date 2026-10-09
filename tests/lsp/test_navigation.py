@@ -11,7 +11,7 @@ pytest.importorskip("pygls")
 from lsprotocol import types  # noqa: E402
 from pygls.uris import to_fs_path  # noqa: E402
 
-from execsql.lsp.document import index_script  # noqa: E402
+from execsql.lsp.document import index_script, same_file_key  # noqa: E402
 from execsql.lsp.navigation import definition, document_links, document_symbols, references  # noqa: E402
 
 SCRIPT = """\
@@ -90,3 +90,14 @@ def test_locations_in_the_open_file_use_the_uri_the_client_sent(tmp_path):
     spelled = "file:///SOME/Client/Spelling.sql"  # whatever the client sent; not rebuilt from the path
     index = index_script("-- !x! SUB x 1\nSELECT '!!x!!';\n", str(main))
     assert {loc.uri for loc in references(index, spelled, 1, 10)} == {spelled}
+
+
+def test_locations_in_an_included_open_file_use_the_uri_the_client_sent(tmp_path):
+    (tmp_path / "setup.sql").write_text("-- !x! SUB region west\n")
+    main = tmp_path / "main.sql"
+    spelled = "file:///SOME/Client/setup.sql"  # the client opened setup.sql under this URI
+    index = index_script("-- !x! INCLUDE setup.sql\nSELECT '!!region!!';\n", str(main))
+    index.open_uris = {same_file_key(str(tmp_path / "setup.sql")): spelled}
+    assert [loc.uri for loc in definition(index, main.as_uri(), 0, 17)] == [spelled]
+    assert [loc.uri for loc in definition(index, main.as_uri(), 1, 12)] == [spelled]
+    assert [link.target for link in document_links(index)] == [spelled]
