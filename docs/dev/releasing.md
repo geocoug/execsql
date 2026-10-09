@@ -53,15 +53,16 @@ fails. Stay on the command until it exits.
 
 ### What runs on a tag push
 
-| Job                    | Gating?                            | Purpose                                                                           |
-| ---------------------- | ---------------------------------- | --------------------------------------------------------------------------------- |
-| `lint`                 | yes                                | ruff check + ruff format check                                                    |
-| `tests` (matrix)       | yes                                | py3.10–3.14 × {ubuntu, macos, windows}                                            |
-| `integration-tests`    | yes                                | PostgreSQL, MySQL, MSSQL service containers                                       |
-| `access-tests-windows` | yes (when Access install succeeds) | Real Access driver on `windows-latest`                                            |
-| `build`                | yes                                | Checks the tag equals `project.version`; `python -m build` produces sdist + wheel |
-| `publish`              | yes (tag-gated)                    | OIDC trusted-publisher PyPI upload                                                |
-| `generate-release`     | yes (tag-gated, after `publish`)   | Creates the GitHub release with auto-extracted CHANGELOG section                  |
+| Job                    | Gating?                                                 | Purpose                                                                                                 |
+| ---------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `lint`                 | yes                                                     | ruff check + ruff format check                                                                          |
+| `tests` (matrix)       | yes                                                     | py3.10–3.14 × {ubuntu, macos, windows}                                                                  |
+| `integration-tests`    | yes                                                     | PostgreSQL, MySQL, MSSQL service containers                                                             |
+| `access-tests-windows` | yes (when Access install succeeds)                      | Real Access driver on `windows-latest`                                                                  |
+| `build`                | yes                                                     | Checks the tag equals `project.version`; `python -m build` produces sdist + wheel                       |
+| `publish`              | yes (tag-gated)                                         | OIDC trusted-publisher PyPI upload                                                                      |
+| `vscode-extension`     | yes                                                     | Packages `extras/vscode-execsql` into `execsql-syntax.vsix` (on a tag, with the tag's X.Y.Z version)    |
+| `generate-release`     | yes (tag-gated, after `publish` and `vscode-extension`) | Creates the GitHub release with auto-extracted CHANGELOG section; attaches the sdist, wheel and `.vsix` |
 
 Publish / generate-release run only on tag refs
 (`if: startsWith(github.ref, 'refs/tags/v')`), so a non-bump push to
@@ -129,6 +130,6 @@ After `gh run watch` exits green:
 - `pip install execsql2==2.X.Y` in a throwaway venv — confirms the
     wheel landed on PyPI.
 - Browse the new GitHub release page; check the CHANGELOG section
-    matches what's on `main`.
+    matches what's on `main` and that `execsql-syntax.vsix` is attached.
 - `git pull` locally to retrieve the bump commit (you already had it
     locally if you bumped yourself, but other contributors will sync).

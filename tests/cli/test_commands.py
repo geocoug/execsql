@@ -41,7 +41,7 @@ class TestCommandSet:
         out = _invoke("--help").output
         section = out[out.index("Commands:") :]
         names = [line.split()[0] for line in section.splitlines()[1:] if line.strip()]
-        assert names == ["run", "format", "lint", "config", "list", "init"]
+        assert names == ["run", "format", "lint", "config", "list", "init", "lsp"]
 
     def test_ping_is_listed_in_run_help(self):
         assert "--ping" in _invoke("run", "--help").output
@@ -96,7 +96,33 @@ class TestList:
 
     def test_metacommands_json(self):
         rows = json.loads(_invoke("list", "metacommands", "--output-format", "json").output)
-        assert {"name": "EXPORT", "syntax": "<queryname> TO <format> <filename> ..."} in rows
+        export = next(r for r in rows if r["name"] == "EXPORT")
+        assert export["syntax"].startswith("EXPORT <table_or_view> ")
+        assert export["syntax"] == export["forms"][0]
+        assert export["category"] == "action"
+        assert export["url"].endswith("/reference/metacommands/#export")
+
+    def test_metacommands_lists_every_keyword(self):
+        from execsql.cli.help import _keywords_data
+
+        rows = json.loads(_invoke("list", "metacommands", "--output-format", "json").output)
+        keywords = {k for words in _keywords_data()["metacommands"].values() for k in words}
+        assert {r["name"] for r in rows} == keywords
+        assert all(r["syntax"] and r["summary"] for r in rows)
+
+    def test_one_metacommand_shows_its_syntax(self):
+        out = _invoke("list", "metacommands", "export", "query").output
+        assert "EXPORT QUERY <<query>>" in out
+        assert "#export-query" in out
+
+    def test_one_metacommand_as_json(self):
+        data = json.loads(_invoke("list", "metacommands", "SUB_ADD", "--output-format", "json").output)
+        assert data["name"] == "SUB_ADD"
+
+    def test_an_unknown_metacommand_suggests_close_names(self):
+        result = _invoke("list", "metacommands", "EXPROT")
+        assert result.exit_code == 2
+        assert "Did you mean EXPORT" in result.output
 
     def test_encodings_json(self):
         names = json.loads(_invoke("list", "encodings", "--output-format", "json").output)

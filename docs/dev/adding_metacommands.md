@@ -223,9 +223,32 @@ ______________________________________________________________________
 - [ ] Handler function added to the appropriate `src/execsql/metacommands/*.py` module
 - [ ] Handler imported in `src/execsql/metacommands/dispatch.py`
 - [ ] `mcl.add(...)` call added in `build_dispatch_table()` with `description=` and `category=`
+- [ ] Entry added to `src/execsql/metacommands/reference.py`: the syntax line(s) as the reference docs write them, a one-line summary and the docs anchor (see below)
+- [ ] A line using it added to `tests/data/lint/every_metacommand.sql`
 - [ ] Run `just install-vscode` to regenerate the VS Code grammar
 - [ ] Integration test added to `tests/test_metacommands.py` (or relevant file)
-- [ ] `pytest` passes locally (including `tests/test_registry.py` keyword consistency checks)
+- [ ] `pytest` passes locally (including `tests/test_registry.py` and `tests/test_reference.py`)
+
+### The readable syntax entry
+
+The dispatch table's regular expressions are not something to show a person.
+`execsql.metacommands.reference` holds what editors (`execsql lsp`) and
+`execsql list metacommands` show instead:
+
+```python
+Metacommand(
+    "MY_COMMAND",                       # the description= keyword
+    "action",                           # the category=
+    ("MY_COMMAND <table> TO <file>",),  # syntax lines, docs notation: <value>, [optional], A|B
+    "Does one thing to a table.",       # one sentence, at most 120 characters
+    "my_command",                       # the heading's anchor in docs/reference/metacommands.md
+),
+```
+
+Editor completion turns each syntax line into a fill-in template (`<value>`
+becomes a tab stop, `A|B` a choice). `tests/test_reference.py` fails until the
+entry exists, its anchor is a real heading, and each syntax line, filled with
+sample values, is accepted by the dispatch table.
 
 ______________________________________________________________________
 
@@ -251,3 +274,5 @@ mcl.add(
 ```
 
 The result is exposed as `CONDITIONAL_TABLE` and consumed at runtime via `_state.conditionallist`.
+
+Add a `Condition(...)` entry to `src/execsql/metacommands/reference.py` as well (name, syntax line such as `MY_TEST(<table>)`, one-line summary, docs anchor) and a use of it to `tests/data/lint/conditions_and_blocks.sql`; `tests/test_reference.py` checks that every conditional test has an entry.

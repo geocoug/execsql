@@ -11,6 +11,33 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Added
+
+- **`execsql lsp`**, a language server for editors. Install the new `lsp` extra (`uv tool install "execsql2[lsp]"`); setup for VS Code, Neovim, Helix and other editors is in the new Editor Support guide. It provides:
+
+    - `execsql lint` findings as you type, using the workspace's `[lint]` settings;
+    - completion of metacommands (as fill-in templates of their documented syntax), conditional tests, variables and export formats;
+    - hover explanations of metacommands, conditional tests and variables;
+    - Go to Definition, Find All References, Rename Symbol (variables), the outline and `INCLUDE` links;
+    - folding of `IF` branches, `LOOP`, `SCRIPT`, `BATCH` and `SQL` blocks, multi-line statements and comments;
+    - quick fixes for misspelled metacommands, conditional tests and variables (P003, P004, V001) and split dollar-quoted bodies (P002);
+    - Format Document, the same as `execsql format` with the workspace's `[format]` settings;
+    - `execsql.conf` read again when it changes, and open scripts linted again when a file they `INCLUDE` changes;
+    - each folder of a multi-root workspace linted and formatted with its own `execsql.conf`.
+
+    The server never runs a script or connects to a database, and reads only regular files of bounded size.
+
+- **VS Code extension** starts `execsql lsp` for `.sql` files, with `execsql.server.path` and `execsql.server.enabled` settings and an **execsql: Restart Language Server** command. Each GitHub release attaches it as `execsql-syntax.vsix`; install with `code --install-extension execsql-syntax.vsix`. In a folder that is not trusted, the folder's own `execsql.server.path` setting is ignored.
+
+### Changed
+
+- **`execsql list metacommands`** lists every metacommand (all 95; some were missing) with its category and a one-line summary, and `execsql list metacommands <KEYWORD>` shows that metacommand's syntax, as the reference docs write it, with a link. The syntax column it replaces was incomplete and in places wrong. In `--output-format json`, `syntax` is now the full first syntax line, and each entry adds `forms`, `category`, `summary` and `url`.
+
+### Fixed
+
+- **`CONFIG MAX_INT <n>`** works as documented; it stopped with `Unknown metacommand`, and only the bare `MAX_INT <n>` (still accepted) was recognized.
+- **Metacommand reference syntax:** `PROMPT MAP` showed quoted column names (`LAT "<lat_col>"`), which execsql reads as a plain `PROMPT MESSAGE` with no map; the column names are unquoted. Also corrected: `CONNECT TO DSN` (a stray comma) and `HASROWS` (a missing `>`).
+
 ______________________________________________________________________
 
 ## [2.26.0] - 2026-10-09

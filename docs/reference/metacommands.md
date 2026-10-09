@@ -589,7 +589,7 @@ Controls whether the [EXPORT](#export) and [WRITE](#write) metacommands will aut
 CONFIG MAX_INT <integer_value>
 ```
 
-Specifies the threshold between integer and bigint data types that is used by the [IMPORT](#import) and [COPY](#copy) metacommands when creating a new table. Any column with integer values less than or equal to this value (max_int) and greater than or equal to -1 × max_int - 1 will be considered to have an integer type. Any column with values outside this range will be considered to have a bigint type. The default value for max_int is 2147483647. The max_int value can also be altered using a configuration option.
+Specifies the threshold between integer and bigint data types that is used by the [IMPORT](#import) and [COPY](#copy) metacommands when creating a new table. Any column with integer values less than or equal to this value (max_int) and greater than or equal to -1 × max_int - 1 will be considered to have an integer type. Any column with values outside this range will be considered to have a bigint type. The default value for max_int is 2147483647. The max_int value can also be altered using a configuration option. The bare form `MAX_INT <integer_value>`, without `CONFIG`, does the same.
 
 
 ```
@@ -788,7 +788,7 @@ CONNECT USER TO ORACLE(SERVER=<server_name>, DB=<service_name>
 For a DSN:
 
 ```
-CONNECT TO DSN(DSN=<DSN_name>,
+CONNECT TO DSN(DSN=<DSN_name>
       [, USER=<user>, NEED_PWD=TRUE|FALSE] [,
       PASSWORD=<password>] [, ENCODING=<encoding>]) AS <alias_name>
 ```
@@ -1624,7 +1624,7 @@ Evaluates whether there is a disk file of the given name.
 ### *HASROWS*
 
 ```
-HASROWS(<table_or_view)
+HASROWS(<table_or_view>)
 ```
 
 Evaluates whether the specified table or view has a non-zero number of rows.
@@ -2738,8 +2738,8 @@ Although the PROMPT ENTRY_FORM metacommand supports validation of individual ent
 
 ```
 PROMPT MESSAGE "<text>" MAP <table_or_view>
-       LAT "<lat_col>" LON "<lon_col>"
-       [LABEL "<label_col>"] [COLOR "<color_col>"] [SYMBOL "<symbol_col>"]
+       LAT <lat_col> LON <lon_col>
+       [LABEL <label_col>] [COLOR <color_col>] [SYMBOL <symbol_col>]
 ```
 
 Opens a dialog showing the rows of the specified table or view as points on an interactive map. `LAT` and `LON` name the columns holding latitude and longitude (numeric). The optional `LABEL` and `COLOR` columns provide per-marker styling — values become the marker text and circle color respectively. The dialog has Continue and Cancel buttons; Cancel halts the script unless [CANCEL_HALT](#cancel_halt) is OFF.

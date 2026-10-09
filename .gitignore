@@ -56,3 +56,7 @@ PROMPTS.md
 audit/
 AGENTS.md
 .codex/
+
+# VS Code extension dependencies (npm ci in extras/vscode-execsql)
+node_modules/
+*.vsix
