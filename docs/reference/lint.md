@@ -292,11 +292,11 @@ load.sql
   5  error    P004  unknown or malformed condition: hasrowz(orders)
 ```
 
-A substitution variable in a condition is read as a placeholder value, which fits wherever a variable can go: the whole condition (`IF(!!ready!!)`), a test's argument (`hasrows(!!table!!)`) or text in quotes. A condition that cannot parse with any value is still reported. There is no `=` comparison, so `ASSERT !!$PG_UPSERT_QA_PASSED!! = TRUE` is an error, and `ASSERT IS_TRUE(!!$PG_UPSERT_QA_PASSED!!)` is the form to use.
+A substitution variable in a condition is read as a placeholder value, tried as a boolean, a number and a name, so it fits wherever a variable can go: the whole condition (`IF(!!ready!!)`), a test's argument (`hasrows(!!table!!)`, `ROW_COUNT_EQ(staging.customers, !!row_count!!)`) or text in quotes. A condition that cannot parse with any of them is still reported. There is no `=` comparison, so `ASSERT !!$PG_UPSERT_QA_PASSED!! = TRUE` is an error, and `ASSERT IS_TRUE(!!$PG_UPSERT_QA_PASSED!!)` is the form to use.
 
 `execsql run` stops at an `IF`, `ELSEIF`, `ANDIF`, `ORIF` or `LOOP` whose condition does not parse, even with `METACOMMAND_ERROR_HALT OFF`. In `ASSERT` and `WAIT_UNTIL` it is a metacommand error, so with `METACOMMAND_ERROR_HALT OFF` the run carries on and the `ASSERT` never checks anything. The [`IF` metacommand](metacommands.md#if_cmd) lists every conditional test and its arguments.
 
-Conditions are parsed, never evaluated: lint does not connect to a database, so it cannot tell whether `hasrows(staging.orders)` would be true, only that it is a valid test. A condition that contains a substitution variable is not checked, for the same reason as in [`P003`](#p003).
+Conditions are parsed, never evaluated: lint does not connect to a database, so it cannot tell whether `hasrows(staging.orders)` would be true, only that it is a valid test.
 
 ### S001 `empty-script` { #s001 }
 
@@ -347,7 +347,7 @@ A script defined in an `INCLUDE`d file is reported, because lint does not read `
 
 ### F001 `constant-condition` { #f001 }
 
-An `IF` condition is always true or always false, so one of its branches can never run. Conditions such as `True`, `1=1` and `Yes` are always true; `False`, `1=0`, `0=1` and `No` are always false.
+An `IF` condition is always true or always false, so one of its branches can never run. Conditions such as `True` and `Yes` are always true; `False` and `No` are always false. `1=1` is not a condition execsql accepts (there is no `=` test), so lint reports it as [`P004`](#p004) instead.
 
 ```sql
 -- !x! IF(True)
