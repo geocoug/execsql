@@ -9,7 +9,7 @@ a program your editor starts in the background and talks to while you edit a
 - explains what is under the cursor on hover;
 - offers quick fixes for misspelled metacommands, conditional tests and variables;
 - formats the document as `execsql format` does;
-- jumps to where a variable, SCRIPT or `INCLUDE`d file is defined, finds a variable's uses, and outlines the script;
+- jumps to where a variable, SCRIPT or `INCLUDE`d file is defined, finds and renames a variable's uses, and outlines the script;
 - folds `IF` branches, `LOOP`, `SCRIPT`, `BATCH` and `SQL` blocks, multi-line statements and comments.
 
 ```sql
@@ -52,11 +52,28 @@ Hold the pointer over (or ask your editor to describe) a:
 |                                           | `!!#param!!`                                          | The `BEGIN SCRIPT` that declares the parameter                                                               |
 |                                           | the name in `EXECUTE SCRIPT name` / `RUN SCRIPT name` | Its `BEGIN SCRIPT`                                                                                           |
 |                                           | the file in `INCLUDE file`                            | That file (the file name is also a clickable link)                                                           |
-| Find All References (Shift-F12)           | `!!name!!`                                            | Every use of the variable in this file, and where it is set                                                  |
+| Find All References (Shift-F12)           | `!!name!!`                                            | Every use of the variable in this file and the files it `INCLUDE`s, and where it is set                      |
 | Outline / Go to Symbol (Ctrl/Cmd-Shift-O) | the script                                            | `SCRIPT` blocks with their parameters, `IF`, `LOOP` and `BATCH` blocks, `INCLUDE`s and variables set, nested |
 
 `INCLUDE` paths are resolved from the script's own folder, as execsql resolves
 them when the script runs from there.
+
+A name built from another variable, such as `!!N_!!CHECK_GROUP!!_CHECKS!!`,
+counts as a use of `CHECK_GROUP`, the variable execsql substitutes first.
+
+## Rename { #rename }
+
+**Rename Symbol** (F2) on a user variable, at a use or where it is set,
+renames it in this file and the files it `INCLUDE`s: every `!!name!!`,
+`!'!name!'!`, `!"!name!"!` and `!{name}!`, and the name in each `SUB` (or
+other metacommand) that sets it. A local variable keeps its `~`.
+
+Scripts that `INCLUDE` this one are not changed: the server does not know
+them, so rename there too, or search the folder. System (`$`), environment
+(`&`), column (`@`) and script-parameter (`#`) variables are not renamed.
+A rename is refused, with a message, when the new name is not a valid
+variable name or is already defined, or when the variable is used both as
+a local (`~name`) and a global variable, which execsql keeps apart.
 
 ## Folding { #folding }
 

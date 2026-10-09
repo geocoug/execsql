@@ -20,6 +20,7 @@ from execsql.lsp.document import ScriptIndex, index_script, read_included
 from execsql.lsp.folding import folding_ranges
 from execsql.lsp.formatting import format_document
 from execsql.lsp.hover import hover
+from execsql.lsp.rename import RenameError, prepare_rename, rename
 from execsql.lsp.navigation import definition, document_links, document_symbols, references
 
 __all__ = ["ExecsqlLanguageServer", "create_server"]
@@ -258,6 +259,19 @@ def create_server() -> ExecsqlLanguageServer:
             ls.window_show_message(
                 types.ShowMessageParams(type=types.MessageType.Error, message=f"execsql format: {exc}"),
             )
+            return None
+
+    @server.feature(types.TEXT_DOCUMENT_PREPARE_RENAME)
+    def on_prepare_rename(ls: ExecsqlLanguageServer, params: types.PrepareRenameParams) -> types.Range | None:
+        return prepare_rename(ls.index(params.text_document.uri), params.position.line, params.position.character)
+
+    @server.feature(types.TEXT_DOCUMENT_RENAME, types.RenameOptions(prepare_provider=True))
+    def on_rename(ls: ExecsqlLanguageServer, params: types.RenameParams) -> types.WorkspaceEdit | None:
+        uri = params.text_document.uri
+        try:
+            return rename(ls.index(uri), uri, params.position.line, params.position.character, params.new_name)
+        except RenameError as exc:
+            ls.window_show_message(types.ShowMessageParams(type=types.MessageType.Warning, message=str(exc)))
             return None
 
     @server.feature(types.TEXT_DOCUMENT_FOLDING_RANGE)

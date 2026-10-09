@@ -302,3 +302,22 @@ async def test_the_server_asks_to_watch_config_and_script_files(watching_client:
     [registration] = watching_client.registrations
     assert registration.method == types.WORKSPACE_DID_CHANGE_WATCHED_FILES
     assert [w["globPattern"] for w in registration.register_options["watchers"]] == ["**/execsql.conf", "**/*.sql"]
+
+
+@pytest.mark.asyncio
+async def test_rename_over_the_protocol(client: LanguageClient):
+    uri = _open(client, "ren.sql", "-- !x! SUB region north\nSELECT '!!region!!';\n")
+    doc = types.TextDocumentIdentifier(uri=uri)
+    found = await client.text_document_prepare_rename_async(
+        types.PrepareRenameParams(text_document=doc, position=types.Position(line=1, character=11)),
+    )
+    assert found == types.Range(start=types.Position(line=1, character=10), end=types.Position(line=1, character=16))
+    edit = await client.text_document_rename_async(
+        types.RenameParams(text_document=doc, position=types.Position(line=1, character=11), new_name="area"),
+    )
+    assert [e.new_text for e in edit.changes[uri]] == ["area", "area"]
+    refused = await client.text_document_rename_async(
+        types.RenameParams(text_document=doc, position=types.Position(line=1, character=11), new_name="a b"),
+    )
+    assert refused is None
+    assert any("not a variable name" in m.message for m in client.messages)  # sent before the response
