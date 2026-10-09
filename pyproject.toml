@@ -175,6 +175,9 @@ quote-style = "double"
 indent-style = "space"
 skip-magic-trailing-comma = false
 line-ending = "auto"
+# ruff 0.16 also formats Python code blocks in Markdown; the docs align
+# inline comments on purpose, and mdformat owns Markdown.
+exclude = ["*.md"]
 
 [tool.bumpversion]
 current_version = "2.25.1"
@@ -276,6 +279,9 @@ ot = "ot"
 hel = "hel"
 # Legacy variable name (self.fo) in EncodedFile — from upstream monolith
 fo = "fo"
+# WriteableZipfile: the upstream monolith's class name, kept for compatibility
+Writeable = "Writeable"
+writeable = "writeable"
 # odfpy package imports as 'odf', not 'of'
 odf = "odf"
 # Latin-1 test data: b"caf\xe9" decodes to "café"
