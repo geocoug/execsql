@@ -1,4 +1,4 @@
-"""One ruff version everywhere.
+"""One version of each pinned tool everywhere.
 
 ``just lint`` / ``just format`` run the ruff in ``uv.lock``, the pre-commit
 hook runs its pinned ``rev``, and the CI ``lint`` job installs that same
@@ -36,3 +36,30 @@ def test_uv_lock_ruff_matches_the_pre_commit_hook():
         f"uv.lock has ruff {locked} but .pre-commit-config.yaml pins v{hook}; "
         f"run `uv lock --upgrade-package ruff=={hook}`"
     )
+
+
+def _hook_sqlglot() -> str:
+    hooks = (ROOT / ".pre-commit-hooks.yaml").read_text(encoding="utf-8")
+    m = re.search(r'additional_dependencies: \["sqlglot==([0-9.]+)"\]', hooks)
+    assert m, "the execsql-format hook must pin sqlglot exactly (sqlglot==X.Y.Z)"
+    return m.group(1)
+
+
+def _formatter_extra_sqlglot() -> tuple[str, str]:
+    pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    m = re.search(r'^formatter = \["sqlglot>=([0-9.]+),<([0-9.]+)"\]', pyproject, re.MULTILINE)
+    assert m, "the formatter extra must pin sqlglot to one minor release (sqlglot>=X.Y.Z,<X.Y+1)"
+    return m.group(1), m.group(2)
+
+
+def test_sqlglot_is_the_same_in_the_hook_the_formatter_extra_and_uv_lock():
+    """The formatter's output depends on the sqlglot release (#72): one version everywhere."""
+    hook = _hook_sqlglot()
+    floor, ceiling = _formatter_extra_sqlglot()
+    locked = _locked_version("sqlglot")
+    assert hook == floor == locked, (
+        f"sqlglot: hook {hook}, formatter extra >={floor}, uv.lock {locked}; "
+        "bump them together and run the formatter corpus"
+    )
+    major, minor, _ = (int(part) for part in floor.split("."))
+    assert ceiling == f"{major}.{minor + 1}", f"formatter extra allows more than {major}.{minor}.x: <{ceiling}"

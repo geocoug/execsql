@@ -28,8 +28,13 @@ updates:
       directory: /
       schedule:
           interval: weekly
+      # sqlglot is pinned (pyproject formatter extra, .pre-commit-hooks.yaml):
+      # its output changes between releases, so a bump is deliberate. Bump all
+      # three together, `uv lock --upgrade-package sqlglot==<new>`, and run the
+      # formatter corpus (CLAUDE.md) before merging.
       ignore:
           - dependency-name: ruff
+          - dependency-name: sqlglot
       groups:
           python-minor-and-patch:
               patterns:

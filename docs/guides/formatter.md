@@ -121,6 +121,15 @@ SQL statements between metacommands are re-indented to match the current block d
 
 The `--indent` flag controls SQL indentation in addition to metacommand depth. For example, `--indent 4` (the default) produces 4-space indented column lists, subqueries, and CASE branches. `--indent 2` gives a more compact style.
 
+#### sqlglot version { #sqlglot-version }
+
+The SQL layout comes from sqlglot, and sqlglot's output changes between its releases. So that the same script formats the same way on every machine, in CI and in the pre-commit hook, execsql2 pins it: the `[formatter]` extra requires sqlglot 30.21.x and the `execsql-format` hook installs exactly 30.21.0. A new execsql2 release may move the pin; its changelog says so, and the first run after upgrading can reformat files whose content did not change.
+
+Two sqlglot behaviors are worth knowing when reading a diff:
+
+- Conditions joined by `AND` / `OR` go on one line when their combined text is at most 120 characters, and one per line otherwise. sqlglot measures the conditions without the indentation and the spaces between them, so a joined line can run a few characters past 120.
+- sqlglot writes some PostgreSQL functions in their standard form: `BTRIM(x)` becomes `TRIM(x)`, `BTRIM(x, 'ab')` becomes `TRIM('ab' FROM x)`, and `LTRIM(x, 'a')` becomes `TRIM(LEADING 'a' FROM x)`. PostgreSQL treats each pair the same.
+
 #### Comment handling
 
 Comments interleaved within SQL statements (e.g. `--` comments between SELECT columns, or inside CASE expressions) are preserved through formatting using a marker-based round-trip:
