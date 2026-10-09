@@ -17,6 +17,7 @@ from execsql.lsp.code_actions import code_actions
 from execsql.lsp.completion import completions
 from execsql.lsp.diagnostics import diagnostics, too_deep_diagnostic
 from execsql.lsp.document import ScriptIndex, index_script, read_included
+from execsql.lsp.folding import folding_ranges
 from execsql.lsp.formatting import format_document
 from execsql.lsp.hover import hover
 from execsql.lsp.navigation import definition, document_links, document_symbols, references
@@ -258,6 +259,14 @@ def create_server() -> ExecsqlLanguageServer:
                 types.ShowMessageParams(type=types.MessageType.Error, message=f"execsql format: {exc}"),
             )
             return None
+
+    @server.feature(types.TEXT_DOCUMENT_FOLDING_RANGE)
+    def on_folding(ls: ExecsqlLanguageServer, params: types.FoldingRangeParams) -> list[types.FoldingRange]:
+        uri = params.text_document.uri
+        try:
+            return folding_ranges(ls.workspace.get_text_document(uri).source, to_fs_path(uri))
+        except RecursionError:  # nesting deeper than the parser can walk: no folding
+            return []
 
     @server.feature(types.TEXT_DOCUMENT_DOCUMENT_LINK)
     def on_links(ls: ExecsqlLanguageServer, params: types.DocumentLinkParams) -> list[types.DocumentLink]:

@@ -8,8 +8,9 @@ a program your editor starts in the background and talks to while you edit a
 - completes metacommands, conditional tests, variables and export formats;
 - explains what is under the cursor on hover;
 - offers quick fixes for misspelled metacommands, conditional tests and variables;
-- formats the document as `execsql format` does.
-- jumps to where a variable, SCRIPT or `INCLUDE`d file is defined, finds a variable's uses, and outlines the script.
+- formats the document as `execsql format` does;
+- jumps to where a variable, SCRIPT or `INCLUDE`d file is defined, finds a variable's uses, and outlines the script;
+- folds `IF` branches, `LOOP`, `SCRIPT`, `BATCH` and `SQL` blocks, multi-line statements and comments.
 
 ```sql
 -- !x! EXPROT orders TO out.csv AS CSV
@@ -56,6 +57,15 @@ Hold the pointer over (or ask your editor to describe) a:
 
 `INCLUDE` paths are resolved from the script's own folder, as execsql resolves
 them when the script runs from there.
+
+## Folding { #folding }
+
+Each `IF` branch folds on its own, from the `IF`, `ELSEIF` or `ELSE` line to
+the line before the next branch, so the branch lines and `ENDIF` stay visible.
+`LOOP`, `BEGIN SCRIPT`, `BEGIN BATCH` and `BEGIN SQL` blocks fold up to their
+`END` line, a block with no `END` folds to its last line, and a SQL statement
+or comment that spans several lines folds too. An editor that gets folding
+from the server no longer folds by indentation.
 
 ## Quick fixes { #quick-fixes }
 
