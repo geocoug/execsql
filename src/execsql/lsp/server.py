@@ -16,7 +16,7 @@ from execsql import __version__
 from execsql.lsp.code_actions import code_actions
 from execsql.lsp.completion import completions
 from execsql.lsp.diagnostics import diagnostics, too_deep_diagnostic
-from execsql.lsp.document import ScriptIndex, index_script, read_included
+from execsql.lsp.document import ScriptIndex, index_script, read_included, same_file_key
 from execsql.lsp.folding import folding_ranges
 from execsql.lsp.formatting import format_document
 from execsql.lsp.hover import hover
@@ -31,11 +31,6 @@ LINT_DELAY_SECONDS = 0.2
 # Files whose change can alter an open script's findings or index: the config
 # file (its [lint] and [format] sections) and any script it may INCLUDE.
 WATCHED_FILES = ("**/execsql.conf", "**/*.sql")
-
-
-def _same_file_key(path: str) -> str:
-    """*path* resolved and case-folded where the file system ignores case, for comparing files."""
-    return os.path.normcase(str(Path(path).resolve()))
 
 
 class _DropLateCancels(logging.Filter):
@@ -97,9 +92,25 @@ class ExecsqlLanguageServer(LanguageServer):
         document = self.workspace.get_text_document(uri)
         path = to_fs_path(uri)
         try:
-            return index_script(document.source, path, self.read_included)
+            index = index_script(document.source, path, self.read_included)
         except RecursionError:
-            return ScriptIndex(path=path)
+            index = ScriptIndex(path=path)
+        index.open_uris = self.open_uris()
+        return index
+
+    def open_uris(self) -> dict[str, str]:
+        """The open documents' URIs as the client spelled them, by :func:`same_file_key` of their paths.
+
+        A location in another open file is reported under this URI: one
+        rebuilt from the path can differ (``file:///c:/``, ``file:///C:/`` on
+        Windows), and a client may not match the two.
+        """
+        found: dict[str, str] = {}
+        for uri in self.workspace.text_documents:
+            fs_path = to_fs_path(uri)
+            if fs_path is not None:
+                found.setdefault(same_file_key(fs_path), uri)
+        return found
 
     def read_included(self, path: Path) -> str | None:
         """An ``INCLUDE``d file's text: the editor's copy if it is open (saved or not), else the file's.
@@ -107,11 +118,9 @@ class ExecsqlLanguageServer(LanguageServer):
         Open documents are matched by path, not URI: clients spell the same
         file differently (``file:///c%3A/``, ``file:///C:/`` on Windows).
         """
-        wanted = _same_file_key(str(path))
-        for uri in self.workspace.text_documents:
-            fs_path = to_fs_path(uri)
-            if fs_path is not None and _same_file_key(fs_path) == wanted:
-                return self.workspace.get_text_document(uri).source
+        uri = self.open_uris().get(same_file_key(str(path)))
+        if uri is not None:
+            return self.workspace.get_text_document(uri).source
         return read_included(path)
 
     def supports_snippets(self) -> bool:

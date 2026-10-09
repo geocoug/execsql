@@ -5,9 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 
 from lsprotocol import types
-from pygls.uris import from_fs_path
 
-from execsql.lsp.document import Location, ScriptIndex, uri_for, variable_at
+from execsql.lsp.document import Location, ScriptIndex, file_uri, uri_for, variable_at
 from execsql.script.ast import (
     BatchBlock,
     IfBlock,
@@ -57,7 +56,7 @@ def definition(index: ScriptIndex, uri: str, line: int, character: int) -> list[
 
     target = _at(index.includes, line, character)
     if target is not None and Path(target).is_file():
-        uri_of_file = from_fs_path(str(Path(target).resolve()))
+        uri_of_file = file_uri(target, index)
         if uri_of_file:
             return [types.Location(uri=uri_of_file, range=_range(0, 0, 0))]
     return []
@@ -86,7 +85,7 @@ def document_links(index: ScriptIndex) -> list[types.DocumentLink]:
     for loc, target in index.includes:
         path = Path(target)
         if path.is_file():
-            uri = from_fs_path(str(path.resolve()))
+            uri = file_uri(target, index)
             if uri:
                 links.append(types.DocumentLink(range=_range(loc.line, loc.start, loc.end), target=uri))
     return links
