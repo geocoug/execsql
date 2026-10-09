@@ -188,6 +188,9 @@ class PostgresDatabase(Database):
             rows = curs.fetchall()
         return len(rows) > 0
 
+    # table_exists() without a schema looks only where CREATE TABLE puts a table: it searches the temp schema and the search path.
+    unqualified_lookup_is_scoped = True
+
     def table_exists(self, table_name: str, schema_name: str | None = None) -> bool:
         """Return True if the named table exists in the PostgreSQL database."""
         if schema_name is not None:

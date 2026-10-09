@@ -94,6 +94,9 @@ class SQLiteDatabase(Database):
                 self.rollback()
                 raise
 
+    # table_exists() without a schema looks only where CREATE TABLE puts a table: one namespace.
+    unqualified_lookup_is_scoped = True
+
     def table_exists(self, table_name: str, schema_name: str | None = None) -> bool:
         """Return True if the named table exists in the SQLite database."""
         # SQLite stores names as-created; match case-insensitively so a lookup

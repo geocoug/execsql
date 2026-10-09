@@ -57,6 +57,9 @@ class SqlServerDatabase(Database):
         self.open_db()
         self.password = None  # Clear cleartext password after successful connection
 
+    def current_schema(self) -> str | None:
+        return self._query_current_schema("select schema_name()")
+
     def __repr__(self) -> str:
         return (
             f"SqlServerDatabase({self.server_name!r}, {self.db_name!r}, {self.user!r}, "

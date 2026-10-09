@@ -153,6 +153,9 @@ class FirebirdDatabase(Database):
                 raise
             _state.subvars.add_substitution("$LAST_ROWCOUNT", curs.rowcount)
 
+    # table_exists() without a schema looks only where CREATE TABLE puts a table: one namespace.
+    unqualified_lookup_is_scoped = True
+
     def table_exists(self, table_name: str, schema_name: str | None = None) -> bool:
         """Return True if the named table exists in the Firebird database."""
         sql = (
