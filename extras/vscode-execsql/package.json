@@ -37,6 +37,15 @@
   "activationEvents": [
     "onLanguage:sql"
   ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "restrictedConfigurations": [
+        "execsql.server.path"
+      ],
+      "description": "In a workspace that is not trusted, the language server runs only as configured in your user settings: the workspace cannot set execsql.server.path."
+    }
+  },
   "contributes": {
     "grammars": [
       {

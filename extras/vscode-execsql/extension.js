@@ -2,14 +2,26 @@
 // and hover.  Plain JavaScript so the extension needs no build step.
 "use strict";
 
+const os = require("os");
+const path = require("path");
 const vscode = require("vscode");
 const { LanguageClient, TransportKind } = require("vscode-languageclient/node");
 
 let client;
 
+// execsql.server.path, with a leading ~ expanded (spawn does not expand it).
+// In a workspace that is not trusted, VS Code ignores the workspace's own value
+// of this setting (restrictedConfigurations in package.json), so a cloned repo
+// cannot choose the program the extension runs.
 function serverCommand() {
-  const configured = vscode.workspace.getConfiguration("execsql").get("server.path");
-  return configured && configured.trim() ? configured.trim() : "execsql";
+  const configured = (vscode.workspace.getConfiguration("execsql").get("server.path") || "").trim();
+  if (!configured) {
+    return "execsql";
+  }
+  if (configured === "~" || configured.startsWith("~/") || configured.startsWith("~\\")) {
+    return path.join(os.homedir(), configured.slice(1));
+  }
+  return configured;
 }
 
 async function start() {
