@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import sys
 
@@ -182,3 +183,89 @@ async def test_a_script_nested_too_deeply_gets_one_finding_and_the_server_keeps_
         types.DocumentSymbolParams(text_document=types.TextDocumentIdentifier(uri=uri)),
     )
     assert symbols == []
+
+
+def _change(client: LanguageClient, uri: str, version: int, text: str) -> None:
+    client.text_document_did_change(
+        types.DidChangeTextDocumentParams(
+            text_document=types.VersionedTextDocumentIdentifier(uri=uri, version=version),
+            content_changes=[types.TextDocumentContentChangeWholeDocument(text=text)],
+        ),
+    )
+
+
+@pytest.mark.asyncio
+async def test_a_changed_config_file_is_read_again(client: LanguageClient):
+    uri = _open(client, "conf.sql", BAD)
+    await client.wait_for_notification(types.TEXT_DOCUMENT_PUBLISH_DIAGNOSTICS)
+    assert [d.code for d in client.diagnostics[uri]] == ["P003"]
+    conf = client.root / "execsql.conf"
+    conf.write_text("[lint]\nignore = P003\n", encoding="utf-8")
+    client.workspace_did_change_watched_files(
+        types.DidChangeWatchedFilesParams(
+            changes=[types.FileEvent(uri=conf.as_uri(), type=types.FileChangeType.Created)],
+        ),
+    )
+    await client.wait_for_notification(types.TEXT_DOCUMENT_PUBLISH_DIAGNOSTICS)
+    assert not client.diagnostics[uri]
+
+
+@pytest.mark.asyncio
+async def test_saving_a_script_lints_the_scripts_that_include_it_again(client: LanguageClient):
+    setup = client.root / "setup.sql"
+    setup.write_text("SELECT 1;\n", encoding="utf-8")
+    main = _open(client, "main.sql", "-- !x! INCLUDE setup.sql\nSELECT '!!region!!';\n")
+    await client.wait_for_notification(types.TEXT_DOCUMENT_PUBLISH_DIAGNOSTICS)
+    setup_uri = _open(client, "setup.sql", "SELECT 1;\n")
+    await client.wait_for_notification(types.TEXT_DOCUMENT_PUBLISH_DIAGNOSTICS)
+    published: list[str] = []
+    client.text_document_did_save(
+        types.DidSaveTextDocumentParams(text_document=types.TextDocumentIdentifier(uri=setup_uri)),
+    )
+    for _ in range(2):
+        published.append((await client.wait_for_notification(types.TEXT_DOCUMENT_PUBLISH_DIAGNOSTICS)).uri)
+    assert sorted(published) == sorted([main, setup_uri])
+
+
+@pytest.mark.asyncio
+async def test_an_included_file_open_in_the_editor_is_read_unsaved(client: LanguageClient):
+    (client.root / "vars.sql").write_text("SELECT 1;\n", encoding="utf-8")  # the saved copy defines nothing
+    vars_uri = _open(client, "vars.sql", "-- !x! SUB region north\n")
+    main = _open(client, "uses.sql", "-- !x! INCLUDE vars.sql\nSELECT '!!region!!';\n")
+    found = await client.text_document_definition_async(
+        types.DefinitionParams(
+            text_document=types.TextDocumentIdentifier(uri=main),
+            position=types.Position(line=1, character=11),
+        ),
+    )
+    assert [loc.uri for loc in found] == [vars_uri]
+
+
+@pytest_lsp.fixture(config=ClientServerConfig(server_command=[sys.executable, "-m", "execsql", "lsp", "--stdio"]))
+async def watching_client(lsp_client: LanguageClient, tmp_path_factory):
+    lsp_client.registrations = []
+
+    @lsp_client.feature(types.CLIENT_REGISTER_CAPABILITY)
+    def on_register(params: types.RegistrationParams) -> None:
+        lsp_client.registrations.extend(params.registrations)
+
+    root = tmp_path_factory.mktemp("workspace")
+    capabilities = types.ClientCapabilities(
+        workspace=types.WorkspaceClientCapabilities(
+            did_change_watched_files=types.DidChangeWatchedFilesClientCapabilities(dynamic_registration=True),
+        ),
+    )
+    await lsp_client.initialize_session(types.InitializeParams(capabilities=capabilities, root_uri=root.as_uri()))
+    yield
+    await lsp_client.shutdown_session()
+
+
+@pytest.mark.asyncio
+async def test_the_server_asks_to_watch_config_and_script_files(watching_client: LanguageClient):
+    for _ in range(50):
+        if watching_client.registrations:
+            break
+        await asyncio.sleep(0.05)
+    [registration] = watching_client.registrations
+    assert registration.method == types.WORKSPACE_DID_CHANGE_WATCHED_FILES
+    assert [w["globPattern"] for w in registration.register_options["watchers"]] == ["**/execsql.conf", "**/*.sql"]

@@ -97,8 +97,15 @@ The server works from your editor's workspace (project) folder and reads the
 same configuration files `execsql lint` reads when run there. The `[lint]`
 section's `select` and `ignore` decide which rules are shown, exactly as on the
 command line (see [Configuration](../reference/lint.md#config)), and the
-`[format]` section sets how Format Document lays the script out. Restart the
-server (or the editor) after changing them.
+`[format]` section sets how Format Document lays the script out.
+
+The server reads the workspace's `execsql.conf` again when it changes, and
+lints every open script again when a `.sql` file in the workspace changes or
+is saved, so a script sees the variables an edited `INCLUDE` file now defines.
+An included file that is open in the editor is read as you have it, saved or
+not. This needs an editor that reports file changes to the server (VS Code and
+Neovim do); otherwise, and after changing a configuration file outside the
+workspace, restart the server.
 
 The server only reads: it never connects to a database or runs a script, and
 nothing in the workspace can make it run code. The only code it loads besides

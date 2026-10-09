@@ -9,6 +9,7 @@ script completes and resolves in the scripts that include it.
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -100,14 +101,30 @@ def _span_of(word: str, line: str, start: int = 0) -> tuple[int, int]:
     return start + m.start(), start + m.end()
 
 
-def index_script(source: str, path: str | None, _seen: set[str] | None = None) -> ScriptIndex:
-    """Index *source*, the text of the file at *path* (``None`` for an unsaved buffer)."""
+def index_script(
+    source: str,
+    path: str | None,
+    read: Callable[[Path], str | None] = read_included,
+) -> ScriptIndex:
+    """Index *source*, the text of the file at *path* (``None`` for an unsaved buffer).
+
+    *read* supplies an ``INCLUDE``d file's text; the server passes one that
+    prefers the editor's unsaved copy of a file that is open.
+    """
     index = ScriptIndex(path=path)
-    _index_into(index, source, path, _seen if _seen is not None else set(), top=True)
+    _index_into(index, source, path, set(), read, top=True)
     return index
 
 
-def _index_into(index: ScriptIndex, source: str, path: str | None, seen: set[str], *, top: bool) -> None:
+def _index_into(
+    index: ScriptIndex,
+    source: str,
+    path: str | None,
+    seen: set[str],
+    read: Callable[[Path], str | None],
+    *,
+    top: bool,
+) -> None:
     if path is not None:
         seen.add(str(Path(path).resolve()))
     lines = source.splitlines()
@@ -139,9 +156,9 @@ def _index_into(index: ScriptIndex, source: str, path: str | None, seen: set[str
             if top:
                 index.includes.append((Location(path, row, start, end), str(resolved)))
             if "!" not in target and str(resolved.resolve()) not in seen and len(seen) < MAX_INCLUDED_FILES:
-                included = read_included(resolved)
+                included = read(resolved)
                 if included is not None:
-                    _index_into(index, included, str(resolved), seen, top=False)
+                    _index_into(index, included, str(resolved), seen, read, top=False)
 
     if top:
         for row, text in enumerate(lines):
