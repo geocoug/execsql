@@ -170,9 +170,7 @@ _PARSER_KEYWORDS = {"BEGIN SCRIPT", "END SCRIPT", "BEGIN SQL", "END SQL"}
 
 # Documented forms the dispatch table does not accept, with the reason.  Each
 # one is a real gap between the docs and execsql, to be fixed in one or the other.
-_KNOWN_GAPS = {
-    "CONFIG MAX_INT <integer_value>": "only bare MAX_INT <n> is accepted (upstream too)",
-}
+_KNOWN_GAPS = {}
 
 
 @pytest.mark.parametrize("entry", reference.metacommands(), ids=lambda e: e.keyword)

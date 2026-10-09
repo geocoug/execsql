@@ -224,6 +224,17 @@ class TestDataFlagSetters:
         x_max_int(maxint="9999999")
         assert minimal_conf.max_int == 9999999
 
+    @pytest.mark.parametrize("command", ["MAX_INT 9999999", "CONFIG MAX_INT 9999999", "config max_int 9999999"])
+    def test_max_int_with_or_without_config(self, command):
+        from execsql.metacommands.data import x_max_int
+        from execsql.metacommands.dispatch import build_dispatch_table
+
+        found = build_dispatch_table().get_match(command)
+        assert found is not None
+        node, match = found
+        assert node.exec_fn is x_max_int
+        assert match.group("maxint") == "9999999"
+
     def test_x_empty_rows(self, minimal_conf):
         from execsql.metacommands.data import x_empty_rows
 

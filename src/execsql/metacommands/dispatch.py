@@ -705,6 +705,13 @@ def build_dispatch_table() -> MetaCommandList:
         description="QUOTE_ALL_TEXT",
         category="config_option",
     )
+    # The documented form; upstream accepted only bare MAX_INT, which stays.
+    mcl.add(
+        r"^\s*CONFIG\s+MAX_INT\s+(?P<maxint>[0-9]+)\s*$",
+        x_max_int,
+        description="MAX_INT",
+        category="config_option",
+    )
     mcl.add(
         r"^\s*CONFIG\s+IMPORT_ROW_BUFFER\s+(?P<rows>[1-9][0-9]*)\s*$",
         x_import_row_buffer,
