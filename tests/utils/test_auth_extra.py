@@ -22,7 +22,7 @@ class TestGetPasswordKeyringHit:
         with patch.dict("sys.modules", {"keyring": mock_kr}):
             result = get_password("PostgreSQL", "mydb", "user1", "localhost")
             assert result == "stored_pass"
-            assert auth_mod._last_from_keyring is True
+            assert auth_mod.password_from_keyring() is True
             assert _state.upass == "stored_pass"
 
     def test_skip_keyring_bypasses_lookup(self, minimal_conf):

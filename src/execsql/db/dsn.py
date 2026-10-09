@@ -14,6 +14,7 @@ from execsql.db.tiers import SupportTier
 from execsql.exceptions import ErrInfo
 from execsql.utils.errors import exception_desc, fatal_error
 from execsql.utils.auth import (
+    begin_login,
     clear_stored_password,
     get_password,
     is_login_failure,
@@ -77,6 +78,7 @@ class DsnDatabase(Database):
         if self.conn is not None:
             self.conn.close()
             self.conn = None
+        begin_login()
         if self.need_passwd and self.user and self.password is None:
             self.password = get_password("DSN", self.db_name, self.user)
 

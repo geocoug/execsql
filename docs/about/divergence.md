@@ -161,7 +161,7 @@ Formatter correctness notes added in the 2.19.x line:
 | Feature                       | Description                                                                                                                                                                                                                          |
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | OS keyring integration        | When the `keyring` package is installed, passwords are stored in and retrieved from the OS credential store (macOS Keychain, Windows Credential Manager, Linux SecretService).                                                       |
-| Keyring retry on auth failure | If the server rejects a stored password, the stale entry is deleted, the user is re-prompted, and the new password is saved once it works. Other connection failures keep the stored password.                                       |
+| Keyring retry on auth failure | If the server rejects a stored password, the stale entry is deleted, the user is re-prompted, and the new password is saved once it works. Other connection failures keep the stored password. Another connection never deletes it.  |
 | Keyring auto-store            | A password typed at a GUI or console prompt is stored in the OS keyring, without a confirmation prompt, once the connection succeeds with it. Entries are named by server and port (`execsql/<db_type>/<server>:<port>/<database>`). |
 
 ### Logging Enhancements

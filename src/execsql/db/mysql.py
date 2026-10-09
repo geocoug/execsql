@@ -14,6 +14,7 @@ from execsql.db.base import Database
 from execsql.exceptions import ErrInfo
 from execsql.utils.errors import exception_desc, fatal_error
 from execsql.utils.auth import (
+    begin_login,
     clear_stored_password,
     get_password,
     is_login_failure,
@@ -217,6 +218,7 @@ class MySQLDatabase(Database):
 
         if self.conn is None:
             try:
+                begin_login()
                 if self.user and self.need_passwd and not self.password:
                     self.password = get_password(
                         "MySQL",

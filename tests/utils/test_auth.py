@@ -107,14 +107,26 @@ class TestKeyringDelete:
 
 
 class TestPasswordFromKeyring:
-    def test_default_is_false(self):
-        auth_mod._last_from_keyring = False
+    def test_a_new_login_starts_false(self):
+        auth_mod._login.from_keyring = True
+        auth_mod.begin_login()
         assert password_from_keyring() is False
 
-    def test_reflects_module_state(self):
-        auth_mod._last_from_keyring = True
+    def test_reflects_this_login(self):
+        auth_mod._login.from_keyring = True
         assert password_from_keyring() is True
-        auth_mod._last_from_keyring = False
+        auth_mod.begin_login()
+
+    def test_another_thread_has_its_own_answer(self):
+        import threading
+
+        auth_mod._login.from_keyring = True
+        seen = []
+        t = threading.Thread(target=lambda: seen.append(password_from_keyring()))
+        t.start()
+        t.join(5)
+        assert seen == [False]
+        auth_mod.begin_login()
 
 
 class TestClearStoredPassword:

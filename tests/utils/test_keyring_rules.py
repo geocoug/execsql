@@ -224,3 +224,66 @@ class TestSqlServerStoredPassword:
         ):
             db.open_db()
         assert keyring.store == {("execsql/SQL Server/sql01:1433/Lab", "u"): "current"}
+
+
+# ---------------------------------------------------------------------------
+# What one connection's keyring lookup means for the next connection
+# ---------------------------------------------------------------------------
+
+
+class TestAnotherConnectionsPassword:
+    """Where a password came from belongs to the connection that looked it up."""
+
+    pytestmark = pytest.mark.skipif(pytest.importorskip("psycopg") is None, reason="psycopg")
+
+    def test_a_rejected_password_given_by_the_caller_deletes_no_keyring_entry(self, keyring):
+        """CONNECT reusing server A's stored password for server B must not delete B's entry when B rejects it."""
+        keyring.store[("execsql/PostgreSQL/a:5432/db", "u")] = "a-password"
+        keyring.store[("execsql/PostgreSQL/b:5432/db", "u")] = "b-password"
+        auth.get_password("PostgreSQL", "db", "u", server_name="a", port=5432)
+        from execsql.db.postgres import PostgresDatabase
+
+        rejected = Exception('FATAL:  password authentication failed for user "u"')
+        with (
+            patch("psycopg.connect", side_effect=rejected),
+            patch("execsql.utils.auth.getpass.getpass") as prompt,
+            pytest.raises(ErrInfo),
+        ):
+            PostgresDatabase("b", "db", "u", need_passwd=True, port=5432, password="a-password")
+        keyring.delete_password.assert_not_called()
+        prompt.assert_not_called()
+        assert keyring.store[("execsql/PostgreSQL/b:5432/db", "u")] == "b-password"
+
+    def test_a_password_given_by_the_caller_stores_nothing(self, keyring):
+        """A password typed for an earlier, failed attempt is not stored by a later connection that was handed one."""
+        with patch("execsql.utils.auth.getpass.getpass", return_value="typo"):
+            auth.get_password("PostgreSQL", "db", "u", server_name="localhost", port=5432)
+        from execsql.db.postgres import PostgresDatabase
+
+        with patch("psycopg.connect", return_value=MagicMock(info=MagicMock(encoding="UTF8"))):
+            PostgresDatabase("localhost", "db", "u", need_passwd=True, port=5432, password="given")
+        keyring.set_password.assert_not_called()
+
+
+def test_each_thread_stores_only_the_password_it_typed(keyring):
+    import threading
+
+    typed = {"one": "pw-one", "two": "pw-two"}
+    ready = threading.Barrier(2)
+
+    def connect(name):
+        with patch("execsql.utils.auth.getpass.getpass", return_value=typed[name]):
+            auth.begin_login()
+            auth.get_password("PostgreSQL", "db", "u", server_name=name, port=5432)
+        ready.wait()  # both have typed before either connection succeeds
+        auth.remember_password("PostgreSQL", "db", "u", name, port=5432)
+
+    threads = [threading.Thread(target=connect, args=(n,)) for n in typed]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(10)
+    assert keyring.store == {
+        ("execsql/PostgreSQL/one:5432/db", "u"): "pw-one",
+        ("execsql/PostgreSQL/two:5432/db", "u"): "pw-two",
+    }
