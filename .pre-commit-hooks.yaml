@@ -6,7 +6,10 @@
   types: [file]
   files: \.sql$
   args: [--in-place]
-  additional_dependencies: ["sqlglot>=25.0,<31"]
+  # One sqlglot: its output changes between releases, so an unpinned hook
+  # formats differently depending on when its env was built (#72). Keep equal
+  # to the formatter extra and uv.lock (tests/test_tooling_versions.py).
+  additional_dependencies: ["sqlglot==30.21.0"]
 
 - id: execsql-lint
   name: execsql-lint
