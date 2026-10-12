@@ -17,8 +17,8 @@ __all__ = ["lsp_cmd"]
         "Run the execsql language server on stdin/stdout, for an editor to start. "
         "Shows execsql lint findings as you type, completes metacommands, "
         "conditional tests and variables, explains them on hover, and finds where variables, "
-        "SCRIPTs and included files are defined, offers quick fixes, and formats documents. Needs the lsp extra: "
-        'uv tool install "execsql2[lsp]".'
+        "SCRIPTs and included files are defined, offers quick fixes, and formats documents. Needs the lsp extra "
+        "(installed with any extras you already have, e.g. execsql2[postgres,lsp])."
     ),
 )
 def lsp_cmd(
@@ -30,8 +30,10 @@ def lsp_cmd(
         from execsql.lsp.server import create_server
     except ImportError as exc:
         _err_console.print(
-            "[bold red]Error:[/bold red] execsql lsp needs the lsp extra: "
-            'uv tool install "execsql2\\[lsp]" (or pip install "execsql2\\[lsp]").',
+            "[bold red]Error:[/bold red] execsql lsp needs the lsp extra. Install it with the "
+            'extras you already have, e.g. uv tool install "execsql2\\[postgres,lsp]" or '
+            'pipx install --force "execsql2\\[postgres,lsp]". '
+            "See https://execsql2.readthedocs.io/en/latest/getting-started/installation/#adding-an-extra-later",
             highlight=False,
         )
         raise typer.Exit(code=1) from exc
