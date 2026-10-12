@@ -123,9 +123,8 @@ pipx install --force "execsql2[postgres,lsp]"
 ```
 
 See [Adding an extra later](../getting-started/installation.md#adding-an-extra-later).
-Check it with `execsql lsp < /dev/null` (on Windows, `execsql lsp < NUL`): it
-exits at once without output when the server is installed, and says the `lsp`
-extra is needed when it is not.
+Check it with `execsql lsp --check`: it prints `execsql lsp is ready (pygls 2.x.y)` and exits 0 when the server can start, and otherwise says what is
+missing and exits 1.
 
 ## Settings { #settings }
 

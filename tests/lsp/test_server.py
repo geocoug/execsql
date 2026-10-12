@@ -194,6 +194,15 @@ async def test_format_document_uses_the_workspace_format_settings(configured_cli
     assert edits[0].new_text == '-- !x! IF (hasrows(t))\n  -- !x! WRITE "x"\n-- !x! ENDIF\n'
 
 
+def test_the_late_cancel_filter_matches_the_message_pygls_logs():
+    """_DropLateCancels matches pygls's text; a pygls that rewords it must fail here, not flood editors."""
+    import inspect
+
+    from pygls.protocol import json_rpc
+
+    assert "'Cancel notification for unknown message id \"%s\"'" in inspect.getsource(json_rpc)
+
+
 def test_a_late_cancel_is_not_reported(caplog):
     from execsql.lsp.server import _DropLateCancels, create_server
 

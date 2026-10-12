@@ -300,8 +300,9 @@ The options below belong to `run`: `execsql run -tl script.sql mydb.sqlite`.
 `--version` and `-o`/`--online-help` work on their own (`execsql --version`)
 and anywhere on a `run` command line.
 `format` has its own options, described in the [formatter guide](../guides/formatter.md);
-`lint`'s are in the [lint rules reference](../reference/lint.md); `config`, `list` and `init`
-are described [above](#config_command).
+`lint`'s are in the [lint rules reference](../reference/lint.md); `lsp`'s (`--check`) in
+[Editor Support](../guides/editors.md#install); `config`, `list` and `init` are described
+[above](#config_command).
 
 ### Connection options
 
