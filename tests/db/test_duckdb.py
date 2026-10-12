@@ -169,6 +169,11 @@ class TestDuckDBExecuteAndSelect:
         hdrs, rows = db.select_data("SELECT * FROM t;")
         assert rows == []
 
+    def test_select_timestamptz(self, db):
+        # duckdb converts TIMESTAMPTZ to a timezone-aware datetime through pytz.
+        hdrs, rows = db.select_data("SELECT TIMESTAMPTZ '2026-10-12 08:30:00+00' AS ts;")
+        assert rows[0][0].utcoffset() is not None
+
     def test_select_rowsource_yields_rows(self, db):
         db.execute("CREATE TABLE t (n INTEGER);")
         for i in range(3):

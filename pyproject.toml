@@ -51,7 +51,8 @@ dependencies = [
 postgres = ["psycopg[binary]>=3.1,<4"]
 mysql = ["pymysql>=1.1"]
 mssql = ["pyodbc>=5.0"]
-duckdb = ["duckdb>=1.0"]
+# duckdb returns TIMESTAMPTZ values as timezone-aware datetimes through pytz.
+duckdb = ["duckdb>=1.0", "pytz"]
 firebird = ["firebird-driver>=1.10"]
 oracle = ["oracledb>=3.0"]
 odbc = ["pyodbc>=5.0"]
@@ -80,6 +81,7 @@ all-db = [
     "pymysql>=1.1",
     "pyodbc>=5.0",
     "duckdb>=1.0",
+    "pytz",
     "firebird-driver>=1.10",
     "oracledb>=3.0",
 ]
