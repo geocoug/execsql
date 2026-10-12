@@ -164,12 +164,12 @@ class OracleDatabase(Database):
         else:
             return super().select_data(sql)
 
-    def select_rowsource(self, sql: str) -> Any:
+    def select_rowsource(self, sql: str, *, decode_bytes: bool = True) -> Any:
         """Return column names and an iterable that yields rows one at a time."""
         if sql[-1:] == ";":
-            return super().select_rowsource(sql[:-1])
+            return super().select_rowsource(sql[:-1], decode_bytes=decode_bytes)
         else:
-            return super().select_rowsource(sql)
+            return super().select_rowsource(sql, decode_bytes=decode_bytes)
 
     def select_rowdict(self, sql: str) -> Any:
         """Return column names and an iterable that yields rows as dictionaries."""

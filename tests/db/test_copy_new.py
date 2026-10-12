@@ -123,3 +123,40 @@ def test_text_values_copied_into_an_existing_table_are_unchanged(tmp_path):
     )
     assert result.success, result.errors
     assert _target(dst)[1] == rows
+
+
+PNG_HEADER = "89504E470D0A1A0A00FF"  # not valid UTF-8, and holds a NUL
+
+
+@pytest.mark.parametrize(
+    "copy",
+    [
+        "COPY b FROM initial TO NEW b2 IN other",
+        "COPY QUERY <<select id, img from b;>> FROM initial TO NEW b2 IN other",
+        "COPY b FROM initial TO b2 IN other",
+    ],
+    ids=["copy-new", "copy-query-new", "copy-existing"],
+)
+def test_a_binary_column_is_copied_byte_for_byte(tmp_path, copy):
+    import sqlite3
+
+    target = tmp_path / "other.db"
+    existing = "create table b2 (id integer, img blob);" if "TO NEW" not in copy else ""
+    if existing:
+        sqlite3.connect(target).executescript(existing).close()
+    script = (
+        "create table b (id integer, img blob);\n"
+        f"insert into b values (1, x'{PNG_HEADER}');\n"
+        f"-- !x! CONNECT TO SQLITE(FILE={target}{', NEW' if not existing else ''}) AS other\n"
+        f"-- !x! {copy}\n"
+    )
+    result = run(sql=script, dsn=f"sqlite:///{tmp_path / 'src.db'}", new_db=True)
+    assert result.success, result.errors
+    con = sqlite3.connect(target)
+    try:
+        assert con.execute("select typeof(img), hex(img) from b2").fetchall() == [("blob", PNG_HEADER)]
+        # SQLite stores bytes as a blob whatever the column says; the new column must also be declared one.
+        declared = {row[1]: row[2].lower() for row in con.execute("pragma table_info(b2)")}
+        assert declared["img"] == "blob"
+    finally:
+        con.close()

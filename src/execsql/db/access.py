@@ -327,8 +327,8 @@ class AccessDatabase(Database):
             rows = curs.fetchall()
             return [d[0] for d in curs.description], rows
 
-    def select_rowsource(self, sql: str) -> tuple[list[str], Any]:
-        """Return column names and an iterable that yields rows one at a time."""
+    def select_rowsource(self, sql: str, *, decode_bytes: bool = True) -> tuple[list[str], Any]:  # noqa: ARG002
+        """Return column names and an iterable that yields rows one at a time (values as the driver returns them)."""
         # Return 1) a list of column names, and 2) an iterable that yields rows.
         self.dao_flush_check()
         curs = self.cursor()

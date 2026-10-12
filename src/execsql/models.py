@@ -167,8 +167,16 @@ class Column:
                 self.Accum(DT_Text()),
                 self.Accum(DT_Binary()),
             )
+        if not infer_strings:
+            # Values from a database cursor: a bytes value is binary data, so
+            # Binary is tried before the text types (which accept anything).
+            text = [ac for ac in self.accums if isinstance(ac.dt, (DT_Character, DT_Varchar, DT_Text))]
+            binary = [ac for ac in self.accums if isinstance(ac.dt, DT_Binary)]
+            self.accums = tuple(ac for ac in self.accums if ac not in text and ac not in binary) + tuple(binary + text)
         self.infer_strings = infer_strings
         self.str_accums = tuple(ac for ac in self.accums if isinstance(ac.dt, (DT_Character, DT_Varchar, DT_Text)))
+        # A bytes value is checked as binary or text only: int(b"12") is 12.
+        self.bytes_accums = tuple(ac for ac in self.accums if isinstance(ac.dt, DT_Binary)) + self.str_accums
         self.dt_eval = False
         # self.dt is a tuple of: 0: column name; 1: data type class; 2: max length or None;
         # 3: bool indicating any null values; 4: precision or None; 5: scale or None.
@@ -197,6 +205,9 @@ class Column:
             return
         if not self.infer_strings and isinstance(column_value, str):
             for dt in self.str_accums:
+                dt.check(column_value)
+        elif not self.infer_strings and isinstance(column_value, (bytes, bytearray, memoryview)):
+            for dt in self.bytes_accums:
                 dt.check(column_value)
         else:
             for dt in self.accums:

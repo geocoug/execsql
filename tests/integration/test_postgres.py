@@ -660,3 +660,29 @@ def test_import_to_new_refuses_an_existing_table(tmp_path):
         assert "Table new_target already exists" in result.errors[0].message
     finally:
         run(sql="drop table if exists new_target;\n", dsn=_PG_DSN)
+
+
+def test_copy_moves_a_bytea_column_byte_for_byte(tmp_path):
+    """psycopg returns bytea as bytes; COPY must not decode it to text on the way."""
+    from execsql import run
+
+    payload = bytes.fromhex("89504E470D0A1A0A00FF")
+    run(sql="drop table if exists bin_src;\ndrop table if exists bin_dst;\n", dsn=_PG_DSN)
+    try:
+        result = run(
+            sql=(
+                "create table bin_src (id integer, img bytea);\n"
+                "insert into bin_src values (1, '\\x89504e470d0a1a0a00ff');\n"
+                "-- !x! COPY bin_src FROM initial TO NEW bin_dst IN initial\n"
+            ),
+            dsn=_PG_DSN,
+        )
+        assert result.success, result.errors
+        with psycopg.connect(**_PG_CONNECT_KWARGS) as conn:
+            row = conn.execute(
+                "select data_type, (select img from bin_dst) from information_schema.columns "
+                "where table_name = 'bin_dst' and column_name = 'img'",
+            ).fetchone()
+        assert row == ("bytea", payload)
+    finally:
+        run(sql="drop table if exists bin_src;\ndrop table if exists bin_dst;\n", dsn=_PG_DSN)
