@@ -11,7 +11,7 @@ import re
 
 from execsql.db.base import Database
 from execsql.exceptions import ErrInfo
-from execsql.utils.errors import fatal_error
+from execsql.utils.errors import fatal_error, install_hint
 from execsql.utils.auth import (
     begin_login,
     clear_stored_password,
@@ -41,7 +41,7 @@ class SqlServerDatabase(Database):
         try:
             import pyodbc  # noqa: F401
         except Exception:
-            fatal_error("The pyodbc module is required.  See http://github.com/mkleehammer/pyodbc")
+            fatal_error(f"The pyodbc module is required to connect to SQL Server. {install_hint('mssql')}")
         from execsql.types import dbt_sqlserver
 
         super().__init__(

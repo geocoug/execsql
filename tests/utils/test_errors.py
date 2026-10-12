@@ -302,3 +302,30 @@ class TestFatalError:
         with patch("execsql.utils.errors.sys.exit") as mock_exit, patch("execsql.utils.fileio.filewriter_end"):
             fatal_error("test error")
             mock_exit.assert_called_once_with(1)
+
+
+class TestInstallHint:
+    def test_names_the_extra_and_keeps_existing_ones(self):
+        from execsql.utils.errors import install_hint
+
+        hint = install_hint("postgres")
+        assert 'uv tool install "execsql2[...,postgres]"' in hint
+        assert 'pipx install --force "execsql2[...,postgres]"' in hint
+        assert 'pip install "execsql2[postgres]"' in hint
+        assert hint.endswith("#adding-an-extra-later")
+
+
+def test_every_missing_package_message_uses_the_shared_hint():
+    """A hand-written pip line does not reach a uv tool or pipx install, and drops other extras."""
+    import pathlib
+    import re
+
+    src = pathlib.Path(__file__).resolve().parents[2] / "src" / "execsql"
+    offenders = [
+        f"{path.relative_to(src)}:{n}"
+        for path in src.rglob("*.py")
+        if path.name != "errors.py"
+        for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1)
+        if re.search(r"\b(pip|pipx|uv tool) install\b", line)
+    ]
+    assert offenders == []

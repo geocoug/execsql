@@ -14,7 +14,7 @@ from typing import Any
 
 from execsql.db.base import Database, statement_start
 from execsql.exceptions import ErrInfo
-from execsql.utils.errors import exception_desc, fatal_error
+from execsql.utils.errors import exception_desc, fatal_error, install_hint
 import execsql.state as _state
 
 __all__ = ["DuckDBDatabase"]
@@ -62,7 +62,7 @@ class DuckDBDatabase(Database):
         try:
             import duckdb  # noqa: F401
         except Exception:
-            fatal_error("The duckdb module is required.")
+            fatal_error(f"The duckdb module is required to use DuckDB. {install_hint('duckdb')}")
         from execsql.types import dbt_duckdb
 
         super().__init__(

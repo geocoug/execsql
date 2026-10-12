@@ -12,7 +12,7 @@ from typing import Any, cast
 
 from execsql.db.base import Database
 from execsql.exceptions import ErrInfo
-from execsql.utils.errors import exception_desc, fatal_error
+from execsql.utils.errors import exception_desc, fatal_error, install_hint
 from execsql.utils.auth import (
     begin_login,
     clear_stored_password,
@@ -81,7 +81,7 @@ class MySQLDatabase(Database):
             import pymysql as mysql_lib  # noqa: F401
         except Exception:
             fatal_error(
-                "The pymysql module is required to connect to MySQL.   See https://pypi.python.org/pypi/PyMySQL",
+                f"The pymysql module is required to connect to MySQL. {install_hint('mysql')}",
             )
         from execsql.types import dbt_mysql
 

@@ -14,7 +14,7 @@ from typing import Any
 
 import execsql.state as _state
 from execsql.exceptions import ErrInfo
-from execsql.utils.errors import fatal_error
+from execsql.utils.errors import fatal_error, install_hint
 from execsql.utils.fileio import filewriter_close
 
 __all__ = ["StrTemplateReport", "JinjaTemplateReport", "report_query"]
@@ -91,7 +91,7 @@ class JinjaTemplateReport:
             self._jinja2 = jinja2
         except ImportError:
             fatal_error(
-                "The jinja2 library is required to produce reports with the Jinja2 templating system.   See http://jinja.pocoo.org/",
+                f"The jinja2 library is required to produce reports with the Jinja2 templating system. {install_hint('formats')}",
             )
         conf = _state.conf
         template_root = getattr(conf, "template_root", None)

@@ -15,7 +15,7 @@ from typing import Any
 
 from execsql.db.base import Database
 from execsql.exceptions import ErrInfo
-from execsql.utils.errors import exception_desc, fatal_error
+from execsql.utils.errors import exception_desc, fatal_error, install_hint
 from execsql.utils.auth import (
     begin_login,
     clear_stored_password,
@@ -51,8 +51,7 @@ class PostgresDatabase(Database):
             import psycopg  # noqa: F401
         except Exception:
             fatal_error(
-                "The psycopg module (psycopg3) is required to connect to PostgreSQL.   "
-                "See https://www.psycopg.org/psycopg3/",
+                f"The psycopg module (psycopg3) is required to connect to PostgreSQL. {install_hint('postgres')}",
             )
         from execsql.types import dbt_postgres
 

@@ -12,7 +12,7 @@ the CLI.
 from execsql.db.base import Database
 from execsql.db.tiers import SupportTier
 from execsql.exceptions import ErrInfo
-from execsql.utils.errors import exception_desc, fatal_error
+from execsql.utils.errors import exception_desc, fatal_error, install_hint
 from execsql.utils.auth import (
     begin_login,
     clear_stored_password,
@@ -51,7 +51,7 @@ class DsnDatabase(Database):
         try:
             import pyodbc  # noqa: F401
         except Exception:
-            fatal_error("The pyodbc module is required.  See http://github.com/mkleehammer/pyodbc")
+            fatal_error(f"The pyodbc module is required to connect through an ODBC DSN. {install_hint('odbc')}")
         from execsql.types import dbt_dsn
 
         super().__init__(

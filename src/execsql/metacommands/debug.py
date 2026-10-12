@@ -27,7 +27,7 @@ from pathlib import Path
 from typing import Any
 
 import execsql.state as _state
-from execsql.utils.errors import fatal_error
+from execsql.utils.errors import fatal_error, install_hint
 from execsql.utils.fileio import EncodedFile, filewriter_open_as_new, filewriter_write
 
 
@@ -110,7 +110,7 @@ def x_debug_write_odbc_drivers(**kwargs: Any) -> None:
     try:
         import pyodbc
     except Exception:
-        fatal_error("The pyodbc module is required.")
+        fatal_error(f"The pyodbc module is required to list ODBC drivers. {install_hint('odbc')}")
     output_dest = kwargs["filename"]
     append = kwargs["append"]
     if output_dest is not None and output_dest != "stdout" and append is None:

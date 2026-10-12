@@ -33,9 +33,9 @@ def export_duckdb(
     try:
         import duckdb
     except Exception:
-        from execsql.utils.errors import fatal_error
+        from execsql.utils.errors import fatal_error, install_hint
 
-        fatal_error("The duckdb module is required to export data in that format.")
+        fatal_error(f"The duckdb module is required to export data in that format. {install_hint('duckdb')}")
         return
 
     from execsql.models import DataTable
