@@ -16,15 +16,7 @@ from execsql.exceptions import ErrInfo
 from execsql.db.base import Database
 import execsql.state as _state
 
-__all__ = ["import_data_table", "refuse_existing_table", "table_exists_if_known"]
-
-
-def table_exists_if_known(db: Database, table_name: str, schema_name: str | None = None) -> bool | None:
-    """Whether the table exists, or ``None`` when the database cannot say (no catalog access, ...)."""
-    try:
-        return db.table_exists(table_name, schema_name)
-    except Exception:
-        return None
+__all__ = ["import_data_table", "refuse_existing_table"]
 
 
 def refuse_existing_table(db: Database, schema_name: str | None, table_name: str) -> None:
@@ -43,7 +35,11 @@ def refuse_existing_table(db: Database, schema_name: str | None, table_name: str
             lookup_schema = None
         if lookup_schema is None:
             return  # An unqualified lookup would search every schema.
-    if table_exists_if_known(db, table_name, lookup_schema):
+    try:
+        exists = db.table_exists_where_created(table_name, lookup_schema)
+    except Exception:
+        return  # The database cannot say; CREATE TABLE reports any conflict.
+    if exists:
         name = db.schema_qualified_table_name(schema_name, table_name)
         raise ErrInfo(
             type="cmd",
