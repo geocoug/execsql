@@ -338,6 +338,8 @@ uv tool install "execsql2[lsp]"                     # the language server
 code --install-extension execsql-syntax.vsix        # the extension, from the release
 ```
 
+If execsql is already installed with other extras, name them too, e.g. `uv tool install "execsql2[postgres,lsp]"` or `pipx install --force "execsql2[postgres,lsp]"`: the new list replaces the old one (see [Adding an extra later](https://execsql2.readthedocs.io/en/latest/getting-started/installation/#adding-an-extra-later)).
+
 Other editors use the language server directly: see [Editor Support](https://execsql2.readthedocs.io/en/latest/guides/editors/). The [extension README](extras/vscode-execsql/README.md) covers settings, installing from a clone, color customization, and troubleshooting.
 
 ## Templates

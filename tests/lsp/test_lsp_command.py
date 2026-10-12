@@ -14,7 +14,9 @@ def test_without_pygls_it_names_the_extra():
     with patch.dict(sys.modules, {"execsql.lsp.server": None}):
         result = CliRunner().invoke(app, ["lsp"])
     assert result.exit_code == 1
-    assert "execsql2[lsp]" in result.output
+    # Installed with the extras already there: a bare "execsql2[lsp]" would replace them.
+    assert "execsql2[postgres,lsp]" in result.output
+    assert "#adding-an-extra-later" in result.output.replace("\n", "")
 
 
 def test_accepts_the_stdio_flag_editors_pass():

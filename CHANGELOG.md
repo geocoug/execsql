@@ -13,7 +13,7 @@ ______________________________________________________________________
 
 ### Added
 
-- **`execsql lsp`**, a language server for editors. Install the new `lsp` extra (`uv tool install "execsql2[lsp]"`); setup for VS Code, Neovim, Helix and other editors is in the new Editor Support guide. It provides:
+- **`execsql lsp`**, a language server for editors. Install the new `lsp` extra (`uv tool install "execsql2[lsp]"`; to add it to an existing install, name the extras you already have, e.g. `"execsql2[postgres,lsp]"`); setup for VS Code, Neovim, Helix and other editors is in the new Editor Support guide. It provides:
 
     - `execsql lint` findings as you type, using the workspace's `[lint]` settings;
     - completion of metacommands (as fill-in templates of their documented syntax), conditional tests, variables and export formats;
@@ -25,18 +25,19 @@ ______________________________________________________________________
     - `execsql.conf` read again when it changes, and open scripts linted again when a file they `INCLUDE` changes;
     - each folder of a multi-root workspace linted and formatted with its own `execsql.conf`.
 
-    The server never runs a script or connects to a database, and reads only regular files of bounded size.
+    The server never runs a script or connects to a database. It reads the open scripts, the files they `INCLUDE` or name in `SUB_INI` (regular files of bounded size), and the configuration files `execsql lint` reads.
 
-- **VS Code extension** starts `execsql lsp` for `.sql` files, with `execsql.server.path` and `execsql.server.enabled` settings and an **execsql: Restart Language Server** command. Each GitHub release attaches it as `execsql-syntax.vsix`; install with `code --install-extension execsql-syntax.vsix`. In a folder that is not trusted, the folder's own `execsql.server.path` setting is ignored.
+- **VS Code extension** starts `execsql lsp` for `.sql` files, with `execsql.server.path` and `execsql.server.enabled` settings and an **execsql: Restart Language Server** command. Each GitHub release attaches it as `execsql-syntax.vsix`; install with `code --install-extension execsql-syntax.vsix`. The server starts only in a trusted folder; highlighting works in any. `execsql.server.path` is a command name looked up in PATH or an absolute path, and the extension never runs an `execsql` found in the open folder.
 
 ### Changed
 
-- **`execsql list metacommands`** lists every metacommand (all 95; some were missing) with its category and a one-line summary, and `execsql list metacommands <KEYWORD>` shows that metacommand's syntax, as the reference docs write it, with a link. The syntax column it replaces was incomplete and in places wrong. In `--output-format json`, `syntax` is now the full first syntax line, and each entry adds `forms`, `category`, `summary` and `url`.
+- **`lsp` is a command name:** `execsql lsp` starts the language server. Run a script file named `lsp` (with no extension) as `execsql run lsp`.
+- **`execsql list metacommands`** lists every metacommand (all 95; some were missing) with its category and a one-line summary, and `execsql list metacommands <KEYWORD>` shows that metacommand's syntax, as the reference docs write it, with a link. In `--output-format json`, `syntax` is now the full first syntax line, and each entry adds `forms`, `category`, `summary` and `url`. Read `forms` for every syntax line.
 
 ### Fixed
 
+- **DuckDB `TIMESTAMPTZ` values** are read instead of stopping the script: the `duckdb` and `all-db` extras now install `pytz`, which duckdb needs for them.
 - **`CONFIG MAX_INT <n>`** works as documented; it stopped with `Unknown metacommand`, and only the bare `MAX_INT <n>` (still accepted) was recognized.
-- **Metacommand reference syntax:** `PROMPT MAP` showed quoted column names (`LAT "<lat_col>"`), which execsql reads as a plain `PROMPT MESSAGE` with no map; the column names are unquoted. Also corrected: `CONNECT TO DSN` (a stray comma) and `HASROWS` (a missing `>`).
 
 ______________________________________________________________________
 

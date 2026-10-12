@@ -114,9 +114,18 @@ The server needs the `lsp` extra, which includes the `formatter` extra:
 uv tool install "execsql2[lsp]"     # or: pipx install "execsql2[lsp]"
 ```
 
-List any other extras you use in the same command, e.g.
-`"execsql2[postgres,lsp]"` (see [Installation](../getting-started/installation.md#extras)).
-Check it with `execsql lsp --help`.
+If execsql is already installed with other extras, name them in the same
+command, or they are removed: the new list replaces the old one.
+
+```sh
+uv tool install "execsql2[postgres,lsp]"
+pipx install --force "execsql2[postgres,lsp]"
+```
+
+See [Adding an extra later](../getting-started/installation.md#adding-an-extra-later).
+Check it with `execsql lsp < /dev/null` (on Windows, `execsql lsp < NUL`): it
+exits at once without output when the server is installed, and says the `lsp`
+extra is needed when it is not.
 
 ## Settings { #settings }
 
@@ -169,15 +178,21 @@ code --install-extension execsql-syntax.vsix
 
 If `execsql` is not on VS Code's PATH, set **execsql.server.path** to its full
 path (`which execsql`); a leading `~` is expanded, e.g. `~/.local/bin/execsql`.
+The setting is a command name looked up in PATH or an absolute path; a relative
+path is refused. The extension never looks for `execsql` in the open folder,
+and starts the server from your home directory.
 After upgrading execsql, run **execsql: Restart Language Server** from the
 Command Palette. The extension also highlights execsql syntax; that works
 without the server.
 
 In a folder you have not marked as trusted
 ([Workspace Trust](https://code.visualstudio.com/docs/editor/workspace-trust)),
-VS Code ignores the folder's own `.vscode/settings.json` value of
-**execsql.server.path**, so a cloned repository cannot choose the program the
-extension runs; your user setting still applies.
+the extension does not start the language server: it reads the scripts, the
+files they `INCLUDE` and the folder's `execsql.conf`, which a cloned repository
+chooses. Syntax highlighting still works. The server starts as soon as you trust
+the folder. VS Code also ignores an untrusted folder's own
+`.vscode/settings.json` value of **execsql.server.path**, so a cloned repository
+cannot choose the program the extension runs.
 
 ## Neovim { #neovim }
 

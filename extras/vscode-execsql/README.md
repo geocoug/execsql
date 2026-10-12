@@ -12,6 +12,10 @@ For [execsql](https://execsql2.readthedocs.io/) scripts in `.sql` files:
     uv tool install "execsql2[lsp]"     # or: pipx install "execsql2[lsp]"
     ```
 
+    If execsql is already installed with other extras, name them too, e.g.
+    `uv tool install "execsql2[postgres,lsp]"` or `pipx install --force "execsql2[postgres,lsp]"`: the
+    new list replaces the old one ([Adding an extra later](https://execsql2.readthedocs.io/en/latest/getting-started/installation/#adding-an-extra-later)).
+
     Without it, highlighting still works and VS Code shows a one-time warning. See
     [Editor Support](https://execsql2.readthedocs.io/en/latest/guides/editors/) for what the server does.
 
@@ -23,6 +27,11 @@ For [execsql](https://execsql2.readthedocs.io/) scripts in `.sql` files:
 | `execsql.server.path`    | `execsql` | The command to run as `<path> lsp`, if `execsql` is not on VS Code's PATH, e.g. `~/.local/bin/execsql`. |
 
 After installing or upgrading execsql, run **execsql: Restart Language Server** from the Command Palette.
+
+`execsql.server.path` is a command name looked up in PATH or an absolute path; a relative path is refused,
+and the extension never runs an `execsql` found in the open folder. In a folder you have not trusted
+([Workspace Trust](https://code.visualstudio.com/docs/editor/workspace-trust)) the language server does
+not start; highlighting still works, and the server starts when you trust the folder.
 
 ## What gets highlighted
 
@@ -187,8 +196,10 @@ ______________________________________________________________________
 
 **No lint findings or completion**
 
-- Run `execsql lsp --help` in a terminal. If the command is missing or says the `lsp` extra is needed,
-    install `"execsql2[lsp]"`.
+- Run `execsql lsp < /dev/null` in a terminal (on Windows: `execsql lsp < NUL`). It exits at once
+    without output when the server is installed; otherwise it says the `lsp` extra is needed. Add the
+    extra with the extras you already have, e.g. `uv tool install "execsql2[postgres,lsp]"`
+    ([Adding an extra later](https://execsql2.readthedocs.io/en/latest/getting-started/installation/#adding-an-extra-later)).
 - If `execsql` works in a terminal but not in VS Code, set `execsql.server.path` to its full path
     (`which execsql`).
 - **Output** panel → choose **execsql** to see the server's log.
