@@ -126,6 +126,7 @@ class TestXCopy:
         mock_db2 = MagicMock()
         mock_db2.schema_qualified_table_name.return_value = "schema2.table2"
         mock_db2.table_exists.return_value = False
+        mock_db2.table_exists_where_created.return_value = False
         mock_db2.type = db2_type
 
         mock_dbs = MagicMock()
@@ -267,6 +268,7 @@ class TestXCopyQuery:
         mock_db2 = MagicMock()
         mock_db2.schema_qualified_table_name.return_value = "schema2.table2"
         mock_db2.table_exists.return_value = False
+        mock_db2.table_exists_where_created.return_value = False
         mock_db2.type = "sqlite"
 
         mock_dbs = MagicMock()

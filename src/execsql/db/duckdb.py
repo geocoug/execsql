@@ -167,6 +167,18 @@ class DuckDBDatabase(Database):
                 self.rollback()
                 raise
 
+    def table_exists_where_created(self, table_name: str, schema_name: str | None = None) -> bool:
+        """Whether *table_name* exists in the current database (not an ``ATTACH``ed one)."""
+        # information_schema.tables lists the tables of every attached database.
+        sql = "select table_name from information_schema.tables where table_name = ? and table_catalog = current_database()"
+        params: list = [table_name]
+        if schema_name:
+            sql += " and table_schema = ?"
+            params.append(schema_name)
+        with self._cursor() as curs:
+            curs.execute(sql, params)
+            return len(curs.fetchall()) > 0
+
     def view_exists(self, view_name: str, schema_name: str | None = None) -> bool:
         """Return True if the named view exists in the DuckDB database."""
         # DuckDB information_schema has no 'views' table; views are listed in 'tables'

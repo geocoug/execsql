@@ -501,6 +501,15 @@ class Database(ABC):
         """The schema (MySQL: database) an unqualified table name is created in, or ``None`` if unknown."""
         return None
 
+    def table_exists_where_created(self, table_name: str, schema_name: str | None = None) -> bool:
+        """Whether *table_name* exists where a ``CREATE TABLE`` on this connection would put it.
+
+        The same as :meth:`table_exists`, except on a connection that sees
+        tables of other databases (DuckDB ``ATTACH``): only the current
+        database counts there.
+        """
+        return self.table_exists(table_name, schema_name)
+
     def _query_current_schema(self, sql: str) -> str | None:
         with self._cursor() as curs:
             curs.execute(sql)

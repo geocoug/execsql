@@ -103,6 +103,29 @@ class TestOnlyTheTargetSchemaCounts:
         result = self._duckdb(files, script)
         assert result.success, result.errors
 
+    @pytest.mark.parametrize(
+        "command",
+        ["IMPORT TO NEW t FROM {d}/q.csv", "COPY src_t FROM initial TO NEW t IN initial"],
+        ids=["import", "copy"],
+    )
+    def test_a_same_named_table_in_an_attached_database_does_not_block(self, files, command):
+        script = (
+            "create table src_t (a integer, b integer);\n"
+            f"attach '{files / 'other.duckdb'}' as o;\n"
+            "create table o.main.t (x integer);\n"
+            f"-- !x! {command.format(d=files)}\n"
+        )
+        result = self._duckdb(files, script)
+        assert result.success, result.errors
+
+    def test_the_table_in_the_current_database_is_still_refused_with_one_attached(self, files):
+        script = (
+            f"attach '{files / 'other.duckdb'}' as o;\n"
+            "create table o.main.t (x integer);\ncreate table t (x integer);\n"
+            f"-- !x! IMPORT TO NEW t FROM {files}/q.csv\n"
+        )
+        assert "Table t already exists" in _message(self._duckdb(files, script))
+
     def test_the_same_table_in_the_target_schema_is_still_refused(self, files):
         script = "create schema other;\ncreate table other.two (z integer);\ncreate table two (z integer);\n"
         result = self._duckdb(files, script + f"-- !x! IMPORT TO NEW two FROM {files}/q.csv\n")
@@ -136,7 +159,7 @@ def test_server_adapters_look_where_create_table_would_put_the_table(module, cls
 
     db._cursor = cursor  # type: ignore[method-assign]
     seen = []
-    db.table_exists = lambda table, schema_name=None: seen.append((table, schema_name)) or False  # type: ignore[method-assign]
+    db.table_exists_where_created = lambda table, schema_name=None: seen.append((table, schema_name)) or False  # type: ignore[method-assign]
     refuse_existing_table(db, None, "two")
     curs.execute.assert_called_once_with(query)
     assert seen == [("two", schema)]
