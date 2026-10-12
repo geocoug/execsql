@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.10"
 resolution-markers = [
     "python_full_version >= '3.15'",
@@ -954,6 +954,7 @@ all = [
     { name = "firebird-driver", version = "2.0.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "jinja2" },
     { name = "keyring" },
+    { name = "lsprotocol" },
     { name = "odfpy" },
     { name = "openpyxl" },
     { name = "oracledb" },
@@ -996,6 +997,7 @@ dev = [
     { name = "bump-my-version" },
     { name = "defusedxml" },
     { name = "jinja2" },
+    { name = "lsprotocol" },
     { name = "mkdocstrings-python" },
     { name = "mypy" },
     { name = "odfpy" },
@@ -1037,6 +1039,7 @@ formatter = [
     { name = "sqlglot" },
 ]
 lsp = [
+    { name = "lsprotocol" },
     { name = "pygls" },
     { name = "sqlglot" },
 ]
@@ -1088,6 +1091,7 @@ requires-dist = [
     { name = "keyring", marker = "extra == 'auth-plaintext'", specifier = ">=25.0" },
     { name = "keyrings-alt", marker = "extra == 'auth-encrypted'", specifier = ">=5.0" },
     { name = "keyrings-alt", marker = "extra == 'auth-plaintext'", specifier = ">=5.0" },
+    { name = "lsprotocol", marker = "extra == 'lsp'", specifier = ">=2025.0.0" },
     { name = "mkdocstrings-python", marker = "extra == 'dev'", specifier = ">=2.0.3" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.10" },
     { name = "odfpy", marker = "extra == 'formats'", specifier = ">=1.4" },
@@ -1100,7 +1104,7 @@ requires-dist = [
     { name = "psycopg", extras = ["binary"], marker = "extra == 'all-db'", specifier = ">=3.1,<4" },
     { name = "psycopg", extras = ["binary"], marker = "extra == 'postgres'", specifier = ">=3.1,<4" },
     { name = "pycryptodome", marker = "extra == 'auth-encrypted'", specifier = ">=3.20" },
-    { name = "pygls", marker = "extra == 'lsp'", specifier = ">=2.1" },
+    { name = "pygls", marker = "extra == 'lsp'", specifier = ">=2.1,<3" },
     { name = "pymysql", marker = "extra == 'all-db'", specifier = ">=1.1" },
     { name = "pymysql", marker = "extra == 'mysql'", specifier = ">=1.1" },
     { name = "pyodbc", marker = "extra == 'all-db'", specifier = ">=5.0" },
