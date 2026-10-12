@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import typer
+from rich.markup import escape
 
 from execsql.cli.application import ExecsqlCommand, app
 from execsql.cli.help import _err_console
+from execsql.utils.errors import install_hint
 
 __all__ = ["lsp_cmd"]
-
-_ADDING_AN_EXTRA = "https://execsql2.readthedocs.io/en/latest/getting-started/installation/#adding-an-extra-later"
 
 
 def _lsp_libraries_installed() -> bool:
@@ -52,16 +52,11 @@ def lsp_cmd(
             # pygls is there but this execsql cannot use it (another major version, a broken install).
             message = (
                 f"execsql lsp cannot use the installed pygls {_pygls_version()} ({exc}). "
-                'It needs pygls 2.x, which the lsp extra installs: reinstall with "execsql2\\[lsp]" and the '
-                f"extras you already have. See {_ADDING_AN_EXTRA}"
+                f"It needs pygls 2.x, which the lsp extra installs. {install_hint('lsp')}"
             )
         else:
-            message = (
-                "execsql lsp needs the lsp extra. Install it with the "
-                'extras you already have, e.g. uv tool install "execsql2\\[postgres,lsp]" or '
-                f'pipx install --force "execsql2\\[postgres,lsp]". See {_ADDING_AN_EXTRA}'
-            )
-        _err_console.print(f"[bold red]Error:[/bold red] {message}", highlight=False)
+            message = f"execsql lsp needs the lsp extra. {install_hint('lsp')}"
+        _err_console.print(f"[bold red]Error:[/bold red] {escape(message)}", highlight=False)
         raise typer.Exit(code=1) from exc
     if check:
         typer.echo(f"execsql lsp is ready (pygls {_pygls_version()}).")

@@ -21,11 +21,14 @@ from types import ModuleType
 __all__ = ["collect_paths", "format_file", "open_dollar_quote", "parse_keyword", "run_formatter"]
 
 
-_SQLGLOT_MISSING_MSG = (
-    "execsql format requires sqlglot for SQL reformatting.\n"
-    '  Install the formatter extra:  uv tool install "execsql2[formatter]"  (or pip install "execsql2[formatter]")\n'
-    "  Or skip SQL reformatting with the --no-sql flag."
-)
+def _sqlglot_missing_msg() -> str:
+    from execsql.utils.errors import install_hint
+
+    return (
+        "execsql format requires sqlglot for SQL reformatting.\n"
+        f"  {install_hint('formatter')}\n"
+        "  Or skip SQL reformatting with the --no-sql flag."
+    )
 
 
 def _require_sqlglot():
@@ -36,7 +39,7 @@ def _require_sqlglot():
 
         return sqlglot
     except ImportError as e:
-        raise ImportError(_SQLGLOT_MISSING_MSG) from e
+        raise ImportError(_sqlglot_missing_msg()) from e
 
 
 # ---------------------------------------------------------------------------

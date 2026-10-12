@@ -21,7 +21,7 @@ def test_without_pygls_it_names_the_extra():
         result = CliRunner().invoke(app, ["lsp"])
     assert result.exit_code == 1
     # Installed with the extras already there: a bare "execsql2[lsp]" would replace them.
-    assert "execsql2[postgres,lsp]" in result.output
+    assert "execsql2[...,lsp]" in result.output
     assert "#adding-an-extra-later" in result.output.replace("\n", "")
 
 

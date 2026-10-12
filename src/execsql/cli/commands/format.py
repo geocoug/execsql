@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import typer
+from rich.markup import escape
 
 from execsql.cli.application import ExecsqlCommand, app
 from execsql.cli.help import _err_console
@@ -90,7 +91,7 @@ def format_cmd(
         try:
             _require_sqlglot()
         except ImportError as exc:
-            _err_console.print(f"[bold red]Error:[/bold red] {exc}", highlight=False)
+            _err_console.print(f"[bold red]Error:[/bold red] {escape(str(exc))}", highlight=False)
             raise typer.Exit(code=1) from exc
     raise typer.Exit(
         code=run_formatter(

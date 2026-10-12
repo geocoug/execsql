@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Any, cast
 
 from execsql.exceptions import XlsFileError, XlsxFileError
-from execsql.utils.errors import fatal_error
+from execsql.utils.errors import fatal_error, install_hint
 
 __all__ = ["XlsFile", "XlsxFile"]
 
@@ -51,7 +51,7 @@ class XlsFile:
 
             self._xlrd = xlrd
         except ImportError:
-            fatal_error("The xlrd library is needed to read Excel (.xls) spreadsheets.")
+            fatal_error(f"The xlrd library is needed to read Excel (.xls) spreadsheets. {install_hint('formats')}")
         self.filename: str | None = None
         self.encoding: str | None = None
         self.wbk: Any = None
@@ -190,7 +190,7 @@ class XlsxFile:
 
             self._openpyxl = openpyxl
         except ImportError:
-            fatal_error("The openpyxl library is needed to read Excel (.xlsx) spreadsheets.")
+            fatal_error(f"The openpyxl library is needed to read Excel (.xlsx) spreadsheets. {install_hint('formats')}")
         self.filename: str | None = None
         self.encoding: str | None = None
         self.wbk: Any = None

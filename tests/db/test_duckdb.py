@@ -226,7 +226,9 @@ class TestDuckDBImportError:
             pytest.raises(SystemExit),
         ):
             DuckDBDatabase(":memory:")
-        mock_fatal_error.assert_called_once_with("The duckdb module is required.")
+        (message,), _ = mock_fatal_error.call_args
+        assert message.startswith("The duckdb module is required")
+        assert '"execsql2[...,duckdb]"' in message
 
 
 # ---------------------------------------------------------------------------

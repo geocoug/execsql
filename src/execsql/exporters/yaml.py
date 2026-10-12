@@ -6,8 +6,7 @@ YAML export for execsql.
 Provides :func:`write_query_to_yaml` which serialises a query result set as a
 YAML sequence of mappings (one mapping per row).
 
-Requires the ``PyYAML`` package (``pip install PyYAML`` or
-``pip install 'execsql2[formats]'``).
+Requires the ``PyYAML`` package (the ``formats`` extra).
 """
 
 from typing import Any
@@ -15,7 +14,7 @@ from typing import Any
 import execsql.state as _state
 from execsql.exceptions import ErrInfo
 from execsql.exporters.zip import ZipWriter
-from execsql.utils.errors import exception_desc
+from execsql.utils.errors import exception_desc, install_hint
 from execsql.utils.fileio import filewriter_close
 
 __all__ = ["write_query_to_yaml"]
@@ -54,7 +53,7 @@ def write_query_to_yaml(
     except ImportError as exc:
         raise ErrInfo(
             "error",
-            other_msg=("PyYAML is required for FORMAT YAML export. Install it with: pip install PyYAML"),
+            other_msg=f"PyYAML is required for FORMAT YAML export. {install_hint('formats')}",
         ) from exc
 
     conf = _state.conf

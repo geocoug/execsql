@@ -17,7 +17,7 @@ from typing import Any
 import execsql.state as _state
 from execsql.exceptions import ErrInfo
 from execsql.types import dbt_postgres
-from execsql.utils.errors import exception_desc
+from execsql.utils.errors import exception_desc, install_hint
 
 
 # ---------------------------------------------------------------------------
@@ -213,10 +213,7 @@ def _require_pg_upsert() -> None:
     except ImportError as exc:
         raise ErrInfo(
             "exception",
-            other_msg=(
-                'PG_UPSERT requires the pg-upsert package. Install the upsert extra: uv tool install "execsql2[upsert]"'
-                ' (or pip install "execsql2[upsert]").'
-            ),
+            other_msg=f"PG_UPSERT requires the pg-upsert package. {install_hint('upsert')}",
         ) from exc
 
 

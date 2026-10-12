@@ -17,7 +17,7 @@ from typing import Any, cast
 from execsql.db.base import Database, _fetched
 from execsql.db.tiers import SupportTier
 from execsql.exceptions import ErrInfo
-from execsql.utils.errors import exception_desc, fatal_error
+from execsql.utils.errors import exception_desc, fatal_error, install_hint
 from execsql.utils.auth import (
     begin_login,
     clear_stored_password,
@@ -68,7 +68,7 @@ class AccessDatabase(Database):
         try:
             import pyodbc  # noqa: F401
         except Exception:
-            fatal_error("The pyodbc module is required.  See http://github.com/mkleehammer/pyodbc")
+            fatal_error(f"The pyodbc module is required to connect to Access. {install_hint('odbc')}")
         from execsql.types import dbt_access
 
         super().__init__(

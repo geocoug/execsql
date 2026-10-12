@@ -37,7 +37,23 @@ __all__ = [
     "stamp_errinfo",
     "write_warning",
     "file_size_date",
+    "install_hint",
 ]
+
+_ADDING_AN_EXTRA = "https://execsql2.readthedocs.io/en/latest/getting-started/installation/#adding-an-extra-later"
+
+
+def install_hint(extra: str) -> str:
+    """How to install the execsql2 *extra*, for a message about a missing optional package.
+
+    ``uv tool install`` and ``pipx install --force`` replace an install's
+    extras with the ones named, so the hint says to keep those already there.
+    """
+    return (
+        f'Install the {extra} extra along with the extras you already have: uv tool install "execsql2[...,{extra}]" '
+        f'or pipx install --force "execsql2[...,{extra}]" (in a project environment: pip install "execsql2[{extra}]"). '
+        f"See {_ADDING_AN_EXTRA}"
+    )
 
 
 def exception_info() -> tuple:

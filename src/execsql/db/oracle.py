@@ -14,7 +14,7 @@ from typing import Any
 from execsql.db.base import Database
 from execsql.db.tiers import SupportTier
 from execsql.exceptions import ErrInfo
-from execsql.utils.errors import exception_desc, fatal_error
+from execsql.utils.errors import exception_desc, fatal_error, install_hint
 from execsql.utils.auth import (
     begin_login,
     clear_stored_password,
@@ -76,7 +76,7 @@ class OracleDatabase(Database):
     ) -> None:
         if _oracle_driver() is None:
             fatal_error(
-                'The oracledb module is required to connect to Oracle. Install it with: pip install "execsql2[oracle]"',
+                f"The oracledb module is required to connect to Oracle. {install_hint('oracle')}",
             )
         from execsql.types import dbt_oracle
 

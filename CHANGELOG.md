@@ -15,7 +15,13 @@ ______________________________________________________________________
 
 - **`execsql lsp --check`** reports whether the language server can start (exit 0) or what is missing (exit 1).
 
+### Changed
+
+- **Missing-package messages** (database drivers, spreadsheet, YAML and template exports, `PG_UPSERT`, the formatter and the language server) name the execsql2 extra and show how to add it while keeping the extras already installed.
+
 ### Fixed
+
+- **`execsql format` without sqlglot** printed its `pip install` hint without the `[formatter]` extra.
 
 - **`execsql lsp` with an incompatible pygls** names the installed pygls version instead of saying the `lsp` extra is missing.
 

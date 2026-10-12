@@ -20,7 +20,7 @@ import execsql.state as _state
 from execsql.exceptions import OdsFileError
 from execsql.exceptions import ErrInfo
 from execsql.script import current_script_line
-from execsql.utils.errors import exception_desc, fatal_error
+from execsql.utils.errors import exception_desc, fatal_error, install_hint
 from execsql.utils.fileio import filewriter_close
 from execsql.utils.strings import unquoted
 
@@ -57,7 +57,7 @@ class OdsFile:
             import odf.number  # noqa: F401
             import odf.style  # noqa: F401
         except ImportError:
-            fatal_error("The odfpy library is needed to create OpenDocument spreadsheets.")
+            fatal_error(f"The odfpy library is needed to create OpenDocument spreadsheets. {install_hint('formats')}")
         self.filename: str | None = None
         self.wbk: Any = None
         self.cell_style_names: list[str] = []

@@ -11,7 +11,7 @@ via the ``firebird-driver`` package.  Corresponds to ``-t f`` on the CLI.
 from execsql.db.base import Database
 from execsql.db.tiers import SupportTier
 from execsql.exceptions import ErrInfo
-from execsql.utils.errors import exception_desc, fatal_error
+from execsql.utils.errors import exception_desc, fatal_error, install_hint
 from execsql.utils.auth import (
     begin_login,
     clear_stored_password,
@@ -46,8 +46,7 @@ class FirebirdDatabase(Database):
             from firebird import driver as firebird_lib  # noqa: F401
         except Exception:
             fatal_error(
-                "The firebird-driver module is required to connect to Firebird.   "
-                "See https://pypi.org/project/firebird-driver/",
+                f"The firebird-driver module is required to connect to Firebird. {install_hint('firebird')}",
             )
         from execsql.types import dbt_firebird
 

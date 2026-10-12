@@ -20,7 +20,7 @@ from execsql.exceptions import ErrInfo
 from execsql.exporters.base import ExportRecord
 from execsql.exporters.pretty import prettyprint_query
 from execsql.script import current_script_line
-from execsql.utils.errors import exception_desc, fatal_error
+from execsql.utils.errors import exception_desc, fatal_error, install_hint
 from execsql.utils.fileio import filewriter_close
 from execsql.utils.strings import unquoted
 
@@ -39,7 +39,7 @@ def _require_openpyxl() -> Any:
         return openpyxl
     except ImportError:
         fatal_error(
-            "The openpyxl library is needed to write Excel (.xlsx) spreadsheets (install the formats extra, execsql2[formats]).",
+            f"The openpyxl library is needed to write Excel (.xlsx) spreadsheets. {install_hint('formats')}",
         )
 
 
