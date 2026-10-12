@@ -754,6 +754,25 @@ class TestSubIniDefinitions:
         os.mkfifo(tmp_path / "vars.ini")  # opening it would block until a writer appears
         assert self._undefined(tmp_path, "vars.ini") == ["undefined variable !!region!!"]
 
+    def test_an_unused_key_is_reported_at_its_sub_ini_line(self, tmp_path, monkeypatch):
+        (tmp_path / "vars.ini").write_text("[vars]\nregion = north\nzone = 4\n", encoding="utf-8")
+        monkeypatch.chdir(tmp_path.parent)  # the working directory is not the script's
+        body = "SELECT 1;\n-- !x! SUB_INI FILE vars.ini SECTION vars\nSELECT !!region!!;\n"
+        unused = [(i.line, i.message) for i in _lint(tmp_path, body) if i.code == "V002"]
+        assert unused == [(2, "variable !!zone!! is never used")]
+
+    def test_a_large_file_named_many_times_is_read_once(self, tmp_path, monkeypatch):
+        keys = "".join(f"k{i} = {i}\n" for i in range(5000))
+        (tmp_path / "vars.ini").write_text("[vars]\n" + keys, encoding="utf-8")
+        monkeypatch.chdir(tmp_path)  # the language server's situation for a script at the folder root
+        reads = []
+        original = Path.read_text
+        monkeypatch.setattr(Path, "read_text", lambda self, *a, **k: reads.append(self.name) or original(self, *a, **k))
+        body = "".join("-- !x! SUB_INI FILE vars.ini SECTION vars\n" for _ in range(100)) + "SELECT !!k1!!;\n"
+        issues = _lint(tmp_path, body)
+        assert reads.count("vars.ini") <= 1
+        assert sum(i.code == "V002" for i in issues) == 4999
+
 
 class TestNestedVariableNames:
     """``!!N_!!GROUP!!_CHECKS!!`` names the variable N_<value of GROUP>_CHECKS; execsql substitutes the inner one first."""

@@ -86,6 +86,8 @@ class ScriptIndex:
 # cannot make every request read a huge file or walk an endless include chain.
 MAX_INCLUDED_BYTES = 10 * 1024 * 1024
 MAX_INCLUDED_FILES = 200
+# The files an INCLUDE names, all together; past it indexing follows no more of them.
+MAX_INCLUDED_TOTAL_BYTES = 20 * 1024 * 1024
 
 
 def read_included(path: Path) -> str | None:
@@ -121,7 +123,7 @@ def index_script(
     prefers the editor's unsaved copy of a file that is open.
     """
     index = ScriptIndex(path=path)
-    _index_into(index, source, path, set(), read, top=True)
+    _index_into(index, source, path, set(), read, top=True, budget=[MAX_INCLUDED_TOTAL_BYTES])
     return index
 
 
@@ -133,6 +135,7 @@ def _index_into(
     read: Callable[[Path], str | None],
     *,
     top: bool,
+    budget: list[int],
 ) -> None:
     if path is not None:
         seen.add(str(Path(path).resolve()))
@@ -166,8 +169,9 @@ def _index_into(
                 index.includes.append((Location(path, row, start, end), str(resolved)))
             if "!" not in target and str(resolved.resolve()) not in seen and len(seen) < MAX_INCLUDED_FILES:
                 included = read(resolved)
-                if included is not None:
-                    _index_into(index, included, str(resolved), seen, read, top=False)
+                if included is not None and len(included) <= budget[0]:
+                    budget[0] -= len(included)
+                    _index_into(index, included, str(resolved), seen, read, top=False, budget=budget)
 
     for row, text in enumerate(lines):
         for m in _RX_VARIABLE.finditer(text):

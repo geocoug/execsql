@@ -48,6 +48,7 @@ Public surface:
 
 from __future__ import annotations
 
+import functools
 import json
 import re
 from collections import Counter
@@ -460,23 +461,40 @@ def _read_ini_vars(
     language server; a file that is unreadable or not valid INI defines
     nothing.
     """
-    from configparser import ConfigParser
-    from configparser import Error as ConfigError
-
     p = Path(ini_file)
     if not p.is_absolute() and script_dir is not None:
         p = script_dir / p
+    try:
+        if not p.is_file():
+            return
+        stat = p.stat()
+        if stat.st_size > _MAX_INI_BYTES:
+            return
+        resolved = str(p.resolve())
+    except OSError:
+        return
+    defined_vars.update(_ini_section_keys(resolved, stat.st_size, stat.st_mtime_ns, section))
+
+
+@functools.lru_cache(maxsize=64)
+def _ini_section_keys(path: str, size: int, mtime_ns: int, section: str) -> frozenset[str]:
+    """The upper-cased keys of *section* in the INI file at *path*.
+
+    Cached by the file's size and modification time: a script that names
+    the same file on many SUB_INI lines, and the language server re-linting
+    on every edit, read it once.
+    """
+    from configparser import ConfigParser
+    from configparser import Error as ConfigError
 
     cp = ConfigParser()
     try:
-        if not p.is_file() or p.stat().st_size > _MAX_INI_BYTES:
-            return
-        cp.read_string(p.read_text(encoding="utf-8"), source=str(p))
+        cp.read_string(Path(path).read_text(encoding="utf-8"), source=path)
     except (OSError, UnicodeDecodeError, ConfigError):
-        return
-    if cp.has_section(section):
-        for key, _value in cp.items(section):
-            defined_vars.add(key.upper())
+        return frozenset()
+    if not cp.has_section(section):
+        return frozenset()
+    return frozenset(key.upper() for key, _value in cp.items(section))
 
 
 def _is_known_var(raw_name: str, defined_vars: set[str]) -> bool:
@@ -834,7 +852,12 @@ def _referencing_text(node: Node) -> list[str]:
     return texts
 
 
-def _check_unused_variables(script: Script, defined: set[str], issues: list[_Issue]) -> None:
+def _check_unused_variables(
+    script: Script,
+    defined: set[str],
+    issues: list[_Issue],
+    script_dir: Path | None = None,
+) -> None:
     """Report variables a SUB defines that nothing ever reads.
 
     Almost always a typo in either the definition or the reference — the two
@@ -845,8 +868,11 @@ def _check_unused_variables(script: Script, defined: set[str], issues: list[_Iss
     referenced: set[str] = set()
     _collect_var_references(script.body, referenced)
     unused = sorted(defined - referenced)
+    lines: dict[str, int] = {}
+    if unused:
+        _definition_lines(script.body, script_dir, lines)
     for name in unused:
-        line = _definition_line(script.body, name)
+        line = lines.get(name, 0)
         issues.append(
             _issue(
                 "V002",
@@ -857,18 +883,15 @@ def _check_unused_variables(script: Script, defined: set[str], issues: list[_Iss
         )
 
 
-def _definition_line(nodes: list[Node], name: str) -> int:
-    """Line of the SUB that defines *name*, or 0 when it cannot be located."""
+def _definition_lines(nodes: list[Node], script_dir: Path | None, lines: dict[str, int]) -> None:
+    """Add to *lines* the line of the first metacommand that defines each variable, in script order."""
     for node in nodes:
         if isinstance(node, MetaCommandStatement):
             probe: set[str] = set()
-            _extract_var_definition(node.command, None, probe)
-            if name in probe:
-                return node.span.start_line
-        found = _definition_line(list(node.children()), name)
-        if found:
-            return found
-    return 0
+            _extract_var_definition(node.command, script_dir, probe)
+            for name in probe:
+                lines.setdefault(name, node.span.start_line)
+        _definition_lines(list(node.children()), script_dir, lines)
 
 
 # ---------------------------------------------------------------------------
@@ -1008,7 +1031,7 @@ def lint(
     )
 
     # Pass 3: whole-script rules, which need every reference collected first
-    _check_unused_variables(script, all_defined, issues)
+    _check_unused_variables(script, all_defined, issues, script_dir)
 
     return issues
 
