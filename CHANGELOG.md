@@ -21,20 +21,13 @@ ______________________________________________________________________
 
 ### Fixed
 
-- **`execsql format` without sqlglot** printed its `pip install` hint without the `[formatter]` extra.
-
-- **`execsql lsp` with an incompatible pygls** names the installed pygls version instead of saying the `lsp` extra is missing.
-
 - **`execsql format` keeps optimizer hints and MySQL executable comments:** a statement holding `/*+ ... */` or `/*! ... */` is left as written in both modes. It was rewritten to `/* + ... */` and the hint moved off its keyword, so MySQL skipped the `/*! */` SQL (for example a `WHERE` or `PARTITION BY`) and Oracle/MySQL ignored the hint; re-check files the formatter or its pre-commit hook rewrote.
-
 - **`execsql format` no longer ends a final statement with a `;` the script did not have:** a script execsql refused for an unfinished last statement became one that ran it.
-
 - **`execsql format`:** a statement kept as written after another on the same line no longer starts with a space.
-
+- **`execsql format` without sqlglot** printed its `pip install` hint without the `[formatter]` extra.
 - **`execsql lint` and the language server read a `SUB_INI` file once** however many lines name it; a script naming a large INI file on many lines took minutes to lint and froze the editor. V002 for a variable a `SUB_INI` defines is reported at the `SUB_INI` line, not line 0.
-
+- **`execsql lsp` with an incompatible pygls** names the installed pygls version instead of saying the `lsp` extra is missing.
 - **`COPY` keeps binary columns** (SQLite/DuckDB BLOB, PostgreSQL `bytea`) byte for byte, and `COPY ... TO NEW` creates them as binary columns. They were copied as escaped text (`\x89PNG...`), and into PostgreSQL as text.
-
 - **DuckDB `TO NEW`** is no longer refused because a table of the same name exists in an `ATTACH`ed database; only the current database counts.
 
 ______________________________________________________________________
