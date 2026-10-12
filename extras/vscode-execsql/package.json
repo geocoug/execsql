@@ -43,7 +43,7 @@
       "restrictedConfigurations": [
         "execsql.server.path"
       ],
-      "description": "In a workspace that is not trusted, the language server runs only as configured in your user settings: the workspace cannot set execsql.server.path."
+      "description": "In a workspace that is not trusted, the language server does not start; syntax highlighting still works. Trust the workspace to start it."
     }
   },
   "contributes": {
@@ -67,7 +67,7 @@
         "execsql.server.path": {
           "type": "string",
           "default": "execsql",
-          "description": "The execsql command to run as `<path> lsp`, if `execsql` is not on PATH (e.g. ~/.local/bin/execsql)."
+          "description": "The execsql command to run as `<path> lsp`: a command name looked up in PATH, or an absolute path (a leading ~ is expanded), e.g. ~/.local/bin/execsql. A relative path is refused."
         }
       }
     },
