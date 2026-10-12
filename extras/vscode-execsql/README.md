@@ -196,9 +196,8 @@ ______________________________________________________________________
 
 **No lint findings or completion**
 
-- Run `execsql lsp < /dev/null` in a terminal (on Windows: `execsql lsp < NUL`). It exits at once
-    without output when the server is installed; otherwise it says the `lsp` extra is needed. Add the
-    extra with the extras you already have, e.g. `uv tool install "execsql2[postgres,lsp]"`
+- Run `execsql lsp --check` in a terminal. It says `execsql lsp is ready` when the server can start;
+    otherwise it says what is missing. Add the extra with the extras you already have, e.g. `uv tool install "execsql2[postgres,lsp]"`
     ([Adding an extra later](https://execsql2.readthedocs.io/en/latest/getting-started/installation/#adding-an-extra-later)).
 - If `execsql` works in a terminal but not in VS Code, set `execsql.server.path` to its full path
     (`which execsql`).
