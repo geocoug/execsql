@@ -405,8 +405,13 @@ class Database(ABC):
             rows = curs.fetchall()
             return [d[0] for d in curs.description], rows
 
-    def select_rowsource(self, sql: str) -> tuple[list[str], Generator]:
-        """Execute *sql* and return ``(column_names, row_generator)`` for streaming large result sets."""
+    def select_rowsource(self, sql: str, *, decode_bytes: bool = True) -> tuple[list[str], Generator]:
+        """Execute *sql* and return ``(column_names, row_generator)`` for streaming large result sets.
+
+        A binary value (``bytes``) is decoded to text with the connection's
+        encoding, as the exporters expect, unless *decode_bytes* is false:
+        COPY passes false so binary columns reach the target unchanged.
+        """
         # Return 1) a list of column names, and 2) an iterable that yields rows.
         curs = self.cursor()
         try:
@@ -433,7 +438,7 @@ class Database(ABC):
                         break
                     else:
                         for row in rows:
-                            if self.encoding:
+                            if self.encoding and decode_bytes:
                                 yield [
                                     c.decode(self.encoding, "backslashreplace") if isinstance(c, bytes) else c
                                     for c in row

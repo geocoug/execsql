@@ -222,7 +222,7 @@ class TestXCopy:
                 metacommandline="COPY ...",
             )
 
-        db1.select_rowsource.assert_called_once_with("select * from schema1.table1;")
+        db1.select_rowsource.assert_called_once_with("select * from schema1.table1;", decode_bytes=False)
         db2.populate_table.assert_called_once()
 
     def test_copy_replacement_drop_failure_aborts(self, minimal_conf):
@@ -372,7 +372,7 @@ class TestXCopyQuery:
                 metacommandline="COPY QUERY ...",
             )
 
-        db1.select_rowsource.assert_called_once_with("SELECT id FROM t1")
+        db1.select_rowsource.assert_called_once_with("SELECT id FROM t1", decode_bytes=False)
         db2.populate_table.assert_called_once()
 
     def test_copy_query_replacement(self, minimal_conf):

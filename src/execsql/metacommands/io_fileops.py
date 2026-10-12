@@ -114,7 +114,7 @@ def x_copy(**kwargs: Any) -> None:
 
     if new_tbl2:
         try:
-            hdrs, rows = db1.select_rowsource(select_stmt)
+            hdrs, rows = db1.select_rowsource(select_stmt, decode_bytes=False)
         except ErrInfo:
             raise
         except Exception as e:
@@ -142,7 +142,7 @@ def x_copy(**kwargs: Any) -> None:
             db2.execute("COMMIT;")
     else:
         try:
-            hdrs, rows = db1.select_rowsource(select_stmt)
+            hdrs, rows = db1.select_rowsource(select_stmt, decode_bytes=False)
         except ErrInfo:
             raise
         except Exception as e:
@@ -153,7 +153,7 @@ def x_copy(**kwargs: Any) -> None:
     def get_ts() -> DataTable:
         nonlocal get_ts_tablespec
         if get_ts_tablespec is None:
-            ts_hdrs, ts_rows = db1.select_rowsource(select_stmt)
+            ts_hdrs, ts_rows = db1.select_rowsource(select_stmt, decode_bytes=False)
             get_ts_tablespec = DataTable(ts_hdrs, ts_rows, infer_strings=False)
         return get_ts_tablespec
 
@@ -201,7 +201,7 @@ def x_copy_query(**kwargs: Any) -> None:
 
     if new_tbl2:
         try:
-            hdrs, rows = db1.select_rowsource(select_stmt)
+            hdrs, rows = db1.select_rowsource(select_stmt, decode_bytes=False)
         except ErrInfo:
             raise
         except Exception as e:
@@ -229,7 +229,7 @@ def x_copy_query(**kwargs: Any) -> None:
             db2.execute("COMMIT;")
     else:
         try:
-            hdrs, rows = db1.select_rowsource(select_stmt)
+            hdrs, rows = db1.select_rowsource(select_stmt, decode_bytes=False)
         except ErrInfo:
             raise
         except Exception as e:
@@ -240,7 +240,7 @@ def x_copy_query(**kwargs: Any) -> None:
     def get_ts() -> DataTable:
         nonlocal get_ts_tablespec
         if get_ts_tablespec is None:
-            ts_hdrs, ts_rows = db1.select_rowsource(select_stmt)
+            ts_hdrs, ts_rows = db1.select_rowsource(select_stmt, decode_bytes=False)
             get_ts_tablespec = DataTable(ts_hdrs, ts_rows, infer_strings=False)
         return get_ts_tablespec
 

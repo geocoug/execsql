@@ -33,6 +33,8 @@ ______________________________________________________________________
 
 - **`execsql lint` and the language server read a `SUB_INI` file once** however many lines name it; a script naming a large INI file on many lines took minutes to lint and froze the editor. V002 for a variable a `SUB_INI` defines is reported at the `SUB_INI` line, not line 0.
 
+- **`COPY` keeps binary columns** (SQLite/DuckDB BLOB, PostgreSQL `bytea`) byte for byte, and `COPY ... TO NEW` creates them as binary columns. They were copied as escaped text (`\x89PNG...`), and into PostgreSQL as text.
+
 - **DuckDB `TO NEW`** is no longer refused because a table of the same name exists in an `ATTACH`ed database; only the current database counts.
 
 ______________________________________________________________________
