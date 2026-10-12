@@ -63,3 +63,12 @@ def test_sqlglot_is_the_same_in_the_hook_the_formatter_extra_and_uv_lock():
     )
     major, minor, _ = (int(part) for part in floor.split("."))
     assert ceiling == f"{major}.{minor + 1}", f"formatter extra allows more than {major}.{minor}.x: <{ceiling}"
+
+
+def test_read_the_docs_builds_with_the_locked_zensical():
+    """Read the Docs installs zensical from .readthedocs.yaml, which Dependabot does not update."""
+    rtd = (ROOT / ".readthedocs.yaml").read_text(encoding="utf-8")
+    m = re.search(r'"zensical==([0-9.]+)"', rtd)
+    assert m, ".readthedocs.yaml must pin zensical exactly (zensical==X.Y.Z)"
+    locked = _locked_version("zensical")
+    assert m.group(1) == locked, f".readthedocs.yaml installs zensical {m.group(1)} but uv.lock has {locked}"
