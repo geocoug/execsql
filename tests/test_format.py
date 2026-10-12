@@ -2858,3 +2858,63 @@ class TestLayoutOnly:
         source = "select x::int, count(*) n from t where a != b;\nselect a, b from u;\n"
         once = format_file(source, rewrite_sql=rewrite_sql)
         assert format_file(once, rewrite_sql=rewrite_sql) == once
+
+    def test_a_kept_statement_after_another_on_the_same_line_starts_at_the_margin(self):
+        out = format_file("SELECT a FROM t; SELECT b::int FROM t;\n")
+        assert out == "SELECT\n    a\nFROM t;\nSELECT b::int FROM t;\n"
+
+    def test_a_kept_statement_on_its_own_indented_line_keeps_its_indentation(self):
+        source = "select a from t;\n  select b::int\n  from t;\n"
+        assert format_file(source).endswith("\n  select b::int\n  from t;\n")
+
+    def test_a_string_and_a_quoted_name_of_the_same_text_are_different_tokens(self):
+        sqlglot = pytest.importorskip("sqlglot")
+        from execsql.format import _layout_tokens
+
+        assert _layout_tokens(sqlglot, "SELECT 'x' FROM t") != _layout_tokens(sqlglot, 'SELECT "x" FROM t')
+
+
+class TestHintsAndExecutableComments:
+    """Oracle/MySQL optimizer hints and MySQL executable comments are SQL, not comments."""
+
+    @pytest.fixture(autouse=True)
+    def _sqlglot(self):
+        pytest.importorskip("sqlglot")
+
+    @pytest.mark.parametrize("rewrite_sql", [False, True])
+    @pytest.mark.parametrize(
+        "statement",
+        [
+            "SELECT a FROM t /*!50001 WHERE a > 1 */;",
+            "CREATE TABLE t (id int) /*!50100 PARTITION BY HASH (id) PARTITIONS 4 */;",
+            "SELECT /*+ INDEX(t idx) */ a FROM t;",
+            "INSERT /*+ APPEND */ INTO t SELECT * FROM s;",
+            "UPDATE /*+ INDEX(t i) */ t SET a = 1;",
+            "SELECT /*+ MAX_EXECUTION_TIME(1000) */ a FROM t;",
+        ],
+    )
+    def test_a_statement_with_one_is_kept_as_written(self, statement, rewrite_sql):
+        assert format_file(statement + "\n", rewrite_sql=rewrite_sql) == statement + "\n"
+
+    def test_only_that_statement_is_kept(self):
+        out = format_file("select a from t;\nINSERT /*+ APPEND */ INTO t SELECT * FROM s;\nselect c from v;\n")
+        assert out == "SELECT\n    a\nFROM t;\nINSERT /*+ APPEND */ INTO t SELECT * FROM s;\nSELECT\n    c\nFROM v;\n"
+
+    def test_the_marker_inside_a_string_is_not_one(self):
+        assert format_file("select '/*+ x */' as a from t;\n") == "SELECT\n    '/*+ x */' AS a\nFROM t;\n"
+
+
+class TestStatementTerminators:
+    """Formatting never decides whether a statement is complete."""
+
+    @pytest.fixture(autouse=True)
+    def _sqlglot(self):
+        pytest.importorskip("sqlglot")
+
+    @pytest.mark.parametrize("rewrite_sql", [False, True])
+    def test_an_unterminated_final_statement_stays_unterminated(self, rewrite_sql):
+        out = format_file("create table t (a int);\ninsert into t values (1)\n", rewrite_sql=rewrite_sql)
+        assert out.rstrip().endswith("VALUES\n    (1)")
+
+    def test_a_terminated_final_statement_keeps_its_semicolon(self):
+        assert format_file("select 1;\n") == "SELECT\n    1;\n"
