@@ -130,7 +130,7 @@ Conditions joined by `AND` / `OR` go on one line when their combined text is at 
 
 #### Layout only, or rewrite { #layout-only }
 
-sqlglot does more than lay SQL out: it writes the SQL it parsed in its own preferred form. By default the formatter changes only layout and keyword case. A statement sqlglot would also rewrite is kept exactly as written, while the statements around it are still formatted.
+sqlglot does more than lay SQL out: it writes the SQL it parsed in its own preferred form. By default the formatter changes only layout and the case of keywords and unquoted names (a function written `myFunc(x)` becomes `MYFUNC(x)`; quoted names and strings keep their case). A statement sqlglot would also rewrite is kept exactly as written, while the statements around it are still formatted.
 
 | You wrote                   | sqlglot writes                        |
 | --------------------------- | ------------------------------------- |
@@ -148,6 +148,15 @@ rewrite_sql = Yes
 ```
 
 With it on, the rewrites a statement gets can change when the pinned sqlglot changes (see above). Turning it off later does not undo rewrites already written; it only stops new ones.
+
+In either mode, a statement holding an optimizer hint (`/*+ ... */`, Oracle and MySQL) or a MySQL executable comment (`/*! ... */`) is kept exactly as written: the server reads them as part of the statement, and sqlglot would turn them into ordinary comments or move a hint away from its keyword.
+
+```sql
+INSERT /*+ APPEND */ INTO sales_hist SELECT * FROM sales_stage;
+SELECT a FROM t /*!50001 WHERE a > 1 */;
+```
+
+The formatter never adds a `;` to a final statement that has none: execsql refuses to run a script that ends with an unfinished statement, and formatting leaves that for you to fix.
 
 #### Comment handling
 

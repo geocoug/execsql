@@ -532,18 +532,55 @@ def _statement_sources(sqlglot: ModuleType, sql: str) -> list[str]:
     return sources
 
 
-def _layout_tokens(sqlglot: ModuleType, sql: str) -> list[str]:
-    """*sql*'s tokens with everything the formatter may change taken out.
+def _ends_with_semicolon(sqlglot: ModuleType, sql: str) -> bool:
+    """Whether the last token of *sql* is a statement-ending ``;``."""
+    tokens = sqlglot.tokenize(sql, read="postgres")
+    return bool(tokens) and tokens[-1].token_type.name == "SEMICOLON"
 
-    Whitespace and comments are not tokens.  Keywords and unquoted names are
-    compared without case; strings and quoted names exactly.
+
+def _layout_tokens(sqlglot: ModuleType, sql: str) -> list[tuple[str, str]]:
+    """*sql*'s tokens, as (type, text), with everything the formatter may change taken out.
+
+    Whitespace and comments are not tokens.  Keywords and unquoted names
+    (function names included) are compared without case; strings and quoted
+    names exactly.  The type is compared too, so a string that came back as a
+    quoted name of the same text is a change.
     """
     return [
-        token.text
-        if token.token_type.name.endswith("STRING") or token.token_type.name == "IDENTIFIER"
-        else token.text.upper()
+        (
+            token.token_type.name,
+            token.text
+            if token.token_type.name.endswith("STRING") or token.token_type.name == "IDENTIFIER"
+            else token.text.upper(),
+        )
         for token in sqlglot.tokenize(sql, read="postgres")
     ]
+
+
+# An optimizer hint (``/*+ ... */``, Oracle and MySQL) or a MySQL executable
+# comment (``/*! ... */``) is SQL the server reads, though it looks like a
+# comment.  sqlglot keeps neither: it writes them back as ``/* + ... */`` and
+# moves a hint away from its keyword, which disables it.
+_RX_HINT_COMMENT = re.compile(r"/\*[+!]")
+
+
+def _has_hint_comment(sqlglot: ModuleType, sql: str) -> bool:
+    """Whether *sql* holds a hint or executable comment outside its strings and quoted names."""
+    if not _RX_HINT_COMMENT.search(sql):
+        return False
+    tokens = [(t.start, t.end) for t in sqlglot.tokenize(sql, read="postgres")]
+    return any(not any(start <= m.start() <= end for start, end in tokens) for m in _RX_HINT_COMMENT.finditer(sql))
+
+
+def _as_written(source: str) -> str:
+    """A statement's source text to keep as written, without the space that followed the previous ``;``.
+
+    A statement that starts on its own line keeps that line's indentation.
+    """
+    source = source.rstrip()
+    body = source.lstrip()
+    lead = source[: len(source) - len(body)]
+    return source[lead.rfind("\n") + 1 :] if "\n" in lead else body
 
 
 def _sqlglot_format(
@@ -596,9 +633,10 @@ def _sqlglot_format(
             # parse is left exactly as written.
             ast = sqlglot.parse(protected, read="postgres", error_level=sqlglot_errors.ErrorLevel.RAISE)
             nodes = [node for node in ast if node is not None]
-            sources = None if rewrite_sql else _statement_sources(sqlglot, protected)
-            if sources is not None and len(sources) != len(nodes):
+            sources = _statement_sources(sqlglot, protected)
+            if len(sources) != len(nodes) and (not rewrite_sql or _has_hint_comment(sqlglot, protected)):
                 return sql_lines
+            aligned = len(sources) == len(nodes)
             statements: list[str] = []
             for i, node in enumerate(nodes):
                 # For Command nodes (psql backslash commands, ERROR:, etc.)
@@ -614,20 +652,29 @@ def _sqlglot_format(
                         max_text_width=120,
                     )
                 generated = re.sub(r"\bINTO TEMPORARY\b(?!\s+TABLE)", "INTO TEMPORARY TABLE", generated)
-                if sources is not None and _layout_tokens(sqlglot, generated) != _layout_tokens(sqlglot, sources[i]):
-                    generated = sources[i].lstrip("\n").rstrip()  # layout only: keep it as written
+                if aligned and (
+                    _has_hint_comment(sqlglot, sources[i])
+                    or (not rewrite_sql and _layout_tokens(sqlglot, generated) != _layout_tokens(sqlglot, sources[i]))
+                ):
+                    generated = _as_written(sources[i])
                 statements.append(generated)
         stmts = [s for s in statements if s]
         if not stmts:
             return sql_lines
 
+        # Terminate the last statement only if the source did: execsql refuses
+        # a script whose last statement is unfinished, and formatting must not
+        # turn it into one that runs.
+        terminated = _ends_with_semicolon(sqlglot, protected)
+
         # Safety: if sqlglot produced more statements than the input had
-        # semicolons, it likely split a fragment (e.g. a SELECT column list)
-        # into multiple pseudo-statements.  Fall back to the original text.
-        if len(stmts) > max(input_semis, 1):
+        # semicolons (plus an unterminated last one), it likely split a
+        # fragment (e.g. a SELECT column list) into multiple pseudo-statements.
+        # Fall back to the original text.
+        if len(stmts) > max(input_semis + (0 if terminated else 1), 1):
             return sql_lines
 
-        joined = ";\n".join(stmts) + ";"
+        joined = ";\n".join(stmts) + (";" if terminated else "")
 
         # Content-loss check: sqlglot with IGNORE error level can silently
         # drop tokens it doesn't understand (e.g. ``ERROR: ...``).  If the
