@@ -163,7 +163,8 @@ execsql is the metacommand [plugins](../dev/architecture.md#plugin-system) insta
 environment, so lint knows their keywords, as `execsql lint` does. Besides the
 open script and the configuration files, it reads the files the script names
 in `INCLUDE` (to find the variables they define: up to 200 files of at most
-10 MiB each) and in `SUB_INI` (at most 1 MiB). It reads only regular files,
+10 MiB each and 20 MiB together) and in `SUB_INI` (at most 1 MiB, read once
+however many lines name it). It reads only regular files,
 never a FIFO or a device.
 
 ## VS Code { #vscode }

@@ -46,6 +46,16 @@ def test_an_oversized_file_is_not_read(tmp_path, monkeypatch):
     assert "REGION" not in index_script((tmp_path / "main.sql").read_text(), main).definitions
 
 
+def test_included_files_together_have_a_budget(tmp_path, monkeypatch):
+    (tmp_path / "a.sql").write_text("-- !x! SUB region north\n-- !x! INCLUDE b.sql\n", encoding="utf-8")
+    (tmp_path / "b.sql").write_text("-- !x! SUB zone four\n", encoding="utf-8")
+    monkeypatch.setattr(document, "MAX_INCLUDED_TOTAL_BYTES", 50)  # a.sql (45 bytes) fits; b.sql does not
+    main = _main(tmp_path, "a.sql")
+    defined = index_script((tmp_path / "main.sql").read_text(), main).definitions
+    assert "REGION" in defined
+    assert "ZONE" not in defined
+
+
 def test_a_file_that_is_not_utf8_is_skipped(tmp_path):
     (tmp_path / "setup.sql").write_bytes(b"-- !x! SUB region \xff\xfe\n")
     main = _main(tmp_path, "setup.sql")
