@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.27.0] - 2026-10-12
+
 ### Added
 
 - **`execsql lsp`**, a language server for editors. Install the new `lsp` extra (`uv tool install "execsql2[lsp]"`; to add it to an existing install, name the extras you already have, e.g. `"execsql2[postgres,lsp]"`); setup for VS Code, Neovim, Helix and other editors is in the new Editor Support guide. It provides:
