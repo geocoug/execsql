@@ -524,3 +524,20 @@ class TestHeadersWithCapitals:
             assert [tuple(r) for r in _query_mysql("SELECT id, name FROM t_common")] == [(1, "Ann")]
         finally:
             _exec_mysql("DROP TABLE IF EXISTS t_common")
+
+
+@pytest.mark.parametrize("value", [r"C:\data\new", r"x\'; drop table t; --", "O'Brien", r"two\\backslashes"])
+def test_quoted_substitution_stores_the_value_as_written(tmp_path, value):
+    """MySQL reads \\ as an escape, so !'!v!'! doubles it there, and \\' cannot end the literal."""
+    _exec_mysql("DROP TABLE IF EXISTS quoted_sub")
+    _write_conf(tmp_path)
+    script = write_script(
+        tmp_path,
+        f"-- !x! SUB v {value}\ncreate table quoted_sub (v text);\ninsert into quoted_sub values (!'!v!'!);\n",
+    )
+    try:
+        result = _run_execsql_mysql(tmp_path, script)
+        assert result.returncode == 0, f"stderr: {result.stderr}"
+        assert [tuple(r) for r in _query_mysql("SELECT v FROM quoted_sub")] == [(value,)]
+    finally:
+        _exec_mysql("DROP TABLE IF EXISTS quoted_sub")

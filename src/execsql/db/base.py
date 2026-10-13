@@ -215,21 +215,18 @@ class Database(ABC):
     def quote_literal(self, value: Any) -> str:
         """Return *value* as a SQL string literal, safely escaped.
 
-        Default ANSI/Postgres behaviour: wrap in single quotes, double
-        embedded apostrophes, escape backslashes (so a value containing
-        ``\\'`` cannot terminate the literal on MySQL default mode or
-        PostgreSQL E-strings), and reject embedded NUL bytes (most
-        wire protocols truncate or reject them).
-
-        Override per-DBMS only when the wire protocol requires a different
-        literal form.
+        Standard SQL: wrap in single quotes and double embedded apostrophes;
+        a backslash is an ordinary character.  Embedded NUL bytes are
+        rejected (most wire protocols truncate or reject them).  A DBMS
+        that reads a backslash in a literal as an escape (MySQL) overrides
+        this.
         """
         if value is None:
             return "NULL"
         s = str(value)
         if "\x00" in s:
             raise ValueError("SQL literal contains a NUL byte; refusing to quote.")
-        return "'" + s.replace("\\", "\\\\").replace("'", "''") + "'"
+        return "'" + s.replace("'", "''") + "'"
 
     def paramsubs(self, paramcount: int) -> str:
         """Return a comma-separated string of *paramcount* parameter placeholders."""

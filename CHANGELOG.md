@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Changed
+
+- **`!'!var!'!` stores backslashes as written** on every DBMS: a value such as `C:\data\new` was stored as `C:\\data\\new` on SQLite, PostgreSQL, DuckDB, SQL Server, Oracle, Firebird and Access. MySQL/MariaDB (which read `\` as an escape) and PostgreSQL escape strings written as `E!'!var!'!` still get backslashes doubled, so both forms store the same value and the `E` workaround is no longer needed. Scripts that removed the doubled backslashes some other way should stop.
+
 ### Fixed
 
 - **Oracle IMPORT and COPY with a time column** create it as text (`VARCHAR2(15)`, holding `HH:MM:SS`); `TO NEW` stopped with "Oracle DBMS type has no specification for data type time".

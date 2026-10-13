@@ -110,10 +110,9 @@ class TestBareSubstitution:
 # Produces a SQL string literal:
 #   * wraps in single quotes
 #   * doubles embedded apostrophes
-#   * escapes backslashes (B07a: was Windows-only; now always)
-#
-# F002: the previous Windows-only ``\\`` escape was unsafe on POSIX
-# clients talking to MySQL default mode or PostgreSQL E-strings.
+#   * doubles backslashes only where the current connection reads them as
+#     escapes (MySQL/MariaDB); a backslash is an ordinary character in
+#     standard SQL, so doubling it everywhere corrupted stored values.
 # ===========================================================================
 
 
@@ -138,22 +137,38 @@ class TestSingleQuotedSubstitution:
         out, _ = sv.substitute("v=!'!v!'!")
         assert out == "v='a''''b'"
 
-    def test_backslash_doubled(self, sv):
-        """B07a/F002: backslash must always be escaped (was Windows-only)."""
+    def test_backslash_kept_as_written(self, sv):
+        """Standard SQL: a backslash is an ordinary character, so C:\\data is stored as written."""
         sv.add_substitution("v", "a\\b")
         out, _ = sv.substitute("v=!'!v!'!")
-        assert out == "v='a\\\\b'"
+        assert out == "v='a\\b'"
 
     def test_backslash_apostrophe_combination(self, sv):
-        """F002 attack payload: ``\\'`` must not terminate the literal."""
+        """``\\'`` cannot end a standard literal: the apostrophe is doubled, the backslash is text."""
         sv.add_substitution("attack", "x\\'; DROP TABLE t;--")
         out, _ = sv.substitute("INSERT INTO t VALUES(!'!attack!'!);")
-        assert out == "INSERT INTO t VALUES('x\\\\''; DROP TABLE t;--');"
+        assert out == "INSERT INTO t VALUES('x\\''; DROP TABLE t;--');"
 
     def test_only_backslash(self, sv):
         sv.add_substitution("b", "\\")
         out, _ = sv.substitute("!'!b!'!")
-        assert out == "'\\\\'"
+        assert out == "'\\'"
+
+    def test_mysql_connection_doubles_backslashes(self, sv, monkeypatch):
+        """MySQL reads \\' as an escaped quote, so on a MySQL connection the backslash is doubled too."""
+        import execsql.state as _state
+        from execsql.db.mysql import MySQLDatabase
+
+        class _Pool:
+            current_db = "initial"
+
+            def current(self):
+                return object.__new__(MySQLDatabase)
+
+        monkeypatch.setattr(_state, "dbs", _Pool())
+        sv.add_substitution("attack", "x\\'; DROP TABLE t;--")
+        out, _ = sv.substitute("INSERT INTO t VALUES(!'!attack!'!);")
+        assert out == "INSERT INTO t VALUES('x\\\\''; DROP TABLE t;--');"
 
     def test_only_apostrophe(self, sv):
         sv.add_substitution("q", "'")
@@ -165,14 +180,10 @@ class TestSingleQuotedSubstitution:
         out, _ = sv.substitute("name=!'!v!'!")
         assert out == "name='café résumé 日本語'"
 
-    def test_escape_order_backslash_before_apostrophe(self, sv):
-        """The escape order matters: doubling backslashes after
-        doubling apostrophes would double the escaping. Verify the
-        order is backslash → apostrophe."""
+    def test_backslash_then_apostrophe(self, sv):
         sv.add_substitution("v", "\\'")
         out, _ = sv.substitute("!'!v!'!")
-        # Expected: backslash → \\\\, then apostrophe → '' → "'\\\\''"
-        assert out == "'\\\\'''"
+        assert out == "'\\'''"
 
     def test_does_not_consume_unrelated_apostrophes(self, sv):
         """Pre-existing apostrophes in the SURROUNDING SQL stay intact."""
@@ -490,12 +501,16 @@ class TestDatabaseQuoteLiteralExtra:
     def test_apostrophe_doubled(self):
         assert self._q("O'Brien") == "'O''Brien'"
 
-    def test_backslash_escaped(self):
-        assert self._q("a\\b") == "'a\\\\b'"
+    def test_backslash_is_text(self):
+        assert self._q("a\\b") == "'a\\b'"
 
     def test_both_apostrophe_and_backslash(self):
-        # backslash → \\, apostrophe → ''
-        assert self._q("\\'") == "'\\\\'''"
+        assert self._q("\\'") == "'\\'''"
+
+    def test_mysql_doubles_backslashes_too(self):
+        from execsql.db.mysql import MySQLDatabase
+
+        assert MySQLDatabase.quote_literal(None, "\\'") == "'\\\\'''"
 
     def test_int_str_cast(self):
         assert self._q(42) == "'42'"
@@ -652,3 +667,32 @@ class TestExporterTableNameInjection:
         names = [r[0] for r in ddb.execute("SELECT table_name FROM information_schema.tables").fetchall()]
         ddb.close()
         assert "u" in names, f"Baseline table u was dropped: {names}"
+
+
+class TestEscapeStringPrefix:
+    """``E!'!v!'!`` is a PostgreSQL escape string: there a backslash is an escape, so it is doubled."""
+
+    @pytest.mark.parametrize("prefix", ["E", "e"])
+    def test_backslash_doubled_after_e(self, sv, prefix):
+        sv.add_substitution("v", "C:\\data\\new")
+        out, _ = sv.substitute(f"select {prefix}!'!v!'!;")
+        assert out == f"select {prefix}'C:\\\\data\\\\new';"
+
+    def test_quote_and_backslash_cannot_end_an_escape_string(self, sv):
+        sv.add_substitution("attack", "x\\'; drop table t; --")
+        out, _ = sv.substitute("select E!'!attack!'!;")
+        assert out == "select E'x\\\\''; drop table t; --';"
+
+    @pytest.mark.parametrize("before", ["TYPE", "x_E", "1E"])
+    def test_an_e_ending_a_word_is_not_a_prefix(self, sv, before):
+        sv.add_substitution("v", "a\\b")
+        out, _ = sv.substitute(f"{before}!'!v!'!")
+        assert out == f"{before}'a\\b'"
+
+    def test_nested_token_path_detects_the_prefix_too(self, sv):
+        sv.add_substitution("grp", "east")
+        sv.add_substitution("p_east", "a\\b")
+        out, _ = sv.substitute("select E!'!p_!!grp!!!'!;")
+        while _:
+            out, _ = sv.substitute(out)
+        assert out == "select E'a\\\\b';"
