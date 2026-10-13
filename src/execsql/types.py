@@ -884,6 +884,14 @@ dbt_oracle.name_datatype(DT_TimestampTZ, "TIMESTAMP WITH TIME ZONE")
 dbt_oracle.name_datatype(DT_Timestamp, "TIMESTAMP", casting_name="TIMESTAMP")
 dbt_oracle.name_datatype(DT_Date, "DATE", casting_name="DATE")
 dbt_oracle.name_datatype(DT_Time_Oracle, "VARCHAR2", True, casting_name="VARCHAR(20)")
+# Oracle has no time-of-day type, and oracledb cannot bind a datetime.time: a
+# time column is stored as its ISO text (at most 15 characters, HH:MM:SS.ffffff).
+dbt_oracle.name_datatype(
+    DT_Time,
+    "VARCHAR2(15)",
+    casting_name="VARCHAR(20)",
+    conv_mod_fn=lambda x: x.isoformat() if x is not None else None,
+)
 dbt_oracle.name_datatype(DT_Integer, "NUMBER")
 dbt_oracle.name_datatype(DT_Long, "NUMBER")
 dbt_oracle.name_datatype(DT_Float, "FLOAT")

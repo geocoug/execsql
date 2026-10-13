@@ -877,3 +877,20 @@ class TestAccessUseNumeric:
         minimal_conf.access_use_numeric = True
         assert dbt_access.spec_type(DT_Float) is DT_Float
         assert dbt_postgres.spec_type(DT_Decimal) is DT_Decimal
+
+
+class TestOracleTimeColumns:
+    """Oracle has no time-of-day type, and oracledb cannot bind a datetime.time."""
+
+    def test_a_time_column_is_text_of_fixed_width(self):
+        from execsql.types import DT_Time, dbt_oracle
+
+        assert dbt_oracle.column_spec("t_at", DT_Time, 7, True) == "t_at VARCHAR2(15)"
+
+    def test_a_time_value_is_sent_as_its_iso_text(self):
+        from execsql.types import DT_Time, dbt_oracle
+
+        conv = dbt_oracle.dialect[DT_Time][3]
+        assert conv(DT_Time().from_data("1:05 PM")) == "13:05:00"
+        assert conv(DT_Time().from_data("13:15:45.25")) == "13:15:45.250000"
+        assert conv(None) is None
