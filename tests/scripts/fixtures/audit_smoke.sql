@@ -143,11 +143,11 @@ drop table if exists q_bs_chk;
 CREATE TABLE q_bs_chk (val TEXT);
 INSERT INTO q_bs_chk SELECT val FROM q_bs;
 
--- SQLite stores the doubled form verbatim (no escape interpretation).
+-- SQLite reads no escapes in a literal, so the value round-trips byte for byte.
 -- !x! select_sub q_bs_chk
--- !x! ASSERT EQUALS("!!@val!!", "c:\\path\\file") "backslash doubling is universal (security > byte-perfect SQLite round-trip)"
+-- !x! ASSERT EQUALS("!!@val!!", "c:\path\file") "a backslash is stored as written outside MySQL"
 
-INSERT INTO _runlog VALUES ('phase5', 'backslash doubling confirmed');
+INSERT INTO _runlog VALUES ('phase5', 'backslash stored as written');
 
 
 -- =========================================================================

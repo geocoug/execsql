@@ -17,6 +17,42 @@ from execsql.exceptions import ErrInfo
 __all__ = ["CounterVars", "SubVarSet", "LocalSubVarSet", "ScriptArgSubVarSet"]
 
 
+def _after_escape_string_prefix(command: str, start: int) -> bool:
+    """Whether the ``!'!`` token at *start* follows an ``E`` that makes it a PostgreSQL escape string (``E!'!v!'!``).
+
+    The ``E`` must stand alone: in ``TYPE!'!v!'!`` it ends a word.
+    """
+    if start < 1 or command[start - 1] not in "Ee":
+        return False
+    return start < 2 or not (command[start - 2].isalnum() or command[start - 2] == "_")
+
+
+def _sql_string_literal(value: str, *, escape_string: bool = False) -> str:
+    """*value* as the string literal ``!'!var!'!`` substitutes, in the current connection's form.
+
+    An apostrophe is doubled everywhere; a backslash only where the DBMS
+    reads it as an escape (MySQL/MariaDB), or inside an escape string the
+    script wrote as ``E!'!var!'!`` (*escape_string*), so ``C:\\data`` is
+    stored as written in every case.  Without a connection, the standard SQL
+    form.  (Upstream doubled backslashes only on Windows, to protect
+    ``re.sub``'s replacement template, not the SQL.)
+    """
+    if escape_string:
+        return "'" + value.replace("\\", "\\\\").replace("'", "''") + "'"
+    db = None
+    try:
+        import execsql.state as _state
+
+        dbs = _state.dbs
+        if dbs is not None and dbs.current_db is not None:
+            db = dbs.current()
+    except Exception:
+        db = None
+    if db is not None:
+        return db.quote_literal(value)
+    return "'" + value.replace("'", "''") + "'"
+
+
 # ---------------------------------------------------------------------------
 # CounterVars
 # ---------------------------------------------------------------------------
@@ -253,13 +289,10 @@ class SubVarSet:
                     )
                 quote = m.group("q")
                 if quote == "'":
-                    # B07a/F002: wrap in single quotes, doubling embedded
-                    # apostrophes AND escaping backslashes so MySQL default
-                    # mode and PostgreSQL E-string literals can't end the
-                    # quoted region via ``\'``. The previous Windows-only
-                    # branch (``os.name != 'posix'``) applied the escape on
-                    # the wrong axis — host OS vs target DBMS.
-                    sub = "'" + sub.replace("\\", "\\\\").replace("'", "''") + "'"
+                    sub = _sql_string_literal(
+                        sub,
+                        escape_string=_after_escape_string_prefix(command_str, m.start()),
+                    )
                 elif quote == '"':
                     # B07a/F001: wrap in double quotes, doubling embedded
                     # ``"`` so a value containing ``"; DROP TABLE x; --``
@@ -306,13 +339,12 @@ class SubVarSet:
             if idx != -1:
                 _check_nul(varname, sub)
                 return command_str[:idx] + sub + command_str[idx + len(token) :], True
-            # Single-quote-wrapped token: !'!varname!'! — escape ``\`` and
-            # double embedded ``'`` (see substitute_one for rationale).
+            # Single-quote-wrapped token: !'!varname!'! — a string literal.
             tokenq = f"!'!{varname}!'!"
             idxq = cmd_lower.find(tokenq)
             if idxq != -1:
                 _check_nul(varname, sub)
-                wrapped = "'" + sub.replace("\\", "\\\\").replace("'", "''") + "'"
+                wrapped = _sql_string_literal(sub, escape_string=_after_escape_string_prefix(command_str, idxq))
                 return (
                     command_str[:idxq] + wrapped + command_str[idxq + len(tokenq) :],
                     True,

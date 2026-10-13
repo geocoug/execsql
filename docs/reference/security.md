@@ -184,7 +184,7 @@ SELECT * FROM !!target_schema!!.mytable;
 
 If a variable value is derived from external input (command-line arguments, environment variables, `PROMPT` responses, or data read from a file), the script author is responsible for quoting or validating that value before it is substituted into SQL.
 
-The `!'!varname!'!` dereferencing form wraps the value in single quotes and doubles any embedded apostrophes, which helps when inserting text values into SQL literals:
+The `!'!varname!'!` dereferencing form wraps the value in single quotes and doubles any embedded apostrophes (and, on MySQL/MariaDB, backslashes, so `\'` cannot end the literal there), which helps when inserting text values into SQL literals:
 
 ```sql
 -- !x! sub author_name !!&AUTHOR!!

@@ -11,7 +11,7 @@ SUB <match_string> <replacement_string>
 The \<match_string> identifies the substitution variable; the \<replacement_string> is the text inserted in its place. A substitution is recognized only when the match string is bracketed by one of three tokens:
 
 - `!!name!!` — insert the value verbatim.
-- `!'!name!'!` — wrap the value in single quotes, doubling any embedded apostrophe. Suitable for SQL string literals containing user data.
+- `!'!name!'!` — wrap the value in single quotes, doubling any embedded apostrophe; on a MySQL or MariaDB connection, which reads `\` in a string literal as an escape, backslashes are doubled too. The value is stored exactly as written (`C:\data\new` stays `C:\data\new`). Suitable for SQL string literals containing user data. On PostgreSQL, `E!'!name!'!` (an escape string) doubles backslashes too, so it stores the same value as `!'!name!'!`; the `E` is not needed.
 - `!"!name!"!` — wrap the value in double quotes. Suitable for SQL quoted identifiers, or for metacommand arguments that must be quoted.
 
 Variables can also be set before the script starts: with `--var NAME=VALUE` on the [command line](../getting-started/syntax.md#options), or in the `[variables]` section of a [config file](configuration.md#configuration). `--var` wins over the config file, and a `SUB` in the script can reassign either.

@@ -703,3 +703,42 @@ def test_import_skip_applies_on_the_copy_path(tmp_path):
         assert [tuple(map(str, r)) for r in rows] == [("1", "one"), ("2", "two")]
     finally:
         run(sql="drop table if exists skip_target;\n", dsn=_PG_DSN)
+
+
+@pytest.mark.parametrize("value", [r"C:\data\new", r"x\'; drop table t; --", "O'Brien", r"two\\backslashes"])
+def test_quoted_substitution_stores_the_value_as_written(value):
+    """standard_conforming_strings is on: a backslash in '...' is text, so !'!v!'! must not double it."""
+    from execsql import run
+
+    run(sql="drop table if exists quoted_sub;\n", dsn=_PG_DSN)
+    try:
+        result = run(
+            sql=f"-- !x! SUB v {value}\ncreate table quoted_sub (v text);\ninsert into quoted_sub values (!'!v!'!);\n",
+            dsn=_PG_DSN,
+        )
+        assert result.success, result.errors
+        with psycopg.connect(**_PG_CONNECT_KWARGS) as conn:
+            assert conn.execute("select v from quoted_sub").fetchall() == [(value,)]
+    finally:
+        run(sql="drop table if exists quoted_sub;\n", dsn=_PG_DSN)
+
+
+@pytest.mark.parametrize("value", [r"C:\data\new", r"x\'; drop table t; --", r"two\\backslashes"])
+def test_escape_string_form_stores_the_same_value(value):
+    """E!'!v!'! (a PostgreSQL escape string) stores exactly what !'!v!'! stores."""
+    from execsql import run
+
+    run(sql="drop table if exists quoted_sub_e;\n", dsn=_PG_DSN)
+    try:
+        result = run(
+            sql=(
+                f"-- !x! SUB v {value}\ncreate table quoted_sub_e (plain text, escaped text);\n"
+                "insert into quoted_sub_e values (!'!v!'!, E!'!v!'!);\n"
+            ),
+            dsn=_PG_DSN,
+        )
+        assert result.success, result.errors
+        with psycopg.connect(**_PG_CONNECT_KWARGS) as conn:
+            assert conn.execute("select plain, escaped from quoted_sub_e").fetchall() == [(value, value)]
+    finally:
+        run(sql="drop table if exists quoted_sub_e;\n", dsn=_PG_DSN)

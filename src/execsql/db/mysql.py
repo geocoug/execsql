@@ -67,6 +67,20 @@ class MySQLDatabase(Database):
         re.I,
     )
 
+    def quote_literal(self, value: Any) -> str:
+        """Return *value* as a string literal for MySQL/MariaDB.
+
+        Unless ``NO_BACKSLASH_ESCAPES`` is set, MySQL reads a backslash in a
+        literal as an escape, so ``\\'`` would end it: backslashes are doubled
+        as well as apostrophes.
+        """
+        if value is None:
+            return "NULL"
+        s = str(value)
+        if "\x00" in s:
+            raise ValueError("SQL literal contains a NUL byte; refusing to quote.")
+        return "'" + s.replace("\\", "\\\\").replace("'", "''") + "'"
+
     def __init__(
         self,
         server_name: str,
