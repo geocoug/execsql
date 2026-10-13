@@ -430,6 +430,9 @@ def _make_csv_file_obj(tmp_path, headers, rows, *, delimiter=",", quotechar='"',
         def open(self, _mode):
             return open(self.csvfname, encoding=encoding)
 
+        def openclean(self, mode):
+            return self.open(mode)  # no junk lines before the header
+
         def reader(self):
             import csv as _csv
 
