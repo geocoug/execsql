@@ -686,3 +686,20 @@ def test_copy_moves_a_bytea_column_byte_for_byte(tmp_path):
         assert row == ("bytea", payload)
     finally:
         run(sql="drop table if exists bin_src;\ndrop table if exists bin_dst;\n", dsn=_PG_DSN)
+
+
+def test_import_skip_applies_on_the_copy_path(tmp_path):
+    """A quoted CSV takes PostgreSQL's COPY path; SKIP n must drop n lines before the header there too."""
+    from execsql import run
+
+    csv = tmp_path / "skip.csv"
+    csv.write_text('exported by a tool\nsecond preamble line\nid,name\n"1","one"\n"2","two"\n', encoding="utf-8")
+    run(sql="drop table if exists skip_target;\n", dsn=_PG_DSN)
+    try:
+        result = run(sql=f"-- !x! IMPORT TO NEW skip_target FROM {csv} SKIP 2\n", dsn=_PG_DSN)
+        assert result.success, result.errors
+        with psycopg.connect(**_PG_CONNECT_KWARGS) as conn:
+            rows = conn.execute("select id, name from skip_target order by id").fetchall()
+        assert [tuple(map(str, r)) for r in rows] == [("1", "one"), ("2", "two")]
+    finally:
+        run(sql="drop table if exists skip_target;\n", dsn=_PG_DSN)

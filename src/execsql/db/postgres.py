@@ -353,7 +353,7 @@ class PostgresDatabase(Database):
             from execsql.exporters.delimited import blank_lines_as_empty_rows
 
             # Use Postgres' COPY FROM method via psycopg3's cursor.copy() context manager.
-            rf = csv_file_obj.open("rt")
+            rf = csv_file_obj.openclean("rt")  # past the SKIP lines, as every other reader starts
             if skipheader:
                 next(rf)
             # Copy_from() requires a delimiter, but if there is none, feed it an
