@@ -158,7 +158,7 @@ class XlsFile:
                 break
             ncols += 1
         sheet_data = []
-        for r in range(junk_header_rows, sheet.nrows - junk_header_rows):
+        for r in range(junk_header_rows, sheet.nrows):
             datarow = row_data(r, ncols)
             if datarow.count(None) == len(datarow):
                 break
@@ -270,7 +270,8 @@ class XlsxFile:
         sheet_data = []
         rowsrc = sheet.iter_rows(min_row=junk_header_rows + 1, values_only=True)
         for r in rowsrc:
-            if not any(r):
+            # A row of zeros or FALSE values is data; only a row of empty cells ends it.
+            if all(c is None or c == "" for c in r):
                 break
             sheet_data.append(list(r))
         for r in range(len(sheet_data)):
