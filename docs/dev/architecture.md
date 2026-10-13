@@ -56,6 +56,8 @@ flowchart LR
     UTILS["utils/<br/>auth, crypto,<br/>fileio, mail,<br/>regex, strings"]
     PARSER["parser.py<br/>CondParser,<br/>NumericParser"]
     DEBUG["debug/<br/>REPL debugger"]
+    LSP["lsp/<br/>execsql lsp,<br/>editor features"]
+    REF["metacommands/<br/>reference.py<br/>syntax registry"]
 
     CLI --> CONFIG
     CLI --> STATE
@@ -75,34 +77,63 @@ flowchart LR
     EXPORT --> STATE
     GUI --> STATE
     SCRIPT --> PARSER
+    CLI --> LSP
+    LSP --> SCRIPT
+    LSP --> REF
+    LSP --> CLI
 ```
 
 ### Package summary
 
-| Package          | Purpose                                                                                                                                                         |
-| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `cli/`           | Typer app and help rendering, one module per command under `cli/commands/`, shared options, `_run()` orchestration, DSN URL parsing                             |
-| `api.py`         | Public `execsql.run()` Python entry point for notebooks, pipelines, and library use                                                                             |
-| `config.py`      | `ConfigData` (INI merging), `StatObj` (runtime flags), `WriteHooks` (stdout/stderr redirection)                                                                 |
-| `state.py`       | Thread-local runtime store — all shared mutable state lives here, isolated per-thread                                                                           |
-| `script/`        | AST node types, parser, `MetaCommandList`, `SubVarSet`, `BatchLevels`, `ScriptExecSpec`, `set_system_vars()`                                                    |
-| `metacommands/`  | `build_dispatch_table()`, all `x_*` handlers, `build_conditional_table()`, all `xf_*` predicates                                                                |
-| `db/`            | `Database` ABC, `DatabasePool`, 9 adapter modules (postgres, sqlite, duckdb, mysql, sqlserver, oracle, firebird, access, dsn)                                   |
-| `exporters/`     | `ExportRecord`, `ExportMetadata`, `WriteSpec`, 20+ format writers (CSV, JSON, XML, HTML, etc.)                                                                  |
-| `importers/`     | `CsvFile`, `OdsFile`, `XlsFile`, `FeatherFile` — data import backends                                                                                           |
-| `gui/`           | `GuiBackend` ABC, `TkinterBackend`, `TextualBackend`, `ConsoleBackend`                                                                                          |
-| `utils/`         | Shared utilities: file I/O, encryption, mail, regex helpers, string manipulation, timers                                                                        |
-| `parser.py`      | Recursive-descent parsers for conditional (`IF`) and arithmetic (`SET`) expressions                                                                             |
-| `types.py`       | `DataType` subclasses and `DbType` per-DBMS type dialect mappings                                                                                               |
-| `models.py`      | `Column`, `DataTable`, `JsonDatatype`                                                                                                                           |
-| `format.py`      | `execsql format` formatter — opinionated formatter for execsql scripts                                                                                          |
-| `exceptions.py`  | `ExecSqlError` base, `ErrInfo`, `ConfigError`, `DataTypeError`, `DbTypeError`, etc.                                                                             |
-| `plugins.py`     | Entry-point plugin discovery for metacommands, exporters, and importers                                                                                         |
-| `debug/`         | Interactive REPL debugger for stepping through script execution                                                                                                 |
-| `interactive.py` | Engine behind the debug REPL: input typed at a BREAKPOINT runs as the next lines of the paused script via `executor.execute_input`; errors return to the prompt |
-| `data/`          | Bundled package data (`execsql.conf.template` powers `execsql config --init`)                                                                                   |
+| Package                | Purpose                                                                                                                                                                                        |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cli/`                 | Typer app and help rendering, one module per command under `cli/commands/`, shared options, `_run()` orchestration, DSN URL parsing                                                            |
+| `api.py`               | Public `execsql.run()` Python entry point for notebooks, pipelines, and library use                                                                                                            |
+| `config.py`            | `ConfigData` (INI merging), `StatObj` (runtime flags), `WriteHooks` (stdout/stderr redirection)                                                                                                |
+| `state.py`             | Thread-local runtime store — all shared mutable state lives here, isolated per-thread                                                                                                          |
+| `script/`              | AST node types, parser, `MetaCommandList`, `SubVarSet`, `BatchLevels`, `ScriptExecSpec`, `set_system_vars()`                                                                                   |
+| `metacommands/`        | `build_dispatch_table()`, all `x_*` handlers, `build_conditional_table()`, all `xf_*` predicates                                                                                               |
+| `db/`                  | `Database` ABC, `DatabasePool`, 9 adapter modules (postgres, sqlite, duckdb, mysql, sqlserver, oracle, firebird, access, dsn)                                                                  |
+| `exporters/`           | `ExportRecord`, `ExportMetadata`, `WriteSpec`, 20+ format writers (CSV, JSON, XML, HTML, etc.)                                                                                                 |
+| `importers/`           | `CsvFile`, `OdsFile`, `XlsFile`, `FeatherFile` — data import backends                                                                                                                          |
+| `gui/`                 | `GuiBackend` ABC, `TkinterBackend`, `TextualBackend`, `ConsoleBackend`                                                                                                                         |
+| `utils/`               | Shared utilities: file I/O, encryption, mail, regex helpers, string manipulation, timers                                                                                                       |
+| `parser.py`            | Recursive-descent parsers for conditional (`IF`) and arithmetic (`SET`) expressions                                                                                                            |
+| `types.py`             | `DataType` subclasses and `DbType` per-DBMS type dialect mappings                                                                                                                              |
+| `models.py`            | `Column`, `DataTable`, `JsonDatatype`                                                                                                                                                          |
+| `format.py`            | `execsql format` formatter — opinionated formatter for execsql scripts                                                                                                                         |
+| `exceptions.py`        | `ExecSqlError` base, `ErrInfo`, `ConfigError`, `DataTypeError`, `DbTypeError`, etc.                                                                                                            |
+| `plugins.py`           | Entry-point plugin discovery for metacommands, exporters, and importers                                                                                                                        |
+| `debug/`               | Interactive REPL debugger for stepping through script execution                                                                                                                                |
+| `interactive.py`       | Engine behind the debug REPL: input typed at a BREAKPOINT runs as the next lines of the paused script via `executor.execute_input`; errors return to the prompt                                |
+| `lsp/`                 | `execsql lsp`, the language server editors start (pygls 2): diagnostics, completion, hover, navigation, rename, folding, quick fixes, Format Document. See [Language Server](#language-server) |
+| `manifest.py`          | `RunManifest`: the JSON record `--manifest FILE` writes when a run ends (script, database, statements, files read/written/deleted, connections, outcome)                                       |
+| `config_validation.py` | `execsql config --validate`: reads the same config files as a run and reports every problem with its file and line                                                                             |
+| `data/`                | Bundled package data (`execsql.conf.template` powers `execsql config --init`)                                                                                                                  |
 
 ______________________________________________________________________
+
+## Language Server { #language-server }
+
+`execsql lsp` (`cli/commands/lsp.py` → `lsp/server.py:create_server()`) is a pygls 2 server on stdin/stdout. It never runs a script or connects to a database: it reuses the static tools.
+
+| Module                                     | Feature                                                 | Reuses                                                             |
+| ------------------------------------------ | ------------------------------------------------------- | ------------------------------------------------------------------ |
+| `server.py`                                | handlers, settings, debounced lint, watched files       | `cli.run._tool_config`                                             |
+| `diagnostics.py`                           | lint findings as LSP diagnostics                        | `cli.lint.lint_source`                                             |
+| `document.py`                              | `ScriptIndex`: definitions, references, `INCLUDE` graph | `script.parser`, `cli.lint.variables_defined_by`                   |
+| `completion.py`, `hover.py`                | completion and hover                                    | `metacommands.reference`                                           |
+| `navigation.py`, `rename.py`, `folding.py` | definition, references, outline, links, rename, folding | `ScriptIndex`, the parser                                          |
+| `code_actions.py`                          | quick fixes for P002, P003, P004, V001                  | the dispatch table (each fix is re-validated before it is offered) |
+| `formatting.py`                            | Format Document                                         | `format.format_file` with the `[format]` settings                  |
+
+**Settings per workspace folder.** execsql reads config files from the working directory, and `ConfigData` has no start-directory argument, so `load_settings()` reads each folder's `[lint]` / `[format]` settings by changing into the folder (`_read_settings`, restored in a `finally`) and keeps them by folder; a document uses its innermost folder's settings, a document in no folder those of the workspace root. Afterwards the process works from the workspace root, which is where an unsaved script's relative `INCLUDE` resolves. This relies on pygls running every handler on one thread, one at a time: an `async` or threaded handler would see the changed directory.
+
+**Index lifetime.** A `ScriptIndex` is built from the document's current text on every request that needs one (hover, completion, definition, references, rename, links, code actions); nothing is cached. `INCLUDE`d files are read too (the editor's unsaved copy when the file is open), up to 200 files, 10 MiB each and 20 MiB together, regular files only; `SUB_INI` files at most 1 MiB, cached by path, size and modification time.
+
+**Linting.** On open, and 200 ms after the last edit (`LINT_DELAY_SECONDS`), lint runs on the document and the result is published with the document's version. Saving a script, or a change to any watched `**/execsql.conf` or `**/*.sql`, relints every open document; a config change reloads the settings first.
+
+**Trust.** The server reads the files the workspace names, so the VS Code client (`extras/vscode-execsql/extension.js`) starts it only in a trusted workspace, resolves `execsql` through `PATH` (never from the open folder) and runs it from the home directory. Plugins load from the server's own Python environment, not from the workspace.
 
 ## AST Parser and Executor
 
@@ -156,6 +187,10 @@ ______________________________________________________________________
 ## Metacommand Dispatch
 
 Metacommands are lines in SQL scripts prefixed with `-- !x!`. At import time, `metacommands/__init__.py` calls `build_dispatch_table()`, which populates a `MetaCommandList` with all `mcl.add()` registrations (~225 regex patterns). This singleton is stored as `_state.metacommandlist`.
+
+### The syntax registry
+
+`metacommands/reference.py` describes every metacommand a second way: the syntax forms as the reference docs write them, a one-line summary, a category and the docs anchor. The regex dispatch table decides what *runs*; the registry is what people and editors *read*. `execsql list metacommands`, the language server's completion snippets and hover text come from it. `tests/test_reference.py` checks that every registry form is accepted by the dispatch table, that every dispatch keyword has an entry, and that each anchor exists in `docs/reference/metacommands.md`. A new metacommand therefore needs both: an `mcl.add()` registration and a registry entry.
 
 ### How dispatch works
 
