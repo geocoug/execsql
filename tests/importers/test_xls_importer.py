@@ -182,3 +182,35 @@ class TestImportXls:
         names = [r[0] for r in rows]
         assert "existing" in names
         assert "new" in names
+
+
+class TestSpreadsheetRowsAfterTheHeader:
+    """Every data row is read: a row of zeros is data, and SKIP does not shorten the sheet."""
+
+    def test_an_xlsx_row_of_zeros_and_false_does_not_end_the_data(self, tmp_path):
+        rows = [["id", "flag", "note"], [1, True, "a"], [0, False, None], [2, True, "c"]]
+        path = _make_xlsx(tmp_path, "Sheet1", rows)
+        _hdrs, data = xls_data(path, "Sheet1", 0)
+        assert len(data) == 3
+
+    def test_an_xlsx_row_of_empty_cells_still_ends_the_data(self, tmp_path):
+        path = _make_xlsx(tmp_path, "Sheet1", [["id"], [1], [None], [2]])
+        _hdrs, data = xls_data(path, "Sheet1", 0)
+        assert len(data) == 1
+
+    def test_xls_skip_keeps_the_last_rows(self):
+        from types import SimpleNamespace
+
+        from execsql.exporters.xls import XlsFile
+
+        def cell(value):
+            return SimpleNamespace(ctype=1 if isinstance(value, str) else 2, value=value)
+
+        sheet_rows = [["junk"], ["junk"], ["id", "v"], [1, 1], [2, 2], [3, 3]]
+        sheet = SimpleNamespace(nrows=len(sheet_rows), row_slice=lambda r: [cell(v) for v in sheet_rows[r]])
+        xls = object.__new__(XlsFile)
+        xls.filename = "fake.xls"
+        xls.sheet_named = lambda name: sheet
+        data = xls.sheet_data("Sheet1", junk_header_rows=2)
+        assert data[0] == ["id", "v"]
+        assert [r[0] for r in data[1:]] == [1, 2, 3]
