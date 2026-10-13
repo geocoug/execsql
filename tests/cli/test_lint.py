@@ -1282,3 +1282,23 @@ class TestGithubOutput:
         result = CliRunner().invoke(app, ["lint", "--output-format", "github", str(tmp_path)])
         assert result.exit_code == 0
         assert result.output == ""
+
+
+class TestPathsTheSystemRejects:
+    """A path the OS cannot even check (too long, an embedded NUL) is a finding, not a crash of the batch."""
+
+    def test_an_overlong_include_path_does_not_hide_other_files(self, tmp_path):
+        from typer.testing import CliRunner
+
+        from execsql.cli import app
+
+        (tmp_path / "long.sql").write_text("-- !x! INCLUDE " + "a" * 5000 + ".sql\n", encoding="utf-8")
+        (tmp_path / "ok.sql").write_text("-- !x! EXPROT x TO y.csv AS CSV\n", encoding="utf-8")
+        result = CliRunner().invoke(app, ["lint", str(tmp_path / "long.sql"), str(tmp_path / "ok.sql")])
+        assert "Uncaught exception" not in result.output
+        assert "I001" in result.output
+        assert "P003" in result.output
+
+    def test_an_include_path_with_a_nul_is_reported(self, tmp_path):
+        found = [i for i in _lint(tmp_path, "-- !x! INCLUDE a\x00b.sql\n") if i.code == "I001"]
+        assert len(found) == 1

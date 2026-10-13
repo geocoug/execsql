@@ -56,6 +56,16 @@ def diagnostics(
     return [to_diagnostic(issue, lines) for issue in sorted(issues, key=lambda i: (i.line, i.code))]
 
 
+def failure_diagnostic(exc: BaseException) -> types.Diagnostic:
+    """Stands in for lint's findings when checking the script raised an unexpected error."""
+    return types.Diagnostic(
+        range=types.Range(start=types.Position(line=0, character=0), end=types.Position(line=0, character=0)),
+        message=f"execsql could not check this script ({type(exc).__name__}: {exc}).",
+        severity=types.DiagnosticSeverity.Error,
+        source="execsql",
+    )
+
+
 def too_deep_diagnostic() -> types.Diagnostic:
     """Stands in for lint's findings on a script nested too deeply to parse."""
     return types.Diagnostic(

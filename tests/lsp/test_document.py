@@ -99,3 +99,10 @@ def test_uses_in_included_files_are_references_but_not_under_the_cursor(tmp_path
     from execsql.lsp.document import variable_at
 
     assert variable_at(index, 0, 9) is None  # line 0 of main.sql is the INCLUDE, not setup.sql's use
+
+
+def test_an_include_path_the_system_rejects_still_gives_an_index(tmp_path):
+    index = index_script("-- !x! SUB region north\n-- !x! INCLUDE a\x00b.sql\n", str(tmp_path / "m.sql"))
+    assert "REGION" in index.definitions
+    long_target = "-- !x! INCLUDE " + "a" * 5000 + ".sql\n"
+    assert index_script(long_target, str(tmp_path / "m.sql")).includes

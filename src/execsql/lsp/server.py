@@ -16,7 +16,7 @@ from pygls.uris import to_fs_path
 from execsql import __version__
 from execsql.lsp.code_actions import code_actions
 from execsql.lsp.completion import completions
-from execsql.lsp.diagnostics import diagnostics, too_deep_diagnostic
+from execsql.lsp.diagnostics import diagnostics, failure_diagnostic, too_deep_diagnostic
 from execsql.lsp.document import ScriptIndex, index_script, read_included, same_file_key
 from execsql.lsp.folding import folding_ranges
 from execsql.lsp.formatting import format_document
@@ -25,6 +25,8 @@ from execsql.lsp.rename import RenameError, prepare_rename, rename
 from execsql.lsp.navigation import definition, document_links, document_symbols, references
 
 __all__ = ["ExecsqlLanguageServer", "create_server"]
+
+_log = logging.getLogger(__name__)
 
 # Pause after the last keystroke before linting, so a burst of typing lints once.
 LINT_DELAY_SECONDS = 0.2
@@ -135,6 +137,9 @@ class ExecsqlLanguageServer(LanguageServer):
             index = index_script(document.source, path, self.read_included)
         except RecursionError:
             index = ScriptIndex(path=path)
+        except Exception:  # the features that need an index answer with nothing; the cause goes to the log
+            _log.exception("execsql lsp: could not index %s", uri)
+            index = ScriptIndex(path=path)
         index.open_uris = self.open_uris()
         return index
 
@@ -176,6 +181,9 @@ class ExecsqlLanguageServer(LanguageServer):
             found = diagnostics(document.source, to_fs_path(uri), settings.select, settings.ignore)
         except RecursionError:
             found = [too_deep_diagnostic()]
+        except Exception as exc:  # shown in the editor, not lost in an unawaited task
+            _log.exception("execsql lsp: could not lint %s", uri)
+            found = [failure_diagnostic(exc)]
         self.text_document_publish_diagnostics(
             types.PublishDiagnosticsParams(uri=uri, version=document.version, diagnostics=found),
         )

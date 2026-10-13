@@ -30,6 +30,7 @@ __all__ = [
     "same_file_key",
     "uri_for",
     "variable_at",
+    "is_file",
 ]
 
 # A substitution variable as written: !!name!!, !'!name!'!, !"!name!"! or the deferred !{name}!.
@@ -100,7 +101,7 @@ def read_included(path: Path) -> str | None:
         if not path.is_file() or path.stat().st_size > MAX_INCLUDED_BYTES:
             return None
         return path.read_text(encoding="utf-8")
-    except (OSError, UnicodeDecodeError):
+    except (OSError, ValueError, UnicodeDecodeError):  # ValueError: a NUL in the name
         return None
 
 
@@ -138,7 +139,7 @@ def _index_into(
     budget: list[int],
 ) -> None:
     if path is not None:
-        seen.add(str(Path(path).resolve()))
+        seen.add(_resolved(path))
     lines = source.splitlines()
     script_dir = Path(path).parent if path else None
     tree = parse_string(source, path or "<untitled>", errors=[])
@@ -167,7 +168,7 @@ def _index_into(
             resolved = Path(target) if Path(target).is_absolute() or script_dir is None else script_dir / target
             if top:
                 index.includes.append((Location(path, row, start, end), str(resolved)))
-            if "!" not in target and str(resolved.resolve()) not in seen and len(seen) < MAX_INCLUDED_FILES:
+            if "!" not in target and _resolved(str(resolved)) not in seen and len(seen) < MAX_INCLUDED_FILES:
                 included = read(resolved)
                 if included is not None and len(included) <= budget[0]:
                     budget[0] -= len(included)
@@ -196,9 +197,25 @@ def file_uri(path: str, index: ScriptIndex) -> str | None:
     return index.open_uris.get(same_file_key(path)) or from_fs_path(path)
 
 
+def _resolved(path: str) -> str:
+    """*path* made absolute with links resolved, or just made absolute when the OS rejects it (too long, a NUL)."""
+    try:
+        return str(Path(path).resolve())
+    except (OSError, ValueError):
+        return os.path.abspath(path)
+
+
+def is_file(path: str | Path) -> bool:
+    """Whether *path* names a regular file; ``False`` for a name the OS rejects (too long, a NUL)."""
+    try:
+        return Path(path).is_file()
+    except (OSError, ValueError):
+        return False
+
+
 def same_file_key(path: str) -> str:
     """*path* resolved and case-folded where the file system ignores case, for comparing files."""
-    return os.path.normcase(str(Path(path).resolve()))
+    return os.path.normcase(_resolved(path))
 
 
 def variable_at(index: ScriptIndex, line: int, character: int) -> Reference | None:
