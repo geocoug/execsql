@@ -13,6 +13,7 @@ ______________________________________________________________________
 
 ### Fixed
 
+- **MySQL IMPORT accepts a header with capital letters** (`Id,Name`): it stopped with "columns that are not in table" (leaving the new table behind), and with `IMPORT_COMMON_COLUMNS_ONLY` it loaded those columns as NULL.
 - **PostgreSQL IMPORT honors `SKIP n`** for quoted CSV files, which load through PostgreSQL's COPY: it skipped only the header line, loading the lines before it as data or failing on them.
 - **Spreadsheet IMPORT reads every data row:** an XLSX row whose values are all `0` or FALSE no longer ends the data (it and every row after it were dropped), and an XLS sheet imported with `SKIP n` no longer loses its last *n* rows.
 

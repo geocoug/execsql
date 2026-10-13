@@ -485,3 +485,42 @@ class TestImportBackslashes:
 
     def test_a_backslash_in_the_file_path_is_kept(self, tmp_path):
         assert self._import(tmp_path, tmp_path / "dir\\with\\backslashes") == self.VALUES
+
+
+class TestHeadersWithCapitals:
+    """MySQL column names are case-insensitive; a header with capitals must match its column."""
+
+    @pytest.mark.parametrize("quoted", [False, True], ids=["load-data", "row-by-row"])
+    def test_import_to_new_loads_every_column(self, tmp_path, quoted):
+        _exec_mysql("DROP TABLE IF EXISTS t_mixed")
+        _write_conf(tmp_path)
+        csv_path = tmp_path / "mixed.csv"
+        # An escape character sends the file down the row-by-row path.
+        body = 'Id,Name\n1,"Ann \\"A\\""\n2,Bo\n' if quoted else "Id,Name\n1,Ann\n2,Bo\n"
+        csv_path.write_text(body)
+        script = write_script(tmp_path, f"-- !x! IMPORT TO NEW t_mixed FROM {csv_path}\n")
+        try:
+            result = _run_execsql_mysql(tmp_path, script)
+            assert result.returncode == 0, f"stderr: {result.stderr}"
+            rows = _query_mysql("SELECT Id, Name FROM t_mixed ORDER BY Id")
+            assert [r[0] for r in rows] == [1, 2]
+            assert all(r[1] for r in rows)
+        finally:
+            _exec_mysql("DROP TABLE IF EXISTS t_mixed")
+
+    def test_common_columns_only_keeps_a_capitalized_column(self, tmp_path):
+        _exec_mysql("DROP TABLE IF EXISTS t_common")
+        _exec_mysql("CREATE TABLE t_common (id INTEGER, name VARCHAR(10))")
+        _write_conf(tmp_path)
+        csv_path = tmp_path / "common.csv"
+        csv_path.write_text("Id,Name,Extra\n1,Ann,x\n")
+        script = write_script(
+            tmp_path,
+            f"-- !x! IMPORT_COMMON_COLUMNS_ONLY YES\n-- !x! IMPORT TO t_common FROM {csv_path}\n",
+        )
+        try:
+            result = _run_execsql_mysql(tmp_path, script)
+            assert result.returncode == 0, f"stderr: {result.stderr}"
+            assert [tuple(r) for r in _query_mysql("SELECT id, name FROM t_common")] == [(1, "Ann")]
+        finally:
+            _exec_mysql("DROP TABLE IF EXISTS t_common")
