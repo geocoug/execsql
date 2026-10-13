@@ -436,25 +436,61 @@ async def test_an_added_workspace_folder_brings_its_config(two_folder_client: La
     assert [d.code for d in two_folder_client.diagnostics[uri]] == ["P003"]
 
 
-def test_a_lint_failure_is_shown_as_one_diagnostic(monkeypatch):
-    """An unexpected error while checking a script is reported in the editor, not lost in a log."""
+def _offline_server(monkeypatch, source: str = "SELECT 1;\n"):
+    """A server with no client: a one-document workspace, publishes recorded in a list."""
     from types import SimpleNamespace
 
     import execsql.lsp.server as server_module
 
     server = server_module.create_server()
-    published = []
+    published: list[types.PublishDiagnosticsParams] = []
     monkeypatch.setattr(server, "text_document_publish_diagnostics", published.append)
-    document = SimpleNamespace(source="SELECT 1;\n", version=3)
+    document = SimpleNamespace(source=source, version=3)
     workspace = SimpleNamespace(get_text_document=lambda uri: document, text_documents={})
     monkeypatch.setattr(type(server), "workspace", property(lambda self: workspace))
+    return server, published
+
+
+def _broken_lint(monkeypatch):
+    import execsql.lsp.server as server_module
 
     def broken(*_args, **_kwargs):
         raise OSError("disk on fire")
 
     monkeypatch.setattr(server_module, "diagnostics", broken)
+
+
+def test_a_lint_failure_is_shown_as_one_diagnostic(monkeypatch):
+    """An unexpected error while checking a script is reported in the editor, not lost in a log."""
+    server, published = _offline_server(monkeypatch)
+    _broken_lint(monkeypatch)
     server.publish("file:///tmp/x.sql")
     [params] = published
     assert len(params.diagnostics) == 1
     assert "could not check this script" in params.diagnostics[0].message
     assert "disk on fire" in params.diagnostics[0].message
+
+
+@pytest.mark.asyncio
+async def test_a_lint_failure_while_typing_replaces_the_findings_and_is_logged(monkeypatch, caplog):
+    """The debounced lint runs in a task nobody awaits: its failure must still reach the editor and the log."""
+    server, published = _offline_server(monkeypatch)
+    _broken_lint(monkeypatch)
+    with caplog.at_level(logging.ERROR, logger="execsql.lsp.server"):
+        server.publish_later("file:///tmp/x.sql")
+        await asyncio.sleep(0.4)
+    [params] = published
+    assert "could not check this script" in params.diagnostics[0].message
+    assert any("could not lint" in r.getMessage() for r in caplog.records)
+
+
+@pytest.mark.asyncio
+async def test_shutdown_cancels_a_pending_lint(monkeypatch):
+    """No diagnostics follow the answer to shutdown."""
+    server, published = _offline_server(monkeypatch)
+    server.publish_later("file:///tmp/x.sql")
+    for handler, args, kwargs in server.protocol.lsp_shutdown(None):  # pygls's shutdown, calling ours
+        handler(*args, **(kwargs or {}))
+    await asyncio.sleep(0.4)
+    assert published == []
+    assert server.pending == {}
