@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.28.0] - 2026-10-13
+
 ### Added
 
 - **`execsql lsp --check`** reports whether the language server can start (exit 0) or what is missing (exit 1).

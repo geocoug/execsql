@@ -321,7 +321,7 @@ execsql format --no-sql --in-place scripts/
 ```yaml
 repos:
   - repo: https://github.com/geocoug/execsql
-    rev: v2.27.0
+    rev: v2.28.0
     hooks:
       - id: execsql-format
       - id: execsql-lint
