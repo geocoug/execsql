@@ -471,7 +471,7 @@ def _read_ini_vars(
         if stat.st_size > _MAX_INI_BYTES:
             return
         resolved = str(p.resolve())
-    except OSError:
+    except (OSError, ValueError):  # unreadable, or a name the OS rejects
         return
     defined_vars.update(_ini_section_keys(resolved, stat.st_size, stat.st_mtime_ns, section))
 
@@ -587,7 +587,12 @@ def _check_include_path(
     if not p.is_absolute() and script_dir is not None:
         p = script_dir / p
 
-    if not p.exists():
+    try:
+        exists = p.exists()
+    except OSError as exc:  # a name the file system rejects outright (too long, ...)
+        issues.append(_issue("I001", source, line_no, f"INCLUDE path cannot be checked: {exc.strerror or exc}"))
+        return
+    if not exists:
         issues.append(
             _issue("I001", source, line_no, f"INCLUDE file does not exist: {raw_path}"),
         )

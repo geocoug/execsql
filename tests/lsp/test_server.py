@@ -434,3 +434,27 @@ async def test_an_added_workspace_folder_brings_its_config(two_folder_client: La
     )
     await _published(two_folder_client, since, uri)
     assert [d.code for d in two_folder_client.diagnostics[uri]] == ["P003"]
+
+
+def test_a_lint_failure_is_shown_as_one_diagnostic(monkeypatch):
+    """An unexpected error while checking a script is reported in the editor, not lost in a log."""
+    from types import SimpleNamespace
+
+    import execsql.lsp.server as server_module
+
+    server = server_module.create_server()
+    published = []
+    monkeypatch.setattr(server, "text_document_publish_diagnostics", published.append)
+    document = SimpleNamespace(source="SELECT 1;\n", version=3)
+    workspace = SimpleNamespace(get_text_document=lambda uri: document, text_documents={})
+    monkeypatch.setattr(type(server), "workspace", property(lambda self: workspace))
+
+    def broken(*_args, **_kwargs):
+        raise OSError("disk on fire")
+
+    monkeypatch.setattr(server_module, "diagnostics", broken)
+    server.publish("file:///tmp/x.sql")
+    [params] = published
+    assert len(params.diagnostics) == 1
+    assert "could not check this script" in params.diagnostics[0].message
+    assert "disk on fire" in params.diagnostics[0].message

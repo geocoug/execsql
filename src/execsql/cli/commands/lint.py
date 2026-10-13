@@ -93,7 +93,10 @@ def lint_paths(
         except OSError as exc:
             found = [_issue("P001", label, 0, f"cannot read: {exc.strerror or exc}")]
         else:
-            found = lint_source(source, label, script_path=None if stdin else label)
+            try:
+                found = lint_source(source, label, script_path=None if stdin else label)
+            except Exception as exc:  # one script lint cannot check must not hide the others' findings
+                found = [_issue("P001", label, 0, f"execsql could not check this script ({type(exc).__name__}: {exc})")]
         per_file.append((label, sorted(filter_issues(found, select, ignore), key=lambda i: (i.line, i.code))))
 
     reported = [issue for _, issues in per_file for issue in issues]

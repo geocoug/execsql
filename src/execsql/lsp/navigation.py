@@ -6,7 +6,7 @@ from pathlib import Path
 
 from lsprotocol import types
 
-from execsql.lsp.document import Location, ScriptIndex, file_uri, uri_for, variable_at
+from execsql.lsp.document import Location, ScriptIndex, file_uri, is_file, uri_for, variable_at
 from execsql.script.ast import (
     BatchBlock,
     IfBlock,
@@ -55,7 +55,7 @@ def definition(index: ScriptIndex, uri: str, line: int, character: int) -> list[
         return [_lsp_location(index.scripts[script], index, uri)]
 
     target = _at(index.includes, line, character)
-    if target is not None and Path(target).is_file():
+    if target is not None and is_file(target):
         uri_of_file = file_uri(target, index)
         if uri_of_file:
             return [types.Location(uri=uri_of_file, range=_range(0, 0, 0))]
@@ -84,7 +84,7 @@ def document_links(index: ScriptIndex) -> list[types.DocumentLink]:
     links = []
     for loc, target in index.includes:
         path = Path(target)
-        if path.is_file():
+        if is_file(path):
             uri = file_uri(target, index)
             if uri:
                 links.append(types.DocumentLink(range=_range(loc.line, loc.start, loc.end), target=uri))
