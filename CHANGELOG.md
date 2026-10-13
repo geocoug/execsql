@@ -15,6 +15,7 @@ ______________________________________________________________________
 
 - **`execsql lint` checks every file** when one has an `INCLUDE` path the operating system rejects (such as a name too long for it): that file gets an I001 finding instead of the whole run stopping with "Uncaught exception", and a script lint cannot check at all is reported as one P001 error.
 - **The language server shows "execsql could not check this script"** when checking a script fails unexpectedly, instead of keeping its old findings; hover, completion and navigation keep working for a script with such an `INCLUDE`.
+- **The language server answers quickly in a script with many or large `INCLUDE`s:** completion, hover, go-to-definition and the other features no longer reread and reparse every included file on each request (50 included 3,000-line files: about 0.55 s per keystroke before, under 20 ms now). A changed included file is read again.
 - **VS Code extension:** turning `execsql.server.enabled` on or off, or changing `execsql.server.path`, takes effect without reloading the window; **execsql: Restart Language Server** works (and says so) when the server is off, and two quick restarts no longer leave a second server running.
 
 ______________________________________________________________________

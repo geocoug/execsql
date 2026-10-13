@@ -14,10 +14,11 @@ from pygls.lsp.server import LanguageServer
 from pygls.uris import to_fs_path
 
 from execsql import __version__
+from execsql.lsp.cache import IndexCache
 from execsql.lsp.code_actions import code_actions
 from execsql.lsp.completion import completions
 from execsql.lsp.diagnostics import diagnostics, failure_diagnostic, too_deep_diagnostic
-from execsql.lsp.document import ScriptIndex, index_script, read_included, same_file_key
+from execsql.lsp.document import ScriptIndex, index_script, same_file_key
 from execsql.lsp.folding import folding_ranges
 from execsql.lsp.formatting import format_document
 from execsql.lsp.hover import hover
@@ -59,13 +60,14 @@ class Settings:
 
 
 class ExecsqlLanguageServer(LanguageServer):
-    """Holds what the handlers share: each workspace folder's settings and pending lint tasks."""
+    """Holds what the handlers share: each workspace folder's settings, pending lint tasks and the index cache."""
 
     def __init__(self) -> None:
         super().__init__("execsql", __version__)
         self.settings: dict[str, Settings] = {}  # by same_file_key of each workspace folder
         self.fallback = Settings()  # for a file in no workspace folder
         self.pending: dict[str, asyncio.Task[Any]] = {}
+        self.cache = IndexCache()
 
     def load_settings(self) -> None:
         """Read ``[lint]`` and ``[format]`` for each workspace folder, as ``execsql lint`` / ``execsql format`` run there would.
@@ -126,7 +128,7 @@ class ExecsqlLanguageServer(LanguageServer):
         return self.settings[max(holding, key=len)] if holding else self.fallback
 
     def index(self, uri: str) -> ScriptIndex:
-        """The current document's index (rebuilt per request: a few milliseconds).
+        """The current document's index, rebuilt per request from :attr:`cache`d per-file facts.
 
         A script the parser cannot handle (nesting past Python's recursion
         limit) gets an empty index, so features fall back to what needs none.
@@ -134,7 +136,7 @@ class ExecsqlLanguageServer(LanguageServer):
         document = self.workspace.get_text_document(uri)
         path = to_fs_path(uri)
         try:
-            index = index_script(document.source, path, self.read_included)
+            index = index_script(document.source, path, self.read_included, self.cache.facts)
         except RecursionError:
             index = ScriptIndex(path=path)
         except Exception:  # the features that need an index answer with nothing; the cause goes to the log
@@ -166,7 +168,7 @@ class ExecsqlLanguageServer(LanguageServer):
         uri = self.open_uris().get(same_file_key(str(path)))
         if uri is not None:
             return self.workspace.get_text_document(uri).source
-        return read_included(path)
+        return self.cache.text(path)
 
     def supports_snippets(self) -> bool:
         caps = self.client_capabilities.text_document
@@ -261,6 +263,10 @@ def create_server() -> ExecsqlLanguageServer:
 
     @server.feature(types.WORKSPACE_DID_CHANGE_WATCHED_FILES)
     def did_change_watched_files(ls: ExecsqlLanguageServer, params: types.DidChangeWatchedFilesParams) -> None:
+        for change in params.changes:
+            path = to_fs_path(change.uri)
+            if path:
+                ls.cache.forget(path)
         if any(Path(to_fs_path(change.uri) or "").name.lower() == "execsql.conf" for change in params.changes):
             ls.load_settings()
         ls.publish_all()
