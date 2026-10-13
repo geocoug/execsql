@@ -239,6 +239,13 @@ def create_server() -> ExecsqlLanguageServer:
         ls.load_settings()
         ls.watch_files()
 
+    @server.feature(types.SHUTDOWN)
+    def shutdown(ls: ExecsqlLanguageServer, params: None) -> None:
+        # No diagnostics may follow the answer to shutdown.
+        for task in ls.pending.values():
+            task.cancel()
+        ls.pending.clear()
+
     @server.feature(types.TEXT_DOCUMENT_DID_OPEN)
     def did_open(ls: ExecsqlLanguageServer, params: types.DidOpenTextDocumentParams) -> None:
         ls.publish(params.text_document.uri)
