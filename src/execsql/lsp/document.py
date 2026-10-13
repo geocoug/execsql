@@ -21,9 +21,11 @@ from execsql.script.ast import IncludeDirective, MetaCommandStatement, ScriptBlo
 from execsql.script.parser import parse_string
 
 __all__ = [
+    "FileFacts",
     "Location",
     "Reference",
     "ScriptIndex",
+    "file_facts",
     "file_uri",
     "index_script",
     "read_included",
@@ -113,18 +115,103 @@ def _span_of(word: str, line: str, start: int = 0) -> tuple[int, int]:
     return start + m.start(), start + m.end()
 
 
+@dataclass(frozen=True)
+class _Define:
+    name: str  # as the script spells it
+    location: Location
+
+
+@dataclass(frozen=True)
+class _ScriptDef:
+    name: str  # lower case
+    location: Location
+    params: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class _ScriptCall:
+    location: Location
+    name: str  # lower case
+
+
+@dataclass(frozen=True)
+class _Include:
+    location: Location
+    target: str  # as written, quotes removed
+    resolved: str  # relative to the including file
+
+
+@dataclass(frozen=True)
+class FileFacts:
+    """What one file adds to an index, in the order indexing meets it.
+
+    It depends on the file's text and path alone, not on the files it
+    includes, so a caller may keep it while the text is unchanged, unless
+    :attr:`reads_ini`: a ``SUB_INI`` reads an INI file that can change on its own.
+    """
+
+    steps: tuple[_Define | _ScriptDef | _ScriptCall | _Include, ...]
+    references: tuple[Reference, ...]
+    reads_ini: bool = False
+
+
+_RX_SUB_INI = re.compile(r"\s*SUB_INI\b", re.I)
+
+
+def file_facts(source: str, path: str | None) -> FileFacts:
+    """The definitions, script blocks, ``INCLUDE`` targets and variable uses written in *source*."""
+    steps: list[_Define | _ScriptDef | _ScriptCall | _Include] = []
+    reads_ini = False
+    lines = source.splitlines()
+    script_dir = Path(path).parent if path else None
+    tree = parse_string(source, path or "<untitled>", errors=[])
+
+    for node in tree.walk():
+        row = node.span.start_line - 1
+        text = lines[row] if 0 <= row < len(lines) else ""
+        if isinstance(node, MetaCommandStatement):
+            reads_ini = reads_ini or _RX_SUB_INI.match(node.command) is not None
+            prefix = _RX_METACOMMAND.match(text)
+            after = prefix.end() if prefix else 0
+            for name in sorted(variables_defined_by(node.command, script_dir)):
+                start, end = _span_of(name, text, after)
+                found = text[start:end] if text[start:end].upper() == name else name  # keep the script's spelling
+                steps.append(_Define(found, Location(path, row, start, end)))
+        elif isinstance(node, ScriptBlock):
+            start, end = _span_of(node.name, text)
+            params = tuple(p.name for p in node.param_defs or [])
+            steps.append(_ScriptDef(node.name.lower(), Location(path, row, start, end), params))
+        elif isinstance(node, IncludeDirective) and node.is_execute_script:
+            start, end = _span_of(node.target, text)
+            steps.append(_ScriptCall(Location(path, row, start, end), node.target.lower()))
+        elif isinstance(node, IncludeDirective):
+            target = node.target.strip().strip("\"'")
+            start, end = _span_of(target, text) if target else (0, len(text))
+            resolved = Path(target) if Path(target).is_absolute() or script_dir is None else script_dir / target
+            steps.append(_Include(Location(path, row, start, end), target, str(resolved)))
+
+    references: list[Reference] = []
+    for row, text in enumerate(lines):
+        for m in _RX_VARIABLE.finditer(text):
+            group = "deferred" if m.group("deferred") else "name"
+            references.append(Reference(m.group(group), Location(path, row, m.start(group), m.end(group))))
+    return FileFacts(tuple(steps), tuple(references), reads_ini)
+
+
 def index_script(
     source: str,
     path: str | None,
     read: Callable[[Path], str | None] = read_included,
+    facts: Callable[[str, str | None], FileFacts] = file_facts,
 ) -> ScriptIndex:
     """Index *source*, the text of the file at *path* (``None`` for an unsaved buffer).
 
     *read* supplies an ``INCLUDE``d file's text; the server passes one that
-    prefers the editor's unsaved copy of a file that is open.
+    prefers the editor's unsaved copy of a file that is open.  *facts*
+    reads one file's text; the server passes one that remembers the answer.
     """
     index = ScriptIndex(path=path)
-    _index_into(index, source, path, set(), read, top=True, budget=[MAX_INCLUDED_TOTAL_BYTES])
+    _index_into(index, source, path, set(), read, facts, top=True, budget=[MAX_INCLUDED_TOTAL_BYTES])
     return index
 
 
@@ -134,50 +221,32 @@ def _index_into(
     path: str | None,
     seen: set[str],
     read: Callable[[Path], str | None],
+    facts: Callable[[str, str | None], FileFacts],
     *,
     top: bool,
     budget: list[int],
 ) -> None:
     if path is not None:
         seen.add(_resolved(path))
-    lines = source.splitlines()
-    script_dir = Path(path).parent if path else None
-    tree = parse_string(source, path or "<untitled>", errors=[])
-
-    for node in tree.walk():
-        row = node.span.start_line - 1
-        text = lines[row] if 0 <= row < len(lines) else ""
-        if isinstance(node, MetaCommandStatement):
-            prefix = _RX_METACOMMAND.match(text)
-            after = prefix.end() if prefix else 0
-            for name in sorted(variables_defined_by(node.command, script_dir)):
-                start, end = _span_of(name, text, after)
-                found = text[start:end] if text[start:end].upper() == name else name  # keep the script's spelling
-                index.define(found, Location(path, row, start, end))
-        elif isinstance(node, ScriptBlock):
-            start, end = _span_of(node.name, text)
-            index.scripts.setdefault(node.name.lower(), Location(path, row, start, end))
-            index.script_params[node.name.lower()] = [p.name for p in node.param_defs or []]
-        elif isinstance(node, IncludeDirective) and node.is_execute_script:
+    found = facts(source, path)
+    for step in found.steps:
+        if isinstance(step, _Define):
+            index.define(step.name, step.location)
+        elif isinstance(step, _ScriptDef):
+            index.scripts.setdefault(step.name, step.location)
+            index.script_params[step.name] = list(step.params)
+        elif isinstance(step, _ScriptCall):
             if top:
-                start, end = _span_of(node.target, text)
-                index.script_calls.append((Location(path, row, start, end), node.target.lower()))
-        elif isinstance(node, IncludeDirective):
-            target = node.target.strip().strip("\"'")
-            start, end = _span_of(target, text) if target else (0, len(text))
-            resolved = Path(target) if Path(target).is_absolute() or script_dir is None else script_dir / target
+                index.script_calls.append((step.location, step.name))
+        else:
             if top:
-                index.includes.append((Location(path, row, start, end), str(resolved)))
-            if "!" not in target and _resolved(str(resolved)) not in seen and len(seen) < MAX_INCLUDED_FILES:
-                included = read(resolved)
+                index.includes.append((step.location, step.resolved))
+            if "!" not in step.target and _resolved(step.resolved) not in seen and len(seen) < MAX_INCLUDED_FILES:
+                included = read(Path(step.resolved))
                 if included is not None and len(included) <= budget[0]:
                     budget[0] -= len(included)
-                    _index_into(index, included, str(resolved), seen, read, top=False, budget=budget)
-
-    for row, text in enumerate(lines):
-        for m in _RX_VARIABLE.finditer(text):
-            group = "deferred" if m.group("deferred") else "name"
-            index.references.append(Reference(m.group(group), Location(path, row, m.start(group), m.end(group))))
+                    _index_into(index, included, step.resolved, seen, read, facts, top=False, budget=budget)
+    index.references.extend(found.references)
 
 
 def uri_for(path: str | None, index: ScriptIndex, uri: str) -> str:
