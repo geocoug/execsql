@@ -269,6 +269,53 @@ async def test_saving_a_script_lints_the_scripts_that_include_it_again(client: L
     await _published(client, since, main, setup_uri)
 
 
+def _watched(client: LanguageClient, *paths) -> None:
+    client.workspace_did_change_watched_files(
+        types.DidChangeWatchedFilesParams(
+            changes=[types.FileEvent(uri=p.as_uri(), type=types.FileChangeType.Changed) for p in paths],
+        ),
+    )
+
+
+@pytest.mark.asyncio
+async def test_one_save_lints_each_affected_script_once(client: LanguageClient):
+    """The editor reports a save twice (didSave, then its file watcher); a script that does not include the file is left alone."""
+    (client.root / "a.sql").write_text("SELECT 1;\n", encoding="utf-8")
+    a = _open(client, "a.sql", "SELECT 1;\n")
+    includer = _open(client, "includer.sql", "-- !x! INCLUDE a.sql\n")
+    other = _open(client, "other.sql", "SELECT 2;\n")
+    await _published(client, 0, a, includer, other)
+    since = len(client.published)
+    client.text_document_did_save(types.DidSaveTextDocumentParams(text_document=types.TextDocumentIdentifier(uri=a)))
+    _watched(client, client.root / "a.sql")
+    await asyncio.sleep(0.6)
+    later = client.published[since:]
+    assert (later.count(a), later.count(includer), later.count(other)) == (1, 1, 0)
+
+
+@pytest.mark.asyncio
+async def test_a_change_to_a_script_no_open_script_includes_lints_nothing(client: LanguageClient):
+    a = _open(client, "a.sql", "-- !x! INCLUDE setup.sql\n")
+    await _published(client, 0, a)
+    since = len(client.published)
+    (client.root / "unrelated.sql").write_text("SELECT 1;\n", encoding="utf-8")
+    _watched(client, client.root / "unrelated.sql")
+    await asyncio.sleep(0.6)
+    assert client.published[since:] == []
+
+
+@pytest.mark.asyncio
+async def test_creating_an_included_file_clears_its_missing_include_finding(client: LanguageClient):
+    a = _open(client, "a.sql", "-- !x! INCLUDE setup.sql\n")
+    await _published(client, 0, a)
+    assert [d.code for d in client.diagnostics[a]] == ["I001"]
+    since = len(client.published)
+    (client.root / "setup.sql").write_text("SELECT 1;\n", encoding="utf-8")
+    _watched(client, client.root / "setup.sql")
+    await _published(client, since, a)
+    assert not client.diagnostics[a]
+
+
 @pytest.mark.asyncio
 async def test_an_included_file_open_in_the_editor_is_read_unsaved(client: LanguageClient):
     (client.root / "vars.sql").write_text("SELECT 1;\n", encoding="utf-8")  # the saved copy defines nothing

@@ -154,6 +154,11 @@ class FileFacts:
     references: tuple[Reference, ...]
     reads_ini: bool = False
 
+    @property
+    def includes(self) -> tuple[str, ...]:
+        """The path of each file an ``INCLUDE`` in this file names, relative to it."""
+        return tuple(step.resolved for step in self.steps if isinstance(step, _Include))
+
 
 _RX_SUB_INI = re.compile(r"\s*SUB_INI\b", re.I)
 

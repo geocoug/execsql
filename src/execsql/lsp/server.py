@@ -6,6 +6,7 @@ import asyncio
 import logging
 import os
 from dataclasses import dataclass, field
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
@@ -190,10 +191,31 @@ class ExecsqlLanguageServer(LanguageServer):
             types.PublishDiagnosticsParams(uri=uri, version=document.version, diagnostics=found),
         )
 
-    def publish_all(self) -> None:
-        """Lint every open document again: a file one of them includes, or the config, changed."""
+    def relint(self, changed: Iterable[str] | None = None) -> None:
+        """Lint again, after :data:`LINT_DELAY_SECONDS`, each open document a change to the *changed* files can affect.
+
+        Lint reads no included file's text; it checks only that each file a
+        script ``INCLUDE``s exists.  So a document is affected by a change to
+        itself or to a file it includes.  ``None`` means everything changed
+        (the config, the workspace folders).  Going through the debounce, the
+        editor's save and its file watcher's report of the same save lint once.
+        """
+        keys = None if changed is None else {same_file_key(path) for path in changed}
         for uri in list(self.workspace.text_documents):
-            self.publish(uri)
+            if keys is None or self._affected(uri, keys):
+                self.publish_later(uri)
+
+    def _affected(self, uri: str, keys: set[str]) -> bool:
+        path = to_fs_path(uri)
+        if path is None:
+            return False
+        if same_file_key(path) in keys:
+            return True
+        try:
+            facts = self.cache.facts(self.workspace.get_text_document(uri).source, path)
+        except Exception:  # when unsure, lint again
+            return True
+        return any(same_file_key(target) in keys for target in facts.includes)
 
     def watch_files(self) -> None:
         """Ask the client to report changes to :data:`WATCHED_FILES`, if it can."""
@@ -259,23 +281,25 @@ def create_server() -> ExecsqlLanguageServer:
     @server.feature(types.TEXT_DOCUMENT_DID_SAVE)
     def did_save(ls: ExecsqlLanguageServer, params: types.DidSaveTextDocumentParams) -> None:
         # Another open script may INCLUDE this one; a client that cannot watch files reports nothing else.
-        ls.publish_all()
+        path = to_fs_path(params.text_document.uri)
+        ls.relint([path] if path else [])
 
     @server.feature(types.WORKSPACE_DID_CHANGE_WATCHED_FILES)
     def did_change_watched_files(ls: ExecsqlLanguageServer, params: types.DidChangeWatchedFilesParams) -> None:
-        for change in params.changes:
-            path = to_fs_path(change.uri)
-            if path:
-                ls.cache.forget(path)
-        if any(Path(to_fs_path(change.uri) or "").name.lower() == "execsql.conf" for change in params.changes):
+        paths = [path for change in params.changes if (path := to_fs_path(change.uri))]
+        for path in paths:
+            ls.cache.forget(path)
+        if any(Path(path).name.lower() == "execsql.conf" for path in paths):
             ls.load_settings()
-        ls.publish_all()
+            ls.relint()
+        else:
+            ls.relint(paths)
 
     @server.feature(types.WORKSPACE_DID_CHANGE_WORKSPACE_FOLDERS)
     def did_change_folders(ls: ExecsqlLanguageServer, params: types.DidChangeWorkspaceFoldersParams) -> None:
         # pygls has already updated ls.workspace.folders.
         ls.load_settings()
-        ls.publish_all()
+        ls.relint()
 
     @server.feature(types.TEXT_DOCUMENT_DID_CLOSE)
     def did_close(ls: ExecsqlLanguageServer, params: types.DidCloseTextDocumentParams) -> None:
