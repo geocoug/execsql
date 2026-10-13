@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Fixed
+
+- **VS Code extension:** turning `execsql.server.enabled` on or off, or changing `execsql.server.path`, takes effect without reloading the window; **execsql: Restart Language Server** works (and says so) when the server is off, and two quick restarts no longer leave a second server running.
+
 ______________________________________________________________________
 
 ## [2.29.0] - 2026-10-13

@@ -101,7 +101,7 @@ underlined line). A fix is offered only when applying it clears the finding.
 Format Document (VS Code: Shift-Alt-F, or `editor.formatOnSave`) runs
 [`execsql format`](formatter.md) on the editor's text, with the
 `[format]` settings of the workspace's configuration (`indent`, `sql`,
-`leading_comma`), so the editor, the command line and the `execsql-format`
+`leading_comma`, and [`rewrite_sql`](formatter.md#layout-only)), so the editor, the command line and the `execsql-format`
 pre-commit hook agree. The editor's own tab-size setting is not used. Only
 whole documents are formatted, not selections: a statement's indentation
 depends on the IF, LOOP and SCRIPT blocks around it.
@@ -152,9 +152,12 @@ The server reads each folder's `execsql.conf` again when it changes, and
 lints every open script again when a `.sql` file in the workspace changes or
 is saved, so a script sees the variables an edited `INCLUDE` file now defines.
 An included file that is open in the editor is read as you have it, saved or
-not. This needs an editor that reports file changes to the server (VS Code and
-Neovim do); otherwise, and after changing a configuration file outside the
-workspace, restart the server.
+not. This needs an editor that reports file changes to the server: VS Code
+does, and Neovim does on macOS and Windows. Elsewhere (Neovim on Linux, most
+other clients) saving a script in the editor still relints the scripts that
+include it, but an edit to `execsql.conf`, or a change made outside the editor
+(a `git checkout`, another tool), is picked up only after restarting the server
+(Neovim: `:LspRestart`).
 
 The server only reads: it never connects to a database or runs a script, and
 nothing in the workspace can make it run code. The only code it loads besides
