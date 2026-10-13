@@ -307,10 +307,12 @@ class MySQLDatabase(Database):
         table_cols = self.table_columns(table_name, schema_name)
         data_table_cols = [d.lower() for d in table_cols]
         csv_file_cols = csv_file_obj.column_headers()
+        # MySQL column names are case-insensitive: compare without case, and
+        # send the file's own spelling.
         if _state.conf.import_common_cols_only:
-            import_cols = [col for col in csv_file_cols if col in data_table_cols]
+            import_cols = [col for col in csv_file_cols if col.lower() in data_table_cols]
         else:
-            unmatched_cols = list(set(csv_file_cols) - set(data_table_cols))
+            unmatched_cols = [col for col in csv_file_cols if col.lower() not in data_table_cols]
             if len(unmatched_cols) > 0:
                 raise ErrInfo(
                     type="error",
@@ -326,7 +328,7 @@ class MySQLDatabase(Database):
         # reads the format that was detected.
         if (
             csv_file_obj.escapechar is None
-            and data_table_cols == csv_file_cols
+            and data_table_cols == [col.lower() for col in csv_file_cols]
             and _state.conf.empty_strings
             and _state.conf.empty_rows
             and not _state.conf.del_empty_cols
