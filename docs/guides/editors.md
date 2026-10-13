@@ -148,11 +148,13 @@ loads/                    (no execsql.conf)
 an unknown metacommand is reported in `loads/*.sql` but not in
 `reports/*.sql`. Adding or removing a folder takes effect at once.
 
-The server reads each folder's `execsql.conf` again when it changes, and
-lints every open script again when a `.sql` file in the workspace changes or
-is saved, so a script sees the variables an edited `INCLUDE` file now defines.
-An included file that is open in the editor is read as you have it, saved or
-not. This needs an editor that reports file changes to the server: VS Code
+The server reads each folder's `execsql.conf` again when it changes (and lints
+every open script with the new settings), and lints an open script again when a
+file it `INCLUDE`s is created, deleted or saved, so a missing-file finding
+clears once the file exists. Completion, hover and go-to-definition always use
+the included files' current text, so a script sees the variables an edited
+`INCLUDE` file now defines. An included file that is open in the editor is read
+as you have it, saved or not. This needs an editor that reports file changes to the server: VS Code
 does, and Neovim does on macOS and Windows. Elsewhere (Neovim on Linux, most
 other clients) saving a script in the editor still relints the scripts that
 include it, but an edit to `execsql.conf`, or a change made outside the editor
