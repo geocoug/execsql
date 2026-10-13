@@ -16,14 +16,14 @@ For [execsql](https://execsql2.readthedocs.io/) scripts in `.sql` files:
     `uv tool install "execsql2[postgres,lsp]"` or `pipx install --force "execsql2[postgres,lsp]"`: the
     new list replaces the old one ([Adding an extra later](https://execsql2.readthedocs.io/en/latest/getting-started/installation/#adding-an-extra-later)).
 
-    Without it, highlighting still works and VS Code shows a one-time warning. See
+    Without it, highlighting still works and VS Code shows a warning each time the server fails to start. See
     [Editor Support](https://execsql2.readthedocs.io/en/latest/guides/editors/) for what the server does.
 
 ## Settings
 
 | Setting                  | Default   |                                                                                                         |
 | ------------------------ | --------- | ------------------------------------------------------------------------------------------------------- |
-| `execsql.server.enabled` | `true`    | Start the language server for SQL files.                                                                |
+| `execsql.server.enabled` | `true`    | Start the language server for SQL files. Turning it off stops the server; no reload is needed.          |
 | `execsql.server.path`    | `execsql` | The command to run as `<path> lsp`, if `execsql` is not on VS Code's PATH, e.g. `~/.local/bin/execsql`. |
 
 After installing or upgrading execsql, run **execsql: Restart Language Server** from the Command Palette.
@@ -101,13 +101,13 @@ ln -s "$(pwd)/execsql/extras/vscode-execsql" ~/.vscode/extensions/execsql-syntax
 
 ### Windows
 
-Create a directory junction using Command Prompt **as Administrator**:
+Create a directory junction using Command Prompt (a junction, unlike a symbolic link, needs no Administrator rights):
 
 ```cmd
 mklink /J "%USERPROFILE%\.vscode\extensions\execsql-syntax" "C:\path\to\execsql\extras\vscode-execsql"
 ```
 
-Or using PowerShell **as Administrator**:
+Or using PowerShell:
 
 ```powershell
 New-Item -ItemType Junction -Path "$env:USERPROFILE\.vscode\extensions\execsql-syntax" -Target "C:\path\to\execsql\extras\vscode-execsql"
@@ -192,7 +192,7 @@ ______________________________________________________________________
 **Colors look wrong or still match regular SQL**
 
 - The `tokenColorCustomizations` block in your user settings must use the exact theme name in brackets.
-- Run **Developer: Reload Window** after changing settings.
+- Run **Developer: Reload Window** after changing color settings. The `execsql.server.*` settings take effect at once.
 
 **No lint findings or completion**
 
@@ -206,4 +206,4 @@ ______________________________________________________________________
 **Extension not showing in the Extensions panel**
 
 - Check that the symlink/junction points to the folder containing `package.json`, not to a parent folder.
-- On Windows, the junction must be created with Administrator privileges.
+- On Windows, use a junction (`mklink /J`), not a symbolic link (`mklink /D`), which needs Administrator rights.

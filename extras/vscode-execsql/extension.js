@@ -99,37 +99,65 @@ async function start() {
   }
 }
 
-async function activate(context) {
-  if (!vscode.workspace.getConfiguration("execsql").get("server.enabled", true)) {
-    return;
-  }
-  context.subscriptions.push(
-    vscode.commands.registerCommand("execsql.restartServer", async () => {
-      if (!vscode.workspace.isTrusted) {
-        vscode.window.showInformationMessage(
-          "The execsql language server starts once you trust this workspace.",
-        );
-        return;
-      }
-      if (client) {
-        await client.stop();
-        client = undefined;
-      }
-      await start();
-    }),
-  );
-  // The server reads the scripts, the files they INCLUDE and the execsql.conf files the
-  // workspace names, so it starts only in a trusted workspace; syntax
-  // highlighting works either way.
-  if (vscode.workspace.isTrusted) {
-    await start();
-  } else {
-    context.subscriptions.push(vscode.workspace.onDidGrantWorkspaceTrust(() => start()));
+function serverEnabled() {
+  return vscode.workspace.getConfiguration("execsql").get("server.enabled", true);
+}
+
+async function stop() {
+  if (client) {
+    const running = client;
+    client = undefined;
+    await running.stop();
   }
 }
 
+// Brings the server to the state the settings and workspace trust call for,
+// one change at a time: a second request waits for the first, so two quick
+// restarts cannot leave an orphaned server process.
+let pending = Promise.resolve();
+function update(restart) {
+  pending = pending
+    .then(async () => {
+      if (restart) {
+        await stop();
+      }
+      // The server reads the scripts, the files they INCLUDE and the
+      // execsql.conf files the workspace names, so it runs only in a trusted
+      // workspace; syntax highlighting works either way.
+      if (!serverEnabled() || !vscode.workspace.isTrusted) {
+        await stop();
+      } else if (!client) {
+        await start();
+      }
+    })
+    .catch((err) => vscode.window.showWarningMessage(`execsql language server: ${err.message}`));
+  return pending;
+}
+
+async function activate(context) {
+  context.subscriptions.push(
+    vscode.commands.registerCommand("execsql.restartServer", async () => {
+      if (!serverEnabled()) {
+        vscode.window.showInformationMessage("The execsql language server is turned off (execsql.server.enabled).");
+        return;
+      }
+      if (!vscode.workspace.isTrusted) {
+        vscode.window.showInformationMessage("The execsql language server starts once you trust this workspace.");
+        return;
+      }
+      await update(true);
+    }),
+    // execsql.server.enabled and execsql.server.path take effect without reloading the window.
+    vscode.workspace.onDidChangeConfiguration((event) => {
+      return event.affectsConfiguration("execsql.server") ? update(true) : undefined;
+    }),
+    vscode.workspace.onDidGrantWorkspaceTrust(() => update(false)),
+  );
+  await update(false);
+}
+
 function deactivate() {
-  return client ? client.stop() : undefined;
+  return stop();
 }
 
 module.exports = { activate, deactivate };
