@@ -183,6 +183,71 @@ class TestDuckDBExecuteAndSelect:
         assert len(result) == 3
 
 
+class TestDuckDBTemporaryTables:
+    """A temporary table belongs to one DuckDB connection; every statement must run on it."""
+
+    def test_a_temporary_table_is_seen_by_the_next_statement(self, db):
+        db.execute("CREATE TEMPORARY TABLE tt (n INTEGER);")
+        db.execute("INSERT INTO tt VALUES (1), (2);")
+        _hdrs, rows = db.select_data("SELECT count(*) FROM tt;")
+        assert rows[0][0] == 2
+
+    def test_a_temporary_table_can_be_streamed_and_checked(self, db):
+        db.execute("CREATE TEMPORARY TABLE tt (n INTEGER);")
+        db.execute("INSERT INTO tt VALUES (1), (2), (3);")
+        assert db.table_exists("tt")
+        _hdrs, rows = db.select_rowsource("SELECT n FROM tt ORDER BY n;")
+        assert [r[0] for r in rows] == [1, 2, 3]
+
+    def test_in_a_script(self, tmp_path):
+        from execsql import run
+
+        result = run(
+            sql="create temporary table tt (x integer);\ninsert into tt values (1);\n"
+            "-- !x! EXPORT tt TO stdout AS TXT\n",
+            dsn=f"duckdb:///{tmp_path / 't.duckdb'}",
+            new_db=True,
+        )
+        assert result.success, result.errors
+
+
+class TestDuckDBReadsThatOverlap:
+    """The connection holds one pending result; a statement run while another is being read must not cut it short."""
+
+    def test_two_reads_at_once_both_deliver_every_row(self, db):
+        db.execute("CREATE TABLE s AS SELECT range AS a FROM range(5000);")
+        _h, first = db.select_rowsource("SELECT a FROM s ORDER BY a;")
+        head = [next(first) for _ in range(10)]
+        _h, second = db.select_rowsource("SELECT a * 2 FROM s;")
+        assert len(list(second)) == 5000
+        assert len(head) + len(list(first)) == 5000
+
+    def test_a_statement_while_reading_does_not_cut_the_read_short(self, db):
+        db.execute("CREATE TABLE s AS SELECT range AS a FROM range(3000);")
+        db.execute("CREATE TABLE t (a INTEGER);")
+        _h, rows = db.select_rowsource("SELECT a FROM s;")
+        for row in rows:
+            db.execute(f"INSERT INTO t VALUES ({row[0]});")
+        _h, counted = db.select_data("SELECT count(*) FROM t;")
+        assert counted[0][0] == 3000
+
+    @pytest.mark.parametrize("autocommit", ["ON", "OFF"])
+    def test_copy_into_an_existing_table_copies_every_row(self, tmp_path, autocommit):
+        import duckdb
+
+        from execsql import run
+
+        path = tmp_path / "d.duckdb"
+        result = run(
+            sql="create table s as select range as a from range(2000);\ncreate table t (a integer);\n"
+            f"-- !x! AUTOCOMMIT {autocommit}\n-- !x! COPY s FROM initial TO t IN initial\n-- !x! AUTOCOMMIT ON WITH COMMIT\n",
+            dsn=f"duckdb:///{path}",
+            new_db=True,
+        )
+        assert result.success, result.errors
+        assert duckdb.connect(str(path)).execute("select count(*) from t").fetchone()[0] == 2000
+
+
 # ---------------------------------------------------------------------------
 # commit / rollback
 # ---------------------------------------------------------------------------
