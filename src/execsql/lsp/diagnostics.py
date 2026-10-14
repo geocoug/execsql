@@ -44,14 +44,16 @@ def diagnostics(
     path: str | None,
     select: tuple[str, ...] = (),
     ignore: tuple[str, ...] = (),
+    base_dir: str | None = None,
 ) -> list[types.Diagnostic]:
     """Lint *source* (the editor's current text of the file at *path*).
 
-    *path* lets lint resolve ``INCLUDE`` targets relative to the file;
+    *path* lets lint resolve ``INCLUDE`` targets relative to the file (an
+    unsaved buffer's, with no *path*, resolve against *base_dir*);
     *select* and *ignore* are rule-code prefixes, as ``execsql lint`` takes
     them from ``--select`` / ``--ignore`` or a config file's ``[lint]``.
     """
-    issues = filter_issues(lint_source(source, path or "<untitled>", path), select, ignore)
+    issues = filter_issues(lint_source(source, path or "<untitled>", path, base_dir), select, ignore)
     lines = source.splitlines()
     return [to_diagnostic(issue, lines) for issue in sorted(issues, key=lambda i: (i.line, i.code))]
 

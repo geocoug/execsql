@@ -401,6 +401,7 @@ class ConfigData:
         variable_pool: _VariablePool,
         *,
         config_file: str | None = None,
+        start_dir: str | None = None,
     ) -> None:
         """Load and merge all discoverable execsql.conf files for the given script path.
 
@@ -414,12 +415,18 @@ class ConfigData:
                 Loaded after the implicit search paths so its values take
                 precedence over system, user, script, and working-directory
                 config files.
+            start_dir: The directory a run starts in: its ``execsql.conf`` is
+                read, and relative ``config_file`` paths (``--config`` and
+                ``[config]`` chains) resolve against it.  Defaults to the
+                working directory.  The language server passes each
+                workspace folder, so it never changes the process's directory.
         """
+        self._start_dir = start_dir
         self._set_defaults()
         current_script = str(Path(sys.argv[0]).resolve())
         from collections import deque
 
-        config_queue: deque[str] = deque(self._search_paths(script_path, config_file))
+        config_queue: deque[str] = deque(self._search_paths(script_path, config_file, start_dir))
         self.files_read: list = []
         # Warm the schema registry by running the option reader against an
         # empty ConfigParser. cp.has_option() is False for everything so no
@@ -454,6 +461,9 @@ class ConfigData:
                 for section, key, attr in self._option_keys:
                     if cp.has_option(section, key):
                         self.sources[attr] = configfile
+
+    #: Where relative paths resolve; ``None`` is the working directory.
+    _start_dir: str | None = None
 
     #: Guard against circular config_file references.
     _MAX_CONFIG_CHAIN = 20
@@ -562,7 +572,7 @@ class ConfigData:
         self.lint_strict = False
 
     @classmethod
-    def _search_paths(cls, script_path: str, config_file: str | None) -> list[str]:
+    def _search_paths(cls, script_path: str, config_file: str | None, start_dir: str | None = None) -> list[str]:
         """The files a run reads, lowest precedence first: system, user, script dir, working dir, ``--config``.
 
         Files that ``[config] config_file`` and its OS-specific variants chain
@@ -574,17 +584,25 @@ class ConfigData:
             sys_config_file = str(Path(os.path.expandvars(r"%APPDATA%")) / cls.config_file_name)
         user_config_file = str(Path("~/.config").expanduser() / cls.config_file_name)
         script_config_file = str(Path(script_path) / cls.config_file_name)
-        startdir_config_file = str(Path(".").resolve() / cls.config_file_name)
+        start = Path(start_dir or ".")
+        startdir_config_file = str(start.resolve() / cls.config_file_name)
         if startdir_config_file != script_config_file:
             config_files = [sys_config_file, user_config_file, script_config_file, startdir_config_file]
         else:
             config_files = [sys_config_file, user_config_file, startdir_config_file]
         if config_file:
-            config_files.append(str(Path(config_file).resolve()))
+            config_files.append(str((start / config_file).resolve()))
         return config_files
 
     @classmethod
-    def _chain_target(cls, value: str, variable_pool: _VariablePool, *, expand_home: bool) -> str:
+    def _chain_target(
+        cls,
+        value: str,
+        variable_pool: _VariablePool,
+        *,
+        expand_home: bool,
+        start_dir: str | None = None,
+    ) -> str:
         """Resolve a ``config_file``-style value to the file it names.
 
         A leading ``~`` is expanded when *expand_home* is true, substitution
@@ -598,6 +616,8 @@ class ConfigData:
             elif len(conffile) > 1 and conffile[1] == os.sep:
                 conffile = str(Path("~").expanduser() / conffile[2:])
         conffile = variable_pool.substitute(conffile)[0]
+        if start_dir and not Path(conffile).is_absolute():
+            conffile = str(Path(start_dir) / conffile)
         if not Path(conffile).is_file():
             conffile = str(Path(conffile) / cls.config_file_name)
         return conffile
@@ -651,6 +671,7 @@ class ConfigData:
                 cp.get(self._CONFIG_SECTION, "config_file"),
                 variable_pool,
                 expand_home=os.name == "posix",
+                start_dir=self._start_dir,
             )
             if Path(conffile).is_file():
                 # Silently ignore a non-existent file, for cross-OS compatibility.
@@ -664,7 +685,12 @@ class ConfigData:
         elif os.name == "nt" and cp.has_option(self._CONFIG_SECTION, "win_config_file"):
             _os_config_key = "win_config_file"
         if _os_config_key:
-            conffile = self._chain_target(cp.get(self._CONFIG_SECTION, _os_config_key), variable_pool, expand_home=True)
+            conffile = self._chain_target(
+                cp.get(self._CONFIG_SECTION, _os_config_key),
+                variable_pool,
+                expand_home=True,
+                start_dir=self._start_dir,
+            )
             if Path(conffile).is_file():
                 chained.append(conffile)
         # dao_flush_delay_secs has a specific error message — keep inline

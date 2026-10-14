@@ -230,6 +230,7 @@ _CONTEXT_ATTRS: frozenset[str] = frozenset(
         "manifest",
         "halt_error",
         "halt_output_error",
+        "cd_from",
         # Lazy singletons
         "counters",
         "timer",
@@ -288,6 +289,7 @@ class RuntimeContext:
         "manifest",
         "halt_error",
         "halt_output_error",
+        "cd_from",
         # Lazy singletons
         "counters",
         "timer",
@@ -344,6 +346,9 @@ class RuntimeContext:
         self.halt_error: ErrInfo | None = None
         # File output lost when the run halted (set by ``exit_now``), or None.
         self.halt_output_error: ErrInfo | None = None
+        # The working directory before this run's first CD, or None: the
+        # library's run() returns its caller there.
+        self.cd_from: str | None = None
 
         # Lazy singletons
         self.counters: CounterVars | None = None

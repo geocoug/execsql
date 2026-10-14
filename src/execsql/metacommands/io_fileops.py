@@ -307,6 +307,11 @@ def x_cd(**kwargs: Any) -> None:
             command_text=kwargs["metacommandline"],
             other_msg="Directory does not exist",
         )
+    if _state.cd_from is None:
+        try:
+            _state.cd_from = os.getcwd()
+        except OSError:  # the directory is gone: nowhere to return to
+            pass
     os.chdir(new_dir)
     script, lno = current_script_line()
     _state.exec_log.log_status_info(f"Current directory changed to {new_dir} at line {lno} of {script}")

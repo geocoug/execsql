@@ -80,7 +80,7 @@ Each run has its own [file writer](#file-output), so two runs writing files at t
 
 Three things are still shared by every thread in the process, so keep them apart yourself:
 
-- **The working directory.** `CD` calls `os.chdir()`, which moves every thread. Use absolute paths in scripts that run concurrently, or don't use `CD` in them.
+- **The working directory.** `CD` calls `os.chdir()`, which moves every thread while the script runs. Use absolute paths in scripts that run concurrently, or don't use `CD` in them. When a script that ran `CD` finishes, `run()` changes back to the directory it was in before that `CD`, so the caller ends where it started; a run without `CD` leaves the directory as it finds it.
 - **The same output file.** Two runs writing one file at the same time can interleave their lines. Give each run its own output paths.
 - **Interactive prompts.** `PROMPT` and the other GUI metacommands are not meant to be driven from several threads at once.
 

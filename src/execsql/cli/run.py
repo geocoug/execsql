@@ -233,11 +233,12 @@ _SENSITIVE_SUBSTRINGS = (
 )
 
 
-def _seed_early_subvars() -> SubVarSet:
+def _seed_early_subvars(start_dir: str | None = None) -> SubVarSet:
     """Create and populate the initial substitution variable pool.
 
     Seeds environment variables (filtering secrets), timestamps, system info,
     and placeholder variables.  Called once at the start of :func:`_run`.
+    ``$STARTING_PATH`` is *start_dir*, or the working directory.
     """
     subvars = SubVarSet()
 
@@ -262,7 +263,7 @@ def _seed_early_subvars() -> SubVarSet:
     subvars.add_substitution("$LAST_ERROR", "")
     subvars.add_substitution("$ERROR_MESSAGE", "")
     subvars.add_substitution("$USER", getpass.getuser())
-    subvars.add_substitution("$STARTING_PATH", os.getcwd() + os.sep)
+    subvars.add_substitution("$STARTING_PATH", (start_dir or os.getcwd()) + os.sep)
     subvars.add_substitution("$PATHSEP", os.sep)
     osys = sys.platform
     if osys.startswith("linux"):
@@ -279,23 +280,27 @@ def _load_config(
     script_name: str | None,
     subvars: SubVarSet,
     config_file: str | None,
+    start_dir: str | None = None,
 ) -> ConfigData:
     """Load and merge configuration files for the given script.
 
+    *start_dir* stands in for the working directory (see :class:`ConfigData`).
     Returns a fully populated :class:`ConfigData` instance.
     """
-    script_path = str(Path(script_name).resolve().parent) if script_name else os.getcwd()
-    return ConfigData(script_path, subvars, config_file=config_file)
+    script_path = str(Path(script_name).resolve().parent) if script_name else (start_dir or os.getcwd())
+    return ConfigData(script_path, subvars, config_file=config_file, start_dir=start_dir)
 
 
-def _tool_config(config_file: str | None) -> ConfigData:
+def _tool_config(config_file: str | None, start_dir: str | None = None) -> ConfigData:
     """The config ``execsql format`` and ``execsql lint`` read.
 
     Read once per invocation, from the system, user and working-directory
     locations plus *config_file* — not per script, so a script directory's
-    own ``execsql.conf`` applies only when passed with ``--config``.
+    own ``execsql.conf`` applies only when passed with ``--config``.  The
+    language server passes a workspace folder as *start_dir*: the settings
+    those commands would read when run from it.
     """
-    return _load_config(None, _seed_early_subvars(), config_file)
+    return _load_config(None, _seed_early_subvars(start_dir), config_file, start_dir)
 
 
 def _configured_script_encoding(conf: ConfigData) -> str | None:

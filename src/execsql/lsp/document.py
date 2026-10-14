@@ -163,12 +163,16 @@ class FileFacts:
 _RX_SUB_INI = re.compile(r"\s*SUB_INI\b", re.I)
 
 
-def file_facts(source: str, path: str | None) -> FileFacts:
-    """The definitions, script blocks, ``INCLUDE`` targets and variable uses written in *source*."""
+def file_facts(source: str, path: str | None, base_dir: str | None = None) -> FileFacts:
+    """The definitions, script blocks, ``INCLUDE`` targets and variable uses written in *source*.
+
+    Relative paths in it resolve against *path*'s directory, or for an
+    unsaved buffer (no *path*) against *base_dir*, else the working directory.
+    """
     steps: list[_Define | _ScriptDef | _ScriptCall | _Include] = []
     reads_ini = False
     lines = source.splitlines()
-    script_dir = Path(path).parent if path else None
+    script_dir = Path(path).parent if path else (Path(base_dir) if base_dir else None)
     tree = parse_string(source, path or "<untitled>", errors=[])
 
     for node in tree.walk():
@@ -207,33 +211,35 @@ def index_script(
     source: str,
     path: str | None,
     read: Callable[[Path], str | None] = read_included,
-    facts: Callable[[str, str | None], FileFacts] = file_facts,
+    facts: Callable[[str, str | None, str | None], FileFacts] = file_facts,
+    base_dir: str | None = None,
 ) -> ScriptIndex:
     """Index *source*, the text of the file at *path* (``None`` for an unsaved buffer).
 
     *read* supplies an ``INCLUDE``d file's text; the server passes one that
     prefers the editor's unsaved copy of a file that is open.  *facts*
     reads one file's text; the server passes one that remembers the answer.
+    An unsaved buffer's relative ``INCLUDE`` resolves against *base_dir*.
     """
     index = ScriptIndex(path=path)
-    _index_into(index, source, path, set(), read, facts, top=True, budget=[MAX_INCLUDED_TOTAL_BYTES])
+    found = facts(source, path, None if path else base_dir)
+    _index_into(index, found, path, set(), read, facts, top=True, budget=[MAX_INCLUDED_TOTAL_BYTES])
     return index
 
 
 def _index_into(
     index: ScriptIndex,
-    source: str,
+    found: FileFacts,
     path: str | None,
     seen: set[str],
     read: Callable[[Path], str | None],
-    facts: Callable[[str, str | None], FileFacts],
+    facts: Callable[[str, str | None, str | None], FileFacts],
     *,
     top: bool,
     budget: list[int],
 ) -> None:
     if path is not None:
         seen.add(_resolved(path))
-    found = facts(source, path)
     for step in found.steps:
         if isinstance(step, _Define):
             index.define(step.name, step.location)
@@ -250,7 +256,8 @@ def _index_into(
                 included = read(Path(step.resolved))
                 if included is not None and len(included) <= budget[0]:
                     budget[0] -= len(included)
-                    _index_into(index, included, step.resolved, seen, read, facts, top=False, budget=budget)
+                    included_facts = facts(included, step.resolved, None)
+                    _index_into(index, included_facts, step.resolved, seen, read, facts, top=False, budget=budget)
     index.references.extend(found.references)
 
 

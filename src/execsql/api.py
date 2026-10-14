@@ -594,6 +594,11 @@ def run(
                     pass
             if ctx.tempfiles is not None:
                 ctx.tempfiles.remove_all()
+            if ctx.cd_from is not None:  # the script ran CD: the caller's directory is theirs
+                try:
+                    os.chdir(ctx.cd_from)
+                except OSError:
+                    pass  # it no longer exists
 
     return ScriptResult(
         success=len(errors) == 0,
