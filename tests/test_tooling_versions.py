@@ -10,10 +10,10 @@ Every tool pinned in more than one place has a test here:
 - ruff: ``uv.lock`` and the ruff-pre-commit ``rev`` (the CI ``lint`` job reads the rev).
 - sqlglot: the ``execsql-format`` hook, the ``formatter`` extra and ``uv.lock``.
 - zensical: ``.readthedocs.yaml`` and ``uv.lock``.
-- uv: the uv-pre-commit ``rev`` (which writes ``uv.lock`` locally) and CI's ``setup-uv`` ``version``.
 - twine: the ``build`` job's ``twine==`` and the twine the pinned publish action bundles.
 
-Pinned in one place only, so nothing can drift: typos (pre-commit), Node (CI),
+Pinned in one place only, so nothing can drift: typos (pre-commit), uv (the uv-pre-commit hook;
+CI runs the newest), Node (CI),
 ``@vscode/vsce`` and ``vscode-languageclient`` (the extension's ``package-lock.json``).
 """
 
@@ -87,14 +87,6 @@ def test_read_the_docs_builds_with_the_locked_zensical():
 
 def _workflow() -> str:
     return (ROOT / ".github" / "workflows" / "ci-cd.yml").read_text(encoding="utf-8")
-
-
-def test_ci_runs_the_uv_the_pre_commit_hook_runs():
-    """The uv-lock hook rewrites uv.lock with its uv; CI's `uv sync --locked` must read it with the same one."""
-    hook = _pre_commit_rev("https://github.com/astral-sh/uv-pre-commit")
-    m = re.search(r"uses: astral-sh/setup-uv@\S+.*\n\s+with:\n(?:\s+#.*\n)*\s+version: \"([0-9.]+)\"", _workflow())
-    assert m, "ci-cd.yml must give astral-sh/setup-uv an exact `version:`"
-    assert m.group(1) == hook, f"CI installs uv {m.group(1)} but the uv-pre-commit hook is {hook}"
 
 
 # The twine each pypa/gh-action-pypi-publish commit bundles (its requirements/runtime.txt).
