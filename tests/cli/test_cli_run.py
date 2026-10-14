@@ -55,33 +55,6 @@ def _make_sql_file(tmp_path, content="SELECT 1;"):
 
 
 # ---------------------------------------------------------------------------
-# Patches needed to isolate _run() from system boundaries.
-# ---------------------------------------------------------------------------
-
-# These patches are applied in most _run() tests so the execution loop,
-# database connections, and the async FileWriter never actually start.
-_RUN_PATCHES = {
-    "db": "execsql.cli.run._connect_initial_db",
-    "execute": "execsql.script.executor.execute",
-    "filewriter_cls": "execsql.cli.run.FileWriter",
-    "filewriter_end": "execsql.cli.run.filewriter_end",
-    "atexit": "execsql.cli.run.atexit",
-    "gui_console_off": "execsql.cli.run.gui_console_off",
-    "gui_console_on": "execsql.cli.run.gui_console_on",
-    "gui_console_isrunning": "execsql.cli.run.gui_console_isrunning",
-    "gui_console_wait_user": "execsql.cli.run.gui_console_wait_user",
-}
-
-
-def _apply_run_patches(**overrides):
-    """Return a list of ``patch()`` context-manager objects for _run() isolation."""
-
-    targets = dict(_RUN_PATCHES)
-    targets.update(overrides)
-    return targets
-
-
-# ---------------------------------------------------------------------------
 # _print_dry_run — unit tests
 # ---------------------------------------------------------------------------
 

@@ -35,10 +35,6 @@ def _meta(text: str, line: int = 1) -> MetaCommandStatement:
     return MetaCommandStatement(span=_span(line), command=text)
 
 
-def _sql(text: str, line: int = 1) -> SqlStatement:
-    return SqlStatement(span=_span(line), text=text)
-
-
 def _make_script(name: str, body: list | None = None, params: list[str] | None = None) -> ScriptBlock:
     """Register a fresh ScriptBlock in ``_state.ast_scripts``."""
     param_defs = [ParamDef(name=p, default=None) for p in params] if params else None

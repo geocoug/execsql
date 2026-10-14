@@ -29,11 +29,6 @@ def _generated_sql(db, outfile, columns="*"):
     return outfile.read_text(encoding="utf-8")
 
 
-def _values_lines(sql):
-    """The ``(...)`` tuples of the VALUES list."""
-    return [ln.strip().rstrip(",") for ln in sql.splitlines() if ln.strip().startswith("(") and "INSERT" not in ln]
-
-
 class TestGeneratedLiterals:
     def test_date_is_quoted(self, export_db, tmp_path):
         """Unquoted, ``2026-09-24`` is arithmetic — PostgreSQL inserts 1993."""
