@@ -21,10 +21,12 @@ For [execsql](https://execsql2.readthedocs.io/) scripts in `.sql` files:
 
 ## Settings
 
-| Setting                  | Default   |                                                                                                         |
-| ------------------------ | --------- | ------------------------------------------------------------------------------------------------------- |
-| `execsql.server.enabled` | `true`    | Start the language server for SQL files. Turning it off stops the server; no reload is needed.          |
-| `execsql.server.path`    | `execsql` | The command to run as `<path> lsp`, if `execsql` is not on VS Code's PATH, e.g. `~/.local/bin/execsql`. |
+| Setting                   | Default   |                                                                                                                                                                                      |
+| ------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `execsql.server.enabled`  | `true`    | Start the language server for SQL files. Turning it off stops the server; no reload is needed.                                                                                       |
+| `execsql.server.path`     | `execsql` | The command to run as `<path> lsp`, if `execsql` is not on VS Code's PATH, e.g. `~/.local/bin/execsql`.                                                                              |
+| `execsql.server.logLevel` | `info`    | How much the server writes to **Output → execsql**: `error`, `warning`, `info` (a startup record and each folder's config files) or `debug` (every message, scripts' text included). |
+| `execsql.trace.server`    | `off`     | Trace the protocol messages in the same Output channel: `messages` or `verbose`.                                                                                                     |
 
 After installing or upgrading execsql, run **execsql: Restart Language Server** from the Command Palette.
 
@@ -201,7 +203,9 @@ ______________________________________________________________________
     ([Adding an extra later](https://execsql2.readthedocs.io/en/latest/getting-started/installation/#adding-an-extra-later)).
 - If `execsql` works in a terminal but not in VS Code, set `execsql.server.path` to its full path
     (`which execsql`).
-- **Output** panel → choose **execsql** to see the server's log.
+- **Output** panel → choose **execsql** to see the server's log, including why it did not start.
+    It starts with the execsql version, the Python running it and whether the formatter is installed;
+    include that when you [report a problem](https://execsql2.readthedocs.io/en/latest/guides/editors/#troubleshooting).
 
 **Extension not showing in the Extensions panel**
 

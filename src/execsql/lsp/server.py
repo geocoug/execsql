@@ -58,6 +58,7 @@ class Settings:
     select: tuple[str, ...] = ()
     ignore: tuple[str, ...] = ()
     format_options: dict[str, Any] = field(default_factory=dict)  # format_document keywords, from [format]
+    config_files: tuple[str, ...] = ()  # the files read, lowest precedence first
 
 
 class ExecsqlLanguageServer(LanguageServer):
@@ -78,11 +79,13 @@ class ExecsqlLanguageServer(LanguageServer):
         in no folder gets the settings of :meth:`base_dir`.
         """
         self.fallback = self._read_settings(self.base_dir())
+        _log_settings("files in no workspace folder", self.fallback)
         self.settings = {}
         for folder in self.workspace.folders.values():
             path = to_fs_path(folder.uri)
             if path and os.path.isdir(path):
-                self.settings[same_file_key(path)] = self._read_settings(path)
+                self.settings[same_file_key(path)] = settings = self._read_settings(path)
+                _log_settings(path, settings)
 
     def base_dir(self) -> str | None:
         """The workspace root, if it still exists: an unsaved script's relative paths resolve there.
@@ -111,8 +114,10 @@ class ExecsqlLanguageServer(LanguageServer):
                     "leading_comma": conf.format_leading_comma,
                     "rewrite_sql": conf.format_rewrite_sql,
                 },
+                config_files=tuple(conf.files_read),
             )
         except Exception as exc:  # a bad config must not take the server down
+            _log.warning("execsql config for %s: %s", folder or "the working directory", exc)
             self.window_show_message(
                 types.ShowMessageParams(type=types.MessageType.Warning, message=f"execsql config: {exc}"),
             )
@@ -250,6 +255,36 @@ class ExecsqlLanguageServer(LanguageServer):
         self.pending[uri] = asyncio.ensure_future(run())
 
 
+def _log_settings(where: str, settings: Settings) -> None:
+    _log.info(
+        "settings for %s: config files %s; lint select %s, ignore %s; format %s",
+        where,
+        ", ".join(settings.config_files) or "none",
+        ",".join(settings.select) or "all",
+        ",".join(settings.ignore) or "none",
+        settings.format_options or "defaults",
+    )
+
+
+def startup_record() -> str:
+    """What a bug report needs first: which execsql, run by which Python, with which optional parts."""
+    import sys
+    from importlib.metadata import PackageNotFoundError, version
+    from importlib.util import find_spec
+
+    def installed(name: str) -> str:
+        try:
+            return version(name)
+        except PackageNotFoundError:
+            return "not installed"
+
+    formatter = "available" if find_spec("sqlglot") is not None else "not installed (Format Document needs it)"
+    return (
+        f"execsql lsp {__version__}; Python {sys.version.split()[0]} at {sys.executable}; "
+        f"pygls {installed('pygls')}; formatter {formatter}"
+    )
+
+
 def create_server() -> ExecsqlLanguageServer:
     """A server with every feature registered."""
     server = ExecsqlLanguageServer()
@@ -259,6 +294,9 @@ def create_server() -> ExecsqlLanguageServer:
 
     @server.feature(types.INITIALIZED)
     def initialized(ls: ExecsqlLanguageServer, params: types.InitializedParams) -> None:
+        _log.info(startup_record())
+        folders = [to_fs_path(f.uri) or f.uri for f in ls.workspace.folders.values()]
+        _log.info("workspace folders: %s", ", ".join(folders) or "none")
         ls.load_settings()
         ls.watch_files()
 

@@ -6,6 +6,8 @@ import asyncio
 import logging
 import os
 import sys
+import tempfile
+from pathlib import Path
 
 import pytest
 
@@ -623,3 +625,64 @@ def test_an_unsaved_scripts_include_resolves_against_the_workspace_root(monkeypa
     assert "REGION" in server.index("untitled:Untitled-1").definitions
     server.publish("untitled:Untitled-1")
     assert [d.code for d in published[0].diagnostics if d.code == "I001"] == []
+
+
+_LOG_FILE = Path(tempfile.gettempdir()) / f"execsql-lsp-test-{os.getpid()}.log"
+LOGGING_SERVER = ClientServerConfig(
+    server_command=[sys.executable, "-m", "execsql", "lsp", "--stdio", "--log-file", str(_LOG_FILE)],
+    client_factory=_recording_client,
+    server_env={**os.environ, "EXECSQL_LSP_LOG_LEVEL": "info"},
+)
+
+
+@pytest_lsp.fixture(config=LOGGING_SERVER)
+async def logging_client(lsp_client: LanguageClient, tmp_path_factory):
+    _LOG_FILE.unlink(missing_ok=True)
+    root = tmp_path_factory.mktemp("workspace")
+    (root / "execsql.conf").write_text("[lint]\nignore = V\n", encoding="utf-8")
+    await lsp_client.initialize_session(
+        types.InitializeParams(
+            capabilities=types.ClientCapabilities(),
+            root_uri=root.as_uri(),
+            workspace_folders=[types.WorkspaceFolder(uri=root.as_uri(), name="root")],
+        ),
+    )
+    lsp_client.root = root
+    yield
+    await lsp_client.shutdown_session()
+    _LOG_FILE.unlink(missing_ok=True)
+
+
+@pytest.mark.asyncio
+async def test_the_server_logs_what_a_bug_report_needs_at_info(logging_client: LanguageClient):
+    """Version, interpreter, formatter, folders and each folder's config files, at EXECSQL_LSP_LOG_LEVEL=info."""
+    from execsql import __version__
+
+    for _ in range(100):
+        text = _LOG_FILE.read_text(encoding="utf-8") if _LOG_FILE.exists() else ""
+        if "settings for" in text and str(logging_client.root) in text:
+            break
+        await asyncio.sleep(0.05)
+    assert f"execsql lsp {__version__}" in text
+    assert sys.executable in text
+    assert "formatter" in text
+    assert f"workspace folders: {logging_client.root}" in text
+    assert str(logging_client.root / "execsql.conf") in text
+
+
+@pytest.mark.parametrize(
+    ("level", "execsql_level", "pygls_level"),
+    [("warning", logging.WARNING, logging.WARNING), ("info", logging.INFO, logging.WARNING), ("debug", 10, 10)],
+)
+def test_pygls_logs_the_messages_it_sends_only_at_debug(monkeypatch, level, execsql_level, pygls_level):
+    """pygls logs each message it sends, script text included, at info."""
+    import execsql.cli.commands.lsp as lsp_module
+
+    root, pygls = logging.getLogger(), logging.getLogger("pygls")
+    monkeypatch.setattr(root, "handlers", [])
+    monkeypatch.setattr(root, "level", root.level)
+    monkeypatch.setattr(pygls, "level", pygls.level)
+    lsp_module._configure_logging(lsp_module.LogLevel(level), None)
+    assert len(root.handlers) == 1
+    assert logging.getLogger("execsql.lsp.server").getEffectiveLevel() == execsql_level
+    assert logging.getLogger("pygls.protocol.json_rpc").getEffectiveLevel() == pygls_level

@@ -68,6 +68,28 @@
           "type": "string",
           "default": "execsql",
           "description": "The execsql command to run as `<path> lsp`: a command name looked up in PATH, or an absolute path (a leading ~ is expanded), e.g. ~/.local/bin/execsql. A relative path is refused."
+        },
+        "execsql.server.logLevel": {
+          "type": "string",
+          "enum": [
+            "error",
+            "warning",
+            "info",
+            "debug"
+          ],
+          "default": "info",
+          "markdownDescription": "How much the language server writes to **View → Output → execsql**: `info` adds a startup record (execsql version, Python, formatter) and each workspace folder's config files; `debug` adds every protocol message."
+        },
+        "execsql.trace.server": {
+          "type": "string",
+          "enum": [
+            "off",
+            "messages",
+            "verbose"
+          ],
+          "default": "off",
+          "scope": "window",
+          "description": "Trace the messages between VS Code and the execsql language server in the execsql Output channel, for a bug report."
         }
       }
     },

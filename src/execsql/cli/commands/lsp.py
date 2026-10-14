@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import logging
+from enum import Enum
+from pathlib import Path
+
 import typer
 from rich.markup import escape
 
@@ -28,6 +32,29 @@ def _pygls_version() -> str:
         return "unknown"
 
 
+class LogLevel(str, Enum):
+    error = "error"
+    warning = "warning"
+    info = "info"
+    debug = "debug"
+
+
+def _configure_logging(level: LogLevel, log_file: Path | None) -> None:
+    """Send the server's log (execsql's and pygls's) to stderr, which editors show, or to *log_file*.
+
+    stdout carries the protocol, so nothing may be logged there.
+    """
+    handler: logging.Handler = (
+        logging.FileHandler(log_file, encoding="utf-8") if log_file is not None else logging.StreamHandler()
+    )
+    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
+    root = logging.getLogger()
+    root.addHandler(handler)
+    root.setLevel(level.value.upper())
+    # pygls logs every message it sends at info, script text included: only debug shows them.
+    logging.getLogger("pygls").setLevel(logging.DEBUG if level is LogLevel.debug else logging.WARNING)
+
+
 @app.command(
     cls=ExecsqlCommand,
     name="lsp",
@@ -43,6 +70,20 @@ def lsp_cmd(
     # Editors' language clients pass --stdio (VS Code always does); stdio is the only transport.
     stdio: bool = typer.Option(False, "--stdio", hidden=True),
     check: bool = typer.Option(False, "--check", help="Report whether the language server can start, and exit."),
+    log_level: LogLevel = typer.Option(
+        LogLevel.warning,
+        "--log-level",
+        envvar="EXECSQL_LSP_LOG_LEVEL",
+        case_sensitive=False,
+        help="How much the server logs: error, warning, info (adds a startup record and each folder's config files) "
+        "or debug (adds every protocol message).",
+    ),
+    log_file: Path | None = typer.Option(
+        None,
+        "--log-file",
+        dir_okay=False,
+        help="Append the log to this file instead of stderr, for an editor that does not show the server's stderr.",
+    ),
 ) -> None:
     """The ``lsp`` command; its user-facing help is the decorator's ``help``."""
     try:
@@ -61,4 +102,5 @@ def lsp_cmd(
     if check:
         typer.echo(f"execsql lsp is ready (pygls {_pygls_version()}).")
         return
+    _configure_logging(log_level, log_file)
     create_server().start_io()
