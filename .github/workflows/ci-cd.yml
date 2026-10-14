@@ -399,9 +399,7 @@ jobs:
                   # pypa/gh-action-pypi-publish pin (its requirements/runtime.txt).
                   # That action runs its own `twine check` before uploading, so
                   # validating here with a *newer* twine can pass while the publish
-                  # fails. Bump this pin and the action pin together
-                  # (tests/test_tooling_versions.py records which twine each action
-                  # commit bundles).
+                  # fails. Bump this pin and the action pin together.
                   python -m pip install build 'twine==7.0.0'
                   python -m build --sdist --wheel --outdir dist/
                   python -m twine check dist/*
