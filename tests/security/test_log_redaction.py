@@ -125,7 +125,7 @@ class TestArgValueRedactionInLog:
             def log_status_info(self, msg):
                 captured.append(msg)
 
-            def add_redaction_value(self, value):
+            def add_redaction_value(self, value, *, argument=False):
                 pass
 
         conf = SimpleNamespace(

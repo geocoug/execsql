@@ -894,6 +894,8 @@ class Logger:
         self.server_name = server_name
         self.cmdline_options = cmdline_options
         self._redaction_values: list[str] = []
+        # Of those, the -a / --var values: masked in the log, not in the manifest.
+        self._argument_values: set[str] = set()
         if log_file_name:
             self.log_file_name = log_file_name
         else:
@@ -974,15 +976,28 @@ class Logger:
 
         return _datetime.datetime.now().isoformat(timespec="seconds")
 
-    def add_redaction_value(self, value: str | None) -> None:
+    def add_redaction_value(self, value: str | None, *, argument: bool = False) -> None:
+        """Mask *value* in every later log record.
+
+        *argument* marks an ``-a`` / ``--var`` value: it may be a secret, so
+        the log masks it, but it is just as often part of a path, so the
+        ``--manifest`` JSON (``redact(..., arguments=False)``) does not.  A
+        value registered both ways is a secret.
+        """
         if value is None:
             return
         value = str(value)
-        if not value or value in self._redaction_values:
+        if not value:
+            return
+        if not argument:
+            self._argument_values.discard(value)
+        if value in self._redaction_values:
             return
         self._redaction_values.append(value)
+        if argument:
+            self._argument_values.add(value)
 
-    def _redact(self, msg: str | None) -> str | None:
+    def _redact(self, msg: str | None, *, arguments: bool = True) -> str | None:
         """*msg* with registered secrets and common secret shapes replaced by ``***``.
 
         Every record applies it to its free-text fields (messages, names,
@@ -994,7 +1009,8 @@ class Logger:
             return None
         redacted = str(msg)
         for value in sorted(self._redaction_values, key=len, reverse=True):
-            redacted = redacted.replace(value, "***")
+            if arguments or value not in self._argument_values:
+                redacted = redacted.replace(value, "***")
         for pattern in self._COMMON_SECRET_PATTERNS:
             if pattern.pattern.startswith("(?i)(://"):
                 redacted = pattern.sub(r"\1***\3", redacted)
@@ -1152,12 +1168,16 @@ def register_secret(value: str | None) -> None:
         add(value)
 
 
-def redact(text: str) -> str:
-    """*text* with the active run's registered secrets and common secret shapes replaced by ``***``."""
+def redact(text: str, *, arguments: bool = True) -> str:
+    """*text* with the active run's registered secrets and common secret shapes replaced by ``***``.
+
+    With *arguments* false, ``-a`` / ``--var`` values are left as they are
+    (see :meth:`Logger.add_redaction_value`).
+    """
     import execsql.state as _state
 
     redactor = getattr(_state.exec_log, "_redact", None)
-    return redactor(text) if redactor is not None else text
+    return (redactor(text, arguments=arguments) or "") if redactor is not None else text
 
 
 class TempFileMgr:
