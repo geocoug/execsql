@@ -561,6 +561,15 @@ class TestParseConnectionString:
         with pytest.raises(ConfigError, match="no scheme"):
             self._fn("notaurl")
 
+    def test_no_scheme_error_does_not_echo_the_password(self):
+        """A DSN whose scheme was lost (an empty ${SCHEME}) still has its password: keep it out of the error."""
+        from execsql.exceptions import ConfigError
+
+        with pytest.raises(ConfigError) as exc:
+            self._fn("//alice:Pw_Secret77@db.example/prod")
+        assert "Pw_Secret77" not in str(exc.value)
+        assert "//alice:***@db.example/prod" in str(exc.value)
+
     def test_dsn_flag_accepted_by_cli(self, tmp_path):
         """--dsn flag is accepted at parse time without error."""
         script = tmp_path / "s.sql"
