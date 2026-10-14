@@ -212,3 +212,51 @@ def test_empty_values_are_not_registered(tmp_path, monkeypatch, value):
     log = _logger(tmp_path, monkeypatch)
     register_secret(value)
     assert log._redaction_values == []
+
+
+class TestEveryRecord:
+    """No record type writes a registered secret, whichever of its text fields carries it."""
+
+    def test_a_halt_message_holding_an_argument(self, tmp_path):
+        (tmp_path / "h.sql").write_text('-- !x! HALT MESSAGE "stopping: !!$ARG_1!!" EXIT_STATUS 3\n')
+        result = _execsql("run", "h.sql", "t.db", "-t", "l", "-n", "-a", SECRET, cwd=tmp_path)
+        assert result.returncode == 3, result.stderr
+        log = (tmp_path / "execsql.log").read_text()
+        assert SECRET not in log
+        assert "stopping: ***" in log
+
+    def test_each_log_method(self, tmp_path, monkeypatch):
+        log = _logger(tmp_path, monkeypatch)
+        log.add_redaction_value(SECRET)
+        log.log_db_connect(SimpleNamespace(name=lambda: f"server/{SECRET}"))
+        log.log_action_export(4, f"q_{SECRET}", f"/out/{SECRET}.csv")
+        log.log_status_exception(SECRET)
+        log.log_status_error(SECRET)
+        log.log_status_info(SECRET)
+        log.log_status_warning(SECRET)
+        log.log_sql_query(f"select '{SECRET}'", "db", 2)
+        log.log_user_msg(SECRET)
+        log.log_exit_halt(f"/scripts/{SECRET}.sql", 9, f"halted: {SECRET}")
+        log.log_exit()
+        text = _log_text(log)
+        assert SECRET not in text
+        for record in ("connect", "action", "status", "sql", "user_msg", "exit"):
+            assert f"\n{record}\t" in text
+
+    def test_the_exit_record_of_an_error(self, tmp_path, monkeypatch):
+        log = _logger(tmp_path, monkeypatch)
+        log.add_redaction_value(SECRET)
+        log.log_exit_error(f"failed with {SECRET}")
+        log.log_exit()
+        assert SECRET not in _log_text(log)
+
+    def test_a_short_value_masks_text_but_not_the_records_structure(self, tmp_path, monkeypatch):
+        """`-a 1` registers "1": the message is masked, the sequence number and line number are not."""
+        log = _logger(tmp_path, monkeypatch)
+        log.add_redaction_value("1")
+        log.log_action_export(1, "q", "out1.csv")
+        line = [r for r in _log_text(log).splitlines() if r.startswith("action\t")][0]
+        fields = line.split("\t")
+        assert fields[2] == "1"  # sequence number
+        assert fields[5] == "1"  # line number
+        assert fields[6] == "Query q exported to out***.csv"
