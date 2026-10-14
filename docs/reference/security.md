@@ -57,6 +57,8 @@ The `--no-system-cmd` CLI flag always takes precedence — if the flag is passed
 
 When execsql needs a database password and none is stored or configured, it prompts interactively. In terminal mode, the prompt uses `getpass` (input is not echoed). In GUI mode, a dialog with a hidden-text entry field is used. Passwords entered interactively are held in process memory only and are not written to disk by execsql.
 
+<a id="keyring_setup"></a>
+
 ### OS credential store (keyring)
 
 When the optional `keyring` package is installed (`uv tool install "execsql2[auth]"`), execsql checks the OS credential store before prompting. A password typed at the prompt is stored once the connection succeeds with it; a mistyped password is never stored. Keyring service names follow the pattern:

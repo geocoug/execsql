@@ -1848,7 +1848,7 @@ print(result.variables["region_total"])    # "1650.5"
 conn.close()  # run() never closes a connection you pass in
 ```
 
-`result.variables` holds the final state of all substitution variables (system variables have the leading `$` stripped), so values computed by the script — via [SUBDATA](../reference/metacommands.md#subdata), [SUB](../reference/metacommands.md#sub), or counters — flow back to Python.
+`result.variables` holds the final state of all substitution variables (system variables have the leading `$` stripped), so values computed by the script — via [SUBDATA](../reference/metacommands.md#subdata), [SUB](../reference/metacommands.md#subcmd), or counters — flow back to Python.
 
 Error handling follows the `halt_on_error` argument. With the default (`True`), execution stops at the first error; with `False`, execution continues and every non-halting error is collected:
 
@@ -1891,4 +1891,4 @@ Foreground commands can be given a time limit with the `system_cmd_timeout` conf
 system_cmd_timeout=300
 ```
 
-When the limit is exceeded, execsql stops the command, sets `$SYSTEM_CMD_EXIT_STATUS` to `124`, and raises a metacommand error (which halts the script unless [METACOMMAND_ERROR_HALT](../reference/metacommands.md#metacommand_error_halt) is `OFF`). Background (`CONTINUE`) commands are not affected by the timeout. For locked-down environments, the `--no-system-cmd` CLI flag (or `allow_system_cmd=No` in the config) disables the metacommand entirely.
+When the limit is exceeded, execsql stops the command, sets `$SYSTEM_CMD_EXIT_STATUS` to `124`, and raises a metacommand error (which halts the script unless [METACOMMAND_ERROR_HALT](../reference/metacommands.md#metacommanderrorhalt) is `OFF`). Background (`CONTINUE`) commands are not affected by the timeout. For locked-down environments, the `--no-system-cmd` CLI flag (or `allow_system_cmd=No` in the config) disables the metacommand entirely.

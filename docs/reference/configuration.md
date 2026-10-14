@@ -69,6 +69,8 @@ The section and property names that may be used in a configuration file are list
 `new_db`
 :   Indicates whether or not *execsql* should create a new PostgreSQL or SQLite database to connect to.
 
+<a id="config_encoding"></a>
+
 ## Section `encoding`
 
 `database`
@@ -154,7 +156,7 @@ The section and property names that may be used in a configuration file are list
 
 :   Determines whether the [IMPORT](metacommands.md#import) metacommand will import data from a CSV file when the file has more data columns than the target table. The property value should be either "Yes" or "No". The default, "No", indicates that the target table must have all of the columns present in the CSV file; if the target table has fewer columns, an error will result. A property value of "Yes" will result in import of only the columns in common between the CSV file and the target table. The legacy alias `import_only_common_columns` is also accepted.
 
-`import_row_buffer`
+`import_row_buffer` { #setting_import_row_buffer }
 
 :   The number of data rows to be buffered from a data source when importing data using the [IMPORT](metacommands.md#import) metacommand, and when a DBMS-specific fast file importing method can't be used. The setting value must be a positive integer greater than zero. The default value is 1000 rows.
 
@@ -270,6 +272,8 @@ The section and property names that may be used in a configuration file are list
 
 :   The GUI framework to use when `gui_level` is greater than 0. The property value must be either `tkinter` (the default) or `textual`. `tkinter` uses native desktop dialogs via Tk; `textual` provides a terminal-based UI that works in headless/SSH environments. This can also be set via the `--gui-framework` command-line option.
 
+<a id="config_email"></a>
+
 ## Section `email`
 
 `host`
@@ -349,7 +353,7 @@ The section and property names that may be used in a configuration file are list
 `config_file`
 :   The full name or path to an additional configuration file to be read. If only a path is specified, the name of the configuration file should be `execsql.conf`. The configuration file specified will be read immediately following the configuration file in which it is named. No configuration file will be read more than once. If the name or path are invalid, this setting will be silently ignored. This setting may include [substitution variables](substitution_vars.md#substitution_vars); at the time that configuration files are read, however, only environment variables and system variables related to the script name and path are defined.
 
-`dao_flush_delay_secs`
+`dao_flush_delay_secs` { #dao_delay }
 :   The number of seconds that *execsql* should wait between the time that a query is created in Access (which uses DAO) and the time that the next statement is executed using ODBC. This value must be greater than or equal to 5.0. The default is `5.0`.
 
 `linux_config_file`, `macos_config_file`, `win_config_file`

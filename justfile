@@ -120,10 +120,10 @@ package-vscode:
 _sync-changelog:
     cp CHANGELOG.md docs/about/change_log.md
 
-# Build documentation
+# Build documentation; a warning (such as a link to a missing #anchor) fails it
 [group('docs')]
 docs: _sync-changelog
-    uv run zensical build
+    uv run zensical build --strict
 
 # Serve documentation locally
 [group('docs')]
