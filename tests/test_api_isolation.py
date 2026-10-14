@@ -8,6 +8,7 @@ not leave its connection open.
 from __future__ import annotations
 
 import atexit
+import os
 from unittest.mock import MagicMock
 
 import pytest
@@ -90,3 +91,30 @@ def test_temp_file_manager_drops_its_exit_hook():
     import os
 
     assert not os.path.exists(fn)
+
+
+def test_a_cd_in_the_script_does_not_move_the_caller(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "sub").mkdir()
+    before = os.getcwd()
+    result = api.run(sql=f"-- !x! CD {tmp_path / 'sub'}\nselect 1;\n", dsn=_dsn(tmp_path), new_db=True)
+    assert result.success, result.errors
+    assert os.getcwd() == before
+
+
+def test_a_cd_in_a_failing_script_does_not_move_the_caller(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "sub").mkdir()
+    result = api.run(sql=f"-- !x! CD {tmp_path / 'sub'}\nselect * from missing;\n", dsn=_dsn(tmp_path), new_db=True)
+    assert not result.success
+    assert os.getcwd() == str(tmp_path)
+
+
+def test_a_run_without_cd_leaves_the_working_directory_alone(tmp_path, monkeypatch):
+    """A concurrent run's CD is not undone by a run that never changed directory."""
+    monkeypatch.chdir(tmp_path)
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    os.chdir(elsewhere)  # as another thread's CD would
+    api.run(sql="select 1;", dsn=_dsn(tmp_path), new_db=True)
+    assert os.getcwd() == str(elsewhere)

@@ -1780,3 +1780,36 @@ class TestConfigFileKwarg:
         conf.write_text("[connect]\ndb_type = l\n")
         cd = ConfigData(str(tmp_path), None, config_file=str(conf))
         assert str(conf.resolve()) in cd.files_read
+
+
+class TestConfigDataStartDir:
+    """``start_dir`` stands in for the working directory, so a caller need not chdir."""
+
+    @staticmethod
+    def _pool():
+        from execsql.script.variables import SubVarSet
+
+        return SubVarSet()
+
+    def test_the_start_dirs_config_is_read(self, tmp_path, monkeypatch):
+        folder = tmp_path / "folder"
+        folder.mkdir()
+        _write_conf(str(folder), "[lint]\nignore = V\n")
+        monkeypatch.chdir(tmp_path)
+        assert ConfigData(str(tmp_path), self._pool(), start_dir=str(folder)).lint_ignore == "V"
+        assert ConfigData(str(tmp_path), self._pool()).lint_ignore is None
+
+    def test_a_relative_chain_resolves_against_the_start_dir(self, tmp_path, monkeypatch):
+        folder = tmp_path / "folder"
+        (folder / "shared").mkdir(parents=True)
+        _write_conf(str(folder), "[config]\nconfig_file = shared\n")
+        _write_conf(str(folder / "shared"), "[lint]\nselect = P\n")
+        monkeypatch.chdir(tmp_path)
+        assert ConfigData(str(tmp_path), self._pool(), start_dir=str(folder)).lint_select == "P"
+
+    def test_without_a_start_dir_a_chain_resolves_against_the_working_directory(self, tmp_path, monkeypatch):
+        (tmp_path / "shared").mkdir()
+        _write_conf(str(tmp_path), "[config]\nconfig_file = shared\n")
+        _write_conf(str(tmp_path / "shared"), "[lint]\nselect = P\n")
+        monkeypatch.chdir(tmp_path)
+        assert ConfigData(str(tmp_path / "elsewhere"), self._pool()).lint_select == "P"

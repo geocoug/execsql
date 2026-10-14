@@ -59,6 +59,7 @@ filewriter: FileWriter | None
 manifest: RunManifest | None
 halt_error: ErrInfo | None
 halt_output_error: ErrInfo | None
+cd_from: str | None
 counters: CounterVars
 timer: Timer
 dbs: DatabasePool
@@ -97,6 +98,7 @@ class RuntimeContext:
     manifest: RunManifest | None
     halt_error: ErrInfo | None
     halt_output_error: ErrInfo | None
+    cd_from: str | None
     counters: CounterVars | None
     timer: Timer | None
     dbs: DatabasePool | None

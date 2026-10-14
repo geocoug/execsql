@@ -18,7 +18,7 @@ from execsql.lsp.server import ExecsqlLanguageServer  # noqa: E402
 def _server(monkeypatch, source: str) -> ExecsqlLanguageServer:
     server = ExecsqlLanguageServer()
     document = SimpleNamespace(source=source, version=1)
-    workspace = SimpleNamespace(get_text_document=lambda uri: document, text_documents={})
+    workspace = SimpleNamespace(get_text_document=lambda uri: document, text_documents={}, root_path=None)
     monkeypatch.setattr(ExecsqlLanguageServer, "workspace", property(lambda self: workspace))
     return server
 
@@ -30,9 +30,9 @@ def _counting(monkeypatch) -> dict[str, int]:
         calls["read"] += 1
         return cache_module_read(path)
 
-    def parse(source, path):
+    def parse(source, path, base_dir=None):
         calls["parse"] += 1
-        return file_facts(source, path)
+        return file_facts(source, path, base_dir)
 
     cache_module_read = cache_module.read_included
     monkeypatch.setattr(cache_module, "read_included", read)

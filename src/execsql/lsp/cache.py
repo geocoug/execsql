@@ -24,7 +24,7 @@ class IndexCache:
     def __init__(self, max_chars: int = MAX_CACHED_CHARS) -> None:
         self.max_chars = max_chars
         self._texts: OrderedDict[tuple[str, int, int], str | None] = OrderedDict()
-        self._facts: OrderedDict[tuple[str | None, str], FileFacts] = OrderedDict()
+        self._facts: OrderedDict[tuple[str | None, str | None, str], FileFacts] = OrderedDict()
         self._chars = 0
 
     def text(self, path: Path) -> str | None:
@@ -42,14 +42,14 @@ class IndexCache:
         self._grow(len(text or ""))
         return text
 
-    def facts(self, source: str, path: str | None) -> FileFacts:
-        """:func:`file_facts` of *source*, taken again only when the text or path differs, or it reads an INI file."""
-        key = (path, source)
+    def facts(self, source: str, path: str | None, base_dir: str | None = None) -> FileFacts:
+        """:func:`file_facts` of *source*, taken again only when its text or paths differ, or it reads an INI file."""
+        key = (path, base_dir, source)
         found = self._facts.get(key)
         if found is not None and not found.reads_ini:
             self._facts.move_to_end(key)
             return found
-        found = file_facts(source, path)
+        found = file_facts(source, path, base_dir)
         if key not in self._facts:
             self._grow(len(source))
         self._facts[key] = found
@@ -69,5 +69,5 @@ class IndexCache:
                 _, text = self._texts.popitem(last=False)
                 self._chars -= len(text or "")
             else:
-                (_, source), _ = self._facts.popitem(last=False)
+                (_, _, source), _ = self._facts.popitem(last=False)
                 self._chars -= len(source)

@@ -73,20 +73,24 @@ class ExecsqlLanguageServer(LanguageServer):
     def load_settings(self) -> None:
         """Read ``[lint]`` and ``[format]`` for each workspace folder, as ``execsql lint`` / ``execsql format`` run there would.
 
-        execsql reads config files from the working directory, so each
-        folder's settings are read from inside it.  The server itself works
-        from the workspace root: a file in no folder gets the settings read
-        there, and an unsaved script's relative ``INCLUDE`` resolves there.
+        Each folder stands in for the working directory those commands read
+        config from; the server's own working directory never changes.  A file
+        in no folder gets the settings of :meth:`base_dir`.
         """
-        root = self.workspace.root_path
-        if root and os.path.isdir(root):
-            os.chdir(root)
-        self.fallback = self._read_settings(None)
+        self.fallback = self._read_settings(self.base_dir())
         self.settings = {}
         for folder in self.workspace.folders.values():
             path = to_fs_path(folder.uri)
             if path and os.path.isdir(path):
                 self.settings[same_file_key(path)] = self._read_settings(path)
+
+    def base_dir(self) -> str | None:
+        """The workspace root, if it still exists: an unsaved script's relative paths resolve there.
+
+        ``None`` (no root) leaves them to the server's working directory.
+        """
+        root = self.workspace.root_path
+        return root if root and os.path.isdir(root) else None
 
     def _read_settings(self, folder: str | None) -> Settings:
         """The settings ``execsql lint`` run from *folder* (the working directory if ``None``) reads.
@@ -96,11 +100,8 @@ class ExecsqlLanguageServer(LanguageServer):
         from execsql.cli.lint import resolve_selectors
         from execsql.cli.run import _tool_config
 
-        here = os.getcwd()
         try:
-            if folder is not None:
-                os.chdir(folder)
-            conf = _tool_config(None)
+            conf = _tool_config(None, start_dir=folder)
             return Settings(
                 select=resolve_selectors([conf.lint_select]) if conf.lint_select else (),
                 ignore=resolve_selectors([conf.lint_ignore]) if conf.lint_ignore else (),
@@ -116,8 +117,6 @@ class ExecsqlLanguageServer(LanguageServer):
                 types.ShowMessageParams(type=types.MessageType.Warning, message=f"execsql config: {exc}"),
             )
             return Settings()
-        finally:
-            os.chdir(here)
 
     def settings_for(self, uri: str) -> Settings:
         """The settings of the innermost workspace folder holding *uri*'s file, else :attr:`fallback`."""
@@ -137,7 +136,7 @@ class ExecsqlLanguageServer(LanguageServer):
         document = self.workspace.get_text_document(uri)
         path = to_fs_path(uri)
         try:
-            index = index_script(document.source, path, self.read_included, self.cache.facts)
+            index = index_script(document.source, path, self.read_included, self.cache.facts, self.base_dir())
         except RecursionError:
             index = ScriptIndex(path=path)
         except Exception:  # the features that need an index answer with nothing; the cause goes to the log
@@ -181,7 +180,7 @@ class ExecsqlLanguageServer(LanguageServer):
         document = self.workspace.get_text_document(uri)
         settings = self.settings_for(uri)
         try:
-            found = diagnostics(document.source, to_fs_path(uri), settings.select, settings.ignore)
+            found = diagnostics(document.source, to_fs_path(uri), settings.select, settings.ignore, self.base_dir())
         except RecursionError:
             found = [too_deep_diagnostic()]
         except Exception as exc:  # shown in the editor, not lost in an unawaited task

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import sys
 
 import pytest
@@ -493,7 +494,7 @@ def _offline_server(monkeypatch, source: str = "SELECT 1;\n"):
     published: list[types.PublishDiagnosticsParams] = []
     monkeypatch.setattr(server, "text_document_publish_diagnostics", published.append)
     document = SimpleNamespace(source=source, version=3)
-    workspace = SimpleNamespace(get_text_document=lambda uri: document, text_documents={})
+    workspace = SimpleNamespace(get_text_document=lambda uri: document, text_documents={}, root_path=None)
     monkeypatch.setattr(type(server), "workspace", property(lambda self: workspace))
     return server, published
 
@@ -541,3 +542,84 @@ async def test_shutdown_cancels_a_pending_lint(monkeypatch):
     await asyncio.sleep(0.4)
     assert published == []
     assert server.pending == {}
+
+
+def _workspace_server(monkeypatch, root, *folders):
+    """A server with no client over a real pygls workspace rooted at *root*."""
+    from pygls.workspace import Workspace
+
+    import execsql.lsp.server as server_module
+
+    server = server_module.create_server()
+    workspace = Workspace(
+        root.as_uri(),
+        workspace_folders=[types.WorkspaceFolder(uri=f.as_uri(), name=f.name) for f in folders],
+    )
+    monkeypatch.setattr(type(server), "workspace", property(lambda self: workspace))
+    monkeypatch.setattr(server, "window_show_message", lambda params: None)
+    return server, workspace
+
+
+def _folder_with_ignore(parent, name: str, ignore: str):
+    folder = parent / name
+    folder.mkdir()
+    (folder / "execsql.conf").write_text(f"[lint]\nignore = {ignore}\n", encoding="utf-8")
+    return folder
+
+
+def test_settings_are_read_without_changing_the_working_directory(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    a = _folder_with_ignore(tmp_path, "a", "V")
+    server, _ = _workspace_server(monkeypatch, a, a)
+    server.load_settings()
+    assert os.getcwd() == str(tmp_path)
+    assert server.settings_for((a / "x.sql").as_uri()).ignore == ("V",)
+
+
+def test_two_folders_settings_read_at_once_stay_apart(monkeypatch, tmp_path):
+    """Settings reads share no process state, so threads cannot mix one folder's config into another's."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    a = _folder_with_ignore(tmp_path, "a", "V")
+    b = _folder_with_ignore(tmp_path, "b", "P")
+    server, _ = _workspace_server(monkeypatch, a, a, b)
+    with ThreadPoolExecutor(8) as pool:
+        found = list(pool.map(lambda folder: server._read_settings(str(folder)).ignore, [a, b] * 20))
+    assert found == [("V",), ("P",)] * 20
+
+
+def test_a_folder_added_after_the_root_is_deleted_brings_its_config(monkeypatch, tmp_path):
+    import shutil
+
+    monkeypatch.chdir(tmp_path)
+    root = _folder_with_ignore(tmp_path, "root", "V")
+    server, workspace = _workspace_server(monkeypatch, root, root)
+    server.load_settings()
+    workspace.remove_folder(root.as_uri())
+    shutil.rmtree(root)
+    added = _folder_with_ignore(tmp_path, "added", "P")
+    workspace.add_folder(types.WorkspaceFolder(uri=added.as_uri(), name="added"))
+    server.load_settings()
+    assert server.settings_for((added / "x.sql").as_uri()).ignore == ("P",)
+
+
+def test_an_unsaved_scripts_include_resolves_against_the_workspace_root(monkeypatch, tmp_path):
+    from types import SimpleNamespace
+
+    import execsql.lsp.server as server_module
+
+    root = tmp_path / "root"
+    root.mkdir()
+    (root / "setup.sql").write_text("-- !x! SUB region north\n", encoding="utf-8")
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    monkeypatch.chdir(elsewhere)
+    server = server_module.create_server()
+    published: list[types.PublishDiagnosticsParams] = []
+    monkeypatch.setattr(server, "text_document_publish_diagnostics", published.append)
+    document = SimpleNamespace(source="-- !x! INCLUDE setup.sql\nSELECT '!!region!!';\n", version=1)
+    workspace = SimpleNamespace(get_text_document=lambda uri: document, text_documents={}, root_path=str(root))
+    monkeypatch.setattr(type(server), "workspace", property(lambda self: workspace))
+    assert "REGION" in server.index("untitled:Untitled-1").definitions
+    server.publish("untitled:Untitled-1")
+    assert [d.code for d in published[0].diagnostics if d.code == "I001"] == []

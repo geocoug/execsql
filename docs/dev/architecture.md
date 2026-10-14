@@ -128,7 +128,7 @@ ______________________________________________________________________
 | `code_actions.py`                          | quick fixes for P002, P003, P004, V001                  | the dispatch table (each fix is re-validated before it is offered) |
 | `formatting.py`                            | Format Document                                         | `format.format_file` with the `[format]` settings                  |
 
-**Settings per workspace folder.** execsql reads config files from the working directory, and `ConfigData` has no start-directory argument, so `load_settings()` reads each folder's `[lint]` / `[format]` settings by changing into the folder (`_read_settings`, restored in a `finally`) and keeps them by folder; a document uses its innermost folder's settings, a document in no folder those of the workspace root. Afterwards the process works from the workspace root, which is where an unsaved script's relative `INCLUDE` resolves. This relies on pygls running every handler on one thread, one at a time: an `async` or threaded handler would see the changed directory.
+**Settings per workspace folder.** `ConfigData(start_dir=...)` (through `_tool_config(None, start_dir=folder)`) reads config as a run started in that directory would: its `execsql.conf`, and relative `config_file` chains resolved against it. `load_settings()` reads each folder's `[lint]` / `[format]` settings that way and keeps them by folder; a document uses its innermost folder's settings, a document in no folder those of the workspace root (`base_dir()`, or the server's working directory when there is no root or it is gone). The server never changes its working directory. An unsaved script's relative `INCLUDE` resolves against `base_dir()` too, for both lint (`lint_source(base_dir=...)`) and the index.
 
 **Index lifetime.** A `ScriptIndex` is assembled on every request that needs one (hover, completion, definition, references, rename, links, code actions) from per-file `FileFacts`: what one file defines, calls, includes and refers to, independent of the files it includes. `lsp/cache.py` keeps each text's facts and each included file's text (by path, size and modification time, dropped when the client reports the file changed), so a request reparses only the edited buffer; a file with a `SUB_INI` is reparsed every time, since its INI file can change on its own. `INCLUDE`d files are read too (the editor's unsaved copy when the file is open), up to 200 files, 10 MiB each and 20 MiB together, regular files only; `SUB_INI` files at most 1 MiB, cached by path, size and modification time.
 
@@ -364,7 +364,7 @@ ______________________________________________________________________
 1. System-wide (platform-dependent)
 1. User home directory
 1. Script file directory
-1. Current working directory
+1. Current working directory (or `start_dir`, when the caller passes one)
 
 It exposes all recognized options as attributes (`db_type`, `server`, `db`, `db_file`, `username`, `script_encoding`, `output_encoding`, etc.).
 

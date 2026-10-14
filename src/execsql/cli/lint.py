@@ -1002,6 +1002,7 @@ def _lint_nodes(
 def lint(
     script: Script,
     script_path: str | None = None,
+    base_dir: str | None = None,
 ) -> list[_Issue]:
     """Perform static analysis on an AST-parsed script.
 
@@ -1009,6 +1010,8 @@ def lint(
         script: The parsed :class:`Script` tree.
         script_path: Path to the source file (for resolving relative
             INCLUDE paths).  ``None`` for inline scripts.
+        base_dir: Where an inline script's relative paths resolve, in place
+            of the working directory.
 
     Returns:
         Every :class:`Issue` found, unfiltered.
@@ -1019,7 +1022,7 @@ def lint(
         issues.append(_issue("S001", script_path or script.source, 0, "script is empty"))
         return issues
 
-    script_dir = Path(script_path).resolve().parent if script_path else None
+    script_dir = Path(script_path).resolve().parent if script_path else (Path(base_dir) if base_dir else None)
     script_blocks = _collect_script_blocks(script)
 
     # Pass 1: collect all variable definitions
@@ -1041,7 +1044,7 @@ def lint(
     return issues
 
 
-def lint_source(source: str, label: str, script_path: str | None = None) -> list[_Issue]:
+def lint_source(source: str, label: str, script_path: str | None = None, base_dir: str | None = None) -> list[_Issue]:
     """Parse *source* and lint it, unfiltered.
 
     Each block-structure error (an IF without ENDIF, a stray END LOOP, ...)
@@ -1052,7 +1055,7 @@ def lint_source(source: str, label: str, script_path: str | None = None) -> list
 
     errors: list[ErrInfo] = []
     tree = parse_string(source, label, errors=errors)
-    return [parse_error(label, exc) for exc in errors] + lint(tree, script_path=script_path)
+    return [parse_error(label, exc) for exc in errors] + lint(tree, script_path=script_path, base_dir=base_dir)
 
 
 # ---------------------------------------------------------------------------

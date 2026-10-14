@@ -205,7 +205,7 @@ result = run(
 result.raise_on_error()
 ```
 
-Accepts `dsn=` or a pre-built `connection=` `Database` object. Each call runs in its own thread-local `RuntimeContext` with its own file-writer thread, so concurrent calls from different threads are safe and a halt in one does not stop another's file output. `halt_on_error=False` collects errors instead of raising.
+Accepts `dsn=` or a pre-built `connection=` `Database` object. Each call runs in its own thread-local `RuntimeContext` with its own file-writer thread, so concurrent calls from different threads are safe and a halt in one does not stop another's file output. `halt_on_error=False` collects errors instead of raising. A script's `CD` lasts until `run()` returns, which then changes back to the caller's directory.
 
 ______________________________________________________________________
 
