@@ -2,7 +2,6 @@
 
 These tests cover:
 - Data-carrier classes (GuiSpec, EntrySpec, ActionSpec)
-- Backend factory (get_backend)
 - ConsoleBackend dialog dispatch
 - TkinterBackend instantiation (no display required — we test structure only)
 - Pluggable manager thread integration
@@ -369,69 +368,6 @@ class TestConsoleBackend:
                 self.backend.dispatch(spec)
             except Exception:
                 pass  # IO errors are expected in unit tests without a terminal
-
-
-# ---------------------------------------------------------------------------
-# Backend factory
-# ---------------------------------------------------------------------------
-
-
-class TestGetBackend:
-    def test_default_framework_returns_a_backend(self):
-        """get_backend() with default framework returns a valid GuiBackend."""
-        from execsql.gui import get_backend
-        from execsql.gui.base import GuiBackend
-
-        backend = get_backend()
-        assert isinstance(backend, GuiBackend)
-
-    def test_textual_framework_returns_textual_if_available(self):
-        from execsql.gui import get_backend
-
-        try:
-            import textual  # noqa: F401
-            from execsql.gui.tui import TextualBackend
-
-            backend = get_backend("textual")
-            assert isinstance(backend, TextualBackend)
-        except ImportError:
-            from execsql.gui.console import ConsoleBackend
-
-            backend = get_backend("textual")
-            assert isinstance(backend, ConsoleBackend)
-
-    def test_tkinter_framework_falls_back_gracefully(self):
-        """On a headless CI environment Tkinter may fail; factory should fall back."""
-        from execsql.gui import get_backend
-        from execsql.gui.base import GuiBackend
-
-        backend = get_backend("tkinter")
-        assert isinstance(backend, GuiBackend)
-
-    def test_backend_has_dispatch_method(self):
-        from execsql.gui import get_backend
-
-        backend = get_backend("textual")
-        assert callable(backend.dispatch)
-
-    def test_falls_back_to_console_when_all_unavailable(self):
-        """When both tkinter and textual fail, fall back to ConsoleBackend."""
-        from unittest.mock import patch
-        from execsql.gui.console import ConsoleBackend
-
-        def fail_import(name, *args, **kwargs):
-            if name in ("execsql.gui.desktop", "execsql.gui.tui"):
-                raise ImportError(f"mocked failure for {name}")
-            return original_import(name, *args, **kwargs)
-
-        import builtins
-
-        original_import = builtins.__import__
-        with patch("builtins.__import__", side_effect=fail_import):
-            from execsql.gui import get_backend
-
-            backend = get_backend("tkinter")
-        assert isinstance(backend, ConsoleBackend)
 
 
 # ---------------------------------------------------------------------------

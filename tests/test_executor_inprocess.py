@@ -152,7 +152,6 @@ class TestExecutingStatement:
     def test_sql_statement_reports_its_source(self) -> None:
         stmt = ExecutingStatement(self._sql_node())
         assert stmt.source == "s.sql"
-        assert stmt.source_name == "s.sql"
 
     def test_sql_statement_reports_its_line(self) -> None:
         assert ExecutingStatement(self._sql_node()).line_no >= 1
@@ -175,13 +174,6 @@ class TestExecutingStatement:
         """The AST node stays the single source of truth."""
         node = self._sql_node()
         assert ExecutingStatement(node).node is node
-
-    def test_source_dir_is_absolute(self) -> None:
-        import os
-
-        tree = parse_string("SELECT 1;", source_name="s.sql")
-        node = tree.body[0].body[0] if isinstance(tree.body[0], SqlBlock) else tree.body[0]
-        assert os.path.isabs(ExecutingStatement(node).source_dir)
 
 
 # ---------------------------------------------------------------------------

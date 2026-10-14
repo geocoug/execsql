@@ -6,8 +6,6 @@ Error handling and reporting utilities for execsql.
 Provides the functions that form the error-reporting pipeline used
 throughout the codebase:
 
-- :func:`exception_info` — extracts type, value, and source location
-  from the current exception.
 - :func:`exception_desc` — ``Type: message`` for the exception being
   handled, as shown on screen.
 - :func:`error_origin` / :func:`logged_error` — where in execsql an error
@@ -28,7 +26,6 @@ import execsql.state as _state
 from execsql.exceptions import ErrInfo
 
 __all__ = [
-    "exception_info",
     "error_origin",
     "exception_desc",
     "logged_error",
@@ -56,43 +53,29 @@ def install_hint(extra: str) -> str:
     )
 
 
-def exception_info() -> tuple:
-    # Returns the exception type, value, source file name, source line number, and source line text.
-    strace = traceback.extract_tb(sys.exc_info()[2])[-1:]
-    traces = traceback.extract_tb(sys.exc_info()[2])
-    xline = 0
-    for trace in traces:
-        if "execsql" in trace[0]:
-            xline = trace[1]
-    exc_message = ""
-    exc_param = sys.exc_info()[1]
-    if isinstance(exc_param, str):
-        exc_message = exc_param
-    elif exc_param is not None:
-        message = getattr(exc_param, "message", None)
-        value = getattr(exc_param, "value", None)
-        if isinstance(message, str) and len(message) > 0:
-            exc_message = message
-        elif isinstance(value, str) and len(value) > 0:
-            exc_message = value
-        else:
-            exc_message = str(exc_param)
-    try:
-        exc_message = str(exc_message)
-    except Exception:
-        exc_message = repr(exc_message)
-    xinfo = sys.exc_info()[0]
-    xname = getattr(xinfo, "__name__", "")
-    return xname, exc_message, strace[0][0], xline, strace[0][3]
-
-
 def exception_desc() -> str:
     """``Type: message`` for the exception being handled, as shown to the person running the script.
 
-    Where in execsql it was raised is for the log: see :func:`error_origin`.
+    The message is the exception's ``message`` or ``value`` attribute when it
+    has a non-empty string one (as some drivers' exceptions do), else its
+    ``str()``.  Where in execsql it was raised is for the log: see
+    :func:`error_origin`.
     """
-    exc_type, exc_strval, _filename, _lineno, _linetext = exception_info()
-    return f"{exc_type}: {exc_strval}"
+    exc_type, exc = sys.exc_info()[:2]
+    if isinstance(exc, str):
+        message = exc
+    elif exc is None:
+        message = ""
+    else:
+        attr = next(
+            (v for v in (getattr(exc, "message", None), getattr(exc, "value", None)) if isinstance(v, str) and v),
+            None,
+        )
+        try:
+            message = attr if attr is not None else str(exc)
+        except Exception:
+            message = repr(exc)
+    return f"{getattr(exc_type, '__name__', '')}: {message}"
 
 
 def error_origin(exc: BaseException) -> str | None:

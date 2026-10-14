@@ -33,6 +33,7 @@ ______________________________________________________________________
 
 ### Removed
 
+- **Unused helpers:** `execsql.gui.get_backend()` (the GUI picks its backend in `enable_gui()`), `ins_quoted_rx()` (re-exported from `execsql.metacommands`; nothing built a metacommand with it) and `execsql.utils.errors.exception_info()` (use `exception_desc()`).
 - **`execsql.utils.fileio`:** `filewriter_closeall()`, `filewriter_shutdown()` and `list_encodings()`, which nothing called; use `filewriter_end()` to stop a writer and `execsql list encodings` for the encodings. `FileWriter.ping()` is gone too.
 
 ______________________________________________________________________

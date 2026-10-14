@@ -339,19 +339,19 @@ This import pattern (always as `_state`, always accessed inside function/method 
 
 ### Key state variables
 
-| Variable          | Type                     | Purpose                                                          |
-| ----------------- | ------------------------ | ---------------------------------------------------------------- |
-| `conf`            | `ConfigData`             | Merged configuration                                             |
-| `subvars`         | `SubVarSet`              | Global substitution variables                                    |
-| `ast_exec_stack`  | `list[ExecFrame]`        | Unified execution stack (scopes + IF/LOOP/BATCH/INCLUDE)         |
-| `ast_scripts`     | `dict[str, ScriptBlock]` | Named scripts from `BEGIN/END SCRIPT` (AST registry)             |
-| `last_command`    | `ScriptCmd \| None`      | Most-recently-executed statement; powers `current_script_line()` |
-| `dbs`             | `DatabasePool`           | Open database connections                                        |
-| `metacommandlist` | `MetaCommandList`        | Metacommand dispatch table                                       |
-| `conditionallist` | `MetaCommandList`        | Conditional predicate dispatch table                             |
-| `counters`        | `CounterVars`            | Auto-incrementing counters                                       |
-| `filewriter`      | `FileWriter`             | This run's background file-writing thread                        |
-| `exec_log`        | `Logger`                 | Execution log                                                    |
+| Variable          | Type                         | Purpose                                                          |
+| ----------------- | ---------------------------- | ---------------------------------------------------------------- |
+| `conf`            | `ConfigData`                 | Merged configuration                                             |
+| `subvars`         | `SubVarSet`                  | Global substitution variables                                    |
+| `ast_exec_stack`  | `list[ExecFrame]`            | Unified execution stack (scopes + IF/LOOP/BATCH/INCLUDE)         |
+| `ast_scripts`     | `dict[str, ScriptBlock]`     | Named scripts from `BEGIN/END SCRIPT` (AST registry)             |
+| `last_command`    | `ExecutingStatement \| None` | Most-recently-executed statement; powers `current_script_line()` |
+| `dbs`             | `DatabasePool`               | Open database connections                                        |
+| `metacommandlist` | `MetaCommandList`            | Metacommand dispatch table                                       |
+| `conditionallist` | `MetaCommandList`            | Conditional predicate dispatch table                             |
+| `counters`        | `CounterVars`                | Auto-incrementing counters                                       |
+| `filewriter`      | `FileWriter`                 | This run's background file-writing thread                        |
+| `exec_log`        | `Logger`                     | Execution log                                                    |
 
 ______________________________________________________________________
 
