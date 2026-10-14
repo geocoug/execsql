@@ -89,8 +89,6 @@ class ExecFrame:
 
 
 if TYPE_CHECKING:
-    import multiprocessing as _mp
-
     from execsql.config import ConfigData, StatObj, WriteHooks
     from execsql.db.base import DatabasePool
     from execsql.exporters.base import ExportMetadata, WriteSpec
@@ -361,7 +359,7 @@ class RuntimeContext:
 
         # GUI
         self.gui_console: Any = None
-        self.gui_manager_queue: _mp.Queue | None = None
+        self.gui_manager_queue: Any = None  # a queue.Queue or a _TkinterSyncQueue; only put() is used
         self.gui_manager_thread: threading.Thread | None = None
 
         # Profiling — None means profiling is disabled; a list means it is enabled.

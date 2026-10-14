@@ -84,7 +84,7 @@ def _sheetnames(path: str) -> list[str]:
 def _patch_state(tmp_path, monkeypatch):
     """Patch execsql.state so exporters can reference current db and script line.
 
-    Also patch filewriter_close to a no-op: the FileWriter background process is
+    Also patch filewriter_close to a no-op: the FileWriter background thread is
     not started in tests, so the real implementation would block indefinitely.
     """
     import execsql.state as _state

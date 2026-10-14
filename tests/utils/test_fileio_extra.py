@@ -242,7 +242,7 @@ class TestFileControlWrite:
 
 
 # ---------------------------------------------------------------------------
-# FileWriter instance methods (without subprocess)
+# FileWriter instance methods (without starting the thread)
 # ---------------------------------------------------------------------------
 
 
@@ -328,14 +328,6 @@ class TestFileWriterMethods:
         fw.active = True
         fw.shutdown()
         assert fw.active is False
-
-    def test_ping(self, tmp_path):
-        import queue
-
-        fw = FileWriter.__new__(FileWriter)
-        fw.return_msg_queue = queue.Queue()
-        fw.ping("test_token")
-        assert fw.return_msg_queue.get() == "test_token"
 
 
 # ---------------------------------------------------------------------------

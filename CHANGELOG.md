@@ -31,6 +31,10 @@ ______________________________________________________________________
 - **Language server settings for a workspace folder added after the first folder was deleted** are read; before, every later settings reload failed and the folder linted with stale rules. An unsaved script's relative `INCLUDE` resolves against the workspace root.
 - **VS Code extension:** turning `execsql.server.enabled` on or off, or changing `execsql.server.path`, takes effect without reloading the window; **execsql: Restart Language Server** works (and says so) when the server is off, and two quick restarts no longer leave a second server running.
 
+### Removed
+
+- **`execsql.utils.fileio`:** `filewriter_closeall()`, `filewriter_shutdown()` and `list_encodings()`, which nothing called; use `filewriter_end()` to stop a writer and `execsql list encodings` for the encodings. `FileWriter.ping()` is gone too.
+
 ______________________________________________________________________
 
 ## [2.29.0] - 2026-10-13

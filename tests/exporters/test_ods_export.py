@@ -69,7 +69,7 @@ def _patch_script_line():
 
 @pytest.fixture(autouse=True)
 def _patch_filewriter_close():
-    """filewriter_close blocks on the FileWriter subprocess; no-op it for tests."""
+    """filewriter_close blocks on the FileWriter thread; no-op it for tests."""
     with patch("execsql.exporters.ods.filewriter_close"):
         yield
 
