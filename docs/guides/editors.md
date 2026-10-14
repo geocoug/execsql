@@ -187,7 +187,8 @@ The setting is a command name looked up in PATH or an absolute path; a relative
 path is refused. The extension never looks for `execsql` in the open folder,
 and starts the server from your home directory.
 After upgrading execsql, run **execsql: Restart Language Server** from the
-Command Palette. The extension also highlights execsql syntax; that works
+Command Palette. The server's log is in **View → Output → execsql**
+([Troubleshooting](#troubleshooting)). The extension also highlights execsql syntax; that works
 without the server.
 
 In a folder you have not marked as trusted
@@ -232,3 +233,45 @@ Any editor with a language server client can use it: configure a server for
 the `sql` language whose command is `execsql lsp`, run over stdio. Sublime Text
 (the LSP package), Emacs (eglot or lsp-mode), Zed and JetBrains IDEs (the LSP4IJ
 plugin) all work this way.
+
+## Troubleshooting { #troubleshooting }
+
+**Where the server's log is.** The server writes its log to stderr, which the
+editor keeps:
+
+| Editor  | Where                                                                                 |
+| ------- | ------------------------------------------------------------------------------------- |
+| VS Code | **View → Output**, then choose **execsql** in the list. Start failures are there too. |
+| Neovim  | `:LspLog` (`~/.local/state/nvim/lsp.log`)                                             |
+| Helix   | `:log-open`                                                                           |
+
+**How much it logs.** `execsql lsp --log-level` (or the `EXECSQL_LSP_LOG_LEVEL`
+environment variable) takes `error`, `warning` (the default), `info` or `debug`:
+
+- `info` adds a startup record and each workspace folder's settings, which is
+    what a bug report needs:
+
+    ```text
+    INFO execsql.lsp.server: execsql lsp 2.x.y; Python 3.12.7 at /home/me/.local/share/uv/tools/execsql2/bin/python; pygls 2.x.y; formatter available
+    INFO execsql.lsp.server: workspace folders: /home/me/etl
+    INFO execsql.lsp.server: settings for /home/me/etl: config files /home/me/etl/execsql.conf; lint select all, ignore V; format {...}
+    ```
+
+- `debug` adds every message between the editor and the server, including the
+    scripts' text.
+
+The VS Code extension logs at `info` (setting **execsql.server.logLevel**). In
+another editor, add the option to the server command, e.g. in Neovim
+`cmd = { "execsql", "lsp", "--log-level", "info" }`. An editor that does not
+keep the server's stderr can use `--log-file PATH` to append the log to a file.
+
+**Tracing the protocol in VS Code.** Set **execsql.trace.server** to `messages`
+(or `verbose`, which adds each message's content); the trace appears in the same
+Output channel.
+
+**Reporting a problem.** [Open an issue](https://github.com/geocoug/execsql/issues)
+with:
+
+1. The output of `execsql --version` and `execsql lsp --check`.
+1. The server log at `info`, from start-up to the problem.
+1. A small script that shows it, if you can share one.

@@ -11,6 +11,11 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Added
+
+- **`execsql lsp --log-level` and `--log-file`** (or `EXECSQL_LSP_LOG_LEVEL`): at `info` the server logs its version, the Python running it, whether the formatter is installed, the workspace folders and the config files each folder read; `debug` adds every protocol message. See [Troubleshooting](https://execsql2.readthedocs.io/en/latest/guides/editors/#troubleshooting) for what to include in a bug report.
+- **VS Code extension:** the **execsql** Output channel shows the server's log (setting `execsql.server.logLevel`, default `info`) and why the server did not start; `execsql.trace.server` traces the protocol there.
+
 ### Fixed
 
 - **`execsql lint` checks every file** when one has an `INCLUDE` path the operating system rejects (such as a name too long for it): that file gets an I001 finding instead of the whole run stopping with "Uncaught exception", and a script lint cannot check at all is reported as one P001 error.

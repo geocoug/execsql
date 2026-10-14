@@ -287,7 +287,10 @@ def _load_config(
     *start_dir* stands in for the working directory (see :class:`ConfigData`).
     Returns a fully populated :class:`ConfigData` instance.
     """
-    script_path = str(Path(script_name).resolve().parent) if script_name else (start_dir or os.getcwd())
+    if script_name:
+        script_path = str(Path(script_name).resolve().parent)
+    else:  # resolved, as os.getcwd() is, so the start directory's execsql.conf is not read twice
+        script_path = str(Path(start_dir).resolve()) if start_dir else os.getcwd()
     return ConfigData(script_path, subvars, config_file=config_file, start_dir=start_dir)
 
 

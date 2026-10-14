@@ -1813,3 +1813,20 @@ class TestConfigDataStartDir:
         _write_conf(str(tmp_path / "shared"), "[lint]\nselect = P\n")
         monkeypatch.chdir(tmp_path)
         assert ConfigData(str(tmp_path / "elsewhere"), self._pool()).lint_select == "P"
+
+    def test_a_start_dir_reached_through_a_link_reads_its_config_once(self, tmp_path, monkeypatch):
+        from execsql.cli.run import _tool_config
+
+        real = tmp_path / "real"
+        real.mkdir()
+        _write_conf(str(real), "[lint]\nignore = V\n")
+        link = tmp_path / "link"
+        try:
+            link.symlink_to(real, target_is_directory=True)
+        except OSError:
+            pytest.skip("cannot create a symbolic link here")
+        monkeypatch.chdir(tmp_path)
+        conf = _tool_config(None, start_dir=str(link))
+        assert [f for f in conf.files_read if f.endswith("execsql.conf") and "real" in f] == [
+            str(real.resolve() / "execsql.conf"),
+        ]

@@ -13,6 +13,9 @@ const INSTALL_HINT =
   "https://execsql2.readthedocs.io/en/latest/getting-started/installation/), or set execsql.server.path.";
 
 let client;
+// The server's log, its protocol trace (execsql.trace.server) and why it did not start, in one place:
+// View > Output > execsql.
+let output;
 
 // Whether *file* is a program this extension may run.
 function isProgram(file) {
@@ -70,32 +73,45 @@ function serverProgram() {
   return isProgram(configured) ? configured : new Error(`${configured} is not a program.`);
 }
 
+// Shows *message* as a warning and keeps it in the Output channel, where the server's log is.
+function warn(message) {
+  output.appendLine(`[extension] ${message}`);
+  vscode.window.showWarningMessage(message);
+}
+
 async function start() {
   const program = serverProgram();
   if (program instanceof Error) {
-    vscode.window.showWarningMessage(`The execsql language server did not start: ${program.message} ${INSTALL_HINT}`);
+    warn(`The execsql language server did not start: ${program.message} ${INSTALL_HINT}`);
     return;
   }
+  // An environment variable, not --log-level, so an older execsql without the option still starts.
+  const logLevel = vscode.workspace.getConfiguration("execsql").get("server.logLevel", "info");
+  output.appendLine(`[extension] starting ${program} lsp (log level ${logLevel})`);
   client = new LanguageClient(
     "execsql",
     "execsql",
     // The server runs from the home directory, not the workspace folder: it
     // finds the workspace through the protocol, not its working directory.
-    { command: program, args: ["lsp"], transport: TransportKind.stdio, options: { cwd: os.homedir() } },
+    {
+      command: program,
+      args: ["lsp"],
+      transport: TransportKind.stdio,
+      options: { cwd: os.homedir(), env: { ...process.env, EXECSQL_LSP_LOG_LEVEL: logLevel } },
+    },
     {
       documentSelector: [
         { scheme: "file", language: "sql" },
         { scheme: "untitled", language: "sql" },
       ],
+      outputChannel: output,
     },
   );
   try {
     await client.start();
   } catch (err) {
     client = undefined;
-    vscode.window.showWarningMessage(
-      `The execsql language server did not start (${program} lsp): ${err.message}. ${INSTALL_HINT}`,
-    );
+    warn(`The execsql language server did not start (${program} lsp): ${err.message}. ${INSTALL_HINT}`);
   }
 }
 
@@ -130,12 +146,14 @@ function update(restart) {
         await start();
       }
     })
-    .catch((err) => vscode.window.showWarningMessage(`execsql language server: ${err.message}`));
+    .catch((err) => warn(`execsql language server: ${err.message}`));
   return pending;
 }
 
 async function activate(context) {
+  output = vscode.window.createOutputChannel("execsql");
   context.subscriptions.push(
+    output,
     vscode.commands.registerCommand("execsql.restartServer", async () => {
       if (!serverEnabled()) {
         vscode.window.showInformationMessage("The execsql language server is turned off (execsql.server.enabled).");
@@ -147,7 +165,7 @@ async function activate(context) {
       }
       await update(true);
     }),
-    // execsql.server.enabled and execsql.server.path take effect without reloading the window.
+    // The execsql.server.* settings take effect without reloading the window.
     vscode.workspace.onDidChangeConfiguration((event) => {
       return event.affectsConfiguration("execsql.server") ? update(true) : undefined;
     }),
