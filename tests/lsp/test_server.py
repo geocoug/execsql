@@ -653,16 +653,18 @@ async def test_the_server_logs_what_a_bug_report_needs_at_info(logging_client: L
     """Version, interpreter, formatter, folders and each folder's config files, at EXECSQL_LSP_LOG_LEVEL=info."""
     from execsql import __version__
 
+    # Paths compared as the OS does: Windows reports c:\ where pytest has C:\.
+    root = os.path.normcase(str(logging_client.root))
     for _ in range(100):
         text = _LOG_FILE.read_text(encoding="utf-8") if _LOG_FILE.exists() else ""
-        if "settings for" in text and str(logging_client.root) in text:
+        if "settings for" in text and root in os.path.normcase(text):
             break
         await asyncio.sleep(0.05)
     assert f"execsql lsp {__version__}" in text
-    assert sys.executable in text
+    assert os.path.normcase(sys.executable) in os.path.normcase(text)
     assert "formatter" in text
-    assert f"workspace folders: {logging_client.root}" in text
-    assert str(logging_client.root / "execsql.conf") in text
+    assert f"workspace folders: {root}" in os.path.normcase(text)
+    assert os.path.normcase(str(logging_client.root / "execsql.conf")) in os.path.normcase(text)
 
 
 @pytest.mark.parametrize(
