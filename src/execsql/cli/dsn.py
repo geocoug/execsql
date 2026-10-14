@@ -50,7 +50,9 @@ def _parse_connection_string(dsn: str) -> dict:
     parsed = urlparse(dsn)
     scheme = parsed.scheme.lower()
     if not scheme:
-        raise ConfigError(f"Cannot parse connection string (no scheme): {dsn!r}")
+        # Echoed so the user sees what went wrong, but never with its password.
+        shown = dsn.replace(f":{parsed.password}@", ":***@") if parsed.password else dsn
+        raise ConfigError(f"Cannot parse connection string (no scheme): {shown!r}")
     if scheme not in _SCHEME_TO_DBTYPE:
         raise ConfigError(
             f"Unrecognised connection-string scheme {scheme!r}. "
