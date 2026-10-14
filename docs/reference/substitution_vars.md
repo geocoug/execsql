@@ -48,12 +48,15 @@ The differences between types of substitution variables are summarized in the fo
 
 All defined substitution variables can be displayed with the [DEBUG](../guides/debugging.md#debugging) metacommand.
 
+<a id="local_vars"></a>
+
 ## Local Variables
 
 Ordinary user-defined substitution variables, system variables, data variables, and environment variables are all global in scope: they can be referenced anywhere, including within other scripts that are [INCLUDEEd](metacommands.md#include) or defined with the [SCRIPT](metacommands.md#beginscript) metacommand.
 
 If the variable name starts with a tilde (~), however, the variable will be local to the [script](metacommands.md#beginscript) in which it is defined, and will not be accessible in any other script. The same local variable name can be used in multiple scripts without the instances interfering with one another.
 
+<a id="outer_scope_referent"></a>
 In addition, within a [script](metacommands.md#beginscript), a plus (+) prefix may be used to refer to a local variable in an outer scope. Substitutions defined for a "+"-prefixed variable will be applied to the first (proceeding outward) local variable by the same name found in an enclosing script. The plus prefix may only be used to refer to an existing instance of an outer-scope local variable; it cannot be used to create a new instance. If no corresponding local variable exists in any outer scope, an error will be raised. A plus prefix may be used with the following metacommands: [SUB](metacommands.md#subcmd), [SUB_ADD](metacommands.md#sub_add), [SUB_APPEND](metacommands.md#sub_append), [SUB_DECRYPT](metacommands.md#sub_decrypt), [SUB_EMPTY](metacommands.md#sub_empty), [SUB_ENCRYPT](metacommands.md#sub_encrypt), [SUB_TEMPFILE](metacommands.md#sub_tempfile), and [SUBDATA](metacommands.md#subdata). [Example 24](../guides/examples.md#example24) illustrates use of the "+" prefix to assign a value to an outer-scope local variable.
 
 The scope of [argument variables](#arg_vars) is also limited to the script in which they are defined, but no changes can be made to argument variables, whereas local variables can be freely created, modified, and removed.
@@ -77,7 +80,7 @@ $CONSOLE_WAIT_WHEN_DONE_STATE
 $CONSOLE_WAIT_WHEN_ERROR_HALT_STATE
 :   The value of the status flag that is set by the `console_wait_when_error_halt` configuration setting or by the [CONFIG CONSOLE WAIT_WHEN_ERROR](metacommands.md#console_wait_when_error) metacommand. The value of this variable is always either "ON" or "OFF".
 
-$COUNTER_x
+$COUNTER_x { #counter_vars }
 :   An integer value that is automatically incremented every time that it is referenced. As many counter variables as desired can be used. The value of *x* must be an integer that identifies the counter variable. Counter variable names do not have to be used sequentially. The first time that a counter variable is referenced, it returns the value 1. If a counter variable is referenced multiple times in one command, each reference will have the same value. The [RESET COUNTER](metacommands.md#reset_counter) metacommand can be used to re-initialize counter variables so that the next reference returns a value of 1. The [SET COUNTER](metacommands.md#set_counter) metacommand can be used to set a counter variable to a specified value. See examples [6](../guides/examples.md#example6), [7](../guides/examples.md#example7), [11](../guides/examples.md#example11), and [19](../guides/examples.md#example19) for illustrations of the use of counter variables.
 
 $CURRENT_ALIAS

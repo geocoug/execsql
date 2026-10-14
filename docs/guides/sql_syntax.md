@@ -10,9 +10,13 @@ By default, execsql immediately commits all SQL statements. The [AUTOCOMMIT](../
 
 When adding a very large amount of data with the [IMPORT](../reference/metacommands.md#import) or [COPY](../reference/metacommands.md#copy) metacommands, internal transaction limits may be exceeded for some DBMSs. For example, MS-Access may produce a 'file sharing lock count exceeded' error when large data sets are loaded.
 
+<a id="implicit_drop"></a>
+
 ## Implicit DROP TABLE Statements
 
 The "REPLACEMENT" keyword for the [IMPORT](../reference/metacommands.md#import) and [COPY](../reference/metacommands.md#copy) metacommands allows a previously existing table to be replaced. To accomplish this, execsql issues a "DROP TABLE" statement to the database in use. This is not an atomic replacement: if the drop succeeds but a later create or load step fails, the old table has already been removed. If the drop fails, execsql stops the metacommand before creating or loading the replacement table. PostgreSQL, SQLite, MySQL, MariaDB, Oracle, and DuckDB support a form of the "DROP TABLE" statement that automatically removes all foreign keys to the named table. execsql uses these forms of the "DROP TABLE" statement for these DBMSs. SQL Server, MS-Access, and Firebird do not have a form of the "DROP TABLE" statement that automatically removes foreign keys. Therefore, if the "REPLACEMENT" keyword is used with any of these three DBMSs, for a table that has foreign keys into it, that table will not be dropped, and the IMPORT or COPY command will stop. To avoid this, when using any of these three DBMSs, you should include in the script the appropriate SQL commands to remove foreign keys (and possibly even to remove the table) before using the IMPORT or COPY metacommands.
+
+<a id="boolean_data_types"></a>
 
 ## Boolean Data Types
 

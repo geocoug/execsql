@@ -4,6 +4,8 @@
 
 A script file name is the only required argument; database connection information can come from one or more [configuration files](../reference/configuration.md#configuration). Running *execsql* with no arguments prints the [syntax description](../getting-started/syntax.md#syntax).
 
+<a id="continuationchars"></a>
+
 ## SQL Statement Recognition
 
 *execsql* recognizes a SQL statement as consisting of a sequence of non-comment lines that ends with a line ending with a semicolon. A backslash ("\\") at the end of a line is treated as a line continuation character. Backslashes do not need to be used for simple SQL statements, but can be used for procedure and function definitions, where there are semicolons within the body of the definition, and a semicolon appears at the end of lines for readability purposes. The [BEGIN SQL](../reference/metacommands.md#beginsql) and [END SQL](../reference/metacommands.md#beginsql) metacommands can be used to bracket procedure and function definitions instead of using backslashes. Backslashes may not be used as continuation characters for [metacommands](../reference/metacommands.md#metacommands).

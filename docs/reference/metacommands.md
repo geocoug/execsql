@@ -408,6 +408,7 @@ Changes the current working directory. Relative paths in later metacommands, inc
 Several of the configuration settings that can be specified either with [command-line options](../getting-started/syntax.md#syntax) or in [configuration files](configuration.md#configuration) can also be dynamically altered using metacommands.
 
 
+<a id="boolean_int"></a>
 ```
 CONFIG BOOLEAN_INT YES|NO
 ```
@@ -417,6 +418,7 @@ Controls whether integer values of 0 and 1 are considered to be Booleans when th
 parameter](configuration.md#config_input).
 
 
+<a id="boolean_words"></a>
 ```
 CONFIG BOOLEAN_WORDS YES|NO
 ```
@@ -435,6 +437,7 @@ If set to Yes (the default is No), non-alphanumeric characters in column headers
 This setting is also applied to the conversion of spreadsheet names to table names when multiple worksheets are [IMPORTed](#import).
 
 
+<a id="console_wait_when_done"></a>
 ```
 CONFIG CONSOLE WAIT_WHEN_DONE YES|NO
 ```
@@ -442,6 +445,7 @@ CONFIG CONSOLE WAIT_WHEN_DONE YES|NO
 Controls the persistence of any [console window](#console) at the completion of the script when the script either completes normally or exits prematurely as a result of the user's response to a prompt. If the value is set to "Yes" or "On" (the default value is "No"), the console window will remain open until explicitly closed by the user. The message "Script complete; close the console window to exit execsql." will be displayed in the status bar. This metacommand has the same action as the `console_wait_when_done` configuration setting. The value of this setting can be evaluated with the "\$console_wait_when_done_state" [system variable](substitution_vars.md#system_vars).
 
 
+<a id="console_wait_when_error"></a>
 ```
 CONFIG CONSOLE WAIT_WHEN_ERROR YES|NO
 ```
@@ -487,6 +491,7 @@ A column header is considered to be missing if it is either absent or consists e
 This metacommand has the same action as the `delete_empty_columns` [configuration setting](configuration.md#setting_del_empty_cols).
 
 
+<a id="empty_rows"></a>
 ```
 CONFIG EMPTY_ROWS YES|NO
 ```
@@ -502,6 +507,7 @@ CONFIG EMPTY_STRINGS YES|NO
 Controls whether empty (zero-length) strings are allowed in data that is saved using either the [IMPORT](#import) or [COPY](#copy) metacommands. The default is to allow empty strings. A metacommand of EMPTY_STRINGS NO will cause all empty strings to be replaced by NULL. A string containing only space characters is considered to be an empty string.
 
 
+<a id="config_export_row_buffer"></a>
 ```
 CONFIG EXPORT_ROW_BUFFER <n>
 ```
@@ -541,6 +547,7 @@ CONFIG HDF5_TEXT_LEN <n>
 The width of the column to be used in an HDF5 export file when the data have a 'text' data type.
 
 
+<a id="import_common_cols"></a>
 ```
 IMPORT_ONLY_COMMON_COLUMNS YES|NO
 ```
@@ -550,6 +557,7 @@ Controls whether the [IMPORT](#import) metacommand will import CSV files with mo
 In addition to reducing the amount of data imported, this setting can also be used to work around some types of malformed input files.
 
 
+<a id="config_import_row_buffer"></a>
 ```
 CONFIG IMPORT_ROW_BUFFER <n>
 ```
@@ -557,6 +565,7 @@ CONFIG IMPORT_ROW_BUFFER <n>
 Specifies the number of data rows that will be read from an input data source at one time and buffered when data are imported using the [IMPORT](#import) metacommand and when a DBMS-specific fast import routine is not used. The default value is 1000 rows. Different buffer sizes may lead to faster imports, depending on the DBMS and data source. Larger values will require more memory, and excessively large values could result in a memory error.
 
 
+<a id="logdatavars"></a>
 ```
 CONFIG LOG_DATAVARS YES|NO
 ```
@@ -568,9 +577,10 @@ Controls whether data variables that are created by the [SELECT_SUB](#select_sub
 CONFIG LOG_SQL YES|NO
 ```
 
-Enable or disable SQL query audit logging at runtime. When enabled, each SQL statement executed against the database is written to *execsql*'s [log file](../guides/logging.md#logging) as a `sql` record containing the database name, source line number, and query text. This is equivalent to the `log_sql` [configuration setting](configuration.md#config_logging). The default value is "No".
+Enable or disable SQL query audit logging at runtime. When enabled, each SQL statement executed against the database is written to *execsql*'s [log file](../guides/logging.md#logging) as a `sql` record containing the database name, source line number, and query text. This is equivalent to the `log_sql` [configuration setting](configuration.md#log_sql). The default value is "No".
 
 
+<a id="logwritemessages"></a>
 ```
 CONFIG LOG_WRITE_MESSAGES YES|NO
 ```
@@ -585,6 +595,7 @@ CONFIG MAKE_EXPORT_DIRS YES|NO
 Controls whether the [EXPORT](#export) and [WRITE](#write) metacommands will automatically create any directories that are named in an output filename and that do not already exist. The user must have appropriate permissions to create those directories.
 
 
+<a id="max_int"></a>
 ```
 CONFIG MAX_INT <integer_value>
 ```
@@ -1513,6 +1524,7 @@ select * from d_labresult
 where !!whereclause!!;
 ```
 
+<a id="conditional_tests"></a>
 Conditional expressions used in IF metacommands are composed of one or more Boolean literals and conditional tests. Boolean literals are the words "True", "False", "Yes", "No", "1, and "0"; they are case-insensitive and may be unquoted or quoted with double quotes. Conditional tests are listed in the following subsections. Conditional tests can be negated by preceding them with the NOT keyword. Boolean literals and conditional tests can be combined to create conditional expressions through the use of the AND and OR keywords. The AND keyword has precedence over the OR keyword. Parentheses can be used to establish or clarify the order of evaluation.
 
 Short-circuit evaluation is used for tests combined with AND and OR. If the first of two tests combined with AND is false, the second test will not be evaluated; if the first of two tests combined with OR is true, the second test will not be evaluated.
@@ -1779,6 +1791,8 @@ NEWER_FILE(<filename1>, <filename2>)
 
 Evaluates whether the first of the specified files was last modified after the second of the files. This can be used, for example, to compare the date of an output file to the date of the script file that produces that output; if the script is newer, it may be [INCLUDEEd](#include) to run it again.
 
+
+<a id="roleexists"></a>
 
 ### *ROLE_EXISTS*
 
@@ -2176,6 +2190,8 @@ The text to be written is scanned for [substitution variables](substitution_vars
 
 If an error occurs when the text is written (for example if an attempt is made to write to a read-only file), then the text will not be written and no error message describing this failure will be issued. An error message describing the error that triggered the CANCEL_HALT WRITE action will be issued, as it would be if the ON CANCEL_HALT WRITE metacommand had not been used. The *execsql* [log file](../guides/logging.md#logging) will contain a message describing the failure of the ON CANCEL_HALT WRITE metacommand.
 
+
+<a id="error_halt_email"></a>
 
 ## ON ERROR_HALT EMAIL
 
@@ -2602,6 +2618,8 @@ PROMPT [MESSAGE "<text>"] CREDENTIALS <user_var> <pw_var>
 Prompts for a user name and password, using a dialog box, and assigns the entered values to the *user_var* and *pw_var* [substitution variables](substitution_vars.md#substitution_vars). If the prompt is canceled, unless [CANCEL_HALT](#cancel_halt) is set to OFF, script processing is halted, and the system exit value is set to 2. If [CANCEL_HALT](#cancel_halt) is set to ON, the specified substitution variables will be undefined.
 
 
+<a id="prompt_dir"></a>
+
 ## PROMPT DIRECTORY
 
 ```
@@ -2665,6 +2683,8 @@ If the INITIALLY clause is used, the provided text must be double-quoted and mus
 
 If a URL is provided with the HELP keyword, the dialog box will include a button that will open that URL when clicked. The URL must be double-quoted if it contains spaces.
 
+
+<a id="prompt_entry"></a>
 
 ## PROMPT ENTRY_FORM
 
@@ -2780,6 +2800,8 @@ PROMPT [MESSAGE] "<text>"
 Displays the specified text in a dialog box with a single 'Close' button.
 
 
+<a id="prompt_open"></a>
+
 ## PROMPT OPENFILE
 
 ```
@@ -2812,6 +2834,8 @@ If the "HALT" action is taken, either as a result of user input or as a result o
 
 Double quotes (as shown above), apostrophes, or square brackets can be used to delimit the text.
 
+
+<a id="prompt_save"></a>
 
 ## PROMPT SAVEFILE
 
@@ -2870,6 +2894,8 @@ If a URL is provided with the HELP keyword, the dialog box will include a button
 
 See [Example 8](../guides/examples.md#example8) for an illustration of the use of this metacommand, and [Example 17](../guides/examples.md#example17) for an illustration of the use of the CONTINUE keyword.
 
+
+<a id="reset_counter"></a>
 
 ## RESET COUNTER
 
@@ -2942,6 +2968,8 @@ Copies the specified file to stdout with Content-Type and Content-Disposition he
 
 The BINARY format should be used for file types that are not otherwise listed.
 
+
+<a id="set_counter"></a>
 
 ## SET COUNTER
 

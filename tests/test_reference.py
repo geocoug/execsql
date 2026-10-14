@@ -68,7 +68,7 @@ def test_every_condition_has_one_entry():
 def _documented_system_variables() -> set[str]:
     text = SUBVARS_MD.read_text(encoding="utf-8")
     section = text[text.index("## System Variables") : text.index("## Data Variables")]
-    names = set(re.findall(r"^(\$\w+)\s*\n:   ", section, re.M))
+    names = set(re.findall(r"^(\$\w+)(?: \{ #\w+ \})?\s*\n:   ", section, re.M))  # a term may carry an id
     md = METACOMMANDS_MD.read_text(encoding="utf-8")
     pg = md[md.index("### Substitution variables", md.index("## PG_UPSERT")) :]
     pg = pg[: pg.index("\n### ", 5)]
