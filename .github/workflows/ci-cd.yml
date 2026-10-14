@@ -45,6 +45,10 @@ jobs:
               with:
                   python-version: "3.13"
             - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7  # v10.2.0
+              with:
+                  # The uv the uv-pre-commit hook runs locally, which writes uv.lock
+                  # (tests/test_tooling_versions.py keeps them equal).
+                  version: "0.12.23"
             # The environment `just setup` builds: mypy and the packages it
             # type-checks against come from uv.lock, so CI and local runs agree.
             # --locked also fails the job when uv.lock is out of date.
@@ -399,7 +403,9 @@ jobs:
                   # pypa/gh-action-pypi-publish pin (its requirements/runtime.txt).
                   # That action runs its own `twine check` before uploading, so
                   # validating here with a *newer* twine can pass while the publish
-                  # fails. Bump this pin and the action pin together.
+                  # fails. Bump this pin and the action pin together
+                  # (tests/test_tooling_versions.py records which twine each action
+                  # commit bundles).
                   python -m pip install build 'twine==7.0.0'
                   python -m build --sdist --wheel --outdir dist/
                   python -m twine check dist/*

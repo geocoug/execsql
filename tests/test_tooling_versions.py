@@ -4,6 +4,17 @@
 hook runs its pinned ``rev``, and the CI ``lint`` job installs that same
 ``rev``.  If the two pins drift, the same file can pass locally and fail in
 CI, or the reverse.
+
+Every tool pinned in more than one place has a test here:
+
+- ruff: ``uv.lock`` and the ruff-pre-commit ``rev`` (the CI ``lint`` job reads the rev).
+- sqlglot: the ``execsql-format`` hook, the ``formatter`` extra and ``uv.lock``.
+- zensical: ``.readthedocs.yaml`` and ``uv.lock``.
+- uv: the uv-pre-commit ``rev`` (which writes ``uv.lock`` locally) and CI's ``setup-uv`` ``version``.
+- twine: the ``build`` job's ``twine==`` and the twine the pinned publish action bundles.
+
+Pinned in one place only, so nothing can drift: typos (pre-commit), Node (CI),
+``@vscode/vsce`` and ``vscode-languageclient`` (the extension's ``package-lock.json``).
 """
 
 from __future__ import annotations
@@ -72,3 +83,39 @@ def test_read_the_docs_builds_with_the_locked_zensical():
     assert m, ".readthedocs.yaml must pin zensical exactly (zensical==X.Y.Z)"
     locked = _locked_version("zensical")
     assert m.group(1) == locked, f".readthedocs.yaml installs zensical {m.group(1)} but uv.lock has {locked}"
+
+
+def _workflow() -> str:
+    return (ROOT / ".github" / "workflows" / "ci-cd.yml").read_text(encoding="utf-8")
+
+
+def test_ci_runs_the_uv_the_pre_commit_hook_runs():
+    """The uv-lock hook rewrites uv.lock with its uv; CI's `uv sync --locked` must read it with the same one."""
+    hook = _pre_commit_rev("https://github.com/astral-sh/uv-pre-commit")
+    m = re.search(r"uses: astral-sh/setup-uv@\S+.*\n\s+with:\n(?:\s+#.*\n)*\s+version: \"([0-9.]+)\"", _workflow())
+    assert m, "ci-cd.yml must give astral-sh/setup-uv an exact `version:`"
+    assert m.group(1) == hook, f"CI installs uv {m.group(1)} but the uv-pre-commit hook is {hook}"
+
+
+# The twine each pypa/gh-action-pypi-publish commit bundles (its requirements/runtime.txt).
+# A new action pin fails the test below until its twine is looked up and added here.
+PUBLISH_ACTION_TWINE = {
+    "dc37677b2e1c63e2034f94d8a5b11f265b73ba33": "7.0.0",  # v1.14.2
+}
+
+
+def test_the_build_job_checks_with_the_twine_the_publish_action_uses():
+    """The publish action runs its own `twine check`; a newer twine in the build job could pass what it rejects."""
+    workflow = _workflow()
+    action = re.search(r"uses: pypa/gh-action-pypi-publish@([0-9a-f]{40})", workflow)
+    assert action, "the publish action must be pinned to a commit"
+    bundled = PUBLISH_ACTION_TWINE.get(action.group(1))
+    assert bundled, (
+        f"pypa/gh-action-pypi-publish@{action.group(1)}: add the twine its requirements/runtime.txt pins "
+        "to PUBLISH_ACTION_TWINE"
+    )
+    pinned = re.search(r"'twine==([0-9.]+)'", workflow)
+    assert pinned, "the build job must pin twine exactly"
+    assert pinned.group(1) == bundled, (
+        f"the build job checks with twine {pinned.group(1)}; the action bundles {bundled}"
+    )
