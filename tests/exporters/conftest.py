@@ -266,12 +266,3 @@ def export_db(request, tmp_path, minimal_conf):
     except Exception:
         pass
     db.close()
-
-
-@pytest.fixture
-def export_rows(export_db):
-    """``(headers, rows)`` fetched from the real database, driver types intact.
-
-    For exporters that take a pre-fetched rowset rather than a connection.
-    """
-    return export_db.select_data(f"select * from {TABLE_NAME} order by id;")

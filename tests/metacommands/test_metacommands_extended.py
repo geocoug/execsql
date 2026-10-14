@@ -62,13 +62,6 @@ def _push_mock_scope(name: str = "test"):
     return frame
 
 
-def _make_state_subvars():
-    """Install a fresh SubVarSet in _state.subvars and return it."""
-    sv = _make_subvars()
-    _state.subvars = sv
-    return sv
-
-
 # ---------------------------------------------------------------------------
 # Tests for metacommands/data.py -- flag-setting handlers
 # ---------------------------------------------------------------------------
