@@ -45,31 +45,6 @@ SECONDARY_OPERATORS = [
     "TO",
 ]
 
-# Additional config option names from the old grammar not in the dispatch table
-EXTRA_CONFIG_OPTIONS = [
-    "CONSOLE_WAIT_WHEN_ERROR_HALT",
-    "IMPORT_COMMON_COLUMNS_ONLY",
-    "ACCESS_USE_NUMERIC",
-    "OUTFILE_OPEN_TIMEOUT",
-    "TEMPLATE_PROCESSOR",
-    "CONSOLE_HEIGHT",
-    "PASSWORD_PROMPT",
-    "USER_LOGFILE",
-    "CSS_STYLE",
-    "CSS_FILE",
-    "DB_FILE",
-    "DB_TYPE",
-    "DB",
-    "SERVER",
-    "PORT",
-    "USERNAME",
-    "NEW_DB",
-    "ACCESS_USERNAME",
-    "CONSOLE_WIDTH",
-    "LOG_WRITE_MESSAGES",
-    "SHOW_PROGRESS",
-]
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -117,7 +92,7 @@ def _build_grammar(data: dict) -> dict:
     """Build the complete tmLanguage grammar dict."""
     mc = data["metacommands"]
     conditions = data["conditions"]
-    config_options = data["config_options"] + EXTRA_CONFIG_OPTIONS
+    config_options = data["config_options"]
     export_formats = data["export_formats"]["all"]
     # Add JSON variants
     export_formats = sorted(set(export_formats + data["export_formats"]["json_variants"]))

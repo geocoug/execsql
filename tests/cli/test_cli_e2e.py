@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import os
 import subprocess
 import sys
@@ -78,38 +77,6 @@ def test_help_contains_usage():
     result = _run_execsql("--help")
     combined = (result.stdout or "") + (result.stderr or "")
     assert "Usage" in combined or "usage" in combined
-
-
-# ---------------------------------------------------------------------------
-# --dump-keywords
-# ---------------------------------------------------------------------------
-
-
-def test_dump_keywords_exits_zero():
-    result = _run_execsql("--dump-keywords")
-    assert result.returncode == 0, result.stderr
-
-
-def test_dump_keywords_valid_json():
-    result = _run_execsql("--dump-keywords")
-    data = json.loads(result.stdout)
-    for key in (
-        "metacommands",
-        "conditions",
-        "config_options",
-        "export_formats",
-        "database_types",
-        "variable_patterns",
-    ):
-        assert key in data, f"Missing key: {key}"
-
-
-def test_dump_keywords_metacommand_categories_nonempty():
-    result = _run_execsql("--dump-keywords")
-    data = json.loads(result.stdout)
-    mc = data["metacommands"]
-    for cat in ("control", "block", "action", "config", "prompt"):
-        assert len(mc.get(cat, [])) > 0, f"Empty category: {cat}"
 
 
 # ---------------------------------------------------------------------------

@@ -29,6 +29,7 @@ ______________________________________________________________________
 - **A registered secret no longer reaches `execsql.log` through a `HALT MESSAGE`** (the `exit` record of a halted run), an exported file name (`action` records) or a connection name (`connect` records); these now show `***` like every other log record.
 - **`execsql.run()` returns the caller to their working directory** after a script that ran `CD`, including when the script fails; before, the caller was left in the script's last directory.
 - **Language server settings for a workspace folder added after the first folder was deleted** are read; before, every later settings reload failed and the folder linted with stale rules. An unsaved script's relative `INCLUDE` resolves against the workspace root.
+- **VS Code extension:** after `CONFIG`, only options `CONFIG` accepts are highlighted; config-file-only keys such as `DB_FILE`, `CONSOLE_HEIGHT` or `CSS_FILE` (which `CONFIG` rejects) no longer look valid.
 - **VS Code extension:** turning `execsql.server.enabled` on or off, or changing `execsql.server.path`, takes effect without reloading the window; **execsql: Restart Language Server** works (and says so) when the server is off, and two quick restarts no longer leave a second server running.
 
 ### Removed

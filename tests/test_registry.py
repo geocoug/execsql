@@ -18,7 +18,7 @@ GRAMMAR_PATH = ROOT / "extras" / "vscode-execsql" / "syntaxes" / "execsql.tmLang
 # ---------------------------------------------------------------------------
 
 
-def test_dump_keywords_produces_valid_json():
+def test_list_keywords_produces_valid_json():
     """``execsql list keywords --output-format json`` exits 0 and returns valid JSON with expected keys."""
     result = subprocess.run(
         [sys.executable, "-m", "execsql", "list", "keywords", "--output-format", "json"],
@@ -35,7 +35,7 @@ def test_dump_keywords_produces_valid_json():
     assert "variable_patterns" in data
 
 
-def test_dump_keywords_metacommand_categories():
+def test_list_keywords_metacommand_categories():
     """All expected metacommand categories are present and non-empty."""
     result = subprocess.run(
         [sys.executable, "-m", "execsql", "list", "keywords", "--output-format", "json"],
@@ -146,10 +146,10 @@ def test_grammar_is_valid_json():
 
 
 @pytest.mark.skipif(not GRAMMAR_PATH.exists(), reason="Grammar file not generated yet")
-def test_grammar_matches_dump_keywords():
+def test_grammar_matches_list_keywords():
     """Keywords in the grammar match what ``execsql list keywords`` produces.
 
-    If this fails, run ``just generate-vscode-grammar`` to regenerate.
+    If this fails, run ``just install-vscode`` (or ``just package-vscode``) to regenerate.
     """
     # Get keywords from CLI
     result = subprocess.run(
@@ -182,7 +182,7 @@ def test_grammar_matches_dump_keywords():
         expected_match = expected["repository"][key]["match"]
         actual_match = actual["repository"][key]["match"]
         assert expected_match == actual_match, (
-            f"{key} mismatch. Run `just generate-vscode-grammar` to update.\n"
+            f"{key} mismatch. Run `just install-vscode` (or `just package-vscode`) to update.\n"
             f"  expected: {expected_match[:80]}...\n"
             f"  actual:   {actual_match[:80]}..."
         )
