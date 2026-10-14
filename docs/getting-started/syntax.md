@@ -479,7 +479,7 @@ Valid encoding names can be displayed with `execsql list encodings`. See also [C
     }
     ```
 
-    Files and connections are recorded as each metacommand succeeds, after variable substitution, so paths are the ones used (`out/west.csv`, not `out/!!region!!.csv`); `INCLUDE`d scripts count as files read. When a run fails, `exit_status` is its exit code and `errors` holds the message, its `type`, `source`, `line` and the failing `command`. `variables` lists the names set with `-a` and `--var`; their values are never written, for the same reason the log hides them, and neither are passwords.
+    Files and connections are recorded as each metacommand succeeds, after variable substitution, so paths are the ones used (`out/west.csv`, not `out/!!region!!.csv`); `INCLUDE`d scripts count as files read. When a run fails, `exit_status` is its exit code and `errors` holds the message, its `type`, `source`, `line` and the failing `command`. `variables` lists the names set with `-a` and `--var`, not their values. A password (from `--dsn`, a prompt or the keyring), a `SUB_DECRYPT` result, or a common secret shape (a URL's password, `password=...`, an API token) that ends up in a path, a connection target or an error message is written as `***`. Values given with `-a` and `--var` are kept where a path uses them, as in `out/west.csv`, although the log masks them: keep a secret out of `-a` and `--var` if the manifest is collected.
 
     The path is checked before the run starts: if *FILE* cannot be written (its folder is a file, or not writable), `execsql run` exits 2 before any SQL runs.
 

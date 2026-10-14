@@ -170,3 +170,26 @@ def test_record_metacommand_classifies_with_the_dispatch_table(tmp_path):
     assert [f["path"] for f in data["files_read"]] == ["in.csv", "inc.sql"]
     assert data["errors"][0]["message"] == "boom second line"
     assert data["exit_status"] == 1
+
+
+class TestSecrets:
+    """The manifest masks passwords and token shapes; -a / --var values stay, as they form paths."""
+
+    def test_a_decrypted_value_in_a_failing_path_is_masked(self, work):
+        from execsql.utils.crypto import Encrypt
+
+        secret = "pw_" + "Zq7Rv2Lm9Px4"  # built at runtime so secret scanners do not flag it
+        script = f"-- !x! SUB_DECRYPT pw {Encrypt().encrypt(secret)}\n-- !x! IMPORT TO NEW t FROM 'in_!!pw!!.csv'\n"
+        _result, m = _run(work, script, "--manifest", "runs/m.json")
+        assert secret not in (work / "runs" / "m.json").read_text()
+        assert "in_***.csv" in m["errors"][0]["message"]
+
+    def test_a_token_shape_in_an_error_is_masked(self, work):
+        token = "ghp_" + "A" * 36
+        _result, m = _run(work, f"-- !x! IMPORT TO NEW t FROM 'in-{token}.csv'\n", "--manifest", "runs/m.json")
+        assert token not in (work / "runs" / "m.json").read_text()
+
+    def test_an_argument_in_a_path_is_kept(self, work):
+        _result, m = _run(work, OK, "--var", "region=west", "-a", "x", "--manifest", "runs/m.json")
+        assert [f["path"] for f in m["files_written"]][0] == "out/west.csv"
+        assert m["files_read"][0]["path"] == "in.csv"

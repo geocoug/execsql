@@ -10,7 +10,11 @@ Files are recorded as the executor runs each metacommand, after variable
 substitution, so paths are the ones actually used. What a metacommand touches
 is decided by :mod:`execsql.metacommands.effects`. Variable values and passwords are never written:
 the run log hides ``-a`` and ``--var`` values because they can be secrets, and
-the manifest lists only their names.
+the manifest lists only their names. A password or decrypted value that reaches
+a path, a connection target or an error message is written as ``***``, as are
+common secret shapes (a URL's password, ``password=...``, API tokens). ``-a`` and
+``--var`` values, which the log also masks, are kept: they are usually part of
+the paths the manifest exists to report.
 
 One recorder is active per run; :func:`current` returns it, or ``None`` when
 no manifest was asked for, so the executor's hooks cost one check. Writing the
@@ -79,6 +83,22 @@ def start(path: str, script: str | None, variables: list[str]) -> RunManifest:
 
 def _now() -> datetime.datetime:
     return datetime.datetime.now(tz=datetime.timezone.utc)
+
+
+def _masked(value: Any) -> Any:
+    """*value* with the run's passwords and common secret shapes replaced by ``***`` in every string it holds.
+
+    ``-a`` / ``--var`` values are left in place; times, counts and line numbers are not strings.
+    """
+    from execsql.utils.fileio import redact
+
+    if isinstance(value, str):
+        return redact(value, arguments=False)
+    if isinstance(value, list):
+        return [_masked(item) for item in value]
+    if isinstance(value, dict):
+        return {key: _masked(item) for key, item in value.items()}
+    return value
 
 
 class RunManifest:
@@ -166,20 +186,20 @@ class RunManifest:
         finished = _now()
         data = {
             "execsql_version": __version__,
-            "script": self.script,
+            "script": _masked(self.script),
             "started": self.started.isoformat(timespec="seconds"),
             "finished": finished.isoformat(timespec="seconds"),
             "duration_s": round((finished - self.started).total_seconds(), 3),
             "exit_status": exit_status,
-            "config_files": self.config_files,
-            "database": self.database,
+            "config_files": _masked(self.config_files),
+            "database": _masked(self.database),
             "variables": self.variables,
             "statements": {"sql": self.sql_statements, "metacommands": self.metacommands},
-            "files_read": self.reads,
-            "files_written": self.writes,
-            "files_deleted": self.deletes,
-            "connections": self.connections,
-            "errors": self.errors,
+            "files_read": _masked(self.reads),
+            "files_written": _masked(self.writes),
+            "files_deleted": _masked(self.deletes),
+            "connections": _masked(self.connections),
+            "errors": _masked(self.errors),
         }
         self.written = True
         import execsql.state as _state

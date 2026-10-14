@@ -569,7 +569,7 @@ def _setup_logging(
         for n, repl in enumerate(sub_vars):
             var = f"$ARG_{n + 1}"
             subvars.add_substitution(var, repl)
-            logger.add_redaction_value(repl)
+            logger.add_redaction_value(repl, argument=True)
             # `-a` values are positional and opaque (no name to denylist
             # against). High-entropy secrets (sk-live-*, AKIA*, ghp_*,
             # JWTs) pass any substring/value heuristic, so log the
@@ -582,7 +582,7 @@ def _setup_logging(
     # redacted for the same reason as -a's.
     for name, value in named_vars or ():
         subvars.add_substitution(name, value)
-        logger.add_redaction_value(value)
+        logger.add_redaction_value(value, argument=True)
         logger.log_status_info(f"Command-line substitution variable assignment: {name} set to {{***}}")
 
     return logger
