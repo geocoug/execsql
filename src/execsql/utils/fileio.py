@@ -956,9 +956,9 @@ class Logger:
         )
         self.writelog(self._redact(msg) or "")
         if server_name:
-            msg = f"run_db_server\t{self.run_id}\t{server_name}\t{db_name}\n"
+            msg = f"run_db_server\t{self.run_id}\t{self._redact(server_name)}\t{self._redact(db_name)}\n"
         else:
-            msg = f"run_db_file\t{self.run_id}\t{db_name}\n"
+            msg = f"run_db_file\t{self.run_id}\t{self._redact(db_name)}\n"
         self.writelog(msg)
         self.seq_no = 0
         atexit.register(self.close)
@@ -983,6 +983,13 @@ class Logger:
         self._redaction_values.append(value)
 
     def _redact(self, msg: str | None) -> str | None:
+        """*msg* with registered secrets and common secret shapes replaced by ``***``.
+
+        Every record applies it to its free-text fields (messages, names,
+        paths), never to a whole line: a registered value can be as short as
+        a ``-a 2024`` argument, which would otherwise mask timestamps and
+        sequence numbers.
+        """
         if msg is None:
             return None
         redacted = str(msg)
@@ -1026,12 +1033,13 @@ class Logger:
 
     def log_db_connect(self, db: Any) -> None:
         self.seq_no += 1
-        msg = f"connect\t{self.run_id}\t{self.seq_no}\t{self._ts()}\t{db.name()}\n"
+        msg = f"connect\t{self.run_id}\t{self.seq_no}\t{self._ts()}\t{self._redact(db.name())}\n"
         self.writelog(msg)
 
     def log_action_export(self, line_no: int, query_name: str, export_file_name: str) -> None:
         self.seq_no += 1
-        msg = f"action\t{self.run_id}\t{self.seq_no}\t{self._ts()}\texport\t{line_no}\tQuery {query_name} exported to {export_file_name}\n"
+        description = self._redact(f"Query {query_name} exported to {export_file_name}")
+        msg = f"action\t{self.run_id}\t{self.seq_no}\t{self._ts()}\texport\t{line_no}\t{description}\n"
         self.writelog(msg)
 
     def log_status_exception(self, msg: str | None) -> None:
@@ -1087,7 +1095,7 @@ class Logger:
         self.exit_type = "halt"
         self.exit_scriptfile = script_file_name
         self.exit_lno = line_no
-        self.exit_description = msg
+        self.exit_description = None if not msg else msg.replace("\n", "")
 
     def log_exit_interrupted(self) -> None:
         # Save values to be used by exit() function triggered on program exit
@@ -1121,9 +1129,9 @@ class Logger:
         wmsg = "exit\t{}\t{}\t{}({})\t{}\t{:.1f}s\n".format(
             self.run_id,
             self.exit_type,
-            self.exit_scriptfile or "",
+            self._redact(self.exit_scriptfile) or "",
             str(self.exit_lno or ""),
-            self.exit_description or "",
+            self._redact(self.exit_description) or "",  # a HALT MESSAGE can hold any variable's value
             elapsed,
         )
         self.writelog(wmsg)
