@@ -18,14 +18,14 @@ from collections.abc import Iterator, Sequence
 
 from lsprotocol import types
 
-from execsql.cli.lint import _dispatch_table, _with_placeholders, lint_source
+from execsql.cli.lint import _dispatch_table, lint_source
 from execsql.format import open_dollar_quote
 from execsql.lsp.document import ScriptIndex
 from execsql.metacommands import reference
+from execsql.lsp._util import RX_METACOMMAND, span
 
 __all__ = ["code_actions"]
 
-_RX_METACOMMAND = re.compile(r"^(?P<lead>\s*--\s*!x!\s*)(?P<command>.*?)\s*$", re.I)
 _RX_WORD = re.compile(r"[A-Za-z_][A-Za-z_0-9]*")
 _RX_UNDEFINED = re.compile(r"!!(?P<name>[^!]+)!!")
 _SUGGESTIONS = 3  # per misspelled word
@@ -53,10 +53,6 @@ def _replace(text: str, start: int, end: int, new: str) -> str:
     return text[:start] + new + text[end:]
 
 
-def _range(line: int, start: int, end: int) -> types.Range:
-    return types.Range(start=types.Position(line=line, character=start), end=types.Position(line=line, character=end))
-
-
 def _fix(title: str, uri: str, diagnostic: types.Diagnostic, edits: list[types.TextEdit]) -> types.CodeAction:
     return types.CodeAction(
         title=title,
@@ -81,7 +77,7 @@ def _clears(lines: list[str], path: str | None, code: str, before: tuple[int, in
 
 def _metacommand_fixes(text: str, row: int) -> Iterator[tuple[str, int, int, str]]:
     """(suggestion, start, end, written) for each word whose replacement makes the metacommand match."""
-    m = _RX_METACOMMAND.match(text)
+    m = RX_METACOMMAND.match(text)
     if not m:
         return
     vocabulary = _vocabulary()
@@ -93,7 +89,7 @@ def _metacommand_fixes(text: str, row: int) -> Iterator[tuple[str, int, int, str
             continue
         for candidate in _close(word.group(), vocabulary):
             fixed = _replace(command, word.start(), word.end(), candidate)
-            if table.get_match(fixed) is not None or table.get_match(_with_placeholders(fixed)) is not None:
+            if table.get_match(fixed) is not None:
                 yield candidate, offset + word.start(), offset + word.end(), word.group()
 
 
@@ -104,7 +100,7 @@ def _p003(uri: str, lines: list[str], diagnostic: types.Diagnostic) -> list[type
             f"Change {written} to {_cased_like(candidate, written)}",
             uri,
             diagnostic,
-            [types.TextEdit(range=_range(row, start, end), new_text=_cased_like(candidate, written))],
+            [types.TextEdit(range=span(row, start, end), new_text=_cased_like(candidate, written))],
         )
         for candidate, start, end, written in _metacommand_fixes(lines[row], row)
     ]
@@ -113,7 +109,7 @@ def _p003(uri: str, lines: list[str], diagnostic: types.Diagnostic) -> list[type
 def _p004(uri: str, path: str | None, lines: list[str], diagnostic: types.Diagnostic) -> list[types.CodeAction]:
     row = diagnostic.range.start.line
     text = lines[row]
-    m = _RX_METACOMMAND.match(text)
+    m = RX_METACOMMAND.match(text)
     if not m:
         return []
     names = {c.name for c in reference.conditions() if c.name not in ("NOT", "OR")}
@@ -126,7 +122,7 @@ def _p004(uri: str, path: str | None, lines: list[str], diagnostic: types.Diagno
         for candidate in _close(word.group(), names):
             new = _cased_like(candidate, word.group())
             if _clears(lines, path, "P004", before, row, _replace(text, word.start(), word.end(), new)):
-                edit = types.TextEdit(range=_range(row, word.start(), word.end()), new_text=new)
+                edit = types.TextEdit(range=span(row, word.start(), word.end()), new_text=new)
                 actions.append(_fix(f"Change {word.group()} to {new}", uri, diagnostic, [edit]))
     return actions
 
@@ -151,7 +147,7 @@ def _v001(index: ScriptIndex, uri: str, diagnostic: types.Diagnostic) -> list[ty
             spelled = {key: index.spellings[key] for key in index.definitions}
         for candidate in _close(bare, set(spelled)):
             new = prefix + spelled[candidate]
-            edit = types.TextEdit(range=_range(row, loc.start, loc.end), new_text=new)
+            edit = types.TextEdit(range=span(row, loc.start, loc.end), new_text=new)
             actions.append(_fix(f"Change !!{ref.name}!! to !!{new}!!", uri, diagnostic, [edit]))
         break
     return actions
@@ -183,8 +179,8 @@ def _p002(uri: str, path: str | None, lines: list[str], diagnostic: types.Diagno
     if _count("\n".join(fixed) + "\n", path, "P002") >= _count("\n".join(lines) + "\n", path, "P002"):
         return []
     edits = [
-        types.TextEdit(range=_range(row, 0, 0), new_text=f"{indent}-- !x! BEGIN SQL\n"),
-        types.TextEdit(range=_range(end, len(lines[end]), len(lines[end])), new_text=f"\n{indent}-- !x! END SQL"),
+        types.TextEdit(range=span(row, 0, 0), new_text=f"{indent}-- !x! BEGIN SQL\n"),
+        types.TextEdit(range=span(end, len(lines[end]), len(lines[end])), new_text=f"\n{indent}-- !x! END SQL"),
     ]
     return [_fix("Put the statement between BEGIN SQL and END SQL", uri, diagnostic, edits)]
 

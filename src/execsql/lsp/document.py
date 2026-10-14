@@ -17,6 +17,7 @@ from pathlib import Path
 from pygls.uris import from_fs_path
 
 from execsql.cli.lint import variables_defined_by
+from execsql.lsp._util import RX_METACOMMAND
 from execsql.script.ast import IncludeDirective, MetaCommandStatement, ScriptBlock
 from execsql.script.parser import parse_string
 
@@ -39,7 +40,6 @@ __all__ = [
 # The lookahead also finds one written inside another's name: in !!N_!!GROUP!!_CHECKS!!,
 # execsql substitutes !!GROUP!! first, so GROUP is a use (N_ and _CHECKS are found too).
 _RX_VARIABLE = re.compile(r"""(?=!(['"]?)!(?P<name>[$&@~#+]?\w+)!\1!)|!\{(?P<deferred>[$&@~#+]?\w+)\}!""")
-_RX_METACOMMAND = re.compile(r"^\s*--\s*!x!\s*", re.I)
 
 
 @dataclass(frozen=True)
@@ -180,8 +180,8 @@ def file_facts(source: str, path: str | None, base_dir: str | None = None) -> Fi
         text = lines[row] if 0 <= row < len(lines) else ""
         if isinstance(node, MetaCommandStatement):
             reads_ini = reads_ini or _RX_SUB_INI.match(node.command) is not None
-            prefix = _RX_METACOMMAND.match(text)
-            after = prefix.end() if prefix else 0
+            prefix = RX_METACOMMAND.match(text)
+            after = prefix.end("lead") if prefix else 0
             for name in sorted(variables_defined_by(node.command, script_dir)):
                 start, end = _span_of(name, text, after)
                 found = text[start:end] if text[start:end].upper() == name else name  # keep the script's spelling

@@ -18,16 +18,13 @@ from execsql.script.ast import (
     SqlBlock,
 )
 from execsql.script.parser import parse_string
+from execsql.lsp._util import span
 
 __all__ = ["definition", "document_links", "document_symbols", "references"]
 
 
-def _range(line: int, start: int, end: int) -> types.Range:
-    return types.Range(start=types.Position(line=line, character=start), end=types.Position(line=line, character=end))
-
-
 def _lsp_location(loc: Location, index: ScriptIndex, uri: str) -> types.Location:
-    return types.Location(uri=uri_for(loc.path, index, uri), range=_range(loc.line, loc.start, loc.end))
+    return types.Location(uri=uri_for(loc.path, index, uri), range=span(loc.line, loc.start, loc.end))
 
 
 def _at(entries: list[tuple[Location, str]], line: int, character: int) -> str | None:
@@ -58,7 +55,7 @@ def definition(index: ScriptIndex, uri: str, line: int, character: int) -> list[
     if target is not None and is_file(target):
         uri_of_file = file_uri(target, index)
         if uri_of_file:
-            return [types.Location(uri=uri_of_file, range=_range(0, 0, 0))]
+            return [types.Location(uri=uri_of_file, range=span(0, 0, 0))]
     return []
 
 
@@ -87,7 +84,7 @@ def document_links(index: ScriptIndex) -> list[types.DocumentLink]:
         if is_file(path):
             uri = file_uri(target, index)
             if uri:
-                links.append(types.DocumentLink(range=_range(loc.line, loc.start, loc.end), target=uri))
+                links.append(types.DocumentLink(range=span(loc.line, loc.start, loc.end), target=uri))
     return links
 
 

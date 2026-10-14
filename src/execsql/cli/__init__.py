@@ -22,31 +22,20 @@ from pathlib import Path
 
 from execsql.cli import commands  # noqa: F401 — registers every command on app
 from execsql.cli.application import app
-from execsql.cli.commands.run import main
-from execsql.cli.dsn import _parse_connection_string, _SCHEME_TO_DBTYPE  # noqa: F401 — re-export
-from execsql.cli.help import _console, _err_console, _init_config, _print_encodings, _print_metacommands  # noqa: F401 — re-export
-from execsql.cli.run import _connect_initial_db, _run  # noqa: F401 — re-export
-from execsql.cli.run import _end_run_on_sigterm
+from execsql.cli.dsn import _parse_connection_string  # noqa: F401 — re-export
+from execsql.cli.run import _end_run_on_sigterm, _run  # noqa: F401 — re-export
 from execsql.exceptions import ConfigError, ConfigFileError, ErrInfo
 
 __all__ = [
-    "_SCHEME_TO_DBTYPE",
-    "_connect_initial_db",
-    "_console",
-    "_err_console",
-    "_init_config",
     "_legacy_main",
     "_parse_connection_string",
-    "_print_encodings",
-    "_print_metacommands",
     "_run",
     "app",
-    "main",
 ]
 
 
 # ---------------------------------------------------------------------------
-# Legacy entry point (kept for backwards compat with pyproject.toml script)
+# Entry point for ``python -m execsql`` (the ``execsql`` script is cli.dispatch:dispatch)
 # ---------------------------------------------------------------------------
 
 
