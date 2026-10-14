@@ -1,7 +1,7 @@
 """
 Tests for exporter functions that operate on already-fetched row data.
 
-These functions write to files directly (not through the FileWriter subprocess),
+These functions write to files directly (not through the FileWriter thread),
 so the ``noop_filewriter_close`` fixture from conftest is requested wherever
 ``_state.filewriter_close`` is called.
 

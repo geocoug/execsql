@@ -11,8 +11,8 @@ Pattern
 - ``qdb`` helper: queries the resulting SQLite DB for assertions.
 - Variable-value assertions use SQL tables (``insert into t values ('!!v!!')``)
   rather than file writes, to avoid the async FileWriter race.
-- File-existence / file-content assertions call ``_flush_filewriter()`` after
-  the CLI run to ensure the FileWriter subprocess has processed all writes.
+- File-existence / file-content assertions call ``flush_filewriter()`` after
+  the CLI run so the FileWriter thread has written and closed every file.
 """
 
 from __future__ import annotations
@@ -31,54 +31,14 @@ from execsql.cli import app
 import execsql.state as _state
 from execsql.exceptions import ErrInfo
 
+from tests.metacommands.conftest import flush_filewriter
+
 _runner = CliRunner()
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-
-def _flush_filewriter() -> None:
-    """Block until the FileWriter subprocess has flushed all pending writes.
-
-    Uses a CMD_PING with a unique token so we can unambiguously identify our
-    own response and discard any stale STATUS_CLOSED responses from earlier
-    flush calls — eliminating the race condition where the drain removes our
-    own response.
-    """
-    import queue as _queue
-    import time
-
-    try:
-        if _state.filewriter is None or not _state.filewriter.is_alive():
-            return
-        # Allow any in-flight CMD_SHUTDOWN (queued by exit_now) to be processed
-        # before we send more commands.  If the process exits cleanly within the
-        # brief window, skip the ping entirely.
-        _state.filewriter.join(timeout=0.3)
-        if not _state.filewriter.is_alive():
-            return
-        from execsql.utils.fileio import FileWriter
-
-        fw_input = _state.filewriter.input_queue
-        fw_output = _state.filewriter.return_msg_queue
-
-        token = ("_flush", time.monotonic())
-        # Close all open files (flushing queued content), then echo our token.
-        fw_input.put((FileWriter.CMD_CLOSE_ALL_AFTER_WRITE, ()))
-        fw_input.put((FileWriter.CMD_PING, (token,)))
-        # Discard stale responses until we see ours (up to 5 s).
-        deadline = time.monotonic() + 5.0
-        while time.monotonic() < deadline:
-            try:
-                msg = fw_output.get(timeout=0.1)
-                if msg == token:
-                    return
-            except _queue.Empty:
-                pass
-    except Exception:
-        pass
 
 
 def qdb(db_path: Path, sql: str) -> list[tuple[Any, ...]]:
@@ -168,7 +128,7 @@ def script_runner(tmp_path: Path):
         ''')
 
     Returns *(result, db_path)*.  After calling, the fixture waits for the
-    FileWriter subprocess to flush all pending file writes.
+    FileWriter thread to flush all pending file writes.
     """
     db_path = tmp_path / "test.db"
     script_file = tmp_path / "test.sql"
@@ -190,7 +150,7 @@ def script_runner(tmp_path: Path):
         if extra_args:
             args.extend(extra_args)
         result = _runner.invoke(app, args, catch_exceptions=catch_exceptions)
-        _flush_filewriter()
+        flush_filewriter()
         return result, db_path
 
     return run

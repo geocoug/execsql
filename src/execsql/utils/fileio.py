@@ -34,7 +34,6 @@ import threading
 import time
 import weakref
 from collections.abc import Callable
-from encodings.aliases import aliases as codec_dict
 from typing import Any, NamedTuple, cast
 
 from execsql.exceptions import ErrInfo
@@ -47,14 +46,11 @@ __all__ = [
     "EncodedFile",
     "Logger",
     "TempFileMgr",
-    "list_encodings",
     "filewriter_filestatus",
     "filewriter_write",
     "filewriter_open_as_new",
     "filewriter_close",
     "filewriter_close_all_after_write",
-    "filewriter_closeall",
-    "filewriter_shutdown",
     "filewriter_end",
     "redact",
     "register_secret",
@@ -216,9 +212,8 @@ class FileWriter(threading.Thread):
         CMD_OPEN_AS_NEW,
         CMD_CLOSE_ALL_AFTER_WRITE,
         CMD_CLOSED_STATUS,
-        CMD_PING,
         CMD_OPEN_FAILURES,
-    ) = range(10)
+    ) = range(9)
 
     class FileControl:
         STATUS_OPEN, STATUS_WAITING, STATUS_UNOPENED, STATUS_CLOSED, STATUS_OPENFAILURE, STATUS_WRITEFAILURE = range(6)
@@ -375,7 +370,6 @@ class FileWriter(threading.Thread):
             self.open_as_new,
             self.close_all_after_write,
             self.closed_status,
-            self.ping,
             self.open_failures,
         )
 
@@ -416,10 +410,6 @@ class FileWriter(threading.Thread):
         for fc in self.files.values():
             if fc.status != self.FileControl.STATUS_CLOSED and fc.status not in fc.FAILED:
                 self._on_file(fc, fc.clean_close)
-
-    def ping(self, token: object) -> None:
-        """Echo *token* back on the return queue — used to synchronize callers."""
-        self.return_msg_queue.put(token)
 
     def retry_waiting(self) -> None:
         """Re-attempt opening every file still waiting on a lock.
@@ -526,7 +516,7 @@ class FileWriter(threading.Thread):
         the rest, so one bad command cannot stop the thread (and with it
         every later write, to any file).
         """
-        filename = argtuple[0] if command != self.CMD_PING and argtuple and isinstance(argtuple[0], str) else ""
+        filename = argtuple[0] if argtuple and isinstance(argtuple[0], str) else ""
         lost = LostOutput(filename, 0, str(exc), "writer")
         if command == self.CMD_OPEN_FAILURES:
             self.return_msg_queue.put([lost])
@@ -535,7 +525,6 @@ class FileWriter(threading.Thread):
         replies: dict[int, Any] = {
             self.CMD_GET_STATUS: self.FileControl.STATUS_CLOSED,
             self.CMD_CLOSED_STATUS: self.FileControl.STATUS_CLOSED,
-            self.CMD_PING: argtuple[0] if argtuple else None,
         }
         if command in replies:
             self.return_msg_queue.put(replies[command])
@@ -743,20 +732,6 @@ def _lost_output_message(lost: LostOutput, open_timeout: int) -> str:
     else:
         cause = f"file writer error ({lost.error})"
     return f"{cause}; {lost.dropped} line(s) of output to it were discarded" if lost.dropped else cause
-
-
-def filewriter_closeall() -> None:
-    fw = _active_writer()
-    if fw is None:
-        return
-    fw.input_queue.put((FileWriter.CMD_CLOSE_ALL, ()))
-
-
-def filewriter_shutdown() -> None:
-    fw = _active_writer()
-    if fw is None:
-        return
-    fw.input_queue.put((FileWriter.CMD_SHUTDOWN, ()))
 
 
 def filewriter_end(writer: FileWriter | None = None) -> None:
@@ -1216,10 +1191,3 @@ _live_tempfile_mgrs: weakref.WeakSet[TempFileMgr] = weakref.WeakSet()
 def _remove_all_temp_files() -> None:
     for mgr in list(_live_tempfile_mgrs):
         mgr.remove_all()
-
-
-def list_encodings() -> None:
-    enc = list(codec_dict.keys())
-    enc.sort()
-    msg = f"Encodings: {', '.join(enc)}\n"
-    print(msg)

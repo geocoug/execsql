@@ -186,7 +186,7 @@ class TestRuntimeContext:
         assert "varlike" in d
 
     def test_reset_preserves_filewriter(self):
-        """reset() keeps filewriter alive (atexit-managed subprocess)."""
+        """reset() keeps filewriter alive (atexit-managed thread)."""
         sentinel = object()
         _state.filewriter = sentinel
         try:

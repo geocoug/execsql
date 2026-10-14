@@ -31,6 +31,8 @@ from execsql.metacommands.conditions import (
     xf_row_count_lt,
 )
 
+from tests.metacommands.conftest import flush_filewriter
+
 _runner = CliRunner()
 
 
@@ -283,36 +285,6 @@ class TestRowCountDispatchRegex:
 # ---------------------------------------------------------------------------
 
 
-def _flush_filewriter() -> None:
-    import queue as _queue
-    import time
-
-    try:
-        if _state.filewriter is None or not _state.filewriter.is_alive():
-            return
-        _state.filewriter.join(timeout=0.3)
-        if not _state.filewriter.is_alive():
-            return
-        from execsql.utils.fileio import FileWriter
-
-        fw_input = _state.filewriter.input_queue
-        fw_output = _state.filewriter.return_msg_queue
-
-        token = ("_flush", time.monotonic())
-        fw_input.put((FileWriter.CMD_CLOSE_ALL_AFTER_WRITE, ()))
-        fw_input.put((FileWriter.CMD_PING, (token,)))
-        deadline = time.monotonic() + 5.0
-        while time.monotonic() < deadline:
-            try:
-                msg = fw_output.get(timeout=0.1)
-                if msg == token:
-                    return
-            except _queue.Empty:
-                pass
-    except Exception:
-        pass
-
-
 @pytest.fixture(autouse=True)
 def _reset_execsql_state():
     yield
@@ -368,7 +340,7 @@ def script_runner(tmp_path: Path):
         if new_db:
             args.append("-n")
         result = _runner.invoke(app, args, catch_exceptions=False)
-        _flush_filewriter()
+        flush_filewriter()
         return result, db_path
 
     return run

@@ -6,7 +6,6 @@ Covers the pure-Python, dependency-free helpers:
 - check_dir
 - EncodedFile (repr, open, close, BOM detection)
 - TempFileMgr (repr, new_temp_fn, remove_all)
-- list_encodings
 """
 
 from __future__ import annotations
@@ -23,7 +22,6 @@ from execsql.utils.fileio import (
     Logger,
     TempFileMgr,
     check_dir,
-    list_encodings,
     make_export_dirs,
 )
 
@@ -206,24 +204,6 @@ class TestTempFileMgr:
     def test_remove_all_empty_list_noop(self):
         m = TempFileMgr()
         m.remove_all()  # no files registered → should not raise
-
-
-# ---------------------------------------------------------------------------
-# list_encodings
-# ---------------------------------------------------------------------------
-
-
-class TestListEncodings:
-    def test_prints_encodings(self, capsys):
-        list_encodings()
-        captured = capsys.readouterr()
-        assert "Encodings:" in captured.out
-
-    def test_output_contains_utf8(self, capsys):
-        list_encodings()
-        captured = capsys.readouterr()
-        # codec_dict key is "utf8" (no underscore)
-        assert "utf8" in captured.out
 
 
 # ---------------------------------------------------------------------------
