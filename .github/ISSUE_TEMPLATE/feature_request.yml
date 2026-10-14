@@ -1,0 +1,28 @@
+name: Feature request
+description: A new feature, metacommand or option, or a change to how something works.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What you are trying to do, and what gets in the way today.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you would like
+      description: For a new metacommand or CLI option, the syntax you would expect.
+      placeholder: "-- !x! NEW_METACOMMAND ..."
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives and workarounds
+      description: What you tried instead, if anything.
+  - type: textarea
+    id: context
+    attributes:
+      label: Anything else

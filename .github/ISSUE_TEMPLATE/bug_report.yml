@@ -1,0 +1,57 @@
+name: Bug report
+description: Something execsql does wrong, from the command line, the library, or an editor.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you ran, what you expected, and what happened instead.
+      placeholder: |
+        `execsql run load.sql prod.db -t l` stopped at line 12 with ...
+        I expected ...
+    validations:
+      required: true
+  - type: textarea
+    id: script
+    attributes:
+      label: A script that shows it
+      description: The smallest script that reproduces the problem, if you can share one. Leave out data and credentials.
+      render: sql
+  - type: textarea
+    id: output
+    attributes:
+      label: Error output
+      description: The full message or traceback, and the end of `execsql.log` if the run wrote one.
+      render: text
+  - type: input
+    id: version
+    attributes:
+      label: execsql version
+      description: The output of `execsql --version`.
+      placeholder: execsql 2.30.0
+    validations:
+      required: true
+  - type: input
+    id: install
+    attributes:
+      label: How execsql is installed
+      description: The command, with its extras.
+      placeholder: uv tool install "execsql2[postgres,lsp]"
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Operating system, Python and database
+      placeholder: macOS 15, Python 3.12, PostgreSQL 16
+    validations:
+      required: true
+  - type: textarea
+    id: editor
+    attributes:
+      label: Editor and language server (only for a problem in an editor)
+      description: |
+        The editor and the execsql extension's version, the output of `execsql lsp --check`, and the server's log
+        at `info` (VS Code: View → Output → execsql). See https://execsql2.readthedocs.io/en/latest/guides/editors/#troubleshooting
+      render: text
