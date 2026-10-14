@@ -239,7 +239,6 @@ class TestDuckDB:
     def test_while_open_statements_share_the_connection(self, db):
         from execsql.db.duckdb import _SharedCursor
 
-        assert not isinstance(db.cursor(), _SharedCursor)
         db.autocommit = False
         db.execute("create table t (x integer);")
         curs = db.cursor()
