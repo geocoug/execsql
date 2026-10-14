@@ -435,13 +435,14 @@ class TestNoArguments:
 class TestHelpWidth:
     """Help fills the terminal, as ruff's does, instead of Click's 80-column cap."""
 
-    def _help(self, columns: str) -> str:
+    def _help(self, columns: str, *argv: str) -> str:
         # A subprocess, because CliRunner pins help to 80 columns.
         import os
         import subprocess
         import sys
 
-        code = "import sys; from execsql.cli.dispatch import dispatch; sys.argv=['execsql','run','--help']; dispatch()"
+        args = list(argv) or ["run", "--help"]
+        code = f"import sys; from execsql.cli.dispatch import dispatch; sys.argv=['execsql', *{args!r}]; dispatch()"
         env = {**os.environ, "COLUMNS": columns, "NO_COLOR": "1"}
         return subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, env=env).stdout
 
@@ -454,3 +455,20 @@ class TestHelpWidth:
 
     def test_narrow_terminal_still_wraps(self):
         assert max(len(line) for line in self._help("80").splitlines()) <= 80
+
+    @pytest.mark.parametrize("columns", ["50", "80"])
+    def test_command_summaries_wrap_and_are_never_cut(self, columns):
+        """Each command's summary is its help's whole first sentence, wrapped, at any width."""
+        from typer.main import get_command
+
+        from execsql.cli import app
+
+        text = self._help(columns, "--help")
+        commands = text[text.index("Commands:") :]
+        assert "..." not in commands
+        flat = " ".join(commands.split())
+        group = get_command(app)
+        for name in group.list_commands(None):
+            summary = group.get_command(None, name).get_short_help_str(10_000)
+            if name in commands:
+                assert " ".join(summary.split()).replace("- ", "-") in flat.replace("- ", "-"), name

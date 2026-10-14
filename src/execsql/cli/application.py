@@ -6,6 +6,7 @@ Every command registers itself on :data:`app` from a module in
 
 from __future__ import annotations
 
+import sys
 from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import Any
@@ -225,7 +226,9 @@ class ExecsqlGroup(TyperGroup):
         self.format_commands(ctx, formatter)
 
     def format_commands(self, ctx: Any, formatter: Any) -> None:
-        # Click's own version, with the command names colored.
+        # Click's own version, with the command names colored and each
+        # summary (the first sentence of its help) whole: Click would cut it
+        # to fit the terminal with "...", write_dl wraps it instead.
         commands = [
             (name, cmd)
             for name in self.list_commands(ctx)
@@ -233,10 +236,9 @@ class ExecsqlGroup(TyperGroup):
         ]
         if not commands:
             return
-        limit = formatter.width - 6 - max(len(name) for name, _ in commands)
         with _section(formatter, "Commands"):
             formatter.write_dl(
-                [(_style(name, fg="cyan", bold=True), cmd.get_short_help_str(limit)) for name, cmd in commands],
+                [(_style(name, fg="cyan", bold=True), cmd.get_short_help_str(sys.maxsize)) for name, cmd in commands],
             )
 
 
