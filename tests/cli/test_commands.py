@@ -40,7 +40,9 @@ class TestCommandSet:
     def test_help_lists_the_commands_in_order(self):
         out = _invoke("--help").output
         section = out[out.index("Commands:") :]
-        names = [line.split()[0] for line in section.splitlines()[1:] if line.strip()]
+        # A command's line starts two spaces in; a wrapped summary continues further in.
+        rows = [line for line in section.splitlines()[1:] if line.startswith("  ") and not line.startswith("   ")]
+        names = [line.split()[0] for line in rows]
         assert names == ["run", "format", "lint", "config", "list", "init", "lsp"]
 
     def test_ping_is_listed_in_run_help(self):
