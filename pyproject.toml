@@ -95,7 +95,6 @@ all = [
     "execsql2[lsp]",
 ]
 dev = [
-    "build>=1.2.2.post1",
     "bump-my-version>=1.2.7",
     "execsql2[formats]",
     "execsql2[formatter]",
@@ -109,7 +108,6 @@ dev = [
     "pytest-lsp>=1.0",
     "ruff>=0.4",
     "tox-uv>=1.13.1",
-    "twine>=6.1.0",
     "zensical==0.0.67",
 ]
 

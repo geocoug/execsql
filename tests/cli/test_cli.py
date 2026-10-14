@@ -703,18 +703,6 @@ class TestEndToEndExecution:
         assert result.returncode == 0, f"stderr: {result.stderr}"
         assert not (tmp_path / "should_not_exist.db").exists()
 
-    def test_dump_keywords_json_valid(self, tmp_path):
-        """--dump-keywords produces valid JSON with expected top-level keys."""
-        import json
-
-        result = _run_cli(tmp_path, ["--dump-keywords"])
-        assert result.returncode == 0, f"stderr: {result.stderr}"
-
-        data = json.loads(result.stdout)
-        assert "metacommands" in data
-        assert "conditions" in data
-        assert "database_types" in data
-
     def test_version_output(self, tmp_path):
         """--version prints the version string."""
         result = _run_cli(tmp_path, ["--version"])
@@ -729,16 +717,14 @@ class TestEndToEndExecution:
 
 
 # ---------------------------------------------------------------------------
-# --dump-keywords (lines 272-323)
+# execsql list keywords --output-format json
 # ---------------------------------------------------------------------------
 
 
-class TestDumpKeywords:
-    """In-process tests for `execsql list keywords --output-format json` (formerly --dump-keywords).
+class TestListKeywords:
+    """`execsql list keywords --output-format json`, in process so its lines count toward coverage.
 
-    These use CliRunner so that every line inside the branch is counted
-    for coverage (the subprocess-based test in TestEndToEndExecution does not
-    contribute to in-process line coverage).
+    The deprecated ``--dump-keywords`` alias is checked in ``tests/cli/test_commands.py``.
     """
 
     def _data(self):
