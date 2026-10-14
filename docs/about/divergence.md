@@ -280,7 +280,6 @@ The legacy flat command-list engine (`_parse_script_lines` / `runscripts` / `Com
 - **BREAK outside LOOP is an error** — `BREAK` outside a loop block now raises an error (exit 1) instead of being silently ignored. This catches script bugs that upstream would not report.
 - **File writer is a thread, one per run** — `WRITE`, `TEE` and the other text-file metacommands hand their output to a background thread owned by the run's `RuntimeContext`, which `execsql.run()` stops before returning. Upstream uses one `multiprocessing` subprocess for the whole program; under the `spawn` start method (macOS, Windows) that re-imported the calling program, so a library caller without an `if __name__ == "__main__":` guard ran its script twice.
 - **Instance-scoped script registry** — Named SCRIPT blocks are stored on the `RuntimeContext` instance instead of a module-level dict, preventing cross-execution contamination.
-- **Script source directory resolution** — `ScriptCmd` resolves `source_dir` at construction time (when the command is parsed) rather than per-statement at execution time. This is functionally equivalent for all normal usage since the script file does not move between parse and execution.
 
 ### Error Handling
 

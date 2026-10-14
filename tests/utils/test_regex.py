@@ -8,7 +8,6 @@ import pytest
 
 from execsql.utils.regex import (
     ins_fn_rxs,
-    ins_quoted_rx,
     ins_rxs,
     ins_schema_rxs,
     ins_table_list_rxs,
@@ -61,30 +60,6 @@ class TestInsRxs:
         frags = ins_rxs((r"\w+", r"\d+"), r"^\s*", r"\s*$")
         for pat in frags:
             re.compile(pat)  # should not raise
-
-
-# ---------------------------------------------------------------------------
-# ins_quoted_rx
-# ---------------------------------------------------------------------------
-
-
-class TestInsQuotedRx:
-    def test_returns_two_variants(self):
-        result = ins_quoted_rx("START_", "_END", r"\w+")
-        assert len(result) == 2
-
-    def test_unquoted_variant_present(self):
-        result = ins_quoted_rx("", "", r"\w+")
-        assert r"\w+" in result
-
-    def test_quoted_variant_present(self):
-        result = ins_quoted_rx("", "", r"\w+")
-        assert r'"\w+"' in result
-
-    def test_fragments_applied(self):
-        result = ins_quoted_rx("PRE_", "_POST", r"\d+")
-        assert r"PRE_\d+_POST" in result
-        assert r'PRE_"\d+"_POST' in result
 
 
 # ---------------------------------------------------------------------------

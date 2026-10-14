@@ -6,34 +6,36 @@ from unittest.mock import MagicMock, patch
 
 import execsql.state as _state
 from execsql.exceptions import ErrInfo
-from execsql.utils.errors import exception_info, exit_now
+from execsql.utils.errors import exception_desc, exit_now
 
 
 # ---------------------------------------------------------------------------
-# exception_info — edge cases
+# exception_desc — edge cases
 # ---------------------------------------------------------------------------
 
 
-class TestExceptionInfoEdgeCases:
-    def test_string_exception_message_repr_fallback(self):
-        """When str() fails on the message, repr() should be used."""
+class TestExceptionDescEdgeCases:
+    def test_a_message_attribute_that_is_not_text_is_ignored(self):
+        class BadExc(Exception):
+            def __init__(self, text: str) -> None:
+                super().__init__(text)
+                self.message = object()
 
-        class BadStr:
+        try:
+            raise BadExc("the real message")
+        except Exception:
+            assert exception_desc() == "BadExc: the real message"
+
+    def test_an_exception_that_cannot_be_turned_into_text_is_shown_by_repr(self):
+        class BadExc(Exception):
             def __str__(self):
                 raise ValueError("can't stringify")
-
-            def __repr__(self):
-                return "BadStr()"
-
-        class BadExc(Exception):
-            def __init__(self):
-                self.message = BadStr()
 
         try:
             raise BadExc()
         except Exception:
-            info = exception_info()
-        assert isinstance(info[1], str)
+            desc = exception_desc()
+        assert desc.startswith("BadExc: BadExc(")
 
 
 # ---------------------------------------------------------------------------

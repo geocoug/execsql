@@ -1,4 +1,4 @@
-"""GUI backend factory and manager thread for execsql.
+"""The GUI manager thread for execsql.
 
 Usage
 -----
@@ -7,7 +7,7 @@ and start the manager thread.  All dialog requests are then placed on
 ``_state.gui_manager_queue`` as ``GuiSpec`` objects and dispatched by
 ``gui_manager_loop()``.
 
-Backend selection (framework-based, not level-based):
+``enable_gui()`` picks the backend by framework, not by level:
 
     framework "tkinter" → TkinterBackend → TextualBackend → ConsoleBackend
     framework "textual" → TextualBackend → ConsoleBackend
@@ -21,35 +21,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from execsql.gui.base import GuiBackend
 
-__all__ = ["get_backend", "gui_manager_loop"]
-
-
-def get_backend(framework: str = "tkinter") -> GuiBackend:
-    """Return the best available backend for *framework*.
-
-    Falls back gracefully if the preferred backend's dependencies are missing.
-    """
-    if framework == "tkinter":
-        try:
-            from execsql.gui.desktop import TkinterBackend
-
-            backend = TkinterBackend()
-            backend.start()
-            return backend
-        except (ImportError, RuntimeError, Exception):
-            pass
-
-    # Textual path (framework == "textual", or tkinter unavailable)
-    try:
-        from execsql.gui.tui import TextualBackend
-
-        return TextualBackend()
-    except ImportError:
-        pass
-
-    from execsql.gui.console import ConsoleBackend
-
-    return ConsoleBackend()
+__all__ = ["gui_manager_loop"]
 
 
 def gui_manager_loop(q: queue.Queue[Any], backend: GuiBackend) -> None:

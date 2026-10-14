@@ -7,7 +7,7 @@ import tempfile
 
 
 import execsql.state as _state
-from execsql.utils.errors import exception_desc, exception_info, file_size_date, write_warning
+from execsql.utils.errors import exception_desc, file_size_date, write_warning
 
 
 # ---------------------------------------------------------------------------
@@ -60,38 +60,24 @@ class TestFileSizeDate:
 
 
 # ---------------------------------------------------------------------------
-# exception_info / exception_desc
+# exception_desc
 # ---------------------------------------------------------------------------
 
 
-class TestExceptionInfo:
-    def test_returns_five_elements(self):
-        try:
-            raise ValueError("test error")
-        except Exception:
-            info = exception_info()
-        assert len(info) == 5
-
-    def test_first_element_is_exception_type_name(self):
-        try:
-            raise ValueError("test error")
-        except Exception:
-            info = exception_info()
-        assert info[0] == "ValueError"
-
-    def test_second_element_is_message(self):
+class TestExceptionDesc:
+    def test_is_the_type_name_and_message(self):
         try:
             raise ValueError("my message")
         except Exception:
-            info = exception_info()
-        assert "my message" in info[1]
+            desc = exception_desc()
+        assert desc == "ValueError: my message"
 
     def test_runtime_error_type(self):
         try:
             raise RuntimeError("boom")
         except Exception:
-            info = exception_info()
-        assert info[0] == "RuntimeError"
+            desc = exception_desc()
+        assert desc.startswith("RuntimeError: ")
 
     def test_exception_desc_is_the_type_and_message_only(self):
         """The code location is for the log (see error_origin), not for the person running the script."""
@@ -140,9 +126,8 @@ class TestExceptionInfo:
         try:
             raise RuntimeError()
         except Exception:
-            info = exception_info()
-        # Should not raise; message may be empty string.
-        assert isinstance(info[1], str)
+            desc = exception_desc()
+        assert desc == "RuntimeError: "
 
 
 # ---------------------------------------------------------------------------
@@ -196,13 +181,13 @@ class TestWriteWarning:
 
 
 # ---------------------------------------------------------------------------
-# exception_info — custom exception attributes
+# exception_desc — custom exception attributes
 # ---------------------------------------------------------------------------
 
 
-class TestExceptionInfoAttributes:
+class TestExceptionDescAttributes:
     def test_exception_with_message_attribute(self):
-        """exception_info extracts .message from non-string exceptions."""
+        """A non-empty .message attribute is the message."""
 
         class CustomExc(Exception):
             def __init__(self):
@@ -211,11 +196,11 @@ class TestExceptionInfoAttributes:
         try:
             raise CustomExc()
         except Exception:
-            info = exception_info()
-        assert "from message attr" in info[1]
+            desc = exception_desc()
+        assert desc == "CustomExc: from message attr"
 
     def test_exception_with_value_attribute(self):
-        """exception_info extracts .value when .message is absent."""
+        """A non-empty .value attribute is the message when there is no .message."""
 
         class CustomExc(Exception):
             def __init__(self):
@@ -224,16 +209,16 @@ class TestExceptionInfoAttributes:
         try:
             raise CustomExc()
         except Exception:
-            info = exception_info()
-        assert "from value attr" in info[1]
+            desc = exception_desc()
+        assert desc == "CustomExc: from value attr"
 
     def test_exception_str_fallback(self):
-        """exception_info falls back to str() when no .message/.value."""
+        """Otherwise the message is str() of the exception."""
         try:
             raise RuntimeError("str fallback msg")
         except Exception:
-            info = exception_info()
-        assert "str fallback msg" in info[1]
+            desc = exception_desc()
+        assert desc == "RuntimeError: str fallback msg"
 
 
 # ---------------------------------------------------------------------------

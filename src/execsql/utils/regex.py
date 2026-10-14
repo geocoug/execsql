@@ -16,7 +16,6 @@ import os
 
 __all__ = [
     "ins_rxs",
-    "ins_quoted_rx",
     "ins_schema_rxs",
     "ins_table_rxs",
     "ins_table_list_rxs",
@@ -40,10 +39,6 @@ def ins_rxs(rx_list: tuple[str, ...], fragment1: object, fragment2: object) -> t
             for f2 in fragment2:
                 rv.append(f1 + te + f2)
     return tuple(rv)
-
-
-def ins_quoted_rx(fragment1: object, fragment2: object, rx: str) -> tuple[str, ...]:
-    return ins_rxs((rx, rf'"{rx}"'), fragment1, fragment2)
 
 
 def ins_schema_rxs(fragment1: object, fragment2: object, suffix: str | None = None) -> tuple[str, ...]:

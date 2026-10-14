@@ -242,7 +242,6 @@ from execsql.metacommands.system import (
 # Regex helper functions (from utils/regex.py)
 from execsql.utils.regex import (
     ins_rxs,
-    ins_quoted_rx,
     ins_schema_rxs,
     ins_table_rxs,
     ins_table_list_rxs,
@@ -443,7 +442,6 @@ __all__ = [
     "x_pg_upsert_qa",
     # regex helpers
     "ins_rxs",
-    "ins_quoted_rx",
     "ins_schema_rxs",
     "ins_table_rxs",
     "ins_table_list_rxs",

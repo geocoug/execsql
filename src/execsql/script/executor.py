@@ -957,16 +957,15 @@ class ExecutingStatement:
     rather than copying fields out of it, so there is nothing to keep in sync
     and no second source of truth about what is executing.  Error reporting
     (:mod:`execsql.utils.errors`), the debug REPL, and ``api.run()`` read
-    these five attributes; everything is derived from ``node`` on access, so
+    its attributes; everything is derived from ``node`` on access, so
     constructing one costs a single small object per statement rather than
     the two classes the previous shim built each time.
     """
 
-    __slots__ = ("node", "_source_dir")
+    __slots__ = ("node",)
 
     def __init__(self, node: Node) -> None:
         self.node = node
-        self._source_dir: str | None = None
 
     @property
     def source(self) -> str:
@@ -975,18 +974,6 @@ class ExecutingStatement:
     @property
     def line_no(self) -> int:
         return self.node.span.start_line
-
-    @property
-    def source_name(self) -> str:
-        return Path(self.node.span.file).name
-
-    @property
-    def source_dir(self) -> str:
-        # resolve() touches the filesystem, so it is done once per statement
-        # object rather than on every read.
-        if self._source_dir is None:
-            self._source_dir = str(Path(self.node.span.file).resolve().parent) + os.sep
-        return self._source_dir
 
     @property
     def command_type(self) -> str:
@@ -1003,12 +990,6 @@ class ExecutingStatement:
 
     def __repr__(self) -> str:
         return f"ExecutingStatement({self.source}:{self.line_no}, {self.command_type})"
-
-    def current_script_line(self) -> tuple[str, int]:
-        return (self.source, self.line_no)
-
-    def commandline(self) -> str:
-        return cast(str, self.command.commandline())
 
 
 # ---------------------------------------------------------------------------
