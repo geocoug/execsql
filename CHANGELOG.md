@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.30.0] - 2026-10-14
+
 ### Added
 
 - **`execsql lsp --log-level` and `--log-file`** (or `EXECSQL_LSP_LOG_LEVEL`): at `info` the server logs its version, the Python running it, whether the formatter is installed, the workspace folders and the config files each folder read; `debug` adds every protocol message. See [Troubleshooting](https://execsql2.readthedocs.io/en/latest/guides/editors/#troubleshooting) for what to include in a bug report.
