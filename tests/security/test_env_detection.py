@@ -46,7 +46,7 @@ class TestPlaintextKeyringDetection:
         FakeBackend.__module__ = "keyrings.alt.file"
         fake_backend = FakeBackend()
 
-        import keyring
+        keyring = pytest.importorskip("keyring")  # the auth extra
 
         with patch.object(keyring, "get_keyring", return_value=fake_backend):
             assert auth.is_plaintext_keyring() is True
@@ -59,7 +59,7 @@ class TestPlaintextKeyringDetection:
         FakeBackend.__module__ = "keyring.backends.macOS"
         fake_backend = FakeBackend()
 
-        import keyring
+        keyring = pytest.importorskip("keyring")  # the auth extra
 
         with patch.object(keyring, "get_keyring", return_value=fake_backend):
             assert auth.is_plaintext_keyring() is False
