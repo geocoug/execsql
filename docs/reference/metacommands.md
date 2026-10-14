@@ -278,16 +278,10 @@ A required parameter after an optional parameter is a parse error:
 -- !x! BEGIN SCRIPT bad(schema, batch=1000, table)
 ```
 
-Default values may be quoted with single or double quotes when they contain spaces, commas, or other special characters. Surrounding quotes are stripped at parse time, so the bound substitution variable holds the value itself, not the quoted source token. This matches the quote-handling already applied to passed arguments at the call site:
+Default values may be quoted with single or double quotes when they contain spaces, commas, or other special characters. The whole parameter list is on the `BEGIN SCRIPT` line: a metacommand is one line. Surrounding quotes are stripped at parse time, so the bound substitution variable holds the value itself, not the quoted source token. This matches the quote-handling already applied to passed arguments at the call site:
 
 ```sql
--- !x! BEGIN SCRIPT std_chem_units (
---     selected_lr_rows,
---     output_table="std_chem",
---     default_unit_set="Default",
---     logfile="/tmp/run.log",
---     description="hello, world"
--- )
+-- !x! BEGIN SCRIPT std_chem_units (selected_lr_rows, output_table="std_chem", default_unit_set="Default", logfile="/tmp/run.log", description="hello, world")
 -- !!#default_unit_set!! resolves to: Default   (no surrounding quotes)
 -- !!#description!!     resolves to: hello, world
 -- !x! WRITE "Unit set: !!#default_unit_set!!"
@@ -1284,7 +1278,7 @@ The default (no template processor specified)
 
     ```
     Survey operations were conducted from $vessel.
-    The $'s crew ate biscuits for a week.
+    The ${vessel}'s crew ate biscuits for a week.
     ```
 
     The default template processor does not include any features that allow for conditional tests or iteration within the template. The entire template is processed for each row in the exported data table, and all of the output is combined into the output file.
@@ -1294,11 +1288,10 @@ The default (no template processor specified)
 
 :   Data values are referenced in the template within pairs of curly braces. The Jinja template processor allows conditional tests and iteration, as well as other features, within the template. The entire exported data set is passed to the template processor as an iterable object named "datatable". The names of the column headers are passed as a separate iterable object named "headers". For example, if an exported data table contains a column named "hire_date", that column could be referred to, while iterating over the entire data set, as follows:
 
-    ```
-
-    Hire date: }
-    . . .
-
+    ```jinja
+    {% for row in datatable %}
+    Hire date: {{ row.hire_date }}
+    {% endfor %}
     ```
 
     The template syntax used by Jinja is very similar to that used by [Django](https://www.djangoproject.com/). Jinja's [Template Designer Documentation](http://jinja.pocoo.org/docs/2.9/templates/) provides more details about the template syntax.

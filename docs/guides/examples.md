@@ -1544,17 +1544,27 @@ This example is also incorporated into the SQL script template file *script_temp
 
 ## **Example 34:** Importing Multiple Worksheets { #example34 }
 
-This example illustrates commands to import multiple sheets from a workbook into staging tables. This uses the [IMPORT](../reference/metacommands.md#import) metacommand and the system variables that are created when the SHEETS MATCHING clause is used. Each imported staging table is then displayed, and optionally upserted into corresponding base tables. The upsert operation is carried out using the pg_upsert.sql, md_upsert.sql, and ss_upsert.sql scripts that are distributed with *execsql*.
+This example illustrates commands to import multiple sheets from a workbook into staging tables. This uses the [IMPORT](../reference/metacommands.md#import) metacommand and the system variables that are created when the SHEETS MATCHING clause is used. Each imported staging table is then displayed.
 
-This example illustrates import of a set of lookup tables from an OpenDocument workbook named "lookups.ods", where each lookup table is on a sheet with a name starting with "l\_", and the sheet names match table names. The sheets are imported into tables in a staging schema named "stg".
+This example illustrates import of a set of lookup tables from an OpenDocument workbook named "lookups.ods", where each lookup table is on a sheet with a name starting with "l\_", and the sheet names match table names. The sheets are imported into tables in a staging schema named "stg" (on a DBMS with schemas, such as PostgreSQL or DuckDB). SHEETS MATCHING takes a regular expression, so `^l_` selects the sheets whose names start with "l\_".
+
+`$SHEETS_TABLES_VALUES` holds the new tables' names ready for an `INSERT ... VALUES` statement, here `('stg.l_units'),('stg.l_methods')` in workbook order. Loading them into a table gives the script a list to work through: a script displays the first table in the list and removes it, and runs again while any remain.
 
 ``` sql
--- !x! IMPORT TO REPLACEMENT stg SHEETS MATCHING "l_*" FROM lookups.ods
+-- !x! IMPORT TO REPLACEMENT TABLES IN stg FROM lookups.ods SHEETS MATCHING ^l_
 
--- Display each imported table.
--- !x! LOOP WHILE (NOT IS_GTE(!{$COUNTER_1}!, !!$IMPORT_SHEET_COUNT!!))
-    -- !x! EXPORT !!$IMPORT_TABLE_NAME!! TO stdout AS TXT
--- !x! END LOOP
+-- The tables just created, one row each, and the first one not yet shown.
+create table imported (table_name varchar(100));
+insert into imported (table_name) values !!$SHEETS_TABLES_VALUES!!;
+create view next_table as select table_name from imported order by table_name limit 1;
+
+-- Display each imported table, removing it from the list once shown.
+-- !x! BEGIN SCRIPT show_next
+-- !x! SELECT_SUB next_table
+-- !x! EXPORT !!@table_name!! TO stdout AS TXT
+delete from imported where table_name = '!!@table_name!!';
+-- !x! END SCRIPT
+-- !x! EXECUTE SCRIPT show_next WHILE (HAS_ROWS(imported))
 ```
 
 ## **Example 35:** Assertions for Data Validation { #example35 }

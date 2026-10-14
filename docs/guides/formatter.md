@@ -109,7 +109,7 @@ Metacommands that open a block (`IF`, `LOOP`, `BEGIN SCRIPT`, `BEGIN BATCH`, `BE
 `ELSE` and `ELSEIF` pivot at the same depth as their `IF`. `ANDIF` and `ORIF` are emitted at one level above the current depth without changing the depth counter.
 
 ```sql
--- !x! IF (!!status!! = "active")
+-- !x! IF (EQUALS("!!status!!", "active"))
     -- !x! SUB result found
 -- !x! ELSE
     -- !x! SUB result not found
