@@ -14,6 +14,7 @@ from lsprotocol import types
 
 from execsql.lsp.document import ScriptIndex
 from execsql.metacommands import reference
+from execsql.lsp._util import markdown, span
 
 __all__ = ["completions"]
 
@@ -27,17 +28,9 @@ _RX_EXPORT_FORMAT = re.compile(r"^\s*--\s*!x!\s*EXPORT\b.*\bAS\s+(?P<partial>\w*
 _RX_IS_METACOMMAND = re.compile(r"^\s*--\s*!x!", re.I)
 
 
-def _range(line: int, start: int, end: int) -> types.Range:
-    return types.Range(start=types.Position(line=line, character=start), end=types.Position(line=line, character=end))
-
-
-def _markdown(text: str) -> types.MarkupContent:
-    return types.MarkupContent(kind=types.MarkupKind.Markdown, value=text)
-
-
 def _metacommand_doc(entry: reference.Metacommand) -> types.MarkupContent:
     forms = "\n".join(entry.forms)
-    return _markdown(f"{entry.summary}\n\n```\n{forms}\n```\n\n[Reference]({entry.url})")
+    return markdown(f"{entry.summary}\n\n```\n{forms}\n```\n\n[Reference]({entry.url})")
 
 
 def _keyword_items(line: int, start: int, end: int, typed: str, snippets: bool) -> list[types.CompletionItem]:
@@ -59,7 +52,7 @@ def _keyword_items(line: int, start: int, end: int, typed: str, snippets: bool) 
                     filter_text=entry.keyword,
                     sort_text=f"{entry.keyword}\x00{n:03d}",
                     text_edit=types.TextEdit(
-                        range=_range(line, start, end),
+                        range=span(line, start, end),
                         new_text=reference.to_snippet(form) if snippets else entry.keyword,
                     ),
                     insert_text_format=types.InsertTextFormat.Snippet if snippets else types.InsertTextFormat.PlainText,
@@ -78,9 +71,9 @@ def _condition_items(line: int, start: int, end: int, snippets: bool) -> list[ty
                 label=entry.name,
                 kind=types.CompletionItemKind.Function,
                 detail=entry.forms[0],
-                documentation=_markdown(f"{entry.summary}\n\n```\n{entry.forms[0]}\n```\n\n[Reference]({entry.url})"),
+                documentation=markdown(f"{entry.summary}\n\n```\n{entry.forms[0]}\n```\n\n[Reference]({entry.url})"),
                 text_edit=types.TextEdit(
-                    range=_range(line, start, end),
+                    range=span(line, start, end),
                     new_text=entry.snippet if snippets else entry.name,
                 ),
                 insert_text_format=types.InsertTextFormat.Snippet if snippets else types.InsertTextFormat.PlainText,
@@ -107,9 +100,9 @@ def _variable_items(
                 label=name,
                 kind=kind,
                 detail=detail,
-                documentation=_markdown(doc) if doc else None,
+                documentation=markdown(doc) if doc else None,
                 text_edit=types.TextEdit(
-                    range=_range(line, start, end),
+                    range=span(line, start, end),
                     new_text=(snippet if use_snippet and snippet is not None else name) + closing,
                 ),
                 insert_text_format=types.InsertTextFormat.Snippet if use_snippet else types.InsertTextFormat.PlainText,
@@ -182,7 +175,7 @@ def completions(
                     label=fmt.upper(),
                     kind=types.CompletionItemKind.EnumMember,
                     detail="export format",
-                    text_edit=types.TextEdit(range=_range(line, start, character), new_text=fmt.upper()),
+                    text_edit=types.TextEdit(range=span(line, start, character), new_text=fmt.upper()),
                 )
                 for fmt in sorted(ALL_EXPORT_FORMATS)
             ],

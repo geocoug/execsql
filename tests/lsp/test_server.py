@@ -77,6 +77,15 @@ def _open(client: LanguageClient, name: str, text: str) -> str:
     return uri
 
 
+def _change(client: LanguageClient, uri: str, version: int, text: str) -> None:
+    client.text_document_did_change(
+        types.DidChangeTextDocumentParams(
+            text_document=types.VersionedTextDocumentIdentifier(uri=uri, version=version),
+            content_changes=[types.TextDocumentContentChangeWholeDocument(text=text)],
+        ),
+    )
+
+
 @pytest.mark.asyncio
 async def test_opening_a_script_publishes_its_findings(client: LanguageClient):
     uri = _open(client, "a.sql", BAD)
@@ -88,12 +97,7 @@ async def test_opening_a_script_publishes_its_findings(client: LanguageClient):
 async def test_an_edit_updates_the_findings(client: LanguageClient):
     uri = _open(client, "b.sql", BAD)
     await client.wait_for_notification(types.TEXT_DOCUMENT_PUBLISH_DIAGNOSTICS)
-    client.text_document_did_change(
-        types.DidChangeTextDocumentParams(
-            text_document=types.VersionedTextDocumentIdentifier(uri=uri, version=2),
-            content_changes=[types.TextDocumentContentChangeWholeDocument(text=GOOD)],
-        ),
-    )
+    _change(client, uri, 2, GOOD)
     await client.wait_for_notification(types.TEXT_DOCUMENT_PUBLISH_DIAGNOSTICS)
     assert not client.diagnostics[uri]
 
@@ -230,15 +234,6 @@ async def test_a_script_nested_too_deeply_gets_one_finding_and_the_server_keeps_
         types.DocumentSymbolParams(text_document=types.TextDocumentIdentifier(uri=uri)),
     )
     assert symbols == []
-
-
-def _change(client: LanguageClient, uri: str, version: int, text: str) -> None:
-    client.text_document_did_change(
-        types.DidChangeTextDocumentParams(
-            text_document=types.VersionedTextDocumentIdentifier(uri=uri, version=version),
-            content_changes=[types.TextDocumentContentChangeWholeDocument(text=text)],
-        ),
-    )
 
 
 @pytest.mark.asyncio

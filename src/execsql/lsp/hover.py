@@ -13,10 +13,10 @@ from lsprotocol import types
 
 from execsql.lsp.document import Reference, ScriptIndex, variable_at
 from execsql.metacommands import reference
+from execsql.lsp._util import RX_METACOMMAND, markdown, span
 
 __all__ = ["hover", "metacommand_for"]
 
-_RX_METACOMMAND = re.compile(r"^(?P<lead>\s*--\s*!x!\s*)(?P<command>.*?)\s*$", re.I)
 _RX_WORD = re.compile(r"[A-Za-z_]+")
 
 
@@ -42,14 +42,6 @@ def metacommand_for(command: str) -> reference.Metacommand | None:
         ):
             best = entry
     return best
-
-
-def _markdown(text: str) -> types.MarkupContent:
-    return types.MarkupContent(kind=types.MarkupKind.Markdown, value=text)
-
-
-def _range(line: int, start: int, end: int) -> types.Range:
-    return types.Range(start=types.Position(line=line, character=start), end=types.Position(line=line, character=end))
 
 
 def _syntax_block(forms: tuple[str, ...]) -> str:
@@ -94,9 +86,9 @@ def hover(index: ScriptIndex, source: str, line: int, character: int) -> types.H
     if ref is not None:
         content = _variable_hover(index, ref, lines)
         loc = ref.location
-        return types.Hover(contents=_markdown(content), range=_range(line, loc.start, loc.end)) if content else None
+        return types.Hover(contents=markdown(content), range=span(line, loc.start, loc.end)) if content else None
 
-    m = _RX_METACOMMAND.match(text)
+    m = RX_METACOMMAND.match(text)
     if not m or character < m.end("lead"):
         return None
 
@@ -106,7 +98,7 @@ def hover(index: ScriptIndex, source: str, line: int, character: int) -> types.H
             cond = reference.condition(word.group())
             if cond is not None and cond.name not in ("NOT", "OR"):
                 body = f"**{cond.name}** — conditional test\n\n{cond.summary}\n\n{_syntax_block(cond.forms)}\n\n[Reference]({cond.url})"
-                return types.Hover(contents=_markdown(body), range=_range(line, word.start(), word.end()))
+                return types.Hover(contents=markdown(body), range=span(line, word.start(), word.end()))
 
     entry = metacommand_for(m.group("command"))
     if entry is None:
@@ -116,4 +108,4 @@ def hover(index: ScriptIndex, source: str, line: int, character: int) -> types.H
     first_word = re.match(r"[A-Za-z_]+", text[start:])
     keyword_end = start + (written.end() if written else first_word.end() if first_word else 0)
     body = f"**{entry.keyword}** — {entry.category} metacommand\n\n{entry.summary}\n\n{_syntax_block(entry.forms)}\n\n[Reference]({entry.url})"
-    return types.Hover(contents=_markdown(body), range=_range(line, start, keyword_end))
+    return types.Hover(contents=markdown(body), range=span(line, start, keyword_end))

@@ -706,7 +706,7 @@ _RX_ANY_VAR = re.compile(r"!(['\"]?)![$&@~#+]?\w+!\1!|!\{[$&@~#+]?\w+\}!")
 _PLACEHOLDERS = ("TRUE", "1", "x")
 
 
-def _with_placeholders(text: str, value: str = "TRUE") -> str:
+def _with_placeholders(text: str, value: str) -> str:
     """Replace each substitution variable with the literal *value*."""
     return _RX_ANY_VAR.sub(value, text)
 

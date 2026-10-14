@@ -123,6 +123,7 @@ ______________________________________________________________________
 | `diagnostics.py`                           | lint findings as LSP diagnostics                        | `cli.lint.lint_source`                                             |
 | `document.py`                              | `ScriptIndex`: definitions, references, `INCLUDE` graph | `script.parser`, `cli.lint.variables_defined_by`                   |
 | `cache.py`                                 | each text's `FileFacts`, included files' text           | `document`                                                         |
+| `_util.py`                                 | `span()`, `markdown()`, the metacommand-line regex      | `lsprotocol`                                                       |
 | `completion.py`, `hover.py`                | completion and hover                                    | `metacommands.reference`                                           |
 | `navigation.py`, `rename.py`, `folding.py` | definition, references, outline, links, rename, folding | `ScriptIndex`, the parser                                          |
 | `code_actions.py`                          | quick fixes for P002, P003, P004, V001                  | the dispatch table (each fix is re-validated before it is offered) |
