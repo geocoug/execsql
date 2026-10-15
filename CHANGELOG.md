@@ -13,6 +13,7 @@ ______________________________________________________________________
 
 ### Changed
 
+- **The `upsert` extra requires pg-upsert 1.26.0**, which reports a database error instead of returning as if the run succeeded.
 - **GitHub Releases** carry the version's `CHANGELOG.md` section as their text, instead of a generated list of commits.
 - **VS Code extension version** is execsql's version (2.30.0 now), in every build including `just install-vscode`; a pre-release is `2.31.0-rc.1`, so VS Code upgrades from an rc to its final release.
 - **Documentation links** in execsql's messages, `execsql --online-help`, hover text, the config template, the VS Code extension and the package's PyPI page go to the docs of the latest release (`/en/stable/`) instead of the unreleased `main` branch.
@@ -28,6 +29,7 @@ ______________________________________________________________________
 - **`IMPORT` into PostgreSQL or MySQL with `IMPORT_COMMON_COLUMNS_ONLY`** no longer stops with `IndexError` on a line with fewer values than the header; the values left off are NULL.
 - **`IMPORT` into MySQL** no longer adds a row of NULLs for each blank line at the end of a CSV file.
 - **`SERVE`** writes its `Content-Type` and `Content-Disposition` headers before the file when stdout is a pipe, as it is under CGI; the file used to come first.
+- **`PG_UPSERT` fails on a database error** (a deadlock, a lock timeout, a trigger or constraint error during the upsert) with the driver's message in `$ERROR_MESSAGE`, and its `$PG_UPSERT_*` variables describe the failed run; it used to report success with zero rows and carry on.
 - **`execsql lint`, `execsql format` and the language server no longer touch network paths** written in a script or config (`\\host\share\…` on Windows) in an `INCLUDE`, `SUB_INI` or `config_file` chain: on Windows, checking such a path sent your login to that host. `execsql run` still follows them.
 
 ### Removed

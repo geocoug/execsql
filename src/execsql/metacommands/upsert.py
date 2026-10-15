@@ -421,7 +421,7 @@ def _export_failures_if_requested(
 
 def _handle_pg_upsert_errors(fn: Any, metacommandline: str | None) -> Any:
     """Run *fn*, translating pg-upsert exceptions to ErrInfo."""
-    from pg_upsert import UserCancelledError
+    from pg_upsert import PgUpsertError, UserCancelledError
 
     try:
         return fn()
@@ -433,6 +433,15 @@ def _handle_pg_upsert_errors(fn: Any, metacommandline: str | None) -> Any:
         ) from exc
     except ErrInfo:
         raise
+    except PgUpsertError as exc:
+        # The run was rolled back.  The variables describe this failed run,
+        # not whatever an earlier PG_UPSERT left in them.
+        _set_subvars(exc.result)
+        raise ErrInfo(
+            "cmd",
+            command_text=metacommandline,
+            other_msg=f"PG_UPSERT rolled back after a database error: {exc.original}",
+        ) from exc
     except Exception as exc:
         raise ErrInfo(
             "exception",

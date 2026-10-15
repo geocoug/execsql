@@ -2286,7 +2286,7 @@ PG_UPSERT CHECK FROM <staging_schema> TO <base_schema> TABLES <table1>, <table2>
 
 Performs QA-checked, FK-dependency-ordered upserts from a staging schema to a base schema on PostgreSQL. Integrates [pg-upsert](https://pg-upsert.readthedocs.io/) as an optional dependency.
 
-**Requires:** the `upsert` extra, `uv tool install "execsql2[upsert]"` (pg-upsert 1.25.0 or later)
+**Requires:** the `upsert` extra, `uv tool install "execsql2[upsert]"` (pg-upsert 1.26.0 or later)
 
 **Requires:** A PostgreSQL connection. Raises an error if the current DBMS is not PostgreSQL.
 
@@ -2395,6 +2395,12 @@ Set after every `PG_UPSERT` execution:
 -- !x! PG_UPSERT QA FROM staging TO public TABLES books, authors
 -- !x! ASSERT IS_TRUE(!!$PG_UPSERT_QA_PASSED!!) "Pre-load QA failed; aborting."
 ```
+
+### Database errors
+
+A database error during the run (a deadlock, a lock timeout, a constraint or trigger error the QA checks did not catch) is different from a QA failure. pg-upsert rolls the run back, and `PG_UPSERT` fails like any other metacommand: the driver's message is in `$ERROR_MESSAGE`, and the script halts unless `METACOMMAND_ERROR_HALT` is off. The `$PG_UPSERT_*` variables describe the failed run (`$PG_UPSERT_COMMITTED` is `FALSE` and the row counts are `0`), not an earlier `PG_UPSERT`.
+
+The rollback ends the connection's transaction, so under `AUTOCOMMIT OFF` or inside `BEGIN BATCH`, statements run earlier on the same connection are rolled back with it.
 
 ### Temporary objects
 

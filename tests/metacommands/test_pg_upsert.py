@@ -137,6 +137,15 @@ class _FakeUserCancelledError(Exception):
     """Stand-in for pg_upsert.UserCancelledError when the package isn't installed."""
 
 
+class _FakePgUpsertError(Exception):
+    """Stand-in for pg_upsert.PgUpsertError (a psycopg.Error carrying the partial result)."""
+
+    def __init__(self, message, *, result, original):
+        super().__init__(message)
+        self.result = result
+        self.original = original
+
+
 @pytest.fixture(autouse=True)
 def mock_pg_upsert_module(monkeypatch):
     """Inject a fake pg_upsert module into sys.modules for all tests.
@@ -148,6 +157,7 @@ def mock_pg_upsert_module(monkeypatch):
 
     fake_mod = MagicMock()
     fake_mod.UserCancelledError = _FakeUserCancelledError
+    fake_mod.PgUpsertError = _FakePgUpsertError
     fake_mod.PgUpsert = MagicMock()
 
     fake_models = MagicMock()
@@ -559,6 +569,34 @@ class TestFullMode:
         calls = {c[0][0]: c[0][1] for c in state.subvars.add_substitution.call_args_list}
         assert calls["$PG_UPSERT_QA_PASSED"] == "FALSE"
         assert calls["$PG_UPSERT_COMMITTED"] == "FALSE"
+
+    def test_a_database_error_fails_the_metacommand(self, mock_state):
+        """pg-upsert rolls back and raises; the run must fail with the driver's message, not report success."""
+        state, db = mock_state
+        failed = FakeUpsertResult(
+            tables=[FakeTableResult(table_name="books")],
+            staging_schema="staging",
+            base_schema="public",
+        )
+        error = _FakePgUpsertError("run aborted", result=failed, original=Exception("deadlock detected"))
+
+        with (
+            patch("execsql.metacommands.upsert._require_pg_upsert"),
+            patch("execsql.metacommands.upsert._create_pgupsert") as mock_create,
+            pytest.raises(ErrInfo) as exc_info,
+        ):
+            mock_create.return_value.run.side_effect = error
+            x_pg_upsert(
+                staging_schema="staging",
+                base_schema="public",
+                tail="books COMMIT",
+                metacommandline="PG_UPSERT FROM staging TO public TABLES books COMMIT",
+            )
+        assert "deadlock detected" in exc_info.value.errmsg()
+        # The variables describe the failed run, not an earlier one.
+        calls = {c[0][0]: c[0][1] for c in state.subvars.add_substitution.call_args_list}
+        assert calls["$PG_UPSERT_COMMITTED"] == "FALSE"
+        assert calls["$PG_UPSERT_ROWS_UPDATED"] == "0"
 
     def test_commit_keyword_passed(self, mock_state):
         state, db = mock_state
