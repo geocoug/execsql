@@ -88,22 +88,30 @@ _DEFAULT_PORTS = {"PostgreSQL": 5432, "MySQL": 3306, "SQL Server": 1433, "Oracle
 _plaintext_warned: bool = False
 
 
-def is_plaintext_keyring() -> bool:
-    """Return True if the active keyring backend stores secrets in cleartext.
+def _storing_backend(backend: Any) -> Any:
+    """The backend a password saved through *backend* lands in.
 
-    B20/F040: on headless Linux without a real Secret Service, the
-    ``keyrings.alt.file.PlaintextKeyring`` (or
-    ``EncryptedKeyring`` with a hard-coded passphrase) backend is
-    used silently. Detect by inspecting the active backend's module
-    path so callers can warn the user instead of pretending secrets
-    are encrypted.
+    keyring's ``ChainerBackend`` saves to the first of its backends (highest
+    priority first) that accepts it, such as the macOS Keychain ahead of a
+    ``keyrings.alt`` file.
+    """
+    chained = getattr(backend, "backends", None)
+    return chained[0] if chained else backend
+
+
+def is_plaintext_keyring() -> bool:
+    """Return True if a password stored now would be written in cleartext.
+
+    That is ``keyrings.alt``'s ``PlaintextKeyring``: on headless Linux with no
+    Secret Service, keyring falls back to it silently.  Its encrypted
+    sibling (a master password protects the file), the Windows backends and
+    keyring's ``fail`` placeholder (which stores nothing) are not.
     """
     try:
         import keyring
 
-        backend = keyring.get_keyring()
-        module = type(backend).__module__
-        return "keyrings.alt" in module or "fail" in module.lower()
+        cls = type(_storing_backend(keyring.get_keyring()))
+        return cls.__module__.startswith("keyrings.alt") and cls.__name__ == "PlaintextKeyring"
     except Exception:
         return False
 
@@ -118,11 +126,10 @@ def _warn_if_plaintext_keyring() -> None:
         import keyring
         import sys
 
-        backend_name = type(keyring.get_keyring()).__name__
+        backend_name = type(_storing_backend(keyring.get_keyring())).__name__
         print(
             f"WARNING: active keyring backend ({backend_name}) stores secrets in "
-            f"cleartext or with a hard-coded key. Stored passwords are not "
-            f"meaningfully protected.",
+            f"cleartext. Stored passwords are not meaningfully protected.",
             file=sys.stderr,
         )
     except Exception:

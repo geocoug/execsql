@@ -19,6 +19,7 @@ ______________________________________________________________________
 
 ### Fixed
 
+- **The plaintext-keyring warning** appears only when a password would really be saved in cleartext (`keyrings.alt`'s `PlaintextKeyring`, including behind keyring's chained backend); the encrypted backend (`auth-encrypted`), the Windows backends and the no-backend placeholder no longer trigger it.
 - **`execsql lint`, `execsql format` and the language server no longer touch network paths** written in a script or config (`\\host\share\…` on Windows) in an `INCLUDE`, `SUB_INI` or `config_file` chain: on Windows, checking such a path sent your login to that host. `execsql run` still follows them.
 
 ### Removed
