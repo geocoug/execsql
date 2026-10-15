@@ -6,6 +6,7 @@ them need live servers.
 
 from __future__ import annotations
 
+import os
 import re
 import sqlite3
 import subprocess
@@ -94,6 +95,10 @@ def test_scripts_document_themselves(template, script, optional, doc, tmp_path):
     assert doc in out
 
 
+@pytest.mark.skipif(
+    os.name == "nt",
+    reason="the template's CONSOLE ON opens a window on Windows and waits for it to be closed (console wait_when_done)",
+)
 def test_script_template_runs_unattended_and_numbers_its_runs(tmp_path):
     """With the run-description prompt turned off, script_template.sql runs end to end on SQLite."""
     (tmp_path / "execsql.conf").write_text("[variables]\nget_run_description=False\n")
