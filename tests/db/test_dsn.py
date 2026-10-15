@@ -3,9 +3,8 @@ from __future__ import annotations
 """
 Tests for execsql.db.dsn — DsnDatabase (ODBC DSN adapter).
 
-``pyodbc`` is not installed in the test environment (it is an optional
-dependency), so the entire module is mocked via ``sys.modules`` before
-``DsnDatabase`` is imported.  Every test that exercises connection or
+``pyodbc`` is replaced for each test by a stand-in module (the
+``fake_drivers`` fixture in ``conftest.py``).  Every test that exercises connection or
 cursor behaviour wires up its own ``MagicMock`` objects.
 
 Coverage:
@@ -21,25 +20,15 @@ Coverage:
 """
 
 import sys
-import types
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 import execsql.state as _state
+from execsql.db.dsn import DsnDatabase
 from execsql.exceptions import ErrInfo
 
-# ---------------------------------------------------------------------------
-# Module-level pyodbc mock — injected before DsnDatabase is importable.
-# ---------------------------------------------------------------------------
-
-_pyodbc_mock = types.ModuleType("pyodbc")
-_pyodbc_mock.connect = MagicMock()
-_pyodbc_mock.Binary = MagicMock(side_effect=lambda data: b"<binary:%d>" % len(data))
-sys.modules.setdefault("pyodbc", _pyodbc_mock)
-
-# Now we can import the class under test.
-from execsql.db.dsn import DsnDatabase  # noqa: E402
+pytestmark = pytest.mark.usefixtures("fake_drivers")
 
 
 # ---------------------------------------------------------------------------
@@ -136,7 +125,6 @@ class TestDsnDatabaseOpenDb:
         mock_connect = MagicMock(return_value=conn)
 
         with (
-            patch.dict("sys.modules", {"pyodbc": _pyodbc_mock}),
             patch.object(
                 sys.modules["pyodbc"],
                 "connect",
@@ -161,7 +149,6 @@ class TestDsnDatabaseOpenDb:
         mock_connect = MagicMock(return_value=conn)
 
         with (
-            patch.dict("sys.modules", {"pyodbc": _pyodbc_mock}),
             patch.object(
                 sys.modules["pyodbc"],
                 "connect",
@@ -196,7 +183,6 @@ class TestDsnDatabaseOpenDb:
         mock_connect = MagicMock(side_effect=_side_effect)
 
         with (
-            patch.dict("sys.modules", {"pyodbc": _pyodbc_mock}),
             patch.object(
                 sys.modules["pyodbc"],
                 "connect",
@@ -219,7 +205,6 @@ class TestDsnDatabaseOpenDb:
         mock_connect = MagicMock(side_effect=Exception("Driver not found"))
 
         with (
-            patch.dict("sys.modules", {"pyodbc": _pyodbc_mock}),
             patch.object(
                 sys.modules["pyodbc"],
                 "connect",
@@ -233,7 +218,6 @@ class TestDsnDatabaseOpenDb:
             pytest.raises(ErrInfo),
         ):
             DsnDatabase("BADSN", "alice", need_passwd=False, encoding="utf-8")
-        _pyodbc_mock.connect.side_effect = None
 
 
 # ---------------------------------------------------------------------------

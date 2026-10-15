@@ -23,14 +23,8 @@ import pytest
 import execsql.state as _state
 
 
-# If another test module (e.g. tests/db/test_db_adapters_mocked.py)
-# injected a MagicMock for pyodbc at import time, the real driver never gets
-# loaded.  Drop any cached entry and force a fresh import so the real
-# package wins whenever it's installed.
 import importlib
-import sys as _sys
 
-_sys.modules.pop("pyodbc", None)
 try:
     pyodbc = importlib.import_module("pyodbc")
 except ImportError:

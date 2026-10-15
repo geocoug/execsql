@@ -138,7 +138,7 @@ class _FakeUserCancelledError(Exception):
 
 
 @pytest.fixture(autouse=True)
-def mock_pg_upsert_module():
+def mock_pg_upsert_module(monkeypatch):
     """Inject a fake pg_upsert module into sys.modules for all tests.
 
     This avoids ModuleNotFoundError when the handler does
@@ -155,19 +155,9 @@ def mock_pg_upsert_module():
     fake_models.TableResult = FakeTableResult
     fake_models.QAError = FakeQAError
 
-    saved = {
-        "pg_upsert": sys.modules.get("pg_upsert"),
-        "pg_upsert.models": sys.modules.get("pg_upsert.models"),
-    }
-    sys.modules["pg_upsert"] = fake_mod
-    sys.modules["pg_upsert.models"] = fake_models
+    monkeypatch.setitem(sys.modules, "pg_upsert", fake_mod)
+    monkeypatch.setitem(sys.modules, "pg_upsert.models", fake_models)
     yield fake_mod
-    # Restore
-    for key, val in saved.items():
-        if val is None:
-            sys.modules.pop(key, None)
-        else:
-            sys.modules[key] = val
 
 
 @pytest.fixture()
