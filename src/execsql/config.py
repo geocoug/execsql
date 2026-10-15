@@ -23,6 +23,7 @@ from configparser import ConfigParser
 from pathlib import Path
 from typing import Protocol
 
+from execsql.utils.paths import is_network_path
 from execsql.exceptions import ConfigError, ConfigFileError
 from execsql.utils.crypto import Encrypt
 
@@ -402,6 +403,7 @@ class ConfigData:
         *,
         config_file: str | None = None,
         start_dir: str | None = None,
+        local_only: bool = False,
     ) -> None:
         """Load and merge all discoverable execsql.conf files for the given script path.
 
@@ -420,8 +422,13 @@ class ConfigData:
                 ``[config]`` chains) resolve against it.  Defaults to the
                 working directory.  The language server passes each
                 workspace folder, so it never changes the process's directory.
+            local_only: Skip a ``config_file`` chain or ``[include_*]`` path
+                written as a network path (:func:`~execsql.utils.paths.is_network_path`)
+                without touching it.  The static tools pass it: they read
+                config files a cloned repository may supply.
         """
         self._start_dir = start_dir
+        self._local_only = local_only
         self._set_defaults()
         current_script = str(Path(sys.argv[0]).resolve())
         from collections import deque
@@ -464,6 +471,8 @@ class ConfigData:
 
     #: Where relative paths resolve; ``None`` is the working directory.
     _start_dir: str | None = None
+    #: Whether paths written as network paths are skipped (see ``__init__``).
+    _local_only: bool = False
 
     #: Guard against circular config_file references.
     _MAX_CONFIG_CHAIN = 20
@@ -602,12 +611,15 @@ class ConfigData:
         *,
         expand_home: bool,
         start_dir: str | None = None,
+        local_only: bool = False,
     ) -> str:
         """Resolve a ``config_file``-style value to the file it names.
 
         A leading ``~`` is expanded when *expand_home* is true, substitution
         variables are replaced, and a directory means the ``execsql.conf``
         inside it. The result may not exist; callers decide what that means.
+        With *local_only*, a value that is a network path once substituted
+        gives ``""`` without being touched.
         """
         conffile = value
         if expand_home and conffile and conffile[0] == "~":
@@ -616,11 +628,17 @@ class ConfigData:
             elif len(conffile) > 1 and conffile[1] == os.sep:
                 conffile = str(Path("~").expanduser() / conffile[2:])
         conffile = variable_pool.substitute(conffile)[0]
+        if local_only and is_network_path(conffile):
+            return ""
         if start_dir and not Path(conffile).is_absolute():
             conffile = str(Path(start_dir) / conffile)
         if not Path(conffile).is_file():
             conffile = str(Path(conffile) / cls.config_file_name)
         return conffile
+
+    def _skips(self, path: str) -> bool:
+        """Whether *path* is left untouched: a network path when ``local_only``."""
+        return self._local_only and is_network_path(path)
 
     def _apply_file(self, cp: ConfigParser, variable_pool: _VariablePool, current_script: str) -> list[str]:
         """Apply one parsed config file to ``self``; return the files it chains to.
@@ -672,8 +690,9 @@ class ConfigData:
                 variable_pool,
                 expand_home=os.name == "posix",
                 start_dir=self._start_dir,
+                local_only=self._local_only,
             )
-            if Path(conffile).is_file():
+            if conffile and Path(conffile).is_file():
                 # Silently ignore a non-existent file, for cross-OS compatibility.
                 chained.append(conffile)
         # OS-specific additional config files.
@@ -690,8 +709,9 @@ class ConfigData:
                 variable_pool,
                 expand_home=True,
                 start_dir=self._start_dir,
+                local_only=self._local_only,
             )
-            if Path(conffile).is_file():
+            if conffile and Path(conffile).is_file():
                 chained.append(conffile)
         # dao_flush_delay_secs has a specific error message — keep inline
         if cp.has_option(self._CONFIG_SECTION, "dao_flush_delay_secs"):
@@ -727,7 +747,7 @@ class ConfigData:
         if cp.has_section(self._INCLUDE_REQ_SECTION):
             imp_items = cp.items(self._INCLUDE_REQ_SECTION)
             ord_items = sorted([(int(i[0]), i[1]) for i in imp_items], key=lambda x: x[0])
-            newfiles = [str(Path(f[1]).resolve()) for f in ord_items]
+            newfiles = [str(Path(f[1]).resolve()) for f in ord_items if not self._skips(f[1])]
             u_files = []
             for f in newfiles:
                 if not (f in u_files or f in self.include_req or f in self.include_opt) and f != current_script:
@@ -738,7 +758,7 @@ class ConfigData:
         if cp.has_section(self._INCLUDE_OPT_SECTION):
             imp_items = cp.items(self._INCLUDE_OPT_SECTION)
             ord_items = sorted([(int(i[0]), i[1]) for i in imp_items], key=lambda x: x[0])
-            newfiles = [str(Path(f[1]).resolve()) for f in ord_items]
+            newfiles = [str(Path(f[1]).resolve()) for f in ord_items if not self._skips(f[1])]
             u_files = []
             for f in newfiles:
                 if (

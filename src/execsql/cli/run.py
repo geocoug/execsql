@@ -281,6 +281,7 @@ def _load_config(
     subvars: SubVarSet,
     config_file: str | None,
     start_dir: str | None = None,
+    local_only: bool = False,
 ) -> ConfigData:
     """Load and merge configuration files for the given script.
 
@@ -291,7 +292,7 @@ def _load_config(
         script_path = str(Path(script_name).resolve().parent)
     else:  # resolved, as os.getcwd() is, so the start directory's execsql.conf is not read twice
         script_path = str(Path(start_dir).resolve()) if start_dir else os.getcwd()
-    return ConfigData(script_path, subvars, config_file=config_file, start_dir=start_dir)
+    return ConfigData(script_path, subvars, config_file=config_file, start_dir=start_dir, local_only=local_only)
 
 
 def _tool_config(config_file: str | None, start_dir: str | None = None) -> ConfigData:
@@ -301,9 +302,11 @@ def _tool_config(config_file: str | None, start_dir: str | None = None) -> Confi
     locations plus *config_file* — not per script, so a script directory's
     own ``execsql.conf`` applies only when passed with ``--config``.  The
     language server passes a workspace folder as *start_dir*: the settings
-    those commands would read when run from it.
+    those commands would read when run from it.  Config chains written as
+    network paths are skipped untouched (``local_only``): these tools read
+    config from repositories other people write.
     """
-    return _load_config(None, _seed_early_subvars(start_dir), config_file, start_dir)
+    return _load_config(None, _seed_early_subvars(start_dir), config_file, start_dir, local_only=True)
 
 
 def _configured_script_encoding(conf: ConfigData) -> str | None:

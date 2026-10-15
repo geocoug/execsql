@@ -200,6 +200,11 @@ the folder. VS Code also ignores an untrusted folder's own
 `.vscode/settings.json` value of **execsql.server.path**, so a cloned repository
 cannot choose the program the extension runs.
 
+In any folder, trusted or not, the server never follows an `INCLUDE`,
+`SUB_INI` or config chain written as a network path (`\\host\share\…`): on
+Windows, merely checking it would send your login to that host
+([Network paths](../reference/security.md#network_paths)).
+
 ## Neovim { #neovim }
 
 Neovim 0.11 and later:
