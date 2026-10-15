@@ -40,7 +40,7 @@
 --	Dreas Nielsen (RDN)
 --
 -- VERSION
---	1.0.0
+--	1.1.0
 --
 -- HISTORY
 --	 Date		 Remarks
@@ -50,13 +50,17 @@
 --				existence, to eliminate spurious messages from the DBMS.
 --				Made the 'gls_glossary' table and 'glossary' view non-temporary
 --				because the 'glossary' view can't reference a temporary table. RDN.
+--	2026-10-15	execsql2: each script's notes are its docstring (SHOW SCRIPTS, the
+--				language server); def_url is a declared optional parameter;
+--				ADD_GLOSSARY_ITEM keeps def_url; MySQL 8 casts (CHAR, not VARCHAR or ::text).  Version 1.1.0.  Tested in
+--				tests/templates of the execsql2 repository.
 -- ============================================================================
 
 
 -- ################################################################
 --			Script INIT_GLOSSARY
 -- ===============================================================
---
+-- !x! BEGIN SCRIPT INIT_GLOSSARY with parameters (glossary_db_alias, glossary_table, name_col, def_col, def_url="")
 -- Initialize the custom glossary and describe the master glossary
 -- that will provide descriptions to include in the custom glossary.
 --
@@ -73,14 +77,12 @@
 -- Optional input argument:
 --		def_url				: The URL of a page that provides additional
 --								information about the column (or other object).
--- ===============================================================
--- !x! BEGIN SCRIPT INIT_GLOSSARY with parameters (glossary_db_alias, glossary_table, name_col, def_col)
 
 -- !x! sub gls_alias   !!#glossary_db_alias!!
 -- !x! sub gls_table   !!#glossary_table!!
 -- !x! sub gls_name    !!#name_col!!
 -- !x! sub gls_def     !!#def_col!!
--- !x! if(sub_defined(#def_url))
+-- !x! if(not is_null("!!#def_url!!"))
 	-- !x! sub gls_has_url Yes
 	-- !x! sub gls_url !!#def_url!!
 	-- !x! sub ~url_colspec !!gls_url!! text,
@@ -122,13 +124,11 @@ from gls_glossary order by !!gls_name!!;
 -- ################################################################
 --			Script ADD_GLOSSARY_LIST
 -- ===============================================================
---
+-- !x! BEGIN SCRIPT ADD_GLOSSARY_LIST with parameters (column_list)
 -- Add a specific list of columns to the glossary.
 --
 -- Required input arguments:
 --		column_list		: A string of comma-separated column names.
--- ===============================================================
--- !x! BEGIN SCRIPT ADD_GLOSSARY_LIST with parameters (column_list)
 
 -- !x! sub ~entry_alias !!$current_alias!!
 -- !x! use initial
@@ -230,7 +230,7 @@ select !!gls_collist!! from gls_newglossary;
 -- ################################################################
 --			Script ADD_GLOSSARY_ITEM
 -- ===============================================================
---
+-- !x! BEGIN SCRIPT ADD_GLOSSARY_ITEM with parameters (item, definition, def_url="")
 -- Add an object name and definition to the custom glossary.
 -- This does not use the master glossary.
 --
@@ -242,19 +242,21 @@ select !!gls_collist!! from gls_newglossary;
 -- Optional input argument:
 --		def_url				: The URL of a page that provides additional
 --								information about the item.
--- ===============================================================
--- !x! BEGIN SCRIPT ADD_GLOSSARY_ITEM with parameters (item, definition)
 
 -- !x! sub ~entry_alias !!$current_alias!!
 -- !x! use initial
 
--- !x! if(is_true(gls_has_url))
--- !x! andif(sub_defined(#def_url))
+-- !x! if(is_true(!!gls_has_url!!))
+-- !x! andif(not is_null("!!#def_url!!"))
 	insert into gls_glossary (!!gls_name!!, !!gls_def!!, !!gls_url!!)
 	select
 		inp.item, inp.definition, inp.url
 	from
-		(select !'!#item!'!::text as item, !'!#definition!'!::text as definition, !'!#def_url!'!::text as url) as inp
+		(select
+			cast(!'!#item!'! as char(255)) as item,
+			cast(!'!#definition!'! as char(255)) as definition,
+			cast(!'!#def_url!'! as char(255)) as url
+		) as inp
 		left join gls_glossary as g on g.!!gls_name!! = inp.item
 	where
 		g.!!gls_name!! is null;
@@ -264,8 +266,8 @@ select !!gls_collist!! from gls_newglossary;
 		inp.item, inp.definition
 	from
 		(select
-			cast(!'!#item!'! as varchar(255)) as item,
-			cast(!'!#definition!'! as varchar(255)) as definition
+			cast(!'!#item!'! as char(255)) as item,
+			cast(!'!#definition!'! as char(255)) as definition
 		) as inp
 		left join gls_glossary as g on g.!!gls_name!! = inp.item
 	where
@@ -285,15 +287,12 @@ select !!gls_collist!! from gls_newglossary;
 -- ################################################################
 --			Script ADD_GLOSSARY_TABLE
 -- ===============================================================
---
+-- !x! BEGIN SCRIPT ADD_GLOSSARY_TABLE with parameters (table)
 -- Add definitions of all columns in a specified table to the
 -- custom glossary.
 --
 -- Required input arguments:
 --		table			: The table name.
---
--- ===============================================================
--- !x! BEGIN SCRIPT ADD_GLOSSARY_TABLE with parameters (table)
 
 -- !x! sub ~entry_alias !!$current_alias!!
 

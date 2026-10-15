@@ -6,6 +6,7 @@ them need live servers.
 
 from __future__ import annotations
 
+import re
 import sqlite3
 import subprocess
 import sys
@@ -49,3 +50,20 @@ def test_config_settings_db_is_what_make_config_db_builds(tmp_path):
             return conn.execute("select * from configspecs order by sub_var").fetchall()
 
     assert specs(TEMPLATES / "config_settings.sqlite") == specs(built)
+
+
+@pytest.mark.parametrize("prefix", ["pg", "md", "ss"])
+def test_glossary_scripts_document_themselves(prefix, tmp_path):
+    """SHOW SCRIPTS (and the editor's hover) shows a script's notes and its optional parameters."""
+    script = tmp_path / "show.sql"
+    script.write_text(
+        f'-- !x! INCLUDE "{(TEMPLATES / f"{prefix}_glossary.sql").as_posix()}"\n-- !x! SHOW SCRIPTS ADD_GLOSSARY_ITEM\n',
+    )
+    out = subprocess.run(
+        [sys.executable, "-m", "execsql", "run", str(script), str(tmp_path / "t.db"), "-t", "l", "-n"],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+    assert re.search(r"def_url\s+\(optional, default: \)", out)
+    assert "Add an object name and definition to the custom glossary." in out

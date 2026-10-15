@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from .conftest import known_bug, read_csv
+from .conftest import read_csv
 
 MASTER = [
     ("site_id", "Site identifier"),
@@ -47,11 +47,7 @@ def test_a_list_of_terms_takes_their_definitions_from_the_master(target, tmp_pat
     ]
 
 
-_MYSQL_CAST = "md_glossary ADD_GLOSSARY_ITEM casts to varchar(255); MySQL's CAST takes CHAR, not VARCHAR"
-
-
 def test_an_item_can_be_added_with_its_own_definition(target, tmp_path):
-    known_bug(target, "mysql", _MYSQL_CAST)
     table = _master(target)
     rows = _glossary(
         target,
@@ -62,7 +58,6 @@ def test_an_item_can_be_added_with_its_own_definition(target, tmp_path):
 
 
 def test_a_term_added_twice_appears_once(target, tmp_path):
-    known_bug(target, "mysql", _MYSQL_CAST)
     table = _master(target)
     rows = _glossary(
         target,
@@ -88,3 +83,24 @@ def test_a_table_adds_every_column_it_has(target, tmp_path):
         add_table = f"-- !x! EXECUTE SCRIPT ADD_GLOSSARY_TABLE WITH (schema={target.base}, table=samples)\n"
     rows = _glossary(target, _init(table) + add_table, tmp_path)
     assert [r["term"] for r in rows] == ["result", "sample_date", "site_id"]
+
+
+def test_an_optional_url_column_comes_from_the_master_and_from_an_item(target, tmp_path):
+    table = target.table(target.base, "master")
+    target.execute(
+        f"create table {table} (term varchar(40) primary key, definition varchar(200), url varchar(200))",
+        f"insert into {table} values ('site_id', 'Site identifier', 'https://example.org/site')",
+    )
+    rows = _glossary(
+        target,
+        "-- !x! EXECUTE SCRIPT INIT_GLOSSARY WITH "
+        f"(glossary_db_alias=initial, glossary_table={table}, name_col=term, def_col=definition, def_url=url)\n"
+        '-- !x! EXECUTE SCRIPT ADD_GLOSSARY_LIST WITH (column_list="site_id")\n'
+        "-- !x! EXECUTE SCRIPT ADD_GLOSSARY_ITEM WITH "
+        '(item=lab, definition="Laboratory name", def_url="https://example.org/lab")\n',
+        tmp_path,
+    )
+    assert rows == [
+        {"term": "lab", "definition": "Laboratory name", "url": "https://example.org/lab"},
+        {"term": "site_id", "definition": "Site identifier", "url": "https://example.org/site"},
+    ]
