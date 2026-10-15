@@ -70,7 +70,7 @@ jobs:
             - run: |
                   floor=$(grep -oP '"typer>=\K[0-9.]+' pyproject.toml)
                   echo "Typer floor: $floor"
-                  python -m pip install ".[dev]" "typer==$floor"
+                  python -m pip install ".[formats,formatter,lsp]" --group dev "typer==$floor"
             - run: pytest tests/cli --no-cov -q
 
     pre-commit:
@@ -85,7 +85,7 @@ jobs:
                   python-version: "3.13"
                   cache: "pip"
             - run: python -m pip install --upgrade pip
-            - run: python -m pip install ".[dev]"
+            - run: python -m pip install ".[formats,formatter,lsp]" --group dev
             # mypy runs in the dedicated typecheck job; the local hook needs uv
             - run: pre-commit run --all-files
               env:
@@ -139,7 +139,7 @@ jobs:
                   python-version: "3.13"
                   cache: "pip"
             - run: python -m pip install --upgrade pip
-            - run: python -m pip install ".[dev]"
+            - run: python -m pip install ".[formats,formatter,lsp]" --group dev
             - run: cp CHANGELOG.md docs/about/change_log.md
             # --strict: a warning, such as a link to an #anchor that does not exist, fails the job.
             - run: zensical build --strict
@@ -181,7 +181,7 @@ jobs:
               run: |
                   python -m pip install --upgrade pip
                   python -m pip install tox
-                  python -m pip install ".[dev]"
+                  python -m pip install ".[formats,formatter,lsp]" --group dev
             - name: Install tkinter (Ubuntu)
               if: runner.os == 'Linux'
               run: sudo apt-get install -y python3-tk

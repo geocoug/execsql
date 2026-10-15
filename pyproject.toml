@@ -94,12 +94,16 @@ all = [
     "execsql2[formatter]",
     "execsql2[lsp]",
 ]
+
+[project.scripts]
+execsql = "execsql.cli.dispatch:dispatch"
+
+[dependency-groups]
+# Development tools: not published, unlike the extras above. `uv sync`
+# installs `dev` (and with it `docs`); pip 25.1+ takes `--group dev`.
+docs = ["mkdocstrings-python>=2.0.3", "zensical==0.0.67"]
 dev = [
     "bump-my-version>=1.2.7",
-    "execsql2[formats]",
-    "execsql2[formatter]",
-    "execsql2[lsp]",
-    "mkdocstrings-python>=2.0.3",
     "mypy>=1.10",
     "pre-commit>=3.5.0",
     "pytest>=8",
@@ -108,11 +112,8 @@ dev = [
     "pytest-lsp>=1.0",
     "ruff>=0.4",
     "tox-uv>=1.13.1",
-    "zensical==0.0.67",
+    { include-group = "docs" },
 ]
-
-[project.scripts]
-execsql = "execsql.cli.dispatch:dispatch"
 
 [project.urls]
 Homepage = "https://execsql2.readthedocs.io/en/stable/"
@@ -336,7 +337,8 @@ basepython = "python3.13"
 
 [tool.tox.env_run_base]
 description = "Run tests under {base_python}"
-extras = ["dev", "all"]
+extras = ["all"]
+dependency_groups = ["dev"]
 allowlist_externals = ["pytest"]
 commands = [["pytest", "{posargs}"]]
 # Pass through user/login env vars so getpass.getuser() works on Windows
