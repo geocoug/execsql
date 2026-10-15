@@ -30,8 +30,9 @@
 --		begin with "cmp_".
 --	4. This script requires SQL Server 2017 or later.
 --
--- AUTHOR
+-- AUTHORS
 --	Dreas Nielsen (RDN)
+--	Caleb Grant (CG)
 --
 -- COPYRIGHT AND LICENSE
 -- 	Copyright (c) 2020 R.Dreas Nielsen
@@ -57,7 +58,7 @@
 --				default collation reported 'y' -> 'Y' as unchanged); each
 --				script's notes are its docstring; include_cols and exclude_cols
 --				are declared optional parameters.  v. 1.2.0.  Tested in
---				tests/templates of the execsql2 repository.
+--				tests/templates of the execsql2 repository.  CG.
 -- ==================================================================
 
 

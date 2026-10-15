@@ -29,8 +29,9 @@
 --	3. Temporary tables and views created by these scripts all
 --		begin with "cmp_".
 --
--- AUTHOR
+-- AUTHORS
 --	Dreas Nielsen (RDN)
+--	Caleb Grant (CG)
 --
 -- COPYRIGHT AND LICENSE
 -- 	Copyright (c) 2020 R.Dreas Nielsen
@@ -57,7 +58,7 @@
 --	2026-10-15	execsql2: each script's notes are its docstring (SHOW SCRIPTS, the
 --				language server); include_cols and exclude_cols are declared
 --				optional parameters.  v. 1.2.0.  Tested in tests/templates of the
---				execsql2 repository.
+--				execsql2 repository.  CG.
 -- ==================================================================
 
 

@@ -89,6 +89,7 @@
 -- AUTHORS
 --	Dreas Nielsen (RDN)
 --	Elizabeth Shea (ES)
+--	Caleb Grant (CG)
 --
 -- VERSION
 --	2.0.0
@@ -146,9 +147,12 @@
 --	2020-05-09	Moved the assignment of 'upsert_progress_denom' out of the
 --				'update_console_qa' script.  RDN.
 --	2026-10-15	execsql2: casts are CHAR (MySQL 8 rejects VARCHAR in CAST); the
---				duplicate primary key check's view has its AS; each script's
---				notes are its docstring (SHOW SCRIPTS, the language server).
---				Tested in tests/templates of the execsql2 repository.
+--				duplicate primary key check's view has its AS; LOAD_STAGING
+--				halts on do_commit=No, which MySQL/MariaDB cannot roll back
+--				because the load's CREATE and DROP statements commit; each
+--				script's notes are its docstring (SHOW SCRIPTS, the language
+--				server).  Tested in tests/templates of the execsql2
+--				repository.  CG.
 -- ==================================================================
 
 

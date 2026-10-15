@@ -90,6 +90,7 @@
 -- AUTHORS
 --  Elizabeth Shea (ES)
 --	Dreas Nielsen (RDN)
+--	Caleb Grant (CG)
 --
 -- VERSION
 --	2.0.0
@@ -128,9 +129,11 @@
 --	2020-04-28	Explicitly rolled back the changes if 'do_commit' = "No".  RDN.
 --	2020-05-09	Moved the assignment of 'upsert_progress_denom' out of the
 --				'update_console_qa' script.  RDN.
---	2026-10-15	execsql2: each script's notes are its docstring (SHOW SCRIPTS, the
---				language server).  Tested in tests/templates of the execsql2
---				repository.
+--	2026-10-15	execsql2: LOAD_STAGING with do_commit=No keeps the row counts it
+--				writes to the control table, which the rollback undid; each
+--				script's notes are its docstring (SHOW SCRIPTS, the language
+--				server).  Tested in tests/templates of the execsql2
+--				repository.  CG.
 -- ==================================================================
 
 -- ################################################################
