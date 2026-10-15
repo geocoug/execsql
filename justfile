@@ -83,24 +83,38 @@ test-templates *ARGS:
     start postgres 55440 postgres:17 5432 -e POSTGRES_USER=execsql -e POSTGRES_PASSWORD=execsql -e POSTGRES_DB=execsql_test
     start mysql 55441 mysql:8 3306 -e MYSQL_ROOT_PASSWORD=root
     start mariadb 55442 mariadb:11 3306 -e MARIADB_ROOT_PASSWORD=root
+    sqlserver=""
     if uv run python -c "import pyodbc, sys; sys.exit(not any('SQL Server' in d for d in pyodbc.drivers()))" 2> /dev/null; then
+        # An x86 image: on Apple Silicon, Docker Desktop needs Rosetta emulation
+        # (Settings > General, Apple Virtualization framework); QEMU crashes it.
         start sqlserver 55443 mcr.microsoft.com/mssql/server:2022-latest 1433 \
             --platform linux/amd64 -e ACCEPT_EULA=Y -e "MSSQL_SA_PASSWORD=ExecSql_Test123!"
+        sqlserver=yes
+    fi
+    # Homebrew's ODBC Driver 18 loads OpenSSL from /opt/homebrew/opt/openssl,
+    # which Homebrew now points at OpenSSL 4; the driver needs 3. Only the
+    # processes started here see this.
+    if [ -d /opt/homebrew/opt/openssl@3/lib ]; then
+        export DYLD_LIBRARY_PATH="/opt/homebrew/opt/openssl@3/lib${DYLD_LIBRARY_PATH:+:$DYLD_LIBRARY_PATH}"
     fi
     export EXECSQL_PG_HOST=127.0.0.1 EXECSQL_PG_PORT=55440
     export EXECSQL_MYSQL_HOST=127.0.0.1 EXECSQL_MYSQL_PORT=55441
     export EXECSQL_MARIADB_HOST=127.0.0.1 EXECSQL_MARIADB_PORT=55442
     export EXECSQL_MSSQL_HOST=127.0.0.1 EXECSQL_MSSQL_PORT=55443
     echo "waiting for the servers to accept logins..."
-    for _ in $(seq 1 60); do
+    for _ in $(seq 1 90); do
         if docker exec execsql-templates-postgres pg_isready -q -U execsql 2> /dev/null \
             && docker exec execsql-templates-mysql mysqladmin ping -uroot -proot --silent 2> /dev/null \
-            && docker exec execsql-templates-mariadb healthcheck.sh --connect 2> /dev/null; then
+            && docker exec execsql-templates-mariadb healthcheck.sh --connect 2> /dev/null \
+            && { [ -z "$sqlserver" ] || docker exec execsql-templates-sqlserver /opt/mssql-tools18/bin/sqlcmd \
+                -S localhost -U sa -P 'ExecSql_Test123!' -No -Q 'select 1' > /dev/null 2>&1; }; then
             break
         fi
         sleep 2
     done
-    uv run pytest tests/templates --no-cov -q {{ ARGS }}
+    # The venv's Python directly: `uv run` drops DYLD_LIBRARY_PATH. The venv
+    # needs the driver extras (`uv sync --all-extras`).
+    .venv/bin/python -m pytest tests/templates --no-cov -q {{ ARGS }}
 
 # Remove the containers `just test-templates` started
 [group('quality')]

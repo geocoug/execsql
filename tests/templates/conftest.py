@@ -128,7 +128,13 @@ def _sqlserver() -> Server:
         conn.execute(f"USE {db}")
         return conn
 
-    return Server("sqlserver", "ss", connect, lambda _db: f"mssql://{user}:{password}@{host}:{port}/{db}")
+    # The test server's certificate is self-signed; ODBC Driver 18 refuses it otherwise.
+    return Server(
+        "sqlserver",
+        "ss",
+        connect,
+        lambda _db: f"mssql://{user}:{password}@{host}:{port}/{db}?trust_server_certificate=yes",
+    )
 
 
 _SERVERS = {"postgres": _postgres, "mysql": _mysql, "mariadb": _mariadb, "sqlserver": _sqlserver}

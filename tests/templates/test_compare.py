@@ -23,7 +23,7 @@ from .conftest import known_bug, read_csv
 BASE = ["(1, 'x', 1)", "(2, 'y', 2)", "(3, 'z', 3)", "(4, NULL, 4)", "(5, 'w', 5)"]
 STAGING = ["(1, 'x', 1)", "(2, 'Y', 2)", "(3, NULL, 3)", "(4, 'n', 4)", "(6, 'v', 6)"]
 
-_CASE = "the md_ compare scripts use = under the case-insensitive default collation: 'y' -> 'Y' reads as unchanged"
+_CASE = "the compare scripts use = under the case-insensitive default collation (MySQL, MariaDB, SQL Server): 'y' -> 'Y' reads as unchanged"
 
 
 @pytest.fixture
@@ -46,7 +46,7 @@ def _compare(target, script: str, tmp_path, args: str = "") -> list[dict[str, st
 
 
 def test_compare_common_tags_each_value(tables, tmp_path):
-    known_bug(tables, ("mysql", "mariadb"), _CASE)
+    known_bug(tables, ("mysql", "mariadb", "sqlserver"), _CASE)
     assert _compare(tables, "COMPARE_COMMON", tmp_path) == [
         {"id": "1", "a": "Same", "b": "Same"},
         {"id": "2", "a": "Different", "b": "Same"},
@@ -65,7 +65,7 @@ def test_compare_common_vals_puts_old_and_new_side_by_side(tables, tmp_path):
 
 
 def test_compare_changes_classifies_every_staging_row(tables, tmp_path):
-    known_bug(tables, ("mysql", "mariadb"), _CASE)
+    known_bug(tables, ("mysql", "mariadb", "sqlserver"), _CASE)
     assert _compare(tables, "COMPARE_CHANGES", tmp_path) == [
         {"id": "1", "changes": "Unchanged"},
         {"id": "2", "changes": "Changed"},
@@ -76,7 +76,7 @@ def test_compare_changes_classifies_every_staging_row(tables, tmp_path):
 
 
 def test_compare_changed_classifies_every_base_row(tables, tmp_path):
-    known_bug(tables, ("mysql", "mariadb"), _CASE)
+    known_bug(tables, ("mysql", "mariadb", "sqlserver"), _CASE)
     assert _compare(tables, "COMPARE_CHANGED", tmp_path) == [
         {"id": "1", "changed": "Unchanged"},
         {"id": "2", "changed": "Changed"},
@@ -92,7 +92,7 @@ def test_exclude_cols_leaves_a_column_out(tables, tmp_path):
 
 
 def test_include_cols_compares_only_those(tables, tmp_path):
-    known_bug(tables, ("mysql", "mariadb"), _CASE)
+    known_bug(tables, ("mysql", "mariadb", "sqlserver"), _CASE)
     rows = _compare(tables, "COMPARE_COMMON", tmp_path, args=", include_cols=\"'a'\"")
     assert [r["a"] for r in rows] == ["Same", "Different", "Old", "New"]
     assert all(set(r) == {"id", "a"} for r in rows)
