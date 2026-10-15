@@ -19,6 +19,7 @@ ______________________________________________________________________
 
 ### Changed
 
+- **`templates/script_template.sql`** keeps a `get_run_description` or `do_run_numbering` value set before it runs, so it can run unattended.
 - **A connection URL with a query parameter other than `trust_server_certificate`** is an error; such parameters (`?sslmode=require`, for example) were silently ignored.
 - **The `upsert` extra requires pg-upsert 1.26.0**, which reports a database error instead of returning as if the run succeeded.
 - **GitHub Releases** carry the version's `CHANGELOG.md` section as their text, instead of a generated list of commits.
@@ -27,6 +28,8 @@ ______________________________________________________________________
 
 ### Fixed
 
+- **`templates/md_upsert.sql`**: `UPDTPK_ONE` (primary key updates) runs on MySQL and MariaDB, which reject a comment written `--text` with no space.
+- **`templates/ss_upsert.sql`**: `exclude_cols` no longer makes the upsert fail with "Ambiguous column name", and a second load in the same session (or on a pooled connection) no longer checks foreign keys against tables from the earlier load, which let orphan rows through to the insert.
 - **`templates/` glossary scripts:** `ADD_GLOSSARY_ITEM` keeps the `def_url` it is given, and `md_glossary.sql` runs on MySQL 8.
 - **`templates/` compare scripts** report a value that changed only in letter case as changed on MySQL, MariaDB and SQL Server, and `md_compare.sql` ignores tables of the same name in other databases on the server.
 - **`templates/md_upsert.sql`** runs on MySQL 8, and its duplicate primary key check no longer fails. With `do_commit=No` it now halts before changing anything: MySQL and MariaDB cannot roll the load back, and it used to commit.

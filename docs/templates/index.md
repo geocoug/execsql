@@ -44,7 +44,7 @@ The MySQL/MariaDB scripts (`md_`) take a staging-table **prefix** (`stage_pfx`) 
 ## Other templates { #other }
 
 `script_template.sql`
-:   A framework for new scripts: a configuration section (`CONFIG` settings), custom log file creation, and reporting of unexpected exits through user cancellation or errors. Copy it and fill in the blanks.
+:   A framework for new scripts: a configuration section (`CONFIG` settings), run numbering with an optional run description, custom log file creation, and reporting of unexpected exits through user cancellation or errors. Copy it and fill in the blanks. It asks for a run description when it starts; for an unattended run, set `get_run_description` to `False` (and `do_run_numbering` too, for no run numbers) in the `[variables]` section of a configuration file, or pass it to `execsql.run(variables=...)`. A value set before the script runs wins.
 
 `config_settings.sqlite`, `example_config_prompt.sql`, `make_config_db.sql`
 :   A SQLite database that holds a specification of every setting configurable with the [CONFIG](../reference/metacommands.md#config) metacommand, in the form the `PROMPT ENTRY_FORM` metacommand uses, plus an example script that prompts the user for some or all of the settings. `make_config_db.sql` rebuilds the database. To use the prompt in your own script, include the `prompt_config` script defined in `example_config_prompt.sql` and either connect to the database with the alias `config_db` or set the `sub_config` variable to its path.

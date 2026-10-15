@@ -92,3 +92,22 @@ def test_scripts_document_themselves(template, script, optional, doc, tmp_path):
     if optional:
         assert re.search(rf"{optional}\s+\(optional, default: \)", out)
     assert doc in out
+
+
+def test_script_template_runs_unattended_and_numbers_its_runs(tmp_path):
+    """With the run-description prompt turned off, script_template.sql runs end to end on SQLite."""
+    (tmp_path / "execsql.conf").write_text("[variables]\nget_run_description=False\n")
+    for _ in range(2):
+        subprocess.run(
+            [sys.executable, "-m", "execsql", "run", str(TEMPLATES / "script_template.sql"), "t.db", "-t", "l", "-n"],
+            cwd=tmp_path,
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=120,
+        )
+    assert "run_no=2" in (tmp_path / "DB_run.conf").read_text()
+    for run_tag in ("001", "002"):
+        log = (tmp_path / "logfiles" / f"Run_{run_tag}_logfile.txt").read_text()
+        assert "Requested by:" in log
