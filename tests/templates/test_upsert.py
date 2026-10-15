@@ -18,7 +18,6 @@ import pytest
 
 from .conftest import known_bug, read_csv
 
-_MYSQL_CAST = "md_upsert casts to varchar(n); MySQL's CAST takes CHAR, not VARCHAR (MariaDB accepts it)"
 
 AUTHORS = ["(1, 'A2')", "(2, 'B')"]
 BOOKS = ["(10, 1, 'New')", "(11, 2, 'Second')"]
@@ -28,7 +27,6 @@ BOOKS = ["(10, 1, 'New')", "(11, 2, 'Second')"]
 def tables(target):
     if target.server.prefix == "pg":
         pytest.skip("pg_upsert.sql is retired in favour of the PG_UPSERT metacommand")
-    known_bug(target, "mysql", _MYSQL_CAST)
     a, b = target.base_table("authors"), target.base_table("books")
     target.execute(
         f"create table {a} (id integer primary key, name varchar(20) not null)",
@@ -95,7 +93,7 @@ _DDL_COMMITS = "md_upsert creates ups_* views and tables during the load; on Mar
 
 
 def test_do_commit_no_leaves_the_base_tables_unchanged(tables, tmp_path):
-    known_bug(tables, "mariadb", _DDL_COMMITS)
+    known_bug(tables, ("mysql", "mariadb"), _DDL_COMMITS)
     _stage(tables)
     _load(tables, tmp_path, do_commit="No")
     assert _base(tables) == ([(1, "A")], [(10, 1, "Old")])
@@ -121,7 +119,6 @@ def test_a_null_in_a_required_column_stops_the_load(tables, tmp_path):
 
 
 def test_a_duplicate_primary_key_stops_the_load(tables, tmp_path):
-    known_bug(tables, "mariadb", "md_upsert PKQA_ONE: 'create view ups_ercnt select ...' is missing AS")
     _stage(tables, books=["(10, 1, 'New')", "(11, 2, 'Second')", "(11, 2, 'Again')"])
     control = _load(tables, tmp_path)
     assert control["books"][1] != ""
