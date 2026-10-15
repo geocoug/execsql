@@ -68,7 +68,7 @@ checks; only a tag runs the last two jobs.
 | `typer-floor`                           | yes            | the CLI tests against the lowest Typer `pyproject.toml` allows                                                  |
 | `docs`                                  | yes            | `zensical build --strict`: a broken link or anchor fails it                                                     |
 | `tests` (`test-<os>-py<version>`)       | yes            | Python 3.10–3.14 on Ubuntu, macOS and Windows                                                                   |
-| `integration-tests` (`tier1-live-db-…`) | yes            | PostgreSQL, MySQL and SQL Server containers; 86% coverage floor                                                 |
+| `integration-tests` (`tier1-live-db-…`) | yes            | PostgreSQL, MySQL, MariaDB and SQL Server containers (including the `templates/` tests); 86% coverage floor     |
 | `vscode-extension`                      | yes            | packages `extras/vscode-execsql` as `execsql-syntax.vsix`                                                       |
 | `access-tests-windows`                  | no             | the real MS Access driver on Windows; informational                                                             |
 | `build`                                 | —              | on a tag: checks the tag equals `project.version` and that `CHANGELOG.md` has its section; builds sdist + wheel |

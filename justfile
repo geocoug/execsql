@@ -63,6 +63,51 @@ test-all:
 coverage:
     uv run pytest --cov-report=term-missing
 
+# Run the templates/ tests against throwaway database containers, started if
+# needed: PostgreSQL, MySQL and MariaDB always; SQL Server only when an ODBC
+# driver for it is installed (the tests skip it otherwise). The containers are
+# named execsql-templates-* and published on 5544x, so no other database on the
+# machine is touched. Remove them with `just test-templates-down`.
+[group('quality')]
+test-templates *ARGS:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    start() {  # name, port, image, container port, docker run args...
+        local name="execsql-templates-$1" port=$2 image=$3 inner=$4; shift 4
+        if [ -z "$(docker ps -q -f "name=^${name}$")" ]; then
+            docker rm -f "$name" > /dev/null 2>&1 || true
+            docker run -d --name "$name" -p "127.0.0.1:${port}:${inner}" "$@" "$image" > /dev/null
+            echo "started $name on 127.0.0.1:$port"
+        fi
+    }
+    start postgres 55440 postgres:17 5432 -e POSTGRES_USER=execsql -e POSTGRES_PASSWORD=execsql -e POSTGRES_DB=execsql_test
+    start mysql 55441 mysql:8 3306 -e MYSQL_ROOT_PASSWORD=root
+    start mariadb 55442 mariadb:11 3306 -e MARIADB_ROOT_PASSWORD=root
+    if uv run python -c "import pyodbc, sys; sys.exit(not any('SQL Server' in d for d in pyodbc.drivers()))" 2> /dev/null; then
+        start sqlserver 55443 mcr.microsoft.com/mssql/server:2022-latest 1433 \
+            --platform linux/amd64 -e ACCEPT_EULA=Y -e "MSSQL_SA_PASSWORD=ExecSql_Test123!"
+    fi
+    export EXECSQL_PG_HOST=127.0.0.1 EXECSQL_PG_PORT=55440
+    export EXECSQL_MYSQL_HOST=127.0.0.1 EXECSQL_MYSQL_PORT=55441
+    export EXECSQL_MARIADB_HOST=127.0.0.1 EXECSQL_MARIADB_PORT=55442
+    export EXECSQL_MSSQL_HOST=127.0.0.1 EXECSQL_MSSQL_PORT=55443
+    echo "waiting for the servers to accept logins..."
+    for _ in $(seq 1 60); do
+        if docker exec execsql-templates-postgres pg_isready -q -U execsql 2> /dev/null \
+            && docker exec execsql-templates-mysql mysqladmin ping -uroot -proot --silent 2> /dev/null \
+            && docker exec execsql-templates-mariadb healthcheck.sh --connect 2> /dev/null; then
+            break
+        fi
+        sleep 2
+    done
+    uv run pytest tests/templates --no-cov -q {{ ARGS }}
+
+# Remove the containers `just test-templates` started
+[group('quality')]
+test-templates-down:
+    @docker rm -f execsql-templates-postgres execsql-templates-mysql execsql-templates-mariadb execsql-templates-sqlserver > /dev/null 2>&1 || true
+    @echo "removed the execsql-templates-* containers"
+
 # Run the formatter corpus checks over every .sql file in the repo
 [group('quality')]
 corpus:
