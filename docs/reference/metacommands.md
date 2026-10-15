@@ -1260,6 +1260,8 @@ VALUES
 
     If the "DESCRIPTION" keyword is used, the description text will be included as a SQL comment before the INSERT statement. The [INCLUDE](#include) metacommand can be used to include a file written in this format, and the target table name filled in with an appropriately-named substitution variable. This output format can also be used to copy data between databases when it is not possible to use *execsql*'s [CONNECT](#connect) and [COPY](#copy) metacommands.
 
+    The file reads back as the same rows when a script runs it with INCLUDE. execsql reads a script line by line, substituting variables, running `-- !x!` lines and ending a statement at a line ending in `;`, inside string values too. So a text value that holds a line break, or `!!`, `!'!`, `!"!` or `!{`, is written as pieces joined in the exporting database's syntax, for example `('first line' || CHR(10) || 'second line')` (`||` with `CHR`/`char`/`ASCII_CHAR` on PostgreSQL, DuckDB, Oracle, SQLite and Firebird; `CONCAT(…, CHAR(10 USING utf8mb4), …)` on MySQL; `+ CHAR(10) +` on SQL Server; `& Chr(10) &` on Access). Load such a file into the same kind of database it came from. A column name that is not a plain identifier, or that is a reserved word such as `order`, is written quoted. A query that returns no rows writes a comment instead of an INSERT.
+
 
 XML
 

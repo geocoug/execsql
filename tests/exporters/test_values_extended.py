@@ -55,8 +55,9 @@ class TestExportValuesZip:
         export_values(zpath, ["id"], [], zipfile=zpath)
         with zipfile.ZipFile(zpath) as zf:
             content = zf.read(zf.namelist()[0]).decode("utf-8")
-        assert "INSERT INTO" in content
-        assert "VALUES" in content
+        # An INSERT with no rows is invalid SQL: the file says there is nothing to insert.
+        assert "INSERT INTO" not in content
+        assert "no rows" in content
 
 
 # ---------------------------------------------------------------------------

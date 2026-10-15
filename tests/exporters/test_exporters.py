@@ -94,12 +94,12 @@ class TestExportValues:
         # append=True opens in "at" mode so content accumulates
         assert size_first < (tmp_path / "out.sql").stat().st_size
 
-    def test_empty_rows_writes_empty_values_block(self, noop_filewriter_close, tmp_path):
+    def test_empty_rows_write_a_comment_not_an_empty_insert(self, noop_filewriter_close, tmp_path):
         out = str(tmp_path / "out.sql")
         export_values(out, ["id"], [])
         text = (tmp_path / "out.sql").read_text()
-        assert "INSERT INTO" in text
-        assert "VALUES" in text
+        assert "INSERT INTO" not in text
+        assert text.startswith("-- ")
 
     def test_multiple_columns(self, noop_filewriter_close, tmp_path):
         out = str(tmp_path / "out.sql")

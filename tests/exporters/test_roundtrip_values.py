@@ -25,7 +25,7 @@ COPY_TABLE = f"{TABLE_NAME}_copy"
 
 def _generated_sql(db, outfile, columns="*"):
     hdrs, rows = db.select_data(f"select {columns} from {TABLE_NAME} order by id;")
-    export_values(str(outfile), hdrs, iter(rows))
+    export_values(str(outfile), hdrs, iter(rows), dbtype=db.type)
     return outfile.read_text(encoding="utf-8")
 
 
