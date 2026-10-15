@@ -13,16 +13,20 @@ import pytest
 from execsql.db.mysql import _copy_head, _data_length
 
 
+# Explicit ids: a generated id would spell out the 200,000-newline case in
+# full, and a test id that long stopped the CI jobs that print each one.
 @pytest.mark.parametrize(
     ("data", "expected"),
     [
-        (b"a\n1\n", None),
-        (b"a\n1", None),
-        (b"", None),
-        (b"a\n1\n\n\n", 4),
-        (b"a\r\n1\r\n\r\n\r\n", 6),
-        (b"a\n\n1\n", None),  # a blank line inside the data is an empty row, not trailing
-        (b"a\n1\n" + b"\n" * 200_000, 4),  # more trailing newlines than one read
+        pytest.param(b"a\n1\n", None, id="ends-with-one-newline"),
+        pytest.param(b"a\n1", None, id="no-final-newline"),
+        pytest.param(b"", None, id="empty-file"),
+        pytest.param(b"a\n1\n\n\n", 4, id="trailing-blank-lines"),
+        pytest.param(b"a\r\n1\r\n\r\n\r\n", 6, id="trailing-blank-lines-crlf"),
+        # A blank line inside the data is an empty row, not trailing.
+        pytest.param(b"a\n\n1\n", None, id="inner-blank-line"),
+        # More trailing newlines than one read covers.
+        pytest.param(b"a\n1\n" + b"\n" * 200_000, 4, id="trailing-blank-lines-past-one-read"),
     ],
 )
 def test_data_length(tmp_path, data, expected):

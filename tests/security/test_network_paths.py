@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import builtins
 import os
+import pathlib
 
 import pytest
 
@@ -51,7 +52,18 @@ def touched(monkeypatch):
             raise FileNotFoundError(file)
         return real_open(file, *args, **kwargs)
 
+    real_path_stat = pathlib.Path.stat
+
+    def path_stat(self, *args, **kwargs):
+        # Python 3.10's pathlib calls the os.stat it saved at import, not
+        # os.stat, so Path.is_file() and friends are recorded here.
+        if _is_network(self):
+            seen.append(os.fspath(self))
+            raise FileNotFoundError(self)
+        return real_path_stat(self, *args, **kwargs)
+
     monkeypatch.setattr(os, "stat", stat)
+    monkeypatch.setattr(pathlib.Path, "stat", path_stat)
     monkeypatch.setattr(builtins, "open", open_)
     return seen
 
