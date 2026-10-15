@@ -37,6 +37,7 @@
 -- AUTHORS
 --	Dreas Nielsen (RDN)
 --	Elizabeth Shea (ES)
+--	Caleb Grant (CG)
 --
 -- VERSION
 --	1.1.0
@@ -50,7 +51,7 @@
 --	2026-10-15	execsql2: each script's notes are its docstring (SHOW SCRIPTS, the
 --				language server); def_url is a declared optional parameter;
 --				ADD_GLOSSARY_ITEM keeps def_url.  Version 1.1.0.  Tested in
---				tests/templates of the execsql2 repository.
+--				tests/templates of the execsql2 repository.  CG.
 -- ============================================================================
 
 
