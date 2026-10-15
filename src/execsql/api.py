@@ -297,6 +297,7 @@ def _connect_from_dsn(dsn: str, new_db: bool = False) -> Any:
             user=user,
             password=password,
             port=port,
+            trust_server_certificate=params["trust_server_certificate"],
         )
     elif db_type == "o":
         return db_Oracle(

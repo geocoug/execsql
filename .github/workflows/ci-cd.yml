@@ -287,6 +287,9 @@ jobs:
             - name: Run in-process DB adapter tests with 86% coverage floor
               env:
                   DISPLAY: ""
+                  # The SQL Server tests fail here instead of skipping when the
+                  # adapter cannot connect.
+                  EXECSQL_MSSQL_REQUIRED: "1"
               run: |
                   python -m pytest --cov=execsql --cov-branch --cov-report=xml --cov-fail-under=86
             - name: Upload coverage to Codecov

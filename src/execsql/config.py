@@ -282,6 +282,7 @@ class ConfigData:
         self._get_bool(cp, self._CONNECT_SECTION, "password_prompt", "passwd_prompt")
         self._get_bool(cp, self._CONNECT_SECTION, "use_keyring", "use_keyring")
         self._get_bool(cp, self._CONNECT_SECTION, "new_db", "new_db")
+        self._get_bool(cp, self._CONNECT_SECTION, "trust_server_certificate", "trust_server_certificate")
         # --- [encoding] ---
         self._get_str(cp, self._ENCODING_SECTION, "database", "db_encoding")
         self._get_str(cp, self._ENCODING_SECTION, "script", "script_encoding", required=True)
@@ -490,6 +491,7 @@ class ConfigData:
         self.use_keyring = True
         self.db_file: str | None = None
         self.new_db = False
+        self.trust_server_certificate = False
         self.user_logfile = False
         self.db_encoding: str | None = None
         self.script_encoding = "utf8"

@@ -25,10 +25,23 @@ import execsql.state as _state
 
 import importlib
 
+
+def _unavailable(reason: str) -> None:
+    """Skip the module, or fail it where a SQL Server is supposed to be running.
+
+    CI's integration job sets EXECSQL_MSSQL_REQUIRED: there, a server the
+    adapter cannot reach is a failure, not a skip.  A skip hid for months
+    that the adapter could not connect with ODBC Driver 18 at all.
+    """
+    if os.environ.get("EXECSQL_MSSQL_REQUIRED"):
+        pytest.fail(f"SQL Server is required here, but {reason}", pytrace=False)
+    pytest.skip(reason, allow_module_level=True)
+
+
 try:
     pyodbc = importlib.import_module("pyodbc")
 except ImportError:
-    pytest.skip("pyodbc not installed", allow_module_level=True)
+    _unavailable("pyodbc is not installed")
 
 # Need at least one real SQL Server ODBC driver — a MagicMock's drivers()
 # returns a MagicMock (not iterable as a list of strings), so the list
@@ -38,10 +51,7 @@ try:
 except Exception:
     _DRIVERS = []
 if not _DRIVERS:
-    pytest.skip(
-        "No ODBC Driver for SQL Server available (install msodbcsql18 on Ubuntu / msodbcsql on macOS)",
-        allow_module_level=True,
-    )
+    _unavailable("no ODBC driver for SQL Server is installed (msodbcsql18)")
 
 _MS_HOST = os.environ.get("EXECSQL_MSSQL_HOST", "localhost")
 _MS_PORT = int(os.environ.get("EXECSQL_MSSQL_PORT", "1433"))
@@ -74,10 +84,7 @@ def _mssql_reachable() -> bool:
 
 
 if not _mssql_reachable():
-    pytest.skip(
-        f"SQL Server test instance not reachable at {_MS_HOST}:{_MS_PORT}",
-        allow_module_level=True,
-    )
+    _unavailable(f"the SQL Server test instance is not reachable at {_MS_HOST}:{_MS_PORT}")
 
 
 from execsql.db.sqlserver import SqlServerDatabase  # noqa: E402
@@ -85,14 +92,8 @@ from execsql.exceptions import ErrInfo  # noqa: E402
 import execsql.state as _state_real  # noqa: E402  — needed to seed exec_log
 
 
-def _adapter_can_connect() -> bool:
-    """Verify the SqlServerDatabase adapter (not just raw pyodbc) can connect.
-
-    msodbcsql18 ≥ v18 defaults to Encrypt=Yes; the adapter's hard-coded
-    connection strings do not set Encrypt=No / TrustServerCertificate=yes,
-    so against SQL Server 2022 (which uses a self-signed cert) the adapter
-    fails to connect even when raw pyodbc can.  Skip cleanly in that case.
-    """
+def _adapter_can_connect() -> str | None:
+    """Return why the SqlServerDatabase adapter (not just raw pyodbc) cannot connect, or None."""
     _state_real.exec_log = MagicMock()
     _state_real.subvars = MagicMock()
     try:
@@ -101,19 +102,16 @@ def _adapter_can_connect() -> bool:
             db_name=_MS_DB,
             user_name=_MS_USER,
             password=_MS_PASS,
+            trust_server_certificate=True,
         ).close()
-        return True
-    except Exception:
-        return False
+        return None
+    except Exception as exc:
+        return f"{type(exc).__name__}: {exc}"
 
 
-if not _adapter_can_connect():
-    pytest.skip(
-        "SqlServerDatabase adapter cannot connect to the test server "
-        "(modern Encrypt=Yes defaults; adapter's connection strings lack "
-        "TrustServerCertificate=yes)",
-        allow_module_level=True,
-    )
+_ADAPTER_ERROR = _adapter_can_connect()
+if _ADAPTER_ERROR:
+    _unavailable(f"the SqlServerDatabase adapter cannot connect to the test server: {_ADAPTER_ERROR}")
 
 
 # ---------------------------------------------------------------------------
@@ -185,6 +183,7 @@ def db():
         db_name=_MS_DB,
         user_name=_MS_USER,
         password=_MS_PASS,
+        trust_server_certificate=True,
     )
     yield inst
     try:
