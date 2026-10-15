@@ -280,7 +280,7 @@ jobs:
             - name: Install dependencies
               run: |
                   python -m pip install --upgrade pip
-                  python -m pip install ".[dev,postgres,mysql,mssql,upsert]"
+                  python -m pip install ".[formats,formatter,lsp,postgres,mysql,mssql,upsert]" --group dev
             - name: Run subprocess integration tests
               run: |
                   python -m pytest tests/integration/test_postgres.py tests/integration/test_mysql.py -v --override-ini="addopts="
@@ -341,7 +341,7 @@ jobs:
               if: steps.install_access.outcome == 'success'
               run: |
                   python -m pip install --upgrade pip
-                  python -m pip install ".[dev,odbc]" pywin32
+                  python -m pip install ".[formats,formatter,lsp,odbc]" --group dev pywin32
               shell: pwsh
             - name: Run Access real-driver tests
               # Gating: a real regression in src/execsql/db/access.py blocks
