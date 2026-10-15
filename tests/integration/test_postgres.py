@@ -624,6 +624,46 @@ class TestPgUpsert:
         )
         assert outcomes == {"upsert": "FALSE", "update": "TRUE", "warnings": "books"}
 
+    def test_a_database_error_fails_the_run_and_resets_the_variables(self, tmp_path, upsert_schemas):
+        """pg-upsert rolls back a run a trigger aborts; execsql must report it, not carry on as a success."""
+        _exec_pg("INSERT INTO ups_stg.books VALUES (1, 'new')")
+        _write_conf(tmp_path)
+        out = tmp_path / "out.txt"
+        script = write_script(
+            tmp_path,
+            f"""\
+            -- !x! PG_UPSERT FROM ups_stg TO ups_base TABLES books COMMIT
+            -- !x! WRITE "first=!!$PG_UPSERT_COMMITTED!!" TO {out}
+            update ups_stg.books set title = 'newer';
+            create function ups_base.boom() returns trigger language plpgsql as $$ begin raise exception 'boom from trigger'; end $$;
+            create trigger t_boom before update on ups_base.books for each row execute function ups_base.boom();
+            -- !x! METACOMMAND_ERROR_HALT OFF
+            -- !x! PG_UPSERT FROM ups_stg TO ups_base TABLES books COMMIT
+            -- !x! WRITE "second=!!$PG_UPSERT_COMMITTED!!" TO {out}
+            -- !x! WRITE "updated=!!$PG_UPSERT_ROWS_UPDATED!!" TO {out}
+            """,
+        )
+        result = _run_execsql_pg(tmp_path, script, timeout=60)
+        assert result.returncode == 0, f"stderr: {result.stderr}"
+        assert "boom from trigger" in result.stderr
+        outcomes = dict(line.split("=", 1) for line in out.read_text().splitlines())
+        assert outcomes == {"first": "TRUE", "second": "FALSE", "updated": "0"}
+        assert _query_pg("SELECT title FROM ups_base.books WHERE id = 1") == [("new",)]
+
+    def test_a_database_error_halts_by_default(self, tmp_path, upsert_schemas):
+        _exec_pg("INSERT INTO ups_stg.books VALUES (1, 'new')")
+        _exec_pg(
+            "create function ups_base.boom() returns trigger language plpgsql as "
+            "$$ begin raise exception 'boom from trigger'; end $$",
+        )
+        _exec_pg("create trigger t_boom before update on ups_base.books for each row execute function ups_base.boom()")
+        _write_conf(tmp_path)
+        script = write_script(tmp_path, "-- !x! PG_UPSERT FROM ups_stg TO ups_base TABLES books COMMIT\n")
+        result = _run_execsql_pg(tmp_path, script, timeout=60)
+        assert result.returncode != 0
+        assert "rolled back after a database error" in result.stderr
+        assert "boom from trigger" in result.stderr
+
 
 def test_copy_names_its_source_the_way_the_database_resolves_it(tmp_path):
     """``COPY Orders_Mixed ...`` reads the folded ``orders_mixed``; an existence check in another case must not refuse it."""
