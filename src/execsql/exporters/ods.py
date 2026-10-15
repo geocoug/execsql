@@ -13,6 +13,7 @@ import datetime
 import decimal
 import getpass
 import os
+import re
 from pathlib import Path
 from typing import Any
 
@@ -184,42 +185,25 @@ class OdsFile:
         if not sheet:
             raise OdsFileError(f"There is no sheet named {sheetname}")
 
-        def row_data(sheetrow):
-            # Adapted from http://www.marco83.com/work/wp-content/uploads/2011/11/odf-to-array.py
-            cells = sheetrow.getElementsByType(of.table.TableCell)
-            rowdata = []
-            for cell in cells:
-                p_content = []
-                repeat = cell.getAttribute("numbercolumnsrepeated")
-                if not repeat:
-                    repeat = 1
-                    spanned = int(cell.getAttribute("numbercolumnsspanned") or 0)
-                    if spanned > 1:
-                        repeat = spanned
-                ps = cell.getElementsByType(of.text.P)
-                if len(ps) == 0:
-                    for _rr in range(int(repeat)):
-                        p_content.append(None)
-                else:
-                    for p in ps:
-                        pval = str(p)
-                        if len(pval) == 0:
-                            for _rr in range(int(repeat)):
-                                p_content.append(None)
-                        else:
-                            for _rr in range(int(repeat)):
-                                p_content.append(pval)
-                if len(p_content) == 0:
-                    for _rr in range(int(repeat)):
-                        rowdata.append(None)
-                elif p_content[0] != "#":
-                    rowdata.extend(p_content)
-            return rowdata
-
-        rows = sheet.getElementsByType(of.table.TableRow)
-        if junk_header_rows > 0:
-            rows = rows[junk_header_rows:]
-        return [row_data(r) for r in rows]
+        rows: list[list | None] = []
+        pending_empty = 0
+        for sheetrow in sheet.getElementsByType(of.table.TableRow):
+            data = _row_values(sheetrow)
+            repeat = int(sheetrow.getAttribute("numberrowsrepeated") or 1)
+            if not data:
+                # Empty rows are kept only when data follows them, so the
+                # filler rows a spreadsheet writes below the data are dropped.
+                pending_empty += repeat
+                continue
+            rows.extend(None for _ in range(pending_empty))
+            pending_empty = 0
+            rows.extend(list(data) for _ in range(repeat))
+        rows = rows[junk_header_rows:]
+        # Every row is as wide as the widest, so a blank trailing header is
+        # still seen, and an empty row inside the data is a row of NULLs that
+        # EMPTY_ROWS keeps or drops.
+        width = max((len(r) for r in rows if r is not None), default=0)
+        return [(r or []) + [None] * (width - len(r or [])) for r in rows]
 
     def new_sheet(self, sheetname: str) -> Any:
         """Create and return a detached sheet object that can later be added to the workbook."""
@@ -239,7 +223,11 @@ class OdsFile:
         for item in datarow:
             if isinstance(item, bool):
                 # Booleans must be evaluated before numbers.
-                tc = of.table.TableCell(valuetype="boolean", value=1 if item else 0, stylename=style_name)
+                tc = of.table.TableCell(
+                    valuetype="boolean",
+                    booleanvalue="true" if item else "false",
+                    stylename=style_name,
+                )
             elif isinstance(item, float | int | decimal.Decimal):
                 # Decimal belongs here: PostgreSQL, MySQL and DuckDB all return it
                 # for numeric/decimal columns.  Without it the value fell to the
@@ -269,8 +257,11 @@ class OdsFile:
                     item.microsecond,
                     item.tzinfo,
                 )
-                tc = of.table.TableCell(timevalue=timeval.strftime("PT%HH%MM%S.%fS"), stylename="iso_datetime")
-                tc.addElement(of.text.P(text=timeval.strftime("%H:%M:%S.%f")))
+                tc = of.table.TableCell(
+                    valuetype="time",
+                    timevalue=timeval.strftime("PT%HH%MM%S.%fS"),
+                    stylename="iso_datetime",
+                )
             elif isinstance(item, str):
                 # An XML parser normalises a newline inside an attribute to a
                 # space, so office:string-value cannot carry one.  ODF's answer
@@ -280,16 +271,23 @@ class OdsFile:
                     tc = of.table.TableCell(valuetype="string", stylename=style_name)
                 else:
                     tc = of.table.TableCell(valuetype="string", stringvalue=item, stylename=style_name)
+            elif item is None:
+                # An empty cell: no value type, no value, no text.
+                tc = of.table.TableCell(stylename=style_name)
             else:
-                tc = of.table.TableCell(value=item, stylename=style_name)
+                tc = of.table.TableCell(valuetype="string", stringvalue=str(item), stylename=style_name)
             if item is not None:
                 if isinstance(item, str) and ("\n" in item or "\r" in item):
                     # Previously these were flattened to spaces, silently changing
                     # the exported value.
                     for line in item.replace("\r\n", "\n").replace("\r", "\n").split("\n"):
                         tc.addElement(of.text.P(text=line))
+                elif isinstance(item, datetime.time):
+                    tc.addElement(of.text.P(text=item.strftime("%H:%M:%S.%f")))
                 else:
-                    tc.addElement(of.text.P(text=item))
+                    # str(): odfpy writes no text for a falsy value, so 0 and
+                    # False showed as blank cells.
+                    tc.addElement(of.text.P(text=str(item)))
             tr.addElement(tc)
 
     def add_sheet(self, of_table: Any) -> None:
@@ -309,6 +307,113 @@ class OdsFile:
         """Release the workbook reference without saving."""
         self.filename = None
         self.wbk = None
+
+
+def _paragraph_text(node: Any) -> str:
+    """Return the text of a ``<text:p>``, expanding ODF's space, tab and line-break elements."""
+    parts: list[str] = []
+    for child in node.childNodes:
+        if child.nodeType == child.TEXT_NODE:
+            parts.append(str(child))
+        elif child.qname == (of.text.TEXTNS, "s"):
+            parts.append(" " * int(child.getAttribute("c") or 1))
+        elif child.qname == (of.text.TEXTNS, "tab"):
+            parts.append("\t")
+        elif child.qname == (of.text.TEXTNS, "line-break"):
+            parts.append("\n")
+        else:
+            parts.append(_paragraph_text(child))
+    return "".join(parts)
+
+
+def _time_text(duration: str) -> str:
+    """Convert an ODF time value (``PT13H05M09.5S``) to ``13:05:09.5``."""
+    m = re.fullmatch(r"-?PT(\d+)H(\d+)M(\d+)(\.\d*)?S", duration)
+    if not m:
+        return duration
+    hours, minutes, seconds, fraction = m.groups()
+    fraction = (fraction or "").rstrip("0").rstrip(".")
+    return f"{int(hours):02d}:{int(minutes):02d}:{int(seconds):02d}{fraction}"
+
+
+def _cell_value(cell: Any) -> str | None:
+    """Return a cell's stored value as text, or ``None`` for an empty cell.
+
+    The value comes from the cell's ``office:value-type`` and value
+    attribute, not from its displayed text, so a number formatted to two
+    places, a percentage or a date keeps its full value.
+    """
+    vtype = cell.getAttribute("valuetype")
+    value: str | None
+    if vtype in ("float", "percentage", "currency"):
+        value = cell.getAttribute("value")
+    elif vtype == "date":
+        value = cell.getAttribute("datevalue")
+    elif vtype == "time":
+        value = cell.getAttribute("timevalue")
+        value = _time_text(value) if value else value
+    elif vtype == "boolean":
+        value = cell.getAttribute("booleanvalue")
+        if not value:
+            # Files from execsql2 2.30 and earlier wrote office:value="1"/"0".
+            flag = cell.getAttribute("value")
+            value = {"1": "true", "0": "false"}.get(flag or "", flag)
+    else:
+        value = None
+    if value:
+        return value
+    if vtype == "string":
+        value = cell.getAttribute("stringvalue")
+        if value:
+            return value
+    # A string cell, a cell with no type, or a typed cell missing its value
+    # attribute: the paragraphs are the value, one line each.
+    paragraphs = [
+        _paragraph_text(child) for child in cell.childNodes if getattr(child, "qname", None) == (of.text.TEXTNS, "p")
+    ]
+    text = "\n".join(paragraphs)
+    return text or None
+
+
+def _row_values(sheetrow: Any) -> list:
+    """Return one value per column of a ``<table:table-row>``, without trailing empty cells."""
+    values: list = []
+    pending_empty = 0
+    covered_by_span = 0
+    for cell in sheetrow.childNodes:
+        qname = getattr(cell, "qname", None)
+        if qname == (of.table.TABLENS, "table-cell"):
+            covered = False
+        elif qname == (of.table.TABLENS, "covered-table-cell"):
+            covered = True
+        else:
+            continue
+        repeat = int(cell.getAttribute("numbercolumnsrepeated") or 1)
+        if covered:
+            # A horizontal merge repeats its value across the columns it
+            # covers (below); covered cells left over belong to a merge from
+            # a row above and are empty in this row.
+            skip = min(repeat, covered_by_span)
+            covered_by_span -= skip
+            repeat -= skip
+            value = None
+        else:
+            value = _cell_value(cell)
+            spanned = int(cell.getAttribute("numbercolumnsspanned") or 1)
+            if spanned > 1:
+                covered_by_span = spanned - 1
+                repeat *= spanned
+        if repeat <= 0:
+            continue
+        if value is None:
+            # Counted rather than appended, so a trailing filler cell
+            # repeated across the whole sheet width costs nothing.
+            pending_empty += repeat
+            continue
+        values.extend([None] * pending_empty)
+        pending_empty = 0
+        values.extend([value] * repeat)
+    return values
 
 
 def export_ods(

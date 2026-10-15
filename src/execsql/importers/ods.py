@@ -39,6 +39,8 @@ def ods_data(
         alldata = wbk.sheet_data(sheetname, junk_header_rows)
     except Exception as e:
         raise ErrInfo(type="cmd", other_msg=f"{sheetname} is not a worksheet in {filename}.") from e
+    if not alldata:
+        raise ErrInfo(type="error", other_msg=f"The input file {filename}, sheet {sheetname} contains no data.")
     colhdrs = alldata[0]
     if any(x is None or len(x.strip()) == 0 for x in colhdrs):
         if conf.del_empty_cols:
