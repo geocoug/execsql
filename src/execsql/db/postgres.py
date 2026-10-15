@@ -462,7 +462,7 @@ class PostgresDatabase(Database):
                                             if not _state.conf.empty_strings and line[i].strip() == "":
                                                 line[i] = None
                                 # Pad short line with nulls
-                                line.extend([None] * (len(import_cols) - len(line)))
+                                line.extend([None] * (len(csv_file_cols) - len(line)))
                                 linedata = [line[ix] for ix in data_indexes]
                                 add_line = True
                                 if not _state.conf.empty_rows:
