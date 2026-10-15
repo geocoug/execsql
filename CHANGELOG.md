@@ -27,6 +27,7 @@ ______________________________________________________________________
 - **SQL Server and Access passwords containing `;`** now log in, and no part of them is written to `execsql.log`; a database name or file path with `;` can no longer add connection settings.
 - **`IMPORT` into PostgreSQL or MySQL with `IMPORT_COMMON_COLUMNS_ONLY`** no longer stops with `IndexError` on a line with fewer values than the header; the values left off are NULL.
 - **`IMPORT` into MySQL** no longer adds a row of NULLs for each blank line at the end of a CSV file.
+- **`SERVE`** writes its `Content-Type` and `Content-Disposition` headers before the file when stdout is a pipe, as it is under CGI; the file used to come first.
 - **`execsql lint`, `execsql format` and the language server no longer touch network paths** written in a script or config (`\\host\share\…` on Windows) in an `INCLUDE`, `SUB_INI` or `config_file` chain: on Windows, checking such a path sent your login to that host. `execsql run` still follows them.
 
 ### Removed

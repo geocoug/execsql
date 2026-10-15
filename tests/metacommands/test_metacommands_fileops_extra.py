@@ -96,8 +96,12 @@ class TestXServe:
         test_file.write_bytes(b"test content")
 
         with patch("execsql.metacommands.io_fileops.sys.stdout") as mock_stdout:
+            mock_stdout.encoding = "utf-8"
             mock_stdout.buffer = MagicMock()
             x_serve(filename=str(test_file), format=fmt, metacommandline="SERVE ...")
+        written = b"".join(c.args[0] for c in mock_stdout.buffer.write.call_args_list)
+        assert written.startswith(f"Content-Type: {expected_content_type}\n".encode())
+        assert written.endswith(b"\n\ntest content")
 
     def test_serve_missing_file_raises(self, minimal_conf, tmp_path):
         from execsql.metacommands.io_fileops import x_serve

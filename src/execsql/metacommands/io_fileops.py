@@ -370,8 +370,14 @@ def x_serve(**kwargs: Any) -> None:
         contenttype = "application/zip"
     else:
         contenttype = "application/octet-stream"
-    print(f"Content-Type: {contenttype}")
     safe_fname = fname.replace("\r", "").replace("\n", "").replace('"', '\\"')
-    print(f'Content-Disposition: attachment; filename="{safe_fname}"\n')
+    headers = f'Content-Type: {contenttype}\nContent-Disposition: attachment; filename="{safe_fname}"\n\n'
+    # Headers and body go to the same binary stream, after anything already
+    # written as text: under CGI stdout is a pipe, and text printed into the
+    # text layer's buffer reached it after the body.
+    sys.stdout.flush()
+    out = sys.stdout.buffer
+    out.write(headers.encode(sys.stdout.encoding or "utf-8"))
     with open(infname, "rb") as f:
-        copyfileobj(f, sys.stdout.buffer)
+        copyfileobj(f, out)
+    out.flush()
