@@ -7,7 +7,9 @@ Implements :class:`MySQLDatabase`, which connects to MySQL and MariaDB
 servers via ``pymysql``.  Corresponds to ``-t m`` on the CLI.
 """
 
+import os
 import re
+import tempfile
 from typing import Any, cast
 
 from execsql.db.base import Database
@@ -51,6 +53,49 @@ def _crlf_terminated(filename: str) -> bool:
         return False
     i = chunk.find(b"\n")
     return i > 0 and chunk[i - 1 : i] == b"\r"
+
+
+def _data_length(filename: str) -> int | None:
+    """Return the file's length without its trailing blank lines, or None if it has none.
+
+    LOAD DATA reads each blank line at the end of a file as a row of NULLs;
+    every other import path drops them.  The file is read backwards from the
+    end, as bytes, so no decoding can hide a line ending.
+    """
+    try:
+        with open(filename, "rb") as f:
+            size = f.seek(0, 2)
+            pos = size
+            content_end = 0
+            while pos > 0:
+                start = max(0, pos - 65536)
+                f.seek(start)
+                block = f.read(pos - start)
+                stripped = len(block.rstrip(b"\r\n"))
+                if stripped:
+                    content_end = start + stripped
+                    break
+                pos = start
+            f.seek(content_end)
+            ending = f.read(2)
+    except OSError:
+        return None
+    # Keep the line ending of the last line of data.
+    keep = content_end + (2 if ending == b"\r\n" else 1 if ending[:1] in (b"\r", b"\n") else 0)
+    return keep if keep < size else None
+
+
+def _copy_head(filename: str, length: int) -> str:
+    """Copy the first *length* bytes of *filename* to a temporary file; return its path."""
+    with open(filename, "rb") as src, tempfile.NamedTemporaryFile("wb", suffix=".csv", delete=False) as dst:
+        remaining = length
+        while remaining > 0:
+            chunk = src.read(min(remaining, 1 << 20))
+            if not chunk:
+                break
+            dst.write(chunk)
+            remaining -= len(chunk)
+    return dst.name
 
 
 class MySQLDatabase(Database):
@@ -353,7 +398,11 @@ class MySQLDatabase(Database):
             # String literals in this session treat a backslash as an escape,
             # so the file name, delimiter and quote character are quoted with
             # quote_literal, which doubles it.
-            import_sql = f"load data local infile {self.quote_literal(csv_file_obj.csvfname)} into table {sq_name}"
+            load_file = csv_file_obj.csvfname
+            data_length = _data_length(load_file)
+            if data_length is not None:
+                load_file = _copy_head(load_file, data_length)
+            import_sql = f"load data local infile {self.quote_literal(load_file)} into table {sq_name}"
             if csv_file_obj.encoding:
                 charset = _PYTHON_TO_MYSQL_CHARSET.get(csv_file_obj.encoding.lower(), csv_file_obj.encoding)
                 import_sql = f"{import_sql} character set {charset}"
@@ -385,7 +434,11 @@ class MySQLDatabase(Database):
                 _state.exec_log.log_status_info(
                     f"IMPORTing {csv_file_obj.csvfname} using the DBMS' fast file reading routine",
                 )
-            self.execute(import_sql)
+            try:
+                self.execute(import_sql)
+            finally:
+                if load_file != csv_file_obj.csvfname:
+                    os.unlink(load_file)
         else:
             data_indexes = [csv_file_cols.index(col) for col in import_cols]
             paramspec = ",".join(["%s"] * len(import_cols))

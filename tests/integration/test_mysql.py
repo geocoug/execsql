@@ -544,6 +544,30 @@ class TestHeadersWithCapitals:
         finally:
             _exec_mysql("DROP TABLE IF EXISTS t_cc")
 
+    @pytest.mark.parametrize(
+        ("newline", "empty_rows", "expected"),
+        [("\n", "YES", 4), ("\r\n", "YES", 4), ("\n", "NO", 3)],
+    )
+    def test_blank_lines_at_the_end_are_not_rows(self, tmp_path, newline, empty_rows, expected):
+        """LOAD DATA read each trailing blank line as a row of NULLs; every other backend drops them."""
+        _exec_mysql("DROP TABLE IF EXISTS t_blank")
+        _exec_mysql("CREATE TABLE t_blank (a INTEGER, b VARCHAR(10), c INTEGER)")
+        _write_conf(tmp_path)
+        csv_path = tmp_path / "blank.csv"
+        lines = ["a,b,c", "1,x,5", "2,y", "", "3,z,7", "", "", ""]
+        csv_path.write_bytes(newline.join(lines).encode())
+        script = write_script(
+            tmp_path,
+            f"-- !x! CONFIG EMPTY_ROWS {empty_rows}\n-- !x! IMPORT TO t_blank FROM {csv_path}\n",
+        )
+        try:
+            result = _run_execsql_mysql(tmp_path, script)
+            assert result.returncode == 0, f"stderr: {result.stderr}"
+            assert _query_mysql("SELECT count(*) FROM t_blank")[0][0] == expected
+            assert csv_path.read_bytes() == newline.join(lines).encode(), "the source file is left as it was"
+        finally:
+            _exec_mysql("DROP TABLE IF EXISTS t_blank")
+
 
 @pytest.mark.parametrize("value", [r"C:\data\new", r"x\'; drop table t; --", "O'Brien", r"two\\backslashes"])
 def test_quoted_substitution_stores_the_value_as_written(tmp_path, value):
