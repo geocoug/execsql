@@ -641,6 +641,24 @@ class Database(ABC):
 
         raise DatabaseNotImplementedError(self.name(), "role_exists")
 
+    def drop_table_for_replacement(self, schema_name: str | None, table_name: str) -> None:
+        """Drop the table a ``TO REPLACEMENT`` import or copy is about to recreate, if it is there.
+
+        Not every DBMS has ``DROP TABLE IF EXISTS``: SQL Server, Oracle,
+        Firebird and Access refuse to drop a table that does not exist.  The
+        drop is tried first, and its error is ignored only when the table is
+        confirmed absent, so a drop that would have succeeded always runs.
+        """
+        try:
+            self.drop_table(self.schema_qualified_table_name(schema_name, table_name))
+        except Exception:
+            try:
+                there = self.table_exists_where_created(table_name, schema_name)
+            except Exception:
+                there = True
+            if there:
+                raise
+
     def drop_table(self, tablename: str) -> None:
         """Drop *tablename* if it exists; *tablename* must already be schema-qualified and quoted."""
         # The 'tablename' argument should be schema-qualified and quoted as necessary.

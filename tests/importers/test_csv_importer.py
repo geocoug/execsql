@@ -239,14 +239,14 @@ class TestImportTableQuotecharNone:
 
 
 class TestImportTableDropTableFailure:
-    """When drop_table raises for replacement import, the import aborts."""
+    """When the drop for a replacement import fails, the import aborts."""
 
     def test_drop_table_failure_raises_errinfo(self, db, tmp_path):
         csv = tmp_path / "data.csv"
         csv.write_text("x\n1\n", encoding="utf-8")
 
         with (
-            patch.object(db, "drop_table", side_effect=RuntimeError("boom")),
+            patch.object(db, "drop_table_for_replacement", side_effect=RuntimeError("boom")),
             pytest.raises(ErrInfo, match="Could not drop existing table"),
         ):
             importtable(db, None, "t", str(csv), is_new=2)
@@ -256,7 +256,7 @@ class TestImportTableDropTableFailure:
         csv.write_text("val\nhello\n", encoding="utf-8")
 
         with (
-            patch.object(db, "drop_table", side_effect=RuntimeError("boom")),
+            patch.object(db, "drop_table_for_replacement", side_effect=RuntimeError("boom")),
             pytest.raises(ErrInfo),
         ):
             importtable(db, None, "t", str(csv), is_new=2)

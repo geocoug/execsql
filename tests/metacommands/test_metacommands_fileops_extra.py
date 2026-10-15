@@ -235,7 +235,7 @@ class TestXCopy:
         hdrs = ["id"]
         rows = [(1,)]
         _db1, db2 = self._setup_dbs((hdrs, iter(rows)))
-        db2.drop_table.side_effect = RuntimeError("locked")
+        db2.drop_table_for_replacement.side_effect = RuntimeError("locked")
 
         with patch("execsql.metacommands.io_fileops.DataTable") as MockDT:
             mock_dt = MagicMock()
@@ -398,14 +398,14 @@ class TestXCopyQuery:
                 table="t2",
                 metacommandline="COPY QUERY ...",
             )
-            db2.drop_table.assert_called_once()
+            db2.drop_table_for_replacement.assert_called_once()
             db2.execute.assert_called()
 
     def test_copy_query_replacement_drop_failure_aborts(self, minimal_conf):
         from execsql.metacommands.io_fileops import x_copy_query
 
         _db1, db2 = self._setup_copy_dbs()
-        db2.drop_table.side_effect = RuntimeError("locked")
+        db2.drop_table_for_replacement.side_effect = RuntimeError("locked")
 
         with patch("execsql.metacommands.io_fileops.DataTable") as MockDT:
             mock_dt = MagicMock()

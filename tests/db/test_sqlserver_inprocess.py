@@ -394,3 +394,40 @@ class TestClose:
         # Encrypt=No / TrustServerCertificate=yes).  Base-class close()
         # is fully exercised in tests/db/test_base.py.
         assert callable(db.close)
+
+
+@pytest.mark.parametrize("how", ["import", "copy"])
+def test_to_replacement_creates_a_table_that_does_not_exist(tmp_path, monkeypatch, how):
+    """The drop SQL Server runs fails on a missing table; the first REPLACEMENT run must still create it."""
+    from execsql import run
+
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "rows.csv").write_text("id,name\n1,a\n2,b\n")
+    dsn = f"mssql://{_MS_USER}:{_MS_PASS}@{_MS_HOST}:{_MS_PORT}/{_MS_DB}?trust_server_certificate=yes"
+    load = (
+        "-- !x! IMPORT TO REPLACEMENT repl_target FROM rows.csv\n"
+        if how == "import"
+        else "-- !x! COPY repl_src FROM initial TO REPLACEMENT repl_target IN initial\n"
+    )
+    run(
+        sql="if object_id('repl_target') is not null drop table repl_target;\n"
+        "if object_id('repl_src') is not null drop table repl_src;\n"
+        "create table repl_src (id int, name varchar(5));\n"
+        "insert into repl_src values (1, 'a'), (2, 'b');\n",
+        dsn=dsn,
+    )
+    try:
+        result = run(
+            sql=load + "-- !x! EXPORT QUERY <<select count(*) as n from repl_target;>> TO n.csv AS CSV\n",
+            dsn=dsn,
+        )
+        assert result.success, result.errors
+        assert (tmp_path / "n.csv").read_text().split() == ["n", "2"]
+        again = run(sql=load, dsn=dsn)  # and replacing the table that now exists still works
+        assert again.success, again.errors
+    finally:
+        run(
+            sql="if object_id('repl_target') is not null drop table repl_target;\n"
+            "if object_id('repl_src') is not null drop table repl_src;\n",
+            dsn=dsn,
+        )

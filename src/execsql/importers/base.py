@@ -107,7 +107,7 @@ def import_data_table(
         if is_new == 2:
             tblspec = db.schema_qualified_table_name(schemaname, tablename)
             try:
-                db.drop_table(tblspec)
+                db.drop_table_for_replacement(schemaname, tablename)
             except ErrInfo:
                 raise
             except Exception as e:

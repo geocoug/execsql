@@ -25,6 +25,7 @@ ______________________________________________________________________
 
 ### Fixed
 
+- **`IMPORT` and `COPY ... TO REPLACEMENT`** create the table on SQL Server, Oracle, Firebird and Access when it does not exist yet; the first run stopped with "Could not drop existing table".
 - **SQL Server with ODBC Driver 18**, Microsoft's current driver: execsql now connects with it, trying it first. It encrypts the connection and verifies the server's certificate; for a self-signed one, set `trust_server_certificate`.
 - **The plaintext-keyring warning** appears only when a password would really be saved in cleartext (`keyrings.alt`'s `PlaintextKeyring`, including behind keyring's chained backend); the encrypted backend (`auth-encrypted`), the Windows backends and the no-backend placeholder no longer trigger it.
 - **`EXPORT … AS VALUES` files run back as the same rows** when run with INCLUDE: a value holding a line break, a `;` at a line end, `!!var!!` or a `-- !x!` line is no longer substituted, split or run as a metacommand (such values are written as joined pieces, e.g. `'a' || CHR(10) || 'b'`); a column named like `order` is quoted; and an empty result writes a comment instead of an INSERT that fails.

@@ -210,7 +210,7 @@ class TestImportDataTableDropTableFailure:
     def test_replacement_drop_failure_raises_errinfo(self, tmp_path, importer_conf):
         db = _make_sqlite_db(tmp_path, "")
         db_mock = MagicMock(wraps=db)
-        db_mock.drop_table.side_effect = RuntimeError("locked")
+        db_mock.drop_table_for_replacement.side_effect = RuntimeError("locked")
         db_mock.type = db.type
 
         with pytest.raises(ErrInfo, match="Could not drop existing table"):
