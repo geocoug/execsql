@@ -145,6 +145,10 @@
 --	2020-04-28	Explicitly rolled back the changes if 'do_commit' = "No".  RDN.
 --	2020-05-09	Moved the assignment of 'upsert_progress_denom' out of the
 --				'update_console_qa' script.  RDN.
+--	2026-10-15	execsql2: casts are CHAR (MySQL 8 rejects VARCHAR in CAST); the
+--				duplicate primary key check's view has its AS; each script's
+--				notes are its docstring (SHOW SCRIPTS, the language server).
+--				Tested in tests/templates of the execsql2 repository.
 -- ==================================================================
 
 
@@ -152,7 +156,7 @@
 -- ################################################################
 --			Script VALIDATE_ONE
 -- ===============================================================
---
+-- !x! BEGIN SCRIPT VALIDATE_ONE with parameters (stage_pfx, table, script, script_line)
 -- Utility script to validate both base and staging versions of one table.
 -- Halts script processing if either of the tables are not present.
 --
@@ -164,8 +168,6 @@
 --							(for error reporting).
 --		script_line		: The script line in which they were referenced
 --							(for error reporting).
--- ===============================================================
--- !x! BEGIN SCRIPT VALIDATE_ONE with parameters (stage_pfx, table, script, script_line)
 
 -- Initialize the strings used to compile error information
 -- !x! sub_empty ~err_info
@@ -233,7 +235,7 @@ having count(*) > 0
 -- ################################################################
 --			Script VALIDATE_CONTROL
 -- ===============================================================
---
+-- !x! BEGIN SCRIPT VALIDATE_CONTROL with parameters (stage_pfx, control_table, script, script_line)
 -- Utility script to validate contents of control table against about
 --	base and staging schema
 --
@@ -246,8 +248,6 @@ having count(*) > 0
 --							(for error reporting).
 --		script_line		: The script line in which they were referenced
 --							(for error reporting).
--- ===============================================================
--- !x! BEGIN SCRIPT VALIDATE_CONTROL with parameters (stage_pfx, control_table, script, script_line)
 
 -- Initialize the strings used to compile error information
 -- !x! sub_empty ~err_info
@@ -341,7 +341,7 @@ having count(*) > 0
 -- ################################################################
 --			Script STAGED_TO_LOAD
 -- ===============================================================
---
+-- !x! BEGIN SCRIPT STAGED_TO_LOAD with parameters (control_table, table_list)
 -- Creates a table having the structure that is used to drive other
 -- scripts that perform QA checks and the upsert operation on multiple
 -- staging tables.
@@ -400,9 +400,6 @@ having count(*) > 0
 --
 -- Example:
 --		-- !x! execute script staged_to_load with (control_table=stagingtables, table_list="tbla, tblb, tblc")
--- ===============================================================
-
--- !x! BEGIN SCRIPT STAGED_TO_LOAD with parameters (control_table, table_list)
 
 drop table if exists !!#control_table!! cascade;
 
@@ -447,7 +444,7 @@ from itemtable;
 -- ################################################################
 --			Script LOAD_STAGING
 -- ===============================================================
---
+-- !x! BEGIN SCRIPT LOAD_STAGING with parameters (stage_pfx, control_table, do_commit)
 -- Performs QA checks for nulls in non-null columns, for duplicated
 -- primary key values, and for invalid foreign keys in a set of staging
 -- tables to be loaded into base tables.  If there are failures in the
@@ -491,9 +488,6 @@ from itemtable;
 --
 -- Tables and views created or modified:
 --		ups_qa_fails				: view
--- ===============================================================
-
--- !x! BEGIN SCRIPT LOAD_STAGING with parameters (stage_pfx, control_table, do_commit)
 
 -- Clear the columns of return values from the control table, in case this control
 -- table has been used previously.
@@ -555,7 +549,7 @@ drop view if exists ups_qa_fails cascade;
 -- ################################################################
 --			Script NULLQA_ONE
 -- ===============================================================
---
+-- !x! BEGIN SCRIPT NULLQA_ONE with parameters (stage_pfx, table, error_list)
 -- Checks that non-nullable columns are fully populated in a
 -- staging table that is an image of the base table.
 -- Reports any non-conforming columns to the console and optionally
@@ -584,9 +578,6 @@ drop view if exists ups_qa_fails cascade;
 --		ups_next_column			: view
 --		ups_null_error_list		: view
 --		ups_qa_nonnull_col		: view
--- ===============================================================
-
--- !x! BEGIN SCRIPT NULLQA_ONE with parameters (stage_pfx, table, error_list)
 
 -- Write an initial header to the logfile.
 -- !x! if(sub_defined(logfile))
@@ -716,7 +707,8 @@ drop table if exists ups_nonnull_columns cascade;
 
 -- ################################################################
 --			Script PKQA_ONE
---
+-- ===============================================================
+-- !x! BEGIN SCRIPT PKQA_ONE with parameters (stage_pfx, table, display_errors, error_list)
 -- Check data in a staging table for violations of the primary key
 -- of the corresponding base table.
 -- Reports any PK violations found to the console and optionally
@@ -748,9 +740,6 @@ drop table if exists ups_nonnull_columns cascade;
 --		ups_primary_key_columns		: table
 --		ups_pk_check				: table
 --		ups_ercnt					: view
--- ===============================================================
-
--- !x! BEGIN SCRIPT PKQA_ONE with parameters (stage_pfx, table, display_errors, error_list)
 
 -- Write an initial header to the logfile.
 -- !x! if(sub_defined(logfile))
@@ -866,7 +855,8 @@ drop table if exists ups_pk_check cascade;
 
 -- ################################################################
 --			Script FKQA_ONE
---
+-- ===============================================================
+-- !x! BEGIN SCRIPT FKQA_ONE with parameters (stage_pfx, table, display_errors, error_list)
 -- Checks foreign keys from a staging table against a base table
 -- and, if it exists, another staging table that is an image of the
 -- base table.
@@ -905,9 +895,6 @@ drop table if exists ups_pk_check cascade;
 --		ups_fk_joins				: view
 --		ups_fk_check				: view
 --		ups_ercnt					: view
--- ===============================================================
-
--- !x! BEGIN SCRIPT FKQA_ONE with parameters (stage_pfx, table, display_errors, error_list)
 
 -- Write an initial header to the logfile.
 -- !x! if(sub_defined(logfile))
@@ -1168,7 +1155,8 @@ drop table if exists ups_sel_fks;
 
 -- ################################################################
 --			Script UPSERT_ONE
---
+-- ===============================================================
+-- !x! BEGIN SCRIPT UPSERT_ONE with parameters (stage_pfx, table, exclude_cols, display_changes, display_final, updcntvar, inscntvar)
 -- Adds data from a staging table to a base table, using UPDATE
 -- and INSERT statements.  Displays data to be modified to the
 -- user before any modifications are done.  Reports the changes
@@ -1219,9 +1207,6 @@ drop table if exists ups_sel_fks;
 --		ups_stgmatches			: temporary view
 --		ups_assexpr				: temporary view
 --		ups_newrows				: temporary view
--- ===============================================================
-
--- !x! BEGIN SCRIPT UPSERT_ONE with parameters (stage_pfx, table, exclude_cols, display_changes, display_final, updcntvar, inscntvar)
 
 -- Remove substitution variables that will contain the generated
 -- update and insert statements so that the existence of valid
@@ -1508,7 +1493,8 @@ drop table if exists ups_cols cascade;
 
 -- ################################################################
 --			Script UPSERT_ALL
---
+-- ===============================================================
+-- !x! BEGIN SCRIPT UPSERT_ALL with parameters (stage_pfx, control_table)
 -- Updates multiple base tables with new or revised data from
 -- staging tables, using the UPSERT_ONE script.
 --
@@ -1549,9 +1535,6 @@ drop table if exists ups_cols cascade;
 --		ups_proctables				: table
 --		ups_toprocess				: view
 --		ups_upsert_rows				: view
--- ===============================================================
-
--- !x! BEGIN SCRIPT UPSERT_ALL with parameters (stage_pfx, control_table)
 
 -- Validate contents of control table
 -- !x! execute script validate_control with (stage_pfx=!!#stage_pfx!!, control_table=!!#control_table!!, script=!!$CURRENT_SCRIPT_NAME!!, script_line=!!$SCRIPT_LINE!!)
@@ -1770,7 +1753,8 @@ drop table if exists ups_dependencies cascade;
 
 -- ################################################################
 --			Script QA_ALL
---
+-- ===============================================================
+-- !x! BEGIN SCRIPT QA_ALL with parameters (stage_pfx, control_table)
 -- Conducts null, primary key, and foreign key checks on multiple
 -- staging tables containing new or revised data for staging tables,
 -- using the NULLQA_ONE, PKQA_ONE, and FKQA_ONE scripts.
@@ -1821,10 +1805,6 @@ drop table if exists ups_dependencies cascade;
 --
 -- Global variables modified:
 --		upsert_progress_denom		: Created or redefined.
---
--- ===============================================================
-
--- !x! BEGIN SCRIPT QA_ALL with parameters (stage_pfx, control_table)
 
 -- Get denominator for progress bar if console is on.
 -- !x! if(console_on)
@@ -2005,7 +1985,8 @@ drop view if exists ups_toprocess;
 
 -- ################################################################
 --			Script UPDTPK_ONE
---
+-- ===============================================================
+-- !x! BEGIN SCRIPT UPDTPK_ONE with parameters (stage_pfx, table, display_errors, display_changes)
 -- Updates primary keys in the base table, based on new and existing
 -- values of PK columns in a staging table, using UPDATE
 -- statements.  Displays data to be modified to the
@@ -2038,9 +2019,6 @@ drop view if exists ups_toprocess;
 --		ups_pkupdates			: temporary table
 --		ups_pkupdate_strings	: temporary view
 --		ups_pkupdates			: temporary table
--- ===============================================================
-
--- !x! BEGIN SCRIPT UPDTPK_ONE with parameters (stage_pfx, table, display_errors, display_changes)
 
 -- !x! if(console_on)
 	-- !x! console status "Primary key updates"
@@ -2225,7 +2203,8 @@ where
 
 -- ################################################################
 --			Script UPDTPKQA_ONE
---
+-- ===============================================================
+-- !x! BEGIN SCRIPT UPDTPKQA_ONE with parameters (stage_pfx, table, pkinfo_table, qaerror_table, display_errors)
 -- Performs QA checks on requested primary key updates to a table,
 -- based on old and new values of the table's primary key columns
 -- in a staging table.
@@ -2274,9 +2253,6 @@ where
 --		ups_fkcol_refs				: temporary table
 --		ups_pkcol_deps				: temporary table
 --		ups_pkfk_ctrl				: temporary table
--- ===============================================================
-
--- !x! BEGIN SCRIPT UPDTPKQA_ONE with parameters (stage_pfx, table, pkinfo_table, qaerror_table, display_errors)
 
 -- Write an initial header to the logfile.
 -- !x! if(sub_defined(logfile))
