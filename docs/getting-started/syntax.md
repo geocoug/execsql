@@ -324,6 +324,8 @@ and anywhere on a `run` command line.
     - Firebird: 3050
     - Oracle: 1521
 
+    For SQL Server, a port given here (or in `mssql://host:port/db`) connects to `host,port`. With no port, the server name is used as written, so a named instance (`host\SQLEXPRESS`) is found through SQL Server Browser.
+
 `-w`, `--no-passwd`
 
 :   Skip the password prompt when a user name is specified.
