@@ -26,6 +26,7 @@ ______________________________________________________________________
 - **SQL Server uses the port you give** (`-p`, `mssql://host:port/db`, `CONNECT … PORT`); it used to connect to the default instance on 1433, sending the password meant for the other port.
 - **SQL Server and Access passwords containing `;`** now log in, and no part of them is written to `execsql.log`; a database name or file path with `;` can no longer add connection settings.
 - **`IMPORT` into PostgreSQL or MySQL with `IMPORT_COMMON_COLUMNS_ONLY`** no longer stops with `IndexError` on a line with fewer values than the header; the values left off are NULL.
+- **`IMPORT` into MySQL** no longer adds a row of NULLs for each blank line at the end of a CSV file.
 - **`execsql lint`, `execsql format` and the language server no longer touch network paths** written in a script or config (`\\host\share\…` on Windows) in an `INCLUDE`, `SUB_INI` or `config_file` chain: on Windows, checking such a path sent your login to that host. `execsql run` still follows them.
 
 ### Removed
