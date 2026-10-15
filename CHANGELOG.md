@@ -13,6 +13,7 @@ ______________________________________________________________________
 
 ### Added
 
+- **The `templates/` scripts document themselves:** each script's notes show in `SHOW SCRIPTS` and the editor's hover, and optional arguments (`def_url`, `include_cols`, `exclude_cols`) are declared parameters.
 - **`trust_server_certificate`** (`[connect]`, or `?trust_server_certificate=yes` on an `mssql://` URL) accepts a SQL Server's self-signed TLS certificate. It applies to `CONNECT` as well.
 
 ### Changed
@@ -25,6 +26,10 @@ ______________________________________________________________________
 
 ### Fixed
 
+- **`templates/` glossary scripts:** `ADD_GLOSSARY_ITEM` keeps the `def_url` it is given, and `md_glossary.sql` runs on MySQL 8.
+- **`templates/` compare scripts** report a value that changed only in letter case as changed on MySQL, MariaDB and SQL Server, and `md_compare.sql` ignores tables of the same name in other databases on the server.
+- **`templates/md_upsert.sql`** runs on MySQL 8, and its duplicate primary key check no longer fails. With `do_commit=No` it now halts before changing anything: MySQL and MariaDB cannot roll the load back, and it used to commit.
+- **`templates/ss_upsert.sql`** with `do_commit=No` keeps the row counts it reports for each table.
 - **`IMPORT` and `COPY ... TO REPLACEMENT`** create the table on SQL Server, Oracle, Firebird and Access when it does not exist yet; the first run stopped with "Could not drop existing table".
 - **SQL Server with ODBC Driver 18**, Microsoft's current driver: execsql now connects with it, trying it first. It encrypts the connection and verifies the server's certificate; for a self-signed one, set `trust_server_certificate`.
 - **The plaintext-keyring warning** appears only when a password would really be saved in cleartext (`keyrings.alt`'s `PlaintextKeyring`, including behind keyring's chained backend); the encrypted backend (`auth-encrypted`), the Windows backends and the no-backend placeholder no longer trigger it.
