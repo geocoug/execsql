@@ -123,6 +123,7 @@ pipx install --force "execsql2[postgres,lsp]"
 ```
 
 See [Adding an extra later](../getting-started/installation.md#adding-an-extra-later).
+Install it as a tool like this, in its own environment, not into a project's virtual environment: the extra pins sqlglot to one release (see [sqlglot version](formatter.md#sqlglot-version)).
 Check it with `execsql lsp --check`: it prints `execsql lsp is ready (pygls 2.x.y)` and exits 0 when the server can start, and otherwise says what is
 missing and exits 1.
 
