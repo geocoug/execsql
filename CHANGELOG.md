@@ -20,6 +20,7 @@ ______________________________________________________________________
 ### Fixed
 
 - **The plaintext-keyring warning** appears only when a password would really be saved in cleartext (`keyrings.alt`'s `PlaintextKeyring`, including behind keyring's chained backend); the encrypted backend (`auth-encrypted`), the Windows backends and the no-backend placeholder no longer trigger it.
+- **`EXPORT … AS VALUES` files run back as the same rows** when run with INCLUDE: a value holding a line break, a `;` at a line end, `!!var!!` or a `-- !x!` line is no longer substituted, split or run as a metacommand (such values are written as joined pieces, e.g. `'a' || CHR(10) || 'b'`); a column named like `order` is quoted; and an empty result writes a comment instead of an INSERT that fails.
 - **`execsql lint`, `execsql format` and the language server no longer touch network paths** written in a script or config (`\\host\share\…` on Windows) in an `INCLUDE`, `SUB_INI` or `config_file` chain: on Windows, checking such a path sent your login to that host. `execsql run` still follows them.
 
 ### Removed
