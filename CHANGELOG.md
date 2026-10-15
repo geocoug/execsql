@@ -41,6 +41,7 @@ ______________________________________________________________________
 
 ### Removed
 
+- **`templates/pg_upsert.sql`**: use the `PG_UPSERT` metacommand on PostgreSQL. The MySQL/MariaDB and SQL Server upsert templates remain.
 - **The `dev` extra:** `execsql2[dev]` is gone from PyPI; it only held the project's own test, lint and docs tools, which are now the `dev` dependency group in `pyproject.toml` (`uv sync`, or `pip install --group dev`).
 
 ______________________________________________________________________

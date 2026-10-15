@@ -151,7 +151,7 @@ create schema if not exists !!staging!!;
 -- ==============================================================================
 
 -- For example:
----- !x! include !!script_library!!/pg_upsert.sql
+---- !x! include !!script_library!!/pg_glossary.sql
 
 -- ------------------------------------------------------------------------------
 

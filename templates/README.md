@@ -16,7 +16,7 @@ These script files provide useful functionality that should be accessed by inclu
 
 These scripts perform automated upsert operations on any tables of any database in a DBMS that supports the standard *information_schema* views. Currently that includes:
 
-- **PostgreSQL:** `pg_upsert.sql`
+- **PostgreSQL:** use the [`PG_UPSERT`](https://execsql2.readthedocs.io/en/stable/reference/metacommands/#pg_upsert) metacommand, which does the same with the [pg-upsert](https://pg-upsert.readthedocs.io/) package; it replaced `pg_upsert.sql`.
 - **MySQL/MariaDB:** `md_upsert.sql`
 - **SQL Server:** `ss_upsert.sql`
 

@@ -1,7 +1,7 @@
 """The upsert templates: QA-check staging tables, then update and insert their base tables.
 
-``pg_upsert.sql`` is not covered: PostgreSQL users have the PG_UPSERT
-metacommand, and that template is being retired.
+There is no PostgreSQL template: the PG_UPSERT metacommand replaced
+``pg_upsert.sql``, so the PostgreSQL cases skip.
 
 Two tables, books referencing authors:
 
@@ -25,8 +25,7 @@ BOOKS = ["(10, 1, 'New')", "(11, 2, 'Second')"]
 
 @pytest.fixture
 def tables(target):
-    if target.server.prefix == "pg":
-        pytest.skip("pg_upsert.sql is retired in favour of the PG_UPSERT metacommand")
+    target.template("upsert")  # skips PostgreSQL, which has no upsert template
     a, b = target.base_table("authors"), target.base_table("books")
     target.execute(
         f"create table {a} (id integer primary key, name varchar(20) not null)",

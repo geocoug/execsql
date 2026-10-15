@@ -344,13 +344,12 @@ Other editors use the language server directly: see [Editor Support](https://exe
 
 ## Templates
 
-The `templates/` directory in this repository includes ready-to-use execsql scripts:
+The `templates/` directory in this repository includes ready-to-use execsql scripts, tested against live databases in CI. (`execsql config --init` writes an annotated configuration file.)
 
-- **Upsert scripts** (`pg_upsert.sql`, `md_upsert.sql`, `ss_upsert.sql`): Perform merge/upsert operations on multiple tables simultaneously, respecting foreign key order, for PostgreSQL, MySQL/MariaDB, and SQL Server.
+- **Upsert scripts** (`md_upsert.sql`, `ss_upsert.sql`): Perform merge/upsert operations on multiple tables simultaneously, respecting foreign key order, for MySQL/MariaDB and SQL Server. On PostgreSQL, use the [`PG_UPSERT`](https://execsql2.readthedocs.io/en/stable/reference/metacommands/#pg_upsert) metacommand.
 - **Comparison scripts** (`pg_compare.sql`, `md_compare.sql`, `ss_compare.sql`): Compare staging and base tables across multiple dimensions.
 - **Glossary scripts** (`pg_glossary.sql`, `md_glossary.sql`, `ss_glossary.sql`): Produce a glossary of column names and definitions to accompany a database export.
 - **`script_template.sql`**: A framework for new scripts with sections for configuration, logging, and error reporting.
-- **`execsql.conf`**: An annotated configuration file covering all available settings.
 
 ## Documentation
 
