@@ -62,8 +62,22 @@ def touched(monkeypatch):
             raise FileNotFoundError(self)
         return real_path_stat(self, *args, **kwargs)
 
+    def check(real):
+        # On Windows, os.path.isfile / exists / isdir are C functions that do
+        # not go through os.stat, and Python 3.14's Path.is_file() and
+        # Path.exists() call them.
+        def recorded(path):
+            if _is_network(path):
+                seen.append(os.fspath(path))
+                return False
+            return real(path)
+
+        return recorded
+
     monkeypatch.setattr(os, "stat", stat)
     monkeypatch.setattr(pathlib.Path, "stat", path_stat)
+    for name in ("isfile", "exists", "isdir"):
+        monkeypatch.setattr(os.path, name, check(getattr(os.path, name)))
     monkeypatch.setattr(builtins, "open", open_)
     return seen
 
