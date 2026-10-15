@@ -643,7 +643,7 @@ limit 1;
 -- Create the return value.
 create or replace view ups_null_error_list as
 select
-	group_concat(concat(column_name, ' (', cast(null_rows as varchar(100)), ')') separator ', ') as null_errors
+	group_concat(concat(column_name, ' (', cast(null_rows as char(100)), ')') separator ', ') as null_errors
 from
 	ups_nonnull_columns
 where
@@ -831,7 +831,7 @@ order by k.ordinal_position
 		-- !x! if(view_exists(ups_ercnt))
 			drop view if exists ups_ercnt cascade;
 		-- !x! endif
-		create view ups_ercnt
+		create view ups_ercnt as
 		select count(*) as errcnt, sum(row_count) as total_rows
 		from ups_pk_check;
 		-- !x! select_sub ups_ercnt
@@ -2081,17 +2081,17 @@ select
 	k.table_schema,
 	k.table_name,
 	k.column_name,
-	cast(concat('b.', column_name) as varchar(2000)) as base_aliased,
-	cast(concat('s.', column_name) as varchar(2000)) as staging_aliased,
-	cast(concat('s.', column_name, ' as staging_', column_name) as varchar(2000)) as staging_aliased_prefix,
-	cast(concat('b.', column_name, ' = s.', column_name) as varchar(2000)) as join_expr,
-	cast(concat('new_', column_name) as varchar(2000)) as newpk_col,
-	cast(concat('s.new_', column_name) as varchar(2000)) as newpk_col_aliased,
-	cast(concat('new_', column_name, ' is null') as varchar(2000)) as newpk_col_empty,
-	cast(concat('new_', column_name, ' is not null') as varchar(2000)) as newpk_col_not_empty,
-	cast(concat('b.', column_name, ' = s.new_', column_name) as varchar(2000)) as assmt_expr,
-	cast(concat('b.', column_name, ' = s.new_', column_name) as varchar(2000)) as join_expr_oldnew,
-	cast(concat('s.new_', column_name, ' = b.new_', column_name) as varchar(2000)) as join_expr_new,
+	cast(concat('b.', column_name) as char(2000)) as base_aliased,
+	cast(concat('s.', column_name) as char(2000)) as staging_aliased,
+	cast(concat('s.', column_name, ' as staging_', column_name) as char(2000)) as staging_aliased_prefix,
+	cast(concat('b.', column_name, ' = s.', column_name) as char(2000)) as join_expr,
+	cast(concat('new_', column_name) as char(2000)) as newpk_col,
+	cast(concat('s.new_', column_name) as char(2000)) as newpk_col_aliased,
+	cast(concat('new_', column_name, ' is null') as char(2000)) as newpk_col_empty,
+	cast(concat('new_', column_name, ' is not null') as char(2000)) as newpk_col_not_empty,
+	cast(concat('b.', column_name, ' = s.new_', column_name) as char(2000)) as assmt_expr,
+	cast(concat('b.', column_name, ' = s.new_', column_name) as char(2000)) as join_expr_oldnew,
+	cast(concat('s.new_', column_name, ' = b.new_', column_name) as char(2000)) as join_expr_new,
 	k.ordinal_position
 from information_schema.table_constraints as tc
 inner join information_schema.key_column_usage as k
