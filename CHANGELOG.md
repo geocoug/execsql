@@ -14,6 +14,7 @@ ______________________________________________________________________
 ### Changed
 
 - **GitHub Releases** carry the version's `CHANGELOG.md` section as their text, instead of a generated list of commits.
+- **Documentation links** in execsql's messages, `execsql --online-help`, hover text, the config template, the VS Code extension and the package's PyPI page go to the docs of the latest release (`/en/stable/`) instead of the unreleased `main` branch.
 
 ______________________________________________________________________
 

@@ -14,10 +14,10 @@ For [execsql](https://execsql2.readthedocs.io/) scripts in `.sql` files:
 
     If execsql is already installed with other extras, name them too, e.g.
     `uv tool install "execsql2[postgres,lsp]"` or `pipx install --force "execsql2[postgres,lsp]"`: the
-    new list replaces the old one ([Adding an extra later](https://execsql2.readthedocs.io/en/latest/getting-started/installation/#adding-an-extra-later)).
+    new list replaces the old one ([Adding an extra later](https://execsql2.readthedocs.io/en/stable/getting-started/installation/#adding-an-extra-later)).
 
     Without it, highlighting still works and VS Code shows a warning each time the server fails to start. See
-    [Editor Support](https://execsql2.readthedocs.io/en/latest/guides/editors/) for what the server does.
+    [Editor Support](https://execsql2.readthedocs.io/en/stable/guides/editors/) for what the server does.
 
 ## Settings
 
@@ -200,12 +200,12 @@ ______________________________________________________________________
 
 - Run `execsql lsp --check` in a terminal. It says `execsql lsp is ready` when the server can start;
     otherwise it says what is missing. Add the extra with the extras you already have, e.g. `uv tool install "execsql2[postgres,lsp]"`
-    ([Adding an extra later](https://execsql2.readthedocs.io/en/latest/getting-started/installation/#adding-an-extra-later)).
+    ([Adding an extra later](https://execsql2.readthedocs.io/en/stable/getting-started/installation/#adding-an-extra-later)).
 - If `execsql` works in a terminal but not in VS Code, set `execsql.server.path` to its full path
     (`which execsql`).
 - **Output** panel → choose **execsql** to see the server's log, including why it did not start.
     It starts with the execsql version, the Python running it and whether the formatter is installed;
-    include that when you [report a problem](https://execsql2.readthedocs.io/en/latest/guides/editors/#troubleshooting).
+    include that when you [report a problem](https://execsql2.readthedocs.io/en/stable/guides/editors/#troubleshooting).
 
 **Extension not showing in the Extensions panel**
 

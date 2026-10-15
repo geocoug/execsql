@@ -143,7 +143,7 @@ class LintFormat(str, Enum):
         "Every issue names its rule code, which --select and --ignore accept, as a full "
         "code (V001) or a prefix (V). Parse errors (P001) are always reported. Exits 1 "
         "when any error is found; warnings alone exit 0 unless --strict is given.\n\n"
-        "Rules: https://execsql2.readthedocs.io/en/latest/reference/lint/"
+        "Rules: https://execsql2.readthedocs.io/en/stable/reference/lint/"
     ),
 )
 def lint_cmd(

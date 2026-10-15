@@ -10,7 +10,7 @@ const { LanguageClient, TransportKind } = require("vscode-languageclient/node");
 
 const INSTALL_HINT =
   'Install it with `uv tool install "execsql2[lsp]"` (or add the lsp extra to an existing install: ' +
-  "https://execsql2.readthedocs.io/en/latest/getting-started/installation/), or set execsql.server.path.";
+  "https://execsql2.readthedocs.io/en/stable/getting-started/installation/), or set execsql.server.path.";
 
 let client;
 // The server's log, its protocol trace (execsql.trace.server) and why it did not start, in one place:

@@ -53,5 +53,5 @@ body:
       label: Editor and language server (only for a problem in an editor)
       description: |
         The editor and the execsql extension's version, the output of `execsql lsp --check`, and the server's log
-        at `info` (VS Code: View → Output → execsql). See https://execsql2.readthedocs.io/en/latest/guides/editors/#troubleshooting
+        at `info` (VS Code: View → Output → execsql). See https://execsql2.readthedocs.io/en/stable/guides/editors/#troubleshooting
       render: text

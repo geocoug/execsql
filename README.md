@@ -3,7 +3,7 @@
 
 <div align="center">
 
-<img src="https://execsql2.readthedocs.io/en/latest/images/execsql_logo_01.png" alt="execsql logo">
+<img src="https://execsql2.readthedocs.io/en/stable/images/execsql_logo_01.png" alt="execsql logo">
 
 *Multi-DBMS SQL script processor.*
 
@@ -35,7 +35,7 @@ Scripts are ordinary SQL plus metacommands embedded in comments (`-- !x!`), whic
 | `execsql config`                           | Show every config option, its value, and the file that set it                                                                                                         | No                |
 | `execsql list`                             | Metacommands, encodings, plugins, or the keyword vocabulary                                                                                                           | No                |
 | `execsql init`                             | Set up a project: config file, a script with a header, pre-commit hooks                                                                                               | No                |
-| `execsql lsp`                              | [Language server](https://execsql2.readthedocs.io/en/latest/guides/editors/): lint findings, completion, hover, navigation, quick fixes and formatting in your editor | No                |
+| `execsql lsp`                              | [Language server](https://execsql2.readthedocs.io/en/stable/guides/editors/): lint findings, completion, hover, navigation, quick fixes and formatting in your editor | No                |
 | [VS Code extension](extras/vscode-execsql) | Highlighting plus everything `execsql lsp` provides                                                                                                                   | No                |
 
 `format` and `lint` take files or directories.
@@ -69,7 +69,7 @@ load_data.sql
 Found 3 issues in 1 file: 3 warnings (1 file checked)
 ```
 
-`V002` and `V001` together point at a typo: `site_cd` is defined and `site_code` is used. Every issue has a rule code for `--select` and `--ignore`; `--output-format concise` prints one `path:line` line per issue and `json` feeds CI tools. The [lint rules](https://execsql2.readthedocs.io/en/latest/reference/lint/) page explains each one.
+`V002` and `V001` together point at a typo: `site_cd` is defined and `site_code` is used. Every issue has a rule code for `--select` and `--ignore`; `--output-format concise` prints one `path:line` line per issue and `json` feeds CI tools. The [lint rules](https://execsql2.readthedocs.io/en/stable/reference/lint/) page explains each one.
 
 `execsql format` also runs as a [pre-commit hook](#formatting-scripts), so formatting is enforced without anyone remembering to run it.
 
@@ -109,7 +109,7 @@ drop table if exists staging.errorlog cascade;
 
 The `PROMPT` metacommand produces a GUI display of the data:
 
-![PROMPT display of 'fatals' view](https://execsql2.readthedocs.io/en/latest/images/fatals.png)
+![PROMPT display of 'fatals' view](https://execsql2.readthedocs.io/en/stable/images/fatals.png)
 
 ## Installation
 
@@ -124,7 +124,7 @@ uv tool install "execsql2[all]"           # everything: all drivers plus all fea
 add it to that project instead: `uv add "execsql2[postgres]"` or
 `pip install "execsql2[postgres]"` in its virtual environment.
 
-Feature extras cover spreadsheet and Parquet/Feather formats, keyring authentication, PostgreSQL upsert, and more. See the [installation guide](https://execsql2.readthedocs.io/en/latest/getting-started/installation/) for the full list.
+Feature extras cover spreadsheet and Parquet/Feather formats, keyring authentication, PostgreSQL upsert, and more. See the [installation guide](https://execsql2.readthedocs.io/en/stable/getting-started/installation/) for the full list.
 
 ## Usage
 
@@ -191,7 +191,7 @@ silences.
 | `--debug`                                         | Start in step-through debug mode (REPL pauses before each stmt)            |
 | `--no-system-cmd` / `--no-rm-file` / `--no-serve` | Disable the `SYSTEM_CMD` / `RM_FILE` / `SERVE` metacommands                |
 
-See the [full options reference](https://execsql2.readthedocs.io/en/latest/getting-started/syntax/#options) or run `execsql run --help` for the complete list, `execsql run --ping` to test a connection, `execsql config` to see which config files set what, and `execsql list metacommands` for all metacommands.
+See the [full options reference](https://execsql2.readthedocs.io/en/stable/getting-started/syntax/#options) or run `execsql run --help` for the complete list, `execsql run --ping` to test a connection, `execsql config` to see which config files set what, and `execsql list metacommands` for all metacommands.
 
 ## Features
 
@@ -294,7 +294,7 @@ result = run(sql="SELECT 1;", connection=conn)
 conn.close()
 ```
 
-Factory functions exist for every supported backend (`db_Postgres`, `db_MySQL`, `db_SQLite`, `db_DuckDB`, `db_SqlServer`, `db_Oracle`, `db_Firebird`, `db_Access`, `db_Dsn`). See [`execsql.db.factory`](https://execsql2.readthedocs.io/en/latest/api/db/).
+Factory functions exist for every supported backend (`db_Postgres`, `db_MySQL`, `db_SQLite`, `db_DuckDB`, `db_SqlServer`, `db_Oracle`, `db_Firebird`, `db_Access`, `db_Dsn`). See [`execsql.db.factory`](https://execsql2.readthedocs.io/en/stable/api/db/).
 
 Each call to `run()` uses an isolated `RuntimeContext`, so multiple calls do not share state.
 
@@ -327,7 +327,7 @@ repos:
       - id: execsql-lint
 ```
 
-The format hook rewrites `*.sql` files in place by default; the lint hook fails the commit when a script has a lint error. See the [formatter documentation](https://execsql2.readthedocs.io/en/latest/guides/formatter/) for `--check`, `--indent`, and other options.
+The format hook rewrites `*.sql` files in place by default; the lint hook fails the commit when a script has a lint error. See the [formatter documentation](https://execsql2.readthedocs.io/en/stable/guides/formatter/) for `--check`, `--indent`, and other options.
 
 ## VS Code
 
@@ -338,9 +338,9 @@ uv tool install "execsql2[lsp]"                     # the language server
 code --install-extension execsql-syntax.vsix        # the extension, from the release
 ```
 
-If execsql is already installed with other extras, name them too, e.g. `uv tool install "execsql2[postgres,lsp]"` or `pipx install --force "execsql2[postgres,lsp]"`: the new list replaces the old one (see [Adding an extra later](https://execsql2.readthedocs.io/en/latest/getting-started/installation/#adding-an-extra-later)).
+If execsql is already installed with other extras, name them too, e.g. `uv tool install "execsql2[postgres,lsp]"` or `pipx install --force "execsql2[postgres,lsp]"`: the new list replaces the old one (see [Adding an extra later](https://execsql2.readthedocs.io/en/stable/getting-started/installation/#adding-an-extra-later)).
 
-Other editors use the language server directly: see [Editor Support](https://execsql2.readthedocs.io/en/latest/guides/editors/). The [extension README](extras/vscode-execsql/README.md) covers settings, installing from a clone, color customization, and troubleshooting.
+Other editors use the language server directly: see [Editor Support](https://execsql2.readthedocs.io/en/stable/guides/editors/). The [extension README](extras/vscode-execsql/README.md) covers settings, installing from a clone, color customization, and troubleshooting.
 
 ## Templates
 
