@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any, cast
 
 from execsql.db.base import Database, _fetched
+from execsql.db.odbc import odbc_value
 from execsql.db.tiers import SupportTier
 from execsql.exceptions import ErrInfo
 from execsql.utils.errors import exception_desc, fatal_error, install_hint
@@ -119,10 +120,11 @@ class AccessDatabase(Database):
         def _try_odbc_drivers():
             db_name = str(Path(self.db_name).resolve())
             for cs, jet4flag in self.connection_strings:
+                connstr = cs % odbc_value(db_name)
+                logstr = connstr
                 if self.need_passwd:
-                    connstr = f"{cs % db_name} Uid={self.user}; Pwd={self.password};"
-                else:
-                    connstr = cs % db_name
+                    connstr += f" Uid={odbc_value(self.user)}; Pwd={odbc_value(self.password)};"
+                    logstr += f" Uid={odbc_value(self.user)}; Pwd=***;"
                 try:
                     # Access is file-based but a UNC path on an
                     # unreachable share can still block forever; cap
@@ -133,12 +135,12 @@ class AccessDatabase(Database):
                     errors.append(e)
                     if _state.exec_log is not None:
                         _state.exec_log.log_status_info(
-                            f"Could not connect via ODBC using: {re.sub(r'Pwd=[^;]*', 'Pwd=***', connstr)}",
+                            f"Could not connect via ODBC using: {logstr}",
                         )
                 else:
                     if _state.exec_log is not None:
                         _state.exec_log.log_status_info(
-                            f"Connected via ODBC using: {re.sub(r'Pwd=[^;]*', 'Pwd=***', connstr)}",
+                            f"Connected via ODBC using: {logstr}",
                         )
                     self.jet4 = jet4flag
                     return True

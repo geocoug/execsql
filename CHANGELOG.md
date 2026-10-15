@@ -23,6 +23,8 @@ ______________________________________________________________________
 - **`EXPORT … AS VALUES` files run back as the same rows** when run with INCLUDE: a value holding a line break, a `;` at a line end, `!!var!!` or a `-- !x!` line is no longer substituted, split or run as a metacommand (such values are written as joined pieces, e.g. `'a' || CHR(10) || 'b'`); a column named like `order` is quoted; and an empty result writes a comment instead of an INSERT that fails.
 - **`IMPORT` from an ODS spreadsheet reads each cell's value, not its displayed text:** a cell starting with `#`, a cell comment or a cell under a vertical merge no longer shifts the rest of the row into the wrong columns, a multi-line cell is one value, and a percentage, formatted number or date imports as its stored value (`0.125`, not `12.50%`).
 - **`EXPORT … AS ODS`** writes `0` and FALSE as values instead of blank cells, and NULL as an empty cell.
+- **SQL Server uses the port you give** (`-p`, `mssql://host:port/db`, `CONNECT … PORT`); it used to connect to the default instance on 1433, sending the password meant for the other port.
+- **SQL Server and Access passwords containing `;`** now log in, and no part of them is written to `execsql.log`; a database name or file path with `;` can no longer add connection settings.
 - **`execsql lint`, `execsql format` and the language server no longer touch network paths** written in a script or config (`\\host\share\…` on Windows) in an `INCLUDE`, `SUB_INI` or `config_file` chain: on Windows, checking such a path sent your login to that host. `execsql run` still follows them.
 
 ### Removed

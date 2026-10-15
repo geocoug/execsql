@@ -7,9 +7,8 @@ Implements :class:`SqlServerDatabase`, which connects to Microsoft SQL
 Server via ``pyodbc``.  Corresponds to ``-t s`` on the CLI.
 """
 
-import re
-
 from execsql.db.base import Database
+from execsql.db.odbc import connection_string, loggable
 from execsql.exceptions import ErrInfo
 from execsql.utils.errors import fatal_error, install_hint
 from execsql.utils.auth import (
@@ -34,7 +33,7 @@ class SqlServerDatabase(Database):
         db_name: str,
         user_name: str | None,
         need_passwd: bool = False,
-        port: int | None = 1433,
+        port: int | None = None,
         encoding: str | None = "latin1",
         password: str | None = None,
     ) -> None:
@@ -51,6 +50,10 @@ class SqlServerDatabase(Database):
             need_passwd=need_passwd,
             port=port if port else 1433,
         )
+        # Only a port that was asked for goes into the connection string: a
+        # named instance (``host\instance``) is found through SQL Server
+        # Browser, which an explicit port bypasses.
+        self.explicit_port = port or None
         self.type = dbt_sqlserver
         self.password = password
         self.encoding = encoding or "latin1"  # Default on installation of SQL Server
@@ -78,6 +81,12 @@ class SqlServerDatabase(Database):
         ``]]``.
         """
         return "[" + identifier.replace("]", "]]") + "]"
+
+    def _server_attribute(self) -> str:
+        """Return the ``SERVER`` value: ``host,port`` when a port was given."""
+        if self.explicit_port and "," not in self.server_name:
+            return f"{self.server_name},{self.explicit_port}"
+        return str(self.server_name)
 
     def open_db(self) -> None:
         """Open a connection to the SQL Server database via pyodbc."""
@@ -108,23 +117,19 @@ class SqlServerDatabase(Database):
             errors: list[BaseException] = []
 
             def _try_drivers():
+                attributes: list[tuple[str, object]] = [
+                    ("SERVER", self._server_attribute()),
+                    ("MARS_Connection", "Yes"),
+                    ("DATABASE", self.db_name),
+                ]
+                if self.user:
+                    attributes.append(("Uid", self.user))
+                    if self.password:
+                        attributes.append(("Pwd", self.password))
+                else:
+                    attributes.append(("Trusted_Connection", "yes"))
                 for drv in ssdrivers:
-                    if self.user:
-                        if self.password:
-                            connstr = (
-                                f"DRIVER={{{drv}}};SERVER={self.server_name};MARS_Connection=Yes; "
-                                f"DATABASE={self.db_name};Uid={self.user};Pwd={self.password}"
-                            )
-                        else:
-                            connstr = (
-                                f"DRIVER={{{drv}}};SERVER={self.server_name};MARS_Connection=Yes; "
-                                f"DATABASE={self.db_name};Uid={self.user}"
-                            )
-                    else:
-                        connstr = (
-                            f"DRIVER={{{drv}}};SERVER={self.server_name};MARS_Connection=Yes; "
-                            f"DATABASE={self.db_name};Trusted_Connection=yes"
-                        )
+                    connstr = connection_string(drv, attributes)
                     try:
                         # 30 s connect timeout matches the Postgres adapter
                         # default; pyodbc treats `timeout` as the login-and-
@@ -134,12 +139,12 @@ class SqlServerDatabase(Database):
                         errors.append(e)
                         if _state.exec_log is not None:
                             _state.exec_log.log_status_info(
-                                f"Could not connect using: {re.sub(r'Pwd=[^;]*', 'Pwd=***', connstr)}",
+                                f"Could not connect using: {loggable(drv, attributes)}",
                             )
                     else:
                         if _state.exec_log is not None:
                             _state.exec_log.log_status_info(
-                                f"Connected using: {re.sub(r'Pwd=[^;]*', 'Pwd=***', connstr)}",
+                                f"Connected using: {loggable(drv, attributes)}",
                             )
                         return True
                 return False
