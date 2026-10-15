@@ -3,10 +3,10 @@ from __future__ import annotations
 """
 Mocked unit tests for Oracle, SQL Server, Firebird, and MS Access adapters.
 
-None of these adapters' driver libraries (oracledb, pyodbc, firebird-driver,
-win32com) are installed in the test environment.  Each class section injects
-a ``MagicMock`` module into ``sys.modules`` before importing the adapter, so
-the import guard inside each ``__init__`` succeeds without a real driver.
+The driver libraries (oracledb, pyodbc, firebird-driver, win32com) are
+replaced for each test by stand-in modules (the ``fake_drivers`` fixture in ``conftest.py``),
+so the import guard inside each ``__init__`` succeeds without a real driver
+and a real driver installed in the environment is never touched.
 
 Tests focus exclusively on **pure-logic methods** that do not require an
 open database connection:
@@ -20,13 +20,18 @@ open database connection:
 """
 
 import datetime
-import sys
-import types
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 import execsql.state as _state
+from execsql.db.oracle import OracleDatabase
+from execsql.db.sqlserver import SqlServerDatabase
+from execsql.db.firebird import FirebirdDatabase
+from execsql.db.access import AccessDatabase
+
+
+pytestmark = pytest.mark.usefixtures("fake_drivers")
 
 
 # ---------------------------------------------------------------------------
@@ -48,22 +53,6 @@ def _mock_conn(rowcount: int = 0) -> MagicMock:
 # ===========================================================================
 # Oracle adapter
 # ===========================================================================
-
-
-def _ensure_oracledb_mock() -> None:
-    """Inject a stand-in for oracledb into sys.modules if the driver is not installed."""
-    try:
-        import oracledb  # noqa: F401
-    except ImportError:
-        mock = types.ModuleType("oracledb")
-        mock.connect = MagicMock()
-        mock.makedsn = MagicMock(return_value="fake_dsn")
-        sys.modules["oracledb"] = mock
-
-
-_ensure_oracledb_mock()
-
-from execsql.db.oracle import OracleDatabase  # noqa: E402
 
 
 def _make_oracle(server: str = "orasrv", db: str = "orcl", user: str | None = "scott") -> OracleDatabase:
@@ -189,20 +178,6 @@ class TestOracleDatabase:
 # ===========================================================================
 
 
-def _ensure_pyodbc_mock() -> MagicMock:
-    if "pyodbc" not in sys.modules:
-        mock = types.ModuleType("pyodbc")
-        mock.connect = MagicMock()
-        mock.Binary = MagicMock(side_effect=lambda d: d)
-        sys.modules["pyodbc"] = mock
-    return sys.modules["pyodbc"]
-
-
-_ensure_pyodbc_mock()
-
-from execsql.db.sqlserver import SqlServerDatabase  # noqa: E402
-
-
 def _make_sqlserver(
     server: str = "sqlsrv",
     db: str = "testdb",
@@ -285,22 +260,6 @@ class TestSqlServerDatabase:
 # ===========================================================================
 # Firebird adapter
 # ===========================================================================
-
-
-def _ensure_firebird_driver_mock() -> MagicMock:
-    if "firebird.driver" not in sys.modules:
-        parent = types.ModuleType("firebird")
-        driver_mod = types.ModuleType("firebird.driver")
-        driver_mod.connect = MagicMock()
-        parent.driver = driver_mod
-        sys.modules["firebird"] = parent
-        sys.modules["firebird.driver"] = driver_mod
-    return sys.modules["firebird.driver"]
-
-
-_ensure_firebird_driver_mock()
-
-from execsql.db.firebird import FirebirdDatabase  # noqa: E402
 
 
 def _make_firebird(
@@ -402,25 +361,6 @@ class TestFirebirdDatabase:
 # ===========================================================================
 # MS Access adapter
 # ===========================================================================
-
-
-def _ensure_win32com_mock() -> tuple[MagicMock, MagicMock]:
-    """Inject win32com and win32com.client mocks if not present."""
-    if "win32com" not in sys.modules:
-        win32com_mod = types.ModuleType("win32com")
-        win32com_client_mod = types.ModuleType("win32com.client")
-        win32com_client_mod.Dispatch = MagicMock()
-        win32com_mod.client = win32com_client_mod
-        sys.modules["win32com"] = win32com_mod
-        sys.modules["win32com.client"] = win32com_client_mod
-    return sys.modules["win32com"], sys.modules["win32com.client"]
-
-
-_ensure_win32com_mock()
-# pyodbc may have already been added above; ensure it's present.
-_ensure_pyodbc_mock()
-
-from execsql.db.access import AccessDatabase  # noqa: E402
 
 
 def _make_access(fn: str = "test.accdb") -> AccessDatabase:

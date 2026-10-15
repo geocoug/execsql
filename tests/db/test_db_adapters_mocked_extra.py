@@ -6,22 +6,26 @@ methods (``table_exists``, ``view_exists``, ``column_exists``,
 paths, the Oracle SQL-trailing-semicolon shims, and the Access value-
 conversion helpers.
 
-The driver libraries (oracledb, firebird-driver, pyodbc, win32com)
-are not installed in CI's matrix runners; each adapter is imported only
-after a MagicMock is injected into ``sys.modules``.
+The driver libraries (oracledb, firebird-driver, pyodbc, win32com) are
+replaced for each test by stand-in modules (the ``fake_drivers`` fixture in
+``conftest.py``).
 """
 
 from __future__ import annotations
 
 import importlib
-import sys
-import types
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 import execsql.state as _state
+from execsql.db.oracle import OracleDatabase
+from execsql.db.firebird import FirebirdDatabase
+from execsql.db.access import AccessDatabase
+from execsql.exceptions import ErrInfo, DatabaseNotImplementedError
+
+pytestmark = pytest.mark.usefixtures("fake_drivers")
 
 
 def _mock_conn_with_rows(rows: list, description: list | None = None) -> MagicMock:
@@ -34,54 +38,6 @@ def _mock_conn_with_rows(rows: list, description: list | None = None) -> MagicMo
     conn = MagicMock()
     conn.cursor.return_value = curs
     return conn
-
-
-# ===========================================================================
-# Mock driver injection (must happen before adapter imports)
-# ===========================================================================
-
-
-def _ensure_mock(mod_name: str, **attrs) -> None:
-    """Put a stand-in for *mod_name* in sys.modules, unless the real driver imports.
-
-    A stand-in that replaced an installed driver would stay for the rest of
-    the session and reach tests that need the real one.
-    """
-    if mod_name in sys.modules:
-        return
-    try:
-        importlib.import_module(mod_name)
-    except ImportError:
-        mock = types.ModuleType(mod_name)
-        for k, v in attrs.items():
-            setattr(mock, k, v)
-        sys.modules[mod_name] = mock
-
-
-_ensure_mock("oracledb", connect=MagicMock(), makedsn=MagicMock(return_value="dsn"))
-if "firebird.driver" not in sys.modules:
-    _fb_parent = types.ModuleType("firebird")
-    _fb_driver = types.ModuleType("firebird.driver")
-    _fb_driver.connect = MagicMock()
-    _fb_parent.driver = _fb_driver
-    sys.modules["firebird"] = _fb_parent
-    sys.modules["firebird.driver"] = _fb_driver
-_ensure_mock("pyodbc", connect=MagicMock(), Binary=MagicMock(side_effect=lambda d: d))
-_ensure_mock(
-    "win32com",
-    client=types.SimpleNamespace(Dispatch=MagicMock()),
-)
-# Ensure win32com.client is importable as a submodule
-if "win32com.client" not in sys.modules:
-    sub = types.ModuleType("win32com.client")
-    sub.Dispatch = MagicMock()
-    sys.modules["win32com.client"] = sub
-
-
-from execsql.db.oracle import OracleDatabase  # noqa: E402
-from execsql.db.firebird import FirebirdDatabase  # noqa: E402
-from execsql.db.access import AccessDatabase  # noqa: E402
-from execsql.exceptions import ErrInfo, DatabaseNotImplementedError  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -435,7 +391,6 @@ class TestAccessParamstr:
 )
 def test_drop_table_does_not_quote_the_name_again(module, cls, dbtype):
     """Callers pass ``schema_qualified_table_name()``; quoting it again names a table that does not exist."""
-    import importlib
 
     import execsql.types as dbtypes
 
