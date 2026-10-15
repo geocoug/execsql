@@ -18,6 +18,7 @@ from pygls.uris import from_fs_path
 
 from execsql.cli.lint import variables_defined_by
 from execsql.lsp._util import RX_METACOMMAND
+from execsql.utils.paths import is_network_path
 from execsql.script.ast import IncludeDirective, MetaCommandStatement, ScriptBlock
 from execsql.script.parser import parse_string
 
@@ -195,6 +196,8 @@ def file_facts(source: str, path: str | None, base_dir: str | None = None) -> Fi
             steps.append(_ScriptCall(Location(path, row, start, end), node.target.lower()))
         elif isinstance(node, IncludeDirective):
             target = node.target.strip().strip("\"'")
+            if is_network_path(target):
+                continue  # never followed: checking it would contact the named host
             start, end = _span_of(target, text) if target else (0, len(text))
             resolved = Path(target) if Path(target).is_absolute() or script_dir is None else script_dir / target
             steps.append(_Include(Location(path, row, start, end), target, str(resolved)))

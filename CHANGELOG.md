@@ -17,6 +17,10 @@ ______________________________________________________________________
 - **VS Code extension version** is execsql's version (2.30.0 now), in every build including `just install-vscode`; a pre-release is `2.31.0-rc.1`, so VS Code upgrades from an rc to its final release.
 - **Documentation links** in execsql's messages, `execsql --online-help`, hover text, the config template, the VS Code extension and the package's PyPI page go to the docs of the latest release (`/en/stable/`) instead of the unreleased `main` branch.
 
+### Fixed
+
+- **`execsql lint`, `execsql format` and the language server no longer touch network paths** written in a script or config (`\\host\share\…` on Windows) in an `INCLUDE`, `SUB_INI` or `config_file` chain: on Windows, checking such a path sent your login to that host. `execsql run` still follows them.
+
 ### Removed
 
 - **The `dev` extra:** `execsql2[dev]` is gone from PyPI; it only held the project's own test, lint and docs tools, which are now the `dev` dependency group in `pyproject.toml` (`uv sync`, or `pip install --group dev`).

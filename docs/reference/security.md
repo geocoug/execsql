@@ -142,6 +142,21 @@ The [`INCLUDE`](metacommands.md#include) metacommand executes a script from any 
 
 Validate any variable used to construct file paths before use in file-related metacommands.
 
+### Network paths and the static tools { #network_paths }
+
+`execsql lint`, `execsql format` and the language server read scripts and
+`execsql.conf` files that someone else may have written, such as a cloned
+repository. On Windows, even checking whether a path written as
+`\\host\share\file.sql` (or `//host/share/file.sql`) exists makes Windows
+connect to that host and offer your login. So these tools never touch a path
+written that way, in an `INCLUDE`, a `SUB_INI`, a config `config_file` /
+`win_config_file` chain or an `[include_required]` / `[include_optional]`
+entry: lint does not check it (no I001), and the language server does not
+follow it for completion, hover or links. A relative path in a script that is
+itself on a share is still followed; it reaches only the host you opened.
+`execsql run` is unchanged: running a script that `INCLUDE`s from a share is a
+choice you make.
+
 ## Path containment roots { #path-containment-roots }
 
 Containment roots are opt-in. When configured, paths must resolve under the configured root; attempts to escape with `../`, absolute paths, drive letters, or UNC paths are rejected.

@@ -56,6 +56,7 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple
 
+from execsql.utils.paths import is_network_path
 from execsql.exceptions import ErrInfo
 from execsql.script.ast import (
     BatchBlock,
@@ -461,6 +462,8 @@ def _read_ini_vars(
     language server; a file that is unreadable or not valid INI defines
     nothing.
     """
+    if is_network_path(ini_file):  # see _check_include_path
+        return
     p = Path(ini_file)
     if not p.is_absolute() and script_dir is not None:
         p = script_dir / p
@@ -582,7 +585,13 @@ def _check_include_path(
     line_no: int,
     issues: list[_Issue],
 ) -> None:
-    """Warn if the INCLUDE target does not exist on disk."""
+    """Warn if the INCLUDE target does not exist on disk.
+
+    A target written as a network path is not checked: on Windows, even
+    asking whether it exists contacts the host it names.
+    """
+    if is_network_path(raw_path):
+        return
     p = Path(raw_path)
     if not p.is_absolute() and script_dir is not None:
         p = script_dir / p
