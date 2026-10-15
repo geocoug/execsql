@@ -45,7 +45,7 @@
 -- 	The GNU General Public License is available at <http://www.gnu.org/licenses/>
 --
 -- VERSION
---	1.1.1
+--	1.2.0
 --
 -- HISTORY
 --	 Date		 Remarks
@@ -54,13 +54,17 @@
 --	2020-02-27	Added COMPARE_CHANGES and COMPARE_CHANGED. v. 1.1.0.  RDN.
 --	2020-02-29	Excluded PK columns from output of COMPARE_COMMON_VALS.
 --				v. 1.1.1.  RDN.
+--	2026-10-15	execsql2: each script's notes are its docstring (SHOW SCRIPTS, the
+--				language server); include_cols and exclude_cols are declared
+--				optional parameters.  v. 1.2.0.  Tested in tests/templates of the
+--				execsql2 repository.
 -- ==================================================================
 
 
 -- ################################################################
 --			Script COMPARE_COMMON
 -- ===============================================================
---
+-- !x! BEGIN SCRIPT COMPARE_COMMON with parameters (base_schema, staging, table, sql_var, include_cols="", exclude_cols="")
 -- Generate SQL to compare the attributes of base and staging
 -- tables for only those primary keys in common.  This uses an
 -- inner join between the tables, and does not include any rows
@@ -101,8 +105,6 @@
 --
 -- Notes
 -- 	1. The generated SQL is not terminated with a semicolon.
--- ===============================================================
--- !x! BEGIN SCRIPT COMPARE_COMMON with parameters (base_schema, staging, table, sql_var)
 
 -- Create a table of primary key columns for the table
 drop table if exists cmp_primary_key_columns cascade;
@@ -129,9 +131,9 @@ order by k.ordinal_position
 -- that are to be compared.
 -- Include only those columns from the staging table that are also in the base table.
 -- !x! sub_empty ~col_sel
--- !x! if(sub_defined(#include_cols))
+-- !x! if(not is_null("!!#include_cols!!"))
 	-- !x! sub ~col_sel and s.column_name in (!!#include_cols!!)
--- !x! elseif(sub_defined(#exclude_cols))
+-- !x! elseif(not is_null("!!#exclude_cols!!"))
 	-- !x! sub ~col_sel and s.column_name not in (!!#exclude_cols!!)
 -- !x! endif
 drop table if exists cmp_cols cascade;
@@ -201,7 +203,7 @@ from
 -- ################################################################
 --			Script COMPARE_COMMON_VALS
 -- ===============================================================
---
+-- !x! BEGIN SCRIPT COMPARE_COMMON_VALS with parameters (base_schema, staging, table, sql_var, include_cols="", exclude_cols="")
 -- Generate SQL to compare the attributes of base and staging
 -- tables for only those primary keys in common.  This uses an
 -- inner join between the tables, and does not include any rows
@@ -238,8 +240,6 @@ from
 --
 -- Notes
 -- 	1. The generated SQL is not terminated with a semicolon.
--- ===============================================================
--- !x! BEGIN SCRIPT COMPARE_COMMON_VALS with parameters (base_schema, staging, table, sql_var)
 
 -- Create a table of primary key columns for the table
 drop table if exists cmp_primary_key_columns cascade;
@@ -266,9 +266,9 @@ order by k.ordinal_position
 -- that are to be compared.
 -- Include only those columns from the staging table that are also in the base table.
 -- !x! sub_empty ~col_sel
--- !x! if(sub_defined(#include_cols))
+-- !x! if(not is_null("!!#include_cols!!"))
 	-- !x! sub ~col_sel and s.column_name in (!!#include_cols!!)
--- !x! elseif(sub_defined(#exclude_cols))
+-- !x! elseif(not is_null("!!#exclude_cols!!"))
 	-- !x! sub ~col_sel and s.column_name not in (!!#exclude_cols!!)
 -- !x! endif
 drop table if exists cmp_cols cascade;
@@ -340,7 +340,7 @@ from
 -- ################################################################
 --			Script COMPARE_CHANGES
 -- ===============================================================
---
+-- !x! BEGIN SCRIPT COMPARE_CHANGES with parameters (base_schema, staging, table, sql_var, include_cols="", exclude_cols="")
 -- Generate SQL to characterize every row of the staging table
 -- data as either a new row, a row with changed data, or a row
 -- with data that are unchanged relative to the base table.
@@ -376,8 +376,6 @@ from
 --
 -- Notes
 -- 	1. The generated SQL is not terminated with a semicolon.
--- ===============================================================
--- !x! BEGIN SCRIPT COMPARE_CHANGES with parameters (base_schema, staging, table, sql_var)
 
 -- Create a table of primary key columns for the table
 drop table if exists cmp_primary_key_columns cascade;
@@ -404,9 +402,9 @@ order by k.ordinal_position
 -- that are to be compared.
 -- Include only those columns from the staging table that are also in the base table.
 -- !x! sub_empty ~col_sel
--- !x! if(sub_defined(#include_cols))
+-- !x! if(not is_null("!!#include_cols!!"))
 	-- !x! sub ~col_sel and s.column_name in (!!#include_cols!!)
--- !x! elseif(sub_defined(#exclude_cols))
+-- !x! elseif(not is_null("!!#exclude_cols!!"))
 	-- !x! sub ~col_sel and s.column_name not in (!!#exclude_cols!!)
 -- !x! endif
 drop table if exists cmp_cols cascade;
@@ -486,7 +484,7 @@ from
 -- ################################################################
 --			Script COMPARE_CHANGED
 -- ===============================================================
---
+-- !x! BEGIN SCRIPT COMPARE_CHANGED with parameters (base_schema, staging, table, sql_var, include_cols="", exclude_cols="")
 -- Generate SQL to characterize every row of the base table
 -- depending on whether there is a matching row in the staging
 -- table, whether a matching row has new data, or whether a
@@ -523,8 +521,6 @@ from
 --
 -- Notes
 -- 	1. The generated SQL is not terminated with a semicolon.
--- ===============================================================
--- !x! BEGIN SCRIPT COMPARE_CHANGED with parameters (base_schema, staging, table, sql_var)
 
 -- Create a table of primary key columns for the table
 drop table if exists cmp_primary_key_columns cascade;
@@ -551,9 +547,9 @@ order by k.ordinal_position
 -- that are to be compared.
 -- Include only those columns from the staging table that are also in the base table.
 -- !x! sub_empty ~col_sel
--- !x! if(sub_defined(#include_cols))
+-- !x! if(not is_null("!!#include_cols!!"))
 	-- !x! sub ~col_sel and s.column_name in (!!#include_cols!!)
--- !x! elseif(sub_defined(#exclude_cols))
+-- !x! elseif(not is_null("!!#exclude_cols!!"))
 	-- !x! sub ~col_sel and s.column_name not in (!!#exclude_cols!!)
 -- !x! endif
 drop table if exists cmp_cols cascade;
