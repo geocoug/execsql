@@ -128,7 +128,7 @@ def x_copy(**kwargs: Any) -> None:
         create_tbl = tbl_desc.create_table(db2.type, schema2, table2)
         if new_tbl2 == "replacement":
             try:
-                db2.drop_table(tbl2)
+                db2.drop_table_for_replacement(schema2, table2)
             except ErrInfo:
                 raise
             except Exception as e:
@@ -215,7 +215,7 @@ def x_copy_query(**kwargs: Any) -> None:
         create_tbl = tbl_desc.create_table(db2.type, schema2, table2)
         if new_tbl2 == "replacement":
             try:
-                db2.drop_table(tbl2)
+                db2.drop_table_for_replacement(schema2, table2)
             except ErrInfo:
                 raise
             except Exception as e:

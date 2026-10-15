@@ -55,7 +55,7 @@ def importtable(
         sql = inf.create_table(db.type, schemaname, tablename)
         if is_new == 2:
             try:
-                db.drop_table(db.schema_qualified_table_name(schemaname, tablename))
+                db.drop_table_for_replacement(schemaname, tablename)
             except ErrInfo:
                 raise
             except Exception as e:
