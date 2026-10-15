@@ -1,8 +1,9 @@
 # Release Process
 
-This page documents the release workflow for `execsql2`. The release is
-fully automated — the version-bump commit (plus its companion tag) is
-the trigger; `.github/workflows/ci-cd.yml` does the rest.
+This page is the release checklist for `execsql2`; CONTRIBUTING and the
+project notes link here rather than repeating it. The release is fully
+automated: the version-bump commit and its tag are the trigger, and
+`.github/workflows/ci-cd.yml` does the rest.
 
 ## Prerequisites
 
@@ -11,7 +12,8 @@ the trigger; `.github/workflows/ci-cd.yml` does the rest.
 - Local tests green: `just check`.
 - `CHANGELOG.md` `[Unreleased]` section reviewed and tightened to the
     Keep-a-Changelog voice rule (one idea per bullet, user-facing tone,
-    no internal-only refactor notes). See `CLAUDE.md` for the full rule.
+    no internal-only refactor notes). It becomes the GitHub Release text
+    word for word, so read it as the release announcement.
 - `docs/about/divergence.md` updated for any new feature, changed
     behavior, security fix, or removed functionality that diverges from
     upstream `execsql` v1.130.1.
@@ -53,22 +55,48 @@ fails. Stay on the command until it exits.
 
 ### What runs on a tag push
 
-| Job                    | Gating?                                                 | Purpose                                                                                                 |
-| ---------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| `lint`                 | yes                                                     | ruff check + ruff format check                                                                          |
-| `tests` (matrix)       | yes                                                     | py3.10–3.14 × {ubuntu, macos, windows}                                                                  |
-| `integration-tests`    | yes                                                     | PostgreSQL, MySQL, MSSQL service containers                                                             |
-| `access-tests-windows` | yes (when Access install succeeds)                      | Real Access driver on `windows-latest`                                                                  |
-| `build`                | yes                                                     | Checks the tag equals `project.version`; `python -m build` produces sdist + wheel                       |
-| `publish`              | yes (tag-gated)                                         | OIDC trusted-publisher PyPI upload                                                                      |
-| `vscode-extension`     | yes                                                     | Packages `extras/vscode-execsql` into `execsql-syntax.vsix` (on a tag, with the tag's X.Y.Z version)    |
-| `generate-release`     | yes (tag-gated, after `publish` and `vscode-extension`) | Creates the GitHub release with auto-extracted CHANGELOG section; attaches the sdist, wheel and `.vsix` |
+Every push to `main`, every pull request and every `v*.*.*` tag runs the
+checks; only a tag runs the last two jobs.
 
-Publish / generate-release run only on tag refs
-(`if: startsWith(github.ref, 'refs/tags/v')`), so a non-bump push to
-`main` doesn't publish. They run in the order `build → publish → generate-release`: no GitHub
-release goes out unless the PyPI upload succeeded. A version already on PyPI fails the
-upload rather than being skipped.
+| Job                                     | Gates `build`? | Purpose                                                                                                         |
+| --------------------------------------- | -------------- | --------------------------------------------------------------------------------------------------------------- |
+| `lint`                                  | yes            | `ruff check` and `ruff format --check`, at the ruff `rev` in `.pre-commit-config.yaml`                          |
+| `typecheck`                             | yes            | `mypy src/execsql/` against the packages in `uv.lock` (a stale lock fails)                                      |
+| `pre-commit`                            | yes            | every pre-commit hook on every file (mypy is left to `typecheck`)                                               |
+| `typer-floor`                           | yes            | the CLI tests against the lowest Typer `pyproject.toml` allows                                                  |
+| `docs`                                  | yes            | `zensical build --strict`: a broken link or anchor fails it                                                     |
+| `tests` (`test-<os>-py<version>`)       | yes            | Python 3.10–3.14 on Ubuntu, macOS and Windows                                                                   |
+| `integration-tests` (`tier1-live-db-…`) | yes            | PostgreSQL, MySQL and SQL Server containers; 86% coverage floor                                                 |
+| `vscode-extension`                      | yes            | packages `extras/vscode-execsql` as `execsql-syntax.vsix`                                                       |
+| `access-tests-windows`                  | no             | the real MS Access driver on Windows; informational                                                             |
+| `build`                                 | —              | on a tag: checks the tag equals `project.version` and that `CHANGELOG.md` has its section; builds sdist + wheel |
+| `publish`                               | tag only       | uploads to PyPI by OIDC trusted publishing                                                                      |
+| `generate-release`                      | tag only       | creates the GitHub Release: body = the version's `CHANGELOG.md` section; attaches sdist, wheel and `.vsix`      |
+
+They run in the order `build → publish → generate-release`, so no GitHub
+Release goes out unless the PyPI upload succeeded. A version already on
+PyPI fails the upload rather than being skipped.
+
+### Release notes
+
+The Release text is the `## [X.Y.Z]` section of `CHANGELOG.md`, printed by
+`python scripts/release_notes.py X.Y.Z` (try it before tagging). GitHub's
+generated list of commits is not used: the CHANGELOG says what changed for
+the person upgrading.
+
+### Pre-releases
+
+`just bump-pre 2.31.0rc1` (or `a1`, `b1`) cuts a [PEP 440](https://peps.python.org/pep-0440/)
+pre-release. It publishes to PyPI like any release; `pip` and `uv` skip it
+unless `--pre` is passed, and the GitHub Release is marked pre-release.
+Promote it with the final version string (`just bump-pre 2.31.0`); `just bump-patch` from `2.31.0rc1` would skip to `2.31.1`. Preview first:
+`uv run bump-my-version bump --new-version 2.31.0rc1 patch --dry-run -v`.
+
+### PyPI trusted publishing
+
+`publish` needs no token. PyPI's trusted publisher for `execsql2` is:
+owner `geocoug`, repository `execsql`, workflow `ci-cd.yml`, environment
+`pypi`.
 
 ## When something goes wrong
 
@@ -106,13 +134,16 @@ PyPI does not have the version, and the GitHub release was not created
 1. If the fix needs a code change: fix it on `main` and re-bump. The tag
     is the source of truth for the version; don't reassign it.
 
-### `generate-release` succeeded but the CHANGELOG section is wrong
+### `build` failed: CHANGELOG.md has no section for the tag
 
-The release-notes step in the workflow extracts the CHANGELOG section
-matching `## [<version>]`. Edit the GitHub release body directly through
-the UI or `gh release edit v2.X.Y --notes-file <path>`. Then fix the
-voice in `CHANGELOG.md` on `main` so future releases don't repeat the
-mistake.
+Nothing was published. The bump turns `[Unreleased]` into the dated
+section, so this means the section is empty or the tag was made by hand.
+Add the notes on `main` and bump again.
+
+### The Release text needs a correction
+
+Fix `CHANGELOG.md` on `main`, then replace the published text with it:
+`python scripts/release_notes.py 2.X.Y > notes.md && gh release edit v2.X.Y --notes-file notes.md`.
 
 ### `uv lock` produced an unrelated diff
 

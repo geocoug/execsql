@@ -373,6 +373,11 @@ jobs:
                       echo "::error::Tag $GITHUB_REF_NAME does not match project.version $version in pyproject.toml"
                       exit 1
                   fi
+            - name: Check CHANGELOG.md has the release notes
+              # The GitHub Release body is this section; a missing one would
+              # only surface after the PyPI upload.
+              if: startsWith(github.ref, 'refs/tags/v')
+              run: python scripts/release_notes.py "$GITHUB_REF_NAME" > /dev/null
             - name: Build sdist + wheel
               run: |
                   python -m pip install --upgrade pip
@@ -444,11 +449,13 @@ jobs:
                   else
                       echo "prerelease=false" >> "$GITHUB_OUTPUT"
                   fi
+            - name: Release notes from CHANGELOG.md
+              run: python3 scripts/release_notes.py "$GITHUB_REF_NAME" > release-notes.md
             - name: Create release
               uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64  # v3.0.3
               with:
                   draft: false
                   prerelease: ${{ steps.tag.outputs.prerelease }}
-                  generate_release_notes: true
+                  body_path: release-notes.md
                   files: |
                       dist/*

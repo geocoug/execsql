@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Changed
+
+- **GitHub Releases** carry the version's `CHANGELOG.md` section as their text, instead of a generated list of commits.
+
 ______________________________________________________________________
 
 ## [2.30.0] - 2026-10-14
@@ -38,7 +42,7 @@ ______________________________________________________________________
 
 ### Removed
 
-- **Unused helpers:** `execsql.gui.get_backend()` (the GUI picks its backend in `enable_gui()`), `ins_quoted_rx()` (re-exported from `execsql.metacommands`; nothing built a metacommand with it) `execsql.utils.errors.exception_info()` (use `exception_desc()`), and the `execsql.cli.main` re-export (the run command's own module, `execsql.cli.commands.run`, keeps it).
+- **Unused helpers:** `execsql.gui.get_backend()` (the GUI picks its backend in `enable_gui()`), `ins_quoted_rx()` (re-exported from `execsql.metacommands`; nothing built a metacommand with it), `execsql.utils.errors.exception_info()` (use `exception_desc()`), and the `execsql.cli.main` re-export (the run command's own module, `execsql.cli.commands.run`, keeps it).
 - **`execsql.utils.fileio`:** `filewriter_closeall()`, `filewriter_shutdown()` and `list_encodings()`, which nothing called; use `filewriter_end()` to stop a writer and `execsql list encodings` for the encodings. `FileWriter.ping()` is gone too.
 
 ______________________________________________________________________

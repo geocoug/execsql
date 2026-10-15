@@ -74,58 +74,6 @@ Artifacts are written to `dist/`. The CI pipeline does this automatically on tag
 
 ## Releases
 
-Releases are managed with [bump-my-version](https://callowayproject.github.io/bump-my-version/) and published automatically by the `ci-cd.yml` workflow when a version tag is pushed.
-
-### Stable releases
-
-```bash
-just bump-patch   # or bump-minor / bump-major
-git push origin main --follow-tags
-```
-
-`bump-my-version` commits the version change and creates the tag in one step.
-
-### Pre-releases (alpha, beta, RC)
-
-Use `just bump-pre` with a full [PEP 440](https://peps.python.org/pep-0440/) version string:
-
-```bash
-just bump-pre 2.0.0a1   # alpha
-just bump-pre 2.0.0b1   # beta
-just bump-pre 2.0.0rc1  # release candidate
-git push origin <branch> --follow-tags
-```
-
-Pre-releases are published to PyPI but are not installed by default — `pip install execsql2` will not pick them up unless `--pre` is passed.
-
-The GitHub Release for a pre-release tag is marked as a pre-release. Promote to the final version with the same recipe and the final version string (`just bump-pre 2.0.0`). `just bump-patch` from `2.0.0rc1` would skip ahead to `2.0.1`.
-
-Always preview a bump first: `uv run bump-my-version bump --new-version 2.0.0a1 patch --dry-run -v` should print `New version will be '2.0.0a1'`.
-
-### CI/CD pipeline (`ci-cd.yml`)
-
-Triggered on pushes to `main`, any `v*.*.*` tag, and pull requests.
-
-| Job                    | Trigger            | What it does                                          |
-| ---------------------- | ------------------ | ----------------------------------------------------- |
-| `lint`                 | all events         | Runs `ruff check` and `ruff format --check`           |
-| `typecheck`            | all events         | Runs `mypy src/execsql/` (zero-error gate)            |
-| `pre-commit`           | all events         | Runs the full pre-commit suite against all files      |
-| `docs`                 | all events         | Builds the documentation site                         |
-| `tests`                | all events         | Runs the test matrix (3 OS × 5 Python versions)       |
-| `integration-tests`    | all events         | Runs tests against live database service containers   |
-| `access-tests-windows` | all events         | Runs MS Access driver tests on Windows (non-blocking) |
-| `build`                | `v*.*.*` tags only | Builds sdist + wheel, checks with twine               |
-| `publish`              | `v*.*.*` tags only | Publishes to PyPI via OIDC trusted publishing         |
-| `generate-release`     | `v*.*.*` tags only | Creates a GitHub Release with dist artifacts          |
-
-### PyPI trusted publishing setup
-
-The `publish` job uses OIDC trusted publishing — no API token is required. To configure it on PyPI, add a trusted publisher with these settings:
-
-| Field       | Value       |
-| ----------- | ----------- |
-| Owner       | `geocoug`   |
-| Repository  | `execsql`   |
-| Workflow    | `ci-cd.yml` |
-| Environment | `pypi`      |
+Releases are cut with `just bump-patch` / `bump-minor` / `bump-major` / `bump-pre <version>` and published by
+`.github/workflows/ci-cd.yml` when the tag is pushed. [Release Process](docs/dev/releasing.md) is the one checklist:
+what each bump does, what CI runs on a tag, where the release notes come from, and what to do when a step fails.
