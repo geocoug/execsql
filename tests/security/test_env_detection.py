@@ -65,6 +65,45 @@ class TestPlaintextKeyringDetection:
             assert auth.is_plaintext_keyring() is False
 
 
+def _backend(module: str, name: str):
+    cls = type(name, (), {})
+    cls.__module__ = module
+    return cls()
+
+
+@pytest.mark.parametrize(
+    ("module", "name", "plaintext"),
+    [
+        ("keyrings.alt.file", "PlaintextKeyring", True),
+        ("keyrings.alt.file", "EncryptedKeyring", False),  # a master password protects it
+        ("keyrings.alt.Windows", "RegistryKeyring", False),
+        ("keyring.backends.fail", "Keyring", False),  # stores nothing at all
+        ("keyring.backends.SecretService", "Keyring", False),
+    ],
+)
+def test_only_the_plaintext_file_backend_is_plaintext(module, name, plaintext):
+    from execsql.utils import auth
+
+    keyring = pytest.importorskip("keyring")  # the auth extra
+    with patch.object(keyring, "get_keyring", return_value=_backend(module, name)):
+        assert auth.is_plaintext_keyring() is plaintext
+
+
+@pytest.mark.parametrize(
+    ("first", "plaintext"),
+    [(("keyring.backends.macOS", "Keyring"), False), (("keyrings.alt.file", "PlaintextKeyring"), True)],
+)
+def test_a_chained_backend_is_judged_by_where_a_password_is_saved(first, plaintext):
+    """keyring's ChainerBackend saves to its first backend: the Keychain ahead of a keyrings.alt file."""
+    from execsql.utils import auth
+
+    keyring = pytest.importorskip("keyring")
+    chainer = _backend("keyring.backends.chainer", "ChainerBackend")
+    chainer.backends = [_backend(*first), _backend("keyrings.alt.file", "PlaintextKeyring")]
+    with patch.object(keyring, "get_keyring", return_value=chainer):
+        assert auth.is_plaintext_keyring() is plaintext
+
+
 # ---------------------------------------------------------------------------
 # F041 — headless POSIX detection in enable_gui
 # ---------------------------------------------------------------------------

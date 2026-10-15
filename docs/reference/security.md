@@ -78,7 +78,7 @@ macOS, Windows, and desktop Linux (with GNOME Keyring or KWallet running) use th
 
 !!! warning "Plaintext keyring backend"
 
-    `keyrings.alt.file.PlaintextKeyring` stores passwords without encryption at `~/.local/share/python_keyring/keyring_pass.cfg`. Only acceptable when the filesystem is already secured (encrypted disk, single-user host, `chmod 600` on the file). Prefer the encrypted backend when possible.
+    `keyrings.alt.file.PlaintextKeyring` stores passwords without encryption at `~/.local/share/python_keyring/keyring_pass.cfg`. Only acceptable when the filesystem is already secured (encrypted disk, single-user host, `chmod 600` on the file). Prefer the encrypted backend when possible. execsql prints a warning when it saves a password into this backend (once per run); the encrypted backend does not trigger it. To keep passwords out of every keyring on a machine, set `use_keyring = No` in `[connect]`: execsql then prompts each time.
 
 ### `enc_password` in execsql.conf
 
