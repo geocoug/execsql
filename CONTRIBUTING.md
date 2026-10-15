@@ -55,6 +55,15 @@ just test-all   # full 3.10–3.14 matrix in parallel
 
 Tests are run with [pytest](https://pytest.org/) via [tox-uv](https://github.com/tox-dev/tox-uv). Coverage is reported automatically.
 
+The scripts in `templates/` are tested against live PostgreSQL, MySQL, MariaDB and SQL Server (`tests/templates/`). The normal suite skips those tests when no server is running; CI's integration job runs them. To run them locally against throwaway containers:
+
+```bash
+just test-templates        # starts execsql-templates-* containers on ports 55440-55443, runs the tests
+just test-templates-down   # removes the containers
+```
+
+SQL Server is included only when an ODBC driver for it is installed. A template bug the tests have found but not yet fixed is marked with `known_bug(...)`, a strict expected failure: the fix makes the test pass, which fails the run until the marker is removed with it.
+
 ## Building the Docs
 
 ```bash

@@ -59,6 +59,10 @@ These scripts create a glossary of column names or other terms that can be expor
 
 Complete documentation is available at [Read The Docs (execsql-glossary)](https://execsql-compare.readthedocs.io/en/latest/).
 
+## Tests
+
+`tests/templates/` runs these scripts against live databases: the glossary, compare and upsert scripts on PostgreSQL, MySQL, MariaDB and SQL Server (`md_` scripts on both MySQL and MariaDB), plus lint and INCLUDE checks for every file. Run them with `just test-templates`; see `CONTRIBUTING.md`.
+
 ## Roadmap
 
 - [ ] Integrate documentation for [execsql-compare](https://execsql-compare.readthedocs.io/en/latest/) into the main execsql2 documentation site.
