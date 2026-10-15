@@ -30,7 +30,7 @@ __all__ = [
     "to_snippet",
 ]
 
-DOCS_URL = "https://execsql2.readthedocs.io/en/latest/reference/"
+DOCS_URL = "https://execsql2.readthedocs.io/en/stable/reference/"
 
 
 @dataclass(frozen=True)

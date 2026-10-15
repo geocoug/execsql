@@ -37,7 +37,7 @@ __all__ = [
     "install_hint",
 ]
 
-_ADDING_AN_EXTRA = "https://execsql2.readthedocs.io/en/latest/getting-started/installation/#adding-an-extra-later"
+_ADDING_AN_EXTRA = "https://execsql2.readthedocs.io/en/stable/getting-started/installation/#adding-an-extra-later"
 
 
 def install_hint(extra: str) -> str:

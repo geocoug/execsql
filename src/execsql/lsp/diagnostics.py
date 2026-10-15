@@ -8,7 +8,7 @@ from execsql.cli.lint import Issue, filter_issues, lint_source
 
 __all__ = ["LINT_DOCS_URL", "diagnostics", "to_diagnostic", "too_deep_diagnostic"]
 
-LINT_DOCS_URL = "https://execsql2.readthedocs.io/en/latest/reference/lint/"
+LINT_DOCS_URL = "https://execsql2.readthedocs.io/en/stable/reference/lint/"
 
 _SEVERITY = {
     "error": types.DiagnosticSeverity.Error,

@@ -282,7 +282,7 @@ def _online_help_callback(value: bool) -> None:
     if value:
         import webbrowser
 
-        webbrowser.open("https://execsql2.readthedocs.io/en/latest/", new=2, autoraise=True)
+        webbrowser.open("https://execsql2.readthedocs.io/en/stable/", new=2, autoraise=True)
         raise typer.Exit()
 
 

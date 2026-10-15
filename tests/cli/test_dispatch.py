@@ -354,7 +354,7 @@ class TestUpstreamFlagPositions:
         monkeypatch.setattr(webbrowser, "open", lambda url, *a, **k: opened.append(url) or True)
         result = self._invoke(["s.sql", "-o"])
         assert result.exit_code == 0, result.output
-        assert opened == ["https://execsql2.readthedocs.io/en/latest/"]
+        assert opened == ["https://execsql2.readthedocs.io/en/stable/"]
 
     def test_hidden_copies_stay_out_of_run_help(self):
         out = self._invoke(["run", "--help"]).output

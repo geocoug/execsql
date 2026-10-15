@@ -115,7 +115,7 @@ dev = [
 execsql = "execsql.cli.dispatch:dispatch"
 
 [project.urls]
-Homepage = "https://execsql2.readthedocs.io"
+Homepage = "https://execsql2.readthedocs.io/en/stable/"
 Repository = "https://github.com/geocoug/execsql"
 Issues = "https://github.com/geocoug/execsql/issues"
 
