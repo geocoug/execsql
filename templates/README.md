@@ -1,12 +1,14 @@
 # Templates for execsql
 
+The [Templates section](https://execsql2.readthedocs.io/en/stable/templates/) of the execsql2 documentation describes how to use these files.
+
 Several types of templates are provided that may be useful in conjunction with execsql. These are:
 
 - **execsql.conf** — An annotated reference of every configuration setting with notes on its usage. Generate a fresh copy in any directory with `execsql config --init > execsql.conf`; the canonical content ships inside the installed package and is loaded via `importlib.resources` (no need to find or copy a source file).
 
 - **script_template.sql** — A framework for SQL scripts that make use of several execsql features. It includes sections for custom configuration settings, custom logfile creation, and reporting of unexpected script exits (through user cancellation or errors).
 
-- **config_settings.sqlite** and **example_config_prompt.sql** — A SQLite database containing specifications for all settings configurable with the CONFIG metacommand, in the form used by the PROMPT ENTRY_FORM metacommand, and a SQL script illustrating how this database can be used to prompt the user for some or all of the configuration settings. *execsql* version 1.63.0 or later is needed to use this script.
+- **config_settings.sqlite** and **example_config_prompt.sql** — A SQLite database containing specifications for all settings configurable with the CONFIG metacommand, in the form used by the PROMPT ENTRY_FORM metacommand, and a SQL script illustrating how this database can be used to prompt the user for some or all of the configuration settings.
 
 ## Functional Scripts for execsql
 
@@ -35,7 +37,7 @@ Features of these upsert scripts include:
 - Optionally, they will record all operations carried out in a custom log file; this log may include the SQL statements executed and the data values that were added or changed.
 - If an execsql console is active, they will use the console's status bar and progress bar to indicate the activity underway.
 
-Complete documentation is available at [Read The Docs (execsql-upsert)](https://execsql-upsert.readthedocs.io/en/latest/).
+Complete documentation is in the [Upsert Scripts](https://execsql2.readthedocs.io/en/stable/templates/upsert/) page of the execsql2 documentation.
 
 ### Table Comparison Scripts
 
@@ -47,7 +49,7 @@ These scripts work with any tables of any database in a DBMS that supports the s
 - **MySQL/MariaDB:** `md_compare.sql`
 - **SQL Server:** `ss_compare.sql`
 
-Complete documentation is available at [Read The Docs (execsql-compare)](https://execsql-compare.readthedocs.io/en/latest/).
+Complete documentation is in the [Compare Scripts](https://execsql2.readthedocs.io/en/stable/templates/compare/) page of the execsql2 documentation.
 
 ### Glossary Creation Scripts
 
@@ -57,13 +59,8 @@ These scripts create a glossary of column names or other terms that can be expor
 - **MySQL/MariaDB:** `md_glossary.sql`
 - **SQL Server:** `ss_glossary.sql`
 
-Complete documentation is available at [Read The Docs (execsql-glossary)](https://execsql-compare.readthedocs.io/en/latest/).
+Complete documentation is in the [Glossary Scripts](https://execsql2.readthedocs.io/en/stable/templates/glossary/) page of the execsql2 documentation.
 
 ## Tests
 
 `tests/templates/` runs these scripts against live databases: the glossary, compare and upsert scripts on PostgreSQL, MySQL, MariaDB and SQL Server (`md_` scripts on both MySQL and MariaDB), plus lint and INCLUDE checks for every file. Run them with `just test-templates`; see `CONTRIBUTING.md`.
-
-## Roadmap
-
-- [ ] Integrate documentation for [execsql-compare](https://execsql-compare.readthedocs.io/en/latest/) into the main execsql2 documentation site.
-- [ ] Integrate documentation for [execsql-upsert](https://execsql-upsert.readthedocs.io/en/latest/) into the main execsql2 documentation site.

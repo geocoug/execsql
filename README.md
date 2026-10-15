@@ -344,7 +344,7 @@ Other editors use the language server directly: see [Editor Support](https://exe
 
 ## Templates
 
-The `templates/` directory in this repository includes ready-to-use execsql scripts, tested against live databases in CI. (`execsql config --init` writes an annotated configuration file.)
+The `templates/` directory in this repository includes ready-to-use execsql scripts, tested against live databases in CI; see the [Templates documentation](https://execsql2.readthedocs.io/en/stable/templates/). (`execsql config --init` writes an annotated configuration file.)
 
 - **Upsert scripts** (`md_upsert.sql`, `ss_upsert.sql`): Perform merge/upsert operations on multiple tables simultaneously, respecting foreign key order, for MySQL/MariaDB and SQL Server. On PostgreSQL, use the [`PG_UPSERT`](https://execsql2.readthedocs.io/en/stable/reference/metacommands/#pg_upsert) metacommand.
 - **Comparison scripts** (`pg_compare.sql`, `md_compare.sql`, `ss_compare.sql`): Compare staging and base tables across multiple dimensions.

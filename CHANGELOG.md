@@ -13,6 +13,7 @@ ______________________________________________________________________
 
 ### Added
 
+- **Templates documentation:** the upsert, compare and glossary templates are documented in the execsql2 docs (a new Templates section), replacing three separate Read the Docs sites.
 - **The `templates/` scripts document themselves:** each script's notes show in `SHOW SCRIPTS` and the editor's hover, and optional arguments (`def_url`, `include_cols`, `exclude_cols`) are declared parameters.
 - **`trust_server_certificate`** (`[connect]`, or `?trust_server_certificate=yes` on an `mssql://` URL) accepts a SQL Server's self-signed TLS certificate. It applies to `CONNECT` as well.
 
