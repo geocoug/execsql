@@ -33,6 +33,12 @@ nav = [
         { "Editor Support" = "guides/editors.md" },
         { "Examples" = "guides/examples.md" }
     ] },
+    { "Templates" = [
+        { "Overview" = "templates/index.md" },
+        { "Upsert" = "templates/upsert.md" },
+        { "Compare" = "templates/compare.md" },
+        { "Glossary" = "templates/glossary.md" }
+    ] },
     { "Contributing" = [
         { "Architecture" = "dev/architecture.md" },
         { "Adding Metacommands" = "dev/adding_metacommands.md" },
