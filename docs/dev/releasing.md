@@ -33,8 +33,10 @@ What each one does (per `[tool.bumpversion]` in `pyproject.toml`):
 
 1. Rewrites the version in `pyproject.toml`, `CHANGELOG.md` (turns
     `[Unreleased]` into the new dated section), `README.md`'s pre-commit
-    `rev:` snippet, and `docs/guides/formatter.md`'s pre-commit `rev:`
-    snippet.
+    `rev:` snippet, `docs/guides/formatter.md`'s pre-commit `rev:`
+    snippet, and the VS Code extension's version in
+    `extras/vscode-execsql/package.json` and `package-lock.json` (a
+    pre-release in VS Code's form: `2.31.0rc1` is `2.31.0-rc.1`).
 1. Runs `uv lock` (refreshes the lockfile against the new version) and
     `git add uv.lock`.
 1. Creates a commit `Bump version: 2.X.Y → 2.X.Y+1`.

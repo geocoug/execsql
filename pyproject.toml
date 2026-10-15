@@ -232,6 +232,30 @@ filename = "docs/guides/formatter.md"
 search = "rev: v{current_version}"
 replace = "rev: v{new_version}"
 
+# The VS Code extension carries the package version, written the semver way
+# VS Code compares (2.31.0rc1 -> 2.31.0-rc.1), so an rc and its final differ.
+[[tool.bumpversion.files]]
+filename = "extras/vscode-execsql/package.json"
+search = '"version": "{current_version}"'
+replace = '"version": "{new_version}"'
+serialize = ["{major}.{minor}.{patch}-{pre_l}.{pre_n}", "{major}.{minor}.{patch}"]
+
+[[tool.bumpversion.files]]
+filename = "extras/vscode-execsql/package-lock.json"
+search = """"name": "execsql-syntax",
+  "version": "{current_version}""""
+replace = """"name": "execsql-syntax",
+  "version": "{new_version}""""
+serialize = ["{major}.{minor}.{patch}-{pre_l}.{pre_n}", "{major}.{minor}.{patch}"]
+
+[[tool.bumpversion.files]]
+filename = "extras/vscode-execsql/package-lock.json"
+search = """"name": "execsql-syntax",
+      "version": "{current_version}""""
+replace = """"name": "execsql-syntax",
+      "version": "{new_version}""""
+serialize = ["{major}.{minor}.{patch}-{pre_l}.{pre_n}", "{major}.{minor}.{patch}"]
+
 [[tool.bumpversion.files]]
 filename = "docs/reference/lint.md"
 search = "rev: v{current_version}"
