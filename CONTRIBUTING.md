@@ -10,7 +10,7 @@ cd execsql
 just sync
 ```
 
-This creates a virtual environment at `.venv/` and installs all dependencies including dev extras.
+This creates a virtual environment at `.venv/` and installs every extra plus the `dev` dependency group (test, lint and docs tools). Without uv: `pip install -e ".[all]" --group dev` (pip 25.1 or later).
 
 To install `just`:
 

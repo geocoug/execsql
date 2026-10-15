@@ -969,31 +969,6 @@ auth-plaintext = [
     { name = "keyring" },
     { name = "keyrings-alt" },
 ]
-dev = [
-    { name = "bump-my-version" },
-    { name = "defusedxml" },
-    { name = "jinja2" },
-    { name = "lsprotocol" },
-    { name = "mkdocstrings-python" },
-    { name = "mypy" },
-    { name = "odfpy" },
-    { name = "openpyxl" },
-    { name = "polars" },
-    { name = "pre-commit" },
-    { name = "pygls" },
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
-    { name = "pytest-cov" },
-    { name = "pytest-lsp" },
-    { name = "pyyaml" },
-    { name = "ruff" },
-    { name = "sqlglot" },
-    { name = "tables", version = "3.10.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
-    { name = "tables", version = "3.11.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
-    { name = "tox-uv" },
-    { name = "xlrd" },
-    { name = "zensical" },
-]
 duckdb = [
     { name = "duckdb" },
     { name = "pytz" },
@@ -1043,21 +1018,36 @@ upsert = [
     { name = "pg-upsert" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "bump-my-version" },
+    { name = "mkdocstrings-python" },
+    { name = "mypy" },
+    { name = "pre-commit" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-cov" },
+    { name = "pytest-lsp" },
+    { name = "ruff" },
+    { name = "tox-uv" },
+    { name = "zensical" },
+]
+docs = [
+    { name = "mkdocstrings-python" },
+    { name = "zensical" },
+]
+
 [package.metadata]
 requires-dist = [
-    { name = "bump-my-version", marker = "extra == 'dev'", specifier = ">=1.2.7" },
     { name = "defusedxml", marker = "extra == 'formats'", specifier = ">=0.7" },
     { name = "duckdb", marker = "extra == 'all-db'", specifier = ">=1.0" },
     { name = "duckdb", marker = "extra == 'duckdb'", specifier = ">=1.0" },
     { name = "execsql2", extras = ["all-db"], marker = "extra == 'all'" },
     { name = "execsql2", extras = ["auth"], marker = "extra == 'all'" },
     { name = "execsql2", extras = ["formats"], marker = "extra == 'all'" },
-    { name = "execsql2", extras = ["formats"], marker = "extra == 'dev'" },
     { name = "execsql2", extras = ["formatter"], marker = "extra == 'all'" },
-    { name = "execsql2", extras = ["formatter"], marker = "extra == 'dev'" },
     { name = "execsql2", extras = ["formatter"], marker = "extra == 'lsp'" },
     { name = "execsql2", extras = ["lsp"], marker = "extra == 'all'" },
-    { name = "execsql2", extras = ["lsp"], marker = "extra == 'dev'" },
     { name = "execsql2", extras = ["map"], marker = "extra == 'all'" },
     { name = "execsql2", extras = ["upsert"], marker = "extra == 'all'" },
     { name = "firebird-driver", marker = "extra == 'all-db'", specifier = ">=1.10" },
@@ -1069,15 +1059,12 @@ requires-dist = [
     { name = "keyrings-alt", marker = "extra == 'auth-encrypted'", specifier = ">=5.0" },
     { name = "keyrings-alt", marker = "extra == 'auth-plaintext'", specifier = ">=5.0" },
     { name = "lsprotocol", marker = "extra == 'lsp'", specifier = ">=2025.0.0" },
-    { name = "mkdocstrings-python", marker = "extra == 'dev'", specifier = ">=2.0.3" },
-    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.10" },
     { name = "odfpy", marker = "extra == 'formats'", specifier = ">=1.4" },
     { name = "openpyxl", marker = "extra == 'formats'", specifier = ">=3.1" },
     { name = "oracledb", marker = "extra == 'all-db'", specifier = ">=3.0" },
     { name = "oracledb", marker = "extra == 'oracle'", specifier = ">=3.0" },
     { name = "pg-upsert", marker = "extra == 'upsert'", specifier = ">=1.25.0" },
     { name = "polars", marker = "extra == 'formats'", specifier = ">=1.0" },
-    { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=3.5.0" },
     { name = "psycopg", extras = ["binary"], marker = "extra == 'all-db'", specifier = ">=3.1,<4" },
     { name = "psycopg", extras = ["binary"], marker = "extra == 'postgres'", specifier = ">=3.1,<4" },
     { name = "pycryptodome", marker = "extra == 'auth-encrypted'", specifier = ">=3.20" },
@@ -1087,26 +1074,38 @@ requires-dist = [
     { name = "pyodbc", marker = "extra == 'all-db'", specifier = ">=5.0" },
     { name = "pyodbc", marker = "extra == 'mssql'", specifier = ">=5.0" },
     { name = "pyodbc", marker = "extra == 'odbc'", specifier = ">=5.0" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8" },
-    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=1.0" },
-    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=5.0.0" },
-    { name = "pytest-lsp", marker = "extra == 'dev'", specifier = ">=1.0" },
     { name = "python-dateutil", specifier = ">=2.8" },
     { name = "pytz", marker = "extra == 'all-db'" },
     { name = "pytz", marker = "extra == 'duckdb'" },
     { name = "pyyaml", marker = "extra == 'formats'", specifier = ">=6.0" },
     { name = "rich", specifier = ">=13.0" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.4" },
     { name = "sqlglot", marker = "extra == 'formatter'", specifier = ">=30.21.0,<30.22" },
     { name = "tables", marker = "extra == 'formats'", specifier = ">=3.10" },
     { name = "textual", specifier = ">=1.0" },
     { name = "tkintermapview", marker = "extra == 'map'", specifier = ">=1.29" },
-    { name = "tox-uv", marker = "extra == 'dev'", specifier = ">=1.13.1" },
     { name = "typer", specifier = ">=0.26" },
     { name = "xlrd", marker = "extra == 'formats'", specifier = ">=2.0" },
-    { name = "zensical", marker = "extra == 'dev'", specifier = "==0.0.67" },
 ]
-provides-extras = ["postgres", "mysql", "mssql", "duckdb", "firebird", "oracle", "odbc", "formats", "auth", "auth-plaintext", "auth-encrypted", "upsert", "map", "formatter", "lsp", "all-db", "all", "dev"]
+provides-extras = ["postgres", "mysql", "mssql", "duckdb", "firebird", "oracle", "odbc", "formats", "auth", "auth-plaintext", "auth-encrypted", "upsert", "map", "formatter", "lsp", "all-db", "all"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "bump-my-version", specifier = ">=1.2.7" },
+    { name = "mkdocstrings-python", specifier = ">=2.0.3" },
+    { name = "mypy", specifier = ">=1.10" },
+    { name = "pre-commit", specifier = ">=3.5.0" },
+    { name = "pytest", specifier = ">=8" },
+    { name = "pytest-asyncio", specifier = ">=1.0" },
+    { name = "pytest-cov", specifier = ">=5.0.0" },
+    { name = "pytest-lsp", specifier = ">=1.0" },
+    { name = "ruff", specifier = ">=0.4" },
+    { name = "tox-uv", specifier = ">=1.13.1" },
+    { name = "zensical", specifier = "==0.0.67" },
+]
+docs = [
+    { name = "mkdocstrings-python", specifier = ">=2.0.3" },
+    { name = "zensical", specifier = "==0.0.67" },
+]
 
 [[package]]
 name = "filelock"

@@ -9,8 +9,9 @@ build:
     python: "3.13"
   jobs:
     install:
-      - pip install "zensical==0.0.67" mkdocstrings-python
-      - pip install -e .
+      # The `docs` dependency group in pyproject.toml, the same pins CI builds with.
+      - pip install --upgrade pip
+      - pip install -e . --group docs
     pre_build:
       - cp CHANGELOG.md docs/about/change_log.md
     build:
