@@ -132,8 +132,11 @@
 --	2026-10-15	execsql2: LOAD_STAGING with do_commit=No keeps the row counts it
 --				writes to the control table, which the rollback undid; each
 --				script's notes are its docstring (SHOW SCRIPTS, the language
---				server).  Tested in tests/templates of the execsql2
---				repository.  CG.
+--				server).  UPSERT_ONE with exclude_cols no longer fails
+--				(ambiguous column_name); FKQA_ONE rebuilds its table of
+--				foreign keys on every call, so a copy left in the session
+--				from an earlier load cannot hide foreign key errors.  Tested
+--				in tests/templates of the execsql2 repository.  CG.
 -- ==================================================================
 
 -- ################################################################
@@ -1071,14 +1074,11 @@ order by k.ordinal_position
 
 
 -- Create a table of *all* foreign key dependencies in this database.
--- Because this may be an expensive operation (in terms of time), the
--- table is not re-created if it already exists.  "Already exists"
--- means that a table with the expected name exists.  No check is
--- done to ensure that this table has the correct structure.  The
--- goal is to create the table of all foreign keys only once to
--- minimize the time required if QA checks are to be run on multiple
--- staging tables.
-if object_id('tempdb..#ups_foreign_key_columns') is null
+-- It is rebuilt on every call: a copy left in the session from an
+-- earlier load (a second load in the same script, or a pooled
+-- connection that keeps its temporary tables) described other tables
+-- and let foreign key errors through.
+if object_id('tempdb..#ups_foreign_key_columns') is not null drop table #ups_foreign_key_columns;
 select
 	rc.constraint_name,
 	cu.table_schema,
@@ -1380,7 +1380,7 @@ where coalesce(fkerror_rows, 0) > 0;
 -- !x! if(is_null("!!#exclude_cols!!"))
 	-- !x! sub_empty ~col_excl
 -- !x! else
-	-- !x! sub ~col_excl and column_name not in (!!#exclude_cols!!)
+	-- !x! sub ~col_excl and s.column_name not in (!!#exclude_cols!!)
 -- !x! endif
 if object_id('tempdb..#ups_cols') is not null drop table #ups_cols;
 select s.column_name, s.ordinal_position

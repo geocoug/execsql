@@ -143,3 +143,75 @@ def test_a_foreign_key_satisfied_by_another_staging_table_passes(tables, tmp_pat
     control = _load(tables, tmp_path)
     assert control["books"][2] == ""
     assert _base(tables)[1] == [(10, 1, "Old"), (11, 2, "Second")]
+
+
+def test_excluded_columns_are_neither_null_checked_nor_updated(tables, tmp_path):
+    """exclude_null_checks lets a NULL through QA; exclude_cols keeps the update off that column.
+
+    The pair is how the docs say to load a table whose column the database
+    fills itself (a trigger, a default): the staging NULL never reaches it.
+    """
+    _stage(tables, books=["(10, 1, NULL)"])
+    control = "#ups_control" if tables.server.prefix == "ss" else tables.base_table("ups_control")
+    body = (
+        f'-- !x! EXECUTE SCRIPT STAGED_TO_LOAD WITH (control_table={control}, table_list="books, authors")\n'
+        f"update {control} set display_changes = 'No';\n"
+        f"update {control} set exclude_cols = '''title''', exclude_null_checks = '''title''' "
+        "where table_name = 'books';\n"
+        f"-- !x! EXECUTE SCRIPT LOAD_STAGING WITH ({tables.staging_args}, control_table={control}, do_commit=Yes)\n"
+    )
+    result = tables.run("upsert", body, tmp_path=tmp_path)
+    assert result.success, result.errors
+    # The staging NULL never reaches book 10's title.  (An excluded column is
+    # left out of inserts too, so a new row gets the column's default.)
+    assert _base(tables)[1] == [(10, 1, "Old")]
+
+
+def test_the_log_file_records_the_load(tables, tmp_path):
+    _stage(tables)
+    body = "-- !x! SUB logfile load.log\n-- !x! SUB log_changes Yes\n-- !x! SUB log_sql Yes\n"
+    control = "#ups_control" if tables.server.prefix == "ss" else tables.base_table("ups_control")
+    body += (
+        f'-- !x! EXECUTE SCRIPT STAGED_TO_LOAD WITH (control_table={control}, table_list="books, authors")\n'
+        f"update {control} set display_changes = 'No';\n"
+        f"-- !x! EXECUTE SCRIPT LOAD_STAGING WITH ({tables.staging_args}, control_table={control}, do_commit=Yes)\n"
+    )
+    result = tables.run("upsert", body, tmp_path=tmp_path)
+    assert result.success, result.errors
+    log = (tmp_path / "load.log").read_text()
+    assert "CHANGES COMMITTED" in log
+    assert "books" in log and "authors" in log
+
+
+@pytest.fixture
+def pk_update(target):
+    """authors (1, 'A'), (2, 'B') in base; staging lists old keys with their new_ values."""
+    target.template("upsert")
+    authors = target.base_table("authors")
+    target.execute(
+        f"create table {authors} (id integer primary key, name varchar(20) not null)",
+        f"insert into {authors} values (1, 'A')",
+        f"insert into {authors} values (2, 'B')",
+        f"create table {target.staging_table('authors')} (id integer, new_id integer)",
+    )
+    return target
+
+
+def _update_keys(target, tmp_path, *pairs):
+    target.execute(*(f"insert into {target.staging_table('authors')} values ({old}, {new})" for old, new in pairs))
+    body = (
+        f"-- !x! EXECUTE SCRIPT UPDTPK_ONE WITH ({target.staging_args}, table=authors, "
+        "display_errors=No, display_changes=No)\n"
+    )
+    result = target.run("upsert", body, tmp_path=tmp_path)
+    assert result.success, result.errors
+    return target.query(f"select id, name from {target.base_table('authors')} order by id")
+
+
+def test_updtpk_one_changes_a_primary_key(pk_update, tmp_path):
+    assert _update_keys(pk_update, tmp_path, (1, 10)) == [(2, "B"), (10, "A")]
+
+
+def test_updtpk_one_refuses_a_key_that_is_already_taken(pk_update, tmp_path):
+    # The QA (UPDTPKQA_ONE) finds the new key 2 already in use; nothing changes.
+    assert _update_keys(pk_update, tmp_path, (1, 2)) == [(1, "A"), (2, "B")]

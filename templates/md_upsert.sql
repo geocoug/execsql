@@ -151,8 +151,9 @@
 --				halts on do_commit=No, which MySQL/MariaDB cannot roll back
 --				because the load's CREATE and DROP statements commit; each
 --				script's notes are its docstring (SHOW SCRIPTS, the language
---				server).  Tested in tests/templates of the execsql2
---				repository.  CG.
+--				server).  Comments inside SQL statements have a space after
+--				--, which MySQL and MariaDB require (UPDTPK_ONE failed).
+--				Tested in tests/templates of the execsql2 repository.  CG.
 -- ==================================================================
 
 
@@ -2318,9 +2319,9 @@ where
 	select
 		group_concat(newpk_col order by ordinal_position separator ', ') as missing_newpk_cols
 	from
-		--Base table PK columns, with expected name in staging table ("new_" prepended to column name)
+		-- Base table PK columns, with expected name in staging table ("new_" prepended to column name)
 		!!#pkinfo_table!! as pk
-		--Staging table columns
+		-- Staging table columns
 		left join
 			(
 			select table_name, column_name
@@ -2740,7 +2741,7 @@ where
 			from
 				ups_fkcol_refs as refs
 				inner join
-				--Distinct list of FK constraints on the table that include ANY PK columns
+				-- Distinct list of FK constraints on the table that include ANY PK columns
 					(
 					select distinct
 						fk_constraint, r.table_schema, r.table_name
@@ -2781,7 +2782,7 @@ where
 			limit 1
 			;
 
-			--Process all constraints: check every foreign key
+			-- Process all constraints: check every foreign key
 			--!x! execute script updtpkqa_one_innerloop with (stage_pfx=!!#stage_pfx!!, qaerror_table=!!#qaerror_table!!, display_errors=!!#display_errors!!)
 		-- !x! endif
 	-- !x! endif
@@ -2962,7 +2963,7 @@ where
 		drop view if exists ups_pk_fk_qa_error cascade;
 	-- !x! endif
 
-	--LOOP
+	-- LOOP
 	-- !x! execute script updtpkqa_one_innerloop with (stage_pfx=!!#stage_pfx!!, qaerror_table=!!#qaerror_table!!, display_errors=!!#display_errors!!)
 
 -- !x! endif

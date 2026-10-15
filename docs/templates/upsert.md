@@ -141,7 +141,7 @@ The control table lists the base tables to upsert, holds per-table settings, and
 :   The base table to update. Filled in by `STAGED_TO_LOAD`.
 
 `exclude_cols`
-:   A comma-separated list of single-quoted names of base table columns that must not be updated, such as `'id', 'created_at'`.
+:   A comma-separated list of single-quoted names of base table columns that the load leaves alone, such as `'id', 'created_at'`: they are not updated, and they are left out of inserts, so a new row gets the column's default.
 
 `exclude_null_checks`
 :   A comma-separated list of single-quoted names of non-null columns for which null checks are skipped. Use it for columns filled by triggers or autonumbering; see [auto-filled columns](#autofill).

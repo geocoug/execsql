@@ -58,10 +58,13 @@
 -- !x! sub output_parent DB_output
 
 -- Create a unique number for every run, with corresponding output
--- directories and optionally a narrative descriptions.
--- !x! sub do_run_numbering True
+-- directories and optionally a narrative descriptions.  A value set before
+-- this script runs wins, so an unattended run can turn either off: set it in
+-- the [variables] section of a configuration file, or pass it to
+-- execsql.run(variables=...).
+-- !x! if(not sub_defined(do_run_numbering)) { sub do_run_numbering True }
 -- Prompt for a run description?
--- !x! sub get_run_description True
+-- !x! if(not sub_defined(get_run_description)) { sub get_run_description True }
 
 -- Path to the SQL script library.
 ---- !x! sub script_library /path/to/sql/library
