@@ -217,7 +217,8 @@ class TestSqlServerStoredPassword:
         db = self._db()
         login_failed = Exception("28000", "[28000] Login failed for user 'u'. (18456)")
         no_driver = Exception("IM002", "[IM002] Data source name not found")
-        attempts = [login_failed] + [no_driver] * 7 + [MagicMock()]
+        # One attempt per driver the adapter tries (nine), then the retry.
+        attempts = [login_failed] + [no_driver] * 8 + [MagicMock()]
         with (
             patch("pyodbc.connect", side_effect=attempts),
             patch("execsql.utils.auth.getpass.getpass", return_value="current"),

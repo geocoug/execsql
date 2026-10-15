@@ -40,7 +40,9 @@ def _parse_connection_string(dsn: str) -> dict:
     written ``%40``, ``%3A``, ``%2F``, ``%3F``, ``%23``, ``%25``.
 
     Returns a dict with keys: ``db_type``, ``server``, ``db``, ``db_file``,
-    ``user``, ``password``, ``port``.  Absent components are ``None``.
+    ``user``, ``password``, ``port`` and ``trust_server_certificate`` (from
+    ``?trust_server_certificate=yes`` on an ``mssql://`` URL).  Absent
+    components are ``None``.
 
     Raises :class:`~execsql.exceptions.ConfigError` for an unrecognised
     URL scheme or a completely un-parseable string.
@@ -86,6 +88,8 @@ def _parse_connection_string(dsn: str) -> dict:
         # Remove leading "/"
         db = raw_path.lstrip("/") or None
 
+    trust_server_certificate = _query_options(parsed.query, db_type)
+
     return {
         "db_type": db_type,
         "server": server,
@@ -94,4 +98,34 @@ def _parse_connection_string(dsn: str) -> dict:
         "user": user,
         "password": password,
         "port": port,
+        "trust_server_certificate": trust_server_certificate,
     }
+
+
+_TRUE = ("yes", "true", "on", "1")
+_FALSE = ("no", "false", "off", "0")
+
+
+def _query_options(query: str, db_type: str) -> bool | None:
+    """Return ``trust_server_certificate`` from a DSN's query string, or None if absent.
+
+    It is the only query parameter execsql reads, and only for SQL Server.
+    Anything else is an error rather than ignored, so a misspelt option
+    cannot silently leave a connection without the setting it asked for.
+    """
+    from urllib.parse import parse_qsl
+
+    trust: bool | None = None
+    for key, value in parse_qsl(query, keep_blank_values=True):
+        if key.lower() != "trust_server_certificate" or db_type != "s":
+            raise ConfigError(
+                f"Unrecognised connection-string parameter {key!r}. "
+                "The only one execsql reads is trust_server_certificate, for mssql:// URLs.",
+            )
+        if value.lower() in _TRUE:
+            trust = True
+        elif value.lower() in _FALSE:
+            trust = False
+        else:
+            raise ConfigError(f"trust_server_certificate must be yes or no, not {value!r}.")
+    return trust

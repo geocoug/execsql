@@ -369,6 +369,8 @@ def _apply_dsn(dsn: str, conf: ConfigData, db_type: str | None) -> tuple[str | N
         conf.db = parsed["db"]
     if parsed["db_file"]:
         conf.db_file = parsed["db_file"]
+    if parsed["trust_server_certificate"] is not None:
+        conf.trust_server_certificate = parsed["trust_server_certificate"]
     user = parsed["user"]  # may be None
     if parsed["password"]:
         conf.db_password = parsed["password"]

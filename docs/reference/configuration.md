@@ -69,6 +69,9 @@ The section and property names that may be used in a configuration file are list
 `new_db`
 :   Indicates whether or not *execsql* should create a new PostgreSQL or SQLite database to connect to.
 
+`trust_server_certificate`
+:   SQL Server only. When "Yes", *execsql* accepts the server's TLS certificate without verifying it, as a server with a self-signed certificate (a test server, a Docker container, many internal servers) needs. The default, "No", keeps the driver's own behaviour: ODBC Driver 18, which *execsql* tries first, encrypts the connection and refuses a certificate it cannot verify. The setting applies to every SQL Server connection, including those a script opens with [CONNECT](metacommands.md#connect). On a connection URL it is `mssql://host/db?trust_server_certificate=yes`. Turn it on only for a server you trust on a network you trust: it makes the connection open to interception.
+
 <a id="config_encoding"></a>
 
 ## Section `encoding`

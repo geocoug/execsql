@@ -36,6 +36,7 @@ class SqlServerDatabase(Database):
         port: int | None = None,
         encoding: str | None = "latin1",
         password: str | None = None,
+        trust_server_certificate: bool | None = None,
     ) -> None:
         try:
             import pyodbc  # noqa: F401
@@ -54,6 +55,11 @@ class SqlServerDatabase(Database):
         # named instance (``host\instance``) is found through SQL Server
         # Browser, which an explicit port bypasses.
         self.explicit_port = port or None
+        # None: the [connect] trust_server_certificate setting, which also
+        # covers connections a script opens with CONNECT.
+        if trust_server_certificate is None:
+            trust_server_certificate = bool(getattr(_state.conf, "trust_server_certificate", False))
+        self.trust_server_certificate = trust_server_certificate
         self.type = dbt_sqlserver
         self.password = password
         self.encoding = encoding or "latin1"  # Default on installation of SQL Server
@@ -104,6 +110,7 @@ class SqlServerDatabase(Database):
                 )
             # Use pyodbc to connect.  Try different driver versions from newest to oldest.
             ssdrivers = (
+                "ODBC Driver 18 for SQL Server",
                 "ODBC Driver 17 for SQL Server",
                 "ODBC Driver 13.1 for SQL Server",
                 "ODBC Driver 13 for SQL Server",
@@ -128,6 +135,10 @@ class SqlServerDatabase(Database):
                         attributes.append(("Pwd", self.password))
                 else:
                     attributes.append(("Trusted_Connection", "yes"))
+                if self.trust_server_certificate:
+                    # Driver 18 encrypts and verifies the server's certificate
+                    # by default; this accepts a self-signed one.
+                    attributes.append(("TrustServerCertificate", "yes"))
                 for drv in ssdrivers:
                     connstr = connection_string(drv, attributes)
                     try:

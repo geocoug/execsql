@@ -106,9 +106,19 @@ def db_SqlServer(
     port: int | None = None,
     encoding: str | None = None,
     password: str | None = None,
+    trust_server_certificate: bool | None = None,
 ) -> SqlServerDatabase:
     """Open a Microsoft SQL Server connection via pyodbc."""
-    return SqlServerDatabase(server_name, database_name, user, pw_needed, port, encoding, password=password)
+    return SqlServerDatabase(
+        server_name,
+        database_name,
+        user,
+        pw_needed,
+        port,
+        encoding,
+        password=password,
+        trust_server_certificate=trust_server_certificate,
+    )
 
 
 def db_MySQL(

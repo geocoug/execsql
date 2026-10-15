@@ -54,6 +54,12 @@
 # Values: Yes or No.  Default: No.
 #new_db=No
 
+# SQL Server only: accept the server's TLS certificate without verifying it,
+# for a server with a self-signed certificate.  ODBC Driver 18 otherwise
+# refuses one it cannot verify.  Applies to CONNECT as well.
+# Values: Yes or No.  Default: No.
+#trust_server_certificate=No
+
 
 [encoding]
 # Character encoding for text input and output.

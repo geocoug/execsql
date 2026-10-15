@@ -11,8 +11,13 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Added
+
+- **`trust_server_certificate`** (`[connect]`, or `?trust_server_certificate=yes` on an `mssql://` URL) accepts a SQL Server's self-signed TLS certificate. It applies to `CONNECT` as well.
+
 ### Changed
 
+- **A connection URL with a query parameter other than `trust_server_certificate`** is an error; such parameters (`?sslmode=require`, for example) were silently ignored.
 - **The `upsert` extra requires pg-upsert 1.26.0**, which reports a database error instead of returning as if the run succeeded.
 - **GitHub Releases** carry the version's `CHANGELOG.md` section as their text, instead of a generated list of commits.
 - **VS Code extension version** is execsql's version (2.30.0 now), in every build including `just install-vscode`; a pre-release is `2.31.0-rc.1`, so VS Code upgrades from an rc to its final release.
@@ -20,6 +25,7 @@ ______________________________________________________________________
 
 ### Fixed
 
+- **SQL Server with ODBC Driver 18**, Microsoft's current driver: execsql now connects with it, trying it first. It encrypts the connection and verifies the server's certificate; for a self-signed one, set `trust_server_certificate`.
 - **The plaintext-keyring warning** appears only when a password would really be saved in cleartext (`keyrings.alt`'s `PlaintextKeyring`, including behind keyring's chained backend); the encrypted backend (`auth-encrypted`), the Windows backends and the no-backend placeholder no longer trigger it.
 - **`EXPORT … AS VALUES` files run back as the same rows** when run with INCLUDE: a value holding a line break, a `;` at a line end, `!!var!!` or a `-- !x!` line is no longer substituted, split or run as a metacommand (such values are written as joined pieces, e.g. `'a' || CHR(10) || 'b'`); a column named like `order` is quoted; and an empty result writes a comment instead of an INSERT that fails.
 - **`IMPORT` from an ODS spreadsheet reads each cell's value, not its displayed text:** a cell starting with `#`, a cell comment or a cell under a vertical merge no longer shifts the rest of the row into the wrong columns, a multi-line cell is one value, and a percentage, formatted number or date imports as its stored value (`0.125`, not `12.50%`).
