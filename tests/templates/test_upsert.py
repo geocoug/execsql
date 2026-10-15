@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import pytest
 
-from .conftest import known_bug, read_csv
+from .conftest import read_csv
 
 
 AUTHORS = ["(1, 'A2')", "(2, 'B')"]
@@ -88,22 +88,28 @@ def test_a_clean_load_updates_and_inserts_in_foreign_key_order(tables, tmp_path)
     assert _base(tables) == ([(1, "A2"), (2, "B")], [(10, 1, "New"), (11, 2, "Second")])
 
 
-_DDL_COMMITS = "md_upsert creates ups_* views and tables during the load; on MariaDB/MySQL that DDL commits, so do_commit=No commits"
-
-
-def test_do_commit_no_leaves_the_base_tables_unchanged(tables, tmp_path):
-    known_bug(tables, ("mysql", "mariadb"), _DDL_COMMITS)
+def test_do_commit_no_leaves_the_base_tables_unchanged(tables, tmp_path, capfd):
     _stage(tables)
-    _load(tables, tmp_path, do_commit="No")
+    if tables.server.prefix == "md":
+        # MySQL/MariaDB commit at every CREATE/DROP, which the load runs: the
+        # script refuses a dry run instead of committing it.
+        control = tables.base_table("ups_control")
+        body = (
+            f'-- !x! EXECUTE SCRIPT STAGED_TO_LOAD WITH (control_table={control}, table_list="books, authors")\n'
+            f"-- !x! EXECUTE SCRIPT LOAD_STAGING WITH ({tables.staging_args}, control_table={control}, do_commit=No)\n"
+        )
+        result = tables.run("upsert", body, tmp_path=tmp_path, halt_on_error=False)
+        assert not result.success
+        out, err = capfd.readouterr()
+        assert "cannot run with do_commit=No on MySQL or MariaDB" in out + err
+    else:
+        _load(tables, tmp_path, do_commit="No")
     assert _base(tables) == ([(1, "A")], [(10, 1, "Old")])
 
 
 def test_do_commit_no_still_reports_what_would_change(tables, tmp_path):
-    known_bug(
-        tables,
-        "sqlserver",
-        "ss_upsert writes the counts into the #control table inside the load's transaction, so do_commit=No rolls them back",
-    )
+    if tables.server.prefix == "md":
+        pytest.skip("MySQL/MariaDB refuse a dry run (see above)")
     _stage(tables)
     control = _load(tables, tmp_path, do_commit="No")
     assert control["authors"][3:] == ("1", "1")

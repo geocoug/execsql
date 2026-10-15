@@ -686,7 +686,26 @@ where null_errors is not null or pk_errors is not null or fk_errors is not null;
 			-- !x! write "!!$current_time!! -- CHANGES COMMITTED." to !!logfile!!
 		-- !x! endif
 	-- !x! else
+		-- The rollback also undoes the counts UPSERT_ALL wrote to the control
+		-- table.  Keep them, so that a dry run reports what it would change.
+		if object_id('tempdb..#ups_counts') is not null drop table #ups_counts;
+		select
+			string_agg(
+				'(' + quotename(table_name, '''') + ', '
+				+ coalesce(cast(rows_updated as varchar(20)), 'null') + ', '
+				+ coalesce(cast(rows_inserted as varchar(20)), 'null') + ')',
+				', '
+			) as counts
+		into #ups_counts
+		from !!#control_table!!;
+		-- !x! subdata ~ups_counts #ups_counts
 		-- !x! autocommit on with rollback
+		update c
+		set rows_updated = v.rows_updated, rows_inserted = v.rows_inserted
+		from
+			!!#control_table!! as c
+			inner join (values !!~ups_counts!!) as v (table_name, rows_updated, rows_inserted)
+				on v.table_name = c.table_name;
 		-- !x! write "CHANGES NOT COMMITTED ('do_commit' argument = !!#do_commit!!)"
 		-- !x! if(sub_defined(log_changes))
 		-- !x! andif(is_true(!!log_changes!!))
