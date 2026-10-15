@@ -128,12 +128,15 @@
 --	2020-04-28	Explicitly rolled back the changes if 'do_commit' = "No".  RDN.
 --	2020-05-09	Moved the assignment of 'upsert_progress_denom' out of the
 --				'update_console_qa' script.  RDN.
+--	2026-10-15	execsql2: each script's notes are its docstring (SHOW SCRIPTS, the
+--				language server).  Tested in tests/templates of the execsql2
+--				repository.
 -- ==================================================================
 
 -- ################################################################
 --			Script TEMPTABLE_ISVALID
 -- ===============================================================
---
+-- !x! BEGIN SCRIPT TEMPTABLE_ISVALID with parameters (temptable_name)
 -- Utility script to validate SQL Server temp table name.
 -- Confirms that the name passed by the user is prefixed with a '#',
 -- and raises an error if not
@@ -148,8 +151,6 @@
 --
 -- Example:
 --		-- !x! execute script temp_table_isvalid with (temptable_name=#stagingtables)
--- ===============================================================
--- !x! BEGIN SCRIPT TEMPTABLE_ISVALID with parameters (temptable_name)
 
 -- Take the user-provided temp_table argument and validate syntax
 if object_id('tempdb..#tmptbl_name') is not null drop table #tmptbl_name;
@@ -176,7 +177,7 @@ into #tmptbl_name
 -- ################################################################
 --			Script STRING_AGG
 -- ===============================================================
---
+-- !x! BEGIN SCRIPT STRING_AGG with parameters (table_name, string_col, order_col, delimiter, string_var)
 -- Utility script to perform string aggregation
 -- Beginning with 2017 edition, SQL Server *does* include the string_agg()
 -- function, but earlier versions do not.
@@ -195,8 +196,6 @@ into #tmptbl_name
 --
 -- Example:
 --		-- !x! execute script string_agg with (table_name=#nonnulcols, string_col=null_errors, order_col=null_errors, delimiter=", ", string_var=+nullcols)
--- ===============================================================
--- !x! BEGIN SCRIPT STRING_AGG with parameters (table_name, string_col, order_col, delimiter, string_var)
 
 if object_id('tempdb..#agg_string') is not null drop table #agg_string;
 with enum as
@@ -242,7 +241,7 @@ where row_num=(select max(row_num) from agg);
 -- ################################################################
 --			Script VALIDATE_SCHEMAS
 -- ===============================================================
---
+-- !x! BEGIN SCRIPT VALIDATE_SCHEMAS with parameters (base_schema, staging, error_list)
 -- Utility script to validate base and staging schema
 --
 -- Required input arguments:
@@ -253,8 +252,6 @@ where row_num=(select max(row_num) from agg);
 --		error_list		: The name of the variable to receive a comma-
 --							delimited list of the names of invalid
 --							schema names.
--- ===============================================================
--- !x! BEGIN SCRIPT VALIDATE_SCHEMAS with parameters (base_schema, staging, error_list)
 
 if object_id('tempdb..#ups_ctrl_invl_schema') is not null drop table #ups_ctrl_invl_schema;
 select
@@ -290,7 +287,7 @@ where
 -- ################################################################
 --			Script VALIDATE_ONE
 -- ===============================================================
---
+-- !x! BEGIN SCRIPT VALIDATE_ONE with parameters (base_schema, staging, table, script, script_line)
 -- Utility script to validate one table in both base and staging schema
 -- Halts script processing if any either of the schemas are non-existent,
 --  or if either of the tables are not present within those schemas.
@@ -304,8 +301,6 @@ where
 --							(for error reporting).
 --		script_line		: The script line in which they were referenced
 --							(for error reporting).
--- ===============================================================
--- !x! BEGIN SCRIPT VALIDATE_ONE with parameters (base_schema, staging, table, script, script_line)
 
 -- Initialize the strings used to compile error information
 -- !x! sub_empty ~err_info
@@ -381,7 +376,7 @@ where
 -- ################################################################
 --			Script VALIDATE_CONTROL
 -- ===============================================================
---
+-- !x! BEGIN SCRIPT VALIDATE_CONTROL with parameters (base_schema, staging, control_table, script, script_line)
 -- Utility script to validate contents of control table against about
 --	base and staging schema
 --
@@ -395,8 +390,6 @@ where
 --							(for error reporting).
 --		script_line		: The script line in which they were referenced
 --							(for error reporting).
--- ===============================================================
--- !x! BEGIN SCRIPT VALIDATE_CONTROL with parameters (base_schema, staging, control_table, script, script_line)
 
 -- Initialize the strings used to compile error information
 -- !x! sub_empty ~err_info
@@ -484,7 +477,7 @@ where
 -- ################################################################
 --			Script STAGED_TO_LOAD
 -- ===============================================================
---
+-- !x! BEGIN SCRIPT STAGED_TO_LOAD with parameters (control_table, table_list)
 -- Creates a table having the structure that is used to drive other
 -- scripts that perform QA checks and the upsert operation on multiple
 -- staging tables.
@@ -544,9 +537,6 @@ where
 --
 -- Example:
 --		-- !x! execute script staged_to_load with (control_table=#stagingtables, table_list="tbla, tblb, tblc")
--- ===============================================================
-
--- !x! BEGIN SCRIPT STAGED_TO_LOAD with parameters (control_table, table_list)
 
 -- Run script to validate that control table name is valid temp table name
 -- !x! execute script temptable_isvalid with args (temptable_name=!!#control_table!!)
@@ -617,7 +607,7 @@ from itemtable;
 -- ################################################################
 --			Script LOAD_STAGING
 -- ===============================================================
---
+-- !x! BEGIN SCRIPT LOAD_STAGING with parameters (base_schema, staging, control_table, do_commit)
 -- Performs QA checks for nulls in non-null columns, for duplicated
 -- primary key values, and for invalid foreign keys in a set of staging
 -- tables to be loaded into base tables.  If there are failures in the
@@ -660,9 +650,6 @@ from itemtable;
 --
 -- Tables and views created or modified:
 --		#ups_qa_fails			: temporary table
--- ===============================================================
-
--- !x! BEGIN SCRIPT LOAD_STAGING with parameters (base_schema, staging, control_table, do_commit)
 
 
 -- Clear the columns of return values from the control table, in case this control
@@ -721,7 +708,7 @@ where null_errors is not null or pk_errors is not null or fk_errors is not null;
 -- ################################################################
 --			Script NULLQA_ONE
 -- ===============================================================
---
+-- !x! BEGIN SCRIPT NULLQA_ONE with parameters (base_schema, staging, table, error_list)
 -- Checks that non-nullable columns are fully populated in a
 -- staging table that is an image of the base table.
 -- Reports any non-conforming columns to the console and optionally
@@ -751,9 +738,6 @@ where null_errors is not null or pk_errors is not null or fk_errors is not null;
 --		#ups_next_column		: temporary table
 --		#ups_null_error_list	: temporary table
 --		#ups_qa_nonnull_col		: temporary table
--- ===============================================================
-
--- !x! BEGIN SCRIPT NULLQA_ONE with parameters (base_schema, staging, table, error_list)
 
 -- Write an initial header to the logfile.
 -- !x! if(sub_defined(logfile))
@@ -879,7 +863,8 @@ where
 
 -- ################################################################
 --			Script PKQA_ONE
---
+-- ===============================================================
+-- !x! BEGIN SCRIPT PKQA_ONE with parameters (base_schema, staging, table, display_errors, error_list)
 -- Check data a staging table for violations of the primary key
 -- of the corresponding base table.
 -- Reports any PK violations found to the console and optionally
@@ -912,9 +897,6 @@ where
 --		#ups_primary_key_columns		: temporary table
 --		#ups_pk_check					: temporary table
 --		#ups_ercnt						: temporary table
--- ===============================================================
-
--- !x! BEGIN SCRIPT PKQA_ONE with parameters (base_schema, staging, table, display_errors, error_list)
 
 -- Write an initial header to the logfile.
 -- !x! if(sub_defined(logfile))
@@ -1009,7 +991,8 @@ order by k.ordinal_position
 
 -- ################################################################
 --			Script FKQA_ONE
---
+-- ===============================================================
+-- !x! BEGIN SCRIPT FKQA_ONE with parameters (base_schema, staging, table, display_errors, error_list)
 -- Checks foreign keys from a staging table against a base table
 -- and, if it exists, another staging table that is an image of the
 -- base table.
@@ -1048,9 +1031,6 @@ order by k.ordinal_position
 --		ups_fk_joins				: temporary table
 --		ups_fk_check				: temporary table
 --		ups_ercnt					: temporary table
--- ===============================================================
-
--- !x! BEGIN SCRIPT FKQA_ONE with parameters (base_schema, staging, table, display_errors, error_list)
 
 -- Write an initial header to the logfile.
 -- !x! if(sub_defined(logfile))
@@ -1297,7 +1277,8 @@ where coalesce(fkerror_rows, 0) > 0;
 
 -- ################################################################
 --			Script UPSERT_ONE
---
+-- ===============================================================
+-- !x! BEGIN SCRIPT UPSERT_ONE with parameters (base_schema, staging, table, exclude_cols, display_changes, display_final, updcntvar, inscntvar)
 -- Adds data from a staging table to a base table, using UPDATE
 -- and INSERT statements.  Displays data to be modified to the
 -- user before any modifications are done.  Reports the changes
@@ -1347,9 +1328,6 @@ where coalesce(fkerror_rows, 0) > 0;
 --		ups_nk					: temporary table
 --		ups_assexpr				: temporary table
 --		ups_newrows				: temporary table
--- ===============================================================
-
--- !x! BEGIN SCRIPT UPSERT_ONE with parameters (base_schema, staging, table, exclude_cols, display_changes, display_final, updcntvar, inscntvar)
 
 -- Remove substitution variables that will contain the generated
 -- update and insert statements so that the existence of valid
@@ -1623,7 +1601,8 @@ from
 
 -- ################################################################
 --			Script UPSERT_ALL
---
+-- ===============================================================
+-- !x! BEGIN SCRIPT UPSERT_ALL with parameters (base_schema, staging, control_table)
 -- Updates multiple base tables with new or revised data from
 -- staging tables, using the UPSERT_ONE script.
 --
@@ -1667,10 +1646,6 @@ from
 --
 -- Counter variables:
 --		221585944		: Progress indicator.
---
--- ===============================================================
-
--- !x! BEGIN SCRIPT UPSERT_ALL with parameters (base_schema, staging, control_table)
 
 
 -- Validate contents of control table
@@ -1865,7 +1840,8 @@ on pt.table_name = ct.table_name;
 
 -- ################################################################
 --			Script QA_ALL
---
+-- ===============================================================
+-- !x! BEGIN SCRIPT QA_ALL with parameters (base_schema, staging, control_table)
 -- Conducts null and foreign key checks on multiple staging tables
 -- containing new or revised data for staging tables, using the
 -- NULLQA_ONE, PKQA_ONE, and FKQA_ONE scripts.
@@ -1916,10 +1892,6 @@ on pt.table_name = ct.table_name;
 --
 -- Global variables modified:
 --		upsert_progress_denom		: Created or redefined.
---
--- ===============================================================
-
--- !x! BEGIN SCRIPT QA_ALL with parameters (base_schema, staging, control_table)
 
 -- Get denominator for progress bar if console is on.
 -- !x! if(console_on)
@@ -2092,7 +2064,8 @@ update #ups_proctables set processed = 0;
 
 -- ################################################################
 --			Script UPDTPK_ONE
---
+-- ===============================================================
+-- !x! BEGIN SCRIPT UPDTPK_ONE with parameters (base_schema, staging, table, display_errors, display_changes)
 -- Updates primary keys in base table, based on new and older
 -- values of PK columns in a staging table, using UPDATE
 -- statements.  Displays data to be modified to the
@@ -2123,9 +2096,6 @@ update #ups_proctables set processed = 0;
 --		ups_pkqa_errors			: temporary table
 --		ups_pkcollinfo			: temporary table
 --		ups_pkupdates			: temporary table
--- ===============================================================
-
--- !x! BEGIN SCRIPT UPDTPK_ONE with parameters (base_schema, staging, table, display_errors, display_changes)
 
 -- !x! if(console_on)
 	-- !x! console status "Primary key updates"
@@ -2294,7 +2264,8 @@ where
 
 -- ################################################################
 --			Script UPDTPKQA_ONE
---
+-- ===============================================================
+-- !x! BEGIN SCRIPT UPDTPKQA_ONE with parameters (base_schema, staging, table, pkinfo_table, qaerror_table, display_errors)
 -- Performs QA checks on requested primary key updates to a table,
 -- based on old and new values of the table's primary key columns
 -- in a staging table.
@@ -2328,9 +2299,6 @@ where
 -- Tables and views created or modified:
 --		ups_missing_pk_cols			: temporary table
 --		ups_any_pk_cols				: temporary table
--- ===============================================================
-
--- !x! BEGIN SCRIPT UPDTPKQA_ONE with parameters (base_schema, staging, table, pkinfo_table, qaerror_table, display_errors)
 
 
 -- Write an initial header to the logfile.

@@ -52,25 +52,43 @@ def test_config_settings_db_is_what_make_config_db_builds(tmp_path):
     assert specs(TEMPLATES / "config_settings.sqlite") == specs(built)
 
 
-@pytest.mark.parametrize("prefix", ["pg", "md", "ss"])
 @pytest.mark.parametrize(
-    ("family", "script", "optional", "doc"),
+    ("template", "script", "optional", "doc"),
     [
-        ("glossary", "ADD_GLOSSARY_ITEM", "def_url", "Add an object name and definition to the custom glossary."),
-        ("compare", "COMPARE_COMMON", "exclude_cols", "Generate SQL to compare the attributes of base and staging"),
+        *(
+            (
+                f"{p}_glossary",
+                "ADD_GLOSSARY_ITEM",
+                "def_url",
+                "Add an object name and definition to the custom glossary.",
+            )
+            for p in ("pg", "md", "ss")
+        ),
+        *(
+            (
+                f"{p}_compare",
+                "COMPARE_COMMON",
+                "exclude_cols",
+                "Generate SQL to compare the attributes of base and staging",
+            )
+            for p in ("pg", "md", "ss")
+        ),
+        *(
+            (f"{p}_upsert", "LOAD_STAGING", None, "Performs QA checks for nulls in non-null columns")
+            for p in ("md", "ss")
+        ),
     ],
 )
-def test_scripts_document_themselves(prefix, family, script, optional, doc, tmp_path):
+def test_scripts_document_themselves(template, script, optional, doc, tmp_path):
     """SHOW SCRIPTS (and the editor's hover) shows a script's notes and its optional parameters."""
     show = tmp_path / "show.sql"
-    show.write_text(
-        f'-- !x! INCLUDE "{(TEMPLATES / f"{prefix}_{family}.sql").as_posix()}"\n-- !x! SHOW SCRIPTS {script}\n',
-    )
+    show.write_text(f'-- !x! INCLUDE "{(TEMPLATES / f"{template}.sql").as_posix()}"\n-- !x! SHOW SCRIPTS {script}\n')
     out = subprocess.run(
         [sys.executable, "-m", "execsql", "run", str(show), str(tmp_path / "t.db"), "-t", "l", "-n"],
         capture_output=True,
         text=True,
         check=True,
     ).stdout
-    assert re.search(rf"{optional}\s+\(optional, default: \)", out)
+    if optional:
+        assert re.search(rf"{optional}\s+\(optional, default: \)", out)
     assert doc in out
