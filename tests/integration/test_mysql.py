@@ -525,6 +525,25 @@ class TestHeadersWithCapitals:
         finally:
             _exec_mysql("DROP TABLE IF EXISTS t_common")
 
+    def test_common_columns_only_short_line_gets_null(self, tmp_path):
+        """A line with fewer values than the header has NULL for the ones left off, on the row path too."""
+        _exec_mysql("DROP TABLE IF EXISTS t_cc")
+        _exec_mysql("CREATE TABLE t_cc (a INTEGER, d INTEGER)")
+        _write_conf(tmp_path)
+        csv_path = tmp_path / "cc.csv"
+        csv_path.write_text('a,b,c,d\n1,"x",y,4\n2,"q"\n')
+        # TRIM_STRINGS takes the row-by-row path instead of LOAD DATA.
+        script = write_script(
+            tmp_path,
+            f"-- !x! IMPORT_COMMON_COLUMNS_ONLY YES\n-- !x! CONFIG TRIM_STRINGS YES\n-- !x! IMPORT TO t_cc FROM {csv_path}\n",
+        )
+        try:
+            result = _run_execsql_mysql(tmp_path, script)
+            assert result.returncode == 0, f"stderr: {result.stderr}"
+            assert [tuple(r) for r in _query_mysql("SELECT a, d FROM t_cc ORDER BY a")] == [(1, 4), (2, None)]
+        finally:
+            _exec_mysql("DROP TABLE IF EXISTS t_cc")
+
 
 @pytest.mark.parametrize("value", [r"C:\data\new", r"x\'; drop table t; --", "O'Brien", r"two\\backslashes"])
 def test_quoted_substitution_stores_the_value_as_written(tmp_path, value):

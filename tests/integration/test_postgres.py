@@ -705,6 +705,27 @@ def test_import_skip_applies_on_the_copy_path(tmp_path):
         run(sql="drop table if exists skip_target;\n", dsn=_PG_DSN)
 
 
+def test_common_columns_only_short_line_gets_null(tmp_path):
+    """A line with fewer values than the header has NULL for the ones left off, on the row path too."""
+    from execsql import run
+
+    csv = tmp_path / "cc.csv"
+    csv.write_text('a,b,c,d\n1,"x",y,4\n2,"q"\n', encoding="utf-8")
+    run(sql="drop table if exists t_cc;\ncreate table t_cc (a integer, d integer);\n", dsn=_PG_DSN)
+    try:
+        # TRIM_STRINGS takes the row-by-row path instead of COPY.
+        script = (
+            f"-- !x! IMPORT_COMMON_COLUMNS_ONLY YES\n-- !x! CONFIG TRIM_STRINGS YES\n-- !x! IMPORT TO t_cc FROM {csv}\n"
+        )
+        result = run(sql=script, dsn=_PG_DSN)
+        assert result.success, result.errors
+        with psycopg.connect(**_PG_CONNECT_KWARGS) as conn:
+            rows = conn.execute("select a, d from t_cc order by a").fetchall()
+        assert rows == [(1, 4), (2, None)]
+    finally:
+        run(sql="drop table if exists t_cc;\n", dsn=_PG_DSN)
+
+
 @pytest.mark.parametrize("value", [r"C:\data\new", r"x\'; drop table t; --", "O'Brien", r"two\\backslashes"])
 def test_quoted_substitution_stores_the_value_as_written(value):
     """standard_conforming_strings is on: a backslash in '...' is text, so !'!v!'! must not double it."""
