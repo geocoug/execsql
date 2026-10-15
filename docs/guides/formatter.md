@@ -126,6 +126,8 @@ The `--indent` flag controls SQL indentation in addition to metacommand depth. F
 
 The SQL layout comes from sqlglot, and sqlglot's output changes between its releases. So that the same script formats the same way on every machine, in CI and in the pre-commit hook, execsql2 pins it: the `[formatter]` extra requires sqlglot 30.21.x and the `execsql-format` hook installs exactly 30.21.0. A new execsql2 release may move the pin; its changelog says so, and the first run after upgrading can reformat files whose content did not change.
 
+The pin holds for the whole environment execsql2 is installed in. Install it as a tool (`uv tool install` or `pipx install`), which gives it an environment of its own. In a project's virtual environment that also uses sqlglot through another package (sqlmesh, sqlframe, sql-metadata and others pin it to their own ranges), installing `execsql2[formatter]` or `execsql2[lsp]` makes the resolver pick whatever release of the other package accepts sqlglot 30.21, which can be a much older one, without an error.
+
 Conditions joined by `AND` / `OR` go on one line when their combined text is at most 120 characters, and one per line otherwise. sqlglot measures the conditions without the indentation and the spaces between them, so a joined line can run a few characters past 120.
 
 #### Layout only, or rewrite { #layout-only }
