@@ -470,8 +470,10 @@ from itemtable;
 --							(e.g., "stg_").
 --		control_table	: The name of a table as created by the
 --							script STAGED_TO_LOAD.
---		do_commit		: Whether or not the script should commit
---							the changes; should be 'Yes' or 'No'.
+--		do_commit		: Must be 'Yes'.  MySQL and MariaDB commit at every
+--							CREATE and DROP, which the load runs, so a load
+--							cannot be rolled back; 'No' halts before anything
+--							changes.  Run QA_ALL to check without loading.
 -- Global variables:
 --		logfile			: The name of a log file to which error
 --							messages will be written.  Optional.
@@ -488,6 +490,16 @@ from itemtable;
 --
 -- Tables and views created or modified:
 --		ups_qa_fails				: view
+
+-- MySQL and MariaDB commit at every CREATE and DROP, and the load creates and
+-- drops tables and views, so it cannot be rolled back: refuse a dry run rather
+-- than commit one.
+-- !x! if(not is_true(!!#do_commit!!))
+	-- !x! sub ~message LOAD_STAGING cannot run with do_commit=!!#do_commit!! on MySQL or MariaDB:
+	-- !x! sub_append ~message the load creates tables and views, which commit, so its changes cannot be rolled back.
+	-- !x! sub_append ~message Run QA_ALL to check the staging tables without loading them.
+	-- !x! halt message "!!~message!!"
+-- !x! endif
 
 -- Clear the columns of return values from the control table, in case this control
 -- table has been used previously.
