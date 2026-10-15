@@ -28,6 +28,12 @@ def _init(table: str) -> str:
     )
 
 
+_REPLACEMENT = (
+    "execsql: COPY ... TO REPLACEMENT fails on SQL Server when the target table does not exist yet "
+    "(ss_glossary copies to REPLACEMENT gls_newentries2)"
+)
+
+
 def _glossary(target, body: str, tmp_path) -> list[dict[str, str]]:
     result = target.run("glossary", body + "-- !x! EXPORT glossary TO glossary.csv AS CSV\n", tmp_path=tmp_path)
     assert result.success, result.errors
@@ -35,6 +41,7 @@ def _glossary(target, body: str, tmp_path) -> list[dict[str, str]]:
 
 
 def test_a_list_of_terms_takes_their_definitions_from_the_master(target, tmp_path):
+    known_bug(target, "sqlserver", _REPLACEMENT)
     table = _master(target)
     rows = _glossary(
         target,
@@ -62,6 +69,7 @@ def test_an_item_can_be_added_with_its_own_definition(target, tmp_path):
 
 
 def test_a_term_added_twice_appears_once(target, tmp_path):
+    known_bug(target, "sqlserver", _REPLACEMENT)
     known_bug(target, "mysql", _MYSQL_CAST)
     table = _master(target)
     rows = _glossary(
@@ -79,6 +87,7 @@ def test_a_term_added_twice_appears_once(target, tmp_path):
 
 
 def test_a_table_adds_every_column_it_has(target, tmp_path):
+    known_bug(target, "sqlserver", _REPLACEMENT)
     table = _master(target)
     data = target.table(target.base, "samples")
     target.execute(f"create table {data} (site_id varchar(10), sample_date date, result float)")
