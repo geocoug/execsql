@@ -2,7 +2,7 @@
   "name": "execsql-syntax",
   "displayName": "execsql",
   "description": "Syntax highlighting, lint findings, completion, hover, navigation, quick fixes and formatting for execsql scripts.",
-  "version": "2.31.1",
+  "version": "2.31.2",
   "publisher": "geocoug",
   "license": "GPL-3.0-or-later",
   "icon": "icon.png",

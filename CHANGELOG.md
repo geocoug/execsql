@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.31.2] - 2026-10-16
+
 ### Fixed
 
 - **SQL Server, Access and ODBC DSN connections** start a new database session on every `CONNECT` and `execsql.run()`: temp tables and `SET` options no longer carry over from an earlier connection in the same process on macOS and Linux. execsql turns off pyodbc's connection pooling, which also applies to other pyodbc connections your program makes.
