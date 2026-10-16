@@ -14,7 +14,9 @@ today's date.  ``1-2``, ``5/6`` and ``March 5`` are not timestamps.
 """
 
 import datetime
+import functools
 import re
+import time
 from typing import Any, cast
 
 from dateutil import parser as _dateutil_parser
@@ -58,9 +60,21 @@ _DEFAULT_B = datetime.datetime(2002, 2, 2)
 
 def _parse(datestr: str, strict: bool) -> datetime.datetime | None:
     """Parse *datestr* with dateutil; when *strict*, only a fully written date."""
-    try:
-        if not strict:
+    if not strict:
+        try:
             return cast(datetime.datetime, _dateutil_parser.parse(datestr))
+        except (ValueError, OverflowError, TypeError):
+            return None
+    # A strict parse depends only on the string and on the local zone names
+    # dateutil matches a written zone against, so repeated values (dates
+    # recur, and type inference parses each one for both timestamp types)
+    # are parsed once.
+    return _parse_strict(datestr, time.tzname)
+
+
+@functools.lru_cache(maxsize=4096)
+def _parse_strict(datestr: str, _local_zone_names: tuple[str, str]) -> datetime.datetime | None:
+    try:
         if not _FULL_YEAR.search(datestr):
             short = _SHORT_YEAR.match(datestr)
             # Month first only: dateutil would read 13-05-24 day-first,

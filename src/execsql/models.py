@@ -50,6 +50,16 @@ __all__ = [
 ColumnType = tuple[str, type[DataType], int | None, bool, int | None, int | None]
 
 
+def _text_length(value: Any) -> int:
+    """Return the length of *value* written as text (a column may turn out to be text)."""
+    if isinstance(value, str):
+        return len(value)
+    try:
+        return len(str(value))
+    except Exception:
+        return len(bytes(value))
+
+
 class Column:
     """Compile data-type match statistics for a single column of imported data."""
 
@@ -84,39 +94,38 @@ class Column:
             """Test whether a non-null value matches this data type and update statistics."""
             # datavalue must be non-null
             if not self.failed:
-                is_match = self.dt.matches(datavalue)
-                if is_match:
-                    self.count += 1
-                    if isinstance(datavalue, str):
-                        vlen = len(datavalue)
-                    else:
-                        # This column may turn out to have to be text, so we need the maximum length
-                        # of any data value when represented as text.
-                        try:
-                            vlen = len(str(datavalue))
-                        except Exception:
-                            vlen = len(bytes(datavalue))
-                    if self.maxlen > 0 and vlen != self.maxlen:
-                        self.varlen = True
-                    if vlen > self.maxlen:
-                        self.maxlen = vlen
-                    if self.dt.precision is not None and self.dt.scale is not None:
-                        int_digits = self.dt.precision - self.dt.scale
-                        if self.maxprecision is None:
-                            self.maxprecision = self.dt.precision
-                            self.scale = self.dt.scale
-                            self.maxscale = self.dt.scale
-                            self.max_int_digits = int_digits
-                        else:
-                            assert self.maxscale is not None
-                            assert self.max_int_digits is not None
-                            self.maxprecision = max(self.dt.precision, self.maxprecision)
-                            if self.dt.scale != self.scale:
-                                self.varscale = True
-                            self.maxscale = max(self.dt.scale, self.maxscale)
-                            self.max_int_digits = max(int_digits, self.max_int_digits)
+                if self.dt.matches(datavalue):
+                    self.record(_text_length(datavalue))
                 else:
                     self.failed = True
+
+        def record(self, vlen: int) -> None:
+            """Count a value this data type matched, *vlen* characters long as text.
+
+            Call it right after :meth:`DataType.matches` accepted the value:
+            a decimal type's precision and scale are those of the value it
+            last matched.
+            """
+            self.count += 1
+            if self.maxlen > 0 and vlen != self.maxlen:
+                self.varlen = True
+            if vlen > self.maxlen:
+                self.maxlen = vlen
+            if self.dt.precision is not None and self.dt.scale is not None:
+                int_digits = self.dt.precision - self.dt.scale
+                if self.maxprecision is None:
+                    self.maxprecision = self.dt.precision
+                    self.scale = self.dt.scale
+                    self.maxscale = self.dt.scale
+                    self.max_int_digits = int_digits
+                else:
+                    assert self.maxscale is not None
+                    assert self.max_int_digits is not None
+                    self.maxprecision = max(self.dt.precision, self.maxprecision)
+                    if self.dt.scale != self.scale:
+                        self.varscale = True
+                    self.maxscale = max(self.dt.scale, self.maxscale)
+                    self.max_int_digits = max(int_digits, self.max_int_digits)
 
     def __init__(self, colname: str, infer_strings: bool = True) -> None:
         """Create a column characteriser for the named column.
@@ -177,6 +186,15 @@ class Column:
         self.str_accums = tuple(ac for ac in self.accums if isinstance(ac.dt, (DT_Character, DT_Varchar, DT_Text)))
         # A bytes value is checked as binary or text only: int(b"12") is 12.
         self.bytes_accums = tuple(ac for ac in self.accums if isinstance(ac.dt, DT_Binary)) + self.str_accums
+        # A value is tried only against the types that matched every value
+        # before it: a type that failed once cannot be the column's type.
+        self._live = list(self.accums)
+        self._live_str = list(self.str_accums)
+        self._live_bytes = list(self.bytes_accums)
+        # The settings the scan reads for every value, read once.
+        self._trim_strings = conf.trim_strings
+        self._replace_newlines = conf.replace_newlines
+        self._empty_strings = conf.empty_strings
         self.dt_eval = False
         # self.dt is a tuple of: 0: column name; 1: data type class; 2: max length or None;
         # 3: bool indicating any null values; 4: precision or None; 5: scale or None.
@@ -187,31 +205,38 @@ class Column:
 
     def eval_types(self, column_value: Any) -> None:
         """Evaluate which data types the value matches and update counters."""
-        # Evaluate which data type(s) the value matches, and increment the appropriate counter(s).
-        import execsql.state as _state
-
         self.dt_eval = False
         self.rowcount += 1
-        conf = _state.conf
-        if column_value is not None and isinstance(column_value, str):
-            if conf.trim_strings:
+        is_str = isinstance(column_value, str)
+        if is_str:
+            if self._trim_strings:
                 column_value = column_value.strip()
-            if conf.replace_newlines:
+            if self._replace_newlines:
                 column_value = re.sub(r"[\s\t]*[\r\n]+[\s\t]*", " ", column_value)
-        if column_value is None or (
-            not conf.empty_strings and isinstance(column_value, str) and len(column_value.strip()) == 0
-        ):
+        if column_value is None or (not self._empty_strings and is_str and len(column_value.strip()) == 0):
             self.nullrows += 1
             return
-        if not self.infer_strings and isinstance(column_value, str):
-            for dt in self.str_accums:
-                dt.check(column_value)
+        if not self.infer_strings and is_str:
+            live = self._live_str
         elif not self.infer_strings and isinstance(column_value, (bytes, bytearray, memoryview)):
-            for dt in self.bytes_accums:
-                dt.check(column_value)
+            live = self._live_bytes
         else:
-            for dt in self.accums:
-                dt.check(column_value)
+            live = self._live
+        vlen = None
+        any_failed = False
+        # The value is not NULL, the one case DataType.matches() adds to _is_match().
+        for ac in live:
+            if ac.dt._is_match(column_value):
+                if vlen is None:
+                    vlen = _text_length(column_value)
+                ac.record(vlen)
+            else:
+                ac.failed = True
+                any_failed = True
+        if any_failed:
+            self._live = [ac for ac in self._live if not ac.failed]
+            self._live_str = [ac for ac in self._live_str if not ac.failed]
+            self._live_bytes = [ac for ac in self._live_bytes if not ac.failed]
 
     def column_type(self) -> ColumnType:
         """Return the inferred type of this column as a 6-tuple."""

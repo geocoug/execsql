@@ -21,6 +21,7 @@ from execsql.types import (
     DT_Decimal,
     DT_Float,
     DT_Integer,
+    DT_Long,
     DT_Text,
     DT_Timestamp,
     DT_TimestampTZ,
@@ -401,3 +402,24 @@ class TestColumnMixedScaleDecimal:
         assert dt is DT_Decimal
         assert scale == 1
         assert prec == 2  # max_int_digits(1) + max_scale(1)
+
+
+class TestScanCost:
+    """The type scan's work per value does not grow with the value."""
+
+    def test_a_column_of_large_integers_scans_quickly(self):
+        import time
+
+        epoch_ms = [[1_700_000_000_000 + i] for i in range(50)]
+        start = time.perf_counter()
+        table = DataTable(["ms"], epoch_ms, infer_strings=False)
+        assert time.perf_counter() - start < 2
+        assert table.cols[0].column_type()[1] is DT_Long
+
+    def test_a_type_that_fails_is_not_tried_again(self):
+        col = Column("c")
+        col.eval_types("abc")
+        live = len(col._live)
+        col.eval_types("2020-01-02")  # would match the date types, which "abc" ruled out
+        assert len(col._live) == live
+        assert col.column_type()[1] is DT_Varchar
