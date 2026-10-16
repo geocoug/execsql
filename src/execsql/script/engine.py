@@ -108,6 +108,7 @@ class MetaCommand:
         """Match *cmd_str* against this entry's regex and, if it matches, invoke the handler.
 
         Returns ``(True, return_value)`` on a match, ``(False, None)`` otherwise.
+        Raises :class:`ErrInfo` when the handler fails.
         """
         # Runs the metacommand if the command string matches the regex.
         m = self.rx.match(cmd_str.strip())
@@ -125,13 +126,10 @@ class MetaCommand:
                 er = ErrInfo("cmd", command_text=cmd_str, exception_msg=exception_desc())
                 er.__cause__ = exc
             if er:
-                if _state.status.halt_on_metacommand_err:
-                    from execsql.utils.errors import exit_now
-
-                    exit_now(1, er)
-                if self.set_error_flag:
-                    _state.status.metacommand_error = True
-                    return True, None
+                # The caller records the error ($LAST_ERROR, $ERROR_MESSAGE,
+                # the log, the error history) and halts or carries on.
+                if self.set_error_flag or _state.status.halt_on_metacommand_err:
+                    raise er
             else:
                 if self.set_error_flag:
                     _state.status.metacommand_error = False

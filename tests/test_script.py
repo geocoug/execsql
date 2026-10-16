@@ -807,15 +807,15 @@ class TestMetaCommand:
         assert captured["varname"] == "myvar"
         assert captured["value"] == "hello"
 
-    def test_run_sets_error_flag_on_exception(self):
+    def test_run_raises_the_handler_error(self):
         rx = re.compile(r".*", re.I)
 
         def bad_handler(**kw):
             raise ValueError("oops")
 
         mc = MetaCommand(rx, bad_handler, set_error_flag=True)
-        mc.run("anything")
-        assert _state.status.metacommand_error is True
+        with pytest.raises(ErrInfo):
+            mc.run("anything")
 
     def test_run_clears_error_flag_on_success(self):
         _state.status.metacommand_error = True

@@ -1766,7 +1766,7 @@ Evaluates whether or not the specified value is equal to zero. If the value is n
 METACOMMAND_ERROR()
 ```
 
-Evaluates whether the previous metacommand generated an error. This test for SQL errors will only be effective if the [METACOMMAND_ERROR_HALT OFF](#metacommanderrorhalt) metacommand has previously been issued. This conditional must be used in the first metacommand after any metacommand that might have encountered an error.
+Evaluates whether the previous metacommand generated an error. This test for SQL errors will only be effective if the [METACOMMAND_ERROR_HALT OFF](#metacommanderrorhalt) metacommand has previously been issued. This conditional must be used in the first metacommand after any metacommand that might have encountered an error: any metacommand that succeeds, even a WRITE, clears the flag. The error itself stays available until the next error: [$LAST_ERROR](substitution_vars.md#system_vars) holds the metacommand that failed and [$ERROR_MESSAGE](substitution_vars.md#system_vars) its message.
 
 
 ### *NEWER_DATE*
@@ -2109,7 +2109,7 @@ The [BREAK](#break) metacommand can be used to exit from a loop at any time.
 METACOMMAND_ERROR_HALT ON|OFF
 ```
 
-When METACOMMAND_ERROR_HALT is set to ON, which is the default, any errors that occur during execution of a metacommand will cause an error message to be displayed immediately, and *execsql* to halt. When METACOMMAND_ERROR_HALT is set to OFF, then metacommand errors will be ignored, but can be evaluated with the [IF METACOMMAND_ERROR](#metacommanderror) conditional.
+When METACOMMAND_ERROR_HALT is set to ON, which is the default, any errors that occur during execution of a metacommand will cause an error message to be displayed immediately, and *execsql* to halt. When METACOMMAND_ERROR_HALT is set to OFF, then metacommand errors will be ignored, but can be evaluated with the [IF METACOMMAND_ERROR](#metacommanderror) conditional; `$LAST_ERROR` and `$ERROR_MESSAGE` hold the failed metacommand and its message.
 
 The METACOMMAND_ERROR_HALT metacommand does not itself set or reset the internal flag that indicates whether a metacommand has encountered an error. This is so that a "METACOMMAND_ERROR_HALT Off" command can be used immediately after a potentially-failing metacommand and not alter the error flag that is set by the previous command. Specifically, constructions like this:
 
