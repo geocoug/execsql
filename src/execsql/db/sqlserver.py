@@ -8,7 +8,7 @@ Server via ``pyodbc``.  Corresponds to ``-t s`` on the CLI.
 """
 
 from execsql.db.base import Database
-from execsql.db.odbc import connection_string, loggable
+from execsql.db.odbc import connection_string, fresh_sessions, loggable
 from execsql.exceptions import ErrInfo
 from execsql.utils.errors import fatal_error, install_hint
 from execsql.utils.auth import (
@@ -97,6 +97,8 @@ class SqlServerDatabase(Database):
     def open_db(self) -> None:
         """Open a connection to the SQL Server database via pyodbc."""
         import pyodbc
+
+        fresh_sessions(pyodbc)
 
         if self.conn is None:
             begin_login()

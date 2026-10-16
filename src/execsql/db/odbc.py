@@ -7,13 +7,30 @@ taken from a substitution variable) would end its attribute early and
 start another.  :func:`odbc_value` brace-quotes such values;
 :func:`connection_string` joins the attributes, and :func:`loggable`
 gives the same string with the password masked for the log.
+:func:`fresh_sessions` makes each pyodbc connection a new database session.
 """
 
 from __future__ import annotations
 
-__all__ = ["connection_string", "loggable", "odbc_value"]
+from typing import Any
+
+__all__ = ["connection_string", "fresh_sessions", "loggable", "odbc_value"]
 
 _SECRET_KEYS = frozenset({"pwd", "password"})
+
+
+def fresh_sessions(pyodbc: Any) -> None:
+    """Turn off pyodbc's connection pooling, so each connection is a new session.
+
+    With pooling on, closing a connection hands its session back to the ODBC
+    driver manager, and unixODBC gives it unchanged to the next connection to
+    the same server: temp tables and ``SET`` options from one ``CONNECT`` or
+    ``execsql.run()`` were still there in the next.  pyodbc applies the
+    setting when the process makes its first pyodbc connection, so it covers
+    every pyodbc connection in the process, and has no effect if one was
+    made before execsql's first.
+    """
+    pyodbc.pooling = False
 
 
 def odbc_value(value: object) -> str:

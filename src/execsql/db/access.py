@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any, cast
 
 from execsql.db.base import Database, _fetched
-from execsql.db.odbc import odbc_value
+from execsql.db.odbc import fresh_sessions, odbc_value
 from execsql.db.tiers import SupportTier
 from execsql.exceptions import ErrInfo
 from execsql.utils.errors import exception_desc, fatal_error, install_hint
@@ -107,6 +107,8 @@ class AccessDatabase(Database):
         """Open an ODBC connection to the Access database."""
         # Open an ODBC connection.
         import pyodbc
+
+        fresh_sessions(pyodbc)
 
         if self.conn is not None:
             self.conn.close()

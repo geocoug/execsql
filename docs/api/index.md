@@ -78,11 +78,12 @@ for t in threads:
 
 Each run has its own [file writer](#file-output), so two runs writing files at the same time both get complete files, and a run that halts on an error stops only its own output. Plugin metacommands are registered once per process, not once per call, and a `--manifest` recorder belongs to the run that started it.
 
-Three things are still shared by every thread in the process, so keep them apart yourself:
+Four things are still shared by every thread in the process, so keep them apart yourself:
 
 - **The working directory.** `CD` calls `os.chdir()`, which moves every thread while the script runs. Use absolute paths in scripts that run concurrently, or don't use `CD` in them. When a script that ran `CD` finishes, `run()` changes back to the directory it was in before that `CD`, so the caller ends where it started; a run without `CD` leaves the directory as it finds it.
 - **The same output file.** Two runs writing one file at the same time can interleave their lines. Give each run its own output paths.
 - **Interactive prompts.** `PROMPT` and the other GUI metacommands are not meant to be driven from several threads at once.
+- **pyodbc's connection pooling.** Before its first SQL Server, Access or ODBC DSN connection, execsql turns pooling off (`pyodbc.pooling = False`), so every `CONNECT` and every `run()` gets a new database session: a temp table or `SET` option from one run is gone in the next. pyodbc reads the setting at the process's first pyodbc connection, so your own pyodbc connections are not pooled either, and if your program connects with pyodbc before execsql does, pooling stays on and runs against the same server can share a session.
 
 ### File Output { #file-output }
 

@@ -431,3 +431,32 @@ def test_to_replacement_creates_a_table_that_does_not_exist(tmp_path, monkeypatc
             "if object_id('repl_src') is not null drop table repl_src;\n",
             dsn=dsn,
         )
+
+
+def test_each_run_gets_a_fresh_session():
+    """A temp table or SET option from one run() is gone in the next.
+
+    In a fresh interpreter: pyodbc applies its pooling setting at the
+    process's first connection, and this module has already connected.
+    """
+    import subprocess
+    import sys
+
+    dsn = f"mssql://{_MS_USER}:{_MS_PASS}@{_MS_HOST}:{_MS_PORT}/{_MS_DB}?trust_server_certificate=yes"
+    code = f"""
+import execsql
+dsn = {dsn!r}
+first = execsql.run(sql="create table #probe (i int);\\nset language Deutsch;\\n", dsn=dsn)
+assert first.success, first.errors
+second = execsql.run(
+    sql="select case when object_id('tempdb..#probe') is null then 'gone' else 'kept' end as probe"
+    " into #seen;\\n-- !x! subdata probe #seen\\n"
+    "select @@LANGUAGE as lang into #lang;\\n-- !x! subdata lang #lang\\n",
+    dsn=dsn,
+)
+assert second.success, second.errors
+print(second.variables["probe"], second.variables["lang"])
+"""
+    proc = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=120, check=False)
+    assert proc.returncode == 0, proc.stderr
+    assert proc.stdout.split() == ["gone", "us_english"]

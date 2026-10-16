@@ -10,6 +10,7 @@ the CLI.
 
 
 from execsql.db.base import Database
+from execsql.db.odbc import fresh_sessions
 from execsql.db.tiers import SupportTier
 from execsql.exceptions import ErrInfo
 from execsql.utils.errors import exception_desc, fatal_error, install_hint
@@ -74,6 +75,8 @@ class DsnDatabase(Database):
         """Open an ODBC connection using the configured DSN."""
         # Open an ODBC connection using a DSN.
         import pyodbc
+
+        fresh_sessions(pyodbc)
 
         if self.conn is not None:
             self.conn.close()
