@@ -100,17 +100,16 @@ class TestMetaCommandRun:
         assert mc.hitcount == 0
 
     def test_handler_raises_errinf_no_halt(self, engine_state):
-        """ErrInfo from handler: sets metacommand_error, returns (True, None)."""
+        """ErrInfo from the handler goes to the caller, which records it ($LAST_ERROR, history)."""
         _state.status.halt_on_metacommand_err = False
 
         def bad_handler(**kw):
             raise ErrInfo("error", other_msg="oops")
 
         mc = MetaCommand(re.compile(r"^\s*FAIL\s*$", re.I), bad_handler, set_error_flag=True)
-        matched, rv = mc.run("FAIL")
-        assert matched is True
-        assert rv is None
-        assert _state.status.metacommand_error is True
+        with pytest.raises(ErrInfo, match="oops"):
+            mc.run("FAIL")
+        assert mc.hitcount == 0
 
     def test_handler_raises_general_exception_no_halt(self, engine_state):
         """Generic exception from handler is converted to ErrInfo."""
@@ -120,10 +119,19 @@ class TestMetaCommandRun:
             raise ValueError("boom")
 
         mc = MetaCommand(re.compile(r"^\s*BOOM\s*$", re.I), bad_handler, set_error_flag=True)
-        matched, rv = mc.run("BOOM")
-        assert matched is True
-        assert rv is None
-        assert _state.status.metacommand_error is True
+        with pytest.raises(ErrInfo) as excinfo:
+            mc.run("BOOM")
+        assert isinstance(excinfo.value.__cause__, ValueError)
+
+    def test_set_error_flag_false_error_without_halt_is_no_match(self, engine_state):
+        """As upstream: a failing METACOMMAND_ERROR_HALT-style command reports no match."""
+        _state.status.halt_on_metacommand_err = False
+
+        def bad_handler(**kw):
+            raise ErrInfo("error", other_msg="nope")
+
+        mc = MetaCommand(re.compile(r"^\s*NOFLAG\s*$", re.I), bad_handler, set_error_flag=False)
+        assert mc.run("NOFLAG") == (False, None)
 
     def test_successful_run_clears_metacommand_error(self, engine_state):
         _state.status.metacommand_error = True
@@ -154,20 +162,17 @@ class TestMetaCommandRun:
         with pytest.raises(SystemExit):
             mc.run("EXIT")
 
-    def test_halt_on_metacommand_err_calls_exit_now(self, engine_state):
-        """When halt_on_metacommand_err is True and handler raises, exit_now is called."""
+    def test_halting_is_left_to_the_caller(self, engine_state):
+        """With halt_on_metacommand_err, the error is raised; the executor records it and halts."""
         _state.status.halt_on_metacommand_err = True
 
         def bad_handler(**kw):
             raise ErrInfo("error", other_msg="halt me")
 
         mc = MetaCommand(re.compile(r"^\s*HALTNOW\s*$", re.I), bad_handler)
-        # exit_now is imported lazily inside MetaCommand.run(), so patch at its source module
-        with patch("execsql.utils.errors.exit_now") as mock_exit:
-            mock_exit.side_effect = SystemExit(1)
-            with pytest.raises(SystemExit):
-                mc.run("HALTNOW")
-        mock_exit.assert_called_once()
+        with patch("execsql.utils.errors.exit_now") as mock_exit, pytest.raises(ErrInfo, match="halt me"):
+            mc.run("HALTNOW")
+        mock_exit.assert_not_called()
 
     def test_repr_contains_pattern(self):
         mc = MetaCommand(re.compile(r"^\s*ABC\s*$", re.I), lambda **kw: None, "test cmd")

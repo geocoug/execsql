@@ -11,6 +11,11 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Fixed
+
+- **A failed metacommand sets `$LAST_ERROR` and `$ERROR_MESSAGE`** with `METACOMMAND_ERROR_HALT OFF`, so a script can tell what failed, not only that `METACOMMAND_ERROR()` is true; an `ON ERROR_HALT` handler (including `ON ERROR_HALT WRITE "…!{$LAST_ERROR}!"`) now gets `$LAST_ERROR` too. The error is also written to `execsql.log`.
+- **`execsql.run()` reports a metacommand that failed under `METACOMMAND_ERROR_HALT OFF`** in `result.errors`, with `success` False, as it already did for a SQL error under `ERROR_HALT OFF`.
+
 ______________________________________________________________________
 
 ## [2.32.0] - 2026-10-16
