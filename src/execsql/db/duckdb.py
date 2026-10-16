@@ -8,8 +8,12 @@ analytics databases via the ``duckdb`` package.  Corresponds to ``-t k``
 on the CLI.
 """
 
+import importlib.util
 import re
+import sys
 from collections import deque
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -18,7 +22,7 @@ from execsql.exceptions import ErrInfo
 from execsql.utils.errors import exception_desc, fatal_error, install_hint
 import execsql.state as _state
 
-__all__ = ["DuckDBDatabase"]
+__all__ = ["DuckDBDatabase", "insert_rows"]
 
 # Statements that return rows; any other statement DuckDB answers with a
 # one-column "Count" result (rows inserted, updated or deleted).
@@ -26,6 +30,53 @@ _QUERY_RX = re.compile(r"(?:SELECT|WITH|VALUES|FROM|TABLE|SHOW|DESCRIBE|SUMMARIZ
 
 # A statement that opens a transaction, or one that ends it.
 _TRANSACTION_RX = re.compile(r"(?P<begin>BEGIN|START\s+TRANSACTION)\b|(?P<end>COMMIT|END|ROLLBACK|ABORT)\b", re.I)
+
+
+# Parameters bound by one INSERT ... VALUES statement in insert_rows(); a
+# wide table gets fewer rows per statement.
+_PARAMS_PER_STATEMENT = 10_000
+
+
+@contextmanager
+def _pandas_lookup_skipped() -> Iterator[None]:
+    """Make DuckDB's check for pandas fail at once while it binds rows.
+
+    The duckdb package asks Python's import system for ``pandas`` twice for
+    every row it binds, and when pandas is not installed nothing remembers
+    the answer, so each row searches ``sys.path`` again: about three
+    quarters of an INSERT's time.  A ``None`` in ``sys.modules`` makes that
+    import fail without the search.  It is set only when pandas is not
+    installed, so no import that could have succeeded fails, and it is
+    removed afterwards.
+    """
+    if "pandas" in sys.modules or importlib.util.find_spec("pandas") is not None:
+        yield
+        return
+    sys.modules["pandas"] = None  # type: ignore[assignment]
+    try:
+        yield
+    finally:
+        if "pandas" in sys.modules and sys.modules["pandas"] is None:
+            del sys.modules["pandas"]
+
+
+def insert_rows(curs: Any, table: str, columns: list[str], rows: list[Any]) -> None:
+    """Insert *rows* into *table* with multi-row ``INSERT ... VALUES`` statements.
+
+    *table* is quoted (and schema-qualified as needed); *columns* are the
+    quoted column names, in the order of each row's values.  DuckDB's
+    ``executemany`` runs one row at a time; binding many rows in one
+    statement is several times faster and stores the same values.
+    """
+    if not rows:
+        return
+    per_statement = max(1, _PARAMS_PER_STATEMENT // max(1, len(columns)))
+    head = f"insert into {table} ({','.join(columns)}) values "
+    row_marks = "(" + ",".join("?" * len(columns)) + ")"
+    with _pandas_lookup_skipped():
+        for start in range(0, len(rows), per_statement):
+            chunk = rows[start : start + per_statement]
+            curs.execute(head + ",".join([row_marks] * len(chunk)), [value for row in chunk for value in row])
 
 
 class _SharedCursor:
@@ -260,6 +311,14 @@ class DuckDBDatabase(Database):
         with self._cursor() as curs:
             curs.execute(sql, params)
             return len(curs.fetchall()) > 0
+
+    def row_inserter(self, curs: Any, table: str, columns: list[str]) -> Callable[[list[list[Any]]], None]:
+        """Insert each batch with multi-row ``INSERT ... VALUES`` (:func:`insert_rows`)."""
+
+        def insert(rows: list[list[Any]]) -> None:
+            insert_rows(curs, table, columns, rows)
+
+        return insert
 
     def view_exists(self, view_name: str, schema_name: str | None = None) -> bool:
         """Return True if the named view exists in the DuckDB database."""

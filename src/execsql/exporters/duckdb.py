@@ -10,7 +10,6 @@ Requires the ``execsql2[duckdb]`` extra.
 
 import datetime as _datetime
 import decimal as _decimal
-import math
 from pathlib import Path
 from typing import Any
 
@@ -38,9 +37,9 @@ def export_duckdb(
         fatal_error(f"The duckdb module is required to export data in that format. {install_hint('duckdb')}")
         return
 
+    from execsql.db.duckdb import insert_rows
     from execsql.models import DataTable
 
-    chunksize = 10000
     # B07a/F026: tablename and catalog are substituted from user input.
     # Identifier-quote the table-name interpolation site and use
     # placeholders for the information_schema literal-value query.
@@ -70,15 +69,8 @@ def export_duckdb(
     curs.execute(sql)
     # Export all rows of data
     columns = [dbt_duckdb.quoted(col) for col in hdrs]
-    colspec = ",".join(columns)
-    paramspec = ",".join(("?",) * len(columns))
-    sql = f"insert into {qtable} ({colspec}) values ({paramspec});"
-    n_chunks = math.ceil(len(rowdata) / chunksize)
     curs.execute("BEGIN TRANSACTION;")
-    for i in range(n_chunks):
-        start = i * chunksize
-        end = start + chunksize
-        curs.executemany(sql, rowdata[start:end])
+    insert_rows(curs, qtable, columns, rowdata)
     curs.execute("COMMIT;")
     curs.close()
     ddb.close()

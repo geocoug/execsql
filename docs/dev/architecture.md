@@ -297,7 +297,7 @@ ______________________________________________________________________
 1. An `IMPORT` metacommand is dispatched to the appropriate handler.
 1. The handler instantiates the correct importer (e.g., `importers/csv.py`, `importers/ods.py`) based on the file type.
 1. The importer reads the file and yields rows.
-1. `Database.populate_table()` bulk-inserts the rows using `executemany()`, with optional progress bars.
+1. `Database.populate_table()` converts the rows and inserts them in batches of `import_row_buffer` rows, in one transaction, with optional progress bars. Each batch goes through the adapter's `row_inserter()`: `executemany()` by default, `COPY ... FROM STDIN` on PostgreSQL (falling back to `INSERT` for a batch COPY rejects), and multi-row `INSERT ... VALUES` on DuckDB.
 
 ### Export metadata
 
