@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.33.0] - 2026-10-16
+
 ### Added
 
 - **`$PG_UPSERT_STATUS`** says how a `PG_UPSERT` ended (`committed`, `dry_run`, `no_changes`, `qa_failed`, `cancelled`, `db_error`), and **`$PG_UPSERT_ERROR`** holds the database error message. A run with nothing to load and a cancelled run used to look the same in the other variables.
