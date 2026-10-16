@@ -595,7 +595,7 @@ class TestCloseReopen:
 
 
 # ---------------------------------------------------------------------------
-# IMPORT / COPY batches: COPY FROM STDIN, falling back to INSERT
+# COPY into an existing table: the values stored
 # ---------------------------------------------------------------------------
 
 
@@ -630,8 +630,7 @@ def test_copy_into_postgres_loads_every_row(tmp_path):
     assert rows == [(1, "a\tb", "x"), (2, "", None), (3, None, "back\\slash")]
 
 
-def test_a_value_copy_rejects_is_inserted_as_before(tmp_path):
-    # COPY reads 5.7 as text and an integer column refuses it; INSERT rounds it.
+def test_a_fraction_copied_into_an_integer_column_is_rounded(tmp_path):
     result, rows = _copy_from_sqlite(
         tmp_path,
         "create table data (id integer, amount real)",

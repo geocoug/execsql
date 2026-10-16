@@ -14,7 +14,7 @@ ______________________________________________________________________
 ### Changed
 
 - **Working out column types is about twice as fast** for `IMPORT`, `COPY` and the exports that create a table (`EXPORT … AS SQLITE`, `DUCKDB`, `JSON`, `FEATHER`); a CSV whose dates repeat scans close to three times as fast. The types chosen are the same.
-- **`IMPORT` and `COPY` into PostgreSQL and DuckDB are faster.** PostgreSQL loads each batch with `COPY FROM STDIN`, and DuckDB inserts many rows per statement, as does `EXPORT … AS DUCKDB`. Copying 200,000 rows into DuckDB took 124 s and now takes 22 s.
+- **`IMPORT`, `COPY` and `EXPORT … AS DUCKDB` into DuckDB are about five times as fast**: they insert many rows per statement. Copying 200,000 rows took 124 s and now takes 22 s.
 
 ### Fixed
 
