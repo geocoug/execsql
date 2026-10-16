@@ -185,6 +185,11 @@ def _set_subvars(result: Any) -> None:
     sv("$PG_UPSERT_ROWS_UPDATED", str(result.total_updated))
     sv("$PG_UPSERT_ROWS_INSERTED", str(result.total_inserted))
     sv("$PG_UPSERT_COMMITTED", str(result.committed).upper())
+    # How the run ended: committed, dry_run, no_changes, qa_failed, cancelled
+    # or db_error.  Empty for QA and CHECK, which do not run an upsert.
+    status = getattr(result, "status", None)
+    sv("$PG_UPSERT_STATUS", status.value if status is not None else "")
+    sv("$PG_UPSERT_ERROR", getattr(result, "error", None) or "")
     sv("$PG_UPSERT_STAGING_SCHEMA", result.staging_schema)
     sv("$PG_UPSERT_BASE_SCHEMA", result.base_schema)
     sv("$PG_UPSERT_TABLES", ", ".join(t.table_name for t in result.tables))
@@ -426,6 +431,14 @@ def _handle_pg_upsert_errors(fn: Any, metacommandline: str | None) -> Any:
     try:
         return fn()
     except UserCancelledError as exc:
+        # No result describes a run cancelled outside pg-upsert's own run();
+        # say what is known rather than leave an earlier run's values.
+        sv = _state.subvars.add_substitution
+        sv("$PG_UPSERT_STATUS", "cancelled")
+        sv("$PG_UPSERT_ERROR", "")
+        sv("$PG_UPSERT_COMMITTED", "FALSE")
+        sv("$PG_UPSERT_ROWS_UPDATED", "0")
+        sv("$PG_UPSERT_ROWS_INSERTED", "0")
         raise ErrInfo(
             "cmd",
             command_text=metacommandline,

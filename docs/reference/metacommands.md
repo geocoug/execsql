@@ -2356,6 +2356,8 @@ Set after every `PG_UPSERT` execution:
 | `$PG_UPSERT_ROWS_UPDATED` | integer | Total rows updated across all tables |
 | `$PG_UPSERT_ROWS_INSERTED` | integer | Total rows inserted across all tables |
 | `$PG_UPSERT_COMMITTED` | TRUE/FALSE | Were changes committed? |
+| `$PG_UPSERT_STATUS` | string | How the run ended: `committed`, `dry_run` (changes made, then rolled back because `COMMIT` was not given), `no_changes` (QA passed, nothing to insert or update), `qa_failed`, `cancelled` or `db_error`. Empty after `PG_UPSERT QA` and `PG_UPSERT CHECK`, which do not upsert. |
+| `$PG_UPSERT_ERROR` | string | The database error message when `$PG_UPSERT_STATUS` is `db_error`; otherwise empty |
 | `$PG_UPSERT_STAGING_SCHEMA` | string | Staging schema name used |
 | `$PG_UPSERT_BASE_SCHEMA` | string | Base schema name used |
 | `$PG_UPSERT_TABLES` | string | Comma-separated list of table names processed |
@@ -2380,7 +2382,7 @@ Set after every `PG_UPSERT` execution:
 
 ### QA failure behavior
 
-`PG_UPSERT`, `PG_UPSERT QA`, and `PG_UPSERT CHECK` do **not** raise an error when QA checks fail. The outcome is reported via `$PG_UPSERT_QA_PASSED` (and the per-table `$PG_UPSERT_TABLE_QA_PASSED`), so the script controls flow with `IF` or with execsql's standard error-halt configuration. When QA fails, the metacommand still runs `EXPORT_FAILURES`, populates all `$PG_UPSERT_*` substitution variables, and skips the upsert (no commit). Pair with `ASSERT` to halt explicitly:
+`PG_UPSERT`, `PG_UPSERT QA`, and `PG_UPSERT CHECK` do **not** raise an error when QA checks fail. The outcome is reported via `$PG_UPSERT_QA_PASSED` (and the per-table `$PG_UPSERT_TABLE_QA_PASSED`), so the script controls flow with `IF` or with execsql's standard error-halt configuration. When QA fails, the metacommand still runs `EXPORT_FAILURES`, populates all `$PG_UPSERT_*` substitution variables, and skips the upsert (no commit). To tell the ways a run can end apart, branch on `$PG_UPSERT_STATUS` rather than combining `$PG_UPSERT_QA_PASSED` with `$PG_UPSERT_COMMITTED`: a run with nothing to load (`no_changes`) and one the user cancelled (`cancelled`) both leave QA passed and nothing committed. Pair with `ASSERT` to halt explicitly:
 
 ```sql
 -- Soft failure: branch on the result, keep running.
@@ -2398,7 +2400,7 @@ Set after every `PG_UPSERT` execution:
 
 ### Database errors
 
-A database error during the run (a deadlock, a lock timeout, a constraint or trigger error the QA checks did not catch) is different from a QA failure. pg-upsert rolls the run back, and `PG_UPSERT` fails like any other metacommand: the driver's message is in `$ERROR_MESSAGE`, and the script halts unless `METACOMMAND_ERROR_HALT` is off. The `$PG_UPSERT_*` variables describe the failed run (`$PG_UPSERT_COMMITTED` is `FALSE` and the row counts are `0`), not an earlier `PG_UPSERT`.
+A database error during the run (a deadlock, a lock timeout, a constraint or trigger error the QA checks did not catch) is different from a QA failure. pg-upsert rolls the run back, and `PG_UPSERT` fails like any other metacommand: the driver's message is in `$ERROR_MESSAGE`, and the script halts unless `METACOMMAND_ERROR_HALT` is off. The `$PG_UPSERT_*` variables describe the failed run (`$PG_UPSERT_STATUS` is `db_error`, `$PG_UPSERT_ERROR` holds the message, `$PG_UPSERT_COMMITTED` is `FALSE` and the row counts are `0`), not an earlier `PG_UPSERT`. Cancelling at one of pg-upsert's own prompts is not an error: `PG_UPSERT` returns, with `$PG_UPSERT_STATUS` `cancelled`.
 
 The rollback ends the connection's transaction, so under `AUTOCOMMIT OFF` or inside `BEGIN BATCH`, statements run earlier on the same connection are rolled back with it.
 

@@ -11,10 +11,15 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Added
+
+- **`$PG_UPSERT_STATUS`** says how a `PG_UPSERT` ended (`committed`, `dry_run`, `no_changes`, `qa_failed`, `cancelled`, `db_error`), and **`$PG_UPSERT_ERROR`** holds the database error message. A run with nothing to load and a cancelled run used to look the same in the other variables.
+
 ### Fixed
 
 - **A failed metacommand sets `$LAST_ERROR` and `$ERROR_MESSAGE`** with `METACOMMAND_ERROR_HALT OFF`, so a script can tell what failed, not only that `METACOMMAND_ERROR()` is true; an `ON ERROR_HALT` handler (including `ON ERROR_HALT WRITE "…!{$LAST_ERROR}!"`) now gets `$LAST_ERROR` too. The error is also written to `execsql.log`.
 - **`execsql.run()` reports a metacommand that failed under `METACOMMAND_ERROR_HALT OFF`** in `result.errors`, with `success` False, as it already did for a SQL error under `ERROR_HALT OFF`.
+- **`PG_UPSERT` cancelled from a prompt** no longer leaves an earlier run's `$PG_UPSERT_*` values (such as `$PG_UPSERT_COMMITTED` `TRUE`) in place.
 
 ______________________________________________________________________
 
