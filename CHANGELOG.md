@@ -11,6 +11,14 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Changed
+
+- **Working out column types is about twice as fast** for `IMPORT`, `COPY` and the exports that create a table (`EXPORT … AS SQLITE`, `DUCKDB`, `JSON`, `FEATHER`); a CSV whose dates repeat scans close to three times as fast. The types chosen are the same.
+
+### Fixed
+
+- **A column of large integers**, such as epoch milliseconds, no longer makes `IMPORT`, `COPY` or those exports hang or run out of memory while execsql works out the column types.
+
 ______________________________________________________________________
 
 ## [2.31.2] - 2026-10-16

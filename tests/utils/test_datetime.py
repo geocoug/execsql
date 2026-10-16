@@ -274,3 +274,34 @@ class TestInferenceRejectsPartialDates:
 
     def test_lenient_parse_accepts_a_typed_partial_date(self):
         assert parse_datetime("March 5", strict=False) is not None
+
+
+class TestStrictParseCache:
+    """A strict parse is cached per string and local zone names."""
+
+    def test_a_repeated_string_is_parsed_once(self):
+        from execsql.utils import datetime as dtmod
+
+        dtmod._parse_strict.cache_clear()
+        first = parse_datetime("2020-03-04 05:06:07")
+        again = parse_datetimetz("2020-03-04 05:06:07")  # the same strict parse
+        assert first == datetime.datetime(2020, 3, 4, 5, 6, 7)
+        assert again is None  # naive, so not a timestamptz
+        info = dtmod._parse_strict.cache_info()
+        assert (info.misses, info.hits) == (1, 1)
+
+    def test_the_local_zone_names_are_part_of_the_key(self, monkeypatch):
+        from execsql.utils import datetime as dtmod
+
+        dtmod._parse_strict.cache_clear()
+        parse_datetime("2020-03-04 05:06:07")
+        monkeypatch.setattr(dtmod.time, "tzname", ("XST", "XDT"))
+        parse_datetime("2020-03-04 05:06:07")
+        assert dtmod._parse_strict.cache_info().misses == 2
+
+    def test_a_lenient_parse_is_not_cached(self):
+        from execsql.utils import datetime as dtmod
+
+        dtmod._parse_strict.cache_clear()
+        parse_datetime("March 5", strict=False)
+        assert dtmod._parse_strict.cache_info().currsize == 0

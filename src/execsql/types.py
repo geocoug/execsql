@@ -550,6 +550,8 @@ class DT_Character(DataType):
         return "DT_Character()"
 
     def _is_match(self, data: object) -> bool:
+        if isinstance(data, str):  # what _from_data() returns a str as, unchanged
+            return True
         if isinstance(data, bytearray):
             return False
         return super()._is_match(data)
@@ -582,6 +584,8 @@ class DT_Varchar(DataType):
         return "DT_Varchar()"
 
     def _is_match(self, data: object) -> bool:
+        if isinstance(data, str):  # the length check _from_data() makes
+            return len(data) <= 255
         if isinstance(data, bytearray):
             return False
         return super()._is_match(data)
@@ -609,6 +613,8 @@ class DT_Text(DataType):
         return "DT_Text()"
 
     def _is_match(self, data: object) -> bool:
+        if isinstance(data, str):  # what _from_data() returns a str as, unchanged
+            return True
         if isinstance(data, bytearray):
             return False
         return super()._is_match(data)
@@ -633,6 +639,14 @@ class DT_Binary(DataType):
 
     def __repr__(self) -> str:
         return "DT_Binary()"
+
+    def _is_match(self, data: object) -> bool:
+        # bytearray(n) is n zero bytes, so an int converts when it is not
+        # negative.  Building it to find out allocated n bytes per value: a
+        # column of epoch milliseconds asked for a terabyte each.
+        if isinstance(data, int):
+            return data >= 0
+        return super()._is_match(data)
 
 
 class DbType:
