@@ -13,45 +13,41 @@ ______________________________________________________________________
 
 ### Added
 
-- **Templates documentation:** the upsert, compare and glossary templates are documented in the execsql2 docs (a new Templates section), replacing three separate Read the Docs sites.
-- **The `templates/` scripts document themselves:** each script's notes show in `SHOW SCRIPTS` and the editor's hover, and optional arguments (`def_url`, `include_cols`, `exclude_cols`) are declared parameters.
-- **`trust_server_certificate`** (`[connect]`, or `?trust_server_certificate=yes` on an `mssql://` URL) accepts a SQL Server's self-signed TLS certificate. It applies to `CONNECT` as well.
+- **Templates documentation:** a new Templates section in the docs covers the upsert, compare and glossary templates, replacing three separate Read the Docs sites. Each script's notes also show in `SHOW SCRIPTS` and the editor's hover.
+- **`trust_server_certificate`** (`[connect]`, or `?trust_server_certificate=yes` on an `mssql://` URL) accepts a SQL Server's self-signed TLS certificate, for `CONNECT` too.
 
 ### Changed
 
-- **`templates/script_template.sql`** keeps a `get_run_description` or `do_run_numbering` value set before it runs, so it can run unattended.
-- **A connection URL with a query parameter other than `trust_server_certificate`** is an error; such parameters (`?sslmode=require`, for example) were silently ignored.
-- **The `upsert` extra requires pg-upsert 1.26.0**, which reports a database error instead of returning as if the run succeeded.
-- **GitHub Releases** carry the version's `CHANGELOG.md` section as their text, instead of a generated list of commits.
-- **VS Code extension version** is execsql's version, in every build including `just install-vscode`; a pre-release is `2.31.0-rc.1`, so VS Code upgrades from an rc to its final release.
-- **Documentation links** in execsql's messages, `execsql --online-help`, hover text, the config template, the VS Code extension and the package's PyPI page go to the docs of the latest release (`/en/stable/`) instead of the unreleased `main` branch.
+- **A connection URL with any other query parameter** (`?sslmode=require`, for example) is an error; it used to be ignored.
+- **The `upsert` extra requires pg-upsert 1.26.0.**
+- **GitHub Releases** carry the version's `CHANGELOG.md` section as their text.
+- **The VS Code extension's version** is execsql's; a pre-release is `2.31.0-rc.1`, so VS Code upgrades from an rc to its final release.
+- **Documentation links** in messages, `--online-help`, hover text, the config template, the VS Code extension and PyPI go to the latest release's docs (`/en/stable/`) instead of `main`.
 
 ### Fixed
 
-- **`templates/md_upsert.sql`**: `UPDTPK_ONE` (primary key updates) runs on MySQL and MariaDB, which reject a comment written `--text` with no space.
-- **`templates/ss_upsert.sql`**: `exclude_cols` no longer makes the upsert fail with "Ambiguous column name", and a second load in the same session (or on a pooled connection) no longer checks foreign keys against tables from the earlier load, which let orphan rows through to the insert.
-- **`templates/` glossary scripts:** `ADD_GLOSSARY_ITEM` keeps the `def_url` it is given, and `md_glossary.sql` runs on MySQL 8.
-- **`templates/` compare scripts** report a value that changed only in letter case as changed on MySQL, MariaDB and SQL Server, and `md_compare.sql` ignores tables of the same name in other databases on the server.
-- **`templates/md_upsert.sql`** runs on MySQL 8, and its duplicate primary key check no longer fails. With `do_commit=No` it now halts before changing anything: MySQL and MariaDB cannot roll the load back, and it used to commit.
-- **`templates/ss_upsert.sql`** with `do_commit=No` keeps the row counts it reports for each table.
-- **`IMPORT` and `COPY ... TO REPLACEMENT`** create the table on SQL Server, Oracle, Firebird and Access when it does not exist yet; the first run stopped with "Could not drop existing table".
-- **SQL Server with ODBC Driver 18**, Microsoft's current driver: execsql now connects with it, trying it first. It encrypts the connection and verifies the server's certificate; for a self-signed one, set `trust_server_certificate`.
-- **The plaintext-keyring warning** appears only when a password would really be saved in cleartext (`keyrings.alt`'s `PlaintextKeyring`, including behind keyring's chained backend); the encrypted backend (`auth-encrypted`), the Windows backends and the no-backend placeholder no longer trigger it.
-- **`EXPORT … AS VALUES` files run back as the same rows** when run with INCLUDE: a value holding a line break, a `;` at a line end, `!!var!!` or a `-- !x!` line is no longer substituted, split or run as a metacommand (such values are written as joined pieces, e.g. `'a' || CHR(10) || 'b'`); a column named like `order` is quoted; and an empty result writes a comment instead of an INSERT that fails.
-- **`IMPORT` from an ODS spreadsheet reads each cell's value, not its displayed text:** a cell starting with `#`, a cell comment or a cell under a vertical merge no longer shifts the rest of the row into the wrong columns, a multi-line cell is one value, and a percentage, formatted number or date imports as its stored value (`0.125`, not `12.50%`).
-- **`EXPORT … AS ODS`** writes `0` and FALSE as values instead of blank cells, and NULL as an empty cell.
-- **SQL Server uses the port you give** (`-p`, `mssql://host:port/db`, `CONNECT … PORT`); it used to connect to the default instance on 1433, sending the password meant for the other port.
-- **SQL Server and Access passwords containing `;`** now log in, and no part of them is written to `execsql.log`; a database name or file path with `;` can no longer add connection settings.
-- **`IMPORT` into PostgreSQL or MySQL with `IMPORT_COMMON_COLUMNS_ONLY`** no longer stops with `IndexError` on a line with fewer values than the header; the values left off are NULL.
-- **`IMPORT` into MySQL** no longer adds a row of NULLs for each blank line at the end of a CSV file.
-- **`SERVE`** writes its `Content-Type` and `Content-Disposition` headers before the file when stdout is a pipe, as it is under CGI; the file used to come first.
-- **`PG_UPSERT` fails on a database error** (a deadlock, a lock timeout, a trigger or constraint error during the upsert) with the driver's message in `$ERROR_MESSAGE`, and its `$PG_UPSERT_*` variables describe the failed run; it used to report success with zero rows and carry on.
-- **`execsql lint`, `execsql format` and the language server no longer touch network paths** written in a script or config (`\\host\share\…` on Windows) in an `INCLUDE`, `SUB_INI` or `config_file` chain: on Windows, checking such a path sent your login to that host. `execsql run` still follows them.
+- **`templates/` scripts** run on MySQL 8 and MariaDB 11, and each is now tested on PostgreSQL, MySQL, MariaDB and SQL Server. The fixes that change results:
+    - `md_upsert.sql` with `do_commit=No` halts before changing anything; MySQL and MariaDB cannot roll the load back, and it used to commit.
+    - `ss_upsert.sql` no longer lets orphan rows past the foreign key check on a second load in the same session, works with `exclude_cols`, and keeps its row counts with `do_commit=No`.
+    - The compare scripts report a change in letter case as a change on MySQL, MariaDB and SQL Server; `md_compare.sql` ignores same-named tables in other databases.
+    - `script_template.sql` keeps a `get_run_description` or `do_run_numbering` set before it runs, so it can run unattended.
+- **SQL Server with ODBC Driver 18** connects (it is tried first). It verifies the server's certificate; for a self-signed one, set `trust_server_certificate`.
+- **SQL Server uses the port you give** (`-p`, `mssql://host:port/db`, `CONNECT … PORT`); it used to connect to 1433 and send the password there.
+- **SQL Server and Access passwords containing `;`** log in and stay out of `execsql.log`; a database name or path with `;` can no longer add connection settings.
+- **`IMPORT` and `COPY … TO REPLACEMENT`** create a missing table on SQL Server, Oracle, Firebird and Access instead of stopping with "Could not drop existing table".
+- **`IMPORT` into PostgreSQL or MySQL** with `IMPORT_COMMON_COLUMNS_ONLY` reads a short line's missing values as NULL instead of stopping with `IndexError`, and MySQL no longer adds a NULL row for each blank line at the end of a CSV.
+- **`IMPORT` from ODS** reads each cell's stored value: `#` text, comments, merged and multi-line cells no longer shift or split the row, and `12.50%` imports as `0.125`.
+- **`EXPORT … AS ODS`** writes `0` and FALSE as values and NULL as an empty cell.
+- **`EXPORT … AS VALUES`** files run back as the same rows: values with line breaks, `;`, `!!var!!` or `-- !x!` are no longer split, substituted or run; reserved-word column names are quoted; an empty result writes a comment.
+- **`PG_UPSERT`** fails on a database error (deadlock, lock timeout, trigger or constraint error) with the message in `$ERROR_MESSAGE`; it used to report success with zero rows.
+- **`SERVE`** writes its headers before the file when stdout is a pipe, as under CGI.
+- **The plaintext-keyring warning** appears only when a password would really be saved in cleartext.
+- **`execsql lint`, `execsql format` and the language server** no longer open network paths (`\\host\share\…`) named in a script or config; on Windows that sent your login to the host. `execsql run` still follows them.
 
 ### Removed
 
-- **`templates/pg_upsert.sql`**: use the `PG_UPSERT` metacommand on PostgreSQL. The MySQL/MariaDB and SQL Server upsert templates remain.
-- **The `dev` extra:** `execsql2[dev]` is gone from PyPI; it only held the project's own test, lint and docs tools, which are now the `dev` dependency group in `pyproject.toml` (`uv sync`, or `pip install --group dev`).
+- **`templates/pg_upsert.sql`**: use the `PG_UPSERT` metacommand.
+- **The `dev` extra:** the project's own dev tools are now the `dev` dependency group (`uv sync`, or `pip install --group dev`).
 
 ______________________________________________________________________
 
@@ -59,29 +55,28 @@ ______________________________________________________________________
 
 ### Added
 
-- **`execsql lsp --log-level` and `--log-file`** (or `EXECSQL_LSP_LOG_LEVEL`): at `info` the server logs its version, the Python running it, whether the formatter is installed, the workspace folders and the config files each folder read; `debug` adds every protocol message. See [Troubleshooting](https://execsql2.readthedocs.io/en/latest/guides/editors/#troubleshooting) for what to include in a bug report.
-- **VS Code extension:** the **execsql** Output channel shows the server's log (setting `execsql.server.logLevel`, default `info`) and why the server did not start; `execsql.trace.server` traces the protocol there.
+- **`execsql lsp --log-level` and `--log-file`** (or `EXECSQL_LSP_LOG_LEVEL`): `info` logs versions, formatter status, workspace folders and config files read; `debug` adds protocol messages. See [Troubleshooting](https://execsql2.readthedocs.io/en/latest/guides/editors/#troubleshooting) for bug reports.
+- **VS Code extension:** the **execsql** Output channel shows the server log (`execsql.server.logLevel`, default `info`) and why the server did not start; `execsql.trace.server` traces the protocol there.
 
 ### Fixed
 
-- **`execsql lint` checks every file** when one has an `INCLUDE` path the operating system rejects (such as a name too long for it): that file gets an I001 finding instead of the whole run stopping with "Uncaught exception", and a script lint cannot check at all is reported as one P001 error.
-- **The language server shows "execsql could not check this script"** when checking a script fails unexpectedly, instead of keeping its old findings; hover, completion and navigation keep working for a script with such an `INCLUDE`.
-- **The language server answers quickly in a script with many or large `INCLUDE`s:** completion, hover, go-to-definition and the other features no longer reread and reparse every included file on each request (50 included 3,000-line files: about 0.55 s per keystroke before, under 20 ms now). A changed included file is read again.
-- **The language server lints less after a save:** saving a script, or a change to a `.sql` file on disk, lints again only the open scripts that `INCLUDE` that file, once, instead of every open script two or three times.
-- **`execsql --help` shows each command's whole summary**, wrapped to the terminal, instead of cutting it off with `...` on a narrow one.
-- **DuckDB temporary tables last for the whole run:** a table created with `CREATE TEMPORARY TABLE` is visible to the statements and metacommands after it (`INSERT`, `EXPORT`, `COPY`, conditions); before, it was gone by the next statement.
-- **A `--dsn` / `dsn=` value without a scheme** (`//user:password@host/db`) is reported with its password as `***` instead of in full.
-- **`--manifest` masks passwords and tokens:** a password, `SUB_DECRYPT` result or token (a URL's password, `password=...`, an API key) that reaches a file path, connection target or error message is written as `***`. `-a` and `--var` values are still written where a path uses them.
-- **A registered secret no longer reaches `execsql.log` through a `HALT MESSAGE`** (the `exit` record of a halted run), an exported file name (`action` records) or a connection name (`connect` records); these now show `***` like every other log record.
-- **`execsql.run()` returns the caller to their working directory** after a script that ran `CD`, including when the script fails; before, the caller was left in the script's last directory.
-- **Language server settings for a workspace folder added after the first folder was deleted** are read; before, every later settings reload failed and the folder linted with stale rules. An unsaved script's relative `INCLUDE` resolves against the workspace root.
-- **VS Code extension:** after `CONFIG`, only options `CONFIG` accepts are highlighted; config-file-only keys such as `DB_FILE`, `CONSOLE_HEIGHT` or `CSS_FILE` (which `CONFIG` rejects) no longer look valid.
-- **VS Code extension:** turning `execsql.server.enabled` on or off, or changing `execsql.server.path`, takes effect without reloading the window; **execsql: Restart Language Server** works (and says so) when the server is off, and two quick restarts no longer leave a second server running.
+- **`execsql lint`** keeps going when a file has an `INCLUDE` path the OS rejects: that file gets I001 instead of the run stopping with "Uncaught exception". A script lint cannot check at all is one P001 error.
+- **The language server** shows "execsql could not check this script" when a check fails, instead of keeping stale findings; hover, completion and navigation still work.
+- **The language server is fast with many or large `INCLUDE`s:** it no longer rereads every included file per request, and after a save lints only the open scripts that `INCLUDE` the changed file, once.
+- **`execsql --help`** wraps each command's summary instead of cutting it off with `...`.
+- **DuckDB temporary tables** last for the whole run, not just one statement.
+- **A scheme-less `--dsn` / `dsn=`** (`//user:password@host/db`) is reported with its password as `***`.
+- **`--manifest`** masks passwords, `SUB_DECRYPT` results and tokens (URL passwords, `password=...`, API keys) as `***`. `-a` and `--var` values still appear in paths.
+- **Registered secrets** in a `HALT MESSAGE`, exported file name or connection name show as `***` in `execsql.log`.
+- **`execsql.run()`** restores the caller's working directory after a script that ran `CD`, even on failure.
+- **Language server settings** load for a workspace folder added after the first was deleted, instead of linting with stale rules. An unsaved script's relative `INCLUDE` resolves against the workspace root.
+- **VS Code extension:** after `CONFIG`, config-file-only keys such as `DB_FILE`, `CONSOLE_HEIGHT` or `CSS_FILE` are no longer highlighted as valid.
+- **VS Code extension:** changing `execsql.server.enabled` or `execsql.server.path` needs no window reload; **execsql: Restart Language Server** works when the server is off, and quick restarts no longer leave two servers running.
 
 ### Removed
 
-- **Unused helpers:** `execsql.gui.get_backend()` (the GUI picks its backend in `enable_gui()`), `ins_quoted_rx()` (re-exported from `execsql.metacommands`; nothing built a metacommand with it), `execsql.utils.errors.exception_info()` (use `exception_desc()`), and the `execsql.cli.main` re-export (the run command's own module, `execsql.cli.commands.run`, keeps it).
-- **`execsql.utils.fileio`:** `filewriter_closeall()`, `filewriter_shutdown()` and `list_encodings()`, which nothing called; use `filewriter_end()` to stop a writer and `execsql list encodings` for the encodings. `FileWriter.ping()` is gone too.
+- **Python helpers:** `execsql.gui.get_backend()`, `ins_quoted_rx()`, `execsql.utils.errors.exception_info()` (use `exception_desc()`), and the `execsql.cli.main` re-export (use `execsql.cli.commands.run`).
+- **`execsql.utils.fileio`:** `filewriter_closeall()`, `filewriter_shutdown()`, `list_encodings()` and `FileWriter.ping()`. Use `filewriter_end()` and `execsql list encodings`.
 
 ______________________________________________________________________
 
@@ -89,14 +84,14 @@ ______________________________________________________________________
 
 ### Changed
 
-- **`!'!var!'!` stores backslashes as written** on every DBMS: a value such as `C:\data\new` was stored as `C:\\data\\new` on SQLite, PostgreSQL, DuckDB, SQL Server, Oracle, Firebird and Access. MySQL/MariaDB (which read `\` as an escape) and PostgreSQL escape strings written as `E!'!var!'!` still get backslashes doubled, so both forms store the same value and the `E` workaround is no longer needed. Scripts that removed the doubled backslashes some other way should stop.
+- **`!'!var!'!` stores backslashes as written** (`C:\data\new` was stored as `C:\\data\\new` outside MySQL/MariaDB). MySQL/MariaDB and PostgreSQL `E!'!var!'!` still double them, so both forms store the same value; drop any `E` or other workaround.
 
 ### Fixed
 
-- **Oracle IMPORT and COPY with a time column** create it as text (`VARCHAR2(15)`, holding `HH:MM:SS`); `TO NEW` stopped with "Oracle DBMS type has no specification for data type time".
-- **MySQL IMPORT accepts a header with capital letters** (`Id,Name`): it stopped with "columns that are not in table" (leaving the new table behind), and with `IMPORT_COMMON_COLUMNS_ONLY` it loaded those columns as NULL.
-- **PostgreSQL IMPORT honors `SKIP n`** for quoted CSV files, which load through PostgreSQL's COPY: it skipped only the header line, loading the lines before it as data or failing on them.
-- **Spreadsheet IMPORT reads every data row:** an XLSX row whose values are all `0` or FALSE no longer ends the data (it and every row after it were dropped), and an XLS sheet imported with `SKIP n` no longer loses its last *n* rows.
+- **Oracle `IMPORT` and `COPY`** create a time column as `VARCHAR2(15)` instead of stopping with "Oracle DBMS type has no specification for data type time".
+- **MySQL `IMPORT`** accepts capitalized headers (`Id,Name`) instead of stopping with "columns that are not in table", or loading NULLs with `IMPORT_COMMON_COLUMNS_ONLY`.
+- **PostgreSQL `IMPORT` honors `SKIP n`** for quoted CSV files.
+- **Spreadsheet `IMPORT`:** an XLSX row of all `0`/FALSE no longer ends the data, and XLS with `SKIP n` keeps its last *n* rows.
 
 ______________________________________________________________________
 
@@ -108,18 +103,18 @@ ______________________________________________________________________
 
 ### Changed
 
-- **Missing-package messages** (database drivers, spreadsheet, YAML and template exports, `PG_UPSERT`, the formatter and the language server) name the execsql2 extra and show how to add it while keeping the extras already installed.
+- **Missing-package messages** name the execsql2 extra and how to add it while keeping installed extras.
 
 ### Fixed
 
-- **`execsql format` keeps optimizer hints and MySQL executable comments:** a statement holding `/*+ ... */` or `/*! ... */` is left as written in both modes. It was rewritten to `/* + ... */` and the hint moved off its keyword, so MySQL skipped the `/*! */` SQL (for example a `WHERE` or `PARTITION BY`) and Oracle/MySQL ignored the hint; re-check files the formatter or its pre-commit hook rewrote.
-- **`execsql format` no longer ends a final statement with a `;` the script did not have:** a script execsql refused for an unfinished last statement became one that ran it.
+- **`execsql format` keeps `/*+ ... */` hints and `/*! ... */` MySQL executable comments** as written; they became `/* + ... */`, so MySQL skipped the SQL and hints were ignored. Re-check files the formatter or its pre-commit hook rewrote.
+- **`execsql format`** no longer adds a final `;` the script lacked, which made an unfinished statement run.
 - **`execsql format`:** a statement kept as written after another on the same line no longer starts with a space.
-- **`execsql format` without sqlglot** printed its `pip install` hint without the `[formatter]` extra.
-- **`execsql lint` and the language server read a `SUB_INI` file once** however many lines name it; a script naming a large INI file on many lines took minutes to lint and froze the editor. V002 for a variable a `SUB_INI` defines is reported at the `SUB_INI` line, not line 0.
-- **`execsql lsp` with an incompatible pygls** names the installed pygls version instead of saying the `lsp` extra is missing.
-- **`COPY` keeps binary columns** (SQLite/DuckDB BLOB, PostgreSQL `bytea`) byte for byte, and `COPY ... TO NEW` creates them as binary columns. They were copied as escaped text (`\x89PNG...`), and into PostgreSQL as text.
-- **DuckDB `TO NEW`** is no longer refused because a table of the same name exists in an `ATTACH`ed database; only the current database counts.
+- **`execsql format` without sqlglot** names the `[formatter]` extra in its install hint.
+- **`execsql lint` and the language server read each `SUB_INI` file once**; a large INI named on many lines froze the editor. V002 for a `SUB_INI` variable points at the `SUB_INI` line, not line 0.
+- **`execsql lsp` with an incompatible pygls** names that pygls version instead of saying the `lsp` extra is missing.
+- **`COPY` keeps binary columns** (BLOB, `bytea`) byte for byte, and `TO NEW` creates them as binary, not escaped text.
+- **DuckDB `TO NEW`** ignores same-named tables in `ATTACH`ed databases.
 
 ______________________________________________________________________
 
@@ -127,31 +122,31 @@ ______________________________________________________________________
 
 ### Added
 
-- **`execsql lsp`**, a language server for editors. Install the new `lsp` extra (`uv tool install "execsql2[lsp]"`; to add it to an existing install, name the extras you already have, e.g. `"execsql2[postgres,lsp]"`); setup for VS Code, Neovim, Helix and other editors is in the new Editor Support guide. It provides:
+- **`execsql lsp`**, a language server for editors. Install the `lsp` extra (`uv tool install "execsql2[lsp]"`, naming any extras you already have, e.g. `"execsql2[postgres,lsp]"`); setup for VS Code, Neovim, Helix and others is in the Editor Support guide. It provides:
 
-    - `execsql lint` findings as you type, using the workspace's `[lint]` settings;
-    - completion of metacommands (as fill-in templates of their documented syntax), conditional tests, variables and export formats;
-    - hover explanations of metacommands, conditional tests and variables;
-    - Go to Definition, Find All References, Rename Symbol (variables), the outline and `INCLUDE` links;
-    - folding of `IF` branches, `LOOP`, `SCRIPT`, `BATCH` and `SQL` blocks, multi-line statements and comments;
-    - quick fixes for misspelled metacommands, conditional tests and variables (P003, P004, V001) and split dollar-quoted bodies (P002);
-    - Format Document, the same as `execsql format` with the workspace's `[format]` settings;
-    - `execsql.conf` read again when it changes, and open scripts linted again when a file they `INCLUDE` changes;
-    - each folder of a multi-root workspace linted and formatted with its own `execsql.conf`.
+    - lint findings as you type (`[lint]` settings);
+    - completion of metacommands (as syntax templates), conditional tests, variables and export formats;
+    - hover for metacommands, conditional tests and variables;
+    - Go to Definition, Find All References, Rename Symbol (variables), outline and `INCLUDE` links;
+    - folding of `IF`, `LOOP`, `SCRIPT`, `BATCH` and `SQL` blocks, multi-line statements and comments;
+    - quick fixes for P002, P003, P004 and V001;
+    - Format Document (`[format]` settings);
+    - re-linting when `execsql.conf` or an `INCLUDE`d file changes;
+    - a separate `execsql.conf` per multi-root workspace folder.
 
-    The server never runs a script or connects to a database. It reads the open scripts, the files they `INCLUDE` or name in `SUB_INI` (regular files of bounded size), and the configuration files `execsql lint` reads.
+    It never runs a script or connects to a database; it reads only open scripts, files they `INCLUDE` or name in `SUB_INI`, and the config files `execsql lint` reads.
 
-- **VS Code extension** starts `execsql lsp` for `.sql` files, with `execsql.server.path` and `execsql.server.enabled` settings and an **execsql: Restart Language Server** command. Each GitHub release attaches it as `execsql-syntax.vsix`; install with `code --install-extension execsql-syntax.vsix`. The server starts only in a trusted folder; highlighting works in any. `execsql.server.path` is a command name looked up in PATH or an absolute path, and the extension never runs an `execsql` found in the open folder.
+- **VS Code extension** starts `execsql lsp` for `.sql` files, only in a trusted folder; settings `execsql.server.path` (a PATH command or absolute path, never an `execsql` in the open folder) and `execsql.server.enabled`; command **execsql: Restart Language Server**. Highlighting works anywhere. Install the `execsql-syntax.vsix` attached to each GitHub release with `code --install-extension execsql-syntax.vsix`.
 
 ### Changed
 
-- **`lsp` is a command name:** `execsql lsp` starts the language server. Run a script file named `lsp` (with no extension) as `execsql run lsp`.
-- **`execsql list metacommands`** lists every metacommand (all 95; some were missing) with its category and a one-line summary, and `execsql list metacommands <KEYWORD>` shows that metacommand's syntax, as the reference docs write it, with a link. In `--output-format json`, `syntax` is now the full first syntax line, and each entry adds `forms`, `category`, `summary` and `url`. Read `forms` for every syntax line.
+- **`lsp` is a command name:** run a script file named `lsp` as `execsql run lsp`.
+- **`execsql list metacommands`** lists all 95 metacommands with category and summary; `execsql list metacommands <KEYWORD>` shows syntax and a docs link. JSON output's `syntax` is the full first syntax line, plus new `forms` (every syntax line), `category`, `summary` and `url`.
 
 ### Fixed
 
-- **DuckDB `TIMESTAMPTZ` values** are read instead of stopping the script: the `duckdb` and `all-db` extras now install `pytz`, which duckdb needs for them.
-- **`CONFIG MAX_INT <n>`** works as documented; it stopped with `Unknown metacommand`, and only the bare `MAX_INT <n>` (still accepted) was recognized.
+- **DuckDB `TIMESTAMPTZ` values** are read: the `duckdb` and `all-db` extras now install `pytz`.
+- **`CONFIG MAX_INT <n>`** works instead of stopping with `Unknown metacommand`.
 
 ______________________________________________________________________
 
@@ -159,12 +154,12 @@ ______________________________________________________________________
 
 ### Added
 
-- **`execsql format --rewrite-sql`** (`[format] rewrite_sql`): accept sqlglot's rewrites of SQL text, such as `x::int` as `CAST(x AS INT)`.
+- **`execsql format --rewrite-sql`** (`[format] rewrite_sql`): apply sqlglot's SQL rewrites, such as `x::int` to `CAST(x AS INT)`.
 
 ### Changed
 
-- **`execsql format` changes only layout and keyword case by default:** a statement sqlglot would rewrite (`x::int` as `CAST(x AS INT)`, an alias gaining `AS`, `BTRIM` as `TRIM`) is kept as written. Pass `--rewrite-sql`, or set `rewrite_sql = Yes` under `[format]`, for the previous behavior.
-- **`execsql format` and the `execsql-format` pre-commit hook use one sqlglot release:** the `[formatter]` extra requires sqlglot 30.21.x and the hook installs 30.21.0, so a script formats the same everywhere. The first run after upgrading can reformat files formatted with an older sqlglot, such as `BTRIM(x)` written as `TRIM(x)`; see [sqlglot version](https://execsql2.readthedocs.io/en/latest/guides/formatter/#sqlglot-version).
+- **`execsql format` changes only layout and keyword case by default:** statements sqlglot would rewrite (`x::int`, an alias gaining `AS`, `BTRIM` to `TRIM`) are kept. Use `--rewrite-sql` for the old behavior.
+- **`execsql format` and the `execsql-format` pre-commit hook pin sqlglot 30.21.x.** The first run after upgrading may reformat files (e.g. `BTRIM(x)` to `TRIM(x)`); see [sqlglot version](https://execsql2.readthedocs.io/en/latest/guides/formatter/#sqlglot-version).
 
 ______________________________________________________________________
 
@@ -172,8 +167,8 @@ ______________________________________________________________________
 
 ### Fixed
 
-- **`execsql lint` `V001` / `V002` and nested variable names:** `!!N_!!CHECK_GROUP!!_CHECKS!!` no longer reports `!!N_!!` and `!!_CHECKS!!` as undefined; the inner `!!CHECK_GROUP!!` is checked, and counts as used.
-- **`execsql lint` and `SUB_INI`:** a script whose `SUB_INI` names a FIFO or device (`/dev/zero`) no longer hangs lint, and an INI file that does not parse no longer stops it.
+- **`execsql lint` `V001` / `V002`:** in a nested name like `!!N_!!CHECK_GROUP!!_CHECKS!!`, only the inner `!!CHECK_GROUP!!` is checked and counted as used.
+- **`execsql lint` and `SUB_INI`:** a FIFO or device (`/dev/zero`) no longer hangs lint, and an unparsable INI no longer stops it.
 
 ______________________________________________________________________
 
@@ -181,66 +176,72 @@ ______________________________________________________________________
 
 ### Added
 
-- **`execsql lint` rule `P002` (`split-dollar-quote`):** reports a `$$ ... $$` function or `DO` body that is not between `BEGIN SQL` and `END SQL`, which execsql would send in pieces at the first line ending in `;`.
-- **`execsql lint` rule `P003` (`unknown-metacommand`):** reports a misspelled or malformed metacommand, such as `SUBSTITUTE x 1` for `SUB x 1`, or `EXPORT t TOO out.csv`, that `execsql run` would stop at with `Unknown metacommand`.
-- **`execsql lint` rule `P004` (`unknown-condition`):** reports a condition with an unknown test, such as `IF(hasrowz(t))`, or one that cannot be parsed, such as `ASSERT !!flag!! = TRUE`, in `IF`, `ELSEIF`, `ANDIF`, `ORIF`, `LOOP`, `EXECUTE SCRIPT ... WHILE`, `ASSERT` and `WAIT_UNTIL`.
-- **`[email] ca_file` and `verify_certificate` settings** for the SMTP server's TLS certificate: trust an internal CA, or turn verification off for a test relay.
+- **`execsql lint` rules:**
+    - `P002` (`split-dollar-quote`): a `$$ ... $$` function or `DO` body outside `BEGIN SQL` / `END SQL`, which execsql would send in pieces;
+    - `P003` (`unknown-metacommand`): a misspelled or malformed metacommand (`SUBSTITUTE x 1`, `EXPORT t TOO out.csv`) that `execsql run` would stop at;
+    - `P004` (`unknown-condition`): an unknown test (`IF(hasrowz(t))`) or unparsable condition (`ASSERT !!flag!! = TRUE`) in `IF`, `ELSEIF`, `ANDIF`, `ORIF`, `LOOP`, `EXECUTE SCRIPT ... WHILE`, `ASSERT` and `WAIT_UNTIL`.
+- **`[email] ca_file` and `verify_certificate`** for the SMTP server's TLS certificate.
 
 ### Changed
 
-- **`EMAIL` over TLS verifies the server certificate.** With `use_ssl` or `use_tls`, a mail server whose certificate is untrusted or does not match `host` stops the `EMAIL` metacommand before the password is sent. For a relay with an internal certificate, set `[email] ca_file`; to turn the check off, set `verify_certificate = No`.
-- **A `--dsn` / `execsql.run(dsn=...)` user, password or database is percent-decoded**, so `@`, `:`, `/`, `?`, `#` and `%` can be given encoded (`p%40ss`). A password that contains `%` followed by two hex digits must now be written with `%25`.
-- **A relative `WRITE ... TO` path after `CD`** lands in the new directory, as `EXPORT` output already did. Use an absolute path to keep writing to the directory execsql started in.
-- **A locked output file can delay the end of a run.** At the end of a script and before `SYSTEM_CMD`, the CLI waits up to `outfile_open_timeout` (default 600 s) for a `WRITE` / `EXPORT` file another process has locked; if it stays locked, the run fails naming the file and how many lines were lost. Lower `outfile_open_timeout` for unattended runs.
-- **Output that cannot be written fails the run.** When writing a `WRITE`, `EXPORT` or `TEE` file fails (a full disk, a network share that drops), its output is lost, other files are still written, and the run ends with an error naming the file: exit status 1, or `success=False` from `execsql.run()`. A target that can never be opened, such as a directory, fails at once.
-- **Error messages from the database or a driver** show just the error, such as `OperationalError: table t already exists`, without a path into execsql's source. `execsql.log` records where in execsql the error was raised, for bug reports.
-- **`execsql lint` on a script with block-structure errors** reports every unmatched or unclosed `IF`, `LOOP`, `BEGIN BATCH`, `BEGIN SCRIPT` and `BEGIN SQL` as a `P001` on its own line, and runs every other rule on the rest of the script.
-- **Faster start-up:** every `execsql` command and `import execsql` start about 0.7 s sooner.
+- **`EMAIL` with `use_ssl` or `use_tls` verifies the server certificate** and stops before sending the password if it is untrusted or does not match `host`. Set `[email] ca_file` for an internal CA, or `verify_certificate = No`.
+- **`--dsn` / `execsql.run(dsn=...)` user, password and database are percent-decoded** (`p%40ss`). A password with `%` and two hex digits must now write `%25`.
+- **A relative `WRITE ... TO` path after `CD`** lands in the new directory, like `EXPORT`.
+- **A locked `WRITE` / `EXPORT` file can delay the end of a run** by up to `outfile_open_timeout` (default 600 s), then fails naming the file and lines lost. Lower it for unattended runs.
+- **Output that cannot be written fails the run:** a failed `WRITE`, `EXPORT` or `TEE` file (full disk, dropped share) ends the run with an error naming it (exit 1, or `success=False` from `execsql.run()`); other files are still written. A target that can never be opened fails at once.
+- **Database and driver errors** show just the error (`OperationalError: table t already exists`); `execsql.log` keeps the source location.
+- **`execsql lint` with block-structure errors** reports each unmatched `IF`, `LOOP`, `BEGIN BATCH`, `BEGIN SCRIPT` and `BEGIN SQL` as its own `P001` and still runs the other rules.
+- **Faster start-up:** about 0.7 s for every `execsql` command and `import execsql`.
 
 ### Removed
 
-- **`execsql.utils.fileio` writer globals:** `filewriter`, `fw_input` and `fw_output` are gone, and `FileWriter` no longer takes queue arguments. Code that started a writer by hand before calling `execsql.run()` (the workaround for [#46](https://github.com/geocoug/execsql/issues/46) before 2.23.0) can drop it.
+- **`execsql.utils.fileio` globals** `filewriter`, `fw_input`, `fw_output` and `FileWriter`'s queue arguments. Drop any hand-started writer before `execsql.run()` (the pre-2.23.0 workaround for [#46](https://github.com/geocoug/execsql/issues/46)).
 
 ### Fixed
 
-- **Output lost when a script halts is reported.** A `WRITE`, `TEE` or `ON ERROR_HALT WRITE` file still locked when the script halts gets up to 10 seconds; output still lost is reported on the console, in the log, in the `--manifest` file and in `execsql.run()`'s errors.
-- **SIGTERM** (`kill`, `timeout`, `docker stop`, a cancelled CI job) ends a `run` like Ctrl-C: the open transaction is rolled back, a running `SYSTEM_CMD` is stopped, and `execsql.log` gets an `exit` record of type `terminated` (exit status 143).
-- **`execsql.log` `exit` record** is written for a run that ends with an error, a `HALT` or a cancelled prompt (type `error` or `halt`, with the message). Ctrl-C is recorded as `interrupted`.
-- **`execsql.log` `run_db_file` record** names the database file for SQLite, DuckDB and Access runs.
-- **`execsql.log` no longer shows `-a` values** in the `run` record; it gives how many there were.
-- **Passwords in `execsql.log`** from a `--dsn` URL, the `[email]` section, the password prompt or keyring, `PROMPT ENTER_SUB ... PASSWORD`, `PROMPT CREDENTIALS` and `SUB_DECRYPT` are replaced with `***`, such as in SQL logged with `LOG_SQL ON` or a `SYSTEM_CMD` line.
-- **Stored passwords (keyring) are saved only after the connection succeeds**, so a mistyped password is no longer stored.
-- **A stored password is deleted, and you are prompted again, only when the server rejects it.** A timeout, a closed port or a missing database keeps it, so an unattended run no longer stops at a prompt.
-- **Keyring entries are named with the server's port** (`execsql/PostgreSQL/host:5432/db`), so two servers on one host no longer share a password. An entry stored without the port is still used on the default port, and renamed once it works.
-- **Oracle (`-t o`, `oracle://`) connects with the `oracledb` driver** that `execsql2[oracle]` installs.
-- **`-n` with `-e` on PostgreSQL** creates the database with the given encoding, as `CONNECT TO POSTGRESQL(..., ENCODING=..., NEW)` does. PostgreSQL refuses an encoding other than its template database's (usually UTF8), so `-n -e LATIN1` on such a server stops with PostgreSQL's error.
-- **`-d` / `--directories`** rejects a value other than `0`, `1`, `t`, `f`, `y` or `n` (exit 2), as upstream did, so `-d script.sql` names the bad value.
-- **`access_use_numeric`** (config section `input`) works again: with `Yes`, `IMPORT` and `COPY` create MS-Access decimal columns as `NUMERIC(precision,scale)` instead of `DOUBLE`.
-- **`IMPORT ... TO NEW` and `COPY ... TO NEW` onto a table that already exists** stop with `Table <name> already exists` before creating anything, on every DBMS. A name without a schema counts only in the schema the table would be created in (on MySQL, the current database).
-- **`IMPORT` / `COPY ... TO REPLACEMENT` of a table whose name needs quoting** (a space, a hyphen, ...) replaces it on SQLite, SQL Server, Oracle, Firebird and Access, and a schema-qualified name such as `staging.t` is dropped correctly on SQL Server, Oracle and Firebird.
-- **`COPY` and `COPY QUERY` copy text values as written:** a text column of `1`/`0`, dates or numbers is no longer created as boolean, timestamp or numeric by `NEW` / `REPLACEMENT`, and `1` copied into a text column stays `1`.
-- **`COPY ... TO NEW` / `REPLACEMENT` no longer holds every source row in memory.**
-- **`IMPORT` / `COPY` into DuckDB that fails part-way keeps no rows**, as on SQLite and PostgreSQL, so a re-run no longer duplicates them.
-- **`IMPORT` of a data line with fewer values than the header** loads the missing values as NULL on every DBMS.
-- **`IMPORT` of a delimited file with a blank line** imports the rows after it. The blank line itself is a row of NULLs, or dropped with `CONFIG EMPTY_ROWS NO`; blank lines at the end of the file are ignored.
-- **PostgreSQL `IMPORT` of a quoted file with a blank line** no longer fails with `missing data for column`.
-- **`IMPORT ... TO NEW` / `REPLACEMENT` type inference** no longer takes `1-2`, `5/6`, `March 5`, `Jan` or `Monday` for a date; such a column is created as text. A date must give the year (`2024-01-05`, `1/5/2024`), or a two-digit year month-first (`1/5/24`).
-- **`IMPORT ... TO NEW` / `REPLACEMENT` of a timestamp column mixing values with and without a UTC offset** creates the column as text and keeps every value as written, instead of converting with the importing machine's time zone.
-- **MySQL `IMPORT` of values with backslashes:** `C:\new\tbl`, `\N` and regular expressions load as written, and a file whose path contains a backslash imports.
-- **`EXPORT ... AS XLSX`** writes text that starts with `=` as text, not as a formula.
-- **`execsql.run()` from a script without an `if __name__ == "__main__":` guard** no longer runs the script's SQL twice on macOS and Windows.
-- **Concurrent `execsql.run()` calls** each write files through their own writer, so two threads both get complete output, and a run that halts does not discard another run's output.
-- **Repeated `execsql.run()` calls in one process** no longer pile up exit hooks or duplicate plugin metacommands.
-- **`execsql.run()` cleans up when it returns:** its temp files are removed, and a run interrupted with Ctrl-C closes the connection it opened.
-- **`execsql.run()` with `--manifest`** no longer records into a manifest that belongs to another run in the same thread.
-- **`execsql.run()` error details:** a run halted by a failed SQL statement or metacommand reports that error (and the failed statement in `ScriptError.sql`), a `HALT` reports its exit status, and `result.errors` lists errors in the order they happened.
-- **`execsql.run()` setup failures** (an unreadable script, a missing or invalid `config_file`, a `dsn` that cannot be parsed or opened) return `success=False` with an error whose `source` is the script, `<config>` or `<connect>`, instead of raising.
-- **`execsql lint` `V001` (`undefined-variable`)** no longer reports variables set by `PROMPT ENTER_SUB`, `ASK ... SUB`, `PROMPT ASK ... SUB`, `PROMPT OPENFILE` / `SAVEFILE` / `DIRECTORY SUB`, `PROMPT CREDENTIALS`, `SUB_TEMPFILE` and the keys of `SUB_QUERYSTRING`.
-- **`execsql lint` `V001`** reports a user variable named like a system variable without its `$` (`!!date_tag!!`), and a `SUB` variable written with a `$` (`!!$region!!`).
-- **`execsql lint` `V002` (`unused-variable`)** no longer reports a variable read only by `sub_defined(...)` or `sub_empty(...)`.
-- **`execsql lint` `F001`** no longer calls `IF(1=1)`, `IF(1=0)` or `IF(0=1)` a constant condition; `execsql run` rejects them, and lint reports them as `P004`.
-- **Install hints in error messages** name the right extra: `formats` for XLSX (not `excel`), and none for Textual, which execsql2 includes.
-- **Documentation:** install instructions use `uv tool install` / `pipx install` and quote every extra (`"execsql2[postgres]"`); `SERVE` and `allow_serve` are described correctly (`SERVE` opens no network port); the 2.17.0 `PG_UPSERT` migration note's `ASSERT !!$PG_UPSERT_QA_PASSED!! = TRUE`, which always fails, is corrected to `ASSERT IS_TRUE(!!$PG_UPSERT_QA_PASSED!!) "QA failed"`.
+- **Output lost when a script halts is reported** (console, log, `--manifest`, `execsql.run()` errors) after waiting up to 10 seconds for a locked `WRITE`, `TEE` or `ON ERROR_HALT WRITE` file.
+- **SIGTERM** (`kill`, `timeout`, `docker stop`) ends a `run` like Ctrl-C: rollback, `SYSTEM_CMD` stopped, `exit` record of type `terminated`, exit status 143.
+- **`execsql.log`:**
+    - writes an `exit` record for an error, `HALT` or cancelled prompt (type `error` or `halt`); Ctrl-C is `interrupted`;
+    - `run_db_file` names the SQLite, DuckDB or Access file;
+    - the `run` record counts `-a` values instead of showing them;
+    - passwords from `--dsn`, `[email]`, the password prompt or keyring, `PROMPT ENTER_SUB ... PASSWORD`, `PROMPT CREDENTIALS` and `SUB_DECRYPT` are `***`, including in `LOG_SQL ON` output and `SYSTEM_CMD` lines.
+- **Keyring:**
+    - saves a password only after the connection succeeds;
+    - deletes it and prompts again only when the server rejects it, not on a timeout, closed port or missing database;
+    - names entries with the port (`execsql/PostgreSQL/host:5432/db`); an old portless entry still works on the default port and is renamed.
+- **Oracle** (`-t o`, `oracle://`) connects with `oracledb`, which `execsql2[oracle]` installs.
+- **`-n -e` on PostgreSQL** creates the database with that encoding, like `CONNECT ... ENCODING=..., NEW`; PostgreSQL rejects one that differs from its template (usually UTF8).
+- **`-d` / `--directories`** rejects values other than `0`, `1`, `t`, `f`, `y`, `n` (exit 2), as upstream did.
+- **`access_use_numeric`** (`[input]`) works again: Access decimals are `NUMERIC(precision,scale)`, not `DOUBLE`.
+- **`IMPORT` / `COPY ... TO NEW` onto an existing table** stops with `Table <name> already exists` before creating anything; an unqualified name is checked only in the target schema (MySQL: current database).
+- **`IMPORT` / `COPY ... TO REPLACEMENT`** handles names that need quoting (SQLite, SQL Server, Oracle, Firebird, Access) and schema-qualified names like `staging.t` (SQL Server, Oracle, Firebird).
+- **`COPY` and `COPY QUERY` copy text as written:** text holding `1`/`0`, dates or numbers stays text under `NEW` / `REPLACEMENT`, and `1` stays `1`.
+- **`COPY ... TO NEW` / `REPLACEMENT`** no longer holds every source row in memory.
+- **A failed `IMPORT` / `COPY` into DuckDB** keeps no rows, as on SQLite and PostgreSQL.
+- **`IMPORT`:**
+    - a short line loads its missing values as NULL on every DBMS;
+    - rows after a blank line are imported; the blank line is a NULL row (dropped with `CONFIG EMPTY_ROWS NO`), trailing blank lines are ignored;
+    - PostgreSQL no longer fails with `missing data for column` on a quoted file with a blank line;
+    - `TO NEW` / `REPLACEMENT` no longer reads `1-2`, `5/6`, `March 5`, `Jan` or `Monday` as dates: a date needs a year (`2024-01-05`, `1/5/2024`) or a month-first two-digit year (`1/5/24`);
+    - a timestamp column mixing values with and without a UTC offset becomes text, not converted with the local time zone;
+    - MySQL loads backslashes as written (`C:\new\tbl`, `\N`) and imports files whose path contains one.
+- **`EXPORT ... AS XLSX`** writes text starting with `=` as text, not a formula.
+- **`execsql.run()`:**
+    - no longer runs the SQL twice on macOS and Windows when the calling script lacks an `if __name__ == "__main__":` guard;
+    - concurrent calls each get complete output, and one halting does not discard another's;
+    - repeated calls no longer pile up exit hooks or duplicate plugin metacommands;
+    - removes its temp files and, on Ctrl-C, closes its connection;
+    - with `--manifest`, no longer records into another run's manifest;
+    - reports the error that halted the run (statement in `ScriptError.sql`) and a `HALT`'s exit status, with `result.errors` in order;
+    - setup failures (unreadable script, bad `config_file` or `dsn`) return `success=False` with `source` set to the script, `<config>` or `<connect>`, instead of raising.
+- **`execsql lint`:**
+    - `V001` ignores variables set by `PROMPT ENTER_SUB`, `ASK ... SUB`, `PROMPT ASK ... SUB`, `PROMPT OPENFILE` / `SAVEFILE` / `DIRECTORY SUB`, `PROMPT CREDENTIALS`, `SUB_TEMPFILE` and `SUB_QUERYSTRING` keys;
+    - `V001` flags a user variable named like a system variable without `$` (`!!date_tag!!`) and a `SUB` variable written with `$` (`!!$region!!`);
+    - `V002` counts `sub_defined(...)` / `sub_empty(...)` as uses;
+    - `IF(1=1)`, `IF(1=0)` and `IF(0=1)` are `P004` (which `execsql run` rejects), not `F001`.
+- **Install hints** name the right extra: `formats` for XLSX (not `excel`), none for Textual.
+- **Docs:** the 2.17.0 `PG_UPSERT` migration note's `ASSERT !!$PG_UPSERT_QA_PASSED!! = TRUE` always failed; use `ASSERT IS_TRUE(!!$PG_UPSERT_QA_PASSED!!) "QA failed"`.
 
 ______________________________________________________________________
 
@@ -248,45 +249,46 @@ ______________________________________________________________________
 
 ### Added
 
-- **Commands:** `execsql run`, `format`, `lint`, `config`, `list` and `init`. `format` and `lint` take files or directories and need no database, so a whole script library can be linted at once. See [Commands](https://execsql2.readthedocs.io/en/latest/getting-started/syntax/#commands).
-- **`run`:** `--manifest FILE` writes a JSON record of the run (files read and written, connections, statement counts and any error), even when the run fails. `--var NAME=VALUE` sets `!!NAME!!` from the command line.
-- **`lint`:** every issue has a rule code (`V001`, `F002`, …) that `--select` and `--ignore` filter on. `--output-format json|concise|github`, `--statistics`, and `--strict` to fail on warnings. New checks for a `SUB` variable nothing reads, an `IF` whose condition never changes, and statements after `HALT`. See the [lint rules reference](https://execsql2.readthedocs.io/en/latest/reference/lint/).
+- **Commands:** `execsql run`, `format`, `lint`, `config`, `list` and `init`. `format` and `lint` take files or directories and need no database. See [Commands](https://execsql2.readthedocs.io/en/latest/getting-started/syntax/#commands).
+- **`run --manifest FILE`** writes a JSON record of the run (files, connections, statement counts, any error), even when it fails. **`--var NAME=VALUE`** sets `!!NAME!!`.
+- **`lint`:** rule codes (`V001`, `F002`, …) for `--select` and `--ignore`; `--output-format json|concise|github`, `--statistics`, and `--strict` to fail on warnings. New checks: a `SUB` variable nothing reads, an `IF` whose condition never changes, statements after `HALT`. See the [lint rules reference](https://execsql2.readthedocs.io/en/latest/reference/lint/).
 - **`execsql-lint` pre-commit hook**, alongside `execsql-format`.
-- **`format`:** `--diff` shows what would change without writing. `--sql` and `--no-leading-comma` override the config for one run.
-- **`format` and `lint`:** read a script from stdin with `-`, and take `-f`/`--script-encoding` and `--config`.
-- **`[format]` and `[lint]` config sections** set project defaults; a command-line flag wins.
-- **`config`:** lists every option with its value, its default and the file that set it, with passwords shown as `***`. `--validate` reports every problem in every config file with its file and line. `--init` prints the config template.
-- **`init`:** creates `execsql.conf`, a starter script and the pre-commit hooks. Existing files are kept unless you pass `--force`.
-- **`list`:** `metacommands`, `encodings`, `plugins` and `keywords`, as text or JSON.
-- **`PG_UPSERT` character-length check:** a staging value longer than its `varchar(n)` or `char(n)` base column fails QA and appears in the `EXPORT_FAILURES` fix sheet.
+- **`format --diff`** shows changes without writing; `--sql` and `--no-leading-comma` override the config for one run.
+- **`format` and `lint`** read stdin with `-` and take `-f`/`--script-encoding` and `--config`.
+- **`[format]` and `[lint]` config sections** set project defaults; a flag wins.
+- **`config`** lists every option with its value, default and source file (passwords as `***`). `--validate` reports every problem with its file and line; `--init` prints the config template.
+- **`init`** creates `execsql.conf`, a starter script and the pre-commit hooks; `--force` overwrites existing files.
+- **`list`** shows `metacommands`, `encodings`, `plugins` and `keywords`, as text or JSON.
+- **`PG_UPSERT` QA** fails a staging value longer than its `varchar(n)` or `char(n)` base column and lists it in the `EXPORT_FAILURES` fix sheet.
 
 ### Deprecated
 
-- Running a script without a command (`execsql script.sql myserver mydb`) prints a warning and stops working in execsql2 3.0. Put `run` first: `execsql run script.sql myserver mydb`. `-m`, `-y`, `--list-plugins`, `--dump-keywords`, `--init-config` and `--ping` without a command warn the same way and name their replacement; see [Flags that became commands](https://execsql2.readthedocs.io/en/latest/getting-started/syntax/#former_flags). After `run` they still work without a warning, but `execsql run --help` no longer lists them.
+- **Running a script without a command** (`execsql script.sql myserver mydb`) warns and stops working in execsql2 3.0; use `execsql run script.sql myserver mydb`. `-m`, `-y`, `--list-plugins`, `--dump-keywords`, `--init-config` and `--ping` without a command warn and name their replacement; see [Flags that became commands](https://execsql2.readthedocs.io/en/latest/getting-started/syntax/#former_flags). After `run` they still work without a warning but are hidden from `execsql run --help`.
 
 ### Removed
 
-- `--lint`: use `execsql lint`. `execsql run --lint` now exits with status 2 without running the script, so update CI steps and hooks that call it.
-- The `execsql-format` command: use `execsql format`, which takes the same options. Pre-commit users need no change, because the hook id is still `execsql-format`. Shell scripts, Makefiles and CI steps that call `execsql-format` must be updated.
-- `SqlStmt`, `MetacommandStmt` and `ScriptCmd` from `execsql.script`. Only Python code that imports them is affected; scripts are not.
+- **`--lint`:** use `execsql lint`. `execsql run --lint` exits with status 2 without running the script; update CI steps and hooks that call it.
+- **The `execsql-format` command:** use `execsql format` (same options). The pre-commit hook id is still `execsql-format`; shell scripts, Makefiles and CI steps that call the command must change.
+- **`SqlStmt`, `MetacommandStmt` and `ScriptCmd`** from `execsql.script`; only Python code importing them is affected.
 
 ### Changed
 
-- **`PG_UPSERT` QA follows `METHOD` and `EXCLUDE`:** all three modes check only the staging rows the load would write, so pass `PG_UPSERT QA` the same `METHOD` and `EXCLUDE` as the load that follows it. `CHECK ... METHOD update` treats a missing `NOT NULL` column as a warning. The `upsert` extra now requires pg-upsert 1.25.0 or newer. See [QA follows METHOD and EXCLUDE](https://execsql2.readthedocs.io/en/latest/reference/metacommands/#pg_upsert_qa_method).
-- **`PG_UPSERT` QA can fail where it passed before:** it now catches a unique key that collides with an existing base row, a foreign key parent that is not in `TABLES`, and an excluded `NOT NULL` column on an inserted row, all of which used to fail during the load.
-- A script named exactly like a command (`run`, `format`, `lint`, `config`, `list` or `init`, with no extension) must be run as `execsql run NAME`.
-- `execsql format --encoding` is now `-f`/`--script-encoding`, matching `run`. `--encoding` still works.
-- The debug REPL (`BREAKPOINT`, `--debug`) runs metacommands and blocks as well as SQL, as if they were the next lines of the script where it paused: a `SUB` stays set when the script resumes, and SQL is committed as the script's own SQL would be. See [Debugging](https://execsql2.readthedocs.io/en/latest/guides/debugging/).
-- CLI help is plain text, colored on a terminal (`NO_COLOR` or `EXECSQL_NO_COLOR` turns color off), and uses the terminal's full width. `execsql` with no arguments prints it and exits with status 2.
-- Lint output groups issues under each file in line order, with one summary line. A script that fails to parse is reported on one line with its line number.
-- Error messages name the fix: a missing SQLite or DuckDB file suggests `-n`/`--new-db`, and a config file error names the file and line and suggests `execsql config --validate`.
-- Requires Typer 0.26 or newer (previously 0.12).
+- **`PG_UPSERT` QA follows `METHOD` and `EXCLUDE`:** it checks only the staging rows the load would write, so pass `PG_UPSERT QA` the same `METHOD` and `EXCLUDE` as the load. `CHECK ... METHOD update` treats a missing `NOT NULL` column as a warning. See [QA follows METHOD and EXCLUDE](https://execsql2.readthedocs.io/en/latest/reference/metacommands/#pg_upsert_qa_method).
+- **`PG_UPSERT` QA can fail where it passed before:** it catches a unique key colliding with an existing base row, a foreign key parent not in `TABLES`, and an excluded `NOT NULL` column on an inserted row, which used to fail during the load.
+- **The `upsert` extra requires pg-upsert 1.25.0** or newer.
+- **A script named like a command** (`run`, `format`, `lint`, `config`, `list` or `init`, no extension) must be run as `execsql run NAME`.
+- **`execsql format --encoding`** is now `-f`/`--script-encoding`, matching `run`; `--encoding` still works.
+- **The debug REPL** (`BREAKPOINT`, `--debug`) runs metacommands and blocks as well as SQL, as the next lines of the script: a `SUB` stays set when the script resumes, and SQL is committed as the script's own would be. See [Debugging](https://execsql2.readthedocs.io/en/latest/guides/debugging/).
+- **CLI help** is plain text at full terminal width, colored on a terminal (`NO_COLOR` or `EXECSQL_NO_COLOR` turns it off). `execsql` with no arguments prints it and exits with status 2.
+- **Lint output** groups issues by file in line order with one summary line; a script that fails to parse is one line with its line number.
+- **Error messages** name the fix: a missing SQLite or DuckDB file suggests `-n`/`--new-db`; a config file error names the file and line and suggests `execsql config --validate`.
+- **Requires Typer 0.26** or newer (was 0.12).
 
 ### Fixed
 
-- `execsql format` without the `[formatter]` extra says sqlglot is needed and how to install it, instead of an uncaught `ImportError`.
-- `-h` works as a short form of `--help`, as it did in upstream execsql.
-- The debug REPL's `.set VAR VALUE` keeps the value's case instead of lowercasing it, and `.vars all` lists environment variables instead of looking up a variable named `all`.
+- **`execsql format` without the `[formatter]` extra** says sqlglot is needed and how to install it, instead of an uncaught `ImportError`.
+- **`-h`** works as `--help`, as in upstream execsql.
+- **The debug REPL's `.set VAR VALUE`** keeps the value's case instead of lowercasing it; **`.vars all`** lists environment variables instead of looking up a variable named `all`.
 
 ______________________________________________________________________
 
@@ -294,14 +296,14 @@ ______________________________________________________________________
 
 ### Added
 
-- A warning when MySQL, MariaDB or Oracle commits a statement on its own while `AUTOCOMMIT` is `OFF` or a batch is open — `CREATE TABLE`, `DROP`, `TRUNCATE` and other DDL, which the server commits together with everything before it, so none of it can be rolled back.
-- A warning when `AUTOCOMMIT OFF` or `BEGIN BATCH` cannot hold statements at all: an ODBC DSN whose driver has no transactions, or an MS Access `CREATE TEMPORARY QUERY`, which reopens the connection and rolls back what was not yet committed.
+- **Implicit-commit warning on MySQL, MariaDB and Oracle:** DDL (`CREATE TABLE`, `DROP`, `TRUNCATE`, …) run while `AUTOCOMMIT` is `OFF` or a batch is open warns that the server commits it, and everything before it, beyond rollback.
+- **A warning when `AUTOCOMMIT OFF` or `BEGIN BATCH` cannot hold statements:** an ODBC DSN whose driver has no transactions, or an MS Access `CREATE TEMPORARY QUERY`, which reopens the connection and rolls back uncommitted work.
 
 ### Fixed
 
-- SQLite: `CREATE TABLE`, `DROP` and other DDL run while `AUTOCOMMIT` is `OFF` or inside `BEGIN BATCH` are held until commit. They were committed at once, so `AUTOCOMMIT ON WITH ROLLBACK` and `ROLLBACK BATCH` left them in place.
-- DuckDB: `AUTOCOMMIT OFF` and `BEGIN BATCH` hold statements until commit. Every statement, rows included, was committed as it ran, so nothing could be rolled back. A script's own `BEGIN;` and `COMMIT;` now work too; `COMMIT;` failed with "no transaction is active".
-- DuckDB: `$LAST_ROWCOUNT` holds the number of rows an `INSERT`, `UPDATE` or `DELETE` changed. It was always `-1`.
+- **SQLite:** DDL run while `AUTOCOMMIT` is `OFF` or inside `BEGIN BATCH` is held until commit; it was committed at once, so `AUTOCOMMIT ON WITH ROLLBACK` and `ROLLBACK BATCH` left it in place.
+- **DuckDB:** `AUTOCOMMIT OFF` and `BEGIN BATCH` hold statements until commit; every statement used to commit as it ran. A script's own `BEGIN;` and `COMMIT;` work; `COMMIT;` failed with "no transaction is active".
+- **DuckDB `$LAST_ROWCOUNT`** holds the rows an `INSERT`, `UPDATE` or `DELETE` changed; it was always `-1`.
 
 ______________________________________________________________________
 
@@ -309,34 +311,32 @@ ______________________________________________________________________
 
 ### Added
 
-- Database support tiers. PostgreSQL, MySQL/MariaDB, MS SQL Server, SQLite, and DuckDB are **supported** — verified against a live server or real database file on every CI run. MS Access, Firebird, Oracle, and ODBC DSN are **best effort** — present, unverified in CI, and may break. No adapter changes behavior or is scheduled for removal.
-- `support_tier_notice` configuration option (`[interface]` section, default `Yes`). Opening a best-effort database connection writes one line to stderr naming the tier, once per DBMS per run. Set it to `No` to silence.
+- **Database support tiers:** PostgreSQL, MySQL/MariaDB, MS SQL Server, SQLite and DuckDB are **supported** (verified against a live server or real database file in CI). MS Access, Firebird, Oracle and ODBC DSN are **best effort** (unverified in CI; may break). No adapter changes behavior or is scheduled for removal.
+- **`support_tier_notice`** (`[interface]`, default `Yes`): opening a best-effort connection writes one stderr line naming its tier, once per DBMS per run. Set `No` to silence it.
 
 ### Changed
 
-- MySQL and MariaDB connections now default to `utf8mb4` instead of `latin1`. A latin1 connection could not carry CJK, emoji, Greek, or Cyrillic at all — inserting such text raised `UnicodeEncodeError` before reaching the server — so scripts had to pass `-e utf8mb4` to move most of Unicode. Existing latin1 databases are unaffected: the connection charset governs only client/server transfer, and MySQL transcodes to and from each column's own charset. Pass `-e latin1` to restore the previous behavior.
+- **MySQL and MariaDB connections default to `utf8mb4`** instead of `latin1`, so CJK, emoji, Greek and Cyrillic text no longer raises `UnicodeEncodeError` without `-e utf8mb4`. Existing latin1 databases are unaffected; MySQL transcodes to each column's charset. Pass `-e latin1` for the old behavior.
 
 ### Fixed
 
-- `execsql.api.run()` no longer discards every `WRITE ... TO <file>` and `TEE` to a file. Those metacommands hand their output to a FileWriter subprocess that only the CLI started, so under the library API the file was never created and the run still reported success ([#46](https://github.com/geocoug/execsql/issues/46)). `run()` now starts the writer, and flushes and closes every file before returning, so output is readable as soon as it hands back control. A writer the caller started themselves is left untouched.
-- File output that cannot be written because no FileWriter is running now reports a warning instead of being dropped in silence. The write is still skipped — queueing to a subprocess that is not draining the queue deadlocks the caller — but a script's logfile no longer comes back empty with no indication anything was missed.
-- `IMPORT` reads CSV files containing a quoted field with a newline. RFC 4180 allows it and execsql's own CSV export produces it, but format diagnosis scanned physical lines, so the delimiter looked inconsistent and was rejected: the header arrived as a single column and the record split into two rows with the quote characters still in the data. Exporting a multi-line value and importing it back now round-trips.
-- `IMPORT` to MySQL writes an empty field as NULL instead of the column's zero value. `LOAD DATA` coerced an empty numeric to `0` and an empty date to `0000-00-00`, so the same file imported to MySQL differed from every other backend.
-- `IMPORT ... WITH QUOTE NONE` to PostgreSQL keeps double quotes in the data. `Well "A" 12` was stored as `Well A 12`, and the same happened when no quote character was detected ([#54](https://github.com/geocoug/execsql/issues/54)).
-- `IMPORT` to PostgreSQL honors a detected backslash escape. A quoted field containing `\"` was stored with the backslash and without the quote, so `"Well \"A\" 12"` became `Well \A\ 12`.
-- `IMPORT` to MySQL reads CRLF files correctly. `LOAD DATA` defaults to `\n` as its line terminator, so every row's last field kept a trailing carriage return — enough to turn an empty date column into `0000-00-00`.
-- `EXPORT ... AS CSV` (and the other delimited formats) no longer corrupts values containing a newline when run on Windows. Universal-newline translation rewrote every `\n` as `\r\n` on write, including newlines *inside* a quoted field, so an exported value did not match the one in the database. Delimited files now use `\n` row terminators on every platform, so the same query produces the same bytes everywhere.
-- `EXPORT ... AS TAB`/console pretty-printing keeps every row on one line. A newline or tab inside a value split the row across physical lines and misaligned every column after it; both are now shown as `\\n` and `\\t`, so the table stays square and the break is still visible.
-- `EXPORT ... AS VALUES` quotes dates, timestamps, and every other non-numeric value in the generated `INSERT`. Only strings were quoted, so a date was written bare as `2026-09-24` — which SQL reads as arithmetic, not a date. PostgreSQL accepted the statement and stored `1993` without complaint; a timestamp, carrying a space, was a syntax error instead. Numbers are still written bare, and `NULL` is unchanged.
-- `EXPORT ... AS LATEX` escapes every LaTeX special character, not only `_`. An `&` in a value acted as a column separator and produced a table with the wrong number of columns, which LaTeX refuses to compile ("Extra alignment tab has been changed to \\cr"); a `%` commented out the rest of the row. `\\ & % $ # _ { } ~ ^` are now all escaped.
-- `EXPORT ... AS LATEX` writes NULL as an empty cell instead of the literal text `None`.
-- `EXPORT ... AS HTML` renders zero and other falsy values instead of blank cells. Cells were written with `str(v) if v else ''`, so `0`, `False`, and empty strings came out empty — a zero measurement was indistinguishable from a NULL in the output.
-- `EXPORT ... AS MARKDOWN` no longer breaks the table when a value contains a newline. A GitHub-flavoured Markdown row is a single line, so a literal newline ended the row mid-cell and left the remaining values on a stray line outside the table. Line breaks are now written as `<br>`.
-- `EXPORT ... AS ODS` writes `numeric`/`decimal` columns as typed numbers. PostgreSQL, MySQL, and DuckDB return `Decimal` for those columns, which was written with an `office:value` but no `office:value-type` — not valid ODF, leaving a reader free to treat the number as text or ignore it.
-- `EXPORT ... AS ODS` keeps newlines inside a value instead of replacing them with spaces. Multi-line text is now written as one line per `<text:p>`, which is how ODF represents it; previously the exported cell did not match the value in the database.
-- `EXPORT ... AS XLSX` writes `numeric`/`decimal` columns as numbers instead of text. PostgreSQL, MySQL, and DuckDB return `Decimal` for those columns, which fell through to a string cell — a measurement column arrived in Excel as text and could not be summed, sorted, or charted. Integer and float columns were unaffected.
-- Exports and copies to DuckDB no longer lose floating-point precision. `DT_Float` is IEEE double precision and a Python float always is one, but DuckDB columns were declared `REAL` — single precision — so `1234.567` came back as `1234.5670166015625`. DuckDB columns are now `DOUBLE`, matching every other backend. Affects `EXPORT ... AS DUCKDB` and `COPY` into a DuckDB database.
-- Jinja2 report templates with an `.html`, `.htm`, or `.xml` extension now escape the values rendered into them. Autoescaping was off, so a database value containing markup — `<script>`, `&`, a quote — became live markup in the generated report. Templates with any other extension (`.csv`, `.tex`, `.txt`, `.sql`, `.md`) are unchanged, since escaping those would corrupt them. A template that means to emit markup uses `{{ value|safe }}`.
+- **`execsql.api.run()`** writes `WRITE ... TO <file>` and `TEE` output to the file; it was never created, and the run still reported success ([#46](https://github.com/geocoug/execsql/issues/46)). Files are flushed and closed before `run()` returns; a writer the caller started is left alone.
+- **File output that cannot be written** because no file writer is running warns instead of vanishing silently; the write is still skipped.
+- **`IMPORT` of a CSV with a newline in a quoted field** works; the header was read as one column and the record split into two rows. An exported multi-line value now imports back unchanged.
+- **`IMPORT` to MySQL** writes an empty field as NULL instead of `0` or `0000-00-00`.
+- **`IMPORT ... WITH QUOTE NONE` to PostgreSQL** keeps double quotes in the data (`Well "A" 12` became `Well A 12`), also when no quote character was detected ([#54](https://github.com/geocoug/execsql/issues/54)).
+- **`IMPORT` to PostgreSQL** honors a detected backslash escape; `"Well \"A\" 12"` became `Well \A\ 12`.
+- **`IMPORT` to MySQL** reads CRLF files; each row's last field kept a trailing carriage return, turning an empty date into `0000-00-00`.
+- **`EXPORT ... AS CSV`** and the other delimited formats no longer turn a newline inside a value into `\r\n` on Windows; rows end in `\n` on every platform, so the same query gives the same bytes everywhere.
+- **`EXPORT ... AS TAB`** and console tables keep each row on one line, showing a newline or tab in a value as `\\n` or `\\t`.
+- **`EXPORT ... AS VALUES`** quotes dates, timestamps and every other non-numeric value; PostgreSQL stored a bare `2026-09-24` as `1993`, and a timestamp was a syntax error. Numbers and `NULL` are unchanged.
+- **`EXPORT ... AS LATEX`** escapes `\\ & % $ # _ { } ~ ^`, not only `_` (an `&` broke the table with "Extra alignment tab has been changed to \\cr"), and writes NULL as an empty cell instead of `None`.
+- **`EXPORT ... AS HTML`** renders `0`, `False` and empty strings instead of blank cells.
+- **`EXPORT ... AS MARKDOWN`** writes a line break in a value as `<br>` instead of breaking the table.
+- **`EXPORT ... AS ODS`** writes `numeric`/`decimal` columns as typed numbers (they were invalid ODF) and keeps newlines in a value instead of replacing them with spaces.
+- **`EXPORT ... AS XLSX`** writes `numeric`/`decimal` columns as numbers instead of text.
+- **DuckDB float columns** are `DOUBLE`, not single-precision `REAL`, for `EXPORT ... AS DUCKDB` and `COPY` into DuckDB; `1234.567` came back as `1234.5670166015625`.
+- **Jinja2 report templates** ending in `.html`, `.htm` or `.xml` escape rendered values; markup in a database value became live markup in the report. Other extensions are unchanged. Use `{{ value|safe }}` to emit markup.
 
 ______________________________________________________________________
 
@@ -344,8 +344,8 @@ ______________________________________________________________________
 
 ### Fixed
 
-- `EMAIL`, and the `ON ERROR_HALT EMAIL` and `ON CANCEL_HALT EMAIL` hooks, failed with `AttributeError: 'SMTP' object has no attribute 'ehlo_or_hello_if_needed'` instead of sending. Every send was affected, on every server and TLS setting.
-- An `[email]` `username` with no `password` or `enc_password` now reports a configuration error instead of failing with a `TypeError` from `smtplib`.
+- **`EMAIL`** and the `ON ERROR_HALT EMAIL` and `ON CANCEL_HALT EMAIL` hooks send again; every send failed with `AttributeError: 'SMTP' object has no attribute 'ehlo_or_hello_if_needed'`.
+- **An `[email]` `username` with no `password` or `enc_password`** is a configuration error instead of a `TypeError` from `smtplib`.
 
 ______________________________________________________________________
 
@@ -353,8 +353,8 @@ ______________________________________________________________________
 
 ### Fixed
 
-- `execsql-format` no longer leaves a space before a `;` when a comment precedes the closing statement line. `1 = 1;` came back as `1 = 1 ;` and was corrected only on the next run, so `--check` failed on a file the formatter had just written.
-- `execsql-format` no longer moves a comment into the middle of the expression it describes. A comment above a select item containing a parenthesized composite-field access — `COALESCE((a.meas_value).undetected, FALSE)` — was relocated between the operand and the closing paren, and the file then reformatted differently on the next run, so `pre-commit` could not pass. Comments around `CASE` branches were relocated the same way.
+- **`execsql-format`** leaves no space before `;` when a comment precedes the closing line; `1 = 1 ;` made `--check` fail on the formatter's own output.
+- **`execsql-format`** keeps a comment above a select item or `CASE` branch in place; it moved into the expression (such as `COALESCE((a.meas_value).undetected, FALSE)`) and reformatted differently on every run, so `pre-commit` could not pass.
 
 ______________________________________________________________________
 
@@ -362,12 +362,12 @@ ______________________________________________________________________
 
 ### Fixed
 
-- `execsql-format` no longer deletes clauses from SQL it cannot fully parse. `INSERT ... CROSS JOIN LATERAL (VALUES ...) AS g(a, b) ON CONFLICT (a) DO NOTHING` was rewritten without its `DO NOTHING`, and `--in-place` reported the result as `reformatted`.
-- `execsql-format` no longer deletes a substitution variable that supplies a conditional clause. A `!!~var!!` standing alone in a `WHERE` clause — the pattern the shipped upsert templates use for optional predicates — was dropped from the formatted output, as was a trailing `ORDER BY` in the same statement.
+- **`execsql-format`** no longer deletes clauses from SQL it cannot fully parse, such as the `DO NOTHING` of `INSERT ... CROSS JOIN LATERAL (VALUES ...) AS g(a, b) ON CONFLICT (a) DO NOTHING`.
+- **`execsql-format`** keeps a `!!~var!!` standing alone in a `WHERE` clause (the upsert templates' optional predicates) and a trailing `ORDER BY` in the same statement.
 
 ### Changed
 
-- `execsql-format` leaves a run of SQL untouched when any statement in it fails to parse, instead of reformatting from a partial parse. Affected statements keep their original layout; only their indentation is normalized.
+- **`execsql-format`** leaves a run of SQL as written, normalizing only indentation, when any statement in it fails to parse.
 
 ______________________________________________________________________
 
@@ -375,9 +375,9 @@ ______________________________________________________________________
 
 ### Fixed
 
-- `execsql-format` no longer indents inside a multi-line string literal. A `$$…$$` body or a multi-line `'…'` string inside an `IF`, `LOOP`, or `BEGIN SQL` block had the block's indentation added to each of its lines, changing the value the database stores.
-- `execsql-format --leading-comma` no longer moves a comma into or out of a multi-line string literal, which rewrote the stored value.
-- `execsql-format` now reaches a stable result in one pass. A statement sqlglot could not parse gained a space of indentation on every run and never converged, so `--check` could not pass on an already-formatted file; two adjacent comments on one statement also cost an extra pass.
+- **`execsql-format`** no longer indents inside a multi-line string literal (`$$…$$` or `'…'`) in an `IF`, `LOOP` or `BEGIN SQL` block, which changed the stored value.
+- **`execsql-format --leading-comma`** no longer moves a comma into or out of a multi-line string literal.
+- **`execsql-format`** reaches a stable result in one pass; an unparsable statement gained a space of indentation on every run, so `--check` never passed.
 
 ______________________________________________________________________
 
@@ -385,12 +385,12 @@ ______________________________________________________________________
 
 ### Fixed
 
-- `execsql-format` no longer alters PostgreSQL escape strings; `E'\\s+'` was rewritten as `e'\s+'`, turning a whitespace regex into a letter-`s` regex, and lost a further backslash on every run.
-- `execsql-format` now leaves a statement unformatted when its string literals would change; the previous check compared only alphanumeric counts and missed punctuation-only rewrites.
+- **`execsql-format`** no longer alters PostgreSQL escape strings; `E'\\s+'` became `e'\s+'` and lost a further backslash on every run.
+- **`execsql-format`** leaves a statement unformatted when any of its string literals would change.
 
 ### Changed
 
-- The `execsql-format` pre-commit hook pins `sqlglot>=25.0,<31` so a given commit formats identically on every machine.
+- **The `execsql-format` pre-commit hook** pins `sqlglot>=25.0,<31`, so a commit formats identically on every machine.
 
 ______________________________________________________________________
 
@@ -398,9 +398,9 @@ ______________________________________________________________________
 
 ### Fixed
 
-- `HALT` with a message no longer blocks on a dialog in unattended runs; below `gui_level` 2 the message is written to the console and the script exits with the requested `EXIT_STATUS`.
-- `HALT … DISPLAY` now writes its table to the console in non-interactive runs instead of discarding it.
-- Textual `HALT` dialogs now show the single OK button the metacommand asks for, render the `DISPLAY` table, and ignore <kbd>Esc</kbd>; cancelling previously exited with status 2 instead of the requested `EXIT_STATUS`.
+- **`HALT` with a message** in unattended runs (below `gui_level` 2) writes to the console and exits with the requested `EXIT_STATUS` instead of blocking on a dialog.
+- **`HALT … DISPLAY`** writes its table to the console in non-interactive runs instead of discarding it.
+- **Textual `HALT` dialogs** show one OK button, render the `DISPLAY` table and ignore <kbd>Esc</kbd>; cancelling exited with status 2 instead of the requested `EXIT_STATUS`.
 
 ______________________________________________________________________
 
@@ -408,7 +408,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- `execsql-format` no longer sends a completed dollar-quoted PL/pgSQL body to sqlglot. A `CREATE FUNCTION … $$ … $$;` or `DO $$ … $$;` whose quote closed before the block was flushed was reformatted (signature exploded, `LANGUAGE … AS` reordered, body types uppercased) and drifted — gaining one space of indentation on every run, so `--check` never converged. Such statements are now kept verbatim.
+- **`execsql-format`** keeps a completed dollar-quoted PL/pgSQL body (`CREATE FUNCTION … $$ … $$;`, `DO $$ … $$;`) verbatim; it was reformatted and gained indentation on every run, so `--check` never passed.
 
 ______________________________________________________________________
 
@@ -416,7 +416,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- `ASK … SUB` now stores the actual answer ("Yes" or "No"); it previously stored "No" for every response, so `IF(IS_TRUE(…))` and `IF(…)` branches keyed on the answer never took the yes path. Pressing `Esc` at the prompt again quits the script.
+- **`ASK … SUB`** stores the actual answer ("Yes" or "No"); it stored "No" for every response, so branches on the answer never took the yes path. `Esc` at the prompt quits the script again.
 
 ______________________________________________________________________
 
@@ -424,8 +424,8 @@ ______________________________________________________________________
 
 ### Fixed
 
-- Database factory functions (`db_SQLite(..., new_db=True)`, etc.) no longer crash with `AttributeError` when called before `run()` in library use.
-- `run(halt_on_error=False)` now reports non-halting SQL and metacommand errors in `result.errors` and sets `result.success` to `False`; previously they were silently dropped.
+- **Database factory functions** (`db_SQLite(..., new_db=True)`, etc.) no longer raise `AttributeError` when called before `run()` in library use.
+- **`run(halt_on_error=False)`** reports non-halting SQL and metacommand errors in `result.errors` and sets `result.success` to `False`; they were dropped.
 
 ______________________________________________________________________
 
@@ -433,14 +433,14 @@ ______________________________________________________________________
 
 ### Added
 
-- `run()` now accepts `allow_rm_file=False` and `allow_serve=False` to disable the `RM_FILE` and `SERVE` metacommands for library callers, matching the existing `allow_system_cmd` kwarg and the `--no-rm-file` / `--no-serve` CLI flags.
-- `[config] system_cmd_timeout` can bound foreground `SYSTEM_CMD` execution; the default remains no timeout.
+- **`run()` `allow_rm_file=False` and `allow_serve=False`** disable `RM_FILE` and `SERVE` for library callers, like `allow_system_cmd` and the `--no-rm-file` / `--no-serve` flags.
+- **`[config] system_cmd_timeout`** bounds foreground `SYSTEM_CMD`; the default is still no timeout.
 
 ### Fixed
 
-- `EXPORT … FORMAT SQLITE` and `EXPORT … FORMAT DUCKDB` correctly preserve source column types when exporting from a typed database: text columns stay text (not re-inferred as TIMESTAMP or numeric from value shape), `decimal.Decimal` values bind without error (converted to their exact string representation for SQLite), and unsupported Python objects such as PostGIS geometry are stringified instead of raising a bind error.
-- `EXPORT … FORMAT LATEX` into a ZIP archive no longer crashes with `AttributeError`.
-- Connecting to a server-based database without a server or database name now stops with a clear error message instead of a driver traceback.
+- **`EXPORT … FORMAT SQLITE` and `FORMAT DUCKDB`** keep source column types from a typed database: text stays text, `Decimal` values bind (as exact strings in SQLite), and unsupported objects such as PostGIS geometry are stringified instead of failing to bind.
+- **`EXPORT … FORMAT LATEX` into a ZIP archive** no longer raises `AttributeError`.
+- **Connecting to a server database without a server or database name** stops with a clear error instead of a driver traceback.
 
 ______________________________________________________________________
 
@@ -448,7 +448,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- Fixed `EXPORT … AS PARQUET` and `EXPORT … AS FEATHER` `ComputeError` when a result column has more than 100 leading `NULL` values followed by non-null numeric values.
+- **`EXPORT … AS PARQUET` and `AS FEATHER`** no longer fail with `ComputeError` when a column has more than 100 leading `NULL`s followed by numbers.
 
 ______________________________________________________________________
 
@@ -456,7 +456,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- PostgreSQL: `EXPORT` and other repeated queries against objects a script drops/recreates or alters no longer fail with `FeatureNotSupported: cached plan must not change result type`. psycopg3's automatic server-side prepared statements are now disabled (`prepare_threshold=None`), restoring the psycopg2 behavior.
+- **PostgreSQL:** `EXPORT` and other repeated queries against objects a script drops, recreates or alters no longer fail with `FeatureNotSupported: cached plan must not change result type`.
 
 ______________________________________________________________________
 
@@ -464,7 +464,8 @@ ______________________________________________________________________
 
 ### Changed
 
-- PostgreSQL connections now use psycopg3 (install the `postgres` extra, which pulls `psycopg[binary]`) instead of psycopg2. The `PG_UPSERT` metacommand now requires `pg-upsert>=1.23.0`.
+- **PostgreSQL** connects with psycopg3 instead of psycopg2; the `postgres` extra installs `psycopg[binary]`.
+- **`PG_UPSERT`** requires `pg-upsert>=1.23.0`.
 
 ______________________________________________________________________
 
@@ -472,23 +473,22 @@ ______________________________________________________________________
 
 ### Added
 
-- `execsql-format --encoding NAME` flag controls the text encoding used to read and write SQL files (default `utf-8`). Files saved by editors that emit cp1252, latin-1, shift_jis, etc. can now be formatted directly. A `UnicodeDecodeError` reports the file path and suggests `--encoding` instead of dumping a traceback.
+- **`execsql-format --encoding NAME`** reads and writes SQL files in that encoding (default `utf-8`), for files saved as cp1252, latin-1, shift_jis and so on. A `UnicodeDecodeError` names the file and suggests `--encoding` instead of printing a traceback.
 
 ### Changed
 
-- Published `execsql-format` pre-commit hook now defaults to `args: [--in-place]`. Downstream configs that listed `- id: execsql-format` with no `args:` previously got a silent no-op (the CLI's default is stdout, which pre-commit doesn't capture); they will now reformat files in place. Override with `args: [--check]` for check-only mode.
-- Pre-commit `rev:` snippets in `README.md` and `docs/guides/formatter.md` now point at `v2.19.2` and are rewritten automatically by `bump-my-version` on every version bump, so they cannot drift.
-- Env-var redaction filter expanded to skip mainstream secret-naming conventions (`AWS_ACCESS_KEY_ID`, `STRIPE_KEY`, `OPENAI_API_KEY`, `SENTRY_DSN`, `SLACK_WEBHOOK`, etc.). `-a` assignment log lines now always show `{***}` instead of the raw value. See `docs/reference/security.md#env_redaction` for the full list and known gaps (`DATABASE_URL`, `GITHUB_PAT`).
-- The duplicate `execsql.conf` reference file shipped at `<sys.prefix>/execsql2_extras/execsql.conf` has been removed. The canonical template still ships inside the package and is loaded via `importlib.resources`; bootstrap a project conf with `execsql --init-config > execsql.conf` (the documented path).
+- **The `execsql-format` pre-commit hook** defaults to `args: [--in-place]`. A config with no `args:` now reformats files; it used to do nothing. Use `args: [--check]` for check-only.
+- **Environment-variable redaction** in the log also covers common secret names (`AWS_ACCESS_KEY_ID`, `STRIPE_KEY`, `OPENAI_API_KEY`, `SENTRY_DSN`, `SLACK_WEBHOOK`, …), and `-a` assignment lines always show `{***}`. Known gaps (`DATABASE_URL`, `GITHUB_PAT`) are listed in `docs/reference/security.md#env_redaction`.
+- **`<sys.prefix>/execsql2_extras/execsql.conf`** is no longer installed; create a config with `execsql --init-config > execsql.conf`.
 
 ### Fixed
 
-- `[firebird]` extra now connects: the adapter imports `firebird.driver` (provided by `firebird-driver`) instead of the missing `fdb` module. Users who installed `pip install execsql2[firebird]` previously hit `ModuleNotFoundError: No module named 'fdb'` at connect time.
-- MySQL, SQL Server (pyodbc), MS Access (pyodbc), DSN (pyodbc), Firebird, and SMTP connections now use a 30-second connect timeout, matching the existing Postgres default. A silently-dropped peer no longer hangs a script (or a CI run) indefinitely.
-- `execsql-format` now recognizes tagged `$body$ … $body$` / `$func$ … $func$` PL/pgSQL dollar quotes and skips sqlglot inside them, matching the existing `$$` behaviour. Tagged function bodies previously had their `IF / END IF / LOOP / RETURN` rewritten or collapsed.
-- `execsql-format` now uppercases the second word of multi-word metacommands like `PROMPT MAP`, `PROMPT SAVEFILE`, `PROMPT OPENFILE`, `PROMPT CREDENTIALS`, `PROMPT SELECT_ROWS`, `PROMPT ASK COMPARE`, `APPEND SCRIPT`, `PG_UPSERT CHECK`/`QA`, `RESET COUNTER`/`DIALOG_CANCELED`, `SET COUNTER`, `WRITE CREATE_TABLE`/`SCRIPT`. Previously only the first word was uppercased, leaving the rest as the user typed.
-- `execsql-format` no longer short-circuits on the first unreadable file; remaining files are still checked or formatted, and the run exits 1 at the end if any read error or pending change was found.
-- `execsql-format --leading-comma` is now idempotent on SQL with mid-statement comments. The flag is no longer threaded through to sqlglot (which migrates inline `/* marker */` comments between passes); instead the formatter normalizes any leading-comma input to trailing-comma before sqlglot sees it, and applies leading commas as a textual post-pass on the assembled output.
+- **The `[firebird]` extra** connects; it used to fail with `ModuleNotFoundError: No module named 'fdb'`.
+- **MySQL, SQL Server, MS Access, ODBC DSN, Firebird and SMTP connections** time out after 30 seconds, as PostgreSQL does, instead of hanging on an unresponsive server.
+- **`execsql-format`** leaves tagged PL/pgSQL dollar quotes (`$body$ … $body$`) alone, as it does `$$`; their `IF / END IF / LOOP / RETURN` used to be rewritten.
+- **`execsql-format`** uppercases every keyword of multi-word metacommands (`PROMPT MAP`, `APPEND SCRIPT`, `PG_UPSERT CHECK`, `RESET COUNTER`, `WRITE CREATE_TABLE`, …), not only the first.
+- **`execsql-format`** keeps going after an unreadable file and exits 1 at the end if any file failed or needs changes.
+- **`execsql-format --leading-comma`** gives the same result on a second run for SQL with comments inside a statement.
 
 ______________________________________________________________________
 
@@ -496,8 +496,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- `pre-commit` hook `execsql-format` now installs `sqlglot` into its isolated env (previously crashed with `ModuleNotFoundError: No module named 'sqlglot'`).
-- After upgrading, re-run `pre-commit clean && pre-commit install --install-hooks` to rebuild the hook env.
+- **The `execsql-format` pre-commit hook** installs `sqlglot`; it used to fail with `ModuleNotFoundError: No module named 'sqlglot'`. After upgrading, run `pre-commit clean && pre-commit install --install-hooks`.
 
 ______________________________________________________________________
 
@@ -505,7 +504,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- `execsql-format` no longer mangles quoted substitution variables: `!'!var!'!` and `!"!var!"!` were being parsed by sqlglot as `NOT` operators (e.g. `!'!myvar!'!` → `NOT NOT '!myvar!'`). All three quote forms plus deferred `!{var}!` are now hidden from SQL formatting.
+- **`execsql-format`** leaves quoted substitution variables (`!'!var!'!`, `!"!var!"!`) and deferred `!{var}!` intact; `!'!myvar!'!` used to become `NOT NOT '!myvar!'`.
 
 ______________________________________________________________________
 
@@ -513,17 +512,18 @@ ______________________________________________________________________
 
 ### Fixed
 
-- `IMPORT … FORMAT xlsx` rejects zip-bomb workbooks (per-member ratio over 100:1, or total uncompressed size over 500 MB). Convert large workbooks to CSV for import. Legacy `.xls` is unaffected.
-- `EXPORT … FORMAT hdf5` no longer truncates `BIGINT` columns to 32-bit, and `DT_Text` columns now honour the configured `hdf5_text_len`.
-- `BREAKPOINT` REPL no longer ends the session on a bad SQL statement — errors print inline and the prompt returns.
-- `BREAKPOINT` REPL handles DML / DDL / transaction-control statements: DML prints `(N rows affected)`, DDL / `BEGIN` / `COMMIT` / `ROLLBACK` print `(statement executed)`.
-- `BREAKPOINT` REPL accepts multi-line SQL — input is buffered until a line ends with `;`. `.cancel` (or Ctrl-C / EOF) discards a partial buffer.
+- **`IMPORT … FORMAT xlsx`** rejects zip-bomb workbooks (a member compressed over 100:1, or over 500 MB uncompressed). Convert large workbooks to CSV; `.xls` is unaffected.
+- **`EXPORT … FORMAT hdf5`** keeps `BIGINT` columns 64-bit and honours `hdf5_text_len` for text columns.
+- **The `BREAKPOINT` REPL**:
+    - prints SQL errors and returns to the prompt instead of ending the session;
+    - runs DML (prints `(N rows affected)`), DDL and `BEGIN` / `COMMIT` / `ROLLBACK` (prints `(statement executed)`);
+    - accepts multi-line SQL, buffered until a line ends with `;`; `.cancel`, Ctrl-C or EOF discards it.
 
 ### Changed
 
-- **`BREAKPOINT` REPL dispatch is now two-way**: input starting with `.` is a REPL command, everything else is SQL. Bare-name variable lookup is removed — use `.vars VAR` (e.g. `.vars logfile`, `.vars $ARG_1`) to print one variable; `.vars` alone still lists all.
-- `sqlglot` moved to the new `[formatter]` extra. Install `execsql2[formatter]` to use `execsql-format`'s SQL pass; `execsql-format --no-sql` works without.
-- `textual` dependency floor raised to `>=1.0` (was `>=0.47.0`).
+- **The `BREAKPOINT` REPL** treats input starting with `.` as a REPL command and everything else as SQL. Typing a bare variable name no longer prints it; use `.vars NAME` (`.vars` alone lists all).
+- **`sqlglot`** moved to the new `[formatter]` extra, which `execsql-format`'s SQL pass needs; `execsql-format --no-sql` works without it.
+- **`textual`** requires `>=1.0` (was `>=0.47.0`).
 
 ______________________________________________________________________
 
@@ -537,48 +537,42 @@ ______________________________________________________________________
 
 ### Added
 
-- `IS_FALSE(<value>)` conditional predicate — recognises `No`, `N`, `False`, `F`, and `0` as falsy (case-insensitive); inverse of `IS_TRUE`. Previously documented but not implemented, so `IF (IS_FALSE(...))` raised `CondParserError`.
-- `--no-rm-file` and `--no-serve` CLI flags disable the `RM_FILE` and `SERVE` metacommands, symmetric with the existing `--no-system-cmd`. Matching `allow_rm_file` and `allow_serve` config keys are honoured in the `[config]` section of `execsql.conf`.
-- New `include_root`, `serve_root`, and `template_root` config keys in the `[config]` section of `execsql.conf`. When set, `INCLUDE` / `EXECUTE SCRIPT`, `SERVE`, and Jinja2 / `string.Template` loaders confine resolved paths under the named root and reject anything that escapes via `..`, absolute paths, drive letters, or UNC paths.
-- `Database.quote_literal(value)` and `Database.quote_qualified_identifier(*parts)` helpers on the base `Database` class. The default `quote_literal` escapes `\` and doubles `'` and rejects NUL bytes; subclasses can override for dialect-specific literal forms.
-- `Database.needs_explicit_commit_after_ddl()` and `Database.auto_commits_ddl()` capability hooks. Firebird overrides the first (its driver leaves DDL pending until commit). Oracle, MySQL, SQL Server, and MS Access override the second (their drivers implicitly commit DDL — `rollback()` is a silent no-op for transactions whose boundary the DDL crossed).
-- `EncodedFile` now supports the context-manager protocol (`with EncodedFile(...) as fh:`); callers no longer have to remember an explicit `close()` in a `try` / `finally` block.
-- `~/execsql.log` is now created with mode `0o600` on POSIX so the substituted SQL, `-a` values, env vars, and DSN URLs it captures are not world-readable. Previously the file inherited the umask default (typically `0o644`).
-- `-a NAME VALUE` substitution-variable assignments are redacted to `***` in the log when the value contains a sensitive substring (`PASSWORD`, `SECRET`, `TOKEN`, `PASSWD`, `PRIVATE_KEY`, `CREDENTIAL`).
-- A warning is now printed when the `--dsn` URL contains an embedded password, since it remains visible in `ps`, shell history, and process accounting.
-- `EXPORT … FORMAT xlsx` and `IMPORT … FORMAT xlsx` now reject zip-bomb XLSX files via a new `check_zip_decompression_ratio` helper that inspects the OOXML zip directory before openpyxl parses the file. Rejects individual members with a compression ratio above 100:1 (default) and aggregate uncompressed size above 500 MB (default).
-- `IMPORT … FORMAT ods` and `EXPORT … FORMAT ods` defuse the stdlib XML parsers via `defusedxml.defuse_stdlib()` on first `OdsFile` construction, protecting odfpy from billion-laughs / external-entity attacks. The `defusedxml` package is now part of the `[formats]` extra.
-- `substitute_vars()` now aborts when expanded output exceeds 10 MB (configurable via the new `max_substitution_bytes` key in the `[config]` section), defending against exponential-expansion bombs where a chain of substitutions accumulates beyond a safe size before the iteration depth cap fires.
-- `IMPORT … ODS PATTERN <regex>` and `IMPORT … XLS PATTERN <regex>` now raise a friendly `ErrInfo` listing the invalid pattern instead of letting an uncaught `re.error` bubble up from `re.compile`.
-- `IMPORT … FROM JSON` with [JSON Lines](https://jsonlines.org/) (JSONL) now reads the file line-by-line instead of buffering the entire text alongside the parsed records. The standard JSON-array path is unchanged (would require an `ijson` dependency to stream).
-- New `execsql.utils.auth.is_plaintext_keyring()` helper detects when the active OS keyring backend stores secrets in cleartext (e.g. `keyrings.alt.file.PlaintextKeyring` on headless Linux without a real Secret Service). The internal `_keyring_set()` path now emits a one-time stderr warning before writing into a plaintext backend so users know stored passwords are not meaningfully protected at rest.
-- On POSIX systems without `$DISPLAY` or `$WAYLAND_DISPLAY`, `enable_gui()` now skips the Tkinter backend entirely and falls through to the Textual / Console backends, instead of failing with a cryptic `_tkinter.TclError` that the broad-except previously swallowed.
-- Internal: `.github/workflows/ci-cd.yml` now SHA-pins all third-party GitHub Actions with a trailing `# vX.Y.Z` comment; new `.github/dependabot.yml` files weekly bump PRs grouping minor/patch action updates.
-- Documented `$CURRENT_DATE` and `$CURRENT_SCRIPT_LINE` substitution variables in `docs/reference/substitution_vars.md`; the `[map]` extra in the README installation list; `RUN SCRIPT` as an alias for `EXECUTE SCRIPT` in `docs/reference/metacommands.md`. All were functional, just undocumented.
-- Expanded `SECURITY.md` from a stub-policy page to a defense-in-depth catalogue covering substitution-variable quoters, path-containment, SQL-injection mitigations, file-format defenses (XLSX zip-bomb, ODS XML), credential/logging hygiene, and known limitations.
+- **`IS_FALSE(<value>)`** condition: true for `No`, `N`, `False`, `F` or `0` (any case). It was documented but raised `CondParserError`.
+- **`--no-rm-file` and `--no-serve`** (or `allow_rm_file` / `allow_serve` in `[config]`) disable `RM_FILE` and `SERVE`, like `--no-system-cmd`.
+- **`include_root`, `serve_root` and `template_root`** (`[config]`) confine `INCLUDE` / `EXECUTE SCRIPT`, `SERVE` and template paths to a directory, rejecting `..`, absolute, drive-letter and UNC paths that escape it.
+- **`max_substitution_bytes`** (`[config]`, default 10 MB) stops a run when substitution output grows past it.
+- **`execsql.log`** is created with mode `0o600` on POSIX instead of the umask default.
+- **`-a NAME VALUE`** values are logged as `***` when the name contains `PASSWORD`, `SECRET`, `TOKEN`, `PASSWD`, `PRIVATE_KEY` or `CREDENTIAL`.
+- **`--dsn` with an embedded password** prints a warning, since it is visible in `ps` and shell history.
+- **`IMPORT` and `EXPORT … FORMAT xlsx`** reject zip-bomb files (a member compressed over 100:1, or over 500 MB uncompressed).
+- **ODS `IMPORT` and `EXPORT`** are protected against XML entity attacks; `defusedxml` is now in the `[formats]` extra.
+- **`IMPORT … ODS PATTERN` / `XLS PATTERN`** with an invalid regex reports the pattern instead of crashing with `re.error`.
+- **`IMPORT … FROM JSON`** reads JSON Lines files line by line, using less memory.
+- **Storing a password in a plaintext keyring** (such as `keyrings.alt.file.PlaintextKeyring` on headless Linux) prints a one-time warning.
+- **GUI on headless POSIX** (no `$DISPLAY` or `$WAYLAND_DISPLAY`) skips Tkinter and uses the Textual or Console backend instead of failing with `_tkinter.TclError`.
+- **Docs:** `$CURRENT_DATE`, `$CURRENT_SCRIPT_LINE`, the `[map]` extra and `RUN SCRIPT` (alias of `EXECUTE SCRIPT`) are documented; `SECURITY.md` describes the security defenses and known limitations.
 
 ### Changed
 
-- Bundled `templates/{pg,md,ss}_{upsert,compare,glossary}.sql` now use the safe `!'!#var!'!` substitution form instead of `'!!#var!!'`, so single quotes in script-argument values are escaped when interpolated into SQL string literals.
-- `--output-dir` is now a containment boundary, not just a prefix. Absolute paths or `..` traversals that escape the configured root are rejected. Stdout passes through unchanged. The setting now also applies to `EXPORT QUERY`, `EXPORT … WITH TEMPLATE`, `EXPORT METADATA`, and the multi-sheet `EXPORT ODS` / `EXPORT XLSX` variants, which previously ignored it.
+- **`templates/{pg,md,ss}_{upsert,compare,glossary}.sql`** use `!'!#var!'!`, so single quotes in arguments are escaped.
+- **`--output-dir`** confines output: absolute or `..` paths that escape it are rejected (stdout is unaffected). It now also applies to `EXPORT QUERY`, `EXPORT … WITH TEMPLATE`, `EXPORT METADATA` and multi-sheet `EXPORT ODS` / `XLSX`, which ignored it.
 
 ### Fixed
 
-- `templates/script_template.sql` had two `WRITE` lines (`Committing:` and `Cleaning up:`) with unterminated double-quoted strings; the closing quotes are now present.
-- `ends_with(string, "")` now returns `True` for any string, matching Python's `str.endswith` semantics. Previously it returned `True` only when the haystack was also empty.
-- ODBC DSN connections now brace-quote the DSN, UID, and PWD attribute values with `{…}` (and double any embedded `}`) so a password or user containing `;` cannot inject additional connection-string attributes (CWE-91 / ODBC attribute injection).
-- The `!"!var!"!` substitution operator now doubles embedded `"` so a value like `foo"; DROP TABLE x; --` produces a single valid quoted identifier rather than a closing quote followed by a second statement.
-- The `!'!var!'!` substitution operator now always escapes embedded `\`, not just on Windows. The previous Windows-only branch left MySQL default-mode and PostgreSQL E-string literals open to `\'` injection from POSIX hosts.
-- All three substitution forms (`!!var!!`, `!'!var!'!`, `!"!var!"!`) now reject values containing NUL bytes, which most DBMS wire protocols silently truncate or reject. The check fires only for the variable actually being interpolated — a NUL byte in an unrelated, unreferenced variable no longer blocks every other substitution.
-- `EXPORT … FORMAT sqlite` and `EXPORT … FORMAT duckdb` now identifier-quote the table name in `DROP TABLE` / `INSERT INTO` and parameter-bind it in the existence check, closing two SQL-injection-via-tablename sites.
-- MySQL / MariaDB and SQL Server `Database.quote_identifier()` now use the native backtick (`` `…` ``) and bracket (`[…]`) forms respectively, so identifier quoting works even if user SQL has reset `sql_mode` / `QUOTED_IDENTIFIER`.
-- `IMPORT` into a SQLite database now batches rows and uses `cursor.executemany()` (honouring `import_row_buffer`, default 1000) instead of issuing one `cursor.execute()` per row. Million-row imports are 10–100× faster.
-- `MySQL.table_exists()`, `column_exists()`, and `view_exists()` now honour the server's `@@lower_case_table_names` setting: on Linux with the default `0`, identifiers are compared case-sensitively as before; on Windows/macOS (`1`) or `2`, the input name is folded to lowercase so a query like `table_exists("MyTable")` matches a row stored as `mytable`. The server variable is queried once and cached per connection.
+- **`templates/script_template.sql`**: the `Committing:` and `Cleaning up:` `WRITE` lines have their closing quotes.
+- **`ends_with(string, "")`** is true for any string; it used to be true only for an empty string.
+- **ODBC DSN connections**: a user or password containing `;` can no longer add connection-string attributes.
+- **`!"!var!"!`** doubles embedded `"`, so a value cannot close the identifier and start another statement.
+- **`!'!var!'!`** escapes `\` on every platform, not only Windows, closing `\'` injection into MySQL and PostgreSQL E-string literals.
+- **Substitution variables** containing a NUL byte are rejected when used in any of the three forms (`!!var!!`, `!'!var!'!`, `!"!var!"!`).
+- **`EXPORT … FORMAT sqlite` / `duckdb`** quote the table name, closing SQL injection through it.
+- **MySQL / MariaDB and SQL Server** quote identifiers with backticks and brackets, so quoting works whatever `sql_mode` or `QUOTED_IDENTIFIER` is set.
+- **`IMPORT` into SQLite** inserts in batches of `import_row_buffer` (default 1000) rows, 10–100× faster on large files.
+- **MySQL table, column and view existence checks** honour `@@lower_case_table_names`: with `1` or `2` (Windows, macOS), `MyTable` matches `mytable`.
 
 ### Removed
 
-- `EXPORT` no longer adds a leading `'` to CSV / XLSX / ODS string cells starting with `=`, `+`, `-`, `@`, or tab; exports preserve string values verbatim. The `csv_safe_formulas` config key is removed.
-- Internal: the legacy flat-CommandList linter (`_lint_script` and helpers in `execsql.cli.lint`) has been deleted. The `--lint` CLI has used the AST-based linter (`execsql.cli.lint_ast`) since v2.13; only `_print_lint_results` and the issue-constructor helpers remain in `execsql.cli.lint`. Breaking change for code that imported `_lint_script` from `execsql.cli.lint` directly.
+- **CSV / XLSX / ODS `EXPORT`** no longer prefixes `'` to strings starting with `=`, `+`, `-`, `@` or tab; values are written verbatim. The `csv_safe_formulas` config key is removed.
 
 ______________________________________________________________________
 
@@ -586,7 +580,7 @@ ______________________________________________________________________
 
 ### Changed
 
-- Optional `[upsert]` extra now requires `pg-upsert>=1.22.1` (was `>=1.22.0`). 1.22.1 removed upper bounds on its `typer` and `pyyaml` dependencies, so installing `execsql2[upsert]` alongside the latest Typer/PyYAML no longer triggers a resolver conflict.
+- **The `[upsert]` extra** requires `pg-upsert>=1.22.1`, so it installs alongside the latest Typer and PyYAML without a resolver conflict.
 
 ______________________________________________________________________
 
@@ -594,18 +588,18 @@ ______________________________________________________________________
 
 ### Fixed
 
-- `!'!var!'!` substitution now wraps the value in single quotes, matching the documented behavior. Previously only embedded apostrophes were doubled.
-- `BREAK` inside an `EXECUTE SCRIPT` body raises an error instead of silently terminating the caller's `LOOP`.
-- `WRITE SCRIPT` output is now re-includable: nested `IF` / `LOOP` / `BATCH` / `SQL` blocks, `INCLUDE`, `EXECUTE SCRIPT`, and comments are all preserved, and `BEGIN/END SCRIPT` lines carry the `-- !x!` prefix.
-- `PROMPT MAP` falls back to the tabular view on any map-widget construction failure (headless display, missing dependencies).
-- `TABLE_EXISTS` / `VIEW_EXISTS` against SQLite, Oracle, Firebird, and Access now match identifiers case-insensitively per each database's native semantics. Access also moved off the now-restricted `MSysObjects` catalog so the checks work on Access 2016+ default permissions.
-- Oracle `ROLE_EXISTS` works for non-DBA accounts (falls back to `session_roles` when `dba_roles` isn't accessible).
-- SQL Server connection setup, PostgreSQL / MySQL fast-path `IMPORT`, and `Database.close()` no longer crash with `AttributeError` when called before the execution log is initialised (library and pre-run code paths).
-- File-output operations complete instead of hanging if the background `FileWriter` subprocess crashes mid-run.
+- **`!'!var!'!`** wraps the value in single quotes as documented; it used to only double embedded apostrophes.
+- **`BREAK`** inside an `EXECUTE SCRIPT` body is an error instead of ending the caller's `LOOP`.
+- **`WRITE SCRIPT`** output can be included again: nested `IF` / `LOOP` / `BATCH` / `SQL` blocks, `INCLUDE`, `EXECUTE SCRIPT` and comments are kept, and `BEGIN/END SCRIPT` lines carry `-- !x!`.
+- **`PROMPT MAP`** falls back to the table view when the map can't be built (headless display, missing dependencies).
+- **`TABLE_EXISTS` / `VIEW_EXISTS`** match names case-insensitively on SQLite, Oracle, Firebird and Access, and work on Access 2016+ with default permissions.
+- **Oracle `ROLE_EXISTS`** works for non-DBA accounts.
+- **SQL Server connections, PostgreSQL / MySQL `IMPORT` and closing a database** no longer fail with `AttributeError` when used from the library before a run starts.
+- **File output** finishes instead of hanging when the background file writer crashes.
 
 ### Removed
 
-- Internal: legacy command-list execution engine removed. Breaking change for code that imported `CommandList` / `IfLevels` from `execsql.script` or read `_state.commandliststack` / `_state.if_stack` / `_state.savedscripts` directly; migrate to `_state.current_localvars()` / `_state.current_paramvals()` and the `ExecFrame` data class on `_state.ast_exec_stack`.
+- Internal: the legacy command-list engine. Code importing `CommandList` / `IfLevels` from `execsql.script`, or reading `_state.commandliststack` / `_state.if_stack` / `_state.savedscripts`, should use `_state.current_localvars()`, `_state.current_paramvals()` and `_state.ast_exec_stack`.
 
 ______________________________________________________________________
 
@@ -613,15 +607,12 @@ ______________________________________________________________________
 
 ### Fixed
 
-- VS Code grammar now highlights the single-quoted (`!'!name!'!`) and double-quoted (`!"!name!"!`) substitution variable variants, not just the bare `!!name!!` form. Regenerate the bundled grammar with `just install-vscode`.
-- Mermaid diagrams in the docs site now render as SVG (previously plain code blocks).
-- Documentation accuracy sweep across `docs/reference/`, `docs/guides/`, `docs/getting-started/`, `docs/about/`, and `docs/dev/`: fixed nine broken cross-link anchors, corrected ~30 source-module docstrings (stale class/function/extras names), repaired API reference page rendering, and corrected the `--profile` description to mention `--profile-limit`.
+- **VS Code grammar** highlights `!'!name!'!` and `!"!name!"!` as well as `!!name!!`; regenerate it with `just install-vscode`.
+- **Docs:** broken cross-links and the `--profile` description (now mentions `--profile-limit`) are fixed.
 
 ### Added
 
-- New "Quoting Convention" section in `docs/reference/substitution_vars.md` documenting how `SUB`, variable substitution, and `EXECUTE SCRIPT` argument parsing compose — and the common quote-stripping footgun with `wo_quotes()`.
-- Documented eight `DEBUG WRITE …` variants, the `PROMPT MAP` metacommand, the `IS_FALSE` conditional, and `RUN` as an alias for `EXECUTE` in `docs/reference/metacommands.md`. All were functional, just undocumented.
-- Documented five previously-undocumented CLI flags: `--progress`, `--profile-limit`, `--no-system-cmd`, `--config`, `--init-config`.
+- **Docs:** a "Quoting Convention" section in `docs/reference/substitution_vars.md` covers how `SUB`, substitution and `EXECUTE SCRIPT` arguments handle quotes, including the `wo_quotes()` pitfall. Newly documented: the `DEBUG WRITE …` variants, `PROMPT MAP`, `IS_FALSE`, `RUN` (alias of `EXECUTE`), and `--progress`, `--profile-limit`, `--no-system-cmd`, `--config`, `--init-config`.
 
 ______________________________________________________________________
 
@@ -629,11 +620,11 @@ ______________________________________________________________________
 
 ### Changed
 
-- **Behavior change.** `PG_UPSERT`, `PG_UPSERT QA`, and `PG_UPSERT CHECK` no longer raise a metacommand error when QA checks fail. The outcome is reported via `$PG_UPSERT_QA_PASSED`, `$PG_UPSERT_TABLE_QA_PASSED`, and `$PG_UPSERT_RESULT_JSON`, so the script controls flow with `IF` or `ASSERT`. `EXPORT_FAILURES` still runs and the upsert is still skipped on QA failure. Migration: add `ASSERT IS_TRUE(!!$PG_UPSERT_QA_PASSED!!) "QA failed"` at the call site to preserve the previous halt-on-failure behavior. (Corrected after release: this note first gave an `=` comparison, which is not a valid condition and fails on every run.)
+- **`PG_UPSERT`, `PG_UPSERT QA` and `PG_UPSERT CHECK`** no longer raise an error when QA checks fail (**behavior change**). Check `$PG_UPSERT_QA_PASSED`, `$PG_UPSERT_TABLE_QA_PASSED` and `$PG_UPSERT_RESULT_JSON` with `IF` or `ASSERT`; `EXPORT_FAILURES` still runs and the upsert is still skipped. To halt as before, add `ASSERT IS_TRUE(!!$PG_UPSERT_QA_PASSED!!) "QA failed"`. (Corrected after release: this note first gave an `=` comparison, which is not a valid condition.)
 
 ### Fixed
 
-- `!!$COUNTER_N!!` references inside metacommands (`WRITE`, `IF`, `SUB`, etc.) now return the documented sequence `1, 2, 3, …` starting at 1. The same fix stabilizes `!!$RANDOM!!` and `!!$UUID!!` across `BREAK` detection and dispatch.
+- **`!!$COUNTER_N!!`** in metacommands (`WRITE`, `IF`, `SUB`, …) counts `1, 2, 3, …` from 1 as documented; `!!$RANDOM!!` and `!!$UUID!!` are also stable within a metacommand.
 
 ______________________________________________________________________
 
@@ -641,12 +632,12 @@ ______________________________________________________________________
 
 ### Fixed
 
-- `BEGIN SCRIPT` parameter defaults now strip surrounding quotes, matching the existing handling at the call site. A default written as `default_unit_set="Default"` previously bound the literal string `"Default"` (quotes intact).
+- **`BEGIN SCRIPT` parameter defaults** have surrounding quotes stripped; `default_unit_set="Default"` used to bind `"Default"` with the quotes.
 
 ### Changed
 
-- `SHOW SCRIPTS <name>` and `.scripts <name>` now display the full source path (including `<inline>` for `-c` scripts). List views continue to show basenames for column alignment.
-- `BEGIN SCRIPT WITH PARAMETERS (...)` now accepts quoted default values containing spaces, commas, and other special characters. Unterminated quoted values are now rejected as malformed instead of being silently stored.
+- **`SHOW SCRIPTS <name>` and `.scripts <name>`** show the full source path (`<inline>` for `-c` scripts).
+- **`BEGIN SCRIPT WITH PARAMETERS (...)`** accepts quoted defaults containing spaces, commas and other special characters, and rejects an unterminated quoted value instead of storing it.
 
 ______________________________________________________________________
 
@@ -654,8 +645,8 @@ ______________________________________________________________________
 
 ### Fixed
 
-- Formatter no longer treats inline `IF (cond) { command }` as a block opener (lines after an inline `IF` were previously indented forever).
-- Formatter no longer escapes blank lines inside `BEGIN SQL` / `BEGIN BATCH` blocks.
+- **Formatter:** lines after an inline `IF (cond) { command }` are no longer indented as if inside a block.
+- **Formatter:** blank lines inside `BEGIN SQL` / `BEGIN BATCH` blocks are kept.
 
 ______________________________________________________________________
 
@@ -663,17 +654,17 @@ ______________________________________________________________________
 
 ### Added
 
-- `--init-config` CLI flag prints a default `execsql.conf` template (all options commented out and documented) to stdout. Use `execsql --init-config > execsql.conf` to bootstrap.
-- `--no-system-cmd` CLI flag disables `SYSTEM_CMD`/`SHELL`. Also configurable via `allow_system_cmd = No` in `[config]` or `allow_system_cmd=False` in the library API.
+- **`--init-config`** prints a commented default `execsql.conf`: `execsql --init-config > execsql.conf`.
+- **`--no-system-cmd`** disables `SYSTEM_CMD` / `SHELL`; also `allow_system_cmd = No` in `[config]` or `allow_system_cmd=False` in the library API.
 
 ### Changed
 
-- CLI `--help` now groups options by category: connection, encoding, import/export, execution, GUI, configuration, information.
-- `execsql.conf` template updated: added missing options (`use_keyring`, `gui_framework`, `allow_system_cmd`, `log_sql`, `max_log_size_mb`, `show_progress`, `import_progress_interval`, `macos_config_file`), fixed incorrect defaults (`password_prompt`, `new_db`, `scan_lines`), added DuckDB (`k`) to database types.
+- **`--help`** groups options: connection, encoding, import/export, execution, GUI, configuration, information.
+- **The `execsql.conf` template** lists the missing options (`use_keyring`, `gui_framework`, `allow_system_cmd`, `log_sql`, `max_log_size_mb`, `show_progress`, `import_progress_interval`, `macos_config_file`), corrects the `password_prompt`, `new_db` and `scan_lines` defaults, and adds DuckDB (`k`).
 
 ### Fixed
 
-- `SYSTEM_CMD` no longer wraps arguments containing `&` in spurious double quotes (a Windows `cmd.exe` workaround inherited from upstream that broke non-`cmd` targets).
+- **`SYSTEM_CMD`** no longer wraps arguments containing `&` in double quotes.
 
 ______________________________________________________________________
 
@@ -681,7 +672,7 @@ ______________________________________________________________________
 
 ### Changed
 
-- Merged `SHOW SCRIPTS` and `SHOW SCRIPT <name>` into `SHOW SCRIPTS [<name>]`. Without a name, lists all registered scripts; with a name, shows detail.
+- **`SHOW SCRIPTS [<name>]`** replaces `SHOW SCRIPT <name>`: without a name it lists all scripts, with one it shows detail.
 
 ______________________________________________________________________
 
@@ -689,9 +680,8 @@ ______________________________________________________________________
 
 ### Fixed
 
-- `ELSEIF` conditions now support `ANDIF`/`ORIF` modifiers (previously silently attached to the parent `IF`).
-- Unknown AST node types now raise an error instead of being silently ignored.
-- Cursor leak in `select_rowsource()` and `select_rowdict()`: cursor is now closed on query failure; `EXPORT` and `COPY` explicitly close the row generator on error.
+- **`ELSEIF`** supports `ANDIF` / `ORIF`; they used to attach to the parent `IF`.
+- **`EXPORT` and `COPY`** close their cursor when the query fails.
 
 ______________________________________________________________________
 
@@ -699,15 +689,16 @@ ______________________________________________________________________
 
 ### Added
 
-- `execsql-format`: `--indent` now controls SQL indentation in addition to metacommand indentation.
-- `execsql-format`: new `--leading-comma` flag places commas at the start of lines.
+- **`execsql-format --indent`** also sets SQL indentation, not only metacommand indentation.
+- **`execsql-format --leading-comma`** puts commas at the start of lines.
 
 ### Fixed
 
-- `execsql-format`: comments interleaved within multi-line SQL no longer corrupt the formatted output. Statements are no longer split at comment boundaries (which previously turned commas into semicolons and dropped content silently).
-- `execsql-format`: `/* */` block comments containing `-- !x!` metacommand markers are no longer mangled.
-- `execsql-format`: blank lines within multi-line SQL no longer split the statement into independent format blocks.
-- `execsql-format`: if sqlglot produces more or fewer statements than the input, the formatter falls back to the original text instead of emitting corrupted SQL.
+- **`execsql-format`**:
+    - comments inside multi-line SQL no longer split the statement, turn commas into semicolons or drop text;
+    - `/* */` comments containing `-- !x!` are left intact;
+    - blank lines inside multi-line SQL no longer split the statement;
+    - falls back to the original text when sqlglot returns a different number of statements.
 
 ______________________________________________________________________
 
@@ -715,7 +706,7 @@ ______________________________________________________________________
 
 ### Changed
 
-- Internal: added parser test coverage for `SHOW SCRIPTS` and default-parameter handling. No user-visible changes.
+- Internal: parser tests for `SHOW SCRIPTS` and parameter defaults; no user-visible changes.
 
 ______________________________________________________________________
 
@@ -723,7 +714,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- Multi-line `/* */` block comment docstrings in `BEGIN SCRIPT` are now captured in full (the doc collector previously classified comment continuation lines as non-comment and stopped early).
+- **Multi-line `/* */` docstrings** in `BEGIN SCRIPT` are captured in full; they used to stop after the first line.
 
 ______________________________________________________________________
 
@@ -731,7 +722,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- `EXECUTE SCRIPT !!#script_name!!` (variable-substituted script target) now works. The parser regex previously rejected non-literal identifiers, causing dispatch to fail with "should be handled by the AST executor".
+- **`EXECUTE SCRIPT !!#script_name!!`** works with a substituted script name; it used to fail with "should be handled by the AST executor".
 
 ______________________________________________________________________
 
@@ -739,11 +730,9 @@ ______________________________________________________________________
 
 ### Added
 
-- `SHOW SCRIPTS` metacommand lists all registered SCRIPT definitions with parameter signatures and source locations.
-- `SHOW SCRIPT <name>` shows detail for one SCRIPT (parameters, source file/lines, docstring).
-- `.scripts` and `.scripts <name>` REPL commands — same as the metacommands.
-- Default parameter values: `BEGIN SCRIPT load(schema, table, batch=1000)`. Parameters with defaults can be omitted at the call site. Required parameters must precede optional ones.
-- Automatic docstring extraction for SCRIPT blocks. `--` or `/* */` comments immediately after `BEGIN SCRIPT` are captured as documentation; a blank line terminates it. Displayed by `SHOW SCRIPTS`, `SHOW SCRIPT`, and `.scripts`.
+- **`SHOW SCRIPTS`** lists registered scripts with their parameters and source locations; **`SHOW SCRIPT <name>`** shows one script's parameters, source file and lines, and docstring. The REPL's `.scripts` and `.scripts <name>` do the same.
+- **Parameter defaults:** `BEGIN SCRIPT load(schema, table, batch=1000)`; parameters with defaults may be omitted at the call and must follow required ones.
+- **Script docstrings:** `--` or `/* */` comments right after `BEGIN SCRIPT`, up to a blank line, are shown by `SHOW SCRIPTS`, `SHOW SCRIPT` and `.scripts`.
 
 ______________________________________________________________________
 
@@ -751,7 +740,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- SQL comments (`--` and `/* */`) inside multi-line SQL statements no longer split the statement. Comments between SELECT columns or before CASE clauses are now preserved as part of the statement text.
+- **SQL comments** (`--`, `/* */`) inside a multi-line statement no longer split it.
 
 ______________________________________________________________________
 
@@ -759,8 +748,8 @@ ______________________________________________________________________
 
 ### Fixed
 
-- `ANDIF`/`ORIF` conditions now short-circuit. `IF (sub_defined(x)) ANDIF (not sub_empty(x))` previously evaluated `sub_empty` even when `sub_defined` returned false, throwing "Unrecognized substitution variable" on undefined variables.
-- `IF`, `LOOP`, and `INCLUDE` error reports now show the correct source line instead of the previous command's location.
+- **`ANDIF` / `ORIF`** short-circuit: `IF (sub_defined(x)) ANDIF (not sub_empty(x))` no longer fails with "Unrecognized substitution variable" when `x` is undefined.
+- **`IF`, `LOOP` and `INCLUDE` errors** report their own source line, not the previous command's.
 
 ______________________________________________________________________
 
@@ -768,8 +757,8 @@ ______________________________________________________________________
 
 ### Fixed
 
-- `execsql-format` no longer corrupts PL/pgSQL function bodies inside `$$`-delimited blocks. sqlglot was rewriting `IF NOT EXISTS … END IF` and similar PL/pgSQL constructs as `COMMIT;`; the formatter now skips sqlglot for any block containing dollar-quoted content.
-- Debug REPL `.vars` now shows `~` local and `#` param variables from the current stack frame, not just globals. `.vars ~myvar` and `.set ~myvar value` also read/write the stack frame's local scope.
+- **`execsql-format`** leaves PL/pgSQL in `$$` blocks alone; it used to rewrite `IF NOT EXISTS … END IF` and similar as `COMMIT;`.
+- **Debug REPL `.vars`** shows the current script's `~` local and `#` parameter variables; `.vars ~myvar` and `.set ~myvar value` use that scope.
 
 ______________________________________________________________________
 
@@ -777,7 +766,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- Debug REPL `.vars`, `.set` now read/write `~` local and `#` param variables from the current stack frame instead of globals only.
+- **Debug REPL `.vars` and `.set`** read and write the current script's `~` local and `#` parameter variables, not only globals.
 
 ______________________________________________________________________
 
@@ -785,7 +774,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- Forward references in SCRIPT blocks now work: `EXECUTE SCRIPT foo` can appear before `BEGIN SCRIPT foo` in the same file or `INCLUDE`'d file. The AST executor pre-scans for SCRIPT definitions, matching the legacy engine's two-pass behavior.
+- **`EXECUTE SCRIPT foo`** can come before `BEGIN SCRIPT foo` in the same file or an `INCLUDE`d one.
 
 ______________________________________________________________________
 
@@ -793,7 +782,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- `BEGIN SCRIPT name(params)` without a space before the opening parenthesis now parses correctly. The previous regex required whitespace and silently ignored the SCRIPT block, causing `END SCRIPT` to fail.
+- **`BEGIN SCRIPT name(params)`** with no space before `(` is recognized; the block used to be ignored, so `END SCRIPT` failed.
 
 ______________________________________________________________________
 
@@ -801,7 +790,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- `INCLUDE` with quoted paths (e.g. `-- !x! INCLUDE "!!path!!/file.sql"`) now strips the surrounding quotes before resolving the file path.
+- **`INCLUDE`** strips quotes around a path, as in `-- !x! INCLUDE "!!path!!/file.sql"`.
 
 ______________________________________________________________________
 
@@ -809,12 +798,12 @@ ______________________________________________________________________
 
 ### Fixed
 
-- `~` (local) and `+` (outer-scope) substitution variables inside SCRIPT blocks now work correctly. Previously these wrote to a disconnected scope, causing the variable to be invisible to subsequent SQL and producing spurious "potential un-substituted variable" warnings.
-- `EXECUTE SCRIPT` argument expressions like `val=!!#parent_param!!` are now expanded in the caller's scope before the child frame is created, fixing nested script calls that pass `~` or `#` variables as arguments.
+- **`~` (local) and `+` (outer-scope) variables in `SCRIPT` blocks** are visible to later SQL; they used to be lost, with spurious "potential un-substituted variable" warnings.
+- **`EXECUTE SCRIPT` arguments** such as `val=!!#parent_param!!` expand in the caller's scope, so nested scripts can pass `~` or `#` variables.
 
 ### Changed
 
-- `RuntimeContext` is now stored in `threading.local()` instead of a module-level global, making concurrent `from execsql import run` calls thread-safe.
+- **`execsql.run`** is safe to call from several threads at once.
 
 ______________________________________________________________________
 
@@ -822,33 +811,30 @@ ______________________________________________________________________
 
 ### Added
 
-- `--parse-tree` CLI flag — parses a script into an Abstract Syntax Tree and prints a visual tree showing block nesting (`IF`/`LOOP`/`BATCH`/`SCRIPT`), source line ranges, compound conditions, and all metacommands. No database connection required.
-- Plugin system (`execsql.plugins`) for extending execsql with custom metacommands, exporters, and importers via Python entry points: `execsql.metacommands`, `execsql.exporters`, `execsql.importers`. Discovered automatically at startup.
-- `--list-plugins` CLI flag shows all discovered plugins.
-- Python library API: `from execsql import run` for programmatic script execution from notebooks, pipelines, and applications. Returns a `ScriptResult` with success/failure, command count, timing, errors, and final variable state. Supports DSN strings, pre-existing connections, substitution variables, and error control.
-- Deprecation warning for `enc_password` in config files — advises switching to keyring or environment variables.
-- Sensitive environment variables (`*SECRET*`, `*TOKEN*`, `*PASSWORD*`, etc.) are now filtered from `&`-prefixed substitution variable exposure.
+- **`--parse-tree`** prints a script as a tree: block nesting (`IF`/`LOOP`/`BATCH`/`SCRIPT`), source line ranges, compound conditions and metacommands. No database connection needed.
+- **Plugins** (`execsql.plugins`): custom metacommands, exporters and importers load at startup from the `execsql.metacommands`, `execsql.exporters` and `execsql.importers` entry points. `--list-plugins` lists them.
+- **Python API:** `from execsql import run` runs a script and returns a `ScriptResult` (success, command count, timing, errors, final variables). Takes a DSN string or an existing connection, substitution variables and error-control options.
+- **`enc_password`** in a config file gives a deprecation warning; use keyring or environment variables.
+- **`&` environment variables** leave out sensitive names (`*SECRET*`, `*TOKEN*`, `*PASSWORD*`, etc.).
 
 ### Changed
 
-- **Execution engine replaced.** The legacy flat command-list engine has been replaced by the AST-based executor. Scripts are parsed into a tree of typed nodes and walked for execution. `INCLUDE`'d files are parsed and executed natively with circular-include detection. Transparent to users.
-- **`BREAK` outside `LOOP` is now an error** (exit 1) instead of being silently ignored.
-- `--lint` now uses the AST parser for structural validation. Unmatched `IF`/`LOOP`/`BATCH`/`SCRIPT` blocks are caught at parse time with precise line ranges. No database connection required.
-- Default database type changed from Access (`-t a`) to SQLite (`-t l`). Users targeting Access should pass `-t a` explicitly.
+- **New execution engine** (transparent): scripts are parsed before they run, and a circular `INCLUDE` is detected.
+- **`BREAK` outside `LOOP`** is an error (exit 1); it used to be ignored.
+- **`--lint`** reports unmatched `IF`/`LOOP`/`BATCH`/`SCRIPT` blocks with their line ranges, without a database connection.
+- **The default database type is SQLite** (`-t l`), not Access; pass `-t a` for Access.
 
 ### Fixed
 
-- \*\*[Critical]\*\* `WriteSpec.write()` and `MailSpec.send()` error-recovery paths crashed because `SubVarSet.substitute_all()` returns `(str, bool)` but callers treated it as a plain string. All 14 call sites fixed.
-- **[Critical]** Error-recovery in `WriteSpec.write()` and `io_write` called `.encode()` producing bytes passed to `sys.stdout.write()` which expects `str`.
-- SQL injection across all 8 database adapters in `exec_cmd()` — stored procedure / function / view names are now quoted with `quote_identifier()`.
-- `DSN` and `SQL Server` adapters no longer encode SQL strings to bytes before execution.
-- Database adapters now clear `self.password` after successful connection, reducing credential exposure window.
-- `SubVarSet.substitute_all()` enforces a 100-iteration depth limit to prevent infinite loops from cyclic variable references.
+- **[Critical]** **`ON ERROR_HALT` / `ON CANCEL_HALT` `WRITE` and `EMAIL`** no longer crash when they run.
+- **`EXECUTE`** quotes the procedure, function or view name on every DBMS, closing an SQL injection.
+- **`EXECUTE` on ODBC DSN and SQL Server** sends SQL as text, not bytes.
+- **Passwords** are cleared from memory once connected.
+- **Cyclic substitution variables** stop after 100 rounds instead of looping forever.
 
 ### Removed
 
-- `--ast` / `--no-ast` CLI flag — the AST executor is now the only execution engine.
-- Legacy flat command-list execution engine and its helpers (`_parse_script_lines`, `read_sqlfile`, `read_sqlstring`, `runscripts`, `ScriptFile`, `CommandListWhileLoop`, `CommandListUntilLoop`).
+- **`--ast` / `--no-ast`**: the new engine is the only one.
 
 ______________________________________________________________________
 
@@ -856,7 +842,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- `PAUSE` console-mode fallback now checks `sys.platform` before attempting POSIX terminal imports, preventing hangs on Windows when stdin reports as a TTY.
+- **`PAUSE` without a GUI** no longer hangs on Windows when stdin is a terminal.
 
 ______________________________________________________________________
 
@@ -864,14 +850,14 @@ ______________________________________________________________________
 
 ### Added
 
-- `--config FILE` CLI flag specifies an explicit configuration file. Loaded after the implicit search paths (system, user, script-dir, working-dir) so its values take precedence; CLI arguments still override everything.
-- `$HOSTNAME` system substitution variable — the network name of the machine running execsql.
+- **`--config FILE`** reads a configuration file after the usual ones, so its values win over theirs but not over command-line options.
+- **`$HOSTNAME`** holds the name of the machine running execsql.
 
 ### Fixed
 
-- Config file chaining no longer mutates a list during iteration.
-- `PAUSE` console mode no longer crashes on Windows CI due to unconditional `import termios`.
-- `HAS_ROWS`, `ROW_COUNT_*` condition predicates now quote table names with SQL identifier quoting, preventing injection when table names come from substitution variables.
+- **Chained config files** (`config_file`) are read reliably.
+- **`PAUSE` without a GUI** no longer crashes on Windows.
+- **`HAS_ROWS` and `ROW_COUNT_*` conditions** quote the table name, so a name from a substitution variable cannot inject SQL.
 
 ______________________________________________________________________
 
@@ -879,13 +865,14 @@ ______________________________________________________________________
 
 ### Added
 
-- Textual TUI now displays a progress bar and remaining-time countdown for `PROMPT PAUSE` and `PAUSE` dialogs with `CONTINUE AFTER` / `HALT AFTER` (matching existing Tkinter behavior).
+- **Textual `PAUSE` and `PROMPT PAUSE`** with `CONTINUE AFTER` / `HALT AFTER` show a progress bar and countdown, as Tkinter does.
 
 ### Fixed
 
-- `PAUSE` in console mode (no `-v`) now responds to single keypresses (Enter to continue, Esc to quit) instead of requiring Enter after every key.
-- `PAUSE` with `CONTINUE AFTER` / `HALT AFTER` in console mode displays a live SIGALRM-driven progress bar showing time remaining.
-- Double minutes-to-seconds conversion in the console `PAUSE` path: a 1-minute pause used to sleep for 60 minutes.
+- **`PAUSE` without a GUI** (no `-v`):
+    - takes single keypresses: Enter continues, Esc quits;
+    - shows a live countdown bar with `CONTINUE AFTER` / `HALT AFTER`;
+    - waits the time given; a 1-minute pause used to wait 60 minutes.
 
 ______________________________________________________________________
 
@@ -893,17 +880,17 @@ ______________________________________________________________________
 
 ### Added
 
-- `PG_UPSERT` / `PG_UPSERT QA` / `PG_UPSERT CHECK` now support the `STRICT_COLUMNS` keyword. All missing columns in staging tables are treated as errors (not just PK and NOT NULL / no-default columns).
-- New `$PG_UPSERT_QA_WARNINGS` substitution variable — comma-separated list of tables with WARNING-level QA findings.
+- **`PG_UPSERT`, `PG_UPSERT QA` and `PG_UPSERT CHECK`** accept `STRICT_COLUMNS`: any column missing from a staging table is an error, not only primary key and NOT NULL columns without a default.
+- **`$PG_UPSERT_QA_WARNINGS`** lists the tables with WARNING-level QA findings.
 
 ### Changed
 
-- `$PG_UPSERT_RESULT_JSON` now includes a `qa_warnings` array per table.
-- Minimum pg-upsert version bumped to `>=1.22.0`.
+- **`$PG_UPSERT_RESULT_JSON`** has a `qa_warnings` array per table.
+- **The `upsert` extra requires pg-upsert 1.22.0** or later.
 
 ### Fixed
 
-- `PG_UPSERT QA` and `PG_UPSERT CHECK` now capture all QA findings (errors + warnings) instead of only errors.
+- **`PG_UPSERT QA` and `PG_UPSERT CHECK`** report warnings as well as errors.
 
 ______________________________________________________________________
 
@@ -911,17 +898,17 @@ ______________________________________________________________________
 
 ### Fixed
 
-- `CounterVars.substitute` now correctly searches the full string. `re.I` was mistakenly passed as the `pos` argument to `re.search`, skipping the first two characters of every input.
-- SQL injection in MySQL `LOAD DATA INFILE`: file path, field delimiter, and quote character are now escaped before being interpolated into SQL.
-- SQLite and DuckDB `exec_cmd` no longer encodes the SQL string to bytes before passing to `execute()` (always raised `TypeError` in Python 3).
-- Cursor leaks across all database adapters — call sites that manually opened cursors now use the `with self._cursor()` context manager.
-- Config file chaining is now capped at 20 files to prevent infinite loops from `config_file` cycles.
-- `TempFileMgr` now uses `tempfile.mkstemp()` instead of `NamedTemporaryFile().name`, eliminating a TOCTOU race.
-- JSON export serializes column names with `json.dumps()` (previously bare f-string interpolation broke on column names with quotes or backslashes).
-- PostgreSQL `VACUUM` autocommit session state is restored in a `finally` block.
-- HTML export now HTML-escapes the description, author, and CSS href meta tag values.
-- `shlex.split` on Windows now uses `posix=False` instead of pre-escaping backslashes.
-- MySQL adapter no longer coerces `None` arguments to the string `"None"` for `server_name`, `db_name`, `user_name`.
+- **Counter variables** (`!!$COUNTER_n!!`) are substituted in the first two characters of a line too.
+- **MySQL `LOAD DATA INFILE`** escapes the file path, delimiter and quote character, closing an SQL injection.
+- **`EXECUTE` on SQLite and DuckDB** works; it always failed with `TypeError`.
+- **Database cursors** are closed after use on every DBMS.
+- **Config file chaining** stops after 20 files, so a `config_file` cycle no longer loops forever.
+- **Temporary files** are created without a race between naming and opening them.
+- **`EXPORT … AS JSON`** escapes column names; a quote or backslash in a name made invalid JSON.
+- **PostgreSQL `VACUUM`** restores the session's autocommit setting even when it fails.
+- **`EXPORT … AS HTML`** escapes the description, author and CSS link.
+- **`SYSTEM_CMD` on Windows** keeps backslashes in the command line.
+- **MySQL connections** with no server, database or user name no longer send the text `None`.
 
 ______________________________________________________________________
 
@@ -929,7 +916,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- Nested substitution variable names (e.g. `!!N_!!CHECK_GROUP!!_CHECKS!!`) now resolve correctly. The single-pass token regex introduced in 2.15.0 could not find inner `!!var!!` tokens embedded in an outer variable name.
+- **Nested variable names** such as `!!N_!!CHECK_GROUP!!_CHECKS!!` resolve again; 2.15.0 broke them.
 
 ______________________________________________________________________
 
@@ -937,7 +924,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- `DT_Timestamp` type inference no longer claims time-only values like `13:15:45`. `dateutil.parser.parse()` silently filled in today's date for bare time strings, generating PostgreSQL `InvalidDatetimeFormat` errors on CSV import.
+- **Type inference** no longer reads a time-only value like `13:15:45` as a timestamp; CSV imports into PostgreSQL failed with `InvalidDatetimeFormat`.
 
 ______________________________________________________________________
 
@@ -945,7 +932,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- Test data encoding typo causing assertion failure on Windows CI.
+- Internal: Windows test fix.
 
 ______________________________________________________________________
 
@@ -953,7 +940,7 @@ ______________________________________________________________________
 
 ### Added
 
-- Optional dependency extras `auth-plaintext` and `auth-encrypted` for headless Linux keyring backends. `pip install execsql2[auth-plaintext]` installs `keyring` + `keyrings.alt`; `[auth-encrypted]` adds `pycryptodome` for the encrypted file backend.
+- **`auth-plaintext` and `auth-encrypted` extras** install a file-based keyring backend for headless Linux (`keyring` + `keyrings.alt`; `auth-encrypted` adds `pycryptodome` for encryption).
 
 ______________________________________________________________________
 
@@ -961,14 +948,14 @@ ______________________________________________________________________
 
 ### Changed
 
-- Performance: `DT_Integer`, `DT_Float`, `DT_Decimal`, `DT_Boolean` matchers now use pre-compiled regex / cached match tuples instead of rebuilding on every call — reduces overhead during large imports.
+- **Large imports** are faster: data type detection does less work per value.
 
 ### Fixed
 
-- `DT_Text.data_type_name` corrected from `"character"` to `"text"` — error messages now identify the text type correctly.
-- `DT_Varchar._from_data()` now converts non-string data to string and enforces the 255-character length limit.
-- `CondAstNode.eval()` now raises `CondParserError` for unknown node types instead of silently returning `None`.
-- `NumericAstNode.eval()` now raises `NumericParserError` on division by zero instead of an unhandled `ZeroDivisionError`.
+- **Type error messages** call the text type `text`, not `character`.
+- **`varchar` values** that are not strings are converted, and values over 255 characters are rejected.
+- **Conditions** with an unrecognized part raise an error instead of evaluating to nothing.
+- **Division by zero in a numeric expression** gives an execsql error instead of a Python `ZeroDivisionError`.
 
 ______________________________________________________________________
 
@@ -976,29 +963,26 @@ ______________________________________________________________________
 
 ### Added
 
-- Cell-level diff marking in `PROMPT COMPARE` — when "Highlight Diffs" is toggled, differing cells within changed rows are prefixed with a bullet marker. Works across all three backends.
-- `macos_config_file` option in `execsql.conf` `[config]` section — additional config file to read on macOS, mirroring `linux_config_file`.
-- `EXPORT` operations now log structured `action` records with query name, output file, and source line number.
+- **`PROMPT COMPARE`** "Highlight Diffs" marks the differing cells of changed rows with a bullet, in every GUI backend.
+- **`macos_config_file`** (`[config]`) names an extra config file to read on macOS, like `linux_config_file`.
+- **`EXPORT`** logs an `action` record with the query, output file and source line.
 
 ### Changed
 
-- `linux_config_file` now only applies on Linux (`sys.platform == "linux"`), not all POSIX. macOS users should use the new `macos_config_file` option.
-- Date/time parsing now uses `python-dateutil` instead of 231 hardcoded `strptime` format strings. Handles ISO 8601 with `T` separator, microseconds, `Z` suffix, and named timezones.
-
-### Removed
-
-- `constants.py` — 370 lines of map tile servers, XBM bitmaps, and X11 color names never imported anywhere. Vestigial from upstream.
-- `Tz` class in `types.py` — custom `tzinfo` subclass orphaned by the `python-dateutil` migration.
+- **`linux_config_file`** applies only on Linux, not macOS; use `macos_config_file` there.
+- **Dates and times** are parsed with `python-dateutil`: ISO 8601 with a `T` separator, microseconds, a `Z` suffix and named time zones are recognized.
 
 ### Fixed
 
-- `NumericParser` now uses left-associative parsing. Previously `10 - 3 - 2` evaluated as `10 - (3 - 2) = 9` instead of `5`. Same fix for division.
-- SQLite `populate_table()` now applies `trim_strings`, `replace_newlines`, and `empty_strings` processing before extracting column data (previously processing was applied after the insert data was copied, so it never took effect).
-- `$CURRENT_DATABASE` and `$CURRENT_DBMS` system variables now refresh on `USE` (previously stale after switching databases).
-- `PROMPT COMPARE` diff logic now uses native Python equality instead of string comparison — `int(1)` vs `float(1.0)`, `Decimal("10.00")` vs `Decimal("10.0")`, and `True` vs `1` are correctly treated as equal.
-- `PROMPT COMPARE` treats `None` (SQL NULL) as distinct from `""`. Summary stats now match by column name, exclude key columns from the diff, and keep the first row when duplicate PK values exist.
-- `PG_UPSERT` no longer writes pg-upsert output to `execsql.log`. Output goes only to the file specified by `LOGFILE`.
-- `win_config_file` now works on Windows. Previously checked `os.name == "windows"` (Python returns `"nt"`).
+- **Numeric expressions** are left-associative: `10 - 3 - 2` is `5`, not `9`; the same for division.
+- **`IMPORT` into SQLite** applies `trim_strings`, `replace_newlines` and `empty_strings`; they had no effect.
+- **`$CURRENT_DATABASE` and `$CURRENT_DBMS`** update after `USE`.
+- **`PROMPT COMPARE`**:
+    - compares values by type, so `1` equals `1.0`, `10.00` equals `10.0`, and `True` equals `1`;
+    - treats NULL and `""` as different;
+    - summary stats match columns by name, leave key columns out of the diff, and keep the first row of a duplicate key.
+- **`PG_UPSERT`** output goes only to the `LOGFILE` file, not `execsql.log`.
+- **`win_config_file`** is read on Windows; it was ignored.
 
 ______________________________________________________________________
 
@@ -1006,15 +990,15 @@ ______________________________________________________________________
 
 ### Added
 
-- `PG_UPSERT` "fix sheet" export: new `EXPORT_FAILURES <dir>`, `EXPORT_FORMAT csv|json|xlsx`, and `EXPORT_MAX_ROWS <n>` keywords write failing QA rows (one per unique violating staging row, with a consolidated `_issues` column) to CSV, JSON, or XLSX. Works in all three modes (full pipeline, QA-only, schema check) and runs even when QA fails. New `$PG_UPSERT_EXPORT_PATH` substitution variable holds the directory written.
+- **`PG_UPSERT` fix sheets:** `EXPORT_FAILURES <dir>`, `EXPORT_FORMAT csv|json|xlsx` and `EXPORT_MAX_ROWS <n>` write the failing staging rows, each with an `_issues` column, in every mode and even when QA fails. `$PG_UPSERT_EXPORT_PATH` holds the directory.
 
 ### Changed
 
-- `[upsert]` extra now requires `pg-upsert>=1.21.0` (up from `>=1.20.0`) for the fix-sheet feature.
+- **The `upsert` extra requires pg-upsert 1.21.0** or later.
 
 ### Fixed
 
-- `PROMPT MESSAGE … CREDENTIALS <user_var> <pw_var>` no longer crashes in console-fallback mode. The fallback now uses `getpass.getpass()` for the password.
+- **`PROMPT MESSAGE … CREDENTIALS <user_var> <pw_var>`** works without a GUI, reading the password without echo; it used to crash.
 
 ______________________________________________________________________
 
@@ -1022,7 +1006,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- Windows CI: use `zf.namelist()[0]` instead of path for zip entry lookup.
+- Internal: Windows test fix.
 
 ______________________________________________________________________
 
@@ -1030,23 +1014,22 @@ ______________________________________________________________________
 
 ### Added
 
-- Row count footer in all GUI dialog tables (Textual TUI, Tkinter desktop, console fallback). Format: "3 rows" / "1 row" with thousands separators.
-- Help URL button in all GUI dialogs that support the `HELP` keyword.
-- Diff summary line in compare dialogs ("3 matching | 1 differing | 2 only in Table 1").
-- `PROMPT ENTRY_FORM` now enforces `validation_regex` (on submit) and `validation_key_regex` (per-keystroke). Required fields are validated on submit. Tkinter shows a messagebox, Textual shows a notification, console re-prompts.
-- "Highlight Diffs" toggle in compare dialogs color-codes rows: green for matching, yellow for changed, red for rows only in one table.
+- **GUI tables** show a row count ("3 rows", "1 row", with thousands separators) in Textual, Tkinter and the console.
+- **A Help button** opens the `HELP` URL in every dialog that takes `HELP`.
+- **Compare dialogs** show a summary line ("3 matching | 1 differing | 2 only in Table 1") and a "Highlight Diffs" toggle that colors matching, changed and one-sided rows.
+- **`PROMPT ENTRY_FORM`** enforces `validation_regex` on submit, `validation_key_regex` per keystroke, and required fields.
 
 ### Fixed
 
-- `CONFIG GUI_LEVEL` now accepts value `3` (open GUI console on start), matching the `gui_level` config file setting.
-- `PROMPT COMPARE` now respects `AND` vs `BESIDE`: `AND` stacks tables vertically, `BESIDE` displays side-by-side. Previously both were side-by-side.
-- `PROMPT ENTRY_FORM` now renders all documented `entry_type` values: `listbox`, `radiobuttons`, `textarea`, `inputfile`, `outputfile`. Previously only `checkbox` and `dropdown`/`select` were implemented.
-- `PROMPT ENTER_SUB` HELP URL regex now correctly matches URLs containing `+` characters.
-- PostgreSQL and DSN `CONNECT` handlers now unquote the `PASSWORD` parameter consistently with other database handlers.
+- **`CONFIG GUI_LEVEL 3`** (open the GUI console at start) is accepted, as in the `gui_level` setting.
+- **`PROMPT COMPARE`** stacks the tables for `AND` and puts them side by side for `BESIDE`; both were side by side.
+- **`PROMPT ENTRY_FORM`** renders `listbox`, `radiobuttons`, `textarea`, `inputfile` and `outputfile` entries; only `checkbox` and `dropdown`/`select` worked.
+- **`PROMPT ENTER_SUB … HELP`** accepts URLs containing `+`.
+- **PostgreSQL and DSN `CONNECT`** unquote `PASSWORD` like the other DBMSs.
 
 ### Removed
 
-- `FREE` keyword from `PROMPT DISPLAY` — the non-blocking display behavior was only implemented in the console backend.
+- **`PROMPT DISPLAY … FREE`**: it only worked in the console backend.
 
 ______________________________________________________________________
 
@@ -1054,13 +1037,13 @@ ______________________________________________________________________
 
 ### Changed
 
-- `--lint` static analysis improvements:
-    - `SUB_EMPTY`, `SUB_ADD`, `SUB_APPEND`, and `SUBDATA` now register as variable definitions (eliminates false undefined-variable warnings).
-    - Descends into `EXECUTE SCRIPT` / `EXEC SCRIPT` / `RUN SCRIPT` so variables defined inside are visible to the caller.
-    - Two-pass variable collection — definition order no longer matters.
-    - Reads `SUB_INI` INI files and registers section keys as defined variables.
-    - Warns when `EXECUTE SCRIPT` targets a non-existent script block (respects `IF EXISTS`).
-    - Sorts errors before warnings, both by line number; padded location columns for alignment.
+- **`--lint`**:
+    - treats `SUB_EMPTY`, `SUB_ADD`, `SUB_APPEND` and `SUBDATA` as defining a variable;
+    - sees variables defined in scripts run by `EXECUTE SCRIPT` / `EXEC SCRIPT` / `RUN SCRIPT`;
+    - no longer depends on definition order;
+    - reads `SUB_INI` files for variable names;
+    - warns when `EXECUTE SCRIPT` names a missing script (unless `IF EXISTS`);
+    - lists errors before warnings, each by line, with aligned locations.
 
 ______________________________________________________________________
 
@@ -1068,7 +1051,7 @@ ______________________________________________________________________
 
 ### Changed
 
-- Bump pg-upsert minimum to `>=1.20.0`.
+- **The `upsert` extra requires pg-upsert 1.20.0** or later.
 
 ______________________________________________________________________
 
@@ -1076,13 +1059,12 @@ ______________________________________________________________________
 
 ### Added
 
-- `IMPORT … FROM JSON` metacommand — imports a JSON array of objects or [JSON Lines](https://jsonlines.org/) file into a database table. Nested objects are flattened with dot-separated column names; nested arrays are stored as JSON strings. Missing keys become NULL.
-- `SHELL … CONTINUE` now sets `$SYSTEM_CMD_PID` with the PID of the background process.
+- **`IMPORT … FROM JSON`** loads a JSON array of objects or a [JSON Lines](https://jsonlines.org/) file. Nested objects become dot-separated column names, nested arrays JSON strings, and missing keys NULL.
+- **`SHELL … CONTINUE`** sets `$SYSTEM_CMD_PID` to the background process's PID.
 
 ### Fixed
 
-- `Mailer`, `WriteableZipfile`, `ZipWriter` now support the context manager protocol (`with` statement) for reliable resource cleanup.
-- `FileWriter`, `FileControl`, `Mailer`, `WriteableZipfile`, `ZipWriter` `__del__` methods no longer raise during interpreter shutdown.
+- **Exiting** no longer raises errors from open file, email or zip writers.
 
 ______________________________________________________________________
 
@@ -1090,7 +1072,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- Bump pg-upsert minimum to `>=1.18.2` — fixes the interactive FK check dialog showing only 1 violation row instead of all rows.
+- **The `upsert` extra requires pg-upsert 1.18.2**, whose interactive foreign key check dialog shows every violating row, not just one.
 
 ______________________________________________________________________
 
@@ -1098,8 +1080,8 @@ ______________________________________________________________________
 
 ### Added
 
-- `PG_UPSERT` now supports per-table progress via pg-upsert's callback API. New substitution variables `$PG_UPSERT_CURRENT_TABLE`, `$PG_UPSERT_TABLE_QA_PASSED`, `$PG_UPSERT_TABLE_ROWS_UPDATED`, `$PG_UPSERT_TABLE_ROWS_INSERTED` are updated as each table is processed.
-- New `CLEANUP` keyword for `PG_UPSERT` — drops all `ups_*` temporary tables and views after execution. Without it, temp objects persist for inspection (default).
+- **`PG_UPSERT` per-table progress:** `$PG_UPSERT_CURRENT_TABLE`, `$PG_UPSERT_TABLE_QA_PASSED`, `$PG_UPSERT_TABLE_ROWS_UPDATED` and `$PG_UPSERT_TABLE_ROWS_INSERTED` update as each table is processed.
+- **`PG_UPSERT … CLEANUP`** drops the `ups_*` temporary tables and views afterwards; by default they stay for inspection.
 
 ______________________________________________________________________
 
@@ -1107,7 +1089,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- CLI test fixture: handle CliRunner's separate stderr capture.
+- Internal: test fix.
 
 ______________________________________________________________________
 
@@ -1115,7 +1097,10 @@ ______________________________________________________________________
 
 ### Added
 
-- New `PG_UPSERT` metacommand for QA-checked, FK-dependency-ordered upserts from a staging schema to a base schema on PostgreSQL. Integrates [pg-upsert](https://pg-upsert.readthedocs.io/) as an optional dependency (`pip install execsql2[upsert]`). Three modes: full pipeline (`PG_UPSERT FROM … TO … TABLES …`), QA-only (`PG_UPSERT QA …`), and schema check (`PG_UPSERT CHECK …`). Supports `METHOD`, `COMMIT`, `INTERACTIVE`, `COMPACT`, `EXCLUDE`, `EXCLUDE_NULL`, `LOGFILE` keywords. Sets 12 `$PG_UPSERT_*` substitution variables.
+- **`PG_UPSERT`** runs QA-checked upserts from a staging schema to a base schema on PostgreSQL, in foreign key order, using [pg-upsert](https://pg-upsert.readthedocs.io/) (`pip install execsql2[upsert]`).
+    - Modes: full pipeline (`PG_UPSERT FROM … TO … TABLES …`), QA only (`PG_UPSERT QA …`) and schema check (`PG_UPSERT CHECK …`).
+    - Keywords: `METHOD`, `COMMIT`, `INTERACTIVE`, `COMPACT`, `EXCLUDE`, `EXCLUDE_NULL`, `LOGFILE`.
+    - Sets 12 `$PG_UPSERT_*` substitution variables.
 
 ______________________________________________________________________
 
@@ -1123,9 +1108,8 @@ ______________________________________________________________________
 
 ### Changed
 
-- Performance: `set_system_vars()` split into static (once per script + on `CONNECT`/`CHDIR`) and dynamic (per statement) — eliminates ~14 redundant calls per statement.
-- Performance: `$RANDOM` and `$UUID` are now lazy — computed only when referenced.
-- Performance: CSV/TSV import uses Python's `csv` module as a fast path for standard delimited formats (comma, tab, semicolon, pipe). Falls back to the character-at-a-time parser for non-standard formats.
+- **Faster runs:** less per-statement work refreshing system variables, and `$RANDOM` and `$UUID` are computed only when referenced.
+- **Faster CSV/TSV `IMPORT`** with comma, tab, semicolon or pipe delimiters.
 
 ______________________________________________________________________
 
@@ -1133,11 +1117,11 @@ ______________________________________________________________________
 
 ### Added
 
-- Keyring setup guide for headless Linux servers (encrypted and plaintext file backends) in the Security reference.
+- **Security reference:** setting up a keyring on a headless Linux server (encrypted or plaintext file backend).
 
 ### Changed
 
-- `ASSERT` failures now report `**** Assertion failed.` instead of `**** Error in metacommand.` to distinguish intentional script-level checks from metacommand errors.
+- **`ASSERT` failures** report `**** Assertion failed.` instead of `**** Error in metacommand.`
 
 ______________________________________________________________________
 
@@ -1145,11 +1129,11 @@ ______________________________________________________________________
 
 ### Changed
 
-- Performance: cached source paths on `ScriptCmd` (eliminates per-statement `Path.resolve()` calls); batched `fetchmany()` in `select_rowdict()`; removed dead regex compilation.
+- **Faster runs:** less per-statement overhead and batched row fetching.
 
 ### Fixed
 
-- Cursor leak in `select_rowsource()` — generator now closes the cursor in a `finally` block.
+- **Query cursors** are closed even when reading stops early.
 
 ______________________________________________________________________
 
@@ -1157,16 +1141,13 @@ ______________________________________________________________________
 
 ### Added
 
-- Debug REPL `.where` / `.w` — shows current script file, line number, and the upcoming statement text (truncated to 120 chars). The entry banner now includes the location (`[Breakpoint] myscript.sql:42`).
-- Debug REPL `.set VAR VAL` — sets or updates a substitution variable interactively during a `BREAKPOINT` session.
-- Debug REPL ANSI color output. Auto-detected via TTY; suppressed by `NO_COLOR` / `EXECSQL_NO_COLOR`.
-- Debug REPL aliases: `.h` for `.help`, `.v` for `.vars`, `.v all` for `.vars all`.
-- Debug REPL step mode banner — shows "Step" instead of "Breakpoint" when re-entering via `.next`.
-- `--profile-limit N` CLI option — controls how many top statements appear in the `--profile` timing summary (default: 20).
-
-### Changed
-
-- `execsql.debug.repl` is now a dedicated package (`src/execsql/debug/repl.py`); previously at `execsql.metacommands.debug_repl`. No public API change.
+- **Debug REPL:**
+    - `.where` / `.w` shows the script file, line and next statement; the banner shows the location (`[Breakpoint] myscript.sql:42`).
+    - `.set VAR VAL` sets a substitution variable during a `BREAKPOINT` session.
+    - ANSI color on a terminal; `NO_COLOR` or `EXECSQL_NO_COLOR` turns it off.
+    - Aliases `.h` (`.help`), `.v` (`.vars`) and `.v all` (`.vars all`).
+    - The banner says "Step" instead of "Breakpoint" after `.next`.
+- **`--profile-limit N`** sets how many statements the `--profile` summary lists (default 20).
 
 ______________________________________________________________________
 
@@ -1174,12 +1155,12 @@ ______________________________________________________________________
 
 ### Fixed
 
-- `x_assert` crash when `exec_log` is `None`.
-- `--ping` version-query loop exiting prematurely — `break` was at wrong indentation, skipping fallback queries.
-- `CONSOLE SET WIDTH/HEIGHT` crash — `gui_console_width()`/`gui_console_height()` restored as setter functions.
-- `$ERROR_MESSAGE` now contains full `errmsg()` (with script location and timestamp) for non-halting errors.
-- Non-halting SQL and metacommand errors now logged to `exec_log`.
-- YAML `append=True` now emits `---` document separator for valid multi-document streams.
+- **`ASSERT`** no longer crashes when there is no execution log.
+- **`--ping`** tries every version query instead of stopping after the first.
+- **`CONSOLE SET WIDTH` / `HEIGHT`** no longer crash.
+- **`$ERROR_MESSAGE`** for a non-halting error holds the full message, with script location and timestamp.
+- **Non-halting SQL and metacommand errors** are written to `execsql.log`.
+- **Appending YAML exports** writes a `---` separator, so the file is a valid multi-document stream.
 
 ______________________________________________________________________
 
@@ -1187,19 +1168,19 @@ ______________________________________________________________________
 
 ### Added
 
-- `--debug` CLI flag — starts the script in step-through debug mode. The debug REPL pauses before each statement, as if `BREAKPOINT` were inserted at the top with `.next` always active.
+- **`--debug`** starts the script in step mode: the debug REPL pauses before each statement, as if `BREAKPOINT` were at the top with `.next` always on.
 
 ### Changed
 
-- `BREAKPOINT` debug REPL now pauses **before** each statement instead of after, so the upcoming statement can be inspected before it runs.
+- **`BREAKPOINT`** pauses before each statement instead of after, so you can inspect it before it runs.
 
 ### Fixed
 
-- `BREAKPOINT` REPL no longer wraps variable values in extra single quotes.
-- Error messages now include script file name and line number — `ErrInfo` fields `script_file` and `script_line_no` are populated in all error paths.
-- `$ERROR_MESSAGE` is now updated on every error (was initialized once to `""` and never changed).
-- `MetacommandStmt.run()` now re-raises the original handler `ErrInfo` when `halt_on_metacommand_err` is True, instead of raising a generic "Unknown metacommand".
-- `write_warning()` now accepts `always=True` to bypass the `conf.write_warnings` gate, so structural warnings (IF-level mismatch, unsubstituted variables) are always visible on stderr.
+- **The `BREAKPOINT` REPL** no longer wraps variable values in extra single quotes.
+- **Error messages** include the script file and line number.
+- **`$ERROR_MESSAGE`** updates on every error; it used to stay empty.
+- **Metacommand errors** with `halt_on_metacommand_err` report the real error, not "Unknown metacommand".
+- **Structural warnings** (`IF` level mismatches, unsubstituted variables) always appear on stderr, whatever `write_warnings` says.
 
 ______________________________________________________________________
 
@@ -1207,7 +1188,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- `BREAKPOINT` variable lookup — `$logfile` was showing `(undefined)` because `SUB` stores keys without a sigil prefix. The debug REPL now strips `$`, `&`, `@`, `#`, `~` prefixes and retries when the exact name isn't found.
+- **`BREAKPOINT`** finds a variable named with its prefix (`$`, `&`, `@`, `#`, `~`); `$logfile` used to show `(undefined)`.
 
 ______________________________________________________________________
 
@@ -1215,8 +1196,8 @@ ______________________________________________________________________
 
 ### Added
 
-- **`BREAKPOINT` metacommand** — pauses script execution and drops into an interactive debug REPL. Accepts `continue`/`c` to resume, `abort`/`q` to halt, `vars` to list substitution variables, `$VARNAME` to print a single variable, `SELECT …;` to run ad-hoc SQL, `next`/`n` to step one statement at a time, `stack` to inspect the command-list stack, `help` for a summary. Silently skipped in non-TTY environments (CI, piped input).
-- **`ROW_COUNT_GT(table, N)`**, **`ROW_COUNT_GTE`**, **`ROW_COUNT_EQ`**, **`ROW_COUNT_LT`** conditional tests — compare row count of any table or view against an integer threshold using `IF`, `ELSEIF`, `ASSERT`. Issues `SELECT count(*)`.
+- **`BREAKPOINT`** pauses the script in an interactive debug REPL: `continue`/`c`, `abort`/`q`, `vars`, `$VARNAME`, `SELECT …;`, `next`/`n` to step, `stack`, `help`. Skipped when not on a TTY (CI, piped input).
+- **`ROW_COUNT_GT(table, N)`, `ROW_COUNT_GTE`, `ROW_COUNT_EQ`, `ROW_COUNT_LT`** conditions compare a table's or view's row count to a number in `IF`, `ELSEIF` and `ASSERT`.
 
 ______________________________________________________________________
 
@@ -1224,8 +1205,8 @@ ______________________________________________________________________
 
 ### Added
 
-- **`--lint` flag** — parses a script and performs static analysis without connecting to a database. Reports unmatched `IF`/`ENDIF`, `LOOP`/`END LOOP`, `BEGIN BATCH`/`END BATCH` as errors; potentially undefined `!!$VAR!!` references and missing `INCLUDE` targets as warnings. Exits 0 if no errors are found (warnings don't affect exit code); exits 1 on any error.
-- **`--ping` flag** — tests database connectivity without running a script. `execsql --ping --dsn <URL>` connects, queries the server version, prints a one-line summary, exits 0. No script file required.
+- **`--lint`** checks a script without connecting: unmatched `IF`/`ENDIF`, `LOOP`/`END LOOP` and `BEGIN BATCH`/`END BATCH` are errors (exit 1); possibly undefined `!!$VAR!!` and missing `INCLUDE` targets are warnings (exit 0).
+- **`--ping`** tests a connection without a script: `execsql --ping --dsn <URL>` prints the server version and exits 0.
 
 ______________________________________________________________________
 
@@ -1233,12 +1214,12 @@ ______________________________________________________________________
 
 ### Added
 
-- **`--profile` flag** — records wall-clock time for each SQL and metacommand statement and prints a timing summary after the script completes. Sorted by elapsed time descending (top 20).
-- **`ASSERT` metacommand** — evaluates any `IF`-compatible condition and raises an error (halting the script when `HALT_ON_METACOMMAND_ERROR` is `ON`) if false. Optional quoted failure message; omitting it produces `Assertion failed: <condition>`. Silently skipped inside a false `IF` block.
+- **`--profile`** prints the 20 slowest SQL and metacommand statements after the run.
+- **`ASSERT`** halts with an error (when `HALT_ON_METACOMMAND_ERROR` is `ON`) if an `IF`-style condition is false, with an optional quoted message (default `Assertion failed: <condition>`). Skipped inside a false `IF` block.
 
 ### Changed
 
-- **`--dry-run` expands substitution variables** — the printed command list now shows resolved `!!$VAR!!` tokens for variables already populated at parse time (environment, `--assign-arg`, config, startup built-ins). Variables set during execution remain unexpanded.
+- **`--dry-run`** shows `!!$VAR!!` values already known at parse time (environment, `--assign-arg`, config, startup built-ins); variables set during the run stay unexpanded.
 
 ______________________________________________________________________
 
@@ -1246,7 +1227,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- `AttributeError: module 'execsql.state' has no attribute 'dedup_words'` when importing CSV with `DEDUP_COL_HDRS` enabled.
+- **`IMPORT` from CSV with `DEDUP_COL_HDRS`** no longer fails with `AttributeError: module 'execsql.state' has no attribute 'dedup_words'`.
 
 ______________________________________________________________________
 
@@ -1254,9 +1235,9 @@ ______________________________________________________________________
 
 ### Added
 
-- **Markdown export** (`FORMAT MARKDOWN` / `FORMAT MD`) — GitHub-flavored pipe tables with column alignment and pipe/backslash escaping. No dependencies.
-- **YAML export** (`FORMAT YAML`) — list-of-dicts output with native type preservation. Requires `PyYAML` (in `formats` extra).
-- **XLSX export** (`FORMAT XLSX`) — single-sheet and multi-sheet Excel via openpyxl, with bold headers, native type preservation, and a "Datasheets" inventory sheet. Multi-sheet syntax: `EXPORT table1, table2 TO file.xlsx AS XLSX`.
+- **`FORMAT MARKDOWN` / `FORMAT MD`** export: GitHub-flavored pipe tables with column alignment and escaping.
+- **`FORMAT YAML`** export: a list of records keeping native types. Requires PyYAML (`formats` extra).
+- **`FORMAT XLSX`** export with bold headers, native types and a "Datasheets" inventory sheet; `EXPORT table1, table2 TO file.xlsx AS XLSX` writes one sheet per table.
 
 ______________________________________________________________________
 
@@ -1264,15 +1245,9 @@ ______________________________________________________________________
 
 ### Added
 
-- Textual TUI `console_save()` — writes console output to a file, matching Tkinter parity.
-- Keyboard shortcut hints on all major Textual TUI dialog screens (Escape to cancel, Enter to submit, `Footer` widget).
-- `RuntimeContext` class in `state.py` — groups all 33 mutable runtime globals into a single slotted object, enabling isolated contexts for testing and future concurrent execution.
-- `get_context()` / `set_context()` public API for programmatic access to the active runtime context.
-- Divergence from Upstream documentation page (`docs/about/divergence.md`).
-
-### Changed
-
-- `state.py` now uses a `types.ModuleType` subclass that transparently proxies attribute reads/writes to the active `RuntimeContext`. All existing `_state.foo` call sites continue working unchanged.
+- **Textual TUI** can save console output to a file, as Tkinter does, and its dialogs show keyboard hints (Escape to cancel, Enter to submit).
+- **`get_context()` / `set_context()`** give Python code access to the active runtime context.
+- **Divergence from Upstream** docs page (`docs/about/divergence.md`).
 
 ______________________________________________________________________
 
@@ -1280,26 +1255,15 @@ ______________________________________________________________________
 
 ### Added
 
-- Docstrings on 183 public API symbols across `db/`, `exporters/`, `importers/`, `config.py`, `models.py`, `types.py`, `parser.py`. Public API coverage raised from 40% to 81%.
-- Developer architecture guide (`docs/dev/architecture.md`) with Mermaid diagrams covering execution flow, module map, command stack, metacommand dispatch, conditionals, substitution variables, database abstraction, export/import, GUI, and global state.
-- Exporter `Protocol` types (`QueryExporter`, `RowsetExporter`) in `exporters/protocol.py`.
-
-### Changed
-
-- Cursor lifecycle in database adapters — all `exec_cmd()` and PostgreSQL `vacuum()` now use the `_cursor()` context manager to prevent leaks.
+- Internal: API docstrings, a developer architecture guide, exporter protocol types and cursor cleanup in database adapters.
 
 ______________________________________________________________________
 
 ## [2.4.6] - 2026-03-31
 
-### Added
-
-- End-to-end CLI tests (26 tests) covering `--version`, `--help`, `--dump-keywords`, `-c`, file execution, `--dry-run`, error cases, and `execsql-format`.
-- Exception chaining (`from None`) on all `raise` statements inside `except` blocks; ruff rule B904 enabled.
-
 ### Changed
 
-- Documentation reorganized into nav-aligned subdirectories: `getting-started/`, `reference/`, `guides/`, `about/`. All 306 cross-references updated.
+- **Documentation** reorganized into `getting-started/`, `reference/`, `guides/` and `about/` sections.
 
 ______________________________________________________________________
 
@@ -1307,15 +1271,14 @@ ______________________________________________________________________
 
 ### Added
 
-- VS Code syntax highlighting section in the README.
-- Pre-commit hook usage in the README formatting section.
+- **README** covers VS Code syntax highlighting and the pre-commit hook.
 
 ### Fixed
 
-- `ON ERROR_HALT EXECUTE SCRIPT` and `ON CANCEL_HALT EXECUTE SCRIPT` were not recognized — handlers existed but dispatch patterns were missing.
-- `EXTEND SCRIPT <X> WITH SCRIPT <Y>` was not recognized — only the `APPEND SCRIPT` synonym was ported.
-- `PROMPT ASK` with single-quoted (`'…'`) or bracket-delimited (`[…]`) questions, and with unquoted `HELP` arguments, were not recognized.
-- `CONNECT TO SQLSERVER` with mixed quoting (e.g. quoted SERVER + unquoted DB) or quoted PASSWORD was not recognized.
+- **`ON ERROR_HALT EXECUTE SCRIPT` and `ON CANCEL_HALT EXECUTE SCRIPT`** are recognized.
+- **`EXTEND SCRIPT <X> WITH SCRIPT <Y>`** is recognized; only `APPEND SCRIPT` worked.
+- **`PROMPT ASK`** accepts `'…'` and `[…]` questions and an unquoted `HELP` argument.
+- **`CONNECT TO SQLSERVER`** accepts mixed quoting (quoted SERVER with unquoted DB, for example) and a quoted PASSWORD.
 
 ______________________________________________________________________
 
@@ -1323,8 +1286,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- PyPI publish URL — use `execsql2` package name instead of repo name.
-- SQLite import-error test: patch `fatal_error` before `__import__`.
+- Internal: PyPI publishing and test fixes.
 
 ______________________________________________________________________
 
@@ -1332,7 +1294,7 @@ ______________________________________________________________________
 
 ### Added
 
-- Pre-commit hook for `execsql-format` — add the repo to `.pre-commit-config.yaml` and pass `--check` or `--in-place` via `args`.
+- **Pre-commit hook `execsql-format`**: add the repo to `.pre-commit-config.yaml` and pass `--check` or `--in-place` in `args`.
 
 ______________________________________________________________________
 
@@ -1340,7 +1302,7 @@ ______________________________________________________________________
 
 ### Changed
 
-- Internal: raised test coverage floor 75 → 80%. No user-visible changes.
+- Internal: test coverage floor raised; no user-visible changes.
 
 ______________________________________________________________________
 
@@ -1348,13 +1310,9 @@ ______________________________________________________________________
 
 ### Fixed
 
-- `--dsn` now correctly overrides connection settings from configuration files.
-- MySQL `LOAD DATA INFILE` encoding — Python encoding names (e.g. `utf-8`) are now mapped to MySQL charset names (e.g. `utf8mb4`).
-- Importer error reporting: replaced removed `exception_info()` with `exception_desc()`.
-
-### Changed
-
-- Integration tests moved to `tests/integration/` with a shared conftest and parallel CI execution.
+- **`--dsn`** overrides connection settings from configuration files.
+- **MySQL `LOAD DATA INFILE`** maps Python encoding names (`utf-8`) to MySQL charsets (`utf8mb4`).
+- **Import errors** are reported again instead of raising a second error.
 
 ______________________________________________________________________
 
@@ -1362,25 +1320,20 @@ ______________________________________________________________________
 
 ### Added
 
-- Python 3.14 support — added to CI matrix and PyPI classifiers.
-- PostgreSQL integration tests (9 tests) — full lifecycle via `--dsn` connection strings.
-- MySQL/MariaDB integration tests (9 tests, 1 xfail for a pre-existing import adapter bug).
-- CI integration test job with GitHub Actions services (PostgreSQL 16, MySQL 8).
+- **Python 3.14** support.
 
 ### Changed
 
-- `Database` is now an abstract base class (ABC) with `open_db()` and `exec_cmd()` as `@abstractmethod`. Subclasses missing either raise `TypeError` at instantiation time instead of `DatabaseNotImplementedError` at call time.
-- Cursor lifecycle: `execute()`, `select_data()`, `schema_exists()`, `table_exists()`, `column_exists()`, `table_columns()`, `view_exists()`, `import_entire_file()` now use a context manager that guarantees cleanup.
-- Metacommand dispatch uses keyword-indexed lookup, reducing dispatch from O(205) regex scans to O(K) where K ≈ 1–5.
-- Variable substitution uses a single combined regex to find tokens in one pass, then dict lookup for the value — reducing `substitute()` from O(V) to O(1) per call.
+- **`Database` subclasses** must implement `open_db()` and `exec_cmd()`; a missing one raises `TypeError` at instantiation instead of `DatabaseNotImplementedError` when called.
+- **Metacommand dispatch and variable substitution** are faster.
 
 ### Fixed
 
-- ODS import/export — `import odf as of` was previously `import of as of`. ODS support was broken since the modular refactor.
-- `--dsn` password is now passed through to all database backends (MySQL, SQL Server, Oracle, Firebird, DSN). Previously only PostgreSQL received it.
-- Importer error reporting: `exception_info()` (tuple) replaced with `exception_desc()` (string) in 6 call sites. Previously caused `AttributeError: 'tuple' has no attribute 'replace'` on any import failure.
-- MySQL `LOAD DATA LOCAL INFILE` encoding name mapping (Python encoding → MySQL charset).
-- `--dsn` now overrides conf-file connection settings (server, database, user, port). Previously conf-file values took precedence.
+- **ODS import and export** work again (broken since the modular refactor).
+- **`--dsn` password** reaches MySQL, SQL Server, Oracle, Firebird and DSN connections; only PostgreSQL got it.
+- **Import failures** report their error instead of `AttributeError: 'tuple' has no attribute 'replace'`.
+- **MySQL `LOAD DATA LOCAL INFILE`** maps Python encoding names to MySQL charsets.
+- **`--dsn`** overrides conf-file server, database, user and port; conf-file values used to win.
 
 ______________________________________________________________________
 
@@ -1388,15 +1341,11 @@ ______________________________________________________________________
 
 ### Added
 
-- Security documentation (`docs/security.md`) covering trust model, SHELL execution, credential handling, file system access, SMTP, and SQL variable substitution.
+- **Security documentation** (`docs/security.md`): trust model, `SHELL`, credentials, file system access, SMTP and SQL variable substitution.
 
 ### Fixed
 
-- Plaintext passwords (`Pwd=***`) redacted from ODBC connection strings in log output for Access and SQL Server adapters.
-
-### Changed
-
-- Removed lazy-import anti-pattern from 6 modules — stdlib imports moved to module level; optional deps (`xlrd`, `openpyxl`, `jinja2`) use instance attributes instead of `global`.
+- **Access and SQL Server** redact ODBC passwords (`Pwd=***`) in the log.
 
 ______________________________________________________________________
 
@@ -1404,8 +1353,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- Skip `TimerHandler` alarm tests on Windows where `signal.setitimer` is unavailable.
-- `UnicodeDecodeError` in CLI subprocess tests on Windows — specify UTF-8 encoding.
+- Internal: Windows test fixes.
 
 ______________________________________________________________________
 
@@ -1413,54 +1361,42 @@ ______________________________________________________________________
 
 ### Added
 
-- `py.typed` marker for PEP 561 downstream type checking.
-- `--progress` CLI flag and `CONFIG SHOW_PROGRESS` metacommand — Rich progress bar during long `IMPORT` operations. Also configurable via `show_progress` in `execsql.conf`.
-- `log_sql` config option and `CONFIG LOG_SQL` metacommand — opt-in SQL query audit logging. All executed statements written to the log with a `sql` record type, database name, line number, and query text.
-- `--dump-keywords` CLI option — outputs all metacommand keywords, conditional functions, config options, export formats, database types, and variable patterns as structured JSON. Enables tooling (e.g. editor grammar generators) to consume keyword data directly from the dispatch table.
-- VS Code syntax highlighting extension at `extras/vscode-execsql/`. The grammar is auto-generated from the dispatch table via `just generate-vscode-grammar`.
-- Keyring credential storage documentation in the usage notes.
+- **`py.typed`** marker for downstream type checking (PEP 561).
+- **`--progress`**, `CONFIG SHOW_PROGRESS` and the `show_progress` config option show a progress bar during long `IMPORT`s.
+- **`log_sql`** config option and `CONFIG LOG_SQL` log every executed statement as a `sql` record with database name, line number and query text.
+- **`--dump-keywords`** prints metacommand keywords, conditions, config options, export formats, database types and variable patterns as JSON, for editor tooling.
+- **VS Code syntax highlighting** extension in `extras/vscode-execsql/`, generated from the metacommand list.
+- **Keyring credential storage** documented in the usage notes.
 
 ### Changed
 
-- CLI reorganized from flat `_cli_*.py` files into a `cli/` subpackage (`cli/__init__.py`, `cli/run.py`, `cli/dsn.py`, `cli/help.py`). All existing `from execsql.cli import …` paths preserved.
-- Exception hierarchy: `ErrInfo`, `DataTypeError`, `DbTypeError`, `DatabaseNotImplementedError` now inherit from `ExecSqlError`.
-- Exception chaining: `from e` added to 115 `raise` statements across 38 files.
-- `metacommands/io.py` (1304 lines) split into `io_export.py`, `io_import.py`, `io_write.py`, `io_fileops.py`. All existing import paths preserved.
+- **`ErrInfo`, `DataTypeError`, `DbTypeError` and `DatabaseNotImplementedError`** inherit from `ExecSqlError`.
 
 ### Fixed
 
-- ODS export/import was completely broken when `odfpy` was installed — `import odf as of` was previously `import of as of`.
-- File-handle leaks in many exporters and metacommands — `try/finally` added to guarantee close on error in `exporters/raw.py`, `xml.py`, `json.py`, `templates.py`, `values.py`, `pretty.py`, `html.py`, `latex.py`, and `metacommands/debug.py`, `control.py`, `prompt.py`.
-- XML export injection: cell values are now escaped via `xml.sax.saxutils.escape()`; column headers and table names used as XML element names have invalid characters replaced with underscores.
-- HTML export XSS: column headers and cell values are now escaped via `html.escape()`.
-- JSON export injection: descriptions and column names are now serialized with `json.dumps()`.
-- Jinja2 template injection: `templates.py` now uses `jinja2.sandbox.SandboxedEnvironment`.
-- SQL injection in metadata queries: `role_exists()`, `schema_exists()`, `table_exists()`, `column_exists()`, `table_columns()`, `view_exists()` across all adapters now use parameterized queries or `quote_identifier()` for SQL identifiers.
-- SQL injection in `import_entire_file()` across 6 database backends — the `column_name` parameter is now quoted with `quote_identifier()`.
-- SQL injection in PostgreSQL `create_db()` — database name and encoding now use `quote_identifier()`; COPY delimiter and quote character are escaped/validated.
-- HTTP header injection in `SERVE` metacommand — `Content-Disposition` filename is sanitized (newlines/CRs stripped, quotes escaped).
-- `$SHEETS_TABLES_VALUES` SQL injection: ODS/XLS sheet names are now escaped (single quotes doubled) before embedding in SQL.
-- CPU busy-loop in `utils/fileio.py`: `FileWriter.run()` now uses blocking `queue.get(timeout=0.1)` instead of `get_nowait()` in a tight loop.
-- Substitution variable cycle detection — `substitute_vars()` enforces a 100-iteration cap.
-- Empty `dt_cast` type-cast mapping in `Database` base class — the monolith populated this with 8 type converters; the refactored version was initialized to `{}`. Now lazily populated on first access.
-- `WriteSpec.write()` file-descriptor leak in `exporters/base.py`: `EncodedFile(...).open("a").write(msg)` was opening and discarding the handle without closing.
-- Missing `PARQUET` in EXPORT format regex — `EXPORT … AS PARQUET` was unreachable despite the handler existing.
-- `CONNECT TO DSN` was unreachable — the `x_connect_dsn` handler was imported but never registered with `mcl.add()`.
-- Missing WRITE metacommand delimiter patterns (tilde, hash, backtick, bracket, single-quote) and bare (non-CONFIG) settings aliases that were present in the monolith.
-- Backward-compatible `TXT-AND` / `TEXT-AND` export format aliases.
+- **ODS import and export** work when `odfpy` is installed; they were completely broken.
+- **Exporters and the `WRITE`, prompt and control metacommands** close their files on error.
+- **XML export** escapes cell values and replaces invalid characters in element names from column headers and table names.
+- **HTML export** escapes column headers and cell values (XSS).
+- **JSON export** serializes descriptions and column names safely.
+- **Jinja2 template export** runs in a sandbox.
+- **SQL injection** closed in table, schema, column, view and role existence checks on all databases, in the column name for whole-file imports on six databases, in PostgreSQL database creation (name, encoding, COPY delimiter and quote), and in ODS/XLS sheet names in `$SHEETS_TABLES_VALUES`.
+- **`SERVE`** sanitizes the `Content-Disposition` filename (header injection).
+- **File writing** no longer busy-loops the CPU.
+- **Substitution variables** that refer to each other in a cycle stop after 100 passes.
+- **Database type casts** restored; they were empty after the refactor.
+- **`EXPORT … AS PARQUET`** works; it was unreachable.
+- **`CONNECT TO DSN`** works; it was unreachable.
+- **`WRITE`** accepts the tilde, hash, backtick, bracket and single-quote delimiters again, and the bare (non-`CONFIG`) settings aliases are back.
+- **`TXT-AND` / `TEXT-AND`** export format aliases restored.
 
 ______________________________________________________________________
 
 ## [2.1.2] - 2026-03-25
 
-### Added
-
-- DuckDB integration tests (15 end-to-end tests) covering basic SQL, substitution variables, CSV export/import, conditionals, `WRITE`, round-trip, and DuckDB-specific features (views, schemas, native types).
-
 ### Fixed
 
-- Config parser now accepts `k` (DuckDB) as a valid `db_type` in `execsql.conf`. Previously only the CLI flag `-t k` worked.
-- Read the Docs build: added `mkdocstrings-python` and editable project install so `mkdocstrings` resolves API references.
+- **`db_type = k`** (DuckDB) is accepted in `execsql.conf`; only `-t k` worked.
 
 ______________________________________________________________________
 
@@ -1468,16 +1404,15 @@ ______________________________________________________________________
 
 ### Added
 
-- Keyring credential retry on auth failure — when a keyring-stored password is rejected, the stale entry is auto-deleted, the user is re-prompted for the current password, the connection is retried, and the new password is saved. Applies to all database adapters. New public helpers `password_from_keyring()`, `clear_stored_password()`, and `skip_keyring` parameter on `get_password()`.
-- Security warning in `docs/substitution_vars.md` about environment variable exposure via `&`-prefixed substitution variables, with mitigation guidance.
-- Automatic changelog versioning on `bump-my-version` — `CHANGELOG.md` is now bumpversion-managed (the `[Unreleased]` section is replaced with a dated heading and a fresh `[Unreleased]` is preserved).
+- **Keyring retry:** when a stored password is rejected, execsql deletes it, prompts for the current one, retries and saves it. All databases.
+- **Substitution variables docs** warn that `&`-prefixed variables expose environment variables, with mitigations.
 
 ### Fixed
 
-- `ExecSqlTimeoutError` now inherits from `ExecSqlError` instead of `Exception`, so generic `except ExecSqlError` handlers catch timeouts. Accepts an optional message (defaults to "Operation timed out").
-- ODS import/export was silently non-functional — `import odf as of` was previously `import of as of`.
-- Python 3.10 compatibility: replaced `datetime.UTC` (3.11+) with `datetime.timezone.utc`.
-- SQLite connection leaks: `state.reset()` now calls `dbs.closeall()` before discarding the `DatabasePool`; `export_sqlite()` uses `try/finally` to guarantee close on error.
+- **`ExecSqlTimeoutError`** inherits from `ExecSqlError`, so `except ExecSqlError` catches timeouts; its message defaults to "Operation timed out".
+- **ODS import and export** work; they silently did nothing.
+- **Python 3.10** works (no `datetime.UTC`).
+- **SQLite connections** close on reset and when an SQLite export fails.
 
 ______________________________________________________________________
 
@@ -1485,39 +1420,36 @@ ______________________________________________________________________
 
 ### Added
 
-- `--dsn` / `--connection-string` CLI option — accepts a standard database URL (e.g. `postgresql://user:pass@host:5432/db`) and populates connection parameters automatically. Supported schemes: `postgresql`, `postgres`, `mysql`, `mariadb`, `mssql`, `sqlserver`, `oracle`, `firebird`, `sqlite`, `duckdb`. Overrides `-t`/`-u`/`-p` and positional server/db arguments.
-- `--dry-run` output now displays multi-line SQL statements and metacommands with proper indentation, showing continuation lines aligned under the first line instead of truncating or wrapping text.
-- `--output-dir DIR` CLI option — sets a default base directory for `EXPORT` output files. Relative paths in `EXPORT` are joined to this directory; absolute paths and `stdout` are unaffected.
-- Feather, Parquet, and HDF5 export support (via `polars` / `tables`, included in the `formats` extra).
-- OS keyring integration for database password storage (`utils/auth.py`) — when `keyring` is installed, `get_password()` checks the OS credential store (macOS Keychain, Windows Credential Manager, Linux SecretService) before prompting. Controlled by `use_keyring` config option (default `yes`). Requires the `auth` extra.
-- `max_log_size_mb` config setting (default `0` = disabled) — when positive, the log file is rotated to `.1` before each new run if it exceeds the threshold.
-- `import_progress_interval` config option — logs a status line every N rows during `IMPORT` operations. `0` = silent (default). A final completion line is also written.
-- Per-event ISO 8601 timestamps in log records (`status`, `connect`, `action`, `user_msg`).
-- Run duration in the `exit` log record (elapsed wall-clock time as the last field).
-- Run ID millisecond precision: format changed from `%Y%m%d_%H%M_%S` to `%Y%m%d_%H%M_%S_NNN` to prevent collisions.
-- API reference section in the docs (`docs/api/`) covering `cli`, `db`, `exporters`, `importers`, `metacommands`.
-- `ExecSqlError` base class in `exceptions.py` — `ConfigError`, `ColumnError`, `DataTableError`, `OdsFileError`, `XlsFileError`, `XlsxFileError`, `ConsoleUIError`, `CondParserError`, and `NumericParserError` now inherit from it.
+- **`--dsn` / `--connection-string`** takes a database URL (`postgresql://user:pass@host:5432/db`); schemes `postgresql`, `postgres`, `mysql`, `mariadb`, `mssql`, `sqlserver`, `oracle`, `firebird`, `sqlite`, `duckdb`. Overrides `-t`/`-u`/`-p` and the positional server and database.
+- **`--dry-run`** indents multi-line statements under their first line instead of truncating them.
+- **`--output-dir DIR`** is the base for relative `EXPORT` paths; absolute paths and `stdout` are unchanged.
+- **Feather, Parquet and HDF5 export** (`formats` extra).
+- **OS keyring** password storage (macOS Keychain, Windows Credential Manager, Linux SecretService), checked before prompting. `use_keyring` config option, default `yes`; requires the `auth` extra.
+- **`max_log_size_mb`** (default `0`, off) rotates the log to `.1` before a run when it exceeds the size.
+- **`import_progress_interval`** logs a status line every N rows during `IMPORT` (default `0`, silent), plus a completion line.
+- **Log records** carry ISO 8601 timestamps (`status`, `connect`, `action`, `user_msg`), and the `exit` record ends with the run duration.
+- **Run IDs** include milliseconds (`%Y%m%d_%H%M_%S_NNN`) to avoid collisions.
+- **API reference** docs (`docs/api/`) for `cli`, `db`, `exporters`, `importers` and `metacommands`.
+- **`ExecSqlError`** base class for `ConfigError`, `ColumnError`, `DataTableError`, `OdsFileError`, `XlsFileError`, `XlsxFileError`, `ConsoleUIError`, `CondParserError` and `NumericParserError`.
 
 ### Changed
 
-- Consolidated optional dependency extras: replaced `ods`, `excel`, `jinja`, `feather`, `parquet`, `hdf5` extras with a single `formats` bundle. Renamed `keyring` extra to `auth`. Added `all-db` convenience group for all database drivers.
-- Replaced `os.path` calls with `pathlib.Path` equivalents across 21 source files. `os.path.expandvars()` is retained where used (no `pathlib` equivalent).
-- `SubVarSet` refactored: internal storage changed from list-of-tuples to dict for O(1) lookups; regex patterns pre-compiled on `add_substitution()` instead of recompiled on every `substitute()` call.
-- `PostgresDatabase` and `SQLiteDatabase` now accept connection timeout parameters (default 30s); `Database.quote_identifier()` added for safe SQL identifier quoting.
-- `utils/crypto.py`: added prominent security warnings to module and `Encrypt` class docstrings documenting that XOR "encryption" is obfuscation only.
+- **Extras:** `ods`, `excel`, `jinja`, `feather`, `parquet` and `hdf5` are replaced by `formats`; `keyring` is renamed `auth`; `all-db` installs every database driver.
+- **PostgreSQL and SQLite connections** time out after 30 seconds by default.
+- **`Database.quote_identifier()`** quotes an SQL identifier for the database's dialect.
 
 ### Fixed
 
-- `IMPORT` completion log message is now always written when a log is active, regardless of `import_progress_interval`. Previously the completion record was suppressed in silent mode, leaving no trace of successful imports.
-- `Logger.exit_type` defaults to `"unknown"` instead of `None` — prevents the literal string `"None"` from appearing in the `exit` log record.
-- SQL injection in `schema_exists()`, `table_exists()`, `column_exists()`, `table_columns()`, `view_exists()`, `role_exists()` across `db/base.py`, `db/postgres.py`, `db/oracle.py`, `db/duckdb.py`, `db/sqlite.py` — now uses parameterized queries and `quote_identifier()`.
-- `config.py`: five misnamed attribute writes (`only_strings`, `fold_column_headers`, `replace_newlines`, `import_row_buffer`, `css_styles`) all wrote to the wrong target.
-- `models.py`: missing opening `[` in `replace_newlines` regex pattern; `column_type()` referenced undefined `ac.maxlen` for all-NULL columns.
-- DuckDB temporal type mappings (`DT_TimestampTZ`, `DT_Timestamp`, `DT_Date`, `DT_Time`) now use native DuckDB types (`TIMESTAMPTZ`, `TIMESTAMP`, `DATE`, `TIME`) instead of `TEXT`.
+- **`IMPORT`** always logs its completion record when a log is active; silent mode used to suppress it.
+- **The `exit` log record** says `unknown` instead of `None` when the exit type is not set.
+- **SQL injection** closed in schema, table, column, view and role existence checks on PostgreSQL, Oracle, DuckDB and SQLite.
+- **Config options `only_strings`, `fold_column_headers`, `replace_newlines`, `import_row_buffer` and `css_styles`** take effect; they were written to the wrong setting.
+- **`replace_newlines`** pattern fixed, and an all-NULL column no longer fails type detection.
+- **DuckDB** timestamp, date and time columns use `TIMESTAMPTZ`, `TIMESTAMP`, `DATE` and `TIME` instead of `TEXT`.
 
 ### Removed
 
-- `AirspeedTemplateReport` and `FORMAT airspeed` template export variant. The Airspeed library has been unmaintained since ~2018. Use `FORMAT jinja` instead.
+- **`FORMAT airspeed`** template export (Airspeed is unmaintained); use `FORMAT jinja`.
 
 ______________________________________________________________________
 
@@ -1525,8 +1457,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- Windows `PermissionError` when exporting to HTML in append mode — the file descriptor from `tempfile.mkstemp()` is now closed before the file is opened for writing.
-- Windows `PermissionError` when exporting to LaTeX — the file descriptor from `tempfile.mkstemp()` is now closed before `EncodedFile` opens the same path.
+- **`EXPORT` to HTML (append) and LaTeX** no longer fails with `PermissionError` on Windows.
 
 ______________________________________________________________________
 
@@ -1534,9 +1465,8 @@ ______________________________________________________________________
 
 ### Changed
 
-- Forked from execsql by R.Dreas Nielsen; repackaged as execsql2.
-- Added support for Python 3.10, 3.11, 3.12, 3.13; dropped Python 2 compatibility.
-- Distributed as the `execsql2` package on PyPI; CLI entry point remains `execsql`.
+- Forked from execsql by R.Dreas Nielsen and published on PyPI as `execsql2`; the command is still `execsql`.
+- Supports Python 3.10 through 3.13; Python 2 support dropped.
 
 ______________________________________________________________________
 
