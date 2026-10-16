@@ -11,10 +11,6 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
-______________________________________________________________________
-
-## [2.31.0] - 2026-10-16
-
 ### Added
 
 - **Templates documentation:** a new Templates section in the docs covers the upsert, compare and glossary templates, replacing three separate Read the Docs sites. Each script's notes also show in `SHOW SCRIPTS` and the editor's hover.

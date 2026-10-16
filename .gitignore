@@ -36,6 +36,7 @@ htmlcov/
 execsql.log
 scripts/*
 !scripts/generate_vscode_grammar.py
+!scripts/release_notes.py
 !scripts/benchmarks/
 !tests/scripts
 

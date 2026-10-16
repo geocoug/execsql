@@ -109,6 +109,9 @@ fire. Fix:
 
 1. Identify the failure: `gh run view <RUN_ID> --log-failed`.
 1. Fix it on `main`.
+1. Move the unpublished version's `CHANGELOG.md` section back under
+    `[Unreleased]` (drop its heading and separator), so the next release's
+    notes carry those changes.
 1. Re-bump: `just bump-patch` (this creates a *new* tag at the next patch
     level; do NOT delete the old tag and retag the new commit — once a
     tag has been visible publicly, treat it as immutable).
