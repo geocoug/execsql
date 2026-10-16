@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.32.0] - 2026-10-16
+
 ### Changed
 
 - **Working out column types is about twice as fast** for `IMPORT`, `COPY` and the exports that create a table (`EXPORT … AS SQLITE`, `DUCKDB`, `JSON`, `FEATHER`); a CSV whose dates repeat scans close to three times as fast. The types chosen are the same.
