@@ -1364,6 +1364,16 @@ _SYSTEM_VARIABLES: tuple[SystemVariable, ...] = (
         "TRUE or FALSE: whether the changes were committed.",
         "metacommands.md#pg_upsert",
     ),
+    SystemVariable(
+        "$PG_UPSERT_STATUS",
+        "How the run ended: committed, dry_run, no_changes, qa_failed, cancelled or db_error.",
+        "metacommands.md#pg_upsert",
+    ),
+    SystemVariable(
+        "$PG_UPSERT_ERROR",
+        "The database error message when $PG_UPSERT_STATUS is db_error; otherwise empty.",
+        "metacommands.md#pg_upsert",
+    ),
     SystemVariable("$PG_UPSERT_STAGING_SCHEMA", "Staging schema name used.", "metacommands.md#pg_upsert"),
     SystemVariable("$PG_UPSERT_BASE_SCHEMA", "Base schema name used.", "metacommands.md#pg_upsert"),
     SystemVariable("$PG_UPSERT_TABLES", "Comma-separated list of table names processed.", "metacommands.md#pg_upsert"),

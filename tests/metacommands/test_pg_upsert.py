@@ -893,6 +893,40 @@ class TestUserCancelled:
                     metacommandline="PG_UPSERT FROM staging TO public TABLES books INTERACTIVE",
                 )
             assert "cancelled" in str(exc_info.value)
+        # No earlier run's values are left behind: nothing was committed.
+        calls = {c[0][0]: c[0][1] for c in state.subvars.add_substitution.call_args_list}
+        assert calls["$PG_UPSERT_STATUS"] == "cancelled"
+        assert calls["$PG_UPSERT_ERROR"] == ""
+        assert calls["$PG_UPSERT_COMMITTED"] == "FALSE"
+        assert (calls["$PG_UPSERT_ROWS_UPDATED"], calls["$PG_UPSERT_ROWS_INSERTED"]) == ("0", "0")
+
+
+class TestRunStatus:
+    """$PG_UPSERT_STATUS and $PG_UPSERT_ERROR come from the result's status and error."""
+
+    def test_status_and_error_from_the_result(self, mock_state):
+        import enum
+
+        from execsql.metacommands.upsert import _set_subvars
+
+        class RunStatus(enum.Enum):
+            DB_ERROR = "db_error"
+
+        state, _ = mock_state
+        result = FakeUpsertResult()
+        result.status = RunStatus.DB_ERROR
+        result.error = "trigger said no"
+        _set_subvars(result)
+        calls = {c[0][0]: c[0][1] for c in state.subvars.add_substitution.call_args_list}
+        assert (calls["$PG_UPSERT_STATUS"], calls["$PG_UPSERT_ERROR"]) == ("db_error", "trigger said no")
+
+    def test_no_status_is_empty(self, mock_state):
+        from execsql.metacommands.upsert import _set_subvars
+
+        state, _ = mock_state
+        _set_subvars(FakeUpsertResult())  # QA and CHECK build a result without one
+        calls = {c[0][0]: c[0][1] for c in state.subvars.add_substitution.call_args_list}
+        assert (calls["$PG_UPSERT_STATUS"], calls["$PG_UPSERT_ERROR"]) == ("", "")
 
 
 # ---------------------------------------------------------------------------

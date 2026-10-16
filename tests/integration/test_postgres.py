@@ -567,6 +567,55 @@ def _upsert_outcomes(tmp_path, metacommands: str) -> dict[str, str]:
 
 
 class TestPgUpsert:
+    @pytest.mark.parametrize(
+        ("staging_rows", "commit", "expected"),
+        [
+            ("(1, 'new'), (2, 'two')", "COMMIT", "committed"),
+            ("(1, 'new'), (2, 'two')", "", "dry_run"),
+            ("", "COMMIT", "no_changes"),
+            ("(2, NULL)", "COMMIT", "qa_failed"),
+        ],
+        ids=["committed", "dry_run", "no_changes", "qa_failed"],
+    )
+    def test_status_says_how_the_run_ended(self, tmp_path, upsert_schemas, staging_rows, commit, expected):
+        if staging_rows:
+            _exec_pg(f"INSERT INTO ups_stg.books VALUES {staging_rows}")
+        outcomes = _upsert_outcomes(
+            tmp_path,
+            f"""\
+            -- !x! PG_UPSERT FROM ups_stg TO ups_base TABLES books {commit}
+            -- !x! WRITE "status=!!$PG_UPSERT_STATUS!!" TO OUT
+            -- !x! WRITE "error=!!$PG_UPSERT_ERROR!!" TO OUT
+            """,
+        )
+        assert outcomes == {"status": expected, "error": ""}
+
+    def test_a_database_error_is_status_db_error_with_its_message(self, tmp_path, upsert_schemas):
+        _exec_pg("INSERT INTO ups_stg.books VALUES (2, 'two')")
+        _exec_pg(
+            "CREATE FUNCTION ups_base.refuse() RETURNS trigger LANGUAGE plpgsql AS "
+            "$$ BEGIN RAISE EXCEPTION 'books are read-only'; END $$",
+        )
+        _exec_pg(
+            "CREATE TRIGGER refuse BEFORE INSERT ON ups_base.books FOR EACH ROW EXECUTE FUNCTION ups_base.refuse()",
+        )
+        _write_conf(tmp_path)
+        out, err = tmp_path / "out.txt", tmp_path / "error.txt"
+        script = write_script(
+            tmp_path,
+            f"""\
+            -- !x! METACOMMAND_ERROR_HALT OFF
+            -- !x! PG_UPSERT FROM ups_stg TO ups_base TABLES books COMMIT
+            -- !x! WRITE "status=!!$PG_UPSERT_STATUS!! committed=!!$PG_UPSERT_COMMITTED!!" TO {out}
+            -- !x! WRITE `!!$PG_UPSERT_ERROR!!` TO {err}
+            """,
+        )
+        result = _run_execsql_pg(tmp_path, script, timeout=60)
+        assert result.returncode == 0, f"stderr: {result.stderr}"
+        assert out.read_text().strip() == "status=db_error committed=FALSE"
+        assert "books are read-only" in err.read_text()
+        assert _query_pg("SELECT id FROM ups_base.books ORDER BY id") == [(1,)]
+
     def test_qa_follows_method(self, tmp_path, upsert_schemas):
         """A NULL title on a new row fails QA for upsert, but update never writes that row."""
         _exec_pg("INSERT INTO ups_stg.books VALUES (1, 'new'), (2, NULL)")
