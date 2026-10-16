@@ -23,7 +23,7 @@ ______________________________________________________________________
 - **A connection URL with a query parameter other than `trust_server_certificate`** is an error; such parameters (`?sslmode=require`, for example) were silently ignored.
 - **The `upsert` extra requires pg-upsert 1.26.0**, which reports a database error instead of returning as if the run succeeded.
 - **GitHub Releases** carry the version's `CHANGELOG.md` section as their text, instead of a generated list of commits.
-- **VS Code extension version** is execsql's version (2.30.0 now), in every build including `just install-vscode`; a pre-release is `2.31.0-rc.1`, so VS Code upgrades from an rc to its final release.
+- **VS Code extension version** is execsql's version, in every build including `just install-vscode`; a pre-release is `2.31.0-rc.1`, so VS Code upgrades from an rc to its final release.
 - **Documentation links** in execsql's messages, `execsql --online-help`, hover text, the config template, the VS Code extension and the package's PyPI page go to the docs of the latest release (`/en/stable/`) instead of the unreleased `main` branch.
 
 ### Fixed
