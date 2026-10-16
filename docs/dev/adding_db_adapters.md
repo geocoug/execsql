@@ -148,7 +148,7 @@ These are the instance attributes and methods you must configure correctly:
 | `schema_exists()`  | method            | **Must override.** Return `False` if schemas are not supported.                   |
 | `drop_table()`     | method            | **Must override.** Drop a table (used by IMPORT when creating fresh).             |
 | `populate_table()` | method            | **Must override.** Bulk-load rows from a generator (used by IMPORT).              |
-| `row_inserter()`   | method            | Override for a faster bulk path than `executemany()` (PostgreSQL: `COPY`).        |
+| `row_inserter()`   | method            | Override for a faster bulk path that stores exactly what `executemany()` stores.  |
 | `exec_cmd()`       | method            | Override if the DBMS can execute stored procedures or views as commands.          |
 
 Methods inherited from `Database` that you get for free include `execute()`, `cursor()`, `close()`, `commit()`, `rollback()`, `select_rowsource()`, `select_data()`, `schema_qualified_table_name()`, `quote_identifier()`, and `paramsubs()`.

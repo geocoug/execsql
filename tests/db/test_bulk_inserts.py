@@ -1,79 +1,20 @@
-"""IMPORT and COPY insert each batch of rows with the adapter's bulk path.
+"""IMPORT and COPY insert each batch of rows through the adapter's row inserter.
 
-PostgreSQL copies a batch with ``COPY ... FROM STDIN`` inside a savepoint
-and falls back to ``executemany`` when COPY rejects it; DuckDB binds many
-rows in one ``INSERT ... VALUES``.  Both must store what ``executemany``
-stored.
+The default runs ``executemany``; DuckDB binds many rows in one
+``INSERT ... VALUES``, which must store exactly what ``executemany`` stores.
 """
 
 from __future__ import annotations
 
-import contextlib
+import datetime
 import decimal
 import importlib.util
 import sys
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
 from execsql.db.base import Database
-from execsql.db.postgres import PostgresDatabase
-
-
-class _CopyFails(Exception):
-    pass
-
-
-class _FakePgCursor:
-    """Records the statements a PostgreSQL row inserter runs."""
-
-    def __init__(self, copy_fails: bool = False) -> None:
-        self.log: list[str] = []
-        self.copy_fails = copy_fails
-
-    def execute(self, sql, params=None):
-        self.log.append(sql)
-
-    def executemany(self, sql, rows):
-        self.log.append(f"executemany {len(rows)}")
-
-    @contextlib.contextmanager
-    def copy(self, sql):
-        self.log.append(sql)
-        copy = MagicMock()
-        yield copy
-        if self.copy_fails:
-            raise _CopyFails("invalid input syntax for type integer")
-
-
-def _pg() -> PostgresDatabase:
-    with patch.object(PostgresDatabase, "open_db", return_value=None):
-        return PostgresDatabase("host", "db", "user", need_passwd=False)
-
-
-def test_postgres_copies_each_batch_inside_a_savepoint():
-    curs = _FakePgCursor()
-    insert = _pg().row_inserter(curs, '"t"', ['"a"', '"b"'])
-    insert([[1, "x"], [2, "y"]])
-    assert curs.log == [
-        "savepoint execsql_copy",
-        'copy "t" ("a","b") from stdin',
-        "release savepoint execsql_copy",
-    ]
-
-
-def test_postgres_falls_back_to_insert_when_copy_rejects_a_batch():
-    curs = _FakePgCursor(copy_fails=True)
-    insert = _pg().row_inserter(curs, '"t"', ['"a"'])
-    insert([[decimal.Decimal("5.70")]])
-    insert([[decimal.Decimal("6.20")]])  # the rest of the load skips COPY
-    assert curs.log == [
-        "savepoint execsql_copy",
-        'copy "t" ("a") from stdin',
-        "rollback to savepoint execsql_copy",
-        "executemany 1",
-        "executemany 1",
-    ]
 
 
 def test_the_default_inserter_runs_executemany():
@@ -91,28 +32,90 @@ def test_the_default_inserter_runs_executemany():
 duckdb = pytest.importorskip("duckdb")
 from execsql.db import duckdb as duckdb_adapter  # noqa: E402
 
-_AWKWARD = [  # (column type, values): conversions executemany performs
-    ("integer", [decimal.Decimal("5.70"), "5", True, None]),
-    ("varchar", [5, "", None, "a'b"]),
-    ("double", [1, 2.5, decimal.Decimal("3.25"), None]),
-    ("date", ["2020-01-02", None, "2021-03-04", "2022-05-06"]),
+_TZ = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
+# Every Python type a converted IMPORT or COPY row can hold, with edge values.
+_VALUES = [
+    None,
+    0,
+    -7,
+    2**31,
+    2**63 - 1,
+    True,
+    False,
+    0.1,
+    1.0000000000000002,
+    1e20,
+    -0.0,
+    float("inf"),
+    float("nan"),
+    3.0,
+    decimal.Decimal("0.1"),
+    decimal.Decimal("1.50"),
+    decimal.Decimal("1E+3"),
+    decimal.Decimal("-0.000"),
+    decimal.Decimal("123456789012345678901234567890.123"),
+    "",
+    "abc",
+    "a\tb",
+    "a\nb",
+    "back\\slash",
+    "\\N",
+    "quote'\"",
+    "Ünïcødé",
+    "  pad  ",
+    "5",
+    "5.7",
+    "t",
+    "2020-01-02",
+    "2020-01-02 03:04:05",
+    "{1,2}",
+    datetime.date(2020, 1, 2),
+    datetime.datetime(2020, 1, 2, 3, 4, 5),
+    datetime.datetime(2020, 1, 2, 3, 4, 5, 123456),
+    datetime.datetime(2020, 1, 2, 3, 4, 5, tzinfo=_TZ),
+    datetime.time(1, 2, 3),
+    datetime.time(1, 2, 3, 400000),
+    b"\x00\x01ab",
+    bytearray(b"xy"),
+]
+_COLUMN_TYPES = [
+    "varchar",
+    "integer",
+    "bigint",
+    "decimal(18,3)",
+    "double",
+    "boolean",
+    "date",
+    "timestamp",
+    "timestamptz",
+    "blob",
 ]
 
 
-@pytest.mark.parametrize(("column_type", "values"), _AWKWARD, ids=[c for c, _ in _AWKWARD])
-def test_duckdb_stores_what_executemany_stores(column_type, values, monkeypatch):
-    monkeypatch.setattr(duckdb_adapter, "_PARAMS_PER_STATEMENT", 4)  # 2 rows per statement
-    rows = [[i, v] for i, v in enumerate(values)]
-    stored = {}
-    for how in ("executemany", "insert_rows"):
-        con = duckdb.connect()
-        con.execute(f"create table t (a integer, v {column_type})")
+def _stored(typ: str, rows: list[list[object]], how: str) -> object:
+    con = duckdb.connect()
+    con.execute("set timezone = 'America/Los_Angeles'")
+    con.execute(f"create table t (i integer, v {typ})")
+    try:
         if how == "executemany":
-            con.executemany("insert into t values (?, ?)", rows)
+            con.executemany("insert into t (i, v) values (?, ?)", rows)
         else:
-            duckdb_adapter.insert_rows(con, "t", ["a", "v"], rows)
-        stored[how] = con.execute("select v from t order by a").fetchall()
-    assert stored["insert_rows"] == stored["executemany"]
+            duckdb_adapter.insert_rows(con, "t", ["i", "v"], rows)
+    except duckdb.Error as e:
+        return type(e).__name__
+    return con.execute("select v::varchar from t order by i").fetchall()
+
+
+@pytest.mark.parametrize("column_type", _COLUMN_TYPES)
+def test_duckdb_stores_what_executemany_stores(column_type, monkeypatch):
+    """Each value alone, and all of them in one statement, store (or fail) exactly as with executemany."""
+    monkeypatch.setattr(duckdb_adapter, "_PARAMS_PER_STATEMENT", 4)  # 2 rows per statement
+    for value in _VALUES:
+        rows = [[0, value]]
+        assert _stored(column_type, rows, "insert_rows") == _stored(column_type, rows, "executemany"), value
+    monkeypatch.setattr(duckdb_adapter, "_PARAMS_PER_STATEMENT", 10_000)  # every value in one statement
+    texts = [[i, v] for i, v in enumerate(_VALUES) if isinstance(v, str) or v is None]
+    assert _stored(column_type, texts, "insert_rows") == _stored(column_type, texts, "executemany")
 
 
 def _pandas_seen_by(monkeypatch, installed: bool) -> tuple[list[object], object]:

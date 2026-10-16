@@ -671,7 +671,9 @@ class Database(ABC):
         *table* is schema-qualified and quoted; *columns* are the quoted
         column names, in the order of each row's values.  IMPORT and COPY call
         the function once per batch, all inside one transaction.  This one
-        runs ``executemany``; an adapter with a faster bulk path overrides it.
+        runs ``executemany``.  An adapter may override it with a faster bulk
+        path only if that path stores exactly what ``executemany`` stores, for
+        every value type and column type: a faster load must not change data.
         """
         sql = f"insert into {table} ({','.join(columns)}) values ({self.paramsubs(len(columns))});"
 
