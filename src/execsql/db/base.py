@@ -665,6 +665,21 @@ class Database(ABC):
         self.execute(f"drop table if exists {tablename} cascade;")
         self.commit()
 
+    def row_inserter(self, curs: Any, table: str, columns: list[str]) -> Callable[[list[list[Any]]], None]:
+        """Return a function that inserts one batch of rows into *table* through *curs*.
+
+        *table* is schema-qualified and quoted; *columns* are the quoted
+        column names, in the order of each row's values.  IMPORT and COPY call
+        the function once per batch, all inside one transaction.  This one
+        runs ``executemany``; an adapter with a faster bulk path overrides it.
+        """
+        sql = f"insert into {table} ({','.join(columns)}) values ({self.paramsubs(len(columns))});"
+
+        def insert(rows: list[list[Any]]) -> None:
+            curs.executemany(sql, rows)
+
+        return insert
+
     def populate_table(
         self,
         schema_name: str | None,
@@ -740,6 +755,7 @@ class Database(ABC):
 
         def _import_loop(curs) -> int:
             nonlocal eof, total_rows, task_id
+            insert = self.row_inserter(curs, sq_name, columns)
             while True:
                 b = []
                 for _j in range(_state.conf.import_row_buffer):
@@ -809,7 +825,7 @@ class Database(ABC):
                                 b.append(row)
                 if len(b) > 0:
                     try:
-                        curs.executemany(sql, b)
+                        insert(b)
                     except ErrInfo:
                         raise
                     except Exception as e:

@@ -11,6 +11,7 @@ and the ``PG_VACUUM`` metacommand (``vacuum()`` method). Corresponds to
 """
 
 import re
+from collections.abc import Callable
 from typing import Any
 
 from execsql.db.base import Database
@@ -273,6 +274,38 @@ class PostgresDatabase(Database):
             curs.close()
             self.conn.autocommit = False
 
+    def row_inserter(self, curs: Any, table: str, columns: list[str]) -> Callable[[list[list[Any]]], None]:
+        """Insert each batch with ``COPY ... FROM STDIN``, falling back to ``INSERT``.
+
+        COPY reads every value as text, so it rejects a few values that a
+        typed INSERT converts: ``5.70`` for an integer column, which INSERT
+        rounds to 6.  Where both accept a value, they store the same thing.
+        Each batch is copied inside a savepoint; when COPY rejects one, the
+        batch goes back to the savepoint and is inserted with ``executemany``,
+        as is every batch after it in this load.
+        """
+        executemany = super().row_inserter(curs, table, columns)
+        copy_sql = f"copy {table} ({','.join(columns)}) from stdin"
+        use_copy = True
+
+        def insert(rows: list[list[Any]]) -> None:
+            nonlocal use_copy
+            if use_copy:
+                curs.execute("savepoint execsql_copy")
+                try:
+                    with curs.copy(copy_sql) as copy:
+                        for row in rows:
+                            copy.write_row(row)
+                except Exception:
+                    curs.execute("rollback to savepoint execsql_copy")
+                    use_copy = False
+                else:
+                    curs.execute("release savepoint execsql_copy")
+                    return
+            executemany(rows)
+
+        return insert
+
     def import_tabular_file(
         self,
         schema_name: str | None,
@@ -408,6 +441,7 @@ class PostgresDatabase(Database):
             eof = False
             total_rows = 0
             with self._cursor() as curs:
+                insert = self.row_inserter(curs, sq_name, import_cols)
                 while True:
                     b: list = []
                     for _j in range(_state.conf.import_row_buffer):
@@ -471,7 +505,7 @@ class PostgresDatabase(Database):
                                     b.append(linedata)
                     if len(b) > 0:
                         try:
-                            curs.executemany(sql_template, b)
+                            insert(b)
                         except ErrInfo:
                             raise
                         except Exception as e:

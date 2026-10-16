@@ -592,3 +592,62 @@ class TestCloseReopen:
             "AUTOCOMMIT is OFF" in (call.args[0] if call.args else "")
             for call in _state.exec_log.log_status_info.call_args_list
         )
+
+
+# ---------------------------------------------------------------------------
+# IMPORT / COPY batches: COPY FROM STDIN, falling back to INSERT
+# ---------------------------------------------------------------------------
+
+
+def _pg_dsn() -> str:
+    return f"postgresql://{_PG_KW['user']}:{_PG_KW['password']}@{_PG_KW['host']}:{_PG_KW['port']}/{_PG_KW['dbname']}"
+
+
+def _copy_from_sqlite(tmp_path, source_ddl: str, source_rows: str, target_ddl: str):
+    from execsql import run
+
+    src = tmp_path / "src.db"
+    run(sql=f"{source_ddl};\ninsert into data values {source_rows};\n", dsn=f"sqlite:///{src}", new_db=True)
+    run(sql=f"drop table if exists bulk_target;\n{target_ddl};\n", dsn=_pg_dsn())
+    result = run(
+        sql=f"-- !x! connect to sqlite(file={src}) as src\n-- !x! copy data from src to bulk_target in initial\n",
+        dsn=_pg_dsn(),
+    )
+    with psycopg.connect(**_PG_KW) as conn:
+        rows = conn.execute("select * from bulk_target order by 1").fetchall()
+        conn.execute("drop table bulk_target")
+    return result, rows
+
+
+def test_copy_into_postgres_loads_every_row(tmp_path):
+    result, rows = _copy_from_sqlite(
+        tmp_path,
+        "create table data (id integer, name text, note text)",
+        "(1, 'a\tb', 'x'), (2, '', null), (3, null, 'back\\slash')",
+        "create table bulk_target (id integer, name text, note text)",
+    )
+    assert result.success, result.errors
+    assert rows == [(1, "a\tb", "x"), (2, "", None), (3, None, "back\\slash")]
+
+
+def test_a_value_copy_rejects_is_inserted_as_before(tmp_path):
+    # COPY reads 5.7 as text and an integer column refuses it; INSERT rounds it.
+    result, rows = _copy_from_sqlite(
+        tmp_path,
+        "create table data (id integer, amount real)",
+        "(1, 5.7), (2, 2.2)",
+        "create table bulk_target (id integer, amount integer)",
+    )
+    assert result.success, result.errors
+    assert rows == [(1, 6), (2, 2)]
+
+
+def test_a_bad_value_still_stops_the_load_and_keeps_no_rows(tmp_path):
+    result, rows = _copy_from_sqlite(
+        tmp_path,
+        "create table data (id integer, code text)",
+        "(1, '7'), (2, 'x')",
+        "create table bulk_target (id integer, code integer)",
+    )
+    assert not result.success
+    assert rows == []
