@@ -630,11 +630,23 @@ def test_copy_into_postgres_loads_every_row(tmp_path):
     assert rows == [(1, "a\tb", "x"), (2, "", None), (3, None, "back\\slash")]
 
 
-def test_a_fraction_copied_into_an_integer_column_is_rounded(tmp_path):
+def test_a_fraction_copied_into_an_integer_column_is_an_error_not_rounded(tmp_path):
     result, rows = _copy_from_sqlite(
         tmp_path,
         "create table data (id integer, amount real)",
         "(1, 5.7), (2, 2.2)",
+        "create table bulk_target (id integer, amount integer)",
+    )
+    assert not result.success
+    assert "Can't load 5.7 into column amount" in str(result.errors)
+    assert rows == []
+
+
+def test_whole_numbers_copied_into_an_integer_column_load(tmp_path):
+    result, rows = _copy_from_sqlite(
+        tmp_path,
+        "create table data (id integer, amount real)",
+        "(1, 6.0), (2, 2.0)",
         "create table bulk_target (id integer, amount integer)",
     )
     assert result.success, result.errors

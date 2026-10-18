@@ -8,6 +8,7 @@ Server via ``pyodbc``.  Corresponds to ``-t s`` on the CLI.
 """
 
 from execsql.db.base import Database
+from execsql.db.target_types import ColumnKinds, kind_for_type_name
 from execsql.db.odbc import connection_string, fresh_sessions, loggable
 from execsql.exceptions import ErrInfo
 from execsql.utils.errors import fatal_error, install_hint
@@ -227,6 +228,29 @@ class SqlServerDatabase(Database):
             )
             rows = curs.fetchall()
         return len(rows) > 0
+
+    def column_kinds(self, sq_name: str) -> ColumnKinds:
+        """The execsql type of each column of *sq_name*, from ``sys.columns``.
+
+        pyodbc describes ``datetimeoffset`` and ``varbinary`` alike, so the
+        catalog is read instead.  A table it does not find through
+        ``object_id`` (a ``#temp`` table, which lives in tempdb) falls back
+        to the driver's description.
+        """
+        _description, rows = self._column_type_query(
+            sq_name,
+            "select c.name, type_name(c.system_type_id), c.precision, c.scale from sys.columns c "
+            "where c.object_id = object_id(?) order by c.column_id;",
+            [sq_name],
+        )
+        if not rows:
+            return super().column_kinds(sq_name)
+        return {
+            name.lower(): kind_for_type_name(
+                f"{type_name}({precision},{scale})" if type_name in ("decimal", "numeric") else type_name,
+            )
+            for name, type_name, precision, scale in rows
+        }
 
     def drop_table(self, tablename: str) -> None:
         """Drop *tablename*, schema-qualified and quoted by the caller."""

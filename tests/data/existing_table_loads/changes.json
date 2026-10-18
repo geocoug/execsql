@@ -1,0 +1,1804 @@
+{
+ "duckdb": {
+  "text/TRUE_FALSE -> varchar": {
+   "after": [
+    "'TRUE'",
+    "'FALSE'"
+   ],
+   "before": [
+    "'true'",
+    "'false'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/dates_and_missing -> varchar": {
+   "after": [
+    "'2024-01-05'",
+    "None"
+   ],
+   "before": [
+    "'2024-01-05 00:00:00'",
+    "None"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/day_first_date -> varchar": {
+   "after": [
+    "'13/05/2024'"
+   ],
+   "before": [
+    "'2024-05-13 00:00:00'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/exponent -> varchar": {
+   "after": [
+    "'1e3'",
+    "'2E2'"
+   ],
+   "before": [
+    "'1000.0'",
+    "'200.0'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/fractions -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "2",
+    "2"
+   ],
+   "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
+  },
+  "text/fractions -> integer": {
+   "after": "ERROR",
+   "before": [
+    "2",
+    "2"
+   ],
+   "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
+  },
+  "text/iso_dates -> varchar": {
+   "after": [
+    "'2024-01-05'",
+    "'2024-02-06'"
+   ],
+   "before": [
+    "'2024-01-05 00:00:00'",
+    "'2024-02-06 00:00:00'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/month_names -> varchar": {
+   "after": [
+    "'Jan 5, 2024'"
+   ],
+   "before": [
+    "'2024-01-05 00:00:00'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/signed_padded -> varchar": {
+   "after": [
+    "' 7 '",
+    "'+3'",
+    "'-2'"
+   ],
+   "before": [
+    "'7'",
+    "'3'",
+    "'-2'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/small_floats -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "0",
+    "0"
+   ],
+   "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
+  },
+  "text/small_floats -> integer": {
+   "after": "ERROR",
+   "before": [
+    "0",
+    "0"
+   ],
+   "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
+  },
+  "text/t_f -> varchar": {
+   "after": [
+    "'t'",
+    "'f'"
+   ],
+   "before": [
+    "'true'",
+    "'false'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/times -> varchar": {
+   "after": [
+    "'10:00'",
+    "'23:59:59'"
+   ],
+   "before": [
+    "'10:00:00'",
+    "'23:59:59'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/timestamps -> varchar": {
+   "after": [
+    "'2024-01-05 10:00'",
+    "'2024-02-06 11:30:15'"
+   ],
+   "before": [
+    "'2024-01-05 10:00:00'",
+    "'2024-02-06 11:30:15'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/timestamps_tz -> varchar": {
+   "after": [
+    "'2024-01-05T10:00:00Z'",
+    "'2024-01-05 10:00:00+05:30'"
+   ],
+   "before": [
+    "'2024-01-05 10:00:00+00'",
+    "'2024-01-05 04:30:00+00'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/two_places -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "2",
+    "2"
+   ],
+   "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
+  },
+  "text/two_places -> integer": {
+   "after": "ERROR",
+   "before": [
+    "2",
+    "2"
+   ],
+   "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
+  },
+  "text/us_dates -> varchar": {
+   "after": [
+    "'01/05/2024'",
+    "'02/06/2024'"
+   ],
+   "before": [
+    "'2024-01-05 00:00:00'",
+    "'2024-02-06 00:00:00'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/yes_no -> varchar": {
+   "after": [
+    "'yes'",
+    "'no'"
+   ],
+   "before": [
+    "'true'",
+    "'false'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/zero_one -> varchar": {
+   "after": [
+    "'1'",
+    "'0'"
+   ],
+   "before": [
+    "'true'",
+    "'false'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "typed/date -> varchar": {
+   "after": [
+    "'2024-01-05'"
+   ],
+   "before": [
+    "'2024-01-05 00:00:00'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "typed/date_and_null -> varchar": {
+   "after": [
+    "'2024-01-05'",
+    "None"
+   ],
+   "before": [
+    "'2024-01-05 00:00:00'",
+    "None"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "typed/decimal_fraction -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "2",
+    "2"
+   ],
+   "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
+  },
+  "typed/decimal_fraction -> integer": {
+   "after": "ERROR",
+   "before": [
+    "2",
+    "2"
+   ],
+   "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
+  },
+  "typed/decimal_scale -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "2"
+   ],
+   "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
+  },
+  "typed/decimal_scale -> integer": {
+   "after": "ERROR",
+   "before": [
+    "2"
+   ],
+   "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
+  },
+  "typed/float_fraction -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "2",
+    "0"
+   ],
+   "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
+  },
+  "typed/float_fraction -> integer": {
+   "after": "ERROR",
+   "before": [
+    "2",
+    "0"
+   ],
+   "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
+  },
+  "typed/float_whole -> varchar": {
+   "after": [
+    "'1.0'",
+    "'2.0'"
+   ],
+   "before": [
+    "'1'",
+    "'2'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "typed/int_zero_one -> varchar": {
+   "after": [
+    "'1'",
+    "'0'"
+   ],
+   "before": [
+    "'true'",
+    "'false'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  }
+ },
+ "mysql": {
+  "text/TRUE_FALSE -> text": {
+   "after": [
+    "'TRUE'",
+    "'FALSE'"
+   ],
+   "before": [
+    "'1'",
+    "'0'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/TRUE_FALSE -> varchar(50)": {
+   "after": [
+    "'TRUE'",
+    "'FALSE'"
+   ],
+   "before": [
+    "'1'",
+    "'0'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/dates_and_missing -> text": {
+   "after": [
+    "'2024-01-05'",
+    "None"
+   ],
+   "before": [
+    "'2024-01-05 00:00:00'",
+    "''"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/dates_and_missing -> varchar(50)": {
+   "after": [
+    "'2024-01-05'",
+    "None"
+   ],
+   "before": [
+    "'2024-01-05 00:00:00'",
+    "''"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/day_first_date -> text": {
+   "after": [
+    "'13/05/2024'"
+   ],
+   "before": [
+    "'2024-05-13 00:00:00'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/day_first_date -> varchar(50)": {
+   "after": [
+    "'13/05/2024'"
+   ],
+   "before": [
+    "'2024-05-13 00:00:00'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/exponent -> text": {
+   "after": [
+    "'1e3'",
+    "'2E2'"
+   ],
+   "before": [
+    "'1000'",
+    "'200'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/exponent -> varchar(50)": {
+   "after": [
+    "'1e3'",
+    "'2E2'"
+   ],
+   "before": [
+    "'1000'",
+    "'200'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/fractions -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "2",
+    "2"
+   ],
+   "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
+  },
+  "text/fractions -> integer": {
+   "after": "ERROR",
+   "before": [
+    "2",
+    "2"
+   ],
+   "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
+  },
+  "text/iso_dates -> text": {
+   "after": [
+    "'2024-01-05'",
+    "'2024-02-06'"
+   ],
+   "before": [
+    "'2024-01-05 00:00:00'",
+    "'2024-02-06 00:00:00'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/iso_dates -> varchar(50)": {
+   "after": [
+    "'2024-01-05'",
+    "'2024-02-06'"
+   ],
+   "before": [
+    "'2024-01-05 00:00:00'",
+    "'2024-02-06 00:00:00'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/month_names -> text": {
+   "after": [
+    "'Jan 5, 2024'"
+   ],
+   "before": [
+    "'2024-01-05 00:00:00'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/month_names -> varchar(50)": {
+   "after": [
+    "'Jan 5, 2024'"
+   ],
+   "before": [
+    "'2024-01-05 00:00:00'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/signed_padded -> text": {
+   "after": [
+    "' 7 '",
+    "'+3'",
+    "'-2'"
+   ],
+   "before": [
+    "'7'",
+    "'3'",
+    "'-2'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/signed_padded -> varchar(50)": {
+   "after": [
+    "' 7 '",
+    "'+3'",
+    "'-2'"
+   ],
+   "before": [
+    "'7'",
+    "'3'",
+    "'-2'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/small_floats -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "0",
+    "0"
+   ],
+   "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
+  },
+  "text/small_floats -> integer": {
+   "after": "ERROR",
+   "before": [
+    "0",
+    "0"
+   ],
+   "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
+  },
+  "text/t_f -> text": {
+   "after": [
+    "'t'",
+    "'f'"
+   ],
+   "before": [
+    "'1'",
+    "'0'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/t_f -> varchar(50)": {
+   "after": [
+    "'t'",
+    "'f'"
+   ],
+   "before": [
+    "'1'",
+    "'0'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/times -> text": {
+   "after": [
+    "'10:00'",
+    "'23:59:59'"
+   ],
+   "before": [
+    "'10:00:00'",
+    "'23:59:59'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/times -> varchar(50)": {
+   "after": [
+    "'10:00'",
+    "'23:59:59'"
+   ],
+   "before": [
+    "'10:00:00'",
+    "'23:59:59'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/timestamps -> text": {
+   "after": [
+    "'2024-01-05 10:00'",
+    "'2024-02-06 11:30:15'"
+   ],
+   "before": [
+    "'2024-01-05 10:00:00'",
+    "'2024-02-06 11:30:15'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/timestamps -> varchar(50)": {
+   "after": [
+    "'2024-01-05 10:00'",
+    "'2024-02-06 11:30:15'"
+   ],
+   "before": [
+    "'2024-01-05 10:00:00'",
+    "'2024-02-06 11:30:15'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/timestamps_tz -> text": {
+   "after": [
+    "'2024-01-05T10:00:00Z'",
+    "'2024-01-05 10:00:00+05:30'"
+   ],
+   "before": [
+    "'2024-01-05 10:00:00'",
+    "'2024-01-05 10:00:00'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/timestamps_tz -> varchar(50)": {
+   "after": [
+    "'2024-01-05T10:00:00Z'",
+    "'2024-01-05 10:00:00+05:30'"
+   ],
+   "before": [
+    "'2024-01-05 10:00:00'",
+    "'2024-01-05 10:00:00'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/two_places -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "2",
+    "2"
+   ],
+   "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
+  },
+  "text/two_places -> integer": {
+   "after": "ERROR",
+   "before": [
+    "2",
+    "2"
+   ],
+   "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
+  },
+  "text/us_dates -> text": {
+   "after": [
+    "'01/05/2024'",
+    "'02/06/2024'"
+   ],
+   "before": [
+    "'2024-01-05 00:00:00'",
+    "'2024-02-06 00:00:00'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/us_dates -> varchar(50)": {
+   "after": [
+    "'01/05/2024'",
+    "'02/06/2024'"
+   ],
+   "before": [
+    "'2024-01-05 00:00:00'",
+    "'2024-02-06 00:00:00'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/yes_no -> text": {
+   "after": [
+    "'yes'",
+    "'no'"
+   ],
+   "before": [
+    "'1'",
+    "'0'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/yes_no -> varchar(50)": {
+   "after": [
+    "'yes'",
+    "'no'"
+   ],
+   "before": [
+    "'1'",
+    "'0'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "typed/date -> text": {
+   "after": [
+    "'2024-01-05'"
+   ],
+   "before": [
+    "'2024-01-05 00:00:00'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "typed/date -> varchar(50)": {
+   "after": [
+    "'2024-01-05'"
+   ],
+   "before": [
+    "'2024-01-05 00:00:00'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "typed/date_and_null -> text": {
+   "after": [
+    "'2024-01-05'",
+    "None"
+   ],
+   "before": [
+    "'2024-01-05 00:00:00'",
+    "''"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "typed/date_and_null -> varchar(50)": {
+   "after": [
+    "'2024-01-05'",
+    "None"
+   ],
+   "before": [
+    "'2024-01-05 00:00:00'",
+    "''"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "typed/decimal_fraction -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "2",
+    "2"
+   ],
+   "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
+  },
+  "typed/decimal_fraction -> integer": {
+   "after": "ERROR",
+   "before": [
+    "2",
+    "2"
+   ],
+   "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
+  },
+  "typed/decimal_scale -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "2"
+   ],
+   "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
+  },
+  "typed/decimal_scale -> integer": {
+   "after": "ERROR",
+   "before": [
+    "2"
+   ],
+   "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
+  },
+  "typed/float_fraction -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "2",
+    "0"
+   ],
+   "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
+  },
+  "typed/float_fraction -> integer": {
+   "after": "ERROR",
+   "before": [
+    "2",
+    "0"
+   ],
+   "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
+  }
+ },
+ "postgres": {
+  "text/TRUE_FALSE -> bigint": {
+   "after": [
+    "1",
+    "0"
+   ],
+   "before": "ERROR",
+   "why": "A true/false value going into a number column is 1 or 0, as on the other databases; PostgreSQL rejected the boolean (#100)."
+  },
+  "text/TRUE_FALSE -> double precision": {
+   "after": [
+    "1.0",
+    "0.0"
+   ],
+   "before": "ERROR",
+   "why": "A true/false value going into a number column is 1 or 0, as on the other databases; PostgreSQL rejected the boolean (#100)."
+  },
+  "text/TRUE_FALSE -> integer": {
+   "after": [
+    "1",
+    "0"
+   ],
+   "before": "ERROR",
+   "why": "A true/false value going into a number column is 1 or 0, as on the other databases; PostgreSQL rejected the boolean (#100)."
+  },
+  "text/TRUE_FALSE -> numeric(18,3)": {
+   "after": [
+    "Decimal('1.000')",
+    "Decimal('0.000')"
+   ],
+   "before": "ERROR",
+   "why": "A true/false value going into a number column is 1 or 0, as on the other databases; PostgreSQL rejected the boolean (#100)."
+  },
+  "text/TRUE_FALSE -> text": {
+   "after": [
+    "'TRUE'",
+    "'FALSE'"
+   ],
+   "before": [
+    "'true'",
+    "'false'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/TRUE_FALSE -> varchar(50)": {
+   "after": [
+    "'TRUE'",
+    "'FALSE'"
+   ],
+   "before": [
+    "'true'",
+    "'false'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/dates_and_missing -> text": {
+   "after": [
+    "'2024-01-05'",
+    "None"
+   ],
+   "before": [
+    "'2024-01-05 00:00:00'",
+    "None"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/dates_and_missing -> varchar(50)": {
+   "after": [
+    "'2024-01-05'",
+    "None"
+   ],
+   "before": [
+    "'2024-01-05 00:00:00'",
+    "None"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/day_first_date -> text": {
+   "after": [
+    "'13/05/2024'"
+   ],
+   "before": [
+    "'2024-05-13 00:00:00'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/day_first_date -> varchar(50)": {
+   "after": [
+    "'13/05/2024'"
+   ],
+   "before": [
+    "'2024-05-13 00:00:00'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/exponent -> text": {
+   "after": [
+    "'1e3'",
+    "'2E2'"
+   ],
+   "before": [
+    "'1000'",
+    "'200'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/exponent -> varchar(50)": {
+   "after": [
+    "'1e3'",
+    "'2E2'"
+   ],
+   "before": [
+    "'1000'",
+    "'200'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/fractions -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "2",
+    "2"
+   ],
+   "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
+  },
+  "text/fractions -> integer": {
+   "after": "ERROR",
+   "before": [
+    "2",
+    "2"
+   ],
+   "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
+  },
+  "text/iso_dates -> text": {
+   "after": [
+    "'2024-01-05'",
+    "'2024-02-06'"
+   ],
+   "before": [
+    "'2024-01-05 00:00:00'",
+    "'2024-02-06 00:00:00'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/iso_dates -> varchar(50)": {
+   "after": [
+    "'2024-01-05'",
+    "'2024-02-06'"
+   ],
+   "before": [
+    "'2024-01-05 00:00:00'",
+    "'2024-02-06 00:00:00'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/month_names -> text": {
+   "after": [
+    "'Jan 5, 2024'"
+   ],
+   "before": [
+    "'2024-01-05 00:00:00'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/month_names -> varchar(50)": {
+   "after": [
+    "'Jan 5, 2024'"
+   ],
+   "before": [
+    "'2024-01-05 00:00:00'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/signed_padded -> text": {
+   "after": [
+    "' 7 '",
+    "'+3'",
+    "'-2'"
+   ],
+   "before": [
+    "'7'",
+    "'3'",
+    "'-2'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/signed_padded -> varchar(50)": {
+   "after": [
+    "' 7 '",
+    "'+3'",
+    "'-2'"
+   ],
+   "before": [
+    "'7'",
+    "'3'",
+    "'-2'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/small_floats -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "0",
+    "0"
+   ],
+   "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
+  },
+  "text/small_floats -> integer": {
+   "after": "ERROR",
+   "before": [
+    "0",
+    "0"
+   ],
+   "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
+  },
+  "text/t_f -> bigint": {
+   "after": [
+    "1",
+    "0"
+   ],
+   "before": "ERROR",
+   "why": "A true/false value going into a number column is 1 or 0, as on the other databases; PostgreSQL rejected the boolean (#100)."
+  },
+  "text/t_f -> double precision": {
+   "after": [
+    "1.0",
+    "0.0"
+   ],
+   "before": "ERROR",
+   "why": "A true/false value going into a number column is 1 or 0, as on the other databases; PostgreSQL rejected the boolean (#100)."
+  },
+  "text/t_f -> integer": {
+   "after": [
+    "1",
+    "0"
+   ],
+   "before": "ERROR",
+   "why": "A true/false value going into a number column is 1 or 0, as on the other databases; PostgreSQL rejected the boolean (#100)."
+  },
+  "text/t_f -> numeric(18,3)": {
+   "after": [
+    "Decimal('1.000')",
+    "Decimal('0.000')"
+   ],
+   "before": "ERROR",
+   "why": "A true/false value going into a number column is 1 or 0, as on the other databases; PostgreSQL rejected the boolean (#100)."
+  },
+  "text/t_f -> text": {
+   "after": [
+    "'t'",
+    "'f'"
+   ],
+   "before": [
+    "'true'",
+    "'false'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/t_f -> varchar(50)": {
+   "after": [
+    "'t'",
+    "'f'"
+   ],
+   "before": [
+    "'true'",
+    "'false'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/times -> text": {
+   "after": [
+    "'10:00'",
+    "'23:59:59'"
+   ],
+   "before": [
+    "'10:00:00'",
+    "'23:59:59'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/times -> varchar(50)": {
+   "after": [
+    "'10:00'",
+    "'23:59:59'"
+   ],
+   "before": [
+    "'10:00:00'",
+    "'23:59:59'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/timestamps -> text": {
+   "after": [
+    "'2024-01-05 10:00'",
+    "'2024-02-06 11:30:15'"
+   ],
+   "before": [
+    "'2024-01-05 10:00:00'",
+    "'2024-02-06 11:30:15'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/timestamps -> varchar(50)": {
+   "after": [
+    "'2024-01-05 10:00'",
+    "'2024-02-06 11:30:15'"
+   ],
+   "before": [
+    "'2024-01-05 10:00:00'",
+    "'2024-02-06 11:30:15'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/timestamps_tz -> text": {
+   "after": [
+    "'2024-01-05T10:00:00Z'",
+    "'2024-01-05 10:00:00+05:30'"
+   ],
+   "before": [
+    "'2024-01-05 10:00:00+00'",
+    "'2024-01-05 04:30:00+00'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/timestamps_tz -> varchar(50)": {
+   "after": [
+    "'2024-01-05T10:00:00Z'",
+    "'2024-01-05 10:00:00+05:30'"
+   ],
+   "before": [
+    "'2024-01-05 10:00:00+00'",
+    "'2024-01-05 04:30:00+00'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/two_places -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "2",
+    "2"
+   ],
+   "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
+  },
+  "text/two_places -> integer": {
+   "after": "ERROR",
+   "before": [
+    "2",
+    "2"
+   ],
+   "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
+  },
+  "text/us_dates -> text": {
+   "after": [
+    "'01/05/2024'",
+    "'02/06/2024'"
+   ],
+   "before": [
+    "'2024-01-05 00:00:00'",
+    "'2024-02-06 00:00:00'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/us_dates -> varchar(50)": {
+   "after": [
+    "'01/05/2024'",
+    "'02/06/2024'"
+   ],
+   "before": [
+    "'2024-01-05 00:00:00'",
+    "'2024-02-06 00:00:00'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/yes_no -> bigint": {
+   "after": [
+    "1",
+    "0"
+   ],
+   "before": "ERROR",
+   "why": "A true/false value going into a number column is 1 or 0, as on the other databases; PostgreSQL rejected the boolean (#100)."
+  },
+  "text/yes_no -> double precision": {
+   "after": [
+    "1.0",
+    "0.0"
+   ],
+   "before": "ERROR",
+   "why": "A true/false value going into a number column is 1 or 0, as on the other databases; PostgreSQL rejected the boolean (#100)."
+  },
+  "text/yes_no -> integer": {
+   "after": [
+    "1",
+    "0"
+   ],
+   "before": "ERROR",
+   "why": "A true/false value going into a number column is 1 or 0, as on the other databases; PostgreSQL rejected the boolean (#100)."
+  },
+  "text/yes_no -> numeric(18,3)": {
+   "after": [
+    "Decimal('1.000')",
+    "Decimal('0.000')"
+   ],
+   "before": "ERROR",
+   "why": "A true/false value going into a number column is 1 or 0, as on the other databases; PostgreSQL rejected the boolean (#100)."
+  },
+  "text/yes_no -> text": {
+   "after": [
+    "'yes'",
+    "'no'"
+   ],
+   "before": [
+    "'true'",
+    "'false'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/yes_no -> varchar(50)": {
+   "after": [
+    "'yes'",
+    "'no'"
+   ],
+   "before": [
+    "'true'",
+    "'false'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/zero_one -> bigint": {
+   "after": [
+    "1",
+    "0"
+   ],
+   "before": "ERROR",
+   "why": "A true/false value going into a number column is 1 or 0, as on the other databases; PostgreSQL rejected the boolean (#100)."
+  },
+  "text/zero_one -> double precision": {
+   "after": [
+    "1.0",
+    "0.0"
+   ],
+   "before": "ERROR",
+   "why": "A true/false value going into a number column is 1 or 0, as on the other databases; PostgreSQL rejected the boolean (#100)."
+  },
+  "text/zero_one -> integer": {
+   "after": [
+    "1",
+    "0"
+   ],
+   "before": "ERROR",
+   "why": "A true/false value going into a number column is 1 or 0, as on the other databases; PostgreSQL rejected the boolean (#100)."
+  },
+  "text/zero_one -> numeric(18,3)": {
+   "after": [
+    "Decimal('1.000')",
+    "Decimal('0.000')"
+   ],
+   "before": "ERROR",
+   "why": "A true/false value going into a number column is 1 or 0, as on the other databases; PostgreSQL rejected the boolean (#100)."
+  },
+  "text/zero_one -> text": {
+   "after": [
+    "'1'",
+    "'0'"
+   ],
+   "before": [
+    "'true'",
+    "'false'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/zero_one -> varchar(50)": {
+   "after": [
+    "'1'",
+    "'0'"
+   ],
+   "before": [
+    "'true'",
+    "'false'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "typed/bools -> bigint": {
+   "after": [
+    "1",
+    "0"
+   ],
+   "before": "ERROR",
+   "why": "A true/false value going into a number column is 1 or 0, as on the other databases; PostgreSQL rejected the boolean (#100)."
+  },
+  "typed/bools -> double precision": {
+   "after": [
+    "1.0",
+    "0.0"
+   ],
+   "before": "ERROR",
+   "why": "A true/false value going into a number column is 1 or 0, as on the other databases; PostgreSQL rejected the boolean (#100)."
+  },
+  "typed/bools -> integer": {
+   "after": [
+    "1",
+    "0"
+   ],
+   "before": "ERROR",
+   "why": "A true/false value going into a number column is 1 or 0, as on the other databases; PostgreSQL rejected the boolean (#100)."
+  },
+  "typed/bools -> numeric(18,3)": {
+   "after": [
+    "Decimal('1.000')",
+    "Decimal('0.000')"
+   ],
+   "before": "ERROR",
+   "why": "A true/false value going into a number column is 1 or 0, as on the other databases; PostgreSQL rejected the boolean (#100)."
+  },
+  "typed/date -> text": {
+   "after": [
+    "'2024-01-05'"
+   ],
+   "before": [
+    "'2024-01-05 00:00:00'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "typed/date -> varchar(50)": {
+   "after": [
+    "'2024-01-05'"
+   ],
+   "before": [
+    "'2024-01-05 00:00:00'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "typed/date_and_null -> text": {
+   "after": [
+    "'2024-01-05'",
+    "None"
+   ],
+   "before": [
+    "'2024-01-05 00:00:00'",
+    "None"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "typed/date_and_null -> varchar(50)": {
+   "after": [
+    "'2024-01-05'",
+    "None"
+   ],
+   "before": [
+    "'2024-01-05 00:00:00'",
+    "None"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "typed/decimal_fraction -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "2",
+    "2"
+   ],
+   "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
+  },
+  "typed/decimal_fraction -> integer": {
+   "after": "ERROR",
+   "before": [
+    "2",
+    "2"
+   ],
+   "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
+  },
+  "typed/decimal_scale -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "2"
+   ],
+   "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
+  },
+  "typed/decimal_scale -> integer": {
+   "after": "ERROR",
+   "before": [
+    "2"
+   ],
+   "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
+  },
+  "typed/float_fraction -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "2",
+    "0"
+   ],
+   "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
+  },
+  "typed/float_fraction -> integer": {
+   "after": "ERROR",
+   "before": [
+    "2",
+    "0"
+   ],
+   "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
+  },
+  "typed/int_zero_one -> bigint": {
+   "after": [
+    "1",
+    "0"
+   ],
+   "before": "ERROR",
+   "why": "A true/false value going into a number column is 1 or 0, as on the other databases; PostgreSQL rejected the boolean (#100)."
+  },
+  "typed/int_zero_one -> double precision": {
+   "after": [
+    "1.0",
+    "0.0"
+   ],
+   "before": "ERROR",
+   "why": "A true/false value going into a number column is 1 or 0, as on the other databases; PostgreSQL rejected the boolean (#100)."
+  },
+  "typed/int_zero_one -> integer": {
+   "after": [
+    "1",
+    "0"
+   ],
+   "before": "ERROR",
+   "why": "A true/false value going into a number column is 1 or 0, as on the other databases; PostgreSQL rejected the boolean (#100)."
+  },
+  "typed/int_zero_one -> numeric(18,3)": {
+   "after": [
+    "Decimal('1.000')",
+    "Decimal('0.000')"
+   ],
+   "before": "ERROR",
+   "why": "A true/false value going into a number column is 1 or 0, as on the other databases; PostgreSQL rejected the boolean (#100)."
+  },
+  "typed/int_zero_one -> text": {
+   "after": [
+    "'1'",
+    "'0'"
+   ],
+   "before": [
+    "'true'",
+    "'false'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "typed/int_zero_one -> varchar(50)": {
+   "after": [
+    "'1'",
+    "'0'"
+   ],
+   "before": [
+    "'true'",
+    "'false'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  }
+ },
+ "sqlserver": {
+  "text/TRUE_FALSE -> nvarchar(max)": {
+   "after": [
+    "'TRUE'",
+    "'FALSE'"
+   ],
+   "before": [
+    "'1'",
+    "'0'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/TRUE_FALSE -> varchar(50)": {
+   "after": [
+    "'TRUE'",
+    "'FALSE'"
+   ],
+   "before": [
+    "'1'",
+    "'0'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/dates_and_missing -> nvarchar(max)": {
+   "after": [
+    "'2024-01-05'",
+    "None"
+   ],
+   "before": [
+    "'2024-01-05 00:00:00.0000000'",
+    "None"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/dates_and_missing -> varchar(50)": {
+   "after": [
+    "'2024-01-05'",
+    "None"
+   ],
+   "before": [
+    "'2024-01-05 00:00:00.0000000'",
+    "None"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/day_first_date -> nvarchar(max)": {
+   "after": [
+    "'13/05/2024'"
+   ],
+   "before": [
+    "'2024-05-13 00:00:00.0000000'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/day_first_date -> varchar(50)": {
+   "after": [
+    "'13/05/2024'"
+   ],
+   "before": [
+    "'2024-05-13 00:00:00.0000000'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/exponent -> nvarchar(max)": {
+   "after": [
+    "'1e3'",
+    "'2E2'"
+   ],
+   "before": [
+    "'1000'",
+    "'200'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/exponent -> varchar(50)": {
+   "after": [
+    "'1e3'",
+    "'2E2'"
+   ],
+   "before": [
+    "'1000'",
+    "'200'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/fractions -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "1",
+    "2"
+   ],
+   "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
+  },
+  "text/fractions -> int": {
+   "after": "ERROR",
+   "before": [
+    "1",
+    "2"
+   ],
+   "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
+  },
+  "text/iso_dates -> nvarchar(max)": {
+   "after": [
+    "'2024-01-05'",
+    "'2024-02-06'"
+   ],
+   "before": [
+    "'2024-01-05 00:00:00.0000000'",
+    "'2024-02-06 00:00:00.0000000'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/iso_dates -> varchar(50)": {
+   "after": [
+    "'2024-01-05'",
+    "'2024-02-06'"
+   ],
+   "before": [
+    "'2024-01-05 00:00:00.0000000'",
+    "'2024-02-06 00:00:00.0000000'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/month_names -> nvarchar(max)": {
+   "after": [
+    "'Jan 5, 2024'"
+   ],
+   "before": [
+    "'2024-01-05 00:00:00.0000000'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/month_names -> varchar(50)": {
+   "after": [
+    "'Jan 5, 2024'"
+   ],
+   "before": [
+    "'2024-01-05 00:00:00.0000000'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/signed_padded -> nvarchar(max)": {
+   "after": [
+    "' 7 '",
+    "'+3'",
+    "'-2'"
+   ],
+   "before": [
+    "'7'",
+    "'3'",
+    "'-2'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/signed_padded -> varchar(50)": {
+   "after": [
+    "' 7 '",
+    "'+3'",
+    "'-2'"
+   ],
+   "before": [
+    "'7'",
+    "'3'",
+    "'-2'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/small_floats -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "0",
+    "0"
+   ],
+   "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
+  },
+  "text/small_floats -> int": {
+   "after": "ERROR",
+   "before": [
+    "0",
+    "0"
+   ],
+   "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
+  },
+  "text/small_floats -> nvarchar(max)": {
+   "after": [
+    "'0.1'",
+    "'1e-20'"
+   ],
+   "before": [
+    "'0.1'",
+    "'1e-020'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/small_floats -> varchar(50)": {
+   "after": [
+    "'0.1'",
+    "'1e-20'"
+   ],
+   "before": [
+    "'0.1'",
+    "'1e-020'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/t_f -> nvarchar(max)": {
+   "after": [
+    "'t'",
+    "'f'"
+   ],
+   "before": [
+    "'1'",
+    "'0'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/t_f -> varchar(50)": {
+   "after": [
+    "'t'",
+    "'f'"
+   ],
+   "before": [
+    "'1'",
+    "'0'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/times -> nvarchar(max)": {
+   "after": [
+    "'10:00'",
+    "'23:59:59'"
+   ],
+   "before": [
+    "'10:00:00.0000000'",
+    "'23:59:59.0000000'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/times -> varchar(50)": {
+   "after": [
+    "'10:00'",
+    "'23:59:59'"
+   ],
+   "before": [
+    "'10:00:00.0000000'",
+    "'23:59:59.0000000'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/timestamps -> nvarchar(max)": {
+   "after": [
+    "'2024-01-05 10:00'",
+    "'2024-02-06 11:30:15'"
+   ],
+   "before": [
+    "'2024-01-05 10:00:00.0000000'",
+    "'2024-02-06 11:30:15.0000000'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/timestamps -> varchar(50)": {
+   "after": [
+    "'2024-01-05 10:00'",
+    "'2024-02-06 11:30:15'"
+   ],
+   "before": [
+    "'2024-01-05 10:00:00.0000000'",
+    "'2024-02-06 11:30:15.0000000'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/timestamps_tz -> nvarchar(max)": {
+   "after": [
+    "'2024-01-05T10:00:00Z'",
+    "'2024-01-05 10:00:00+05:30'"
+   ],
+   "before": [
+    "'2024-01-05 10:00:00.0000000'",
+    "'2024-01-05 10:00:00.0000000'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/timestamps_tz -> varchar(50)": {
+   "after": [
+    "'2024-01-05T10:00:00Z'",
+    "'2024-01-05 10:00:00+05:30'"
+   ],
+   "before": [
+    "'2024-01-05 10:00:00.0000000'",
+    "'2024-01-05 10:00:00.0000000'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/two_places -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "1",
+    "2"
+   ],
+   "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
+  },
+  "text/two_places -> int": {
+   "after": "ERROR",
+   "before": [
+    "1",
+    "2"
+   ],
+   "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
+  },
+  "text/us_dates -> nvarchar(max)": {
+   "after": [
+    "'01/05/2024'",
+    "'02/06/2024'"
+   ],
+   "before": [
+    "'2024-01-05 00:00:00.0000000'",
+    "'2024-02-06 00:00:00.0000000'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/us_dates -> varchar(50)": {
+   "after": [
+    "'01/05/2024'",
+    "'02/06/2024'"
+   ],
+   "before": [
+    "'2024-01-05 00:00:00.0000000'",
+    "'2024-02-06 00:00:00.0000000'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/yes_no -> nvarchar(max)": {
+   "after": [
+    "'yes'",
+    "'no'"
+   ],
+   "before": [
+    "'1'",
+    "'0'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/yes_no -> varchar(50)": {
+   "after": [
+    "'yes'",
+    "'no'"
+   ],
+   "before": [
+    "'1'",
+    "'0'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "typed/date -> nvarchar(max)": {
+   "after": [
+    "'2024-01-05'"
+   ],
+   "before": [
+    "'2024-01-05 00:00:00.0000000'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "typed/date -> varchar(50)": {
+   "after": [
+    "'2024-01-05'"
+   ],
+   "before": [
+    "'2024-01-05 00:00:00.0000000'"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "typed/date_and_null -> nvarchar(max)": {
+   "after": [
+    "'2024-01-05'",
+    "None"
+   ],
+   "before": [
+    "'2024-01-05 00:00:00.0000000'",
+    "None"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "typed/date_and_null -> varchar(50)": {
+   "after": [
+    "'2024-01-05'",
+    "None"
+   ],
+   "before": [
+    "'2024-01-05 00:00:00.0000000'",
+    "None"
+   ],
+   "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "typed/decimal_fraction -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "1",
+    "2"
+   ],
+   "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
+  },
+  "typed/decimal_fraction -> int": {
+   "after": "ERROR",
+   "before": [
+    "1",
+    "2"
+   ],
+   "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
+  },
+  "typed/decimal_scale -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "1"
+   ],
+   "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
+  },
+  "typed/decimal_scale -> int": {
+   "after": "ERROR",
+   "before": [
+    "1"
+   ],
+   "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
+  },
+  "typed/float_fraction -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "1",
+    "0"
+   ],
+   "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
+  },
+  "typed/float_fraction -> int": {
+   "after": "ERROR",
+   "before": [
+    "1",
+    "0"
+   ],
+   "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
+  }
+ }
+}

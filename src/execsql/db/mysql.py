@@ -13,6 +13,7 @@ import tempfile
 from typing import Any, cast
 
 from execsql.db.base import Database
+from execsql.db.target_types import ColumnKinds, kind_for_type_name
 from execsql.exceptions import ErrInfo
 from execsql.utils.errors import exception_desc, fatal_error, install_hint
 from execsql.utils.auth import (
@@ -39,6 +40,11 @@ _PYTHON_TO_MYSQL_CHARSET: dict[str, str] = {
     "cp1252": "cp1252",
     "windows-1252": "cp1252",
 }
+
+
+def _text(value: Any) -> str:
+    """A catalog value as text: some MySQL versions return ``SHOW COLUMNS`` types as bytes."""
+    return value.decode() if isinstance(value, (bytes, bytearray)) else str(value)
 
 
 def _crlf_terminated(filename: str) -> bool:
@@ -239,6 +245,11 @@ class MySQLDatabase(Database):
             self._fold_identifier(schema_name) if schema_name is not None else None,
         )
 
+    def column_kinds(self, sq_name: str) -> ColumnKinds:
+        """The execsql type of each column of *sq_name*, from ``SHOW COLUMNS`` (which tells BOOLEAN from TINYINT)."""
+        _description, rows = self._column_type_query(sq_name, f"show columns from {sq_name};")
+        return {str(row[0]).lower(): kind_for_type_name(_text(row[1])) for row in rows}
+
     def view_exists(self, view_name: str, schema_name: str | None = None) -> bool:
         return super().view_exists(
             self._fold_identifier(view_name),
@@ -349,8 +360,13 @@ class MySQLDatabase(Database):
         table_name: str,
         csv_file_obj: Any,
         skipheader: bool,
+        *,
+        existing_table: bool = False,
     ) -> None:
-        """Import a delimited file into a MySQL table."""
+        """Import a delimited file into a MySQL table.
+
+        The file's values go to the server as text, unconverted, so *existing_table* changes nothing here.
+        """
         # Import a file to a table.  Columns must be compatible.
         sq_name = self.schema_qualified_table_name(schema_name, table_name)
         if not self.table_exists(table_name, schema_name):

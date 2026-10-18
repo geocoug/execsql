@@ -8,6 +8,12 @@ If you are adding support for a new database, start with the [Adding Database Ad
 
 ::: execsql.db.base
 
+## Target column types
+
+`IMPORT` and `COPY` into a table that already exists convert each value by the type of the column it goes into (`Database.column_kinds()`), not by the type scanned from the source data.
+
+::: execsql.db.target_types
+
 ## Database factory
 
 Convenience constructors used internally to create typed `Database` instances. The CLI calls the appropriate factory function based on the `-t` flag value. Each factory validates its arguments (e.g., checking that a file exists) before constructing and returning the adapter.

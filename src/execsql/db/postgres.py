@@ -14,6 +14,7 @@ import re
 from typing import Any
 
 from execsql.db.base import Database
+from execsql.db.target_types import ColumnKinds, kind_for_type_name
 from execsql.exceptions import ErrInfo
 from execsql.utils.errors import exception_desc, fatal_error, install_hint
 from execsql.utils.auth import (
@@ -224,6 +225,16 @@ class PostgresDatabase(Database):
             rows = curs.fetchall()
         return len(rows) > 0
 
+    def column_kinds(self, sq_name: str) -> ColumnKinds:
+        """The execsql type of each column of *sq_name*, from the catalog (``regclass`` follows the search path)."""
+        _description, rows = self._column_type_query(
+            sq_name,
+            "select attname, format_type(atttypid, atttypmod) from pg_attribute "
+            "where attrelid = %s::regclass and attnum > 0 and not attisdropped order by attnum;",
+            [sq_name],
+        )
+        return {name.lower(): kind_for_type_name(type_name) for name, type_name in rows}
+
     def view_exists(self, view_name: str, schema_name: str | None = None) -> bool:
         """Return True if the named view exists in the PostgreSQL database."""
         if schema_name is not None:
@@ -279,8 +290,13 @@ class PostgresDatabase(Database):
         table_name: str,
         csv_file_obj: Any,
         skipheader: bool,
+        *,
+        existing_table: bool = False,
     ) -> None:
-        """Import a delimited file into a PostgreSQL table, using COPY when possible."""
+        """Import a delimited file into a PostgreSQL table, using COPY when possible.
+
+        The file's values go to the server as text, unconverted, so *existing_table* changes nothing here.
+        """
         # Import a file to a table.  Columns must be compatible.
         sq_name = self.schema_qualified_table_name(schema_name, table_name)
         if not self.table_exists(table_name, schema_name):

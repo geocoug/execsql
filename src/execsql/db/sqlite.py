@@ -182,8 +182,14 @@ class SQLiteDatabase(Database):
         rowsource: Any,
         column_list: list[str],
         tablespec_src: Any,
+        *,
+        existing_table: bool = False,
     ) -> None:
-        """Populate a SQLite table from a row source generator."""
+        """Populate a SQLite table from a row source generator.
+
+        Values are inserted as the source gives them (dates, times and
+        decimals as text), so *existing_table* changes nothing here.
+        """
         # The rowsource argument must be a generator yielding a list of values for the columns of the table.
         # The column_list argument must an iterable containing column names in the same order as produced by the rowsource.
         sq_name = self.schema_qualified_table_name(None, table_name)

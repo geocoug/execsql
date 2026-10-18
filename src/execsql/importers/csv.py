@@ -91,7 +91,7 @@ def importtable(
                     other_msg=f"Non-existent table name ({tablename}) used with the IMPORT_FILE metacommand",
                 )
     try:
-        db.import_tabular_file(schemaname, tablename, inf, skipheader=True)
+        db.import_tabular_file(schemaname, tablename, inf, skipheader=True, existing_table=not is_new)
         db.commit()
     except ErrInfo:
         raise

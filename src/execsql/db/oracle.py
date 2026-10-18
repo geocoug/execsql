@@ -12,6 +12,8 @@ import re
 from typing import Any
 
 from execsql.db.base import Database
+from execsql.db.target_types import kind_for_type_name
+from execsql.types import DataType
 from execsql.db.tiers import SupportTier
 from execsql.exceptions import ErrInfo
 from execsql.utils.errors import exception_desc, fatal_error, install_hint
@@ -47,6 +49,29 @@ def _oracle_driver() -> Any:
         return cx_Oracle
     except ImportError:
         return None
+
+
+# oracledb DbType names -> the type names db.target_types reads.  NUMBER is
+# read from its precision and scale; a type not listed has no execsql type.
+_ORACLE_TYPE_NAMES = {
+    "DB_TYPE_VARCHAR": "varchar2",
+    "DB_TYPE_NVARCHAR": "nvarchar2",
+    "DB_TYPE_CHAR": "char",
+    "DB_TYPE_NCHAR": "nchar",
+    "DB_TYPE_LONG": "clob",
+    "DB_TYPE_CLOB": "clob",
+    "DB_TYPE_NCLOB": "nclob",
+    "DB_TYPE_BINARY_FLOAT": "binary_float",
+    "DB_TYPE_BINARY_DOUBLE": "binary_double",
+    "DB_TYPE_BOOLEAN": "boolean",
+    "DB_TYPE_DATE": "date",
+    "DB_TYPE_TIMESTAMP": "timestamp",
+    "DB_TYPE_TIMESTAMP_TZ": "timestamp with time zone",
+    "DB_TYPE_TIMESTAMP_LTZ": "timestamp with local time zone",
+    "DB_TYPE_RAW": "raw",
+    "DB_TYPE_LONG_RAW": "long raw",
+    "DB_TYPE_BLOB": "blob",
+}
 
 
 class OracleDatabase(Database):
@@ -267,6 +292,17 @@ class OracleDatabase(Database):
                 ) from e
             rows = curs.fetchall()
         return [row[0] for row in rows]
+
+    def _described_kind(self, description: Any) -> type[DataType] | None:
+        """oracledb describes a column by a ``DbType`` (``DB_TYPE_NUMBER``), with its precision and scale."""
+        name = getattr(description[1], "name", "")
+        if name == "DB_TYPE_NUMBER":
+            precision, scale = description[4], description[5]
+            # NUMBER with no precision, and FLOAT, report scale -127.
+            type_name = f"number({precision},{scale})" if precision and scale is not None and scale >= 0 else "number"
+        else:
+            type_name = _ORACLE_TYPE_NAMES.get(name, "")
+        return kind_for_type_name(type_name, oracle=True)
 
     def view_exists(self, view_name: str, schema_name: str | None = None) -> bool:
         """Return True if the named view exists in the Oracle database."""

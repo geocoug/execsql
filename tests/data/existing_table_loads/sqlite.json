@@ -1,0 +1,1090 @@
+{
+ "scanned": {
+  "text/TRUE_FALSE": "DT_Boolean",
+  "text/big_integer": "DT_Long",
+  "text/dates_and_missing": "DT_Timestamp",
+  "text/day_first_date": "DT_Timestamp",
+  "text/empty_and_missing": "DT_Character",
+  "text/exponent": "DT_Float",
+  "text/fractions": "DT_Decimal",
+  "text/integers": "DT_Integer",
+  "text/iso_dates": "DT_Timestamp",
+  "text/leading_zeros": "DT_Character",
+  "text/long_text": "DT_Character",
+  "text/month_names": "DT_Timestamp",
+  "text/padded_text": "DT_Character",
+  "text/signed_padded": "DT_Integer",
+  "text/small_floats": "DT_Float",
+  "text/t_f": "DT_Boolean",
+  "text/times": "DT_Time",
+  "text/timestamps": "DT_Timestamp",
+  "text/timestamps_tz": "DT_TimestampTZ",
+  "text/two_places": "DT_Decimal",
+  "text/unicode": "DT_Character",
+  "text/us_dates": "DT_Timestamp",
+  "text/whole_decimals": "DT_Decimal",
+  "text/word_and_number": "DT_Varchar",
+  "text/words": "DT_Character",
+  "text/yes_no": "DT_Boolean",
+  "text/zero_one": "DT_Boolean",
+  "typed/big_int": "DT_Long",
+  "typed/bools": "DT_Boolean",
+  "typed/bytes": "DT_Binary",
+  "typed/date": "DT_Timestamp",
+  "typed/date_and_null": "DT_Timestamp",
+  "typed/datetime": "DT_Timestamp",
+  "typed/datetime_tz": "DT_TimestampTZ",
+  "typed/decimal_fraction": "DT_Decimal",
+  "typed/decimal_scale": "DT_Decimal",
+  "typed/decimal_whole": "DT_Decimal",
+  "typed/float_fraction": "DT_Float",
+  "typed/float_whole": "DT_Long",
+  "typed/int_and_null": "DT_Integer",
+  "typed/int_zero_one": "DT_Boolean",
+  "typed/ints": "DT_Integer",
+  "typed/text_date": "DT_Character",
+  "typed/text_words": "DT_Character",
+  "typed/text_zero_one": "DT_Character",
+  "typed/time": "DT_Time"
+ },
+ "stored": {
+  "text/TRUE_FALSE -> boolean": [
+   "'TRUE'",
+   "'FALSE'"
+  ],
+  "text/TRUE_FALSE -> date": [
+   "'TRUE'",
+   "'FALSE'"
+  ],
+  "text/TRUE_FALSE -> integer": [
+   "'TRUE'",
+   "'FALSE'"
+  ],
+  "text/TRUE_FALSE -> numeric": [
+   "'TRUE'",
+   "'FALSE'"
+  ],
+  "text/TRUE_FALSE -> real": [
+   "'TRUE'",
+   "'FALSE'"
+  ],
+  "text/TRUE_FALSE -> text": [
+   "'TRUE'",
+   "'FALSE'"
+  ],
+  "text/big_integer -> boolean": [
+   "3000000000"
+  ],
+  "text/big_integer -> date": [
+   "3000000000"
+  ],
+  "text/big_integer -> integer": [
+   "3000000000"
+  ],
+  "text/big_integer -> numeric": [
+   "3000000000"
+  ],
+  "text/big_integer -> real": [
+   "3000000000.0"
+  ],
+  "text/big_integer -> text": [
+   "'3000000000'"
+  ],
+  "text/dates_and_missing -> boolean": [
+   "'2024-01-05'",
+   "None"
+  ],
+  "text/dates_and_missing -> date": [
+   "'2024-01-05'",
+   "None"
+  ],
+  "text/dates_and_missing -> integer": [
+   "'2024-01-05'",
+   "None"
+  ],
+  "text/dates_and_missing -> numeric": [
+   "'2024-01-05'",
+   "None"
+  ],
+  "text/dates_and_missing -> real": [
+   "'2024-01-05'",
+   "None"
+  ],
+  "text/dates_and_missing -> text": [
+   "'2024-01-05'",
+   "None"
+  ],
+  "text/day_first_date -> boolean": [
+   "'13/05/2024'"
+  ],
+  "text/day_first_date -> date": [
+   "'13/05/2024'"
+  ],
+  "text/day_first_date -> integer": [
+   "'13/05/2024'"
+  ],
+  "text/day_first_date -> numeric": [
+   "'13/05/2024'"
+  ],
+  "text/day_first_date -> real": [
+   "'13/05/2024'"
+  ],
+  "text/day_first_date -> text": [
+   "'13/05/2024'"
+  ],
+  "text/empty_and_missing -> boolean": [
+   "''",
+   "None",
+   "'x'"
+  ],
+  "text/empty_and_missing -> date": [
+   "''",
+   "None",
+   "'x'"
+  ],
+  "text/empty_and_missing -> integer": [
+   "''",
+   "None",
+   "'x'"
+  ],
+  "text/empty_and_missing -> numeric": [
+   "''",
+   "None",
+   "'x'"
+  ],
+  "text/empty_and_missing -> real": [
+   "''",
+   "None",
+   "'x'"
+  ],
+  "text/empty_and_missing -> text": [
+   "''",
+   "None",
+   "'x'"
+  ],
+  "text/exponent -> boolean": [
+   "1000",
+   "200"
+  ],
+  "text/exponent -> date": [
+   "1000",
+   "200"
+  ],
+  "text/exponent -> integer": [
+   "1000",
+   "200"
+  ],
+  "text/exponent -> numeric": [
+   "1000",
+   "200"
+  ],
+  "text/exponent -> real": [
+   "1000.0",
+   "200.0"
+  ],
+  "text/exponent -> text": [
+   "'1e3'",
+   "'2E2'"
+  ],
+  "text/fractions -> boolean": [
+   "1.5",
+   "2.25"
+  ],
+  "text/fractions -> date": [
+   "1.5",
+   "2.25"
+  ],
+  "text/fractions -> integer": [
+   "1.5",
+   "2.25"
+  ],
+  "text/fractions -> numeric": [
+   "1.5",
+   "2.25"
+  ],
+  "text/fractions -> real": [
+   "1.5",
+   "2.25"
+  ],
+  "text/fractions -> text": [
+   "'1.5'",
+   "'2.25'"
+  ],
+  "text/integers -> boolean": [
+   "1",
+   "2",
+   "42"
+  ],
+  "text/integers -> date": [
+   "1",
+   "2",
+   "42"
+  ],
+  "text/integers -> integer": [
+   "1",
+   "2",
+   "42"
+  ],
+  "text/integers -> numeric": [
+   "1",
+   "2",
+   "42"
+  ],
+  "text/integers -> real": [
+   "1.0",
+   "2.0",
+   "42.0"
+  ],
+  "text/integers -> text": [
+   "'1'",
+   "'2'",
+   "'42'"
+  ],
+  "text/iso_dates -> boolean": [
+   "'2024-01-05'",
+   "'2024-02-06'"
+  ],
+  "text/iso_dates -> date": [
+   "'2024-01-05'",
+   "'2024-02-06'"
+  ],
+  "text/iso_dates -> integer": [
+   "'2024-01-05'",
+   "'2024-02-06'"
+  ],
+  "text/iso_dates -> numeric": [
+   "'2024-01-05'",
+   "'2024-02-06'"
+  ],
+  "text/iso_dates -> real": [
+   "'2024-01-05'",
+   "'2024-02-06'"
+  ],
+  "text/iso_dates -> text": [
+   "'2024-01-05'",
+   "'2024-02-06'"
+  ],
+  "text/leading_zeros -> boolean": [
+   "701",
+   "2134"
+  ],
+  "text/leading_zeros -> date": [
+   "701",
+   "2134"
+  ],
+  "text/leading_zeros -> integer": [
+   "701",
+   "2134"
+  ],
+  "text/leading_zeros -> numeric": [
+   "701",
+   "2134"
+  ],
+  "text/leading_zeros -> real": [
+   "701.0",
+   "2134.0"
+  ],
+  "text/leading_zeros -> text": [
+   "'00701'",
+   "'02134'"
+  ],
+  "text/long_text -> boolean": [
+   "'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'"
+  ],
+  "text/long_text -> date": [
+   "'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'"
+  ],
+  "text/long_text -> integer": [
+   "'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'"
+  ],
+  "text/long_text -> numeric": [
+   "'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'"
+  ],
+  "text/long_text -> real": [
+   "'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'"
+  ],
+  "text/long_text -> text": [
+   "'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'"
+  ],
+  "text/month_names -> boolean": [
+   "'Jan 5, 2024'"
+  ],
+  "text/month_names -> date": [
+   "'Jan 5, 2024'"
+  ],
+  "text/month_names -> integer": [
+   "'Jan 5, 2024'"
+  ],
+  "text/month_names -> numeric": [
+   "'Jan 5, 2024'"
+  ],
+  "text/month_names -> real": [
+   "'Jan 5, 2024'"
+  ],
+  "text/month_names -> text": [
+   "'Jan 5, 2024'"
+  ],
+  "text/padded_text -> boolean": [
+   "'  pad  '"
+  ],
+  "text/padded_text -> date": [
+   "'  pad  '"
+  ],
+  "text/padded_text -> integer": [
+   "'  pad  '"
+  ],
+  "text/padded_text -> numeric": [
+   "'  pad  '"
+  ],
+  "text/padded_text -> real": [
+   "'  pad  '"
+  ],
+  "text/padded_text -> text": [
+   "'  pad  '"
+  ],
+  "text/signed_padded -> boolean": [
+   "7",
+   "3",
+   "-2"
+  ],
+  "text/signed_padded -> date": [
+   "7",
+   "3",
+   "-2"
+  ],
+  "text/signed_padded -> integer": [
+   "7",
+   "3",
+   "-2"
+  ],
+  "text/signed_padded -> numeric": [
+   "7",
+   "3",
+   "-2"
+  ],
+  "text/signed_padded -> real": [
+   "7.0",
+   "3.0",
+   "-2.0"
+  ],
+  "text/signed_padded -> text": [
+   "' 7 '",
+   "'+3'",
+   "'-2'"
+  ],
+  "text/small_floats -> boolean": [
+   "0.1",
+   "1e-20"
+  ],
+  "text/small_floats -> date": [
+   "0.1",
+   "1e-20"
+  ],
+  "text/small_floats -> integer": [
+   "0.1",
+   "1e-20"
+  ],
+  "text/small_floats -> numeric": [
+   "0.1",
+   "1e-20"
+  ],
+  "text/small_floats -> real": [
+   "0.1",
+   "1e-20"
+  ],
+  "text/small_floats -> text": [
+   "'0.1'",
+   "'1e-20'"
+  ],
+  "text/t_f -> boolean": [
+   "'t'",
+   "'f'"
+  ],
+  "text/t_f -> date": [
+   "'t'",
+   "'f'"
+  ],
+  "text/t_f -> integer": [
+   "'t'",
+   "'f'"
+  ],
+  "text/t_f -> numeric": [
+   "'t'",
+   "'f'"
+  ],
+  "text/t_f -> real": [
+   "'t'",
+   "'f'"
+  ],
+  "text/t_f -> text": [
+   "'t'",
+   "'f'"
+  ],
+  "text/times -> boolean": [
+   "'10:00'",
+   "'23:59:59'"
+  ],
+  "text/times -> date": [
+   "'10:00'",
+   "'23:59:59'"
+  ],
+  "text/times -> integer": [
+   "'10:00'",
+   "'23:59:59'"
+  ],
+  "text/times -> numeric": [
+   "'10:00'",
+   "'23:59:59'"
+  ],
+  "text/times -> real": [
+   "'10:00'",
+   "'23:59:59'"
+  ],
+  "text/times -> text": [
+   "'10:00'",
+   "'23:59:59'"
+  ],
+  "text/timestamps -> boolean": [
+   "'2024-01-05 10:00'",
+   "'2024-02-06 11:30:15'"
+  ],
+  "text/timestamps -> date": [
+   "'2024-01-05 10:00'",
+   "'2024-02-06 11:30:15'"
+  ],
+  "text/timestamps -> integer": [
+   "'2024-01-05 10:00'",
+   "'2024-02-06 11:30:15'"
+  ],
+  "text/timestamps -> numeric": [
+   "'2024-01-05 10:00'",
+   "'2024-02-06 11:30:15'"
+  ],
+  "text/timestamps -> real": [
+   "'2024-01-05 10:00'",
+   "'2024-02-06 11:30:15'"
+  ],
+  "text/timestamps -> text": [
+   "'2024-01-05 10:00'",
+   "'2024-02-06 11:30:15'"
+  ],
+  "text/timestamps_tz -> boolean": [
+   "'2024-01-05T10:00:00Z'",
+   "'2024-01-05 10:00:00+05:30'"
+  ],
+  "text/timestamps_tz -> date": [
+   "'2024-01-05T10:00:00Z'",
+   "'2024-01-05 10:00:00+05:30'"
+  ],
+  "text/timestamps_tz -> integer": [
+   "'2024-01-05T10:00:00Z'",
+   "'2024-01-05 10:00:00+05:30'"
+  ],
+  "text/timestamps_tz -> numeric": [
+   "'2024-01-05T10:00:00Z'",
+   "'2024-01-05 10:00:00+05:30'"
+  ],
+  "text/timestamps_tz -> real": [
+   "'2024-01-05T10:00:00Z'",
+   "'2024-01-05 10:00:00+05:30'"
+  ],
+  "text/timestamps_tz -> text": [
+   "'2024-01-05T10:00:00Z'",
+   "'2024-01-05 10:00:00+05:30'"
+  ],
+  "text/two_places -> boolean": [
+   "1.5",
+   "2"
+  ],
+  "text/two_places -> date": [
+   "1.5",
+   "2"
+  ],
+  "text/two_places -> integer": [
+   "1.5",
+   "2"
+  ],
+  "text/two_places -> numeric": [
+   "1.5",
+   "2"
+  ],
+  "text/two_places -> real": [
+   "1.5",
+   "2.0"
+  ],
+  "text/two_places -> text": [
+   "'1.50'",
+   "'2.00'"
+  ],
+  "text/unicode -> boolean": [
+   "'Ünïcødé'"
+  ],
+  "text/unicode -> date": [
+   "'Ünïcødé'"
+  ],
+  "text/unicode -> integer": [
+   "'Ünïcødé'"
+  ],
+  "text/unicode -> numeric": [
+   "'Ünïcødé'"
+  ],
+  "text/unicode -> real": [
+   "'Ünïcødé'"
+  ],
+  "text/unicode -> text": [
+   "'Ünïcødé'"
+  ],
+  "text/us_dates -> boolean": [
+   "'01/05/2024'",
+   "'02/06/2024'"
+  ],
+  "text/us_dates -> date": [
+   "'01/05/2024'",
+   "'02/06/2024'"
+  ],
+  "text/us_dates -> integer": [
+   "'01/05/2024'",
+   "'02/06/2024'"
+  ],
+  "text/us_dates -> numeric": [
+   "'01/05/2024'",
+   "'02/06/2024'"
+  ],
+  "text/us_dates -> real": [
+   "'01/05/2024'",
+   "'02/06/2024'"
+  ],
+  "text/us_dates -> text": [
+   "'01/05/2024'",
+   "'02/06/2024'"
+  ],
+  "text/whole_decimals -> boolean": [
+   "1",
+   "2"
+  ],
+  "text/whole_decimals -> date": [
+   "1",
+   "2"
+  ],
+  "text/whole_decimals -> integer": [
+   "1",
+   "2"
+  ],
+  "text/whole_decimals -> numeric": [
+   "1",
+   "2"
+  ],
+  "text/whole_decimals -> real": [
+   "1.0",
+   "2.0"
+  ],
+  "text/whole_decimals -> text": [
+   "'1.0'",
+   "'2.0'"
+  ],
+  "text/word_and_number -> boolean": [
+   "'abc'",
+   "1"
+  ],
+  "text/word_and_number -> date": [
+   "'abc'",
+   "1"
+  ],
+  "text/word_and_number -> integer": [
+   "'abc'",
+   "1"
+  ],
+  "text/word_and_number -> numeric": [
+   "'abc'",
+   "1"
+  ],
+  "text/word_and_number -> real": [
+   "'abc'",
+   "1.0"
+  ],
+  "text/word_and_number -> text": [
+   "'abc'",
+   "'1'"
+  ],
+  "text/words -> boolean": [
+   "'abc'",
+   "'def'"
+  ],
+  "text/words -> date": [
+   "'abc'",
+   "'def'"
+  ],
+  "text/words -> integer": [
+   "'abc'",
+   "'def'"
+  ],
+  "text/words -> numeric": [
+   "'abc'",
+   "'def'"
+  ],
+  "text/words -> real": [
+   "'abc'",
+   "'def'"
+  ],
+  "text/words -> text": [
+   "'abc'",
+   "'def'"
+  ],
+  "text/yes_no -> boolean": [
+   "'yes'",
+   "'no'"
+  ],
+  "text/yes_no -> date": [
+   "'yes'",
+   "'no'"
+  ],
+  "text/yes_no -> integer": [
+   "'yes'",
+   "'no'"
+  ],
+  "text/yes_no -> numeric": [
+   "'yes'",
+   "'no'"
+  ],
+  "text/yes_no -> real": [
+   "'yes'",
+   "'no'"
+  ],
+  "text/yes_no -> text": [
+   "'yes'",
+   "'no'"
+  ],
+  "text/zero_one -> boolean": [
+   "1",
+   "0"
+  ],
+  "text/zero_one -> date": [
+   "1",
+   "0"
+  ],
+  "text/zero_one -> integer": [
+   "1",
+   "0"
+  ],
+  "text/zero_one -> numeric": [
+   "1",
+   "0"
+  ],
+  "text/zero_one -> real": [
+   "1.0",
+   "0.0"
+  ],
+  "text/zero_one -> text": [
+   "'1'",
+   "'0'"
+  ],
+  "typed/big_int -> boolean": [
+   "1099511627776"
+  ],
+  "typed/big_int -> date": [
+   "1099511627776"
+  ],
+  "typed/big_int -> integer": [
+   "1099511627776"
+  ],
+  "typed/big_int -> numeric": [
+   "1099511627776"
+  ],
+  "typed/big_int -> real": [
+   "1099511627776.0"
+  ],
+  "typed/big_int -> text": [
+   "'1099511627776'"
+  ],
+  "typed/bools -> boolean": [
+   "1",
+   "0"
+  ],
+  "typed/bools -> date": [
+   "1",
+   "0"
+  ],
+  "typed/bools -> integer": [
+   "1",
+   "0"
+  ],
+  "typed/bools -> numeric": [
+   "1",
+   "0"
+  ],
+  "typed/bools -> real": [
+   "1.0",
+   "0.0"
+  ],
+  "typed/bools -> text": [
+   "'1'",
+   "'0'"
+  ],
+  "typed/bytes -> boolean": [
+   "b'\\x00ab'"
+  ],
+  "typed/bytes -> date": [
+   "b'\\x00ab'"
+  ],
+  "typed/bytes -> integer": [
+   "b'\\x00ab'"
+  ],
+  "typed/bytes -> numeric": [
+   "b'\\x00ab'"
+  ],
+  "typed/bytes -> real": [
+   "b'\\x00ab'"
+  ],
+  "typed/bytes -> text": [
+   "b'\\x00ab'"
+  ],
+  "typed/date -> boolean": [
+   "'2024-01-05'"
+  ],
+  "typed/date -> date": [
+   "'2024-01-05'"
+  ],
+  "typed/date -> integer": [
+   "'2024-01-05'"
+  ],
+  "typed/date -> numeric": [
+   "'2024-01-05'"
+  ],
+  "typed/date -> real": [
+   "'2024-01-05'"
+  ],
+  "typed/date -> text": [
+   "'2024-01-05'"
+  ],
+  "typed/date_and_null -> boolean": [
+   "'2024-01-05'",
+   "None"
+  ],
+  "typed/date_and_null -> date": [
+   "'2024-01-05'",
+   "None"
+  ],
+  "typed/date_and_null -> integer": [
+   "'2024-01-05'",
+   "None"
+  ],
+  "typed/date_and_null -> numeric": [
+   "'2024-01-05'",
+   "None"
+  ],
+  "typed/date_and_null -> real": [
+   "'2024-01-05'",
+   "None"
+  ],
+  "typed/date_and_null -> text": [
+   "'2024-01-05'",
+   "None"
+  ],
+  "typed/datetime -> boolean": [
+   "'2024-01-05 10:00:00'"
+  ],
+  "typed/datetime -> date": [
+   "'2024-01-05 10:00:00'"
+  ],
+  "typed/datetime -> integer": [
+   "'2024-01-05 10:00:00'"
+  ],
+  "typed/datetime -> numeric": [
+   "'2024-01-05 10:00:00'"
+  ],
+  "typed/datetime -> real": [
+   "'2024-01-05 10:00:00'"
+  ],
+  "typed/datetime -> text": [
+   "'2024-01-05 10:00:00'"
+  ],
+  "typed/datetime_tz -> boolean": [
+   "'2024-01-05 10:00:00+05:30'"
+  ],
+  "typed/datetime_tz -> date": [
+   "'2024-01-05 10:00:00+05:30'"
+  ],
+  "typed/datetime_tz -> integer": [
+   "'2024-01-05 10:00:00+05:30'"
+  ],
+  "typed/datetime_tz -> numeric": [
+   "'2024-01-05 10:00:00+05:30'"
+  ],
+  "typed/datetime_tz -> real": [
+   "'2024-01-05 10:00:00+05:30'"
+  ],
+  "typed/datetime_tz -> text": [
+   "'2024-01-05 10:00:00+05:30'"
+  ],
+  "typed/decimal_fraction -> boolean": [
+   "1.5",
+   "2.25"
+  ],
+  "typed/decimal_fraction -> date": [
+   "1.5",
+   "2.25"
+  ],
+  "typed/decimal_fraction -> integer": [
+   "1.5",
+   "2.25"
+  ],
+  "typed/decimal_fraction -> numeric": [
+   "1.5",
+   "2.25"
+  ],
+  "typed/decimal_fraction -> real": [
+   "1.5",
+   "2.25"
+  ],
+  "typed/decimal_fraction -> text": [
+   "'1.5'",
+   "'2.25'"
+  ],
+  "typed/decimal_scale -> boolean": [
+   "1.5"
+  ],
+  "typed/decimal_scale -> date": [
+   "1.5"
+  ],
+  "typed/decimal_scale -> integer": [
+   "1.5"
+  ],
+  "typed/decimal_scale -> numeric": [
+   "1.5"
+  ],
+  "typed/decimal_scale -> real": [
+   "1.5"
+  ],
+  "typed/decimal_scale -> text": [
+   "'1.50'"
+  ],
+  "typed/decimal_whole -> boolean": [
+   "1",
+   "2"
+  ],
+  "typed/decimal_whole -> date": [
+   "1",
+   "2"
+  ],
+  "typed/decimal_whole -> integer": [
+   "1",
+   "2"
+  ],
+  "typed/decimal_whole -> numeric": [
+   "1",
+   "2"
+  ],
+  "typed/decimal_whole -> real": [
+   "1.0",
+   "2.0"
+  ],
+  "typed/decimal_whole -> text": [
+   "'1.0'",
+   "'2.0'"
+  ],
+  "typed/float_fraction -> boolean": [
+   "1.5",
+   "0.1"
+  ],
+  "typed/float_fraction -> date": [
+   "1.5",
+   "0.1"
+  ],
+  "typed/float_fraction -> integer": [
+   "1.5",
+   "0.1"
+  ],
+  "typed/float_fraction -> numeric": [
+   "1.5",
+   "0.1"
+  ],
+  "typed/float_fraction -> real": [
+   "1.5",
+   "0.1"
+  ],
+  "typed/float_fraction -> text": [
+   "'1.5'",
+   "'0.1'"
+  ],
+  "typed/float_whole -> boolean": [
+   "1",
+   "2"
+  ],
+  "typed/float_whole -> date": [
+   "1",
+   "2"
+  ],
+  "typed/float_whole -> integer": [
+   "1",
+   "2"
+  ],
+  "typed/float_whole -> numeric": [
+   "1",
+   "2"
+  ],
+  "typed/float_whole -> real": [
+   "1.0",
+   "2.0"
+  ],
+  "typed/float_whole -> text": [
+   "'1.0'",
+   "'2.0'"
+  ],
+  "typed/int_and_null -> boolean": [
+   "7",
+   "None"
+  ],
+  "typed/int_and_null -> date": [
+   "7",
+   "None"
+  ],
+  "typed/int_and_null -> integer": [
+   "7",
+   "None"
+  ],
+  "typed/int_and_null -> numeric": [
+   "7",
+   "None"
+  ],
+  "typed/int_and_null -> real": [
+   "7.0",
+   "None"
+  ],
+  "typed/int_and_null -> text": [
+   "'7'",
+   "None"
+  ],
+  "typed/int_zero_one -> boolean": [
+   "1",
+   "0"
+  ],
+  "typed/int_zero_one -> date": [
+   "1",
+   "0"
+  ],
+  "typed/int_zero_one -> integer": [
+   "1",
+   "0"
+  ],
+  "typed/int_zero_one -> numeric": [
+   "1",
+   "0"
+  ],
+  "typed/int_zero_one -> real": [
+   "1.0",
+   "0.0"
+  ],
+  "typed/int_zero_one -> text": [
+   "'1'",
+   "'0'"
+  ],
+  "typed/ints -> boolean": [
+   "1",
+   "2",
+   "42"
+  ],
+  "typed/ints -> date": [
+   "1",
+   "2",
+   "42"
+  ],
+  "typed/ints -> integer": [
+   "1",
+   "2",
+   "42"
+  ],
+  "typed/ints -> numeric": [
+   "1",
+   "2",
+   "42"
+  ],
+  "typed/ints -> real": [
+   "1.0",
+   "2.0",
+   "42.0"
+  ],
+  "typed/ints -> text": [
+   "'1'",
+   "'2'",
+   "'42'"
+  ],
+  "typed/text_date -> boolean": [
+   "'2024-01-05'"
+  ],
+  "typed/text_date -> date": [
+   "'2024-01-05'"
+  ],
+  "typed/text_date -> integer": [
+   "'2024-01-05'"
+  ],
+  "typed/text_date -> numeric": [
+   "'2024-01-05'"
+  ],
+  "typed/text_date -> real": [
+   "'2024-01-05'"
+  ],
+  "typed/text_date -> text": [
+   "'2024-01-05'"
+  ],
+  "typed/text_words -> boolean": [
+   "'abc'"
+  ],
+  "typed/text_words -> date": [
+   "'abc'"
+  ],
+  "typed/text_words -> integer": [
+   "'abc'"
+  ],
+  "typed/text_words -> numeric": [
+   "'abc'"
+  ],
+  "typed/text_words -> real": [
+   "'abc'"
+  ],
+  "typed/text_words -> text": [
+   "'abc'"
+  ],
+  "typed/text_zero_one -> boolean": [
+   "1",
+   "0"
+  ],
+  "typed/text_zero_one -> date": [
+   "1",
+   "0"
+  ],
+  "typed/text_zero_one -> integer": [
+   "1",
+   "0"
+  ],
+  "typed/text_zero_one -> numeric": [
+   "1",
+   "0"
+  ],
+  "typed/text_zero_one -> real": [
+   "1.0",
+   "0.0"
+  ],
+  "typed/text_zero_one -> text": [
+   "'1'",
+   "'0'"
+  ],
+  "typed/time -> boolean": [
+   "'10:00:00'"
+  ],
+  "typed/time -> date": [
+   "'10:00:00'"
+  ],
+  "typed/time -> integer": [
+   "'10:00:00'"
+  ],
+  "typed/time -> numeric": [
+   "'10:00:00'"
+  ],
+  "typed/time -> real": [
+   "'10:00:00'"
+  ],
+  "typed/time -> text": [
+   "'10:00:00'"
+  ]
+ }
+}

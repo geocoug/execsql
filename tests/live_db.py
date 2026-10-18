@@ -80,6 +80,28 @@ def _mysql_db(tmp_path):
     return db
 
 
+def _sqlserver_db(tmp_path):
+    pytest.importorskip("pyodbc", reason="pyodbc not installed")
+    host = os.environ.get("EXECSQL_MSSQL_HOST", "localhost")
+    port = int(os.environ.get("EXECSQL_MSSQL_PORT", "1433"))
+    if not _server_listening(host, port):
+        raise OSError(f"nothing listening at {host}:{port}")
+    from execsql.db.sqlserver import SqlServerDatabase
+
+    return SqlServerDatabase(
+        server_name=f"{host},{port}",
+        db_name=os.environ.get("EXECSQL_MSSQL_DATABASE", "execsql_test"),
+        user_name=os.environ.get("EXECSQL_MSSQL_USER", "sa"),
+        password=os.environ.get("EXECSQL_MSSQL_PASSWORD", "ExecSql_Test123!"),
+        trust_server_certificate=True,
+    )
+
+
+#: Backends ``open_backend`` can open that are not in ``BACKEND_NAMES``: the
+#: importer round trips parametrize over that list and do not cover these.
+_OTHER_BACKENDS = {"sqlserver": _sqlserver_db}
+
+
 _BACKENDS = {
     "sqlite": _sqlite_db,
     "duckdb": _duckdb_db,
@@ -97,7 +119,7 @@ def open_backend(dbms: str, tmp_path):
     if dbms in _unusable:
         pytest.skip(_unusable[dbms])
     try:
-        return _BACKENDS[dbms](tmp_path)
+        return {**_BACKENDS, **_OTHER_BACKENDS}[dbms](tmp_path)
     except pytest.skip.Exception:
         raise
     except Exception as exc:

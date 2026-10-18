@@ -142,7 +142,7 @@ def import_data_table(
             )
         import_cols = hdrs
     try:
-        db.populate_table(schemaname, tablename, data, import_cols, get_ts)
+        db.populate_table(schemaname, tablename, data, import_cols, get_ts, existing_table=not is_new)
         db.commit()
     except ErrInfo:
         raise

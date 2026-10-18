@@ -264,6 +264,8 @@ ______________________________________________________________________
 
 The base class provides shared implementations for `execute()`, `select_data()`, `select_rowsource()`, `select_rowdict()`, `commit()`, `rollback()`, and `populate_table()`.
 
+`populate_table()` converts each value to the type scanned from the source (`models.DataTable`). For a table that was already there (`existing_table=True`, passed by IMPORT and COPY), `column_kinds()` reports the target columns' types and `db/target_types.py` picks each column's conversion instead: a text column gets the value as given, an integer column whole numbers or an error. `column_kinds()` reads the driver's description of `select * from <table> where 1=0` by default; PostgreSQL, MySQL and SQL Server read their catalogs, where the description cannot tell some types apart. `tests/db/test_existing_table_loads.py` compares what every value type stores in every column type with the record in `tests/data/existing_table_loads/`.
+
 ### DatabasePool
 
 `DatabasePool` is a dict-like container mapping string aliases to open `Database` instances. It is the canonical `_state.dbs` object. Key operations:
