@@ -1,0 +1,183 @@
+{
+ "exit": 0,
+ "files": {},
+ "recorded_with": "execsql 1.130.1",
+ "stderr": "",
+ "stdout": "",
+ "tables": {
+  "t": {
+   "columns": [
+    [
+     "id",
+     "INTEGER"
+    ],
+    [
+     "code",
+     "varchar"
+    ],
+    [
+     "amount",
+     "double"
+    ],
+    [
+     "flag",
+     "boolean"
+    ],
+    [
+     "day",
+     "timestamp"
+    ],
+    [
+     "stamp",
+     "timestamp"
+    ],
+    [
+     "note",
+     "varchar"
+    ],
+    [
+     "empty",
+     "varchar"
+    ]
+   ],
+   "rows": [
+    [
+     [
+      "integer",
+      "1"
+     ],
+     [
+      "text",
+      "'00701'"
+     ],
+     [
+      "real",
+      "1.5"
+     ],
+     [
+      "text",
+      "'yes'"
+     ],
+     [
+      "text",
+      "'2024-01-05'"
+     ],
+     [
+      "text",
+      "'2024-01-05 10:00'"
+     ],
+     [
+      "text",
+      "'has, comma'"
+     ],
+     [
+      "null",
+      "None"
+     ]
+    ],
+    [
+     [
+      "integer",
+      "2"
+     ],
+     [
+      "text",
+      "'02134'"
+     ],
+     [
+      "real",
+      "2.0"
+     ],
+     [
+      "text",
+      "'no'"
+     ],
+     [
+      "text",
+      "'01/06/2024'"
+     ],
+     [
+      "text",
+      "'2024-01-06 11:30:15'"
+     ],
+     [
+      "text",
+      "'say \"hi\"'"
+     ],
+     [
+      "null",
+      "None"
+     ]
+    ],
+    [
+     [
+      "integer",
+      "3"
+     ],
+     [
+      "text",
+      "'10001'"
+     ],
+     [
+      "real",
+      "-3.25"
+     ],
+     [
+      "text",
+      "'yes'"
+     ],
+     [
+      "text",
+      "'2024-01-07'"
+     ],
+     [
+      "null",
+      "None"
+     ],
+     [
+      "text",
+      "'plain'"
+     ],
+     [
+      "null",
+      "None"
+     ]
+    ]
+   ]
+  },
+  "tsv": {
+   "columns": [
+    [
+     "a",
+     "INTEGER"
+    ],
+    [
+     "b",
+     "varchar"
+    ]
+   ],
+   "rows": [
+    [
+     [
+      "integer",
+      "1"
+     ],
+     [
+      "text",
+      "'x y'"
+     ]
+    ],
+    [
+     [
+      "integer",
+      "2"
+     ],
+     [
+      "text",
+      "'z'"
+     ]
+    ]
+   ]
+  }
+ }
+}

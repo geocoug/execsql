@@ -1,0 +1,27 @@
+{
+ "exit": 1,
+ "files": {
+  "out.txt": "before\n"
+ },
+ "recorded_with": "execsql 1.130.1",
+ "stderr": "**** Exception.\n     Line 5 of script script.sql\n     IntegrityError: UNIQUE constraint failed: t.id\n     SQL statement: \n         insert into t values (1);\n     Error occurred at <TIME>.\n",
+ "stdout": "",
+ "tables": {
+  "t": {
+   "columns": [
+    [
+     "id",
+     "INTEGER"
+    ]
+   ],
+   "rows": [
+    [
+     [
+      "integer",
+      "1"
+     ]
+    ]
+   ]
+  }
+ }
+}

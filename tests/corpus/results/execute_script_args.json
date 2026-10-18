@@ -1,0 +1,51 @@
+{
+ "exit": 0,
+ "files": {
+  "out.txt": "note outside=[!!~note!!] k=3\nbump exists\n"
+ },
+ "recorded_with": "execsql 1.130.1",
+ "stderr": "",
+ "stdout": "",
+ "tables": {
+  "log": {
+   "columns": [
+    [
+     "msg",
+     "TEXT"
+    ]
+   ],
+   "rows": [
+    [
+     [
+      "text",
+      "'plain x 1 (from add_row)'"
+     ]
+    ],
+    [
+     [
+      "text",
+      "'inner x 2 (from add_row)'"
+     ]
+    ],
+    [
+     [
+      "text",
+      "'bump 1'"
+     ]
+    ],
+    [
+     [
+      "text",
+      "'bump 2'"
+     ]
+    ],
+    [
+     [
+      "text",
+      "'bump 3'"
+     ]
+    ]
+   ]
+  }
+ }
+}

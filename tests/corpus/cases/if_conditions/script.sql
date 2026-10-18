@@ -1,0 +1,42 @@
+-- IF / ELSEIF / ELSE and the common conditions.
+create table t (x integer);
+insert into t values (1), (2);
+-- !x! SUB a 10
+-- !x! IF (EQUAL("!!a!!", "10"))
+-- !x! WRITE "equal: yes" TO out.txt
+-- !x! ELSE
+-- !x! WRITE "equal: no" TO out.txt
+-- !x! ENDIF
+-- !x! IF (IS_GT(!!a!!, 20))
+-- !x! WRITE "gt: 20" TO out.txt
+-- !x! ELSEIF (IS_GT(!!a!!, 5))
+-- !x! WRITE "gt: 5" TO out.txt
+-- !x! ELSE
+-- !x! WRITE "gt: none" TO out.txt
+-- !x! ENDIF
+-- !x! IF (TABLE_EXISTS(t)) { WRITE "table t exists" TO out.txt }
+-- !x! IF (NOT TABLE_EXISTS(nope)) { WRITE "table nope missing" TO out.txt }
+-- !x! IF (HAS_ROWS(t)) { WRITE "t has rows" TO out.txt }
+-- !x! IF (SUB_DEFINED(a)) { WRITE "a defined" TO out.txt }
+-- !x! IF (NOT SUB_DEFINED(zz)) { WRITE "zz undefined" TO out.txt }
+-- !x! IF (IS_NULL("")) { WRITE "empty is null" TO out.txt }
+-- !x! IF (IS_ZERO(0)) { WRITE "zero" TO out.txt }
+-- !x! IF (IS_TRUE(yes)) { WRITE "yes is true" TO out.txt }
+-- !x! IF (CONTAINS("haystack", "st")) { WRITE "contains" TO out.txt }
+-- !x! IF (STARTS_WITH("haystack", "hay")) { WRITE "starts" TO out.txt }
+-- !x! IF (ENDS_WITH("haystack", "ack")) { WRITE "ends" TO out.txt }
+-- !x! IF (EQUAL("1", "1.0")) { WRITE "1 equals 1.0" TO out.txt }
+-- !x! IF (IDENTICAL("1", "1.0")) { WRITE "1 identical 1.0" TO out.txt }
+-- !x! IF (EQUAL("2024-01-05", "1/5/2024")) { WRITE "dates equal" TO out.txt }
+-- !x! IF (EQUAL("abc", "ABC")) { WRITE "abc equals ABC" TO out.txt }
+-- !x! IF (DBMS("SQLite")) { WRITE "dbms sqlite" TO out.txt }
+-- !x! IF (EQUAL("a", "a"))
+-- !x! ANDIF (EQUAL("b", "c"))
+-- !x! WRITE "andif: both" TO out.txt
+-- !x! ELSE
+-- !x! WRITE "andif: not both" TO out.txt
+-- !x! ENDIF
+-- !x! IF (EQUAL("a", "x"))
+-- !x! ORIF (EQUAL("b", "b"))
+-- !x! WRITE "orif: one" TO out.txt
+-- !x! ENDIF

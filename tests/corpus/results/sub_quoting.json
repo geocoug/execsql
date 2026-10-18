@@ -1,0 +1,22 @@
+{
+ "exit": 1,
+ "files": {},
+ "recorded_with": "execsql 1.130.1",
+ "stderr": "**** Exception.\n     Line 5 of script script.sql\n     OperationalError: near \"''\": syntax error\n     SQL statement: \n         insert into t values (!'!name!'!, 'x');\n     Error occurred at <TIME>.\n",
+ "stdout": "",
+ "tables": {
+  "t": {
+   "columns": [
+    [
+     "first col",
+     "TEXT"
+    ],
+    [
+     "n",
+     "TEXT"
+    ]
+   ],
+   "rows": []
+  }
+ }
+}

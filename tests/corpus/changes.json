@@ -1,0 +1,821 @@
+{
+ "boolean_and_empty_config": {
+  "tables/empty_strings_no": {
+   "execsql2": {
+    "columns": [
+     [
+      "zero_one",
+      "boolean"
+     ],
+     [
+      "words",
+      "boolean"
+     ],
+     [
+      "padded",
+      "varchar"
+     ],
+     [
+      "maybe_empty",
+      "varchar"
+     ]
+    ],
+    "rows": [
+     [
+      [
+       "integer",
+       "1"
+      ],
+      [
+       "text",
+       "'yes'"
+      ],
+      [
+       "text",
+       "'  a  '"
+      ],
+      [
+       "text",
+       "'x'"
+      ]
+     ],
+     [
+      [
+       "integer",
+       "0"
+      ],
+      [
+       "text",
+       "'no'"
+      ],
+      [
+       "text",
+       "' b'"
+      ],
+      [
+       "null",
+       "None"
+      ]
+     ],
+     [
+      [
+       "integer",
+       "1"
+      ],
+      [
+       "text",
+       "'yes'"
+      ],
+      [
+       "text",
+       "'c '"
+      ],
+      [
+       "null",
+       "None"
+      ]
+     ]
+    ]
+   },
+   "status": "accepted",
+   "upstream": {
+    "columns": [
+     [
+      "zero_one",
+      "boolean"
+     ],
+     [
+      "words",
+      "boolean"
+     ],
+     [
+      "padded",
+      "varchar"
+     ],
+     [
+      "maybe_empty",
+      "varchar"
+     ]
+    ],
+    "rows": [
+     [
+      [
+       "integer",
+       "1"
+      ],
+      [
+       "text",
+       "'yes'"
+      ],
+      [
+       "text",
+       "'  a  '"
+      ],
+      [
+       "text",
+       "'x'"
+      ]
+     ],
+     [
+      [
+       "integer",
+       "0"
+      ],
+      [
+       "text",
+       "'no'"
+      ],
+      [
+       "text",
+       "' b'"
+      ],
+      [
+       "null",
+       "None"
+      ]
+     ],
+     [
+      [
+       "integer",
+       "1"
+      ],
+      [
+       "text",
+       "'yes'"
+      ],
+      [
+       "text",
+       "'c '"
+      ],
+      [
+       "text",
+       "' '"
+      ]
+     ]
+    ]
+   },
+   "why": "Upstream never applied EMPTY_STRINGS to SQLite imports (divergence: 'SQLite import string processing'), so a blank ' ' stayed; execsql2 stores NULL."
+  },
+  "tables/trimmed": {
+   "execsql2": {
+    "columns": [
+     [
+      "zero_one",
+      "boolean"
+     ],
+     [
+      "words",
+      "boolean"
+     ],
+     [
+      "padded",
+      "varchar"
+     ],
+     [
+      "maybe_empty",
+      "varchar"
+     ]
+    ],
+    "rows": [
+     [
+      [
+       "integer",
+       "1"
+      ],
+      [
+       "text",
+       "'yes'"
+      ],
+      [
+       "text",
+       "'a'"
+      ],
+      [
+       "text",
+       "'x'"
+      ]
+     ],
+     [
+      [
+       "integer",
+       "0"
+      ],
+      [
+       "text",
+       "'no'"
+      ],
+      [
+       "text",
+       "'b'"
+      ],
+      [
+       "null",
+       "None"
+      ]
+     ],
+     [
+      [
+       "integer",
+       "1"
+      ],
+      [
+       "text",
+       "'yes'"
+      ],
+      [
+       "text",
+       "'c'"
+      ],
+      [
+       "text",
+       "''"
+      ]
+     ]
+    ]
+   },
+   "status": "accepted",
+   "upstream": {
+    "columns": [
+     [
+      "zero_one",
+      "boolean"
+     ],
+     [
+      "words",
+      "boolean"
+     ],
+     [
+      "padded",
+      "varchar"
+     ],
+     [
+      "maybe_empty",
+      "varchar"
+     ]
+    ],
+    "rows": [
+     [
+      [
+       "integer",
+       "1"
+      ],
+      [
+       "text",
+       "'yes'"
+      ],
+      [
+       "text",
+       "'  a  '"
+      ],
+      [
+       "text",
+       "'x'"
+      ]
+     ],
+     [
+      [
+       "integer",
+       "0"
+      ],
+      [
+       "text",
+       "'no'"
+      ],
+      [
+       "text",
+       "' b'"
+      ],
+      [
+       "null",
+       "None"
+      ]
+     ],
+     [
+      [
+       "integer",
+       "1"
+      ],
+      [
+       "text",
+       "'yes'"
+      ],
+      [
+       "text",
+       "'c '"
+      ],
+      [
+       "text",
+       "' '"
+      ]
+     ]
+    ]
+   },
+   "why": "Upstream never applied TRIM_STRINGS to SQLite imports (divergence: 'SQLite import string processing'); execsql2 trims."
+  }
+ },
+ "execute_script_args": {
+  "stdout": {
+   "execsql2": "Warning: There is a potential un-substituted variable in the command\n     WRITE \"note outside=[!!~note!!] k=3\" TO out.txt\n",
+   "status": "open",
+   "upstream": "",
+   "why": "execsql2 prints the 'potential un-substituted variable' warning on every such command, to stdout as 'Warning: …'. Upstream logs it, and prints it (to stderr, as '**** Warning …') only when write_warnings is on, which it is not by default. execsql2 bug: console output differs."
+  }
+ },
+ "export_structured_formats": {
+  "files/t.tex": {
+   "execsql2": "\\documentclass{article}\n\\begin{document}\n\\begin{center}\n  \\begin{table}[h]\n  \\begin{tabular} { l l l l }\n  \\hline\n  id & name & amt & day \\\\\n  \\hline\n  1 & Ann & 1.5 & 2024-01-05 \\\\\n  2 & O'Neil &  &  \\\\\n  \\hline\n  \\end{tabular}\n  \\end{table}\n\\end{center}\n\\end{document}\n",
+   "status": "accepted",
+   "upstream": "\\documentclass{article}\n\\begin{document}\n\\begin{center}\n  \\begin{table}[h]\n  \\begin{tabular} { l l l l }\n  \\hline\n  id & name & amt & day \\\\\n  \\hline\n  1 & Ann & 1.5 & 2024-01-05 \\\\\n  2 & O'Neil & None & None \\\\\n  \\hline\n  \\end{tabular}\n  \\end{table}\n\\end{center}\n\\end{document}\n",
+   "why": "Upstream wrote NULL as the word None in LaTeX (divergence: 'LaTeX export wrote NULL as the literal \"None\"'); execsql2 writes an empty cell."
+  },
+  "files/t_schema.json": {
+   "execsql2": "{\n  \"fields\": [\n    {\n      \"name\": \"id\",\n      \"title\": \"Id\",\n      \"type\": \"integer\"\n    },\n    {\n      \"name\": \"name\",\n      \"title\": \"Name\",\n      \"type\": \"string\"\n    },\n    {\n      \"name\": \"amt\",\n      \"title\": \"Amt\",\n      \"type\": \"number\"\n    },\n    {\n      \"name\": \"day\",\n      \"title\": \"Day\",\n      \"type\": \"string\"\n    }\n  ]\n}\n",
+   "status": "accepted",
+   "upstream": "{\n  \"fields\": [\n    {\n      \"name\": \"id\",\n      \"title\": \"Id\",\n      \"type\": \"integer\"\n    },\n    {\n      \"name\": \"name\",\n      \"title\": \"Name\",\n      \"type\": \"string\"\n    },\n    {\n      \"name\": \"amt\",\n      \"title\": \"Amt\",\n      \"type\": \"number\"\n    },\n    {\n      \"name\": \"day\",\n      \"title\": \"Day\",\n      \"type\": \"datetime\"\n    }\n  ]\n}\n",
+   "why": "Upstream typed a text column holding dates as datetime from the strings' shape (divergence: 'DB-export type inference overrides source types'); execsql2 uses the driver's type, string."
+  }
+ },
+ "import_csv_new": {
+  "tables/t": {
+   "execsql2": {
+    "columns": [
+     [
+      "id",
+      "INTEGER"
+     ],
+     [
+      "code",
+      "varchar"
+     ],
+     [
+      "amount",
+      "decimal(3,2)"
+     ],
+     [
+      "flag",
+      "boolean"
+     ],
+     [
+      "day",
+      "timestamp"
+     ],
+     [
+      "stamp",
+      "timestamp"
+     ],
+     [
+      "note",
+      "varchar"
+     ],
+     [
+      "empty",
+      "varchar"
+     ]
+    ],
+    "rows": [
+     [
+      [
+       "integer",
+       "1"
+      ],
+      [
+       "text",
+       "'00701'"
+      ],
+      [
+       "real",
+       "1.5"
+      ],
+      [
+       "text",
+       "'yes'"
+      ],
+      [
+       "text",
+       "'2024-01-05'"
+      ],
+      [
+       "text",
+       "'2024-01-05 10:00'"
+      ],
+      [
+       "text",
+       "'has, comma'"
+      ],
+      [
+       "null",
+       "None"
+      ]
+     ],
+     [
+      [
+       "integer",
+       "2"
+      ],
+      [
+       "text",
+       "'02134'"
+      ],
+      [
+       "integer",
+       "2"
+      ],
+      [
+       "text",
+       "'no'"
+      ],
+      [
+       "text",
+       "'01/06/2024'"
+      ],
+      [
+       "text",
+       "'2024-01-06 11:30:15'"
+      ],
+      [
+       "text",
+       "'say \"hi\"'"
+      ],
+      [
+       "null",
+       "None"
+      ]
+     ],
+     [
+      [
+       "integer",
+       "3"
+      ],
+      [
+       "text",
+       "'10001'"
+      ],
+      [
+       "real",
+       "-3.25"
+      ],
+      [
+       "text",
+       "'yes'"
+      ],
+      [
+       "text",
+       "'2024-01-07'"
+      ],
+      [
+       "null",
+       "None"
+      ],
+      [
+       "text",
+       "'plain'"
+      ],
+      [
+       "null",
+       "None"
+      ]
+     ]
+    ]
+   },
+   "status": "open",
+   "upstream": {
+    "columns": [
+     [
+      "id",
+      "INTEGER"
+     ],
+     [
+      "code",
+      "varchar"
+     ],
+     [
+      "amount",
+      "double"
+     ],
+     [
+      "flag",
+      "boolean"
+     ],
+     [
+      "day",
+      "timestamp"
+     ],
+     [
+      "stamp",
+      "timestamp"
+     ],
+     [
+      "note",
+      "varchar"
+     ],
+     [
+      "empty",
+      "varchar"
+     ]
+    ],
+    "rows": [
+     [
+      [
+       "integer",
+       "1"
+      ],
+      [
+       "text",
+       "'00701'"
+      ],
+      [
+       "real",
+       "1.5"
+      ],
+      [
+       "text",
+       "'yes'"
+      ],
+      [
+       "text",
+       "'2024-01-05'"
+      ],
+      [
+       "text",
+       "'2024-01-05 10:00'"
+      ],
+      [
+       "text",
+       "'has, comma'"
+      ],
+      [
+       "null",
+       "None"
+      ]
+     ],
+     [
+      [
+       "integer",
+       "2"
+      ],
+      [
+       "text",
+       "'02134'"
+      ],
+      [
+       "real",
+       "2.0"
+      ],
+      [
+       "text",
+       "'no'"
+      ],
+      [
+       "text",
+       "'01/06/2024'"
+      ],
+      [
+       "text",
+       "'2024-01-06 11:30:15'"
+      ],
+      [
+       "text",
+       "'say \"hi\"'"
+      ],
+      [
+       "null",
+       "None"
+      ]
+     ],
+     [
+      [
+       "integer",
+       "3"
+      ],
+      [
+       "text",
+       "'10001'"
+      ],
+      [
+       "real",
+       "-3.25"
+      ],
+      [
+       "text",
+       "'yes'"
+      ],
+      [
+       "text",
+       "'2024-01-07'"
+      ],
+      [
+       "null",
+       "None"
+      ],
+      [
+       "text",
+       "'plain'"
+      ],
+      [
+       "null",
+       "None"
+      ]
+     ]
+    ]
+   },
+   "why": "A column of decimals with different scales (1.50, 2, -3.25) is created as double upstream and decimal(3,2) in execsql2 (commit 9675d81, F-DATA-001, 2.22.0; not in the divergence record), so SQLite stores 2 as an integer, not 2.0. Undecided."
+  }
+ },
+ "loop_while_until": {
+  "files/out.txt": {
+   "execsql2": "until pass 1\nuntil pass 2\nuntil pass 3\ni=5 j=3 k=3\n",
+   "status": "open",
+   "upstream": "until pass 1\nuntil pass 2\nuntil pass 3\ni=5 j=3 k=5\n",
+   "why": "Upstream substitutes a LOOP condition's variables once, when the LOOP line runs; execsql2 substitutes them on every pass. A loop on a variable defined before it ran until BREAK upstream (k=5) and stops on the condition in execsql2 (k=3). Not in the divergence record. Undecided."
+  }
+ },
+ "on_error_halt_write": {
+  "files/halt.txt": {
+   "execsql2": "halted after created\n",
+   "status": "accepted",
+   "upstream": "",
+   "why": "Upstream's WriteSpec.write passes substitute_all's (text, flag) tuple on as the text, so writing fails after the file is opened and ON ERROR_HALT WRITE … TO <file> leaves it empty; execsql2 writes the message."
+  },
+  "stdout": {
+   "execsql2": "Warning: There is a potential un-substituted variable in the command\n     ON ERROR_HALT WRITE \"halted after !!last!!\" TO halt.txt\n",
+   "status": "open",
+   "upstream": "",
+   "why": "execsql2 prints the 'potential un-substituted variable' warning on every such command, to stdout as 'Warning: …'. Upstream logs it, and prints it (to stderr, as '**** Warning …') only when write_warnings is on, which it is not by default. execsql2 bug: console output differs."
+  }
+ },
+ "sub_backslash": {
+  "exit": {
+   "execsql2": 0,
+   "status": "accepted",
+   "upstream": 1,
+   "why": "Upstream hands the value to re.sub as a replacement template, so the backslash in C:\\data\\new is a bad escape and the statement fails (divergence: 'Backslashes in !'!var!'!'); execsql2 stores the value."
+  },
+  "files/vars.txt": {
+   "execsql2": "path=C:\\data\\new\n",
+   "status": "accepted",
+   "upstream": null,
+   "why": "Upstream hands the value to re.sub as a replacement template, so the backslash in C:\\data\\new is a bad escape and the statement fails (divergence: 'Backslashes in !'!var!'!'); execsql2 stores the value."
+  },
+  "stderr": {
+   "execsql2": "",
+   "status": "accepted",
+   "upstream": "**** Exception.\n     Line 6 of script script.sql\n     error: bad escape \\d at position 2 in /Users/cgrant/Library/Application Support/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/re/_parser.py on line 6561 of execsql.\n     SQL statement: \n         insert into t values (!'!path!'!);\n     Error occurred at <TIME>.\n",
+   "why": "Upstream hands the value to re.sub as a replacement template, so the backslash in C:\\data\\new is a bad escape and the statement fails (divergence: 'Backslashes in !'!var!'!'); execsql2 stores the value."
+  },
+  "tables/t": {
+   "execsql2": {
+    "columns": [
+     [
+      "p",
+      "TEXT"
+     ]
+    ],
+    "rows": [
+     [
+      [
+       "text",
+       "'C:\\\\data\\\\new'"
+      ]
+     ]
+    ]
+   },
+   "status": "accepted",
+   "upstream": {
+    "columns": [
+     [
+      "p",
+      "TEXT"
+     ]
+    ],
+    "rows": []
+   },
+   "why": "Upstream hands the value to re.sub as a replacement template, so the backslash in C:\\data\\new is a bad escape and the statement fails (divergence: 'Backslashes in !'!var!'!'); execsql2 stores the value."
+  }
+ },
+ "sub_basic": {
+  "stdout": {
+   "execsql2": "Warning: There is a potential un-substituted variable in the command\n     WRITE \"temp=[!!temp!!]\" TO vars.txt\n",
+   "status": "open",
+   "upstream": "",
+   "why": "execsql2 prints the 'potential un-substituted variable' warning on every such command, to stdout as 'Warning: …'. Upstream logs it, and prints it (to stderr, as '**** Warning …') only when write_warnings is on, which it is not by default. execsql2 bug: console output differs."
+  }
+ },
+ "sub_quoting": {
+  "exit": {
+   "execsql2": 0,
+   "status": "open",
+   "upstream": 1,
+   "why": "!'!v!'! wraps the value in single quotes in execsql2 (changed 2026-05-22, CHANGELOG 'wraps the value in single quotes as documented'); upstream only doubles the apostrophes, so upstream scripts write '!'!v!'!'. Undecided: the upstream idiom fails in execsql2, and the unquoted form fails upstream."
+  },
+  "files/vars.txt": {
+   "execsql2": "name=O'Brien\n",
+   "status": "open",
+   "upstream": null,
+   "why": "!'!v!'! wraps the value in single quotes in execsql2 (changed 2026-05-22, CHANGELOG 'wraps the value in single quotes as documented'); upstream only doubles the apostrophes, so upstream scripts write '!'!v!'!'. Undecided: the upstream idiom fails in execsql2, and the unquoted form fails upstream."
+  },
+  "stderr": {
+   "execsql2": "",
+   "status": "open",
+   "upstream": "**** Exception.\n     Line 5 of script script.sql\n     OperationalError: near \"''\": syntax error\n     SQL statement: \n         insert into t values (!'!name!'!, 'x');\n     Error occurred at <TIME>.\n",
+   "why": "!'!v!'! wraps the value in single quotes in execsql2 (changed 2026-05-22, CHANGELOG 'wraps the value in single quotes as documented'); upstream only doubles the apostrophes, so upstream scripts write '!'!v!'!'. Undecided: the upstream idiom fails in execsql2, and the unquoted form fails upstream."
+  },
+  "tables/t": {
+   "execsql2": {
+    "columns": [
+     [
+      "first col",
+      "TEXT"
+     ],
+     [
+      "n",
+      "TEXT"
+     ]
+    ],
+    "rows": [
+     [
+      [
+       "text",
+       "\"O'Brien\""
+      ],
+      [
+       "text",
+       "'x'"
+      ]
+     ]
+    ]
+   },
+   "status": "open",
+   "upstream": {
+    "columns": [
+     [
+      "first col",
+      "TEXT"
+     ],
+     [
+      "n",
+      "TEXT"
+     ]
+    ],
+    "rows": []
+   },
+   "why": "!'!v!'! wraps the value in single quotes in execsql2 (changed 2026-05-22, CHANGELOG 'wraps the value in single quotes as documented'); upstream only doubles the apostrophes, so upstream scripts write '!'!v!'!'. Undecided: the upstream idiom fails in execsql2, and the unquoted form fails upstream."
+  }
+ },
+ "sub_quoting_upstream_idiom": {
+  "exit": {
+   "execsql2": 1,
+   "status": "open",
+   "upstream": 0,
+   "why": "!'!v!'! wraps the value in single quotes in execsql2 (changed 2026-05-22, CHANGELOG 'wraps the value in single quotes as documented'); upstream only doubles the apostrophes, so upstream scripts write '!'!v!'!'. Undecided: the upstream idiom fails in execsql2, and the unquoted form fails upstream."
+  },
+  "files/vars.txt": {
+   "execsql2": null,
+   "status": "open",
+   "upstream": "name=O'Brien\n",
+   "why": "!'!v!'! wraps the value in single quotes in execsql2 (changed 2026-05-22, CHANGELOG 'wraps the value in single quotes as documented'); upstream only doubles the apostrophes, so upstream scripts write '!'!v!'!'. Undecided: the upstream idiom fails in execsql2, and the unquoted form fails upstream."
+  },
+  "stderr": {
+   "execsql2": "**** Exception.\n     Line 5 of script script.sql\n     OperationalError: near \"O\": syntax error\n     SQL statement: \n         insert into t values ('!'!name!'!');\n     Error occurred at <TIME>.\n",
+   "status": "open",
+   "upstream": "",
+   "why": "!'!v!'! wraps the value in single quotes in execsql2 (changed 2026-05-22, CHANGELOG 'wraps the value in single quotes as documented'); upstream only doubles the apostrophes, so upstream scripts write '!'!v!'!'. Undecided: the upstream idiom fails in execsql2, and the unquoted form fails upstream."
+  },
+  "tables/t": {
+   "execsql2": {
+    "columns": [
+     [
+      "n",
+      "TEXT"
+     ]
+    ],
+    "rows": []
+   },
+   "status": "open",
+   "upstream": {
+    "columns": [
+     [
+      "n",
+      "TEXT"
+     ]
+    ],
+    "rows": [
+     [
+      [
+       "text",
+       "\"O'Brien\""
+      ]
+     ]
+    ]
+   },
+   "why": "!'!v!'! wraps the value in single quotes in execsql2 (changed 2026-05-22, CHANGELOG 'wraps the value in single quotes as documented'); upstream only doubles the apostrophes, so upstream scripts write '!'!v!'!'. Undecided: the upstream idiom fails in execsql2, and the unquoted form fails upstream."
+  }
+ },
+ "write_create_table": {
+  "files/ddl.sql": {
+   "execsql2": "CREATE TABLE t (\n    id integer NOT NULL,\n    name varchar NOT NULL,\n    amount decimal(3,1) NOT NULL,\n    day timestamp NOT NULL,\n    flag boolean NOT NULL\n    );\n",
+   "status": "open",
+   "upstream": "CREATE TABLE t (\n    id integer NOT NULL,\n    name varchar NOT NULL,\n    amount double NOT NULL,\n    day timestamp NOT NULL,\n    flag boolean NOT NULL\n    );\n",
+   "why": "Same as import_csv_new: mixed-scale decimals are decimal(3,1) in execsql2, double upstream (F-DATA-001). Undecided."
+  }
+ }
+}

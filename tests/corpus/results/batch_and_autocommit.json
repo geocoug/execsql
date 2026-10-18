@@ -1,0 +1,37 @@
+{
+ "exit": 0,
+ "files": {},
+ "recorded_with": "execsql 1.130.1",
+ "stderr": "",
+ "stdout": "",
+ "tables": {
+  "t": {
+   "columns": [
+    [
+     "v",
+     "TEXT"
+    ]
+   ],
+   "rows": [
+    [
+     [
+      "text",
+      "'batch kept'"
+     ]
+    ],
+    [
+     [
+      "text",
+      "'autocommit off, committed'"
+     ]
+    ],
+    [
+     [
+      "text",
+      "'autocommit on'"
+     ]
+    ]
+   ]
+  }
+ }
+}

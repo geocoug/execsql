@@ -1,0 +1,51 @@
+{
+ "exit": 0,
+ "files": {
+  "out.txt": "until pass 1\nuntil pass 2\nuntil pass 3\ni=5 j=3 k=5\n"
+ },
+ "recorded_with": "execsql 1.130.1",
+ "stderr": "",
+ "stdout": "",
+ "tables": {
+  "t": {
+   "columns": [
+    [
+     "i",
+     "INTEGER"
+    ]
+   ],
+   "rows": [
+    [
+     [
+      "integer",
+      "0"
+     ]
+    ],
+    [
+     [
+      "integer",
+      "1"
+     ]
+    ],
+    [
+     [
+      "integer",
+      "2"
+     ]
+    ],
+    [
+     [
+      "integer",
+      "3"
+     ]
+    ],
+    [
+     [
+      "integer",
+      "4"
+     ]
+    ]
+   ]
+  }
+ }
+}

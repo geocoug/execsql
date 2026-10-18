@@ -64,6 +64,19 @@ just test-templates-down   # removes the containers
 
 SQL Server is included only when an ODBC driver for it is installed. A template bug the tests have found but not yet fixed is marked with `known_bug(...)`, a strict expected failure: the fix makes the test pass, which fails the run until the marker is removed with it.
 
+### Script behavior corpus
+
+`tests/corpus/` checks that whole scripts do under execsql2 what they did under upstream execsql 1.130.1: the same exit status, console output, files written and table contents. Each case is a directory in `tests/corpus/cases/` holding `script.sql` and the files it reads. Upstream's results are recorded in `tests/corpus/results/`, so the normal test run compares against them without upstream installed. A variable a case checks is `WRITE`n to a file, because upstream has no way to read variables after a run.
+
+To add a case, create its directory, then record what upstream does (this installs execsql 1.130.1 from PyPI under Python 3.12 into `~/.cache/execsql-corpus/` on first use):
+
+```bash
+uv run python -m tests.corpus.record my_new_case
+uv run pytest tests/corpus
+```
+
+Use only syntax upstream accepts; read `_execsql/execsql.py` when unsure. A case must not open a GUI dialog (`HALT "message"`, `PROMPT`) or loop forever under upstream: both hang the recording. A difference from upstream fails the test unless `tests/corpus/changes.json` lists it with both values, a `status` (`accepted` for an upstream bug execsql2 fixed on purpose, `open` for one not yet decided) and the reason.
+
 ## Building the Docs
 
 ```bash

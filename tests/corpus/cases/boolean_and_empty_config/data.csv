@@ -1,0 +1,4 @@
+zero_one,words,padded,maybe_empty
+1,yes,  a  ,x
+0,no, b,
+1,yes,"c "," "

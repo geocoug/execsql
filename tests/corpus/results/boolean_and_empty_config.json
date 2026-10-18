@@ -1,0 +1,389 @@
+{
+ "exit": 0,
+ "files": {},
+ "recorded_with": "execsql 1.130.1",
+ "stderr": "",
+ "stdout": "",
+ "tables": {
+  "boolean_int_off": {
+   "columns": [
+    [
+     "zero_one",
+     "INTEGER"
+    ],
+    [
+     "words",
+     "boolean"
+    ],
+    [
+     "padded",
+     "varchar"
+    ],
+    [
+     "maybe_empty",
+     "varchar"
+    ]
+   ],
+   "rows": [
+    [
+     [
+      "integer",
+      "1"
+     ],
+     [
+      "text",
+      "'yes'"
+     ],
+     [
+      "text",
+      "'  a  '"
+     ],
+     [
+      "text",
+      "'x'"
+     ]
+    ],
+    [
+     [
+      "integer",
+      "0"
+     ],
+     [
+      "text",
+      "'no'"
+     ],
+     [
+      "text",
+      "' b'"
+     ],
+     [
+      "null",
+      "None"
+     ]
+    ],
+    [
+     [
+      "integer",
+      "1"
+     ],
+     [
+      "text",
+      "'yes'"
+     ],
+     [
+      "text",
+      "'c '"
+     ],
+     [
+      "text",
+      "' '"
+     ]
+    ]
+   ]
+  },
+  "boolean_words_on": {
+   "columns": [
+    [
+     "zero_one",
+     "boolean"
+    ],
+    [
+     "words",
+     "boolean"
+    ],
+    [
+     "padded",
+     "varchar"
+    ],
+    [
+     "maybe_empty",
+     "varchar"
+    ]
+   ],
+   "rows": [
+    [
+     [
+      "integer",
+      "1"
+     ],
+     [
+      "text",
+      "'yes'"
+     ],
+     [
+      "text",
+      "'  a  '"
+     ],
+     [
+      "text",
+      "'x'"
+     ]
+    ],
+    [
+     [
+      "integer",
+      "0"
+     ],
+     [
+      "text",
+      "'no'"
+     ],
+     [
+      "text",
+      "' b'"
+     ],
+     [
+      "null",
+      "None"
+     ]
+    ],
+    [
+     [
+      "integer",
+      "1"
+     ],
+     [
+      "text",
+      "'yes'"
+     ],
+     [
+      "text",
+      "'c '"
+     ],
+     [
+      "text",
+      "' '"
+     ]
+    ]
+   ]
+  },
+  "default_read": {
+   "columns": [
+    [
+     "zero_one",
+     "boolean"
+    ],
+    [
+     "words",
+     "boolean"
+    ],
+    [
+     "padded",
+     "varchar"
+    ],
+    [
+     "maybe_empty",
+     "varchar"
+    ]
+   ],
+   "rows": [
+    [
+     [
+      "integer",
+      "1"
+     ],
+     [
+      "text",
+      "'yes'"
+     ],
+     [
+      "text",
+      "'  a  '"
+     ],
+     [
+      "text",
+      "'x'"
+     ]
+    ],
+    [
+     [
+      "integer",
+      "0"
+     ],
+     [
+      "text",
+      "'no'"
+     ],
+     [
+      "text",
+      "' b'"
+     ],
+     [
+      "null",
+      "None"
+     ]
+    ],
+    [
+     [
+      "integer",
+      "1"
+     ],
+     [
+      "text",
+      "'yes'"
+     ],
+     [
+      "text",
+      "'c '"
+     ],
+     [
+      "text",
+      "' '"
+     ]
+    ]
+   ]
+  },
+  "empty_strings_no": {
+   "columns": [
+    [
+     "zero_one",
+     "boolean"
+    ],
+    [
+     "words",
+     "boolean"
+    ],
+    [
+     "padded",
+     "varchar"
+    ],
+    [
+     "maybe_empty",
+     "varchar"
+    ]
+   ],
+   "rows": [
+    [
+     [
+      "integer",
+      "1"
+     ],
+     [
+      "text",
+      "'yes'"
+     ],
+     [
+      "text",
+      "'  a  '"
+     ],
+     [
+      "text",
+      "'x'"
+     ]
+    ],
+    [
+     [
+      "integer",
+      "0"
+     ],
+     [
+      "text",
+      "'no'"
+     ],
+     [
+      "text",
+      "' b'"
+     ],
+     [
+      "null",
+      "None"
+     ]
+    ],
+    [
+     [
+      "integer",
+      "1"
+     ],
+     [
+      "text",
+      "'yes'"
+     ],
+     [
+      "text",
+      "'c '"
+     ],
+     [
+      "text",
+      "' '"
+     ]
+    ]
+   ]
+  },
+  "trimmed": {
+   "columns": [
+    [
+     "zero_one",
+     "boolean"
+    ],
+    [
+     "words",
+     "boolean"
+    ],
+    [
+     "padded",
+     "varchar"
+    ],
+    [
+     "maybe_empty",
+     "varchar"
+    ]
+   ],
+   "rows": [
+    [
+     [
+      "integer",
+      "1"
+     ],
+     [
+      "text",
+      "'yes'"
+     ],
+     [
+      "text",
+      "'  a  '"
+     ],
+     [
+      "text",
+      "'x'"
+     ]
+    ],
+    [
+     [
+      "integer",
+      "0"
+     ],
+     [
+      "text",
+      "'no'"
+     ],
+     [
+      "text",
+      "' b'"
+     ],
+     [
+      "null",
+      "None"
+     ]
+    ],
+    [
+     [
+      "integer",
+      "1"
+     ],
+     [
+      "text",
+      "'yes'"
+     ],
+     [
+      "text",
+      "'c '"
+     ],
+     [
+      "text",
+      "' '"
+     ]
+    ]
+   ]
+  }
+ }
+}

@@ -1,0 +1,45 @@
+{
+ "exit": 0,
+ "files": {
+  "out.txt": "name=widget qty=4\ntop=7\n"
+ },
+ "recorded_with": "execsql 1.130.1",
+ "stderr": "",
+ "stdout": "",
+ "tables": {
+  "t": {
+   "columns": [
+    [
+     "name",
+     "TEXT"
+    ],
+    [
+     "qty",
+     "INTEGER"
+    ]
+   ],
+   "rows": [
+    [
+     [
+      "text",
+      "'widget'"
+     ],
+     [
+      "integer",
+      "4"
+     ]
+    ],
+    [
+     [
+      "text",
+      "'gadget'"
+     ],
+     [
+      "integer",
+      "7"
+     ]
+    ]
+   ]
+  }
+ }
+}

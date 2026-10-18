@@ -1,0 +1,92 @@
+{
+ "exit": 0,
+ "files": {
+  "t.csv": "id,name,amt,note\n1,Ann,1.5,\"has, comma\"\n2,Bob,,\"say \"\"hi\"\"\"\n3,Cé,-2.0,\n",
+  "t.plain": "1 Ann 1.5 has, comma\n2 Bob  say \"hi\"\n3 Cé -2.0 \n",
+  "t.tab": "id\tname\tamt\tnote\n1\tAnn\t1.5\thas, comma\n2\tBob\t\tsay \"hi\"\n3\tCé\t-2.0\t\n",
+  "t.tsv": "id\tname\tamt\tnote\n1\tAnn\t1.5\thas, comma\n2\tBob\t\tsay \"hi\"\n3\tCé\t-2.0\t\n",
+  "t.txt": "  id | name | amt  | note      \n ----|------|------|------------\n  1  | Ann  | 1.5  | has, comma\n  2  | Bob  |      | say \"hi\"  \n  3  | Cé   | -2.0 |           \n",
+  "t.us": "id\u001fname\u001famt\u001fnote\n1\u001fAnn\u001f1.5\u001fhas, comma\n2\u001fBob\u001f\u001fsay \"hi\"\n3\u001fCé\u001f-2.0\u001f\n"
+ },
+ "recorded_with": "execsql 1.130.1",
+ "stderr": "",
+ "stdout": "",
+ "tables": {
+  "t": {
+   "columns": [
+    [
+     "id",
+     "INTEGER"
+    ],
+    [
+     "name",
+     "TEXT"
+    ],
+    [
+     "amt",
+     "REAL"
+    ],
+    [
+     "note",
+     "TEXT"
+    ]
+   ],
+   "rows": [
+    [
+     [
+      "integer",
+      "1"
+     ],
+     [
+      "text",
+      "'Ann'"
+     ],
+     [
+      "real",
+      "1.5"
+     ],
+     [
+      "text",
+      "'has, comma'"
+     ]
+    ],
+    [
+     [
+      "integer",
+      "2"
+     ],
+     [
+      "text",
+      "'Bob'"
+     ],
+     [
+      "null",
+      "None"
+     ],
+     [
+      "text",
+      "'say \"hi\"'"
+     ]
+    ],
+    [
+     [
+      "integer",
+      "3"
+     ],
+     [
+      "text",
+      "'Cé'"
+     ],
+     [
+      "real",
+      "-2.0"
+     ],
+     [
+      "null",
+      "None"
+     ]
+    ]
+   ]
+  }
+ }
+}
