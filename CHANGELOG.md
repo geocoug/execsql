@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.34.0] - 2026-10-18
+
 ### Added
 
 - **`EXPORT … AS JSONL` and `EXPORT QUERY … AS JSONL`** write [JSON Lines](https://jsonlines.org/): one object per row, one row per line. `APPEND` adds rows to the file, which stays valid; `IMPORT … FROM JSON` reads it back.
