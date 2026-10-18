@@ -317,6 +317,10 @@ class SubVarSet:
         Uses case-insensitive string search instead of per-variable regex
         compilation to avoid O(N) ``re.compile`` calls on every invocation.
         """
+        # Every token below starts with one of these, so text without them
+        # can't match; skip the scan over every defined variable.
+        if "!!" not in command_str and "!'!" not in command_str and '!"!' not in command_str:
+            return command_str, False
         cmd_lower = command_str.lower()
 
         def _check_nul(name: str, value: str) -> None:

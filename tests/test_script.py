@@ -646,6 +646,19 @@ class TestSubVarSetTokenOptimization:
         assert changed is True
         assert result == "final"
 
+    @pytest.mark.parametrize("text", ["select 1;", "select 'a!b' || '!' from t;", "x !' y !\" z"])
+    def test_text_without_a_token_start_skips_the_nested_scan(self, text):
+        """The scan over every defined variable runs only for text holding !!, !'! or !"!."""
+
+        class _NoScan(dict):
+            def items(self):
+                raise AssertionError("scanned every variable")
+
+        sv = SubVarSet()
+        sv.add_substitution("$x", "val")
+        sv._subs_dict = _NoScan(sv._subs_dict)
+        assert sv.substitute_all(text) == (text, False)
+
     def test_non_string_input_returns_unchanged(self):
         sv = SubVarSet()
         sv.add_substitution("$x", "val")

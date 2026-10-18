@@ -15,6 +15,7 @@ ______________________________________________________________________
 
 - **A value with a fraction loaded into an integer column** (`INTEGER`, `BIGINT`, `DECIMAL(10,0)`, …) of an existing table by `IMPORT` or `COPY` stops the load with an error that names the value and the column, and nothing is loaded. The database used to round it (`1.5` stored as `2`), or on SQL Server truncate it. A delimited file loaded into PostgreSQL or MySQL is not affected: the server reads it as written. Round the values in the source, or load them into a `DECIMAL` column with places for the fraction.
 - **MySQL / MariaDB sessions run in strict mode**: a SQL statement, `IMPORT` or `COPY` that gives a column a value MySQL can't store as given stops with MySQL's error, and nothing is loaded. MySQL used to store a changed value with a warning (`3000000000` as `2147483647`, `2024-02-30` as `0000-00-00`, `abcdef` in a `VARCHAR(3)` as `abc`). A timestamp ending in `Z` is one such value: write it with `+00:00`. To keep the old behavior in a script, run `SET SESSION sql_mode = 'ANSI';` after connecting.
+- **Scripts with many substitution variables run faster**: a statement or metacommand with no `!!`, `!'!` or `!"!` in it is no longer checked against every defined variable. With 500 variables each such line took about 0.1 ms longer; a 1,000-pass `LOOP` over `EXECUTE SCRIPT` with 200 variables now runs in half the time.
 
 ### Fixed
 
