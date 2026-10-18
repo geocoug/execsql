@@ -290,6 +290,2353 @@
   }
  },
  "mysql": {
+  "file-insert/TRUE_FALSE -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "0",
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/TRUE_FALSE -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "0",
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/TRUE_FALSE -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'",
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/TRUE_FALSE -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/TRUE_FALSE -> decimal(18,3)": {
+   "after": "ERROR",
+   "before": [
+    "Decimal('0.000')",
+    "Decimal('0.000')"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/TRUE_FALSE -> double": {
+   "after": "ERROR",
+   "before": [
+    "0.0",
+    "0.0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/TRUE_FALSE -> integer": {
+   "after": "ERROR",
+   "before": [
+    "0",
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/TRUE_FALSE -> time": {
+   "after": "ERROR",
+   "before": [
+    "datetime.timedelta(0)",
+    "datetime.timedelta(0)"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/big_integer -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "127"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/big_integer -> integer": {
+   "after": "ERROR",
+   "before": [
+    "2147483647"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/big_integer -> time": {
+   "after": "ERROR",
+   "before": [
+    "datetime.timedelta(days=34, seconds=82799)"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/dates_and_missing -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "2024",
+    "None"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/dates_and_missing -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "127",
+    "None"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/dates_and_missing -> decimal(18,3)": {
+   "after": "ERROR",
+   "before": [
+    "Decimal('2024.000')",
+    "None"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/dates_and_missing -> double": {
+   "after": "ERROR",
+   "before": [
+    "2024.0",
+    "None"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/dates_and_missing -> integer": {
+   "after": "ERROR",
+   "before": [
+    "2024",
+    "None"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/dates_and_missing -> time": {
+   "after": "ERROR",
+   "before": [
+    "datetime.timedelta(seconds=1224)",
+    "None"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/day_first_date -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "13"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/day_first_date -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "13"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/day_first_date -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/day_first_date -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/day_first_date -> decimal(18,3)": {
+   "after": "ERROR",
+   "before": [
+    "Decimal('13.000')"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/day_first_date -> double": {
+   "after": "ERROR",
+   "before": [
+    "13.0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/day_first_date -> integer": {
+   "after": "ERROR",
+   "before": [
+    "13"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/day_first_date -> time": {
+   "after": "ERROR",
+   "before": [
+    "datetime.timedelta(seconds=13)"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/empty_and_missing -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "None",
+    "None",
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/empty_and_missing -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "None",
+    "None",
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/empty_and_missing -> date": {
+   "after": "ERROR",
+   "before": [
+    "None",
+    "None",
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/empty_and_missing -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "None",
+    "None",
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/empty_and_missing -> decimal(18,3)": {
+   "after": "ERROR",
+   "before": [
+    "None",
+    "None",
+    "Decimal('0.000')"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/empty_and_missing -> double": {
+   "after": "ERROR",
+   "before": [
+    "None",
+    "None",
+    "0.0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/empty_and_missing -> integer": {
+   "after": "ERROR",
+   "before": [
+    "None",
+    "None",
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/empty_and_missing -> time": {
+   "after": "ERROR",
+   "before": [
+    "None",
+    "None",
+    "datetime.timedelta(0)"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/exponent -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "127",
+    "127"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/exponent -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'",
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/exponent -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/fractions -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'",
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/fractions -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/integers -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'",
+    "'0000-00-00'",
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/integers -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/iso_dates -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "2024",
+    "2024"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/iso_dates -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "127",
+    "127"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/iso_dates -> decimal(18,3)": {
+   "after": "ERROR",
+   "before": [
+    "Decimal('2024.000')",
+    "Decimal('2024.000')"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/iso_dates -> double": {
+   "after": "ERROR",
+   "before": [
+    "2024.0",
+    "2024.0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/iso_dates -> integer": {
+   "after": "ERROR",
+   "before": [
+    "2024",
+    "2024"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/iso_dates -> time": {
+   "after": "ERROR",
+   "before": [
+    "datetime.timedelta(seconds=1224)",
+    "datetime.timedelta(seconds=1224)"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/leading_zeros -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "127",
+    "127"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/leading_zeros -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'",
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/leading_zeros -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/long_text -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/long_text -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/long_text -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/long_text -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/long_text -> decimal(18,3)": {
+   "after": "ERROR",
+   "before": [
+    "Decimal('0.000')"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/long_text -> double": {
+   "after": "ERROR",
+   "before": [
+    "0.0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/long_text -> integer": {
+   "after": "ERROR",
+   "before": [
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/long_text -> time": {
+   "after": "ERROR",
+   "before": [
+    "datetime.timedelta(0)"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/long_text -> varchar(50)": {
+   "after": "ERROR",
+   "before": [
+    "'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/month_names -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/month_names -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/month_names -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/month_names -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/month_names -> decimal(18,3)": {
+   "after": "ERROR",
+   "before": [
+    "Decimal('0.000')"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/month_names -> double": {
+   "after": "ERROR",
+   "before": [
+    "0.0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/month_names -> integer": {
+   "after": "ERROR",
+   "before": [
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/month_names -> time": {
+   "after": "ERROR",
+   "before": [
+    "datetime.timedelta(0)"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/padded_text -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/padded_text -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/padded_text -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/padded_text -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/padded_text -> decimal(18,3)": {
+   "after": "ERROR",
+   "before": [
+    "Decimal('0.000')"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/padded_text -> double": {
+   "after": "ERROR",
+   "before": [
+    "0.0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/padded_text -> integer": {
+   "after": "ERROR",
+   "before": [
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/padded_text -> time": {
+   "after": "ERROR",
+   "before": [
+    "datetime.timedelta(0)"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/signed_padded -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'",
+    "'0000-00-00'",
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/signed_padded -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/signed_padded -> time": {
+   "after": "ERROR",
+   "before": [
+    "datetime.timedelta(seconds=7)",
+    "datetime.timedelta(0)",
+    "datetime.timedelta(days=-1, seconds=86398)"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/small_floats -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'",
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/small_floats -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/t_f -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "0",
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/t_f -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "0",
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/t_f -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'",
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/t_f -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/t_f -> decimal(18,3)": {
+   "after": "ERROR",
+   "before": [
+    "Decimal('0.000')",
+    "Decimal('0.000')"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/t_f -> double": {
+   "after": "ERROR",
+   "before": [
+    "0.0",
+    "0.0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/t_f -> integer": {
+   "after": "ERROR",
+   "before": [
+    "0",
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/t_f -> time": {
+   "after": "ERROR",
+   "before": [
+    "datetime.timedelta(0)",
+    "datetime.timedelta(0)"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/times -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "10",
+    "23"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/times -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "10",
+    "23"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/times -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'",
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/times -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/times -> decimal(18,3)": {
+   "after": "ERROR",
+   "before": [
+    "Decimal('10.000')",
+    "Decimal('23.000')"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/times -> double": {
+   "after": "ERROR",
+   "before": [
+    "10.0",
+    "23.0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/times -> integer": {
+   "after": "ERROR",
+   "before": [
+    "10",
+    "23"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/timestamps -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "2024",
+    "2024"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/timestamps -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "127",
+    "127"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/timestamps -> decimal(18,3)": {
+   "after": "ERROR",
+   "before": [
+    "Decimal('2024.000')",
+    "Decimal('2024.000')"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/timestamps -> double": {
+   "after": "ERROR",
+   "before": [
+    "2024.0",
+    "2024.0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/timestamps -> integer": {
+   "after": "ERROR",
+   "before": [
+    "2024",
+    "2024"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/timestamps_tz -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "2024",
+    "2024"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/timestamps_tz -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "127",
+    "127"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/timestamps_tz -> date": {
+   "after": "ERROR",
+   "before": [
+    "datetime.date(2024, 1, 5)",
+    "datetime.date(2024, 1, 5)"
+   ],
+   "why": "MySQL in strict mode does not read a trailing Z as a time zone, so the load is an error; before, MySQL dropped the Z with a warning (#101)."
+  },
+  "file-insert/timestamps_tz -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "datetime.datetime(2024, 1, 5, 10, 0)",
+    "datetime.datetime(2024, 1, 5, 4, 30)"
+   ],
+   "why": "MySQL in strict mode does not read a trailing Z as a time zone, so the load is an error; before, MySQL dropped the Z with a warning (#101)."
+  },
+  "file-insert/timestamps_tz -> decimal(18,3)": {
+   "after": "ERROR",
+   "before": [
+    "Decimal('2024.000')",
+    "Decimal('2024.000')"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/timestamps_tz -> double": {
+   "after": "ERROR",
+   "before": [
+    "2024.0",
+    "2024.0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/timestamps_tz -> integer": {
+   "after": "ERROR",
+   "before": [
+    "2024",
+    "2024"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/timestamps_tz -> time": {
+   "after": "ERROR",
+   "before": [
+    "datetime.timedelta(seconds=1224)",
+    "datetime.timedelta(seconds=16200)"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/two_places -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'",
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/two_places -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/unicode -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/unicode -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/unicode -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/unicode -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/unicode -> decimal(18,3)": {
+   "after": "ERROR",
+   "before": [
+    "Decimal('0.000')"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/unicode -> double": {
+   "after": "ERROR",
+   "before": [
+    "0.0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/unicode -> integer": {
+   "after": "ERROR",
+   "before": [
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/unicode -> time": {
+   "after": "ERROR",
+   "before": [
+    "datetime.timedelta(0)"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/us_dates -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "1",
+    "2"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/us_dates -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "1",
+    "2"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/us_dates -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'",
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/us_dates -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/us_dates -> decimal(18,3)": {
+   "after": "ERROR",
+   "before": [
+    "Decimal('1.000')",
+    "Decimal('2.000')"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/us_dates -> double": {
+   "after": "ERROR",
+   "before": [
+    "1.0",
+    "2.0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/us_dates -> integer": {
+   "after": "ERROR",
+   "before": [
+    "1",
+    "2"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/us_dates -> time": {
+   "after": "ERROR",
+   "before": [
+    "datetime.timedelta(seconds=1)",
+    "datetime.timedelta(seconds=2)"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/whole_decimals -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'",
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/whole_decimals -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/word_and_number -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "0",
+    "1"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/word_and_number -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "0",
+    "1"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/word_and_number -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'",
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/word_and_number -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/word_and_number -> decimal(18,3)": {
+   "after": "ERROR",
+   "before": [
+    "Decimal('0.000')",
+    "Decimal('1.000')"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/word_and_number -> double": {
+   "after": "ERROR",
+   "before": [
+    "0.0",
+    "1.0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/word_and_number -> integer": {
+   "after": "ERROR",
+   "before": [
+    "0",
+    "1"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/word_and_number -> time": {
+   "after": "ERROR",
+   "before": [
+    "datetime.timedelta(0)",
+    "datetime.timedelta(seconds=1)"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/words -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "0",
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/words -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "0",
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/words -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'",
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/words -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/words -> decimal(18,3)": {
+   "after": "ERROR",
+   "before": [
+    "Decimal('0.000')",
+    "Decimal('0.000')"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/words -> double": {
+   "after": "ERROR",
+   "before": [
+    "0.0",
+    "0.0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/words -> integer": {
+   "after": "ERROR",
+   "before": [
+    "0",
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/words -> time": {
+   "after": "ERROR",
+   "before": [
+    "datetime.timedelta(0)",
+    "datetime.timedelta(0)"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/yes_no -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "0",
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/yes_no -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "0",
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/yes_no -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'",
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/yes_no -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/yes_no -> decimal(18,3)": {
+   "after": "ERROR",
+   "before": [
+    "Decimal('0.000')",
+    "Decimal('0.000')"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/yes_no -> double": {
+   "after": "ERROR",
+   "before": [
+    "0.0",
+    "0.0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/yes_no -> integer": {
+   "after": "ERROR",
+   "before": [
+    "0",
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/yes_no -> time": {
+   "after": "ERROR",
+   "before": [
+    "datetime.timedelta(0)",
+    "datetime.timedelta(0)"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/zero_one -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'",
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-insert/zero_one -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/TRUE_FALSE -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "0",
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/TRUE_FALSE -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "0",
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/TRUE_FALSE -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'",
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/TRUE_FALSE -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/TRUE_FALSE -> decimal(18,3)": {
+   "after": "ERROR",
+   "before": [
+    "Decimal('0.000')",
+    "Decimal('0.000')"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/TRUE_FALSE -> double": {
+   "after": "ERROR",
+   "before": [
+    "0.0",
+    "0.0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/TRUE_FALSE -> integer": {
+   "after": "ERROR",
+   "before": [
+    "0",
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/TRUE_FALSE -> time": {
+   "after": "ERROR",
+   "before": [
+    "datetime.timedelta(0)",
+    "datetime.timedelta(0)"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/big_integer -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "127"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/big_integer -> integer": {
+   "after": "ERROR",
+   "before": [
+    "2147483647"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/big_integer -> time": {
+   "after": "ERROR",
+   "before": [
+    "datetime.timedelta(days=34, seconds=82799)"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/dates_and_missing -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "2024",
+    "None"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/dates_and_missing -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "127",
+    "None"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/dates_and_missing -> double": {
+   "after": "ERROR",
+   "before": [
+    "2024.0",
+    "None"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/dates_and_missing -> integer": {
+   "after": "ERROR",
+   "before": [
+    "2024",
+    "None"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/dates_and_missing -> time": {
+   "after": "ERROR",
+   "before": [
+    "datetime.timedelta(seconds=1224)",
+    "None"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/day_first_date -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "13"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/day_first_date -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "13"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/day_first_date -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/day_first_date -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/day_first_date -> double": {
+   "after": "ERROR",
+   "before": [
+    "13.0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/day_first_date -> integer": {
+   "after": "ERROR",
+   "before": [
+    "13"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/day_first_date -> time": {
+   "after": "ERROR",
+   "before": [
+    "datetime.timedelta(seconds=13)"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/empty_and_missing -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "None",
+    "None",
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/empty_and_missing -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "None",
+    "None",
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/empty_and_missing -> date": {
+   "after": "ERROR",
+   "before": [
+    "None",
+    "None",
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/empty_and_missing -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "None",
+    "None",
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/empty_and_missing -> decimal(18,3)": {
+   "after": "ERROR",
+   "before": [
+    "None",
+    "None",
+    "Decimal('0.000')"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/empty_and_missing -> double": {
+   "after": "ERROR",
+   "before": [
+    "None",
+    "None",
+    "0.0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/empty_and_missing -> integer": {
+   "after": "ERROR",
+   "before": [
+    "None",
+    "None",
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/empty_and_missing -> time": {
+   "after": "ERROR",
+   "before": [
+    "None",
+    "None",
+    "datetime.timedelta(0)"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/exponent -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "127",
+    "127"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/exponent -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'",
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/exponent -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/fractions -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'",
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/fractions -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/integers -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'",
+    "'0000-00-00'",
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/integers -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/iso_dates -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "2024",
+    "2024"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/iso_dates -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "127",
+    "127"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/iso_dates -> double": {
+   "after": "ERROR",
+   "before": [
+    "2024.0",
+    "2024.0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/iso_dates -> integer": {
+   "after": "ERROR",
+   "before": [
+    "2024",
+    "2024"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/iso_dates -> time": {
+   "after": "ERROR",
+   "before": [
+    "datetime.timedelta(seconds=1224)",
+    "datetime.timedelta(seconds=1224)"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/leading_zeros -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "127",
+    "127"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/leading_zeros -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'",
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/leading_zeros -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/long_text -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/long_text -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/long_text -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/long_text -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/long_text -> decimal(18,3)": {
+   "after": "ERROR",
+   "before": [
+    "Decimal('0.000')"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/long_text -> double": {
+   "after": "ERROR",
+   "before": [
+    "0.0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/long_text -> integer": {
+   "after": "ERROR",
+   "before": [
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/long_text -> time": {
+   "after": "ERROR",
+   "before": [
+    "datetime.timedelta(0)"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/long_text -> varchar(50)": {
+   "after": "ERROR",
+   "before": [
+    "'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/month_names -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/month_names -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/month_names -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/month_names -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/month_names -> decimal(18,3)": {
+   "after": "ERROR",
+   "before": [
+    "Decimal('0.000')"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/month_names -> double": {
+   "after": "ERROR",
+   "before": [
+    "0.0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/month_names -> integer": {
+   "after": "ERROR",
+   "before": [
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/month_names -> time": {
+   "after": "ERROR",
+   "before": [
+    "datetime.timedelta(0)"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/padded_text -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/padded_text -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/padded_text -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/padded_text -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/padded_text -> decimal(18,3)": {
+   "after": "ERROR",
+   "before": [
+    "Decimal('0.000')"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/padded_text -> double": {
+   "after": "ERROR",
+   "before": [
+    "0.0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/padded_text -> integer": {
+   "after": "ERROR",
+   "before": [
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/padded_text -> time": {
+   "after": "ERROR",
+   "before": [
+    "datetime.timedelta(0)"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/signed_padded -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'",
+    "'0000-00-00'",
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/signed_padded -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/signed_padded -> time": {
+   "after": "ERROR",
+   "before": [
+    "datetime.timedelta(seconds=7)",
+    "datetime.timedelta(0)",
+    "datetime.timedelta(days=-1, seconds=86398)"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/small_floats -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'",
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/small_floats -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/t_f -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "0",
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/t_f -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "0",
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/t_f -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'",
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/t_f -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/t_f -> decimal(18,3)": {
+   "after": "ERROR",
+   "before": [
+    "Decimal('0.000')",
+    "Decimal('0.000')"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/t_f -> double": {
+   "after": "ERROR",
+   "before": [
+    "0.0",
+    "0.0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/t_f -> integer": {
+   "after": "ERROR",
+   "before": [
+    "0",
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/t_f -> time": {
+   "after": "ERROR",
+   "before": [
+    "datetime.timedelta(0)",
+    "datetime.timedelta(0)"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/times -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "10",
+    "23"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/times -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "10",
+    "23"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/times -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'",
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/times -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/times -> double": {
+   "after": "ERROR",
+   "before": [
+    "10.0",
+    "23.0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/times -> integer": {
+   "after": "ERROR",
+   "before": [
+    "10",
+    "23"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/timestamps -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "2024",
+    "2024"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/timestamps -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "127",
+    "127"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/timestamps -> double": {
+   "after": "ERROR",
+   "before": [
+    "2024.0",
+    "2024.0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/timestamps -> integer": {
+   "after": "ERROR",
+   "before": [
+    "2024",
+    "2024"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/timestamps_tz -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "2024",
+    "2024"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/timestamps_tz -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "127",
+    "127"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/timestamps_tz -> date": {
+   "after": "ERROR",
+   "before": [
+    "datetime.date(2024, 1, 5)",
+    "datetime.date(2024, 1, 5)"
+   ],
+   "why": "MySQL in strict mode does not read a trailing Z as a time zone, so the load is an error; before, MySQL dropped the Z with a warning (#101)."
+  },
+  "file-load/timestamps_tz -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "datetime.datetime(2024, 1, 5, 10, 0)",
+    "datetime.datetime(2024, 1, 5, 4, 30)"
+   ],
+   "why": "MySQL in strict mode does not read a trailing Z as a time zone, so the load is an error; before, MySQL dropped the Z with a warning (#101)."
+  },
+  "file-load/timestamps_tz -> double": {
+   "after": "ERROR",
+   "before": [
+    "2024.0",
+    "2024.0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/timestamps_tz -> integer": {
+   "after": "ERROR",
+   "before": [
+    "2024",
+    "2024"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/timestamps_tz -> time": {
+   "after": "ERROR",
+   "before": [
+    "datetime.timedelta(seconds=1224)",
+    "datetime.timedelta(seconds=16200)"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/two_places -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'",
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/two_places -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/unicode -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/unicode -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/unicode -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/unicode -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/unicode -> decimal(18,3)": {
+   "after": "ERROR",
+   "before": [
+    "Decimal('0.000')"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/unicode -> double": {
+   "after": "ERROR",
+   "before": [
+    "0.0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/unicode -> integer": {
+   "after": "ERROR",
+   "before": [
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/unicode -> time": {
+   "after": "ERROR",
+   "before": [
+    "datetime.timedelta(0)"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/us_dates -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "1",
+    "2"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/us_dates -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "1",
+    "2"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/us_dates -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'",
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/us_dates -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/us_dates -> double": {
+   "after": "ERROR",
+   "before": [
+    "1.0",
+    "2.0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/us_dates -> integer": {
+   "after": "ERROR",
+   "before": [
+    "1",
+    "2"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/us_dates -> time": {
+   "after": "ERROR",
+   "before": [
+    "datetime.timedelta(seconds=1)",
+    "datetime.timedelta(seconds=2)"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/whole_decimals -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'",
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/whole_decimals -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/word_and_number -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "0",
+    "1"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/word_and_number -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "0",
+    "1"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/word_and_number -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'",
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/word_and_number -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/word_and_number -> decimal(18,3)": {
+   "after": "ERROR",
+   "before": [
+    "Decimal('0.000')",
+    "Decimal('1.000')"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/word_and_number -> double": {
+   "after": "ERROR",
+   "before": [
+    "0.0",
+    "1.0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/word_and_number -> integer": {
+   "after": "ERROR",
+   "before": [
+    "0",
+    "1"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/word_and_number -> time": {
+   "after": "ERROR",
+   "before": [
+    "datetime.timedelta(0)",
+    "datetime.timedelta(seconds=1)"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/words -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "0",
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/words -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "0",
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/words -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'",
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/words -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/words -> decimal(18,3)": {
+   "after": "ERROR",
+   "before": [
+    "Decimal('0.000')",
+    "Decimal('0.000')"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/words -> double": {
+   "after": "ERROR",
+   "before": [
+    "0.0",
+    "0.0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/words -> integer": {
+   "after": "ERROR",
+   "before": [
+    "0",
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/words -> time": {
+   "after": "ERROR",
+   "before": [
+    "datetime.timedelta(0)",
+    "datetime.timedelta(0)"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/yes_no -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "0",
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/yes_no -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "0",
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/yes_no -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'",
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/yes_no -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/yes_no -> decimal(18,3)": {
+   "after": "ERROR",
+   "before": [
+    "Decimal('0.000')",
+    "Decimal('0.000')"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/yes_no -> double": {
+   "after": "ERROR",
+   "before": [
+    "0.0",
+    "0.0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/yes_no -> integer": {
+   "after": "ERROR",
+   "before": [
+    "0",
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/yes_no -> time": {
+   "after": "ERROR",
+   "before": [
+    "datetime.timedelta(0)",
+    "datetime.timedelta(0)"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/zero_one -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'",
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "file-load/zero_one -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode, and IMPORT checks LOAD DATA's warnings: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/TRUE_FALSE -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'",
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/TRUE_FALSE -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
   "text/TRUE_FALSE -> text": {
    "after": [
     "'TRUE'",
@@ -312,6 +2659,103 @@
    ],
    "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
   },
+  "text/big_integer -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "127"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/big_integer -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/big_integer -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/big_integer -> integer": {
+   "after": "ERROR",
+   "before": [
+    "2147483647"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/big_integer -> time": {
+   "after": "ERROR",
+   "before": [
+    "datetime.timedelta(days=34, seconds=82799)"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/dates_and_missing -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "2024",
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/dates_and_missing -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "127",
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/dates_and_missing -> date": {
+   "after": [
+    "datetime.date(2024, 1, 5)",
+    "None"
+   ],
+   "before": [
+    "datetime.date(2024, 1, 5)",
+    "'0000-00-00'"
+   ],
+   "why": "A missing date or timestamp is sent as NULL, not as '', which MySQL stored as a zero date or 00:00:00 (#101)."
+  },
+  "text/dates_and_missing -> datetime": {
+   "after": [
+    "datetime.datetime(2024, 1, 5, 0, 0)",
+    "None"
+   ],
+   "before": [
+    "datetime.datetime(2024, 1, 5, 0, 0)",
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "A missing date or timestamp is sent as NULL, not as '', which MySQL stored as a zero date or 00:00:00 (#101)."
+  },
+  "text/dates_and_missing -> decimal(18,3)": {
+   "after": "ERROR",
+   "before": [
+    "Decimal('2024.000')",
+    "Decimal('0.000')"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/dates_and_missing -> double": {
+   "after": "ERROR",
+   "before": [
+    "2024.0",
+    "0.0"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/dates_and_missing -> integer": {
+   "after": "ERROR",
+   "before": [
+    "2024",
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
   "text/dates_and_missing -> text": {
    "after": [
     "'2024-01-05'",
@@ -323,6 +2767,17 @@
    ],
    "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
   },
+  "text/dates_and_missing -> time": {
+   "after": [
+    "datetime.timedelta(0)",
+    "None"
+   ],
+   "before": [
+    "datetime.timedelta(0)",
+    "datetime.timedelta(0)"
+   ],
+   "why": "A missing date or timestamp is sent as NULL, not as '', which MySQL stored as a zero date or 00:00:00 (#101)."
+  },
   "text/dates_and_missing -> varchar(50)": {
    "after": [
     "'2024-01-05'",
@@ -333,6 +2788,41 @@
     "''"
    ],
    "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/day_first_date -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "2024"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/day_first_date -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "127"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/day_first_date -> decimal(18,3)": {
+   "after": "ERROR",
+   "before": [
+    "Decimal('2024.000')"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/day_first_date -> double": {
+   "after": "ERROR",
+   "before": [
+    "2024.0"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/day_first_date -> integer": {
+   "after": "ERROR",
+   "before": [
+    "2024"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
   },
   "text/day_first_date -> text": {
    "after": [
@@ -351,6 +2841,86 @@
     "'2024-05-13 00:00:00'"
    ],
    "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/empty_and_missing -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "0",
+    "None",
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/empty_and_missing -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "0",
+    "None",
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/empty_and_missing -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'",
+    "None",
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/empty_and_missing -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'",
+    "None",
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/empty_and_missing -> decimal(18,3)": {
+   "after": "ERROR",
+   "before": [
+    "Decimal('0.000')",
+    "None",
+    "Decimal('0.000')"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/empty_and_missing -> double": {
+   "after": "ERROR",
+   "before": [
+    "0.0",
+    "None",
+    "0.0"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/empty_and_missing -> integer": {
+   "after": "ERROR",
+   "before": [
+    "0",
+    "None",
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/empty_and_missing -> time": {
+   "after": "ERROR",
+   "before": [
+    "datetime.timedelta(0)",
+    "None",
+    "datetime.timedelta(0)"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/exponent -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "127",
+    "127"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
   },
   "text/exponent -> text": {
    "after": [
@@ -382,6 +2952,22 @@
    ],
    "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
   },
+  "text/fractions -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'",
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/fractions -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
   "text/fractions -> integer": {
    "after": "ERROR",
    "before": [
@@ -389,6 +2975,64 @@
     "2"
    ],
    "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
+  },
+  "text/integers -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'",
+    "'0000-00-00'",
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/integers -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/iso_dates -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "2024",
+    "2024"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/iso_dates -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "127",
+    "127"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/iso_dates -> decimal(18,3)": {
+   "after": "ERROR",
+   "before": [
+    "Decimal('2024.000')",
+    "Decimal('2024.000')"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/iso_dates -> double": {
+   "after": "ERROR",
+   "before": [
+    "2024.0",
+    "2024.0"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/iso_dates -> integer": {
+   "after": "ERROR",
+   "before": [
+    "2024",
+    "2024"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
   },
   "text/iso_dates -> text": {
    "after": [
@@ -412,6 +3056,128 @@
    ],
    "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
   },
+  "text/leading_zeros -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "127",
+    "127"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/leading_zeros -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'",
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/leading_zeros -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/long_text -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/long_text -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/long_text -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/long_text -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/long_text -> decimal(18,3)": {
+   "after": "ERROR",
+   "before": [
+    "Decimal('0.000')"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/long_text -> double": {
+   "after": "ERROR",
+   "before": [
+    "0.0"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/long_text -> integer": {
+   "after": "ERROR",
+   "before": [
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/long_text -> time": {
+   "after": "ERROR",
+   "before": [
+    "datetime.timedelta(0)"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/long_text -> varchar(50)": {
+   "after": "ERROR",
+   "before": [
+    "'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/month_names -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "2024"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/month_names -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "127"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/month_names -> decimal(18,3)": {
+   "after": "ERROR",
+   "before": [
+    "Decimal('2024.000')"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/month_names -> double": {
+   "after": "ERROR",
+   "before": [
+    "2024.0"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/month_names -> integer": {
+   "after": "ERROR",
+   "before": [
+    "2024"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
   "text/month_names -> text": {
    "after": [
     "'Jan 5, 2024'"
@@ -429,6 +3195,80 @@
     "'2024-01-05 00:00:00'"
    ],
    "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/padded_text -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/padded_text -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/padded_text -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/padded_text -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/padded_text -> decimal(18,3)": {
+   "after": "ERROR",
+   "before": [
+    "Decimal('0.000')"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/padded_text -> double": {
+   "after": "ERROR",
+   "before": [
+    "0.0"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/padded_text -> integer": {
+   "after": "ERROR",
+   "before": [
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/padded_text -> time": {
+   "after": "ERROR",
+   "before": [
+    "datetime.timedelta(0)"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/signed_padded -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'",
+    "'0000-00-00'",
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/signed_padded -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
   },
   "text/signed_padded -> text": {
    "after": [
@@ -472,6 +3312,22 @@
    ],
    "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
   },
+  "text/t_f -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'",
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/t_f -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
   "text/t_f -> text": {
    "after": [
     "'t'",
@@ -493,6 +3349,62 @@
     "'0'"
    ],
    "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/times -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "10",
+    "23"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/times -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "10",
+    "23"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/times -> date": {
+   "after": "ERROR",
+   "before": [
+    "'2010-00-00'",
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/times -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'2010-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/times -> decimal(18,3)": {
+   "after": "ERROR",
+   "before": [
+    "Decimal('10.000')",
+    "Decimal('23.000')"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/times -> double": {
+   "after": "ERROR",
+   "before": [
+    "10.0",
+    "23.0"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/times -> integer": {
+   "after": "ERROR",
+   "before": [
+    "10",
+    "23"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
   },
   "text/times -> text": {
    "after": [
@@ -516,6 +3428,46 @@
    ],
    "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
   },
+  "text/timestamps -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "2024",
+    "2024"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/timestamps -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "127",
+    "127"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/timestamps -> decimal(18,3)": {
+   "after": "ERROR",
+   "before": [
+    "Decimal('2024.000')",
+    "Decimal('2024.000')"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/timestamps -> double": {
+   "after": "ERROR",
+   "before": [
+    "2024.0",
+    "2024.0"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/timestamps -> integer": {
+   "after": "ERROR",
+   "before": [
+    "2024",
+    "2024"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
   "text/timestamps -> text": {
    "after": [
     "'2024-01-05 10:00'",
@@ -537,6 +3489,46 @@
     "'2024-02-06 11:30:15'"
    ],
    "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "text/timestamps_tz -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "2024",
+    "2024"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/timestamps_tz -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "127",
+    "127"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/timestamps_tz -> decimal(18,3)": {
+   "after": "ERROR",
+   "before": [
+    "Decimal('2024.000')",
+    "Decimal('2024.000')"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/timestamps_tz -> double": {
+   "after": "ERROR",
+   "before": [
+    "2024.0",
+    "2024.0"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/timestamps_tz -> integer": {
+   "after": "ERROR",
+   "before": [
+    "2024",
+    "2024"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
   },
   "text/timestamps_tz -> text": {
    "after": [
@@ -568,6 +3560,22 @@
    ],
    "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
   },
+  "text/two_places -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'",
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/two_places -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
   "text/two_places -> integer": {
    "after": "ERROR",
    "before": [
@@ -575,6 +3583,102 @@
     "2"
    ],
    "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
+  },
+  "text/unicode -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/unicode -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/unicode -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/unicode -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/unicode -> decimal(18,3)": {
+   "after": "ERROR",
+   "before": [
+    "Decimal('0.000')"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/unicode -> double": {
+   "after": "ERROR",
+   "before": [
+    "0.0"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/unicode -> integer": {
+   "after": "ERROR",
+   "before": [
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/unicode -> time": {
+   "after": "ERROR",
+   "before": [
+    "datetime.timedelta(0)"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/us_dates -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "2024",
+    "2024"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/us_dates -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "127",
+    "127"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/us_dates -> decimal(18,3)": {
+   "after": "ERROR",
+   "before": [
+    "Decimal('2024.000')",
+    "Decimal('2024.000')"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/us_dates -> double": {
+   "after": "ERROR",
+   "before": [
+    "2024.0",
+    "2024.0"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/us_dates -> integer": {
+   "after": "ERROR",
+   "before": [
+    "2024",
+    "2024"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
   },
   "text/us_dates -> text": {
    "after": [
@@ -598,6 +3702,166 @@
    ],
    "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
   },
+  "text/whole_decimals -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'",
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/whole_decimals -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/word_and_number -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "0",
+    "1"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/word_and_number -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "0",
+    "1"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/word_and_number -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'",
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/word_and_number -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/word_and_number -> decimal(18,3)": {
+   "after": "ERROR",
+   "before": [
+    "Decimal('0.000')",
+    "Decimal('1.000')"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/word_and_number -> double": {
+   "after": "ERROR",
+   "before": [
+    "0.0",
+    "1.0"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/word_and_number -> integer": {
+   "after": "ERROR",
+   "before": [
+    "0",
+    "1"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/word_and_number -> time": {
+   "after": "ERROR",
+   "before": [
+    "datetime.timedelta(0)",
+    "datetime.timedelta(seconds=1)"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/words -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "0",
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/words -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "0",
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/words -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'",
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/words -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/words -> decimal(18,3)": {
+   "after": "ERROR",
+   "before": [
+    "Decimal('0.000')",
+    "Decimal('0.000')"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/words -> double": {
+   "after": "ERROR",
+   "before": [
+    "0.0",
+    "0.0"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/words -> integer": {
+   "after": "ERROR",
+   "before": [
+    "0",
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/words -> time": {
+   "after": "ERROR",
+   "before": [
+    "datetime.timedelta(0)",
+    "datetime.timedelta(0)"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/yes_no -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'",
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/yes_no -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
   "text/yes_no -> text": {
    "after": [
     "'yes'",
@@ -620,6 +3884,136 @@
    ],
    "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
   },
+  "text/zero_one -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'",
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "text/zero_one -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/big_int -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "127"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/big_int -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/big_int -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/big_int -> integer": {
+   "after": "ERROR",
+   "before": [
+    "2147483647"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/big_int -> time": {
+   "after": "ERROR",
+   "before": [
+    "datetime.timedelta(days=34, seconds=82799)"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/bools -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'",
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/bools -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/bytes -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "127"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/bytes -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/bytes -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/bytes -> time": {
+   "after": "ERROR",
+   "before": [
+    "datetime.timedelta(0)"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/date -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "2024"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/date -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "127"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/date -> decimal(18,3)": {
+   "after": "ERROR",
+   "before": [
+    "Decimal('2024.000')"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/date -> double": {
+   "after": "ERROR",
+   "before": [
+    "2024.0"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/date -> integer": {
+   "after": "ERROR",
+   "before": [
+    "2024"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
   "typed/date -> text": {
    "after": [
     "'2024-01-05'"
@@ -638,6 +4032,68 @@
    ],
    "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
   },
+  "typed/date_and_null -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "2024",
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/date_and_null -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "127",
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/date_and_null -> date": {
+   "after": [
+    "datetime.date(2024, 1, 5)",
+    "None"
+   ],
+   "before": [
+    "datetime.date(2024, 1, 5)",
+    "'0000-00-00'"
+   ],
+   "why": "A missing date or timestamp is sent as NULL, not as '', which MySQL stored as a zero date or 00:00:00 (#101)."
+  },
+  "typed/date_and_null -> datetime": {
+   "after": [
+    "datetime.datetime(2024, 1, 5, 0, 0)",
+    "None"
+   ],
+   "before": [
+    "datetime.datetime(2024, 1, 5, 0, 0)",
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "A missing date or timestamp is sent as NULL, not as '', which MySQL stored as a zero date or 00:00:00 (#101)."
+  },
+  "typed/date_and_null -> decimal(18,3)": {
+   "after": "ERROR",
+   "before": [
+    "Decimal('2024.000')",
+    "Decimal('0.000')"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/date_and_null -> double": {
+   "after": "ERROR",
+   "before": [
+    "2024.0",
+    "0.0"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/date_and_null -> integer": {
+   "after": "ERROR",
+   "before": [
+    "2024",
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
   "typed/date_and_null -> text": {
    "after": [
     "'2024-01-05'",
@@ -648,6 +4104,17 @@
     "''"
    ],
    "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
+  },
+  "typed/date_and_null -> time": {
+   "after": [
+    "datetime.timedelta(0)",
+    "None"
+   ],
+   "before": [
+    "datetime.timedelta(0)",
+    "datetime.timedelta(0)"
+   ],
+   "why": "A missing date or timestamp is sent as NULL, not as '', which MySQL stored as a zero date or 00:00:00 (#101)."
   },
   "typed/date_and_null -> varchar(50)": {
    "after": [
@@ -660,6 +4127,76 @@
    ],
    "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
   },
+  "typed/datetime -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "2024"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/datetime -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "127"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/datetime -> decimal(18,3)": {
+   "after": "ERROR",
+   "before": [
+    "Decimal('2024.000')"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/datetime -> double": {
+   "after": "ERROR",
+   "before": [
+    "2024.0"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/datetime -> integer": {
+   "after": "ERROR",
+   "before": [
+    "2024"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/datetime_tz -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "2024"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/datetime_tz -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "127"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/datetime_tz -> decimal(18,3)": {
+   "after": "ERROR",
+   "before": [
+    "Decimal('2024.000')"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/datetime_tz -> double": {
+   "after": "ERROR",
+   "before": [
+    "2024.0"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/datetime_tz -> integer": {
+   "after": "ERROR",
+   "before": [
+    "2024"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
   "typed/decimal_fraction -> bigint": {
    "after": "ERROR",
    "before": [
@@ -667,6 +4204,22 @@
     "2"
    ],
    "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
+  },
+  "typed/decimal_fraction -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'",
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/decimal_fraction -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
   },
   "typed/decimal_fraction -> integer": {
    "after": "ERROR",
@@ -683,12 +4236,42 @@
    ],
    "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
   },
+  "typed/decimal_scale -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/decimal_scale -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
   "typed/decimal_scale -> integer": {
    "after": "ERROR",
    "before": [
     "2"
    ],
    "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
+  },
+  "typed/decimal_whole -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'",
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/decimal_whole -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
   },
   "typed/float_fraction -> bigint": {
    "after": "ERROR",
@@ -698,6 +4281,22 @@
    ],
    "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
   },
+  "typed/float_fraction -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'",
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/float_fraction -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
   "typed/float_fraction -> integer": {
    "after": "ERROR",
    "before": [
@@ -705,6 +4304,221 @@
     "0"
    ],
    "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
+  },
+  "typed/float_whole -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'",
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/float_whole -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/int_and_null -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'",
+    "None"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/int_and_null -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'",
+    "None"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/int_zero_one -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'",
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/int_zero_one -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/ints -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'",
+    "'0000-00-00'",
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/ints -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/text_date -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "2024"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/text_date -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "127"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/text_date -> decimal(18,3)": {
+   "after": "ERROR",
+   "before": [
+    "Decimal('2024.000')"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/text_date -> double": {
+   "after": "ERROR",
+   "before": [
+    "2024.0"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/text_date -> integer": {
+   "after": "ERROR",
+   "before": [
+    "2024"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/text_date -> time": {
+   "after": "ERROR",
+   "before": [
+    "datetime.timedelta(seconds=1224)"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/text_words -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/text_words -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/text_words -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/text_words -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/text_words -> decimal(18,3)": {
+   "after": "ERROR",
+   "before": [
+    "Decimal('0.000')"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/text_words -> double": {
+   "after": "ERROR",
+   "before": [
+    "0.0"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/text_words -> integer": {
+   "after": "ERROR",
+   "before": [
+    "0"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/text_words -> time": {
+   "after": "ERROR",
+   "before": [
+    "datetime.timedelta(0)"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/text_zero_one -> date": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00'",
+    "'0000-00-00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/text_zero_one -> datetime": {
+   "after": "ERROR",
+   "before": [
+    "'0000-00-00 00:00:00'",
+    "'0000-00-00 00:00:00'"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/time -> bigint": {
+   "after": "ERROR",
+   "before": [
+    "10"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/time -> boolean": {
+   "after": "ERROR",
+   "before": [
+    "10"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/time -> decimal(18,3)": {
+   "after": "ERROR",
+   "before": [
+    "Decimal('10.000')"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/time -> double": {
+   "after": "ERROR",
+   "before": [
+    "10.0"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
+  },
+  "typed/time -> integer": {
+   "after": "ERROR",
+   "before": [
+    "10"
+   ],
+   "why": "MySQL sessions run in strict mode: a value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."
   }
  },
  "postgres": {

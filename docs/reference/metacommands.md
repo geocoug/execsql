@@ -1978,7 +1978,7 @@ If neither the NEW or REPLACEMENT keywords are used, the table must exist, must 
 - A number column gets a column of true/false values (`yes`/`no`, `t`/`f`, `1`/`0`; see [BOOLEAN_INT](#boolean_int) and [BOOLEAN_WORDS](#boolean_words)) as 1 and 0.
 - Any other column (a date, a timestamp, a Boolean, a decimal with places for a fraction) gets the value converted to the data type found by scanning that column of the input, as with NEW, and the database converts it to the column's type.
 
-On PostgreSQL and MySQL a delimited text file goes to the server's own loader (`COPY`, `LOAD DATA`, or on PostgreSQL an `INSERT` of each value as text), and the server converts each value as written; the rules above apply to the other file formats, and to delimited files on the other DBMSs.
+On PostgreSQL and MySQL a delimited text file goes to the server's own loader (`COPY`, `LOAD DATA`, or on PostgreSQL an `INSERT` of each value as text), and the server converts each value as written; the rules above apply to the other file formats, and to delimited files on the other DBMSs. On MySQL a value that the server can't store as given (out of range, an invalid date, text longer than the column) stops the IMPORT with an error, and nothing is loaded; see [MySQL strict mode](../guides/sql_syntax.md#mysql_strict_mode).
 
 If a table is scanned to determine data types, any column that is completely empty (all null) will be created with the text data type. This provides the greatest flexibility for subsequent addition of data to the table. However, if that column ought to have a different data type, and a WHERE clause is applied to that column assuming a different data type, the DBMS may report an error because of incomparable data types.
 
@@ -2042,7 +2042,7 @@ When MS-Excel saves an OpenDocument spreadsheet, it may create an additional emp
 Because the data addition to the target table is always committed except when [AUTOCOMMIT](#autocommit) is off, the IMPORT metacommand should be used with care within transactions that are managed with explicit SQL statements or with [BATCHes](#batch).
 
 
-In general, if an error occurs while importing data, none of the new data should be in the target table (the operation is not committed). However, MySQL/MariaDB may issue messages about data type incompatibility to the standard error device (ordinarily the terminal), yet load some or all of the data. If the NEW or REPLACEMENT keywords are used, depending on the DBMS and where the error occurred, the target table may be created even if the data are not loaded.
+In general, if an error occurs while importing data, none of the new data should be in the target table (the operation is not committed). On MySQL/MariaDB a value that the server would change to store it is an error too, unless the script has turned off [strict mode](../guides/sql_syntax.md#mysql_strict_mode). If the NEW or REPLACEMENT keywords are used, depending on the DBMS and where the error occurred, the target table may be created even if the data are not loaded.
 
 The name, size, and date of the IMPORTed file are written to the [execsql.log](../guides/logging.md#logging) file.
 

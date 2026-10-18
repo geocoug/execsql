@@ -316,7 +316,11 @@ class MySQLDatabase(Database):
                     )
                     self.conn = db_conn()
                 remember_password("MySQL", self.db_name, self.user, self.server_name, port=self.port)
-                self.execute("set session sql_mode='ANSI';")
+                # A fixed mode, not the server's: quote_literal relies on
+                # backslash escapes being on (no NO_BACKSLASH_ESCAPES).
+                # STRICT_TRANS_TABLES makes a value MySQL can't store as
+                # given an error instead of a clamped or truncated one (#101).
+                self.execute("set session sql_mode='ANSI,STRICT_TRANS_TABLES';")
             except SystemExit:
                 # If the user canceled the password prompt.
                 raise
@@ -353,6 +357,37 @@ class MySQLDatabase(Database):
             )
             rows = curs.fetchall()
         return len(rows) > 0
+
+    def _fail_on_load_warnings(self, file_name: str, sq_name: str) -> None:
+        """Roll back and raise if the LOAD DATA just run changed any value while the session is in strict mode.
+
+        ``LOAD DATA LOCAL`` ignores strict mode: a value MySQL cannot store as
+        given is clamped or zeroed with a warning, not rejected (#101).  This
+        makes the load fail as the same rows inserted one by one would.  Notes
+        (a decimal rounded to the column's scale) are not warnings and pass, as
+        they do for an ``INSERT``.  A script that turned strict mode off
+        (``SET SESSION sql_mode = 'ANSI'``) keeps MySQL's changed values.
+        """
+        with self._cursor() as curs:
+            curs.execute("show warnings;")
+            warnings = curs.fetchall()
+            curs.execute("select @@session.sql_mode;")
+            mode = _text(curs.fetchone()[0]).upper()
+        if "STRICT_TRANS_TABLES" not in mode and "STRICT_ALL_TABLES" not in mode:
+            return
+        problems = [_text(row[2]) for row in warnings if _text(row[0]) in ("Warning", "Error")]
+        if not problems:
+            return
+        self.rollback()
+        shown = "; ".join(problems[:3])
+        more = f" (and {len(problems) - 3} more)" if len(problems) > 3 else ""
+        raise ErrInfo(
+            type="error",
+            other_msg=(
+                f"Can't import {file_name} into {sq_name}: MySQL would have stored changed values: {shown}{more}. "
+                "Nothing was loaded."
+            ),
+        )
 
     def import_tabular_file(
         self,
@@ -452,6 +487,7 @@ class MySQLDatabase(Database):
                 )
             try:
                 self.execute(import_sql)
+                self._fail_on_load_warnings(csv_file_obj.csvfname, sq_name)
             finally:
                 if load_file != csv_file_obj.csvfname:
                     os.unlink(load_file)

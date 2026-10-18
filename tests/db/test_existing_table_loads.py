@@ -5,10 +5,14 @@ Each case is one source column: the values an IMPORT reads from a file
 (driver values, scanned without it).  It is loaded through
 ``populate_table`` — as the IMPORT and COPY metacommands load it — into a
 column of each type the backend has, and what the column then holds is
-compared with ``tests/data/existing_table_loads/<backend>.json``.
+compared with ``tests/data/existing_table_loads/<backend>.json``.  The
+backends that read a delimited file their own way (PostgreSQL, MySQL) also
+IMPORT each text case from a CSV file, by both of their paths, and compare
+with ``<backend>_files.json``.
 
 Those files record what execsql stored before the target table's column
-types were consulted (issue #100).  A difference fails the test unless
+types were consulted (issue #100) and before MySQL ran in strict mode
+(issue #101).  A difference fails the test unless
 ``changes.json`` in the same directory lists it, with the value stored
 before, the value stored now, and why.  So every change to stored data is
 either listed there or caught here.
@@ -20,6 +24,7 @@ behaviour on a backend that has no file yet, from code that predates #100.
 
 from __future__ import annotations
 
+import csv
 import datetime
 import inspect
 import json
@@ -33,6 +38,7 @@ import pytest
 
 from execsql.db.base import Database
 from execsql.exceptions import DataTypeError, ErrInfo
+from execsql.importers.csv import importtable
 from execsql.models import DataTable
 from tests.live_db import open_backend
 
@@ -199,6 +205,36 @@ def _load(db: Any, dbms: str, column_type: str, values: list[Any], infer_strings
     return stored
 
 
+def _import_file(db: Any, dbms: str, column_type: str, values: list[Any], path: Path, columns: list[str]) -> Any:
+    """IMPORT *values* from a CSV file into a new ``v`` column of *column_type*; return what it holds, or ``"ERROR"``.
+
+    *columns* is the file's header: ``i,v`` matches the table, so MySQL reads
+    the file with LOAD DATA; ``v,i`` does not, so it inserts row by row.
+    """
+    tname = db.type.quoted(_TABLE)
+    with db._cursor() as curs:
+        curs.execute(f"drop table if exists {tname}")
+        curs.execute(f"create table {tname} (i integer, v {column_type})")
+    db.commit()
+    with path.open("w", encoding="utf-8", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(columns)
+        for i, v in enumerate(values, start=100):
+            row = {"i": i, "v": "" if v is None else v}
+            writer.writerow([row[c] for c in columns])
+    try:
+        importtable(db, None, _TABLE, str(path), 0)
+    except (ErrInfo, DataTypeError):
+        db.rollback()
+        return "ERROR"
+    with db._cursor() as curs:
+        curs.execute(f"select {_READ_AS.get((dbms, column_type), 'v')} from {tname} order by i")
+        stored = [_plain(r[0]) for r in curs.fetchall()]
+        curs.execute(f"drop table {tname}")
+    db.commit()
+    return stored
+
+
 def _scanned(values: list[Any], infer_strings: bool) -> str:
     """The type execsql's scan picks for *values*."""
     return DataTable(["v"], [[v] for v in values], infer_strings).cols[0].column_type()[1].__name__
@@ -215,12 +251,33 @@ def _results(db: Any, dbms: str) -> dict[str, Any]:
     return {"scanned": scanned, "stored": stored}
 
 
+def _file_results(db: Any, dbms: str, tmp_path: Path) -> dict[str, Any]:
+    stored: dict[str, Any] = {}
+    for path_name, columns in (("load", ["i", "v"]), ("insert", ["v", "i"])):
+        for case, values in _TEXT_CASES.items():
+            for column_type in _COLUMN_TYPES[dbms]:
+                stored[f"file-{path_name}/{case} -> {column_type}"] = _import_file(
+                    db,
+                    dbms,
+                    column_type,
+                    values,
+                    tmp_path / "load.csv",
+                    columns,
+                )
+    return {"stored": stored}
+
+
 @pytest.fixture(autouse=True)
 def load_settings(minimal_conf):
     """The settings populate_table reads, at their defaults (``ConfigData``)."""
     minimal_conf.import_row_buffer = 1000
     minimal_conf.import_progress_interval = 0
     minimal_conf.show_progress = False
+    # IMPORT from a delimited file.
+    minimal_conf.import_common_cols_only = False
+    minimal_conf.scan_lines = 100
+    minimal_conf.import_buffer = 32 * 1024
+    minimal_conf.export_row_buffer = 1000
 
 
 @pytest.fixture
@@ -252,7 +309,30 @@ def test_existing_table_loads_store_what_they_stored_before(dbms, tmp_path, utc)
     finally:
         db.close()
 
-    golden_path = _DATA / f"{dbms}.json"
+    _compare_with_record(dbms, actual, _DATA / f"{dbms}.json")
+
+
+# The backends that read a delimited file their own way instead of through
+# populate_table: PostgreSQL (COPY, or inserts of the file's text) and MySQL
+# (LOAD DATA, or inserts of the file's text).
+_FILE_BACKENDS = ["mysql", "postgres"]
+
+
+@pytest.mark.parametrize("dbms", _FILE_BACKENDS)
+def test_file_imports_into_existing_tables_store_what_they_stored_before(dbms, tmp_path, utc):
+    db = open_backend(dbms, tmp_path)
+    try:
+        _session_utc(db, dbms)
+        actual = _file_results(db, dbms, tmp_path)
+    finally:
+        db.close()
+    # IMPORT reports a broken harness (a missing setting) as a load error too.
+    assert actual["stored"]["file-load/integers -> integer"] == ["1", "2", "42"], "plain integers did not load"
+    _compare_with_record(dbms, actual, _DATA / f"{dbms}_files.json")
+
+
+def _compare_with_record(dbms: str, actual: dict[str, Any], golden_path: Path) -> None:
+    """Fail unless *actual* stores what *golden_path* recorded, apart from the changes listed in changes.json."""
     if _UPDATE:
         golden_path.parent.mkdir(parents=True, exist_ok=True)
         golden_path.write_text(json.dumps(actual, indent=1, ensure_ascii=False, sort_keys=True) + "\n", "utf-8")
