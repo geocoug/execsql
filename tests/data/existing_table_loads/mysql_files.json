@@ -1,0 +1,2104 @@
+{
+ "stored": {
+  "file-insert/TRUE_FALSE -> bigint": [
+   "0",
+   "0"
+  ],
+  "file-insert/TRUE_FALSE -> boolean": [
+   "0",
+   "0"
+  ],
+  "file-insert/TRUE_FALSE -> date": [
+   "'0000-00-00'",
+   "'0000-00-00'"
+  ],
+  "file-insert/TRUE_FALSE -> datetime": [
+   "'0000-00-00 00:00:00'",
+   "'0000-00-00 00:00:00'"
+  ],
+  "file-insert/TRUE_FALSE -> decimal(18,3)": [
+   "Decimal('0.000')",
+   "Decimal('0.000')"
+  ],
+  "file-insert/TRUE_FALSE -> double": [
+   "0.0",
+   "0.0"
+  ],
+  "file-insert/TRUE_FALSE -> integer": [
+   "0",
+   "0"
+  ],
+  "file-insert/TRUE_FALSE -> text": [
+   "'TRUE'",
+   "'FALSE'"
+  ],
+  "file-insert/TRUE_FALSE -> time": [
+   "datetime.timedelta(0)",
+   "datetime.timedelta(0)"
+  ],
+  "file-insert/TRUE_FALSE -> varchar(50)": [
+   "'TRUE'",
+   "'FALSE'"
+  ],
+  "file-insert/big_integer -> bigint": [
+   "3000000000"
+  ],
+  "file-insert/big_integer -> boolean": [
+   "127"
+  ],
+  "file-insert/big_integer -> date": [
+   "'2030-00-00'"
+  ],
+  "file-insert/big_integer -> datetime": [
+   "'2030-00-00 00:00:00'"
+  ],
+  "file-insert/big_integer -> decimal(18,3)": [
+   "Decimal('3000000000.000')"
+  ],
+  "file-insert/big_integer -> double": [
+   "3000000000.0"
+  ],
+  "file-insert/big_integer -> integer": [
+   "2147483647"
+  ],
+  "file-insert/big_integer -> text": [
+   "'3000000000'"
+  ],
+  "file-insert/big_integer -> time": [
+   "datetime.timedelta(days=34, seconds=82799)"
+  ],
+  "file-insert/big_integer -> varchar(50)": [
+   "'3000000000'"
+  ],
+  "file-insert/dates_and_missing -> bigint": [
+   "2024",
+   "None"
+  ],
+  "file-insert/dates_and_missing -> boolean": [
+   "127",
+   "None"
+  ],
+  "file-insert/dates_and_missing -> date": [
+   "datetime.date(2024, 1, 5)",
+   "None"
+  ],
+  "file-insert/dates_and_missing -> datetime": [
+   "datetime.datetime(2024, 1, 5, 0, 0)",
+   "None"
+  ],
+  "file-insert/dates_and_missing -> decimal(18,3)": [
+   "Decimal('2024.000')",
+   "None"
+  ],
+  "file-insert/dates_and_missing -> double": [
+   "2024.0",
+   "None"
+  ],
+  "file-insert/dates_and_missing -> integer": [
+   "2024",
+   "None"
+  ],
+  "file-insert/dates_and_missing -> text": [
+   "'2024-01-05'",
+   "None"
+  ],
+  "file-insert/dates_and_missing -> time": [
+   "datetime.timedelta(seconds=1224)",
+   "None"
+  ],
+  "file-insert/dates_and_missing -> varchar(50)": [
+   "'2024-01-05'",
+   "None"
+  ],
+  "file-insert/day_first_date -> bigint": [
+   "13"
+  ],
+  "file-insert/day_first_date -> boolean": [
+   "13"
+  ],
+  "file-insert/day_first_date -> date": [
+   "'0000-00-00'"
+  ],
+  "file-insert/day_first_date -> datetime": [
+   "'0000-00-00 00:00:00'"
+  ],
+  "file-insert/day_first_date -> decimal(18,3)": [
+   "Decimal('13.000')"
+  ],
+  "file-insert/day_first_date -> double": [
+   "13.0"
+  ],
+  "file-insert/day_first_date -> integer": [
+   "13"
+  ],
+  "file-insert/day_first_date -> text": [
+   "'13/05/2024'"
+  ],
+  "file-insert/day_first_date -> time": [
+   "datetime.timedelta(seconds=13)"
+  ],
+  "file-insert/day_first_date -> varchar(50)": [
+   "'13/05/2024'"
+  ],
+  "file-insert/empty_and_missing -> bigint": [
+   "None",
+   "None",
+   "0"
+  ],
+  "file-insert/empty_and_missing -> boolean": [
+   "None",
+   "None",
+   "0"
+  ],
+  "file-insert/empty_and_missing -> date": [
+   "None",
+   "None",
+   "'0000-00-00'"
+  ],
+  "file-insert/empty_and_missing -> datetime": [
+   "None",
+   "None",
+   "'0000-00-00 00:00:00'"
+  ],
+  "file-insert/empty_and_missing -> decimal(18,3)": [
+   "None",
+   "None",
+   "Decimal('0.000')"
+  ],
+  "file-insert/empty_and_missing -> double": [
+   "None",
+   "None",
+   "0.0"
+  ],
+  "file-insert/empty_and_missing -> integer": [
+   "None",
+   "None",
+   "0"
+  ],
+  "file-insert/empty_and_missing -> text": [
+   "None",
+   "None",
+   "'x'"
+  ],
+  "file-insert/empty_and_missing -> time": [
+   "None",
+   "None",
+   "datetime.timedelta(0)"
+  ],
+  "file-insert/empty_and_missing -> varchar(50)": [
+   "None",
+   "None",
+   "'x'"
+  ],
+  "file-insert/exponent -> bigint": [
+   "1000",
+   "200"
+  ],
+  "file-insert/exponent -> boolean": [
+   "127",
+   "127"
+  ],
+  "file-insert/exponent -> date": [
+   "'0000-00-00'",
+   "'0000-00-00'"
+  ],
+  "file-insert/exponent -> datetime": [
+   "'0000-00-00 00:00:00'",
+   "'0000-00-00 00:00:00'"
+  ],
+  "file-insert/exponent -> decimal(18,3)": [
+   "Decimal('1000.000')",
+   "Decimal('200.000')"
+  ],
+  "file-insert/exponent -> double": [
+   "1000.0",
+   "200.0"
+  ],
+  "file-insert/exponent -> integer": [
+   "1000",
+   "200"
+  ],
+  "file-insert/exponent -> text": [
+   "'1e3'",
+   "'2E2'"
+  ],
+  "file-insert/exponent -> time": [
+   "datetime.timedelta(0)",
+   "datetime.timedelta(0)"
+  ],
+  "file-insert/exponent -> varchar(50)": [
+   "'1e3'",
+   "'2E2'"
+  ],
+  "file-insert/fractions -> bigint": [
+   "2",
+   "2"
+  ],
+  "file-insert/fractions -> boolean": [
+   "2",
+   "2"
+  ],
+  "file-insert/fractions -> date": [
+   "'0000-00-00'",
+   "'0000-00-00'"
+  ],
+  "file-insert/fractions -> datetime": [
+   "'0000-00-00 00:00:00'",
+   "'0000-00-00 00:00:00'"
+  ],
+  "file-insert/fractions -> decimal(18,3)": [
+   "Decimal('1.500')",
+   "Decimal('2.250')"
+  ],
+  "file-insert/fractions -> double": [
+   "1.5",
+   "2.25"
+  ],
+  "file-insert/fractions -> integer": [
+   "2",
+   "2"
+  ],
+  "file-insert/fractions -> text": [
+   "'1.5'",
+   "'2.25'"
+  ],
+  "file-insert/fractions -> time": [
+   "datetime.timedelta(seconds=2)",
+   "datetime.timedelta(seconds=2)"
+  ],
+  "file-insert/fractions -> varchar(50)": [
+   "'1.5'",
+   "'2.25'"
+  ],
+  "file-insert/integers -> bigint": [
+   "1",
+   "2",
+   "42"
+  ],
+  "file-insert/integers -> boolean": [
+   "1",
+   "2",
+   "42"
+  ],
+  "file-insert/integers -> date": [
+   "'0000-00-00'",
+   "'0000-00-00'",
+   "'0000-00-00'"
+  ],
+  "file-insert/integers -> datetime": [
+   "'0000-00-00 00:00:00'",
+   "'0000-00-00 00:00:00'",
+   "'0000-00-00 00:00:00'"
+  ],
+  "file-insert/integers -> decimal(18,3)": [
+   "Decimal('1.000')",
+   "Decimal('2.000')",
+   "Decimal('42.000')"
+  ],
+  "file-insert/integers -> double": [
+   "1.0",
+   "2.0",
+   "42.0"
+  ],
+  "file-insert/integers -> integer": [
+   "1",
+   "2",
+   "42"
+  ],
+  "file-insert/integers -> text": [
+   "'1'",
+   "'2'",
+   "'42'"
+  ],
+  "file-insert/integers -> time": [
+   "datetime.timedelta(seconds=1)",
+   "datetime.timedelta(seconds=2)",
+   "datetime.timedelta(seconds=42)"
+  ],
+  "file-insert/integers -> varchar(50)": [
+   "'1'",
+   "'2'",
+   "'42'"
+  ],
+  "file-insert/iso_dates -> bigint": [
+   "2024",
+   "2024"
+  ],
+  "file-insert/iso_dates -> boolean": [
+   "127",
+   "127"
+  ],
+  "file-insert/iso_dates -> date": [
+   "datetime.date(2024, 1, 5)",
+   "datetime.date(2024, 2, 6)"
+  ],
+  "file-insert/iso_dates -> datetime": [
+   "datetime.datetime(2024, 1, 5, 0, 0)",
+   "datetime.datetime(2024, 2, 6, 0, 0)"
+  ],
+  "file-insert/iso_dates -> decimal(18,3)": [
+   "Decimal('2024.000')",
+   "Decimal('2024.000')"
+  ],
+  "file-insert/iso_dates -> double": [
+   "2024.0",
+   "2024.0"
+  ],
+  "file-insert/iso_dates -> integer": [
+   "2024",
+   "2024"
+  ],
+  "file-insert/iso_dates -> text": [
+   "'2024-01-05'",
+   "'2024-02-06'"
+  ],
+  "file-insert/iso_dates -> time": [
+   "datetime.timedelta(seconds=1224)",
+   "datetime.timedelta(seconds=1224)"
+  ],
+  "file-insert/iso_dates -> varchar(50)": [
+   "'2024-01-05'",
+   "'2024-02-06'"
+  ],
+  "file-insert/leading_zeros -> bigint": [
+   "701",
+   "2134"
+  ],
+  "file-insert/leading_zeros -> boolean": [
+   "127",
+   "127"
+  ],
+  "file-insert/leading_zeros -> date": [
+   "'0000-00-00'",
+   "'0000-00-00'"
+  ],
+  "file-insert/leading_zeros -> datetime": [
+   "'0000-00-00 00:00:00'",
+   "'0000-00-00 00:00:00'"
+  ],
+  "file-insert/leading_zeros -> decimal(18,3)": [
+   "Decimal('701.000')",
+   "Decimal('2134.000')"
+  ],
+  "file-insert/leading_zeros -> double": [
+   "701.0",
+   "2134.0"
+  ],
+  "file-insert/leading_zeros -> integer": [
+   "701",
+   "2134"
+  ],
+  "file-insert/leading_zeros -> text": [
+   "'00701'",
+   "'02134'"
+  ],
+  "file-insert/leading_zeros -> time": [
+   "datetime.timedelta(seconds=421)",
+   "datetime.timedelta(seconds=1294)"
+  ],
+  "file-insert/leading_zeros -> varchar(50)": [
+   "'00701'",
+   "'02134'"
+  ],
+  "file-insert/long_text -> bigint": [
+   "0"
+  ],
+  "file-insert/long_text -> boolean": [
+   "0"
+  ],
+  "file-insert/long_text -> date": [
+   "'0000-00-00'"
+  ],
+  "file-insert/long_text -> datetime": [
+   "'0000-00-00 00:00:00'"
+  ],
+  "file-insert/long_text -> decimal(18,3)": [
+   "Decimal('0.000')"
+  ],
+  "file-insert/long_text -> double": [
+   "0.0"
+  ],
+  "file-insert/long_text -> integer": [
+   "0"
+  ],
+  "file-insert/long_text -> text": [
+   "'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'"
+  ],
+  "file-insert/long_text -> time": [
+   "datetime.timedelta(0)"
+  ],
+  "file-insert/long_text -> varchar(50)": [
+   "'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'"
+  ],
+  "file-insert/month_names -> bigint": [
+   "0"
+  ],
+  "file-insert/month_names -> boolean": [
+   "0"
+  ],
+  "file-insert/month_names -> date": [
+   "'0000-00-00'"
+  ],
+  "file-insert/month_names -> datetime": [
+   "'0000-00-00 00:00:00'"
+  ],
+  "file-insert/month_names -> decimal(18,3)": [
+   "Decimal('0.000')"
+  ],
+  "file-insert/month_names -> double": [
+   "0.0"
+  ],
+  "file-insert/month_names -> integer": [
+   "0"
+  ],
+  "file-insert/month_names -> text": [
+   "'Jan 5, 2024'"
+  ],
+  "file-insert/month_names -> time": [
+   "datetime.timedelta(0)"
+  ],
+  "file-insert/month_names -> varchar(50)": [
+   "'Jan 5, 2024'"
+  ],
+  "file-insert/padded_text -> bigint": [
+   "0"
+  ],
+  "file-insert/padded_text -> boolean": [
+   "0"
+  ],
+  "file-insert/padded_text -> date": [
+   "'0000-00-00'"
+  ],
+  "file-insert/padded_text -> datetime": [
+   "'0000-00-00 00:00:00'"
+  ],
+  "file-insert/padded_text -> decimal(18,3)": [
+   "Decimal('0.000')"
+  ],
+  "file-insert/padded_text -> double": [
+   "0.0"
+  ],
+  "file-insert/padded_text -> integer": [
+   "0"
+  ],
+  "file-insert/padded_text -> text": [
+   "'  pad  '"
+  ],
+  "file-insert/padded_text -> time": [
+   "datetime.timedelta(0)"
+  ],
+  "file-insert/padded_text -> varchar(50)": [
+   "'  pad  '"
+  ],
+  "file-insert/signed_padded -> bigint": [
+   "7",
+   "3",
+   "-2"
+  ],
+  "file-insert/signed_padded -> boolean": [
+   "7",
+   "3",
+   "-2"
+  ],
+  "file-insert/signed_padded -> date": [
+   "'0000-00-00'",
+   "'0000-00-00'",
+   "'0000-00-00'"
+  ],
+  "file-insert/signed_padded -> datetime": [
+   "'0000-00-00 00:00:00'",
+   "'0000-00-00 00:00:00'",
+   "'0000-00-00 00:00:00'"
+  ],
+  "file-insert/signed_padded -> decimal(18,3)": [
+   "Decimal('7.000')",
+   "Decimal('3.000')",
+   "Decimal('-2.000')"
+  ],
+  "file-insert/signed_padded -> double": [
+   "7.0",
+   "3.0",
+   "-2.0"
+  ],
+  "file-insert/signed_padded -> integer": [
+   "7",
+   "3",
+   "-2"
+  ],
+  "file-insert/signed_padded -> text": [
+   "' 7 '",
+   "'+3'",
+   "'-2'"
+  ],
+  "file-insert/signed_padded -> time": [
+   "datetime.timedelta(seconds=7)",
+   "datetime.timedelta(0)",
+   "datetime.timedelta(days=-1, seconds=86398)"
+  ],
+  "file-insert/signed_padded -> varchar(50)": [
+   "' 7 '",
+   "'+3'",
+   "'-2'"
+  ],
+  "file-insert/small_floats -> bigint": [
+   "0",
+   "0"
+  ],
+  "file-insert/small_floats -> boolean": [
+   "0",
+   "0"
+  ],
+  "file-insert/small_floats -> date": [
+   "'0000-00-00'",
+   "'0000-00-00'"
+  ],
+  "file-insert/small_floats -> datetime": [
+   "'0000-00-00 00:00:00'",
+   "'0000-00-00 00:00:00'"
+  ],
+  "file-insert/small_floats -> decimal(18,3)": [
+   "Decimal('0.100')",
+   "Decimal('0.000')"
+  ],
+  "file-insert/small_floats -> double": [
+   "0.1",
+   "1e-20"
+  ],
+  "file-insert/small_floats -> integer": [
+   "0",
+   "0"
+  ],
+  "file-insert/small_floats -> text": [
+   "'0.1'",
+   "'1e-20'"
+  ],
+  "file-insert/small_floats -> time": [
+   "datetime.timedelta(0)",
+   "datetime.timedelta(0)"
+  ],
+  "file-insert/small_floats -> varchar(50)": [
+   "'0.1'",
+   "'1e-20'"
+  ],
+  "file-insert/t_f -> bigint": [
+   "0",
+   "0"
+  ],
+  "file-insert/t_f -> boolean": [
+   "0",
+   "0"
+  ],
+  "file-insert/t_f -> date": [
+   "'0000-00-00'",
+   "'0000-00-00'"
+  ],
+  "file-insert/t_f -> datetime": [
+   "'0000-00-00 00:00:00'",
+   "'0000-00-00 00:00:00'"
+  ],
+  "file-insert/t_f -> decimal(18,3)": [
+   "Decimal('0.000')",
+   "Decimal('0.000')"
+  ],
+  "file-insert/t_f -> double": [
+   "0.0",
+   "0.0"
+  ],
+  "file-insert/t_f -> integer": [
+   "0",
+   "0"
+  ],
+  "file-insert/t_f -> text": [
+   "'t'",
+   "'f'"
+  ],
+  "file-insert/t_f -> time": [
+   "datetime.timedelta(0)",
+   "datetime.timedelta(0)"
+  ],
+  "file-insert/t_f -> varchar(50)": [
+   "'t'",
+   "'f'"
+  ],
+  "file-insert/times -> bigint": [
+   "10",
+   "23"
+  ],
+  "file-insert/times -> boolean": [
+   "10",
+   "23"
+  ],
+  "file-insert/times -> date": [
+   "'0000-00-00'",
+   "'0000-00-00'"
+  ],
+  "file-insert/times -> datetime": [
+   "'0000-00-00 00:00:00'",
+   "'0000-00-00 00:00:00'"
+  ],
+  "file-insert/times -> decimal(18,3)": [
+   "Decimal('10.000')",
+   "Decimal('23.000')"
+  ],
+  "file-insert/times -> double": [
+   "10.0",
+   "23.0"
+  ],
+  "file-insert/times -> integer": [
+   "10",
+   "23"
+  ],
+  "file-insert/times -> text": [
+   "'10:00'",
+   "'23:59:59'"
+  ],
+  "file-insert/times -> time": [
+   "datetime.timedelta(seconds=36000)",
+   "datetime.timedelta(seconds=86399)"
+  ],
+  "file-insert/times -> varchar(50)": [
+   "'10:00'",
+   "'23:59:59'"
+  ],
+  "file-insert/timestamps -> bigint": [
+   "2024",
+   "2024"
+  ],
+  "file-insert/timestamps -> boolean": [
+   "127",
+   "127"
+  ],
+  "file-insert/timestamps -> date": [
+   "datetime.date(2024, 1, 5)",
+   "datetime.date(2024, 2, 6)"
+  ],
+  "file-insert/timestamps -> datetime": [
+   "datetime.datetime(2024, 1, 5, 10, 0)",
+   "datetime.datetime(2024, 2, 6, 11, 30, 15)"
+  ],
+  "file-insert/timestamps -> decimal(18,3)": [
+   "Decimal('2024.000')",
+   "Decimal('2024.000')"
+  ],
+  "file-insert/timestamps -> double": [
+   "2024.0",
+   "2024.0"
+  ],
+  "file-insert/timestamps -> integer": [
+   "2024",
+   "2024"
+  ],
+  "file-insert/timestamps -> text": [
+   "'2024-01-05 10:00'",
+   "'2024-02-06 11:30:15'"
+  ],
+  "file-insert/timestamps -> time": [
+   "datetime.timedelta(seconds=36000)",
+   "datetime.timedelta(seconds=41415)"
+  ],
+  "file-insert/timestamps -> varchar(50)": [
+   "'2024-01-05 10:00'",
+   "'2024-02-06 11:30:15'"
+  ],
+  "file-insert/timestamps_tz -> bigint": [
+   "2024",
+   "2024"
+  ],
+  "file-insert/timestamps_tz -> boolean": [
+   "127",
+   "127"
+  ],
+  "file-insert/timestamps_tz -> date": [
+   "datetime.date(2024, 1, 5)",
+   "datetime.date(2024, 1, 5)"
+  ],
+  "file-insert/timestamps_tz -> datetime": [
+   "datetime.datetime(2024, 1, 5, 10, 0)",
+   "datetime.datetime(2024, 1, 5, 4, 30)"
+  ],
+  "file-insert/timestamps_tz -> decimal(18,3)": [
+   "Decimal('2024.000')",
+   "Decimal('2024.000')"
+  ],
+  "file-insert/timestamps_tz -> double": [
+   "2024.0",
+   "2024.0"
+  ],
+  "file-insert/timestamps_tz -> integer": [
+   "2024",
+   "2024"
+  ],
+  "file-insert/timestamps_tz -> text": [
+   "'2024-01-05T10:00:00Z'",
+   "'2024-01-05 10:00:00+05:30'"
+  ],
+  "file-insert/timestamps_tz -> time": [
+   "datetime.timedelta(seconds=1224)",
+   "datetime.timedelta(seconds=16200)"
+  ],
+  "file-insert/timestamps_tz -> varchar(50)": [
+   "'2024-01-05T10:00:00Z'",
+   "'2024-01-05 10:00:00+05:30'"
+  ],
+  "file-insert/two_places -> bigint": [
+   "2",
+   "2"
+  ],
+  "file-insert/two_places -> boolean": [
+   "2",
+   "2"
+  ],
+  "file-insert/two_places -> date": [
+   "'0000-00-00'",
+   "'0000-00-00'"
+  ],
+  "file-insert/two_places -> datetime": [
+   "'0000-00-00 00:00:00'",
+   "'0000-00-00 00:00:00'"
+  ],
+  "file-insert/two_places -> decimal(18,3)": [
+   "Decimal('1.500')",
+   "Decimal('2.000')"
+  ],
+  "file-insert/two_places -> double": [
+   "1.5",
+   "2.0"
+  ],
+  "file-insert/two_places -> integer": [
+   "2",
+   "2"
+  ],
+  "file-insert/two_places -> text": [
+   "'1.50'",
+   "'2.00'"
+  ],
+  "file-insert/two_places -> time": [
+   "datetime.timedelta(seconds=2)",
+   "datetime.timedelta(seconds=2)"
+  ],
+  "file-insert/two_places -> varchar(50)": [
+   "'1.50'",
+   "'2.00'"
+  ],
+  "file-insert/unicode -> bigint": [
+   "0"
+  ],
+  "file-insert/unicode -> boolean": [
+   "0"
+  ],
+  "file-insert/unicode -> date": [
+   "'0000-00-00'"
+  ],
+  "file-insert/unicode -> datetime": [
+   "'0000-00-00 00:00:00'"
+  ],
+  "file-insert/unicode -> decimal(18,3)": [
+   "Decimal('0.000')"
+  ],
+  "file-insert/unicode -> double": [
+   "0.0"
+  ],
+  "file-insert/unicode -> integer": [
+   "0"
+  ],
+  "file-insert/unicode -> text": [
+   "'Ünïcødé'"
+  ],
+  "file-insert/unicode -> time": [
+   "datetime.timedelta(0)"
+  ],
+  "file-insert/unicode -> varchar(50)": [
+   "'Ünïcødé'"
+  ],
+  "file-insert/us_dates -> bigint": [
+   "1",
+   "2"
+  ],
+  "file-insert/us_dates -> boolean": [
+   "1",
+   "2"
+  ],
+  "file-insert/us_dates -> date": [
+   "'0000-00-00'",
+   "'0000-00-00'"
+  ],
+  "file-insert/us_dates -> datetime": [
+   "'0000-00-00 00:00:00'",
+   "'0000-00-00 00:00:00'"
+  ],
+  "file-insert/us_dates -> decimal(18,3)": [
+   "Decimal('1.000')",
+   "Decimal('2.000')"
+  ],
+  "file-insert/us_dates -> double": [
+   "1.0",
+   "2.0"
+  ],
+  "file-insert/us_dates -> integer": [
+   "1",
+   "2"
+  ],
+  "file-insert/us_dates -> text": [
+   "'01/05/2024'",
+   "'02/06/2024'"
+  ],
+  "file-insert/us_dates -> time": [
+   "datetime.timedelta(seconds=1)",
+   "datetime.timedelta(seconds=2)"
+  ],
+  "file-insert/us_dates -> varchar(50)": [
+   "'01/05/2024'",
+   "'02/06/2024'"
+  ],
+  "file-insert/whole_decimals -> bigint": [
+   "1",
+   "2"
+  ],
+  "file-insert/whole_decimals -> boolean": [
+   "1",
+   "2"
+  ],
+  "file-insert/whole_decimals -> date": [
+   "'0000-00-00'",
+   "'0000-00-00'"
+  ],
+  "file-insert/whole_decimals -> datetime": [
+   "'0000-00-00 00:00:00'",
+   "'0000-00-00 00:00:00'"
+  ],
+  "file-insert/whole_decimals -> decimal(18,3)": [
+   "Decimal('1.000')",
+   "Decimal('2.000')"
+  ],
+  "file-insert/whole_decimals -> double": [
+   "1.0",
+   "2.0"
+  ],
+  "file-insert/whole_decimals -> integer": [
+   "1",
+   "2"
+  ],
+  "file-insert/whole_decimals -> text": [
+   "'1.0'",
+   "'2.0'"
+  ],
+  "file-insert/whole_decimals -> time": [
+   "datetime.timedelta(seconds=1)",
+   "datetime.timedelta(seconds=2)"
+  ],
+  "file-insert/whole_decimals -> varchar(50)": [
+   "'1.0'",
+   "'2.0'"
+  ],
+  "file-insert/word_and_number -> bigint": [
+   "0",
+   "1"
+  ],
+  "file-insert/word_and_number -> boolean": [
+   "0",
+   "1"
+  ],
+  "file-insert/word_and_number -> date": [
+   "'0000-00-00'",
+   "'0000-00-00'"
+  ],
+  "file-insert/word_and_number -> datetime": [
+   "'0000-00-00 00:00:00'",
+   "'0000-00-00 00:00:00'"
+  ],
+  "file-insert/word_and_number -> decimal(18,3)": [
+   "Decimal('0.000')",
+   "Decimal('1.000')"
+  ],
+  "file-insert/word_and_number -> double": [
+   "0.0",
+   "1.0"
+  ],
+  "file-insert/word_and_number -> integer": [
+   "0",
+   "1"
+  ],
+  "file-insert/word_and_number -> text": [
+   "'abc'",
+   "'1'"
+  ],
+  "file-insert/word_and_number -> time": [
+   "datetime.timedelta(0)",
+   "datetime.timedelta(seconds=1)"
+  ],
+  "file-insert/word_and_number -> varchar(50)": [
+   "'abc'",
+   "'1'"
+  ],
+  "file-insert/words -> bigint": [
+   "0",
+   "0"
+  ],
+  "file-insert/words -> boolean": [
+   "0",
+   "0"
+  ],
+  "file-insert/words -> date": [
+   "'0000-00-00'",
+   "'0000-00-00'"
+  ],
+  "file-insert/words -> datetime": [
+   "'0000-00-00 00:00:00'",
+   "'0000-00-00 00:00:00'"
+  ],
+  "file-insert/words -> decimal(18,3)": [
+   "Decimal('0.000')",
+   "Decimal('0.000')"
+  ],
+  "file-insert/words -> double": [
+   "0.0",
+   "0.0"
+  ],
+  "file-insert/words -> integer": [
+   "0",
+   "0"
+  ],
+  "file-insert/words -> text": [
+   "'abc'",
+   "'def'"
+  ],
+  "file-insert/words -> time": [
+   "datetime.timedelta(0)",
+   "datetime.timedelta(0)"
+  ],
+  "file-insert/words -> varchar(50)": [
+   "'abc'",
+   "'def'"
+  ],
+  "file-insert/yes_no -> bigint": [
+   "0",
+   "0"
+  ],
+  "file-insert/yes_no -> boolean": [
+   "0",
+   "0"
+  ],
+  "file-insert/yes_no -> date": [
+   "'0000-00-00'",
+   "'0000-00-00'"
+  ],
+  "file-insert/yes_no -> datetime": [
+   "'0000-00-00 00:00:00'",
+   "'0000-00-00 00:00:00'"
+  ],
+  "file-insert/yes_no -> decimal(18,3)": [
+   "Decimal('0.000')",
+   "Decimal('0.000')"
+  ],
+  "file-insert/yes_no -> double": [
+   "0.0",
+   "0.0"
+  ],
+  "file-insert/yes_no -> integer": [
+   "0",
+   "0"
+  ],
+  "file-insert/yes_no -> text": [
+   "'yes'",
+   "'no'"
+  ],
+  "file-insert/yes_no -> time": [
+   "datetime.timedelta(0)",
+   "datetime.timedelta(0)"
+  ],
+  "file-insert/yes_no -> varchar(50)": [
+   "'yes'",
+   "'no'"
+  ],
+  "file-insert/zero_one -> bigint": [
+   "1",
+   "0"
+  ],
+  "file-insert/zero_one -> boolean": [
+   "1",
+   "0"
+  ],
+  "file-insert/zero_one -> date": [
+   "'0000-00-00'",
+   "'0000-00-00'"
+  ],
+  "file-insert/zero_one -> datetime": [
+   "'0000-00-00 00:00:00'",
+   "'0000-00-00 00:00:00'"
+  ],
+  "file-insert/zero_one -> decimal(18,3)": [
+   "Decimal('1.000')",
+   "Decimal('0.000')"
+  ],
+  "file-insert/zero_one -> double": [
+   "1.0",
+   "0.0"
+  ],
+  "file-insert/zero_one -> integer": [
+   "1",
+   "0"
+  ],
+  "file-insert/zero_one -> text": [
+   "'1'",
+   "'0'"
+  ],
+  "file-insert/zero_one -> time": [
+   "datetime.timedelta(seconds=1)",
+   "datetime.timedelta(0)"
+  ],
+  "file-insert/zero_one -> varchar(50)": [
+   "'1'",
+   "'0'"
+  ],
+  "file-load/TRUE_FALSE -> bigint": [
+   "0",
+   "0"
+  ],
+  "file-load/TRUE_FALSE -> boolean": [
+   "0",
+   "0"
+  ],
+  "file-load/TRUE_FALSE -> date": [
+   "'0000-00-00'",
+   "'0000-00-00'"
+  ],
+  "file-load/TRUE_FALSE -> datetime": [
+   "'0000-00-00 00:00:00'",
+   "'0000-00-00 00:00:00'"
+  ],
+  "file-load/TRUE_FALSE -> decimal(18,3)": [
+   "Decimal('0.000')",
+   "Decimal('0.000')"
+  ],
+  "file-load/TRUE_FALSE -> double": [
+   "0.0",
+   "0.0"
+  ],
+  "file-load/TRUE_FALSE -> integer": [
+   "0",
+   "0"
+  ],
+  "file-load/TRUE_FALSE -> text": [
+   "'TRUE'",
+   "'FALSE'"
+  ],
+  "file-load/TRUE_FALSE -> time": [
+   "datetime.timedelta(0)",
+   "datetime.timedelta(0)"
+  ],
+  "file-load/TRUE_FALSE -> varchar(50)": [
+   "'TRUE'",
+   "'FALSE'"
+  ],
+  "file-load/big_integer -> bigint": [
+   "3000000000"
+  ],
+  "file-load/big_integer -> boolean": [
+   "127"
+  ],
+  "file-load/big_integer -> date": [
+   "'2030-00-00'"
+  ],
+  "file-load/big_integer -> datetime": [
+   "'2030-00-00 00:00:00'"
+  ],
+  "file-load/big_integer -> decimal(18,3)": [
+   "Decimal('3000000000.000')"
+  ],
+  "file-load/big_integer -> double": [
+   "3000000000.0"
+  ],
+  "file-load/big_integer -> integer": [
+   "2147483647"
+  ],
+  "file-load/big_integer -> text": [
+   "'3000000000'"
+  ],
+  "file-load/big_integer -> time": [
+   "datetime.timedelta(days=34, seconds=82799)"
+  ],
+  "file-load/big_integer -> varchar(50)": [
+   "'3000000000'"
+  ],
+  "file-load/dates_and_missing -> bigint": [
+   "2024",
+   "None"
+  ],
+  "file-load/dates_and_missing -> boolean": [
+   "127",
+   "None"
+  ],
+  "file-load/dates_and_missing -> date": [
+   "datetime.date(2024, 1, 5)",
+   "None"
+  ],
+  "file-load/dates_and_missing -> datetime": [
+   "datetime.datetime(2024, 1, 5, 0, 0)",
+   "None"
+  ],
+  "file-load/dates_and_missing -> decimal(18,3)": [
+   "Decimal('2024.000')",
+   "None"
+  ],
+  "file-load/dates_and_missing -> double": [
+   "2024.0",
+   "None"
+  ],
+  "file-load/dates_and_missing -> integer": [
+   "2024",
+   "None"
+  ],
+  "file-load/dates_and_missing -> text": [
+   "'2024-01-05'",
+   "None"
+  ],
+  "file-load/dates_and_missing -> time": [
+   "datetime.timedelta(seconds=1224)",
+   "None"
+  ],
+  "file-load/dates_and_missing -> varchar(50)": [
+   "'2024-01-05'",
+   "None"
+  ],
+  "file-load/day_first_date -> bigint": [
+   "13"
+  ],
+  "file-load/day_first_date -> boolean": [
+   "13"
+  ],
+  "file-load/day_first_date -> date": [
+   "'0000-00-00'"
+  ],
+  "file-load/day_first_date -> datetime": [
+   "'0000-00-00 00:00:00'"
+  ],
+  "file-load/day_first_date -> decimal(18,3)": [
+   "Decimal('13.000')"
+  ],
+  "file-load/day_first_date -> double": [
+   "13.0"
+  ],
+  "file-load/day_first_date -> integer": [
+   "13"
+  ],
+  "file-load/day_first_date -> text": [
+   "'13/05/2024'"
+  ],
+  "file-load/day_first_date -> time": [
+   "datetime.timedelta(seconds=13)"
+  ],
+  "file-load/day_first_date -> varchar(50)": [
+   "'13/05/2024'"
+  ],
+  "file-load/empty_and_missing -> bigint": [
+   "None",
+   "None",
+   "0"
+  ],
+  "file-load/empty_and_missing -> boolean": [
+   "None",
+   "None",
+   "0"
+  ],
+  "file-load/empty_and_missing -> date": [
+   "None",
+   "None",
+   "'0000-00-00'"
+  ],
+  "file-load/empty_and_missing -> datetime": [
+   "None",
+   "None",
+   "'0000-00-00 00:00:00'"
+  ],
+  "file-load/empty_and_missing -> decimal(18,3)": [
+   "None",
+   "None",
+   "Decimal('0.000')"
+  ],
+  "file-load/empty_and_missing -> double": [
+   "None",
+   "None",
+   "0.0"
+  ],
+  "file-load/empty_and_missing -> integer": [
+   "None",
+   "None",
+   "0"
+  ],
+  "file-load/empty_and_missing -> text": [
+   "None",
+   "None",
+   "'x'"
+  ],
+  "file-load/empty_and_missing -> time": [
+   "None",
+   "None",
+   "datetime.timedelta(0)"
+  ],
+  "file-load/empty_and_missing -> varchar(50)": [
+   "None",
+   "None",
+   "'x'"
+  ],
+  "file-load/exponent -> bigint": [
+   "1000",
+   "200"
+  ],
+  "file-load/exponent -> boolean": [
+   "127",
+   "127"
+  ],
+  "file-load/exponent -> date": [
+   "'0000-00-00'",
+   "'0000-00-00'"
+  ],
+  "file-load/exponent -> datetime": [
+   "'0000-00-00 00:00:00'",
+   "'0000-00-00 00:00:00'"
+  ],
+  "file-load/exponent -> decimal(18,3)": [
+   "Decimal('1000.000')",
+   "Decimal('200.000')"
+  ],
+  "file-load/exponent -> double": [
+   "1000.0",
+   "200.0"
+  ],
+  "file-load/exponent -> integer": [
+   "1000",
+   "200"
+  ],
+  "file-load/exponent -> text": [
+   "'1e3'",
+   "'2E2'"
+  ],
+  "file-load/exponent -> time": [
+   "datetime.timedelta(0)",
+   "datetime.timedelta(0)"
+  ],
+  "file-load/exponent -> varchar(50)": [
+   "'1e3'",
+   "'2E2'"
+  ],
+  "file-load/fractions -> bigint": [
+   "2",
+   "2"
+  ],
+  "file-load/fractions -> boolean": [
+   "2",
+   "2"
+  ],
+  "file-load/fractions -> date": [
+   "'0000-00-00'",
+   "'0000-00-00'"
+  ],
+  "file-load/fractions -> datetime": [
+   "'0000-00-00 00:00:00'",
+   "'0000-00-00 00:00:00'"
+  ],
+  "file-load/fractions -> decimal(18,3)": [
+   "Decimal('1.500')",
+   "Decimal('2.250')"
+  ],
+  "file-load/fractions -> double": [
+   "1.5",
+   "2.25"
+  ],
+  "file-load/fractions -> integer": [
+   "2",
+   "2"
+  ],
+  "file-load/fractions -> text": [
+   "'1.5'",
+   "'2.25'"
+  ],
+  "file-load/fractions -> time": [
+   "datetime.timedelta(seconds=2)",
+   "datetime.timedelta(seconds=2)"
+  ],
+  "file-load/fractions -> varchar(50)": [
+   "'1.5'",
+   "'2.25'"
+  ],
+  "file-load/integers -> bigint": [
+   "1",
+   "2",
+   "42"
+  ],
+  "file-load/integers -> boolean": [
+   "1",
+   "2",
+   "42"
+  ],
+  "file-load/integers -> date": [
+   "'0000-00-00'",
+   "'0000-00-00'",
+   "'0000-00-00'"
+  ],
+  "file-load/integers -> datetime": [
+   "'0000-00-00 00:00:00'",
+   "'0000-00-00 00:00:00'",
+   "'0000-00-00 00:00:00'"
+  ],
+  "file-load/integers -> decimal(18,3)": [
+   "Decimal('1.000')",
+   "Decimal('2.000')",
+   "Decimal('42.000')"
+  ],
+  "file-load/integers -> double": [
+   "1.0",
+   "2.0",
+   "42.0"
+  ],
+  "file-load/integers -> integer": [
+   "1",
+   "2",
+   "42"
+  ],
+  "file-load/integers -> text": [
+   "'1'",
+   "'2'",
+   "'42'"
+  ],
+  "file-load/integers -> time": [
+   "datetime.timedelta(seconds=1)",
+   "datetime.timedelta(seconds=2)",
+   "datetime.timedelta(seconds=42)"
+  ],
+  "file-load/integers -> varchar(50)": [
+   "'1'",
+   "'2'",
+   "'42'"
+  ],
+  "file-load/iso_dates -> bigint": [
+   "2024",
+   "2024"
+  ],
+  "file-load/iso_dates -> boolean": [
+   "127",
+   "127"
+  ],
+  "file-load/iso_dates -> date": [
+   "datetime.date(2024, 1, 5)",
+   "datetime.date(2024, 2, 6)"
+  ],
+  "file-load/iso_dates -> datetime": [
+   "datetime.datetime(2024, 1, 5, 0, 0)",
+   "datetime.datetime(2024, 2, 6, 0, 0)"
+  ],
+  "file-load/iso_dates -> decimal(18,3)": [
+   "Decimal('2024.000')",
+   "Decimal('2024.000')"
+  ],
+  "file-load/iso_dates -> double": [
+   "2024.0",
+   "2024.0"
+  ],
+  "file-load/iso_dates -> integer": [
+   "2024",
+   "2024"
+  ],
+  "file-load/iso_dates -> text": [
+   "'2024-01-05'",
+   "'2024-02-06'"
+  ],
+  "file-load/iso_dates -> time": [
+   "datetime.timedelta(seconds=1224)",
+   "datetime.timedelta(seconds=1224)"
+  ],
+  "file-load/iso_dates -> varchar(50)": [
+   "'2024-01-05'",
+   "'2024-02-06'"
+  ],
+  "file-load/leading_zeros -> bigint": [
+   "701",
+   "2134"
+  ],
+  "file-load/leading_zeros -> boolean": [
+   "127",
+   "127"
+  ],
+  "file-load/leading_zeros -> date": [
+   "'0000-00-00'",
+   "'0000-00-00'"
+  ],
+  "file-load/leading_zeros -> datetime": [
+   "'0000-00-00 00:00:00'",
+   "'0000-00-00 00:00:00'"
+  ],
+  "file-load/leading_zeros -> decimal(18,3)": [
+   "Decimal('701.000')",
+   "Decimal('2134.000')"
+  ],
+  "file-load/leading_zeros -> double": [
+   "701.0",
+   "2134.0"
+  ],
+  "file-load/leading_zeros -> integer": [
+   "701",
+   "2134"
+  ],
+  "file-load/leading_zeros -> text": [
+   "'00701'",
+   "'02134'"
+  ],
+  "file-load/leading_zeros -> time": [
+   "datetime.timedelta(seconds=421)",
+   "datetime.timedelta(seconds=1294)"
+  ],
+  "file-load/leading_zeros -> varchar(50)": [
+   "'00701'",
+   "'02134'"
+  ],
+  "file-load/long_text -> bigint": [
+   "0"
+  ],
+  "file-load/long_text -> boolean": [
+   "0"
+  ],
+  "file-load/long_text -> date": [
+   "'0000-00-00'"
+  ],
+  "file-load/long_text -> datetime": [
+   "'0000-00-00 00:00:00'"
+  ],
+  "file-load/long_text -> decimal(18,3)": [
+   "Decimal('0.000')"
+  ],
+  "file-load/long_text -> double": [
+   "0.0"
+  ],
+  "file-load/long_text -> integer": [
+   "0"
+  ],
+  "file-load/long_text -> text": [
+   "'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'"
+  ],
+  "file-load/long_text -> time": [
+   "datetime.timedelta(0)"
+  ],
+  "file-load/long_text -> varchar(50)": [
+   "'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'"
+  ],
+  "file-load/month_names -> bigint": [
+   "0"
+  ],
+  "file-load/month_names -> boolean": [
+   "0"
+  ],
+  "file-load/month_names -> date": [
+   "'0000-00-00'"
+  ],
+  "file-load/month_names -> datetime": [
+   "'0000-00-00 00:00:00'"
+  ],
+  "file-load/month_names -> decimal(18,3)": [
+   "Decimal('0.000')"
+  ],
+  "file-load/month_names -> double": [
+   "0.0"
+  ],
+  "file-load/month_names -> integer": [
+   "0"
+  ],
+  "file-load/month_names -> text": [
+   "'Jan 5, 2024'"
+  ],
+  "file-load/month_names -> time": [
+   "datetime.timedelta(0)"
+  ],
+  "file-load/month_names -> varchar(50)": [
+   "'Jan 5, 2024'"
+  ],
+  "file-load/padded_text -> bigint": [
+   "0"
+  ],
+  "file-load/padded_text -> boolean": [
+   "0"
+  ],
+  "file-load/padded_text -> date": [
+   "'0000-00-00'"
+  ],
+  "file-load/padded_text -> datetime": [
+   "'0000-00-00 00:00:00'"
+  ],
+  "file-load/padded_text -> decimal(18,3)": [
+   "Decimal('0.000')"
+  ],
+  "file-load/padded_text -> double": [
+   "0.0"
+  ],
+  "file-load/padded_text -> integer": [
+   "0"
+  ],
+  "file-load/padded_text -> text": [
+   "'  pad  '"
+  ],
+  "file-load/padded_text -> time": [
+   "datetime.timedelta(0)"
+  ],
+  "file-load/padded_text -> varchar(50)": [
+   "'  pad  '"
+  ],
+  "file-load/signed_padded -> bigint": [
+   "7",
+   "3",
+   "-2"
+  ],
+  "file-load/signed_padded -> boolean": [
+   "7",
+   "3",
+   "-2"
+  ],
+  "file-load/signed_padded -> date": [
+   "'0000-00-00'",
+   "'0000-00-00'",
+   "'0000-00-00'"
+  ],
+  "file-load/signed_padded -> datetime": [
+   "'0000-00-00 00:00:00'",
+   "'0000-00-00 00:00:00'",
+   "'0000-00-00 00:00:00'"
+  ],
+  "file-load/signed_padded -> decimal(18,3)": [
+   "Decimal('7.000')",
+   "Decimal('3.000')",
+   "Decimal('-2.000')"
+  ],
+  "file-load/signed_padded -> double": [
+   "7.0",
+   "3.0",
+   "-2.0"
+  ],
+  "file-load/signed_padded -> integer": [
+   "7",
+   "3",
+   "-2"
+  ],
+  "file-load/signed_padded -> text": [
+   "' 7 '",
+   "'+3'",
+   "'-2'"
+  ],
+  "file-load/signed_padded -> time": [
+   "datetime.timedelta(seconds=7)",
+   "datetime.timedelta(0)",
+   "datetime.timedelta(days=-1, seconds=86398)"
+  ],
+  "file-load/signed_padded -> varchar(50)": [
+   "' 7 '",
+   "'+3'",
+   "'-2'"
+  ],
+  "file-load/small_floats -> bigint": [
+   "0",
+   "0"
+  ],
+  "file-load/small_floats -> boolean": [
+   "0",
+   "0"
+  ],
+  "file-load/small_floats -> date": [
+   "'0000-00-00'",
+   "'0000-00-00'"
+  ],
+  "file-load/small_floats -> datetime": [
+   "'0000-00-00 00:00:00'",
+   "'0000-00-00 00:00:00'"
+  ],
+  "file-load/small_floats -> decimal(18,3)": [
+   "Decimal('0.100')",
+   "Decimal('0.000')"
+  ],
+  "file-load/small_floats -> double": [
+   "0.1",
+   "1e-20"
+  ],
+  "file-load/small_floats -> integer": [
+   "0",
+   "0"
+  ],
+  "file-load/small_floats -> text": [
+   "'0.1'",
+   "'1e-20'"
+  ],
+  "file-load/small_floats -> time": [
+   "datetime.timedelta(0)",
+   "datetime.timedelta(0)"
+  ],
+  "file-load/small_floats -> varchar(50)": [
+   "'0.1'",
+   "'1e-20'"
+  ],
+  "file-load/t_f -> bigint": [
+   "0",
+   "0"
+  ],
+  "file-load/t_f -> boolean": [
+   "0",
+   "0"
+  ],
+  "file-load/t_f -> date": [
+   "'0000-00-00'",
+   "'0000-00-00'"
+  ],
+  "file-load/t_f -> datetime": [
+   "'0000-00-00 00:00:00'",
+   "'0000-00-00 00:00:00'"
+  ],
+  "file-load/t_f -> decimal(18,3)": [
+   "Decimal('0.000')",
+   "Decimal('0.000')"
+  ],
+  "file-load/t_f -> double": [
+   "0.0",
+   "0.0"
+  ],
+  "file-load/t_f -> integer": [
+   "0",
+   "0"
+  ],
+  "file-load/t_f -> text": [
+   "'t'",
+   "'f'"
+  ],
+  "file-load/t_f -> time": [
+   "datetime.timedelta(0)",
+   "datetime.timedelta(0)"
+  ],
+  "file-load/t_f -> varchar(50)": [
+   "'t'",
+   "'f'"
+  ],
+  "file-load/times -> bigint": [
+   "10",
+   "23"
+  ],
+  "file-load/times -> boolean": [
+   "10",
+   "23"
+  ],
+  "file-load/times -> date": [
+   "'0000-00-00'",
+   "'0000-00-00'"
+  ],
+  "file-load/times -> datetime": [
+   "'0000-00-00 00:00:00'",
+   "'0000-00-00 00:00:00'"
+  ],
+  "file-load/times -> decimal(18,3)": [
+   "Decimal('10.000')",
+   "Decimal('23.000')"
+  ],
+  "file-load/times -> double": [
+   "10.0",
+   "23.0"
+  ],
+  "file-load/times -> integer": [
+   "10",
+   "23"
+  ],
+  "file-load/times -> text": [
+   "'10:00'",
+   "'23:59:59'"
+  ],
+  "file-load/times -> time": [
+   "datetime.timedelta(seconds=36000)",
+   "datetime.timedelta(seconds=86399)"
+  ],
+  "file-load/times -> varchar(50)": [
+   "'10:00'",
+   "'23:59:59'"
+  ],
+  "file-load/timestamps -> bigint": [
+   "2024",
+   "2024"
+  ],
+  "file-load/timestamps -> boolean": [
+   "127",
+   "127"
+  ],
+  "file-load/timestamps -> date": [
+   "datetime.date(2024, 1, 5)",
+   "datetime.date(2024, 2, 6)"
+  ],
+  "file-load/timestamps -> datetime": [
+   "datetime.datetime(2024, 1, 5, 10, 0)",
+   "datetime.datetime(2024, 2, 6, 11, 30, 15)"
+  ],
+  "file-load/timestamps -> decimal(18,3)": [
+   "Decimal('2024.000')",
+   "Decimal('2024.000')"
+  ],
+  "file-load/timestamps -> double": [
+   "2024.0",
+   "2024.0"
+  ],
+  "file-load/timestamps -> integer": [
+   "2024",
+   "2024"
+  ],
+  "file-load/timestamps -> text": [
+   "'2024-01-05 10:00'",
+   "'2024-02-06 11:30:15'"
+  ],
+  "file-load/timestamps -> time": [
+   "datetime.timedelta(seconds=36000)",
+   "datetime.timedelta(seconds=41415)"
+  ],
+  "file-load/timestamps -> varchar(50)": [
+   "'2024-01-05 10:00'",
+   "'2024-02-06 11:30:15'"
+  ],
+  "file-load/timestamps_tz -> bigint": [
+   "2024",
+   "2024"
+  ],
+  "file-load/timestamps_tz -> boolean": [
+   "127",
+   "127"
+  ],
+  "file-load/timestamps_tz -> date": [
+   "datetime.date(2024, 1, 5)",
+   "datetime.date(2024, 1, 5)"
+  ],
+  "file-load/timestamps_tz -> datetime": [
+   "datetime.datetime(2024, 1, 5, 10, 0)",
+   "datetime.datetime(2024, 1, 5, 4, 30)"
+  ],
+  "file-load/timestamps_tz -> decimal(18,3)": [
+   "Decimal('2024.000')",
+   "Decimal('2024.000')"
+  ],
+  "file-load/timestamps_tz -> double": [
+   "2024.0",
+   "2024.0"
+  ],
+  "file-load/timestamps_tz -> integer": [
+   "2024",
+   "2024"
+  ],
+  "file-load/timestamps_tz -> text": [
+   "'2024-01-05T10:00:00Z'",
+   "'2024-01-05 10:00:00+05:30'"
+  ],
+  "file-load/timestamps_tz -> time": [
+   "datetime.timedelta(seconds=1224)",
+   "datetime.timedelta(seconds=16200)"
+  ],
+  "file-load/timestamps_tz -> varchar(50)": [
+   "'2024-01-05T10:00:00Z'",
+   "'2024-01-05 10:00:00+05:30'"
+  ],
+  "file-load/two_places -> bigint": [
+   "2",
+   "2"
+  ],
+  "file-load/two_places -> boolean": [
+   "2",
+   "2"
+  ],
+  "file-load/two_places -> date": [
+   "'0000-00-00'",
+   "'0000-00-00'"
+  ],
+  "file-load/two_places -> datetime": [
+   "'0000-00-00 00:00:00'",
+   "'0000-00-00 00:00:00'"
+  ],
+  "file-load/two_places -> decimal(18,3)": [
+   "Decimal('1.500')",
+   "Decimal('2.000')"
+  ],
+  "file-load/two_places -> double": [
+   "1.5",
+   "2.0"
+  ],
+  "file-load/two_places -> integer": [
+   "2",
+   "2"
+  ],
+  "file-load/two_places -> text": [
+   "'1.50'",
+   "'2.00'"
+  ],
+  "file-load/two_places -> time": [
+   "datetime.timedelta(seconds=2)",
+   "datetime.timedelta(seconds=2)"
+  ],
+  "file-load/two_places -> varchar(50)": [
+   "'1.50'",
+   "'2.00'"
+  ],
+  "file-load/unicode -> bigint": [
+   "0"
+  ],
+  "file-load/unicode -> boolean": [
+   "0"
+  ],
+  "file-load/unicode -> date": [
+   "'0000-00-00'"
+  ],
+  "file-load/unicode -> datetime": [
+   "'0000-00-00 00:00:00'"
+  ],
+  "file-load/unicode -> decimal(18,3)": [
+   "Decimal('0.000')"
+  ],
+  "file-load/unicode -> double": [
+   "0.0"
+  ],
+  "file-load/unicode -> integer": [
+   "0"
+  ],
+  "file-load/unicode -> text": [
+   "'Ünïcødé'"
+  ],
+  "file-load/unicode -> time": [
+   "datetime.timedelta(0)"
+  ],
+  "file-load/unicode -> varchar(50)": [
+   "'Ünïcødé'"
+  ],
+  "file-load/us_dates -> bigint": [
+   "1",
+   "2"
+  ],
+  "file-load/us_dates -> boolean": [
+   "1",
+   "2"
+  ],
+  "file-load/us_dates -> date": [
+   "'0000-00-00'",
+   "'0000-00-00'"
+  ],
+  "file-load/us_dates -> datetime": [
+   "'0000-00-00 00:00:00'",
+   "'0000-00-00 00:00:00'"
+  ],
+  "file-load/us_dates -> decimal(18,3)": [
+   "Decimal('1.000')",
+   "Decimal('2.000')"
+  ],
+  "file-load/us_dates -> double": [
+   "1.0",
+   "2.0"
+  ],
+  "file-load/us_dates -> integer": [
+   "1",
+   "2"
+  ],
+  "file-load/us_dates -> text": [
+   "'01/05/2024'",
+   "'02/06/2024'"
+  ],
+  "file-load/us_dates -> time": [
+   "datetime.timedelta(seconds=1)",
+   "datetime.timedelta(seconds=2)"
+  ],
+  "file-load/us_dates -> varchar(50)": [
+   "'01/05/2024'",
+   "'02/06/2024'"
+  ],
+  "file-load/whole_decimals -> bigint": [
+   "1",
+   "2"
+  ],
+  "file-load/whole_decimals -> boolean": [
+   "1",
+   "2"
+  ],
+  "file-load/whole_decimals -> date": [
+   "'0000-00-00'",
+   "'0000-00-00'"
+  ],
+  "file-load/whole_decimals -> datetime": [
+   "'0000-00-00 00:00:00'",
+   "'0000-00-00 00:00:00'"
+  ],
+  "file-load/whole_decimals -> decimal(18,3)": [
+   "Decimal('1.000')",
+   "Decimal('2.000')"
+  ],
+  "file-load/whole_decimals -> double": [
+   "1.0",
+   "2.0"
+  ],
+  "file-load/whole_decimals -> integer": [
+   "1",
+   "2"
+  ],
+  "file-load/whole_decimals -> text": [
+   "'1.0'",
+   "'2.0'"
+  ],
+  "file-load/whole_decimals -> time": [
+   "datetime.timedelta(seconds=1)",
+   "datetime.timedelta(seconds=2)"
+  ],
+  "file-load/whole_decimals -> varchar(50)": [
+   "'1.0'",
+   "'2.0'"
+  ],
+  "file-load/word_and_number -> bigint": [
+   "0",
+   "1"
+  ],
+  "file-load/word_and_number -> boolean": [
+   "0",
+   "1"
+  ],
+  "file-load/word_and_number -> date": [
+   "'0000-00-00'",
+   "'0000-00-00'"
+  ],
+  "file-load/word_and_number -> datetime": [
+   "'0000-00-00 00:00:00'",
+   "'0000-00-00 00:00:00'"
+  ],
+  "file-load/word_and_number -> decimal(18,3)": [
+   "Decimal('0.000')",
+   "Decimal('1.000')"
+  ],
+  "file-load/word_and_number -> double": [
+   "0.0",
+   "1.0"
+  ],
+  "file-load/word_and_number -> integer": [
+   "0",
+   "1"
+  ],
+  "file-load/word_and_number -> text": [
+   "'abc'",
+   "'1'"
+  ],
+  "file-load/word_and_number -> time": [
+   "datetime.timedelta(0)",
+   "datetime.timedelta(seconds=1)"
+  ],
+  "file-load/word_and_number -> varchar(50)": [
+   "'abc'",
+   "'1'"
+  ],
+  "file-load/words -> bigint": [
+   "0",
+   "0"
+  ],
+  "file-load/words -> boolean": [
+   "0",
+   "0"
+  ],
+  "file-load/words -> date": [
+   "'0000-00-00'",
+   "'0000-00-00'"
+  ],
+  "file-load/words -> datetime": [
+   "'0000-00-00 00:00:00'",
+   "'0000-00-00 00:00:00'"
+  ],
+  "file-load/words -> decimal(18,3)": [
+   "Decimal('0.000')",
+   "Decimal('0.000')"
+  ],
+  "file-load/words -> double": [
+   "0.0",
+   "0.0"
+  ],
+  "file-load/words -> integer": [
+   "0",
+   "0"
+  ],
+  "file-load/words -> text": [
+   "'abc'",
+   "'def'"
+  ],
+  "file-load/words -> time": [
+   "datetime.timedelta(0)",
+   "datetime.timedelta(0)"
+  ],
+  "file-load/words -> varchar(50)": [
+   "'abc'",
+   "'def'"
+  ],
+  "file-load/yes_no -> bigint": [
+   "0",
+   "0"
+  ],
+  "file-load/yes_no -> boolean": [
+   "0",
+   "0"
+  ],
+  "file-load/yes_no -> date": [
+   "'0000-00-00'",
+   "'0000-00-00'"
+  ],
+  "file-load/yes_no -> datetime": [
+   "'0000-00-00 00:00:00'",
+   "'0000-00-00 00:00:00'"
+  ],
+  "file-load/yes_no -> decimal(18,3)": [
+   "Decimal('0.000')",
+   "Decimal('0.000')"
+  ],
+  "file-load/yes_no -> double": [
+   "0.0",
+   "0.0"
+  ],
+  "file-load/yes_no -> integer": [
+   "0",
+   "0"
+  ],
+  "file-load/yes_no -> text": [
+   "'yes'",
+   "'no'"
+  ],
+  "file-load/yes_no -> time": [
+   "datetime.timedelta(0)",
+   "datetime.timedelta(0)"
+  ],
+  "file-load/yes_no -> varchar(50)": [
+   "'yes'",
+   "'no'"
+  ],
+  "file-load/zero_one -> bigint": [
+   "1",
+   "0"
+  ],
+  "file-load/zero_one -> boolean": [
+   "1",
+   "0"
+  ],
+  "file-load/zero_one -> date": [
+   "'0000-00-00'",
+   "'0000-00-00'"
+  ],
+  "file-load/zero_one -> datetime": [
+   "'0000-00-00 00:00:00'",
+   "'0000-00-00 00:00:00'"
+  ],
+  "file-load/zero_one -> decimal(18,3)": [
+   "Decimal('1.000')",
+   "Decimal('0.000')"
+  ],
+  "file-load/zero_one -> double": [
+   "1.0",
+   "0.0"
+  ],
+  "file-load/zero_one -> integer": [
+   "1",
+   "0"
+  ],
+  "file-load/zero_one -> text": [
+   "'1'",
+   "'0'"
+  ],
+  "file-load/zero_one -> time": [
+   "datetime.timedelta(seconds=1)",
+   "datetime.timedelta(0)"
+  ],
+  "file-load/zero_one -> varchar(50)": [
+   "'1'",
+   "'0'"
+  ]
+ }
+}

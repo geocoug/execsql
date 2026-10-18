@@ -14,6 +14,7 @@ The entire module is skipped when:
 from __future__ import annotations
 
 import csv
+import datetime
 import json
 import os
 import subprocess
@@ -567,6 +568,81 @@ class TestHeadersWithCapitals:
             assert csv_path.read_bytes() == newline.join(lines).encode(), "the source file is left as it was"
         finally:
             _exec_mysql("DROP TABLE IF EXISTS t_blank")
+
+
+class TestStrictMode:
+    """A value MySQL can't store as given is an error, not clamped, zeroed or truncated (#101)."""
+
+    def test_an_out_of_range_insert_is_an_error(self, tmp_path):
+        _exec_mysql("DROP TABLE IF EXISTS t_strict")
+        _write_conf(tmp_path)
+        script = write_script(
+            tmp_path,
+            "CREATE TABLE t_strict (n INTEGER, d DATE) ENGINE=InnoDB;\n"
+            "INSERT INTO t_strict VALUES (3000000000, '2024-01-05');\n",
+        )
+        try:
+            result = _run_execsql_mysql(tmp_path, script)
+            assert result.returncode != 0
+            assert "Out of range" in result.stdout + result.stderr
+            assert _query_mysql("SELECT count(*) FROM t_strict")[0][0] == 0
+        finally:
+            _exec_mysql("DROP TABLE IF EXISTS t_strict")
+
+    # n,d matches the table, so MySQL reads the file with LOAD DATA, which
+    # turns errors into warnings; d,n does not, so it inserts row by row.
+    @pytest.mark.parametrize("header", ["n,d", "d,n"])
+    def test_import_of_a_value_mysql_would_change_loads_nothing(self, tmp_path, header):
+        _exec_mysql("DROP TABLE IF EXISTS t_strict")
+        _exec_mysql("CREATE TABLE t_strict (n INTEGER, d DATE) ENGINE=InnoDB")
+        _write_conf(tmp_path)
+        rows = {"n": ["1", "3000000000"], "d": ["2024-01-05", "2024-01-06"]}
+        csv_path = tmp_path / "strict.csv"
+        cols = header.split(",")
+        csv_path.write_text(header + "\n" + "".join(f"{rows[cols[0]][i]},{rows[cols[1]][i]}\n" for i in range(2)))
+        script = write_script(tmp_path, f"-- !x! IMPORT TO t_strict FROM {csv_path}\n")
+        try:
+            result = _run_execsql_mysql(tmp_path, script)
+            assert result.returncode != 0
+            assert "Out of range" in result.stdout + result.stderr
+            assert _query_mysql("SELECT count(*) FROM t_strict")[0][0] == 0
+        finally:
+            _exec_mysql("DROP TABLE IF EXISTS t_strict")
+
+    @pytest.mark.parametrize("header", ["n,d", "d,n"])
+    def test_a_script_that_turns_strict_mode_off_gets_mysqls_changed_values(self, tmp_path, header):
+        _exec_mysql("DROP TABLE IF EXISTS t_strict")
+        _exec_mysql("CREATE TABLE t_strict (n INTEGER, d DATE) ENGINE=InnoDB")
+        _write_conf(tmp_path)
+        rows = {"n": ["1", "3000000000"], "d": ["2024-01-05", "2024-01-06"]}
+        csv_path = tmp_path / "strict.csv"
+        cols = header.split(",")
+        csv_path.write_text(header + "\n" + "".join(f"{rows[cols[0]][i]},{rows[cols[1]][i]}\n" for i in range(2)))
+        script = write_script(
+            tmp_path,
+            f"SET SESSION sql_mode = 'ANSI';\n-- !x! IMPORT TO t_strict FROM {csv_path}\n",
+        )
+        try:
+            result = _run_execsql_mysql(tmp_path, script)
+            assert result.returncode == 0, f"stderr: {result.stderr}"
+            assert [r[0] for r in _query_mysql("SELECT n FROM t_strict ORDER BY n")] == [1, 2147483647]
+        finally:
+            _exec_mysql("DROP TABLE IF EXISTS t_strict")
+
+    def test_import_of_good_values_and_missing_dates_still_loads(self, tmp_path):
+        _exec_mysql("DROP TABLE IF EXISTS t_strict")
+        _exec_mysql("CREATE TABLE t_strict (n INTEGER, d DATE) ENGINE=InnoDB")
+        _write_conf(tmp_path)
+        csv_path = tmp_path / "strict.csv"
+        csv_path.write_text("n,d\n1,2024-01-05\n2,\n")
+        script = write_script(tmp_path, f"-- !x! IMPORT TO t_strict FROM {csv_path}\n")
+        try:
+            result = _run_execsql_mysql(tmp_path, script)
+            assert result.returncode == 0, f"stderr: {result.stderr}"
+            rows = [tuple(r) for r in _query_mysql("SELECT n, d FROM t_strict ORDER BY n")]
+            assert rows == [(1, datetime.date(2024, 1, 5)), (2, None)]
+        finally:
+            _exec_mysql("DROP TABLE IF EXISTS t_strict")
 
 
 @pytest.mark.parametrize("value", [r"C:\data\new", r"x\'; drop table t; --", "O'Brien", r"two\\backslashes"])

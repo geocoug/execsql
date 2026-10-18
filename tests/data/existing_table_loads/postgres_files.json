@@ -1,0 +1,1228 @@
+{
+ "stored": {
+  "file-insert/TRUE_FALSE -> bigint": "ERROR",
+  "file-insert/TRUE_FALSE -> boolean": [
+   "True",
+   "False"
+  ],
+  "file-insert/TRUE_FALSE -> date": "ERROR",
+  "file-insert/TRUE_FALSE -> double precision": "ERROR",
+  "file-insert/TRUE_FALSE -> integer": "ERROR",
+  "file-insert/TRUE_FALSE -> numeric(18,3)": "ERROR",
+  "file-insert/TRUE_FALSE -> text": [
+   "'TRUE'",
+   "'FALSE'"
+  ],
+  "file-insert/TRUE_FALSE -> time": "ERROR",
+  "file-insert/TRUE_FALSE -> timestamp": "ERROR",
+  "file-insert/TRUE_FALSE -> timestamptz": "ERROR",
+  "file-insert/TRUE_FALSE -> varchar(50)": [
+   "'TRUE'",
+   "'FALSE'"
+  ],
+  "file-insert/big_integer -> bigint": [
+   "3000000000"
+  ],
+  "file-insert/big_integer -> boolean": "ERROR",
+  "file-insert/big_integer -> date": "ERROR",
+  "file-insert/big_integer -> double precision": [
+   "3000000000.0"
+  ],
+  "file-insert/big_integer -> integer": "ERROR",
+  "file-insert/big_integer -> numeric(18,3)": [
+   "Decimal('3000000000.000')"
+  ],
+  "file-insert/big_integer -> text": [
+   "'3000000000'"
+  ],
+  "file-insert/big_integer -> time": "ERROR",
+  "file-insert/big_integer -> timestamp": "ERROR",
+  "file-insert/big_integer -> timestamptz": "ERROR",
+  "file-insert/big_integer -> varchar(50)": [
+   "'3000000000'"
+  ],
+  "file-insert/dates_and_missing -> bigint": "ERROR",
+  "file-insert/dates_and_missing -> boolean": "ERROR",
+  "file-insert/dates_and_missing -> date": [
+   "datetime.date(2024, 1, 5)",
+   "None"
+  ],
+  "file-insert/dates_and_missing -> double precision": "ERROR",
+  "file-insert/dates_and_missing -> integer": "ERROR",
+  "file-insert/dates_and_missing -> numeric(18,3)": "ERROR",
+  "file-insert/dates_and_missing -> text": [
+   "'2024-01-05'",
+   "None"
+  ],
+  "file-insert/dates_and_missing -> time": "ERROR",
+  "file-insert/dates_and_missing -> timestamp": [
+   "datetime.datetime(2024, 1, 5, 0, 0)",
+   "None"
+  ],
+  "file-insert/dates_and_missing -> timestamptz": [
+   "datetime.datetime(2024, 1, 5, 0, 0, tzinfo=datetime.timezone.utc)",
+   "None"
+  ],
+  "file-insert/dates_and_missing -> varchar(50)": [
+   "'2024-01-05'",
+   "None"
+  ],
+  "file-insert/day_first_date -> bigint": "ERROR",
+  "file-insert/day_first_date -> boolean": "ERROR",
+  "file-insert/day_first_date -> date": "ERROR",
+  "file-insert/day_first_date -> double precision": "ERROR",
+  "file-insert/day_first_date -> integer": "ERROR",
+  "file-insert/day_first_date -> numeric(18,3)": "ERROR",
+  "file-insert/day_first_date -> text": [
+   "'13/05/2024'"
+  ],
+  "file-insert/day_first_date -> time": "ERROR",
+  "file-insert/day_first_date -> timestamp": "ERROR",
+  "file-insert/day_first_date -> timestamptz": "ERROR",
+  "file-insert/day_first_date -> varchar(50)": [
+   "'13/05/2024'"
+  ],
+  "file-insert/empty_and_missing -> bigint": "ERROR",
+  "file-insert/empty_and_missing -> boolean": "ERROR",
+  "file-insert/empty_and_missing -> date": "ERROR",
+  "file-insert/empty_and_missing -> double precision": "ERROR",
+  "file-insert/empty_and_missing -> integer": "ERROR",
+  "file-insert/empty_and_missing -> numeric(18,3)": "ERROR",
+  "file-insert/empty_and_missing -> text": [
+   "None",
+   "None",
+   "'x'"
+  ],
+  "file-insert/empty_and_missing -> time": "ERROR",
+  "file-insert/empty_and_missing -> timestamp": "ERROR",
+  "file-insert/empty_and_missing -> timestamptz": "ERROR",
+  "file-insert/empty_and_missing -> varchar(50)": [
+   "None",
+   "None",
+   "'x'"
+  ],
+  "file-insert/exponent -> bigint": "ERROR",
+  "file-insert/exponent -> boolean": "ERROR",
+  "file-insert/exponent -> date": "ERROR",
+  "file-insert/exponent -> double precision": [
+   "1000.0",
+   "200.0"
+  ],
+  "file-insert/exponent -> integer": "ERROR",
+  "file-insert/exponent -> numeric(18,3)": [
+   "Decimal('1000.000')",
+   "Decimal('200.000')"
+  ],
+  "file-insert/exponent -> text": [
+   "'1e3'",
+   "'2E2'"
+  ],
+  "file-insert/exponent -> time": "ERROR",
+  "file-insert/exponent -> timestamp": "ERROR",
+  "file-insert/exponent -> timestamptz": "ERROR",
+  "file-insert/exponent -> varchar(50)": [
+   "'1e3'",
+   "'2E2'"
+  ],
+  "file-insert/fractions -> bigint": "ERROR",
+  "file-insert/fractions -> boolean": "ERROR",
+  "file-insert/fractions -> date": "ERROR",
+  "file-insert/fractions -> double precision": [
+   "1.5",
+   "2.25"
+  ],
+  "file-insert/fractions -> integer": "ERROR",
+  "file-insert/fractions -> numeric(18,3)": [
+   "Decimal('1.500')",
+   "Decimal('2.250')"
+  ],
+  "file-insert/fractions -> text": [
+   "'1.5'",
+   "'2.25'"
+  ],
+  "file-insert/fractions -> time": "ERROR",
+  "file-insert/fractions -> timestamp": "ERROR",
+  "file-insert/fractions -> timestamptz": "ERROR",
+  "file-insert/fractions -> varchar(50)": [
+   "'1.5'",
+   "'2.25'"
+  ],
+  "file-insert/integers -> bigint": [
+   "1",
+   "2",
+   "42"
+  ],
+  "file-insert/integers -> boolean": "ERROR",
+  "file-insert/integers -> date": "ERROR",
+  "file-insert/integers -> double precision": [
+   "1.0",
+   "2.0",
+   "42.0"
+  ],
+  "file-insert/integers -> integer": [
+   "1",
+   "2",
+   "42"
+  ],
+  "file-insert/integers -> numeric(18,3)": [
+   "Decimal('1.000')",
+   "Decimal('2.000')",
+   "Decimal('42.000')"
+  ],
+  "file-insert/integers -> text": [
+   "'1'",
+   "'2'",
+   "'42'"
+  ],
+  "file-insert/integers -> time": "ERROR",
+  "file-insert/integers -> timestamp": "ERROR",
+  "file-insert/integers -> timestamptz": "ERROR",
+  "file-insert/integers -> varchar(50)": [
+   "'1'",
+   "'2'",
+   "'42'"
+  ],
+  "file-insert/iso_dates -> bigint": "ERROR",
+  "file-insert/iso_dates -> boolean": "ERROR",
+  "file-insert/iso_dates -> date": [
+   "datetime.date(2024, 1, 5)",
+   "datetime.date(2024, 2, 6)"
+  ],
+  "file-insert/iso_dates -> double precision": "ERROR",
+  "file-insert/iso_dates -> integer": "ERROR",
+  "file-insert/iso_dates -> numeric(18,3)": "ERROR",
+  "file-insert/iso_dates -> text": [
+   "'2024-01-05'",
+   "'2024-02-06'"
+  ],
+  "file-insert/iso_dates -> time": "ERROR",
+  "file-insert/iso_dates -> timestamp": [
+   "datetime.datetime(2024, 1, 5, 0, 0)",
+   "datetime.datetime(2024, 2, 6, 0, 0)"
+  ],
+  "file-insert/iso_dates -> timestamptz": [
+   "datetime.datetime(2024, 1, 5, 0, 0, tzinfo=datetime.timezone.utc)",
+   "datetime.datetime(2024, 2, 6, 0, 0, tzinfo=datetime.timezone.utc)"
+  ],
+  "file-insert/iso_dates -> varchar(50)": [
+   "'2024-01-05'",
+   "'2024-02-06'"
+  ],
+  "file-insert/leading_zeros -> bigint": [
+   "701",
+   "2134"
+  ],
+  "file-insert/leading_zeros -> boolean": "ERROR",
+  "file-insert/leading_zeros -> date": "ERROR",
+  "file-insert/leading_zeros -> double precision": [
+   "701.0",
+   "2134.0"
+  ],
+  "file-insert/leading_zeros -> integer": [
+   "701",
+   "2134"
+  ],
+  "file-insert/leading_zeros -> numeric(18,3)": [
+   "Decimal('701.000')",
+   "Decimal('2134.000')"
+  ],
+  "file-insert/leading_zeros -> text": [
+   "'00701'",
+   "'02134'"
+  ],
+  "file-insert/leading_zeros -> time": "ERROR",
+  "file-insert/leading_zeros -> timestamp": "ERROR",
+  "file-insert/leading_zeros -> timestamptz": "ERROR",
+  "file-insert/leading_zeros -> varchar(50)": [
+   "'00701'",
+   "'02134'"
+  ],
+  "file-insert/long_text -> bigint": "ERROR",
+  "file-insert/long_text -> boolean": "ERROR",
+  "file-insert/long_text -> date": "ERROR",
+  "file-insert/long_text -> double precision": "ERROR",
+  "file-insert/long_text -> integer": "ERROR",
+  "file-insert/long_text -> numeric(18,3)": "ERROR",
+  "file-insert/long_text -> text": [
+   "'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'"
+  ],
+  "file-insert/long_text -> time": "ERROR",
+  "file-insert/long_text -> timestamp": "ERROR",
+  "file-insert/long_text -> timestamptz": "ERROR",
+  "file-insert/long_text -> varchar(50)": "ERROR",
+  "file-insert/month_names -> bigint": "ERROR",
+  "file-insert/month_names -> boolean": "ERROR",
+  "file-insert/month_names -> date": [
+   "datetime.date(2024, 1, 5)"
+  ],
+  "file-insert/month_names -> double precision": "ERROR",
+  "file-insert/month_names -> integer": "ERROR",
+  "file-insert/month_names -> numeric(18,3)": "ERROR",
+  "file-insert/month_names -> text": [
+   "'Jan 5, 2024'"
+  ],
+  "file-insert/month_names -> time": "ERROR",
+  "file-insert/month_names -> timestamp": [
+   "datetime.datetime(2024, 1, 5, 0, 0)"
+  ],
+  "file-insert/month_names -> timestamptz": [
+   "datetime.datetime(2024, 1, 5, 0, 0, tzinfo=datetime.timezone.utc)"
+  ],
+  "file-insert/month_names -> varchar(50)": [
+   "'Jan 5, 2024'"
+  ],
+  "file-insert/padded_text -> bigint": "ERROR",
+  "file-insert/padded_text -> boolean": "ERROR",
+  "file-insert/padded_text -> date": "ERROR",
+  "file-insert/padded_text -> double precision": "ERROR",
+  "file-insert/padded_text -> integer": "ERROR",
+  "file-insert/padded_text -> numeric(18,3)": "ERROR",
+  "file-insert/padded_text -> text": [
+   "'  pad  '"
+  ],
+  "file-insert/padded_text -> time": "ERROR",
+  "file-insert/padded_text -> timestamp": "ERROR",
+  "file-insert/padded_text -> timestamptz": "ERROR",
+  "file-insert/padded_text -> varchar(50)": [
+   "'  pad  '"
+  ],
+  "file-insert/signed_padded -> bigint": [
+   "7",
+   "3",
+   "-2"
+  ],
+  "file-insert/signed_padded -> boolean": "ERROR",
+  "file-insert/signed_padded -> date": "ERROR",
+  "file-insert/signed_padded -> double precision": [
+   "7.0",
+   "3.0",
+   "-2.0"
+  ],
+  "file-insert/signed_padded -> integer": [
+   "7",
+   "3",
+   "-2"
+  ],
+  "file-insert/signed_padded -> numeric(18,3)": [
+   "Decimal('7.000')",
+   "Decimal('3.000')",
+   "Decimal('-2.000')"
+  ],
+  "file-insert/signed_padded -> text": [
+   "' 7 '",
+   "'+3'",
+   "'-2'"
+  ],
+  "file-insert/signed_padded -> time": "ERROR",
+  "file-insert/signed_padded -> timestamp": "ERROR",
+  "file-insert/signed_padded -> timestamptz": "ERROR",
+  "file-insert/signed_padded -> varchar(50)": [
+   "' 7 '",
+   "'+3'",
+   "'-2'"
+  ],
+  "file-insert/small_floats -> bigint": "ERROR",
+  "file-insert/small_floats -> boolean": "ERROR",
+  "file-insert/small_floats -> date": "ERROR",
+  "file-insert/small_floats -> double precision": [
+   "0.1",
+   "1e-20"
+  ],
+  "file-insert/small_floats -> integer": "ERROR",
+  "file-insert/small_floats -> numeric(18,3)": [
+   "Decimal('0.100')",
+   "Decimal('0.000')"
+  ],
+  "file-insert/small_floats -> text": [
+   "'0.1'",
+   "'1e-20'"
+  ],
+  "file-insert/small_floats -> time": "ERROR",
+  "file-insert/small_floats -> timestamp": "ERROR",
+  "file-insert/small_floats -> timestamptz": "ERROR",
+  "file-insert/small_floats -> varchar(50)": [
+   "'0.1'",
+   "'1e-20'"
+  ],
+  "file-insert/t_f -> bigint": "ERROR",
+  "file-insert/t_f -> boolean": [
+   "True",
+   "False"
+  ],
+  "file-insert/t_f -> date": "ERROR",
+  "file-insert/t_f -> double precision": "ERROR",
+  "file-insert/t_f -> integer": "ERROR",
+  "file-insert/t_f -> numeric(18,3)": "ERROR",
+  "file-insert/t_f -> text": [
+   "'t'",
+   "'f'"
+  ],
+  "file-insert/t_f -> time": "ERROR",
+  "file-insert/t_f -> timestamp": "ERROR",
+  "file-insert/t_f -> timestamptz": "ERROR",
+  "file-insert/t_f -> varchar(50)": [
+   "'t'",
+   "'f'"
+  ],
+  "file-insert/times -> bigint": "ERROR",
+  "file-insert/times -> boolean": "ERROR",
+  "file-insert/times -> date": "ERROR",
+  "file-insert/times -> double precision": "ERROR",
+  "file-insert/times -> integer": "ERROR",
+  "file-insert/times -> numeric(18,3)": "ERROR",
+  "file-insert/times -> text": [
+   "'10:00'",
+   "'23:59:59'"
+  ],
+  "file-insert/times -> time": [
+   "datetime.time(10, 0)",
+   "datetime.time(23, 59, 59)"
+  ],
+  "file-insert/times -> timestamp": "ERROR",
+  "file-insert/times -> timestamptz": "ERROR",
+  "file-insert/times -> varchar(50)": [
+   "'10:00'",
+   "'23:59:59'"
+  ],
+  "file-insert/timestamps -> bigint": "ERROR",
+  "file-insert/timestamps -> boolean": "ERROR",
+  "file-insert/timestamps -> date": [
+   "datetime.date(2024, 1, 5)",
+   "datetime.date(2024, 2, 6)"
+  ],
+  "file-insert/timestamps -> double precision": "ERROR",
+  "file-insert/timestamps -> integer": "ERROR",
+  "file-insert/timestamps -> numeric(18,3)": "ERROR",
+  "file-insert/timestamps -> text": [
+   "'2024-01-05 10:00'",
+   "'2024-02-06 11:30:15'"
+  ],
+  "file-insert/timestamps -> time": [
+   "datetime.time(10, 0)",
+   "datetime.time(11, 30, 15)"
+  ],
+  "file-insert/timestamps -> timestamp": [
+   "datetime.datetime(2024, 1, 5, 10, 0)",
+   "datetime.datetime(2024, 2, 6, 11, 30, 15)"
+  ],
+  "file-insert/timestamps -> timestamptz": [
+   "datetime.datetime(2024, 1, 5, 10, 0, tzinfo=datetime.timezone.utc)",
+   "datetime.datetime(2024, 2, 6, 11, 30, 15, tzinfo=datetime.timezone.utc)"
+  ],
+  "file-insert/timestamps -> varchar(50)": [
+   "'2024-01-05 10:00'",
+   "'2024-02-06 11:30:15'"
+  ],
+  "file-insert/timestamps_tz -> bigint": "ERROR",
+  "file-insert/timestamps_tz -> boolean": "ERROR",
+  "file-insert/timestamps_tz -> date": [
+   "datetime.date(2024, 1, 5)",
+   "datetime.date(2024, 1, 5)"
+  ],
+  "file-insert/timestamps_tz -> double precision": "ERROR",
+  "file-insert/timestamps_tz -> integer": "ERROR",
+  "file-insert/timestamps_tz -> numeric(18,3)": "ERROR",
+  "file-insert/timestamps_tz -> text": [
+   "'2024-01-05T10:00:00Z'",
+   "'2024-01-05 10:00:00+05:30'"
+  ],
+  "file-insert/timestamps_tz -> time": "ERROR",
+  "file-insert/timestamps_tz -> timestamp": [
+   "datetime.datetime(2024, 1, 5, 10, 0)",
+   "datetime.datetime(2024, 1, 5, 10, 0)"
+  ],
+  "file-insert/timestamps_tz -> timestamptz": [
+   "datetime.datetime(2024, 1, 5, 10, 0, tzinfo=datetime.timezone.utc)",
+   "datetime.datetime(2024, 1, 5, 4, 30, tzinfo=datetime.timezone.utc)"
+  ],
+  "file-insert/timestamps_tz -> varchar(50)": [
+   "'2024-01-05T10:00:00Z'",
+   "'2024-01-05 10:00:00+05:30'"
+  ],
+  "file-insert/two_places -> bigint": "ERROR",
+  "file-insert/two_places -> boolean": "ERROR",
+  "file-insert/two_places -> date": "ERROR",
+  "file-insert/two_places -> double precision": [
+   "1.5",
+   "2.0"
+  ],
+  "file-insert/two_places -> integer": "ERROR",
+  "file-insert/two_places -> numeric(18,3)": [
+   "Decimal('1.500')",
+   "Decimal('2.000')"
+  ],
+  "file-insert/two_places -> text": [
+   "'1.50'",
+   "'2.00'"
+  ],
+  "file-insert/two_places -> time": "ERROR",
+  "file-insert/two_places -> timestamp": "ERROR",
+  "file-insert/two_places -> timestamptz": "ERROR",
+  "file-insert/two_places -> varchar(50)": [
+   "'1.50'",
+   "'2.00'"
+  ],
+  "file-insert/unicode -> bigint": "ERROR",
+  "file-insert/unicode -> boolean": "ERROR",
+  "file-insert/unicode -> date": "ERROR",
+  "file-insert/unicode -> double precision": "ERROR",
+  "file-insert/unicode -> integer": "ERROR",
+  "file-insert/unicode -> numeric(18,3)": "ERROR",
+  "file-insert/unicode -> text": [
+   "'Ünïcødé'"
+  ],
+  "file-insert/unicode -> time": "ERROR",
+  "file-insert/unicode -> timestamp": "ERROR",
+  "file-insert/unicode -> timestamptz": "ERROR",
+  "file-insert/unicode -> varchar(50)": [
+   "'Ünïcødé'"
+  ],
+  "file-insert/us_dates -> bigint": "ERROR",
+  "file-insert/us_dates -> boolean": "ERROR",
+  "file-insert/us_dates -> date": [
+   "datetime.date(2024, 1, 5)",
+   "datetime.date(2024, 2, 6)"
+  ],
+  "file-insert/us_dates -> double precision": "ERROR",
+  "file-insert/us_dates -> integer": "ERROR",
+  "file-insert/us_dates -> numeric(18,3)": "ERROR",
+  "file-insert/us_dates -> text": [
+   "'01/05/2024'",
+   "'02/06/2024'"
+  ],
+  "file-insert/us_dates -> time": "ERROR",
+  "file-insert/us_dates -> timestamp": [
+   "datetime.datetime(2024, 1, 5, 0, 0)",
+   "datetime.datetime(2024, 2, 6, 0, 0)"
+  ],
+  "file-insert/us_dates -> timestamptz": [
+   "datetime.datetime(2024, 1, 5, 0, 0, tzinfo=datetime.timezone.utc)",
+   "datetime.datetime(2024, 2, 6, 0, 0, tzinfo=datetime.timezone.utc)"
+  ],
+  "file-insert/us_dates -> varchar(50)": [
+   "'01/05/2024'",
+   "'02/06/2024'"
+  ],
+  "file-insert/whole_decimals -> bigint": "ERROR",
+  "file-insert/whole_decimals -> boolean": "ERROR",
+  "file-insert/whole_decimals -> date": "ERROR",
+  "file-insert/whole_decimals -> double precision": [
+   "1.0",
+   "2.0"
+  ],
+  "file-insert/whole_decimals -> integer": "ERROR",
+  "file-insert/whole_decimals -> numeric(18,3)": [
+   "Decimal('1.000')",
+   "Decimal('2.000')"
+  ],
+  "file-insert/whole_decimals -> text": [
+   "'1.0'",
+   "'2.0'"
+  ],
+  "file-insert/whole_decimals -> time": "ERROR",
+  "file-insert/whole_decimals -> timestamp": "ERROR",
+  "file-insert/whole_decimals -> timestamptz": "ERROR",
+  "file-insert/whole_decimals -> varchar(50)": [
+   "'1.0'",
+   "'2.0'"
+  ],
+  "file-insert/word_and_number -> bigint": "ERROR",
+  "file-insert/word_and_number -> boolean": "ERROR",
+  "file-insert/word_and_number -> date": "ERROR",
+  "file-insert/word_and_number -> double precision": "ERROR",
+  "file-insert/word_and_number -> integer": "ERROR",
+  "file-insert/word_and_number -> numeric(18,3)": "ERROR",
+  "file-insert/word_and_number -> text": [
+   "'abc'",
+   "'1'"
+  ],
+  "file-insert/word_and_number -> time": "ERROR",
+  "file-insert/word_and_number -> timestamp": "ERROR",
+  "file-insert/word_and_number -> timestamptz": "ERROR",
+  "file-insert/word_and_number -> varchar(50)": [
+   "'abc'",
+   "'1'"
+  ],
+  "file-insert/words -> bigint": "ERROR",
+  "file-insert/words -> boolean": "ERROR",
+  "file-insert/words -> date": "ERROR",
+  "file-insert/words -> double precision": "ERROR",
+  "file-insert/words -> integer": "ERROR",
+  "file-insert/words -> numeric(18,3)": "ERROR",
+  "file-insert/words -> text": [
+   "'abc'",
+   "'def'"
+  ],
+  "file-insert/words -> time": "ERROR",
+  "file-insert/words -> timestamp": "ERROR",
+  "file-insert/words -> timestamptz": "ERROR",
+  "file-insert/words -> varchar(50)": [
+   "'abc'",
+   "'def'"
+  ],
+  "file-insert/yes_no -> bigint": "ERROR",
+  "file-insert/yes_no -> boolean": [
+   "True",
+   "False"
+  ],
+  "file-insert/yes_no -> date": "ERROR",
+  "file-insert/yes_no -> double precision": "ERROR",
+  "file-insert/yes_no -> integer": "ERROR",
+  "file-insert/yes_no -> numeric(18,3)": "ERROR",
+  "file-insert/yes_no -> text": [
+   "'yes'",
+   "'no'"
+  ],
+  "file-insert/yes_no -> time": "ERROR",
+  "file-insert/yes_no -> timestamp": "ERROR",
+  "file-insert/yes_no -> timestamptz": "ERROR",
+  "file-insert/yes_no -> varchar(50)": [
+   "'yes'",
+   "'no'"
+  ],
+  "file-insert/zero_one -> bigint": [
+   "1",
+   "0"
+  ],
+  "file-insert/zero_one -> boolean": [
+   "True",
+   "False"
+  ],
+  "file-insert/zero_one -> date": "ERROR",
+  "file-insert/zero_one -> double precision": [
+   "1.0",
+   "0.0"
+  ],
+  "file-insert/zero_one -> integer": [
+   "1",
+   "0"
+  ],
+  "file-insert/zero_one -> numeric(18,3)": [
+   "Decimal('1.000')",
+   "Decimal('0.000')"
+  ],
+  "file-insert/zero_one -> text": [
+   "'1'",
+   "'0'"
+  ],
+  "file-insert/zero_one -> time": "ERROR",
+  "file-insert/zero_one -> timestamp": "ERROR",
+  "file-insert/zero_one -> timestamptz": "ERROR",
+  "file-insert/zero_one -> varchar(50)": [
+   "'1'",
+   "'0'"
+  ],
+  "file-load/TRUE_FALSE -> bigint": "ERROR",
+  "file-load/TRUE_FALSE -> boolean": [
+   "True",
+   "False"
+  ],
+  "file-load/TRUE_FALSE -> date": "ERROR",
+  "file-load/TRUE_FALSE -> double precision": "ERROR",
+  "file-load/TRUE_FALSE -> integer": "ERROR",
+  "file-load/TRUE_FALSE -> numeric(18,3)": "ERROR",
+  "file-load/TRUE_FALSE -> text": [
+   "'TRUE'",
+   "'FALSE'"
+  ],
+  "file-load/TRUE_FALSE -> time": "ERROR",
+  "file-load/TRUE_FALSE -> timestamp": "ERROR",
+  "file-load/TRUE_FALSE -> timestamptz": "ERROR",
+  "file-load/TRUE_FALSE -> varchar(50)": [
+   "'TRUE'",
+   "'FALSE'"
+  ],
+  "file-load/big_integer -> bigint": [
+   "3000000000"
+  ],
+  "file-load/big_integer -> boolean": "ERROR",
+  "file-load/big_integer -> date": "ERROR",
+  "file-load/big_integer -> double precision": [
+   "3000000000.0"
+  ],
+  "file-load/big_integer -> integer": "ERROR",
+  "file-load/big_integer -> numeric(18,3)": [
+   "Decimal('3000000000.000')"
+  ],
+  "file-load/big_integer -> text": [
+   "'3000000000'"
+  ],
+  "file-load/big_integer -> time": "ERROR",
+  "file-load/big_integer -> timestamp": "ERROR",
+  "file-load/big_integer -> timestamptz": "ERROR",
+  "file-load/big_integer -> varchar(50)": [
+   "'3000000000'"
+  ],
+  "file-load/dates_and_missing -> bigint": "ERROR",
+  "file-load/dates_and_missing -> boolean": "ERROR",
+  "file-load/dates_and_missing -> date": [
+   "datetime.date(2024, 1, 5)",
+   "None"
+  ],
+  "file-load/dates_and_missing -> double precision": "ERROR",
+  "file-load/dates_and_missing -> integer": "ERROR",
+  "file-load/dates_and_missing -> numeric(18,3)": "ERROR",
+  "file-load/dates_and_missing -> text": [
+   "'2024-01-05'",
+   "None"
+  ],
+  "file-load/dates_and_missing -> time": "ERROR",
+  "file-load/dates_and_missing -> timestamp": [
+   "datetime.datetime(2024, 1, 5, 0, 0)",
+   "None"
+  ],
+  "file-load/dates_and_missing -> timestamptz": [
+   "datetime.datetime(2024, 1, 5, 0, 0, tzinfo=datetime.timezone.utc)",
+   "None"
+  ],
+  "file-load/dates_and_missing -> varchar(50)": [
+   "'2024-01-05'",
+   "None"
+  ],
+  "file-load/day_first_date -> bigint": "ERROR",
+  "file-load/day_first_date -> boolean": "ERROR",
+  "file-load/day_first_date -> date": "ERROR",
+  "file-load/day_first_date -> double precision": "ERROR",
+  "file-load/day_first_date -> integer": "ERROR",
+  "file-load/day_first_date -> numeric(18,3)": "ERROR",
+  "file-load/day_first_date -> text": [
+   "'13/05/2024'"
+  ],
+  "file-load/day_first_date -> time": "ERROR",
+  "file-load/day_first_date -> timestamp": "ERROR",
+  "file-load/day_first_date -> timestamptz": "ERROR",
+  "file-load/day_first_date -> varchar(50)": [
+   "'13/05/2024'"
+  ],
+  "file-load/empty_and_missing -> bigint": "ERROR",
+  "file-load/empty_and_missing -> boolean": "ERROR",
+  "file-load/empty_and_missing -> date": "ERROR",
+  "file-load/empty_and_missing -> double precision": "ERROR",
+  "file-load/empty_and_missing -> integer": "ERROR",
+  "file-load/empty_and_missing -> numeric(18,3)": "ERROR",
+  "file-load/empty_and_missing -> text": [
+   "None",
+   "None",
+   "'x'"
+  ],
+  "file-load/empty_and_missing -> time": "ERROR",
+  "file-load/empty_and_missing -> timestamp": "ERROR",
+  "file-load/empty_and_missing -> timestamptz": "ERROR",
+  "file-load/empty_and_missing -> varchar(50)": [
+   "None",
+   "None",
+   "'x'"
+  ],
+  "file-load/exponent -> bigint": "ERROR",
+  "file-load/exponent -> boolean": "ERROR",
+  "file-load/exponent -> date": "ERROR",
+  "file-load/exponent -> double precision": [
+   "1000.0",
+   "200.0"
+  ],
+  "file-load/exponent -> integer": "ERROR",
+  "file-load/exponent -> numeric(18,3)": [
+   "Decimal('1000.000')",
+   "Decimal('200.000')"
+  ],
+  "file-load/exponent -> text": [
+   "'1e3'",
+   "'2E2'"
+  ],
+  "file-load/exponent -> time": "ERROR",
+  "file-load/exponent -> timestamp": "ERROR",
+  "file-load/exponent -> timestamptz": "ERROR",
+  "file-load/exponent -> varchar(50)": [
+   "'1e3'",
+   "'2E2'"
+  ],
+  "file-load/fractions -> bigint": "ERROR",
+  "file-load/fractions -> boolean": "ERROR",
+  "file-load/fractions -> date": "ERROR",
+  "file-load/fractions -> double precision": [
+   "1.5",
+   "2.25"
+  ],
+  "file-load/fractions -> integer": "ERROR",
+  "file-load/fractions -> numeric(18,3)": [
+   "Decimal('1.500')",
+   "Decimal('2.250')"
+  ],
+  "file-load/fractions -> text": [
+   "'1.5'",
+   "'2.25'"
+  ],
+  "file-load/fractions -> time": "ERROR",
+  "file-load/fractions -> timestamp": "ERROR",
+  "file-load/fractions -> timestamptz": "ERROR",
+  "file-load/fractions -> varchar(50)": [
+   "'1.5'",
+   "'2.25'"
+  ],
+  "file-load/integers -> bigint": [
+   "1",
+   "2",
+   "42"
+  ],
+  "file-load/integers -> boolean": "ERROR",
+  "file-load/integers -> date": "ERROR",
+  "file-load/integers -> double precision": [
+   "1.0",
+   "2.0",
+   "42.0"
+  ],
+  "file-load/integers -> integer": [
+   "1",
+   "2",
+   "42"
+  ],
+  "file-load/integers -> numeric(18,3)": [
+   "Decimal('1.000')",
+   "Decimal('2.000')",
+   "Decimal('42.000')"
+  ],
+  "file-load/integers -> text": [
+   "'1'",
+   "'2'",
+   "'42'"
+  ],
+  "file-load/integers -> time": "ERROR",
+  "file-load/integers -> timestamp": "ERROR",
+  "file-load/integers -> timestamptz": "ERROR",
+  "file-load/integers -> varchar(50)": [
+   "'1'",
+   "'2'",
+   "'42'"
+  ],
+  "file-load/iso_dates -> bigint": "ERROR",
+  "file-load/iso_dates -> boolean": "ERROR",
+  "file-load/iso_dates -> date": [
+   "datetime.date(2024, 1, 5)",
+   "datetime.date(2024, 2, 6)"
+  ],
+  "file-load/iso_dates -> double precision": "ERROR",
+  "file-load/iso_dates -> integer": "ERROR",
+  "file-load/iso_dates -> numeric(18,3)": "ERROR",
+  "file-load/iso_dates -> text": [
+   "'2024-01-05'",
+   "'2024-02-06'"
+  ],
+  "file-load/iso_dates -> time": "ERROR",
+  "file-load/iso_dates -> timestamp": [
+   "datetime.datetime(2024, 1, 5, 0, 0)",
+   "datetime.datetime(2024, 2, 6, 0, 0)"
+  ],
+  "file-load/iso_dates -> timestamptz": [
+   "datetime.datetime(2024, 1, 5, 0, 0, tzinfo=datetime.timezone.utc)",
+   "datetime.datetime(2024, 2, 6, 0, 0, tzinfo=datetime.timezone.utc)"
+  ],
+  "file-load/iso_dates -> varchar(50)": [
+   "'2024-01-05'",
+   "'2024-02-06'"
+  ],
+  "file-load/leading_zeros -> bigint": [
+   "701",
+   "2134"
+  ],
+  "file-load/leading_zeros -> boolean": "ERROR",
+  "file-load/leading_zeros -> date": "ERROR",
+  "file-load/leading_zeros -> double precision": [
+   "701.0",
+   "2134.0"
+  ],
+  "file-load/leading_zeros -> integer": [
+   "701",
+   "2134"
+  ],
+  "file-load/leading_zeros -> numeric(18,3)": [
+   "Decimal('701.000')",
+   "Decimal('2134.000')"
+  ],
+  "file-load/leading_zeros -> text": [
+   "'00701'",
+   "'02134'"
+  ],
+  "file-load/leading_zeros -> time": "ERROR",
+  "file-load/leading_zeros -> timestamp": "ERROR",
+  "file-load/leading_zeros -> timestamptz": "ERROR",
+  "file-load/leading_zeros -> varchar(50)": [
+   "'00701'",
+   "'02134'"
+  ],
+  "file-load/long_text -> bigint": "ERROR",
+  "file-load/long_text -> boolean": "ERROR",
+  "file-load/long_text -> date": "ERROR",
+  "file-load/long_text -> double precision": "ERROR",
+  "file-load/long_text -> integer": "ERROR",
+  "file-load/long_text -> numeric(18,3)": "ERROR",
+  "file-load/long_text -> text": [
+   "'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'"
+  ],
+  "file-load/long_text -> time": "ERROR",
+  "file-load/long_text -> timestamp": "ERROR",
+  "file-load/long_text -> timestamptz": "ERROR",
+  "file-load/long_text -> varchar(50)": "ERROR",
+  "file-load/month_names -> bigint": "ERROR",
+  "file-load/month_names -> boolean": "ERROR",
+  "file-load/month_names -> date": [
+   "datetime.date(2024, 1, 5)"
+  ],
+  "file-load/month_names -> double precision": "ERROR",
+  "file-load/month_names -> integer": "ERROR",
+  "file-load/month_names -> numeric(18,3)": "ERROR",
+  "file-load/month_names -> text": [
+   "'Jan 5, 2024'"
+  ],
+  "file-load/month_names -> time": "ERROR",
+  "file-load/month_names -> timestamp": [
+   "datetime.datetime(2024, 1, 5, 0, 0)"
+  ],
+  "file-load/month_names -> timestamptz": [
+   "datetime.datetime(2024, 1, 5, 0, 0, tzinfo=datetime.timezone.utc)"
+  ],
+  "file-load/month_names -> varchar(50)": [
+   "'Jan 5, 2024'"
+  ],
+  "file-load/padded_text -> bigint": "ERROR",
+  "file-load/padded_text -> boolean": "ERROR",
+  "file-load/padded_text -> date": "ERROR",
+  "file-load/padded_text -> double precision": "ERROR",
+  "file-load/padded_text -> integer": "ERROR",
+  "file-load/padded_text -> numeric(18,3)": "ERROR",
+  "file-load/padded_text -> text": [
+   "'  pad  '"
+  ],
+  "file-load/padded_text -> time": "ERROR",
+  "file-load/padded_text -> timestamp": "ERROR",
+  "file-load/padded_text -> timestamptz": "ERROR",
+  "file-load/padded_text -> varchar(50)": [
+   "'  pad  '"
+  ],
+  "file-load/signed_padded -> bigint": [
+   "7",
+   "3",
+   "-2"
+  ],
+  "file-load/signed_padded -> boolean": "ERROR",
+  "file-load/signed_padded -> date": "ERROR",
+  "file-load/signed_padded -> double precision": [
+   "7.0",
+   "3.0",
+   "-2.0"
+  ],
+  "file-load/signed_padded -> integer": [
+   "7",
+   "3",
+   "-2"
+  ],
+  "file-load/signed_padded -> numeric(18,3)": [
+   "Decimal('7.000')",
+   "Decimal('3.000')",
+   "Decimal('-2.000')"
+  ],
+  "file-load/signed_padded -> text": [
+   "' 7 '",
+   "'+3'",
+   "'-2'"
+  ],
+  "file-load/signed_padded -> time": "ERROR",
+  "file-load/signed_padded -> timestamp": "ERROR",
+  "file-load/signed_padded -> timestamptz": "ERROR",
+  "file-load/signed_padded -> varchar(50)": [
+   "' 7 '",
+   "'+3'",
+   "'-2'"
+  ],
+  "file-load/small_floats -> bigint": "ERROR",
+  "file-load/small_floats -> boolean": "ERROR",
+  "file-load/small_floats -> date": "ERROR",
+  "file-load/small_floats -> double precision": [
+   "0.1",
+   "1e-20"
+  ],
+  "file-load/small_floats -> integer": "ERROR",
+  "file-load/small_floats -> numeric(18,3)": [
+   "Decimal('0.100')",
+   "Decimal('0.000')"
+  ],
+  "file-load/small_floats -> text": [
+   "'0.1'",
+   "'1e-20'"
+  ],
+  "file-load/small_floats -> time": "ERROR",
+  "file-load/small_floats -> timestamp": "ERROR",
+  "file-load/small_floats -> timestamptz": "ERROR",
+  "file-load/small_floats -> varchar(50)": [
+   "'0.1'",
+   "'1e-20'"
+  ],
+  "file-load/t_f -> bigint": "ERROR",
+  "file-load/t_f -> boolean": [
+   "True",
+   "False"
+  ],
+  "file-load/t_f -> date": "ERROR",
+  "file-load/t_f -> double precision": "ERROR",
+  "file-load/t_f -> integer": "ERROR",
+  "file-load/t_f -> numeric(18,3)": "ERROR",
+  "file-load/t_f -> text": [
+   "'t'",
+   "'f'"
+  ],
+  "file-load/t_f -> time": "ERROR",
+  "file-load/t_f -> timestamp": "ERROR",
+  "file-load/t_f -> timestamptz": "ERROR",
+  "file-load/t_f -> varchar(50)": [
+   "'t'",
+   "'f'"
+  ],
+  "file-load/times -> bigint": "ERROR",
+  "file-load/times -> boolean": "ERROR",
+  "file-load/times -> date": "ERROR",
+  "file-load/times -> double precision": "ERROR",
+  "file-load/times -> integer": "ERROR",
+  "file-load/times -> numeric(18,3)": "ERROR",
+  "file-load/times -> text": [
+   "'10:00'",
+   "'23:59:59'"
+  ],
+  "file-load/times -> time": [
+   "datetime.time(10, 0)",
+   "datetime.time(23, 59, 59)"
+  ],
+  "file-load/times -> timestamp": "ERROR",
+  "file-load/times -> timestamptz": "ERROR",
+  "file-load/times -> varchar(50)": [
+   "'10:00'",
+   "'23:59:59'"
+  ],
+  "file-load/timestamps -> bigint": "ERROR",
+  "file-load/timestamps -> boolean": "ERROR",
+  "file-load/timestamps -> date": [
+   "datetime.date(2024, 1, 5)",
+   "datetime.date(2024, 2, 6)"
+  ],
+  "file-load/timestamps -> double precision": "ERROR",
+  "file-load/timestamps -> integer": "ERROR",
+  "file-load/timestamps -> numeric(18,3)": "ERROR",
+  "file-load/timestamps -> text": [
+   "'2024-01-05 10:00'",
+   "'2024-02-06 11:30:15'"
+  ],
+  "file-load/timestamps -> time": [
+   "datetime.time(10, 0)",
+   "datetime.time(11, 30, 15)"
+  ],
+  "file-load/timestamps -> timestamp": [
+   "datetime.datetime(2024, 1, 5, 10, 0)",
+   "datetime.datetime(2024, 2, 6, 11, 30, 15)"
+  ],
+  "file-load/timestamps -> timestamptz": [
+   "datetime.datetime(2024, 1, 5, 10, 0, tzinfo=datetime.timezone.utc)",
+   "datetime.datetime(2024, 2, 6, 11, 30, 15, tzinfo=datetime.timezone.utc)"
+  ],
+  "file-load/timestamps -> varchar(50)": [
+   "'2024-01-05 10:00'",
+   "'2024-02-06 11:30:15'"
+  ],
+  "file-load/timestamps_tz -> bigint": "ERROR",
+  "file-load/timestamps_tz -> boolean": "ERROR",
+  "file-load/timestamps_tz -> date": [
+   "datetime.date(2024, 1, 5)",
+   "datetime.date(2024, 1, 5)"
+  ],
+  "file-load/timestamps_tz -> double precision": "ERROR",
+  "file-load/timestamps_tz -> integer": "ERROR",
+  "file-load/timestamps_tz -> numeric(18,3)": "ERROR",
+  "file-load/timestamps_tz -> text": [
+   "'2024-01-05T10:00:00Z'",
+   "'2024-01-05 10:00:00+05:30'"
+  ],
+  "file-load/timestamps_tz -> time": "ERROR",
+  "file-load/timestamps_tz -> timestamp": [
+   "datetime.datetime(2024, 1, 5, 10, 0)",
+   "datetime.datetime(2024, 1, 5, 10, 0)"
+  ],
+  "file-load/timestamps_tz -> timestamptz": [
+   "datetime.datetime(2024, 1, 5, 10, 0, tzinfo=datetime.timezone.utc)",
+   "datetime.datetime(2024, 1, 5, 4, 30, tzinfo=datetime.timezone.utc)"
+  ],
+  "file-load/timestamps_tz -> varchar(50)": [
+   "'2024-01-05T10:00:00Z'",
+   "'2024-01-05 10:00:00+05:30'"
+  ],
+  "file-load/two_places -> bigint": "ERROR",
+  "file-load/two_places -> boolean": "ERROR",
+  "file-load/two_places -> date": "ERROR",
+  "file-load/two_places -> double precision": [
+   "1.5",
+   "2.0"
+  ],
+  "file-load/two_places -> integer": "ERROR",
+  "file-load/two_places -> numeric(18,3)": [
+   "Decimal('1.500')",
+   "Decimal('2.000')"
+  ],
+  "file-load/two_places -> text": [
+   "'1.50'",
+   "'2.00'"
+  ],
+  "file-load/two_places -> time": "ERROR",
+  "file-load/two_places -> timestamp": "ERROR",
+  "file-load/two_places -> timestamptz": "ERROR",
+  "file-load/two_places -> varchar(50)": [
+   "'1.50'",
+   "'2.00'"
+  ],
+  "file-load/unicode -> bigint": "ERROR",
+  "file-load/unicode -> boolean": "ERROR",
+  "file-load/unicode -> date": "ERROR",
+  "file-load/unicode -> double precision": "ERROR",
+  "file-load/unicode -> integer": "ERROR",
+  "file-load/unicode -> numeric(18,3)": "ERROR",
+  "file-load/unicode -> text": [
+   "'Ünïcødé'"
+  ],
+  "file-load/unicode -> time": "ERROR",
+  "file-load/unicode -> timestamp": "ERROR",
+  "file-load/unicode -> timestamptz": "ERROR",
+  "file-load/unicode -> varchar(50)": [
+   "'Ünïcødé'"
+  ],
+  "file-load/us_dates -> bigint": "ERROR",
+  "file-load/us_dates -> boolean": "ERROR",
+  "file-load/us_dates -> date": [
+   "datetime.date(2024, 1, 5)",
+   "datetime.date(2024, 2, 6)"
+  ],
+  "file-load/us_dates -> double precision": "ERROR",
+  "file-load/us_dates -> integer": "ERROR",
+  "file-load/us_dates -> numeric(18,3)": "ERROR",
+  "file-load/us_dates -> text": [
+   "'01/05/2024'",
+   "'02/06/2024'"
+  ],
+  "file-load/us_dates -> time": "ERROR",
+  "file-load/us_dates -> timestamp": [
+   "datetime.datetime(2024, 1, 5, 0, 0)",
+   "datetime.datetime(2024, 2, 6, 0, 0)"
+  ],
+  "file-load/us_dates -> timestamptz": [
+   "datetime.datetime(2024, 1, 5, 0, 0, tzinfo=datetime.timezone.utc)",
+   "datetime.datetime(2024, 2, 6, 0, 0, tzinfo=datetime.timezone.utc)"
+  ],
+  "file-load/us_dates -> varchar(50)": [
+   "'01/05/2024'",
+   "'02/06/2024'"
+  ],
+  "file-load/whole_decimals -> bigint": "ERROR",
+  "file-load/whole_decimals -> boolean": "ERROR",
+  "file-load/whole_decimals -> date": "ERROR",
+  "file-load/whole_decimals -> double precision": [
+   "1.0",
+   "2.0"
+  ],
+  "file-load/whole_decimals -> integer": "ERROR",
+  "file-load/whole_decimals -> numeric(18,3)": [
+   "Decimal('1.000')",
+   "Decimal('2.000')"
+  ],
+  "file-load/whole_decimals -> text": [
+   "'1.0'",
+   "'2.0'"
+  ],
+  "file-load/whole_decimals -> time": "ERROR",
+  "file-load/whole_decimals -> timestamp": "ERROR",
+  "file-load/whole_decimals -> timestamptz": "ERROR",
+  "file-load/whole_decimals -> varchar(50)": [
+   "'1.0'",
+   "'2.0'"
+  ],
+  "file-load/word_and_number -> bigint": "ERROR",
+  "file-load/word_and_number -> boolean": "ERROR",
+  "file-load/word_and_number -> date": "ERROR",
+  "file-load/word_and_number -> double precision": "ERROR",
+  "file-load/word_and_number -> integer": "ERROR",
+  "file-load/word_and_number -> numeric(18,3)": "ERROR",
+  "file-load/word_and_number -> text": [
+   "'abc'",
+   "'1'"
+  ],
+  "file-load/word_and_number -> time": "ERROR",
+  "file-load/word_and_number -> timestamp": "ERROR",
+  "file-load/word_and_number -> timestamptz": "ERROR",
+  "file-load/word_and_number -> varchar(50)": [
+   "'abc'",
+   "'1'"
+  ],
+  "file-load/words -> bigint": "ERROR",
+  "file-load/words -> boolean": "ERROR",
+  "file-load/words -> date": "ERROR",
+  "file-load/words -> double precision": "ERROR",
+  "file-load/words -> integer": "ERROR",
+  "file-load/words -> numeric(18,3)": "ERROR",
+  "file-load/words -> text": [
+   "'abc'",
+   "'def'"
+  ],
+  "file-load/words -> time": "ERROR",
+  "file-load/words -> timestamp": "ERROR",
+  "file-load/words -> timestamptz": "ERROR",
+  "file-load/words -> varchar(50)": [
+   "'abc'",
+   "'def'"
+  ],
+  "file-load/yes_no -> bigint": "ERROR",
+  "file-load/yes_no -> boolean": [
+   "True",
+   "False"
+  ],
+  "file-load/yes_no -> date": "ERROR",
+  "file-load/yes_no -> double precision": "ERROR",
+  "file-load/yes_no -> integer": "ERROR",
+  "file-load/yes_no -> numeric(18,3)": "ERROR",
+  "file-load/yes_no -> text": [
+   "'yes'",
+   "'no'"
+  ],
+  "file-load/yes_no -> time": "ERROR",
+  "file-load/yes_no -> timestamp": "ERROR",
+  "file-load/yes_no -> timestamptz": "ERROR",
+  "file-load/yes_no -> varchar(50)": [
+   "'yes'",
+   "'no'"
+  ],
+  "file-load/zero_one -> bigint": [
+   "1",
+   "0"
+  ],
+  "file-load/zero_one -> boolean": [
+   "True",
+   "False"
+  ],
+  "file-load/zero_one -> date": "ERROR",
+  "file-load/zero_one -> double precision": [
+   "1.0",
+   "0.0"
+  ],
+  "file-load/zero_one -> integer": [
+   "1",
+   "0"
+  ],
+  "file-load/zero_one -> numeric(18,3)": [
+   "Decimal('1.000')",
+   "Decimal('0.000')"
+  ],
+  "file-load/zero_one -> text": [
+   "'1'",
+   "'0'"
+  ],
+  "file-load/zero_one -> time": "ERROR",
+  "file-load/zero_one -> timestamp": "ERROR",
+  "file-load/zero_one -> timestamptz": "ERROR",
+  "file-load/zero_one -> varchar(50)": [
+   "'1'",
+   "'0'"
+  ]
+ }
+}

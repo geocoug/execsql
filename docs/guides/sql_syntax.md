@@ -4,6 +4,26 @@
 
 When execsql connects to a SQL Server or MySQL/MariaDB database, it automatically configures the DBMS to expect ANSI-compatible SQL, to allow the use of more standards-compliant, and thus consistent, SQL. In particular, for MySQL/MariaDB, note that the double-quote character, rather than the backtick character, must be used to quote table, schema, and column names, and only the apostrophe can be used to quote character data.
 
+### MySQL strict mode { #mysql_strict_mode }
+
+On MySQL/MariaDB, execsql sets the session's `sql_mode` to `ANSI,STRICT_TRANS_TABLES`. A value that MySQL can't store as given is an error, for a SQL statement, [IMPORT](../reference/metacommands.md#import) or [COPY](../reference/metacommands.md#copy):
+
+```sql
+create table m (n integer, d date, s varchar(3));
+insert into m values (3000000000, '2024-02-30', 'abcdef');
+-- ERROR 1264 (22003): Out of range value for column 'n' at row 1
+```
+
+Without strict mode, MySQL would have stored `2147483647`, `0000-00-00` and `abc` with only a warning. This is how the `mysql` client behaves with the server's default settings. An IMPORT of a delimited file that MySQL reads with `LOAD DATA` is held to the same rule: if MySQL warns that it changed a value, the IMPORT stops and nothing is loaded.
+
+MySQL in strict mode does not read a trailing `Z` as a time zone: write `2024-01-05T10:00:00Z` as `2024-01-05 10:00:00+00:00`. A decimal with more places than its column has (`1.2345` into `DECIMAL(10,3)`) is still rounded, as MySQL does in strict mode.
+
+A script that relies on MySQL's changed values can turn strict mode off for the rest of its session:
+
+```sql
+SET SESSION sql_mode = 'ANSI';
+```
+
 ## Implicit Commits
 
 By default, execsql immediately commits all SQL statements. The [AUTOCOMMIT](../reference/metacommands.md#autocommit) metacommand can be used to turn off automatic commits, and the [BATCH](../reference/metacommands.md#batch) metacommand can be used to delay commits until the end of a batch. [IMPORT](../reference/metacommands.md#import) and [COPY](../reference/metacommands.md#copy) are the only metacommands that change data, and they also automatically commit their changes when complete (unless [AUTOCOMMIT](../reference/metacommands.md#autocommit) has been turned off). If a new table is created with either of these metacommands (through the use of the NEW or REPLACEMENT keywords), the CREATE TABLE statement will not be committed separately from the data addition, except when using Firebird. Thus, if an error occurs during addition of the data, the new target table will not exist---except when using Firebird.
