@@ -57,6 +57,7 @@ class TestCommandLine:
         )
         (tmp_path / "s.sql").write_text(
             "-- !x! CONFIG LOG_SQL ON\n"
+            "-- !x! CONFIG WRITE_WARNINGS ON\n"
             "select '!!$ARG_1!!' as token;\n"
             f"{system_cmd}"
             "select '!!$ARG_1!! !!no_such_var!!' as warned;\n",
@@ -67,7 +68,8 @@ class TestCommandLine:
         assert SECRET not in log
         assert "sub_vars: 1 value(s)" in log
         assert "select '***' as token;" in log
-        assert "potential un-substituted variable" in result.stdout
+        assert "potential un-substituted variable" in result.stderr
+        assert "potential un-substituted variable" in log
         assert SECRET not in result.stdout + result.stderr
 
     def test_decrypted_value_is_not_in_the_log(self, tmp_path):

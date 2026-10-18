@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Fixed
+
+- **The "potential un-substituted variable" warning** is printed only when `write_warnings` is on, to stderr as `**** Warning …`, as documented; it was printed to stdout for every command with an undefined `!!var!!`. It is always written to `execsql.log`.
+
 ______________________________________________________________________
 
 ## [2.34.0] - 2026-10-18

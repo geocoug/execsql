@@ -274,8 +274,8 @@ def write_warning(warning_msg: str, *, always: bool = False) -> None:
         warning_msg: The warning text to emit.
         always: When ``True``, always write to stderr regardless of the
             ``conf.write_warnings`` setting.  Use this for structural warnings
-            (e.g. IF-level mismatch, unsubstituted variables) that should always
-            be visible.  When ``False`` (default), stderr output is gated by
+            (e.g. IF-level mismatch) that should always be visible.  When
+            ``False`` (default), stderr output is gated by
             ``conf.write_warnings``.
     """
     if _state.exec_log is not None:
