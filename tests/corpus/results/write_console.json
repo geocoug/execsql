@@ -1,0 +1,10 @@
+{
+ "exit": 0,
+ "files": {
+  "out.txt": "to file and console\nonly to file\n"
+ },
+ "recorded_with": "execsql 1.130.1",
+ "stderr": "",
+ "stdout": "hello world\nto file and console\nline with 'apostrophes'\n",
+ "tables": {}
+}

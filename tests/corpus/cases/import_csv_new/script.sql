@@ -1,0 +1,4 @@
+-- IMPORT TO NEW: column types come from scanning the file.
+-- !x! IMPORT TO NEW t FROM data.csv
+-- !x! IMPORT TO NEW tsv FROM data.tsv WITH QUOTE NONE DELIMITER TAB
+-- !x! IMPORT TO REPLACEMENT t FROM data.csv

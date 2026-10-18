@@ -1,0 +1,2 @@
+-- WRITE CREATE_TABLE prints the CREATE TABLE statement IMPORT TO NEW would use.
+-- !x! WRITE CREATE_TABLE t FROM data.csv TO ddl.sql

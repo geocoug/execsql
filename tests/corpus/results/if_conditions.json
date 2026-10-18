@@ -1,0 +1,33 @@
+{
+ "exit": 0,
+ "files": {
+  "out.txt": "equal: yes\ngt: 5\ntable t exists\ntable nope missing\nt has rows\na defined\nzz undefined\nempty is null\nzero\nyes is true\ncontains\nstarts\nends\n1 equals 1.0\ndates equal\nabc equals ABC\ndbms sqlite\nandif: not both\norif: one\n"
+ },
+ "recorded_with": "execsql 1.130.1",
+ "stderr": "",
+ "stdout": "",
+ "tables": {
+  "t": {
+   "columns": [
+    [
+     "x",
+     "INTEGER"
+    ]
+   ],
+   "rows": [
+    [
+     [
+      "integer",
+      "1"
+     ]
+    ],
+    [
+     [
+      "integer",
+      "2"
+     ]
+    ]
+   ]
+  }
+ }
+}

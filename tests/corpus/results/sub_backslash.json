@@ -1,0 +1,18 @@
+{
+ "exit": 1,
+ "files": {},
+ "recorded_with": "execsql 1.130.1",
+ "stderr": "**** Exception.\n     Line 6 of script script.sql\n     error: bad escape \\d at position 2 in /Users/cgrant/Library/Application Support/uv/python/cpython-3.12.11-macos-aarch64-none/lib/python3.12/re/_parser.py on line 6561 of execsql.\n     SQL statement: \n         insert into t values (!'!path!'!);\n     Error occurred at <TIME>.\n",
+ "stdout": "",
+ "tables": {
+  "t": {
+   "columns": [
+    [
+     "p",
+     "TEXT"
+    ]
+   ],
+   "rows": []
+  }
+ }
+}

@@ -1,0 +1,45 @@
+{
+ "exit": 0,
+ "files": {
+  "vars.txt": "greeting=[Hello\nWorld]\nn=[-2]\nblank=[]\ntemp=[!!temp!!]\nnested=[second]\n"
+ },
+ "recorded_with": "execsql 1.130.1",
+ "stderr": "",
+ "stdout": "",
+ "tables": {
+  "t": {
+   "columns": [
+    [
+     "k",
+     "TEXT"
+    ],
+    [
+     "v",
+     "TEXT"
+    ]
+   ],
+   "rows": [
+    [
+     [
+      "text",
+      "'greeting'"
+     ],
+     [
+      "text",
+      "'Hello\\nWorld'"
+     ]
+    ],
+    [
+     [
+      "text",
+      "'n'"
+     ],
+     [
+      "text",
+      "'-2'"
+     ]
+    ]
+   ]
+  }
+ }
+}

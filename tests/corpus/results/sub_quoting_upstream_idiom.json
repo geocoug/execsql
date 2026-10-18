@@ -1,0 +1,27 @@
+{
+ "exit": 0,
+ "files": {
+  "vars.txt": "name=O'Brien\n"
+ },
+ "recorded_with": "execsql 1.130.1",
+ "stderr": "",
+ "stdout": "",
+ "tables": {
+  "t": {
+   "columns": [
+    [
+     "n",
+     "TEXT"
+    ]
+   ],
+   "rows": [
+    [
+     [
+      "text",
+      "\"O'Brien\""
+     ]
+    ]
+   ]
+  }
+ }
+}

@@ -1,0 +1,58 @@
+{
+ "exit": 0,
+ "files": {
+  "d.txt": "the t table\n  id | name\n ----|------\n  1  | a   \n  2  | b   \n  3  | c   \n",
+  "n.txt": "  n\n ---\n  3\n",
+  "q.csv": "id,name\n1,a\n2,b\n3,c\n",
+  "stdout": "id,name\n1,a\n2,b\n3,c\n"
+ },
+ "recorded_with": "execsql 1.130.1",
+ "stderr": "",
+ "stdout": "     n\n    ---\n     3\n",
+ "tables": {
+  "t": {
+   "columns": [
+    [
+     "id",
+     "INTEGER"
+    ],
+    [
+     "name",
+     "TEXT"
+    ]
+   ],
+   "rows": [
+    [
+     [
+      "integer",
+      "1"
+     ],
+     [
+      "text",
+      "'a'"
+     ]
+    ],
+    [
+     [
+      "integer",
+      "2"
+     ],
+     [
+      "text",
+      "'b'"
+     ]
+    ],
+    [
+     [
+      "integer",
+      "3"
+     ],
+     [
+      "text",
+      "'c'"
+     ]
+    ]
+   ]
+  }
+ }
+}

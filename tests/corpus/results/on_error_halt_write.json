@@ -1,0 +1,20 @@
+{
+ "exit": 1,
+ "files": {
+  "halt.txt": ""
+ },
+ "recorded_with": "execsql 1.130.1",
+ "stderr": "**** Exception.\n     Line 6 of script script.sql\n     OperationalError: no such table: missing_table\n     SQL statement: \n         select * from missing_table;\n     Error occurred at <TIME>.\n",
+ "stdout": "",
+ "tables": {
+  "t": {
+   "columns": [
+    [
+     "id",
+     "INTEGER"
+    ]
+   ],
+   "rows": []
+  }
+ }
+}

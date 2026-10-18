@@ -1,0 +1,13 @@
+-- Settings that change how imported values are read.
+-- !x! IMPORT TO NEW default_read FROM data.csv
+-- !x! CONFIG BOOLEAN_INT NO
+-- !x! IMPORT TO NEW boolean_int_off FROM data.csv
+-- !x! CONFIG BOOLEAN_INT YES
+-- !x! BOOLEAN_WORDS ON
+-- !x! IMPORT TO NEW boolean_words_on FROM data.csv
+-- !x! BOOLEAN_WORDS OFF
+-- !x! EMPTY_STRINGS NO
+-- !x! IMPORT TO NEW empty_strings_no FROM data.csv
+-- !x! EMPTY_STRINGS YES
+-- !x! TRIM_STRINGS YES
+-- !x! IMPORT TO NEW trimmed FROM data.csv

@@ -1,0 +1,113 @@
+{
+ "exit": 0,
+ "files": {},
+ "recorded_with": "execsql 1.130.1",
+ "stderr": "",
+ "stdout": "",
+ "tables": {
+  "common": {
+   "columns": [
+    [
+     "id",
+     "INTEGER"
+    ],
+    [
+     "note",
+     "TEXT"
+    ]
+   ],
+   "rows": [
+    [
+     [
+      "integer",
+      "1"
+     ],
+     [
+      "text",
+      "'first'"
+     ]
+    ],
+    [
+     [
+      "integer",
+      "2"
+     ],
+     [
+      "text",
+      "'second'"
+     ]
+    ]
+   ]
+  },
+  "t": {
+   "columns": [
+    [
+     "id",
+     "INTEGER"
+    ],
+    [
+     "code",
+     "TEXT"
+    ],
+    [
+     "amount",
+     "numeric"
+    ],
+    [
+     "day",
+     "date"
+    ],
+    [
+     "note",
+     "TEXT"
+    ]
+   ],
+   "rows": [
+    [
+     [
+      "integer",
+      "1"
+     ],
+     [
+      "text",
+      "'00701'"
+     ],
+     [
+      "real",
+      "1.5"
+     ],
+     [
+      "text",
+      "'2024-01-05'"
+     ],
+     [
+      "text",
+      "'first'"
+     ]
+    ],
+    [
+     [
+      "integer",
+      "2"
+     ],
+     [
+      "text",
+      "'02134'"
+     ],
+     [
+      "integer",
+      "2"
+     ],
+     [
+      "text",
+      "'2024-01-06'"
+     ],
+     [
+      "text",
+      "'second'"
+     ]
+    ]
+   ]
+  }
+ }
+}

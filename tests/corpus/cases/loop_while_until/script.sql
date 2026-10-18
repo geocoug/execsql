@@ -1,0 +1,28 @@
+-- LOOP WHILE / UNTIL.
+--
+-- Upstream substitutes the variables in a LOOP condition once, when the LOOP
+-- line runs, so a condition on a variable that is already defined never
+-- changes.  The first two loops use variables that are not defined until the
+-- loop body runs ("phantom variables", as the LOOP docs describe), so their
+-- conditions are read afresh on each pass.  The third loops on a variable
+-- defined before the loop and leaves by BREAK.  (Upstream ignores BREAK in
+-- the one-line IF form, so the block form is used.)
+create table t (i integer);
+-- !x! LOOP WHILE (NOT EQUAL("!!i!!", "5"))
+-- !x! IF (NOT SUB_DEFINED(i)) { SUB i 0 }
+insert into t values (!!i!!);
+-- !x! SUB_ADD i 1
+-- !x! END LOOP
+-- !x! LOOP UNTIL (EQUAL("!!j!!", "3"))
+-- !x! IF (NOT SUB_DEFINED(j)) { SUB j 0 }
+-- !x! SUB_ADD j 1
+-- !x! WRITE "until pass !!j!!" TO out.txt
+-- !x! END LOOP
+-- !x! SUB k 0
+-- !x! LOOP WHILE (IS_GT(3, !!k!!))
+-- !x! SUB_ADD k 1
+-- !x! IF (EQUAL(!!k!!, 5))
+-- !x! BREAK
+-- !x! ENDIF
+-- !x! END LOOP
+-- !x! WRITE "i=!!i!! j=!!j!! k=!!k!!" TO out.txt

@@ -1,0 +1,6 @@
+-- WRITE to the console and TEE to a file.
+-- !x! SUB who world
+-- !x! WRITE "hello !!who!!"
+-- !x! WRITE "to file and console" TEE TO out.txt
+-- !x! WRITE "only to file" TO out.txt
+-- !x! WRITE "line with 'apostrophes'"

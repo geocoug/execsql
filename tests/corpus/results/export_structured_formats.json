@@ -1,0 +1,72 @@
+{
+ "exit": 0,
+ "files": {
+  "t.json": "[\n{\"id\":1,\"name\":\"Ann\",\"amt\":1.5,\"day\":\"2024-01-05\"},\n{\"id\":2,\"name\":\"O'Neil\",\"amt\":null,\"day\":null}\n]\n",
+  "t.tex": "\\documentclass{article}\n\\begin{document}\n\\begin{center}\n  \\begin{table}[h]\n  \\begin{tabular} { l l l l }\n  \\hline\n  id & name & amt & day \\\\\n  \\hline\n  1 & Ann & 1.5 & 2024-01-05 \\\\\n  2 & O'Neil & None & None \\\\\n  \\hline\n  \\end{tabular}\n  \\end{table}\n\\end{center}\n\\end{document}\n",
+  "t_schema.json": "{\n  \"fields\": [\n    {\n      \"name\": \"id\",\n      \"title\": \"Id\",\n      \"type\": \"integer\"\n    },\n    {\n      \"name\": \"name\",\n      \"title\": \"Name\",\n      \"type\": \"string\"\n    },\n    {\n      \"name\": \"amt\",\n      \"title\": \"Amt\",\n      \"type\": \"number\"\n    },\n    {\n      \"name\": \"day\",\n      \"title\": \"Day\",\n      \"type\": \"datetime\"\n    }\n  ]\n}\n",
+  "t_values.sql": "INSERT INTO !!target_table!!\n    (id, name, amt, day)\nVALUES\n    (1, 'Ann', 1.5, '2024-01-05'),\n    (2, 'O''Neil', NULL, NULL)\n    ;\n"
+ },
+ "recorded_with": "execsql 1.130.1",
+ "stderr": "",
+ "stdout": "",
+ "tables": {
+  "t": {
+   "columns": [
+    [
+     "id",
+     "INTEGER"
+    ],
+    [
+     "name",
+     "TEXT"
+    ],
+    [
+     "amt",
+     "REAL"
+    ],
+    [
+     "day",
+     "TEXT"
+    ]
+   ],
+   "rows": [
+    [
+     [
+      "integer",
+      "1"
+     ],
+     [
+      "text",
+      "'Ann'"
+     ],
+     [
+      "real",
+      "1.5"
+     ],
+     [
+      "text",
+      "'2024-01-05'"
+     ]
+    ],
+    [
+     [
+      "integer",
+      "2"
+     ],
+     [
+      "text",
+      "\"O'Neil\""
+     ],
+     [
+      "null",
+      "None"
+     ],
+     [
+      "null",
+      "None"
+     ]
+    ]
+   ]
+  }
+ }
+}
