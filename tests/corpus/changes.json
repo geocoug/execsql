@@ -313,14 +313,6 @@
    "why": "Upstream never applied TRIM_STRINGS to SQLite imports (divergence: 'SQLite import string processing'); execsql2 trims."
   }
  },
- "execute_script_args": {
-  "stdout": {
-   "execsql2": "Warning: There is a potential un-substituted variable in the command\n     WRITE \"note outside=[!!~note!!] k=3\" TO out.txt\n",
-   "status": "open",
-   "upstream": "",
-   "why": "execsql2 prints the 'potential un-substituted variable' warning on every such command, to stdout as 'Warning: …'. Upstream logs it, and prints it (to stderr, as '**** Warning …') only when write_warnings is on, which it is not by default. execsql2 bug: console output differs."
-  }
- },
  "export_structured_formats": {
   "files/t.tex": {
    "execsql2": "\\documentclass{article}\n\\begin{document}\n\\begin{center}\n  \\begin{table}[h]\n  \\begin{tabular} { l l l l }\n  \\hline\n  id & name & amt & day \\\\\n  \\hline\n  1 & Ann & 1.5 & 2024-01-05 \\\\\n  2 & O'Neil &  &  \\\\\n  \\hline\n  \\end{tabular}\n  \\end{table}\n\\end{center}\n\\end{document}\n",
@@ -635,12 +627,6 @@
    "status": "accepted",
    "upstream": "",
    "why": "Upstream passed substitute_all's (text, flag) pair on as the text, so ON ERROR_HALT WRITE … TO <file> left the file empty; execsql2 writes the message (divergence: 'ON ERROR_HALT WRITE … TO a file wrote nothing')."
-  },
-  "stdout": {
-   "execsql2": "Warning: There is a potential un-substituted variable in the command\n     ON ERROR_HALT WRITE \"halted after !!last!!\" TO halt.txt\n",
-   "status": "open",
-   "upstream": "",
-   "why": "execsql2 prints the 'potential un-substituted variable' warning on every such command, to stdout as 'Warning: …'. Upstream logs it, and prints it (to stderr, as '**** Warning …') only when write_warnings is on, which it is not by default. execsql2 bug: console output differs."
   }
  },
  "sub_backslash": {
@@ -690,14 +676,6 @@
     "rows": []
    },
    "why": "Upstream hands the value to re.sub as a replacement template, so the backslash in C:\\data\\new is a bad escape and the statement fails (divergence: 'Backslashes in !'!var!'!'); execsql2 stores the value."
-  }
- },
- "sub_basic": {
-  "stdout": {
-   "execsql2": "Warning: There is a potential un-substituted variable in the command\n     WRITE \"temp=[!!temp!!]\" TO vars.txt\n",
-   "status": "open",
-   "upstream": "",
-   "why": "execsql2 prints the 'potential un-substituted variable' warning on every such command, to stdout as 'Warning: …'. Upstream logs it, and prints it (to stderr, as '**** Warning …') only when write_warnings is on, which it is not by default. execsql2 bug: console output differs."
   }
  },
  "sub_quoting": {

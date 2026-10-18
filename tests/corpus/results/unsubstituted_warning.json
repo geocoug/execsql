@@ -1,0 +1,27 @@
+{
+ "exit": 0,
+ "files": {
+  "out.txt": "default: [!!not_defined!!]\nwarnings on: [!!not_defined!!]\n"
+ },
+ "recorded_with": "execsql 1.130.1",
+ "stderr": "**** Warning There is a potential un-substituted variable in the command\n     WRITE \"warnings on: [!!not_defined!!]\" TO out.txt\n**** Warning There is a potential un-substituted variable in the command\n     insert into t values ('!!also_not_defined!!');\n",
+ "stdout": "",
+ "tables": {
+  "t": {
+   "columns": [
+    [
+     "v",
+     "TEXT"
+    ]
+   ],
+   "rows": [
+    [
+     [
+      "text",
+      "'!!also_not_defined!!'"
+     ]
+    ]
+   ]
+  }
+ }
+}

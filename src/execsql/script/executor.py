@@ -85,6 +85,14 @@ _DEFER_RX = re.compile(r"!\{([$@&~#+]?\w+)\}!")
 _VARLIKE = re.compile(r"!![$@&~#]?\w+!!", re.I)
 
 
+def _warn_unsubstituted(cmd: str) -> None:
+    """Log a command that still looks like it holds a variable; print it too if ``write_warnings`` is on."""
+    from execsql.utils.errors import write_warning
+    from execsql.utils.fileio import redact
+
+    write_warning(f"There is a potential un-substituted variable in the command\n     {redact(cmd)}")
+
+
 def _stack_localvars(ctx: RuntimeContext) -> SubVarSet | None:
     """Build the merged ``~`` local + ``#`` param overlay for the current scope.
 
@@ -254,11 +262,7 @@ def _exec_sql(
     effective_locals = _stack_localvars(ctx) or localvars
     cmd = substitute_vars(text, effective_locals, ctx=ctx)
     if _VARLIKE.search(cmd):
-        from execsql.utils.fileio import redact
-
-        output.write(
-            f"Warning: There is a potential un-substituted variable in the command\n     {redact(cmd)}\n",
-        )
+        _warn_unsubstituted(cmd)
     e = None
     result = None
     try:
@@ -323,11 +327,7 @@ def _exec_metacommand(
     assert subvars is not None
 
     if _VARLIKE.search(cmd):
-        from execsql.utils.fileio import redact
-
-        output.write(
-            f"Warning: There is a potential un-substituted variable in the command\n     {redact(cmd)}\n",
-        )
+        _warn_unsubstituted(cmd)
     e = None
     try:
         applies, result = metacommandlist.eval(cmd)
