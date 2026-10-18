@@ -624,9 +624,9 @@
  "loop_while_until": {
   "files/out.txt": {
    "execsql2": "until pass 1\nuntil pass 2\nuntil pass 3\ni=5 j=3 k=3\n",
-   "status": "open",
+   "status": "accepted",
    "upstream": "until pass 1\nuntil pass 2\nuntil pass 3\ni=5 j=3 k=5\n",
-   "why": "Upstream substitutes a LOOP condition's variables once, when the LOOP line runs; execsql2 substitutes them on every pass. A loop on a variable defined before it ran until BREAK upstream (k=5) and stops on the condition in execsql2 (k=3). Not in the divergence record. Undecided."
+   "why": "execsql2 substitutes a LOOP condition's variables before every pass; upstream substituted them once, when the LOOP line ran, so a loop on a variable defined before it ran until BREAK (k=5) and in execsql2 stops on the condition (k=3) (divergence: 'LOOP conditions are read on every pass')."
   }
  },
  "on_error_halt_write": {
@@ -634,7 +634,7 @@
    "execsql2": "halted after created\n",
    "status": "accepted",
    "upstream": "",
-   "why": "Upstream's WriteSpec.write passes substitute_all's (text, flag) tuple on as the text, so writing fails after the file is opened and ON ERROR_HALT WRITE … TO <file> leaves it empty; execsql2 writes the message."
+   "why": "Upstream passed substitute_all's (text, flag) pair on as the text, so ON ERROR_HALT WRITE … TO <file> left the file empty; execsql2 writes the message (divergence: 'ON ERROR_HALT WRITE … TO a file wrote nothing')."
   },
   "stdout": {
    "execsql2": "Warning: There is a potential un-substituted variable in the command\n     ON ERROR_HALT WRITE \"halted after !!last!!\" TO halt.txt\n",
@@ -703,21 +703,21 @@
  "sub_quoting": {
   "exit": {
    "execsql2": 0,
-   "status": "open",
+   "status": "accepted",
    "upstream": 1,
-   "why": "!'!v!'! wraps the value in single quotes in execsql2 (changed 2026-05-22, CHANGELOG 'wraps the value in single quotes as documented'); upstream only doubles the apostrophes, so upstream scripts write '!'!v!'!'. Undecided: the upstream idiom fails in execsql2, and the unquoted form fails upstream."
+   "why": "!'!v!'! is a complete string literal in execsql2: the value is wrapped in quotes and its apostrophes doubled. Upstream only doubled the apostrophes, so its scripts wrote '!'!v!'!', which has two sets of quotes in execsql2, and the bare form was not a literal upstream (divergence: \"!'!var!'! adds the quotes\")."
   },
   "files/vars.txt": {
    "execsql2": "name=O'Brien\n",
-   "status": "open",
+   "status": "accepted",
    "upstream": null,
-   "why": "!'!v!'! wraps the value in single quotes in execsql2 (changed 2026-05-22, CHANGELOG 'wraps the value in single quotes as documented'); upstream only doubles the apostrophes, so upstream scripts write '!'!v!'!'. Undecided: the upstream idiom fails in execsql2, and the unquoted form fails upstream."
+   "why": "!'!v!'! is a complete string literal in execsql2: the value is wrapped in quotes and its apostrophes doubled. Upstream only doubled the apostrophes, so its scripts wrote '!'!v!'!', which has two sets of quotes in execsql2, and the bare form was not a literal upstream (divergence: \"!'!var!'! adds the quotes\")."
   },
   "stderr": {
    "execsql2": "",
-   "status": "open",
+   "status": "accepted",
    "upstream": "**** Exception.\n     Line 5 of script script.sql\n     OperationalError: near \"''\": syntax error\n     SQL statement: \n         insert into t values (!'!name!'!, 'x');\n     Error occurred at <TIME>.\n",
-   "why": "!'!v!'! wraps the value in single quotes in execsql2 (changed 2026-05-22, CHANGELOG 'wraps the value in single quotes as documented'); upstream only doubles the apostrophes, so upstream scripts write '!'!v!'!'. Undecided: the upstream idiom fails in execsql2, and the unquoted form fails upstream."
+   "why": "!'!v!'! is a complete string literal in execsql2: the value is wrapped in quotes and its apostrophes doubled. Upstream only doubled the apostrophes, so its scripts wrote '!'!v!'!', which has two sets of quotes in execsql2, and the bare form was not a literal upstream (divergence: \"!'!var!'! adds the quotes\")."
   },
   "tables/t": {
    "execsql2": {
@@ -744,7 +744,7 @@
      ]
     ]
    },
-   "status": "open",
+   "status": "accepted",
    "upstream": {
     "columns": [
      [
@@ -758,27 +758,27 @@
     ],
     "rows": []
    },
-   "why": "!'!v!'! wraps the value in single quotes in execsql2 (changed 2026-05-22, CHANGELOG 'wraps the value in single quotes as documented'); upstream only doubles the apostrophes, so upstream scripts write '!'!v!'!'. Undecided: the upstream idiom fails in execsql2, and the unquoted form fails upstream."
+   "why": "!'!v!'! is a complete string literal in execsql2: the value is wrapped in quotes and its apostrophes doubled. Upstream only doubled the apostrophes, so its scripts wrote '!'!v!'!', which has two sets of quotes in execsql2, and the bare form was not a literal upstream (divergence: \"!'!var!'! adds the quotes\")."
   }
  },
  "sub_quoting_upstream_idiom": {
   "exit": {
    "execsql2": 1,
-   "status": "open",
+   "status": "accepted",
    "upstream": 0,
-   "why": "!'!v!'! wraps the value in single quotes in execsql2 (changed 2026-05-22, CHANGELOG 'wraps the value in single quotes as documented'); upstream only doubles the apostrophes, so upstream scripts write '!'!v!'!'. Undecided: the upstream idiom fails in execsql2, and the unquoted form fails upstream."
+   "why": "!'!v!'! is a complete string literal in execsql2: the value is wrapped in quotes and its apostrophes doubled. Upstream only doubled the apostrophes, so its scripts wrote '!'!v!'!', which has two sets of quotes in execsql2, and the bare form was not a literal upstream (divergence: \"!'!var!'! adds the quotes\")."
   },
   "files/vars.txt": {
    "execsql2": null,
-   "status": "open",
+   "status": "accepted",
    "upstream": "name=O'Brien\n",
-   "why": "!'!v!'! wraps the value in single quotes in execsql2 (changed 2026-05-22, CHANGELOG 'wraps the value in single quotes as documented'); upstream only doubles the apostrophes, so upstream scripts write '!'!v!'!'. Undecided: the upstream idiom fails in execsql2, and the unquoted form fails upstream."
+   "why": "!'!v!'! is a complete string literal in execsql2: the value is wrapped in quotes and its apostrophes doubled. Upstream only doubled the apostrophes, so its scripts wrote '!'!v!'!', which has two sets of quotes in execsql2, and the bare form was not a literal upstream (divergence: \"!'!var!'! adds the quotes\")."
   },
   "stderr": {
    "execsql2": "**** Exception.\n     Line 5 of script script.sql\n     OperationalError: near \"O\": syntax error\n     SQL statement: \n         insert into t values ('!'!name!'!');\n     Error occurred at <TIME>.\n",
-   "status": "open",
+   "status": "accepted",
    "upstream": "",
-   "why": "!'!v!'! wraps the value in single quotes in execsql2 (changed 2026-05-22, CHANGELOG 'wraps the value in single quotes as documented'); upstream only doubles the apostrophes, so upstream scripts write '!'!v!'!'. Undecided: the upstream idiom fails in execsql2, and the unquoted form fails upstream."
+   "why": "!'!v!'! is a complete string literal in execsql2: the value is wrapped in quotes and its apostrophes doubled. Upstream only doubled the apostrophes, so its scripts wrote '!'!v!'!', which has two sets of quotes in execsql2, and the bare form was not a literal upstream (divergence: \"!'!var!'! adds the quotes\")."
   },
   "tables/t": {
    "execsql2": {
@@ -790,7 +790,7 @@
     ],
     "rows": []
    },
-   "status": "open",
+   "status": "accepted",
    "upstream": {
     "columns": [
      [
@@ -807,7 +807,7 @@
      ]
     ]
    },
-   "why": "!'!v!'! wraps the value in single quotes in execsql2 (changed 2026-05-22, CHANGELOG 'wraps the value in single quotes as documented'); upstream only doubles the apostrophes, so upstream scripts write '!'!v!'!'. Undecided: the upstream idiom fails in execsql2, and the unquoted form fails upstream."
+   "why": "!'!v!'! is a complete string literal in execsql2: the value is wrapped in quotes and its apostrophes doubled. Upstream only doubled the apostrophes, so its scripts wrote '!'!v!'!', which has two sets of quotes in execsql2, and the bare form was not a literal upstream (divergence: \"!'!var!'! adds the quotes\")."
   }
  },
  "write_create_table": {
