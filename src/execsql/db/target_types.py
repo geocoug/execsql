@@ -22,7 +22,7 @@ import math
 import re
 from collections.abc import Callable
 from decimal import Decimal
-from typing import Any
+from typing import Any, TypeAlias
 
 from execsql.exceptions import ErrInfo
 from execsql.types import (
@@ -42,7 +42,10 @@ from execsql.types import (
 __all__ = ["ColumnKinds", "existing_table_converter", "kind_for_python_type", "kind_for_type_name"]
 
 #: Lower-cased column name -> the execsql type values for it convert to, or None.
-ColumnKinds = dict[str, "type[DataType] | None"]
+#: A string, not ``dict[...]``: on Python 3.10 that object passes
+#: ``isinstance(x, type)``, so code that scans the adapter modules for classes
+#: would take it for one.
+ColumnKinds: TypeAlias = "dict[str, type[DataType] | None]"
 
 _TEXT = {
     "char",
