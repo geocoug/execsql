@@ -1,0 +1,1112 @@
+{
+ "scanned": {
+  "text/TRUE_FALSE": "DT_Boolean",
+  "text/big_integer": "DT_Long",
+  "text/dates_and_missing": "DT_Timestamp",
+  "text/day_first_date": "DT_Timestamp",
+  "text/empty_and_missing": "DT_Character",
+  "text/exponent": "DT_Float",
+  "text/fractions": "DT_Decimal",
+  "text/integers": "DT_Integer",
+  "text/iso_dates": "DT_Timestamp",
+  "text/leading_zeros": "DT_Character",
+  "text/long_text": "DT_Character",
+  "text/month_names": "DT_Timestamp",
+  "text/padded_text": "DT_Character",
+  "text/signed_padded": "DT_Integer",
+  "text/small_floats": "DT_Float",
+  "text/t_f": "DT_Boolean",
+  "text/times": "DT_Time",
+  "text/timestamps": "DT_Timestamp",
+  "text/timestamps_tz": "DT_TimestampTZ",
+  "text/two_places": "DT_Decimal",
+  "text/unicode": "DT_Character",
+  "text/us_dates": "DT_Timestamp",
+  "text/whole_decimals": "DT_Decimal",
+  "text/word_and_number": "DT_Varchar",
+  "text/words": "DT_Character",
+  "text/yes_no": "DT_Boolean",
+  "text/zero_one": "DT_Boolean",
+  "typed/big_int": "DT_Long",
+  "typed/bools": "DT_Boolean",
+  "typed/bytes": "DT_Binary",
+  "typed/date": "DT_Timestamp",
+  "typed/date_and_null": "DT_Timestamp",
+  "typed/datetime": "DT_Timestamp",
+  "typed/datetime_tz": "DT_TimestampTZ",
+  "typed/decimal_fraction": "DT_Decimal",
+  "typed/decimal_scale": "DT_Decimal",
+  "typed/decimal_whole": "DT_Decimal",
+  "typed/float_fraction": "DT_Float",
+  "typed/float_whole": "DT_Long",
+  "typed/int_and_null": "DT_Integer",
+  "typed/int_zero_one": "DT_Boolean",
+  "typed/ints": "DT_Integer",
+  "typed/text_date": "DT_Character",
+  "typed/text_words": "DT_Character",
+  "typed/text_zero_one": "DT_Character",
+  "typed/time": "DT_Time"
+ },
+ "stored": {
+  "text/TRUE_FALSE -> bigint": [
+   "1",
+   "0"
+  ],
+  "text/TRUE_FALSE -> boolean": [
+   "True",
+   "False"
+  ],
+  "text/TRUE_FALSE -> date": "ERROR",
+  "text/TRUE_FALSE -> decimal(18,3)": [
+   "Decimal('1.000')",
+   "Decimal('0.000')"
+  ],
+  "text/TRUE_FALSE -> double": [
+   "1.0",
+   "0.0"
+  ],
+  "text/TRUE_FALSE -> integer": [
+   "1",
+   "0"
+  ],
+  "text/TRUE_FALSE -> time": "ERROR",
+  "text/TRUE_FALSE -> timestamp": "ERROR",
+  "text/TRUE_FALSE -> timestamptz": "ERROR",
+  "text/TRUE_FALSE -> varchar": [
+   "'true'",
+   "'false'"
+  ],
+  "text/big_integer -> bigint": [
+   "3000000000"
+  ],
+  "text/big_integer -> boolean": [
+   "True"
+  ],
+  "text/big_integer -> date": "ERROR",
+  "text/big_integer -> decimal(18,3)": [
+   "Decimal('3000000000.000')"
+  ],
+  "text/big_integer -> double": [
+   "3000000000.0"
+  ],
+  "text/big_integer -> integer": "ERROR",
+  "text/big_integer -> time": "ERROR",
+  "text/big_integer -> timestamp": "ERROR",
+  "text/big_integer -> timestamptz": "ERROR",
+  "text/big_integer -> varchar": [
+   "'3000000000'"
+  ],
+  "text/dates_and_missing -> bigint": "ERROR",
+  "text/dates_and_missing -> boolean": "ERROR",
+  "text/dates_and_missing -> date": [
+   "datetime.date(2024, 1, 5)",
+   "None"
+  ],
+  "text/dates_and_missing -> decimal(18,3)": "ERROR",
+  "text/dates_and_missing -> double": "ERROR",
+  "text/dates_and_missing -> integer": "ERROR",
+  "text/dates_and_missing -> time": [
+   "datetime.time(0, 0)",
+   "None"
+  ],
+  "text/dates_and_missing -> timestamp": [
+   "datetime.datetime(2024, 1, 5, 0, 0)",
+   "None"
+  ],
+  "text/dates_and_missing -> timestamptz": [
+   "datetime.datetime(2024, 1, 5, 0, 0, tzinfo=<UTC>)",
+   "None"
+  ],
+  "text/dates_and_missing -> varchar": [
+   "'2024-01-05 00:00:00'",
+   "None"
+  ],
+  "text/day_first_date -> bigint": "ERROR",
+  "text/day_first_date -> boolean": "ERROR",
+  "text/day_first_date -> date": [
+   "datetime.date(2024, 5, 13)"
+  ],
+  "text/day_first_date -> decimal(18,3)": "ERROR",
+  "text/day_first_date -> double": "ERROR",
+  "text/day_first_date -> integer": "ERROR",
+  "text/day_first_date -> time": [
+   "datetime.time(0, 0)"
+  ],
+  "text/day_first_date -> timestamp": [
+   "datetime.datetime(2024, 5, 13, 0, 0)"
+  ],
+  "text/day_first_date -> timestamptz": [
+   "datetime.datetime(2024, 5, 13, 0, 0, tzinfo=<UTC>)"
+  ],
+  "text/day_first_date -> varchar": [
+   "'2024-05-13 00:00:00'"
+  ],
+  "text/empty_and_missing -> bigint": "ERROR",
+  "text/empty_and_missing -> boolean": "ERROR",
+  "text/empty_and_missing -> date": "ERROR",
+  "text/empty_and_missing -> decimal(18,3)": "ERROR",
+  "text/empty_and_missing -> double": "ERROR",
+  "text/empty_and_missing -> integer": "ERROR",
+  "text/empty_and_missing -> time": "ERROR",
+  "text/empty_and_missing -> timestamp": "ERROR",
+  "text/empty_and_missing -> timestamptz": "ERROR",
+  "text/empty_and_missing -> varchar": [
+   "''",
+   "None",
+   "'x'"
+  ],
+  "text/exponent -> bigint": [
+   "1000",
+   "200"
+  ],
+  "text/exponent -> boolean": [
+   "True",
+   "True"
+  ],
+  "text/exponent -> date": "ERROR",
+  "text/exponent -> decimal(18,3)": [
+   "Decimal('1000.000')",
+   "Decimal('200.000')"
+  ],
+  "text/exponent -> double": [
+   "1000.0",
+   "200.0"
+  ],
+  "text/exponent -> integer": [
+   "1000",
+   "200"
+  ],
+  "text/exponent -> time": "ERROR",
+  "text/exponent -> timestamp": "ERROR",
+  "text/exponent -> timestamptz": "ERROR",
+  "text/exponent -> varchar": [
+   "'1000.0'",
+   "'200.0'"
+  ],
+  "text/fractions -> bigint": [
+   "2",
+   "2"
+  ],
+  "text/fractions -> boolean": [
+   "True",
+   "True"
+  ],
+  "text/fractions -> date": "ERROR",
+  "text/fractions -> decimal(18,3)": [
+   "Decimal('1.500')",
+   "Decimal('2.250')"
+  ],
+  "text/fractions -> double": [
+   "1.5",
+   "2.25"
+  ],
+  "text/fractions -> integer": [
+   "2",
+   "2"
+  ],
+  "text/fractions -> time": "ERROR",
+  "text/fractions -> timestamp": "ERROR",
+  "text/fractions -> timestamptz": "ERROR",
+  "text/fractions -> varchar": [
+   "'1.5'",
+   "'2.25'"
+  ],
+  "text/integers -> bigint": [
+   "1",
+   "2",
+   "42"
+  ],
+  "text/integers -> boolean": [
+   "True",
+   "True",
+   "True"
+  ],
+  "text/integers -> date": "ERROR",
+  "text/integers -> decimal(18,3)": [
+   "Decimal('1.000')",
+   "Decimal('2.000')",
+   "Decimal('42.000')"
+  ],
+  "text/integers -> double": [
+   "1.0",
+   "2.0",
+   "42.0"
+  ],
+  "text/integers -> integer": [
+   "1",
+   "2",
+   "42"
+  ],
+  "text/integers -> time": "ERROR",
+  "text/integers -> timestamp": "ERROR",
+  "text/integers -> timestamptz": "ERROR",
+  "text/integers -> varchar": [
+   "'1'",
+   "'2'",
+   "'42'"
+  ],
+  "text/iso_dates -> bigint": "ERROR",
+  "text/iso_dates -> boolean": "ERROR",
+  "text/iso_dates -> date": [
+   "datetime.date(2024, 1, 5)",
+   "datetime.date(2024, 2, 6)"
+  ],
+  "text/iso_dates -> decimal(18,3)": "ERROR",
+  "text/iso_dates -> double": "ERROR",
+  "text/iso_dates -> integer": "ERROR",
+  "text/iso_dates -> time": [
+   "datetime.time(0, 0)",
+   "datetime.time(0, 0)"
+  ],
+  "text/iso_dates -> timestamp": [
+   "datetime.datetime(2024, 1, 5, 0, 0)",
+   "datetime.datetime(2024, 2, 6, 0, 0)"
+  ],
+  "text/iso_dates -> timestamptz": [
+   "datetime.datetime(2024, 1, 5, 0, 0, tzinfo=<UTC>)",
+   "datetime.datetime(2024, 2, 6, 0, 0, tzinfo=<UTC>)"
+  ],
+  "text/iso_dates -> varchar": [
+   "'2024-01-05 00:00:00'",
+   "'2024-02-06 00:00:00'"
+  ],
+  "text/leading_zeros -> bigint": [
+   "701",
+   "2134"
+  ],
+  "text/leading_zeros -> boolean": "ERROR",
+  "text/leading_zeros -> date": "ERROR",
+  "text/leading_zeros -> decimal(18,3)": [
+   "Decimal('701.000')",
+   "Decimal('2134.000')"
+  ],
+  "text/leading_zeros -> double": [
+   "701.0",
+   "2134.0"
+  ],
+  "text/leading_zeros -> integer": [
+   "701",
+   "2134"
+  ],
+  "text/leading_zeros -> time": "ERROR",
+  "text/leading_zeros -> timestamp": "ERROR",
+  "text/leading_zeros -> timestamptz": "ERROR",
+  "text/leading_zeros -> varchar": [
+   "'00701'",
+   "'02134'"
+  ],
+  "text/long_text -> bigint": "ERROR",
+  "text/long_text -> boolean": "ERROR",
+  "text/long_text -> date": "ERROR",
+  "text/long_text -> decimal(18,3)": "ERROR",
+  "text/long_text -> double": "ERROR",
+  "text/long_text -> integer": "ERROR",
+  "text/long_text -> time": "ERROR",
+  "text/long_text -> timestamp": "ERROR",
+  "text/long_text -> timestamptz": "ERROR",
+  "text/long_text -> varchar": [
+   "'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'"
+  ],
+  "text/month_names -> bigint": "ERROR",
+  "text/month_names -> boolean": "ERROR",
+  "text/month_names -> date": [
+   "datetime.date(2024, 1, 5)"
+  ],
+  "text/month_names -> decimal(18,3)": "ERROR",
+  "text/month_names -> double": "ERROR",
+  "text/month_names -> integer": "ERROR",
+  "text/month_names -> time": [
+   "datetime.time(0, 0)"
+  ],
+  "text/month_names -> timestamp": [
+   "datetime.datetime(2024, 1, 5, 0, 0)"
+  ],
+  "text/month_names -> timestamptz": [
+   "datetime.datetime(2024, 1, 5, 0, 0, tzinfo=<UTC>)"
+  ],
+  "text/month_names -> varchar": [
+   "'2024-01-05 00:00:00'"
+  ],
+  "text/padded_text -> bigint": "ERROR",
+  "text/padded_text -> boolean": "ERROR",
+  "text/padded_text -> date": "ERROR",
+  "text/padded_text -> decimal(18,3)": "ERROR",
+  "text/padded_text -> double": "ERROR",
+  "text/padded_text -> integer": "ERROR",
+  "text/padded_text -> time": "ERROR",
+  "text/padded_text -> timestamp": "ERROR",
+  "text/padded_text -> timestamptz": "ERROR",
+  "text/padded_text -> varchar": [
+   "'  pad  '"
+  ],
+  "text/signed_padded -> bigint": [
+   "7",
+   "3",
+   "-2"
+  ],
+  "text/signed_padded -> boolean": [
+   "True",
+   "True",
+   "True"
+  ],
+  "text/signed_padded -> date": "ERROR",
+  "text/signed_padded -> decimal(18,3)": [
+   "Decimal('7.000')",
+   "Decimal('3.000')",
+   "Decimal('-2.000')"
+  ],
+  "text/signed_padded -> double": [
+   "7.0",
+   "3.0",
+   "-2.0"
+  ],
+  "text/signed_padded -> integer": [
+   "7",
+   "3",
+   "-2"
+  ],
+  "text/signed_padded -> time": "ERROR",
+  "text/signed_padded -> timestamp": "ERROR",
+  "text/signed_padded -> timestamptz": "ERROR",
+  "text/signed_padded -> varchar": [
+   "'7'",
+   "'3'",
+   "'-2'"
+  ],
+  "text/small_floats -> bigint": [
+   "0",
+   "0"
+  ],
+  "text/small_floats -> boolean": [
+   "True",
+   "True"
+  ],
+  "text/small_floats -> date": "ERROR",
+  "text/small_floats -> decimal(18,3)": [
+   "Decimal('0.100')",
+   "Decimal('0.000')"
+  ],
+  "text/small_floats -> double": [
+   "0.1",
+   "1e-20"
+  ],
+  "text/small_floats -> integer": [
+   "0",
+   "0"
+  ],
+  "text/small_floats -> time": "ERROR",
+  "text/small_floats -> timestamp": "ERROR",
+  "text/small_floats -> timestamptz": "ERROR",
+  "text/small_floats -> varchar": [
+   "'0.1'",
+   "'1e-20'"
+  ],
+  "text/t_f -> bigint": [
+   "1",
+   "0"
+  ],
+  "text/t_f -> boolean": [
+   "True",
+   "False"
+  ],
+  "text/t_f -> date": "ERROR",
+  "text/t_f -> decimal(18,3)": [
+   "Decimal('1.000')",
+   "Decimal('0.000')"
+  ],
+  "text/t_f -> double": [
+   "1.0",
+   "0.0"
+  ],
+  "text/t_f -> integer": [
+   "1",
+   "0"
+  ],
+  "text/t_f -> time": "ERROR",
+  "text/t_f -> timestamp": "ERROR",
+  "text/t_f -> timestamptz": "ERROR",
+  "text/t_f -> varchar": [
+   "'true'",
+   "'false'"
+  ],
+  "text/times -> bigint": "ERROR",
+  "text/times -> boolean": "ERROR",
+  "text/times -> date": "ERROR",
+  "text/times -> decimal(18,3)": "ERROR",
+  "text/times -> double": "ERROR",
+  "text/times -> integer": "ERROR",
+  "text/times -> time": [
+   "datetime.time(10, 0)",
+   "datetime.time(23, 59, 59)"
+  ],
+  "text/times -> timestamp": "ERROR",
+  "text/times -> timestamptz": "ERROR",
+  "text/times -> varchar": [
+   "'10:00:00'",
+   "'23:59:59'"
+  ],
+  "text/timestamps -> bigint": "ERROR",
+  "text/timestamps -> boolean": "ERROR",
+  "text/timestamps -> date": [
+   "datetime.date(2024, 1, 5)",
+   "datetime.date(2024, 2, 6)"
+  ],
+  "text/timestamps -> decimal(18,3)": "ERROR",
+  "text/timestamps -> double": "ERROR",
+  "text/timestamps -> integer": "ERROR",
+  "text/timestamps -> time": [
+   "datetime.time(10, 0)",
+   "datetime.time(11, 30, 15)"
+  ],
+  "text/timestamps -> timestamp": [
+   "datetime.datetime(2024, 1, 5, 10, 0)",
+   "datetime.datetime(2024, 2, 6, 11, 30, 15)"
+  ],
+  "text/timestamps -> timestamptz": [
+   "datetime.datetime(2024, 1, 5, 10, 0, tzinfo=<UTC>)",
+   "datetime.datetime(2024, 2, 6, 11, 30, 15, tzinfo=<UTC>)"
+  ],
+  "text/timestamps -> varchar": [
+   "'2024-01-05 10:00:00'",
+   "'2024-02-06 11:30:15'"
+  ],
+  "text/timestamps_tz -> bigint": "ERROR",
+  "text/timestamps_tz -> boolean": "ERROR",
+  "text/timestamps_tz -> date": [
+   "datetime.date(2024, 1, 5)",
+   "datetime.date(2024, 1, 5)"
+  ],
+  "text/timestamps_tz -> decimal(18,3)": "ERROR",
+  "text/timestamps_tz -> double": "ERROR",
+  "text/timestamps_tz -> integer": "ERROR",
+  "text/timestamps_tz -> time": "ERROR",
+  "text/timestamps_tz -> timestamp": [
+   "datetime.datetime(2024, 1, 5, 10, 0)",
+   "datetime.datetime(2024, 1, 5, 4, 30)"
+  ],
+  "text/timestamps_tz -> timestamptz": [
+   "datetime.datetime(2024, 1, 5, 10, 0, tzinfo=<UTC>)",
+   "datetime.datetime(2024, 1, 5, 4, 30, tzinfo=<UTC>)"
+  ],
+  "text/timestamps_tz -> varchar": [
+   "'2024-01-05 10:00:00+00'",
+   "'2024-01-05 04:30:00+00'"
+  ],
+  "text/two_places -> bigint": [
+   "2",
+   "2"
+  ],
+  "text/two_places -> boolean": [
+   "True",
+   "True"
+  ],
+  "text/two_places -> date": "ERROR",
+  "text/two_places -> decimal(18,3)": [
+   "Decimal('1.500')",
+   "Decimal('2.000')"
+  ],
+  "text/two_places -> double": [
+   "1.5",
+   "2.0"
+  ],
+  "text/two_places -> integer": [
+   "2",
+   "2"
+  ],
+  "text/two_places -> time": "ERROR",
+  "text/two_places -> timestamp": "ERROR",
+  "text/two_places -> timestamptz": "ERROR",
+  "text/two_places -> varchar": [
+   "'1.50'",
+   "'2.00'"
+  ],
+  "text/unicode -> bigint": "ERROR",
+  "text/unicode -> boolean": "ERROR",
+  "text/unicode -> date": "ERROR",
+  "text/unicode -> decimal(18,3)": "ERROR",
+  "text/unicode -> double": "ERROR",
+  "text/unicode -> integer": "ERROR",
+  "text/unicode -> time": "ERROR",
+  "text/unicode -> timestamp": "ERROR",
+  "text/unicode -> timestamptz": "ERROR",
+  "text/unicode -> varchar": [
+   "'Ünïcødé'"
+  ],
+  "text/us_dates -> bigint": "ERROR",
+  "text/us_dates -> boolean": "ERROR",
+  "text/us_dates -> date": [
+   "datetime.date(2024, 1, 5)",
+   "datetime.date(2024, 2, 6)"
+  ],
+  "text/us_dates -> decimal(18,3)": "ERROR",
+  "text/us_dates -> double": "ERROR",
+  "text/us_dates -> integer": "ERROR",
+  "text/us_dates -> time": [
+   "datetime.time(0, 0)",
+   "datetime.time(0, 0)"
+  ],
+  "text/us_dates -> timestamp": [
+   "datetime.datetime(2024, 1, 5, 0, 0)",
+   "datetime.datetime(2024, 2, 6, 0, 0)"
+  ],
+  "text/us_dates -> timestamptz": [
+   "datetime.datetime(2024, 1, 5, 0, 0, tzinfo=<UTC>)",
+   "datetime.datetime(2024, 2, 6, 0, 0, tzinfo=<UTC>)"
+  ],
+  "text/us_dates -> varchar": [
+   "'2024-01-05 00:00:00'",
+   "'2024-02-06 00:00:00'"
+  ],
+  "text/whole_decimals -> bigint": [
+   "1",
+   "2"
+  ],
+  "text/whole_decimals -> boolean": [
+   "True",
+   "True"
+  ],
+  "text/whole_decimals -> date": "ERROR",
+  "text/whole_decimals -> decimal(18,3)": [
+   "Decimal('1.000')",
+   "Decimal('2.000')"
+  ],
+  "text/whole_decimals -> double": [
+   "1.0",
+   "2.0"
+  ],
+  "text/whole_decimals -> integer": [
+   "1",
+   "2"
+  ],
+  "text/whole_decimals -> time": "ERROR",
+  "text/whole_decimals -> timestamp": "ERROR",
+  "text/whole_decimals -> timestamptz": "ERROR",
+  "text/whole_decimals -> varchar": [
+   "'1.0'",
+   "'2.0'"
+  ],
+  "text/word_and_number -> bigint": "ERROR",
+  "text/word_and_number -> boolean": "ERROR",
+  "text/word_and_number -> date": "ERROR",
+  "text/word_and_number -> decimal(18,3)": "ERROR",
+  "text/word_and_number -> double": "ERROR",
+  "text/word_and_number -> integer": "ERROR",
+  "text/word_and_number -> time": "ERROR",
+  "text/word_and_number -> timestamp": "ERROR",
+  "text/word_and_number -> timestamptz": "ERROR",
+  "text/word_and_number -> varchar": [
+   "'abc'",
+   "'1'"
+  ],
+  "text/words -> bigint": "ERROR",
+  "text/words -> boolean": "ERROR",
+  "text/words -> date": "ERROR",
+  "text/words -> decimal(18,3)": "ERROR",
+  "text/words -> double": "ERROR",
+  "text/words -> integer": "ERROR",
+  "text/words -> time": "ERROR",
+  "text/words -> timestamp": "ERROR",
+  "text/words -> timestamptz": "ERROR",
+  "text/words -> varchar": [
+   "'abc'",
+   "'def'"
+  ],
+  "text/yes_no -> bigint": [
+   "1",
+   "0"
+  ],
+  "text/yes_no -> boolean": [
+   "True",
+   "False"
+  ],
+  "text/yes_no -> date": "ERROR",
+  "text/yes_no -> decimal(18,3)": [
+   "Decimal('1.000')",
+   "Decimal('0.000')"
+  ],
+  "text/yes_no -> double": [
+   "1.0",
+   "0.0"
+  ],
+  "text/yes_no -> integer": [
+   "1",
+   "0"
+  ],
+  "text/yes_no -> time": "ERROR",
+  "text/yes_no -> timestamp": "ERROR",
+  "text/yes_no -> timestamptz": "ERROR",
+  "text/yes_no -> varchar": [
+   "'true'",
+   "'false'"
+  ],
+  "text/zero_one -> bigint": [
+   "1",
+   "0"
+  ],
+  "text/zero_one -> boolean": [
+   "True",
+   "False"
+  ],
+  "text/zero_one -> date": "ERROR",
+  "text/zero_one -> decimal(18,3)": [
+   "Decimal('1.000')",
+   "Decimal('0.000')"
+  ],
+  "text/zero_one -> double": [
+   "1.0",
+   "0.0"
+  ],
+  "text/zero_one -> integer": [
+   "1",
+   "0"
+  ],
+  "text/zero_one -> time": "ERROR",
+  "text/zero_one -> timestamp": "ERROR",
+  "text/zero_one -> timestamptz": "ERROR",
+  "text/zero_one -> varchar": [
+   "'true'",
+   "'false'"
+  ],
+  "typed/big_int -> bigint": [
+   "1099511627776"
+  ],
+  "typed/big_int -> boolean": [
+   "True"
+  ],
+  "typed/big_int -> date": "ERROR",
+  "typed/big_int -> decimal(18,3)": [
+   "Decimal('1099511627776.000')"
+  ],
+  "typed/big_int -> double": [
+   "1099511627776.0"
+  ],
+  "typed/big_int -> integer": "ERROR",
+  "typed/big_int -> time": "ERROR",
+  "typed/big_int -> timestamp": "ERROR",
+  "typed/big_int -> timestamptz": "ERROR",
+  "typed/big_int -> varchar": [
+   "'1099511627776'"
+  ],
+  "typed/bools -> bigint": [
+   "1",
+   "0"
+  ],
+  "typed/bools -> boolean": [
+   "True",
+   "False"
+  ],
+  "typed/bools -> date": "ERROR",
+  "typed/bools -> decimal(18,3)": [
+   "Decimal('1.000')",
+   "Decimal('0.000')"
+  ],
+  "typed/bools -> double": [
+   "1.0",
+   "0.0"
+  ],
+  "typed/bools -> integer": [
+   "1",
+   "0"
+  ],
+  "typed/bools -> time": "ERROR",
+  "typed/bools -> timestamp": "ERROR",
+  "typed/bools -> timestamptz": "ERROR",
+  "typed/bools -> varchar": [
+   "'true'",
+   "'false'"
+  ],
+  "typed/bytes -> bigint": "ERROR",
+  "typed/bytes -> boolean": "ERROR",
+  "typed/bytes -> date": "ERROR",
+  "typed/bytes -> decimal(18,3)": "ERROR",
+  "typed/bytes -> double": "ERROR",
+  "typed/bytes -> integer": "ERROR",
+  "typed/bytes -> time": "ERROR",
+  "typed/bytes -> timestamp": "ERROR",
+  "typed/bytes -> timestamptz": "ERROR",
+  "typed/bytes -> varchar": [
+   "'\\\\x00ab'"
+  ],
+  "typed/date -> bigint": "ERROR",
+  "typed/date -> boolean": "ERROR",
+  "typed/date -> date": [
+   "datetime.date(2024, 1, 5)"
+  ],
+  "typed/date -> decimal(18,3)": "ERROR",
+  "typed/date -> double": "ERROR",
+  "typed/date -> integer": "ERROR",
+  "typed/date -> time": [
+   "datetime.time(0, 0)"
+  ],
+  "typed/date -> timestamp": [
+   "datetime.datetime(2024, 1, 5, 0, 0)"
+  ],
+  "typed/date -> timestamptz": [
+   "datetime.datetime(2024, 1, 5, 0, 0, tzinfo=<UTC>)"
+  ],
+  "typed/date -> varchar": [
+   "'2024-01-05 00:00:00'"
+  ],
+  "typed/date_and_null -> bigint": "ERROR",
+  "typed/date_and_null -> boolean": "ERROR",
+  "typed/date_and_null -> date": [
+   "datetime.date(2024, 1, 5)",
+   "None"
+  ],
+  "typed/date_and_null -> decimal(18,3)": "ERROR",
+  "typed/date_and_null -> double": "ERROR",
+  "typed/date_and_null -> integer": "ERROR",
+  "typed/date_and_null -> time": [
+   "datetime.time(0, 0)",
+   "None"
+  ],
+  "typed/date_and_null -> timestamp": [
+   "datetime.datetime(2024, 1, 5, 0, 0)",
+   "None"
+  ],
+  "typed/date_and_null -> timestamptz": [
+   "datetime.datetime(2024, 1, 5, 0, 0, tzinfo=<UTC>)",
+   "None"
+  ],
+  "typed/date_and_null -> varchar": [
+   "'2024-01-05 00:00:00'",
+   "None"
+  ],
+  "typed/datetime -> bigint": "ERROR",
+  "typed/datetime -> boolean": "ERROR",
+  "typed/datetime -> date": [
+   "datetime.date(2024, 1, 5)"
+  ],
+  "typed/datetime -> decimal(18,3)": "ERROR",
+  "typed/datetime -> double": "ERROR",
+  "typed/datetime -> integer": "ERROR",
+  "typed/datetime -> time": [
+   "datetime.time(10, 0)"
+  ],
+  "typed/datetime -> timestamp": [
+   "datetime.datetime(2024, 1, 5, 10, 0)"
+  ],
+  "typed/datetime -> timestamptz": [
+   "datetime.datetime(2024, 1, 5, 10, 0, tzinfo=<UTC>)"
+  ],
+  "typed/datetime -> varchar": [
+   "'2024-01-05 10:00:00'"
+  ],
+  "typed/datetime_tz -> bigint": "ERROR",
+  "typed/datetime_tz -> boolean": "ERROR",
+  "typed/datetime_tz -> date": [
+   "datetime.date(2024, 1, 5)"
+  ],
+  "typed/datetime_tz -> decimal(18,3)": "ERROR",
+  "typed/datetime_tz -> double": "ERROR",
+  "typed/datetime_tz -> integer": "ERROR",
+  "typed/datetime_tz -> time": "ERROR",
+  "typed/datetime_tz -> timestamp": [
+   "datetime.datetime(2024, 1, 5, 4, 30)"
+  ],
+  "typed/datetime_tz -> timestamptz": [
+   "datetime.datetime(2024, 1, 5, 4, 30, tzinfo=<UTC>)"
+  ],
+  "typed/datetime_tz -> varchar": [
+   "'2024-01-05 04:30:00+00'"
+  ],
+  "typed/decimal_fraction -> bigint": [
+   "2",
+   "2"
+  ],
+  "typed/decimal_fraction -> boolean": [
+   "True",
+   "True"
+  ],
+  "typed/decimal_fraction -> date": "ERROR",
+  "typed/decimal_fraction -> decimal(18,3)": [
+   "Decimal('1.500')",
+   "Decimal('2.250')"
+  ],
+  "typed/decimal_fraction -> double": [
+   "1.5",
+   "2.25"
+  ],
+  "typed/decimal_fraction -> integer": [
+   "2",
+   "2"
+  ],
+  "typed/decimal_fraction -> time": "ERROR",
+  "typed/decimal_fraction -> timestamp": "ERROR",
+  "typed/decimal_fraction -> timestamptz": "ERROR",
+  "typed/decimal_fraction -> varchar": [
+   "'1.5'",
+   "'2.25'"
+  ],
+  "typed/decimal_scale -> bigint": [
+   "2"
+  ],
+  "typed/decimal_scale -> boolean": [
+   "True"
+  ],
+  "typed/decimal_scale -> date": "ERROR",
+  "typed/decimal_scale -> decimal(18,3)": [
+   "Decimal('1.500')"
+  ],
+  "typed/decimal_scale -> double": [
+   "1.5"
+  ],
+  "typed/decimal_scale -> integer": [
+   "2"
+  ],
+  "typed/decimal_scale -> time": "ERROR",
+  "typed/decimal_scale -> timestamp": "ERROR",
+  "typed/decimal_scale -> timestamptz": "ERROR",
+  "typed/decimal_scale -> varchar": [
+   "'1.50'"
+  ],
+  "typed/decimal_whole -> bigint": [
+   "1",
+   "2"
+  ],
+  "typed/decimal_whole -> boolean": [
+   "True",
+   "True"
+  ],
+  "typed/decimal_whole -> date": "ERROR",
+  "typed/decimal_whole -> decimal(18,3)": [
+   "Decimal('1.000')",
+   "Decimal('2.000')"
+  ],
+  "typed/decimal_whole -> double": [
+   "1.0",
+   "2.0"
+  ],
+  "typed/decimal_whole -> integer": [
+   "1",
+   "2"
+  ],
+  "typed/decimal_whole -> time": "ERROR",
+  "typed/decimal_whole -> timestamp": "ERROR",
+  "typed/decimal_whole -> timestamptz": "ERROR",
+  "typed/decimal_whole -> varchar": [
+   "'1.0'",
+   "'2.0'"
+  ],
+  "typed/float_fraction -> bigint": [
+   "2",
+   "0"
+  ],
+  "typed/float_fraction -> boolean": [
+   "True",
+   "True"
+  ],
+  "typed/float_fraction -> date": "ERROR",
+  "typed/float_fraction -> decimal(18,3)": [
+   "Decimal('1.500')",
+   "Decimal('0.100')"
+  ],
+  "typed/float_fraction -> double": [
+   "1.5",
+   "0.1"
+  ],
+  "typed/float_fraction -> integer": [
+   "2",
+   "0"
+  ],
+  "typed/float_fraction -> time": "ERROR",
+  "typed/float_fraction -> timestamp": "ERROR",
+  "typed/float_fraction -> timestamptz": "ERROR",
+  "typed/float_fraction -> varchar": [
+   "'1.5'",
+   "'0.1'"
+  ],
+  "typed/float_whole -> bigint": [
+   "1",
+   "2"
+  ],
+  "typed/float_whole -> boolean": [
+   "True",
+   "True"
+  ],
+  "typed/float_whole -> date": "ERROR",
+  "typed/float_whole -> decimal(18,3)": [
+   "Decimal('1.000')",
+   "Decimal('2.000')"
+  ],
+  "typed/float_whole -> double": [
+   "1.0",
+   "2.0"
+  ],
+  "typed/float_whole -> integer": [
+   "1",
+   "2"
+  ],
+  "typed/float_whole -> time": "ERROR",
+  "typed/float_whole -> timestamp": "ERROR",
+  "typed/float_whole -> timestamptz": "ERROR",
+  "typed/float_whole -> varchar": [
+   "'1'",
+   "'2'"
+  ],
+  "typed/int_and_null -> bigint": [
+   "7",
+   "None"
+  ],
+  "typed/int_and_null -> boolean": [
+   "True",
+   "None"
+  ],
+  "typed/int_and_null -> date": "ERROR",
+  "typed/int_and_null -> decimal(18,3)": [
+   "Decimal('7.000')",
+   "None"
+  ],
+  "typed/int_and_null -> double": [
+   "7.0",
+   "None"
+  ],
+  "typed/int_and_null -> integer": [
+   "7",
+   "None"
+  ],
+  "typed/int_and_null -> time": "ERROR",
+  "typed/int_and_null -> timestamp": "ERROR",
+  "typed/int_and_null -> timestamptz": "ERROR",
+  "typed/int_and_null -> varchar": [
+   "'7'",
+   "None"
+  ],
+  "typed/int_zero_one -> bigint": [
+   "1",
+   "0"
+  ],
+  "typed/int_zero_one -> boolean": [
+   "True",
+   "False"
+  ],
+  "typed/int_zero_one -> date": "ERROR",
+  "typed/int_zero_one -> decimal(18,3)": [
+   "Decimal('1.000')",
+   "Decimal('0.000')"
+  ],
+  "typed/int_zero_one -> double": [
+   "1.0",
+   "0.0"
+  ],
+  "typed/int_zero_one -> integer": [
+   "1",
+   "0"
+  ],
+  "typed/int_zero_one -> time": "ERROR",
+  "typed/int_zero_one -> timestamp": "ERROR",
+  "typed/int_zero_one -> timestamptz": "ERROR",
+  "typed/int_zero_one -> varchar": [
+   "'true'",
+   "'false'"
+  ],
+  "typed/ints -> bigint": [
+   "1",
+   "2",
+   "42"
+  ],
+  "typed/ints -> boolean": [
+   "True",
+   "True",
+   "True"
+  ],
+  "typed/ints -> date": "ERROR",
+  "typed/ints -> decimal(18,3)": [
+   "Decimal('1.000')",
+   "Decimal('2.000')",
+   "Decimal('42.000')"
+  ],
+  "typed/ints -> double": [
+   "1.0",
+   "2.0",
+   "42.0"
+  ],
+  "typed/ints -> integer": [
+   "1",
+   "2",
+   "42"
+  ],
+  "typed/ints -> time": "ERROR",
+  "typed/ints -> timestamp": "ERROR",
+  "typed/ints -> timestamptz": "ERROR",
+  "typed/ints -> varchar": [
+   "'1'",
+   "'2'",
+   "'42'"
+  ],
+  "typed/text_date -> bigint": "ERROR",
+  "typed/text_date -> boolean": "ERROR",
+  "typed/text_date -> date": [
+   "datetime.date(2024, 1, 5)"
+  ],
+  "typed/text_date -> decimal(18,3)": "ERROR",
+  "typed/text_date -> double": "ERROR",
+  "typed/text_date -> integer": "ERROR",
+  "typed/text_date -> time": [
+   "datetime.time(0, 0)"
+  ],
+  "typed/text_date -> timestamp": [
+   "datetime.datetime(2024, 1, 5, 0, 0)"
+  ],
+  "typed/text_date -> timestamptz": [
+   "datetime.datetime(2024, 1, 5, 0, 0, tzinfo=<UTC>)"
+  ],
+  "typed/text_date -> varchar": [
+   "'2024-01-05'"
+  ],
+  "typed/text_words -> bigint": "ERROR",
+  "typed/text_words -> boolean": "ERROR",
+  "typed/text_words -> date": "ERROR",
+  "typed/text_words -> decimal(18,3)": "ERROR",
+  "typed/text_words -> double": "ERROR",
+  "typed/text_words -> integer": "ERROR",
+  "typed/text_words -> time": "ERROR",
+  "typed/text_words -> timestamp": "ERROR",
+  "typed/text_words -> timestamptz": "ERROR",
+  "typed/text_words -> varchar": [
+   "'abc'"
+  ],
+  "typed/text_zero_one -> bigint": [
+   "1",
+   "0"
+  ],
+  "typed/text_zero_one -> boolean": [
+   "True",
+   "False"
+  ],
+  "typed/text_zero_one -> date": "ERROR",
+  "typed/text_zero_one -> decimal(18,3)": [
+   "Decimal('1.000')",
+   "Decimal('0.000')"
+  ],
+  "typed/text_zero_one -> double": [
+   "1.0",
+   "0.0"
+  ],
+  "typed/text_zero_one -> integer": [
+   "1",
+   "0"
+  ],
+  "typed/text_zero_one -> time": "ERROR",
+  "typed/text_zero_one -> timestamp": "ERROR",
+  "typed/text_zero_one -> timestamptz": "ERROR",
+  "typed/text_zero_one -> varchar": [
+   "'1'",
+   "'0'"
+  ],
+  "typed/time -> bigint": "ERROR",
+  "typed/time -> boolean": "ERROR",
+  "typed/time -> date": "ERROR",
+  "typed/time -> decimal(18,3)": "ERROR",
+  "typed/time -> double": "ERROR",
+  "typed/time -> integer": "ERROR",
+  "typed/time -> time": [
+   "datetime.time(10, 0)"
+  ],
+  "typed/time -> timestamp": "ERROR",
+  "typed/time -> timestamptz": "ERROR",
+  "typed/time -> varchar": [
+   "'10:00:00'"
+  ]
+ }
+}

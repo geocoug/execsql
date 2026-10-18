@@ -158,7 +158,7 @@ def x_copy(**kwargs: Any) -> None:
         return get_ts_tablespec
 
     try:
-        db2.populate_table(schema2, table2, rows_for_insert, hdrs, get_ts)
+        db2.populate_table(schema2, table2, rows_for_insert, hdrs, get_ts, existing_table=not new_tbl2)
         db2.commit()
     except BaseException:
         _close_rowsource(rows_to_close)
@@ -245,7 +245,7 @@ def x_copy_query(**kwargs: Any) -> None:
         return get_ts_tablespec
 
     try:
-        db2.populate_table(schema2, table2, rows_for_insert, hdrs, get_ts)
+        db2.populate_table(schema2, table2, rows_for_insert, hdrs, get_ts, existing_table=not new_tbl2)
         db2.commit()
     except BaseException:
         _close_rowsource(rows_to_close)

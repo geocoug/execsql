@@ -11,6 +11,15 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Changed
+
+- **A value with a fraction loaded into an integer column** (`INTEGER`, `BIGINT`, `DECIMAL(10,0)`, …) of an existing table by `IMPORT` or `COPY` stops the load with an error that names the value and the column, and nothing is loaded. The database used to round it (`1.5` stored as `2`), or on SQL Server truncate it. A delimited file loaded into PostgreSQL or MySQL is not affected: the server reads it as written. Round the values in the source, or load them into a `DECIMAL` column with places for the fraction.
+
+### Fixed
+
+- **`IMPORT` and `COPY` into a table that already exists** convert each value by the type of the column it goes into, not the type guessed from the source data. A text column gets the value as written: `yes`, `1`, `01/05/2024`, `1e3` and `" 7 "` were stored as `true`, `true`, `2024-01-05 00:00:00`, `1000` and `7`. On MySQL a missing value in such a column is NULL, not `''`. `TO NEW` and `TO REPLACEMENT` tables are created and filled as before.
+- **`COPY` of a column of 0s and 1s into a PostgreSQL integer, numeric or float column** loads the numbers; it failed with "column … is of type integer but expression is of type boolean". The same goes for true/false values (`yes`/`no`, `t`/`f`) copied, or imported from a spreadsheet, JSON or Feather file, into such a column: they load as 1 and 0, as on the other databases.
+
 ______________________________________________________________________
 
 ## [2.33.0] - 2026-10-16

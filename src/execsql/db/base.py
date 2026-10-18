@@ -24,7 +24,9 @@ from collections.abc import Callable, Generator, Iterator
 
 from execsql.exceptions import ErrInfo
 from execsql.utils.errors import exception_desc
+from execsql.db.target_types import ColumnKinds, existing_table_converter, kind_for_python_type
 from execsql.db.tiers import SupportTier, announce_tier
+from execsql.types import DataType
 import execsql.state as _state
 
 __all__ = ["Database", "DatabasePool"]
@@ -604,6 +606,42 @@ class Database(ABC):
             rows = curs.fetchall()
         return [row[0] for row in rows]
 
+    def column_kinds(self, sq_name: str) -> ColumnKinds:
+        """The execsql data type each column of table *sq_name* converts values to (see ``db.target_types``).
+
+        *sq_name* is schema-qualified and quoted, as for an ``INSERT``, and
+        is looked up the way the ``INSERT`` finds it.  Keys are lower-cased
+        column names; a column with no fitting execsql type maps to ``None``.
+        This default reads the driver's description of an empty query on the
+        table; adapters whose catalog names types more exactly override it.
+        """
+        description, _rows = self._column_type_query(sq_name, f"select * from {sq_name} where 1=0;")
+        return {d[0].lower(): self._described_kind(d) for d in description}
+
+    def _described_kind(self, description: Any) -> type[DataType] | None:
+        """The execsql type for one column of a cursor description (a DB-API 7-item sequence)."""
+        return kind_for_python_type(description[1], description[5])
+
+    def _column_type_query(self, sq_name: str, sql: str, params: list | None = None) -> tuple[Any, list]:
+        """Run *sql* for :meth:`column_kinds` of *sq_name*; return the cursor description and the rows."""
+        with self._cursor() as curs:
+            try:
+                if params is None:
+                    curs.execute(sql)
+                else:
+                    curs.execute(sql, params)
+            except ErrInfo:
+                raise
+            except Exception as e:
+                self.rollback()
+                raise ErrInfo(
+                    type="db",
+                    command_text=sql,
+                    exception_msg=exception_desc(),
+                    other_msg=f"Failed to get the column types of table {sq_name} of {self.name()}",
+                ) from e
+            return curs.description, curs.fetchall()
+
     def view_exists(self, view_name: str, schema_name: str | None = None) -> bool:
         """Return ``True`` if *view_name* (optionally in *schema_name*) exists."""
         with self._cursor() as curs:
@@ -689,11 +727,17 @@ class Database(ABC):
         rowsource: Any,
         column_list: list[str],
         tablespec_src: Callable,
+        *,
+        existing_table: bool = False,
     ) -> None:
         """Bulk-insert rows from *rowsource* into *table_name* using the columns in *column_list*.
 
         *rowsource* must be a generator yielding lists of values in column order.
         *tablespec_src* is a zero-argument callable that returns the table's type specification.
+        Each value is converted to the type scanned for its column; with
+        *existing_table* (the table was there before the IMPORT or COPY), the
+        type of the column it goes into decides instead (see
+        ``db.target_types.existing_table_converter``).
         """
         # The rowsource argument must be a generator yielding a list of values for the columns of the table.
         # The column_list argument must an iterable containing column names.  This may be a subset of
@@ -713,8 +757,13 @@ class Database(ABC):
         sel_cols = [col for col in ts_colnames if col in column_list]
         incl_col = [col in column_list for col in ts_colnames]
         # Type conversion functions for the rowsource.
-        type_objs = [col.column_type()[1]() for col in tablespec.cols]
-        type_mod_fn = [self.type.dialect[col.column_type()[1]][3] for col in tablespec.cols]
+        converters = [self._scanned_type_converter(col.column_type()[1]) for col in tablespec.cols]
+        if existing_table:
+            kinds = self.column_kinds(sq_name)
+            converters = [
+                existing_table_converter(kinds.get(col.name.lower()), col.column_type()[1], convert, col.name, sq_name)
+                for col, convert in zip(tablespec.cols, converters)
+            ]
         # Construct INSERT statement.
         columns = [self.type.quoted(col) for col in sel_cols]
         colspec = ",".join(columns)
@@ -812,10 +861,7 @@ class Database(ABC):
                                             line[i] = None
                             # Trailing values left off the line are NULL.
                             line = list(line) + [None] * (len(ts_colnames) - len(line))
-                            lt = [
-                                type_objs[i].from_data(val) if val is not None else None for i, val in enumerate(line)
-                            ]
-                            lt = [type_mod_fn[i](v) if type_mod_fn[i] else v for i, v in enumerate(lt)]
+                            lt = [converters[i](val) for i, val in enumerate(line)]
                             row = []
                             for i, v in enumerate(lt):
                                 if incl_col[i]:
@@ -869,14 +915,31 @@ class Database(ABC):
                 f"IMPORT into {sq_name} complete: {total_rows} rows imported.",
             )
 
+    def _scanned_type_converter(self, data_type: type[DataType]) -> Callable[[Any], Any]:
+        """Convert a value to *data_type*, then apply this DBMS's adjustment for that type, if any.
+
+        NULL is not converted, but it is adjusted: MySQL's adjustment for
+        dates turns it into ``""``.
+        """
+        from_data = data_type().from_data
+        adjust = self.type.dialect[data_type][3]
+        if adjust is None:
+            return lambda value: None if value is None else from_data(value)
+        return lambda value: adjust(None if value is None else from_data(value))
+
     def import_tabular_file(
         self,
         schema_name: str | None,
         table_name: str,
         csv_file_obj: Any,
         skipheader: bool,
+        *,
+        existing_table: bool = False,
     ) -> None:
-        """Import a CSV/tabular file into *table_name*; column names must be compatible."""
+        """Import a CSV/tabular file into *table_name*; column names must be compatible.
+
+        *existing_table*: the table was there before the IMPORT (see :meth:`populate_table`).
+        """
         # Import a text (CSV) file containing tabular data to a table.  Columns must be compatible.
         if not self.table_exists(table_name, schema_name):
             raise ErrInfo(
@@ -912,7 +975,7 @@ class Database(ABC):
 
         f = csv_file_obj.reader()
         next(f)
-        self.populate_table(schema_name, table_name, f, import_cols, get_ts)
+        self.populate_table(schema_name, table_name, f, import_cols, get_ts, existing_table=existing_table)
 
     def import_entire_file(
         self,
