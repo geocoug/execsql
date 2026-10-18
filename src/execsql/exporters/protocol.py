@@ -51,6 +51,7 @@ class QueryExporter(Protocol):
     Conforming functions
     --------------------
     - ``write_query_to_json``
+    - ``write_query_to_jsonl``
     - ``write_query_to_html``
     - ``write_query_to_cgi_html``
     - ``write_query_to_latex``

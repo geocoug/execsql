@@ -27,7 +27,7 @@ from execsql.exporters.delimited import write_delimited_file
 from execsql.exporters.duckdb import write_query_to_duckdb
 from execsql.exporters.feather import write_query_to_feather, write_query_to_hdf5
 from execsql.exporters.html import write_query_to_cgi_html, write_query_to_html
-from execsql.exporters.json import write_query_to_json, write_query_to_json_ts
+from execsql.exporters.json import write_query_to_json, write_query_to_json_ts, write_query_to_jsonl
 from execsql.exporters.latex import write_query_to_latex
 from execsql.exporters.ods import write_queries_to_ods, write_query_to_ods
 from execsql.exporters.xlsx import write_queries_to_xlsx, write_query_to_xlsx
@@ -123,6 +123,8 @@ def _dispatch_format(
         write_query_to_xml(select_stmt, xml_table, db, outfile, append, desc=description, zipfile=zipfilename)
     elif filefmt == "json":
         write_query_to_json(select_stmt, db, outfile, append, desc=description, zipfile=zipfilename)
+    elif filefmt == "jsonl":
+        write_query_to_jsonl(select_stmt, db, outfile, append, desc=description, zipfile=zipfilename)
     elif filefmt in ("json_ts", "json_tableschema"):
         write_query_to_json_ts(select_stmt, db, outfile, append, not notype, desc=description, zipfile=zipfilename)
     elif filefmt == "values":

@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Added
+
+- **`EXPORT … AS JSONL` and `EXPORT QUERY … AS JSONL`** write [JSON Lines](https://jsonlines.org/): one object per row, one row per line. `APPEND` adds rows to the file, which stays valid; `IMPORT … FROM JSON` reads it back.
+
 ### Changed
 
 - **A value with a fraction loaded into an integer column** (`INTEGER`, `BIGINT`, `DECIMAL(10,0)`, …) of an existing table by `IMPORT` or `COPY` stops the load with an error that names the value and the column, and nothing is loaded. The database used to round it (`1.5` stored as `2`), or on SQL Server truncate it. A delimited file loaded into PostgreSQL or MySQL is not affected: the server reads it as written. Round the values in the source, or load them into a `DECIMAL` column with places for the fraction.
