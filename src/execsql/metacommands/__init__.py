@@ -474,13 +474,29 @@ JSON_VARIANT_FORMATS = ["JSON_TS", "JSON_TABLESCHEMA"]
 QUERY_EXPORT_FORMATS = (
     DELIMITED_FORMATS
     + TEXT_FORMATS
-    + ["ODS", "XLSX", "JSON", "HTML", "CGI-HTML", "VALUES", "LATEX", "RAW", "B64", "FEATHER", "YAML", "MARKDOWN", "MD"]
+    + [
+        "ODS",
+        "XLSX",
+        "JSON",
+        "JSONL",
+        "HTML",
+        "CGI-HTML",
+        "VALUES",
+        "LATEX",
+        "RAW",
+        "B64",
+        "FEATHER",
+        "YAML",
+        "MARKDOWN",
+        "MD",
+    ]
 )
 TABLE_EXPORT_FORMATS = (
     DELIMITED_FORMATS
     + TEXT_FORMATS
     + [
         "JSON",
+        "JSONL",
         "XML",
         "VALUES",
         "HTML",

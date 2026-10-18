@@ -3,9 +3,11 @@ from __future__ import annotations
 """
 JSON export for execsql.
 
-Provides :func:`write_query_to_json` (standard JSON array of objects) and
-:func:`write_query_to_json_ts` (JSON with a top-level timestamp wrapper),
-both of which serialize a query result set to a file or stream.
+Provides :func:`write_query_to_json` (standard JSON array of objects),
+:func:`write_query_to_jsonl` (`JSON Lines <https://jsonlines.org/>`_, one
+object per line) and :func:`write_query_to_json_ts` (JSON with a top-level
+timestamp wrapper), all of which serialize a query result set to a file or
+stream.
 """
 
 import json
@@ -18,7 +20,13 @@ from execsql.models import DataTable, to_json_type
 from execsql.utils.errors import exception_desc
 from execsql.utils.fileio import filewriter_close
 
-__all__ = ["write_query_to_json", "write_query_to_json_ts"]
+__all__ = ["write_query_to_json", "write_query_to_json_ts", "write_query_to_jsonl"]
+
+
+def _row_json(hdrs: list[str], row: Any) -> str:
+    """One row as a compact JSON object; JSON and JSONL write rows alike."""
+    dictdata = dict(zip(hdrs, [str(v) if isinstance(v, str) else v for v in row]))
+    return json.dumps(dictdata, separators=(",", ":"), default=str)
 
 
 def write_query_to_json(
@@ -60,10 +68,46 @@ def write_query_to_json(
             else:
                 f.write(",\n")
             first = False
-            dictdata = dict(zip(uhdrs, [str(v) if isinstance(v, str) else v for v in row]))
-            jsondata = json.dumps(dictdata, separators=(",", ":"), default=str)
-            f.write(str(jsondata))
+            f.write(_row_json(uhdrs, row))
         f.write("\n]\n")
+    finally:
+        f.close()
+
+
+def write_query_to_jsonl(
+    select_stmt: str,
+    db: Any,
+    outfile: str,
+    append: bool = False,
+    desc: str | None = None,
+    zipfile: str | None = None,
+) -> None:
+    """Execute a SELECT and write the result set as JSON Lines: one JSON object per row, one row per line.
+
+    Values are written as :func:`write_query_to_json` writes them.  A line
+    break inside a value is escaped (``\\n``), so each row stays on one line.
+    With *append* the rows are added to the end of the file, which stays
+    valid JSON Lines.
+    """
+    conf = _state.conf
+    try:
+        hdrs, rows = db.select_rowsource(select_stmt)
+    except ErrInfo:
+        raise
+    except Exception as e:
+        raise ErrInfo("db", select_stmt, exception_msg=exception_desc()) from e
+    f: Any
+    if zipfile is None:
+        filewriter_close(outfile)
+        from execsql.utils.fileio import EncodedFile
+
+        f = EncodedFile(outfile, conf.output_encoding).open("at" if append else "wt")
+    else:
+        f = ZipWriter(zipfile, outfile, append)
+    try:
+        uhdrs = [str(h) for h in hdrs]
+        for row in rows:
+            f.write(_row_json(uhdrs, row) + "\n")
     finally:
         f.close()
 

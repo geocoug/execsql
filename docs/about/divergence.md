@@ -43,6 +43,7 @@ ______________________________________________________________________
 | `PARQUET`         | Export query or table results to Apache Parquet via `polars`.                                                        |
 | `FEATHER`         | Export to Apache Feather/IPC via `polars` (upstream used `pandas` + `pyarrow`).                                      |
 | `YAML`            | Export query or table results as a YAML sequence of mappings via `PyYAML`.                                           |
+| `JSONL`           | Export query or table results as JSON Lines: one object per row, one row per line; `APPEND` adds rows (#7).          |
 | `MARKDOWN` / `MD` | Export query or table results as a GitHub-Flavored Markdown (GFM) pipe table. Pure Python, no optional dependencies. |
 | `XLSX`            | Export query or table results to an Excel XLSX workbook via `openpyxl` (single or multi-sheet).                      |
 

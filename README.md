@@ -198,7 +198,7 @@ See the [full options reference](https://execsql2.readthedocs.io/en/stable/getti
 **Data movement**
 
 - Import data from CSV, TSV, JSON, Excel, OpenDocument, Feather, or Parquet files into a database table.
-- Export query results in 20+ formats including CSV, TSV, JSON, YAML, XML, HTML, Markdown, LaTeX, XLSX, OpenDocument, Feather, Parquet, HDF5, DuckDB, SQLite, plain text, and Jinja2 templates.
+- Export query results in 20+ formats including CSV, TSV, JSON, JSON Lines, YAML, XML, HTML, Markdown, LaTeX, XLSX, OpenDocument, Feather, Parquet, HDF5, DuckDB, SQLite, plain text, and Jinja2 templates.
 - Copy data between databases, including across different DBMS types.
 
 **Script logic**

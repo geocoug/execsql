@@ -1167,6 +1167,15 @@ JSON
 :   [Javascript Object Notation](http://www.json.org/). The data table is represented as an array of JSON objects, where each object represents a row of the table. Each row is represented as a set of key:value pairs, with column names used as the keys. No description text will be included in the output even if it is provided.
 
 
+JSONL
+
+:   [JSON Lines](https://jsonlines.org/): one JSON object per row, one row per line, with no surrounding array. Values are written as for JSON (dates and times as text, NULL as `null`); a line break inside a value is written as `\n`, so each row stays on one line. If the "APPEND" keyword is used, the rows are added to the end of the file, which stays valid JSON Lines (appending JSON instead leaves two arrays in one file). A query that returns no rows writes an empty file. The file can be read back with [IMPORT … FROM JSON](#import). No description text will be included in the output even if it is provided:
+
+    ```
+    -- !x! EXPORT QUERY <<select * from events where day = current_date;>> APPEND TO events.jsonl AS JSONL
+    ```
+
+
 JSON_TS or JSON_TABLESCHEMA
 
 :   [JSON Table Schema](https://frictionlessdata.io/specs/table-schema/). The data themselves are not exported. Ordinarily this form would be used in conjunction with an additional export of the data to a CSV file. The column type descriptions in the output are derived by scanning the entire table to evaluate the data type of each column. If a "NOTYPE" keyword is included before the "DESCRIPTION" keyword, this scanning is not done, and no type information is included in the output file.:
@@ -1947,7 +1956,7 @@ The syntax for importing data from a [JSON](https://www.json.org/) file is:
 IMPORT TO [NEW|REPLACEMENT] <table_name> FROM JSON <file_name>
 ```
 
-The JSON file must contain either a JSON array of objects (`[{…}, …]`) or [JSON Lines](https://jsonlines.org/) (JSONL, one object per line). Nested objects are flattened with dot-separated column names (e.g., an object `{"address": {"city": "Portland"}}` produces column `address.city`). Nested arrays within objects are stored as JSON strings. Records with different keys produce a superset of columns — missing keys become NULL. The parser auto-detects which form is present by peeking at the first non-whitespace character (`[` → array, `{` → JSON Lines); the file extension is not consulted.
+The JSON file must contain either a JSON array of objects (`[{…}, …]`) or [JSON Lines](https://jsonlines.org/) (JSONL, one object per line). Nested objects are flattened with dot-separated column names (e.g., an object `{"address": {"city": "Portland"}}` produces column `address.city`). Nested arrays within objects are stored as JSON strings. Records with different keys produce a superset of columns — missing keys become NULL. The parser auto-detects which form is present by peeking at the first non-whitespace character (`[` → array, `{` → JSON Lines); the file extension is not consulted. A file written by [EXPORT … AS JSONL](#export) is read as JSON Lines.
 
 Column names in the input must be valid for the DBMS in use.
 
