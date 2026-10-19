@@ -1,0 +1,77 @@
+{
+ "exit": 0,
+ "files": {
+  "b.b64": "hello world",
+  "name.raw": "Ann",
+  "t.tabq": "id\tname\tnote\n1\tAnn\t\"has \"\"quotes\"\"\"\n2\tBob\t\n",
+  "t.tsvq": "id\tname\tnote\n1\tAnn\t\"has \"\"quotes\"\"\"\n2\tBob\t\n",
+  "t.xml": "<?xml version='1.0' encoding='utf8'?>\n<t>\n  <row>\n    <id>1</id>\n    <name>Ann</name>\n    <note>has \"quotes\"</note>\n  </row>\n  <row>\n    <id>2</id>\n    <name>Bob</name>\n    <note>None</note>\n  </row>\n</t>\n"
+ },
+ "recorded_with": "execsql 1.130.1",
+ "stderr": "",
+ "stdout": "",
+ "tables": {
+  "b": {
+   "columns": [
+    [
+     "data",
+     "TEXT"
+    ]
+   ],
+   "rows": [
+    [
+     [
+      "text",
+      "'aGVsbG8gd29ybGQ='"
+     ]
+    ]
+   ]
+  },
+  "t": {
+   "columns": [
+    [
+     "id",
+     "INTEGER"
+    ],
+    [
+     "name",
+     "TEXT"
+    ],
+    [
+     "note",
+     "TEXT"
+    ]
+   ],
+   "rows": [
+    [
+     [
+      "integer",
+      "1"
+     ],
+     [
+      "text",
+      "'Ann'"
+     ],
+     [
+      "text",
+      "'has \"quotes\"'"
+     ]
+    ],
+    [
+     [
+      "integer",
+      "2"
+     ],
+     [
+      "text",
+      "'Bob'"
+     ],
+     [
+      "null",
+      "None"
+     ]
+    ]
+   ]
+  }
+ }
+}

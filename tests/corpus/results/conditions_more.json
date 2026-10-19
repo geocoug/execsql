@@ -1,0 +1,36 @@
+{
+ "exit": 0,
+ "files": {
+  "other.db": "",
+  "out.txt": "alias other defined\nalias nope undefined\ncolumn name exists\ncolumn zz missing\nview v exists\nmarker exists\nnothing.txt missing\ndot is a directory\nempty_var is empty\n3 >= 3\n10 > 9 as numbers\ncontains, ignoring case\nnot contains, with case\nor\nnot or\nand not\n1 is true\nYes is true\nno is not true\n0.5 is not zero\nno schemas on SQLite\n10 equals 10.00\ntrue equals yes\n"
+ },
+ "recorded_with": "execsql 1.130.1",
+ "stderr": "",
+ "stdout": "",
+ "tables": {
+  "t": {
+   "columns": [
+    [
+     "id",
+     "INTEGER"
+    ],
+    [
+     "name",
+     "TEXT"
+    ]
+   ],
+   "rows": [
+    [
+     [
+      "integer",
+      "1"
+     ],
+     [
+      "text",
+      "'a'"
+     ]
+    ]
+   ]
+  }
+ }
+}

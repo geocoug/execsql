@@ -1,0 +1,46 @@
+{
+ "exit": 1,
+ "files": {
+  "out.txt": "written in sub\n",
+  "sub/t.csv": "a,b\n1,x\n2,y\n"
+ },
+ "recorded_with": "execsql 1.130.1",
+ "stderr": "**** Error in metacommand.\n     Line 5 of script script.sql\n     FileNotFoundError: [Errno 2] No such file or directory: '<DIR>/sub/script.sql'\n     EXPORT t TO t.csv AS CSV\n     Metacommand: EXPORT t TO t.csv AS CSV\n     Error occurred at <TIME>.\n",
+ "stdout": "",
+ "tables": {
+  "t": {
+   "columns": [
+    [
+     "a",
+     "INTEGER"
+    ],
+    [
+     "b",
+     "varchar"
+    ]
+   ],
+   "rows": [
+    [
+     [
+      "integer",
+      "1"
+     ],
+     [
+      "text",
+      "'x'"
+     ]
+    ],
+    [
+     [
+      "integer",
+      "2"
+     ],
+     [
+      "text",
+      "'y'"
+     ]
+    ]
+   ]
+  }
+ }
+}

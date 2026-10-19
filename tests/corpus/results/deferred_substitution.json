@@ -1,0 +1,39 @@
+{
+ "exit": 1,
+ "files": {
+  "halt.txt": ""
+ },
+ "recorded_with": "execsql 1.130.1",
+ "stderr": "**** Exception.\n     Line 11 of script script.sql\n     OperationalError: no such table: no_such_table\n     SQL statement: \n         select * from no_such_table;\n     Error occurred at <TIME>.\n",
+ "stdout": "",
+ "tables": {
+  "t": {
+   "columns": [
+    [
+     "n",
+     "INTEGER"
+    ]
+   ],
+   "rows": [
+    [
+     [
+      "integer",
+      "1"
+     ]
+    ],
+    [
+     [
+      "integer",
+      "2"
+     ]
+    ],
+    [
+     [
+      "integer",
+      "3"
+     ]
+    ]
+   ]
+  }
+ }
+}

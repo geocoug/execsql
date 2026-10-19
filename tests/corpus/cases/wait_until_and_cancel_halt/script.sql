@@ -1,0 +1,6 @@
+-- WAIT_UNTIL a condition that is already true, and CANCEL_HALT settings.
+-- !x! CANCEL_HALT OFF
+-- !x! WAIT_UNTIL IS_TRUE(yes) HALT AFTER 5 SECONDS
+-- !x! WRITE "waited" TO out.txt
+-- !x! CANCEL_HALT ON
+-- !x! WRITE "cancel_halt=!!$CANCEL_HALT_STATE!!" TO out.txt

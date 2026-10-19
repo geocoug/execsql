@@ -1,0 +1,33 @@
+{
+ "exit": 0,
+ "files": {
+  "out.txt": "sql error seen\nsql error cleared\nmetacommand error seen\n"
+ },
+ "recorded_with": "execsql 1.130.1",
+ "stderr": "",
+ "stdout": "",
+ "tables": {
+  "t": {
+   "columns": [
+    [
+     "id",
+     "INTEGER"
+    ]
+   ],
+   "rows": [
+    [
+     [
+      "integer",
+      "1"
+     ]
+    ],
+    [
+     [
+      "integer",
+      "2"
+     ]
+    ]
+   ]
+  }
+ }
+}

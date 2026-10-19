@@ -1,0 +1,39 @@
+{
+ "exit": 0,
+ "files": {
+  "out.txt": "rowcount after insert=3\nrowcount after update=2\nlast sql=update t set id = id + 10 where id > 1;\ndbms=SQLite alias=initial\nerror halt=ON autocommit=ON\nscript=script.sql line=10\ndatabase=SQLite(file t.db)\ncounter=1 1\n"
+ },
+ "recorded_with": "execsql 1.130.1",
+ "stderr": "",
+ "stdout": "",
+ "tables": {
+  "t": {
+   "columns": [
+    [
+     "id",
+     "INTEGER"
+    ]
+   ],
+   "rows": [
+    [
+     [
+      "integer",
+      "1"
+     ]
+    ],
+    [
+     [
+      "integer",
+      "12"
+     ]
+    ],
+    [
+     [
+      "integer",
+      "13"
+     ]
+    ]
+   ]
+  }
+ }
+}

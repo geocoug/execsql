@@ -1,0 +1,51 @@
+{
+ "exit": 0,
+ "files": {
+  "out.zip": {
+   "zip": {
+    "n.txt": "  n\n ---\n  2\n",
+    "note.txt": "a note\n",
+    "t.csv": "id,name\n1,a\n2,b\n"
+   }
+  }
+ },
+ "recorded_with": "execsql 1.130.1",
+ "stderr": "",
+ "stdout": "",
+ "tables": {
+  "t": {
+   "columns": [
+    [
+     "id",
+     "INTEGER"
+    ],
+    [
+     "name",
+     "TEXT"
+    ]
+   ],
+   "rows": [
+    [
+     [
+      "integer",
+      "1"
+     ],
+     [
+      "text",
+      "'a'"
+     ]
+    ],
+    [
+     [
+      "integer",
+      "2"
+     ],
+     [
+      "text",
+      "'b'"
+     ]
+    ]
+   ]
+  }
+ }
+}

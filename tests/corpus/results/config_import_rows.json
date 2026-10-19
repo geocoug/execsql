@@ -1,0 +1,145 @@
+{
+ "exit": 0,
+ "files": {},
+ "recorded_with": "execsql 1.130.1",
+ "stderr": "",
+ "stdout": "",
+ "tables": {
+  "newlines_replaced": {
+   "columns": [
+    [
+     "id,note",
+     "varchar"
+    ]
+   ],
+   "rows": [
+    [
+     [
+      "text",
+      "'1,\"line one'"
+     ]
+    ],
+    [
+     [
+      "text",
+      "'line two\"'"
+     ]
+    ],
+    [
+     [
+      "text",
+      "','"
+     ]
+    ],
+    [
+     [
+      "text",
+      "'2,plain'"
+     ]
+    ]
+   ]
+  },
+  "no_empty_rows": {
+   "columns": [
+    [
+     "id,note",
+     "varchar"
+    ]
+   ],
+   "rows": [
+    [
+     [
+      "text",
+      "'1,\"line one'"
+     ]
+    ],
+    [
+     [
+      "text",
+      "'line two\"'"
+     ]
+    ],
+    [
+     [
+      "text",
+      "','"
+     ]
+    ],
+    [
+     [
+      "text",
+      "'2,plain'"
+     ]
+    ]
+   ]
+  },
+  "only_strings": {
+   "columns": [
+    [
+     "id,note",
+     "varchar"
+    ]
+   ],
+   "rows": [
+    [
+     [
+      "text",
+      "'1,\"line one'"
+     ]
+    ],
+    [
+     [
+      "text",
+      "'line two\"'"
+     ]
+    ],
+    [
+     [
+      "text",
+      "','"
+     ]
+    ],
+    [
+     [
+      "text",
+      "'2,plain'"
+     ]
+    ]
+   ]
+  },
+  "small_max_int": {
+   "columns": [
+    [
+     "small",
+     "INTEGER"
+    ],
+    [
+     "big",
+     "hugeint"
+    ]
+   ],
+   "rows": [
+    [
+     [
+      "integer",
+      "5"
+     ],
+     [
+      "integer",
+      "500"
+     ]
+    ],
+    [
+     [
+      "integer",
+      "7"
+     ],
+     [
+      "integer",
+      "700"
+     ]
+    ]
+   ]
+  }
+ }
+}

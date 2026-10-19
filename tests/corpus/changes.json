@@ -313,12 +313,320 @@
    "why": "Upstream never applied TRIM_STRINGS to SQLite imports (divergence: 'SQLite import string processing'); execsql2 trims."
   }
  },
+ "cd_relative_paths": {
+  "exit": {
+   "execsql2": 0,
+   "status": "accepted",
+   "upstream": 1,
+   "why": "Upstream wrote a relative WRITE path in the starting directory after CD, and its EXPORT after CD failed looking for <DIR>/sub/script.sql; execsql2 resolves both against the current directory (divergence: 'WRITE after CD', 'EXPORT after CD')."
+  },
+  "files/out.txt": {
+   "execsql2": null,
+   "status": "accepted",
+   "upstream": "written in sub\n",
+   "why": "Upstream wrote a relative WRITE path in the starting directory after CD, and its EXPORT after CD failed looking for <DIR>/sub/script.sql; execsql2 resolves both against the current directory (divergence: 'WRITE after CD', 'EXPORT after CD')."
+  },
+  "files/sub/out.txt": {
+   "execsql2": "written in sub\n",
+   "status": "accepted",
+   "upstream": null,
+   "why": "Upstream wrote a relative WRITE path in the starting directory after CD, and its EXPORT after CD failed looking for <DIR>/sub/script.sql; execsql2 resolves both against the current directory (divergence: 'WRITE after CD', 'EXPORT after CD')."
+  },
+  "stderr": {
+   "execsql2": "",
+   "status": "accepted",
+   "upstream": "**** Error in metacommand.\n     Line 5 of script script.sql\n     FileNotFoundError: [Errno 2] No such file or directory: '<DIR>/sub/script.sql'\n     EXPORT t TO t.csv AS CSV\n     Metacommand: EXPORT t TO t.csv AS CSV\n     Error occurred at <TIME>.\n",
+   "why": "Upstream wrote a relative WRITE path in the starting directory after CD, and its EXPORT after CD failed looking for <DIR>/sub/script.sql; execsql2 resolves both against the current directory (divergence: 'WRITE after CD', 'EXPORT after CD')."
+  }
+ },
+ "config_column_headers": {
+  "stderr": {
+   "execsql2": "**** General error.\n     Line 16 of script script.sql\n     The input file duplicate_headers.csv has the following columns that are not in table folded:  First Name .\n     Metacommand: -- !x! IMPORT TO NEW folded FROM duplicate_headers.csv\n     Error occurred at <TIME>.\n",
+   "status": "open",
+   "upstream": "**** General error.\n     Line 16 of script script.sql\n     The input file duplicate_headers.csv has the following columns that are not in table folded:  First Name .\n     Metacommand: IMPORT TO NEW folded FROM duplicate_headers.csv\n     Error occurred at <TIME>.\n",
+   "why": "The error report names the metacommand with its '-- !x! ' prefix ('Metacommand: -- !x! IMPORT …'); upstream and execsql2's other error reports name it without. execsql2 bug."
+  }
+ },
+ "config_import_rows": {
+  "tables/newlines_replaced": {
+   "execsql2": {
+    "columns": [
+     [
+      "id",
+      "INTEGER"
+     ],
+     [
+      "note",
+      "varchar"
+     ]
+    ],
+    "rows": [
+     [
+      [
+       "integer",
+       "1"
+      ],
+      [
+       "text",
+       "'line one line two'"
+      ]
+     ],
+     [
+      [
+       "null",
+       "None"
+      ],
+      [
+       "null",
+       "None"
+      ]
+     ],
+     [
+      [
+       "integer",
+       "2"
+      ],
+      [
+       "text",
+       "'plain'"
+      ]
+     ]
+    ]
+   },
+   "status": "accepted",
+   "upstream": {
+    "columns": [
+     [
+      "id,note",
+      "varchar"
+     ]
+    ],
+    "rows": [
+     [
+      [
+       "text",
+       "'1,\"line one'"
+      ]
+     ],
+     [
+      [
+       "text",
+       "'line two\"'"
+      ]
+     ],
+     [
+      [
+       "text",
+       "','"
+      ]
+     ],
+     [
+      [
+       "text",
+       "'2,plain'"
+      ]
+     ]
+    ]
+   },
+   "why": "A delimited file with a line break inside a quoted value: upstream's delimiter detection found no delimiter and read every line as one column named 'id,note'; execsql2 reads the two columns (divergence: 'Line break inside a quoted value')."
+  },
+  "tables/no_empty_rows": {
+   "execsql2": {
+    "columns": [
+     [
+      "id",
+      "INTEGER"
+     ],
+     [
+      "note",
+      "varchar"
+     ]
+    ],
+    "rows": [
+     [
+      [
+       "integer",
+       "1"
+      ],
+      [
+       "text",
+       "'line one\\nline two'"
+      ]
+     ],
+     [
+      [
+       "integer",
+       "2"
+      ],
+      [
+       "text",
+       "'plain'"
+      ]
+     ]
+    ]
+   },
+   "status": "accepted",
+   "upstream": {
+    "columns": [
+     [
+      "id,note",
+      "varchar"
+     ]
+    ],
+    "rows": [
+     [
+      [
+       "text",
+       "'1,\"line one'"
+      ]
+     ],
+     [
+      [
+       "text",
+       "'line two\"'"
+      ]
+     ],
+     [
+      [
+       "text",
+       "','"
+      ]
+     ],
+     [
+      [
+       "text",
+       "'2,plain'"
+      ]
+     ]
+    ]
+   },
+   "why": "A delimited file with a line break inside a quoted value: upstream's delimiter detection found no delimiter and read every line as one column named 'id,note'; execsql2 reads the two columns (divergence: 'Line break inside a quoted value')."
+  },
+  "tables/only_strings": {
+   "execsql2": {
+    "columns": [
+     [
+      "id",
+      "varchar"
+     ],
+     [
+      "note",
+      "varchar"
+     ]
+    ],
+    "rows": [
+     [
+      [
+       "text",
+       "'1'"
+      ],
+      [
+       "text",
+       "'line one\\nline two'"
+      ]
+     ],
+     [
+      [
+       "null",
+       "None"
+      ],
+      [
+       "null",
+       "None"
+      ]
+     ],
+     [
+      [
+       "text",
+       "'2'"
+      ],
+      [
+       "text",
+       "'plain'"
+      ]
+     ]
+    ]
+   },
+   "status": "accepted",
+   "upstream": {
+    "columns": [
+     [
+      "id,note",
+      "varchar"
+     ]
+    ],
+    "rows": [
+     [
+      [
+       "text",
+       "'1,\"line one'"
+      ]
+     ],
+     [
+      [
+       "text",
+       "'line two\"'"
+      ]
+     ],
+     [
+      [
+       "text",
+       "','"
+      ]
+     ],
+     [
+      [
+       "text",
+       "'2,plain'"
+      ]
+     ]
+    ]
+   },
+   "why": "A delimited file with a line break inside a quoted value: upstream's delimiter detection found no delimiter and read every line as one column named 'id,note'; execsql2 reads the two columns (divergence: 'Line break inside a quoted value')."
+  }
+ },
  "decimal_digits": {
   "files/ddl.sql": {
    "execsql2": "CREATE TABLE short (\n    v double NOT NULL\n    );\nCREATE TABLE long (\n    v decimal(20,10) NOT NULL\n    );\n",
    "status": "accepted",
    "upstream": "CREATE TABLE short (\n    v double NOT NULL\n    );\nCREATE TABLE long (\n    v double NOT NULL\n    );\n",
    "why": "Decimals with different numbers of places are a double, as upstream, unless a value has more than 15 significant digits: a double cannot hold 1234567890.1234567891, so execsql2 keeps that column DECIMAL(20,10) where upstream cut the value (divergence: 'Mixed-scale decimals keep every digit')."
+  }
+ },
+ "deferred_substitution": {
+  "files/halt.txt": {
+   "execsql2": "failed at stage two\n",
+   "status": "accepted",
+   "upstream": "",
+   "why": "Upstream passed substitute_all's (text, flag) pair on as the text, so ON ERROR_HALT WRITE … TO <file> left the file empty; execsql2 writes the message (divergence: 'ON ERROR_HALT WRITE … TO a file wrote nothing')."
+  }
+ },
+ "error_flags": {
+  "exit": {
+   "execsql2": 1,
+   "status": "open",
+   "upstream": 0,
+   "why": "INCLUDE of a missing file with METACOMMAND_ERROR_HALT OFF stops execsql2 ('File missing.sql does not exist', exit 1, and the report's 'Metacommand:' is empty); upstream sets METACOMMAND_ERROR() and carries on. execsql2 bug."
+  },
+  "files/out.txt": {
+   "execsql2": "sql error seen\nsql error cleared\n",
+   "status": "open",
+   "upstream": "sql error seen\nsql error cleared\nmetacommand error seen\n",
+   "why": "INCLUDE of a missing file with METACOMMAND_ERROR_HALT OFF stops execsql2 ('File missing.sql does not exist', exit 1, and the report's 'Metacommand:' is empty); upstream sets METACOMMAND_ERROR() and carries on. execsql2 bug."
+  },
+  "stderr": {
+   "execsql2": "**** General error.\n     Line 11 of script script.sql\n     File missing.sql does not exist.\n     Metacommand: \n     Error occurred at <TIME>.\n",
+   "status": "open",
+   "upstream": "",
+   "why": "INCLUDE of a missing file with METACOMMAND_ERROR_HALT OFF stops execsql2 ('File missing.sql does not exist', exit 1, and the report's 'Metacommand:' is empty); upstream sets METACOMMAND_ERROR() and carries on. execsql2 bug."
+  }
+ },
+ "export_more_formats": {
+  "files/t.xml": {
+   "execsql2": "<?xml version='1.0' encoding='utf8'?>\n<t>\n  <row>\n    <id>1</id>\n    <name>Ann</name>\n    <note>has \"quotes\"</note>\n  </row>\n  <row>\n    <id>2</id>\n    <name>Bob</name>\n    <note></note>\n  </row>\n</t>\n",
+   "status": "accepted",
+   "upstream": "<?xml version='1.0' encoding='utf8'?>\n<t>\n  <row>\n    <id>1</id>\n    <name>Ann</name>\n    <note>has \"quotes\"</note>\n  </row>\n  <row>\n    <id>2</id>\n    <name>Bob</name>\n    <note>None</note>\n  </row>\n</t>\n",
+   "why": "Upstream wrote NULL as the word None in XML; execsql2 writes an empty element (divergence: 'XML export wrote NULL as the literal \"None\"')."
   }
  },
  "export_structured_formats": {
@@ -349,6 +657,14 @@
    "status": "accepted",
    "upstream": "",
    "why": "Upstream passed substitute_all's (text, flag) pair on as the text, so ON ERROR_HALT WRITE … TO <file> left the file empty; execsql2 writes the message (divergence: 'ON ERROR_HALT WRITE … TO a file wrote nothing')."
+  }
+ },
+ "script_extend_and_write": {
+  "files/first.sql": {
+   "execsql2": "-- !x! BEGIN SCRIPT first\ninsert into log values ('first');\ninsert into log values ('second');\n-- !x! WRITE \"extended\" TO out.txt\ninsert into log values ('extended sql');\n-- !x! END SCRIPT first\n",
+   "status": "accepted",
+   "upstream": "BEGIN SCRIPT first\ninsert into log values ('first');\ninsert into log values ('second');\n-- !x! WRITE \"extended\" TO out.txt\ninsert into log values ('extended sql');\nEND SCRIPT first\n",
+   "why": "WRITE SCRIPT writes the BEGIN SCRIPT / END SCRIPT lines as metacommands ('-- !x! BEGIN SCRIPT first'), so the file runs with INCLUDE; upstream wrote them bare, which a script would run as SQL (divergence: 'WRITE SCRIPT output')."
   }
  },
  "sub_backslash": {

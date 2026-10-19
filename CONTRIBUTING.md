@@ -75,7 +75,7 @@ uv run python -m tests.corpus.record my_new_case
 uv run pytest tests/corpus
 ```
 
-Use only syntax upstream accepts; read `_execsql/execsql.py` when unsure. A case must not open a GUI dialog (`HALT "message"`, `PROMPT`) or loop forever under upstream: both hang the recording. A difference from upstream fails the test unless `tests/corpus/changes.json` lists it with both values, a `status` (`accepted` for an upstream bug execsql2 fixed on purpose, `open` for one not yet decided) and the reason.
+Use only syntax upstream accepts; read `_execsql/execsql.py` when unsure. A case must not open a GUI dialog (`HALT "message"`, `PROMPT`) or loop forever under upstream: both hang the recording. Nor may it read a file it has just written (`FILE_EXISTS`, `ZIP`, `IMPORT` right after a `WRITE`): both programs write files in the background, so the result depends on timing; put such a file among the case's inputs instead. A difference from upstream fails the test unless `tests/corpus/changes.json` lists it with both values, a `status` (`accepted` for an upstream bug execsql2 fixed on purpose, `open` for one not yet decided) and the reason.
 
 ## Building the Docs
 
