@@ -1,0 +1,79 @@
+{
+ "exit": 0,
+ "files": {
+  "out.txt": "import to new existing table failed\nimport of a missing file failed\ncopy to new existing table failed\n"
+ },
+ "recorded_with": "execsql 1.130.1",
+ "stderr": "",
+ "stdout": "",
+ "tables": {
+  "t": {
+   "columns": [
+    [
+     "id",
+     "INTEGER"
+    ],
+    [
+     "name",
+     "varchar"
+    ]
+   ],
+   "rows": [
+    [
+     [
+      "integer",
+      "5"
+     ],
+     [
+      "text",
+      "'x'"
+     ]
+    ],
+    [
+     [
+      "integer",
+      "6"
+     ],
+     [
+      "text",
+      "'y'"
+     ]
+    ]
+   ]
+  },
+  "t2": {
+   "columns": [
+    [
+     "id",
+     "INTEGER"
+    ],
+    [
+     "name",
+     "varchar"
+    ]
+   ],
+   "rows": [
+    [
+     [
+      "integer",
+      "5"
+     ],
+     [
+      "text",
+      "'x'"
+     ]
+    ],
+    [
+     [
+      "integer",
+      "6"
+     ],
+     [
+      "text",
+      "'y'"
+     ]
+    ]
+   ]
+  }
+ }
+}

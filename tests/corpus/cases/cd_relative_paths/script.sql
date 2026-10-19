@@ -1,0 +1,5 @@
+-- CD changes the directory that relative paths are read and written in.
+-- !x! CD sub
+-- !x! IMPORT TO NEW t FROM data.csv
+-- !x! WRITE "written in sub" TO out.txt
+-- !x! EXPORT t TO t.csv AS CSV

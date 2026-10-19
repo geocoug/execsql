@@ -10,7 +10,8 @@ empty directory so no user configuration file is read.  What comes back:
 - ``stdout`` / ``stderr``: the console output.
 - ``files``: every file the run left in the working directory except the
   database, the copied inputs and ``execsql.log``, as text, as its tables
-  (an SQLite database a script created), or as base64 (other binary content).
+  (an SQLite database a script created), as its members' names and contents
+  (a zip file), or as base64 (other binary content).
 - ``tables``: every table in ``t.db``: its columns with their declared
   types, and its rows in insertion order, each value as ``[typeof, repr]``
   so a ``1`` stored as text differs from a ``1`` stored as an integer.
@@ -38,6 +39,7 @@ import re
 import shutil
 import sqlite3
 import subprocess
+import zipfile
 from pathlib import Path
 from typing import Any
 
@@ -97,6 +99,10 @@ def run_case(case: str, command: list[str], workdir: Path, *, timeout: int = 30)
         if not path.is_file() or rel in inputs or str(rel) in _SKIPPED_FILES:
             continue
         data = path.read_bytes()
+        if zipfile.is_zipfile(path):
+            # Compared by content: a zip entry carries the time it was written.
+            files[rel.as_posix()] = {"zip": _zip_members(path, clean)}
+            continue
         if data.startswith(_SQLITE_HEADER):
             # Compared by content: the file's bytes depend on the SQLite build.
             files[rel.as_posix()] = {"sqlite": _tables(path)}
@@ -112,6 +118,18 @@ def run_case(case: str, command: list[str], workdir: Path, *, timeout: int = 30)
         "files": files,
         "tables": _tables(workdir / DB_NAME),
     }
+
+
+def _zip_members(path: Path, clean: Any) -> dict[str, Any]:
+    members: dict[str, Any] = {}
+    with zipfile.ZipFile(path) as zf:
+        for name in sorted(zf.namelist()):
+            data = zf.read(name)
+            try:
+                members[name] = clean(data.decode("utf-8"))
+            except UnicodeDecodeError:
+                members[name] = {"base64": base64.b64encode(data).decode("ascii")}
+    return members
 
 
 def _quote(identifier: str) -> str:

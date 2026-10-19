@@ -1,0 +1,12 @@
+-- Settings that change how imported rows and values are read.
+-- !x! CONFIG EMPTY_ROWS NO
+-- !x! IMPORT TO NEW no_empty_rows FROM rows.csv
+-- !x! CONFIG EMPTY_ROWS YES
+-- !x! CONFIG REPLACE_NEWLINES YES
+-- !x! IMPORT TO NEW newlines_replaced FROM rows.csv
+-- !x! CONFIG REPLACE_NEWLINES NO
+-- !x! CONFIG ONLY_STRINGS YES
+-- !x! IMPORT TO NEW only_strings FROM rows.csv
+-- !x! CONFIG ONLY_STRINGS NO
+-- !x! MAX_INT 100
+-- !x! IMPORT TO NEW small_max_int FROM numbers.csv

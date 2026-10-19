@@ -1,0 +1,5 @@
+-- SUB_INI reads variables from a section of an INI file.
+-- !x! SUB_INI FILE settings.ini SECTION vars
+-- !x! WRITE "region=!!region!! year=!!year!!" TO out.txt
+-- !x! SUB_INI settings.ini other
+-- !x! WRITE "flag=!!flag!!" TO out.txt

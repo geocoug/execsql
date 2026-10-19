@@ -1,0 +1,16 @@
+-- Settings that clean, create, delete, fold, trim and deduplicate column headers on IMPORT.
+-- !x! CONFIG CLEAN_COLUMN_HEADERS YES
+-- !x! IMPORT TO NEW cleaned FROM headers.csv
+-- !x! CONFIG CLEAN_COLUMN_HEADERS NO
+-- !x! CONFIG CREATE_COLUMN_HEADERS YES
+-- !x! IMPORT TO NEW created FROM missing_headers.csv
+-- !x! CONFIG CREATE_COLUMN_HEADERS NO
+-- !x! CONFIG DELETE_EMPTY_COLUMNS YES
+-- !x! IMPORT TO NEW deleted_empty FROM empty_column.csv
+-- !x! CONFIG DELETE_EMPTY_COLUMNS NO
+-- Last, because upstream stops here: it creates the table with the folded,
+-- trimmed names, then looks for the file's original " First Name " in it.
+-- !x! CONFIG FOLD_COLUMN_HEADERS LOWER
+-- !x! CONFIG TRIM_COLUMN_HEADERS BOTH
+-- !x! CONFIG DEDUP_COLUMN_HEADERS YES
+-- !x! IMPORT TO NEW folded FROM duplicate_headers.csv

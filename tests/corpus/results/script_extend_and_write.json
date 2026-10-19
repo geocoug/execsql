@@ -1,0 +1,40 @@
+{
+ "exit": 0,
+ "files": {
+  "first.sql": "BEGIN SCRIPT first\ninsert into log values ('first');\ninsert into log values ('second');\n-- !x! WRITE \"extended\" TO out.txt\ninsert into log values ('extended sql');\nEND SCRIPT first\n",
+  "out.txt": "extended\nafter missing script\n"
+ },
+ "recorded_with": "execsql 1.130.1",
+ "stderr": "",
+ "stdout": "",
+ "tables": {
+  "log": {
+   "columns": [
+    [
+     "msg",
+     "TEXT"
+    ]
+   ],
+   "rows": [
+    [
+     [
+      "text",
+      "'first'"
+     ]
+    ],
+    [
+     [
+      "text",
+      "'second'"
+     ]
+    ],
+    [
+     [
+      "text",
+      "'extended sql'"
+     ]
+    ]
+   ]
+  }
+ }
+}

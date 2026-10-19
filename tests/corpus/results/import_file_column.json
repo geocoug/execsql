@@ -1,0 +1,25 @@
+{
+ "exit": 0,
+ "files": {},
+ "recorded_with": "execsql 1.130.1",
+ "stderr": "",
+ "stdout": "",
+ "tables": {
+  "docs": {
+   "columns": [
+    [
+     "body",
+     "TEXT"
+    ]
+   ],
+   "rows": [
+    [
+     [
+      "blob",
+      "b'first line\\nsecond line\\n'"
+     ]
+    ]
+   ]
+  }
+ }
+}

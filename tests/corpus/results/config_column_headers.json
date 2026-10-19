@@ -1,0 +1,150 @@
+{
+ "exit": 1,
+ "files": {},
+ "recorded_with": "execsql 1.130.1",
+ "stderr": "**** General error.\n     Line 16 of script script.sql\n     The input file duplicate_headers.csv has the following columns that are not in table folded:  First Name .\n     Metacommand: IMPORT TO NEW folded FROM duplicate_headers.csv\n     Error occurred at <TIME>.\n",
+ "stdout": "",
+ "tables": {
+  "cleaned": {
+   "columns": [
+    [
+     "First_Name",
+     "varchar"
+    ],
+    [
+     "Last_Name",
+     "varchar"
+    ],
+    [
+     "Amount_",
+     "INTEGER"
+    ]
+   ],
+   "rows": [
+    [
+     [
+      "text",
+      "'Ann'"
+     ],
+     [
+      "text",
+      "'Lee'"
+     ],
+     [
+      "integer",
+      "1"
+     ]
+    ],
+    [
+     [
+      "text",
+      "'Bob'"
+     ],
+     [
+      "text",
+      "'Ray'"
+     ],
+     [
+      "integer",
+      "3"
+     ]
+    ]
+   ]
+  },
+  "created": {
+   "columns": [
+    [
+     "a",
+     "boolean"
+    ],
+    [
+     "Col2",
+     "INTEGER"
+    ],
+    [
+     "c",
+     "INTEGER"
+    ]
+   ],
+   "rows": [
+    [
+     [
+      "integer",
+      "1"
+     ],
+     [
+      "integer",
+      "2"
+     ],
+     [
+      "integer",
+      "3"
+     ]
+    ]
+   ]
+  },
+  "deleted_empty": {
+   "columns": [
+    [
+     "a",
+     "INTEGER"
+    ],
+    [
+     "b",
+     "varchar"
+    ],
+    [
+     "c",
+     "INTEGER"
+    ]
+   ],
+   "rows": [
+    [
+     [
+      "integer",
+      "1"
+     ],
+     [
+      "null",
+      "None"
+     ],
+     [
+      "integer",
+      "3"
+     ]
+    ],
+    [
+     [
+      "integer",
+      "2"
+     ],
+     [
+      "null",
+      "None"
+     ],
+     [
+      "integer",
+      "4"
+     ]
+    ]
+   ]
+  },
+  "folded": {
+   "columns": [
+    [
+     "First Name",
+     "varchar"
+    ],
+    [
+     "LAST",
+     "varchar"
+    ],
+    [
+     "last_3",
+     "INTEGER"
+    ]
+   ],
+   "rows": []
+  }
+ }
+}

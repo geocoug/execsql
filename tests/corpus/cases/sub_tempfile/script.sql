@@ -1,0 +1,6 @@
+-- SUB_TEMPFILE defines a variable naming a temporary file.  (Whether the
+-- file exists right after a WRITE depends on upstream's background writer,
+-- and its path is the machine's temp directory, so neither is compared.)
+-- !x! SUB_TEMPFILE tmp
+-- !x! IF (SUB_DEFINED(tmp)) { WRITE "tmp is defined" TO out.txt }
+-- !x! IF (NOT IS_NULL("!!tmp!!")) { WRITE "tmp is not empty" TO out.txt }

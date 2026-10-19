@@ -1,0 +1,5 @@
+-- SUB_ENCRYPT then SUB_DECRYPT gives the original text back.
+-- !x! SUB_ENCRYPT secret s3cr3t value
+-- !x! SUB_DECRYPT plain !!secret!!
+-- !x! WRITE "plain=!!plain!!" TO out.txt
+-- !x! IF (NOT EQUAL("!!secret!!", "s3cr3t value")) { WRITE "encrypted differs from plain" TO out.txt }

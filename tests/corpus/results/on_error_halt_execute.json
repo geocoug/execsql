@@ -1,0 +1,27 @@
+{
+ "exit": 1,
+ "files": {
+  "cleanup.txt": "cleanup ran\n"
+ },
+ "recorded_with": "execsql 1.130.1",
+ "stderr": "**** Exception.\n     Line 8 of script script.sql\n     OperationalError: no such table: no_such_table\n     SQL statement: \n         insert into no_such_table values (1);\n     Error occurred at <TIME>.\n",
+ "stdout": "",
+ "tables": {
+  "log": {
+   "columns": [
+    [
+     "msg",
+     "TEXT"
+    ]
+   ],
+   "rows": [
+    [
+     [
+      "text",
+      "'before'"
+     ]
+    ]
+   ]
+  }
+ }
+}

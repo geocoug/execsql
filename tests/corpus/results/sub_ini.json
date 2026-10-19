@@ -1,0 +1,10 @@
+{
+ "exit": 0,
+ "files": {
+  "out.txt": "region=north year=2024\nflag=on\n"
+ },
+ "recorded_with": "execsql 1.130.1",
+ "stderr": "",
+ "stdout": "",
+ "tables": {}
+}

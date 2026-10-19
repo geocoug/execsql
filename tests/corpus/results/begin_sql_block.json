@@ -1,0 +1,53 @@
+{
+ "exit": 0,
+ "files": {},
+ "recorded_with": "execsql 1.130.1",
+ "stderr": "",
+ "stdout": "",
+ "tables": {
+  "audit": {
+   "columns": [
+    [
+     "msg",
+     "TEXT"
+    ]
+   ],
+   "rows": [
+    [
+     [
+      "text",
+      "'inserted a'"
+     ]
+    ],
+    [
+     [
+      "text",
+      "'inserted b'"
+     ]
+    ]
+   ]
+  },
+  "t": {
+   "columns": [
+    [
+     "v",
+     "TEXT"
+    ]
+   ],
+   "rows": [
+    [
+     [
+      "text",
+      "'a'"
+     ]
+    ],
+    [
+     [
+      "text",
+      "'b'"
+     ]
+    ]
+   ]
+  }
+ }
+}
