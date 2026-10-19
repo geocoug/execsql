@@ -1,0 +1,8 @@
+{
+ "exit": 1,
+ "files": {},
+ "recorded_with": "execsql 1.130.1",
+ "stderr": "**** Exception.\n     Line 4 of script script.sql\n     CondParserError: Conditional expression parser did not consume entire string; remainder = _SUCH_FN(x).\n     Metacommand: EXECUTE SCRIPT s WHILE (NO_SUCH_FN(x))\n     Error occurred at <TIME>.\n",
+ "stdout": "",
+ "tables": {}
+}

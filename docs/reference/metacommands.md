@@ -989,7 +989,7 @@ ERROR_HALT ON|OFF
 ```
 
 
-When ERROR_HALT is set to ON, which is the default, any errors that occur as a result of executing a SQL statement will cause an error message to be displayed immediately, and *execsql* will exit. When ERROR_HALT is set to OFF, then SQL errors will be ignored, but can be evaluated with the [IF SQL_ERROR](#sqlerror) conditional.
+When ERROR_HALT is set to ON, which is the default, any errors that occur as a result of executing a SQL statement will cause an error message to be displayed immediately, and *execsql* will exit. When ERROR_HALT is set to OFF, then SQL errors will be ignored, but can be evaluated with the [IF SQL_ERROR](#sqlerror) conditional. A test in an `IF`, `LOOP` or other condition that fails in the database (`HASROWS(no_such_table)`) is not ignored: it stops the run, because no branch can be chosen (see [METACOMMAND_ERROR_HALT](#metacommanderrorhalt)).
 
 When ERROR_HALT is set to OFF inside a transaction, any SQL error will ordinarily cause the entire transaction to fail.
 
@@ -2144,6 +2144,8 @@ METACOMMAND_ERROR_HALT ON|OFF
 ```
 
 When METACOMMAND_ERROR_HALT is set to ON, which is the default, any errors that occur during execution of a metacommand will cause an error message to be displayed immediately, and *execsql* to halt. When METACOMMAND_ERROR_HALT is set to OFF, then metacommand errors will be ignored, but can be evaluated with the [IF METACOMMAND_ERROR](#metacommanderror) conditional; `$LAST_ERROR` and `$ERROR_MESSAGE` hold the failed metacommand and its message.
+
+A condition that cannot be evaluated is not covered by this setting: an `IF`, `ELSEIF`, `ANDIF`, `ORIF`, `LOOP` or `EXECUTE SCRIPT … WHILE` / `UNTIL` whose condition names an unknown test or is malformed (`IF (NO_SUCH_FN(x))`), or whose test fails in the database (`HASROWS(no_such_table)`), stops the run even with METACOMMAND_ERROR_HALT OFF, because no branch can be chosen. `execsql lint` reports an unknown test or malformed condition before a run (P004); a test that fails in the database shows up only when the script runs.
 
 The METACOMMAND_ERROR_HALT metacommand does not itself set or reset the internal flag that indicates whether a metacommand has encountered an error. This is so that a "METACOMMAND_ERROR_HALT Off" command can be used immediately after a potentially-failing metacommand and not alter the error flag that is set by the previous command. Specifically, constructions like this:
 
