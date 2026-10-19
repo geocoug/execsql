@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.36.0] - 2026-10-19
+
 ### Changed
 
 - **`execsql.run()` from a notebook, the REPL or `python -c`** runs `IMPORT` and `COPY` about four times as fast: reading execsql's settings there cost about 12 µs each time, now 0.1 µs (a 200,000-row column scan went from 3.5 s to 0.8 s). The `execsql` command gets a smaller gain.
