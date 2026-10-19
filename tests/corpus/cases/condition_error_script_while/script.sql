@@ -1,0 +1,8 @@
+-- EXECUTE SCRIPT ... WHILE with a condition that cannot be evaluated, with
+-- METACOMMAND_ERROR_HALT OFF.
+-- !x! BEGIN SCRIPT s
+-- !x! WRITE "in s" TO out.txt
+-- !x! END SCRIPT
+-- !x! METACOMMAND_ERROR_HALT OFF
+-- !x! EXECUTE SCRIPT s WHILE (NO_SUCH_FN(x))
+-- !x! WRITE "after EXECUTE SCRIPT" TO out.txt

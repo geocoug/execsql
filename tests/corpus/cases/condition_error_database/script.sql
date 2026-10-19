@@ -1,0 +1,6 @@
+-- A condition whose test fails in the database, with METACOMMAND_ERROR_HALT
+-- OFF and ERROR_HALT OFF.
+-- !x! METACOMMAND_ERROR_HALT OFF
+-- !x! ERROR_HALT OFF
+-- !x! IF (HASROWS(no_such_table)) { WRITE "inline body" TO out.txt }
+-- !x! WRITE "after HASROWS" TO out.txt

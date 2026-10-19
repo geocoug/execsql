@@ -1,0 +1,20 @@
+-- A block IF whose condition cannot be evaluated, with METACOMMAND_ERROR_HALT
+-- OFF: a top-level one, then one inside another IF.
+-- !x! METACOMMAND_ERROR_HALT OFF
+-- !x! IF (NO_SUCH_FN(x))
+-- !x! WRITE "if body" TO out.txt
+-- !x! ELSE
+-- !x! WRITE "else body" TO out.txt
+-- !x! ENDIF
+-- !x! WRITE "after top-level IF" TO out.txt
+-- !x! IF (TRUE)
+-- !x! IF (NO_SUCH_FN(x))
+-- !x! WRITE "nested if body" TO out.txt
+-- !x! ELSE
+-- !x! WRITE "nested else body" TO out.txt
+-- !x! ENDIF
+-- !x! WRITE "still in outer IF" TO out.txt
+-- !x! ELSE
+-- !x! WRITE "outer else body" TO out.txt
+-- !x! ENDIF
+-- !x! WRITE "after nested IF" TO out.txt
