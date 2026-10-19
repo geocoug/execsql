@@ -11,6 +11,14 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Added
+
+- **`exact_decimals`** (`[input]`) and **`CONFIG EXACT_DECIMALS YES|NO`**: with Yes, `IMPORT` and `COPY … TO NEW` give a column of decimals with different numbers of places an exact `DECIMAL(p,s)` type instead of a floating-point one.
+
+### Changed
+
+- **A column of decimals with different numbers of places** (`1.50`, `2`, `-3.25`) gets a floating-point type again when `IMPORT` or `COPY … TO NEW` creates a table (it was `DECIMAL(p,s)` from 2.22.0). A column with a value of more than 15 significant digits stays `DECIMAL(p,s)`, so no digit is lost. Set `exact_decimals` to keep every such column exact.
+
 ### Fixed
 
 - **The "potential un-substituted variable" warning** is printed only when `write_warnings` is on, to stderr as `**** Warning …`, as documented; it was printed to stdout for every command with an undefined `!!var!!`. It is always written to `execsql.log`.

@@ -1,0 +1,3 @@
+-- The column type IMPORT gives decimals with different numbers of places.
+-- !x! WRITE CREATE_TABLE short FROM short.csv TO ddl.sql
+-- !x! WRITE CREATE_TABLE long FROM long.csv TO ddl.sql

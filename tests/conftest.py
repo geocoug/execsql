@@ -38,6 +38,7 @@ def minimal_conf():
         max_int=2_147_483_647,
         # Column / DataTable
         only_strings=False,
+        exact_decimals=False,
         trim_strings=False,
         replace_newlines=False,
         empty_strings=True,

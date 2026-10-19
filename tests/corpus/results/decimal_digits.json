@@ -1,0 +1,10 @@
+{
+ "exit": 0,
+ "files": {
+  "ddl.sql": "CREATE TABLE short (\n    v double NOT NULL\n    );\nCREATE TABLE long (\n    v double NOT NULL\n    );\n"
+ },
+ "recorded_with": "execsql 1.130.1",
+ "stderr": "",
+ "stdout": "",
+ "tables": {}
+}

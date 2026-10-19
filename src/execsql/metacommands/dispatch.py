@@ -64,6 +64,7 @@ from execsql.metacommands.data import (
     x_dedup_col_hdrs,
     x_empty_rows,
     x_empty_strings,
+    x_exact_decimals,
     x_fold_col_hdrs,
     x_import_common_cols_only,
     x_max_int,
@@ -766,6 +767,12 @@ def build_dispatch_table() -> MetaCommandList:
         r"^\s*CONFIG\s+EMPTY_ROWS\s+(?P<yesno>YES|NO|ON|OFF|TRUE|FALSE|0|1)\s*$",
         x_empty_rows,
         description="EMPTY_ROWS",
+        category="config_option",
+    )
+    mcl.add(
+        r"^\s*CONFIG\s+EXACT_DECIMALS\s+(?P<yesno>YES|NO|ON|OFF|TRUE|FALSE|0|1)\s*$",
+        x_exact_decimals,
+        description="EXACT_DECIMALS",
         category="config_option",
     )
     mcl.add(

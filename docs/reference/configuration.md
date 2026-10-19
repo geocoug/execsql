@@ -141,6 +141,10 @@ The section and property names that may be used in a configuration file are list
 
 :   Determines whether empty strings in the input are preserved or, alternatively, will be replaced by NULL. The property value should be either "Yes" or "No". The default, "Yes", indicates that empty strings are allowed. A value of "No" will cause all empty strings to be replaced by NULL. When this is set to "No", a string value consisting of a sequence of zero or more space characters will be considered to be an empty string. There is no command-line option corresponding to this configuration parameter, but the metacommand [CONFIG EMPTY_STRINGS](metacommands.md#empty_strings) can also be used to change this configuration item.
 
+`exact_decimals`
+
+:   Determines the data type of a column of decimal numbers with different numbers of decimal places, such as `1.50`, `2` and `-3.25`, when the [IMPORT](metacommands.md#import) or [COPY](metacommands.md#copy) metacommand creates a table. The default, "No", gives such a column a floating-point type (`double precision` on PostgreSQL, `double` on MySQL and DuckDB, `float` on SQL Server), unless a value has more than 15 significant digits, which a floating-point column cannot hold exactly: then the column is an exact decimal, so no digit is lost. "Yes" always gives such a column an exact decimal type wide enough for every value (`numeric(3,2)` for those values), for values such as money amounts that should be stored and compared exactly. A column whose values all have the same number of decimal places is an exact decimal either way. The metacommand [CONFIG EXACT_DECIMALS](metacommands.md#exact_decimals) can also be used to change this configuration item.
+
 `fold_column_headers` { #setting_fold_column_headers }
 
 :   Whether or not to fold (convert) the case of all column headers to lowercase or uppercase, or to leave them unchanged when data are [IMPORTed](metacommands.md#import). Valid values are "No" (the default), "Lower", and "Upper". Case does not matter in the specification.

@@ -597,6 +597,21 @@ CONFIG MAX_INT <integer_value>
 Specifies the threshold between integer and bigint data types that is used by the [IMPORT](#import) and [COPY](#copy) metacommands when creating a new table. Any column with integer values less than or equal to this value (max_int) and greater than or equal to -1 × max_int - 1 will be considered to have an integer type. Any column with values outside this range will be considered to have a bigint type. The default value for max_int is 2147483647. The max_int value can also be altered using a configuration option. The bare form `MAX_INT <integer_value>`, without `CONFIG`, does the same.
 
 
+<a id="exact_decimals"></a>
+```
+CONFIG EXACT_DECIMALS YES|NO
+```
+
+Controls the data type the [IMPORT](#import) and [COPY](#copy) metacommands give a column of decimal numbers with different numbers of decimal places when they create a table. With "No" (the default), `1.50`, `2` and `-3.25` make a floating-point column; a column with a value of more than 15 significant digits, such as `1234567890.1234567891`, is an exact decimal even then, because a floating-point column would cut it. With "Yes" every such column is an exact decimal wide enough for every value, `numeric(3,2)` for the first example:
+
+```
+-- !x! CONFIG EXACT_DECIMALS YES
+-- !x! IMPORT TO NEW payments FROM payments.csv
+```
+
+A column whose values all have the same number of decimal places is an exact decimal either way. This can also be set with the `exact_decimals` [configuration setting](configuration.md#config_input).
+
+
 ```
 CONFIG ONLY_STRINGS YES|NO
 ```

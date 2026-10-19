@@ -102,13 +102,13 @@ class TestColumn:
         name, dt, *_ = col.column_type()
         assert dt is DT_Text
 
-    def test_integer_and_decimal_resolves_to_decimal(self):
+    def test_integer_and_decimal_resolves_to_float(self):
         col = Column("mixed")
         col.eval_types("1")
         col.eval_types("2.5")
         col.eval_types("3")
         name, dt, *_ = col.column_type()
-        assert dt is DT_Decimal
+        assert dt is DT_Float
 
     def test_whitespace_name_stripped(self):
         col = Column("  spaced  ")
@@ -363,45 +363,67 @@ class TestColumnInferStrings:
 
 
 class TestColumnMixedScaleDecimal:
-    """Mixed-scale decimal columns must infer NUMERIC, not fall through to float."""
+    """Decimals with different scales: a float, unless a double would lose digits or exact_decimals is on."""
 
-    def test_mixed_scale_infers_decimal_not_float(self):
+    @pytest.mark.parametrize("values", [["1.2", "3.45", "6.789"], ["9.99", "99.9"], ["1", "2.5", "3"]])
+    def test_mixed_scale_is_a_float_by_default(self, values):
         col = Column("amount")
-        for v in ["1.2", "3.45", "6.789"]:
+        for v in values:
             col.eval_types(v)
-        _, dt, _, _, prec, scale = col.column_type()
-        assert dt is DT_Decimal
-        assert scale == 3
-        assert prec == 4  # max_int_digits(1) + max_scale(3)
+        assert col.column_type()[1] is DT_Float
 
-    def test_same_scale_still_works(self):
+    @pytest.mark.parametrize(
+        ("values", "precision", "scale"),
+        [
+            (["1234567890.1234567891", "1.5"], 20, 10),
+            (["1234567890123.456", "1.5"], 16, 3),  # 16 digits: one more than a double holds exactly
+        ],
+    )
+    def test_mixed_scale_stays_a_decimal_when_a_double_would_lose_digits(self, values, precision, scale):
+        col = Column("amount")
+        for v in values:
+            col.eval_types(v)
+        _, dt, _, _, prec, sc = col.column_type()
+        assert (dt, prec, sc) == (DT_Decimal, precision, scale)
+
+    def test_fifteen_digits_fit_in_a_double(self):
+        col = Column("amount")
+        for v in ["123456789012.345", "1.5"]:
+            col.eval_types(v)
+        assert col.column_type()[1] is DT_Float
+
+    def test_database_decimals_that_a_double_would_cut_stay_decimal(self):
+        from decimal import Decimal
+
+        col = Column("amount", infer_strings=False)
+        for v in [Decimal("1234567890.1234567891"), Decimal("1.5")]:
+            col.eval_types(v)
+        assert col.column_type()[1] is DT_Decimal
+
+    @pytest.mark.parametrize("exact", [False, True])
+    def test_same_scale_is_a_decimal_either_way(self, minimal_conf, exact):
+        minimal_conf.exact_decimals = exact
         col = Column("price")
         for v in ["12.34", "56.78", "90.12"]:
             col.eval_types(v)
         _, dt, _, _, prec, scale = col.column_type()
-        assert dt is DT_Decimal
-        assert scale == 2
-        assert prec == 4  # max_int_digits(2) + max_scale(2)
+        assert (dt, prec, scale) == (DT_Decimal, 4, 2)
 
-    def test_precision_accounts_for_varying_int_digits(self):
-        # "9.99" (int=1, scale=2) + "99.9" (int=2, scale=1) → NUMERIC(4,2)
-        col = Column("val")
-        for v in ["9.99", "99.9"]:
+    @pytest.mark.parametrize(
+        ("values", "precision", "scale"),
+        [
+            (["1.2", "3.45", "6.789"], 4, 3),  # one integer digit, up to three places
+            (["9.99", "99.9"], 4, 2),  # up to two integer digits and two places
+            (["1", "2.5", "3"], 2, 1),
+        ],
+    )
+    def test_mixed_scale_with_exact_decimals_is_a_decimal_wide_enough(self, minimal_conf, values, precision, scale):
+        minimal_conf.exact_decimals = True
+        col = Column("amount")
+        for v in values:
             col.eval_types(v)
-        _, dt, _, _, prec, scale = col.column_type()
-        assert dt is DT_Decimal
-        assert scale == 2
-        assert prec == 4  # max_int_digits(2) + max_scale(2)
-
-    def test_integer_string_with_decimal_string(self):
-        # "1" (scale=0) + "2.5" (scale=1) + "3" (scale=0) → NUMERIC(2,1)
-        col = Column("n")
-        for v in ["1", "2.5", "3"]:
-            col.eval_types(v)
-        _, dt, _, _, prec, scale = col.column_type()
-        assert dt is DT_Decimal
-        assert scale == 1
-        assert prec == 2  # max_int_digits(1) + max_scale(1)
+        _, dt, _, _, prec, sc = col.column_type()
+        assert (dt, prec, sc) == (DT_Decimal, precision, scale)
 
 
 class TestScanCost:

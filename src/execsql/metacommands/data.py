@@ -21,7 +21,7 @@ What's actually here:
   ``x_set_counter``.
 - IMPORT / scanning configuration metacommands (the ``CONFIG …`` form):
   ``x_empty_strings``, ``x_trim_strings``, ``x_replace_newlines``,
-  ``x_empty_rows``, ``x_only_strings``, ``x_boolean_int``,
+  ``x_empty_rows``, ``x_exact_decimals``, ``x_only_strings``, ``x_boolean_int``,
   ``x_boolean_words``, ``x_fold_col_hdrs``, ``x_trim_col_hdrs``,
   ``x_clean_col_hdrs``, ``x_del_empty_cols``, ``x_create_col_hdrs``,
   ``x_dedup_col_hdrs``, ``x_import_common_cols_only``, ``x_max_int``.
@@ -298,6 +298,12 @@ def x_empty_rows(**kwargs: Any) -> None:
 def x_only_strings(**kwargs: Any) -> None:
     flag = kwargs["yesno"].lower()
     _state.conf.only_strings = flag in ("yes", "on", "true", "1")
+    return None
+
+
+def x_exact_decimals(**kwargs: Any) -> None:
+    flag = kwargs["yesno"].lower()
+    _state.conf.exact_decimals = flag in ("yes", "on", "true", "1")
     return None
 
 

@@ -115,6 +115,13 @@
 # Values: Yes or No.  Default: Yes.
 #empty_strings=Yes
 
+# Whether a column of decimal numbers with different numbers of decimal places
+# (1.5, 2.25) gets an exact DECIMAL(precision, scale) type when IMPORT or COPY
+# creates a table.  With No it gets a floating-point type, unless a value has
+# more than 15 significant digits (then it is DECIMAL, so no digit is lost).
+# Values: Yes or No.  Default: No.
+#exact_decimals=No
+
 # Whether to fold column headers to lowercase, uppercase, or leave unchanged.
 # Values: No, Lower, or Upper.  Default: No.
 #fold_column_headers=No

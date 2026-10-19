@@ -178,6 +178,7 @@ class _LibraryConfig:
         self.boolean_int = True
         self.boolean_words = False
         self.empty_strings = True
+        self.exact_decimals = False
         self.only_strings = False
         self.empty_rows = True
         self.del_empty_cols = False

@@ -49,6 +49,10 @@ __all__ = [
 
 ColumnType = tuple[str, type[DataType], int | None, bool, int | None, int | None]
 
+# Every decimal of up to this many significant digits reads back unchanged
+# from an IEEE double (DBL_DIG).
+_DOUBLE_EXACT_DIGITS = 15
+
 
 def _text_length(value: Any) -> int:
     """Return the length of *value* written as text (a column may turn out to be text)."""
@@ -71,9 +75,14 @@ class Column:
         """Accumulate match counts and length statistics for a single data type."""
 
         # Accumulates the count of matches for each data type, plus the maximum length if appropriate.
-        def __init__(self, data_type_obj: DataType) -> None:
-            """Initialise the accumulator for the given data type."""
+        def __init__(self, data_type_obj: DataType, *, exact_decimals: bool = False) -> None:
+            """Initialise the accumulator for the given data type.
+
+            *exact_decimals*: the ``exact_decimals`` setting; see
+            :meth:`chooses_float`.
+            """
             self.dt = data_type_obj
+            self.exact_decimals = exact_decimals
             self.failed = False
             self.count = 0
             self.maxlen = 0
@@ -127,6 +136,23 @@ class Column:
                     self.maxscale = max(self.dt.scale, self.maxscale)
                     self.max_int_digits = max(int_digits, self.max_int_digits)
 
+        def chooses_float(self) -> bool:
+            """Whether a decimal column gives way to a float column.
+
+            A column of decimals with different scales (``1.50``, ``2``,
+            ``-3.25``) is a float unless the ``exact_decimals`` setting is on,
+            or a value has more digits than a double holds exactly: every
+            decimal of up to 15 significant digits reads back unchanged from
+            a double, so such a column loses nothing, and a longer one
+            (``1234567890.1234567891``) stays ``DECIMAL(p, s)``.
+            """
+            return (
+                self.varscale
+                and not self.exact_decimals
+                and self.maxprecision is not None
+                and self.maxprecision <= _DOUBLE_EXACT_DIGITS
+            )
+
     def __init__(self, colname: str, infer_strings: bool = True) -> None:
         """Create a column characteriser for the named column.
 
@@ -169,7 +195,7 @@ class Column:
                 self.Accum(DT_Boolean()),
                 self.Accum(DT_Integer()),
                 self.Accum(DT_Long()),
-                self.Accum(DT_Decimal()),
+                self.Accum(DT_Decimal(), exact_decimals=conf.exact_decimals),
                 self.Accum(DT_Float()),
                 self.Accum(DT_Character()),
                 self.Accum(DT_Varchar()),
@@ -262,7 +288,7 @@ class Column:
                                 break
                     else:
                         if ac.dt.precspec:
-                            if ac.dt.precision is not None and ac.dt.scale is not None:
+                            if ac.dt.precision is not None and ac.dt.scale is not None and not ac.chooses_float():
                                 sel_type = ac
                                 break
                         else:
