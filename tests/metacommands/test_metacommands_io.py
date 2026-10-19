@@ -310,7 +310,7 @@ class TestXInclude:
         """x_include raises because INCLUDE is handled by the AST executor."""
         from execsql.metacommands.io import x_include
 
-        with pytest.raises(ErrInfo, match="AST executor"):
+        with pytest.raises(ErrInfo, match="substitution variable supplies"):
             x_include(filename="anything.sql", exists=None)
 
 

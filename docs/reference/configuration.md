@@ -385,13 +385,13 @@ The section and property names that may be used in a configuration file are list
 :   When set to "No", the [`SERVE`](metacommands.md#serve) metacommand (which copies a file to stdout with Content-Type and Content-Disposition headers, for use as a CGI script) is disabled. The default is "Yes". This can also be set via the `--no-serve` CLI flag or `allow_serve=False` in the library API. Symmetric with `allow_system_cmd`.
 
 `include_root` { #include_root }
-:   Root directory under which `INCLUDE` and `EXECUTE SCRIPT` targets must resolve. When set, attempts to include files outside this root via `../`, absolute paths, drive letters, or UNC paths are rejected with an error. Default: no containment (any readable path is permitted). See [Security — Path containment roots](security.md#path-containment-roots) for the full per-handler matrix.
+:   Root directory under which the files `INCLUDE` reads must resolve (`EXECUTE SCRIPT` runs a `SCRIPT` block, not a file). When set, attempts to include files outside this root via `../`, absolute paths, drive letters, or UNC paths are rejected with an error that stops the run, even with `METACOMMAND_ERROR_HALT OFF`. Default: no containment (any readable path is permitted). See [Security — Path containment roots](security.md#path-containment-roots) for the full per-handler matrix.
 
 `serve_root` { #serve_root }
-:   Root directory under which `SERVE` targets must resolve. Same containment semantics as `include_root` — paths that escape via `../` or absolute references are rejected. Default: no containment.
+:   Root directory under which `SERVE` targets must resolve. The same containment checks as `include_root`, but a refused path is an ordinary metacommand error — paths that escape via `../` or absolute references are rejected. Default: no containment.
 
 `template_root` { #template_root }
-:   Root directory under which Jinja2 / `string.Template` loader paths must resolve. Same containment semantics as `include_root`. Default: no containment.
+:   Root directory under which Jinja2 / `string.Template` loader paths must resolve. The same containment checks as `include_root`, but a refused path is an ordinary metacommand error. Default: no containment.
 
 `max_substitution_bytes` { #max_substitution_bytes }
 :   Maximum byte size of any single substitution-variable expansion, enforced by the `substitute_vars()` engine to defeat exponential-expansion bombs (a script that nests `!!a!!` referring to `!!b!!` referring to `!!a!!` and so on can otherwise blow past memory). When set to a positive integer, expansions exceeding the threshold raise an error. Default: `10485760` (10 MB).

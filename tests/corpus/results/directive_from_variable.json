@@ -1,0 +1,10 @@
+{
+ "exit": 0,
+ "files": {
+  "out.txt": "in s\nin part\nafter\n"
+ },
+ "recorded_with": "execsql 1.130.1",
+ "stderr": "",
+ "stdout": "",
+ "tables": {}
+}

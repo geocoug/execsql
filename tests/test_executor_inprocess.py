@@ -133,6 +133,11 @@ class TestNodeCmdHelpers:
         ex_node = next(n for n in tree.body if isinstance(n, IncludeDirective))
         assert "EXECUTE SCRIPT" in _node_cmd_text(ex_node)
 
+    def test_node_cmd_text_is_the_metacommand_as_written(self) -> None:
+        command = "EXECUTE SCRIPT IF EXISTS foo WITH ARGUMENTS (a=1) WHILE (!!n!! < 3)"
+        tree = parse_string(f"-- !x! {command}\n")
+        assert _node_cmd_text(tree.body[0]) == f"-- !x! {command}"
+
 
 class TestExecutingStatement:
     """What ``ctx.last_command`` exposes, read straight off the AST node.

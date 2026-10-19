@@ -540,8 +540,8 @@ def run(
                 errors.append(
                     ScriptError(
                         message=exc.errmsg(),
-                        source=_last_source(ctx),
-                        line=_last_line(ctx),
+                        source=_last_source(ctx, exc),
+                        line=_last_line(ctx, exc),
                         sql=getattr(exc, "command_text", None),
                     ),
                 )
@@ -655,8 +655,8 @@ def _capture_errors(ctx: RuntimeContext, errors: list[ScriptError], exit_code: A
     errors.append(
         ScriptError(
             message=msg,
-            source=_last_source(ctx),
-            line=_last_line(ctx),
+            source=_last_source(ctx, err),
+            line=_last_line(ctx, err),
             sql=sql,
         ),
     )
@@ -680,16 +680,24 @@ def _error_text(exc: BaseException) -> str:
     return exc.errmsg() if isinstance(exc, ErrInfo) else str(exc)
 
 
-def _last_source(ctx: RuntimeContext) -> str:
-    """Get the source file from the last executed command."""
+def _last_source(ctx: RuntimeContext, err: ErrInfo | None = None) -> str:
+    """The source file of *err*, as its report gives it, else of the last executed command.
+
+    An error can name a line other than the statement on record: an ELSEIF,
+    ANDIF or ORIF condition, or a loop condition evaluated after its body.
+    """
+    if err is not None and err.script_file and err.script_line_no:
+        return err.script_file
     lc = ctx.last_command
     if lc is not None and hasattr(lc, "source"):
         return cast(str, lc.source)
     return "<unknown>"
 
 
-def _last_line(ctx: RuntimeContext) -> int | None:
-    """Get the line number from the last executed command."""
+def _last_line(ctx: RuntimeContext, err: ErrInfo | None = None) -> int | None:
+    """The line of *err*, as its report gives it, else of the last executed command (see :func:`_last_source`)."""
+    if err is not None and err.script_file and err.script_line_no:
+        return err.script_line_no
     lc = ctx.last_command
     if lc is not None and hasattr(lc, "line_no"):
         return cast(int | None, lc.line_no)

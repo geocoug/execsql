@@ -67,11 +67,14 @@ def _close_rowsource(rows: Any) -> None:
 
 
 def x_include(**kwargs: Any) -> None:
-    # INCLUDE is now handled natively by the AST executor (_execute_include_native).
-    # This handler exists only for dispatch table registration compatibility.
+    # The executor runs INCLUDE itself (an IncludeDirective) wherever the
+    # script writes it. Only a metacommand whose text a substitution variable
+    # supplies (-- !x! !!cmd!!) reaches the dispatch table. The entry also
+    # gives INCLUDE its place in the keyword list, the language server and the
+    # run manifest.
     raise ErrInfo(
         type="cmd",
-        other_msg="INCLUDE should be handled by the AST executor, not the dispatch table.",
+        other_msg="An INCLUDE that a substitution variable supplies cannot run; write the INCLUDE in the script.",
     )
 
 

@@ -169,6 +169,17 @@ def test_dry_run_shows_commands(tmp_path):
     assert "METACMD" in result.stdout
 
 
+def test_dry_run_lists_include_and_execute_script(tmp_path):
+    script = tmp_path / "test.sql"
+    script.write_text(
+        "-- !x! BEGIN SCRIPT s\n-- !x! END SCRIPT\n-- !x! INCLUDE IF EXISTS other.sql\n"
+        "-- !x! IF (TRUE) { EXECUTE SCRIPT s }\n",
+    )
+    result = _run_execsql("run", "--dry-run", str(script))
+    assert "INCLUDE IF EXISTS other.sql" in result.stdout
+    assert "EXECUTE SCRIPT s" in result.stdout
+
+
 def test_dry_run_does_not_connect_to_db(tmp_path):
     """Dry-run should not require a database — only parses the script."""
     script = tmp_path / "test.sql"

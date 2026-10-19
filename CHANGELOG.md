@@ -11,10 +11,23 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Changed
+
+- **`--manifest`** counts each `INCLUDE` and `EXECUTE SCRIPT` in `statements.metacommands`, including one that fails or that `IF EXISTS` skips.
+
 ### Fixed
 
-- **`INCLUDE` of a file that does not exist, and `EXECUTE SCRIPT` of a script that does not exist,** are metacommand errors: with `METACOMMAND_ERROR_HALT OFF` the script carries on and `METACOMMAND_ERROR()`, `$LAST_ERROR` and `$ERROR_MESSAGE` say what failed. They stopped the run whatever that setting said.
-- **Error reports name the metacommand as written** (`Metacommand: INCLUDE missing.sql`), without `-- !x!`; an `INCLUDE` or `EXECUTE SCRIPT` that failed was reported with an empty `Metacommand:` line.
+- **`INCLUDE` and `EXECUTE SCRIPT` inside an inline `IF (…) { … }`** run again; they stopped the run with "should be handled by the AST executor".
+- **`INCLUDE`, `EXECUTE SCRIPT` and an inline `IF` added with `EXTEND SCRIPT … WITH METACOMMAND`** run when the script does; they stopped the run the same way.
+- **An `INCLUDE` or `EXECUTE SCRIPT` that a substitution variable supplies** (`-- !x! !!cmd!!`) says it cannot run and to write it in the script; it reported "should be handled by the AST executor".
+- **`execsql lint` and the language server** check and link `INCLUDE` and `EXECUTE SCRIPT` inside an inline `IF`.
+- **`execsql run --dry-run`** lists `INCLUDE` and `EXECUTE SCRIPT`.
+- **`execsql lint`** checks the variables in an `INCLUDE` file name and in `EXECUTE SCRIPT` arguments and loop conditions (V001, V002), and no longer reports an `INCLUDE` inside `IF (FILE_EXISTS(file))` as a missing file (I001).
+- **`INCLUDE` of a file that does not exist, `EXECUTE SCRIPT` of a script that does not exist, and `EXECUTE SCRIPT` without a required argument** are metacommand errors: with `METACOMMAND_ERROR_HALT OFF` the script carries on and `METACOMMAND_ERROR()`, `$LAST_ERROR` and `$ERROR_MESSAGE` say what failed. They stopped the run whatever that setting said.
+- **Error reports name the metacommand as written** (`Metacommand: INCLUDE missing.sql`), without `-- !x!`; a failed `INCLUDE`, `EXECUTE SCRIPT`, `IF`, `ELSEIF` or `LOOP` was reported with an empty `Metacommand:` line.
+- **An `IF`, `ELSEIF`, `ANDIF`, `ORIF` or `LOOP` condition that cannot be evaluated** is reported on its own line with its text (`Line 3 … Metacommand: ANDIF (NO_SUCH_FN(x))`), not as an "Uncaught exception" on another statement's line. It still stops the run.
+- **`WRITE SCRIPT`** writes an `EXECUTE SCRIPT … WHILE` / `UNTIL` as written; it wrote `LOOP WHILE`, which does not read back as `EXECUTE SCRIPT`.
+- **`--profile`** shows an `EXECUTE SCRIPT` or `INCLUDE` as written, with its `IF EXISTS`, arguments and `WHILE` / `UNTIL`.
 
 ______________________________________________________________________
 

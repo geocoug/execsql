@@ -130,10 +130,14 @@ def stamp_errinfo(errinfo: ErrInfo) -> ErrInfo:
 def _run_deferred_script(spec: Any) -> None:
     """Execute a deferred ScriptExecSpec (ON ERROR_HALT / ON CANCEL_HALT EXECUTE SCRIPT).
 
-    Executes the target script natively through the AST executor.
+    Executes the target script natively through the AST executor.  Its
+    arguments are substituted now, when the halt fires, so a deferred
+    variable (``!{$ERROR_MESSAGE}!``) holds the error that fired it.
     """
     from execsql.script.ast import IncludeDirective, SourceSpan
-    from execsql.script.executor import _execute_script_native
+    from execsql.script.engine import substitute_vars
+    from execsql.script.executor import _execute_script_native, _script_args, _stack_localvars
+    from execsql.script.parser import substitute_directive
     from execsql.state import get_context
 
     script_id = spec.script_id.lower() if hasattr(spec, "script_id") else None
@@ -146,8 +150,16 @@ def _run_deferred_script(spec: Any) -> None:
             arguments=spec.arg_exp,
             loop_type=spec.looptype,
             loop_condition=spec.loopcond,
+            command=(
+                f"EXECUTE SCRIPT {spec.script_id}"
+                + (f" WITH ARGUMENTS ({spec.arg_exp})" if spec.arg_exp else "")
+                + (f" {spec.looptype} ({spec.loopcond})" if spec.looptype else "")
+            ),
         )
-        _execute_script_native(ctx, node, ctx.ast_scripts[script_id])
+        localvars = _stack_localvars(ctx)
+        node = substitute_directive(node, lambda text: substitute_vars(text, localvars, ctx=ctx))
+        script_block = ctx.ast_scripts[script_id]
+        _execute_script_native(ctx, node, script_block, _script_args(node, script_block))
     else:
         raise ErrInfo(
             type="error",
