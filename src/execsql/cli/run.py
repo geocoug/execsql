@@ -47,14 +47,14 @@ def _print_dry_run(tree: Script | None) -> None:
     source location. Variables already populated at parse time are expanded;
     execution-time variables remain unexpanded.
     """
-    from execsql.script.ast import MetaCommandStatement, SqlStatement
+    from execsql.script.ast import IncludeDirective, MetaCommandStatement, SqlStatement
 
     if tree is None:
         _console.print("[yellow]No commands found in script.[/yellow]")
         return
     nodes = list(tree.walk())
-    # Count only executable nodes (SQL and metacommands)
-    executable = [n for n in nodes if isinstance(n, (SqlStatement, MetaCommandStatement))]
+    # Count only executable nodes (SQL, metacommands, INCLUDE and EXECUTE SCRIPT)
+    executable = [n for n in nodes if isinstance(n, (SqlStatement, MetaCommandStatement, IncludeDirective))]
     if not executable:
         _console.print("[yellow]No commands found in script.[/yellow]")
         return

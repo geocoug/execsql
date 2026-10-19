@@ -1,0 +1,10 @@
+-- A metacommand line that is a substitution variable holding an INCLUDE
+-- or an EXECUTE SCRIPT.
+-- !x! BEGIN SCRIPT s
+-- !x! WRITE "in s" TO out.txt
+-- !x! END SCRIPT
+-- !x! SUB run_s EXECUTE SCRIPT s
+-- !x! !!run_s!!
+-- !x! SUB include_part INCLUDE part.sql
+-- !x! !!include_part!!
+-- !x! WRITE "after" TO out.txt

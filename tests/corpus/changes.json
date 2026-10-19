@@ -593,6 +593,26 @@
    "why": "Upstream passed substitute_all's (text, flag) pair on as the text, so ON ERROR_HALT WRITE … TO <file> left the file empty; execsql2 writes the message (divergence: 'ON ERROR_HALT WRITE … TO a file wrote nothing')."
   }
  },
+ "directive_from_variable": {
+  "exit": {
+   "execsql2": 1,
+   "status": "open",
+   "upstream": 0,
+   "why": "A metacommand whose text a substitution variable supplies (-- !x! !!cmd!!) cannot be an INCLUDE or EXECUTE SCRIPT in execsql2: the parser classifies lines before substitution, so it reaches the dispatch table, which cannot run them. Upstream substituted first and ran them. To be fixed: #113."
+  },
+  "files/out.txt": {
+   "execsql2": null,
+   "status": "open",
+   "upstream": "in s\nin part\nafter\n",
+   "why": "A metacommand whose text a substitution variable supplies (-- !x! !!cmd!!) cannot be an INCLUDE or EXECUTE SCRIPT in execsql2: the parser classifies lines before substitution, so it reaches the dispatch table, which cannot run them. Upstream substituted first and ran them. To be fixed: #113."
+  },
+  "stderr": {
+   "execsql2": "**** Error in metacommand.\n     Line 7 of script script.sql\n     An EXECUTE SCRIPT that a substitution variable supplies cannot run; write it in the script.\n     Metacommand: !!run_s!!\n     Error occurred at <TIME>.\n",
+   "status": "open",
+   "upstream": "",
+   "why": "A metacommand whose text a substitution variable supplies (-- !x! !!cmd!!) cannot be an INCLUDE or EXECUTE SCRIPT in execsql2: the parser classifies lines before substitution, so it reaches the dispatch table, which cannot run them. Upstream substituted first and ran them. To be fixed: #113."
+  }
+ },
  "export_more_formats": {
   "files/t.xml": {
    "execsql2": "<?xml version='1.0' encoding='utf8'?>\n<t>\n  <row>\n    <id>1</id>\n    <name>Ann</name>\n    <note>has \"quotes\"</note>\n  </row>\n  <row>\n    <id>2</id>\n    <name>Bob</name>\n    <note></note>\n  </row>\n</t>\n",
@@ -613,6 +633,26 @@
    "status": "accepted",
    "upstream": "{\n  \"fields\": [\n    {\n      \"name\": \"id\",\n      \"title\": \"Id\",\n      \"type\": \"integer\"\n    },\n    {\n      \"name\": \"name\",\n      \"title\": \"Name\",\n      \"type\": \"string\"\n    },\n    {\n      \"name\": \"amt\",\n      \"title\": \"Amt\",\n      \"type\": \"number\"\n    },\n    {\n      \"name\": \"day\",\n      \"title\": \"Day\",\n      \"type\": \"datetime\"\n    }\n  ]\n}\n",
    "why": "Upstream typed a text column holding dates as datetime from the strings' shape (divergence: 'DB-export type inference overrides source types'); execsql2 uses the driver's type, string."
+  }
+ },
+ "inline_directives_and_condition_errors": {
+  "exit": {
+   "execsql2": 1,
+   "status": "open",
+   "upstream": 0,
+   "why": "An IF condition that cannot be evaluated stops the run in execsql2, whatever METACOMMAND_ERROR_HALT says; upstream made an inline IF's bad condition a metacommand error and carried on. Undecided: #112."
+  },
+  "files/out.txt": {
+   "execsql2": "in part\nin s\nmissing argument seen\n",
+   "status": "open",
+   "upstream": "in part\nin s\nmissing argument seen\nafter bad condition\n",
+   "why": "An IF condition that cannot be evaluated stops the run in execsql2, whatever METACOMMAND_ERROR_HALT says; upstream made an inline IF's bad condition a metacommand error and carried on. Undecided: #112."
+  },
+  "stderr": {
+   "execsql2": "**** Exception.\n     Line 14 of script script.sql\n     CondParserError: Conditional expression parser did not consume entire string; remainder = _SUCH_FN(x).\n     Metacommand: IF (NO_SUCH_FN(x)) { WRITE \"inline body\" TO out.txt }\n     Error occurred at <TIME>.\n",
+   "status": "open",
+   "upstream": "",
+   "why": "An IF condition that cannot be evaluated stops the run in execsql2, whatever METACOMMAND_ERROR_HALT says; upstream made an inline IF's bad condition a metacommand error and carried on. Undecided: #112."
   }
  },
  "loop_while_until": {

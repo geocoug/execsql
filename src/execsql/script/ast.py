@@ -212,12 +212,15 @@ class ElseIfClause:
         condition_modifiers: ANDIF/ORIF modifiers that compound the ELSEIF
             condition, evaluated left-to-right at runtime.
         body: Nodes executed when this condition is true.
+        command: The metacommand as written, without ``-- !x!``, for error
+            reports.
     """
 
     condition: str
     span: SourceSpan
     condition_modifiers: list[ConditionModifier] = field(default_factory=list)
     body: list[Node] = field(default_factory=list)
+    command: str = ""
 
 
 @dataclass
@@ -232,6 +235,8 @@ class IfBlock(Node):
         elseif_clauses: Zero or more ELSEIF branches, evaluated in order.
         else_body: Nodes executed when the IF condition (and all ELSEIFs)
             are false.  Empty list means no ELSE branch.
+        command: The metacommand as written, without ``-- !x!``, for error
+            reports.
     """
 
     condition: str
@@ -240,6 +245,7 @@ class IfBlock(Node):
     elseif_clauses: list[ElseIfClause] = field(default_factory=list)
     else_body: list[Node] = field(default_factory=list)
     else_span: SourceSpan | None = None
+    command: str = ""
 
     def children(self) -> Iterator[Node]:
         yield from self.body
@@ -261,11 +267,14 @@ class LoopBlock(Node):
         loop_type: Either ``"WHILE"`` or ``"UNTIL"``.
         condition: The condition expression text.
         body: Nodes executed on each iteration.
+        command: The metacommand as written, without ``-- !x!``, for error
+            reports.
     """
 
     loop_type: str  # "WHILE" or "UNTIL"
     condition: str
     body: list[Node] = field(default_factory=list)
+    command: str = ""
 
     def children(self) -> Iterator[Node]:
         yield from self.body
@@ -283,9 +292,12 @@ class BatchBlock(Node):
 
     Attributes:
         body: Nodes within the batch.
+        command: The metacommand as written, without ``-- !x!``, for error
+            reports.
     """
 
     body: list[Node] = field(default_factory=list)
+    command: str = ""
 
     def children(self) -> Iterator[Node]:
         yield from self.body
@@ -325,12 +337,15 @@ class ScriptBlock(Node):
         doc: Optional docstring extracted from comments immediately following
             the BEGIN SCRIPT line.
         body: Nodes within the script block.
+        command: The metacommand as written, without ``-- !x!``, for error
+            reports.
     """
 
     name: str
     param_defs: list[ParamDef] | None = None
     doc: str | None = None
     body: list[Node] = field(default_factory=list)
+    command: str = ""
 
     @property
     def param_names(self) -> list[str] | None:
@@ -358,9 +373,12 @@ class SqlBlock(Node):
     Attributes:
         body: Nodes within the SQL block (typically a single
             :class:`SqlStatement`).
+        command: The metacommand as written, without ``-- !x!``, for error
+            reports.
     """
 
     body: list[Node] = field(default_factory=list)
+    command: str = ""
 
     def children(self) -> Iterator[Node]:
         yield from self.body

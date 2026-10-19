@@ -25,7 +25,8 @@ Usage::
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
+from dataclasses import replace
 from pathlib import Path
 from typing import cast
 
@@ -96,7 +97,7 @@ _INCLUDE_RX = re.compile(
 )
 
 
-def _strip_quotes(s: str) -> str:
+def strip_quotes(s: str) -> str:
     """Strip a matching pair of surrounding quotes from *s*."""
     if len(s) >= 2 and s[0] in ('"', "'") and s[-1] == s[0]:
         return s[1:-1]
@@ -125,6 +126,94 @@ _EXEC_SCRIPT_RX = re.compile(
     r"\s*$",
     re.I,
 )
+
+
+def directive_node(command: str, span: SourceSpan) -> IncludeDirective | None:
+    """The :class:`IncludeDirective` for an INCLUDE or EXECUTE SCRIPT *command*, or ``None`` for any other.
+
+    *command* is the metacommand without ``-- !x!``.
+    """
+    m = _INCLUDE_RX.match(command)
+    if m:
+        return IncludeDirective(
+            span=span,
+            target=strip_quotes(m.group("target").strip()),
+            if_exists=m.group("exists") is not None,
+            command=command.strip(),
+        )
+    m = _EXEC_SCRIPT_RX.match(command)
+    if m:
+        return IncludeDirective(
+            span=span,
+            target=m.group("script_id"),
+            is_execute_script=True,
+            if_exists=m.group("exists") is not None,
+            arguments=m.group("argexp"),
+            loop_type=m.group("looptype").upper() if m.group("looptype") else None,
+            loop_condition=m.group("loopcond"),
+            command=command.strip(),
+        )
+    return None
+
+
+def substitute_directive(node: IncludeDirective, substitute: Callable[[str], str]) -> IncludeDirective:
+    """*node* with *substitute* applied once to each part that is substituted when it runs.
+
+    Those parts are INCLUDE's file and EXECUTE SCRIPT's script name and
+    arguments.  For a node parsed from a metacommand, ``command`` becomes
+    the metacommand with them substituted.  The metacommand is not
+    parsed again, so a value with a line break in it stays one value (an
+    unquoted argument still ends at a comma or a closing parenthesis, as it
+    always has).  A ``WHILE`` / ``UNTIL`` condition is left as written: it
+    is substituted on each pass of the loop.
+    """
+    m = (_EXEC_SCRIPT_RX if node.is_execute_script else _INCLUDE_RX).match(node.command)
+    if m is None:
+        # Built without the text of a metacommand.
+        target = substitute(node.target)
+        return replace(
+            node,
+            target=target if node.is_execute_script else strip_quotes(target.strip()),
+            arguments=substitute(node.arguments) if node.arguments is not None else None,
+        )
+    pieces: list[str] = []
+    values: dict[str, str] = {}
+    last = 0
+    for group in ("script_id", "argexp") if node.is_execute_script else ("target",):
+        if m.group(group) is None:
+            continue
+        start, end = m.span(group)
+        values[group] = substitute(node.command[start:end])
+        pieces += [node.command[last:start], values[group]]
+        last = end
+    pieces.append(node.command[last:])
+    command = "".join(pieces)
+    if node.is_execute_script:
+        return replace(node, target=values["script_id"], arguments=values.get("argexp"), command=command)
+    return replace(node, target=strip_quotes(values["target"].strip()), command=command)
+
+
+def metacommand_node(command: str, span: SourceSpan) -> IfBlock | IncludeDirective | MetaCommandStatement:
+    """The node for a metacommand that opens or closes no block, however it is reached.
+
+    The same on a line of its own, inside an inline ``IF (…) { … }`` and
+    when added with ``EXTEND SCRIPT … WITH METACOMMAND``: an inline ``IF``
+    is an :class:`IfBlock`, INCLUDE and EXECUTE SCRIPT an
+    :class:`IncludeDirective`, and any other a :class:`MetaCommandStatement`
+    for the dispatch table.  A metacommand whose text a substitution
+    variable supplies (``-- !x! !!cmd!!``) is classified here as written,
+    before substitution, so it always goes to the dispatch table (#113).
+    """
+    m = _IF_INLINE_RX.match(command)
+    if m:
+        return IfBlock(
+            span=span,
+            condition=m.group("cond").strip(),
+            body=[metacommand_node(m.group("cmd").strip(), span)],
+            command=command.strip(),
+        )
+    return directive_node(command, span) or MetaCommandStatement(span=span, command=command)
+
 
 # A parameter default value is either a double-quoted string, a single-quoted
 # string (both may contain spaces, commas, and other special characters), or
@@ -197,7 +286,7 @@ def _parse_param_defs(
             )
         name, default = m.group(1), m.group(2)
         if default is not None:
-            default = _strip_quotes(default)
+            default = strip_quotes(default)
             if seen_optional is None:
                 seen_optional = name
         elif seen_optional is not None:
@@ -512,7 +601,7 @@ def _parse_lines(lines: Iterable[str], source_name: str, errors: list[ErrInfo] |
                 in_sql_block = True
                 block_stack.append(
                     _BlockFrame(
-                        SqlBlock(span=SourceSpan(source_name, file_lineno)),
+                        SqlBlock(span=SourceSpan(source_name, file_lineno), command=cmd_text),
                         kind="sqlblock",
                         start_line=file_lineno,
                         source=source_name,
@@ -576,6 +665,7 @@ def _parse_lines(lines: Iterable[str], source_name: str, errors: list[ErrInfo] |
                             span=SourceSpan(source_name, file_lineno),
                             name=name,
                             param_defs=param_defs,
+                            command=cmd_text,
                         ),
                         kind="script",
                         start_line=file_lineno,
@@ -630,6 +720,7 @@ def _parse_lines(lines: Iterable[str], source_name: str, errors: list[ErrInfo] |
                         IfBlock(
                             span=SourceSpan(source_name, file_lineno),
                             condition=m.group("cond").strip(),
+                            command=cmd_text,
                         ),
                         kind="if",
                         start_line=file_lineno,
@@ -639,18 +730,8 @@ def _parse_lines(lines: Iterable[str], source_name: str, errors: list[ErrInfo] |
                 continue
 
             # -- IF (inline form): IF (cond) { cmd } --
-            m = _IF_INLINE_RX.match(cmd_text)
-            if m:
-                inner = MetaCommandStatement(
-                    span=SourceSpan(source_name, file_lineno),
-                    command=m.group("cmd").strip(),
-                )
-                if_node = IfBlock(
-                    span=SourceSpan(source_name, file_lineno),
-                    condition=m.group("cond").strip(),
-                    body=[inner],
-                )
-                _current_body().append(if_node)
+            if _IF_INLINE_RX.match(cmd_text):
+                _current_body().append(metacommand_node(cmd_text, SourceSpan(source_name, file_lineno)))
                 continue
 
             # -- ELSEIF --
@@ -673,6 +754,7 @@ def _parse_lines(lines: Iterable[str], source_name: str, errors: list[ErrInfo] |
                     ElseIfClause(
                         condition=m.group("cond").strip(),
                         span=SourceSpan(source_name, file_lineno),
+                        command=cmd_text,
                     ),
                 )
                 continue
@@ -767,6 +849,7 @@ def _parse_lines(lines: Iterable[str], source_name: str, errors: list[ErrInfo] |
                             span=SourceSpan(source_name, file_lineno),
                             loop_type=m.group("looptype").upper(),
                             condition=m.group("loopcond").strip(),
+                            command=cmd_text,
                         ),
                         kind="loop",
                         start_line=file_lineno,
@@ -793,7 +876,7 @@ def _parse_lines(lines: Iterable[str], source_name: str, errors: list[ErrInfo] |
             if m:
                 block_stack.append(
                     _BlockFrame(
-                        BatchBlock(span=SourceSpan(source_name, file_lineno)),
+                        BatchBlock(span=SourceSpan(source_name, file_lineno), command=cmd_text),
                         kind="batch",
                         start_line=file_lineno,
                         source=source_name,
@@ -814,43 +897,8 @@ def _parse_lines(lines: Iterable[str], source_name: str, errors: list[ErrInfo] |
                     _close_block(closed, file_lineno)
                 continue
 
-            # -- INCLUDE --
-            m = _INCLUDE_RX.match(cmd_text)
-            if m:
-                _current_body().append(
-                    IncludeDirective(
-                        span=SourceSpan(source_name, file_lineno),
-                        target=_strip_quotes(m.group("target").strip()),
-                        if_exists=m.group("exists") is not None,
-                        command=cmd_text.strip(),
-                    ),
-                )
-                continue
-
-            # -- EXECUTE SCRIPT / RUN SCRIPT --
-            m = _EXEC_SCRIPT_RX.match(cmd_text)
-            if m:
-                _current_body().append(
-                    IncludeDirective(
-                        span=SourceSpan(source_name, file_lineno),
-                        target=m.group("script_id"),
-                        is_execute_script=True,
-                        if_exists=m.group("exists") is not None,
-                        arguments=m.group("argexp"),
-                        loop_type=m.group("looptype").upper() if m.group("looptype") else None,
-                        loop_condition=m.group("loopcond"),
-                        command=cmd_text.strip(),
-                    ),
-                )
-                continue
-
-            # -- All other metacommands (flat) --
-            _current_body().append(
-                MetaCommandStatement(
-                    span=SourceSpan(source_name, file_lineno),
-                    command=cmd_text,
-                ),
-            )
+            # -- INCLUDE, EXECUTE SCRIPT and all other metacommands (flat) --
+            _current_body().append(metacommand_node(cmd_text, SourceSpan(source_name, file_lineno)))
             continue
 
         # --- SQL line ---

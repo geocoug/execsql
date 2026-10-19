@@ -48,7 +48,7 @@ class TestSuccess:
         assert m["exit_status"] == 0
         assert m["script"] == "s.sql"
         assert m["database"]["dbms"] == "SQLite"
-        assert m["statements"] == {"sql": 2, "metacommands": 7}
+        assert m["statements"] == {"sql": 2, "metacommands": 8}  # INCLUDE counts
         assert m["errors"] == []
         assert set(m) >= {"execsql_version", "started", "finished", "duration_s", "config_files"}
 

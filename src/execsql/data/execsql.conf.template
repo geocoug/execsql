@@ -326,19 +326,22 @@
 # Values: Yes or No.  Default: Yes.
 #allow_serve=Yes
 
-# Root directory under which INCLUDE / EXECUTE SCRIPT targets must
-# resolve. When set, attempts to include files outside this root via
-# ../, absolute paths, drive letters, or UNC paths are rejected with
-# an error. Default: no containment (any readable path is permitted).
+# Root directory under which the files INCLUDE reads must resolve.
+# When set, attempts to include files outside this root via ../,
+# absolute paths, drive letters, or UNC paths are rejected with an
+# error that stops the run, even with METACOMMAND_ERROR_HALT OFF.
+# Default: no containment (any readable path is permitted).
 #include_root=
 
 # Root directory under which SERVE targets must resolve. Same
-# containment semantics as include_root. Default: no containment.
+# containment checks as include_root, but a refused path is an
+# ordinary metacommand error. Default: no containment.
 #serve_root=
 
 # Root directory under which Jinja2 / string.Template loader paths
-# must resolve. Same containment semantics as include_root.
-# Default: no containment.
+# must resolve. Same containment checks as include_root, but a
+# refused path is an ordinary metacommand error. Default: no
+# containment.
 #template_root=
 
 # Maximum byte size of any single substitution-variable expansion,

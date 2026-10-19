@@ -11,10 +11,11 @@ AST executor:
   an inline source).
 - ``x_extendscript_metacommand`` — ``EXTEND SCRIPT … WITH METACOMMAND …``.
 - ``x_extendscript_sql`` — ``EXTEND SCRIPT … WITH SQL …``.
-- ``x_executescript`` — dispatch-table sentinel only. ``EXECUTE SCRIPT``
-  / ``RUN SCRIPT`` are handled natively by the AST executor; this stub
-  raises ``ErrInfo`` if the parser ever fails to recognize them as
-  structural nodes.
+- ``x_executescript`` — dispatch-table entry. The executor runs
+  ``EXECUTE SCRIPT`` / ``RUN SCRIPT`` itself wherever the script writes them
+  (a line of their own, an inline ``IF``, ``EXTEND SCRIPT … WITH
+  METACOMMAND``); this stub is reached only by one that a substitution
+  variable supplies, and reports that it cannot run.
 
 Registration of ``BEGIN SCRIPT … END SCRIPT`` blocks themselves is
 handled by the AST parser (block boundaries) and executor (registering
@@ -68,12 +69,12 @@ def x_extendscript(**kwargs: Any) -> None:
 
 def x_extendscript_metacommand(**kwargs: Any) -> None:
     """Append a single metacommand line to an existing SCRIPT body."""
-    from execsql.script.ast import MetaCommandStatement
+    from execsql.script.parser import metacommand_node
 
     block = _get_ast_script(kwargs["script"])
     script_file, script_line_no = current_script_line()
     span = _new_span(script_file, script_line_no or 0)
-    block.body.append(MetaCommandStatement(span=span, command=kwargs["cmd"]))
+    block.body.append(metacommand_node(kwargs["cmd"].strip(), span))
 
 
 def x_extendscript_sql(**kwargs: Any) -> None:
@@ -87,10 +88,12 @@ def x_extendscript_sql(**kwargs: Any) -> None:
 
 
 def x_executescript(**kwargs: Any) -> None:
-    # EXECUTE SCRIPT is now handled natively by the AST executor
-    # (_execute_include / _execute_script_native). This handler exists only
-    # for dispatch table registration compatibility.
+    # The executor runs EXECUTE SCRIPT itself (an IncludeDirective) wherever
+    # the script writes it. Only a metacommand whose text a substitution
+    # variable supplies (-- !x! !!cmd!!) reaches the dispatch table. The entry
+    # also gives EXECUTE / RUN SCRIPT their place in the keyword list, the
+    # language server and the run manifest.
     raise ErrInfo(
         "cmd",
-        other_msg="EXECUTE SCRIPT should be handled by the AST executor, not the dispatch table.",
+        other_msg="An EXECUTE SCRIPT that a substitution variable supplies cannot run; write it in the script.",
     )

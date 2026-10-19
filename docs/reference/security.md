@@ -161,9 +161,11 @@ choice you make.
 
 Containment roots are opt-in. When configured, paths must resolve under the configured root; attempts to escape with `../`, absolute paths, drive letters, or UNC paths are rejected.
 
+An `INCLUDE` refused by `include_root` stops the run even with [`METACOMMAND_ERROR_HALT OFF`](metacommands.md#metacommanderrorhalt): the refusal is a security boundary, not a script error to carry on from, so the statements after it never run without the file they expected.
+
 | Setting         | Applies to                                | Default      |
 | --------------- | ----------------------------------------- | ------------ |
-| `include_root`  | `INCLUDE` and `EXECUTE SCRIPT` targets    | unrestricted |
+| `include_root`  | `INCLUDE` files                           | unrestricted |
 | `serve_root`    | `SERVE` targets                           | unrestricted |
 | `template_root` | Jinja2 and `string.Template` loader paths | unrestricted |
 

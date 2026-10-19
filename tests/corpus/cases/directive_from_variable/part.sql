@@ -1,0 +1,1 @@
+-- !x! WRITE "in part" TO out.txt

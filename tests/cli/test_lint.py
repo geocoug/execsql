@@ -723,6 +723,56 @@ class TestUnusedVariables:
         assert not any("grp" in m for m in unused), unused
 
 
+class TestDirectivesInConditionsAndArguments:
+    """INCLUDE and EXECUTE SCRIPT inside an inline IF, their arguments, and FILE_EXISTS guards."""
+
+    def test_directives_in_an_inline_if_are_checked(self, tmp_path):
+        body = "-- !x! IF (TRUE) { INCLUDE missing.sql }\n-- !x! IF (TRUE) { EXECUTE SCRIPT no_such_script }\n"
+        assert {(i.line, i.code) for i in _lint(tmp_path, body)} == {(1, "I001"), (2, "I002")}
+
+    def test_a_variable_used_only_in_script_arguments_counts(self, tmp_path):
+        body = (
+            '-- !x! SUB v hello\n-- !x! BEGIN SCRIPT s (p)\n-- !x! WRITE "!!#p!!"\n-- !x! END SCRIPT\n'
+            "-- !x! IF (TRUE) { EXECUTE SCRIPT s WITH ARGS (p=!!v!!) }\n"
+        )
+        assert "V002" not in _codes(_lint(tmp_path, body))
+
+    def test_an_undefined_variable_in_script_arguments_is_reported(self, tmp_path):
+        body = "-- !x! BEGIN SCRIPT s (p)\n-- !x! END SCRIPT\n-- !x! EXECUTE SCRIPT s WITH ARGS (p=!!undefined_x!!)\n"
+        assert [(i.line, i.code) for i in _lint(tmp_path, body)] == [(3, "V001")]
+
+    def test_a_variable_used_only_in_an_andif_under_an_elseif_counts(self, tmp_path):
+        body = (
+            "-- !x! SUB flag 1\n-- !x! IF (FALSE)\nselect 1;\n-- !x! ELSEIF (TRUE)\n"
+            "-- !x! ANDIF (!!flag!! = 1)\nselect 2;\n-- !x! ENDIF\n"
+        )
+        assert "V002" not in _codes(_lint(tmp_path, body))
+
+    @pytest.mark.parametrize(
+        "body",
+        [
+            "-- !x! IF (FILE_EXISTS(opt.sql)) { INCLUDE opt.sql }\n",
+            "-- !x! IF (FILE_EXISTS(opt.sql))\n-- !x! INCLUDE opt.sql\n-- !x! ENDIF\n",
+            "-- !x! IF (TRUE)\n-- !x! ANDIF (FILE_EXISTS('opt.sql'))\n-- !x! INCLUDE opt.sql\n-- !x! ENDIF\n",
+        ],
+        ids=["inline", "block", "andif"],
+    )
+    def test_an_include_guarded_by_file_exists_is_not_missing(self, tmp_path, body):
+        assert "I001" not in _codes(_lint(tmp_path, body))
+
+    @pytest.mark.parametrize(
+        "body",
+        [
+            "-- !x! IF (FILE_EXISTS(opt.sql))\n-- !x! ORIF (TRUE)\n-- !x! INCLUDE opt.sql\n-- !x! ENDIF\n",
+            "-- !x! IF (NOT FILE_EXISTS(opt.sql)) { INCLUDE opt.sql }\n",
+            "-- !x! IF (FILE_EXISTS(opt.sql))\nselect 1;\n-- !x! ELSE\n-- !x! INCLUDE opt.sql\n-- !x! ENDIF\n",
+        ],
+        ids=["orif", "not", "else-branch"],
+    )
+    def test_an_include_not_guarded_is_missing(self, tmp_path, body):
+        assert "I001" in _codes(_lint(tmp_path, body))
+
+
 class TestSubIniDefinitions:
     """SUB_INI defines the keys of a section in an INI file that lint can read."""
 

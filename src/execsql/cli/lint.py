@@ -58,6 +58,7 @@ from typing import TYPE_CHECKING, NamedTuple
 
 from execsql.utils.paths import is_network_path
 from execsql.exceptions import ErrInfo
+from execsql.script.parser import strip_quotes
 from execsql.script.ast import (
     BatchBlock,
     Comment,
@@ -857,10 +858,13 @@ def _referencing_text(node: Node) -> list[str]:
         texts.append(node.command)
     elif isinstance(node, IncludeDirective):
         texts.append(node.target)
+        texts.extend(t for t in (node.arguments, node.loop_condition) if t)
     if isinstance(node, IfBlock):
         texts.append(node.condition)
         texts.extend(m.condition for m in node.condition_modifiers)
-        texts.extend(c.condition for c in node.elseif_clauses)
+        for clause in node.elseif_clauses:
+            texts.append(clause.condition)
+            texts.extend(m.condition for m in clause.condition_modifiers)
     elif isinstance(node, LoopBlock):
         texts.append(node.condition)
     return texts
@@ -913,6 +917,24 @@ def _definition_lines(nodes: list[Node], script_dir: Path | None, lines: dict[st
 # ---------------------------------------------------------------------------
 
 
+_RX_FILE_EXISTS = re.compile(r"^\s*FILE_EXISTS\s*\(\s*(?P<path>.+?)\s*\)\s*$", re.I)
+
+
+def _file_exists_guards(condition: str, modifiers: list[ConditionModifier]) -> frozenset[str]:
+    """The files an IF branch runs only if they exist: ``IF (FILE_EXISTS(f))``, with any ``ANDIF (FILE_EXISTS(g))``.
+
+    An ``ORIF`` lets the branch run without the file, so it guards nothing.
+    """
+    if any(m.kind == "OR" for m in modifiers):
+        return frozenset()
+    paths = set()
+    for cond in [condition, *(m.condition for m in modifiers)]:
+        m = _RX_FILE_EXISTS.match(cond)
+        if m:
+            paths.add(strip_quotes(m.group("path")))
+    return frozenset(paths)
+
+
 def _lint_nodes(
     nodes: list[Node],
     script_dir: Path | None,
@@ -921,8 +943,13 @@ def _lint_nodes(
     issues: list[_Issue],
     *,
     visited_scripts: set[str] | None = None,
+    guarded: frozenset[str] = frozenset(),
 ) -> None:
-    """Walk a list of AST nodes and collect lint issues."""
+    """Walk a list of AST nodes and collect lint issues.
+
+    *guarded* holds the files an enclosing ``IF (FILE_EXISTS(…))`` has
+    checked, so an ``INCLUDE`` of one is not reported as missing.
+    """
     if visited_scripts is None:
         visited_scripts = set()
 
@@ -947,6 +974,9 @@ def _lint_nodes(
 
         # -- IncludeDirective checks --
         elif isinstance(node, IncludeDirective):
+            for text in (node.target, node.arguments, node.loop_condition):
+                for name in _unresolved_var_refs(text or "", defined_vars):
+                    _check_var_ref(name, src, lno, defined_vars, issues)
             if node.is_execute_script:
                 target = node.target.lower()
                 if target not in script_blocks:
@@ -967,14 +997,22 @@ def _lint_nodes(
             else:
                 # INCLUDE file existence check
                 if not node.if_exists:
-                    raw_path = node.target.strip().strip("\"'")
-                    if not _RX_VAR_REF.search(raw_path):
+                    raw_path = strip_quotes(node.target.strip())
+                    if not _RX_VAR_REF.search(raw_path) and raw_path not in guarded:
                         _check_include_path(raw_path, script_dir, src, lno, issues)
 
         # -- Recurse into block children --
         if isinstance(node, IfBlock):
             _check_constant_condition(node, issues)
-            _lint_nodes(node.body, script_dir, defined_vars, script_blocks, issues, visited_scripts=visited_scripts)
+            _lint_nodes(
+                node.body,
+                script_dir,
+                defined_vars,
+                script_blocks,
+                issues,
+                visited_scripts=visited_scripts,
+                guarded=guarded | _file_exists_guards(node.condition, node.condition_modifiers),
+            )
             for clause in node.elseif_clauses:
                 _lint_nodes(
                     clause.body,
@@ -983,6 +1021,7 @@ def _lint_nodes(
                     script_blocks,
                     issues,
                     visited_scripts=visited_scripts,
+                    guarded=guarded | _file_exists_guards(clause.condition, clause.condition_modifiers),
                 )
             _lint_nodes(
                 node.else_body,
@@ -991,9 +1030,18 @@ def _lint_nodes(
                 script_blocks,
                 issues,
                 visited_scripts=visited_scripts,
+                guarded=guarded,
             )
         elif isinstance(node, (LoopBlock, BatchBlock, SqlBlock)):
-            _lint_nodes(node.body, script_dir, defined_vars, script_blocks, issues, visited_scripts=visited_scripts)
+            _lint_nodes(
+                node.body,
+                script_dir,
+                defined_vars,
+                script_blocks,
+                issues,
+                visited_scripts=visited_scripts,
+                guarded=guarded,
+            )
         elif isinstance(node, ScriptBlock):
             # Lint the block body once (structural errors are caught by the
             # parser). Issues carry their own line, which already places them

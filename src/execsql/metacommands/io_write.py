@@ -261,11 +261,13 @@ def _render_script_nodes(nodes: Any, emit: Any) -> None:
             # Preserve comment text verbatim; the parser stores it including
             # the leading "--" / "/* ... */" delimiters.
             emit(f"{node.text}\n")
+        elif isinstance(node, IncludeDirective) and node.command:
+            emit(f"-- !x! {node.command}\n")
         elif isinstance(node, IncludeDirective):
             kw = "EXECUTE SCRIPT" if node.is_execute_script else "INCLUDE"
             if_exists = " IF EXISTS" if node.if_exists else ""
             args = f" ({node.arguments})" if node.arguments else ""
-            loop = f" LOOP {node.loop_type} ({node.loop_condition})" if node.loop_type else ""
+            loop = f" {node.loop_type} ({node.loop_condition})" if node.loop_type else ""
             emit(f"-- !x! {kw}{if_exists} {node.target}{args}{loop}\n")
         elif isinstance(node, IfBlock):
             emit(f"-- !x! IF ({node.condition})\n")

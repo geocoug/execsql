@@ -340,6 +340,14 @@ An `INCLUDE` names a file that does not exist. Lint resolves a relative path aga
 
 Not reported for `INCLUDE IF EXISTS`, or when the path contains a `!!variable!!`, since the file then depends on values known only at run time.
 
+Not reported either inside an `IF` that runs only when the file exists, block or inline:
+
+```sql
+-- !x! IF (FILE_EXISTS(local_settings.sql)) { INCLUDE local_settings.sql }
+```
+
+An `ANDIF (FILE_EXISTS(…))` guards its file too; an `ORIF` lets the branch run without the file, so its `IF` guards nothing.
+
 Also reported, as "INCLUDE path cannot be checked", for a name the operating system rejects outright (longer than it allows, for example). The other scripts in the same `execsql lint` run are still checked; a script lint cannot check at all is reported as one P001 error naming it.
 
 ### I002 `missing-script` { #i002 }

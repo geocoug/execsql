@@ -967,7 +967,7 @@ class TestScriptExtHandlers:
         """x_executescript raises because EXECUTE SCRIPT is handled by the AST executor."""
         from execsql.metacommands.script_ext import x_executescript
 
-        with pytest.raises(ErrInfo, match="AST executor"):
+        with pytest.raises(ErrInfo, match="substitution variable supplies"):
             x_executescript(exists=None, script_id="anything")
 
 

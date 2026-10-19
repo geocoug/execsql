@@ -63,11 +63,13 @@ from execsql.script.ast import (
     Script,
     ScriptBlock,
     SqlBlock,
+    SourceSpan,
     SqlStatement,
 )
 from execsql import manifest as _manifest
+from execsql.script.parser import substitute_directive
 from execsql.script.engine import set_dynamic_system_vars, set_static_system_vars, substitute_vars
-from execsql.script.variables import SubVarSet
+from execsql.script.variables import ScriptArgSubVarSet, SubVarSet
 from execsql.state import ExecFrame, RuntimeContext, active_context, get_context, xcmd_test
 from execsql.utils.errors import exception_desc, exit_now, logged_error, stamp_errinfo
 
@@ -177,37 +179,58 @@ def _convert_deferred_vars(text: str) -> str:
     return _DEFER_RX.sub(r"!!\1!!", text)
 
 
-def _eval_condition(
+def _condition_holds(
     ctx: RuntimeContext,
+    command: str,
+    span: SourceSpan,
     condition: str,
     modifiers: list[ConditionModifier] | None = None,
 ) -> bool:
-    """Evaluate a condition string with optional ANDIF/ORIF modifiers.
+    """Evaluate the condition of IF, ELSEIF, LOOP or EXECUTE SCRIPT … WHILE / UNTIL, with its ANDIF / ORIF modifiers.
 
     Short-circuits ANDIF (stops on first False) and ORIF (stops on first True)
     so that patterns like ``IF (sub_defined(x)) ANDIF (not sub_empty(x))``
     don't evaluate ``sub_empty`` when ``x`` is undefined.
+
+    *command* is the metacommand as written, on the line *span* starts; an
+    error is reported there, or on the ANDIF / ORIF that raised it.
     """
     effective_locals = _stack_localvars(ctx)
-    expanded = substitute_vars(condition, effective_locals, ctx=ctx)
-    result = xcmd_test(expanded)
-
-    if modifiers:
-        for mod in modifiers:
-            # Short-circuit: AND with False can't become True,
-            # OR with True can't become False.
-            if mod.kind == "AND" and not result:
-                continue
-            if mod.kind == "OR" and result:
-                continue
-            mod_expanded = substitute_vars(mod.condition, effective_locals, ctx=ctx)
-            mod_result = xcmd_test(mod_expanded)
-            if mod.kind == "AND":
-                result = result and mod_result
-            else:  # OR
-                result = result or mod_result
-
+    result = _test(ctx, command, span, condition, effective_locals)
+    for mod in modifiers or []:
+        # Short-circuit: AND with False can't become True,
+        # OR with True can't become False.
+        if (mod.kind == "AND" and not result) or (mod.kind == "OR" and result):
+            continue
+        keyword = "ANDIF" if mod.kind == "AND" else "ORIF"
+        result = _test(ctx, f"{keyword} ({mod.condition})", mod.span, mod.condition, effective_locals)
     return result
+
+
+def _test(
+    ctx: RuntimeContext,
+    command: str,
+    span: SourceSpan,
+    condition: str,
+    localvars: SubVarSet | None,
+) -> bool:
+    """One condition of *command*: its value.
+
+    A condition that cannot be evaluated stops the run.  Its error is raised
+    with the line and text of *command*, which may be an ELSEIF, ANDIF or
+    ORIF rather than the statement on record, or a loop condition evaluated
+    after its body.
+    """
+    try:
+        return xcmd_test(substitute_vars(condition, localvars, ctx=ctx))
+    except Exception as exc:
+        e = _as_errinfo(exc)
+        if e.script_file is None:
+            e.script_file, e.script_line_no = span.file, span.start_line
+            e.cmd, e.cmdtype = command, "cmd"
+        if e is exc:
+            raise
+        raise e from exc
 
 
 def _set_command_vars(ctx: RuntimeContext, source: str, line_no: int) -> None:
@@ -275,13 +298,8 @@ def _exec_sql(
             db.execute(cmd)
         if commit:
             db.commit()
-    except ErrInfo as errinfo:
-        e = errinfo
-    except SystemExit:
-        raise
     except Exception as exc:
-        e = ErrInfo(type="exception", exception_msg=exception_desc())
-        e.__cause__ = exc  # the driver's own message, which a prompt shows
+        e = _as_errinfo(exc)
     if e:
         stamp_errinfo(e)
         subvars.add_substitution("$LAST_ERROR", cmd)
@@ -303,8 +321,30 @@ def _exec_sql(
 # ---------------------------------------------------------------------------
 
 
-def _metacommand_failed(ctx: RuntimeContext, cmd: str, e: ErrInfo, source: str, line_no: int) -> None:
-    """Record a failed metacommand; stop the run if METACOMMAND_ERROR_HALT is on.
+def _as_errinfo(exc: Exception) -> ErrInfo:
+    """*exc* as an :class:`ErrInfo`: itself if it is one, else an exception report.
+
+    The report keeps *exc* as its ``__cause__``: the driver's or parser's own
+    message, which a prompt shows.  Call it in the ``except`` clause, where
+    :func:`exception_desc` can still see the exception.
+    """
+    if isinstance(exc, ErrInfo):
+        return exc
+    e = ErrInfo(type="exception", exception_msg=exception_desc())
+    e.__cause__ = exc
+    return e
+
+
+def _metacommand_failed(
+    ctx: RuntimeContext,
+    cmd: str,
+    e: ErrInfo,
+    source: str,
+    line_no: int,
+    *,
+    always_halt: bool = False,
+) -> None:
+    """Record a failed metacommand; stop the run if METACOMMAND_ERROR_HALT is on, or *always_halt*.
 
     With it off the script carries on, and ``METACOMMAND_ERROR()``,
     ``$LAST_ERROR`` and ``$ERROR_MESSAGE`` say what failed.
@@ -319,7 +359,7 @@ def _metacommand_failed(ctx: RuntimeContext, cmd: str, e: ErrInfo, source: str, 
     subvars.add_substitution("$ERROR_MESSAGE", e.errmsg())
     if ctx.exec_log is not None:
         ctx.exec_log.log_status_info(f"Metacommand error: {logged_error(e)}")
-    if status.halt_on_metacommand_err:
+    if status.halt_on_metacommand_err or always_halt:
         exit_now(1, e)
     status.error_history.append((source, line_no, cmd, e.errmsg()))
 
@@ -356,13 +396,8 @@ def _exec_metacommand(
             if (manifest := _manifest.current()) is not None:
                 manifest.record_metacommand(cmd, source, line_no, metacommandlist)
             return result
-    except ErrInfo as errinfo:
-        e = errinfo
-    except SystemExit:
-        raise
     except Exception as exc:
-        e = ErrInfo(type="exception", exception_msg=exception_desc())
-        e.__cause__ = exc
+        e = _as_errinfo(exc)
     if e:
         _metacommand_failed(ctx, cmd, e, source, line_no)
         if (manifest := _manifest.current()) is not None:
@@ -512,7 +547,7 @@ def _execute_if(
     """
     from execsql.state import ExecFrame
 
-    if _eval_condition(ctx, node.condition, node.condition_modifiers):
+    if _condition_holds(ctx, node.command, node.span, node.condition, node.condition_modifiers):
         _push_block_frame(
             ctx,
             ExecFrame(kind="if", label=node.condition, source=node.span.file, line=node.span.start_line),
@@ -525,7 +560,7 @@ def _execute_if(
 
     # Try ELSEIF clauses
     for clause in node.elseif_clauses:
-        if _eval_condition(ctx, clause.condition, clause.condition_modifiers):
+        if _condition_holds(ctx, clause.command, clause.span, clause.condition, clause.condition_modifiers):
             _push_block_frame(
                 ctx,
                 ExecFrame(kind="elseif", label=clause.condition, source=node.span.file, line=node.span.start_line),
@@ -565,9 +600,8 @@ def _execute_loop(
     try:
         if node.loop_type == "WHILE":
             while True:
-                effective_locals = _stack_localvars(ctx)
-                expanded = substitute_vars(condition, effective_locals, ctx=ctx)
-                if not xcmd_test(expanded):
+                ctx.last_command = ExecutingStatement(node)
+                if not _condition_holds(ctx, node.command, node.span, condition):
                     break
                 frame.iteration += 1
                 try:
@@ -581,9 +615,8 @@ def _execute_loop(
                     _execute_nodes(ctx, node.body, node.span.file, localvars, in_loop=True)
                 except _BreakLoop:
                     break
-                effective_locals = _stack_localvars(ctx)
-                expanded = substitute_vars(condition, effective_locals, ctx=ctx)
-                if xcmd_test(expanded):
+                ctx.last_command = ExecutingStatement(node)
+                if _condition_holds(ctx, node.command, node.span, condition):
                     break
     finally:
         ctx.ast_exec_stack.pop()
@@ -662,41 +695,58 @@ def _execute_include(
     node: IncludeDirective,
     localvars: SubVarSet | None = None,
 ) -> None:
-    """Execute an INCLUDE or EXECUTE SCRIPT directive.
+    """Run an INCLUDE or EXECUTE SCRIPT written in the script.
 
-    **INCLUDE** is handled natively: the target file is parsed by the AST
-    parser and executed through the AST executor with circular-include
-    detection.
-
-    **EXECUTE SCRIPT** is handled natively when the target is in
-    ``ctx.ast_scripts``: arguments are parsed, a local variable overlay
-    is created, and the body is executed through the AST executor.
-    WHILE/UNTIL loops are handled natively too.
+    Variables in its file, script name and arguments are substituted once,
+    as in any other metacommand, so ``!!$COUNTER_1!!`` counts once and
+    ``$LAST_ERROR`` holds the text that ran.  An EXECUTE SCRIPT ``WHILE`` /
+    ``UNTIL`` condition is substituted on each pass instead.
     """
-    if node.is_execute_script:
-        # Substitute variables in the target — the script name may be passed
-        # as a parameter (e.g., EXECUTE SCRIPT !!#script_name!!).
-        effective_locals = _stack_localvars(ctx) or localvars
-        target = substitute_vars(node.target, effective_locals, ctx=ctx).strip().lower()
+    effective_locals = _stack_localvars(ctx) or localvars
+    directive = substitute_directive(node, lambda text: substitute_vars(text, effective_locals, ctx=ctx))
+    _run_directive(ctx, directive, localvars)
 
-        # Native path: target is in our AST registry
-        if target in ctx.ast_scripts:
-            _execute_script_native(ctx, node, ctx.ast_scripts[target], localvars)
-            return
 
-        # Target not registered — IF EXISTS silently skips; otherwise a
-        # metacommand error, as for any other metacommand that fails.
-        if node.if_exists:
-            return
-        _directive_failed(ctx, node, ErrInfo("cmd", other_msg=f"There is no SCRIPT named {node.target}."))
+def _run_directive(
+    ctx: RuntimeContext,
+    node: IncludeDirective,
+    localvars: SubVarSet | None = None,
+) -> None:
+    """Run an INCLUDE or EXECUTE SCRIPT whose variables have been substituted.
+
+    **INCLUDE** parses the target file with the AST parser and executes it
+    with circular-include detection.  **EXECUTE SCRIPT** runs a SCRIPT
+    registered in ``ctx.ast_scripts`` with its arguments in a local variable
+    overlay, once or in a WHILE / UNTIL loop.
+
+    The INCLUDE or EXECUTE SCRIPT failing itself (no such file or script, a
+    missing argument) is a metacommand error; see :func:`_directive_failed`.
+    """
+    if (manifest := _manifest.current()) is not None:
+        assert ctx.metacommandlist is not None
+        manifest.record_metacommand(node.command, node.span.file, node.span.start_line, ctx.metacommandlist)
+
+    if not node.is_execute_script:
+        _execute_include_native(ctx, node, localvars)
         return
 
-    # --- INCLUDE (file inclusion) — parse and execute natively ---
-    _execute_include_native(ctx, node, localvars)
+    target = node.target.strip().lower()
+    script_block = ctx.ast_scripts.get(target)
+    if script_block is None:
+        # IF EXISTS silently skips a SCRIPT that is not defined.
+        if not node.if_exists:
+            _directive_failed(ctx, node, ErrInfo("cmd", other_msg=f"There is no SCRIPT named {node.target.strip()}."))
+        return
+    try:
+        paramvals = _script_args(node, script_block)
+    except ErrInfo as e:
+        _directive_failed(ctx, node, e)
+        return
+    _execute_script_native(ctx, node, script_block, paramvals)
 
 
 def _directive_failed(ctx: RuntimeContext, node: IncludeDirective, e: ErrInfo) -> None:
-    """INCLUDE or EXECUTE SCRIPT itself failed (no such file or script): a metacommand error.
+    """INCLUDE or EXECUTE SCRIPT itself failed (no such file or script, a missing argument): a metacommand error.
 
     Errors raised by the statements an included file or script runs are
     theirs, not the directive's, and are handled where they happen.
@@ -704,13 +754,56 @@ def _directive_failed(ctx: RuntimeContext, node: IncludeDirective, e: ErrInfo) -
     _metacommand_failed(ctx, node.command, e, node.span.file, node.span.start_line)
 
 
+def _script_args(node: IncludeDirective, script_block: ScriptBlock) -> ScriptArgSubVarSet | None:
+    """The arguments an EXECUTE SCRIPT passes to *script_block*, with defaults for those it leaves out.
+
+    ``node.arguments`` must already be substituted.  Raises :class:`ErrInfo`
+    when a required parameter has no argument.
+    """
+    from execsql.utils.strings import wo_quotes
+
+    if node.arguments is not None:
+        args_rx = re.compile(
+            r'(?P<param>#?\w+)\s*=\s*(?P<arg>(?:(?:[^"\'\[][^,\)]*)|(?:"[^"]*")|(?:\'[^\']*\')|(?:\[[^\]]*\])))',
+            re.I,
+        )
+        all_args = re.findall(args_rx, node.arguments)
+        all_cleaned_args = [(ae[0], wo_quotes(ae[1])) for ae in all_args]
+        all_prepared_args = [(ae[0] if ae[0][0] == "#" else "#" + ae[0], ae[1]) for ae in all_cleaned_args]
+        paramvals = ScriptArgSubVarSet()
+        for param, arg in all_prepared_args:
+            paramvals.add_substitution(param, arg)
+        passed_names = [p[0].lstrip("#") for p in all_prepared_args]
+    else:
+        if script_block.param_defs is None:
+            return None
+        paramvals = ScriptArgSubVarSet()
+        passed_names = []
+
+    # Validate parameter names match — with default parameter support
+    if script_block.param_defs is not None:
+        missing = [p.name for p in script_block.param_defs if p.required and p.name not in passed_names]
+        if missing:
+            raise ErrInfo(
+                "error",
+                other_msg=f"Missing required parameter(s) ({', '.join(missing)}) in call to {script_block.name}.",
+            )
+        # Inject defaults for optional params not provided
+        for pdef in script_block.param_defs:
+            if pdef.default is not None and pdef.name not in passed_names:
+                paramvals.add_substitution(f"#{pdef.name}", pdef.default)
+    return paramvals
+
+
 def _execute_script_native(
     ctx: RuntimeContext,
     node: IncludeDirective,
     script_block: ScriptBlock,
-    localvars: SubVarSet | None = None,
+    paramvals: ScriptArgSubVarSet | None,
 ) -> None:
     """Execute a SCRIPT block natively through the AST executor.
+
+    *paramvals* are its arguments, from :func:`_script_args`.
 
     Pushes a SCRIPT-kind :class:`~execsql.state.ExecFrame` onto
     ``ctx.ast_exec_stack`` so that metacommand handlers (``x_sub``,
@@ -719,58 +812,6 @@ def _execute_script_native(
     ``ctx.current_localvars()`` / ``ctx.current_paramvals()``. The frame
     is popped on exit (including on error) via ``try/finally``.
     """
-    from execsql.script.variables import ScriptArgSubVarSet
-    from execsql.utils.strings import wo_quotes
-
-    # Parse arguments (replicates ScriptExecSpec logic)
-    # Expand the argument string in the *caller's* scope so that references
-    # like val=!!#parent_param!! or val=!!~parent_local!! resolve correctly
-    # before we push a new scope for this script.
-    paramvals: ScriptArgSubVarSet | None = None
-    if node.arguments is not None:
-        caller_locals = _stack_localvars(ctx)
-        expanded_args = substitute_vars(node.arguments, caller_locals, ctx=ctx)
-        args_rx = re.compile(
-            r'(?P<param>#?\w+)\s*=\s*(?P<arg>(?:(?:[^"\'\[][^,\)]*)|(?:"[^"]*")|(?:\'[^\']*\')|(?:\[[^\]]*\])))',
-            re.I,
-        )
-        all_args = re.findall(args_rx, expanded_args)
-        all_cleaned_args = [(ae[0], wo_quotes(ae[1])) for ae in all_args]
-        all_prepared_args = [(ae[0] if ae[0][0] == "#" else "#" + ae[0], ae[1]) for ae in all_cleaned_args]
-        paramvals = ScriptArgSubVarSet()
-        for param, arg in all_prepared_args:
-            paramvals.add_substitution(param, arg)
-
-        # Validate parameter names match — with default parameter support
-        if script_block.param_defs is not None:
-            passed_names = [p[0].lstrip("#") for p in all_prepared_args]
-            required = [p.name for p in script_block.param_defs if p.required]
-            missing = [p for p in required if p not in passed_names]
-            if missing:
-                raise ErrInfo(
-                    "error",
-                    other_msg=(f"Missing required parameter(s) ({', '.join(missing)}) in call to {script_block.name}."),
-                )
-            # Inject defaults for optional params not provided
-            for pdef in script_block.param_defs:
-                if pdef.default is not None and pdef.name not in passed_names:
-                    paramvals.add_substitution(f"#{pdef.name}", pdef.default)
-    else:
-        if script_block.param_defs is not None:
-            required = [p.name for p in script_block.param_defs if p.required]
-            if required:
-                raise ErrInfo(
-                    "error",
-                    other_msg=(
-                        f"Missing required parameter(s) ({', '.join(required)}) in call to {script_block.name}."
-                    ),
-                )
-            # No args provided but all params have defaults — inject them all
-            paramvals = ScriptArgSubVarSet()
-            for pdef in script_block.param_defs:
-                if pdef.default is not None:
-                    paramvals.add_substitution(f"#{pdef.name}", pdef.default)
-
     # Push a SCRIPT-kind ExecFrame onto ast_exec_stack so that:
     #   - get_subvarset() can find ~local and +outer-scope variables
     #   - xf_sub_defined/xf_sub_empty can check ~local and #param variables
@@ -803,9 +844,8 @@ def _execute_script_native(
 
         if node.loop_type == "WHILE":
             while True:
-                effective_locals = _stack_localvars(ctx)
-                expanded = substitute_vars(condition, effective_locals, ctx=ctx)
-                if not xcmd_test(expanded):
+                ctx.last_command = ExecutingStatement(node)
+                if not _condition_holds(ctx, node.command, node.span, condition):
                     break
                 frame.iteration += 1
                 try:
@@ -819,9 +859,8 @@ def _execute_script_native(
                     _run_body()
                 except _BreakLoop:
                     break
-                effective_locals = _stack_localvars(ctx)
-                expanded = substitute_vars(condition, effective_locals, ctx=ctx)
-                if xcmd_test(expanded):
+                ctx.last_command = ExecutingStatement(node)
+                if _condition_holds(ctx, node.command, node.span, condition):
                     break
         else:
             try:
@@ -846,20 +885,18 @@ def _execute_include_native(
     detection via ``ctx.include_chain``.
     """
     try:
-        loaded = _load_include(ctx, node, localvars)
-    except ErrInfo as e:
-        _directive_failed(ctx, node, e)
+        loaded = _load_include(ctx, node)
+    except _OutsideIncludeRoot as refused:
+        # A security boundary, not a script error to carry on from: the run
+        # stops whatever METACOMMAND_ERROR_HALT says.
+        _metacommand_failed(ctx, node.command, refused.errinfo, node.span.file, node.span.start_line, always_halt=True)
         return
-    except SystemExit:
-        raise
     except Exception as exc:
-        err = ErrInfo(type="exception", exception_msg=exception_desc())
-        err.__cause__ = exc
-        _directive_failed(ctx, node, err)
+        _directive_failed(ctx, node, _as_errinfo(exc))
         return
     if loaded is None:
         return
-    target, resolved, included_tree = loaded
+    resolved, included_tree = loaded
 
     # Pre-register SCRIPT blocks in the included file so forward references work.
     _pre_register_scripts(ctx, included_tree.body)
@@ -879,34 +916,34 @@ def _execute_include_native(
         ctx.include_chain.pop()
 
 
+class _OutsideIncludeRoot(Exception):
+    """An INCLUDE's file is outside ``include_root``; *errinfo* says where it resolved."""
+
+    def __init__(self, errinfo: ErrInfo) -> None:
+        super().__init__(str(errinfo))
+        self.errinfo = errinfo
+
+
 def _load_include(
     ctx: RuntimeContext,
     node: IncludeDirective,
-    localvars: SubVarSet | None,
-) -> tuple[str, str, Any] | None:
-    """Find and parse an INCLUDE's file: ``(target, resolved path, tree)``, or ``None`` to skip it (IF EXISTS).
+) -> tuple[str, Any] | None:
+    """Find and parse the file an INCLUDE names: ``(resolved path, tree)``, or ``None`` to skip it (IF EXISTS).
 
-    Raises :class:`ErrInfo` when the INCLUDE itself fails: no such file,
-    a circular include, or a file that does not parse.
+    Raises :class:`_OutsideIncludeRoot` for a file outside ``include_root``,
+    and :class:`ErrInfo` when the INCLUDE itself fails: no such file, a
+    circular include, or a file that does not parse.
     """
     from execsql.script.parser import parse_script
     from execsql.utils.errors import file_size_date
 
-    # Substitute variables in the target path
-    effective_locals = _stack_localvars(ctx) or localvars
-    target = substitute_vars(node.target, effective_locals, ctx=ctx).strip()
-
-    # Strip surrounding quotes — the AST parser captures the full target
-    # including any quotes, but the legacy dispatch regex stripped them.
-    if len(target) >= 2 and target[0] in ('"', "'") and target[-1] == target[0]:
-        target = target[1:-1]
-
-    # Tilde expansion (matches x_include legacy handler)
+    target = node.target
+    # Tilde expansion (matches the monolith's x_include)
     if len(target) > 1 and target[0] == "~" and target[1] == os.sep:
         target = str(Path.home() / target[2:])
 
-    # Optional containment: when conf.include_root is set, the resolved
-    # INCLUDE / EXECUTE SCRIPT target must live under that root.
+    # Optional containment: when conf.include_root is set, the file must
+    # live under that root.
     include_root = getattr(ctx.conf, "include_root", None) if hasattr(ctx, "conf") else None
     if include_root is None:
         import execsql.state as _state
@@ -915,7 +952,10 @@ def _load_include(
     if include_root:
         from execsql.utils.fileio import safe_output_path
 
-        target = safe_output_path(target, include_root)
+        try:
+            target = safe_output_path(target, include_root)
+        except ErrInfo as e:
+            raise _OutsideIncludeRoot(e) from e
 
     target_path = Path(target)
 
@@ -948,7 +988,7 @@ def _load_include(
     included_tree = parse_script(target, encoding=encoding)
     if (manifest := _manifest.current()) is not None:
         manifest.record_include(target, node.span.file, node.span.start_line)
-    return target, resolved, included_tree
+    return resolved, included_tree
 
 
 # ---------------------------------------------------------------------------
@@ -1035,11 +1075,8 @@ class ExecutingStatement:
         node = self.node
         if isinstance(node, SqlStatement):
             return _StatementText(node.text)
-        if isinstance(node, MetaCommandStatement):
-            return _StatementText(node.command, "-- !x! ")
-        if isinstance(node, IncludeDirective):
-            return _StatementText(node.command, "-- !x! ")
-        return _StatementText("")
+        command = getattr(node, "command", "")
+        return _StatementText(command, "-- !x! " if command else "")
 
     def __repr__(self) -> str:
         return f"ExecutingStatement({self.source}:{self.line_no}, {self.command_type})"
@@ -1057,23 +1094,7 @@ def _node_cmd_type(node: Node) -> str:
 
 
 def _node_cmd_text(node: Node) -> str:
-    if isinstance(node, SqlStatement):
-        return node.text
-    if isinstance(node, MetaCommandStatement):
-        return "-- !x! " + node.command
-    if isinstance(node, IfBlock):
-        return f"-- !x! IF ({node.condition})"
-    if isinstance(node, LoopBlock):
-        return f"-- !x! LOOP {node.loop_type} ({node.condition})"
-    if isinstance(node, BatchBlock):
-        return "-- !x! BEGIN BATCH"
-    if isinstance(node, ScriptBlock):
-        return f"-- !x! BEGIN SCRIPT {node.name}"
-    if isinstance(node, IncludeDirective):
-        if node.is_execute_script:
-            return f"-- !x! EXECUTE SCRIPT {node.target}"
-        return f"-- !x! INCLUDE {node.target}"
-    return repr(node)
+    return ExecutingStatement(node).command.commandline() or repr(node)
 
 
 # ---------------------------------------------------------------------------

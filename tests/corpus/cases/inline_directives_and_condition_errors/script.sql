@@ -1,0 +1,15 @@
+-- INCLUDE and EXECUTE SCRIPT inside an inline IF, EXECUTE SCRIPT without a
+-- required argument, and an IF condition that cannot be evaluated.
+-- !x! IF (TRUE) { INCLUDE part.sql }
+-- !x! BEGIN SCRIPT s
+-- !x! WRITE "in s" TO out.txt
+-- !x! END SCRIPT
+-- !x! IF (TRUE) { EXECUTE SCRIPT s }
+-- !x! BEGIN SCRIPT needs_arg (a)
+-- !x! WRITE "in needs_arg" TO out.txt
+-- !x! END SCRIPT
+-- !x! METACOMMAND_ERROR_HALT OFF
+-- !x! EXECUTE SCRIPT needs_arg
+-- !x! IF (METACOMMAND_ERROR()) { WRITE "missing argument seen" TO out.txt }
+-- !x! IF (NO_SUCH_FN(x)) { WRITE "inline body" TO out.txt }
+-- !x! WRITE "after bad condition" TO out.txt
