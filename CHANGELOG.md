@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.35.0] - 2026-10-18
+
 ### Added
 
 - **`exact_decimals`** (`[input]`) and **`CONFIG EXACT_DECIMALS YES|NO`**: with Yes, `IMPORT` and `COPY … TO NEW` give a column of decimals with different numbers of places an exact `DECIMAL(p,s)` type instead of a floating-point one.
