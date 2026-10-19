@@ -1,0 +1,4 @@
+# Corpus inputs are compared byte for byte with upstream's recorded results
+# (IMPORT_FILE stores a file's raw bytes), so Git must not convert their line
+# endings on checkout.
+tests/corpus/cases/** -text
