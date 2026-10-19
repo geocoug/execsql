@@ -11,6 +11,11 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Fixed
+
+- **`INCLUDE` of a file that does not exist, and `EXECUTE SCRIPT` of a script that does not exist,** are metacommand errors: with `METACOMMAND_ERROR_HALT OFF` the script carries on and `METACOMMAND_ERROR()`, `$LAST_ERROR` and `$ERROR_MESSAGE` say what failed. They stopped the run whatever that setting said.
+- **Error reports name the metacommand as written** (`Metacommand: INCLUDE missing.sql`), without `-- !x!`; an `INCLUDE` or `EXECUTE SCRIPT` that failed was reported with an empty `Metacommand:` line.
+
 ______________________________________________________________________
 
 ## [2.36.0] - 2026-10-19

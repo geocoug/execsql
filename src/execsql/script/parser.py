@@ -822,6 +822,7 @@ def _parse_lines(lines: Iterable[str], source_name: str, errors: list[ErrInfo] |
                         span=SourceSpan(source_name, file_lineno),
                         target=_strip_quotes(m.group("target").strip()),
                         if_exists=m.group("exists") is not None,
+                        command=cmd_text.strip(),
                     ),
                 )
                 continue
@@ -838,6 +839,7 @@ def _parse_lines(lines: Iterable[str], source_name: str, errors: list[ErrInfo] |
                         arguments=m.group("argexp"),
                         loop_type=m.group("looptype").upper() if m.group("looptype") else None,
                         loop_condition=m.group("loopcond"),
+                        command=cmd_text.strip(),
                     ),
                 )
                 continue
