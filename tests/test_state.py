@@ -323,3 +323,26 @@ class TestThreadSafety:
 
         assert _state.get_context() is main_ctx
         assert _state.upass == main_upass
+
+
+class TestContextAttributeLookup:
+    """A context attribute is found on the module's class, not through ``__getattr__``.
+
+    Reaching ``__getattr__`` means the ordinary lookup raised first, which on
+    Python 3.13 costs ~12 µs per read when ``sys.path[0]`` is ``''``.
+    """
+
+    def test_every_context_attribute_is_read_without_the_fallback(self, monkeypatch):
+        def fail(self, name):
+            raise AssertionError(f"_state.{name} went through __getattr__")
+
+        monkeypatch.setattr(type(_state), "__getattr__", fail)
+        ctx = _state.get_context()
+        for name in _CONTEXT_ATTRS:
+            assert getattr(_state, name) is getattr(ctx, name)
+
+    def test_writes_and_patches_still_reach_the_context(self, monkeypatch):
+        sentinel = object()
+        monkeypatch.setattr(_state, "timer", sentinel)
+        assert _state.get_context().timer is sentinel
+        assert _state.timer is sentinel

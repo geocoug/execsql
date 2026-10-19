@@ -467,6 +467,29 @@ class _StateModule(types.ModuleType):
         return sorted(set(super().__dir__()) | _CONTEXT_ATTRS)
 
 
+def _context_property(name: str) -> property:
+    """A property on :class:`_StateModule` that reads *name* from the active context.
+
+    Without it every ``_state.conf`` read failed the module's own lookup and
+    reached :meth:`_StateModule.__getattr__` through an ``AttributeError``.
+    Building that error is cheap in a script, but on Python 3.13 it checks
+    whether the module shadows a standard-library one, which takes ~12 µs
+    when ``sys.path[0]`` is ``''`` (``python -c``, stdin, the REPL,
+    notebooks).  Writes and deletes still go through ``__setattr__`` and
+    ``__delattr__``.
+    """
+
+    def get(self: _StateModule) -> Any:
+        return getattr(_get_ctx(), name)
+
+    return property(get)
+
+
+for _name in _CONTEXT_ATTRS:
+    setattr(_StateModule, _name, _context_property(_name))
+del _name
+
+
 # ---------------------------------------------------------------------------
 # Utility functions
 # ---------------------------------------------------------------------------
