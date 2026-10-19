@@ -303,6 +303,27 @@ def _exec_sql(
 # ---------------------------------------------------------------------------
 
 
+def _metacommand_failed(ctx: RuntimeContext, cmd: str, e: ErrInfo, source: str, line_no: int) -> None:
+    """Record a failed metacommand; stop the run if METACOMMAND_ERROR_HALT is on.
+
+    With it off the script carries on, and ``METACOMMAND_ERROR()``,
+    ``$LAST_ERROR`` and ``$ERROR_MESSAGE`` say what failed.
+    """
+    status = ctx.status
+    subvars = ctx.subvars
+    assert status is not None
+    assert subvars is not None
+    stamp_errinfo(e)
+    status.metacommand_error = True
+    subvars.add_substitution("$LAST_ERROR", cmd)
+    subvars.add_substitution("$ERROR_MESSAGE", e.errmsg())
+    if ctx.exec_log is not None:
+        ctx.exec_log.log_status_info(f"Metacommand error: {logged_error(e)}")
+    if status.halt_on_metacommand_err:
+        exit_now(1, e)
+    status.error_history.append((source, line_no, cmd, e.errmsg()))
+
+
 def _exec_metacommand(
     ctx: RuntimeContext,
     cmd: str,
@@ -343,17 +364,9 @@ def _exec_metacommand(
         e = ErrInfo(type="exception", exception_msg=exception_desc())
         e.__cause__ = exc
     if e:
-        stamp_errinfo(e)
-        status.metacommand_error = True
-        subvars.add_substitution("$LAST_ERROR", cmd)
-        subvars.add_substitution("$ERROR_MESSAGE", e.errmsg())
-        if ctx.exec_log is not None:
-            ctx.exec_log.log_status_info(f"Metacommand error: {logged_error(e)}")
-        if status.halt_on_metacommand_err:
-            exit_now(1, e)
+        _metacommand_failed(ctx, cmd, e, source, line_no)
         if (manifest := _manifest.current()) is not None:
             manifest.record_metacommand(cmd, source, line_no, metacommandlist)
-        status.error_history.append((source, line_no, cmd, e.errmsg()))
         return None
     # No handler matched — truly unknown metacommand
     status.metacommand_error = True
@@ -671,16 +684,24 @@ def _execute_include(
             _execute_script_native(ctx, node, ctx.ast_scripts[target], localvars)
             return
 
-        # Target not registered — IF EXISTS silently skips; otherwise error.
+        # Target not registered — IF EXISTS silently skips; otherwise a
+        # metacommand error, as for any other metacommand that fails.
         if node.if_exists:
             return
-        raise ErrInfo(
-            "cmd",
-            other_msg=f"There is no SCRIPT named {node.target}.",
-        )
+        _directive_failed(ctx, node, ErrInfo("cmd", other_msg=f"There is no SCRIPT named {node.target}."))
+        return
 
     # --- INCLUDE (file inclusion) — parse and execute natively ---
     _execute_include_native(ctx, node, localvars)
+
+
+def _directive_failed(ctx: RuntimeContext, node: IncludeDirective, e: ErrInfo) -> None:
+    """INCLUDE or EXECUTE SCRIPT itself failed (no such file or script): a metacommand error.
+
+    Errors raised by the statements an included file or script runs are
+    theirs, not the directive's, and are handled where they happen.
+    """
+    _metacommand_failed(ctx, node.command, e, node.span.file, node.span.start_line)
 
 
 def _execute_script_native(
@@ -824,6 +845,50 @@ def _execute_include_native(
     Handles tilde expansion, IF EXISTS, logging, and circular-include
     detection via ``ctx.include_chain``.
     """
+    try:
+        loaded = _load_include(ctx, node, localvars)
+    except ErrInfo as e:
+        _directive_failed(ctx, node, e)
+        return
+    except SystemExit:
+        raise
+    except Exception as exc:
+        err = ErrInfo(type="exception", exception_msg=exception_desc())
+        err.__cause__ = exc
+        _directive_failed(ctx, node, err)
+        return
+    if loaded is None:
+        return
+    target, resolved, included_tree = loaded
+
+    # Pre-register SCRIPT blocks in the included file so forward references work.
+    _pre_register_scripts(ctx, included_tree.body)
+
+    # Execute with include-chain tracking
+    from execsql.state import ExecFrame
+
+    ctx.include_chain.append(resolved)
+    _push_block_frame(
+        ctx,
+        ExecFrame(kind="include", label=Path(resolved).name, source=resolved, line=1),
+    )
+    try:
+        _execute_nodes(ctx, included_tree.body, included_tree.source, localvars)
+    finally:
+        ctx.ast_exec_stack.pop()
+        ctx.include_chain.pop()
+
+
+def _load_include(
+    ctx: RuntimeContext,
+    node: IncludeDirective,
+    localvars: SubVarSet | None,
+) -> tuple[str, str, Any] | None:
+    """Find and parse an INCLUDE's file: ``(target, resolved path, tree)``, or ``None`` to skip it (IF EXISTS).
+
+    Raises :class:`ErrInfo` when the INCLUDE itself fails: no such file,
+    a circular include, or a file that does not parse.
+    """
     from execsql.script.parser import parse_script
     from execsql.utils.errors import file_size_date
 
@@ -857,7 +922,7 @@ def _execute_include_native(
     # IF EXISTS handling
     if node.if_exists:
         if not target_path.is_file():
-            return
+            return None
     else:
         if not target_path.is_file():
             raise ErrInfo(type="error", other_msg=f"File {target} does not exist.")
@@ -883,23 +948,7 @@ def _execute_include_native(
     included_tree = parse_script(target, encoding=encoding)
     if (manifest := _manifest.current()) is not None:
         manifest.record_include(target, node.span.file, node.span.start_line)
-
-    # Pre-register SCRIPT blocks in the included file so forward references work.
-    _pre_register_scripts(ctx, included_tree.body)
-
-    # Execute with include-chain tracking
-    from execsql.state import ExecFrame
-
-    ctx.include_chain.append(resolved)
-    _push_block_frame(
-        ctx,
-        ExecFrame(kind="include", label=Path(resolved).name, source=resolved, line=1),
-    )
-    try:
-        _execute_nodes(ctx, included_tree.body, included_tree.source, localvars)
-    finally:
-        ctx.ast_exec_stack.pop()
-        ctx.include_chain.pop()
+    return target, resolved, included_tree
 
 
 # ---------------------------------------------------------------------------
@@ -987,6 +1036,8 @@ class ExecutingStatement:
         if isinstance(node, SqlStatement):
             return _StatementText(node.text)
         if isinstance(node, MetaCommandStatement):
+            return _StatementText(node.command, "-- !x! ")
+        if isinstance(node, IncludeDirective):
             return _StatementText(node.command, "-- !x! ")
         return _StatementText("")
 

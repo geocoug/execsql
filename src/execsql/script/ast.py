@@ -384,6 +384,8 @@ class IncludeDirective(Node):
         arguments: Optional argument expression for EXECUTE SCRIPT.
         loop_type: Optional ``"WHILE"`` or ``"UNTIL"`` for looped execution.
         loop_condition: The loop condition expression, if *loop_type* is set.
+        command: The metacommand as written, without ``-- !x!``, for error
+            reports.
     """
 
     target: str
@@ -392,6 +394,7 @@ class IncludeDirective(Node):
     arguments: str | None = None
     loop_type: str | None = None
     loop_condition: str | None = None
+    command: str = ""
 
     def __repr__(self) -> str:
         kind = "EXECUTE SCRIPT" if self.is_execute_script else "INCLUDE"

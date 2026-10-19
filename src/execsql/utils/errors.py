@@ -121,7 +121,8 @@ def stamp_errinfo(errinfo: ErrInfo) -> ErrInfo:
         errinfo.script_file = lc.source
         errinfo.script_line_no = lc.line_no
         if errinfo.cmd is None:
-            errinfo.cmd = lc.command.commandline() if hasattr(lc.command, "commandline") else None
+            # The metacommand as written, without "-- !x!", as upstream reported it.
+            errinfo.cmd = getattr(lc.command, "statement", None)
             errinfo.cmdtype = lc.command_type
     return errinfo
 

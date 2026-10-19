@@ -24,7 +24,7 @@ def _make_script_cmd(source: str = "test.sql", line_no: int = 42, command_type: 
         source=source,
         line_no=line_no,
         command_type=command_type,
-        command=SimpleNamespace(commandline=lambda: "SELECT 1;"),
+        command=SimpleNamespace(statement="SELECT 1;", commandline=lambda: "SELECT 1;"),
     )
     return cmd
 
@@ -84,11 +84,11 @@ class TestStampErrinfo:
         assert e.script_file == "original.sql"
         assert e.script_line_no == 1
 
-    def test_metacommand_commandline_used_when_available(self):
-        """stamp_errinfo calls commandline() on the inner command object."""
+    def test_metacommand_is_named_without_its_marker(self):
+        """The report names the metacommand as upstream did: ``WRITE …``, not ``-- !x! WRITE …``."""
         from execsql.utils.errors import stamp_errinfo
 
-        cmd_obj = SimpleNamespace(commandline=lambda: "-- !x! WRITE something")
+        cmd_obj = SimpleNamespace(statement="WRITE something", commandline=lambda: "-- !x! WRITE something")
         _state.last_command = SimpleNamespace(
             source="script.sql",
             line_no=10,
@@ -98,7 +98,7 @@ class TestStampErrinfo:
         e = ErrInfo("cmd")
         stamp_errinfo(e)
 
-        assert e.cmd == "-- !x! WRITE something"
+        assert e.cmd == "WRITE something"
         assert e.cmdtype == "cmd"
 
     def test_cmd_none_when_command_has_no_commandline(self):
