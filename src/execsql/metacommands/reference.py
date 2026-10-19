@@ -254,6 +254,7 @@ _METACOMMANDS: tuple[Metacommand, ...] = (
             "CONFIG DELETE_EMPTY_COLUMNS YES|NO",
             "CONFIG EMPTY_ROWS YES|NO",
             "CONFIG EMPTY_STRINGS YES|NO",
+            "CONFIG EXACT_DECIMALS YES|NO",
             "CONFIG EXPORT_ROW_BUFFER <n>",
             "CONFIG FOLD_COLUMN_HEADERS NO|LOWER|UPPER",
             "CONFIG GUI_LEVEL <n>",

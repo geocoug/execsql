@@ -300,6 +300,7 @@ class ConfigData:
         self._get_bool(cp, self._INPUT_SECTION, "boolean_int", "boolean_int")
         self._get_bool(cp, self._INPUT_SECTION, "boolean_words", "boolean_words")
         self._get_bool(cp, self._INPUT_SECTION, "empty_strings", "empty_strings")
+        self._get_bool(cp, self._INPUT_SECTION, "exact_decimals", "exact_decimals")
         self._get_bool(cp, self._INPUT_SECTION, "only_strings", "only_strings")
         self._get_bool(cp, self._INPUT_SECTION, "empty_rows", "empty_rows")
         self._get_bool(cp, self._INPUT_SECTION, "delete_empty_columns", "del_empty_cols")
@@ -503,6 +504,7 @@ class ConfigData:
         self.boolean_int = True
         self.boolean_words = False
         self.empty_strings = True
+        self.exact_decimals = False
         self.only_strings = False
         self.empty_rows = True
         self.del_empty_cols = False
