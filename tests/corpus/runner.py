@@ -9,8 +9,8 @@ empty directory so no user configuration file is read.  What comes back:
 - ``exit``: the exit status.
 - ``stdout`` / ``stderr``: the console output.
 - ``files``: every file the run left in the working directory except the
-  database, the copied inputs and ``execsql.log``, as text (or base64 for
-  binary content).
+  database, the copied inputs and ``execsql.log``, as text, as its tables
+  (an SQLite database a script created), or as base64 (other binary content).
 - ``tables``: every table in ``t.db``: its columns with their declared
   types, and its rows in insertion order, each value as ``[typeof, repr]``
   so a ``1`` stored as text differs from a ``1`` stored as an integer.
@@ -46,6 +46,7 @@ CASES = CORPUS / "cases"
 RESULTS = CORPUS / "results"
 
 DB_NAME = "t.db"
+_SQLITE_HEADER = b"SQLite format 3\x00"
 # Error reports end with the time they happened.
 _ERROR_TIME = re.compile(r"Error occurred at \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} UTC\.")
 # Upstream adds where in its own source an exception was raised.
@@ -96,6 +97,10 @@ def run_case(case: str, command: list[str], workdir: Path, *, timeout: int = 30)
         if not path.is_file() or rel in inputs or str(rel) in _SKIPPED_FILES:
             continue
         data = path.read_bytes()
+        if data.startswith(_SQLITE_HEADER):
+            # Compared by content: the file's bytes depend on the SQLite build.
+            files[rel.as_posix()] = {"sqlite": _tables(path)}
+            continue
         try:
             files[rel.as_posix()] = clean(data.decode("utf-8"))
         except UnicodeDecodeError:
