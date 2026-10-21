@@ -1,0 +1,36 @@
+{
+ "exit": 1,
+ "files": {},
+ "recorded_with": "execsql 1.130.1",
+ "stderr": "**** Error in metacommand.\n     Line 12 of script script.sql\n     IntegrityError: FOREIGN KEY constraint failed\n     END BATCH\n     Metacommand: END BATCH\n     Error occurred at <TIME>.\n",
+ "stdout": "",
+ "tables": {
+  "child": {
+   "columns": [
+    [
+     "pid",
+     "INTEGER"
+    ]
+   ],
+   "rows": []
+  },
+  "o": {
+   "columns": [
+    [
+     "v",
+     "TEXT"
+    ]
+   ],
+   "rows": []
+  },
+  "parent": {
+   "columns": [
+    [
+     "id",
+     "INTEGER"
+    ]
+   ],
+   "rows": []
+  }
+ }
+}

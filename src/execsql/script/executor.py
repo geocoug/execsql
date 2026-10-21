@@ -655,7 +655,8 @@ def _execute_batch(
 
     Reaching END BATCH commits the batch; a commit that fails is an SQL error
     on the END BATCH line, after the batch's uncommitted databases are rolled
-    back. Leaving it any other way (BREAK,
+    back, and every enclosing batch then rolls back at its own END BATCH
+    instead of committing. Leaving it any other way (BREAK,
     an error, HALT) abandons it: see
     :meth:`~execsql.script.control.BatchLevels.abandon_batch` for when that
     rolls back and when an enclosing batch takes the statements over.  A
@@ -681,14 +682,25 @@ def _execute_batch(
         if status.batch.in_batch() and not completed:
             status.batch.abandon_batch()
     if status.batch.in_batch():
-        end_line = node.span.end_line or node.span.start_line
+        end_line = node.span.effective_end_line
         ctx.last_command = ExecutingStatement(
             MetaCommandStatement(span=SourceSpan(node.span.file, end_line), command="END BATCH"),
         )
+        failure = status.batch.failure()
+        if failure is not None:
+            status.batch.abandon_batch()
+            e = ErrInfo(type="error", other_msg=f"The batch was rolled back: {failure}.")
+            _sql_failed(ctx, e, "END BATCH", node.span.file, end_line)
+            return
         try:
             status.batch.end_batch()
         except Exception as exc:
-            # end_batch has rolled back what it had not committed.
+            # end_batch has rolled back what it had not committed, which can
+            # include an enclosing batch's statements on a shared connection:
+            # that batch must not commit the rest.
+            status.batch.fail_enclosing(
+                f"a nested batch's commit failed at END BATCH on line {end_line} of {node.span.file}",
+            )
             _sql_failed(ctx, _as_errinfo(exc), "END BATCH", node.span.file, end_line)
 
 
