@@ -374,9 +374,32 @@ Metacommands that appear within a BEGIN/END SQL block will be treated as comment
 BREAK
 ```
 
-This metacommand will cause an immediate exit from any [LOOP](#loop), [SCRIPT](#beginscript) or [INCLUDEEd](#include) file. If there are multiple levels of these structures active, only the latest level will be exited.
+This metacommand will cause an immediate exit from any [LOOP](#loop), [SCRIPT](#beginscript) or [INCLUDEEd](#include) file. If there are multiple levels of these structures active, only the latest level will be exited:
 
-If this metacommand is used when none of these structures are active, a warning will be issued.
+- In a `LOOP`, it ends the loop, and the script carries on after `END LOOP`.
+- In a `SCRIPT`, outside any `LOOP` of its own, it returns from the script. A `SCRIPT` that [EXECUTE SCRIPT](#executescript) repeats with `WHILE` or `UNTIL` stops repeating.
+- In an `INCLUDE`d file, outside any `LOOP` in that file, it leaves the file, and the script that included it carries on, even when the `INCLUDE` is inside a `LOOP`.
+
+A `BREAK` therefore never ends a loop that called the `SCRIPT` or included the file it is in:
+
+```
+-- !x! BEGIN SCRIPT check_one
+-- !x! IF (NOT HASROWS(staging))
+-- !x!   BREAK
+-- !x! ENDIF
+-- !x! WRITE "staging has rows"
+-- !x! END SCRIPT
+
+-- !x! SUB n 0
+-- !x! LOOP WHILE (IS_GT(3, !{n}!))
+-- !x! SUB_ADD n 1
+-- !x! EXECUTE SCRIPT check_one
+-- !x! END LOOP
+```
+
+Here a `BREAK` in `check_one` skips the rest of that call, and the loop still runs all its passes.
+
+A `BREAK` in the main script, outside any of these structures, has nothing to leave. It is a metacommand error: the run stops unless [METACOMMAND_ERROR_HALT](#metacommanderrorhalt) is `OFF`, in which case the script carries on and `METACOMMAND_ERROR()` is true.
 
 
 ## CANCEL_HALT

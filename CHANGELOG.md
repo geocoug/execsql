@@ -13,10 +13,13 @@ ______________________________________________________________________
 
 ### Changed
 
+- **`BREAK` in a `SCRIPT` or `INCLUDE`d file, outside a `LOOP`,** returns from that script or file, as the `BREAK` documentation says and upstream execsql did; it stopped the run. A `BREAK` in an `INCLUDE`d file inside a `LOOP` now leaves only the file, and the loop carries on; it ended the loop.
+- **`BREAK` in the main script, outside any `LOOP`, `SCRIPT` or `INCLUDE`d file,** is a metacommand error: with `METACOMMAND_ERROR_HALT OFF` the script carries on and `METACOMMAND_ERROR()` is true. It stopped the run whatever that setting said.
 - **`--manifest`** counts each `INCLUDE` and `EXECUTE SCRIPT` in `statements.metacommands`, including one that fails or that `IF EXISTS` skips.
 
 ### Fixed
 
+- **`BREAK` in the main script, outside any `LOOP`, `SCRIPT` or `INCLUDE`d file,** is reported on its own line; it named the statement before it.
 - **`INCLUDE` and `EXECUTE SCRIPT` inside an inline `IF (…) { … }`** run again; they stopped the run with "should be handled by the AST executor".
 - **`INCLUDE`, `EXECUTE SCRIPT` and an inline `IF` added with `EXTEND SCRIPT … WITH METACOMMAND`** run when the script does; they stopped the run the same way.
 - **An `INCLUDE` or `EXECUTE SCRIPT` that a substitution variable supplies** (`-- !x! !!cmd!!`) says it cannot run and to write it in the script; it reported "should be handled by the AST executor".

@@ -313,6 +313,34 @@
    "why": "Upstream never applied TRIM_STRINGS to SQLite imports (divergence: 'SQLite import string processing'); execsql2 trims."
   }
  },
+ "break_at_top_level": {
+  "exit": {
+   "execsql2": 1,
+   "status": "accepted",
+   "upstream": 0,
+   "why": "A BREAK in the main script outside any LOOP, SCRIPT or included file has nothing to leave: execsql2 makes it a metacommand error reported on the BREAK's line, which METACOMMAND_ERROR_HALT OFF skips; upstream logged a warning and carried on, so a misplaced BREAK went unnoticed (divergence: 'BREAK leaves the innermost LOOP, SCRIPT or included file'; #115)."
+  },
+  "files/out.txt": {
+   "execsql2": "before\n",
+   "status": "accepted",
+   "upstream": "before\nafter\n",
+   "why": "A BREAK in the main script outside any LOOP, SCRIPT or included file has nothing to leave: execsql2 makes it a metacommand error reported on the BREAK's line, which METACOMMAND_ERROR_HALT OFF skips; upstream logged a warning and carried on, so a misplaced BREAK went unnoticed (divergence: 'BREAK leaves the innermost LOOP, SCRIPT or included file'; #115)."
+  },
+  "stderr": {
+   "execsql2": "**** Error in metacommand.\n     Line 3 of script script.sql\n     BREAK has nothing to leave: it is not inside a LOOP, SCRIPT or included file.\n     Metacommand: BREAK\n     Error occurred at <TIME>.\n",
+   "status": "accepted",
+   "upstream": "",
+   "why": "A BREAK in the main script outside any LOOP, SCRIPT or included file has nothing to leave: execsql2 makes it a metacommand error reported on the BREAK's line, which METACOMMAND_ERROR_HALT OFF skips; upstream logged a warning and carried on, so a misplaced BREAK went unnoticed (divergence: 'BREAK leaves the innermost LOOP, SCRIPT or included file'; #115)."
+  }
+ },
+ "break_in_inline_if": {
+  "files/out.txt": {
+   "execsql2": "pass 1\nafter loop\n",
+   "status": "accepted",
+   "upstream": "pass 1\npass 2\npass 3\npass 4\npass 5\nafter loop\n",
+   "why": "Upstream ignored a BREAK that is the body of an inline IF (IF (...) { BREAK }), so the LOOP ran all its passes; execsql2 leaves the loop, as the same BREAK in a block IF does in both (divergence: 'BREAK leaves the innermost LOOP, SCRIPT or included file'; #115)."
+  }
+ },
  "cd_relative_paths": {
   "exit": {
    "execsql2": 0,

@@ -507,28 +507,28 @@ class TestScriptBlocks:
         assert result.returncode == 0
         assert _query_db(tmp_path, "SELECT x FROM t") == [(1,)]
 
-    def test_break_inside_script_body_does_not_escape_scope(self, tmp_path):
-        """BREAK inside a SCRIPT body (not its own LOOP) must error.
+    def test_break_inside_script_body_returns_from_the_script_only(self, tmp_path):
+        """BREAK in a SCRIPT outside its own LOOP returns from the script (#115).
 
-        Previously a bare BREAK inside an EXECUTE SCRIPT body propagated
-        out of the SCRIPT and was silently caught by an enclosing LOOP,
-        terminating the caller's loop instead of erroring.
+        It does not end the caller's LOOP: every pass still runs, as in
+        upstream execsql.
         """
         result = _run_ast(
-            "-- !x! BEGIN SCRIPT bad_break\n"
+            "-- !x! BEGIN SCRIPT early_return\n"
+            '-- !x! WRITE "in script"\n'
             "-- !x! BREAK\n"
+            '-- !x! WRITE "after break"\n'
             "-- !x! END SCRIPT\n"
-            "CREATE TABLE t (x INT);\n"
             "-- !x! SUB i 0\n"
             "-- !x! LOOP WHILE (NOT IS_GTE(!!i!!, 3))\n"
             "-- !x! SUB_ADD i 1\n"
-            "INSERT INTO t VALUES (!!i!!);\n"
-            "-- !x! EXECUTE SCRIPT bad_break\n"
+            "-- !x! EXECUTE SCRIPT early_return\n"
+            '-- !x! WRITE "pass !!i!!"\n'
             "-- !x! END LOOP",
             tmp_path,
         )
-        assert result.returncode != 0
-        assert "BREAK" in (result.stderr + result.stdout)
+        assert result.returncode == 0, result.stderr
+        assert result.stdout.splitlines() == ["in script", "pass 1", "in script", "pass 2", "in script", "pass 3"]
 
     def test_run_script_alias(self, tmp_path):
         result = _run_ast(

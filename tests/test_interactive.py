@@ -84,7 +84,7 @@ class TestAtABreakpoint:
     def test_break_outside_a_loop_is_reported_and_the_prompt_stays(self, tmp_path):
         script = "create table t (n integer);\n-- !x! breakpoint\ninsert into t values (1);\n"
         result, out, _, rows = _paused(tmp_path, script, ["-- !x! break", ".c"])
-        assert "BREAK metacommand outside of a LOOP block." in out
+        assert "BREAK has nothing to leave" in out
         assert result.success, result.errors
         assert rows == [1]
 

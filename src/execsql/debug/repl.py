@@ -6,8 +6,8 @@ Input runs as if it were written where the script paused, through
 :mod:`execsql.interactive`: SQL (ending with ``;``, results shown as tables),
 metacommands and blocks, in the paused script's variable scope and
 transaction. A ``SUB`` typed here is still set
-when the script resumes; a ``BREAK`` inside a LOOP leaves the loop; ``HALT``
-ends the run. An error ends only the input that caused it.
+when the script resumes; a ``BREAK`` leaves the LOOP, SCRIPT or included file
+the script paused in; ``HALT`` ends the run. An error ends only the input that caused it.
 
 Commands to the REPL itself start with ``.``: ``.continue`` and ``.next``
 resume the script, ``.where`` and ``.stack`` show where it paused, ``.quit``
