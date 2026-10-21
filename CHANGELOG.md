@@ -13,7 +13,7 @@ ______________________________________________________________________
 
 ### Changed
 
-- **`DISCONNECT` inside `BEGIN BATCH`** refuses a database the batch has used, as documented, and the run halts (the batch is rolled back); it closed the connection and the batch's statements were lost. Put the `DISCONNECT` after `END BATCH`.
+- **`DISCONNECT` inside `BEGIN BATCH`** refuses a database the batch has used, as documented: it is a metacommand error and the connection stays open; it closed the connection and the batch's statements were lost. Put the `DISCONNECT` after `END BATCH`.
 - **`DISCONNECT FROM <alias>`** matches the alias in any case, as `USE` does; `DISCONNECT FROM B` left a connection made `AS b` open, so a later `USE b` worked. Reconnect with `CONNECT` before using an alias you disconnected.
 - **`DISCONNECT FROM` an alias that is not connected** is a metacommand error; it did nothing, so a misspelled alias left the real connection open. To disconnect only if connected, write `IF (ALIAS_DEFINED(staging)) { DISCONNECT FROM staging }`, with the alias in lowercase inside `ALIAS_DEFINED`.
 - **`BREAK` in a `SCRIPT` or `INCLUDE`d file, outside a `LOOP`,** returns from that script or file, as the `BREAK` documentation says and upstream execsql did; it stopped the run. A `BREAK` in an `INCLUDE`d file inside a `LOOP` now leaves only the file, and the loop carries on; it ended the loop.
