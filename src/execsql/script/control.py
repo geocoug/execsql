@@ -48,8 +48,15 @@ class BatchLevels:
                 b.failed = reason
 
     def failure(self) -> str | None:
-        """Why the innermost batch level can no longer commit, or None."""
-        return self.batchlevels[-1].failed if self.batchlevels else None
+        """Why the innermost batch can no longer commit, or None.
+
+        A batch inside a failed one cannot commit either: its commit would
+        commit the failed batch's later statements on a shared connection.
+        """
+        for b in reversed(self.batchlevels):
+            if b.failed is not None:
+                return b.failed
+        return None
 
     def new_batch(self) -> None:
         """Push a new empty batch level onto the stack."""
@@ -72,6 +79,8 @@ class BatchLevels:
             b = self.batchlevels[-1]
             for db in b.dbs_used:
                 db.rollback()
+            # Nothing of this batch is left to lose, so it can commit again.
+            b.failed = None
 
     def end_batch(self) -> None:
         """Commit all databases in the innermost batch level and pop the stack.

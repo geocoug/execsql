@@ -166,6 +166,24 @@ class TestBatchLevels:
         bl.abandon_batch()
         assert bl.failure() == "why"
 
+    def test_a_batch_opened_inside_a_failed_one_has_failed_too(self):
+        bl = BatchLevels()
+        bl.new_batch()
+        bl.fail_enclosing("why")
+        bl.new_batch()
+        assert bl.failure() == "why"
+
+    def test_rollback_batch_clears_the_innermost_failure(self):
+        bl = BatchLevels()
+        bl.new_batch()
+        bl.new_batch()
+        bl.fail_enclosing("why")
+        bl.rollback_batch()
+        assert bl.failure() == "why"  # the enclosing level is still failed
+        bl.end_batch()
+        bl.rollback_batch()
+        assert bl.failure() is None
+
     def test_failure_is_none_outside_a_batch(self):
         assert BatchLevels().failure() is None
 
