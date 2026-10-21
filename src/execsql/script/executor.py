@@ -692,6 +692,9 @@ def _execute_batch(
             e = ErrInfo(type="error", other_msg=f"The batch was not committed: {failure}.")
             _sql_failed(ctx, e, "END BATCH", node.span.file, end_line)
             return
+        # The commit is the batch's last SQL: SQL_ERROR() right after END
+        # BATCH says whether it failed, as after any statement.
+        status.sql_error = False
         try:
             status.batch.end_batch()
         except Exception as exc:

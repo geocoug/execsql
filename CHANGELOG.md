@@ -13,7 +13,8 @@ ______________________________________________________________________
 
 ### Changed
 
-- **A failed commit at `END BATCH`** is an SQL error on the `END BATCH` line, which `ERROR_HALT` governs; it was reported as an uncaught exception on a line of execsql's own source and always stopped the run. With `ERROR_HALT OFF` the script now carries on: right after `END BATCH`, `SQL_ERROR()` is true and `$LAST_ERROR` is `END BATCH` when the commit failed.
+- **A failed commit at `END BATCH`** is an SQL error on the `END BATCH` line, which `ERROR_HALT` governs; it was reported as an uncaught exception on a line of execsql's own source and always stopped the run. With `ERROR_HALT OFF` the script now carries on: test `SQL_ERROR()` right after `END BATCH`.
+- **`SQL_ERROR()` right after `END BATCH`** says whether the batch's commit failed: `END BATCH` clears it first, as an SQL statement does. It kept the value the batch's last statement left; test a statement inside the batch right after that statement.
 - **A batch around one whose commit failed** is not committed at its own `END BATCH`, nor is any batch opened inside it afterwards, and `ROLLBACK BATCH` does not undo this; put work that must survive after the outermost `END BATCH`.
 - **`DISCONNECT` inside `BEGIN BATCH`** refuses a database the batch has used, as documented: the run halts and the batch is rolled back, or with `METACOMMAND_ERROR_HALT OFF` the connection stays open and `END BATCH` commits; it closed the connection and the batch's statements were lost. Put the `DISCONNECT` after `END BATCH`.
 - **`DISCONNECT FROM <alias>`** matches the alias in any case, as `USE` does; `DISCONNECT FROM B` left a connection made `AS b` open, so a later `USE b` worked. Reconnect with `CONNECT` before using an alias you disconnected.
