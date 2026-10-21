@@ -30,6 +30,9 @@ class BatchLevels:
     class Batch:
         def __init__(self) -> None:
             self.dbs_used: list[Any] = []
+            # Why this batch can no longer commit (a nested batch's commit
+            # failed and rolled back connections it shares), or None.
+            self.failed: str | None = None
 
     def __init__(self) -> None:
         self.batchlevels: list[BatchLevels.Batch] = []
@@ -37,6 +40,16 @@ class BatchLevels:
     def in_batch(self) -> bool:
         """Return True if execution is currently inside at least one BATCH block."""
         return len(self.batchlevels) > 0
+
+    def fail_enclosing(self, reason: str) -> None:
+        """Mark every open batch level as failed, so its END BATCH rolls back instead of committing."""
+        for b in self.batchlevels:
+            if b.failed is None:
+                b.failed = reason
+
+    def failure(self) -> str | None:
+        """Why the innermost batch level can no longer commit, or None."""
+        return self.batchlevels[-1].failed if self.batchlevels else None
 
     def new_batch(self) -> None:
         """Push a new empty batch level onto the stack."""
@@ -73,7 +86,7 @@ class BatchLevels:
         for i, db in enumerate(b.dbs_used):
             try:
                 db.commit()
-            except Exception:
+            except BaseException:
                 for rest in b.dbs_used[i:]:
                     if rest.autocommit:
                         rest.rollback()

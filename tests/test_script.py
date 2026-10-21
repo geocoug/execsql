@@ -156,6 +156,30 @@ class TestBatchLevels:
             bl.end_batch()
         held.rollback.assert_not_called()
 
+    def test_fail_enclosing_marks_every_open_level(self):
+        bl = BatchLevels()
+        bl.new_batch()
+        bl.new_batch()
+        assert bl.failure() is None
+        bl.fail_enclosing("why")
+        assert bl.failure() == "why"
+        bl.abandon_batch()
+        assert bl.failure() == "why"
+
+    def test_failure_is_none_outside_a_batch(self):
+        assert BatchLevels().failure() is None
+
+    def test_interrupted_commit_still_rolls_back_the_rest(self):
+        bl = BatchLevels()
+        bl.new_batch()
+        failing, last = MagicMock(), MagicMock()
+        failing.commit.side_effect = KeyboardInterrupt
+        bl.using_db(failing)
+        bl.using_db(last)
+        with pytest.raises(KeyboardInterrupt):
+            bl.end_batch()
+        last.rollback.assert_called_once_with()
+
     def test_abandon_batch_rolls_back_and_pops_level(self):
         bl = BatchLevels()
         bl.new_batch()

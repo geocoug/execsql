@@ -194,6 +194,49 @@
    "why": "A BREAK out of a BEGIN BATCH block left the batch open in upstream, so a statement after AUTOCOMMIT ON WITH COMMIT was not committed either; execsql2 ends the batch, and under AUTOCOMMIT OFF leaves its statements to the script's own commit, as END BATCH would (divergence: 'A batch left before END BATCH is rolled back'; #121)."
   }
  },
+ "batch_nested_commit_fails": {
+  "exit": {
+   "execsql2": 0,
+   "status": "accepted",
+   "upstream": 1,
+   "why": "A failed commit at END BATCH is an SQL error that ERROR_HALT governs, so with ERROR_HALT OFF execsql2 carries on; the enclosing batch, whose earlier statements the failed commit's rollback took with it, then rolls back at its own END BATCH instead of committing the rest, and statements after it are committed as usual. Upstream reported the failure as a metacommand error and halted (divergence: 'END BATCH whose commit fails'; #125)."
+  },
+  "stderr": {
+   "execsql2": "",
+   "status": "accepted",
+   "upstream": "**** Error in metacommand.\n     Line 12 of script script.sql\n     IntegrityError: FOREIGN KEY constraint failed\n     END BATCH\n     Metacommand: END BATCH\n     Error occurred at <TIME>.\n",
+   "why": "A failed commit at END BATCH is an SQL error that ERROR_HALT governs, so with ERROR_HALT OFF execsql2 carries on; the enclosing batch, whose earlier statements the failed commit's rollback took with it, then rolls back at its own END BATCH instead of committing the rest, and statements after it are committed as usual. Upstream reported the failure as a metacommand error and halted (divergence: 'END BATCH whose commit fails'; #125)."
+  },
+  "tables/o": {
+   "execsql2": {
+    "columns": [
+     [
+      "v",
+      "TEXT"
+     ]
+    ],
+    "rows": [
+     [
+      [
+       "text",
+       "'after both'"
+      ]
+     ]
+    ]
+   },
+   "status": "accepted",
+   "upstream": {
+    "columns": [
+     [
+      "v",
+      "TEXT"
+     ]
+    ],
+    "rows": []
+   },
+   "why": "A failed commit at END BATCH is an SQL error that ERROR_HALT governs, so with ERROR_HALT OFF execsql2 carries on; the enclosing batch, whose earlier statements the failed commit's rollback took with it, then rolls back at its own END BATCH instead of committing the rest, and statements after it are committed as usual. Upstream reported the failure as a metacommand error and halted (divergence: 'END BATCH whose commit fails'; #125)."
+  }
+ },
  "boolean_and_empty_config": {
   "tables/empty_strings_no": {
    "execsql2": {

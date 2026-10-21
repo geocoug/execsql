@@ -74,3 +74,28 @@ def test_with_error_halt_off_the_script_sees_an_sql_error_and_carries_on(tmp_pat
     assert out.read_text().splitlines() == ["failed: END BATCH"]
     assert _rows(b, "t") == ["after the batch"]
     assert _rows(tmp_path / "main.db", "child") == []
+
+
+def test_a_failed_nested_commit_makes_the_enclosing_batch_roll_back(tmp_path):
+    b = tmp_path / "b.db"
+    out = tmp_path / "out.txt"
+    sql = (
+        _SETUP.format(b=b)
+        + "-- !x! ERROR_HALT OFF\n"
+        + "create table o (v text);\n"
+        + "-- !x! BEGIN BATCH\ninsert into o values ('outer before');\n"
+        + _BATCH
+        + f'-- !x! IF (SQL_ERROR()) {{ WRITE "inner failed" TO {out} }}\n'
+        + "insert into o values ('outer after inner');\n"
+        + "-- !x! END BATCH\n"
+        + f'-- !x! IF (SQL_ERROR()) {{ WRITE "outer: !!$ERROR_MESSAGE!!" TO {out} }}\n'
+        + "insert into o values ('after both');\n"
+    )
+    result = _run(tmp_path, sql)
+    written = out.read_text()
+    assert written.startswith("inner failed\nouter: ")
+    assert "The batch was rolled back: a nested batch's commit failed at END BATCH on line 18" in written
+    assert _rows(tmp_path / "main.db", "o") == ["after both"]
+    assert _rows(tmp_path / "main.db", "child") == []
+    assert _rows(b, "t") == []
+    assert len(result.errors) == 2

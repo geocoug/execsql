@@ -13,6 +13,7 @@ ______________________________________________________________________
 
 ### Changed
 
+- **A failed commit at `END BATCH`** is an SQL error on the `END BATCH` line, which `ERROR_HALT` governs; it was reported as an uncaught exception on a line of execsql's own source and always stopped the run. With `ERROR_HALT OFF` the script now carries on: test `SQL_ERROR()` after `END BATCH`. An enclosing batch rolls back at its own `END BATCH` instead of committing.
 - **`DISCONNECT` inside `BEGIN BATCH`** refuses a database the batch has used, as documented: the run halts and the batch is rolled back, or with `METACOMMAND_ERROR_HALT OFF` the connection stays open and `END BATCH` commits; it closed the connection and the batch's statements were lost. Put the `DISCONNECT` after `END BATCH`.
 - **`DISCONNECT FROM <alias>`** matches the alias in any case, as `USE` does; `DISCONNECT FROM B` left a connection made `AS b` open, so a later `USE b` worked. Reconnect with `CONNECT` before using an alias you disconnected.
 - **`DISCONNECT FROM` an alias that is not connected** is a metacommand error; it did nothing, so a misspelled alias left the real connection open. To disconnect only if connected, write `IF (ALIAS_DEFINED(staging)) { DISCONNECT FROM staging }`, with the alias in lowercase inside `ALIAS_DEFINED`.
@@ -25,7 +26,6 @@ ______________________________________________________________________
 ### Fixed
 
 - **`END BATCH` whose commit fails on one database** rolls back the batch's databases not yet committed; a later statement on them, such as an `ON ERROR_HALT` script's, committed the failed batch's rows.
-- **A failed commit at `END BATCH`** is an SQL error on the `END BATCH` line, which `ERROR_HALT` governs; it was reported as an uncaught exception on a line of execsql's own source.
 - **`BREAK` in the main script, outside any `LOOP`, `SCRIPT` or `INCLUDE`d file,** is reported on its own line; it named the statement before it.
 - **`INCLUDE` and `EXECUTE SCRIPT` inside an inline `IF (…) { … }`** run again; they stopped the run with "should be handled by the AST executor".
 - **`INCLUDE`, `EXECUTE SCRIPT` and an inline `IF` added with `EXTEND SCRIPT … WITH METACOMMAND`** run when the script does; they stopped the run the same way.
