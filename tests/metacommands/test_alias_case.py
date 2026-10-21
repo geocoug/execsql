@@ -102,3 +102,46 @@ class TestDisconnectCase:
             pool.disconnect("initial")
         assert "initial" in pool.pool
         assert "b" in pool.pool
+
+
+class TestXDisconnectCurrentCase:
+    """``DISCONNECT FROM B`` on the *current* database must switch away first.
+
+    With case-insensitive matching in the pool, an uppercase spelling of the
+    current alias would otherwise delete the entry the pool still points at.
+    """
+
+    def test_uppercase_disconnect_of_current_switches_to_initial(self, pool):
+        from unittest.mock import MagicMock
+
+        from execsql.metacommands.connect import x_disconnect
+
+        _state.status = MagicMock()
+        _state.status.batch.uses_db.return_value = False
+        _state.exec_log = MagicMock()
+        try:
+            pool.make_current("b")
+            x_disconnect(alias="B")
+            assert "b" not in pool.pool
+            assert pool.current_alias() == "initial"
+            assert pool.pool["initial"].closed is False
+        finally:
+            _state.status = None
+            _state.exec_log = None
+
+    def test_lowercase_disconnect_of_current_switches_to_initial(self, pool):
+        from unittest.mock import MagicMock
+
+        from execsql.metacommands.connect import x_disconnect
+
+        _state.status = MagicMock()
+        _state.status.batch.uses_db.return_value = False
+        _state.exec_log = MagicMock()
+        try:
+            pool.make_current("b")
+            x_disconnect(alias="b")
+            assert "b" not in pool.pool
+            assert pool.current_alias() == "initial"
+        finally:
+            _state.status = None
+            _state.exec_log = None
