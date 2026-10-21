@@ -61,10 +61,23 @@ class BatchLevels:
                 db.rollback()
 
     def end_batch(self) -> None:
-        """Commit all databases in the innermost batch level and pop the stack."""
+        """Commit all databases in the innermost batch level and pop the stack.
+
+        If a commit fails, that database and the ones not yet committed are
+        rolled back (except one with autocommit off, whose transaction is the
+        script's) before the error is raised: a commit that already succeeded
+        cannot be undone, but nothing else of the batch is left pending for
+        a later statement to commit.
+        """
         b = self.batchlevels.pop()
-        for db in b.dbs_used:
-            db.commit()
+        for i, db in enumerate(b.dbs_used):
+            try:
+                db.commit()
+            except Exception:
+                for rest in b.dbs_used[i:]:
+                    if rest.autocommit:
+                        rest.rollback()
+                raise
 
     def abandon_batch(self) -> None:
         """Pop the innermost batch level without committing it.

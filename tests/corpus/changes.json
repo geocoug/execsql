@@ -1,4 +1,81 @@
 {
+ "batch_commit_fails": {
+  "files/b.db": {
+   "execsql2": {
+    "sqlite": {
+     "log": {
+      "columns": [
+       [
+        "v",
+        "TEXT"
+       ]
+      ],
+      "rows": [
+       [
+        [
+         "text",
+         "'logged by ON ERROR_HALT'"
+        ]
+       ]
+      ]
+     },
+     "t": {
+      "columns": [
+       [
+        "v",
+        "TEXT"
+       ]
+      ],
+      "rows": []
+     }
+    }
+   },
+   "status": "accepted",
+   "upstream": {
+    "sqlite": {
+     "log": {
+      "columns": [
+       [
+        "v",
+        "TEXT"
+       ]
+      ],
+      "rows": [
+       [
+        [
+         "text",
+         "'logged by ON ERROR_HALT'"
+        ]
+       ]
+      ]
+     },
+     "t": {
+      "columns": [
+       [
+        "v",
+        "TEXT"
+       ]
+      ],
+      "rows": [
+       [
+        [
+         "text",
+         "'batch row on b'"
+        ]
+       ]
+      ]
+     }
+    }
+   },
+   "why": "When END BATCH's commit fails on one database, execsql2 rolls back that database and the ones the batch had not committed yet, so a later statement (here the ON ERROR_HALT script's insert on b) cannot commit the failed batch's rows; upstream left them pending and they were committed. The failure is reported as an SQL error on the END BATCH line, which ERROR_HALT governs; upstream reported it as a metacommand error (divergence: 'END BATCH whose commit fails'; #125)."
+  },
+  "stderr": {
+   "execsql2": "**** Exception.\n     Line 21 of script script.sql\n     IntegrityError: FOREIGN KEY constraint failed\n     Metacommand: END BATCH\n     Error occurred at <TIME>.\n",
+   "status": "accepted",
+   "upstream": "**** Error in metacommand.\n     Line 21 of script script.sql\n     IntegrityError: FOREIGN KEY constraint failed\n     END BATCH\n     Metacommand: END BATCH\n     Error occurred at <TIME>.\n",
+   "why": "When END BATCH's commit fails on one database, execsql2 rolls back that database and the ones the batch had not committed yet, so a later statement (here the ON ERROR_HALT script's insert on b) cannot commit the failed batch's rows; upstream left them pending and they were committed. The failure is reported as an SQL error on the END BATCH line, which ERROR_HALT governs; upstream reported it as a metacommand error (divergence: 'END BATCH whose commit fails'; #125)."
+  }
+ },
  "batch_left_by_break": {
   "tables/t": {
    "execsql2": {

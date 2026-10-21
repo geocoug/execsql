@@ -129,6 +129,33 @@ class TestBatchLevels:
         bl = BatchLevels()
         bl.rollback_batch()  # should not raise
 
+    def test_failed_commit_rolls_back_that_db_and_the_ones_after_it(self):
+        bl = BatchLevels()
+        bl.new_batch()
+        first, failing, last = MagicMock(), MagicMock(), MagicMock()
+        failing.commit.side_effect = RuntimeError("deferred constraint")
+        for db in (first, failing, last):
+            bl.using_db(db)
+        with pytest.raises(RuntimeError, match="deferred constraint"):
+            bl.end_batch()
+        assert bl.in_batch() is False
+        first.commit.assert_called_once_with()
+        first.rollback.assert_not_called()
+        failing.rollback.assert_called_once_with()
+        last.commit.assert_not_called()
+        last.rollback.assert_called_once_with()
+
+    def test_failed_commit_leaves_an_autocommit_off_db_to_the_script(self):
+        bl = BatchLevels()
+        bl.new_batch()
+        failing, held = MagicMock(), MagicMock(autocommit=False)
+        failing.commit.side_effect = RuntimeError("deferred constraint")
+        bl.using_db(failing)
+        bl.using_db(held)
+        with pytest.raises(RuntimeError):
+            bl.end_batch()
+        held.rollback.assert_not_called()
+
     def test_abandon_batch_rolls_back_and_pops_level(self):
         bl = BatchLevels()
         bl.new_batch()
