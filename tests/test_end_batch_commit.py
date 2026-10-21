@@ -130,3 +130,26 @@ def test_rollback_batch_does_not_let_the_failed_batch_commit(tmp_path):
     result = _run(tmp_path, _nested(tmp_path, middle))
     assert _rows(tmp_path / "main.db", "o") == ["after both"]
     assert len(result.errors) == 2  # the failed commit, then the outer END BATCH
+
+
+def test_sql_error_right_after_end_batch_is_about_the_commit(tmp_path):
+    out = tmp_path / "out.txt"
+
+    def check(label):
+        return f'-- !x! IF (SQL_ERROR()) {{ WRITE "{label}: failed" TO {out} }}\n'
+
+    sql = (
+        _SETUP.format(b=tmp_path / "b.db")
+        + "-- !x! ERROR_HALT OFF\ncreate table o (v text);\n"
+        # The batch's last statement fails; its commit succeeds.
+        + "-- !x! BEGIN BATCH\ninsert into o values ('kept?');\ninsert into \"no such\" values (1);\n-- !x! END BATCH\n"
+        + check("statement failed, commit succeeded")
+        # The commit fails.
+        + "-- !x! BEGIN BATCH\ninsert into child values (99);\n-- !x! END BATCH\n"
+        + check("commit failed")
+        # A batch with no SQL statement after the failed one.
+        + "-- !x! BEGIN BATCH\n-- !x! SUB x 1\n-- !x! END BATCH\n"
+        + check("no SQL")
+    )
+    _run(tmp_path, sql)
+    assert out.read_text().splitlines() == ["commit failed: failed"]
