@@ -795,6 +795,51 @@
    "why": "A metacommand whose text a substitution variable supplies (-- !x! !!cmd!!) cannot be an INCLUDE, EXECUTE SCRIPT or inline IF in execsql2: the parser decides which lines are directives and blocks before substitution, so the line is a metacommand error and does not run. Upstream substituted first and ran them. Kept on purpose (#113): writing the INCLUDE, EXECUTE SCRIPT or IF in the script does the same job (INCLUDE !!file!! and EXECUTE SCRIPT !!name!! work), and running directives from variable text meant re-classifying every metacommand at run time (divergence: 'Control flow from a substitution variable')."
   }
  },
+ "disconnect_checks": {
+  "files/c.db": {
+   "execsql2": {
+    "sqlite": {
+     "t": {
+      "columns": [
+       [
+        "v",
+        "TEXT"
+       ]
+      ],
+      "rows": [
+       [
+        [
+         "text",
+         "'in the batch'"
+        ]
+       ]
+      ]
+     }
+    }
+   },
+   "status": "accepted",
+   "upstream": {
+    "sqlite": {
+     "t": {
+      "columns": [
+       [
+        "v",
+        "TEXT"
+       ]
+      ],
+      "rows": []
+     }
+    }
+   },
+   "why": "DISCONNECT matches the alias in any case, as USE does, and an alias that is not connected is a metacommand error; upstream compared the alias as written, so DISCONNECT FROM B left a connection made AS b open, and ignored an unknown alias. A database an open batch has used is refused, as documented; upstream's check compared the alias to connection objects and never fired, so it closed the connection and the batch's statements were lost (divergence: 'DISCONNECT'; #124)."
+  },
+  "files/out.txt": {
+   "execsql2": "DISCONNECT FROM B closed b\nDISCONNECT FROM nosuch: error\nDISCONNECT FROM c in the batch: refused\nc.t kept the batch's row\n",
+   "status": "accepted",
+   "upstream": "DISCONNECT FROM B left b open\nDISCONNECT FROM nosuch: no error\nDISCONNECT FROM c in the batch: closed c\n",
+   "why": "DISCONNECT matches the alias in any case, as USE does, and an alias that is not connected is a metacommand error; upstream compared the alias as written, so DISCONNECT FROM B left a connection made AS b open, and ignored an unknown alias. A database an open batch has used is refused, as documented; upstream's check compared the alias to connection objects and never fired, so it closed the connection and the batch's statements were lost (divergence: 'DISCONNECT'; #124)."
+  }
+ },
  "export_more_formats": {
   "files/t.xml": {
    "execsql2": "<?xml version='1.0' encoding='utf8'?>\n<t>\n  <row>\n    <id>1</id>\n    <name>Ann</name>\n    <note>has \"quotes\"</note>\n  </row>\n  <row>\n    <id>2</id>\n    <name>Bob</name>\n    <note></note>\n  </row>\n</t>\n",

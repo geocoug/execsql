@@ -1,0 +1,33 @@
+-- DISCONNECT with an alias in another case, an alias that is not
+-- connected, and a database an open batch has used.
+-- !x! METACOMMAND_ERROR_HALT OFF
+-- !x! CONNECT TO SQLITE(FILE=b.db, NEW) AS b
+-- !x! DISCONNECT FROM B
+-- !x! USE b
+-- !x! IF (METACOMMAND_ERROR())
+-- !x! WRITE "DISCONNECT FROM B closed b" TO out.txt
+-- !x! ELSE
+-- !x! WRITE "DISCONNECT FROM B left b open" TO out.txt
+-- !x! ENDIF
+-- !x! USE initial
+-- !x! DISCONNECT FROM nosuch
+-- !x! IF (METACOMMAND_ERROR())
+-- !x! WRITE "DISCONNECT FROM nosuch: error" TO out.txt
+-- !x! ELSE
+-- !x! WRITE "DISCONNECT FROM nosuch: no error" TO out.txt
+-- !x! ENDIF
+-- !x! CONNECT TO SQLITE(FILE=c.db, NEW) AS c
+-- !x! USE c
+create table t (v text);
+-- !x! BEGIN BATCH
+insert into t values ('in the batch');
+-- !x! USE initial
+-- !x! DISCONNECT FROM c
+-- !x! IF (METACOMMAND_ERROR())
+-- !x! WRITE "DISCONNECT FROM c in the batch: refused" TO out.txt
+-- !x! ELSE
+-- !x! WRITE "DISCONNECT FROM c in the batch: closed c" TO out.txt
+-- !x! ENDIF
+-- !x! END BATCH
+-- !x! USE c
+-- !x! IF (HASROWS(t)) { WRITE "c.t kept the batch's row" TO out.txt }
