@@ -1,0 +1,51 @@
+-- BREAK leaves the innermost LOOP, SCRIPT or included file.
+-- A SCRIPT with no LOOP: BREAK returns from it.
+-- !x! BEGIN SCRIPT early_return
+-- !x! WRITE "in early_return" TO out.txt
+-- !x! IF (TRUE)
+-- !x! BREAK
+-- !x! ENDIF
+-- !x! WRITE "after BREAK in early_return" TO out.txt
+-- !x! END SCRIPT
+-- !x! EXECUTE SCRIPT early_return
+-- !x! WRITE "after EXECUTE SCRIPT" TO out.txt
+-- The same SCRIPT called from a LOOP: the caller's loop keeps going.
+-- !x! SUB n 0
+-- !x! LOOP WHILE (IS_GT(2, !{n}!))
+-- !x! SUB_ADD n 1
+-- !x! EXECUTE SCRIPT early_return
+-- !x! WRITE "loop pass !!n!!" TO out.txt
+-- !x! END LOOP
+-- An included file: BREAK leaves the file, at the top level and in a LOOP.
+-- !x! INCLUDE part.sql
+-- !x! WRITE "after INCLUDE" TO out.txt
+-- !x! SUB n 0
+-- !x! LOOP WHILE (IS_GT(2, !{n}!))
+-- !x! SUB_ADD n 1
+-- !x! INCLUDE part.sql
+-- !x! WRITE "include loop pass !!n!!" TO out.txt
+-- !x! END LOOP
+-- A LOOP inside a SCRIPT: BREAK leaves the loop, and the script carries on.
+-- !x! BEGIN SCRIPT inner_loop
+-- !x! SUB m 0
+-- !x! LOOP WHILE (IS_GT(5, !{m}!))
+-- !x! SUB_ADD m 1
+-- !x! IF (EQUALS(!!m!!, 2))
+-- !x! BREAK
+-- !x! ENDIF
+-- !x! WRITE "inner pass !!m!!" TO out.txt
+-- !x! END LOOP
+-- !x! WRITE "after inner loop" TO out.txt
+-- !x! END SCRIPT
+-- !x! EXECUTE SCRIPT inner_loop
+-- EXECUTE SCRIPT ... WHILE: BREAK stops the repeating.
+-- !x! SUB k 0
+-- !x! BEGIN SCRIPT repeated
+-- !x! SUB_ADD k 1
+-- !x! IF (EQUALS(!!k!!, 2))
+-- !x! BREAK
+-- !x! ENDIF
+-- !x! WRITE "repeat !!k!!" TO out.txt
+-- !x! END SCRIPT
+-- !x! EXECUTE SCRIPT repeated WHILE (IS_GT(5, !{k}!))
+-- !x! WRITE "end" TO out.txt

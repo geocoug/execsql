@@ -61,14 +61,14 @@ execsql debug>
 
 Because input runs inside the paused script, it changes what the script sees after `.continue`:
 
-| You type at the breakpoint        | Effect on the script                                                                  |
-| --------------------------------- | ------------------------------------------------------------------------------------- |
-| `!x! SUB threshold 50`            | `!!threshold!!` is 50 for the rest of the run                                         |
-| `select '!!~counter!!';`          | Reads the paused SCRIPT's `~local` and `#param` variables                             |
-| `insert into staging values (1);` | Committed as the script's own SQL would be: now, unless `AUTOCOMMIT OFF` or a batch   |
-| `!x! USE other_db`                | The script continues against `other_db`                                               |
-| `!x! BREAK`                       | Inside a `LOOP` (or a looping `EXECUTE SCRIPT`), leaves that loop, as a `BREAK` would |
-| `!x! HALT`                        | Ends the run                                                                          |
+| You type at the breakpoint        | Effect on the script                                                                    |
+| --------------------------------- | --------------------------------------------------------------------------------------- |
+| `!x! SUB threshold 50`            | `!!threshold!!` is 50 for the rest of the run                                           |
+| `select '!!~counter!!';`          | Reads the paused SCRIPT's `~local` and `#param` variables                               |
+| `insert into staging values (1);` | Committed as the script's own SQL would be: now, unless `AUTOCOMMIT OFF` or a batch     |
+| `!x! USE other_db`                | The script continues against `other_db`                                                 |
+| `!x! BREAK`                       | Leaves the `LOOP`, `SCRIPT` or `INCLUDE`d file the script paused in, as a `BREAK` would |
+| `!x! HALT`                        | Ends the run                                                                            |
 
 **Errors end only the input that caused them.** A SQL or metacommand error that would halt the script is printed, and the prompt reads the next input; `ON ERROR_HALT` actions do not run. `HALT` and `.quit` still end the run.
 

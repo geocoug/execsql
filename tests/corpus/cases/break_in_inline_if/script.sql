@@ -1,0 +1,8 @@
+-- BREAK as the body of an inline IF inside a LOOP.
+-- !x! SUB n 0
+-- !x! LOOP WHILE (IS_GT(5, !{n}!))
+-- !x! SUB_ADD n 1
+-- !x! IF (EQUALS(!!n!!, 2)) { BREAK }
+-- !x! WRITE "pass !!n!!" TO out.txt
+-- !x! END LOOP
+-- !x! WRITE "after loop" TO out.txt

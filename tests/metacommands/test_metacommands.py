@@ -1582,12 +1582,12 @@ class TestBreak:
         assert qdb(db, "SELECT n FROM t_break") == [(3,)]
 
     def test_break_at_top_level_errors(self, script_runner):
-        """BREAK outside a loop is an error in the AST executor."""
+        """BREAK in the main script, outside any LOOP, SCRIPT or included file, is an error (#115)."""
         result, _ = script_runner("""
             -- !x! break
         """)
         assert result.exit_code != 0
-        assert "BREAK" in result.output and "LOOP" in result.output
+        assert "BREAK has nothing to leave" in result.output
 
 
 # ---------------------------------------------------------------------------

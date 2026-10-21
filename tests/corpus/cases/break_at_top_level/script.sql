@@ -1,0 +1,4 @@
+-- BREAK in the main script, outside any LOOP, SCRIPT or included file.
+-- !x! WRITE "before" TO out.txt
+-- !x! BREAK
+-- !x! WRITE "after" TO out.txt

@@ -1,0 +1,3 @@
+-- !x! WRITE "in part" TO out.txt
+-- !x! BREAK
+-- !x! WRITE "after BREAK in part" TO out.txt

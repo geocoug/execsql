@@ -1,0 +1,10 @@
+{
+ "exit": 0,
+ "files": {
+  "out.txt": "in early_return\nafter EXECUTE SCRIPT\nin early_return\nloop pass 1\nin early_return\nloop pass 2\nin part\nafter INCLUDE\nin part\ninclude loop pass 1\nin part\ninclude loop pass 2\ninner pass 1\nafter inner loop\nrepeat 1\nend\n"
+ },
+ "recorded_with": "execsql 1.130.1",
+ "stderr": "",
+ "stdout": "",
+ "tables": {}
+}

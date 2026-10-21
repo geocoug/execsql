@@ -491,10 +491,22 @@ def _execute_node(
         # !!$COUNTER_N!! and re-roll !!$RANDOM!!/!!$UUID!! references.
         effective_locals = _stack_localvars(ctx) or localvars
         expanded = substitute_vars(command, effective_locals, ctx=ctx)
-        if _BREAK_RX.match(expanded):
-            raise _BreakLoop
         ctx.last_command = ExecutingStatement(node)
-        _exec_metacommand(ctx, expanded, node.span.file, node.span.start_line)
+        if not _BREAK_RX.match(expanded):
+            _exec_metacommand(ctx, expanded, node.span.file, node.span.start_line)
+        elif _break_has_target(ctx):
+            raise _BreakLoop
+        else:
+            _metacommand_failed(
+                ctx,
+                expanded,
+                ErrInfo(
+                    type="cmd",
+                    other_msg="BREAK has nothing to leave: it is not inside a LOOP, SCRIPT or included file.",
+                ),
+                node.span.file,
+                node.span.start_line,
+            )
 
     elif isinstance(node, IfBlock):
         ctx.last_command = ExecutingStatement(node)
@@ -865,11 +877,8 @@ def _execute_script_native(
         else:
             try:
                 _run_body()
-            except _BreakLoop as exc:
-                raise ErrInfo(
-                    type="cmd",
-                    other_msg=f"BREAK metacommand inside SCRIPT '{script_block.name}' but not inside a LOOP.",
-                ) from exc
+            except _BreakLoop:
+                pass  # BREAK outside a LOOP in the script returns from it
     finally:
         _pop_frame(ctx)
 
@@ -911,6 +920,8 @@ def _execute_include_native(
     )
     try:
         _execute_nodes(ctx, included_tree.body, included_tree.source, localvars)
+    except _BreakLoop:
+        pass  # BREAK outside a LOOP in the file leaves it
     finally:
         ctx.ast_exec_stack.pop()
         ctx.include_chain.pop()
@@ -997,7 +1008,7 @@ def _load_include(
 
 
 class _BreakLoop(BaseException):
-    """Raised by BREAK metacommand to exit the innermost loop.
+    """Raised by BREAK to leave the innermost LOOP, SCRIPT or included file.
 
     A ``BaseException``, like ``KeyboardInterrupt``, so the ``except
     Exception`` handlers it may pass on its way to the loop leave it alone:
@@ -1006,13 +1017,23 @@ class _BreakLoop(BaseException):
     """
 
 
-def _inside_loop(ctx: RuntimeContext) -> bool:
-    """Whether a BREAK at the current statement would leave a loop within its scope."""
+def _break_has_target(ctx: RuntimeContext) -> bool:
+    """Whether a BREAK at the current statement has something to leave.
+
+    BREAK leaves the innermost LOOP, SCRIPT or included file (a SCRIPT that
+    ``EXECUTE SCRIPT … WHILE`` / ``UNTIL`` repeats stops repeating); in the main
+    script outside all of them there is nothing to leave.
+
+    Each kind listed here must have a runner that catches ``_BreakLoop``:
+    ``_execute_loop``, ``_execute_script_native`` and
+    ``_execute_include_native``.  A ``_BreakLoop`` nobody catches would end
+    the run as an uncaught BaseException.
+    """
     for frame in reversed(ctx.ast_exec_stack):
-        if frame.kind in ("loop_while", "loop_until"):
+        if frame.kind in ("loop_while", "loop_until", "script", "include"):
             return True
-        if frame.kind in ("script", "main"):
-            return frame.kind == "script" and frame.iteration > 0
+        if frame.kind == "main":
+            return False
     return False
 
 
@@ -1140,11 +1161,6 @@ def execute(script: Script, *, ctx: RuntimeContext | None = None) -> None:
         _push_frame(ctx, "<main>", script.source, line_no=1, kind="main")
         try:
             _execute_nodes(ctx, script.body, script.source)
-        except _BreakLoop as exc:
-            raise ErrInfo(
-                type="cmd",
-                other_msg="BREAK metacommand outside of a LOOP block.",
-            ) from exc
         finally:
             _pop_frame(ctx)
 
@@ -1163,7 +1179,8 @@ def execute_input(
     """Run input typed at a BREAKPOINT prompt as the next lines of the paused script.
 
     The input runs as if it were written where the script paused: in its
-    variable scope, its batch and its loop, so a BREAK leaves that loop.
+    variable scope, its batch and its loop, so a BREAK leaves that loop
+    (or the SCRIPT or included file it paused in).
     Unlike :func:`execute`, nothing is reset.
 
     *show* receives the result of each SQL statement run.  An error that
@@ -1179,10 +1196,6 @@ def execute_input(
         ctx.prompt_input = show
         try:
             _execute_nodes(ctx, script.body, script.source)
-        except _BreakLoop as exc:
-            if not _inside_loop(ctx):
-                raise ErrInfo(type="cmd", other_msg="BREAK metacommand outside of a LOOP block.") from exc
-            raise
         finally:
             ctx.prompt_input = prompt_input
             ctx.last_command = last_command

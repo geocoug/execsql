@@ -1,0 +1,10 @@
+{
+ "exit": 0,
+ "files": {
+  "out.txt": "pass 1\npass 2\npass 3\npass 4\npass 5\nafter loop\n"
+ },
+ "recorded_with": "execsql 1.130.1",
+ "stderr": "",
+ "stdout": "",
+ "tables": {}
+}
