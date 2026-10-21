@@ -642,23 +642,11 @@
   }
  },
  "directive_from_variable": {
-  "exit": {
-   "execsql2": 1,
-   "status": "open",
-   "upstream": 0,
-   "why": "A metacommand whose text a substitution variable supplies (-- !x! !!cmd!!) cannot be an INCLUDE or EXECUTE SCRIPT in execsql2: the parser classifies lines before substitution, so it reaches the dispatch table, which cannot run them. Upstream substituted first and ran them. To be fixed: #113."
-  },
   "files/out.txt": {
-   "execsql2": null,
-   "status": "open",
-   "upstream": "in s\nin part\nafter\n",
-   "why": "A metacommand whose text a substitution variable supplies (-- !x! !!cmd!!) cannot be an INCLUDE or EXECUTE SCRIPT in execsql2: the parser classifies lines before substitution, so it reaches the dispatch table, which cannot run them. Upstream substituted first and ran them. To be fixed: #113."
-  },
-  "stderr": {
-   "execsql2": "**** Error in metacommand.\n     Line 7 of script script.sql\n     An EXECUTE SCRIPT that a substitution variable supplies cannot run; write it in the script.\n     Metacommand: !!run_s!!\n     Error occurred at <TIME>.\n",
-   "status": "open",
-   "upstream": "",
-   "why": "A metacommand whose text a substitution variable supplies (-- !x! !!cmd!!) cannot be an INCLUDE or EXECUTE SCRIPT in execsql2: the parser classifies lines before substitution, so it reaches the dispatch table, which cannot run them. Upstream substituted first and ran them. To be fixed: #113."
+   "execsql2": "after\n",
+   "status": "accepted",
+   "upstream": "in s\nin part\nin inline IF\nafter\n",
+   "why": "A metacommand whose text a substitution variable supplies (-- !x! !!cmd!!) cannot be an INCLUDE, EXECUTE SCRIPT or inline IF in execsql2: the parser decides which lines are directives and blocks before substitution, so the line is a metacommand error and does not run. Upstream substituted first and ran them. Kept on purpose (#113): writing the INCLUDE, EXECUTE SCRIPT or IF in the script does the same job (INCLUDE !!file!! and EXECUTE SCRIPT !!name!! work), and running directives from variable text meant re-classifying every metacommand at run time (divergence: 'Control flow from a substitution variable')."
   }
  },
  "export_more_formats": {
