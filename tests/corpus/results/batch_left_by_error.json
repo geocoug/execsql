@@ -1,0 +1,27 @@
+{
+ "exit": 1,
+ "files": {},
+ "recorded_with": "execsql 1.130.1",
+ "stderr": "**** General error.\n     Line 11 of script script.sql\n     File missing.sql does not exist.\n     Metacommand: INCLUDE missing.sql\n     Error occurred at <TIME>.\n",
+ "stdout": "",
+ "tables": {
+  "error_log": {
+   "columns": [
+    [
+     "msg",
+     "TEXT"
+    ]
+   ],
+   "rows": []
+  },
+  "t": {
+   "columns": [
+    [
+     "v",
+     "TEXT"
+    ]
+   ],
+   "rows": []
+  }
+ }
+}

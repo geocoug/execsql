@@ -212,6 +212,11 @@ def exit_now(exit_status: int, errinfo: ErrInfo | None, logmsg: str | None = Non
         except Exception:
             if _state.exec_log is not None:
                 _state.exec_log.log_status_error("Failed to write the ON CANCEL_HALT WRITE message.")
+    # A halt inside BEGIN BATCH rolls the batch back: after the error is
+    # shown, in case a lost connection makes the rollback wait, and before
+    # the ON ERROR_HALT / ON CANCEL_HALT script, whose own SQL then commits.
+    if _state.status is not None:
+        _state.status.batch.abandon_all()
     # Defer import to avoid circular dependencies
     from execsql.utils.gui import gui_console_isrunning, gui_console_wait_user, gui_console_off
 

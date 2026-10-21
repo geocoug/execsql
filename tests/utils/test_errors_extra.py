@@ -162,6 +162,44 @@ class TestExitNowHaltSpecs:
             exit_now(2, None)
             mock_run.assert_called_once_with(mock_exec)
 
+    def test_cancel_halt_rolls_back_open_batches_before_its_script(self):
+        from execsql.script.control import BatchLevels
+
+        db = MagicMock()
+        _state.status = MagicMock(batch=BatchLevels())
+        _state.status.batch.new_batch()
+        _state.status.batch.using_db(db)
+        _state.cancel_halt_exec = MagicMock()
+        _state.ast_exec_stack = []
+
+        def script_runs(_spec):
+            assert not _state.status.batch.in_batch()
+            db.rollback.assert_called_once_with()
+
+        with (
+            patch("execsql.utils.errors.sys.exit"),
+            patch("execsql.utils.fileio.filewriter_end"),
+            patch("execsql.utils.errors._run_deferred_script", side_effect=script_runs) as mock_run,
+        ):
+            exit_now(2, None)
+        mock_run.assert_called_once()
+        db.commit.assert_not_called()
+
+    def test_error_halt_leaves_an_autocommit_off_batch_to_the_script(self):
+        from execsql.script.control import BatchLevels
+
+        db = MagicMock(autocommit=False)
+        _state.status = MagicMock(batch=BatchLevels())
+        _state.status.batch.new_batch()
+        _state.status.batch.using_db(db)
+        _state.output = MagicMock()
+
+        with patch("execsql.utils.errors.sys.exit"), patch("execsql.utils.fileio.filewriter_end"):
+            exit_now(1, ErrInfo("error", other_msg="test"))
+        assert not _state.status.batch.in_batch()
+        db.rollback.assert_not_called()
+        db.commit.assert_not_called()
+
     def test_gui_console_wait_on_error(self):
         _state.output = MagicMock()
         _state.conf = MagicMock()

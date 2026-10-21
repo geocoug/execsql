@@ -65,3 +65,25 @@ class BatchLevels:
         b = self.batchlevels.pop()
         for db in b.dbs_used:
             db.commit()
+
+    def abandon_batch(self) -> None:
+        """Pop the innermost batch level without committing it.
+
+        Inside another batch, its databases join the enclosing level, which
+        commits or rolls them back.  Otherwise they are rolled back, except
+        one with autocommit off: :meth:`end_batch` would not have committed
+        it either, so its transaction stays the script's to end.
+        """
+        b = self.batchlevels.pop()
+        if self.batchlevels:
+            for db in b.dbs_used:
+                self.using_db(db)
+            return
+        for db in b.dbs_used:
+            if db.autocommit:
+                db.rollback()
+
+    def abandon_all(self) -> None:
+        """Abandon every open batch level, innermost first."""
+        while self.batchlevels:
+            self.abandon_batch()

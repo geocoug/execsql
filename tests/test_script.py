@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -127,6 +128,57 @@ class TestBatchLevels:
     def test_rollback_noop_when_no_batch(self):
         bl = BatchLevels()
         bl.rollback_batch()  # should not raise
+
+    def test_abandon_batch_rolls_back_and_pops_level(self):
+        bl = BatchLevels()
+        bl.new_batch()
+        db = MagicMock()
+        bl.using_db(db)
+        bl.abandon_batch()
+        assert bl.in_batch() is False
+        db.rollback.assert_called_once_with()
+        db.commit.assert_not_called()
+
+    def test_abandon_nested_batch_hands_its_dbs_to_the_enclosing_one(self):
+        bl = BatchLevels()
+        outer, inner = MagicMock(), MagicMock()
+        bl.new_batch()
+        bl.using_db(outer)
+        bl.new_batch()
+        bl.using_db(inner)
+        bl.abandon_batch()
+        inner.rollback.assert_not_called()
+        inner.commit.assert_not_called()
+        bl.end_batch()
+        assert bl.in_batch() is False
+        for db in (outer, inner):
+            db.commit.assert_called_once_with()
+            db.rollback.assert_not_called()
+
+    def test_abandon_batch_leaves_autocommit_off_db_alone(self):
+        bl = BatchLevels()
+        bl.new_batch()
+        db = MagicMock(autocommit=False)
+        bl.using_db(db)
+        bl.abandon_batch()
+        assert bl.in_batch() is False
+        db.rollback.assert_not_called()
+
+    def test_abandon_all_rolls_back_every_level_once(self):
+        bl = BatchLevels()
+        outer, inner = MagicMock(), MagicMock()
+        bl.new_batch()
+        bl.using_db(outer)
+        bl.new_batch()
+        bl.using_db(inner)
+        bl.abandon_all()
+        assert bl.in_batch() is False
+        for db in (outer, inner):
+            db.rollback.assert_called_once_with()
+            db.commit.assert_not_called()
+
+    def test_abandon_all_noop_when_no_batch(self):
+        BatchLevels().abandon_all()  # should not raise
 
 
 # ---------------------------------------------------------------------------
