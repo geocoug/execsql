@@ -97,6 +97,37 @@ def test_an_include_a_variable_supplies_says_it_cannot_run(tmp_path):
     assert "An INCLUDE that a substitution variable supplies cannot run" in result.errors[0].message
 
 
+def test_an_execute_script_a_variable_supplies_says_it_cannot_run(tmp_path):
+    sql = (
+        '-- !x! BEGIN SCRIPT s\n-- !x! WRITE "in s"\n-- !x! END SCRIPT\n'
+        "-- !x! SUB cmd EXECUTE SCRIPT s\n-- !x! !!cmd!!\n"
+    )
+    result = _run(tmp_path, sql)
+    assert not result.success
+    assert "An EXECUTE SCRIPT that a substitution variable supplies cannot run" in result.errors[0].message
+
+
+def test_an_inline_if_a_variable_supplies_does_not_run(tmp_path):
+    """Upstream ran it; execsql2 does not (#113)."""
+    out = tmp_path / "out.txt"
+    result = _run(tmp_path, f'-- !x! SUB cmd IF (TRUE) {{ WRITE "ran" TO {out} }}\n-- !x! !!cmd!!\n')
+    assert not result.success
+    assert "Line 2" in result.errors[0].message
+    assert not out.exists()
+
+
+def test_a_directive_a_variable_supplies_is_a_metacommand_error_with_halting_off(tmp_path):
+    out = tmp_path / "out.txt"
+    sql = (
+        "-- !x! METACOMMAND_ERROR_HALT OFF\n"
+        f'-- !x! SUB cmd IF (TRUE) {{ WRITE "ran" TO {out} }}\n'
+        "-- !x! !!cmd!!\n"
+        f'-- !x! IF (METACOMMAND_ERROR()) {{ WRITE "refused" TO {out} }}\n'
+    )
+    _run(tmp_path, sql)
+    assert out.read_text() == "refused\n"
+
+
 # EXECUTE SCRIPT's own errors are metacommand errors.
 
 

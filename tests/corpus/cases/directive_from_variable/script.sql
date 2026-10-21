@@ -1,5 +1,7 @@
--- A metacommand line that is a substitution variable holding an INCLUDE
--- or an EXECUTE SCRIPT.
+-- A metacommand line that is a substitution variable holding an INCLUDE,
+-- an EXECUTE SCRIPT or an inline IF. METACOMMAND_ERROR_HALT OFF lets each
+-- one run, or fail, in turn.
+-- !x! METACOMMAND_ERROR_HALT OFF
 -- !x! BEGIN SCRIPT s
 -- !x! WRITE "in s" TO out.txt
 -- !x! END SCRIPT
@@ -7,4 +9,6 @@
 -- !x! !!run_s!!
 -- !x! SUB include_part INCLUDE part.sql
 -- !x! !!include_part!!
+-- !x! SUB inline_if IF (TRUE) { WRITE "in inline IF" TO out.txt }
+-- !x! !!inline_if!!
 -- !x! WRITE "after" TO out.txt
