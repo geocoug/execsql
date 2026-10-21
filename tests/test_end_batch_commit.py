@@ -94,7 +94,7 @@ def test_a_failed_nested_commit_makes_the_enclosing_batch_roll_back(tmp_path):
     result = _run(tmp_path, sql)
     written = out.read_text()
     assert written.startswith("inner failed\nouter: ")
-    assert "The batch was rolled back: a nested batch's commit failed at END BATCH on line 18" in written
+    assert "The batch was not committed: a nested batch's commit failed at END BATCH on line 18" in written
     assert _rows(tmp_path / "main.db", "o") == ["after both"]
     assert _rows(tmp_path / "main.db", "child") == []
     assert _rows(b, "t") == []
