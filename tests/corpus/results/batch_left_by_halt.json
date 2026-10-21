@@ -1,0 +1,25 @@
+{
+ "exit": 3,
+ "files": {},
+ "recorded_with": "execsql 1.130.1",
+ "stderr": "",
+ "stdout": "",
+ "tables": {
+  "t": {
+   "columns": [
+    [
+     "v",
+     "TEXT"
+    ]
+   ],
+   "rows": [
+    [
+     [
+      "text",
+      "'before the batch'"
+     ]
+    ]
+   ]
+  }
+ }
+}

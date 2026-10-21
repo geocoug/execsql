@@ -79,13 +79,13 @@ def _drop(db):
             pass
 
 
-def _script(dbms, tmp_path, sql):
+def _script(dbms, tmp_path, sql, *, succeeds=True):
     """Run *sql*; return the committed row count, or ``None`` if the table does not exist."""
     db = _open(dbms, tmp_path)
     with patch("execsql.utils.errors.write_warning") as warn:
         result = run(sql=sql.format(t=TABLE), connection=db)
     db.close()
-    assert result.success, result.errors
+    assert result.success is succeeds, result.errors
     check = _open(dbms, tmp_path)
     try:
         with check._cursor() as curs:
@@ -144,6 +144,71 @@ class TestBatch:
         )
         rows, _ = _script(dbms, tmp_path, sql)
         assert rows == (0 if _ddl_survives(dbms) else None)
+
+
+class TestBatchLeftEarly:
+    """A batch left before END BATCH is rolled back, never half committed (#121)."""
+
+    def test_break(self, dbms, tmp_path):
+        sql = (
+            "create table {t} (x integer);\n-- !x! loop while (TRUE)\n-- !x! begin batch\n"
+            "insert into {t} values (1);\n-- !x! break\n-- !x! end batch\n-- !x! end loop\n"
+        )
+        assert _script(dbms, tmp_path, sql)[0] == 0
+
+    def test_break_out_of_nested_batches_rolls_back_both(self, dbms, tmp_path):
+        sql = (
+            "create table {t} (x integer);\n-- !x! loop while (TRUE)\n-- !x! begin batch\n"
+            "insert into {t} values (1);\n-- !x! begin batch\ninsert into {t} values (2);\n-- !x! break\n"
+            "-- !x! end batch\n-- !x! end batch\n-- !x! end loop\ninsert into {t} values (3);\n"
+        )
+        assert _script(dbms, tmp_path, sql)[0] == 1
+
+    def test_break_out_of_an_inner_batch_leaves_it_to_the_outer_one(self, dbms, tmp_path):
+        sql = (
+            "create table {t} (x integer);\n-- !x! begin batch\ninsert into {t} values (1);\n"
+            "-- !x! loop while (TRUE)\n-- !x! begin batch\ninsert into {t} values (2);\n-- !x! break\n"
+            "-- !x! end batch\n-- !x! end loop\ninsert into {t} values (3);\n-- !x! end batch\n"
+        )
+        assert _script(dbms, tmp_path, sql)[0] == 3
+
+    def test_break_under_autocommit_off_leaves_the_transaction_to_the_script(self, dbms, tmp_path):
+        sql = (
+            "create table {t} (x integer);\n-- !x! autocommit off\ninsert into {t} values (1);\n"
+            "-- !x! loop while (TRUE)\n-- !x! begin batch\ninsert into {t} values (2);\n-- !x! break\n"
+            "-- !x! end batch\n-- !x! end loop\n-- !x! autocommit on with commit\n"
+        )
+        assert _script(dbms, tmp_path, sql)[0] == 2
+
+    def test_sql_error(self, dbms, tmp_path):
+        sql = (
+            "create table {t} (x integer);\n"
+            "-- !x! begin script log_error\ninsert into {t} values (8);\ninsert into {t} values (9);\n"
+            "-- !x! end script\n-- !x! on error_halt execute script log_error\n"
+            "-- !x! begin batch\ninsert into {t} values (1);\ninsert into no_such_table values (1);\n-- !x! end batch\n"
+        )
+        assert _script(dbms, tmp_path, sql, succeeds=False)[0] == 2
+
+    def test_metacommand_error(self, dbms, tmp_path):
+        sql = (
+            "create table {t} (x integer);\n-- !x! begin batch\ninsert into {t} values (1);\n"
+            f"-- !x! include {tmp_path / 'missing.sql'}\n-- !x! end batch\n"
+        )
+        assert _script(dbms, tmp_path, sql, succeeds=False)[0] == 0
+
+    def test_halt(self, dbms, tmp_path):
+        sql = "create table {t} (x integer);\n-- !x! begin batch\ninsert into {t} values (1);\n-- !x! halt\n-- !x! end batch\n"
+        assert _script(dbms, tmp_path, sql, succeeds=False)[0] == 0
+
+    def test_on_error_halt_script_commits_after_the_rollback(self, dbms, tmp_path):
+        sql = (
+            "create table {t} (x integer);\n"
+            "-- !x! begin script log_error\ninsert into {t} values (8);\ninsert into {t} values (9);\n"
+            "-- !x! end script\n-- !x! on error_halt execute script log_error\n"
+            "-- !x! begin batch\ninsert into {t} values (1);\n"
+            f"-- !x! include {tmp_path / 'missing.sql'}\n-- !x! end batch\n"
+        )
+        assert _script(dbms, tmp_path, sql, succeeds=False)[0] == 2
 
 
 class TestAutocommitOn:

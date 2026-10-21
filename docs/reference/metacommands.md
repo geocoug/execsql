@@ -226,7 +226,23 @@ Alternatives to using batches to control the execution time of SQL statements ar
 
 The END BATCH metacommand is analogous to the "GO" command of the T-SQL language used with SQL Server utilities such as *sqlcmd*. There is no explicit equivalent to BEGIN BATCH in *sqlcmd* or other SQL Server utilities. In *sqlcmd* a new batch is automatically begun at the beginning of the script or immediately after a GO statement. execsql only starts a new batch when a BEGIN BATCH statement is encountered.
 
-If the end of the script file is encountered while a batch of statements is being compiled, but there is no END BATCH metacommand, the SQL statements in that incomplete batch will not be committed.
+A batch is committed when it reaches END BATCH. A batch left any other way is rolled back: a [BREAK](#break) out of a LOOP, SCRIPT or included file the batch is in, a [HALT](#halt), or an error that stops the run. The rollback cannot undo what was already committed inside the batch: by an IMPORT or COPY, by a nested batch's END BATCH, or by the DBMS itself, as MySQL and Oracle do for DDL (see above). Like ROLLBACK BATCH, it rolls back the connection's whole transaction, so statements held from before the batch under AUTOCOMMIT OFF, and not committed when AUTOCOMMIT was turned back ON, are rolled back with it. A nested batch left this way, while the batch around it carries on, is not rolled back on its own: its statements stay with the outer batch, which commits them at its END BATCH or rolls them back if it is left early too. With [AUTOCOMMIT](#autocommit) OFF, END BATCH commits nothing, and leaving a batch early rolls nothing back; the script's own COMMIT or ROLLBACK decides. A BEGIN BATCH with no END BATCH is an error before the script runs. To keep a batch's work and then leave a loop, end the batch first:
+
+```sql
+create table passes (n integer);
+-- !x! SUB n 0
+-- !x! LOOP WHILE (TRUE)
+-- !x! SUB_ADD n 1
+-- !x! BEGIN BATCH
+insert into passes values (!!n!!);
+-- !x! END BATCH
+-- !x! IF (EQUALS(!!n!!, 3)) { BREAK }
+-- !x! END LOOP
+```
+
+`passes` ends up with 1, 2 and 3. With the `IF` before `END BATCH`, the third pass's row would be rolled back.
+
+When an error or a HALT stops the run inside a batch, the batch is rolled back before an [ON ERROR_HALT EXECUTE SCRIPT](#error_halt_exec) or [ON CANCEL_HALT EXECUTE SCRIPT](#cancel_halt_exec) script runs, so that script's own SQL is committed, such as a row it writes to a log table (unless AUTOCOMMIT is OFF).
 
 
 ## BEGIN SCRIPT and END SCRIPT { #beginscript }
@@ -2225,6 +2241,8 @@ If the specified script runs after the user cancels the main script, it will cle
 
 The intended use of this metacommand is to allow cleanup of staging tables and any other database objects that should be removed when the main script terminates.
 
+If the user cancels inside a [BATCH](#batch), the batch is rolled back before the script runs, and the script's own SQL is committed as usual (not while [AUTOCOMMIT](#autocommit) is OFF).
+
 
 ## ON CANCEL_HALT WRITE { #cancel_halt_write }
 
@@ -2291,6 +2309,8 @@ The form of the metacommand with the "CLEAR" keyword will eliminate any specific
 If the specified script runs after an error occurs, it will clear its own specification to eliminate the possibility of an infinite loop of re-executions of the same script.
 
 The intended use of this metacommand is to allow cleanup of staging tables and any other database objects that would be removed if the main script terminated normally.
+
+If the error happens inside a [BATCH](#batch), the batch is rolled back before the script runs, and the script's own SQL is committed as usual (not while [AUTOCOMMIT](#autocommit) is OFF).
 
 
 ## ON ERROR_HALT WRITE { #error_halt_write }

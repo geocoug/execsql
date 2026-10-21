@@ -1,4 +1,122 @@
 {
+ "batch_left_by_break": {
+  "tables/t": {
+   "execsql2": {
+    "columns": [
+     [
+      "v",
+      "TEXT"
+     ]
+    ],
+    "rows": [
+     [
+      [
+       "text",
+       "'after the loop'"
+      ]
+     ]
+    ]
+   },
+   "status": "accepted",
+   "upstream": {
+    "columns": [
+     [
+      "v",
+      "TEXT"
+     ]
+    ],
+    "rows": []
+   },
+   "why": "A BREAK out of a BEGIN BATCH block left the batch open in upstream, so nothing after it was committed either and the run ended by rolling it all back; execsql2 rolls back only the batch and carries on committing (divergence: 'A batch left before END BATCH is rolled back'; #121)."
+  }
+ },
+ "batch_left_by_error": {
+  "tables/error_log": {
+   "execsql2": {
+    "columns": [
+     [
+      "msg",
+      "TEXT"
+     ]
+    ],
+    "rows": [
+     [
+      [
+       "text",
+       "'logged by ON ERROR_HALT'"
+      ]
+     ]
+    ]
+   },
+   "status": "accepted",
+   "upstream": {
+    "columns": [
+     [
+      "msg",
+      "TEXT"
+     ]
+    ],
+    "rows": []
+   },
+   "why": "An error inside BEGIN BATCH: both roll the batch back, but upstream ran the ON ERROR_HALT script inside the still-open batch and so rolled back what it wrote too; execsql2 rolls the batch back first, so the script's own SQL is committed (divergence: 'A batch left before END BATCH is rolled back'; #121)."
+  }
+ },
+ "batch_left_under_autocommit_off": {
+  "tables/t": {
+   "execsql2": {
+    "columns": [
+     [
+      "v",
+      "TEXT"
+     ]
+    ],
+    "rows": [
+     [
+      [
+       "text",
+       "'held before the batch'"
+      ]
+     ],
+     [
+      [
+       "text",
+       "'in the batch'"
+      ]
+     ],
+     [
+      [
+       "text",
+       "'after'"
+      ]
+     ]
+    ]
+   },
+   "status": "accepted",
+   "upstream": {
+    "columns": [
+     [
+      "v",
+      "TEXT"
+     ]
+    ],
+    "rows": [
+     [
+      [
+       "text",
+       "'held before the batch'"
+      ]
+     ],
+     [
+      [
+       "text",
+       "'in the batch'"
+      ]
+     ]
+    ]
+   },
+   "why": "A BREAK out of a BEGIN BATCH block left the batch open in upstream, so a statement after AUTOCOMMIT ON WITH COMMIT was not committed either; execsql2 ends the batch, and under AUTOCOMMIT OFF leaves its statements to the script's own commit, as END BATCH would (divergence: 'A batch left before END BATCH is rolled back'; #121)."
+  }
+ },
  "boolean_and_empty_config": {
   "tables/empty_strings_no": {
    "execsql2": {

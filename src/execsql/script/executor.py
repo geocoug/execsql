@@ -641,7 +641,16 @@ def _execute_batch(
     *,
     in_loop: bool = False,
 ) -> None:
-    """Execute a BEGIN BATCH / END BATCH block."""
+    """Execute a BEGIN BATCH / END BATCH block.
+
+    Reaching END BATCH commits the batch. Leaving it any other way (BREAK,
+    an error, HALT) abandons it: see
+    :meth:`~execsql.script.control.BatchLevels.abandon_batch` for when that
+    rolls back and when an enclosing batch takes the statements over.  A
+    halt usually gets there first: :func:`~execsql.utils.errors.exit_now`
+    abandons every open batch before an ON ERROR_HALT script runs, so
+    nothing is left to do here.
+    """
     from execsql.state import ExecFrame
 
     status = ctx.status
@@ -651,12 +660,17 @@ def _execute_batch(
         ctx,
         ExecFrame(kind="batch", label="", source=node.span.file, line=node.span.start_line),
     )
+    completed = False
     try:
         _execute_nodes(ctx, node.body, node.span.file, localvars, in_loop=in_loop)
+        completed = True
     finally:
         ctx.ast_exec_stack.pop()
         if status.batch.in_batch():
-            status.batch.end_batch()
+            if completed:
+                status.batch.end_batch()
+            else:
+                status.batch.abandon_batch()
 
 
 def _pre_register_scripts(ctx: RuntimeContext, nodes: list[Node]) -> None:

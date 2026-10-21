@@ -15,6 +15,8 @@ ______________________________________________________________________
 
 - **`BREAK` in a `SCRIPT` or `INCLUDE`d file, outside a `LOOP`,** returns from that script or file, as the `BREAK` documentation says and upstream execsql did; it stopped the run. A `BREAK` in an `INCLUDE`d file inside a `LOOP` now leaves only the file, and the loop carries on; it ended the loop.
 - **`BREAK` in the main script, outside any `LOOP`, `SCRIPT` or `INCLUDE`d file,** is a metacommand error: with `METACOMMAND_ERROR_HALT OFF` the script carries on and `METACOMMAND_ERROR()` is true. It stopped the run whatever that setting said.
+- **A `BEGIN BATCH` block left before its `END BATCH`** by `BREAK`, an error or `HALT` is rolled back; it committed the statements run so far. To keep a batch's work and then `BREAK`, put the `BREAK` after `END BATCH`. A nested batch left by `BREAK` while the outer batch carries on is now committed or rolled back with the outer batch; it was committed at once. Under `AUTOCOMMIT OFF` your own `COMMIT` or `ROLLBACK` still decides, as before.
+- **An `ON ERROR_HALT` or `ON CANCEL_HALT` script after a halt inside `BEGIN BATCH`** runs after the batch is rolled back and still commits its own SQL, such as a row it writes to a log table (unless `AUTOCOMMIT` is `OFF`).
 - **`--manifest`** counts each `INCLUDE` and `EXECUTE SCRIPT` in `statements.metacommands`, including one that fails or that `IF EXISTS` skips.
 
 ### Fixed
