@@ -689,7 +689,7 @@ def _execute_batch(
         failure = status.batch.failure()
         if failure is not None:
             status.batch.abandon_batch()
-            e = ErrInfo(type="error", other_msg=f"The batch was rolled back: {failure}.")
+            e = ErrInfo(type="error", other_msg=f"The batch was not committed: {failure}.")
             _sql_failed(ctx, e, "END BATCH", node.span.file, end_line)
             return
         try:
