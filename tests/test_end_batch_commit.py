@@ -125,8 +125,8 @@ def test_a_batch_opened_inside_the_failed_batch_does_not_commit_it(tmp_path):
     assert _rows(tmp_path / "main.db", "o") == ["after both"]
 
 
-def test_rollback_batch_lets_the_failed_batch_start_over(tmp_path):
-    middle = "-- !x! IF (SQL_ERROR()) { ROLLBACK BATCH }\ninsert into o values ('retried');\n"
+def test_rollback_batch_does_not_let_the_failed_batch_commit(tmp_path):
+    middle = "-- !x! ROLLBACK BATCH\ninsert into o values ('retried');\n"
     result = _run(tmp_path, _nested(tmp_path, middle))
-    assert _rows(tmp_path / "main.db", "o") == ["retried", "after both"]
-    assert len(result.errors) == 1  # the failed commit; the outer END BATCH commits
+    assert _rows(tmp_path / "main.db", "o") == ["after both"]
+    assert len(result.errors) == 2  # the failed commit, then the outer END BATCH

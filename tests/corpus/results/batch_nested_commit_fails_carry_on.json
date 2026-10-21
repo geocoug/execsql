@@ -1,0 +1,49 @@
+{
+ "exit": 0,
+ "files": {},
+ "recorded_with": "execsql 1.130.1",
+ "stderr": "",
+ "stdout": "",
+ "tables": {
+  "child": {
+   "columns": [
+    [
+     "pid",
+     "INTEGER"
+    ]
+   ],
+   "rows": []
+  },
+  "o": {
+   "columns": [
+    [
+     "v",
+     "TEXT"
+    ]
+   ],
+   "rows": [
+    [
+     [
+      "text",
+      "'retried'"
+     ]
+    ],
+    [
+     [
+      "text",
+      "'after the batch'"
+     ]
+    ]
+   ]
+  },
+  "parent": {
+   "columns": [
+    [
+     "id",
+     "INTEGER"
+    ]
+   ],
+   "rows": []
+  }
+ }
+}

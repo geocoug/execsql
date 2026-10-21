@@ -52,6 +52,8 @@ class BatchLevels:
 
         A batch inside a failed one cannot commit either: its commit would
         commit the failed batch's later statements on a shared connection.
+        Nothing clears the mark, ROLLBACK BATCH included: once a nested
+        commit has failed, the whole stack of batches rolls back.
         """
         for b in reversed(self.batchlevels):
             if b.failed is not None:
@@ -79,8 +81,6 @@ class BatchLevels:
             b = self.batchlevels[-1]
             for db in b.dbs_used:
                 db.rollback()
-            # Nothing of this batch is left to lose, so it can commit again.
-            b.failed = None
 
     def end_batch(self) -> None:
         """Commit all databases in the innermost batch level and pop the stack.

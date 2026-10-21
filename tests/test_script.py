@@ -173,16 +173,12 @@ class TestBatchLevels:
         bl.new_batch()
         assert bl.failure() == "why"
 
-    def test_rollback_batch_clears_the_innermost_failure(self):
+    def test_rollback_batch_does_not_clear_a_failure(self):
         bl = BatchLevels()
-        bl.new_batch()
         bl.new_batch()
         bl.fail_enclosing("why")
         bl.rollback_batch()
-        assert bl.failure() == "why"  # the enclosing level is still failed
-        bl.end_batch()
-        bl.rollback_batch()
-        assert bl.failure() is None
+        assert bl.failure() == "why"
 
     def test_failure_is_none_outside_a_batch(self):
         assert BatchLevels().failure() is None
