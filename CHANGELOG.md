@@ -24,6 +24,8 @@ ______________________________________________________________________
 
 ### Fixed
 
+- **`END BATCH` whose commit fails on one database** rolls back the batch's databases not yet committed; a later statement on them, such as an `ON ERROR_HALT` script's, committed the failed batch's rows.
+- **A failed commit at `END BATCH`** is an SQL error on the `END BATCH` line, which `ERROR_HALT` governs; it was reported as an uncaught exception on a line of execsql's own source.
 - **`BREAK` in the main script, outside any `LOOP`, `SCRIPT` or `INCLUDE`d file,** is reported on its own line; it named the statement before it.
 - **`INCLUDE` and `EXECUTE SCRIPT` inside an inline `IF (…) { … }`** run again; they stopped the run with "should be handled by the AST executor".
 - **`INCLUDE`, `EXECUTE SCRIPT` and an inline `IF` added with `EXTEND SCRIPT … WITH METACOMMAND`** run when the script does; they stopped the run the same way.

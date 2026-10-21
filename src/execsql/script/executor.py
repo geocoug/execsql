@@ -301,19 +301,29 @@ def _exec_sql(
     except Exception as exc:
         e = _as_errinfo(exc)
     if e:
-        stamp_errinfo(e)
-        subvars.add_substitution("$LAST_ERROR", cmd)
-        subvars.add_substitution("$ERROR_MESSAGE", e.errmsg())
-        status.sql_error = True
-        if ctx.exec_log is not None:
-            ctx.exec_log.log_status_info(f"SQL error: {logged_error(e)}")
-        if status.halt_on_err:
-            exit_now(1, e)
-        status.error_history.append((source, line_no, cmd, e.errmsg()))
+        _sql_failed(ctx, e, cmd, source, line_no)
         return
     subvars.add_substitution("$LAST_SQL", cmd)
     if ctx.prompt_input is not None:
         ctx.prompt_input(result)
+
+
+def _sql_failed(ctx: RuntimeContext, e: ErrInfo, cmd: str, source: str, line_no: int) -> None:
+    """Report an SQL error: halt under ERROR_HALT ON, else record it and carry on.
+
+    Sets ``$LAST_ERROR`` to *cmd*, ``$ERROR_MESSAGE`` and ``SQL_ERROR()``.
+    """
+    assert ctx.status is not None
+    assert ctx.subvars is not None
+    stamp_errinfo(e)
+    ctx.subvars.add_substitution("$LAST_ERROR", cmd)
+    ctx.subvars.add_substitution("$ERROR_MESSAGE", e.errmsg())
+    ctx.status.sql_error = True
+    if ctx.exec_log is not None:
+        ctx.exec_log.log_status_info(f"SQL error: {logged_error(e)}")
+    if ctx.status.halt_on_err:
+        exit_now(1, e)
+    ctx.status.error_history.append((source, line_no, cmd, e.errmsg()))
 
 
 # ---------------------------------------------------------------------------
@@ -643,7 +653,9 @@ def _execute_batch(
 ) -> None:
     """Execute a BEGIN BATCH / END BATCH block.
 
-    Reaching END BATCH commits the batch. Leaving it any other way (BREAK,
+    Reaching END BATCH commits the batch; a commit that fails is an SQL error
+    on the END BATCH line, after the batch's uncommitted databases are rolled
+    back. Leaving it any other way (BREAK,
     an error, HALT) abandons it: see
     :meth:`~execsql.script.control.BatchLevels.abandon_batch` for when that
     rolls back and when an enclosing batch takes the statements over.  A
@@ -666,11 +678,18 @@ def _execute_batch(
         completed = True
     finally:
         ctx.ast_exec_stack.pop()
-        if status.batch.in_batch():
-            if completed:
-                status.batch.end_batch()
-            else:
-                status.batch.abandon_batch()
+        if status.batch.in_batch() and not completed:
+            status.batch.abandon_batch()
+    if status.batch.in_batch():
+        end_line = node.span.end_line or node.span.start_line
+        ctx.last_command = ExecutingStatement(
+            MetaCommandStatement(span=SourceSpan(node.span.file, end_line), command="END BATCH"),
+        )
+        try:
+            status.batch.end_batch()
+        except Exception as exc:
+            # end_batch has rolled back what it had not committed.
+            _sql_failed(ctx, _as_errinfo(exc), "END BATCH", node.span.file, end_line)
 
 
 def _pre_register_scripts(ctx: RuntimeContext, nodes: list[Node]) -> None:

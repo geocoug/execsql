@@ -1,0 +1,64 @@
+{
+ "exit": 1,
+ "files": {
+  "b.db": {
+   "sqlite": {
+    "log": {
+     "columns": [
+      [
+       "v",
+       "TEXT"
+      ]
+     ],
+     "rows": [
+      [
+       [
+        "text",
+        "'logged by ON ERROR_HALT'"
+       ]
+      ]
+     ]
+    },
+    "t": {
+     "columns": [
+      [
+       "v",
+       "TEXT"
+      ]
+     ],
+     "rows": [
+      [
+       [
+        "text",
+        "'batch row on b'"
+       ]
+      ]
+     ]
+    }
+   }
+  }
+ },
+ "recorded_with": "execsql 1.130.1",
+ "stderr": "**** Error in metacommand.\n     Line 21 of script script.sql\n     IntegrityError: FOREIGN KEY constraint failed\n     END BATCH\n     Metacommand: END BATCH\n     Error occurred at <TIME>.\n",
+ "stdout": "",
+ "tables": {
+  "child": {
+   "columns": [
+    [
+     "pid",
+     "INTEGER"
+    ]
+   ],
+   "rows": []
+  },
+  "parent": {
+   "columns": [
+    [
+     "id",
+     "INTEGER"
+    ]
+   ],
+   "rows": []
+  }
+ }
+}
