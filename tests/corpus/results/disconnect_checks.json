@@ -1,0 +1,24 @@
+{
+ "exit": 0,
+ "files": {
+  "b.db": "",
+  "c.db": {
+   "sqlite": {
+    "t": {
+     "columns": [
+      [
+       "v",
+       "TEXT"
+      ]
+     ],
+     "rows": []
+    }
+   }
+  },
+  "out.txt": "DISCONNECT FROM B left b open\nDISCONNECT FROM nosuch: no error\nDISCONNECT FROM c in the batch: closed c\n"
+ },
+ "recorded_with": "execsql 1.130.1",
+ "stderr": "",
+ "stdout": "",
+ "tables": {}
+}

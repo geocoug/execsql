@@ -461,15 +461,16 @@ def x_use(**kwargs: Any) -> None:
 def x_disconnect(**kwargs: Any) -> None:
     alias = kwargs["alias"]
     current_alias = _state.dbs.current_alias()
-    if alias is None:
-        alias = _state.dbs.current_alias()
-    if alias.lower() == "initial":
-        raise ErrInfo(type="error", other_msg="You may not disconnect from the initial database used.")
-    if _state.status.batch.uses_db(alias):
-        raise ErrInfo(
-            type="error",
-            other_msg="You may not disconnect from a database that is currently used in a batch.",
-        )
+    # Aliases are stored lowercase (DatabasePool.add), as USE expects.
+    alias = current_alias if alias is None else alias.lower()
+    # type="cmd": reported as a metacommand error; the engine adds the
+    # "Metacommand: DISCONNECT ..." line itself.
+    if alias == "initial":
+        raise ErrInfo(type="cmd", other_msg="You may not disconnect from the initial database used.")
+    if alias not in _state.dbs.aliases():
+        raise ErrInfo(type="cmd", other_msg=f"Unrecognized database alias: {alias}.")
+    if _state.status.batch.uses_db(_state.dbs.aliased_as(alias)):
+        raise ErrInfo(type="cmd", other_msg="You may not disconnect from a database that is currently used in a batch.")
     _state.exec_log.log_status_info(f"Disconnecting from database with alias '{alias}'")
     if alias == current_alias:
         _state.dbs.make_current("initial")

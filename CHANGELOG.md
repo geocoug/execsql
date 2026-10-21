@@ -13,6 +13,7 @@ ______________________________________________________________________
 
 ### Changed
 
+- **`DISCONNECT FROM` an alias that is not connected** is a metacommand error; it did nothing, so a misspelled alias left the real connection open. To disconnect only if connected, write `IF (ALIAS_DEFINED(staging)) { DISCONNECT FROM staging }`, with the alias in lowercase inside `ALIAS_DEFINED`.
 - **`BREAK` in a `SCRIPT` or `INCLUDE`d file, outside a `LOOP`,** returns from that script or file, as the `BREAK` documentation says and upstream execsql did; it stopped the run. A `BREAK` in an `INCLUDE`d file inside a `LOOP` now leaves only the file, and the loop carries on; it ended the loop.
 - **`BREAK` in the main script, outside any `LOOP`, `SCRIPT` or `INCLUDE`d file,** is a metacommand error: with `METACOMMAND_ERROR_HALT OFF` the script carries on and `METACOMMAND_ERROR()` is true. It stopped the run whatever that setting said.
 - **A `BEGIN BATCH` block left before its `END BATCH`** by `BREAK`, an error or `HALT` is rolled back; it committed the statements run so far. To keep a batch's work and then `BREAK`, put the `BREAK` after `END BATCH`. A nested batch left by `BREAK` while the outer batch carries on is now committed or rolled back with the outer batch; it was committed at once. Under `AUTOCOMMIT OFF` your own `COMMIT` or `ROLLBACK` still decides, as before.
@@ -21,6 +22,8 @@ ______________________________________________________________________
 
 ### Fixed
 
+- **`DISCONNECT` inside `BEGIN BATCH`** refuses a database the batch has used, as documented; it closed the connection and the batch's statements were lost.
+- **`DISCONNECT FROM <alias>`** matches the alias in any case, as `USE` does; `DISCONNECT FROM B` left a connection made `AS b` open.
 - **`BREAK` in the main script, outside any `LOOP`, `SCRIPT` or `INCLUDE`d file,** is reported on its own line; it named the statement before it.
 - **`INCLUDE` and `EXECUTE SCRIPT` inside an inline `IF (…) { … }`** run again; they stopped the run with "should be handled by the AST executor".
 - **`INCLUDE`, `EXECUTE SCRIPT` and an inline `IF` added with `EXTEND SCRIPT … WITH METACOMMAND`** run when the script does; they stopped the run the same way.

@@ -992,11 +992,19 @@ Writes internal state to the log file (`LOG` form) or to the terminal or a file 
 DISCONNECT [[FROM] <alias>]
 ```
 
-Closes the current database connection, or the connection associated with the alias *alias*, if specified. Aliases are defined by the [CONNECT](#connect) metacommand.
+Closes the current database connection, or the connection associated with the alias *alias*, if specified. Aliases are defined by the [CONNECT](#connect) metacommand and, as with [USE](#use), match in any case: `DISCONNECT FROM B` closes a connection made `AS b`.
 
-Attempting to disconnect from the initial database connection will result in an error, and *execsql* will halt.
+Disconnecting from an alias that is not connected is an error, so a misspelled alias does not leave the real connection open. Like other metacommand errors, it halts the script unless [METACOMMAND_ERROR_HALT](#metacommanderrorhalt) is OFF. To disconnect only when the alias is connected, test it first:
 
-Attempting to disconnect from a database that is still in use in a [BATCH](#batch) will result in an error, and *execsql* will halt.
+```sql
+-- !x! IF (ALIAS_DEFINED(staging)) { DISCONNECT FROM staging }
+```
+
+Write the alias in lowercase inside `ALIAS_DEFINED`: aliases are stored in lowercase, and `ALIAS_DEFINED` compares them as written, so `ALIAS_DEFINED(Staging)` is false for a connection made `AS Staging`.
+
+Attempting to disconnect from the initial database connection is also an error.
+
+So is attempting to disconnect from a database that is still in use in a [BATCH](#batch), that is, one the batch, or a batch around it, has run a statement on. The connection stays open. If the error halts the script, the batch is rolled back; with METACOMMAND_ERROR_HALT OFF the script carries on and END BATCH commits as usual. A database the batch has not used can be disconnected inside it.
 
 Explicitly disconnecting from a database is not necessary before re-using that alias. The [CONNECT](#connect) metacommand will automatically disconnect from a database if its alias is re-used.
 
