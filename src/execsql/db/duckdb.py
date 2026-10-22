@@ -253,7 +253,14 @@ class DuckDBDatabase(Database):
 
     def commit(self) -> None:
         """Commit the open transaction if autocommit is enabled."""
-        self._take_connection()
+        try:
+            # Reading ahead another cursor's result can raise (DuckDB reports
+            # some errors at fetch time); roll back as a failed commit does.
+            self._take_connection()
+        except BaseException:
+            if self.autocommit:
+                self.rollback()
+            raise
         super().commit()
         if self.autocommit:
             self.in_transaction = False
