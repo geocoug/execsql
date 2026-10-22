@@ -258,7 +258,7 @@ class DuckDBDatabase(Database):
             # some errors at fetch time); roll back as a failed commit does.
             self._take_connection()
         except BaseException:
-            if self.autocommit:
+            if self.autocommit and self.in_transaction:
                 self.rollback()
             raise
         super().commit()
