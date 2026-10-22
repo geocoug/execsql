@@ -87,9 +87,10 @@ def test_commit_under_autocommit_off_does_nothing():
     db.rollback.assert_not_called()
 
 
-# The script's commit paths go through Database.commit(): a row whose commit
-# fails is not stored by the next statement's commit, here the parent row that
-# would make it valid.
+# IMPORT, COPY and AUTOCOMMIT ON commit through Database.commit(): a row whose
+# commit fails is not stored by the next statement's commit, here the parent
+# row that would make it valid.  (Firebird's DDL and catalog commits call the
+# driver directly; see the follow-up issue.)
 
 
 def _load(tmp_path, how):
@@ -134,6 +135,7 @@ def test_duckdb_commit_rolls_back_when_reading_ahead_fails(autocommit):
 
     db = object.__new__(DuckDBDatabase)
     db.autocommit = autocommit
+    db.in_transaction = True
     db.conn = MagicMock()
     db._holder = MagicMock()
     db._holder.read_ahead.side_effect = RuntimeError("cast error at fetch time")
@@ -142,3 +144,19 @@ def test_duckdb_commit_rolls_back_when_reading_ahead_fails(autocommit):
         db.commit()
     assert db.rollback.called is autocommit  # under AUTOCOMMIT OFF the transaction is the script's
     db.conn.commit.assert_not_called()
+
+
+def test_duckdb_commit_does_not_roll_back_when_no_transaction_is_open():
+    pytest.importorskip("duckdb")
+    from execsql.db.duckdb import DuckDBDatabase
+
+    db = object.__new__(DuckDBDatabase)
+    db.autocommit = True
+    db.in_transaction = False  # DuckDB would log "no transaction is active"
+    db.conn = MagicMock()
+    db._holder = MagicMock()
+    db._holder.read_ahead.side_effect = RuntimeError("cast error at fetch time")
+    db.rollback = MagicMock()
+    with pytest.raises(RuntimeError):
+        db.commit()
+    db.rollback.assert_not_called()
