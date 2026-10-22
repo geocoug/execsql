@@ -153,3 +153,50 @@ def test_under_autocommit_off_an_interrupted_metacommands_writes_stay_with_the_s
     conn.rollback()  # what the docs tell a caller to do after an interrupt
     conn.close()
     assert _rows(db_file) == []
+
+
+# execsql's own control flow is not an interrupt: BREAK (a BaseException) and
+# HALT (SystemExit) pass through untouched.
+
+
+def test_break_typed_at_the_prompt_inside_a_batch_is_not_an_interrupt(tmp_path):
+    from tests.test_interactive import _paused as paused
+
+    script = (
+        "create table t (n integer);\n-- !x! begin batch\ninsert into t values (1);\n"
+        "-- !x! sub i 0\n-- !x! loop while (is_gt(1, !!i!!))\n-- !x! sub_add i 1\n-- !x! breakpoint\n-- !x! end loop\n"
+        "insert into t values (2);\n-- !x! end batch\n"
+    )
+    result, _, _, rows = paused(tmp_path, script, ["-- !x! break"])
+    assert result.success
+    assert rows == [1, 2]
+    assert result.variables.get("ERROR_MESSAGE", "") == ""
+
+
+def test_halt_is_not_an_interrupt(db_file):
+    conn = db_SQLite(str(db_file))
+    conn.execute("insert into t values ('the caller''s own');")  # not committed yet
+    result = run(sql="-- !x! HALT\n", connection=conn)
+    assert not result.success
+    assert result.variables.get("ERROR_MESSAGE", "") == ""
+    conn.commit()
+    conn.close()
+    assert _rows(db_file) == ["the caller's own"]
+
+
+def test_duckdb_rollback_outside_a_transaction_does_not_reach_the_driver():
+    pytest.importorskip("duckdb")
+    from unittest.mock import MagicMock
+
+    from execsql.db.duckdb import DuckDBDatabase
+
+    db = object.__new__(DuckDBDatabase)
+    db.conn = MagicMock()
+    db._holder = None
+    db.in_transaction = False
+    db.rollback()
+    db.conn.rollback.assert_not_called()  # DuckDB would raise "no transaction is active"
+    db.in_transaction = True
+    db.rollback()
+    db.conn.rollback.assert_called_once_with()
+    assert db.in_transaction is False
