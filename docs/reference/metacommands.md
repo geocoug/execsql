@@ -1047,6 +1047,8 @@ ERROR_HALT ON|OFF
 
 When ERROR_HALT is set to ON, which is the default, any errors that occur as a result of executing a SQL statement, or committing a [BATCH](#batch) at END BATCH, will cause an error message to be displayed immediately, and *execsql* will exit. When ERROR_HALT is set to OFF, then SQL errors will be ignored, but can be evaluated with the [IF SQL_ERROR](#sqlerror) conditional. A test in an `IF`, `LOOP` or other condition that fails in the database (`HASROWS(no_such_table)`) is not ignored: it stops the run, because no branch can be chosen (see [METACOMMAND_ERROR_HALT](#metacommanderrorhalt)).
 
+A statement whose commit fails (for example, on a deferred foreign key that is checked at COMMIT) is an SQL error like any other, and its transaction is rolled back, so no later commit stores it.
+
 When ERROR_HALT is set to OFF inside a transaction, any SQL error will ordinarily cause the entire transaction to fail. Inside a [BATCH](#batch), an error means END BATCH rolls the batch back instead of committing it, and reports an SQL error of its own; if ERROR_HALT is ON at END BATCH, the run stops there.
 
 
