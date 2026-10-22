@@ -84,9 +84,10 @@ class BatchLevels:
     def end_batch(self) -> None:
         """Commit all databases in the innermost batch level and pop the stack.
 
-        If a commit fails, that database and the ones not yet committed are
-        rolled back (except one with autocommit off, whose transaction is the
-        script's) before the error is raised: a commit that already succeeded
+        If a commit fails, :meth:`Database.commit` rolls that database back,
+        and the ones not yet committed are rolled back too (except one with
+        autocommit off, whose transaction is the script's) before the error
+        is raised: a commit that already succeeded
         cannot be undone, but nothing else of the batch is left pending for
         a later statement to commit.
         """
@@ -95,7 +96,7 @@ class BatchLevels:
             try:
                 db.commit()
             except BaseException:
-                _roll_back(b.dbs_used[i:])
+                _roll_back(b.dbs_used[i + 1 :])
                 raise
 
     def abandon_batch(self) -> None:

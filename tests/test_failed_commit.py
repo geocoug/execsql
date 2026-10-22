@@ -45,7 +45,7 @@ def test_with_error_halt_off_the_next_commit_does_not_store_the_failed_statement
     assert _rows(tmp_path, "parent") == [9]
 
 
-def test_a_second_failed_commit_reports_only_its_own_statement(tmp_path):
+def test_a_later_statement_is_not_dragged_into_the_failure(tmp_path):
     sql = (
         "-- !x! ERROR_HALT OFF\n"
         + _SETUP
@@ -53,7 +53,7 @@ def test_a_second_failed_commit_reports_only_its_own_statement(tmp_path):
         + "insert into log values ('unrelated');\n"
     )
     result = _run(tmp_path, sql)
-    assert len(result.errors) == 1  # the log insert is not dragged into the child's failure
+    assert len(result.errors) == 1  # on main the log insert's commit failed too, on the child row
     assert _rows(tmp_path, "log") == ["unrelated"]
     assert _rows(tmp_path, "child") == []
 
@@ -85,3 +85,43 @@ def test_commit_under_autocommit_off_does_nothing():
     Database.commit(db)
     db.conn.commit.assert_not_called()
     db.rollback.assert_not_called()
+
+
+# Every commit path goes through Database.commit(): a row whose commit fails
+# is not stored by the next statement's commit, here the parent row that
+# would make it valid.
+
+
+def _load(tmp_path, how):
+    csv = tmp_path / "child.csv"
+    csv.write_text("pid\n9\n")
+    b = tmp_path / "b.db"
+    return {
+        "IMPORT": f"-- !x! IMPORT TO child FROM {csv}\n",
+        "COPY": (
+            f"-- !x! CONNECT TO SQLITE(FILE={b}, NEW) AS b\n"
+            "-- !x! USE b\ncreate table src (pid integer);\ninsert into src values (9);\n-- !x! USE initial\n"
+            "-- !x! COPY src FROM b TO child IN initial\n"
+        ),
+        "AUTOCOMMIT ON WITH COMMIT": (
+            "-- !x! AUTOCOMMIT OFF\ninsert into child values (9);\n-- !x! AUTOCOMMIT ON WITH COMMIT\n"
+        ),
+        "AUTOCOMMIT ON, then a statement": (
+            "-- !x! AUTOCOMMIT OFF\ninsert into child values (9);\n-- !x! AUTOCOMMIT ON\n"
+            "insert into log values ('commits the held insert');\n"
+        ),
+    }[how]
+
+
+@pytest.mark.parametrize("how", ["IMPORT", "COPY", "AUTOCOMMIT ON WITH COMMIT", "AUTOCOMMIT ON, then a statement"])
+def test_no_commit_path_leaves_a_failed_commit_for_the_next_one(tmp_path, how):
+    sql = (
+        "-- !x! ERROR_HALT OFF\n-- !x! METACOMMAND_ERROR_HALT OFF\n"
+        + _SETUP
+        + _load(tmp_path, how)
+        + "insert into parent values (9);\n"
+    )
+    result = _run(tmp_path, sql)
+    assert result.errors, "the commit should have failed"
+    assert _rows(tmp_path, "child") == []
+    assert _rows(tmp_path, "parent") == [9]
