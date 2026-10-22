@@ -110,6 +110,8 @@ If AUTOCOMMIT is set to ON without using the WITH clause, the next SQL statement
 
 If the WITH ROLLBACK clause is used when AUTOCOMMIT is turned back on, all SQL statements issued since AUTOCOMMIT was turned OFF will be rolled back.
 
+If that commit fails (for example, on a deferred foreign key that is checked at COMMIT), everything issued since AUTOCOMMIT was turned OFF is rolled back, and the failure is reported as an SQL error ([ERROR_HALT](#error_halt) governs it): none of it is stored by a later commit.
+
 
 SQL statements that were issued while AUTOCOMMIT is OFF can also be committed using a SQL "COMMIT;" statement. This approach should be avoided with SQL Server, however, because *execsql* connects with SQL Server using ODBC, and Microsoft warns that SQL statements to manage transactions should not be used ["because this can cause indeterminate behavior in the driver"](https://docs.microsoft.com/en-us/sql/relational-databases/native-client/odbc/performing-transactions-in-odbc?view=sql-server-2017). For example, two "COMMIT;" statements may be needed the first time that SQL statements are committed this way.
 

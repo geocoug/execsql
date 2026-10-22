@@ -141,7 +141,7 @@ class TestBatchLevels:
         assert bl.in_batch() is False
         first.commit.assert_called_once_with()
         first.rollback.assert_not_called()
-        failing.rollback.assert_called_once_with()
+        failing.rollback.assert_not_called()  # Database.commit rolls itself back
         last.commit.assert_not_called()
         last.rollback.assert_called_once_with()
 

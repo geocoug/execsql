@@ -28,7 +28,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- **An SQL statement whose commit fails** (a deferred constraint checked at COMMIT) is rolled back, so it is never stored; on SQLite, with `ERROR_HALT OFF` or in an `ON ERROR_HALT` script, the next statement's commit stored the row that was reported as failed.
+- **A commit that fails** (a deferred constraint checked at COMMIT) rolls back what it was committing, so none of it is stored: an SQL statement, `IMPORT`, `COPY`, `EXECUTE`, or `AUTOCOMMIT ON` committing what was held under `AUTOCOMMIT OFF`. On SQLite, with `ERROR_HALT OFF` or in an `ON ERROR_HALT` script, the next statement's commit stored it, including the rows reported as failed.
 - **`END BATCH` whose commit fails on one database** rolls back the batch's databases not yet committed; a later statement on them, such as an `ON ERROR_HALT` script's, committed the failed batch's rows.
 - **`BREAK` in the main script, outside any `LOOP`, `SCRIPT` or `INCLUDE`d file,** is reported on its own line; it named the statement before it.
 - **`INCLUDE` and `EXECUTE SCRIPT` inside an inline `IF (…) { … }`** run again; they stopped the run with "should be handled by the AST executor".
