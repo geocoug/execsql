@@ -209,7 +209,7 @@ class SqlServerDatabase(Database):
                 curs.execute(cmd)
                 _state.subvars.add_substitution("$LAST_ROWCOUNT", curs.rowcount)
             except Exception:
-                self.rollback_after_error()
+                self.rollback()
                 raise
 
     def schema_exists(self, schema_name: str) -> bool:

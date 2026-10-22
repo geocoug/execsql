@@ -8,14 +8,10 @@ failure comes before ``b`` is committed.
 from __future__ import annotations
 
 import sqlite3
-from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
 
 import pytest
 
-import execsql.state as _state
 from execsql import run
-from execsql.db.base import Database
 
 _SETUP = (
     "-- !x! CONNECT TO SQLITE(FILE={b}, NEW) AS b\n"
@@ -100,7 +96,7 @@ def test_a_failed_nested_commit_makes_the_enclosing_batch_roll_back(tmp_path):
     result = _run(tmp_path, sql)
     written = out.read_text()
     assert written.startswith("inner failed\nouter: ")
-    assert "The batch was not committed: a nested batch's commit failed at END BATCH on line 18" in written
+    assert "The batch was not committed: an error on line 18 of <inline>." in written
     assert _rows(tmp_path / "main.db", "o") == ["after both"]
     assert _rows(tmp_path / "main.db", "child") == []
     assert _rows(b, "t") == []
@@ -159,9 +155,9 @@ def test_sql_error_right_after_end_batch_is_about_the_batch(tmp_path):
     assert out.read_text().splitlines() == ["commit failed: failed"]
 
 
-# A statement that fails inside a batch under ERROR_HALT OFF.  It rolls back
-# its connection, so the batch's earlier statements are gone and the batch
-# must not commit the rest.
+# Anything that fails inside a batch keeps it from committing: a statement
+# (whose failure rolls back its connection, taking the batch's earlier
+# statements with it), a metacommand, or SQL a metacommand runs.
 
 
 def test_a_failed_statement_makes_end_batch_roll_back(tmp_path):
@@ -177,9 +173,7 @@ def test_a_failed_statement_makes_end_batch_roll_back(tmp_path):
     )
     result = _run(tmp_path, sql)
     assert out.read_text().startswith("END BATCH: ")
-    assert (
-        "The batch was not committed: a database error on line 5 of <inline> rolled back its work." in out.read_text()
-    )
+    assert "The batch was not committed: an error on line 5 of <inline>." in out.read_text()
     assert _rows(tmp_path / "main.db", "t") == ["after the batch"]
     assert len(result.errors) == 2
 
@@ -209,7 +203,7 @@ def test_rollback_batch_does_not_let_a_batch_with_a_failed_statement_commit(tmp_
     assert _rows(tmp_path / "main.db", "t") == []
 
 
-def test_a_failed_statement_under_autocommit_off_leaves_the_batch_to_the_script(tmp_path):
+def test_under_autocommit_off_a_failed_batch_leaves_the_transaction_to_the_script(tmp_path):
     sql = (
         "-- !x! ERROR_HALT OFF\ncreate table t (v text);\n-- !x! AUTOCOMMIT OFF\n"
         '-- !x! BEGIN BATCH\ninsert into "no such" values (1);\n'
@@ -218,11 +212,11 @@ def test_a_failed_statement_under_autocommit_off_leaves_the_batch_to_the_script(
     )
     result = _run(tmp_path, sql)
     assert _rows(tmp_path / "main.db", "t") == ["kept"]
-    assert len(result.errors) == 1  # the statement; END BATCH reports nothing
+    assert len(result.errors) == 2  # the statement, then END BATCH; COMMIT still commits
 
 
-# SQL a metacommand runs fails the same way: its rollback discards the
-# batch's statements too.
+# SQL a metacommand runs, and a metacommand that fails without touching the
+# database, fail the batch the same way.
 
 
 @pytest.mark.parametrize(
@@ -244,31 +238,31 @@ def test_sql_a_metacommand_runs_that_fails_makes_end_batch_roll_back(tmp_path, m
     )
     result = _run(tmp_path, sql)
     assert _rows(tmp_path / "main.db", "t") == []
-    assert "The batch was not committed: a database error on line 6 of <inline>" in result.errors[-1].message
+    assert "The batch was not committed: an error on line 6 of <inline>." in result.errors[-1].message
 
 
-def test_a_failure_on_a_database_the_batch_has_not_used_does_not_fail_it(tmp_path):
+def test_a_metacommand_that_fails_outside_the_database_fails_the_batch(tmp_path):
+    sql = (
+        "-- !x! METACOMMAND_ERROR_HALT OFF\n-- !x! ERROR_HALT OFF\ncreate table t (v text);\n"
+        "-- !x! BEGIN BATCH\ninsert into t values ('a');\n"
+        f"-- !x! CD {tmp_path / 'no_such_dir'}\n"
+        "insert into t values ('b');\n"
+        "-- !x! END BATCH\n"
+    )
+    result = _run(tmp_path, sql)
+    assert _rows(tmp_path / "main.db", "t") == []
+    assert "The batch was not committed: an error on line 6 of <inline>." in result.errors[-1].message
+
+
+def test_an_error_on_a_database_the_batch_has_not_used_fails_it_too(tmp_path):
     b = tmp_path / "b.db"
     sql = (
-        "-- !x! METACOMMAND_ERROR_HALT OFF\n"
+        "-- !x! METACOMMAND_ERROR_HALT OFF\n-- !x! ERROR_HALT OFF\n"
         f"-- !x! CONNECT TO SQLITE(FILE={b}, NEW) AS b\ncreate table t (v text);\n"
-        "-- !x! BEGIN BATCH\ninsert into t values ('kept');\n"
+        "-- !x! BEGIN BATCH\ninsert into t values ('a');\n"
         "-- !x! USE b\n-- !x! SUBDATA x nosuch\n-- !x! USE initial\n"
         "-- !x! END BATCH\n"
     )
     result = _run(tmp_path, sql)
-    assert _rows(tmp_path / "main.db", "t") == ["kept"]
-    assert len(result.errors) == 1
-
-
-def test_a_failure_on_a_driver_that_commits_every_statement_does_not_fail_the_batch(tmp_path):
-    from execsql.script.control import BatchLevels
-
-    db = MagicMock(autocommit=True, driver_autocommits=True)
-    status = SimpleNamespace(batch=BatchLevels())
-    status.batch.new_batch()
-    status.batch.using_db(db)
-    with patch.object(_state, "status", status), patch.object(_state, "last_command", None):
-        Database.rollback_after_error(db)
-    db.rollback.assert_called_once_with()
-    assert status.batch.failure() is None
+    assert _rows(tmp_path / "main.db", "t") == []
+    assert len(result.errors) == 2

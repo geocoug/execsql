@@ -15,7 +15,7 @@
     }
    }
   },
-  "out.txt": "DISCONNECT FROM B left b open\nDISCONNECT FROM nosuch: no error\nDISCONNECT FROM c in the batch: closed c\n"
+  "out.txt": "DISCONNECT FROM B left b open\nDISCONNECT FROM nosuch: no error\nDISCONNECT FROM c in the batch: closed c\nc.t kept the batch's row\nc.t has no rows\n"
  },
  "recorded_with": "execsql 1.130.1",
  "stderr": "",

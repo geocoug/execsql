@@ -258,7 +258,7 @@ class Database(ABC):
                 return _fetched(curs) if fetch else None
         except Exception:
             try:
-                self.rollback_after_error()
+                self.rollback()
             except Exception:
                 pass  # Rollback is best-effort after a failed execute.
             raise
@@ -370,23 +370,6 @@ class Database(ABC):
                         f"Rollback failed on {self.__class__.__name__}: {e!r}",
                     )
 
-    def rollback_after_error(self) -> None:
-        """Roll back after an operation on this connection failed.
-
-        The rollback also discards what an open batch ran here, so every open
-        batch is marked failed: its END BATCH rolls back instead of committing
-        the rest.  Nothing is marked when no batch holds work on this
-        connection: under AUTOCOMMIT OFF, on a driver that commits every
-        statement, or on a database no open batch has used.
-        """
-        self.rollback()
-        status = _state.status
-        if status is None or not self.autocommit or self.driver_autocommits or not status.batch.uses_db(self):
-            return
-        where = _state.last_command
-        at = f" on line {where.line_no} of {where.source}" if where is not None else ""
-        status.batch.fail_enclosing(f"a database error{at} rolled back its work")
-
     def needs_explicit_commit_after_ddl(self) -> bool:
         """Return True if this adapter's driver does NOT auto-commit DDL.
 
@@ -412,7 +395,7 @@ class Database(ABC):
             try:
                 curs.execute(sql)
             except Exception:
-                self.rollback_after_error()
+                self.rollback()
                 raise
             try:
                 _state.subvars.add_substitution("$LAST_ROWCOUNT", curs.rowcount)
@@ -439,7 +422,7 @@ class Database(ABC):
             curs.execute(sql)
         except Exception:
             curs.close()
-            self.rollback_after_error()
+            self.rollback()
             raise
         try:
             _state.subvars.add_substitution("$LAST_ROWCOUNT", curs.rowcount)
@@ -478,7 +461,7 @@ class Database(ABC):
             curs.execute(sql)
         except Exception:
             curs.close()
-            self.rollback_after_error()
+            self.rollback()
             raise
         try:
             _state.subvars.add_substitution("$LAST_ROWCOUNT", curs.rowcount)
@@ -551,7 +534,7 @@ class Database(ABC):
             except ErrInfo:
                 raise
             except Exception as e:
-                self.rollback_after_error()
+                self.rollback()
                 raise ErrInfo(
                     type="db",
                     command_text=sql,
@@ -585,7 +568,7 @@ class Database(ABC):
             except ErrInfo:
                 raise
             except Exception as e:
-                self.rollback_after_error()
+                self.rollback()
                 raise ErrInfo(
                     type="db",
                     command_text=sql,
@@ -613,7 +596,7 @@ class Database(ABC):
             except ErrInfo:
                 raise
             except Exception as e:
-                self.rollback_after_error()
+                self.rollback()
                 raise ErrInfo(
                     type="db",
                     command_text=sql,
@@ -650,7 +633,7 @@ class Database(ABC):
             except ErrInfo:
                 raise
             except Exception as e:
-                self.rollback_after_error()
+                self.rollback()
                 raise ErrInfo(
                     type="db",
                     command_text=sql,
@@ -673,7 +656,7 @@ class Database(ABC):
             except ErrInfo:
                 raise
             except Exception as e:
-                self.rollback_after_error()
+                self.rollback()
                 raise ErrInfo(
                     type="db",
                     command_text=sql,
@@ -894,7 +877,7 @@ class Database(ABC):
                     except ErrInfo:
                         raise
                     except Exception as e:
-                        self.rollback_after_error()
+                        self.rollback()
                         raise ErrInfo(
                             type="db",
                             command_text=sql,
@@ -924,7 +907,7 @@ class Database(ABC):
         except BaseException:
             # A bad value or short row stops the load as surely as a failed
             # insert does; either way none of it is kept.
-            self.rollback_after_error()
+            self.rollback()
             raise
 
         if _state.exec_log:

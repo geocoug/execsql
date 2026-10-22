@@ -1,6 +1,7 @@
 -- DISCONNECT with an alias in another case, an alias that is not
 -- connected, and a database an open batch has used.
 -- !x! METACOMMAND_ERROR_HALT OFF
+-- !x! ERROR_HALT OFF
 -- !x! CONNECT TO SQLITE(FILE=b.db, NEW) AS b
 -- !x! DISCONNECT FROM B
 -- !x! USE b
@@ -30,4 +31,8 @@ insert into t values ('in the batch');
 -- !x! ENDIF
 -- !x! END BATCH
 -- !x! USE c
--- !x! IF (HASROWS(t)) { WRITE "c.t kept the batch's row" TO out.txt }
+-- !x! IF (HASROWS(t))
+-- !x! WRITE "c.t kept the batch's row" TO out.txt
+-- !x! ELSE
+-- !x! WRITE "c.t has no rows" TO out.txt
+-- !x! ENDIF

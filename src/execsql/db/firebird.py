@@ -150,7 +150,7 @@ class FirebirdDatabase(Database):
             try:
                 curs.execute(cmd)
             except Exception:
-                self.rollback_after_error()
+                self.rollback()
                 raise
             _state.subvars.add_substitution("$LAST_ROWCOUNT", curs.rowcount)
 
@@ -171,7 +171,7 @@ class FirebirdDatabase(Database):
                 raise
             except Exception as e:
                 try:
-                    self.rollback_after_error()
+                    self.rollback()
                 except Exception:
                     pass  # Rollback is best-effort after a failed query.
                 raise ErrInfo(
@@ -211,7 +211,7 @@ class FirebirdDatabase(Database):
             except ErrInfo:
                 raise
             except Exception as e:
-                self.rollback_after_error()
+                self.rollback()
                 raise ErrInfo(
                     type="db",
                     command_text=sql,
@@ -231,7 +231,7 @@ class FirebirdDatabase(Database):
             except ErrInfo:
                 raise
             except Exception as e:
-                self.rollback_after_error()
+                self.rollback()
                 raise ErrInfo(
                     type="db",
                     command_text=sql,

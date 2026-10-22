@@ -199,7 +199,7 @@
    "execsql2": "after END BATCH: SQL_ERROR() true\n",
    "status": "accepted",
    "upstream": "after END BATCH: SQL_ERROR() false\n",
-   "why": "SQL a metacommand runs that fails inside a batch rolls its connection back, taking the batch's earlier statements with it, so the batch is not committed, as for a failed statement: END BATCH rolls back the rest and reports an SQL error, which SQL_ERROR() shows; upstream committed the statements after the failure, a partial batch (maintainer decision; divergence: 'A database error inside a batch'; #125)."
+   "why": "SQL a metacommand runs that fails inside a batch rolls its connection back, taking the batch's earlier statements with it, so the batch is not committed, as for a failed statement: END BATCH rolls back the rest and reports an SQL error, which SQL_ERROR() shows; upstream committed the statements after the failure, a partial batch (maintainer decision; divergence: 'Anything that fails inside a batch'; #125)."
   },
   "tables/t": {
    "execsql2": {
@@ -241,7 +241,7 @@
      ]
     ]
    },
-   "why": "SQL a metacommand runs that fails inside a batch rolls its connection back, taking the batch's earlier statements with it, so the batch is not committed, as for a failed statement: END BATCH rolls back the rest and reports an SQL error, which SQL_ERROR() shows; upstream committed the statements after the failure, a partial batch (maintainer decision; divergence: 'A database error inside a batch'; #125)."
+   "why": "SQL a metacommand runs that fails inside a batch rolls its connection back, taking the batch's earlier statements with it, so the batch is not committed, as for a failed statement: END BATCH rolls back the rest and reports an SQL error, which SQL_ERROR() shows; upstream committed the statements after the failure, a partial batch (maintainer decision; divergence: 'Anything that fails inside a batch'; #125)."
   }
  },
  "batch_nested_commit_fails": {
@@ -344,7 +344,7 @@
    "execsql2": "after END BATCH: SQL_ERROR() true\n",
    "status": "accepted",
    "upstream": "after END BATCH: SQL_ERROR() false\n",
-   "why": "A statement that fails inside a batch rolls its connection back, taking the batch's earlier statements with it, so the batch is not committed: END BATCH rolls back the rest and reports an SQL error, which SQL_ERROR() shows; upstream committed the statements after the failure, a partial batch (maintainer decision; divergence: 'A database error inside a batch'; #125)."
+   "why": "A statement that fails inside a batch rolls its connection back, taking the batch's earlier statements with it, so the batch is not committed: END BATCH rolls back the rest and reports an SQL error, which SQL_ERROR() shows; upstream committed the statements after the failure, a partial batch (maintainer decision; divergence: 'Anything that fails inside a batch'; #125)."
   },
   "tables/t": {
    "execsql2": {
@@ -386,7 +386,7 @@
      ]
     ]
    },
-   "why": "A statement that fails inside a batch rolls its connection back, taking the batch's earlier statements with it, so the batch is not committed: END BATCH rolls back the rest and reports an SQL error, which SQL_ERROR() shows; upstream committed the statements after the failure, a partial batch (maintainer decision; divergence: 'A database error inside a batch'; #125)."
+   "why": "A statement that fails inside a batch rolls its connection back, taking the batch's earlier statements with it, so the batch is not committed: END BATCH rolls back the rest and reports an SQL error, which SQL_ERROR() shows; upstream committed the statements after the failure, a partial batch (maintainer decision; divergence: 'Anything that fails inside a batch'; #125)."
   }
  },
  "boolean_and_empty_config": {
@@ -1068,48 +1068,11 @@
   }
  },
  "disconnect_checks": {
-  "files/c.db": {
-   "execsql2": {
-    "sqlite": {
-     "t": {
-      "columns": [
-       [
-        "v",
-        "TEXT"
-       ]
-      ],
-      "rows": [
-       [
-        [
-         "text",
-         "'in the batch'"
-        ]
-       ]
-      ]
-     }
-    }
-   },
-   "status": "accepted",
-   "upstream": {
-    "sqlite": {
-     "t": {
-      "columns": [
-       [
-        "v",
-        "TEXT"
-       ]
-      ],
-      "rows": []
-     }
-    }
-   },
-   "why": "DISCONNECT matches the alias in any case, as USE does, and an alias that is not connected is a metacommand error; upstream compared the alias as written, so DISCONNECT FROM B left a connection made AS b open, and ignored an unknown alias. A database an open batch has used is refused, as documented; upstream's check compared the alias to connection objects and never fired, so it closed the connection and the batch's statements were lost (divergence: 'DISCONNECT'; #124)."
-  },
   "files/out.txt": {
-   "execsql2": "DISCONNECT FROM B closed b\nDISCONNECT FROM nosuch: error\nDISCONNECT FROM c in the batch: refused\nc.t kept the batch's row\n",
+   "execsql2": "DISCONNECT FROM B closed b\nDISCONNECT FROM nosuch: error\nDISCONNECT FROM c in the batch: refused\nc.t has no rows\n",
    "status": "accepted",
-   "upstream": "DISCONNECT FROM B left b open\nDISCONNECT FROM nosuch: no error\nDISCONNECT FROM c in the batch: closed c\n",
-   "why": "DISCONNECT matches the alias in any case, as USE does, and an alias that is not connected is a metacommand error; upstream compared the alias as written, so DISCONNECT FROM B left a connection made AS b open, and ignored an unknown alias. A database an open batch has used is refused, as documented; upstream's check compared the alias to connection objects and never fired, so it closed the connection and the batch's statements were lost (divergence: 'DISCONNECT'; #124)."
+   "upstream": "DISCONNECT FROM B left b open\nDISCONNECT FROM nosuch: no error\nDISCONNECT FROM c in the batch: closed c\nc.t kept the batch's row\nc.t has no rows\n",
+   "why": "DISCONNECT matches the alias in any case, as USE does, and an alias that is not connected is a metacommand error; upstream compared the alias as written, so DISCONNECT FROM B left a connection made AS b open, and ignored an unknown alias. A database an open batch has used is refused, as documented; upstream's check compared the alias to connection objects and never fired, so it closed the connection and the batch's statements were lost. The refusal is an error inside the batch, so END BATCH does not commit the batch either (divergence: 'DISCONNECT', 'Anything that fails inside a batch'; #124, #125)."
   }
  },
  "export_more_formats": {

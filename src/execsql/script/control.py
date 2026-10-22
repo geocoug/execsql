@@ -30,9 +30,7 @@ class BatchLevels:
     class Batch:
         def __init__(self) -> None:
             self.dbs_used: list[Any] = []
-            # Why this batch can no longer commit (a statement or a nested
-            # batch's commit failed and rolled back connections it shares),
-            # or None.
+            # Why this batch can no longer commit (an error inside it), or None.
             self.failed: str | None = None
 
     def __init__(self) -> None:
@@ -53,8 +51,8 @@ class BatchLevels:
 
         A batch inside a failed one cannot commit either: its commit would
         commit the failed batch's later statements on a shared connection.
-        Nothing clears the mark, ROLLBACK BATCH included: once a statement
-        or a nested commit has failed, the whole stack of batches rolls back.
+        Nothing clears the mark, ROLLBACK BATCH included: once anything in a
+        batch has failed, the whole stack of batches rolls back.
         """
         for b in reversed(self.batchlevels):
             if b.failed is not None:

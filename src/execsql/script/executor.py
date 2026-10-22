@@ -321,6 +321,7 @@ def _sql_failed(ctx: RuntimeContext, e: ErrInfo, cmd: str, source: str, line_no:
     ctx.status.sql_error = True
     if ctx.exec_log is not None:
         ctx.exec_log.log_status_info(f"SQL error: {logged_error(e)}")
+    _fail_open_batches(ctx, source, line_no)
     if ctx.status.halt_on_err:
         exit_now(1, e)
     ctx.status.error_history.append((source, line_no, cmd, e.errmsg()))
@@ -343,6 +344,19 @@ def _as_errinfo(exc: Exception) -> ErrInfo:
     e = ErrInfo(type="exception", exception_msg=exception_desc())
     e.__cause__ = exc
     return e
+
+
+def _fail_open_batches(ctx: RuntimeContext, source: str, line_no: int) -> None:
+    """Keep every open batch from committing after an error inside it.
+
+    Whatever failed (a statement, a metacommand, or SQL a metacommand ran),
+    the batch is not committed: a database error may already have rolled
+    back the batch's earlier work, and execsql cannot tell from here whether
+    it did.
+    """
+    assert ctx.status is not None
+    if ctx.status.batch.in_batch():
+        ctx.status.batch.fail_enclosing(f"an error on line {line_no} of {source}")
 
 
 def _metacommand_failed(
@@ -369,6 +383,7 @@ def _metacommand_failed(
     subvars.add_substitution("$ERROR_MESSAGE", e.errmsg())
     if ctx.exec_log is not None:
         ctx.exec_log.log_status_info(f"Metacommand error: {logged_error(e)}")
+    _fail_open_batches(ctx, source, line_no)
     if status.halt_on_metacommand_err or always_halt:
         exit_now(1, e)
     status.error_history.append((source, line_no, cmd, e.errmsg()))
@@ -699,11 +714,8 @@ def _execute_batch(
             status.batch.end_batch()
         except Exception as exc:
             # end_batch has rolled back what it had not committed, which can
-            # include an enclosing batch's statements on a shared connection:
-            # that batch must not commit the rest.
-            status.batch.fail_enclosing(
-                f"a nested batch's commit failed at END BATCH on line {end_line} of {node.span.file}",
-            )
+            # include an enclosing batch's statements on a shared connection;
+            # _sql_failed keeps that batch from committing the rest.
             _sql_failed(ctx, _as_errinfo(exc), "END BATCH", node.span.file, end_line)
 
 

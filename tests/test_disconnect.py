@@ -32,10 +32,10 @@ def test_disconnect_from_a_database_the_batch_used_halts_and_rolls_the_batch_bac
     assert _rows(b, "t") == []
 
 
-def test_refused_disconnect_with_halting_off_keeps_the_connection_and_the_batch(tmp_path):
+def test_refused_disconnect_with_halting_off_keeps_the_connection_but_fails_the_batch(tmp_path):
     b = tmp_path / "b.db"
     sql = (
-        "-- !x! METACOMMAND_ERROR_HALT OFF\n"
+        "-- !x! METACOMMAND_ERROR_HALT OFF\n-- !x! ERROR_HALT OFF\n"
         f"-- !x! CONNECT TO SQLITE(FILE={b}, NEW) AS b\n"
         "-- !x! USE b\ncreate table t (v text);\n"
         "-- !x! BEGIN BATCH\ninsert into t values ('in the batch');\n"
@@ -43,8 +43,12 @@ def test_refused_disconnect_with_halting_off_keeps_the_connection_and_the_batch(
         "-- !x! IF (METACOMMAND_ERROR()) { USE b }\ninsert into t values ('still connected');\n"
         "-- !x! END BATCH\n"
     )
-    _run(tmp_path, sql)
-    assert _rows(b, "t") == ["in the batch", "still connected"]
+    result = _run(tmp_path, sql)
+    # b stayed connected: the insert after the refusal ran on it.  The
+    # refusal is an error inside the batch, so END BATCH rolls it back.
+    assert _rows(b, "t") == []
+    assert "The batch was not committed: an error on line 9 of <inline>." in result.errors[-1].message
+    assert len(result.errors) == 2  # the refusal, then END BATCH: the insert on b ran
 
 
 def test_disconnect_from_a_database_the_batch_has_not_used_is_allowed(tmp_path):
