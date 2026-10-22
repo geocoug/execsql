@@ -356,9 +356,8 @@ def run(
             ``"postgresql://user:pass@host/db"``).
         connection: A pre-existing :class:`~execsql.db.base.Database`
             instance.  ``run()`` will NOT close this connection on exit.
-            If the run is interrupted (``KeyboardInterrupt``), the statement
-            it stopped on is rolled back before the interrupt is re-raised,
-            unless AUTOCOMMIT is OFF for the connection.
+            An SQL statement an interrupt stops is rolled back, as a failed
+            one is, before the interrupt is re-raised.
         variables: Substitution variables as ``{"NAME": "value"}``.
             Keys without a ``$`` prefix get one added automatically, so
             ``{"SCHEMA": "public"}`` is referenced as ``!!$SCHEMA!!``.
@@ -550,10 +549,6 @@ def run(
                 )
             except Exception as exc:
                 errors.append(ScriptError(message=str(exc), source="<runtime>"))
-            except KeyboardInterrupt:
-                if not owns_connection:
-                    _roll_back_interrupted(ctx)
-                raise
 
             # Non-halting SQL errors (halt_on_error=False) are recorded in
             # status.error_history as execution continues; a halting error never
@@ -638,24 +633,6 @@ def _start_filewriter(ctx: RuntimeContext, conf: Any) -> None:
         open_timeout=getattr(conf, "outfile_open_timeout", 10),
     )
     ctx.filewriter.start()
-
-
-def _roll_back_interrupted(ctx: RuntimeContext) -> None:
-    """Roll back what an interrupted statement left pending, on connections the caller keeps.
-
-    Each statement is committed as it runs, so the only work pending on a
-    connection with autocommit on is the statement the interrupt stopped
-    before its commit; the caller's next commit would store it.  A connection
-    under AUTOCOMMIT OFF is left alone: what it holds is the script's
-    transaction, which the caller can commit or roll back.  A connection that
-    run() opened is closed, and so rolled back, on the way out.
-    """
-    if ctx.dbs is None:
-        return
-    for alias in ctx.dbs.aliases():
-        db = ctx.dbs.aliased_as(alias)
-        if db.autocommit:
-            db.rollback()
 
 
 def _capture_errors(ctx: RuntimeContext, errors: list[ScriptError], exit_code: Any) -> None:

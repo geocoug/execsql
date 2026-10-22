@@ -304,6 +304,14 @@ def _exec_sql(
             db.commit()
     except Exception as exc:
         e = _as_errinfo(exc)
+    except BaseException:
+        # Interrupted (Ctrl-C, a timeout) after the statement ran and before
+        # its commit: treat it as a failed statement, or the next commit
+        # stores it -- a BREAKPOINT prompt carries on, and execsql.run()'s
+        # caller keeps the connection.
+        dbs.current().rollback()
+        _fail_open_batches(ctx, source, line_no)
+        raise
     if e:
         _sql_failed(ctx, e, cmd, source, line_no)
         return

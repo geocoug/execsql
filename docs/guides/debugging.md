@@ -70,7 +70,7 @@ Because input runs inside the paused script, it changes what the script sees aft
 | `!x! BREAK`                       | Leaves the `LOOP`, `SCRIPT` or `INCLUDE`d file the script paused in, as a `BREAK` would |
 | `!x! HALT`                        | Ends the run                                                                            |
 
-**Errors end only the input that caused them.** A SQL or metacommand error that would halt the script is printed, and the prompt reads the next input; `ON ERROR_HALT` actions do not run. `HALT` and `.quit` still end the run.
+**Errors end only the input that caused them.** A SQL or metacommand error that would halt the script is printed, and the prompt reads the next input; `ON ERROR_HALT` actions do not run. Ctrl-C stops the input that is running the same way, and an SQL statement it interrupts is rolled back, as a failed statement is. `HALT` and `.quit` still end the run.
 
 **Transactions follow the script's rules.** Each SQL statement is committed as it runs unless `AUTOCOMMIT OFF` is in effect or the breakpoint is inside `BEGIN BATCH`. The prompt then reads `execsql debug*>`, so you can see that what you type is not committed yet. Inside `BEGIN BATCH`, a statement or metacommand you type that fails keeps the batch from being committed, as one in the script does: `END BATCH` rolls it back and reports an error.
 
