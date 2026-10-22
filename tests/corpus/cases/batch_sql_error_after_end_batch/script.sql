@@ -1,11 +1,9 @@
--- SQL_ERROR() right after an END BATCH that commits, when the batch's
--- last statement failed.
+-- SQL_ERROR() right after an END BATCH whose batch ran no SQL, when the
+-- statement before the batch failed.
 -- !x! ERROR_HALT OFF
-create table t (v text);
--- !x! BEGIN BATCH
-insert into t values ('in the batch');
 insert into no_such_table values (1);
--- !x! IF (SQL_ERROR()) { WRITE "after the failed statement: SQL_ERROR() true" TO out.txt }
+-- !x! BEGIN BATCH
+-- !x! SUB x 1
 -- !x! END BATCH
 -- !x! IF (SQL_ERROR()) { WRITE "after END BATCH: SQL_ERROR() true" TO out.txt }
 -- !x! IF (NOT SQL_ERROR()) { WRITE "after END BATCH: SQL_ERROR() false" TO out.txt }
