@@ -218,9 +218,9 @@ When the END BATCH metacommand is processed by *execsql*, a commit command is se
 -- !x! IF (SQL_ERROR()) { WRITE "The batch was not committed." }
 ```
 
-An SQL statement inside the batch that failed has to be tested right after that statement.
+An SQL statement that fails inside a batch (with ERROR_HALT OFF) rolls back its connection, taking the batch's earlier statements on that database with it, so the batch is not committed either: END BATCH rolls back what the batch ran after the failure and reports an SQL error, "The batch was not committed: a statement failed on line …", which the test above catches. Put a statement that may fail, and that the script handles, outside the batch. A database under AUTOCOMMIT OFF is left to the script here too.
 
-If the failing batch is nested in another, the rollback can take the enclosing batch's earlier statements with it, so the enclosing batch is rolled back at its own END BATCH instead of committing, with an error of its own ("The batch was not committed: a nested batch's commit failed …"). Once a nested commit has failed, no END BATCH in that stack of batches commits: a batch opened inside the enclosing batch afterwards is not committed either, and ROLLBACK BATCH does not undo the failure. IMPORT, COPY, EXECUTE and AUTOCOMMIT ON WITH COMMIT, which commit on their own, still do unless AUTOCOMMIT is OFF, as they do in any batch. Statements after the outermost END BATCH run and commit as usual.
+If the failing batch is nested in another, or the failed statement is in a nested batch, the rollback can take the enclosing batch's earlier statements with it, so the enclosing batch is rolled back at its own END BATCH instead of committing, with an error of its own ("The batch was not committed: a nested batch's commit failed …"). Once a statement or a nested commit has failed, no END BATCH in that stack of batches commits: a batch opened inside the enclosing batch afterwards is not committed either, and ROLLBACK BATCH does not undo the failure. IMPORT, COPY, EXECUTE and AUTOCOMMIT ON WITH COMMIT, which commit on their own, still do unless AUTOCOMMIT is OFF, as they do in any batch. Statements after the outermost END BATCH run and commit as usual.
 
 The BEGIN/END BATCH metacommands can be nested. However, the inner END BATCH metacommand will ordinarily commit all changes to the databases that have been used, which may include databases used in the outer batch as well. (This behavior may be DBMS-specific, and also depend on whether any additional explicit transaction control is being used.) Therefore completion of a nested batch may result in premature commitment of some or all SQL statements in the outer batch. Similarly, a ROLLBACK BATCH metacommand within the inner batch will also roll back any SQL commands sent to the same databases in the outer batch. Thus, although the BATCH commands can be nested, database transactions may not be, depending on the DBMS in use. Nesting of BATCH metacommands allows a script file or a [SCRIPT](#beginscript) containing a batch to be [INCLUDEEd](#include) or [EXECUTEEd](#executescript), respectively, within another batch.
 
@@ -1047,7 +1047,7 @@ ERROR_HALT ON|OFF
 
 When ERROR_HALT is set to ON, which is the default, any errors that occur as a result of executing a SQL statement, or committing a [BATCH](#batch) at END BATCH, will cause an error message to be displayed immediately, and *execsql* will exit. When ERROR_HALT is set to OFF, then SQL errors will be ignored, but can be evaluated with the [IF SQL_ERROR](#sqlerror) conditional. A test in an `IF`, `LOOP` or other condition that fails in the database (`HASROWS(no_such_table)`) is not ignored: it stops the run, because no branch can be chosen (see [METACOMMAND_ERROR_HALT](#metacommanderrorhalt)).
 
-When ERROR_HALT is set to OFF inside a transaction, any SQL error will ordinarily cause the entire transaction to fail.
+When ERROR_HALT is set to OFF inside a transaction, any SQL error will ordinarily cause the entire transaction to fail. Inside a [BATCH](#batch), a failed statement means END BATCH rolls the batch back instead of committing it, and reports an SQL error of its own.
 
 
 ## EXECUTE { #execute }
@@ -1906,7 +1906,7 @@ SQL_ERROR()
 
 Evaluates whether the previous SQL statement generated an error. Errors will result from badly-formed SQL, reference to non-existent database objects, lack of permissions, or database locks. A query (e.g., an update query) that does not do exactly what you expect it to will not necessarily cause an error to occur that can be identified with this statement. This test for SQL errors will only be effective if the [ERROR_HALT OFF](#error_halt) metacommand has previously been issued.
 
-Errors in metacommands and some other errors encountered by *execsql* will cause the program to halt immediately, regardless of the setting of [ERROR_HALT](#error_halt) or the use of the IF(SQL_ERROR()) test. A commit that fails at END BATCH is an SQL error, not a metacommand error: ERROR_HALT governs it. END BATCH clears SQL_ERROR() before its commit, as an SQL statement does, so right after END BATCH it says whether the commit failed.
+Errors in metacommands and some other errors encountered by *execsql* will cause the program to halt immediately, regardless of the setting of [ERROR_HALT](#error_halt) or the use of the IF(SQL_ERROR()) test. A commit that fails at END BATCH is an SQL error, not a metacommand error: ERROR_HALT governs it. END BATCH clears SQL_ERROR() before its commit, as an SQL statement does, so right after END BATCH it says whether the batch was committed: it is set when the commit fails and when an earlier statement in the batch failed, which keeps the batch from being committed.
 
 
 ### *STARTS_WITH*

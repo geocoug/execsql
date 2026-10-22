@@ -283,10 +283,60 @@
  },
  "batch_sql_error_after_end_batch": {
   "files/out.txt": {
-   "execsql2": "after the failed statement: SQL_ERROR() true\nafter END BATCH: SQL_ERROR() false\n",
+   "execsql2": "after END BATCH: SQL_ERROR() false\n",
    "status": "accepted",
-   "upstream": "after the failed statement: SQL_ERROR() true\nafter END BATCH: SQL_ERROR() true\n",
-   "why": "END BATCH clears SQL_ERROR() before its commit and sets it if the commit fails, as an SQL statement does, so SQL_ERROR() right after END BATCH says whether the commit failed; upstream left the value the batch's last statement set (maintainer decision; divergence: 'END BATCH whose commit fails'; #125)."
+   "upstream": "after END BATCH: SQL_ERROR() true\n",
+   "why": "END BATCH clears SQL_ERROR() before its commit and sets it if the commit fails, as an SQL statement does, so SQL_ERROR() right after END BATCH is about the batch; upstream kept the value left by the last statement run before it, here one before the batch (maintainer decision; divergence: 'END BATCH whose commit fails'; #125)."
+  }
+ },
+ "batch_statement_fails": {
+  "files/out.txt": {
+   "execsql2": "after END BATCH: SQL_ERROR() true\n",
+   "status": "accepted",
+   "upstream": "after END BATCH: SQL_ERROR() false\n",
+   "why": "A statement that fails inside a batch rolls its connection back, taking the batch's earlier statements with it, so the batch is not committed: END BATCH rolls back the rest and reports an SQL error, which SQL_ERROR() shows; upstream committed the statements after the failure, a partial batch (maintainer decision; divergence: 'A statement that fails inside a batch'; #125)."
+  },
+  "tables/t": {
+   "execsql2": {
+    "columns": [
+     [
+      "v",
+      "TEXT"
+     ]
+    ],
+    "rows": [
+     [
+      [
+       "text",
+       "'after the batch'"
+      ]
+     ]
+    ]
+   },
+   "status": "accepted",
+   "upstream": {
+    "columns": [
+     [
+      "v",
+      "TEXT"
+     ]
+    ],
+    "rows": [
+     [
+      [
+       "text",
+       "'after the failure'"
+      ]
+     ],
+     [
+      [
+       "text",
+       "'after the batch'"
+      ]
+     ]
+    ]
+   },
+   "why": "A statement that fails inside a batch rolls its connection back, taking the batch's earlier statements with it, so the batch is not committed: END BATCH rolls back the rest and reports an SQL error, which SQL_ERROR() shows; upstream committed the statements after the failure, a partial batch (maintainer decision; divergence: 'A statement that fails inside a batch'; #125)."
   }
  },
  "boolean_and_empty_config": {

@@ -30,8 +30,9 @@ class BatchLevels:
     class Batch:
         def __init__(self) -> None:
             self.dbs_used: list[Any] = []
-            # Why this batch can no longer commit (a nested batch's commit
-            # failed and rolled back connections it shares), or None.
+            # Why this batch can no longer commit (a statement or a nested
+            # batch's commit failed and rolled back connections it shares),
+            # or None.
             self.failed: str | None = None
 
     def __init__(self) -> None:
@@ -52,8 +53,8 @@ class BatchLevels:
 
         A batch inside a failed one cannot commit either: its commit would
         commit the failed batch's later statements on a shared connection.
-        Nothing clears the mark, ROLLBACK BATCH included: once a nested
-        commit has failed, the whole stack of batches rolls back.
+        Nothing clears the mark, ROLLBACK BATCH included: once a statement
+        or a nested commit has failed, the whole stack of batches rolls back.
         """
         for b in reversed(self.batchlevels):
             if b.failed is not None:
@@ -96,9 +97,7 @@ class BatchLevels:
             try:
                 db.commit()
             except BaseException:
-                for rest in b.dbs_used[i:]:
-                    if rest.autocommit:
-                        rest.rollback()
+                _roll_back(b.dbs_used[i:])
                 raise
 
     def abandon_batch(self) -> None:
@@ -114,11 +113,16 @@ class BatchLevels:
             for db in b.dbs_used:
                 self.using_db(db)
             return
-        for db in b.dbs_used:
-            if db.autocommit:
-                db.rollback()
+        _roll_back(b.dbs_used)
 
     def abandon_all(self) -> None:
         """Abandon every open batch level, innermost first."""
         while self.batchlevels:
             self.abandon_batch()
+
+
+def _roll_back(dbs: list[Any]) -> None:
+    """Roll back each of *dbs* except one with autocommit off, whose transaction is the script's."""
+    for db in dbs:
+        if db.autocommit:
+            db.rollback()

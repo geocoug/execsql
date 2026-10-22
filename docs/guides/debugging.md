@@ -72,7 +72,7 @@ Because input runs inside the paused script, it changes what the script sees aft
 
 **Errors end only the input that caused them.** A SQL or metacommand error that would halt the script is printed, and the prompt reads the next input; `ON ERROR_HALT` actions do not run. `HALT` and `.quit` still end the run.
 
-**Transactions follow the script's rules.** Each SQL statement is committed as it runs unless `AUTOCOMMIT OFF` is in effect or the breakpoint is inside `BEGIN BATCH`. The prompt then reads `execsql debug*>`, so you can see that what you type is not committed yet.
+**Transactions follow the script's rules.** Each SQL statement is committed as it runs unless `AUTOCOMMIT OFF` is in effect or the breakpoint is inside `BEGIN BATCH`. The prompt then reads `execsql debug*>`, so you can see that what you type is not committed yet. Inside `BEGIN BATCH`, a statement you type that fails rolls back the batch's work so far, as a failing statement in the script does, so `END BATCH` does not commit the batch and reports an error.
 
 **Commands to the REPL** start with `.`:
 

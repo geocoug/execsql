@@ -1,4 +1,4 @@
-"""A commit that fails at END BATCH leaves nothing of the batch pending (#125).
+"""A commit or a statement that fails in a batch leaves nothing of the batch to commit (#125).
 
 The commit fails on SQLite through a deferred foreign key, which is checked at
 COMMIT.  The batch uses the initial database first and ``b`` second, so the
@@ -132,7 +132,7 @@ def test_rollback_batch_does_not_let_the_failed_batch_commit(tmp_path):
     assert len(result.errors) == 2  # the failed commit, then the outer END BATCH
 
 
-def test_sql_error_right_after_end_batch_is_about_the_commit(tmp_path):
+def test_sql_error_right_after_end_batch_is_about_the_batch(tmp_path):
     out = tmp_path / "out.txt"
 
     def check(label):
@@ -140,16 +140,74 @@ def test_sql_error_right_after_end_batch_is_about_the_commit(tmp_path):
 
     sql = (
         _SETUP.format(b=tmp_path / "b.db")
-        + "-- !x! ERROR_HALT OFF\ncreate table o (v text);\n"
-        # The batch's last statement fails; its commit succeeds.
-        + "-- !x! BEGIN BATCH\ninsert into o values ('kept?');\ninsert into \"no such\" values (1);\n-- !x! END BATCH\n"
-        + check("statement failed, commit succeeded")
+        + "-- !x! ERROR_HALT OFF\n"
         # The commit fails.
         + "-- !x! BEGIN BATCH\ninsert into child values (99);\n-- !x! END BATCH\n"
         + check("commit failed")
-        # A batch with no SQL statement after the failed one.
+        # A batch with no SQL, after a statement that failed.
+        + 'insert into "no such" values (1);\n'
         + "-- !x! BEGIN BATCH\n-- !x! SUB x 1\n-- !x! END BATCH\n"
         + check("no SQL")
     )
     _run(tmp_path, sql)
     assert out.read_text().splitlines() == ["commit failed: failed"]
+
+
+# A statement that fails inside a batch under ERROR_HALT OFF.  It rolls back
+# its connection, so the batch's earlier statements are gone and the batch
+# must not commit the rest.
+
+
+def test_a_failed_statement_makes_end_batch_roll_back(tmp_path):
+    out = tmp_path / "out.txt"
+    sql = (
+        "-- !x! ERROR_HALT OFF\ncreate table t (v text);\n"
+        "-- !x! BEGIN BATCH\ninsert into t values ('a');\n"
+        'insert into "no such" values (1);\n'
+        "insert into t values ('b');\n"
+        "-- !x! END BATCH\n"
+        f'-- !x! IF (SQL_ERROR()) {{ WRITE "!!$LAST_ERROR!!: !!$ERROR_MESSAGE!!" TO {out} }}\n'
+        "insert into t values ('after the batch');\n"
+    )
+    result = _run(tmp_path, sql)
+    assert out.read_text().startswith("END BATCH: ")
+    assert "The batch was not committed: a statement failed on line 5 of <inline>" in out.read_text()
+    assert _rows(tmp_path / "main.db", "t") == ["after the batch"]
+    assert len(result.errors) == 2
+
+
+def test_a_failed_statement_in_a_nested_batch_fails_the_enclosing_batch(tmp_path):
+    sql = (
+        "-- !x! ERROR_HALT OFF\ncreate table t (v text);\n"
+        "-- !x! BEGIN BATCH\ninsert into t values ('outer');\n"
+        '-- !x! BEGIN BATCH\ninsert into "no such" values (1);\n-- !x! END BATCH\n'
+        "insert into t values ('outer after inner');\n"
+        "-- !x! END BATCH\n"
+    )
+    result = _run(tmp_path, sql)
+    assert _rows(tmp_path / "main.db", "t") == []
+    assert len(result.errors) == 3  # the statement, then each END BATCH
+
+
+def test_rollback_batch_does_not_let_a_batch_with_a_failed_statement_commit(tmp_path):
+    sql = (
+        "-- !x! ERROR_HALT OFF\ncreate table t (v text);\n"
+        '-- !x! BEGIN BATCH\ninsert into "no such" values (1);\n'
+        "-- !x! IF (SQL_ERROR()) { ROLLBACK BATCH }\n"
+        "insert into t values ('retried');\n"
+        "-- !x! END BATCH\n"
+    )
+    _run(tmp_path, sql)
+    assert _rows(tmp_path / "main.db", "t") == []
+
+
+def test_a_failed_statement_under_autocommit_off_leaves_the_batch_to_the_script(tmp_path):
+    sql = (
+        "-- !x! ERROR_HALT OFF\ncreate table t (v text);\n-- !x! AUTOCOMMIT OFF\n"
+        '-- !x! BEGIN BATCH\ninsert into "no such" values (1);\n'
+        "insert into t values ('kept');\n-- !x! END BATCH\n"
+        "COMMIT;\n"
+    )
+    result = _run(tmp_path, sql)
+    assert _rows(tmp_path / "main.db", "t") == ["kept"]
+    assert len(result.errors) == 1  # the statement; END BATCH reports nothing

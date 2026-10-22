@@ -301,6 +301,11 @@ def _exec_sql(
     except Exception as exc:
         e = _as_errinfo(exc)
     if e:
+        if status.batch.in_batch() and dbs.current().autocommit:
+            # The failed statement rolled back its connection, taking the
+            # batch's earlier statements with it: no batch on the stack may
+            # commit the rest.
+            status.batch.fail_enclosing(f"a statement failed on line {line_no} of {source}")
         _sql_failed(ctx, e, cmd, source, line_no)
         return
     subvars.add_substitution("$LAST_SQL", cmd)

@@ -120,6 +120,16 @@ class TestAtABreakpoint:
         _, _, feed, _ = _paused(tmp_path, script, [".c"])
         assert feed.prompts == ["execsql debug*> "]
 
+    def test_a_statement_that_fails_inside_a_batch_keeps_the_batch_from_committing(self, tmp_path):
+        script = (
+            "create table t (n integer);\n-- !x! begin batch\ninsert into t values (1);\n"
+            "-- !x! breakpoint\ninsert into t values (2);\n-- !x! end batch\n"
+        )
+        result, _, _, rows = _paused(tmp_path, script, ["insert into nosuch values (9);", ".c"])
+        assert not result.success
+        assert "The batch was not committed: a statement failed on line 1 of <breakpoint>." in result.errors[0].message
+        assert rows == []
+
     def test_the_prompt_is_plain_when_each_statement_commits(self, tmp_path):
         _, _, feed, _ = _paused(tmp_path, LOOP, [".c"])
         assert feed.prompts == ["execsql debug> "]
