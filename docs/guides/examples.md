@@ -1858,7 +1858,7 @@ print(result.variables["region_total"])    # "1650.5"
 conn.close()  # run() never closes a connection you pass in
 ```
 
-If the run is interrupted (Ctrl-C in a notebook), `run()` rolls back the statement it stopped on before it re-raises `KeyboardInterrupt`, so your next commit on `conn` does not store it. Under [AUTOCOMMIT](../reference/metacommands.md#autocommit) OFF, what the script was holding is left for you to commit or roll back.
+If the run is interrupted (Ctrl-C in a notebook, or a timeout), the SQL statement it stopped is rolled back, as a failed statement is, before the interrupt reaches your code. Like a failure, that rolls back the connection's whole open transaction: anything held under [AUTOCOMMIT](../reference/metacommands.md#autocommit) OFF, and any work of your own not yet committed.
 
 `result.variables` holds the final state of all substitution variables (system variables have the leading `$` stripped), so values computed by the script — via [SUBDATA](../reference/metacommands.md#subdata), [SUB](../reference/metacommands.md#subcmd), or counters — flow back to Python.
 

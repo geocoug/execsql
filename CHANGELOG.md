@@ -32,7 +32,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- **`execsql.run()` with `connection=`** rolls back the statement an interrupt (`KeyboardInterrupt`, Ctrl-C in a notebook) stopped before its commit; your next commit on that connection stored it.
+- **An SQL statement interrupted before its commit** (Ctrl-C at a `BREAKPOINT` prompt or in a notebook running `execsql.run()`, or a timeout) is rolled back, as a failed statement is; the next commit on the connection stored it. Inside `BEGIN BATCH`, the batch is not committed.
 - **A commit that fails** (a deferred constraint checked at COMMIT) rolls back what it was committing, so none of it is stored: an SQL statement, `IMPORT`, `COPY`, `EXECUTE`, or `AUTOCOMMIT ON` committing what was held under `AUTOCOMMIT OFF`. On SQLite, when the script carried on (`ERROR_HALT OFF` for an SQL statement, `METACOMMAND_ERROR_HALT OFF` for a metacommand, or an `ON ERROR_HALT` script), the next statement's commit stored it, including the rows reported as failed.
 - **SIGTERM while `SYSTEM_CMD` runs a command** stops the command just as it starts, as its `system_cmd_timeout` runs out, and under the Textual console (`--gui-framework textual`), where the script also stops at that `SYSTEM_CMD`; the command was left running after execsql exited.
 - **`system_cmd_timeout` running out on a command *execsql* cannot stop** (one run as another user, through `sudo` for example) fails the `SYSTEM_CMD` at once, with `$SYSTEM_CMD_EXIT_STATUS` 124 and an error giving the command's process ID; execsql waited for the command to finish and then stopped with a permission error.
