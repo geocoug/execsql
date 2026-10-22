@@ -28,7 +28,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- **An SQL statement interrupted before its commit** (Ctrl-C at a `BREAKPOINT` prompt or in a notebook running `execsql.run()`, or a timeout) is rolled back, as a failed statement is; the next commit on the connection stored it. Inside `BEGIN BATCH`, the batch is not committed.
+- **An SQL statement or metacommand interrupted before its commit** (Ctrl-C at a `BREAKPOINT` prompt, or in a notebook running `execsql.run()`) is rolled back, as when it fails, and `SQL_ERROR()` or `METACOMMAND_ERROR()` is set; the next commit on the connection stored what it had done. Inside `BEGIN BATCH`, the batch is not committed.
 - **A commit that fails** (a deferred constraint checked at COMMIT) rolls back what it was committing, so none of it is stored: an SQL statement, `IMPORT`, `COPY`, `EXECUTE`, or `AUTOCOMMIT ON` committing what was held under `AUTOCOMMIT OFF`. On SQLite, when the script carried on (`ERROR_HALT OFF` for an SQL statement, `METACOMMAND_ERROR_HALT OFF` for a metacommand, or an `ON ERROR_HALT` script), the next statement's commit stored it, including the rows reported as failed.
 - **`END BATCH` whose commit fails on one database** rolls back the batch's databases not yet committed; a later statement on them, such as an `ON ERROR_HALT` script's, committed the failed batch's rows.
 - **`BREAK` in the main script, outside any `LOOP`, `SCRIPT` or `INCLUDE`d file,** is reported on its own line; it named the statement before it.
