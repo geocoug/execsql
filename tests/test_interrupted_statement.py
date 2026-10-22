@@ -109,3 +109,47 @@ def test_a_statement_interrupted_at_the_prompt_inside_a_batch_fails_the_batch(tm
     assert not result.success
     assert "The batch was not committed: an error on line 1 of <breakpoint>." in result.errors[-1].message
     assert rows == []
+
+
+def test_the_prompt_reports_the_interrupt_through_sql_error(tmp_path):
+    out = tmp_path / "out.txt"
+    script = (
+        "create table t (n integer);\n-- !x! breakpoint\n"
+        f'-- !x! IF (SQL_ERROR()) {{ WRITE "!!$LAST_ERROR!!: !!$ERROR_MESSAGE!!" TO {out} }}\n'
+    )
+    _paused(tmp_path, script, ["insert into t values (1);", ".c"], nth=2)
+    assert out.read_text().splitlines() == ["insert into t values (1);: Interrupted."]
+
+
+# A metacommand that writes is interrupted the same way: EXECUTE runs a
+# procedure that writes, and the interrupt lands before EXECUTE commits.
+
+
+def _execute_writes_then_is_interrupted():
+    from execsql.db.sqlite import SQLiteDatabase
+
+    def exec_cmd(self, querycommand):
+        self.conn.execute("insert into t values ('from EXECUTE')")
+        raise KeyboardInterrupt
+
+    return patch.object(SQLiteDatabase, "exec_cmd", exec_cmd)
+
+
+def test_the_callers_next_commit_does_not_store_an_interrupted_metacommands_writes(db_file):
+    conn = db_SQLite(str(db_file))
+    with _execute_writes_then_is_interrupted(), pytest.raises(KeyboardInterrupt):
+        run(sql="-- !x! EXECUTE some_procedure\n", connection=conn)
+    conn.execute("insert into t values ('the caller''s own');")
+    conn.commit()
+    conn.close()
+    assert _rows(db_file) == ["the caller's own"]
+
+
+def test_under_autocommit_off_an_interrupted_metacommands_writes_stay_with_the_script(db_file):
+    conn = db_SQLite(str(db_file))
+    sql = "-- !x! AUTOCOMMIT OFF\ninsert into t values ('held');\n-- !x! EXECUTE some_procedure\n"
+    with _execute_writes_then_is_interrupted(), pytest.raises(KeyboardInterrupt):
+        run(sql=sql, connection=conn)
+    conn.rollback()  # what the docs tell a caller to do after an interrupt
+    conn.close()
+    assert _rows(db_file) == []

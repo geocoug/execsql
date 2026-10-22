@@ -356,8 +356,8 @@ def run(
             ``"postgresql://user:pass@host/db"``).
         connection: A pre-existing :class:`~execsql.db.base.Database`
             instance.  ``run()`` will NOT close this connection on exit.
-            An SQL statement an interrupt stops is rolled back, as a failed
-            one is, before the interrupt is re-raised.
+            What an interrupted SQL statement or metacommand did is rolled
+            back, as when it fails, before the interrupt is re-raised.
         variables: Substitution variables as ``{"NAME": "value"}``.
             Keys without a ``$`` prefix get one added automatically, so
             ``{"SCHEMA": "public"}`` is referenced as ``!!$SCHEMA!!``.
