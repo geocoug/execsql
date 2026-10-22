@@ -8,8 +8,14 @@ failure comes before ``b`` is committed.
 from __future__ import annotations
 
 import sqlite3
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
 
+import pytest
+
+import execsql.state as _state
 from execsql import run
+from execsql.db.base import Database
 
 _SETUP = (
     "-- !x! CONNECT TO SQLITE(FILE={b}, NEW) AS b\n"
@@ -171,7 +177,9 @@ def test_a_failed_statement_makes_end_batch_roll_back(tmp_path):
     )
     result = _run(tmp_path, sql)
     assert out.read_text().startswith("END BATCH: ")
-    assert "The batch was not committed: a statement failed on line 5 of <inline>" in out.read_text()
+    assert (
+        "The batch was not committed: a database error on line 5 of <inline> rolled back its work." in out.read_text()
+    )
     assert _rows(tmp_path / "main.db", "t") == ["after the batch"]
     assert len(result.errors) == 2
 
@@ -211,3 +219,56 @@ def test_a_failed_statement_under_autocommit_off_leaves_the_batch_to_the_script(
     result = _run(tmp_path, sql)
     assert _rows(tmp_path / "main.db", "t") == ["kept"]
     assert len(result.errors) == 1  # the statement; END BATCH reports nothing
+
+
+# SQL a metacommand runs fails the same way: its rollback discards the
+# batch's statements too.
+
+
+@pytest.mark.parametrize(
+    "metacommand",
+    [
+        "EXECUTE nosuch",
+        "SUBDATA x nosuch",
+        "SELECT_SUB nosuch",
+        "EXPORT QUERY <<select * from nosuch;>> TO {out} AS CSV",
+    ],
+)
+def test_sql_a_metacommand_runs_that_fails_makes_end_batch_roll_back(tmp_path, metacommand):
+    sql = (
+        "-- !x! METACOMMAND_ERROR_HALT OFF\n-- !x! ERROR_HALT OFF\ncreate table t (v text);\n"
+        "-- !x! BEGIN BATCH\ninsert into t values ('before');\n"
+        f"-- !x! {metacommand.format(out=tmp_path / 'x.csv')}\n"
+        "insert into t values ('after');\n"
+        "-- !x! END BATCH\n"
+    )
+    result = _run(tmp_path, sql)
+    assert _rows(tmp_path / "main.db", "t") == []
+    assert "The batch was not committed: a database error on line 6 of <inline>" in result.errors[-1].message
+
+
+def test_a_failure_on_a_database_the_batch_has_not_used_does_not_fail_it(tmp_path):
+    b = tmp_path / "b.db"
+    sql = (
+        "-- !x! METACOMMAND_ERROR_HALT OFF\n"
+        f"-- !x! CONNECT TO SQLITE(FILE={b}, NEW) AS b\ncreate table t (v text);\n"
+        "-- !x! BEGIN BATCH\ninsert into t values ('kept');\n"
+        "-- !x! USE b\n-- !x! SUBDATA x nosuch\n-- !x! USE initial\n"
+        "-- !x! END BATCH\n"
+    )
+    result = _run(tmp_path, sql)
+    assert _rows(tmp_path / "main.db", "t") == ["kept"]
+    assert len(result.errors) == 1
+
+
+def test_a_failure_on_a_driver_that_commits_every_statement_does_not_fail_the_batch(tmp_path):
+    from execsql.script.control import BatchLevels
+
+    db = MagicMock(autocommit=True, driver_autocommits=True)
+    status = SimpleNamespace(batch=BatchLevels())
+    status.batch.new_batch()
+    status.batch.using_db(db)
+    with patch.object(_state, "status", status), patch.object(_state, "last_command", None):
+        Database.rollback_after_error(db)
+    db.rollback.assert_called_once_with()
+    assert status.batch.failure() is None

@@ -339,7 +339,7 @@ class MySQLDatabase(Database):
                 curs.execute(cmd)
                 _state.subvars.add_substitution("$LAST_ROWCOUNT", curs.rowcount)
             except Exception:
-                self.rollback()
+                self.rollback_after_error()
                 raise
 
     def schema_exists(self, schema_name: str) -> bool:
@@ -378,7 +378,7 @@ class MySQLDatabase(Database):
         problems = [_text(row[2]) for row in warnings if _text(row[0]) in ("Warning", "Error")]
         if not problems:
             return
-        self.rollback()
+        self.rollback_after_error()
         shown = "; ".join(problems[:3])
         more = f" (and {len(problems) - 3} more)" if len(problems) > 3 else ""
         raise ErrInfo(
@@ -568,7 +568,7 @@ class MySQLDatabase(Database):
                         except ErrInfo:
                             raise
                         except Exception as e:
-                            self.rollback()
+                            self.rollback_after_error()
                             raise ErrInfo(
                                 type="db",
                                 command_text=sql_template,

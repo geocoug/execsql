@@ -194,6 +194,56 @@
    "why": "A BREAK out of a BEGIN BATCH block left the batch open in upstream, so a statement after AUTOCOMMIT ON WITH COMMIT was not committed either; execsql2 ends the batch, and under AUTOCOMMIT OFF leaves its statements to the script's own commit, as END BATCH would (divergence: 'A batch left before END BATCH is rolled back'; #121)."
   }
  },
+ "batch_metacommand_sql_fails": {
+  "files/out.txt": {
+   "execsql2": "after END BATCH: SQL_ERROR() true\n",
+   "status": "accepted",
+   "upstream": "after END BATCH: SQL_ERROR() false\n",
+   "why": "SQL a metacommand runs that fails inside a batch rolls its connection back, taking the batch's earlier statements with it, so the batch is not committed, as for a failed statement: END BATCH rolls back the rest and reports an SQL error, which SQL_ERROR() shows; upstream committed the statements after the failure, a partial batch (maintainer decision; divergence: 'A database error inside a batch'; #125)."
+  },
+  "tables/t": {
+   "execsql2": {
+    "columns": [
+     [
+      "v",
+      "TEXT"
+     ]
+    ],
+    "rows": [
+     [
+      [
+       "text",
+       "'after the batch'"
+      ]
+     ]
+    ]
+   },
+   "status": "accepted",
+   "upstream": {
+    "columns": [
+     [
+      "v",
+      "TEXT"
+     ]
+    ],
+    "rows": [
+     [
+      [
+       "text",
+       "'after the failure'"
+      ]
+     ],
+     [
+      [
+       "text",
+       "'after the batch'"
+      ]
+     ]
+    ]
+   },
+   "why": "SQL a metacommand runs that fails inside a batch rolls its connection back, taking the batch's earlier statements with it, so the batch is not committed, as for a failed statement: END BATCH rolls back the rest and reports an SQL error, which SQL_ERROR() shows; upstream committed the statements after the failure, a partial batch (maintainer decision; divergence: 'A database error inside a batch'; #125)."
+  }
+ },
  "batch_nested_commit_fails": {
   "exit": {
    "execsql2": 0,
@@ -294,7 +344,7 @@
    "execsql2": "after END BATCH: SQL_ERROR() true\n",
    "status": "accepted",
    "upstream": "after END BATCH: SQL_ERROR() false\n",
-   "why": "A statement that fails inside a batch rolls its connection back, taking the batch's earlier statements with it, so the batch is not committed: END BATCH rolls back the rest and reports an SQL error, which SQL_ERROR() shows; upstream committed the statements after the failure, a partial batch (maintainer decision; divergence: 'A statement that fails inside a batch'; #125)."
+   "why": "A statement that fails inside a batch rolls its connection back, taking the batch's earlier statements with it, so the batch is not committed: END BATCH rolls back the rest and reports an SQL error, which SQL_ERROR() shows; upstream committed the statements after the failure, a partial batch (maintainer decision; divergence: 'A database error inside a batch'; #125)."
   },
   "tables/t": {
    "execsql2": {
@@ -336,7 +386,7 @@
      ]
     ]
    },
-   "why": "A statement that fails inside a batch rolls its connection back, taking the batch's earlier statements with it, so the batch is not committed: END BATCH rolls back the rest and reports an SQL error, which SQL_ERROR() shows; upstream committed the statements after the failure, a partial batch (maintainer decision; divergence: 'A statement that fails inside a batch'; #125)."
+   "why": "A statement that fails inside a batch rolls its connection back, taking the batch's earlier statements with it, so the batch is not committed: END BATCH rolls back the rest and reports an SQL error, which SQL_ERROR() shows; upstream committed the statements after the failure, a partial batch (maintainer decision; divergence: 'A database error inside a batch'; #125)."
   }
  },
  "boolean_and_empty_config": {

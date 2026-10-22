@@ -228,7 +228,7 @@ class OracleDatabase(Database):
             except ErrInfo:
                 raise
             except Exception as e:
-                self.rollback()
+                self.rollback_after_error()
                 raise ErrInfo(
                     type="db",
                     command_text=sql,
@@ -258,7 +258,7 @@ class OracleDatabase(Database):
             except ErrInfo:
                 raise
             except Exception as e:
-                self.rollback()
+                self.rollback_after_error()
                 raise ErrInfo(
                     type="db",
                     command_text=sql,
@@ -283,7 +283,7 @@ class OracleDatabase(Database):
             except ErrInfo:
                 raise
             except Exception as e:
-                self.rollback()
+                self.rollback_after_error()
                 raise ErrInfo(
                     type="db",
                     command_text=sql,
@@ -319,7 +319,7 @@ class OracleDatabase(Database):
             except ErrInfo:
                 raise
             except Exception as e:
-                self.rollback()
+                self.rollback_after_error()
                 raise ErrInfo(
                     type="db",
                     command_text=sql,
@@ -348,7 +348,7 @@ class OracleDatabase(Database):
                 )
             except Exception:
                 # Non-DBA fallback: enumerate session roles + users we can see.
-                self.rollback()
+                self.rollback_after_error()
                 curs.execute(
                     "select role from session_roles where role = :rname union "
                     " select username from all_users where username = :rname",
@@ -374,5 +374,5 @@ class OracleDatabase(Database):
                 curs.execute(cmd)
                 _state.subvars.add_substitution("$LAST_ROWCOUNT", curs.rowcount)
             except Exception:
-                self.rollback()
+                self.rollback_after_error()
                 raise

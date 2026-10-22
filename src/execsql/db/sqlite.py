@@ -91,7 +91,7 @@ class SQLiteDatabase(Database):
                 curs.execute(cmd)
                 _state.subvars.add_substitution("$LAST_ROWCOUNT", curs.rowcount)
             except Exception:
-                self.rollback()
+                self.rollback_after_error()
                 raise
 
     # table_exists() without a schema looks only where CREATE TABLE puts a table: one namespace.
@@ -108,7 +108,7 @@ class SQLiteDatabase(Database):
             except ErrInfo:
                 raise
             except Exception as e:
-                self.rollback()
+                self.rollback_after_error()
                 raise ErrInfo(
                     type="db",
                     command_text=sql,
@@ -138,7 +138,7 @@ class SQLiteDatabase(Database):
             except ErrInfo:
                 raise
             except Exception as e:
-                self.rollback()
+                self.rollback_after_error()
                 raise ErrInfo(
                     type="db",
                     command_text=sql,
@@ -157,7 +157,7 @@ class SQLiteDatabase(Database):
             except ErrInfo:
                 raise
             except Exception as e:
-                self.rollback()
+                self.rollback_after_error()
                 raise ErrInfo(
                     type="db",
                     command_text=sql,
@@ -227,7 +227,7 @@ class SQLiteDatabase(Database):
             except ErrInfo:
                 raise
             except Exception as e:
-                self.rollback()
+                self.rollback_after_error()
                 raise ErrInfo(
                     type="db",
                     command_text=sql,
