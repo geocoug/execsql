@@ -228,6 +228,10 @@ def _test(
         if e.script_file is None:
             e.script_file, e.script_line_no = span.file, span.start_line
             e.cmd, e.cmdtype = command, "cmd"
+        # The run stops, except at a BREAKPOINT prompt, which carries on:
+        # a test that failed in the database (HASROWS) has rolled back the
+        # connection, so the batch must not commit.
+        _fail_open_batches(ctx, span.file, span.start_line)
         if e is exc:
             raise
         raise e from exc
@@ -430,6 +434,7 @@ def _exec_metacommand(
         return None
     # No handler matched — truly unknown metacommand
     status.metacommand_error = True
+    _fail_open_batches(ctx, source, line_no)
     raise ErrInfo(type="cmd", command_text=cmd, other_msg="Unknown metacommand")
 
 

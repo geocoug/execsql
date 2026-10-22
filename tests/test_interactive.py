@@ -130,6 +130,23 @@ class TestAtABreakpoint:
         assert "The batch was not committed: an error on line 1 of <breakpoint>." in result.errors[0].message
         assert rows == []
 
+    @pytest.mark.parametrize(
+        "typed",
+        [
+            '-- !x! if (hasrows(nosuch)) { write "x" }',  # rolls back the connection
+            "-- !x! no_such_metacommand",
+        ],
+    )
+    def test_an_error_typed_inside_a_batch_keeps_the_batch_from_committing(self, tmp_path, typed):
+        script = (
+            "create table t (n integer);\n-- !x! begin batch\ninsert into t values (1);\n"
+            "-- !x! breakpoint\ninsert into t values (2);\n-- !x! end batch\n"
+        )
+        result, _, _, rows = _paused(tmp_path, script, [typed, ".c"])
+        assert not result.success
+        assert "The batch was not committed: an error on line " in result.errors[-1].message
+        assert rows == []
+
     def test_the_prompt_is_plain_when_each_statement_commits(self, tmp_path):
         _, _, feed, _ = _paused(tmp_path, LOOP, [".c"])
         assert feed.prompts == ["execsql debug> "]
