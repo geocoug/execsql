@@ -304,12 +304,41 @@ def _exec_sql(
             db.commit()
     except Exception as exc:
         e = _as_errinfo(exc)
+    except _CONTROL_FLOW:
+        raise
+    except BaseException:
+        # Interrupted (Ctrl-C) after the statement ran: treat it as a failed
+        # statement, or the next commit stores it -- a BREAKPOINT prompt
+        # carries on, and execsql.run()'s caller keeps the connection.
+        try:
+            _record_interrupt(ctx, cmd, source, line_no, sql=True)
+        finally:
+            dbs.current().rollback()
+        raise
     if e:
         _sql_failed(ctx, e, cmd, source, line_no)
         return
     subvars.add_substitution("$LAST_SQL", cmd)
     if ctx.prompt_input is not None:
         ctx.prompt_input(result)
+
+
+def _record_interrupt(ctx: RuntimeContext, cmd: str, source: str, line_no: int, *, sql: bool) -> None:
+    """Record an interrupted statement or metacommand as a failed one, without halting.
+
+    The interrupt itself ends the run, or the BREAKPOINT prompt that caught
+    it reads the next input.  The open batches fail first, so a second
+    interrupt during the rollback that follows cannot let one commit.
+    """
+    assert ctx.status is not None
+    assert ctx.subvars is not None
+    _fail_open_batches(ctx, source, line_no)
+    if sql:
+        ctx.status.sql_error = True
+    else:
+        ctx.status.metacommand_error = True
+    ctx.subvars.add_substitution("$LAST_ERROR", cmd)
+    ctx.subvars.add_substitution("$ERROR_MESSAGE", "Interrupted.")
 
 
 def _sql_failed(ctx: RuntimeContext, e: ErrInfo, cmd: str, source: str, line_no: int) -> None:
@@ -427,6 +456,22 @@ def _exec_metacommand(
             return result
     except Exception as exc:
         e = _as_errinfo(exc)
+    except _CONTROL_FLOW:
+        raise
+    except BaseException:
+        # Interrupted (Ctrl-C): what the metacommand wrote (EXECUTE, IMPORT,
+        # COPY, PG_UPSERT) may wait for a commit that never came.  Each
+        # statement is committed as it runs, so on a connection with
+        # autocommit on that is all that is pending; under AUTOCOMMIT OFF it
+        # joins what the script holds, which the script decides.
+        try:
+            _record_interrupt(ctx, cmd, source, line_no, sql=False)
+        finally:
+            assert ctx.dbs is not None
+            for alias in ctx.dbs.aliases():
+                if (db := ctx.dbs.aliased_as(alias)).autocommit:
+                    db.rollback()
+        raise
     if e:
         _metacommand_failed(ctx, cmd, e, source, line_no)
         if (manifest := _manifest.current()) is not None:
@@ -1080,6 +1125,12 @@ class _BreakLoop(BaseException):
     a BREAK typed at a BREAKPOINT prompt travels out through the BREAKPOINT
     metacommand's handler.
     """
+
+
+# BaseExceptions that are execsql's own control flow, not an interrupt: HALT,
+# a cancelled PROMPT and ``.quit`` raise SystemExit (after exit_now() has run
+# any ON ERROR_HALT / ON CANCEL_HALT script), and BREAK raises _BreakLoop.
+_CONTROL_FLOW = (SystemExit, GeneratorExit, _BreakLoop)
 
 
 def _break_has_target(ctx: RuntimeContext) -> bool:

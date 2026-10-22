@@ -1858,6 +1858,8 @@ print(result.variables["region_total"])    # "1650.5"
 conn.close()  # run() never closes a connection you pass in
 ```
 
+If the run is interrupted (Ctrl-C in a notebook), what the interrupted SQL statement or metacommand did is rolled back before the interrupt reaches your code, so your next commit on `conn` does not store it. An interrupted SQL statement rolls back the connection's whole open transaction, as a failed one does, including any work of your own not yet committed. Under [AUTOCOMMIT](../reference/metacommands.md#autocommit) OFF, call `conn.rollback()` after catching the interrupt unless you mean to keep what the script was holding.
+
 `result.variables` holds the final state of all substitution variables (system variables have the leading `$` stripped), so values computed by the script — via [SUBDATA](../reference/metacommands.md#subdata), [SUB](../reference/metacommands.md#subcmd), or counters — flow back to Python.
 
 Error handling follows the `halt_on_error` argument. With the default (`True`), execution stops at the first error; with `False`, execution continues and every non-halting error is collected:
