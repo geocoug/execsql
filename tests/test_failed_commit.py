@@ -53,7 +53,7 @@ def test_a_later_statement_is_not_dragged_into_the_failure(tmp_path):
         + "insert into log values ('unrelated');\n"
     )
     result = _run(tmp_path, sql)
-    assert len(result.errors) == 1  # on main the log insert's commit failed too, on the child row
+    assert len(result.errors) == 1  # in 2.36.0 and earlier the log insert's commit failed too, on the child row
     assert _rows(tmp_path, "log") == ["unrelated"]
     assert _rows(tmp_path, "child") == []
 
@@ -87,8 +87,8 @@ def test_commit_under_autocommit_off_does_nothing():
     db.rollback.assert_not_called()
 
 
-# Every commit path goes through Database.commit(): a row whose commit fails
-# is not stored by the next statement's commit, here the parent row that
+# The script's commit paths go through Database.commit(): a row whose commit
+# fails is not stored by the next statement's commit, here the parent row that
 # would make it valid.
 
 
@@ -125,3 +125,20 @@ def test_no_commit_path_leaves_a_failed_commit_for_the_next_one(tmp_path, how):
     assert result.errors, "the commit should have failed"
     assert _rows(tmp_path, "child") == []
     assert _rows(tmp_path, "parent") == [9]
+
+
+@pytest.mark.parametrize("autocommit", [True, False])
+def test_duckdb_commit_rolls_back_when_reading_ahead_fails(autocommit):
+    pytest.importorskip("duckdb")
+    from execsql.db.duckdb import DuckDBDatabase
+
+    db = object.__new__(DuckDBDatabase)
+    db.autocommit = autocommit
+    db.conn = MagicMock()
+    db._holder = MagicMock()
+    db._holder.read_ahead.side_effect = RuntimeError("cast error at fetch time")
+    db.rollback = MagicMock()
+    with pytest.raises(RuntimeError, match="cast error"):
+        db.commit()
+    assert db.rollback.called is autocommit  # under AUTOCOMMIT OFF the transaction is the script's
+    db.conn.commit.assert_not_called()

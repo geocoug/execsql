@@ -129,7 +129,7 @@ class TestBatchLevels:
         bl = BatchLevels()
         bl.rollback_batch()  # should not raise
 
-    def test_failed_commit_rolls_back_that_db_and_the_ones_after_it(self):
+    def test_failed_commit_rolls_back_the_dbs_after_the_failing_one(self):
         bl = BatchLevels()
         bl.new_batch()
         first, failing, last = MagicMock(), MagicMock(), MagicMock()
