@@ -352,9 +352,19 @@ class Database(ABC):
         self.autocommit = False
 
     def commit(self) -> None:
-        """Commit the current transaction if autocommit is enabled."""
+        """Commit the current transaction if autocommit is enabled.
+
+        A commit that fails (a deferred constraint, a lock) rolls the
+        transaction back before the error is raised: some DBMSs (SQLite)
+        keep it open, and the next commit on the connection would store
+        what was just reported as failed.
+        """
         if self.conn and self.autocommit:
-            self.conn.commit()
+            try:
+                self.conn.commit()
+            except BaseException:
+                self.rollback()
+                raise
 
     def rollback(self) -> None:
         """Roll back the current transaction; swallows errors (best-effort)."""

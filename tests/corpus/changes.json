@@ -757,6 +757,37 @@
    "why": "Upstream wrote a relative WRITE path in the starting directory after CD, and its EXPORT after CD failed looking for <DIR>/sub/script.sql; execsql2 resolves both against the current directory (divergence: 'WRITE after CD', 'EXPORT after CD')."
   }
  },
+ "commit_fails": {
+  "tables/child": {
+   "execsql2": {
+    "columns": [
+     [
+      "pid",
+      "INTEGER"
+     ]
+    ],
+    "rows": []
+   },
+   "status": "accepted",
+   "upstream": {
+    "columns": [
+     [
+      "pid",
+      "INTEGER"
+     ]
+    ],
+    "rows": [
+     [
+      [
+       "integer",
+       "9"
+      ]
+     ]
+    ]
+   },
+   "why": "A commit that fails rolls the transaction back before the error is reported, so the failed statement is never stored; upstream left the transaction open on SQLite, and the next statement's commit stored the row it had reported as failed (divergence: 'A failed commit is rolled back'; #135)."
+  }
+ },
  "condition_error_block_if": {
   "exit": {
    "execsql2": 1,
