@@ -180,7 +180,7 @@ class PostgresDatabase(Database):
                 curs.execute(cmd)
                 _state.subvars.add_substitution("$LAST_ROWCOUNT", curs.rowcount)
             except Exception:
-                self.rollback()
+                self.rollback_after_error()
                 raise
 
     def role_exists(self, rolename: str) -> bool:
@@ -215,7 +215,7 @@ class PostgresDatabase(Database):
             except ErrInfo:
                 raise
             except Exception as e:
-                self.rollback()
+                self.rollback_after_error()
                 raise ErrInfo(
                     type="db",
                     command_text=sql,
@@ -257,7 +257,7 @@ class PostgresDatabase(Database):
             except ErrInfo:
                 raise
             except Exception as e:
-                self.rollback()
+                self.rollback_after_error()
                 raise ErrInfo(
                     type="db",
                     command_text=sql,
@@ -408,7 +408,7 @@ class PostgresDatabase(Database):
                 except ErrInfo:
                     raise
                 except Exception as e:
-                    self.rollback()
+                    self.rollback_after_error()
                     raise ErrInfo(
                         type="exception",
                         exception_msg=exception_desc(),
@@ -491,7 +491,7 @@ class PostgresDatabase(Database):
                         except ErrInfo:
                             raise
                         except Exception as e:
-                            self.rollback()
+                            self.rollback_after_error()
                             raise ErrInfo(
                                 type="db",
                                 command_text=sql_template,

@@ -161,7 +161,7 @@ class DsnDatabase(Database):
                 curs.execute(cmd)
                 _state.subvars.add_substitution("$LAST_ROWCOUNT", curs.rowcount)
             except Exception:
-                self.rollback()
+                self.rollback_after_error()
                 raise
 
     def import_entire_file(

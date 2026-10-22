@@ -299,7 +299,7 @@ class DuckDBDatabase(Database):
                 curs.execute(cmd)
                 _state.subvars.add_substitution("$LAST_ROWCOUNT", curs.rowcount)
             except Exception:
-                self.rollback()
+                self.rollback_after_error()
                 raise
 
     def table_exists_where_created(self, table_name: str, schema_name: str | None = None) -> bool:

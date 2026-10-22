@@ -127,7 +127,10 @@ class TestAtABreakpoint:
         )
         result, _, _, rows = _paused(tmp_path, script, ["insert into nosuch values (9);", ".c"])
         assert not result.success
-        assert "The batch was not committed: a statement failed on line 1 of <breakpoint>." in result.errors[0].message
+        assert (
+            "The batch was not committed: a database error on line 1 of <breakpoint> rolled back its work."
+            in result.errors[0].message
+        )
         assert rows == []
 
     def test_the_prompt_is_plain_when_each_statement_commits(self, tmp_path):
