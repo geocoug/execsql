@@ -76,6 +76,14 @@
    "why": "When END BATCH's commit fails on one database, execsql2 rolls back that database and the ones the batch had not committed yet, so a later statement (here the ON ERROR_HALT script's insert on b) cannot commit the failed batch's rows; upstream left them pending and they were committed. The failure is reported as an SQL error on the END BATCH line, which ERROR_HALT governs; upstream reported it as a metacommand error (divergence: 'END BATCH whose commit fails'; #125)."
   }
  },
+ "alias_case_sensitivity": {
+  "files/out.txt": {
+   "execsql2": "lowercase alias defined\nuppercase spelling also defined\nuppercase DISCONNECT closed the lowercase alias\n",
+   "status": "accepted",
+   "upstream": "lowercase alias defined\n",
+   "why": "CONNECT stores the alias lowercased, but ALIAS_DEFINED and DISCONNECT matched it as written, so the same connection spelled differently was 'not defined' and could not be closed; they now match the alias case-insensitively, as USE always did (#126)."
+  }
+ },
  "batch_left_by_break": {
   "tables/t": {
    "execsql2": {

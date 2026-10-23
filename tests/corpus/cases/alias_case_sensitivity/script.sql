@@ -1,0 +1,8 @@
+-- CONNECT stores the alias in lower case, but ALIAS_DEFINED and DISCONNECT
+-- matched it as written, so the same connection spelled differently was
+-- "not defined" and could not be closed.
+-- !x! CONNECT TO SQLITE(FILE=b.db, NEW) AS b
+-- !x! IF (ALIAS_DEFINED(b)) { WRITE "lowercase alias defined" TO out.txt }
+-- !x! IF (ALIAS_DEFINED(B)) { WRITE "uppercase spelling also defined" TO out.txt }
+-- !x! DISCONNECT FROM B
+-- !x! IF (NOT ALIAS_DEFINED(b)) { WRITE "uppercase DISCONNECT closed the lowercase alias" TO out.txt }
