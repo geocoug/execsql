@@ -9,7 +9,7 @@ from __future__ import annotations
 import signal
 import sys
 import threading
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -20,14 +20,7 @@ from execsql.utils.sigterm import command, sigterm_held, terminate
 #: A command that runs until it is stopped.
 SLEEP = [sys.executable, "-c", "import time; time.sleep(60)"]
 
-
-@pytest.fixture(autouse=True)
-def fresh_state(monkeypatch):
-    """Each test starts with no hold, no pending signal and no exit under way."""
-    monkeypatch.setattr(sigterm, "_held", 0)
-    monkeypatch.setattr(sigterm, "_pending", None)
-    monkeypatch.setattr(sigterm, "_exiting", False)
-    monkeypatch.setattr(sigterm, "_commands", [])
+# tests/conftest.py resets the module's state before each test.
 
 
 @pytest.fixture
@@ -79,14 +72,13 @@ def test_a_block_without_a_sigterm_changes_nothing(exec_log):
         terminate(signal.SIGTERM, None)
 
 
-def test_a_sigterm_while_exiting_is_ignored(exec_log):
-    """A second SIGTERM re-enters the handler while the first is acted on."""
+def test_a_second_sigterm_ends_the_run_again(exec_log):
+    """A second SIGTERM still raises, so it can break out of a shutdown that
+    hangs (an exit handler closing a dead connection)."""
     with pytest.raises(SystemExit):
         terminate(signal.SIGTERM, None)
-    terminate(signal.SIGTERM, None)
-    with sigterm_held():
+    with pytest.raises(SystemExit):
         terminate(signal.SIGTERM, None)
-    exec_log.log_exit_terminated.assert_called_once_with()
 
 
 def test_a_sigterm_held_then_acted_on_is_not_acted_on_again(exec_log):
@@ -95,7 +87,6 @@ def test_a_sigterm_held_then_acted_on_is_not_acted_on_again(exec_log):
     sigterm._pending = signal.SIGTERM
     with pytest.raises(SystemExit):
         terminate(signal.SIGTERM, None)
-    sigterm._exiting = False
     with sigterm_held():
         pass
     exec_log.log_exit_terminated.assert_called_once_with()
@@ -127,11 +118,62 @@ def test_off_the_main_thread_nothing_is_held(exec_log):
 def test_a_sigterm_stops_a_running_command_before_the_run_ends(exec_log):
     """Whatever the script is doing when the SIGTERM lands (waiting on the
     command, or handling its timeout), the handler kills and reaps it."""
-    with command(SLEEP) as proc:
+    with pytest.raises(SystemExit), command(SLEEP) as proc:
         with pytest.raises(SystemExit):
             terminate(signal.SIGTERM, None)
         # Killed already, before the block ends: it ends long before its sleep.
         proc.wait(timeout=10)
+    assert sigterm._commands == []
+
+
+def test_a_command_the_os_will_not_kill_does_not_stop_the_exit(exec_log):
+    """Killing a command that runs as another user fails with EPERM; the run
+    still ends, and the other commands are still killed."""
+    with pytest.raises(SystemExit), command(SLEEP) as first, command(SLEEP) as second:
+        with (
+            patch.object(first, "kill", side_effect=PermissionError(1, "Operation not permitted")),
+            pytest.raises(SystemExit) as exc,
+        ):
+            terminate(signal.SIGTERM, None)
+        assert exc.value.code == 128 + signal.SIGTERM
+        exec_log.log_exit_terminated.assert_called_once_with()
+        second.wait(timeout=10)
+        first.kill()
+
+
+def test_a_script_thread_stops_when_the_run_is_terminated(exec_log):
+    """The Textual console runs the script on another thread, which the
+    handler does not interrupt: its command is killed, and the thread ends
+    there instead of running the rest of the script, or another command."""
+    started, outcome = threading.Event(), []
+
+    def script_thread():
+        try:
+            with command(SLEEP) as proc:
+                started.set()
+                proc.communicate()
+            outcome.append("carried on after the command")
+            with command(SLEEP):
+                outcome.append("started another command")
+        except SystemExit as e:
+            outcome.append(e.code)
+
+    thread = threading.Thread(target=script_thread)
+    thread.start()
+    assert started.wait(10)
+    with pytest.raises(SystemExit):
+        terminate(signal.SIGTERM, None)
+    thread.join(10)
+    assert not thread.is_alive()
+    assert outcome == [128 + signal.SIGTERM]
+    assert sigterm._commands == []
+
+
+def test_no_command_starts_after_the_run_is_terminated(exec_log):
+    sigterm._terminated = signal.SIGTERM
+    with patch("subprocess.Popen") as popen, pytest.raises(SystemExit), command(SLEEP):
+        pass
+    popen.assert_not_called()
 
 
 def test_leaving_the_block_stops_the_command():

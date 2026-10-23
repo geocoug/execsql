@@ -130,6 +130,21 @@ def _restore_cwd():
 
 
 @pytest.fixture(autouse=True)
+def _fresh_sigterm_state(monkeypatch):
+    """Start every test with no SIGTERM held, pending or acted on.
+
+    A test that calls the SIGTERM handler marks the run as terminated, and
+    every ``SYSTEM_CMD`` after that in the same process would end at once.
+    """
+    import execsql.utils.sigterm as sigterm
+
+    monkeypatch.setattr(sigterm, "_held", 0)
+    monkeypatch.setattr(sigterm, "_pending", None)
+    monkeypatch.setattr(sigterm, "_terminated", None)
+    monkeypatch.setattr(sigterm, "_commands", [])
+
+
+@pytest.fixture(autouse=True)
 def _no_real_browser(monkeypatch):
     """Fail any test that would open a real browser tab.
 

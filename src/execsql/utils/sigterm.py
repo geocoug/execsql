@@ -3,7 +3,7 @@ from __future__ import annotations
 """
 SIGTERM handling for the ``execsql`` command.
 
-:func:`terminate` is the handler the console entry point installs: it stops
+:func:`terminate` is the handler the console entry point installs: it kills
 the commands ``SYSTEM_CMD`` is waiting on, then ends the run through
 ``SystemExit`` (exit status 143), so exit handlers run and the log is
 written.  :func:`command` starts such a command; :func:`sigterm_held` holds
@@ -13,13 +13,13 @@ behind, and acts on it as the block ends.
 Python runs signal handlers on the main thread only, between bytecodes.  A
 hold therefore counts only on the main thread: a SIGTERM raised there in the
 middle of ``Popen()`` (which forks the command before it returns) would
-leave the command running with nothing to stop it.  Another thread, such as
-the Textual console's script thread, is never interrupted by the handler,
-so it needs no hold; it takes the lock that the handler also takes before
-stopping the commands.
+leave the command running with nothing to stop it.  The Textual console runs
+the script on another thread, which the handler never interrupts; that
+thread stops at its next command instead (see :func:`command`).
 
 The library API (``execsql.run()``) does not install the handler, so there
-:func:`sigterm_held` holds nothing back.
+:func:`sigterm_held` holds nothing back and :func:`command` only stops its
+command when the block is left.
 """
 
 import subprocess
@@ -32,12 +32,10 @@ from typing import Any
 _held = 0
 #: The signal number of a SIGTERM that arrived while held.
 _pending: int | None = None
-#: Set once a SIGTERM is being acted on; later ones are ignored.
-_exiting = False
+#: The signal number of the SIGTERM that ended the run.
+_terminated: int | None = None
 #: Commands started by :func:`command` and not yet stopped or finished.
 _commands: list[subprocess.Popen] = []
-#: Guards ``_commands`` and the start of each command.
-_commands_lock = threading.Lock()
 
 
 def terminate(signum: int, _frame: Any) -> None:
@@ -47,8 +45,6 @@ def terminate(signum: int, _frame: Any) -> None:
     end acts on it.
     """
     global _pending
-    if _exiting:
-        return
     if _held:
         _pending = signum
         return
@@ -56,28 +52,42 @@ def terminate(signum: int, _frame: Any) -> None:
 
 
 def _exit(signum: int) -> None:
-    global _exiting, _pending
+    global _pending, _terminated
     import execsql.state as _state
 
-    # The run ends once, however many SIGTERMs arrive: a second one re-entering
-    # this handler would wait forever on the lock below, or log a second exit.
-    _exiting = True
     _pending = None
-    with _commands_lock:
-        for proc in _commands:
-            # Kill only: the handler may have interrupted Popen.wait() on this
-            # command, which holds a lock a second wait() would block on
-            # forever.  The command() block reaps it as SystemExit unwinds.
-            proc.kill()
+    # Set before the commands are listed: a command another thread appends
+    # after the listing is stopped by that thread, which then sees this.
+    _terminated = signum
+    for proc in list(_commands):
+        # Kill only: the handler may have interrupted Popen.wait() on this
+        # command, which holds a lock a second wait() would block on forever.
+        # The command() block reaps it as it is left.
+        _kill(proc)
     if _state.exec_log is not None:
         _state.exec_log.log_exit_terminated()
     raise SystemExit(128 + signum)
 
 
+def _kill(proc: subprocess.Popen) -> bool:
+    """Kill *proc* unless it has finished; False if the OS refuses (a command running as another user)."""
+    try:
+        proc.kill()
+    except OSError:
+        return False
+    return True
+
+
 def _stop(proc: subprocess.Popen) -> None:
     """Kill *proc* unless it has finished, and reap it."""
-    proc.kill()
-    proc.wait()
+    if _kill(proc):
+        proc.wait()
+
+
+def _end_if_terminated() -> None:
+    """Raise the run's ``SystemExit`` once a SIGTERM has ended it (for a thread the handler does not interrupt)."""
+    if _terminated is not None:
+        raise SystemExit(128 + _terminated)
 
 
 @contextmanager
@@ -88,7 +98,7 @@ def sigterm_held() -> Iterator[None]:
     the block raises gives way to the held SIGTERM.  Off the main thread it
     holds nothing, since the handler never interrupts that thread.
     """
-    global _held, _pending
+    global _held
     if threading.current_thread() is not threading.main_thread():
         yield
         return
@@ -108,17 +118,24 @@ def command(args: list[str]) -> Iterator[subprocess.Popen]:
     Leaving the block, however it is left (the command finished, a timeout,
     Ctrl-C, a SIGTERM), kills the command if it is still running and reaps
     it.  A SIGTERM at any point after the command starts kills it before the
-    run's ``SystemExit`` is raised, so no gap is left between the moment it
-    lands and the block's end.
+    run's ``SystemExit`` is raised.  On a thread other than the main one,
+    which the handler does not interrupt, the block raises that
+    ``SystemExit`` itself once the SIGTERM has ended the run, and no command
+    starts after it.
     """
     proc = None
     try:
-        with sigterm_held(), _commands_lock:
+        _end_if_terminated()
+        with sigterm_held():
             proc = subprocess.Popen(args)
             _commands.append(proc)
+        # A SIGTERM handled on the main thread while this thread started the
+        # command may have listed the commands before this one was added.
+        _end_if_terminated()
         yield proc
     finally:
         if proc is not None:
-            with sigterm_held(), _commands_lock:
+            with sigterm_held():
                 _commands.remove(proc)
                 _stop(proc)
+        _end_if_terminated()
