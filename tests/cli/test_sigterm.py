@@ -79,7 +79,9 @@ def test_sigterm_keeps_write_output(tmp_path):
 def test_sigterm_stops_a_running_system_cmd(tmp_path):
     _run(tmp_path, _KILL_PARENT)
     child = int((tmp_path / "child.pid").read_text())
-    deadline = time.monotonic() + 3
+    # Generous: under a loaded machine (parallel workers, coverage) the child
+    # can take seconds to go; the loop ends as soon as it has.
+    deadline = time.monotonic() + 20
     while _alive(child) and time.monotonic() < deadline:
         time.sleep(0.05)
     assert not _alive(child)

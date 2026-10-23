@@ -53,10 +53,11 @@ pre-commit:
 test *ARGS:
     uv run tox -e py -- {{ ARGS }}
 
-# Run tests across all supported Python versions
+# Run tests across all supported Python versions. The versions run at once, so
+# each gets two pytest workers instead of one per CPU.
 [group('quality')]
 test-all:
-    uv run tox run-parallel
+    uv run tox run-parallel -- -n 2
 
 # Run tests with coverage report printed to terminal
 [group('quality')]
