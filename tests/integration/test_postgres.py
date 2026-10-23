@@ -22,6 +22,9 @@ import pytest
 
 from tests.integration.conftest import write_script
 
+# One worker runs a server's tests, one at a time: they share its database.
+pytestmark = pytest.mark.xdist_group("live-postgres")
+
 # ---------------------------------------------------------------------------
 # Module-level skip: psycopg (psycopg3) availability + server reachability
 # ---------------------------------------------------------------------------
