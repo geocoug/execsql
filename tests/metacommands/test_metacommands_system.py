@@ -230,6 +230,29 @@ class TestXSystemCmd:
         proc.kill.assert_called_once_with()
         proc.wait.assert_called_once_with()
 
+    def test_system_cmd_timeout_says_when_the_command_could_not_be_stopped(self, minimal_conf):
+        """A command running as another user (sudo) cannot be killed: the error
+        says it is still running, and execsql does not wait for it."""
+        from execsql.metacommands.system import x_system_cmd
+
+        minimal_conf.system_cmd_timeout = 1.0
+        _setup_exec_log()
+        _setup_subvars()
+        _state.last_command = SimpleNamespace(source="test.sql", line_no=1)
+
+        proc = _command(returncode=None, side_effect=subprocess.TimeoutExpired(cmd=["sleep", "10"], timeout=1.0))
+        proc.pid = 4242
+        proc.kill.side_effect = PermissionError(1, "Operation not permitted")
+        with (
+            patch("execsql.metacommands.system.subprocess.Popen", return_value=proc),
+            patch("execsql.metacommands.system.filewriter_close_all_after_write"),
+            pytest.raises(ErrInfo) as exc,
+        ):
+            x_system_cmd(command="sleep 10", **{"continue": None}, metacommandline="SYSTEM_CMD (sleep 10)")
+
+        assert "could not be stopped and is still running (process 4242)" in exc.value.other
+        proc.wait.assert_not_called()
+
     def test_system_cmd_log_redacts_registered_value(self, minimal_conf, tmp_path):
         from execsql.metacommands.system import x_system_cmd
         from execsql.utils.fileio import Logger

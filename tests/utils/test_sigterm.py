@@ -7,6 +7,7 @@ signal is sent in ``tests/cli/test_sigterm.py``.
 from __future__ import annotations
 
 import signal
+import subprocess
 import sys
 import threading
 from unittest.mock import MagicMock, patch
@@ -117,28 +118,77 @@ def test_off_the_main_thread_nothing_is_held(exec_log):
 
 def test_a_sigterm_stops_a_running_command_before_the_run_ends(exec_log):
     """Whatever the script is doing when the SIGTERM lands (waiting on the
-    command, or handling its timeout), the handler kills and reaps it."""
+    command, or handling its timeout), the handler kills the command.
+
+    The block's end raises the run's SystemExit again, which would hide a
+    failed assertion inside it, so results are checked after it.
+    """
+    seen = {}
     with pytest.raises(SystemExit), command(SLEEP) as proc:
-        with pytest.raises(SystemExit):
+        try:
             terminate(signal.SIGTERM, None)
-        # Killed already, before the block ends: it ends long before its sleep.
-        proc.wait(timeout=10)
+        except SystemExit as e:
+            seen["code"] = e.code
+            # Killed already, before the block ends: it ends long before its sleep.
+            seen["ended"] = proc.wait(timeout=10) is not None
+    assert seen == {"code": 128 + signal.SIGTERM, "ended": True}
     assert sigterm._commands == []
 
 
 def test_a_command_the_os_will_not_kill_does_not_stop_the_exit(exec_log):
     """Killing a command that runs as another user fails with EPERM; the run
     still ends, and the other commands are still killed."""
+    seen = {}
     with pytest.raises(SystemExit), command(SLEEP) as first, command(SLEEP) as second:
-        with (
-            patch.object(first, "kill", side_effect=PermissionError(1, "Operation not permitted")),
-            pytest.raises(SystemExit) as exc,
-        ):
+        with patch.object(first, "kill", side_effect=PermissionError(1, "Operation not permitted")):
+            try:
+                terminate(signal.SIGTERM, None)
+            except SystemExit as e:
+                seen["code"] = e.code
+        seen["second ended"] = second.wait(timeout=10) is not None
+    assert seen == {"code": 128 + signal.SIGTERM, "second ended": True}
+    exec_log.log_exit_terminated.assert_called_once_with()
+
+
+def test_a_command_the_os_will_not_kill_is_not_waited_for():
+    proc = MagicMock()
+    proc.kill.side_effect = PermissionError(1, "Operation not permitted")
+    sigterm._stop(proc)
+    proc.wait.assert_not_called()
+
+
+def test_a_command_started_as_the_handler_runs_is_stopped_too(exec_log):
+    """The handler lists the commands while the script thread is still inside
+    Popen(): the new command is not in that list, so the thread stops it."""
+    forked, handled, outcome, started = threading.Event(), threading.Event(), [], []
+    real_popen = subprocess.Popen
+
+    def popen_until_handled(*args, **kwargs):
+        proc = real_popen(*args, **kwargs)
+        started.append(proc)
+        forked.set()
+        handled.wait(10)
+        return proc
+
+    def script_thread():
+        try:
+            with command(SLEEP) as proc:
+                outcome.append("ran the block")
+                proc.communicate()
+        except SystemExit as e:
+            outcome.append(e.code)
+
+    with patch("subprocess.Popen", popen_until_handled):
+        thread = threading.Thread(target=script_thread)
+        thread.start()
+        assert forked.wait(10)
+        with pytest.raises(SystemExit):
             terminate(signal.SIGTERM, None)
-        assert exc.value.code == 128 + signal.SIGTERM
-        exec_log.log_exit_terminated.assert_called_once_with()
-        second.wait(timeout=10)
-        first.kill()
+        handled.set()
+        thread.join(10)
+    assert outcome == [128 + signal.SIGTERM]
+    assert started[0].returncode is not None
+    assert sigterm._commands == []
 
 
 def test_a_script_thread_stops_when_the_run_is_terminated(exec_log):

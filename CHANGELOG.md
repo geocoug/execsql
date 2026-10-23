@@ -29,7 +29,7 @@ ______________________________________________________________________
 ### Fixed
 
 - **A commit that fails** (a deferred constraint checked at COMMIT) rolls back what it was committing, so none of it is stored: an SQL statement, `IMPORT`, `COPY`, `EXECUTE`, or `AUTOCOMMIT ON` committing what was held under `AUTOCOMMIT OFF`. On SQLite, when the script carried on (`ERROR_HALT OFF` for an SQL statement, `METACOMMAND_ERROR_HALT OFF` for a metacommand, or an `ON ERROR_HALT` script), the next statement's commit stored it, including the rows reported as failed.
-- **SIGTERM just as `SYSTEM_CMD` starts its command, or as its `system_cmd_timeout` runs out,** stops the command too; the command was left running after execsql exited.
+- **SIGTERM while `SYSTEM_CMD` runs a command** stops the command just as it starts, as its `system_cmd_timeout` runs out, and under the Textual console (`--gui-framework textual`), where the script also stops at that `SYSTEM_CMD`; the command was left running after execsql exited.
 - **`END BATCH` whose commit fails on one database** rolls back the batch's databases not yet committed; a later statement on them, such as an `ON ERROR_HALT` script's, committed the failed batch's rows.
 - **`BREAK` in the main script, outside any `LOOP`, `SCRIPT` or `INCLUDE`d file,** is reported on its own line; it named the statement before it.
 - **`INCLUDE` and `EXECUTE SCRIPT` inside an inline `IF (…) { … }`** run again; they stopped the run with "should be handled by the AST executor".

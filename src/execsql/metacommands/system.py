@@ -60,10 +60,14 @@ def x_system_cmd(**kwargs: Any) -> None:
                 proc.communicate(timeout=timeout if timeout and timeout > 0 else None)
         except subprocess.TimeoutExpired as e:
             _state.subvars.add_substitution("$SYSTEM_CMD_EXIT_STATUS", "124")
+            msg = f"SYSTEM_CMD timed out after {timeout:g} seconds."
+            if proc.returncode is None:
+                # The OS refused to kill it: it runs as another user.
+                msg += f" The command could not be stopped and is still running (process {proc.pid})."
             raise ErrInfo(
                 type="cmd",
                 command_text=kwargs.get("metacommandline", "SYSTEM_CMD"),
-                other_msg=f"SYSTEM_CMD timed out after {timeout:g} seconds.",
+                other_msg=msg,
                 exception_msg=exception_desc(),
             ) from e
         _state.subvars.add_substitution("$SYSTEM_CMD_EXIT_STATUS", str(proc.returncode))

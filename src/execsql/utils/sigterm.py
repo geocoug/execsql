@@ -136,6 +136,8 @@ def command(args: list[str]) -> Iterator[subprocess.Popen]:
     finally:
         if proc is not None:
             with sigterm_held():
-                _commands.remove(proc)
+                # Ctrl-C can land between Popen() returning and the append.
+                if proc in _commands:
+                    _commands.remove(proc)
                 _stop(proc)
         _end_if_terminated()
