@@ -35,6 +35,13 @@ def _setup_subvars():
     return mock_sv
 
 
+def _command(returncode=0, **communicate):
+    """A stand-in for the ``Popen`` that SYSTEM_CMD waits on."""
+    proc = MagicMock(returncode=returncode)
+    proc.communicate.configure_mock(**communicate)
+    return proc
+
+
 # ---------------------------------------------------------------------------
 # Tests for x_log
 # ---------------------------------------------------------------------------
@@ -176,13 +183,12 @@ class TestXSystemCmd:
         mock_sv = _setup_subvars()
         _state.last_command = SimpleNamespace(source="test.sql", line_no=1)
 
-        mock_result = SimpleNamespace(returncode=0)
         with (
-            patch("execsql.metacommands.system.subprocess.run", return_value=mock_result) as mock_run,
+            patch("execsql.metacommands.system.subprocess.Popen", return_value=_command()) as mock_popen,
             patch("execsql.metacommands.system.filewriter_close_all_after_write"),
         ):
             x_system_cmd(command="echo hello", **{"continue": None})
-            mock_run.assert_called_once()
+            mock_popen.assert_called_once_with(["echo", "hello"])
             # The exit status should be recorded as a substitution variable
             mock_sv.add_substitution.assert_called_once_with("$SYSTEM_CMD_EXIT_STATUS", "0")
 
@@ -194,15 +200,14 @@ class TestXSystemCmd:
         mock_sv = _setup_subvars()
         _state.last_command = SimpleNamespace(source="test.sql", line_no=1)
 
-        mock_result = SimpleNamespace(returncode=0)
+        proc = _command()
         with (
-            patch("execsql.metacommands.system.subprocess.run", return_value=mock_result) as mock_run,
+            patch("execsql.metacommands.system.subprocess.Popen", return_value=proc),
             patch("execsql.metacommands.system.filewriter_close_all_after_write"),
         ):
             x_system_cmd(command="echo hello", **{"continue": None})
 
-        mock_run.assert_called_once()
-        assert mock_run.call_args.kwargs == {"timeout": 2.5}
+        proc.communicate.assert_called_once_with(timeout=2.5)
         mock_sv.add_substitution.assert_called_once_with("$SYSTEM_CMD_EXIT_STATUS", "0")
 
     def test_system_cmd_timeout_sets_exit_status_and_raises(self, minimal_conf):
@@ -213,17 +218,40 @@ class TestXSystemCmd:
         mock_sv = _setup_subvars()
         _state.last_command = SimpleNamespace(source="test.sql", line_no=1)
 
+        proc = _command(side_effect=subprocess.TimeoutExpired(cmd=["sleep", "10"], timeout=1.0))
         with (
-            patch(
-                "execsql.metacommands.system.subprocess.run",
-                side_effect=subprocess.TimeoutExpired(cmd=["sleep", "10"], timeout=1.0),
-            ),
+            patch("execsql.metacommands.system.subprocess.Popen", return_value=proc),
             patch("execsql.metacommands.system.filewriter_close_all_after_write"),
             pytest.raises(ErrInfo, match="timed out after 1 seconds"),
         ):
             x_system_cmd(command="sleep 10", **{"continue": None}, metacommandline="SYSTEM_CMD (sleep 10)")
 
         mock_sv.add_substitution.assert_called_once_with("$SYSTEM_CMD_EXIT_STATUS", "124")
+        proc.kill.assert_called_once_with()
+        proc.wait.assert_called_once_with()
+
+    def test_system_cmd_timeout_says_when_the_command_could_not_be_stopped(self, minimal_conf):
+        """A command running as another user (sudo) cannot be killed: the error
+        says it is still running, and execsql does not wait for it."""
+        from execsql.metacommands.system import x_system_cmd
+
+        minimal_conf.system_cmd_timeout = 1.0
+        _setup_exec_log()
+        _setup_subvars()
+        _state.last_command = SimpleNamespace(source="test.sql", line_no=1)
+
+        proc = _command(returncode=None, side_effect=subprocess.TimeoutExpired(cmd=["sleep", "10"], timeout=1.0))
+        proc.pid = 4242
+        proc.kill.side_effect = PermissionError(1, "Operation not permitted")
+        with (
+            patch("execsql.metacommands.system.subprocess.Popen", return_value=proc),
+            patch("execsql.metacommands.system.filewriter_close_all_after_write"),
+            pytest.raises(ErrInfo) as exc,
+        ):
+            x_system_cmd(command="sleep 10", **{"continue": None}, metacommandline="SYSTEM_CMD (sleep 10)")
+
+        assert "could not be stopped and is still running (process 4242)" in exc.value.other
+        proc.wait.assert_not_called()
 
     def test_system_cmd_log_redacts_registered_value(self, minimal_conf, tmp_path):
         from execsql.metacommands.system import x_system_cmd
@@ -237,9 +265,8 @@ class TestXSystemCmd:
         secret = "opaque-runtime-value"
         _state.exec_log.add_redaction_value(secret)
 
-        mock_result = SimpleNamespace(returncode=0)
         with (
-            patch("execsql.metacommands.system.subprocess.run", return_value=mock_result),
+            patch("execsql.metacommands.system.subprocess.Popen", return_value=_command()),
             patch("execsql.metacommands.system.filewriter_close_all_after_write"),
         ):
             x_system_cmd(command=f"echo {secret}", **{"continue": None})
@@ -313,9 +340,8 @@ class TestXSystemCmd:
         mock_sv = _setup_subvars()
         _state.last_command = SimpleNamespace(source="test.sql", line_no=12)
 
-        mock_result = SimpleNamespace(returncode=0)
         with (
-            patch("execsql.metacommands.system.subprocess.run", return_value=mock_result),
+            patch("execsql.metacommands.system.subprocess.Popen", return_value=_command()),
             patch("execsql.metacommands.system.filewriter_close_all_after_write"),
         ):
             x_system_cmd(command="echo hello", **{"continue": None})
@@ -331,9 +357,8 @@ class TestXSystemCmd:
         mock_sv = _setup_subvars()
         _state.last_command = SimpleNamespace(source="test.sql", line_no=3)
 
-        mock_result = SimpleNamespace(returncode=1)
         with (
-            patch("execsql.metacommands.system.subprocess.run", return_value=mock_result),
+            patch("execsql.metacommands.system.subprocess.Popen", return_value=_command(returncode=1)),
             patch("execsql.metacommands.system.filewriter_close_all_after_write"),
         ):
             x_system_cmd(command="false", **{"continue": None})

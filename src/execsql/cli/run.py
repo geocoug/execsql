@@ -871,14 +871,9 @@ def _end_run_on_sigterm() -> None:
     """
     import signal
 
-    def _terminate(signum: int, _frame: Any) -> None:
-        import execsql.state as _state
+    from execsql.utils.sigterm import terminate
 
-        if _state.exec_log is not None:
-            _state.exec_log.log_exit_terminated()
-        raise SystemExit(128 + signum)
-
-    signal.signal(signal.SIGTERM, _terminate)
+    signal.signal(signal.SIGTERM, terminate)
 
 
 def _execute_script_ast(

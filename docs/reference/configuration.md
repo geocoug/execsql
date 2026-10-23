@@ -376,7 +376,7 @@ The section and property names that may be used in a configuration file are list
 :   When set to "No", the `SYSTEM_CMD` (SHELL) metacommand is disabled. Any script that attempts to execute an OS command will fail with an error. The default is "Yes". This can also be set via the `--no-system-cmd` CLI flag or `allow_system_cmd=False` in the library API. See [Security — Disabling SYSTEM_CMD](security.md#disable_system_cmd) for details.
 
 `system_cmd_timeout` { #system_cmd_timeout }
-:   Maximum number of seconds a foreground `SYSTEM_CMD` may run before *execsql* stops it. The default is `0`, which means no timeout. When a foreground command times out, `$SYSTEM_CMD_EXIT_STATUS` is set to `124` and the metacommand fails. `SYSTEM_CMD ... CONTINUE` starts a detached background process and is not timeout-managed by this setting.
+:   Maximum number of seconds a foreground `SYSTEM_CMD` may run before *execsql* stops it. The default is `0`, which means no timeout. When a foreground command times out, `$SYSTEM_CMD_EXIT_STATUS` is set to `124` and the metacommand fails. If the operating system will not let *execsql* stop the command (it runs as another user, through `sudo` for example), the error says so and gives its process ID. `SYSTEM_CMD ... CONTINUE` starts a detached background process and is not timeout-managed by this setting.
 
 `allow_rm_file` { #allow_rm_file }
 :   When set to "No", the `RM_FILE` metacommand (which deletes a file) is disabled. Any script that attempts to remove a file will fail with an error. The default is "Yes". This can also be set via the `--no-rm-file` CLI flag or `allow_rm_file=False` in the library API. Symmetric with `allow_system_cmd`.

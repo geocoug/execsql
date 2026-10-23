@@ -33,6 +33,7 @@ from execsql.utils.gui import (
     gui_console_width,
 )
 from execsql.utils.mail import MailSpec, Mailer
+from execsql.utils.sigterm import command
 
 
 def x_system_cmd(**kwargs: Any) -> None:
@@ -51,19 +52,25 @@ def x_system_cmd(**kwargs: Any) -> None:
     if cont is None:
         timeout = getattr(_state.conf, "system_cmd_timeout", 0.0)
         try:
-            if timeout and timeout > 0:
-                result = subprocess.run(cmdlist, timeout=timeout)
-            else:
-                result = subprocess.run(cmdlist)
+            # The command is killed if the block is left before it finishes,
+            # and by a SIGTERM at any point once it has started.
+            with command(cmdlist) as proc:
+                # communicate(), as subprocess.run() does: after Ctrl-C it
+                # gives the command a moment to handle its own SIGINT.
+                proc.communicate(timeout=timeout if timeout and timeout > 0 else None)
         except subprocess.TimeoutExpired as e:
             _state.subvars.add_substitution("$SYSTEM_CMD_EXIT_STATUS", "124")
+            msg = f"SYSTEM_CMD timed out after {timeout:g} seconds."
+            if proc.returncode is None:
+                # The OS refused to kill it: it runs as another user.
+                msg += f" The command could not be stopped and is still running (process {proc.pid})."
             raise ErrInfo(
                 type="cmd",
                 command_text=kwargs.get("metacommandline", "SYSTEM_CMD"),
-                other_msg=f"SYSTEM_CMD timed out after {timeout:g} seconds.",
+                other_msg=msg,
                 exception_msg=exception_desc(),
             ) from e
-        _state.subvars.add_substitution("$SYSTEM_CMD_EXIT_STATUS", str(result.returncode))
+        _state.subvars.add_substitution("$SYSTEM_CMD_EXIT_STATUS", str(proc.returncode))
     else:
         proc = subprocess.Popen(cmdlist)
         _state.subvars.add_substitution("$SYSTEM_CMD_PID", str(proc.pid))

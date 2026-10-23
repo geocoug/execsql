@@ -85,6 +85,47 @@ def test_sigterm_stops_a_running_system_cmd(tmp_path):
     assert not _alive(child)
 
 
+@posix_only
+def test_a_sigterm_while_the_command_starts_still_stops_it(tmp_path):
+    """The SIGTERM lands inside ``Popen()``: the command has been forked, but
+    ``Popen`` has not returned it, so nothing could stop it (seen in CI)."""
+    import execsql.state as _state
+    from execsql.metacommands.system import x_system_cmd
+    from execsql.utils.sigterm import terminate
+
+    started: list[subprocess.Popen] = []
+    real_popen = subprocess.Popen
+
+    def popen_then_sigterm(*args, **kwargs):
+        proc = real_popen(*args, **kwargs)
+        started.append(proc)
+        os.kill(os.getpid(), signal.SIGTERM)
+        return proc
+
+    _state.conf.allow_system_cmd = True
+    _state.exec_log = MagicMock()
+    _state.subvars = MagicMock()
+    previous = signal.signal(signal.SIGTERM, terminate)
+    try:
+        with (
+            patch("execsql.metacommands.system.subprocess.Popen", popen_then_sigterm),
+            patch("execsql.metacommands.system.current_script_line", return_value=("s.sql", 1)),
+            patch("execsql.metacommands.system.filewriter_close_all_after_write"),
+            pytest.raises(SystemExit) as exc,
+        ):
+            x_system_cmd(command="sleep 30", **{"continue": None})
+    finally:
+        signal.signal(signal.SIGTERM, previous)
+        for proc in started:
+            if proc.poll() is None:
+                proc.kill()
+                proc.wait()
+                pytest.fail("the command was left running")
+    assert exc.value.code == 143
+    assert started[0].returncode == -signal.SIGKILL
+    _state.exec_log.log_exit_terminated.assert_called_once_with()
+
+
 def test_a_terminated_run_does_not_wait_for_the_gui_console():
     """``gui_wait_on_exit`` holds the console open for the user; a SIGTERM must not."""
     import execsql.state as _state
