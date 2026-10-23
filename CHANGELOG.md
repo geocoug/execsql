@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.37.0] - 2026-10-23
+
 ### Changed
 
 - **A failed commit at `END BATCH`** is an SQL error on the `END BATCH` line, which `ERROR_HALT` governs; it was reported as an uncaught exception on a line of execsql's own source and always stopped the run. With `ERROR_HALT OFF` the script now carries on: test `SQL_ERROR()` right after `END BATCH`.
