@@ -33,6 +33,7 @@ from execsql.utils.gui import (
     gui_console_width,
 )
 from execsql.utils.mail import MailSpec, Mailer
+from execsql.utils.sigterm import sigterm_held
 
 
 def x_system_cmd(**kwargs: Any) -> None:
@@ -50,12 +51,17 @@ def x_system_cmd(**kwargs: Any) -> None:
     cmdlist = shlex.split(syscmd, posix=(os.name == "posix"))
     if cont is None:
         timeout = getattr(_state.conf, "system_cmd_timeout", 0.0)
+        proc = None
         try:
-            if timeout and timeout > 0:
-                result = subprocess.run(cmdlist, timeout=timeout)
-            else:
-                result = subprocess.run(cmdlist)
+            # Popen forks the command before it returns; a SIGTERM raised in
+            # between would leave the command running with nothing to stop it.
+            with sigterm_held():
+                proc = subprocess.Popen(cmdlist)
+            # communicate(), as subprocess.run() does: after Ctrl-C it gives
+            # the command a moment to handle its own SIGINT.
+            proc.communicate(timeout=timeout if timeout and timeout > 0 else None)
         except subprocess.TimeoutExpired as e:
+            _stop(proc)
             _state.subvars.add_substitution("$SYSTEM_CMD_EXIT_STATUS", "124")
             raise ErrInfo(
                 type="cmd",
@@ -63,11 +69,23 @@ def x_system_cmd(**kwargs: Any) -> None:
                 other_msg=f"SYSTEM_CMD timed out after {timeout:g} seconds.",
                 exception_msg=exception_desc(),
             ) from e
-        _state.subvars.add_substitution("$SYSTEM_CMD_EXIT_STATUS", str(result.returncode))
+        except BaseException:
+            _stop(proc)
+            raise
+        _state.subvars.add_substitution("$SYSTEM_CMD_EXIT_STATUS", str(proc.returncode))
     else:
         proc = subprocess.Popen(cmdlist)
         _state.subvars.add_substitution("$SYSTEM_CMD_PID", str(proc.pid))
     return None
+
+
+def _stop(proc: subprocess.Popen | None) -> None:
+    """Kill *proc*, if it started, and reap it, holding back a SIGTERM until both are done."""
+    if proc is None:
+        return
+    with sigterm_held():
+        proc.kill()
+        proc.wait()
 
 
 def x_email(**kwargs: Any) -> None:
