@@ -10,6 +10,7 @@ import signal
 import subprocess
 import sys
 import threading
+import time
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -151,24 +152,41 @@ def test_a_command_the_os_will_not_kill_does_not_stop_the_exit(exec_log):
 
 
 def test_a_command_the_os_will_not_kill_is_not_waited_for():
-    proc = MagicMock()
-    proc.kill.side_effect = PermissionError(1, "Operation not permitted")
-    sigterm._stop(proc)
-    proc.wait.assert_not_called()
+    with (
+        patch.object(sigterm, "_kill", return_value=False),
+        patch.object(subprocess.Popen, "wait") as wait,
+        command(SLEEP) as proc,
+    ):
+        pass
+    wait.assert_not_called()
+    assert proc.poll() is None
+    proc.kill()
+    proc.wait()
 
 
-def test_a_command_started_as_the_handler_runs_is_stopped_too(exec_log):
-    """The handler lists the commands while the script thread is still inside
-    Popen(): the new command is not in that list, so the thread stops it."""
-    forked, handled, outcome, started = threading.Event(), threading.Event(), [], []
-    real_popen = subprocess.Popen
+def test_a_command_started_as_the_handler_runs_is_killed_by_the_handler(exec_log):
+    """The handler runs while the script thread is still inside Popen(), and
+    the script thread does not run again (a daemon thread, once the main
+    thread exits): the handler waits for the command to be listed and kills
+    it itself."""
+    forked, resume, outcome, started = threading.Event(), threading.Event(), [], []
+    real_popen, real_end_if_terminated = subprocess.Popen, sigterm._end_if_terminated
+    checks = 0
 
-    def popen_until_handled(*args, **kwargs):
+    def popen_slowly(*args, **kwargs):
         proc = real_popen(*args, **kwargs)
         started.append(proc)
         forked.set()
-        handled.wait(10)
+        time.sleep(0.2)
         return proc
+
+    def end_if_terminated():
+        nonlocal checks
+        if threading.current_thread() is not threading.main_thread():
+            checks += 1
+            if checks == 2:  # just after the command is started
+                resume.wait(10)
+        real_end_if_terminated()
 
     def script_thread():
         try:
@@ -178,16 +196,77 @@ def test_a_command_started_as_the_handler_runs_is_stopped_too(exec_log):
         except SystemExit as e:
             outcome.append(e.code)
 
-    with patch("subprocess.Popen", popen_until_handled):
+    with (
+        patch("subprocess.Popen", popen_slowly),
+        patch.object(sigterm, "_end_if_terminated", end_if_terminated),
+    ):
         thread = threading.Thread(target=script_thread)
         thread.start()
-        assert forked.wait(10)
-        with pytest.raises(SystemExit):
-            terminate(signal.SIGTERM, None)
-        handled.set()
-        thread.join(10)
+        try:
+            assert forked.wait(10)
+            with pytest.raises(SystemExit):
+                terminate(signal.SIGTERM, None)
+            ended = started[0].wait(timeout=5)
+        finally:
+            if started[0].poll() is None:
+                started[0].kill()
+            resume.set()
+            thread.join(10)
+    assert ended == -signal.SIGKILL
     assert outcome == [128 + signal.SIGTERM]
-    assert started[0].returncode is not None
+    assert sigterm._commands == []
+
+
+def test_a_command_being_stopped_stays_listed_until_it_is_killed(exec_log):
+    """The script thread is leaving the block, about to kill its command, and
+    does not run again: the handler still finds the command and kills it."""
+    stopping, resume, started = threading.Event(), threading.Event(), []
+    real_kill = sigterm._kill
+
+    def kill(proc):
+        if threading.current_thread() is not threading.main_thread():
+            stopping.set()
+            resume.wait(10)
+        return real_kill(proc)
+
+    def script_thread():
+        try:
+            with command(SLEEP) as proc:
+                started.append(proc)
+        except SystemExit:
+            pass
+
+    with patch.object(sigterm, "_kill", kill):
+        thread = threading.Thread(target=script_thread)
+        thread.start()
+        try:
+            assert stopping.wait(10)
+            with pytest.raises(SystemExit):
+                terminate(signal.SIGTERM, None)
+            ended = started[0].wait(timeout=5)
+        finally:
+            if started[0].poll() is None:
+                started[0].kill()
+            resume.set()
+            thread.join(10)
+    assert ended == -signal.SIGKILL
+    assert sigterm._commands == []
+
+
+def test_a_sigterm_as_the_block_is_left_waits_for_the_command_to_be_reaped(exec_log):
+    """The block's cleanup holds a SIGTERM back, so the command is reaped
+    before the run ends, not left half stopped."""
+    real_kill = sigterm._kill
+
+    def kill_then_sigterm(proc):
+        killed = real_kill(proc)
+        if not sigterm._terminated:
+            terminate(signal.SIGTERM, None)
+        return killed
+
+    with patch.object(sigterm, "_kill", kill_then_sigterm), pytest.raises(SystemExit), command(SLEEP) as proc:
+        pass
+    assert proc.returncode is not None
     assert sigterm._commands == []
 
 
