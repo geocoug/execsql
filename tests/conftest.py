@@ -156,3 +156,26 @@ def _no_real_browser(monkeypatch):
     true = shutil.which("true")
     if true:
         monkeypatch.setenv("BROWSER", true)
+
+
+#: Parameter values that name a live database server (see ``tests/live_db.py``
+#: and the templates' ``target`` fixture).
+_LIVE_SERVERS = frozenset({"postgres", "mysql", "mariadb", "sqlserver"})
+
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_collection_modifyitems(items):
+    """Put each test parametrized with a live server in that server's xdist group.
+
+    Tests against one server share its database, and many reuse table names,
+    so ``--dist loadgroup`` must hand them all to one worker. Modules that test
+    one server throughout set ``pytestmark`` instead. ``tryfirst``: xdist reads
+    the groups in its own ``pytest_collection_modifyitems``.
+    """
+    for item in items:
+        callspec = getattr(item, "callspec", None)
+        if callspec is None:
+            continue
+        for value in callspec.params.values():
+            if isinstance(value, str) and value in _LIVE_SERVERS:
+                item.add_marker(pytest.mark.xdist_group(f"live-{value}"))

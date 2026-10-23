@@ -25,6 +25,9 @@ import execsql.state as _state
 
 import importlib
 
+# One worker runs a server's tests, one at a time: they share its database.
+pytestmark = pytest.mark.xdist_group("live-sqlserver")
+
 
 def _unavailable(reason: str) -> None:
     """Skip the module, or fail it where a SQL Server is supposed to be running.
