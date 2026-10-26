@@ -110,6 +110,7 @@ dev = [
     "pytest-asyncio>=1.0",
     "pytest-cov>=5.0.0",
     "pytest-lsp>=1.0",
+    "pytest-xdist>=3.8.0",
     "ruff>=0.4",
     "tox-uv>=1.13.1",
     { include-group = "docs" },
@@ -275,6 +276,11 @@ addopts = [
     # Name the slowest tests on every run, so a CI job creeping toward its
     # time limit shows where the time went.
     "--durations=25",
+    # One worker per CPU. loadgroup keeps each live database server's tests on
+    # one worker (tests/conftest.py groups them); pass -n 0 to run serially,
+    # e.g. under a debugger.
+    "-n=auto",
+    "--dist=loadgroup",
 ]
 testpaths = ["tests"]
 log_cli = true

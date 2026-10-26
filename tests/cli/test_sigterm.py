@@ -22,7 +22,7 @@ posix_only = pytest.mark.skipif(os.name == "nt", reason="POSIX signal delivery")
 # The SYSTEM_CMD child records its pid, sends SIGTERM to execsql (its parent)
 # and then execs a long sleep in place of the shell, so the recorded pid is
 # the process execsql must stop.
-_KILL_PARENT = "-- !x! SYSTEM_CMD (sh -c 'echo $$ > child.pid; kill -TERM $PPID; exec sleep 30')\n"
+_KILL_PARENT = "-- !x! SYSTEM_CMD (sh -c 'echo $$ > child.pid; kill -TERM $PPID; exec sleep 120')\n"
 
 
 def _run(tmp_path, body: str) -> subprocess.CompletedProcess:
@@ -79,7 +79,9 @@ def test_sigterm_keeps_write_output(tmp_path):
 def test_sigterm_stops_a_running_system_cmd(tmp_path):
     _run(tmp_path, _KILL_PARENT)
     child = int((tmp_path / "child.pid").read_text())
-    deadline = time.monotonic() + 3
+    # The loop ends as soon as the child has gone; 20 s allows for a loaded
+    # machine, and a child left running sleeps far longer (120 s).
+    deadline = time.monotonic() + 20
     while _alive(child) and time.monotonic() < deadline:
         time.sleep(0.05)
     assert not _alive(child)

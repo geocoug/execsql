@@ -20,6 +20,9 @@ import pytest
 
 import execsql.state as _state
 
+# One worker runs a server's tests, one at a time: they share its database.
+pytestmark = pytest.mark.xdist_group("live-mysql")
+
 
 pymysql = pytest.importorskip("pymysql", reason="pymysql not installed")
 
