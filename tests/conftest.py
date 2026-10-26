@@ -11,6 +11,7 @@ requiring a full ConfigData / database initialisation.
 from __future__ import annotations
 
 import contextlib
+import sys
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -171,6 +172,22 @@ def _no_real_browser(monkeypatch):
     true = shutil.which("true")
     if true:
         monkeypatch.setenv("BROWSER", true)
+
+
+def pytest_configure(config):
+    """Build pywin32's COM cache before the xdist workers start.
+
+    Every worker imports ``win32com.client`` as it collects
+    ``tests/db/test_access_windows.py``.  On a fresh environment that import
+    writes ``win32com/gen_py/dicts.dat``, and a worker that reads the file
+    while another is writing it fails with ``EOFError: Ran out of input``.
+    The controller (or a ``-n 0`` run) imports it first, so the workers find
+    the file complete.
+    """
+    if sys.platform != "win32" or hasattr(config, "workerinput"):
+        return
+    with contextlib.suppress(ImportError):
+        import win32com.client  # noqa: F401
 
 
 #: Parameter values that name a live database server (see ``tests/live_db.py``

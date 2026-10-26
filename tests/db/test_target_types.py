@@ -295,6 +295,7 @@ def test_column_kinds_of_a_live_table(dbms, tmp_path, minimal_conf):
     assert kinds == {f"c{i}": kind for i, (_t, kind) in enumerate(_LIVE[dbms])}
 
 
+@pytest.mark.xdist_group("live-sqlserver")
 def test_sqlserver_falls_back_to_the_description_for_a_temp_table(tmp_path, minimal_conf):
     db = open_backend("sqlserver", tmp_path)
     try:
@@ -306,6 +307,7 @@ def test_sqlserver_falls_back_to_the_description_for_a_temp_table(tmp_path, mini
     assert kinds == {"n": DT_Long, "s": DT_Text, "d": None}
 
 
+@pytest.mark.xdist_group("live-postgres")
 def test_postgres_finds_the_table_an_unqualified_insert_finds(tmp_path, minimal_conf):
     """With the same table name in two schemas, the one on the search path is described."""
     db = open_backend("postgres", tmp_path)
