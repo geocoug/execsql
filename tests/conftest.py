@@ -186,7 +186,9 @@ def pytest_configure(config):
     """
     if sys.platform != "win32" or hasattr(config, "workerinput"):
         return
-    with contextlib.suppress(ImportError):
+    # Any failure, not only a missing pywin32: a cache a killed run left half
+    # written fails here too, and then only that module fails to collect.
+    with contextlib.suppress(Exception):
         import win32com.client  # noqa: F401
 
 
