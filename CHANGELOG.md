@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Fixed
+
+- **An SQL statement or metacommand interrupted before its commit** (Ctrl-C at a `BREAKPOINT` prompt or in a notebook running `execsql.run()`, or a `SystemExit` that a program's signal handler raises during `execsql.run()`) is rolled back, and `SQL_ERROR()` or `METACOMMAND_ERROR()` is set; the next commit on the connection stored what it had done. An interrupted SQL statement rolls back its connection as a failed one does; under `AUTOCOMMIT OFF`, an interrupted metacommand's writes stay with what the script holds. Inside `BEGIN BATCH`, the batch is not committed.
+
 ______________________________________________________________________
 
 ## [2.37.0] - 2026-10-23
@@ -32,7 +36,6 @@ ______________________________________________________________________
 
 ### Fixed
 
-- **An SQL statement or metacommand interrupted before its commit** (Ctrl-C at a `BREAKPOINT` prompt, or in a notebook running `execsql.run()`) is rolled back, and `SQL_ERROR()` or `METACOMMAND_ERROR()` is set; the next commit on the connection stored what it had done. An interrupted SQL statement rolls back its connection as a failed one does; under `AUTOCOMMIT OFF`, an interrupted metacommand's writes stay with what the script holds. Inside `BEGIN BATCH`, the batch is not committed.
 - **A commit that fails** (a deferred constraint checked at COMMIT) rolls back what it was committing, so none of it is stored: an SQL statement, `IMPORT`, `COPY`, `EXECUTE`, or `AUTOCOMMIT ON` committing what was held under `AUTOCOMMIT OFF`. On SQLite, when the script carried on (`ERROR_HALT OFF` for an SQL statement, `METACOMMAND_ERROR_HALT OFF` for a metacommand, or an `ON ERROR_HALT` script), the next statement's commit stored it, including the rows reported as failed.
 - **SIGTERM while `SYSTEM_CMD` runs a command** stops the command just as it starts, as its `system_cmd_timeout` runs out, and under the Textual console (`--gui-framework textual`), where the script also stops at that `SYSTEM_CMD`; the command was left running after execsql exited.
 - **`system_cmd_timeout` running out on a command *execsql* cannot stop** (one run as another user, through `sudo` for example) fails the `SYSTEM_CMD` at once, with `$SYSTEM_CMD_EXIT_STATUS` 124 and an error giving the command's process ID; execsql waited for the command to finish and then stopped with a permission error.

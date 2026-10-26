@@ -50,7 +50,7 @@ from pathlib import Path
 from typing import Any, cast
 from collections.abc import Callable
 
-from execsql.exceptions import ErrInfo
+from execsql.exceptions import ErrInfo, ScriptExit
 from execsql.script.ast import (
     BatchBlock,
     Comment,
@@ -1127,10 +1127,11 @@ class _BreakLoop(BaseException):
     """
 
 
-# BaseExceptions that are execsql's own control flow, not an interrupt: HALT,
-# a cancelled PROMPT and ``.quit`` raise SystemExit (after exit_now() has run
-# any ON ERROR_HALT / ON CANCEL_HALT script), and BREAK raises _BreakLoop.
-_CONTROL_FLOW = (SystemExit, GeneratorExit, _BreakLoop)
+# BaseExceptions that are execsql's own control flow, not an interrupt:
+# ScriptExit (HALT, a halting error, a cancelled PROMPT or dialog, ``.quit``)
+# and _BreakLoop (BREAK).  Any other BaseException -- KeyboardInterrupt, or a
+# plain SystemExit from a signal handler -- is an interrupt.
+_CONTROL_FLOW = (ScriptExit, _BreakLoop)
 
 
 def _break_has_target(ctx: RuntimeContext) -> bool:

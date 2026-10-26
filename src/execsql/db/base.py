@@ -372,13 +372,15 @@ class Database(ABC):
             try:
                 self.conn.rollback()
             except Exception as e:
-                # Best-effort; connection may already be closed. Still
-                # log so a cascading rollback failure isn't invisible
-                # in a CI / cron log.
-                if _state.exec_log is not None:
-                    _state.exec_log.log_status_info(
-                        f"Rollback failed on {self.__class__.__name__}: {e!r}",
-                    )
+                # Best-effort; connection may already be closed.
+                self._log_failed_rollback(e)
+
+    def _log_failed_rollback(self, e: Exception) -> None:
+        """Log a rollback that failed, so a cascading failure isn't invisible in a CI / cron log."""
+        if _state.exec_log is not None:
+            _state.exec_log.log_status_info(
+                f"Rollback failed on {self.__class__.__name__}: {e!r}",
+            )
 
     def needs_explicit_commit_after_ddl(self) -> bool:
         """Return True if this adapter's driver does NOT auto-commit DDL.

@@ -15,6 +15,7 @@ import time
 from typing import Any, cast
 from collections.abc import Callable
 
+from execsql.exceptions import ScriptExit
 from execsql.gui.base import GuiBackend
 
 # ---------------------------------------------------------------------------
@@ -1513,7 +1514,7 @@ class _TkinterSyncQueue:
         except Exception as exc:
             result = {"error": str(exc), "button": None}
         if result is not None and spec.gui_type in self._EXIT_ON_CANCEL and result.get("button") is None:
-            raise SystemExit(2)
+            raise ScriptExit(2)
         spec.return_queue.put(result if result is not None else {})
 
     def get_nowait(self) -> Any:

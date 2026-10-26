@@ -184,19 +184,45 @@ def test_halt_is_not_an_interrupt(db_file):
     assert _rows(db_file) == ["the caller's own"]
 
 
-def test_duckdb_rollback_outside_a_transaction_does_not_reach_the_driver():
+def test_a_plain_system_exit_is_an_interrupt(db_file):
+    """A SystemExit execsql did not raise to end the run -- its own SIGTERM
+    handler's, or a host program's signal handler's -- is an interrupt."""
+    conn = db_SQLite(str(db_file))
+    with _interrupting(exc=SystemExit(143)):
+        result = run(sql="insert into t values ('interrupted');\n", connection=conn)
+    assert not result.success
+    conn.execute("insert into t values ('the caller''s own');")
+    conn.commit()
+    conn.close()
+    assert _rows(db_file) == ["the caller's own"]
+
+
+def test_duckdb_rolls_back_a_transaction_begun_partway_through_a_statement(tmp_path):
+    pytest.importorskip("duckdb")
+    from execsql.db.factory import db_DuckDB
+
+    db = db_DuckDB(str(tmp_path / "t.duckdb"), new_db=True)
+    try:
+        db.execute("create table t (v integer)")
+        db.commit()
+        db.execute("insert into t values (1); begin transaction; insert into t values (2);")
+        db.rollback()
+        assert db.execute("select v from t order by v", fetch=True)[1] == [(1,)]
+    finally:
+        db.close()
+
+
+def test_duckdb_rollback_outside_a_transaction_is_not_logged_as_failed(tmp_path):
     pytest.importorskip("duckdb")
     from unittest.mock import MagicMock
 
-    from execsql.db.duckdb import DuckDBDatabase
+    import execsql.state as _state
+    from execsql.db.factory import db_DuckDB
 
-    db = object.__new__(DuckDBDatabase)
-    db.conn = MagicMock()
-    db._holder = None
-    db.in_transaction = False
-    db.rollback()
-    db.conn.rollback.assert_not_called()  # DuckDB would raise "no transaction is active"
-    db.in_transaction = True
-    db.rollback()
-    db.conn.rollback.assert_called_once_with()
-    assert db.in_transaction is False
+    db = db_DuckDB(str(tmp_path / "t.duckdb"), new_db=True)
+    _state.exec_log = MagicMock()
+    try:
+        db.rollback()
+    finally:
+        db.close()
+    _state.exec_log.log_status_info.assert_not_called()
