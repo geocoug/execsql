@@ -14,7 +14,9 @@ EXECSQL_MSSQL_DATABASE / EXECSQL_MSSQL_USER / EXECSQL_MSSQL_PASSWORD env vars.
 
 from __future__ import annotations
 
+import contextlib
 import os
+import time
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -63,31 +65,55 @@ _MS_USER = os.environ.get("EXECSQL_MSSQL_USER", "sa")
 _MS_PASS = os.environ.get("EXECSQL_MSSQL_PASSWORD", "ExecSql_Test123!")
 
 
-def _mssql_reachable() -> bool:
+def _test_database_online(curs) -> bool:
+    """Wait up to 30 s for the test database to come online (another worker may be creating it)."""
+    deadline = time.monotonic() + 30
+    while True:
+        curs.execute("SELECT DATABASEPROPERTYEX(?, 'Status')", _MS_DB)
+        if curs.fetchone()[0] == "ONLINE":
+            return True
+        if time.monotonic() > deadline:
+            return False
+        time.sleep(0.5)
+
+
+def _mssql_problem() -> str | None:
+    """Why the test database cannot be used, or None; creates it if missing."""
+    problem = "no ODBC driver could connect"
     for drv in _DRIVERS:
         try:
-            conn = pyodbc.connect(
-                f"DRIVER={{{drv}}};SERVER={_MS_HOST},{_MS_PORT};"
-                f"DATABASE=master;UID={_MS_USER};PWD={_MS_PASS};"
-                f"Encrypt=No;TrustServerCertificate=yes;",
-                timeout=3,
-            )
-            # Ensure the test DB exists; create if missing.
-            conn.autocommit = True
-            curs = conn.cursor()
-            curs.execute(
-                f"IF NOT EXISTS (SELECT 1 FROM sys.databases WHERE name = ?) CREATE DATABASE {_MS_DB};",
-                _MS_DB,
-            )
-            conn.close()
-            return True
-        except Exception:
-            continue
-    return False
+            with contextlib.closing(
+                pyodbc.connect(
+                    f"DRIVER={{{drv}}};SERVER={_MS_HOST},{_MS_PORT};"
+                    f"DATABASE=master;UID={_MS_USER};PWD={_MS_PASS};"
+                    f"Encrypt=No;TrustServerCertificate=yes;",
+                    timeout=3,
+                ),
+            ) as conn:
+                conn.autocommit = True
+                curs = conn.cursor()
+                create_error = None
+                try:
+                    curs.execute(
+                        f"IF NOT EXISTS (SELECT 1 FROM sys.databases WHERE name = ?) CREATE DATABASE {_MS_DB};",
+                        _MS_DB,
+                    )
+                except pyodbc.Error as exc:
+                    # Every xdist worker runs this as it collects the module, and
+                    # of the CREATEs that run at once all but one fail (1801
+                    # "already exists", or a bare HY000).  The database is usable
+                    # once the CREATE that succeeded has brought it online.
+                    create_error = exc
+                if _test_database_online(curs):
+                    return None
+                problem = f"database {_MS_DB} is not online" + (f" ({create_error})" if create_error else "")
+        except Exception as exc:
+            problem = f"{type(exc).__name__}: {exc}"
+    return problem
 
 
-if not _mssql_reachable():
-    _unavailable(f"the SQL Server test instance is not reachable at {_MS_HOST}:{_MS_PORT}")
+if (_problem := _mssql_problem()) is not None:
+    _unavailable(f"the SQL Server test instance at {_MS_HOST}:{_MS_PORT} cannot be used: {_problem}")
 
 
 from execsql.db.sqlserver import SqlServerDatabase  # noqa: E402
