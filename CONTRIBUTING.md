@@ -68,7 +68,7 @@ SQL Server is included only when an ODBC driver for it is installed. A template 
 
 ### Transaction rules: generated scripts
 
-`tests/test_transaction_model.py` checks the transaction rules (batches, `BREAK`, failed commits, `AUTOCOMMIT`, `ERROR_HALT` and an `ON ERROR_HALT` script) against scripts [Hypothesis](https://hypothesis.readthedocs.io/) generates: a small model of one SQLite connection predicts the rows stored, the errors reported and `SQL_ERROR()`, and a mismatch is shrunk to the shortest script that still differs. Each run, CI included, tries 500 new scripts; `EXECSQL_MODEL_EXAMPLES=5000` tries more. When you change a transaction rule, change the model with it; a combination that matters but is rarely generated goes in an `@example`.
+`tests/test_transaction_model.py` checks the transaction rules (batches, `BREAK`, failed commits, `AUTOCOMMIT`, `ERROR_HALT` and an `ON ERROR_HALT` script) against scripts [Hypothesis](https://hypothesis.readthedocs.io/) generates: a small model of one SQLite connection predicts the rows stored, the errors reported and `SQL_ERROR()`, and a mismatch is shrunk to the shortest script that still differs. Each run, CI included, tries 500 new scripts (about 5 s); `EXECSQL_MODEL_EXAMPLES=5000` tries more (about a minute). A failure of this test, in CI too, is a bug in execsql or in the model: add the script it prints as an `@example` and fix one or the other, rather than rerunning. When you change a transaction rule, change the model with it; a combination that matters but is rarely generated goes in an `@example`.
 
 ### Script behavior corpus
 

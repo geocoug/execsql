@@ -207,8 +207,12 @@ class _Model:
                 self._abandon_batch()
             if halt.error and self.handler:
                 self.pending.append(("log", 1))
-                if self.autocommit:
-                    self._commit()
+                # Its commit also commits what plain AUTOCOMMIT ON left held,
+                # and fails on a row that cannot be committed.  That failure
+                # is reported only under ERROR_HALT OFF (the run is already
+                # halting).
+                if self.autocommit and not self._commit() and not self.error_halt:
+                    self.errors += 1
         # The run closes the connection: what was never committed is lost.
         self.pending.clear()
 
@@ -377,11 +381,18 @@ def _stored(db: str) -> list:
 @example((False, False, False, [["ok", ["ok"], "fail_exec"]]))
 @example((False, False, False, [["ok", ["ok"], "meta_fail"], "ok"]))
 # A halt inside a batch rolls it back before the ON ERROR_HALT script commits:
-@example((True, False, True, [["ok", "fail_exec"]]))
 @example((False, True, True, [["ok", "meta_fail"]]))
+# ... whose commit also commits what plain AUTOCOMMIT ON left held, and can fail:
+@example((False, True, True, ["autocommit_off", "fail_commit", "autocommit_on", "meta_fail"]))
 # BREAK leaves the batches inside the loop: rolled back, or joining the one around it:
 @example((False, False, False, [("loop", [["ok", "break"]]), "ok"]))
-@example((False, False, False, [["ok", ("loop", [["ok", "break"]]), "fail_exec"]]))
+@example((False, False, False, [["ok", ("loop", [["ok", "break"]]), "ok"]]))
+# A failure marks every enclosing batch, not only the innermost:
+@example((False, False, False, [["ok", ("loop", [["meta_fail", "break"]]), "ok"]]))
+# ROLLBACK BATCH rolls back only a batch that used the connection:
+@example((False, False, False, [["ok", ["rollback_batch"]]]))
+# END BATCH clears SQL_ERROR():
+@example((False, False, False, ["fail_exec", []]))
 @given(scripts)
 @settings(
     max_examples=int(os.environ.get("EXECSQL_MODEL_EXAMPLES", "500")),
