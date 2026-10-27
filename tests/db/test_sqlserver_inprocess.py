@@ -75,10 +75,18 @@ def _mssql_reachable() -> bool:
             # Ensure the test DB exists; create if missing.
             conn.autocommit = True
             curs = conn.cursor()
-            curs.execute(
-                f"IF NOT EXISTS (SELECT 1 FROM sys.databases WHERE name = ?) CREATE DATABASE {_MS_DB};",
-                _MS_DB,
-            )
+            try:
+                curs.execute(
+                    f"IF NOT EXISTS (SELECT 1 FROM sys.databases WHERE name = ?) CREATE DATABASE {_MS_DB};",
+                    _MS_DB,
+                )
+            except pyodbc.Error:
+                # Every xdist worker runs this as it collects the module: two
+                # can both find the database missing, and the second CREATE
+                # fails.  The database exists either way.
+                curs.execute("SELECT 1 FROM sys.databases WHERE name = ?", _MS_DB)
+                if curs.fetchone() is None:
+                    raise
             conn.close()
             return True
         except Exception:
