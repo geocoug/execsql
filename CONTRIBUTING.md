@@ -66,6 +66,10 @@ just test-templates-down   # removes the containers
 
 SQL Server is included only when an ODBC driver for it is installed. A template bug the tests have found but not yet fixed is marked with `known_bug(...)`, a strict expected failure: the fix makes the test pass, which fails the run until the marker is removed with it.
 
+### Transaction rules: generated scripts
+
+`tests/test_transaction_model.py` checks the transaction rules (batches, failed commits, `AUTOCOMMIT`, `ERROR_HALT`) against scripts [Hypothesis](https://hypothesis.readthedocs.io/) generates: a small model of one SQLite connection predicts the rows stored and the errors reported, and a mismatch is shrunk to the shortest script that still differs. A normal run tries 500 scripts; `HYPOTHESIS_PROFILE=thorough` tries 5000. When you change a transaction rule, change the model with it; a combination that matters but is rarely generated goes in an `@example`.
+
 ### Script behavior corpus
 
 `tests/corpus/` checks that whole scripts do under execsql2 what they did under upstream execsql 1.130.1: the same exit status, console output, files written and table contents. Each case is a directory in `tests/corpus/cases/` holding `script.sql` and the files it reads. Upstream's results are recorded in `tests/corpus/results/`, so the normal test run compares against them without upstream installed. A variable a case checks is `WRITE`n to a file, because upstream has no way to read variables after a run.
