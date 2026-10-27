@@ -384,6 +384,7 @@ def _stored(db: str) -> list:
 @example((False, True, True, [["ok", "meta_fail"]]))
 # ... whose commit also commits what plain AUTOCOMMIT ON left held, and can fail:
 @example((False, True, True, ["autocommit_off", "fail_commit", "autocommit_on", "meta_fail"]))
+@example((True, True, True, ["autocommit_off", "fail_commit", "autocommit_on", "meta_fail"]))
 # BREAK leaves the batches inside the loop: rolled back, or joining the one around it:
 @example((False, False, False, [("loop", [["ok", "break"]]), "ok"]))
 @example((False, False, False, [["ok", ("loop", [["ok", "break"]]), "ok"]]))
