@@ -283,3 +283,84 @@ def test_an_interrupt_is_written_to_the_log():
     ctx = MagicMock()
     _record_interrupt(ctx, "insert into t values (1);", "s.sql", 3, sql=True)
     ctx.exec_log.log_status_info.assert_called_once_with("SQL statement interrupted on line 3 of s.sql.")
+
+
+# The prompt catches Ctrl-C and the script carries on: whatever the interrupt
+# stopped in the typed input, the open batches must not commit.
+
+_BATCH_AT_PROMPT = (
+    "create table t (n integer);\n-- !x! begin batch\ninsert into t values (1);\n"
+    "-- !x! breakpoint\ninsert into t values (2);\n-- !x! end batch\n"
+)
+
+
+@pytest.mark.parametrize(
+    "typed",
+    [
+        ['-- !x! if (hasrows(t)) { write "x" }', ".c"],
+        [
+            "-- !x! begin batch",
+            "insert into t values (9);",
+            '-- !x! if (hasrows(t)) { write "x" }',
+            "-- !x! end batch",
+            ".c",
+        ],
+    ],
+    ids=["condition", "condition-in-a-typed-batch"],
+)
+def test_a_condition_interrupted_at_the_prompt_fails_the_batch(tmp_path, typed):
+    from tests.test_interactive import _paused as paused
+
+    with patch("execsql.script.executor.xcmd_test", side_effect=KeyboardInterrupt):
+        result, out, _, rows = paused(tmp_path, _BATCH_AT_PROMPT, typed)
+    assert "(interrupted)" in out
+    assert not result.success
+    assert rows == []
+
+
+def test_an_interrupted_metacommand_sets_metacommand_error_at_the_prompt(tmp_path):
+    from tests.test_interactive import _paused as paused
+
+    flag = tmp_path / "flag.txt"
+    script = "create table t (n integer);\n-- !x! breakpoint\n"
+    typed = ["-- !x! EXECUTE some_procedure", f'-- !x! if (metacommand_error()) {{ write "set" to {flag} }}', ".c"]
+    with _execute_writes_then_is_interrupted():
+        paused(tmp_path, script, typed)
+    assert flag.read_text() == "set\n"
+
+
+def test_an_interrupted_metacommand_rolls_back_a_connection_that_is_not_current(tmp_path):
+    """What a metacommand wrote on another connection (COPY to an alias opened
+    with CONNECT) must not be stored by that connection's next commit."""
+    import execsql.state as _state
+    from execsql.db.sqlite import SQLiteDatabase
+    from tests.test_interactive import _paused as paused
+
+    other = tmp_path / "other.db"
+
+    def exec_cmd(self, querycommand):
+        _state.dbs.aliased_as("other").conn.execute("insert into o values (1)")
+        raise KeyboardInterrupt
+
+    script = (
+        f"create table t (n integer);\n-- !x! CONNECT TO SQLITE(FILE={other}, NEW) AS other\n"
+        "-- !x! use other\ncreate table o (n integer);\n-- !x! use initial\n-- !x! breakpoint\n"
+    )
+    typed = [
+        "-- !x! EXECUTE some_procedure",
+        "-- !x! use other",
+        "insert into o values (2);",
+        "-- !x! use initial",
+        ".c",
+    ]
+    with patch.object(SQLiteDatabase, "exec_cmd", exec_cmd):
+        paused(tmp_path, script, typed)
+    assert [r[0] for r in sqlite3.connect(other).execute("select n from o order by n")] == [2]
+
+
+def test_a_bare_system_exit_is_reported_without_a_status(db_file):
+    conn = db_SQLite(str(db_file))
+    with _interrupting(exc=SystemExit()):
+        result = run(sql="insert into t values ('interrupted');\n", connection=conn)
+    conn.close()
+    assert result.errors[-1].message == "Script interrupted by SystemExit."

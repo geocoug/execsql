@@ -1323,6 +1323,16 @@ def execute_input(
         ctx.prompt_input = show
         try:
             _execute_nodes(ctx, script.body, script.source)
+        except _CONTROL_FLOW:
+            raise
+        except BaseException:
+            # The prompt catches Ctrl-C and the script carries on, so whatever
+            # the interrupt stopped (a statement, a condition's query, END
+            # BATCH) may have left a batch's work half done or rolled back:
+            # no open batch may commit.
+            assert ctx.status is not None
+            ctx.status.batch.fail_enclosing(f"an interrupt of input typed at {script.source}")
+            raise
         finally:
             ctx.prompt_input = prompt_input
             ctx.last_command = last_command
