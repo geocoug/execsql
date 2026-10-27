@@ -27,6 +27,7 @@ from pathlib import Path
 from typing import Any
 
 import execsql.state as _state
+from execsql.exceptions import ScriptExit
 from execsql.interactive import Prompt, common_dot_command, read_eval_loop, unknown_dot_command
 from execsql.utils.color import color_disabled_by_env
 
@@ -237,7 +238,7 @@ def _handle_dot_command(line: str) -> bool:
     if command in ("continue", "c"):
         return False
     if command in ("abort", "q", "quit"):
-        raise SystemExit(1)
+        raise ScriptExit(1)
     if command in ("next", "n"):
         _enable_step_mode()
         return False

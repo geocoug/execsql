@@ -50,7 +50,7 @@ from pathlib import Path
 from typing import Any, cast
 from collections.abc import Callable
 
-from execsql.exceptions import ErrInfo
+from execsql.exceptions import ErrInfo, ScriptExit
 from execsql.script.ast import (
     BatchBlock,
     Comment,
@@ -67,6 +67,7 @@ from execsql.script.ast import (
     SqlStatement,
 )
 from execsql import manifest as _manifest
+from execsql.script.control import _roll_back
 from execsql.script.parser import substitute_directive
 from execsql.script.engine import set_dynamic_system_vars, set_static_system_vars, substitute_vars
 from execsql.script.variables import ScriptArgSubVarSet, SubVarSet
@@ -304,12 +305,44 @@ def _exec_sql(
             db.commit()
     except Exception as exc:
         e = _as_errinfo(exc)
+    except _CONTROL_FLOW:
+        raise
+    except BaseException:
+        # Interrupted (Ctrl-C) after the statement ran: treat it as a failed
+        # statement, or the next commit stores it -- a BREAKPOINT prompt
+        # carries on, and execsql.run()'s caller keeps the connection.
+        try:
+            _record_interrupt(ctx, cmd, source, line_no, sql=True)
+        finally:
+            dbs.current().rollback()
+        raise
     if e:
         _sql_failed(ctx, e, cmd, source, line_no)
         return
     subvars.add_substitution("$LAST_SQL", cmd)
     if ctx.prompt_input is not None:
         ctx.prompt_input(result)
+
+
+def _record_interrupt(ctx: RuntimeContext, cmd: str, source: str, line_no: int, *, sql: bool) -> None:
+    """Record an interrupted statement or metacommand as a failed one, without halting.
+
+    The interrupt itself ends the run, or the BREAKPOINT prompt that caught
+    it reads the next input.  The open batches fail first, so a second
+    interrupt during the rollback that follows cannot let one commit.
+    """
+    assert ctx.status is not None
+    assert ctx.subvars is not None
+    _fail_open_batches(ctx, source, line_no, what="an interrupt")
+    if sql:
+        ctx.status.sql_error = True
+    else:
+        ctx.status.metacommand_error = True
+    ctx.subvars.add_substitution("$LAST_ERROR", cmd)
+    ctx.subvars.add_substitution("$ERROR_MESSAGE", "Interrupted.")
+    if ctx.exec_log is not None:
+        kind = "SQL statement" if sql else "Metacommand"
+        ctx.exec_log.log_status_info(f"{kind} interrupted on line {line_no} of {source}.")
 
 
 def _sql_failed(ctx: RuntimeContext, e: ErrInfo, cmd: str, source: str, line_no: int) -> None:
@@ -350,17 +383,19 @@ def _as_errinfo(exc: Exception) -> ErrInfo:
     return e
 
 
-def _fail_open_batches(ctx: RuntimeContext, source: str, line_no: int) -> None:
+def _fail_open_batches(ctx: RuntimeContext, source: str, line_no: int | None = None, *, what: str = "an error") -> None:
     """Keep every open batch from committing after an error inside it.
 
     Whatever failed (a statement, a metacommand, or SQL a metacommand ran),
     the batch is not committed: a database error may already have rolled
     back the batch's earlier work, and execsql cannot tell from here whether
-    it did.
+    it did.  *what* names the failure in END BATCH's error, at *line_no* of
+    *source*, or in *source* when there is no line.
     """
     assert ctx.status is not None
     if ctx.status.batch.in_batch():
-        ctx.status.batch.fail_enclosing(f"an error on line {line_no} of {source}")
+        where = f"on line {line_no} of {source}" if line_no is not None else f"in {source}"
+        ctx.status.batch.fail_enclosing(f"{what} {where}")
 
 
 def _metacommand_failed(
@@ -427,6 +462,20 @@ def _exec_metacommand(
             return result
     except Exception as exc:
         e = _as_errinfo(exc)
+    except _CONTROL_FLOW:
+        raise
+    except BaseException:
+        # Interrupted (Ctrl-C): what the metacommand wrote (EXECUTE, IMPORT,
+        # COPY, PG_UPSERT) may wait for a commit that never came.  Each
+        # statement is committed as it runs, so on a connection with
+        # autocommit on that is all that is pending; under AUTOCOMMIT OFF it
+        # joins what the script holds, which the script decides.
+        try:
+            _record_interrupt(ctx, cmd, source, line_no, sql=False)
+        finally:
+            assert ctx.dbs is not None
+            _roll_back([ctx.dbs.aliased_as(alias) for alias in ctx.dbs.aliases()])
+        raise
     if e:
         _metacommand_failed(ctx, cmd, e, source, line_no)
         if (manifest := _manifest.current()) is not None:
@@ -722,6 +771,14 @@ def _execute_batch(
             # include an enclosing batch's statements on a shared connection;
             # _sql_failed keeps that batch from committing the rest.
             _sql_failed(ctx, _as_errinfo(exc), "END BATCH", node.span.file, end_line)
+        except _CONTROL_FLOW:
+            raise
+        except BaseException:
+            # Interrupted during the commit: end_batch has rolled back as for
+            # a failed one, and the enclosing batches must not commit the rest
+            # (a BREAKPOINT prompt carries on after Ctrl-C).
+            _record_interrupt(ctx, "END BATCH", node.span.file, end_line, sql=True)
+            raise
 
 
 def _pre_register_scripts(ctx: RuntimeContext, nodes: list[Node]) -> None:
@@ -1082,6 +1139,13 @@ class _BreakLoop(BaseException):
     """
 
 
+# BaseExceptions that are execsql's own control flow, not an interrupt:
+# ScriptExit (HALT, a halting error, a cancelled PROMPT or dialog, ``.quit``)
+# and _BreakLoop (BREAK).  Any other BaseException -- KeyboardInterrupt, or a
+# plain SystemExit from a signal handler -- is an interrupt.
+_CONTROL_FLOW = (ScriptExit, _BreakLoop)
+
+
 def _break_has_target(ctx: RuntimeContext) -> bool:
     """Whether a BREAK at the current statement has something to leave.
 
@@ -1261,6 +1325,16 @@ def execute_input(
         ctx.prompt_input = show
         try:
             _execute_nodes(ctx, script.body, script.source)
+        except _CONTROL_FLOW:
+            raise
+        except BaseException as exc:
+            # The prompt reports the error or catches Ctrl-C, and the script
+            # carries on, so whatever was stopped (a statement, a condition's
+            # query, END BATCH) may have left a batch's work half done or
+            # rolled back: no open batch may commit.
+            what = "an error" if isinstance(exc, Exception) else "an interrupt"
+            _fail_open_batches(ctx, f"input typed at {script.source}", what=what)
+            raise
         finally:
             ctx.prompt_input = prompt_input
             ctx.last_command = last_command

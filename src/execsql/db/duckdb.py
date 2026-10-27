@@ -266,13 +266,29 @@ class DuckDBDatabase(Database):
             self.in_transaction = False
 
     def rollback(self) -> None:
-        """Roll back the open transaction."""
+        """Roll back the open transaction, if one is open.
+
+        The driver decides whether one is: ``in_transaction`` misses a
+        transaction begun partway through a statement.  Outside a transaction
+        DuckDB has committed each statement as it ran, and its "no transaction
+        is active" error is not logged as a failed rollback.
+        """
+        import duckdb
+
         try:
             self._take_connection()
         except Exception:  # best effort, as the rollback is: a failed transaction may not give up its rows
             self._holder = None
-        super().rollback()
         self.in_transaction = False
+        if self.conn is None:
+            return
+        try:
+            self.conn.rollback()
+        except duckdb.TransactionException as e:
+            if "no transaction is active" not in str(e):
+                self._log_failed_rollback(e)
+        except Exception as e:
+            self._log_failed_rollback(e)
 
     def close(self) -> None:
         """Close the connection; an open transaction is rolled back."""

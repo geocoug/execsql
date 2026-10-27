@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import pytest
+
+from execsql.exceptions import ScriptExit
+
 from unittest.mock import MagicMock, patch
 
 import execsql.state as _state
@@ -56,9 +60,9 @@ class TestExitNowHaltSpecs:
         _state.output = MagicMock()
 
         errinfo = ErrInfo("error", other_msg="test")
-        with patch("execsql.utils.errors.sys.exit"), patch("execsql.utils.fileio.filewriter_end"):
+        with pytest.raises(ScriptExit), patch("execsql.utils.fileio.filewriter_end"):
             exit_now(1, errinfo)
-            mock_writespec.write.assert_called_once()
+        mock_writespec.write.assert_called_once()
 
     def test_err_halt_writespec_failure_logged(self):
         mock_writespec = MagicMock()
@@ -69,17 +73,17 @@ class TestExitNowHaltSpecs:
         _state.exec_log = mock_log
 
         errinfo = ErrInfo("error", other_msg="test")
-        with patch("execsql.utils.errors.sys.exit"), patch("execsql.utils.fileio.filewriter_end"):
+        with pytest.raises(ScriptExit), patch("execsql.utils.fileio.filewriter_end"):
             exit_now(1, errinfo)
-            mock_log.log_status_error.assert_called()
+        mock_log.log_status_error.assert_called()
 
     def test_cancel_halt_writespec_called(self):
         mock_writespec = MagicMock()
         _state.cancel_halt_writespec = mock_writespec
 
-        with patch("execsql.utils.errors.sys.exit"), patch("execsql.utils.fileio.filewriter_end"):
+        with pytest.raises(ScriptExit), patch("execsql.utils.fileio.filewriter_end"):
             exit_now(2, None)
-            mock_writespec.write.assert_called_once()
+        mock_writespec.write.assert_called_once()
 
     def test_cancel_halt_writespec_failure_logged(self):
         mock_writespec = MagicMock()
@@ -88,9 +92,9 @@ class TestExitNowHaltSpecs:
         mock_log = MagicMock()
         _state.exec_log = mock_log
 
-        with patch("execsql.utils.errors.sys.exit"), patch("execsql.utils.fileio.filewriter_end"):
+        with pytest.raises(ScriptExit), patch("execsql.utils.fileio.filewriter_end"):
             exit_now(2, None)
-            mock_log.log_status_error.assert_called()
+        mock_log.log_status_error.assert_called()
 
     def test_err_halt_email_called(self):
         mock_mail = MagicMock()
@@ -98,9 +102,9 @@ class TestExitNowHaltSpecs:
         _state.output = MagicMock()
 
         errinfo = ErrInfo("error", other_msg="test")
-        with patch("execsql.utils.errors.sys.exit"), patch("execsql.utils.fileio.filewriter_end"):
+        with pytest.raises(ScriptExit), patch("execsql.utils.fileio.filewriter_end"):
             exit_now(1, errinfo)
-            mock_mail.send.assert_called_once()
+        mock_mail.send.assert_called_once()
 
     def test_err_halt_email_failure_logged(self):
         mock_mail = MagicMock()
@@ -111,17 +115,17 @@ class TestExitNowHaltSpecs:
         _state.exec_log = mock_log
 
         errinfo = ErrInfo("error", other_msg="test")
-        with patch("execsql.utils.errors.sys.exit"), patch("execsql.utils.fileio.filewriter_end"):
+        with pytest.raises(ScriptExit), patch("execsql.utils.fileio.filewriter_end"):
             exit_now(1, errinfo)
-            mock_log.log_status_error.assert_called()
+        mock_log.log_status_error.assert_called()
 
     def test_cancel_halt_mailspec_called(self):
         mock_mail = MagicMock()
         _state.cancel_halt_mailspec = mock_mail
 
-        with patch("execsql.utils.errors.sys.exit"), patch("execsql.utils.fileio.filewriter_end"):
+        with pytest.raises(ScriptExit), patch("execsql.utils.fileio.filewriter_end"):
             exit_now(2, None)
-            mock_mail.send.assert_called_once()
+        mock_mail.send.assert_called_once()
 
     def test_cancel_halt_mailspec_failure_logged(self):
         mock_mail = MagicMock()
@@ -130,9 +134,9 @@ class TestExitNowHaltSpecs:
         mock_log = MagicMock()
         _state.exec_log = mock_log
 
-        with patch("execsql.utils.errors.sys.exit"), patch("execsql.utils.fileio.filewriter_end"):
+        with pytest.raises(ScriptExit), patch("execsql.utils.fileio.filewriter_end"):
             exit_now(2, None)
-            mock_log.log_status_error.assert_called()
+        mock_log.log_status_error.assert_called()
 
     def test_err_halt_exec_runs_script(self):
         mock_exec = MagicMock()
@@ -142,12 +146,12 @@ class TestExitNowHaltSpecs:
 
         errinfo = ErrInfo("error", other_msg="test")
         with (
-            patch("execsql.utils.errors.sys.exit"),
+            pytest.raises(ScriptExit),
             patch("execsql.utils.fileio.filewriter_end"),
             patch("execsql.utils.errors._run_deferred_script") as mock_run,
         ):
             exit_now(1, errinfo)
-            mock_run.assert_called_once_with(mock_exec)
+        mock_run.assert_called_once_with(mock_exec)
 
     def test_cancel_halt_exec_runs_script(self):
         mock_exec = MagicMock()
@@ -155,12 +159,12 @@ class TestExitNowHaltSpecs:
         _state.ast_exec_stack = []
 
         with (
-            patch("execsql.utils.errors.sys.exit"),
+            pytest.raises(ScriptExit),
             patch("execsql.utils.fileio.filewriter_end"),
             patch("execsql.utils.errors._run_deferred_script") as mock_run,
         ):
             exit_now(2, None)
-            mock_run.assert_called_once_with(mock_exec)
+        mock_run.assert_called_once_with(mock_exec)
 
     def test_cancel_halt_rolls_back_open_batches_before_its_script(self):
         from execsql.script.control import BatchLevels
@@ -177,7 +181,7 @@ class TestExitNowHaltSpecs:
             db.rollback.assert_called_once_with()
 
         with (
-            patch("execsql.utils.errors.sys.exit"),
+            pytest.raises(ScriptExit),
             patch("execsql.utils.fileio.filewriter_end"),
             patch("execsql.utils.errors._run_deferred_script", side_effect=script_runs) as mock_run,
         ):
@@ -194,7 +198,7 @@ class TestExitNowHaltSpecs:
         _state.status.batch.using_db(db)
         _state.output = MagicMock()
 
-        with patch("execsql.utils.errors.sys.exit"), patch("execsql.utils.fileio.filewriter_end"):
+        with pytest.raises(ScriptExit), patch("execsql.utils.fileio.filewriter_end"):
             exit_now(1, ErrInfo("error", other_msg="test"))
         assert not _state.status.batch.in_batch()
         db.rollback.assert_not_called()
@@ -208,14 +212,14 @@ class TestExitNowHaltSpecs:
 
         errinfo = ErrInfo("error", other_msg="test")
         with (
-            patch("execsql.utils.errors.sys.exit"),
+            pytest.raises(ScriptExit),
             patch("execsql.utils.fileio.filewriter_end"),
             patch("execsql.utils.gui.gui_console_isrunning", return_value=True),
             patch("execsql.utils.gui.gui_console_wait_user") as mock_wait,
             patch("execsql.utils.gui.gui_console_off"),
         ):
             exit_now(1, errinfo)
-            mock_wait.assert_called_once()
+        mock_wait.assert_called_once()
 
     def test_gui_console_wait_on_exit(self):
         _state.conf = MagicMock()
@@ -223,11 +227,11 @@ class TestExitNowHaltSpecs:
         _state.conf.gui_wait_on_exit = True
 
         with (
-            patch("execsql.utils.errors.sys.exit"),
+            pytest.raises(ScriptExit),
             patch("execsql.utils.fileio.filewriter_end"),
             patch("execsql.utils.gui.gui_console_isrunning", return_value=True),
             patch("execsql.utils.gui.gui_console_wait_user") as mock_wait,
             patch("execsql.utils.gui.gui_console_off"),
         ):
             exit_now(0, None)
-            mock_wait.assert_called_once()
+        mock_wait.assert_called_once()

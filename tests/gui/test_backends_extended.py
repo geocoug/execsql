@@ -181,11 +181,13 @@ class TestTextualSyncQueue:
         assert "error" in resp
         assert "boom" in resp["error"]
 
-    def test_cancelled_result_raises_system_exit(self, queue) -> None:
+    def test_cancelled_result_raises_script_exit(self, queue) -> None:
+        from execsql.exceptions import ScriptExit
+
         spec = _FakeSpec("msg", {"message": "hi"})
         with patch("execsql.gui.tui._SingleDialogApp") as mock_app:
             mock_app.return_value.run.return_value = {"cancelled": True}
-            with pytest.raises(SystemExit) as exc:
+            with pytest.raises(ScriptExit) as exc:
                 queue.put(spec)
         assert exc.value.code == 2
 
@@ -225,6 +227,40 @@ class TestConsoleDialogQueue:
         spec = _FakeSpec("msg")
         cdq.put(spec)
         assert cdq.get(block=True, timeout=0.1) is spec
+
+
+class TestConsoleAppDialogCancel:
+    def test_a_cancelled_dialog_stops_the_script_thread_with_script_exit(self) -> None:
+        """The cancel is execsql ending the run, not an interrupt of the statement."""
+        pytest.importorskip("textual")
+        import asyncio
+        import ctypes
+        import threading
+
+        from execsql.exceptions import ScriptExit
+        from execsql.gui.tui import ConsoleApp
+
+        app = object.__new__(ConsoleApp)
+        spec = _FakeSpec("msg", {"message": "hi"})
+        app._dialog_queue = _stdlib_queue.Queue()
+        app._dialog_queue.put(spec)
+        app._screen_map = {"msg": lambda args: None}
+        release = threading.Event()
+        app._script_thread = threading.Thread(target=release.wait, args=(10,))
+        app._script_thread.start()
+
+        async def push_screen_wait(screen):
+            return {"cancelled": True}
+
+        app.push_screen_wait = push_screen_wait
+        app.run_worker = lambda work, **kwargs: asyncio.run(work())
+        try:
+            with patch.object(ctypes.pythonapi, "PyThreadState_SetAsyncExc") as inject:
+                app._poll_dialog_queue()
+        finally:
+            release.set()
+            app._script_thread.join(10)
+        assert inject.call_args.args[1].value is ScriptExit
 
 
 # ---------------------------------------------------------------------------
@@ -409,11 +445,13 @@ class TestTkinterSyncQueue:
         resp = spec.return_queue.get_nowait()
         assert "error" in resp and "boom" in resp["error"]
 
-    def test_cancel_triggers_system_exit(self, queue) -> None:
+    def test_cancel_triggers_script_exit(self, queue) -> None:
+        from execsql.exceptions import ScriptExit
+
         q, backend = queue
         backend.dispatch.return_value = {"button": None}
         spec = _FakeSpec("msg", {"message": "hi"})
-        with pytest.raises(SystemExit) as exc:
+        with pytest.raises(ScriptExit) as exc:
             q.put(spec)
         assert exc.value.code == 2
 
