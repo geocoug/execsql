@@ -75,9 +75,10 @@ def minimal_conf():
     )
     yield _state.conf
     # A CLI run invoked in-process (CliRunner) leaves its file writer running
-    # (the CLI stops it at process exit), and reset() keeps the writer, as a
-    # run relies on, so it would outlive this test and be reused by the next
-    # CLI run.  Stop it here, so no test leaves a writer thread behind.
+    # (the CLI stops it at process exit), and reset() keeps a live writer (it
+    # is atexit-managed and must not be discarded while alive), so it would
+    # outlive this test and be reused by the next CLI run.  Stop it here, so
+    # no test leaves a writer thread behind.
     if _state.filewriter is not None:
         from execsql.utils.fileio import filewriter_end
 
