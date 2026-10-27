@@ -315,6 +315,18 @@ def test_a_condition_interrupted_at_the_prompt_fails_the_batch(tmp_path, typed):
         result, out, _, rows = paused(tmp_path, _BATCH_AT_PROMPT, typed)
     assert "(interrupted)" in out
     assert not result.success
+    assert "The batch was not committed: an interrupt in input typed at <breakpoint>." in result.errors[-1].message
+    assert rows == []
+
+
+def test_an_error_typed_at_the_prompt_that_skips_the_error_handling_fails_the_batch(tmp_path):
+    """A substitution cycle fails before the statement runs, so no SQL error is
+    recorded; the batch still must not commit, and END BATCH says it was an error."""
+    from tests.test_interactive import _paused as paused
+
+    typed = ["-- !x! sub a !!b!!", "-- !x! sub b !!a!!", "select '!!a!!';", ".c"]
+    result, _, _, rows = paused(tmp_path, _BATCH_AT_PROMPT, typed)
+    assert "The batch was not committed: an error in input typed at <breakpoint>." in result.errors[-1].message
     assert rows == []
 
 
@@ -358,9 +370,10 @@ def test_an_interrupted_metacommand_rolls_back_a_connection_that_is_not_current(
     assert [r[0] for r in sqlite3.connect(other).execute("select n from o order by n")] == [2]
 
 
-def test_a_bare_system_exit_is_reported_without_a_status(db_file):
+@pytest.mark.parametrize("exc", [SystemExit(), SystemExit("terminated by the supervisor")])
+def test_a_system_exit_without_a_number_is_reported_without_a_status(db_file, exc):
     conn = db_SQLite(str(db_file))
-    with _interrupting(exc=SystemExit()):
+    with _interrupting(exc=exc):
         result = run(sql="insert into t values ('interrupted');\n", connection=conn)
     conn.close()
     assert result.errors[-1].message == "Script interrupted by SystemExit."

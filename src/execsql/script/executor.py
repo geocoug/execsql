@@ -383,17 +383,19 @@ def _as_errinfo(exc: Exception) -> ErrInfo:
     return e
 
 
-def _fail_open_batches(ctx: RuntimeContext, source: str, line_no: int) -> None:
+def _fail_open_batches(ctx: RuntimeContext, source: str, line_no: int | None = None, *, what: str = "an error") -> None:
     """Keep every open batch from committing after an error inside it.
 
     Whatever failed (a statement, a metacommand, or SQL a metacommand ran),
     the batch is not committed: a database error may already have rolled
     back the batch's earlier work, and execsql cannot tell from here whether
-    it did.
+    it did.  *what* names the failure in END BATCH's error, at *line_no* of
+    *source*, or in *source* when there is no line.
     """
     assert ctx.status is not None
     if ctx.status.batch.in_batch():
-        ctx.status.batch.fail_enclosing(f"an error on line {line_no} of {source}")
+        where = f"on line {line_no} of {source}" if line_no is not None else f"in {source}"
+        ctx.status.batch.fail_enclosing(f"{what} {where}")
 
 
 def _metacommand_failed(
@@ -1325,13 +1327,13 @@ def execute_input(
             _execute_nodes(ctx, script.body, script.source)
         except _CONTROL_FLOW:
             raise
-        except BaseException:
-            # The prompt catches Ctrl-C and the script carries on, so whatever
-            # the interrupt stopped (a statement, a condition's query, END
-            # BATCH) may have left a batch's work half done or rolled back:
-            # no open batch may commit.
-            assert ctx.status is not None
-            ctx.status.batch.fail_enclosing(f"an interrupt of input typed at {script.source}")
+        except BaseException as exc:
+            # The prompt reports the error or catches Ctrl-C, and the script
+            # carries on, so whatever was stopped (a statement, a condition's
+            # query, END BATCH) may have left a batch's work half done or
+            # rolled back: no open batch may commit.
+            what = "an error" if isinstance(exc, Exception) else "an interrupt"
+            _fail_open_batches(ctx, f"input typed at {script.source}", what=what)
             raise
         finally:
             ctx.prompt_input = prompt_input
