@@ -333,7 +333,7 @@ def _record_interrupt(ctx: RuntimeContext, cmd: str, source: str, line_no: int, 
     """
     assert ctx.status is not None
     assert ctx.subvars is not None
-    _fail_open_batches(ctx, source, line_no)
+    _fail_open_batches(ctx, source, line_no, what="an interrupt")
     if sql:
         ctx.status.sql_error = True
     else:

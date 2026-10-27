@@ -659,7 +659,7 @@ def _capture_errors(
     err = ctx.halt_error
     if err is None and interrupted:
         msg = "Script interrupted by SystemExit" + (
-            f" with exit status {exit_code}." if isinstance(exit_code, int) else "."
+            f" with exit status {exit_code}." if type(exit_code) is int else "."
         )
     elif err is None:
         msg = f"Script halted by HALT with exit status {exit_code}."

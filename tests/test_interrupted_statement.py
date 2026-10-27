@@ -107,7 +107,7 @@ def test_a_statement_interrupted_at_the_prompt_inside_a_batch_fails_the_batch(tm
     # Database.execute() runs: create table, insert 1, the typed insert (interrupted).
     result, _, _, rows = _paused(tmp_path, script, ["insert into t values (9);", ".c"], nth=3)
     assert not result.success
-    assert "The batch was not committed: an error on line 1 of <breakpoint>." in result.errors[-1].message
+    assert "The batch was not committed: an interrupt on line 1 of <breakpoint>." in result.errors[-1].message
     assert rows == []
 
 
@@ -370,7 +370,7 @@ def test_an_interrupted_metacommand_rolls_back_a_connection_that_is_not_current(
     assert [r[0] for r in sqlite3.connect(other).execute("select n from o order by n")] == [2]
 
 
-@pytest.mark.parametrize("exc", [SystemExit(), SystemExit("terminated by the supervisor")])
+@pytest.mark.parametrize("exc", [SystemExit(), SystemExit("terminated by the supervisor"), SystemExit(True)])
 def test_a_system_exit_without_a_number_is_reported_without_a_status(db_file, exc):
     conn = db_SQLite(str(db_file))
     with _interrupting(exc=exc):

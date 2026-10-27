@@ -16,6 +16,7 @@ ______________________________________________________________________
 - **An SQL statement or metacommand interrupted before its commit** (Ctrl-C at a `BREAKPOINT` prompt or in a notebook running `execsql.run()`, or a `SystemExit` that a program's signal handler raises during `execsql.run()`) is rolled back, as a failed one is: an SQL statement rolls back its connection's open transaction, and a metacommand its writes unless `AUTOCOMMIT` is `OFF`, where they stay with what the script holds. The next commit on the connection stored what it had done.
 - **An interrupted SQL statement or metacommand** sets `SQL_ERROR()` or `METACOMMAND_ERROR()`, which a `BREAKPOINT` prompt can test.
 - **An interrupt inside `BEGIN BATCH`**, whether it stops a statement, a metacommand, an `IF` or `LOOP` condition, or the `END BATCH` commit, keeps that batch and the batches around it from committing.
+- **An error in input typed at a `BREAKPOINT` prompt inside `BEGIN BATCH`** that is not an SQL or metacommand error, such as substitution variables that refer to each other, keeps the batch from committing, as the same error in the script does; the batch committed.
 - **`execsql.log`** records an interrupted SQL statement or metacommand, with its line.
 - **`execsql.run()` ended by a signal handler's `SystemExit`** reports "Script interrupted by SystemExit with exit status N."; it said "Script halted by HALT".
 - **A DuckDB rollback with no transaction open** no longer writes "Rollback failed … no transaction is active" to `execsql.log`.
