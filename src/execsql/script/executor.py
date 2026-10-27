@@ -67,6 +67,7 @@ from execsql.script.ast import (
     SqlStatement,
 )
 from execsql import manifest as _manifest
+from execsql.script.control import _roll_back
 from execsql.script.parser import substitute_directive
 from execsql.script.engine import set_dynamic_system_vars, set_static_system_vars, substitute_vars
 from execsql.script.variables import ScriptArgSubVarSet, SubVarSet
@@ -339,6 +340,9 @@ def _record_interrupt(ctx: RuntimeContext, cmd: str, source: str, line_no: int, 
         ctx.status.metacommand_error = True
     ctx.subvars.add_substitution("$LAST_ERROR", cmd)
     ctx.subvars.add_substitution("$ERROR_MESSAGE", "Interrupted.")
+    if ctx.exec_log is not None:
+        kind = "SQL statement" if sql else "Metacommand"
+        ctx.exec_log.log_status_info(f"{kind} interrupted on line {line_no} of {source}.")
 
 
 def _sql_failed(ctx: RuntimeContext, e: ErrInfo, cmd: str, source: str, line_no: int) -> None:
@@ -468,9 +472,7 @@ def _exec_metacommand(
             _record_interrupt(ctx, cmd, source, line_no, sql=False)
         finally:
             assert ctx.dbs is not None
-            for alias in ctx.dbs.aliases():
-                if (db := ctx.dbs.aliased_as(alias)).autocommit:
-                    db.rollback()
+            _roll_back([ctx.dbs.aliased_as(alias) for alias in ctx.dbs.aliases()])
         raise
     if e:
         _metacommand_failed(ctx, cmd, e, source, line_no)
@@ -767,6 +769,14 @@ def _execute_batch(
             # include an enclosing batch's statements on a shared connection;
             # _sql_failed keeps that batch from committing the rest.
             _sql_failed(ctx, _as_errinfo(exc), "END BATCH", node.span.file, end_line)
+        except _CONTROL_FLOW:
+            raise
+        except BaseException:
+            # Interrupted during the commit: end_batch has rolled back as for
+            # a failed one, and the enclosing batches must not commit the rest
+            # (a BREAKPOINT prompt carries on after Ctrl-C).
+            _record_interrupt(ctx, "END BATCH", node.span.file, end_line, sql=True)
+            raise
 
 
 def _pre_register_scripts(ctx: RuntimeContext, nodes: list[Node]) -> None:

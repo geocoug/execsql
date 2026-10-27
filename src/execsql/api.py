@@ -39,7 +39,7 @@ from typing import Any, cast
 
 from execsql.cli.dsn import _parse_connection_string
 from execsql.config import ConfigData, StatObj, WriteHooks
-from execsql.exceptions import ErrInfo
+from execsql.exceptions import ErrInfo, ScriptExit
 from execsql.state import RuntimeContext, active_context
 
 __all__ = ["run", "ScriptResult", "ScriptError"]
@@ -539,8 +539,9 @@ def run(
             try:
                 execute(tree, ctx=ctx)
             except SystemExit as exc:
-                # exit_now() calls sys.exit() — catch and convert to error
-                _capture_errors(ctx, errors, exc.code)
+                # exit_now() raises ScriptExit; any other SystemExit (a signal
+                # handler's) interrupted the run.  Either is reported as an error.
+                _capture_errors(ctx, errors, exc.code, interrupted=not isinstance(exc, ScriptExit))
             except ErrInfo as exc:
                 errors.append(
                     ScriptError(
@@ -638,7 +639,13 @@ def _start_filewriter(ctx: RuntimeContext, conf: Any) -> None:
     ctx.filewriter.start()
 
 
-def _capture_errors(ctx: RuntimeContext, errors: list[ScriptError], exit_code: Any) -> None:
+def _capture_errors(
+    ctx: RuntimeContext,
+    errors: list[ScriptError],
+    exit_code: Any,
+    *,
+    interrupted: bool = False,
+) -> None:
     """Record the error that halted the run, after ``exit_now()`` raised ``SystemExit``.
 
     ``exit_now`` leaves the halting :class:`ErrInfo` on the context, and any
@@ -646,10 +653,13 @@ def _capture_errors(ctx: RuntimeContext, errors: list[ScriptError], exit_code: A
     SQL statement's text is in ``$LAST_ERROR``, which the executor sets just
     before halting; it is reported only when the halt came from SQL, so a
     metacommand error is never paired with an earlier statement.  A ``HALT``
-    carries no error, only its exit status.
+    carries no error, only its exit status; nor does a run *interrupted* by a
+    ``SystemExit`` that execsql did not raise (a signal handler's).
     """
     err = ctx.halt_error
-    if err is None:
+    if err is None and interrupted:
+        msg = f"Script interrupted by SystemExit with exit status {exit_code}."
+    elif err is None:
         msg = f"Script halted by HALT with exit status {exit_code}."
     else:
         msg = err.errmsg()

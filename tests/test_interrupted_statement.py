@@ -121,6 +121,32 @@ def test_the_prompt_reports_the_interrupt_through_sql_error(tmp_path):
     assert out.read_text().splitlines() == ["insert into t values (1);: Interrupted."]
 
 
+def test_end_batch_interrupted_at_the_prompt_fails_the_enclosing_batch(tmp_path):
+    from execsql.db.base import Database
+    from tests.test_interactive import _paused as paused
+
+    real_commit = Database.commit
+    commits = []
+
+    def commit(self):
+        commits.append(self)
+        if len(commits) == 2:  # the typed END BATCH (the first is the create table)
+            self.rollback()  # as Database.commit() does when its commit is interrupted
+            raise KeyboardInterrupt
+        return real_commit(self)
+
+    script = (
+        "create table t (n integer);\n-- !x! begin batch\ninsert into t values (1);\n"
+        "-- !x! breakpoint\ninsert into t values (2);\n-- !x! end batch\n"
+    )
+    typed = ["-- !x! begin batch", "insert into t values (9);", "-- !x! end batch", ".c"]
+    with patch.object(Database, "commit", commit):
+        result, out, _, rows = paused(tmp_path, script, typed)
+    assert "(interrupted)" in out
+    assert not result.success
+    assert rows == []  # not the outer batch's insert 2 alone
+
+
 # A metacommand that writes is interrupted the same way: EXECUTE runs a
 # procedure that writes, and the interrupt lands before EXECUTE commits.
 
@@ -150,6 +176,8 @@ def test_under_autocommit_off_an_interrupted_metacommands_writes_stay_with_the_s
     sql = "-- !x! AUTOCOMMIT OFF\ninsert into t values ('held');\n-- !x! EXECUTE some_procedure\n"
     with _execute_writes_then_is_interrupted(), pytest.raises(KeyboardInterrupt):
         run(sql=sql, connection=conn)
+    held = [r[0] for r in conn.execute("select v from t order by v", fetch=True)[1]]
+    assert held == ["from EXECUTE", "held"]  # not rolled back by execsql
     conn.rollback()  # what the docs tell a caller to do after an interrupt
     conn.close()
     assert _rows(db_file) == []
@@ -184,6 +212,24 @@ def test_halt_is_not_an_interrupt(db_file):
     assert _rows(db_file) == ["the caller's own"]
 
 
+def test_quit_typed_at_the_prompt_is_not_an_interrupt(db_file):
+    """``.quit`` ends the run on purpose: the caller's own work is left alone."""
+    conn = db_SQLite(str(db_file))
+    conn.execute("insert into t values ('the caller''s own');")  # not committed yet
+    with (
+        patch("sys.stdin.isatty", return_value=True),
+        patch("builtins.input", side_effect=[".quit"]),
+        patch("execsql.debug.repl._write"),
+        patch("execsql.debug.repl._use_color", return_value=False),
+    ):
+        result = run(sql="-- !x! breakpoint\n", connection=conn)
+    assert not result.success
+    assert result.variables.get("ERROR_MESSAGE", "") == ""
+    conn.commit()
+    conn.close()
+    assert _rows(db_file) == ["the caller's own"]
+
+
 def test_a_plain_system_exit_is_an_interrupt(db_file):
     """A SystemExit execsql did not raise to end the run -- its own SIGTERM
     handler's, or a host program's signal handler's -- is an interrupt."""
@@ -191,6 +237,7 @@ def test_a_plain_system_exit_is_an_interrupt(db_file):
     with _interrupting(exc=SystemExit(143)):
         result = run(sql="insert into t values ('interrupted');\n", connection=conn)
     assert not result.success
+    assert result.errors[-1].message == "Script interrupted by SystemExit with exit status 143."
     conn.execute("insert into t values ('the caller''s own');")
     conn.commit()
     conn.close()
@@ -226,3 +273,13 @@ def test_duckdb_rollback_outside_a_transaction_is_not_logged_as_failed(tmp_path)
     finally:
         db.close()
     _state.exec_log.log_status_info.assert_not_called()
+
+
+def test_an_interrupt_is_written_to_the_log():
+    from unittest.mock import MagicMock
+
+    from execsql.script.executor import _record_interrupt
+
+    ctx = MagicMock()
+    _record_interrupt(ctx, "insert into t values (1);", "s.sql", 3, sql=True)
+    ctx.exec_log.log_status_info.assert_called_once_with("SQL statement interrupted on line 3 of s.sql.")
