@@ -13,24 +13,31 @@ connection, and Hypothesis generates scripts from these operations:
 - a ``LOOP`` that runs once, and ``BREAK`` inside it;
 - ``AUTOCOMMIT OFF`` / ``ON`` / ``ON WITH COMMIT`` / ``ON WITH ROLLBACK``, outside batches;
 - ``HALT``;
+- an interrupt (#139) right after an insert ran, in a metacommand after it
+  wrote (``EXECUTE``), or in the next commit on the connection;
 - ``ERROR_HALT`` and ``METACOMMAND_ERROR_HALT``, on or off for the whole
-  script, and an ``ON ERROR_HALT`` script that stores a row of its own or none.
+  script, an ``ON ERROR_HALT`` script that stores a row of its own or none,
+  and whether interrupts are ``KeyboardInterrupt`` (raised out of ``run()``)
+  or a plain ``SystemExit`` (execsql's SIGTERM handler: a failed result).
 
-After each script the rows stored, the run's success, the number of errors
-reported and, if the script ran to its end, ``SQL_ERROR()`` must be what the
-model predicts.  On a mismatch Hypothesis shrinks the script to the shortest
-one that still differs: that script is the bug report.
+The script runs on the test's own connection, as ``execsql.run(connection=)``
+does for a caller that keeps it, and the interrupts come from that
+connection.  After each script the rows stored, the rows still pending on
+the connection, how the run ended, the number of errors reported and, if the
+script ran to its end, ``SQL_ERROR()`` must be what the model predicts.  On a
+mismatch Hypothesis shrinks the script to the shortest one that still
+differs: that script is the bug report.
 
 The rules modelled are the CLAUDE.md decisions "Batches left early" (#121),
 "Batch rules" (#125) and #135's "a failed commit is rolled back", with the
 documented behavior of nested batches: an inner END BATCH commits everything
 pending on its connection, the outer batch's statements included
-(docs/reference/metacommands.md, "BEGIN BATCH and END BATCH").  SQLite
-throws away uncommitted work when the run closes the connection, so what a
-halt rolls back shows only through the ON ERROR_HALT script's commit.
+(docs/reference/metacommands.md, "BEGIN BATCH and END BATCH"), and
+"Interrupted statements" (#139).
 
-Not modelled: interrupts (#139), and a batch spanning two databases (one
-commit failing after another succeeded); hand-written tests cover those.
+Not modelled: a batch spanning two databases (one commit failing after
+another succeeded), and an interrupt at a BREAKPOINT prompt, where the run
+carries on; hand-written tests cover those.
 
 Each run tries 500 new scripts, plus the fixed examples below;
 ``EXECSQL_MODEL_EXAMPLES=5000`` tries more.
@@ -39,24 +46,30 @@ Each run tries 500 new scripts, plus the fixed examples below;
 from __future__ import annotations
 
 import contextlib
+import functools
 import itertools
 import os
+import re
 import sqlite3
 import tempfile
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from hypothesis import HealthCheck, example, given, settings
 from hypothesis import strategies as st
 
 from execsql import run
+from execsql.db.sqlite import SQLiteDatabase
 
 # ---------------------------------------------------------------------------
 # Scripts
 # ---------------------------------------------------------------------------
 
 #: Operations that are statements or metacommands (leaves of the script),
-#: repeated to weight them: HALT ends the script, so it is rare.
+#: repeated to weight them: HALT and the interrupts end the script, so they
+#: are rare.
 _ANYWHERE = ["ok"] * 6 + ["fail_exec"] * 2 + ["fail_commit"] * 2 + ["meta_fail"] * 2 + ["halt"]
+_ANYWHERE += ["interrupt_sql", "interrupt_meta", "interrupt_commit"]
 _IN_BATCH = ["rollback_batch"] * 2
 _IN_LOOP = ["break"] * 2
 _AUTOCOMMIT = ["autocommit_off", "autocommit_on", "autocommit_on_commit", "autocommit_on_rollback"]
@@ -82,10 +95,15 @@ scripts = st.tuples(
     st.booleans(),  # ERROR_HALT
     st.booleans(),  # METACOMMAND_ERROR_HALT
     st.booleans(),  # an ON ERROR_HALT script
+    st.booleans(),  # interrupts are a plain SystemExit, not KeyboardInterrupt
     st.lists(_segment, min_size=1, max_size=4).map(
         lambda segments: [op for switch, body in segments for op in ([switch] if switch else []) + body],
     ),
 )
+
+
+#: Operations that store a row of their own.
+_NUMBERED = ("ok", "fail_commit", "interrupt_sql", "interrupt_meta")
 
 
 def _number(ops: list) -> list:
@@ -100,7 +118,7 @@ def _number(ops: list) -> list:
             elif isinstance(op, tuple):
                 nodes.append(("loop", next(loops), walk(op[1])))
             else:
-                nodes.append((op, next(values) if op in ("ok", "fail_commit") else None, None))
+                nodes.append((op, next(values) if op in _NUMBERED else None, None))
         return nodes
 
     return walk(ops)
@@ -112,6 +130,10 @@ _LINES = {
     "fail_commit": "insert into child values ({n});",
     "meta_fail": "-- !x! CD {missing_dir}",
     "halt": "-- !x! HALT",
+    # _Connection raises the interrupts these ask for.
+    "interrupt_sql": "insert into interrupted values ({n});",
+    "interrupt_meta": "-- !x! EXECUTE interrupt_{n}",
+    "interrupt_commit": "select 'interrupt the next commit';",
     "rollback_batch": "-- !x! ROLLBACK BATCH",
     "break": "-- !x! BREAK",
     "autocommit_off": "-- !x! AUTOCOMMIT OFF",
@@ -122,7 +144,7 @@ _LINES = {
 
 
 def _render(script: tuple, nodes: list, tmp: str) -> str:
-    error_halt, metacommand_halt, handler, _ = script
+    error_halt, metacommand_halt, handler, _, _ = script
     lines = [
         f"-- !x! ERROR_HALT {'ON' if error_halt else 'OFF'}",
         f"-- !x! METACOMMAND_ERROR_HALT {'ON' if metacommand_halt else 'OFF'}",
@@ -174,6 +196,10 @@ class _Break(Exception):
     pass
 
 
+class _Interrupted(Exception):
+    pass
+
+
 @dataclass
 class _Batch:
     failed: bool = False
@@ -186,7 +212,11 @@ class _Model:
     error_halt: bool
     metacommand_halt: bool
     handler: bool
+    #: Whether interrupts are a plain SystemExit (else KeyboardInterrupt).
+    sigterm: bool
     autocommit: bool = True
+    #: Whether the next commit on the connection is interrupted.
+    armed: bool = False
     #: Rows stored, as (table, value).
     committed: list = field(default_factory=list)
     #: Rows run but not committed on the connection.
@@ -196,30 +226,47 @@ class _Model:
     sql_error: bool = False
     #: Whether the script ran to its end.
     finished: bool = False
+    #: Whether an interrupt ended the run (raised out of run() unless sigterm).
+    interrupted: bool = False
 
     def run(self, nodes: list) -> None:
+        halting = False
         try:
-            self._body(nodes)
-            self.finished = True
-        except _Halted as halt:
-            # exit_now abandons every open batch, then runs ON ERROR_HALT.
-            while self.batches:
-                self._abandon_batch()
-            if halt.error and self.handler:
-                self.pending.append(("log", 1))
-                # Its commit also commits what plain AUTOCOMMIT ON left held,
-                # and fails on a row that cannot be committed.  That failure
-                # is reported only under ERROR_HALT OFF (the run is already
-                # halting).
-                if self.autocommit and not self._commit() and not self.error_halt:
-                    self.errors += 1
-        # The run closes the connection: what was never committed is lost.
-        self.pending.clear()
+            try:
+                self._body(nodes)
+                self.finished = True
+            except _Halted as halt:
+                halting = True
+                # exit_now abandons every open batch, then runs ON ERROR_HALT.
+                self._abandon_all()
+                if halt.error and self.handler:
+                    self.pending.append(("log", 1))
+                    # Its commit also commits what plain AUTOCOMMIT ON left
+                    # held, and fails on a row that cannot be committed.  That
+                    # failure is reported only under ERROR_HALT OFF (the run
+                    # is already halting).
+                    if self.autocommit and not self._commit() and not self.error_halt:
+                        self.errors += 1
+        except _Interrupted:
+            # The interrupt leaves every open batch on its way out of run().
+            self.interrupted = True
+            self._abandon_all()
+            # A SystemExit is reported as the error that ended the run,
+            # unless a halt's error already is (an interrupted ON ERROR_HALT
+            # script).
+            if self.sigterm and not halting:
+                self.errors += 1
+        # What is left pending stays on the caller's connection.
 
     # -- the connection --------------------------------------------------
 
     def _commit(self) -> bool:
         """Commit everything pending; a failed commit rolls it all back (#135)."""
+        if self.armed:
+            # Interrupted in the commit: Database.commit() rolls back.
+            self.armed = False
+            self.pending.clear()
+            raise _Interrupted
         if any(table == "child" for table, _ in self.pending):
             self.pending.clear()
             return False
@@ -259,11 +306,12 @@ class _Model:
             else:
                 getattr(self, f"_{kind}")()
 
-    def _statement(self, row: tuple) -> None:
+    def _statement(self, row: tuple | None) -> None:
         self.sql_error = False
         if self.batches:
             self.batches[-1].used = True
-        self.pending.append(row)
+        if row is not None:
+            self.pending.append(row)
         if not self.batches and self.autocommit and not self._commit():
             self._sql_failed()
 
@@ -288,6 +336,31 @@ class _Model:
 
     def _break(self) -> None:
         raise _Break
+
+    # An interrupted statement or metacommand is a failed one (#139): it
+    # fails the open batches and sets SQL_ERROR(), which nothing can see
+    # once the interrupt has ended the run.
+
+    def _interrupt_sql(self, n: int) -> None:
+        # Interrupted after the insert ran: the connection is rolled back
+        # whatever AUTOCOMMIT says, as for a failed statement.
+        self.pending.clear()
+        raise _Interrupted
+
+    def _interrupt_meta(self, n: int) -> None:
+        # EXECUTE wrote, then was interrupted: a connection with autocommit on
+        # is rolled back; under AUTOCOMMIT OFF the write joins what the
+        # script holds, which the script (here, the caller) decides.
+        if self.autocommit:
+            self.pending.clear()
+        else:
+            self.pending.append(("interrupted", n))
+        raise _Interrupted
+
+    def _interrupt_commit(self) -> None:
+        # A statement that stores nothing; the next commit is interrupted.
+        self.armed = True
+        self._statement(None)
 
     def _rollback_batch(self) -> None:
         if self.batches[-1].used:
@@ -317,6 +390,10 @@ class _Model:
             self.batches[-1].used |= batch.used
         elif batch.used and self.autocommit:
             self.pending.clear()
+
+    def _abandon_all(self) -> None:
+        while self.batches:
+            self._abandon_batch()
 
     def _batch(self, body: list) -> None:
         self.batches.append(_Batch())
@@ -355,45 +432,106 @@ _SETUP = (
     "create table log (n integer);\n"
     "create table parent (id integer primary key);\n"
     "create table child (pid integer references parent(id) deferrable initially deferred);\n"
+    "create table interrupted (n integer);\n"
 )
 
 
-def _stored(db: str) -> list:
-    with contextlib.closing(sqlite3.connect(db)) as conn:
-        return sorted(
-            [("t", n) for (n,) in conn.execute("select n from t")]
-            + [("log", n) for (n,) in conn.execute("select n from log")]
-            + [("child", n) for (n,) in conn.execute("select pid from child")],
-        )
+def _rows(conn: sqlite3.Connection) -> list:
+    return sorted(
+        [(table, n) for table in ("t", "log", "interrupted") for (n,) in conn.execute(f"select n from {table}")]
+        + [("child", n) for (n,) in conn.execute("select pid from child")],
+    )
+
+
+class _Cursor:
+    """A cursor that raises the interrupts the script's statements ask for."""
+
+    def __init__(self, curs: sqlite3.Cursor, conn: _Connection) -> None:
+        self._curs = curs
+        self._conn = conn
+
+    def execute(self, sql: str, *args: object) -> sqlite3.Cursor:
+        if m := re.fullmatch(r'select \* from "interrupt_(\d+)";', sql):
+            # EXECUTE interrupt_<n>: write, then be interrupted.
+            self._curs.execute(f"insert into interrupted values ({m[1]})")
+            raise self._conn.interrupt()
+        result = self._curs.execute(sql, *args)
+        if sql.startswith("insert into interrupted"):
+            raise self._conn.interrupt()  # after the statement ran
+        if sql == "select 'interrupt the next commit';":
+            self._conn.armed = True
+        return result
+
+    def __getattr__(self, name: str) -> object:
+        return getattr(self._curs, name)
+
+
+class _Connection:
+    """The caller's sqlite3 connection, raising the interrupts the script asks for.
+
+    Ctrl-C (or SIGTERM) lands where Python code runs between driver calls,
+    so each interrupt is raised right after the driver call it follows, or,
+    for a commit, before it.
+    """
+
+    def __init__(self, conn: sqlite3.Connection, interrupt: Callable[[], BaseException]) -> None:
+        self._conn = conn
+        self.interrupt = interrupt
+        self.armed = False
+
+    def cursor(self) -> _Cursor:
+        return _Cursor(self._conn.cursor(), self)
+
+    def commit(self) -> None:
+        if self.armed:
+            self.armed = False
+            raise self.interrupt()
+        self._conn.commit()
+
+    def __getattr__(self, name: str) -> object:
+        return getattr(self._conn, name)
 
 
 # Combinations generated scripts reach too rarely to rely on, run every time.
 # Work held under AUTOCOMMIT OFF, ended by a failed statement, by AUTOCOMMIT
 # ON WITH ROLLBACK, by plain AUTOCOMMIT ON, or by a failed batch:
-@example((False, False, False, ["autocommit_off", "ok", "fail_exec", "autocommit_on_commit"]))
-@example((False, False, False, ["autocommit_off", "ok", "autocommit_on_rollback", "ok"]))
-@example((False, False, False, ["autocommit_off", "ok", "autocommit_on", "ok"]))
-@example((False, False, False, ["autocommit_off", "ok", "autocommit_on", "fail_exec"]))
-@example((False, False, False, ["autocommit_off", ["ok", "meta_fail"], "autocommit_on_commit"]))
+@example((False, False, False, False, ["autocommit_off", "ok", "fail_exec", "autocommit_on_commit"]))
+@example((False, False, False, False, ["autocommit_off", "ok", "autocommit_on_rollback", "ok"]))
+@example((False, False, False, False, ["autocommit_off", "ok", "autocommit_on", "ok"]))
+@example((False, False, False, False, ["autocommit_off", "ok", "autocommit_on", "fail_exec"]))
+@example((False, False, False, False, ["autocommit_off", ["ok", "meta_fail"], "autocommit_on_commit"]))
 # AUTOCOMMIT ON WITH COMMIT whose commit fails is a metacommand error:
-@example((True, False, False, ["autocommit_off", "fail_commit", "autocommit_on_commit", "ok"]))
+@example((True, False, False, False, ["autocommit_off", "fail_commit", "autocommit_on_commit", "ok"]))
 # An inner END BATCH commits the outer batch's statements before the outer one fails:
-@example((False, False, False, [["ok", ["ok"], "fail_exec"]]))
-@example((False, False, False, [["ok", ["ok"], "meta_fail"], "ok"]))
+@example((False, False, False, False, [["ok", ["ok"], "fail_exec"]]))
+@example((False, False, False, False, [["ok", ["ok"], "meta_fail"], "ok"]))
 # A halt inside a batch rolls it back before the ON ERROR_HALT script commits:
-@example((False, True, True, [["ok", "meta_fail"]]))
+@example((False, True, True, False, [["ok", "meta_fail"]]))
 # ... whose commit also commits what plain AUTOCOMMIT ON left held, and can fail:
-@example((False, True, True, ["autocommit_off", "fail_commit", "autocommit_on", "meta_fail"]))
-@example((True, True, True, ["autocommit_off", "fail_commit", "autocommit_on", "meta_fail"]))
+@example((False, True, True, False, ["autocommit_off", "fail_commit", "autocommit_on", "meta_fail"]))
+@example((True, True, True, False, ["autocommit_off", "fail_commit", "autocommit_on", "meta_fail"]))
 # BREAK leaves the batches inside the loop: rolled back, or joining the one around it:
-@example((False, False, False, [("loop", [["ok", "break"]]), "ok"]))
-@example((False, False, False, [["ok", ("loop", [["ok", "break"]]), "ok"]]))
+@example((False, False, False, False, [("loop", [["ok", "break"]]), "ok"]))
+@example((False, False, False, False, [["ok", ("loop", [["ok", "break"]]), "ok"]]))
 # A failure marks every enclosing batch, not only the innermost:
-@example((False, False, False, [["ok", ("loop", [["meta_fail", "break"]]), "ok"]]))
+@example((False, False, False, False, [["ok", ("loop", [["meta_fail", "break"]]), "ok"]]))
 # ROLLBACK BATCH rolls back only a batch that used the connection:
-@example((False, False, False, [["ok", ["rollback_batch"]]]))
+@example((False, False, False, False, [["ok", ["rollback_batch"]]]))
 # END BATCH clears SQL_ERROR():
-@example((False, False, False, ["fail_exec", []]))
+@example((False, False, False, False, ["fail_exec", []]))
+# An interrupted statement rolls back what AUTOCOMMIT OFF held; an
+# interrupted metacommand leaves it (and its own write) to the script, but
+# rolls back what plain AUTOCOMMIT ON left held:
+@example((False, False, False, False, ["autocommit_off", "ok", "interrupt_sql"]))
+@example((False, False, False, False, ["autocommit_off", "ok", "interrupt_meta"]))
+@example((False, False, False, False, ["autocommit_off", "ok", "autocommit_on", "interrupt_meta"]))
+# END BATCH's commit interrupted: only Database.commit() rolls it back:
+@example((False, False, False, False, [["ok", "interrupt_commit"]]))
+# A plain SystemExit inside a batch is reported, not raised:
+@example((False, False, False, True, [["ok", "interrupt_sql"]]))
+# The ON ERROR_HALT script's commit interrupted, reported as the halt's error or raised:
+@example((False, True, True, True, ["autocommit_off", "interrupt_commit", "autocommit_on", "meta_fail"]))
+@example((False, True, True, False, ["autocommit_off", "interrupt_commit", "autocommit_on", "meta_fail"]))
 @given(scripts)
 @settings(
     max_examples=int(os.environ.get("EXECSQL_MODEL_EXAMPLES", "500")),
@@ -405,17 +543,33 @@ def _stored(db: str) -> list:
     suppress_health_check=[HealthCheck.too_slow],
 )
 def test_the_stored_rows_and_errors_match_the_model(script):
-    error_halt, metacommand_halt, handler, ops = script
+    error_halt, metacommand_halt, handler, sigterm, ops = script
     nodes = _number(ops)
     with tempfile.TemporaryDirectory() as tmp:
         db = os.path.join(tmp, "t.db")
         sql = _render(script, nodes, tmp)
-        result = run(sql=_SETUP + sql, dsn=f"sqlite:///{db}", new_db=True)
-        stored = _stored(db)
+        caller = SQLiteDatabase(db)
+        caller.conn = _Connection(caller.conn, functools.partial(SystemExit, 143) if sigterm else KeyboardInterrupt)
+        try:
+            try:
+                result = run(sql=_SETUP + sql, connection=caller)
+            except KeyboardInterrupt:
+                result = None
+            with contextlib.closing(sqlite3.connect(db)) as other:
+                stored = _rows(other)
+            held = _rows(caller.conn._conn)
+        finally:
+            caller.conn._conn.close()  # Windows cannot delete an open database
         sql_error = os.path.exists(os.path.join(tmp, "sql_error.txt"))
-    model = _Model(error_halt, metacommand_halt, handler)
+    model = _Model(error_halt, metacommand_halt, handler, sigterm)
     model.run(nodes)
-    assert (stored, len(result.errors)) == (sorted(model.committed), model.errors), sql
+    assert stored == sorted(model.committed), sql
+    assert held == sorted(model.committed + model.pending), sql
+    if model.interrupted and not sigterm:
+        assert result is None, sql  # KeyboardInterrupt left run()
+        return
+    assert result is not None, sql
+    assert len(result.errors) == model.errors, sql
     assert result.success is (model.errors == 0), sql
     if model.finished:
         assert sql_error is model.sql_error, sql
