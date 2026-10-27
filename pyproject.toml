@@ -104,6 +104,7 @@ execsql = "execsql.cli.dispatch:dispatch"
 docs = ["mkdocstrings-python>=2.0.3", "zensical==0.0.67"]
 dev = [
     "bump-my-version>=1.2.7",
+    "hypothesis>=6.100",
     "mypy>=1.10",
     "pre-commit>=3.5.0",
     "pytest>=8",
@@ -350,7 +351,7 @@ commands = [["pytest", "{posargs}"]]
 # Pass through user/login env vars so getpass.getuser() works on Windows
 # (tox strips the environment by default; without these it falls through to
 # `import pwd` which does not exist on Windows).
-passenv = ["USERNAME", "USER", "LOGNAME", "LNAME", "USERPROFILE", "HOMEDRIVE", "HOMEPATH"]
+passenv = ["USERNAME", "USER", "LOGNAME", "LNAME", "USERPROFILE", "HOMEDRIVE", "HOMEPATH", "EXECSQL_MODEL_EXAMPLES"]
 
 [tool.tox.env.build]
 description = "Build distribution packages"
