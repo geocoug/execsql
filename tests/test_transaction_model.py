@@ -14,11 +14,14 @@ connection, and Hypothesis generates scripts from these operations:
 - ``AUTOCOMMIT OFF`` / ``ON`` / ``ON WITH COMMIT`` / ``ON WITH ROLLBACK``, outside batches;
 - ``HALT``;
 - an interrupt (#139) right after an insert ran, in a metacommand after it
-  wrote (``EXECUTE``), or in the next commit on the connection;
+  wrote (``EXECUTE``), or just before or just after the driver's next commit
+  on the connection;
 - ``ERROR_HALT`` and ``METACOMMAND_ERROR_HALT``, on or off for the whole
   script, an ``ON ERROR_HALT`` script that stores a row of its own or none,
   and whether interrupts are ``KeyboardInterrupt`` (raised out of ``run()``)
-  or a plain ``SystemExit`` (execsql's SIGTERM handler: a failed result).
+  or a plain ``SystemExit`` (a signal handler's, such as the one the
+  ``execsql`` command installs for SIGTERM: ``run()`` returns a failed
+  result).
 
 The script runs on the test's own connection, as ``execsql.run(connection=)``
 does for a caller that keeps it, and the interrupts come from that
@@ -39,7 +42,7 @@ Not modelled: a batch spanning two databases (one commit failing after
 another succeeded), and an interrupt at a BREAKPOINT prompt, where the run
 carries on; hand-written tests cover those.
 
-Each run tries 500 new scripts, plus the fixed examples below;
+Each run tries 700 new scripts, plus the fixed examples below;
 ``EXECSQL_MODEL_EXAMPLES=5000`` tries more.
 """
 
@@ -66,10 +69,10 @@ from execsql.db.sqlite import SQLiteDatabase
 # ---------------------------------------------------------------------------
 
 #: Operations that are statements or metacommands (leaves of the script),
-#: repeated to weight them: HALT and the interrupts end the script, so they
-#: are rare.
+#: repeated to weight them: HALT ends the script, so it is rare.
 _ANYWHERE = ["ok"] * 6 + ["fail_exec"] * 2 + ["fail_commit"] * 2 + ["meta_fail"] * 2 + ["halt"]
-_ANYWHERE += ["interrupt_sql", "interrupt_meta", "interrupt_commit"]
+#: The interrupts also end the script: together they weigh what HALT does.
+_INTERRUPTS = ["interrupt_sql", "interrupt_meta", "interrupt_before_commit", "interrupt_after_commit"]
 _IN_BATCH = ["rollback_batch"] * 2
 _IN_LOOP = ["break"] * 2
 _AUTOCOMMIT = ["autocommit_off", "autocommit_on", "autocommit_on_commit", "autocommit_on_rollback"]
@@ -78,7 +81,9 @@ _MAX_DEPTH = 3
 
 def _body(depth: int, in_batch: bool, in_loop: bool) -> st.SearchStrategy[list]:
     """A list of operations; a batch is a list, a loop a ``("loop", list)``."""
-    leaves = st.sampled_from(_ANYWHERE + (_IN_BATCH if in_batch else []) + (_IN_LOOP if in_loop else []))
+    plain = _ANYWHERE + (_IN_BATCH if in_batch else []) + (_IN_LOOP if in_loop else [])
+    # Each other leaf once per interrupt, so the interrupts together weigh one leaf.
+    leaves = st.sampled_from(plain * len(_INTERRUPTS) + _INTERRUPTS)
     if depth < _MAX_DEPTH:
         batch = st.deferred(lambda: _body(depth + 1, True, in_loop))
         loop = st.deferred(lambda: _body(depth + 1, in_batch, True)).map(lambda body: ("loop", body))
@@ -133,7 +138,8 @@ _LINES = {
     # _Connection raises the interrupts these ask for.
     "interrupt_sql": "insert into interrupted values ({n});",
     "interrupt_meta": "-- !x! EXECUTE interrupt_{n}",
-    "interrupt_commit": "select 'interrupt the next commit';",
+    "interrupt_before_commit": "select 'interrupt before the next commit';",
+    "interrupt_after_commit": "select 'interrupt after the next commit';",
     "rollback_batch": "-- !x! ROLLBACK BATCH",
     "break": "-- !x! BREAK",
     "autocommit_off": "-- !x! AUTOCOMMIT OFF",
@@ -215,8 +221,9 @@ class _Model:
     #: Whether interrupts are a plain SystemExit (else KeyboardInterrupt).
     sigterm: bool
     autocommit: bool = True
-    #: Whether the next commit on the connection is interrupted.
-    armed: bool = False
+    #: Whether the next commit on the connection is interrupted, "before" or
+    #: "after" the driver commits.
+    armed: str | None = None
     #: Rows stored, as (table, value).
     committed: list = field(default_factory=list)
     #: Rows run but not committed on the connection.
@@ -262,9 +269,12 @@ class _Model:
 
     def _commit(self) -> bool:
         """Commit everything pending; a failed commit rolls it all back (#135)."""
-        if self.armed:
-            # Interrupted in the commit: Database.commit() rolls back.
-            self.armed = False
+        if self.armed is not None:
+            # Interrupted in the commit: Database.commit() rolls back, which
+            # undoes nothing once the driver has committed.
+            if self.armed == "after" and not any(table == "child" for table, _ in self.pending):
+                self.committed += self.pending
+            self.armed = None
             self.pending.clear()
             raise _Interrupted
         if any(table == "child" for table, _ in self.pending):
@@ -357,9 +367,14 @@ class _Model:
             self.pending.append(("interrupted", n))
         raise _Interrupted
 
-    def _interrupt_commit(self) -> None:
-        # A statement that stores nothing; the next commit is interrupted.
-        self.armed = True
+    # A statement that stores nothing; the next commit is interrupted.
+
+    def _interrupt_before_commit(self) -> None:
+        self.armed = "before"
+        self._statement(None)
+
+    def _interrupt_after_commit(self) -> None:
+        self.armed = "after"
         self._statement(None)
 
     def _rollback_batch(self) -> None:
@@ -458,8 +473,8 @@ class _Cursor:
         result = self._curs.execute(sql, *args)
         if sql.startswith("insert into interrupted"):
             raise self._conn.interrupt()  # after the statement ran
-        if sql == "select 'interrupt the next commit';":
-            self._conn.armed = True
+        if m := re.fullmatch(r"select 'interrupt (before|after) the next commit';", sql):
+            self._conn.armed = m[1]
         return result
 
     def __getattr__(self, name: str) -> object:
@@ -471,22 +486,27 @@ class _Connection:
 
     Ctrl-C (or SIGTERM) lands where Python code runs between driver calls,
     so each interrupt is raised right after the driver call it follows, or,
-    for a commit, before it.
+    for a commit, just before or just after it.
     """
 
     def __init__(self, conn: sqlite3.Connection, interrupt: Callable[[], BaseException]) -> None:
         self._conn = conn
         self.interrupt = interrupt
-        self.armed = False
+        self.armed: str | None = None
 
     def cursor(self) -> _Cursor:
         return _Cursor(self._conn.cursor(), self)
 
     def commit(self) -> None:
-        if self.armed:
-            self.armed = False
-            raise self.interrupt()
-        self._conn.commit()
+        when, self.armed = self.armed, None
+        if when is None:
+            self._conn.commit()
+            return
+        if when == "after":
+            # The interrupt lands as the driver returns, whether it committed or failed.
+            with contextlib.suppress(sqlite3.Error):
+                self._conn.commit()
+        raise self.interrupt()
 
     def __getattr__(self, name: str) -> object:
         return getattr(self._conn, name)
@@ -525,16 +545,19 @@ class _Connection:
 @example((False, False, False, False, ["autocommit_off", "ok", "interrupt_sql"]))
 @example((False, False, False, False, ["autocommit_off", "ok", "interrupt_meta"]))
 @example((False, False, False, False, ["autocommit_off", "ok", "autocommit_on", "interrupt_meta"]))
-# END BATCH's commit interrupted: only Database.commit() rolls it back:
-@example((False, False, False, False, [["ok", "interrupt_commit"]]))
+# END BATCH's commit interrupted: only Database.commit() rolls it back, and
+# after the driver committed, nothing can:
+@example((False, False, False, False, [["ok", "interrupt_before_commit"]]))
+@example((False, False, False, False, [["ok", "interrupt_after_commit"]]))
+@example((False, False, False, False, [["fail_commit", "interrupt_after_commit"]]))
 # A plain SystemExit inside a batch is reported, not raised:
 @example((False, False, False, True, [["ok", "interrupt_sql"]]))
 # The ON ERROR_HALT script's commit interrupted, reported as the halt's error or raised:
-@example((False, True, True, True, ["autocommit_off", "interrupt_commit", "autocommit_on", "meta_fail"]))
-@example((False, True, True, False, ["autocommit_off", "interrupt_commit", "autocommit_on", "meta_fail"]))
+@example((False, True, True, True, ["autocommit_off", "interrupt_before_commit", "autocommit_on", "meta_fail"]))
+@example((False, True, True, False, ["autocommit_off", "interrupt_after_commit", "autocommit_on", "meta_fail"]))
 @given(scripts)
 @settings(
-    max_examples=int(os.environ.get("EXECSQL_MODEL_EXAMPLES", "500")),
+    max_examples=int(os.environ.get("EXECSQL_MODEL_EXAMPLES", "700")),
     deadline=None,
     # New scripts on every run, CI included (Hypothesis's CI profile would
     # repeat one fixed sample); a failure prints the script that differs.

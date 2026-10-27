@@ -358,7 +358,8 @@ def run(
             instance.  ``run()`` will NOT close this connection on exit.
             What an interrupted SQL statement or metacommand did is rolled
             back before the interrupt is re-raised (under AUTOCOMMIT OFF, a
-            metacommand's writes stay with what the script holds).  A
+            metacommand's writes stay with what the script holds), unless
+            the interrupt lands after the driver has committed it.  A
             ``SystemExit`` from a signal handler is rolled back the same way,
             and the run returns a failed result.
         variables: Substitution variables as ``{"NAME": "value"}``.
