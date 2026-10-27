@@ -351,7 +351,7 @@ commands = [["pytest", "{posargs}"]]
 # Pass through user/login env vars so getpass.getuser() works on Windows
 # (tox strips the environment by default; without these it falls through to
 # `import pwd` which does not exist on Windows).
-passenv = ["USERNAME", "USER", "LOGNAME", "LNAME", "USERPROFILE", "HOMEDRIVE", "HOMEPATH"]
+passenv = ["USERNAME", "USER", "LOGNAME", "LNAME", "USERPROFILE", "HOMEDRIVE", "HOMEPATH", "EXECSQL_MODEL_EXAMPLES"]
 
 [tool.tox.env.build]
 description = "Build distribution packages"

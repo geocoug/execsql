@@ -68,7 +68,7 @@ SQL Server is included only when an ODBC driver for it is installed. A template 
 
 ### Transaction rules: generated scripts
 
-`tests/test_transaction_model.py` checks the transaction rules (batches, failed commits, `AUTOCOMMIT`, `ERROR_HALT`) against scripts [Hypothesis](https://hypothesis.readthedocs.io/) generates: a small model of one SQLite connection predicts the rows stored and the errors reported, and a mismatch is shrunk to the shortest script that still differs. A normal run tries 500 scripts; `HYPOTHESIS_PROFILE=thorough` tries 5000. When you change a transaction rule, change the model with it; a combination that matters but is rarely generated goes in an `@example`.
+`tests/test_transaction_model.py` checks the transaction rules (batches, `BREAK`, failed commits, `AUTOCOMMIT`, `ERROR_HALT` and an `ON ERROR_HALT` script) against scripts [Hypothesis](https://hypothesis.readthedocs.io/) generates: a small model of one SQLite connection predicts the rows stored, the errors reported and `SQL_ERROR()`, and a mismatch is shrunk to the shortest script that still differs. Each run, CI included, tries 500 new scripts; `EXECSQL_MODEL_EXAMPLES=5000` tries more. When you change a transaction rule, change the model with it; a combination that matters but is rarely generated goes in an `@example`.
 
 ### Script behavior corpus
 
