@@ -768,7 +768,9 @@ def _execute_batch(
         # Left any other way than through END BATCH, or interrupted at END
         # BATCH before its commit: this level, if still open, is abandoned.
         # Only END BATCH's commit (end_batch) or abandoning takes it off the
-        # stack, so an interrupt anywhere leaves nothing pending to commit.
+        # stack.  An interrupt inside the rollbacks themselves can still
+        # leave work pending; execsql.run() rolls back what is left when an
+        # interrupt ends the run.
         while not completed and len(status.batch.batchlevels) >= depth:
             status.batch.abandon_batch()
 

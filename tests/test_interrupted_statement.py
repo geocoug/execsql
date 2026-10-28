@@ -246,6 +246,49 @@ def test_an_error_at_end_batch_typed_at_the_prompt_is_not_an_interrupt(tmp_path)
     assert "The batch was not committed: an error on line 2 of <breakpoint>." in out.read_text()
 
 
+# An interrupt can land between any two lines of Python, even between the
+# rollbacks of a failed batch's databases: run() rolls back what it left.
+
+
+@pytest.mark.parametrize("exc", [KeyboardInterrupt, _Interrupt, SystemExit])
+def test_an_interrupt_between_a_batchs_rollbacks_leaves_nothing_pending(db_file, tmp_path, exc):
+    from execsql.db.base import Database
+
+    other = tmp_path / "other.db"
+    with sqlite3.connect(other) as c:
+        c.execute("create table u (v text)")
+    real_rollback = Database.rollback
+    interrupted = []
+
+    def rollback(self):
+        real_rollback(self)
+        if self.db_name == str(other) and not interrupted:
+            interrupted.append(self)
+            raise exc  # after the other database's rollback, before the caller's
+
+    conn = db_SQLite(str(db_file))
+    sql = (
+        f"-- !x! connect to sqlite(file={other}) as other\n"
+        "-- !x! metacommand_error_halt off\n"
+        "-- !x! begin batch\n"
+        "-- !x! use other\ninsert into u values ('other');\n"
+        "-- !x! use initial\ninsert into t values ('batched');\n"
+        "-- !x! use no_such_alias\n"  # fails, so END BATCH rolls the batch back
+        "-- !x! end batch\n"
+    )
+    with patch.object(Database, "rollback", rollback):
+        if exc is SystemExit:
+            assert not run(sql=sql, connection=conn).success
+        else:
+            with pytest.raises(exc):
+                run(sql=sql, connection=conn)
+    assert interrupted
+    conn.execute("insert into t values ('the caller''s own');")
+    conn.commit()
+    conn.close()
+    assert _rows(db_file) == ["the caller's own"]
+
+
 # A metacommand that writes is interrupted the same way: EXECUTE runs a
 # procedure that writes, and the interrupt lands before EXECUTE commits.
 
