@@ -147,6 +147,47 @@ def test_end_batch_interrupted_at_the_prompt_fails_the_enclosing_batch(tmp_path)
     assert rows == []  # not the outer batch's insert 2 alone
 
 
+# Ctrl-C at END BATCH before the commit starts (after the last statement, or
+# as Database.commit() is entered) left the batch pending on the caller's
+# connection, and the caller's next commit stored it.
+
+
+def _end_batch_interrupted(where):
+    from execsql.db.base import Database
+    from execsql.script.control import BatchLevels
+
+    if where == "before the commit":
+
+        def failure(self):
+            raise KeyboardInterrupt
+
+        return patch.object(BatchLevels, "failure", failure)
+
+    real_commit = Database.commit
+
+    def commit(self):
+        if self.autocommit and self.conn.in_transaction:  # END BATCH's, not the create table's
+            raise KeyboardInterrupt
+        return real_commit(self)
+
+    return patch.object(Database, "commit", commit)
+
+
+@pytest.mark.parametrize("where", ["before the commit", "entering Database.commit()"])
+@pytest.mark.parametrize("nested", [False, True])
+def test_end_batch_interrupted_before_its_commit_leaves_nothing_pending(db_file, where, nested):
+    conn = db_SQLite(str(db_file))
+    batch = "-- !x! begin batch\ninsert into t values ('batched');\n-- !x! end batch\n"
+    if nested:
+        batch = f"-- !x! begin batch\ninsert into t values ('outer');\n{batch}-- !x! end batch\n"
+    with _end_batch_interrupted(where), pytest.raises(KeyboardInterrupt):
+        run(sql=batch, connection=conn)
+    conn.execute("insert into t values ('the caller''s own');")
+    conn.commit()
+    conn.close()
+    assert _rows(db_file) == ["the caller's own"]
+
+
 # A metacommand that writes is interrupted the same way: EXECUTE runs a
 # procedure that writes, and the interrupt lands before EXECUTE commits.
 

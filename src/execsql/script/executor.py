@@ -742,43 +742,57 @@ def _execute_batch(
         ctx,
         ExecFrame(kind="batch", label="", source=node.span.file, line=node.span.start_line),
     )
+    depth = len(status.batch.batchlevels)
     completed = False
     try:
-        _execute_nodes(ctx, node.body, node.span.file, localvars, in_loop=in_loop)
+        try:
+            _execute_nodes(ctx, node.body, node.span.file, localvars, in_loop=in_loop)
+        finally:
+            ctx.ast_exec_stack.pop()
+        if status.batch.in_batch():
+            end_line = node.span.effective_end_line
+            try:
+                _end_batch(ctx, node.span.file, end_line)
+            except _CONTROL_FLOW:
+                raise
+            except BaseException:
+                # Interrupted at END BATCH: the enclosing batches must not
+                # commit the rest (a BREAKPOINT prompt carries on after Ctrl-C).
+                _record_interrupt(ctx, "END BATCH", node.span.file, end_line, sql=True)
+                raise
         completed = True
     finally:
-        ctx.ast_exec_stack.pop()
-        if status.batch.in_batch() and not completed:
+        # Left any other way than through END BATCH, or interrupted at END
+        # BATCH before its commit: this level, if still open, is abandoned.
+        # Only END BATCH's commit (end_batch) or abandoning takes it off the
+        # stack, so an interrupt anywhere leaves nothing pending to commit.
+        while not completed and len(status.batch.batchlevels) >= depth:
             status.batch.abandon_batch()
-    if status.batch.in_batch():
-        end_line = node.span.effective_end_line
-        ctx.last_command = ExecutingStatement(
-            MetaCommandStatement(span=SourceSpan(node.span.file, end_line), command="END BATCH"),
-        )
-        failure = status.batch.failure()
-        if failure is not None:
-            status.batch.abandon_batch()
-            e = ErrInfo(type="error", other_msg=f"The batch was not committed: {failure}.")
-            _sql_failed(ctx, e, "END BATCH", node.span.file, end_line)
-            return
-        # The commit is the batch's last SQL: SQL_ERROR() right after END
-        # BATCH says whether it failed, as after any statement.
-        status.sql_error = False
-        try:
-            status.batch.end_batch()
-        except Exception as exc:
-            # end_batch has rolled back what it had not committed, which can
-            # include an enclosing batch's statements on a shared connection;
-            # _sql_failed keeps that batch from committing the rest.
-            _sql_failed(ctx, _as_errinfo(exc), "END BATCH", node.span.file, end_line)
-        except _CONTROL_FLOW:
-            raise
-        except BaseException:
-            # Interrupted during the commit: end_batch has rolled back as for
-            # a failed one, and the enclosing batches must not commit the rest
-            # (a BREAKPOINT prompt carries on after Ctrl-C).
-            _record_interrupt(ctx, "END BATCH", node.span.file, end_line, sql=True)
-            raise
+
+
+def _end_batch(ctx: RuntimeContext, source: str, end_line: int) -> None:
+    """END BATCH: commit the innermost batch, or roll it back if anything in it failed."""
+    status = ctx.status
+    assert status is not None
+    ctx.last_command = ExecutingStatement(
+        MetaCommandStatement(span=SourceSpan(source, end_line), command="END BATCH"),
+    )
+    failure = status.batch.failure()
+    if failure is not None:
+        status.batch.abandon_batch()
+        e = ErrInfo(type="error", other_msg=f"The batch was not committed: {failure}.")
+        _sql_failed(ctx, e, "END BATCH", source, end_line)
+        return
+    # The commit is the batch's last SQL: SQL_ERROR() right after END
+    # BATCH says whether it failed, as after any statement.
+    status.sql_error = False
+    try:
+        status.batch.end_batch()
+    except Exception as exc:
+        # end_batch has rolled back what it had not committed, which can
+        # include an enclosing batch's statements on a shared connection;
+        # _sql_failed keeps that batch from committing the rest.
+        _sql_failed(ctx, _as_errinfo(exc), "END BATCH", source, end_line)
 
 
 def _pre_register_scripts(ctx: RuntimeContext, nodes: list[Node]) -> None:
