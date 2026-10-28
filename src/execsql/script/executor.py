@@ -345,6 +345,34 @@ def _record_interrupt(ctx: RuntimeContext, cmd: str, source: str, line_no: int, 
         ctx.exec_log.log_status_info(f"{kind} interrupted on line {line_no} of {source}.")
 
 
+def _roll_back_after_interrupt(ctx: RuntimeContext) -> None:
+    """Roll back every connection with autocommit on, after an interrupt.
+
+    The executor rolls back what an interrupted statement, metacommand or
+    ``END BATCH`` did, but an interrupt can land between any two lines of
+    Python, such as between the rollbacks of a batch's databases.  Whatever
+    is still pending on a connection with autocommit on is unfinished work
+    the script never committed, and the next commit on that connection
+    would store it: the script's own, after a BREAKPOINT prompt carries on
+    (:func:`execute_input`), or the caller's, on a connection passed to
+    :func:`execsql.run` that outlives the run.  A connection under
+    AUTOCOMMIT OFF is left alone; its transaction is the script's.  A
+    second interrupt does not stop the other connections' rollbacks.
+    """
+    if ctx.dbs is None:
+        return
+    interrupt: BaseException | None = None
+    for alias in ctx.dbs.aliases():
+        db = ctx.dbs.aliased_as(alias)
+        try:
+            if db.autocommit:
+                db.rollback()
+        except BaseException as exc:
+            interrupt = interrupt or exc
+    if interrupt is not None:
+        raise interrupt
+
+
 def _sql_failed(ctx: RuntimeContext, e: ErrInfo, cmd: str, source: str, line_no: int) -> None:
     """Report an SQL error: halt under ERROR_HALT ON, else record it and carry on.
 
@@ -755,8 +783,8 @@ def _execute_batch(
             try:
                 _end_batch(ctx, node.span.file, end_line)
             except (*_CONTROL_FLOW, Exception):
-                # An error reaches here only where exit_now() raises it
-                # instead of halting (a BREAKPOINT prompt): already reported.
+                # An error (normally an ErrInfo that exit_now() raises at a
+                # BREAKPOINT prompt, already reported) is not an interrupt.
                 raise
             except BaseException:
                 # Interrupted at END BATCH: the enclosing batches must not
@@ -769,8 +797,9 @@ def _execute_batch(
         # BATCH before its commit: this level, if still open, is abandoned.
         # Only END BATCH's commit (end_batch) or abandoning takes it off the
         # stack.  An interrupt inside the rollbacks themselves can still
-        # leave work pending; execsql.run() rolls back what is left when an
-        # interrupt ends the run.
+        # leave work pending: _roll_back_after_interrupt() rolls back what is
+        # left, where the interrupt ends the run or the input typed at a
+        # BREAKPOINT prompt.
         while not completed and len(status.batch.batchlevels) >= depth:
             status.batch.abandon_batch()
 
@@ -1353,6 +1382,8 @@ def execute_input(
             # rolled back: no open batch may commit.
             what = "an error" if isinstance(exc, Exception) else "an interrupt"
             _fail_open_batches(ctx, f"input typed at {script.source}", what=what)
+            if not isinstance(exc, Exception):
+                _roll_back_after_interrupt(ctx)
             raise
         finally:
             ctx.prompt_input = prompt_input

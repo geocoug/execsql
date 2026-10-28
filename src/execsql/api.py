@@ -532,7 +532,7 @@ def run(
             # ------------------------------------------------------------------
             # Execute
             # ------------------------------------------------------------------
-            from execsql.script.executor import execute
+            from execsql.script.executor import _roll_back_after_interrupt, execute
 
             errors: list[ScriptError] = []
             t0 = time.perf_counter()
@@ -631,32 +631,6 @@ def run(
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-def _roll_back_after_interrupt(ctx: RuntimeContext) -> None:
-    """Roll back every connection with autocommit on, after an interrupt ended the run.
-
-    The executor rolls back what an interrupted statement, metacommand or
-    ``END BATCH`` did, but an interrupt can land between any two lines of
-    Python, such as between the rollbacks of a batch's databases.  Whatever
-    is still pending on a connection with autocommit on is unfinished work
-    the script never committed, and a connection the caller passed in
-    outlives the run: its next commit would store it.  A connection under
-    AUTOCOMMIT OFF is left alone; its transaction is the script's.  A
-    second interrupt does not stop the other connections' rollbacks.
-    """
-    if ctx.dbs is None:
-        return
-    interrupt: BaseException | None = None
-    for alias in ctx.dbs.aliases():
-        db = ctx.dbs.aliased_as(alias)
-        try:
-            if db.autocommit:
-                db.rollback()
-        except BaseException as exc:
-            interrupt = interrupt or exc
-    if interrupt is not None:
-        raise interrupt
-
-
 def _start_filewriter(ctx: RuntimeContext, conf: Any) -> None:
     """Give this run its own FileWriter thread, held on *ctx*.
 

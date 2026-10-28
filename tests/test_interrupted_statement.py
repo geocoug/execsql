@@ -210,6 +210,8 @@ def test_end_batch_interrupted_at_the_prompt_reports_the_interrupt(tmp_path, whe
     script = (
         "create table t (n integer);\n-- !x! breakpoint\n"
         f'-- !x! IF (SQL_ERROR()) {{ WRITE "!!$LAST_ERROR!!: !!$ERROR_MESSAGE!!" TO {out} }}\n'
+        # The run carries on: its next commit must not store the typed batch.
+        "insert into t values (1);\n"
     )
     typed = ["-- !x! begin batch", "insert into t values (9);", "-- !x! end batch", ".c"]
     if where == "before the commit":
@@ -220,7 +222,7 @@ def test_end_batch_interrupted_at_the_prompt_reports_the_interrupt(tmp_path, whe
         _, prompt, _, rows = paused(tmp_path, script, typed)
     assert "(interrupted)" in prompt
     assert out.read_text().splitlines() == ["END BATCH: Interrupted."]
-    assert rows == []
+    assert rows == [1]
 
 
 def test_an_error_at_end_batch_typed_at_the_prompt_is_not_an_interrupt(tmp_path):
@@ -287,6 +289,69 @@ def test_an_interrupt_between_a_batchs_rollbacks_leaves_nothing_pending(db_file,
     conn.commit()
     conn.close()
     assert _rows(db_file) == ["the caller's own"]
+
+
+def test_an_interrupt_between_a_batchs_rollbacks_at_the_prompt_leaves_nothing_pending(tmp_path):
+    # The prompt carries on after Ctrl-C, so the script's next commit would
+    # store what the interrupted rollbacks left.
+    from execsql.db.base import Database
+    from tests.test_interactive import _paused as paused
+
+    other = tmp_path / "other.db"
+    with sqlite3.connect(other) as c:
+        c.execute("create table u (v text)")
+    real_rollback = Database.rollback
+    interrupted = []
+
+    def rollback(self):
+        real_rollback(self)
+        if self.db_name == str(other) and not interrupted:
+            interrupted.append(self)
+            raise KeyboardInterrupt  # after the other database's rollback, before this one's
+
+    script = (
+        f"create table t (n integer);\n-- !x! connect to sqlite(file={other}) as other\n"
+        "-- !x! breakpoint\ninsert into t values (1);\n"
+    )
+    typed = [
+        "-- !x! metacommand_error_halt off",
+        "-- !x! begin batch",
+        "-- !x! use other",
+        "insert into u values ('other');",
+        "-- !x! use initial",
+        "insert into t values (9);",
+        "-- !x! use no_such_alias",  # fails, so END BATCH rolls the batch back
+        "-- !x! end batch",
+        ".c",
+    ]
+    with patch.object(Database, "rollback", rollback):
+        _, prompt, _, rows = paused(tmp_path, script, typed)
+    assert interrupted
+    assert "(interrupted)" in prompt
+    assert rows == [1]
+
+
+def test_a_second_interrupt_does_not_stop_the_other_rollbacks():
+    from types import SimpleNamespace
+
+    from execsql.script.executor import _roll_back_after_interrupt
+
+    rolled_back = []
+
+    class Db:
+        def __init__(self, name, autocommit=True, interrupt=False):
+            self.name, self.autocommit, self.interrupt = name, autocommit, interrupt
+
+        def rollback(self):
+            rolled_back.append(self.name)
+            if self.interrupt:
+                raise KeyboardInterrupt
+
+    pool = {"a": Db("a", interrupt=True), "b": Db("b"), "c": Db("c", autocommit=False)}
+    dbs = SimpleNamespace(aliases=lambda: list(pool), aliased_as=pool.__getitem__)
+    with pytest.raises(KeyboardInterrupt):
+        _roll_back_after_interrupt(SimpleNamespace(dbs=dbs))
+    assert rolled_back == ["a", "b"]  # not c: under AUTOCOMMIT OFF the transaction is the script's
 
 
 # A metacommand that writes is interrupted the same way: EXECUTE runs a
