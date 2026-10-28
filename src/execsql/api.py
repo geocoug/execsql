@@ -356,9 +356,13 @@ def run(
             ``"postgresql://user:pass@host/db"``).
         connection: A pre-existing :class:`~execsql.db.base.Database`
             instance.  ``run()`` will NOT close this connection on exit.
-            What an interrupted SQL statement or metacommand did is rolled
-            back before the interrupt is re-raised (under AUTOCOMMIT OFF, a
-            metacommand's writes stay with what the script holds).  A
+            What an interrupted SQL statement, metacommand or ``END BATCH``
+            did is rolled back before the interrupt is re-raised: an SQL
+            statement rolls back its connection's open transaction, and a
+            metacommand everything not yet committed on each connection
+            with autocommit on (under AUTOCOMMIT OFF, a metacommand's writes
+            stay with what the script holds).  Work the database had already
+            committed when the interrupt arrived stays committed.  A
             ``SystemExit`` from a signal handler is rolled back the same way,
             and the run returns a failed result.
         variables: Substitution variables as ``{"NAME": "value"}``.

@@ -737,14 +737,15 @@ def _execute_batch(
 
     status = ctx.status
     assert status is not None
-    status.batch.new_batch()
-    _push_block_frame(
-        ctx,
-        ExecFrame(kind="batch", label="", source=node.span.file, line=node.span.start_line),
-    )
-    depth = len(status.batch.batchlevels)
+    # This batch's level, once pushed.
+    depth = len(status.batch.batchlevels) + 1
     completed = False
     try:
+        status.batch.new_batch()
+        _push_block_frame(
+            ctx,
+            ExecFrame(kind="batch", label="", source=node.span.file, line=node.span.start_line),
+        )
         try:
             _execute_nodes(ctx, node.body, node.span.file, localvars, in_loop=in_loop)
         finally:
@@ -753,7 +754,9 @@ def _execute_batch(
             end_line = node.span.effective_end_line
             try:
                 _end_batch(ctx, node.span.file, end_line)
-            except _CONTROL_FLOW:
+            except (*_CONTROL_FLOW, Exception):
+                # An error reaches here only where exit_now() raises it
+                # instead of halting (a BREAKPOINT prompt): already reported.
                 raise
             except BaseException:
                 # Interrupted at END BATCH: the enclosing batches must not

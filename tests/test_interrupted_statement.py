@@ -188,6 +188,64 @@ def test_end_batch_interrupted_before_its_commit_leaves_nothing_pending(db_file,
     assert _rows(db_file) == ["the caller's own"]
 
 
+@pytest.mark.parametrize("where", ["before the commit", "entering Database.commit()"])
+def test_end_batch_interrupted_at_the_prompt_reports_the_interrupt(tmp_path, where):
+    from execsql.db.base import Database
+    from execsql.script.control import BatchLevels
+    from tests.test_interactive import _paused as paused
+
+    real_commit = Database.commit
+    commits = []
+
+    def commit(self):
+        commits.append(self)
+        if len(commits) == 2:  # the typed END BATCH (the first is the create table)
+            raise KeyboardInterrupt
+        return real_commit(self)
+
+    def failure(self):
+        raise KeyboardInterrupt
+
+    out = tmp_path / "out.txt"
+    script = (
+        "create table t (n integer);\n-- !x! breakpoint\n"
+        f'-- !x! IF (SQL_ERROR()) {{ WRITE "!!$LAST_ERROR!!: !!$ERROR_MESSAGE!!" TO {out} }}\n'
+    )
+    typed = ["-- !x! begin batch", "insert into t values (9);", "-- !x! end batch", ".c"]
+    if where == "before the commit":
+        interrupted = patch.object(BatchLevels, "failure", failure)
+    else:
+        interrupted = patch.object(Database, "commit", commit)
+    with interrupted:
+        _, prompt, _, rows = paused(tmp_path, script, typed)
+    assert "(interrupted)" in prompt
+    assert out.read_text().splitlines() == ["END BATCH: Interrupted."]
+    assert rows == []
+
+
+def test_an_error_at_end_batch_typed_at_the_prompt_is_not_an_interrupt(tmp_path):
+    # With ERROR_HALT ON, exit_now() raises the error at a prompt instead of
+    # halting; END BATCH reported it as an interrupt.
+    from tests.test_interactive import _paused as paused
+
+    out = tmp_path / "out.txt"
+    script = (
+        "create table t (n integer);\n-- !x! breakpoint\n"
+        f'-- !x! IF (SQL_ERROR()) {{ WRITE "!!$ERROR_MESSAGE!!" TO {out} }}\n'
+    )
+    typed = [
+        "-- !x! error_halt off",
+        "-- !x! begin batch",
+        "insert into no_such_table values (1);",
+        "-- !x! error_halt on",
+        "-- !x! end batch",
+        ".c",
+    ]
+    _, prompt, _, _ = paused(tmp_path, script, typed)
+    assert "(interrupted)" not in prompt
+    assert "The batch was not committed: an error on line 2 of <breakpoint>." in out.read_text()
+
+
 # A metacommand that writes is interrupted the same way: EXECUTE runs a
 # procedure that writes, and the interrupt lands before EXECUTE commits.
 
