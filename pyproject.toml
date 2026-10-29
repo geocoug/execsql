@@ -107,7 +107,12 @@ dev = [
     "hypothesis>=6.100",
     "mypy>=1.10",
     "pre-commit>=3.5.0",
-    "pytest>=8",
+    # pytest 9.2 builds nodeid from Node._id, so pytest-xdist 3.8.0's --dist
+    # loadgroup no longer groups the live-DB tests (pytest-xdist#1386, fixed
+    # by #1388 on its main, unreleased). When an xdist release has #1388,
+    # remove this cap, raise the pytest-xdist floor below to that release, and
+    # drop the pytest entry from .github/dependabot.yml's ignore list.
+    "pytest>=8,<9.2",
     "pytest-asyncio>=1.0",
     "pytest-cov>=5.0.0",
     "pytest-lsp>=1.0",
