@@ -18,7 +18,7 @@ repos:
       - id: gitleaks
   # uv lockfile management
   - repo: https://github.com/astral-sh/uv-pre-commit
-    rev: 0.13.0
+    rev: 0.13.5
     hooks:
       - id: uv-lock
   # Base hooks
@@ -56,7 +56,7 @@ repos:
           )$
   # Markdown lint
   - repo: https://github.com/igorshubovych/markdownlint-cli
-    rev: v0.49.1
+    rev: v0.50.0
     hooks:
       - id: markdownlint
         types: [file]
@@ -70,7 +70,7 @@ repos:
         args: [--force-exclude]
   # Lint & format with ruff
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.17.0
+    rev: v0.17.2
     hooks:
       - id: ruff-check
         args: [--config=pyproject.toml, --exit-non-zero-on-fix]
@@ -78,7 +78,7 @@ repos:
         args: [--config=pyproject.toml]
   # Validate pyproject.toml
   - repo: https://github.com/abravalheri/validate-pyproject
-    rev: v0.25
+    rev: v0.27
     hooks:
       - id: validate-pyproject
   # Static type checking — same command as `just typecheck`, run in the
