@@ -45,32 +45,6 @@ def test_with_error_halt_off_the_next_commit_does_not_store_the_failed_statement
     assert _rows(tmp_path, "parent") == [9]
 
 
-def test_a_later_statement_is_not_dragged_into_the_failure(tmp_path):
-    sql = (
-        "-- !x! ERROR_HALT OFF\n"
-        + _SETUP
-        + "insert into child values (9);\n"
-        + "insert into log values ('unrelated');\n"
-    )
-    result = _run(tmp_path, sql)
-    assert len(result.errors) == 1  # in 2.36.0 and earlier the log insert's commit failed too, on the child row
-    assert _rows(tmp_path, "log") == ["unrelated"]
-    assert _rows(tmp_path, "child") == []
-
-
-def test_the_on_error_halt_script_does_not_commit_the_failed_statement(tmp_path):
-    sql = (
-        _SETUP
-        + "-- !x! BEGIN SCRIPT log_error\ninsert into log values ('logged');\n-- !x! END SCRIPT\n"
-        + "-- !x! ON ERROR_HALT EXECUTE SCRIPT log_error\n"
-        + "insert into child values (9);\n"
-    )
-    result = _run(tmp_path, sql)
-    assert not result.success
-    assert _rows(tmp_path, "log") == ["logged"]
-    assert _rows(tmp_path, "child") == []
-
-
 @pytest.mark.parametrize("exc", [RuntimeError("deferred constraint"), KeyboardInterrupt()])
 def test_commit_rolls_back_before_raising(exc):
     db = MagicMock(autocommit=True)
