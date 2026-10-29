@@ -517,6 +517,10 @@ class _Connection:
 
 
 # Combinations generated scripts reach too rarely to rely on, run every time.
+# A failed commit must not drag a later statement or ON ERROR_HALT's writes
+# into the failed transaction (#135):
+@example((False, False, False, False, ["fail_commit", "ok"]))
+@example((True, True, True, False, ["fail_commit"]))
 # Work held under AUTOCOMMIT OFF, ended by a failed statement, by AUTOCOMMIT
 # ON WITH ROLLBACK, by plain AUTOCOMMIT ON, or by a failed batch:
 @example((False, False, False, False, ["autocommit_off", "ok", "fail_exec", "autocommit_on_commit"]))
@@ -539,6 +543,9 @@ class _Connection:
 @example((False, False, False, False, [["ok", ("loop", [["ok", "break"]]), "ok"]]))
 # A failure marks every enclosing batch, not only the innermost:
 @example((False, False, False, False, [["ok", ("loop", [["meta_fail", "break"]]), "ok"]]))
+@example((False, False, False, False, [["ok", ["fail_exec"], "ok"]]))
+# ROLLBACK BATCH does not recover a batch with a failed statement:
+@example((False, False, False, False, [["fail_exec", "rollback_batch", "ok"]]))
 # ROLLBACK BATCH rolls back only a batch that used the connection:
 @example((False, False, False, False, [["ok", ["rollback_batch"]]]))
 # END BATCH clears SQL_ERROR():
