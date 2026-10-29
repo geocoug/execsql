@@ -14,8 +14,8 @@ connection, and Hypothesis generates scripts from these operations:
 - ``AUTOCOMMIT OFF`` / ``ON`` / ``ON WITH COMMIT`` / ``ON WITH ROLLBACK``, outside batches;
 - ``HALT``;
 - an interrupt (#139) right after an insert ran, in a metacommand after it
-  wrote (``EXECUTE``), or just before or just after the driver's next commit
-  on the connection;
+  wrote (``EXECUTE``), at entry to ``Database.commit()`` before its rollback
+  handler, or just after the driver's next commit on the connection;
 - ``ERROR_HALT`` and ``METACOMMAND_ERROR_HALT``, on or off for the whole
   script, an ``ON ERROR_HALT`` script that stores a row of its own or none,
   and whether interrupts are ``KeyboardInterrupt`` (raised out of ``run()``)
@@ -57,11 +57,13 @@ import sqlite3
 import tempfile
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from unittest.mock import patch
 
 from hypothesis import HealthCheck, example, given, settings
 from hypothesis import strategies as st
 
 from execsql import run
+from execsql.db.base import Database
 from execsql.db.sqlite import SQLiteDatabase
 
 # ---------------------------------------------------------------------------
@@ -270,8 +272,8 @@ class _Model:
     def _commit(self) -> bool:
         """Commit everything pending; a failed commit rolls it all back (#135)."""
         if self.armed is not None:
-            # Interrupted in the commit: Database.commit() rolls back, which
-            # undoes nothing once the driver has committed.
+            # Interrupted before the commit: the enclosing statement, batch,
+            # or run rolls back. After the driver committed, nothing can undo it.
             if self.armed == "after" and not any(table == "child" for table, _ in self.pending):
                 self.committed += self.pending
             self.armed = None
@@ -482,11 +484,13 @@ class _Cursor:
 
 
 class _Connection:
-    """The caller's sqlite3 connection, raising the interrupts the script asks for.
+    """The caller's sqlite3 connection, injecting selected driver-boundary interrupts.
 
-    Ctrl-C (or SIGTERM) lands where Python code runs between driver calls,
-    so each interrupt is raised right after the driver call it follows, or,
-    for a commit, just before or just after it.
+    Raises immediately after an insert or EXECUTE writes, or after the driver
+    commit returns. The test injects the "before" case separately, at entry to
+    Database.commit(), outside that method's rollback handler. These selected
+    boundaries do not cover arbitrary Python lines, rollback calls, or
+    BREAKPOINT input; the latter has separate hand-written tests.
     """
 
     def __init__(self, conn: sqlite3.Connection, interrupt: Callable[[], BaseException]) -> None:
@@ -502,10 +506,10 @@ class _Connection:
         if when is None:
             self._conn.commit()
             return
-        if when == "after":
-            # The interrupt lands as the driver returns, whether it committed or failed.
-            with contextlib.suppress(sqlite3.Error):
-                self._conn.commit()
+        assert when == "after"  # "before" is consumed at Database.commit() entry
+        # The interrupt lands as the driver returns, whether it committed or failed.
+        with contextlib.suppress(sqlite3.Error):
+            self._conn.commit()
         raise self.interrupt()
 
     def __getattr__(self, name: str) -> object:
@@ -545,8 +549,8 @@ class _Connection:
 @example((False, False, False, False, ["autocommit_off", "ok", "interrupt_sql"]))
 @example((False, False, False, False, ["autocommit_off", "ok", "interrupt_meta"]))
 @example((False, False, False, False, ["autocommit_off", "ok", "autocommit_on", "interrupt_meta"]))
-# END BATCH's commit interrupted: only Database.commit() rolls it back, and
-# after the driver committed, nothing can:
+# END BATCH interrupted before Database.commit() can roll back (#150), or
+# after the driver committed, when nothing can undo it:
 @example((False, False, False, False, [["ok", "interrupt_before_commit"]]))
 @example((False, False, False, False, [["ok", "interrupt_after_commit"]]))
 @example((False, False, False, False, [["fail_commit", "interrupt_after_commit"]]))
@@ -573,11 +577,20 @@ def test_the_stored_rows_and_errors_match_the_model(script):
         sql = _render(script, nodes, tmp)
         caller = SQLiteDatabase(db)
         caller.conn = _Connection(caller.conn, functools.partial(SystemExit, 143) if sigterm else KeyboardInterrupt)
+        real_commit = Database.commit
+
+        def commit(self):
+            if self is caller and self.autocommit and caller.conn.armed == "before":
+                caller.conn.armed = None
+                raise caller.conn.interrupt()
+            return real_commit(self)
+
         try:
-            try:
-                result = run(sql=_SETUP + sql, connection=caller)
-            except KeyboardInterrupt:
-                result = None
+            with patch.object(Database, "commit", commit):
+                try:
+                    result = run(sql=_SETUP + sql, connection=caller)
+                except KeyboardInterrupt:
+                    result = None
             with contextlib.closing(sqlite3.connect(db)) as other:
                 stored = _rows(other)
             held = _rows(caller.conn._conn)
