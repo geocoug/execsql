@@ -356,9 +356,15 @@ def run(
             ``"postgresql://user:pass@host/db"``).
         connection: A pre-existing :class:`~execsql.db.base.Database`
             instance.  ``run()`` will NOT close this connection on exit.
-            What an interrupted SQL statement or metacommand did is rolled
-            back before the interrupt is re-raised (under AUTOCOMMIT OFF, a
-            metacommand's writes stay with what the script holds).  A
+            What an interrupted SQL statement, metacommand or ``END BATCH``
+            did is rolled back before the interrupt is re-raised: an SQL
+            statement rolls back its connection's open transaction, and a
+            metacommand everything not yet committed on each connection
+            with autocommit on (under AUTOCOMMIT OFF, a metacommand's writes
+            stay with what the script holds).  An interrupt that ends the run
+            also rolls back everything else not yet committed on each
+            connection with autocommit on.  Work the database had already
+            committed when the interrupt arrived stays committed.  A
             ``SystemExit`` from a signal handler is rolled back the same way,
             and the run returns a failed result.
         variables: Substitution variables as ``{"NAME": "value"}``.
@@ -526,7 +532,7 @@ def run(
             # ------------------------------------------------------------------
             # Execute
             # ------------------------------------------------------------------
-            from execsql.script.executor import execute
+            from execsql.script.executor import _roll_back_after_interrupt, execute
 
             errors: list[ScriptError] = []
             t0 = time.perf_counter()
@@ -541,6 +547,8 @@ def run(
             except SystemExit as exc:
                 # exit_now() raises ScriptExit; any other SystemExit (a signal
                 # handler's) interrupted the run.  Either is reported as an error.
+                if not isinstance(exc, ScriptExit):
+                    _roll_back_after_interrupt(ctx)
                 _capture_errors(ctx, errors, exc.code, interrupted=not isinstance(exc, ScriptExit))
             except ErrInfo as exc:
                 errors.append(
@@ -553,6 +561,9 @@ def run(
                 )
             except Exception as exc:
                 errors.append(ScriptError(message=str(exc), source="<runtime>"))
+            except BaseException:
+                _roll_back_after_interrupt(ctx)
+                raise
 
             # Non-halting SQL errors (halt_on_error=False) are recorded in
             # status.error_history as execution continues; a halting error never
