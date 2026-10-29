@@ -754,7 +754,8 @@ def _execute_batch(
     on the END BATCH line, after the batch's uncommitted databases are rolled
     back, and every enclosing batch then rolls back at its own END BATCH
     instead of committing. Leaving it any other way (BREAK,
-    an error, HALT) abandons it: see
+    an error, HALT, an interrupt, END BATCH's included before its commit)
+    abandons it: see
     :meth:`~execsql.script.control.BatchLevels.abandon_batch` for when that
     rolls back and when an enclosing batch takes the statements over.  A
     halt usually gets there first: :func:`~execsql.utils.errors.exit_now`
@@ -794,7 +795,8 @@ def _execute_batch(
         completed = True
     finally:
         # Left any other way than through END BATCH, or interrupted at END
-        # BATCH before its commit: this level, if still open, is abandoned.
+        # BATCH before its commit: this level, if still open, is abandoned,
+        # with any deeper level an interrupt left behind.
         # Only END BATCH's commit (end_batch) or abandoning takes it off the
         # stack.  An interrupt inside the rollbacks themselves can still
         # leave work pending: _roll_back_after_interrupt() rolls back what is

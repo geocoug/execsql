@@ -354,6 +354,50 @@ def test_a_second_interrupt_does_not_stop_the_other_rollbacks():
     assert rolled_back == ["a", "b"]  # not c: under AUTOCOMMIT OFF the transaction is the script's
 
 
+@pytest.mark.parametrize("landed", [0, 1, 2])
+def test_end_batch_interrupted_rolls_back_the_database_it_landed_on_and_the_rest(landed):
+    # execsql.execute() has no backstop: end_batch itself must roll back.
+    from execsql.script.control import BatchLevels
+
+    class Db:
+        autocommit = True
+
+        def __init__(self, n):
+            self.n, self.committed, self.rolled_back = n, False, False
+
+        def commit(self):
+            if self.n == landed:
+                raise KeyboardInterrupt  # before the driver's commit
+            self.committed = True
+
+        def rollback(self):
+            self.rolled_back = True
+
+    dbs = [Db(n) for n in range(3)]
+    levels = BatchLevels()
+    levels.new_batch()
+    for db in dbs:
+        levels.using_db(db)
+    with pytest.raises(KeyboardInterrupt):
+        levels.end_batch()
+    assert not levels.in_batch()
+    assert [db.committed for db in dbs] == [n < landed for n in range(3)]
+    assert [db.rolled_back for db in dbs] == [n >= landed for n in range(3)]
+
+
+def test_an_error_typed_at_the_prompt_does_not_roll_back_held_work(tmp_path):
+    # Only an interrupt rolls back what plain AUTOCOMMIT ON left held; an
+    # error typed at the prompt leaves it for the next commit, as in a script.
+    from tests.test_interactive import _paused as paused
+
+    script = (
+        "create table t (n integer);\n-- !x! autocommit off\ninsert into t values (1);\n"
+        "-- !x! autocommit on\n-- !x! breakpoint\ninsert into t values (2);\n"
+    )
+    _, _, _, rows = paused(tmp_path, script, ["-- !x! use no_such_alias", ".c"])
+    assert rows == [1, 2]
+
+
 # A metacommand that writes is interrupted the same way: EXECUTE runs a
 # procedure that writes, and the interrupt lands before EXECUTE commits.
 
