@@ -472,7 +472,10 @@ def x_disconnect(**kwargs: Any) -> None:
     if _state.status.batch.uses_db(_state.dbs.aliased_as(alias)):
         raise ErrInfo(type="cmd", other_msg="You may not disconnect from a database that is currently used in a batch.")
     _state.exec_log.log_status_info(f"Disconnecting from database with alias '{alias}'")
-    if alias == current_alias:
+    if alias.lower() == current_alias:
+        # The current database was spelled in a different letter case, but it
+        # is still the current one: switch away before removing it, or the
+        # pool would hold a current alias that no longer exists.
         _state.dbs.make_current("initial")
     _state.dbs.disconnect(alias)
 

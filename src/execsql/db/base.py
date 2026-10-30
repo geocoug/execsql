@@ -1078,8 +1078,8 @@ class DatabasePool:
         return self.pool[self.initial_db]
 
     def aliased_as(self, db_alias: str) -> Database:
-        """Return the ``Database`` registered under *db_alias*."""
-        return self.pool[db_alias]
+        """Return the ``Database`` registered under *db_alias* (any letter case)."""
+        return self.pool[db_alias.lower()]
 
     def make_current(self, db_alias: str) -> None:
         """Set the active database to *db_alias*; raises ``ErrInfo`` if the alias is unknown."""
@@ -1092,7 +1092,8 @@ class DatabasePool:
         self.current_db = db_alias
 
     def disconnect(self, alias: str) -> None:
-        """Close and remove the connection registered under *alias* from the pool."""
+        """Close and remove the connection registered under *alias* (any letter case) from the pool."""
+        alias = alias.lower()
         if alias == self.current_db or (alias == "initial" and "initial" in self.pool):
             raise ErrInfo(
                 type="error",
