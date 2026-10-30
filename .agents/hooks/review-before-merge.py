@@ -24,6 +24,7 @@ import shlex
 import subprocess
 import sys
 import time
+from pathlib import Path
 
 from hook_paths import edited_paths, project_dir
 
@@ -106,20 +107,25 @@ def flatten(text: str) -> str:
         if text.startswith("<<", i):
             m = re.match(r"<<(-?)[ \t]*\\?(['\"]?)([A-Za-z_][\w.-]*)\2", text[i:])
             if m:
-                pending.append((m.group(3), m.group(1) == "-"))
+                pending.append((m.group(3), m.group(1) == "-", bool(m.group(2) or "\\" in m.group(0))))
                 out.append(" ")
                 i += m.end()
                 continue
         if c == "\n":
             out.append(" ; ")
             i += 1
-            for delim, tabs in pending:
+            for delim, tabs, quoted in pending:
                 while i < n:
                     j = text.find("\n", i)
                     line = text[i:] if j < 0 else text[i:j]
                     i = n if j < 0 else j + 1
                     if (line.lstrip("\t") if tabs else line) == delim:
                         break
+                    if not quoted and re.search(r"\$\(|`", line):
+                        raise ValueError(
+                            "command substitutions in expandable heredocs cannot be checked; "
+                            "quote the delimiter for literal text, or run the command separately",
+                        )
             pending = []
             continue
         out.append(c)
@@ -386,11 +392,21 @@ def guard_records(tool: str, ti: dict, payload: dict) -> None:
     )
     if tool == "Bash":
         cmd = ti.get("command") or ""
-        if "claude-review" not in cmd:
-            return
+        cwd = Path(payload.get("cwd") or Path.cwd()).resolve()
         # Here-document bodies are data; a redirect into one of the files stays outside them. Each command is judged on
         # its own, so reading the state and writing elsewhere in the same line isn't caught.
         for seg in re.split(r"&&|\|\||(?<!>)\||[;&\n]", flatten(cmd)):  # `>|` is a redirect, not a pipe
+            # A relative write from inside the records must not evade the literal-path checks below.
+            # Keep report-writing shell commands outside this directory, using absolute .md paths.
+            if "claude-review" in cwd.parts and (">" in seg or WRITES.search(seg)):
+                block(msg + " Run report-writing shell commands from the repository root with absolute .md paths.")
+            if re.match(r"\s*cd\s", seg):
+                words = shlex.split(seg)
+                args = words[1:]
+                if args[:1] == ["--"]:
+                    args = args[1:]
+                if len(args) == 1:
+                    cwd = (cwd / args[0]).resolve()
             # Any path under claude-review other than a report (.md): approvals, the state, a pr-<n> folder, the lot.
             paths = [t.strip("'\";)") for t in re.findall(r"\S*claude-review\S*", seg)]
             protected = [p for p in paths if not p.endswith(".md")]

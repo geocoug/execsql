@@ -62,6 +62,13 @@ limit. Errors in sensitive operations block the tool. The wrapper also blocks
 sensitive input when Python is unavailable or the Python hook crashes. These
 are local execution hooks, not a server-side GitHub restriction.
 
+Shell mutations from inside a `claude-review` directory are blocked, including
+relative paths and commands following `cd`. Write review reports from the
+repository root using absolute `.md` paths, or use an edit tool. Commands with
+substitutions in an unquoted heredoc are also blocked when they mention a merge
+or review records: quote the delimiter for literal text, or run the command
+separately so the hook can inspect it.
+
 ## Claude automatic documentation updates
 
 The existing `PostToolUse` agent handler remains installed in tracked
