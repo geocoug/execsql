@@ -31,7 +31,7 @@ script ran to its end, ``SQL_ERROR()`` must be what the model predicts.  On a
 mismatch Hypothesis shrinks the script to the shortest one that still
 differs: that script is the bug report.
 
-The rules modelled are the CLAUDE.md decisions "Batches left early" (#121),
+The rules modelled are the AGENTS.md decisions "Batches left early" (#121),
 "Batch rules" (#125) and #135's "a failed commit is rolled back", with the
 documented behavior of nested batches: an inner END BATCH commits everything
 pending on its connection, the outer batch's statements included
