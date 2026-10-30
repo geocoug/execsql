@@ -49,15 +49,18 @@ scripts/*
 _execsql/
 
 # AI
-.claude/
-CLAUDE.md
+# Shared agent setup; personal configuration stays local.
+.claude/*
+!.claude/settings.json
+!.claude/skills
 AUDIT.md
 DOC_AUDIT.md
 ROADMAP.md
 PROMPTS.md
 audit/
-AGENTS.md
-.codex/
+.codex/*
+!.codex/config.toml
+!.codex/hooks.json
 
 # VS Code extension dependencies (npm ci in extras/vscode-execsql)
 node_modules/
