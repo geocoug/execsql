@@ -442,6 +442,17 @@ def x_connect_dsn(**kwargs: Any) -> None:
     return None
 
 
+def _set_current_db_vars(db_alias: str) -> None:
+    """Point $CURRENT_DBMS, $CURRENT_DATABASE and $DB_SERVER at *db_alias*.
+
+    Shared by ``USE`` and the ``DISCONNECT`` that switches the run back to
+    the initial database, so the variables always name the database in use.
+    """
+    _state.subvars.add_substitution("$CURRENT_DBMS", _state.dbs.aliased_as(db_alias).type.dbms_id)
+    _state.subvars.add_substitution("$CURRENT_DATABASE", _state.dbs.aliased_as(db_alias).name())
+    _state.subvars.add_substitution("$DB_SERVER", _state.dbs.aliased_as(db_alias).server_name)
+
+
 def x_use(**kwargs: Any) -> None:
     db_alias = kwargs["db_alias"].lower()
     if db_alias not in _state.dbs.aliases():
@@ -452,9 +463,7 @@ def x_use(**kwargs: Any) -> None:
         )
     _state.dbs.make_current(db_alias)
     _state.exec_log.log_db_connect(_state.dbs.current())
-    _state.subvars.add_substitution("$CURRENT_DBMS", _state.dbs.aliased_as(db_alias).type.dbms_id)
-    _state.subvars.add_substitution("$CURRENT_DATABASE", _state.dbs.aliased_as(db_alias).name())
-    _state.subvars.add_substitution("$DB_SERVER", _state.dbs.aliased_as(db_alias).server_name)
+    _set_current_db_vars(db_alias)
     return None
 
 
@@ -473,7 +482,13 @@ def x_disconnect(**kwargs: Any) -> None:
         raise ErrInfo(type="cmd", other_msg="You may not disconnect from a database that is currently used in a batch.")
     _state.exec_log.log_status_info(f"Disconnecting from database with alias '{alias}'")
     if alias == current_alias:
+        # Switch the run back to the initial database before the entry is
+        # removed, and share USE's variable updates, so $CURRENT_DATABASE,
+        # $CURRENT_DBMS and $DB_SERVER name the database in use, not the
+        # one just closed, and the log's connection record moves too.
         _state.dbs.make_current("initial")
+        _set_current_db_vars("initial")
+        _state.exec_log.log_db_connect(_state.dbs.current())
     _state.dbs.disconnect(alias)
 
 

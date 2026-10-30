@@ -1,0 +1,11 @@
+{
+ "exit": 0,
+ "files": {
+  "c.db": "",
+  "out.txt": "before: SQLite(file c.db) (alias c)\nafter: SQLite(file c.db) (alias initial)\ndbms: SQLite\n"
+ },
+ "recorded_with": "execsql 1.130.1",
+ "stderr": "",
+ "stdout": "",
+ "tables": {}
+}

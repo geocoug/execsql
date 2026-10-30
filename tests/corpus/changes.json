@@ -1074,6 +1074,14 @@
    "why": "A delimited file with a line break inside a quoted value: upstream's delimiter detection found no delimiter and read every line as one column named 'id,note'; execsql2 reads the two columns (divergence: 'Line break inside a quoted value')."
   }
  },
+ "current_db_vars_after_disconnect": {
+  "files/out.txt": {
+   "execsql2": "before: SQLite(file c.db) (alias c)\nafter: SQLite(file t.db) (alias initial)\ndbms: SQLite\n",
+   "status": "accepted",
+   "upstream": "before: SQLite(file c.db) (alias c)\nafter: SQLite(file c.db) (alias initial)\ndbms: SQLite\n",
+   "why": "A DISCONNECT of the current database switches the run to the initial database, but $CURRENT_DATABASE, $CURRENT_DBMS and $DB_SERVER kept naming the database just closed, so a script branching on $CURRENT_DBMS after a DISCONNECT picked the wrong dialect; the variables now follow the switch, shared with USE (#127)."
+  }
+ },
  "decimal_digits": {
   "files/ddl.sql": {
    "execsql2": "CREATE TABLE short (\n    v double NOT NULL\n    );\nCREATE TABLE long (\n    v decimal(20,10) NOT NULL\n    );\n",
