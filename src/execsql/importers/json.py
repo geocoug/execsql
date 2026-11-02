@@ -12,6 +12,7 @@ maps to a scalar database value.
 """
 
 import json
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -20,6 +21,11 @@ from execsql.exceptions import ErrInfo
 from execsql.importers.base import import_data_table
 
 __all__ = ["import_json"]
+
+
+def _array_number(value: Any) -> Any:
+    """Keep the established JSON text representation of numbers inside arrays."""
+    return float(value) if isinstance(value, Decimal) else str(value)
 
 
 def _flatten(obj: Any, prefix: str = "", sep: str = ".") -> dict[str, Any]:
@@ -51,7 +57,7 @@ def _flatten(obj: Any, prefix: str = "", sep: str = ".") -> dict[str, Any]:
                         ),
                     )
                 source_paths[column] = source_path
-                items[column] = json.dumps(value, default=str) if isinstance(value, list) else value
+                items[column] = json.dumps(value, default=_array_number) if isinstance(value, list) else value
 
     visit(obj, prefix, ())
     return items
@@ -60,6 +66,8 @@ def _flatten(obj: Any, prefix: str = "", sep: str = ".") -> dict[str, Any]:
 def _parse_json_file(filename: str, encoding: str) -> list[dict[str, Any]]:
     """Read a JSON file and return a list of flat dicts.
 
+    Fractional and exponent scalar numbers retain their exact Decimal digits;
+    integers remain int. Arrays retain their established JSON text encoding.
     Accepts either a JSON array of objects or `JSON Lines
     <https://jsonlines.org/>`_ (JSONL). The JSONL path streams the
     file line-by-line so the raw text isn't buffered alongside the
@@ -83,7 +91,7 @@ def _parse_json_file(filename: str, encoding: str) -> list[dict[str, Any]]:
         # Standard JSON array — must buffer the whole file (json.loads
         # has no streaming mode; ijson would be needed for that).
         text = Path(filename).read_text(encoding=encoding)
-        raw = json.loads(text)
+        raw = json.loads(text, parse_float=Decimal)
         if not isinstance(raw, list):
             raise ErrInfo(type="error", other_msg="JSON file root is not an array of objects.")
         records = raw
@@ -96,7 +104,7 @@ def _parse_json_file(filename: str, encoding: str) -> list[dict[str, Any]]:
                 if not line:
                     continue
                 try:
-                    obj = json.loads(line)
+                    obj = json.loads(line, parse_float=Decimal)
                 except json.JSONDecodeError as exc:
                     raise ErrInfo(
                         type="error",
@@ -141,7 +149,8 @@ def import_json(
     Objects are flattened so that nested keys become dot-separated column
     names (e.g. ``address.city``).  Arrays within objects are stored as
     JSON strings. Colliding paths within a record are rejected before
-    any table is created, replaced or populated.
+    any table is created, replaced or populated. Fractional and exponent scalar
+    numbers are parsed as Decimal before table inference and target conversion.
     """
     from execsql.utils.errors import exception_desc
 

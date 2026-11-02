@@ -9,6 +9,7 @@ files via the Python standard library ``sqlite3`` module.  Corresponds to
 """
 
 import datetime
+import math
 import re
 from collections.abc import Callable
 from decimal import Decimal, InvalidOperation
@@ -21,9 +22,23 @@ from execsql.exceptions import ErrInfo
 from execsql.utils.errors import exception_desc, fatal_error
 import execsql.state as _state
 
-__all__ = ["SQLiteDatabase"]
+__all__ = ["SQLiteDatabase", "sqlite_affinity"]
 
 DEFAULT_CONNECT_TIMEOUT = 30  # seconds
+
+
+def sqlite_affinity(declaration: str) -> str:
+    """Return SQLite's affinity, observing its ordered type-name rules."""
+    name = declaration.upper()
+    if "INT" in name:
+        return "INTEGER"
+    if any(part in name for part in ("CHAR", "CLOB", "TEXT")):
+        return "TEXT"
+    if not name or "BLOB" in name:
+        return "BLOB"
+    if any(part in name for part in ("REAL", "FLOA", "DOUB")):
+        return "REAL"
+    return "NUMERIC"
 
 
 def _integer_converter(column: str, table: str) -> Callable[[Any], Any]:
@@ -190,6 +205,12 @@ class SQLiteDatabase(Database):
         SQLite's broader INTEGER-affinity substring rule. An unqualified name
         keeps SQLite's normal temporary/main/attached lookup order.
         """
+        return {
+            name: kind_for_type_name(declaration) for name, declaration in self._column_declarations(sq_name).items()
+        }
+
+    def _column_declarations(self, sq_name: str) -> dict[str, str]:
+        """Read declared column types from the same qualified table INSERT uses."""
         identifier = r'(?:"(?:[^"]|"")*"|\w+)'
         name = re.fullmatch(rf"(?:(?P<schema>{identifier})\.)?(?P<table>{identifier})", sq_name)
         if name is None:
@@ -197,7 +218,7 @@ class SQLiteDatabase(Database):
         prefix = f"{name['schema']}." if name["schema"] else ""
         sql = f"PRAGMA {prefix}table_xinfo({name['table']})"
         _description, rows = self._column_type_query(sq_name, sql)
-        return {row[1].lower(): kind_for_type_name(row[2]) for row in rows}
+        return {row[1].lower(): row[2] for row in rows}
 
     def view_exists(self, view_name: str, schema_name: str | None = None) -> bool:
         """Return True if the named view exists in the SQLite database."""
@@ -241,7 +262,8 @@ class SQLiteDatabase(Database):
 
         Existing integer-kind columns reject fractions and values outside the
         signed 64-bit range. Other columns retain their pass-through behavior
-        (dates, times and decimals as text). A failed load is rolled back.
+        (dates, times and decimals as text). Finite decimals cannot overflow
+        a numeric-affinity column to infinity. A failed load is rolled back.
         """
         # The rowsource argument must be a generator yielding a list of values for the columns of the table.
         # The column_list argument must an iterable containing column names in the same order as produced by the rowsource.
@@ -258,7 +280,17 @@ class SQLiteDatabase(Database):
         # Get column indexes for selected column names.
         columns = column_list
         data_indexes = [ts_colnames.index(col) for col in columns]
-        kinds = self.column_kinds(sq_name) if existing_table else {}
+        declarations = self._column_declarations(sq_name)
+        kinds = (
+            {name: kind_for_type_name(declaration) for name, declaration in declarations.items()}
+            if existing_table
+            else {}
+        )
+        numeric_columns = {
+            i
+            for i, column in enumerate(columns)
+            if sqlite_affinity(declarations.get(column.lower(), "")) in ("NUMERIC", "REAL", "INTEGER")
+        }
         converters = {
             i: _integer_converter(column, sq_name)
             for i, column in enumerate(columns)
@@ -302,7 +334,7 @@ class SQLiteDatabase(Database):
 
         last_line: list[Any] = []
         try:
-            if converters:
+            if converters or numeric_columns:
                 self.begin_transaction()
             for line in rowsource:
                 # Skip empty rows.
@@ -321,6 +353,16 @@ class SQLiteDatabase(Database):
                     linedata = [line[ix] for ix in data_indexes]
                     for i, convert in converters.items():
                         linedata[i] = convert(linedata[i])
+                    for i in numeric_columns:
+                        value = linedata[i]
+                        if isinstance(value, Decimal) and value.is_finite() and math.isinf(float(value)):
+                            raise ErrInfo(
+                                type="error",
+                                other_msg=(
+                                    f"Can't load {value!r} into column {columns[i]} of {sq_name}: "
+                                    "SQLite would store infinity instead of this finite value."
+                                ),
+                            )
                     # Convert datetime, time, and Decimal values to strings.
                     for i in range(len(linedata)):
                         if type(linedata[i]) in (datetime.datetime, datetime.time, Decimal):

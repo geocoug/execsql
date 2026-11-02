@@ -69,6 +69,12 @@ ______________________________________________________________________
 
 ### Bug Fixes
 
+Decimal type inference, including IMPORT/COPY and database exports, counts positive exponents as integer digits with scale zero. Generated decimal column declarations keep the explicit zero scale instead of falling back to the database's default precision and scale.
+
+Finite Decimal values loaded into existing text columns are bound as exact decimal strings, preventing a driver's Decimal-to-DOUBLE fallback from rounding or overflowing them. SQLite numeric-affinity IMPORT/COPY destinations reject finite Decimal overflow instead of silently storing infinity, for both existing and newly created tables. Text/BLOB affinity retains the decimal string; ordinary finite SQLite numeric rounding is unchanged.
+
+`IMPORT … FROM JSON` parses fractional and exponent scalar numbers as exact Decimal values before inference or loading, instead of losing digits through a binary float. Existing decimal and integer targets validate the original digits; NEW/REPLACEMENT inference can choose DECIMAL instead of DOUBLE, with EXACT_DECIMALS still governing mixed scales. Positive exponents contribute integer precision with zero scale, and DuckDB binds their exact values for new decimal columns. JSON integers and serialized array text retain their earlier behavior. execsql2 provides JSON import; upstream does not.
+
 `IMPORT … FROM JSON` rejects distinct paths within a record that flatten to the same column name, such as literal `a.b` and nested `a` → `b`, instead of silently keeping the last value. The error identifies both source paths. Validation finishes before any target table is created, replaced or populated; non-colliding flattened names and values are preserved. JSON import itself is an execsql2 addition.
 
 `IMPORT` and `COPY` into a database-qualified SQLite table preserve the qualifier during existence checks, column lookup and insertion. A target such as `aux.results` refers to the database attached as `aux`; a same-named table in `main` is left unchanged. Missing qualified targets fail instead of loading into an unqualified table.

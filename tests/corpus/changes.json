@@ -1163,7 +1163,7 @@
    "execsql2": "failed at stage two\n",
    "status": "accepted",
    "upstream": "",
-   "why": "Upstream passed substitute_all's (text, flag) pair on as the text, so ON ERROR_HALT WRITE … TO <file> left the file empty; execsql2 writes the message (divergence: 'ON ERROR_HALT WRITE … TO a file wrote nothing')."
+   "why": "Upstream passed substitute_all's (text, flag) pair on as the text, so ON ERROR_HALT WRITE \u2026 TO <file> left the file empty; execsql2 writes the message (divergence: 'ON ERROR_HALT WRITE \u2026 TO a file wrote nothing')."
   }
  },
  "directive_from_variable": {
@@ -1238,6 +1238,32 @@
    "why": "An IF condition that cannot be evaluated stops the run in execsql2, whatever METACOMMAND_ERROR_HALT says; upstream made an inline IF's bad condition a metacommand error and carried on. Kept on purpose (#112): a condition that cannot be evaluated is a script bug, and carrying on runs the script down a branch nobody chose (divergence: 'A condition that cannot be evaluated stops the run')."
   }
  },
+ "json_exact_numbers": {
+  "exit": {
+   "execsql2": 0,
+   "status": "accepted",
+   "upstream": 1,
+   "why": "JSON import is an execsql2 feature. Fractional and exponent scalar numbers are parsed as exact Decimal values before inference and loading; existing DECIMAL destinations preserve their source digits and positive exponents create correctly sized new decimal columns with explicit zero scale."
+  },
+  "files/amounts.csv": {
+   "execsql2": "i,v\n100,1234567890.123456789100000000\n101,0.200000000000000000\n",
+   "status": "accepted",
+   "upstream": null,
+   "why": "JSON import is an execsql2 feature. Fractional and exponent scalar numbers are parsed as exact Decimal values before inference and loading; existing DECIMAL destinations preserve their source digits and positive exponents create correctly sized new decimal columns with explicit zero scale."
+  },
+  "files/powers.csv": {
+   "execsql2": "i,v\n100,1000\n101,200\n",
+   "status": "accepted",
+   "upstream": null,
+   "why": "JSON import is an execsql2 feature. Fractional and exponent scalar numbers are parsed as exact Decimal values before inference and loading; existing DECIMAL destinations preserve their source digits and positive exponents create correctly sized new decimal columns with explicit zero scale."
+  },
+  "stderr": {
+   "execsql2": "",
+   "status": "accepted",
+   "upstream": "**** Error in metacommand.\n     Line 4 of script script.sql\n     Unknown metacommand\n     IMPORT TO amounts FROM JSON exact.json\n     Metacommand: IMPORT TO amounts FROM JSON exact.json\n     Error occurred at <TIME>.\n",
+   "why": "JSON import is an execsql2 feature. Fractional and exponent scalar numbers are parsed as exact Decimal values before inference and loading; existing DECIMAL destinations preserve their source digits and positive exponents create correctly sized new decimal columns with explicit zero scale."
+  }
+ },
  "loop_while_until": {
   "files/out.txt": {
    "execsql2": "until pass 1\nuntil pass 2\nuntil pass 3\ni=5 j=3 k=3\n",
@@ -1251,7 +1277,7 @@
    "execsql2": "halted after created\n",
    "status": "accepted",
    "upstream": "",
-   "why": "Upstream passed substitute_all's (text, flag) pair on as the text, so ON ERROR_HALT WRITE … TO <file> left the file empty; execsql2 writes the message (divergence: 'ON ERROR_HALT WRITE … TO a file wrote nothing')."
+   "why": "Upstream passed substitute_all's (text, flag) pair on as the text, so ON ERROR_HALT WRITE \u2026 TO <file> left the file empty; execsql2 writes the message (divergence: 'ON ERROR_HALT WRITE \u2026 TO a file wrote nothing')."
   }
  },
  "script_extend_and_write": {

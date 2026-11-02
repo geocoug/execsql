@@ -40,6 +40,7 @@ from execsql.types import (
 )
 
 __all__ = [
+    "decimal_parameter",
     "ColumnKinds",
     "ColumnMetadata",
     "existing_table_converter",
@@ -237,7 +238,8 @@ Converter = Callable[[Any], Any]
 
 
 def _as_given(value: Any) -> Any:
-    return value
+    # Bind decimal text ourselves before a driver can cast it through DOUBLE.
+    return str(value) if isinstance(value, Decimal) and value.is_finite() else value
 
 
 def _whole_number_converter(column: str, table: str, default: Converter) -> Converter:
@@ -311,6 +313,38 @@ def _check_decimal_scale(number: Decimal, value: Any, scale: int | None, column:
         )
 
 
+def decimal_parameter(number: Decimal, binding_precision: int | None, column: str, table: str) -> Decimal | str:
+    """Bind a finite Decimal exactly within an adapter's native parameter capacity."""
+    if binding_precision is None:
+        return number
+    if number.is_zero():
+        return Decimal(0).copy_sign(number)
+    parts = number.as_tuple()
+    exponent = parts.exponent
+    assert isinstance(exponent, int)  # Only finite values reach this helper.
+    if exponent > 0:
+        if number.adjusted() >= binding_precision:
+            raise ErrInfo(
+                type="error",
+                other_msg=(
+                    f"Can't load {number!r} into column {column} of {table}: "
+                    f"the database supports at most {binding_precision} decimal digits."
+                ),
+            )
+        # Expansion is bounded by the adapter, never by the input exponent.
+        return Decimal(format(number, "f"))
+    native_width = len(parts.digits)
+    if -exponent > native_width:
+        native_width = -exponent + 1
+    if native_width > binding_precision:
+        # Avoid a driver's silent Decimal-to-double fallback. Fixed text
+        # also avoids exponent parsing at the maximum supported scale.
+        if exponent >= -binding_precision:
+            return format(number, "f")
+        return str(number)
+    return number
+
+
 def _exact_decimal_converter(
     default: Converter,
     column: str,
@@ -324,36 +358,6 @@ def _exact_decimal_converter(
     float here cannot recover source digits already lost by its reader.
     """
 
-    def bind(number: Decimal) -> Decimal | str:
-        if binding_precision is None:
-            return number
-        if number.is_zero():
-            return Decimal(0).copy_sign(number)
-        parts = number.as_tuple()
-        exponent = parts.exponent
-        assert isinstance(exponent, int)  # Only finite values reach this helper.
-        if exponent > 0:
-            if number.adjusted() >= binding_precision:
-                raise ErrInfo(
-                    type="error",
-                    other_msg=(
-                        f"Can't load {number!r} into column {column} of {table}: "
-                        f"the database supports at most {binding_precision} decimal digits."
-                    ),
-                )
-            # Expansion is bounded by the adapter, never by the input exponent.
-            return Decimal(format(number, "f"))
-        native_width = len(parts.digits)
-        if -exponent > native_width:
-            native_width = -exponent + 1
-        if native_width > binding_precision:
-            # Avoid a driver's silent Decimal-to-double fallback. Fixed text
-            # also avoids exponent parsing at the maximum supported scale.
-            if exponent >= -binding_precision:
-                return format(number, "f")
-            return str(number)
-        return number
-
     def convert(value: Any) -> Any:
         if isinstance(value, bool):
             return default(value)
@@ -362,7 +366,7 @@ def _exact_decimal_converter(
             return value
         if isinstance(value, Decimal) and value.is_finite():
             _check_decimal_scale(value, value, scale, column, table)
-            return bind(value)
+            return decimal_parameter(value, binding_precision, column, table)
         if isinstance(value, str) and _NUMBER_TEXT.fullmatch(value):
             try:
                 number = Decimal(value)
@@ -370,7 +374,7 @@ def _exact_decimal_converter(
                 return default(value)
             if number.is_finite():
                 _check_decimal_scale(number, value, scale, column, table)
-                return bind(number)
+                return decimal_parameter(number, binding_precision, column, table)
         return default(value)
 
     return convert

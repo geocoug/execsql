@@ -152,12 +152,17 @@ def test_decimal_target_differential_record(tmp_path, minimal_conf, case, declar
         assert scale_changes[key]["before"] == expected
         assert scale_changes[key]["why"]
         expected = scale_changes[key]["after"]
+    text_changes = json.loads((_RECORDS / "text_changes.json").read_text())
+    if key in text_changes:
+        assert text_changes[key]["before"] == expected
+        assert text_changes[key]["why"]
+        expected = text_changes[key]["after"]
     assert actual == expected
 
 
 @pytest.mark.parametrize("dbms", ["duckdb", "postgres", "mysql", "sqlserver"])
 @pytest.mark.parametrize("exact", [False, True], ids=["scan-inexact", "scan-exact"])
-@pytest.mark.parametrize("format", ["csv", "json-text", "ods", "typed", "copy"])
+@pytest.mark.parametrize("format", ["csv", "json-text", "json-number", "ods", "typed", "copy"])
 @pytest.mark.parametrize(
     "declaration,value",
     [("DECIMAL(38,30)", "0.1"), ("DECIMAL(38,18)", "1.2345678901234567891e5"), ("DECIMAL(38,18)", "1e3")],
@@ -212,6 +217,10 @@ def test_exact_existing_target_across_formats_and_backends(dbms, tmp_path, exact
                 path = tmp_path / "source.csv"
                 path.write_text(f"i,v\n100,{value}\n101,0.20\n")
                 command = f'IMPORT TO {name} FROM "{path}"'
+            elif format == "json-number":
+                path = tmp_path / "source.json"
+                path.write_text('[{"i":100,"v":' + value + '},{"i":101,"v":0.20}]')
+                command = f'IMPORT TO {name} FROM JSON "{path}"'
             elif format == "json-text":
                 path = tmp_path / "source.json"
                 path.write_text(json.dumps([{"i": 100, "v": value}, {"i": 101, "v": "0.20"}]))

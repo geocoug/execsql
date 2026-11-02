@@ -1,0 +1,1772 @@
+{
+ "arrays -> DECIMAL(38,18) / exact=False": {
+  "type": "DECIMAL(38,18)",
+  "values": [
+   "'[0.1, 1000.0, 1.0, 1234567890.1234567, Infinity]'",
+   "'[{\"v\": 0.2}, [0.0], null]'"
+  ]
+ },
+ "arrays -> DECIMAL(38,18) / exact=True": {
+  "type": "DECIMAL(38,18)",
+  "values": [
+   "'[0.1, 1000.0, 1.0, 1234567890.1234567, Infinity]'",
+   "'[{\"v\": 0.2}, [0.0], null]'"
+  ]
+ },
+ "arrays -> DECIMAL(38,30) / exact=False": {
+  "type": "DECIMAL(38,30)",
+  "values": [
+   "'[0.1, 1000.0, 1.0, 1234567890.1234567, Infinity]'",
+   "'[{\"v\": 0.2}, [0.0], null]'"
+  ]
+ },
+ "arrays -> DECIMAL(38,30) / exact=True": {
+  "type": "DECIMAL(38,30)",
+  "values": [
+   "'[0.1, 1000.0, 1.0, 1234567890.1234567, Infinity]'",
+   "'[{\"v\": 0.2}, [0.0], null]'"
+  ]
+ },
+ "arrays -> DOUBLE / exact=False": {
+  "type": "DOUBLE",
+  "values": [
+   "'[0.1, 1000.0, 1.0, 1234567890.1234567, Infinity]'",
+   "'[{\"v\": 0.2}, [0.0], null]'"
+  ]
+ },
+ "arrays -> DOUBLE / exact=True": {
+  "type": "DOUBLE",
+  "values": [
+   "'[0.1, 1000.0, 1.0, 1234567890.1234567, Infinity]'",
+   "'[{\"v\": 0.2}, [0.0], null]'"
+  ]
+ },
+ "arrays -> INTEGER / exact=False": {
+  "type": "INTEGER",
+  "values": [
+   "'[0.1, 1000.0, 1.0, 1234567890.1234567, Infinity]'",
+   "'[{\"v\": 0.2}, [0.0], null]'"
+  ]
+ },
+ "arrays -> INTEGER / exact=True": {
+  "type": "INTEGER",
+  "values": [
+   "'[0.1, 1000.0, 1.0, 1234567890.1234567, Infinity]'",
+   "'[{\"v\": 0.2}, [0.0], null]'"
+  ]
+ },
+ "arrays -> NEW / exact=False": {
+  "type": "varchar",
+  "values": [
+   "'[0.1, 1000.0, 1.0, 1234567890.1234567, Infinity]'",
+   "'[{\"v\": 0.2}, [0.0], null]'"
+  ]
+ },
+ "arrays -> NEW / exact=True": {
+  "type": "varchar",
+  "values": [
+   "'[0.1, 1000.0, 1.0, 1234567890.1234567, Infinity]'",
+   "'[{\"v\": 0.2}, [0.0], null]'"
+  ]
+ },
+ "arrays -> NUMERIC / exact=False": {
+  "type": "NUMERIC",
+  "values": [
+   "'[0.1, 1000.0, 1.0, 1234567890.1234567, Infinity]'",
+   "'[{\"v\": 0.2}, [0.0], null]'"
+  ]
+ },
+ "arrays -> NUMERIC / exact=True": {
+  "type": "NUMERIC",
+  "values": [
+   "'[0.1, 1000.0, 1.0, 1234567890.1234567, Infinity]'",
+   "'[{\"v\": 0.2}, [0.0], null]'"
+  ]
+ },
+ "arrays -> TEXT / exact=False": {
+  "type": "TEXT",
+  "values": [
+   "'[0.1, 1000.0, 1.0, 1234567890.1234567, Infinity]'",
+   "'[{\"v\": 0.2}, [0.0], null]'"
+  ]
+ },
+ "arrays -> TEXT / exact=True": {
+  "type": "TEXT",
+  "values": [
+   "'[0.1, 1000.0, 1.0, 1234567890.1234567, Infinity]'",
+   "'[{\"v\": 0.2}, [0.0], null]'"
+  ]
+ },
+ "boolean -> DECIMAL(38,18) / exact=False": {
+  "type": "DECIMAL(38,18)",
+  "values": [
+   "1",
+   "0"
+  ]
+ },
+ "boolean -> DECIMAL(38,18) / exact=True": {
+  "type": "DECIMAL(38,18)",
+  "values": [
+   "1",
+   "0"
+  ]
+ },
+ "boolean -> DECIMAL(38,30) / exact=False": {
+  "type": "DECIMAL(38,30)",
+  "values": [
+   "1",
+   "0"
+  ]
+ },
+ "boolean -> DECIMAL(38,30) / exact=True": {
+  "type": "DECIMAL(38,30)",
+  "values": [
+   "1",
+   "0"
+  ]
+ },
+ "boolean -> DOUBLE / exact=False": {
+  "type": "DOUBLE",
+  "values": [
+   "1.0",
+   "0.0"
+  ]
+ },
+ "boolean -> DOUBLE / exact=True": {
+  "type": "DOUBLE",
+  "values": [
+   "1.0",
+   "0.0"
+  ]
+ },
+ "boolean -> INTEGER / exact=False": {
+  "type": "INTEGER",
+  "values": [
+   "1",
+   "0"
+  ]
+ },
+ "boolean -> INTEGER / exact=True": {
+  "type": "INTEGER",
+  "values": [
+   "1",
+   "0"
+  ]
+ },
+ "boolean -> NEW / exact=False": {
+  "type": "boolean",
+  "values": [
+   "1",
+   "0"
+  ]
+ },
+ "boolean -> NEW / exact=True": {
+  "type": "boolean",
+  "values": [
+   "1",
+   "0"
+  ]
+ },
+ "boolean -> NUMERIC / exact=False": {
+  "type": "NUMERIC",
+  "values": [
+   "1",
+   "0"
+  ]
+ },
+ "boolean -> NUMERIC / exact=True": {
+  "type": "NUMERIC",
+  "values": [
+   "1",
+   "0"
+  ]
+ },
+ "boolean -> TEXT / exact=False": {
+  "type": "TEXT",
+  "values": [
+   "'1'",
+   "'0'"
+  ]
+ },
+ "boolean -> TEXT / exact=True": {
+  "type": "TEXT",
+  "values": [
+   "'1'",
+   "'0'"
+  ]
+ },
+ "fraction -> DECIMAL(38,18) / exact=False": {
+  "type": "DECIMAL(38,18)",
+  "values": [
+   "0.125",
+   "0.2"
+  ]
+ },
+ "fraction -> DECIMAL(38,18) / exact=True": {
+  "type": "DECIMAL(38,18)",
+  "values": [
+   "0.125",
+   "0.2"
+  ]
+ },
+ "fraction -> DECIMAL(38,30) / exact=False": {
+  "type": "DECIMAL(38,30)",
+  "values": [
+   "0.125",
+   "0.2"
+  ]
+ },
+ "fraction -> DECIMAL(38,30) / exact=True": {
+  "type": "DECIMAL(38,30)",
+  "values": [
+   "0.125",
+   "0.2"
+  ]
+ },
+ "fraction -> DOUBLE / exact=False": {
+  "type": "DOUBLE",
+  "values": [
+   "0.125",
+   "0.2"
+  ]
+ },
+ "fraction -> DOUBLE / exact=True": {
+  "type": "DOUBLE",
+  "values": [
+   "0.125",
+   "0.2"
+  ]
+ },
+ "fraction -> INTEGER / exact=False": "ERROR",
+ "fraction -> INTEGER / exact=True": "ERROR",
+ "fraction -> NEW / exact=False": {
+  "type": "double",
+  "values": [
+   "0.125",
+   "0.2"
+  ]
+ },
+ "fraction -> NEW / exact=True": {
+  "type": "double",
+  "values": [
+   "0.125",
+   "0.2"
+  ]
+ },
+ "fraction -> NUMERIC / exact=False": {
+  "type": "NUMERIC",
+  "values": [
+   "0.125",
+   "0.2"
+  ]
+ },
+ "fraction -> NUMERIC / exact=True": {
+  "type": "NUMERIC",
+  "values": [
+   "0.125",
+   "0.2"
+  ]
+ },
+ "fraction -> TEXT / exact=False": {
+  "type": "TEXT",
+  "values": [
+   "'0.125'",
+   "'0.2'"
+  ]
+ },
+ "fraction -> TEXT / exact=True": {
+  "type": "TEXT",
+  "values": [
+   "'0.125'",
+   "'0.2'"
+  ]
+ },
+ "integer -> DECIMAL(38,18) / exact=False": {
+  "type": "DECIMAL(38,18)",
+  "values": [
+   "9007199254740993",
+   "20"
+  ]
+ },
+ "integer -> DECIMAL(38,18) / exact=True": {
+  "type": "DECIMAL(38,18)",
+  "values": [
+   "9007199254740993",
+   "20"
+  ]
+ },
+ "integer -> DECIMAL(38,30) / exact=False": {
+  "type": "DECIMAL(38,30)",
+  "values": [
+   "9007199254740993",
+   "20"
+  ]
+ },
+ "integer -> DECIMAL(38,30) / exact=True": {
+  "type": "DECIMAL(38,30)",
+  "values": [
+   "9007199254740993",
+   "20"
+  ]
+ },
+ "integer -> DOUBLE / exact=False": {
+  "type": "DOUBLE",
+  "values": [
+   "9007199254740992.0",
+   "20.0"
+  ]
+ },
+ "integer -> DOUBLE / exact=True": {
+  "type": "DOUBLE",
+  "values": [
+   "9007199254740992.0",
+   "20.0"
+  ]
+ },
+ "integer -> INTEGER / exact=False": {
+  "type": "INTEGER",
+  "values": [
+   "9007199254740993",
+   "20"
+  ]
+ },
+ "integer -> INTEGER / exact=True": {
+  "type": "INTEGER",
+  "values": [
+   "9007199254740993",
+   "20"
+  ]
+ },
+ "integer -> NEW / exact=False": {
+  "type": "hugeint",
+  "values": [
+   "9007199254740993",
+   "20"
+  ]
+ },
+ "integer -> NEW / exact=True": {
+  "type": "hugeint",
+  "values": [
+   "9007199254740993",
+   "20"
+  ]
+ },
+ "integer -> NUMERIC / exact=False": {
+  "type": "NUMERIC",
+  "values": [
+   "9007199254740993",
+   "20"
+  ]
+ },
+ "integer -> NUMERIC / exact=True": {
+  "type": "NUMERIC",
+  "values": [
+   "9007199254740993",
+   "20"
+  ]
+ },
+ "integer -> TEXT / exact=False": {
+  "type": "TEXT",
+  "values": [
+   "'9007199254740993'",
+   "'20'"
+  ]
+ },
+ "integer -> TEXT / exact=True": {
+  "type": "TEXT",
+  "values": [
+   "'9007199254740993'",
+   "'20'"
+  ]
+ },
+ "integer_edge -> DECIMAL(38,18) / exact=False": {
+  "type": "DECIMAL(38,18)",
+  "values": [
+   "9007199254740992",
+   "20"
+  ]
+ },
+ "integer_edge -> DECIMAL(38,18) / exact=True": {
+  "type": "DECIMAL(38,18)",
+  "values": [
+   "9007199254740992",
+   "20"
+  ]
+ },
+ "integer_edge -> DECIMAL(38,30) / exact=False": {
+  "type": "DECIMAL(38,30)",
+  "values": [
+   "9007199254740992",
+   "20"
+  ]
+ },
+ "integer_edge -> DECIMAL(38,30) / exact=True": {
+  "type": "DECIMAL(38,30)",
+  "values": [
+   "9007199254740992",
+   "20"
+  ]
+ },
+ "integer_edge -> DOUBLE / exact=False": {
+  "type": "DOUBLE",
+  "values": [
+   "9007199254740992.0",
+   "20.0"
+  ]
+ },
+ "integer_edge -> DOUBLE / exact=True": {
+  "type": "DOUBLE",
+  "values": [
+   "9007199254740992.0",
+   "20.0"
+  ]
+ },
+ "integer_edge -> INTEGER / exact=False": {
+  "type": "INTEGER",
+  "values": [
+   "9007199254740992",
+   "20"
+  ]
+ },
+ "integer_edge -> INTEGER / exact=True": {
+  "type": "INTEGER",
+  "values": [
+   "9007199254740992",
+   "20"
+  ]
+ },
+ "integer_edge -> NEW / exact=False": {
+  "type": "hugeint",
+  "values": [
+   "9007199254740992",
+   "20"
+  ]
+ },
+ "integer_edge -> NEW / exact=True": {
+  "type": "hugeint",
+  "values": [
+   "9007199254740992",
+   "20"
+  ]
+ },
+ "integer_edge -> NUMERIC / exact=False": {
+  "type": "NUMERIC",
+  "values": [
+   "9007199254740992",
+   "20"
+  ]
+ },
+ "integer_edge -> NUMERIC / exact=True": {
+  "type": "NUMERIC",
+  "values": [
+   "9007199254740992",
+   "20"
+  ]
+ },
+ "integer_edge -> TEXT / exact=False": {
+  "type": "TEXT",
+  "values": [
+   "'9.00719925474099e+15'",
+   "'20.0'"
+  ]
+ },
+ "integer_edge -> TEXT / exact=True": {
+  "type": "TEXT",
+  "values": [
+   "'9.00719925474099e+15'",
+   "'20.0'"
+  ]
+ },
+ "integer_fraction -> DECIMAL(38,18) / exact=False": {
+  "type": "DECIMAL(38,18)",
+  "values": [
+   "1",
+   "2"
+  ]
+ },
+ "integer_fraction -> DECIMAL(38,18) / exact=True": {
+  "type": "DECIMAL(38,18)",
+  "values": [
+   "1",
+   "2"
+  ]
+ },
+ "integer_fraction -> DECIMAL(38,30) / exact=False": {
+  "type": "DECIMAL(38,30)",
+  "values": [
+   "1",
+   "2"
+  ]
+ },
+ "integer_fraction -> DECIMAL(38,30) / exact=True": {
+  "type": "DECIMAL(38,30)",
+  "values": [
+   "1",
+   "2"
+  ]
+ },
+ "integer_fraction -> DOUBLE / exact=False": {
+  "type": "DOUBLE",
+  "values": [
+   "1.0",
+   "2.0"
+  ]
+ },
+ "integer_fraction -> DOUBLE / exact=True": {
+  "type": "DOUBLE",
+  "values": [
+   "1.0",
+   "2.0"
+  ]
+ },
+ "integer_fraction -> INTEGER / exact=False": {
+  "type": "INTEGER",
+  "values": [
+   "1",
+   "2"
+  ]
+ },
+ "integer_fraction -> INTEGER / exact=True": {
+  "type": "INTEGER",
+  "values": [
+   "1",
+   "2"
+  ]
+ },
+ "integer_fraction -> NEW / exact=False": {
+  "type": "hugeint",
+  "values": [
+   "1",
+   "2"
+  ]
+ },
+ "integer_fraction -> NEW / exact=True": {
+  "type": "hugeint",
+  "values": [
+   "1",
+   "2"
+  ]
+ },
+ "integer_fraction -> NUMERIC / exact=False": {
+  "type": "NUMERIC",
+  "values": [
+   "1",
+   "2"
+  ]
+ },
+ "integer_fraction -> NUMERIC / exact=True": {
+  "type": "NUMERIC",
+  "values": [
+   "1",
+   "2"
+  ]
+ },
+ "integer_fraction -> TEXT / exact=False": {
+  "type": "TEXT",
+  "values": [
+   "'1.0'",
+   "'2.0'"
+  ]
+ },
+ "integer_fraction -> TEXT / exact=True": {
+  "type": "TEXT",
+  "values": [
+   "'1.0'",
+   "'2.0'"
+  ]
+ },
+ "mixed_exponent -> DECIMAL(38,18) / exact=False": {
+  "type": "DECIMAL(38,18)",
+  "values": [
+   "1000",
+   "0.2"
+  ]
+ },
+ "mixed_exponent -> DECIMAL(38,18) / exact=True": {
+  "type": "DECIMAL(38,18)",
+  "values": [
+   "1000",
+   "0.2"
+  ]
+ },
+ "mixed_exponent -> DECIMAL(38,30) / exact=False": {
+  "type": "DECIMAL(38,30)",
+  "values": [
+   "1000",
+   "0.2"
+  ]
+ },
+ "mixed_exponent -> DECIMAL(38,30) / exact=True": {
+  "type": "DECIMAL(38,30)",
+  "values": [
+   "1000",
+   "0.2"
+  ]
+ },
+ "mixed_exponent -> DOUBLE / exact=False": {
+  "type": "DOUBLE",
+  "values": [
+   "1000.0",
+   "0.2"
+  ]
+ },
+ "mixed_exponent -> DOUBLE / exact=True": {
+  "type": "DOUBLE",
+  "values": [
+   "1000.0",
+   "0.2"
+  ]
+ },
+ "mixed_exponent -> INTEGER / exact=False": "ERROR",
+ "mixed_exponent -> INTEGER / exact=True": "ERROR",
+ "mixed_exponent -> NEW / exact=False": {
+  "type": "double",
+  "values": [
+   "1000.0",
+   "0.2"
+  ]
+ },
+ "mixed_exponent -> NEW / exact=True": {
+  "type": "double",
+  "values": [
+   "1000.0",
+   "0.2"
+  ]
+ },
+ "mixed_exponent -> NUMERIC / exact=False": {
+  "type": "NUMERIC",
+  "values": [
+   "1000",
+   "0.2"
+  ]
+ },
+ "mixed_exponent -> NUMERIC / exact=True": {
+  "type": "NUMERIC",
+  "values": [
+   "1000",
+   "0.2"
+  ]
+ },
+ "mixed_exponent -> TEXT / exact=False": {
+  "type": "TEXT",
+  "values": [
+   "'1000.0'",
+   "'0.2'"
+  ]
+ },
+ "mixed_exponent -> TEXT / exact=True": {
+  "type": "TEXT",
+  "values": [
+   "'1000.0'",
+   "'0.2'"
+  ]
+ },
+ "mixed_scale -> DECIMAL(38,18) / exact=False": {
+  "type": "DECIMAL(38,18)",
+  "values": [
+   "0.1",
+   "0.2"
+  ]
+ },
+ "mixed_scale -> DECIMAL(38,18) / exact=True": {
+  "type": "DECIMAL(38,18)",
+  "values": [
+   "0.1",
+   "0.2"
+  ]
+ },
+ "mixed_scale -> DECIMAL(38,30) / exact=False": {
+  "type": "DECIMAL(38,30)",
+  "values": [
+   "0.1",
+   "0.2"
+  ]
+ },
+ "mixed_scale -> DECIMAL(38,30) / exact=True": {
+  "type": "DECIMAL(38,30)",
+  "values": [
+   "0.1",
+   "0.2"
+  ]
+ },
+ "mixed_scale -> DOUBLE / exact=False": {
+  "type": "DOUBLE",
+  "values": [
+   "0.1",
+   "0.2"
+  ]
+ },
+ "mixed_scale -> DOUBLE / exact=True": {
+  "type": "DOUBLE",
+  "values": [
+   "0.1",
+   "0.2"
+  ]
+ },
+ "mixed_scale -> INTEGER / exact=False": "ERROR",
+ "mixed_scale -> INTEGER / exact=True": "ERROR",
+ "mixed_scale -> NEW / exact=False": {
+  "type": "double",
+  "values": [
+   "0.1",
+   "0.2"
+  ]
+ },
+ "mixed_scale -> NEW / exact=True": {
+  "type": "double",
+  "values": [
+   "0.1",
+   "0.2"
+  ]
+ },
+ "mixed_scale -> NUMERIC / exact=False": {
+  "type": "NUMERIC",
+  "values": [
+   "0.1",
+   "0.2"
+  ]
+ },
+ "mixed_scale -> NUMERIC / exact=True": {
+  "type": "NUMERIC",
+  "values": [
+   "0.1",
+   "0.2"
+  ]
+ },
+ "mixed_scale -> TEXT / exact=False": {
+  "type": "TEXT",
+  "values": [
+   "'0.1'",
+   "'0.2'"
+  ]
+ },
+ "mixed_scale -> TEXT / exact=True": {
+  "type": "TEXT",
+  "values": [
+   "'0.1'",
+   "'0.2'"
+  ]
+ },
+ "negative_zero -> DECIMAL(38,18) / exact=False": {
+  "type": "DECIMAL(38,18)",
+  "values": [
+   "0",
+   "0"
+  ]
+ },
+ "negative_zero -> DECIMAL(38,18) / exact=True": {
+  "type": "DECIMAL(38,18)",
+  "values": [
+   "0",
+   "0"
+  ]
+ },
+ "negative_zero -> DECIMAL(38,30) / exact=False": {
+  "type": "DECIMAL(38,30)",
+  "values": [
+   "0",
+   "0"
+  ]
+ },
+ "negative_zero -> DECIMAL(38,30) / exact=True": {
+  "type": "DECIMAL(38,30)",
+  "values": [
+   "0",
+   "0"
+  ]
+ },
+ "negative_zero -> DOUBLE / exact=False": {
+  "type": "DOUBLE",
+  "values": [
+   "0.0",
+   "0.0"
+  ]
+ },
+ "negative_zero -> DOUBLE / exact=True": {
+  "type": "DOUBLE",
+  "values": [
+   "0.0",
+   "0.0"
+  ]
+ },
+ "negative_zero -> INTEGER / exact=False": {
+  "type": "INTEGER",
+  "values": [
+   "0",
+   "0"
+  ]
+ },
+ "negative_zero -> INTEGER / exact=True": {
+  "type": "INTEGER",
+  "values": [
+   "0",
+   "0"
+  ]
+ },
+ "negative_zero -> NEW / exact=False": {
+  "type": "hugeint",
+  "values": [
+   "0",
+   "0"
+  ]
+ },
+ "negative_zero -> NEW / exact=True": {
+  "type": "hugeint",
+  "values": [
+   "0",
+   "0"
+  ]
+ },
+ "negative_zero -> NUMERIC / exact=False": {
+  "type": "NUMERIC",
+  "values": [
+   "0",
+   "0"
+  ]
+ },
+ "negative_zero -> NUMERIC / exact=True": {
+  "type": "NUMERIC",
+  "values": [
+   "0",
+   "0"
+  ]
+ },
+ "negative_zero -> TEXT / exact=False": {
+  "type": "TEXT",
+  "values": [
+   "'0.0'",
+   "'0.0'"
+  ]
+ },
+ "negative_zero -> TEXT / exact=True": {
+  "type": "TEXT",
+  "values": [
+   "'0.0'",
+   "'0.0'"
+  ]
+ },
+ "nested -> DECIMAL(38,18) / exact=False": {
+  "type": "DECIMAL(38,18)",
+  "values": [
+   "1234567890.1234567",
+   "0.2"
+  ]
+ },
+ "nested -> DECIMAL(38,18) / exact=True": {
+  "type": "DECIMAL(38,18)",
+  "values": [
+   "1234567890.1234567",
+   "0.2"
+  ]
+ },
+ "nested -> DECIMAL(38,30) / exact=False": {
+  "type": "DECIMAL(38,30)",
+  "values": [
+   "1234567890.1234567",
+   "0.2"
+  ]
+ },
+ "nested -> DECIMAL(38,30) / exact=True": {
+  "type": "DECIMAL(38,30)",
+  "values": [
+   "1234567890.1234567",
+   "0.2"
+  ]
+ },
+ "nested -> DOUBLE / exact=False": {
+  "type": "DOUBLE",
+  "values": [
+   "1234567890.1234567",
+   "0.2"
+  ]
+ },
+ "nested -> DOUBLE / exact=True": {
+  "type": "DOUBLE",
+  "values": [
+   "1234567890.1234567",
+   "0.2"
+  ]
+ },
+ "nested -> INTEGER / exact=False": "ERROR",
+ "nested -> INTEGER / exact=True": "ERROR",
+ "nested -> NEW / exact=False": {
+  "type": "double",
+  "values": [
+   "1234567890.1234567",
+   "0.2"
+  ]
+ },
+ "nested -> NEW / exact=True": {
+  "type": "double",
+  "values": [
+   "1234567890.1234567",
+   "0.2"
+  ]
+ },
+ "nested -> NUMERIC / exact=False": {
+  "type": "NUMERIC",
+  "values": [
+   "1234567890.1234567",
+   "0.2"
+  ]
+ },
+ "nested -> NUMERIC / exact=True": {
+  "type": "NUMERIC",
+  "values": [
+   "1234567890.1234567",
+   "0.2"
+  ]
+ },
+ "nested -> TEXT / exact=False": {
+  "type": "TEXT",
+  "values": [
+   "'1234567890.12346'",
+   "'0.2'"
+  ]
+ },
+ "nested -> TEXT / exact=True": {
+  "type": "TEXT",
+  "values": [
+   "'1234567890.12346'",
+   "'0.2'"
+  ]
+ },
+ "nonfinite -> DECIMAL(38,18) / exact=False": "ERROR",
+ "nonfinite -> DECIMAL(38,18) / exact=True": "ERROR",
+ "nonfinite -> DECIMAL(38,30) / exact=False": "ERROR",
+ "nonfinite -> DECIMAL(38,30) / exact=True": "ERROR",
+ "nonfinite -> DOUBLE / exact=False": "ERROR",
+ "nonfinite -> DOUBLE / exact=True": "ERROR",
+ "nonfinite -> INTEGER / exact=False": "ERROR",
+ "nonfinite -> INTEGER / exact=True": "ERROR",
+ "nonfinite -> NEW / exact=False": "ERROR",
+ "nonfinite -> NEW / exact=True": "ERROR",
+ "nonfinite -> NUMERIC / exact=False": "ERROR",
+ "nonfinite -> NUMERIC / exact=True": "ERROR",
+ "nonfinite -> TEXT / exact=False": "ERROR",
+ "nonfinite -> TEXT / exact=True": "ERROR",
+ "null -> DECIMAL(38,18) / exact=False": {
+  "type": "DECIMAL(38,18)",
+  "values": [
+   "0.1"
+  ]
+ },
+ "null -> DECIMAL(38,18) / exact=True": {
+  "type": "DECIMAL(38,18)",
+  "values": [
+   "0.1"
+  ]
+ },
+ "null -> DECIMAL(38,30) / exact=False": {
+  "type": "DECIMAL(38,30)",
+  "values": [
+   "0.1"
+  ]
+ },
+ "null -> DECIMAL(38,30) / exact=True": {
+  "type": "DECIMAL(38,30)",
+  "values": [
+   "0.1"
+  ]
+ },
+ "null -> DOUBLE / exact=False": {
+  "type": "DOUBLE",
+  "values": [
+   "0.1"
+  ]
+ },
+ "null -> DOUBLE / exact=True": {
+  "type": "DOUBLE",
+  "values": [
+   "0.1"
+  ]
+ },
+ "null -> INTEGER / exact=False": "ERROR",
+ "null -> INTEGER / exact=True": "ERROR",
+ "null -> NEW / exact=False": {
+  "type": "double",
+  "values": [
+   "0.1"
+  ]
+ },
+ "null -> NEW / exact=True": {
+  "type": "double",
+  "values": [
+   "0.1"
+  ]
+ },
+ "null -> NUMERIC / exact=False": {
+  "type": "NUMERIC",
+  "values": [
+   "0.1"
+  ]
+ },
+ "null -> NUMERIC / exact=True": {
+  "type": "NUMERIC",
+  "values": [
+   "0.1"
+  ]
+ },
+ "null -> TEXT / exact=False": {
+  "type": "TEXT",
+  "values": [
+   "'0.1'"
+  ]
+ },
+ "null -> TEXT / exact=True": {
+  "type": "TEXT",
+  "values": [
+   "'0.1'"
+  ]
+ },
+ "overflow -> DECIMAL(38,18) / exact=False": "ERROR",
+ "overflow -> DECIMAL(38,18) / exact=True": "ERROR",
+ "overflow -> DECIMAL(38,30) / exact=False": "ERROR",
+ "overflow -> DECIMAL(38,30) / exact=True": "ERROR",
+ "overflow -> DOUBLE / exact=False": "ERROR",
+ "overflow -> DOUBLE / exact=True": "ERROR",
+ "overflow -> INTEGER / exact=False": "ERROR",
+ "overflow -> INTEGER / exact=True": "ERROR",
+ "overflow -> NEW / exact=False": "ERROR",
+ "overflow -> NEW / exact=True": "ERROR",
+ "overflow -> NUMERIC / exact=False": "ERROR",
+ "overflow -> NUMERIC / exact=True": "ERROR",
+ "overflow -> TEXT / exact=False": "ERROR",
+ "overflow -> TEXT / exact=True": "ERROR",
+ "positive_exponent -> DECIMAL(38,18) / exact=False": {
+  "type": "DECIMAL(38,18)",
+  "values": [
+   "1000",
+   "200"
+  ]
+ },
+ "positive_exponent -> DECIMAL(38,18) / exact=True": {
+  "type": "DECIMAL(38,18)",
+  "values": [
+   "1000",
+   "200"
+  ]
+ },
+ "positive_exponent -> DECIMAL(38,30) / exact=False": {
+  "type": "DECIMAL(38,30)",
+  "values": [
+   "1000",
+   "200"
+  ]
+ },
+ "positive_exponent -> DECIMAL(38,30) / exact=True": {
+  "type": "DECIMAL(38,30)",
+  "values": [
+   "1000",
+   "200"
+  ]
+ },
+ "positive_exponent -> DOUBLE / exact=False": {
+  "type": "DOUBLE",
+  "values": [
+   "1000.0",
+   "200.0"
+  ]
+ },
+ "positive_exponent -> DOUBLE / exact=True": {
+  "type": "DOUBLE",
+  "values": [
+   "1000.0",
+   "200.0"
+  ]
+ },
+ "positive_exponent -> INTEGER / exact=False": {
+  "type": "INTEGER",
+  "values": [
+   "1000",
+   "200"
+  ]
+ },
+ "positive_exponent -> INTEGER / exact=True": {
+  "type": "INTEGER",
+  "values": [
+   "1000",
+   "200"
+  ]
+ },
+ "positive_exponent -> NEW / exact=False": {
+  "type": "hugeint",
+  "values": [
+   "1000",
+   "200"
+  ]
+ },
+ "positive_exponent -> NEW / exact=True": {
+  "type": "hugeint",
+  "values": [
+   "1000",
+   "200"
+  ]
+ },
+ "positive_exponent -> NUMERIC / exact=False": {
+  "type": "NUMERIC",
+  "values": [
+   "1000",
+   "200"
+  ]
+ },
+ "positive_exponent -> NUMERIC / exact=True": {
+  "type": "NUMERIC",
+  "values": [
+   "1000",
+   "200"
+  ]
+ },
+ "positive_exponent -> TEXT / exact=False": {
+  "type": "TEXT",
+  "values": [
+   "'1000.0'",
+   "'200.0'"
+  ]
+ },
+ "positive_exponent -> TEXT / exact=True": {
+  "type": "TEXT",
+  "values": [
+   "'1000.0'",
+   "'200.0'"
+  ]
+ },
+ "precision -> DECIMAL(38,18) / exact=False": {
+  "type": "DECIMAL(38,18)",
+  "values": [
+   "1234567890.1234567",
+   "0.2"
+  ]
+ },
+ "precision -> DECIMAL(38,18) / exact=True": {
+  "type": "DECIMAL(38,18)",
+  "values": [
+   "1234567890.1234567",
+   "0.2"
+  ]
+ },
+ "precision -> DECIMAL(38,30) / exact=False": {
+  "type": "DECIMAL(38,30)",
+  "values": [
+   "1234567890.1234567",
+   "0.2"
+  ]
+ },
+ "precision -> DECIMAL(38,30) / exact=True": {
+  "type": "DECIMAL(38,30)",
+  "values": [
+   "1234567890.1234567",
+   "0.2"
+  ]
+ },
+ "precision -> DOUBLE / exact=False": {
+  "type": "DOUBLE",
+  "values": [
+   "1234567890.1234567",
+   "0.2"
+  ]
+ },
+ "precision -> DOUBLE / exact=True": {
+  "type": "DOUBLE",
+  "values": [
+   "1234567890.1234567",
+   "0.2"
+  ]
+ },
+ "precision -> INTEGER / exact=False": "ERROR",
+ "precision -> INTEGER / exact=True": "ERROR",
+ "precision -> NEW / exact=False": {
+  "type": "double",
+  "values": [
+   "1234567890.1234567",
+   "0.2"
+  ]
+ },
+ "precision -> NEW / exact=True": {
+  "type": "double",
+  "values": [
+   "1234567890.1234567",
+   "0.2"
+  ]
+ },
+ "precision -> NUMERIC / exact=False": {
+  "type": "NUMERIC",
+  "values": [
+   "1234567890.1234567",
+   "0.2"
+  ]
+ },
+ "precision -> NUMERIC / exact=True": {
+  "type": "NUMERIC",
+  "values": [
+   "1234567890.1234567",
+   "0.2"
+  ]
+ },
+ "precision -> TEXT / exact=False": {
+  "type": "TEXT",
+  "values": [
+   "'1234567890.12346'",
+   "'0.2'"
+  ]
+ },
+ "precision -> TEXT / exact=True": {
+  "type": "TEXT",
+  "values": [
+   "'1234567890.12346'",
+   "'0.2'"
+  ]
+ },
+ "scale38 -> DECIMAL(38,18) / exact=False": {
+  "type": "DECIMAL(38,18)",
+  "values": [
+   "1e-38",
+   "2e-38"
+  ]
+ },
+ "scale38 -> DECIMAL(38,18) / exact=True": {
+  "type": "DECIMAL(38,18)",
+  "values": [
+   "1e-38",
+   "2e-38"
+  ]
+ },
+ "scale38 -> DECIMAL(38,30) / exact=False": {
+  "type": "DECIMAL(38,30)",
+  "values": [
+   "1e-38",
+   "2e-38"
+  ]
+ },
+ "scale38 -> DECIMAL(38,30) / exact=True": {
+  "type": "DECIMAL(38,30)",
+  "values": [
+   "1e-38",
+   "2e-38"
+  ]
+ },
+ "scale38 -> DOUBLE / exact=False": {
+  "type": "DOUBLE",
+  "values": [
+   "1e-38",
+   "2e-38"
+  ]
+ },
+ "scale38 -> DOUBLE / exact=True": {
+  "type": "DOUBLE",
+  "values": [
+   "1e-38",
+   "2e-38"
+  ]
+ },
+ "scale38 -> INTEGER / exact=False": "ERROR",
+ "scale38 -> INTEGER / exact=True": "ERROR",
+ "scale38 -> NEW / exact=False": {
+  "type": "double",
+  "values": [
+   "1e-38",
+   "2e-38"
+  ]
+ },
+ "scale38 -> NEW / exact=True": {
+  "type": "double",
+  "values": [
+   "1e-38",
+   "2e-38"
+  ]
+ },
+ "scale38 -> NUMERIC / exact=False": {
+  "type": "NUMERIC",
+  "values": [
+   "1e-38",
+   "2e-38"
+  ]
+ },
+ "scale38 -> NUMERIC / exact=True": {
+  "type": "NUMERIC",
+  "values": [
+   "1e-38",
+   "2e-38"
+  ]
+ },
+ "scale38 -> TEXT / exact=False": {
+  "type": "TEXT",
+  "values": [
+   "'1.0e-38'",
+   "'2.0e-38'"
+  ]
+ },
+ "scale38 -> TEXT / exact=True": {
+  "type": "TEXT",
+  "values": [
+   "'1.0e-38'",
+   "'2.0e-38'"
+  ]
+ },
+ "text -> DECIMAL(38,18) / exact=False": {
+  "type": "DECIMAL(38,18)",
+  "values": [
+   "'hello'",
+   "'world'"
+  ]
+ },
+ "text -> DECIMAL(38,18) / exact=True": {
+  "type": "DECIMAL(38,18)",
+  "values": [
+   "'hello'",
+   "'world'"
+  ]
+ },
+ "text -> DECIMAL(38,30) / exact=False": {
+  "type": "DECIMAL(38,30)",
+  "values": [
+   "'hello'",
+   "'world'"
+  ]
+ },
+ "text -> DECIMAL(38,30) / exact=True": {
+  "type": "DECIMAL(38,30)",
+  "values": [
+   "'hello'",
+   "'world'"
+  ]
+ },
+ "text -> DOUBLE / exact=False": {
+  "type": "DOUBLE",
+  "values": [
+   "'hello'",
+   "'world'"
+  ]
+ },
+ "text -> DOUBLE / exact=True": {
+  "type": "DOUBLE",
+  "values": [
+   "'hello'",
+   "'world'"
+  ]
+ },
+ "text -> INTEGER / exact=False": {
+  "type": "INTEGER",
+  "values": [
+   "'hello'",
+   "'world'"
+  ]
+ },
+ "text -> INTEGER / exact=True": {
+  "type": "INTEGER",
+  "values": [
+   "'hello'",
+   "'world'"
+  ]
+ },
+ "text -> NEW / exact=False": {
+  "type": "varchar",
+  "values": [
+   "'hello'",
+   "'world'"
+  ]
+ },
+ "text -> NEW / exact=True": {
+  "type": "varchar",
+  "values": [
+   "'hello'",
+   "'world'"
+  ]
+ },
+ "text -> NUMERIC / exact=False": {
+  "type": "NUMERIC",
+  "values": [
+   "'hello'",
+   "'world'"
+  ]
+ },
+ "text -> NUMERIC / exact=True": {
+  "type": "NUMERIC",
+  "values": [
+   "'hello'",
+   "'world'"
+  ]
+ },
+ "text -> TEXT / exact=False": {
+  "type": "TEXT",
+  "values": [
+   "'hello'",
+   "'world'"
+  ]
+ },
+ "text -> TEXT / exact=True": {
+  "type": "TEXT",
+  "values": [
+   "'hello'",
+   "'world'"
+  ]
+ },
+ "text_numeric -> DECIMAL(38,18) / exact=False": {
+  "type": "DECIMAL(38,18)",
+  "values": [
+   "0.1",
+   "0.2"
+  ]
+ },
+ "text_numeric -> DECIMAL(38,18) / exact=True": {
+  "type": "DECIMAL(38,18)",
+  "values": [
+   "0.1",
+   "0.2"
+  ]
+ },
+ "text_numeric -> DECIMAL(38,30) / exact=False": {
+  "type": "DECIMAL(38,30)",
+  "values": [
+   "0.1",
+   "0.2"
+  ]
+ },
+ "text_numeric -> DECIMAL(38,30) / exact=True": {
+  "type": "DECIMAL(38,30)",
+  "values": [
+   "0.1",
+   "0.2"
+  ]
+ },
+ "text_numeric -> DOUBLE / exact=False": {
+  "type": "DOUBLE",
+  "values": [
+   "0.1",
+   "0.2"
+  ]
+ },
+ "text_numeric -> DOUBLE / exact=True": {
+  "type": "DOUBLE",
+  "values": [
+   "0.1",
+   "0.2"
+  ]
+ },
+ "text_numeric -> INTEGER / exact=False": "ERROR",
+ "text_numeric -> INTEGER / exact=True": "ERROR",
+ "text_numeric -> NEW / exact=False": {
+  "type": "double",
+  "values": [
+   "0.1",
+   "0.2"
+  ]
+ },
+ "text_numeric -> NEW / exact=True": {
+  "type": "decimal(2,2)",
+  "values": [
+   "0.1",
+   "0.2"
+  ]
+ },
+ "text_numeric -> NUMERIC / exact=False": {
+  "type": "NUMERIC",
+  "values": [
+   "0.1",
+   "0.2"
+  ]
+ },
+ "text_numeric -> NUMERIC / exact=True": {
+  "type": "NUMERIC",
+  "values": [
+   "0.1",
+   "0.2"
+  ]
+ },
+ "text_numeric -> TEXT / exact=False": {
+  "type": "TEXT",
+  "values": [
+   "'0.1'",
+   "'0.20'"
+  ]
+ },
+ "text_numeric -> TEXT / exact=True": {
+  "type": "TEXT",
+  "values": [
+   "'0.1'",
+   "'0.20'"
+  ]
+ },
+ "tiny -> DECIMAL(38,18) / exact=False": {
+  "type": "DECIMAL(38,18)",
+  "values": [
+   "1e-20",
+   "0.1"
+  ]
+ },
+ "tiny -> DECIMAL(38,18) / exact=True": {
+  "type": "DECIMAL(38,18)",
+  "values": [
+   "1e-20",
+   "0.1"
+  ]
+ },
+ "tiny -> DECIMAL(38,30) / exact=False": {
+  "type": "DECIMAL(38,30)",
+  "values": [
+   "1e-20",
+   "0.1"
+  ]
+ },
+ "tiny -> DECIMAL(38,30) / exact=True": {
+  "type": "DECIMAL(38,30)",
+  "values": [
+   "1e-20",
+   "0.1"
+  ]
+ },
+ "tiny -> DOUBLE / exact=False": {
+  "type": "DOUBLE",
+  "values": [
+   "1e-20",
+   "0.1"
+  ]
+ },
+ "tiny -> DOUBLE / exact=True": {
+  "type": "DOUBLE",
+  "values": [
+   "1e-20",
+   "0.1"
+  ]
+ },
+ "tiny -> INTEGER / exact=False": "ERROR",
+ "tiny -> INTEGER / exact=True": "ERROR",
+ "tiny -> NEW / exact=False": {
+  "type": "double",
+  "values": [
+   "1e-20",
+   "0.1"
+  ]
+ },
+ "tiny -> NEW / exact=True": {
+  "type": "double",
+  "values": [
+   "1e-20",
+   "0.1"
+  ]
+ },
+ "tiny -> NUMERIC / exact=False": {
+  "type": "NUMERIC",
+  "values": [
+   "1e-20",
+   "0.1"
+  ]
+ },
+ "tiny -> NUMERIC / exact=True": {
+  "type": "NUMERIC",
+  "values": [
+   "1e-20",
+   "0.1"
+  ]
+ },
+ "tiny -> TEXT / exact=False": {
+  "type": "TEXT",
+  "values": [
+   "'1.0e-20'",
+   "'0.1'"
+  ]
+ },
+ "tiny -> TEXT / exact=True": {
+  "type": "TEXT",
+  "values": [
+   "'1.0e-20'",
+   "'0.1'"
+  ]
+ },
+ "trailing_zeros -> DECIMAL(38,18) / exact=False": {
+  "type": "DECIMAL(38,18)",
+  "values": [
+   "1",
+   "2"
+  ]
+ },
+ "trailing_zeros -> DECIMAL(38,18) / exact=True": {
+  "type": "DECIMAL(38,18)",
+  "values": [
+   "1",
+   "2"
+  ]
+ },
+ "trailing_zeros -> DECIMAL(38,30) / exact=False": {
+  "type": "DECIMAL(38,30)",
+  "values": [
+   "1",
+   "2"
+  ]
+ },
+ "trailing_zeros -> DECIMAL(38,30) / exact=True": {
+  "type": "DECIMAL(38,30)",
+  "values": [
+   "1",
+   "2"
+  ]
+ },
+ "trailing_zeros -> DOUBLE / exact=False": {
+  "type": "DOUBLE",
+  "values": [
+   "1.0",
+   "2.0"
+  ]
+ },
+ "trailing_zeros -> DOUBLE / exact=True": {
+  "type": "DOUBLE",
+  "values": [
+   "1.0",
+   "2.0"
+  ]
+ },
+ "trailing_zeros -> INTEGER / exact=False": {
+  "type": "INTEGER",
+  "values": [
+   "1",
+   "2"
+  ]
+ },
+ "trailing_zeros -> INTEGER / exact=True": {
+  "type": "INTEGER",
+  "values": [
+   "1",
+   "2"
+  ]
+ },
+ "trailing_zeros -> NEW / exact=False": {
+  "type": "hugeint",
+  "values": [
+   "1",
+   "2"
+  ]
+ },
+ "trailing_zeros -> NEW / exact=True": {
+  "type": "hugeint",
+  "values": [
+   "1",
+   "2"
+  ]
+ },
+ "trailing_zeros -> NUMERIC / exact=False": {
+  "type": "NUMERIC",
+  "values": [
+   "1",
+   "2"
+  ]
+ },
+ "trailing_zeros -> NUMERIC / exact=True": {
+  "type": "NUMERIC",
+  "values": [
+   "1",
+   "2"
+  ]
+ },
+ "trailing_zeros -> TEXT / exact=False": {
+  "type": "TEXT",
+  "values": [
+   "'1.0'",
+   "'2.0'"
+  ]
+ },
+ "trailing_zeros -> TEXT / exact=True": {
+  "type": "TEXT",
+  "values": [
+   "'1.0'",
+   "'2.0'"
+  ]
+ },
+ "underflow -> DECIMAL(38,18) / exact=False": {
+  "type": "DECIMAL(38,18)",
+  "values": [
+   "0",
+   "2"
+  ]
+ },
+ "underflow -> DECIMAL(38,18) / exact=True": {
+  "type": "DECIMAL(38,18)",
+  "values": [
+   "0",
+   "2"
+  ]
+ },
+ "underflow -> DECIMAL(38,30) / exact=False": {
+  "type": "DECIMAL(38,30)",
+  "values": [
+   "0",
+   "2"
+  ]
+ },
+ "underflow -> DECIMAL(38,30) / exact=True": {
+  "type": "DECIMAL(38,30)",
+  "values": [
+   "0",
+   "2"
+  ]
+ },
+ "underflow -> DOUBLE / exact=False": {
+  "type": "DOUBLE",
+  "values": [
+   "0.0",
+   "2.0"
+  ]
+ },
+ "underflow -> DOUBLE / exact=True": {
+  "type": "DOUBLE",
+  "values": [
+   "0.0",
+   "2.0"
+  ]
+ },
+ "underflow -> INTEGER / exact=False": {
+  "type": "INTEGER",
+  "values": [
+   "0",
+   "2"
+  ]
+ },
+ "underflow -> INTEGER / exact=True": {
+  "type": "INTEGER",
+  "values": [
+   "0",
+   "2"
+  ]
+ },
+ "underflow -> NEW / exact=False": {
+  "type": "hugeint",
+  "values": [
+   "0",
+   "2"
+  ]
+ },
+ "underflow -> NEW / exact=True": {
+  "type": "hugeint",
+  "values": [
+   "0",
+   "2"
+  ]
+ },
+ "underflow -> NUMERIC / exact=False": {
+  "type": "NUMERIC",
+  "values": [
+   "0",
+   "2"
+  ]
+ },
+ "underflow -> NUMERIC / exact=True": {
+  "type": "NUMERIC",
+  "values": [
+   "0",
+   "2"
+  ]
+ },
+ "underflow -> TEXT / exact=False": {
+  "type": "TEXT",
+  "values": [
+   "'0.0'",
+   "'2.0'"
+  ]
+ },
+ "underflow -> TEXT / exact=True": {
+  "type": "TEXT",
+  "values": [
+   "'0.0'",
+   "'2.0'"
+  ]
+ }
+}

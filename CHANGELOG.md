@@ -17,6 +17,7 @@ ______________________________________________________________________
 
 ### Changed
 
+- **`IMPORT … FROM JSON`** preserves fractional and exponent scalar numbers as exact decimals before loading. NEW/REPLACEMENT tables can infer DECIMAL instead of DOUBLE; existing decimal and integer targets validate the original digits.
 - **`IMPORT` / `COPY` into existing DECIMAL columns** rejects numeric text, Decimal and integer values that would be rounded to a reported destination scale; trailing zeros remain valid. Round the source explicitly if rounding is intended.
 - **`IMPORT` / `COPY` into existing DECIMAL columns** retains exact numeric text, including exponent notation, and typed Decimal values regardless of `EXACT_DECIMALS`.
 - **`IMPORT` / `COPY` into existing SQLite integer columns** stores integral numeric text and Decimal values as exact integers; large values written with a decimal point or exponent no longer pass through SQLite’s floating-point rounding.
@@ -24,6 +25,11 @@ ______________________________________________________________________
 
 ### Fixed
 
+- **`IMPORT` / `COPY` into existing text columns** stores finite Decimal values as exact decimal text instead of allowing drivers to round them through floating point.
+- **`IMPORT` / `COPY` into SQLite numeric columns** rejects finite Decimal values that would overflow to infinity; a failed load keeps none of its new rows.
+- **DECIMAL type inference** counts positive exponents as integer digits with scale zero.
+- **DECIMAL table declarations** retain zero scale instead of omitting precision and scale.
+- **`IMPORT` / `COPY` into new DuckDB DECIMAL columns** preserves positive-exponent values when binding them.
 - **`IMPORT` / `COPY` into existing SQLite integer columns** rejects fractional and out-of-range values with an error naming the value and column; a failed load keeps none of its new rows.
 - **`EXPORT … AS SQLITE`** rejects lossy numeric Decimal values and numeric Decimal NaN, before changing the destination. Cast the source column to text to preserve its exact spelling.
 - **`EXPORT … AS SQLITE` replacement** preserves the original table when reading, creating or inserting the replacement fails.

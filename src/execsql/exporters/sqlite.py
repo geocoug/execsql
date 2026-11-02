@@ -10,26 +10,13 @@ to a table in an SQLite database file.  Used by ``EXPORT … FORMAT sqlite``.
 from decimal import Decimal
 from typing import Any
 
+from execsql.db.sqlite import sqlite_affinity as _affinity
 from execsql.exceptions import ErrInfo
 from execsql.types import dbt_sqlite
 
 _SQLITE_SAFE = (int, float, str, bytes)
 
 __all__ = ["export_sqlite", "write_query_to_sqlite"]
-
-
-def _affinity(declaration: str) -> str:
-    """Return SQLite's affinity, observing its ordered type-name rules."""
-    name = declaration.upper()
-    if "INT" in name:
-        return "INTEGER"
-    if any(part in name for part in ("CHAR", "CLOB", "TEXT")):
-        return "TEXT"
-    if not name or "BLOB" in name:
-        return "BLOB"
-    if any(part in name for part in ("REAL", "FLOA", "DOUB")):
-        return "REAL"
-    return "NUMERIC"
 
 
 def _exact_number(value: Decimal, affinity: str) -> int | float:
