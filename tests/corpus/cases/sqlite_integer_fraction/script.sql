@@ -1,0 +1,3 @@
+CREATE TABLE t (v INTEGER);
+INSERT INTO t VALUES (42);
+-- !x! IMPORT TO t FROM rows.csv

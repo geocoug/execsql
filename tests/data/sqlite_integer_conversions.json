@@ -1,0 +1,114 @@
+[
+ {
+  "name": "large_decimal_text",
+  "source_kind": "text",
+  "source": "9007199254740993.0",
+  "before": {
+   "value": "9007199254740992",
+   "storage": "integer"
+  },
+  "after": {
+   "value": "9007199254740993",
+   "storage": "integer"
+  },
+  "why": "Existing SQLite integer-kind targets store the exact whole source number instead of relying on SQLite text affinity to round it or retain numeric text."
+ },
+ {
+  "name": "int64_max_decimal_text",
+  "source_kind": "text",
+  "source": "9223372036854775807.0",
+  "before": {
+   "value": "9.223372036854776e+18",
+   "storage": "real"
+  },
+  "after": {
+   "value": "9223372036854775807",
+   "storage": "integer"
+  },
+  "why": "Existing SQLite integer-kind targets store the exact whole source number instead of relying on SQLite text affinity to round it or retain numeric text."
+ },
+ {
+  "name": "large_decimal_value",
+  "source_kind": "decimal",
+  "source": "9007199254740993.0",
+  "before": {
+   "value": "9007199254740992",
+   "storage": "integer"
+  },
+  "after": {
+   "value": "9007199254740993",
+   "storage": "integer"
+  },
+  "why": "Existing SQLite integer-kind targets store the exact whole source number instead of relying on SQLite text affinity to round it or retain numeric text."
+ },
+ {
+  "name": "int64_max_decimal_value",
+  "source_kind": "decimal",
+  "source": "9223372036854775807.0",
+  "before": {
+   "value": "9.223372036854776e+18",
+   "storage": "real"
+  },
+  "after": {
+   "value": "9223372036854775807",
+   "storage": "integer"
+  },
+  "why": "Existing SQLite integer-kind targets store the exact whole source number instead of relying on SQLite text affinity to round it or retain numeric text."
+ },
+ {
+  "name": "negative_decimal_text",
+  "source_kind": "text",
+  "source": "-9007199254740993.0",
+  "before": {
+   "value": "-9007199254740992",
+   "storage": "integer"
+  },
+  "after": {
+   "value": "-9007199254740993",
+   "storage": "integer"
+  },
+  "why": "Existing SQLite integer-kind targets store the exact whole source number instead of relying on SQLite text affinity to round it or retain numeric text."
+ },
+ {
+  "name": "negative_decimal_value",
+  "source_kind": "decimal",
+  "source": "-9007199254740993.0",
+  "before": {
+   "value": "-9007199254740992",
+   "storage": "integer"
+  },
+  "after": {
+   "value": "-9007199254740993",
+   "storage": "integer"
+  },
+  "why": "Existing SQLite integer-kind targets store the exact whole source number instead of relying on SQLite text affinity to round it or retain numeric text."
+ },
+ {
+  "name": "scientific_integer_text",
+  "source_kind": "text",
+  "source": "9.007199254740993e15",
+  "before": {
+   "value": "9007199254740992",
+   "storage": "integer"
+  },
+  "after": {
+   "value": "9007199254740993",
+   "storage": "integer"
+  },
+  "why": "Existing SQLite integer-kind targets store the exact whole source number instead of relying on SQLite text affinity to round it or retain numeric text."
+ },
+ {
+  "name": "nonbreaking_space_integer",
+  "source_kind": "text",
+  "source": " 7",
+  "before": {
+   "value": "'\\xa07'",
+   "storage": "text"
+  },
+  "after": {
+   "value": "7",
+   "storage": "integer"
+  },
+  "why": "Existing SQLite integer-kind targets store the exact whole source number instead of relying on SQLite text affinity to round it or retain numeric text."
+ }
+]

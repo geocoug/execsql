@@ -10,10 +10,13 @@ files via the Python standard library ``sqlite3`` module.  Corresponds to
 
 import datetime
 import re
-from decimal import Decimal
+from collections.abc import Callable
+from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from execsql.db.base import Database
+from execsql.db.target_types import ColumnKinds, _NUMBER_TEXT, _whole_number_converter, kind_for_type_name
+from execsql.types import DT_Long
 from execsql.exceptions import ErrInfo
 from execsql.utils.errors import exception_desc, fatal_error
 import execsql.state as _state
@@ -21,6 +24,38 @@ import execsql.state as _state
 __all__ = ["SQLiteDatabase"]
 
 DEFAULT_CONNECT_TIMEOUT = 30  # seconds
+
+
+def _integer_converter(column: str, table: str) -> Callable[[Any], Any]:
+    """Use the shared whole-number rule with SQLite's signed int64 bounds."""
+    whole_number = _whole_number_converter(column, table, lambda value: value)
+
+    def range_error(value: Any) -> ErrInfo:
+        return ErrInfo(
+            type="error",
+            other_msg=(
+                f"Can't load {value!r} into column {column} of {table}: the column holds whole numbers "
+                "in SQLite's signed 64-bit integer range."
+            ),
+        )
+
+    def convert(value: Any) -> Any:
+        number = None
+        try:
+            if (
+                isinstance(value, (int, float, Decimal))
+                and not isinstance(value, bool)
+                or isinstance(value, str)
+                and _NUMBER_TEXT.fullmatch(value)
+            ):
+                number = Decimal(value)
+        except InvalidOperation as exc:
+            raise range_error(value) from exc
+        if number is not None and number.is_finite() and not -(2**63) <= number <= 2**63 - 1:
+            raise range_error(value)
+        return whole_number(value)
+
+    return convert
 
 
 class SQLiteDatabase(Database):
@@ -148,6 +183,22 @@ class SQLiteDatabase(Database):
                 ) from e
             return [d[0] for d in curs.description]
 
+    def column_kinds(self, sq_name: str) -> ColumnKinds:
+        """Read declared types from the database INSERT resolves for *sq_name*.
+
+        Use execsql's type names, including scale-zero DECIMAL, rather than
+        SQLite's broader INTEGER-affinity substring rule. An unqualified name
+        keeps SQLite's normal temporary/main/attached lookup order.
+        """
+        identifier = r'(?:"(?:[^"]|"")*"|\w+)'
+        name = re.fullmatch(rf"(?:(?P<schema>{identifier})\.)?(?P<table>{identifier})", sq_name)
+        if name is None:
+            raise ErrInfo(type="error", other_msg=f"Invalid SQLite table name: {sq_name}")
+        prefix = f"{name['schema']}." if name["schema"] else ""
+        sql = f"PRAGMA {prefix}table_xinfo({name['table']})"
+        _description, rows = self._column_type_query(sq_name, sql)
+        return {row[1].lower(): kind_for_type_name(row[2]) for row in rows}
+
     def view_exists(self, view_name: str, schema_name: str | None = None) -> bool:
         """Return True if the named view exists in the SQLite database."""
         # Match case-insensitively — see table_exists().
@@ -188,8 +239,9 @@ class SQLiteDatabase(Database):
     ) -> None:
         """Populate a SQLite table from a row source generator.
 
-        Values are inserted as the source gives them (dates, times and
-        decimals as text), so *existing_table* changes nothing here.
+        Existing integer-kind columns reject fractions and values outside the
+        signed 64-bit range. Other columns retain their pass-through behavior
+        (dates, times and decimals as text). A failed load is rolled back.
         """
         # The rowsource argument must be a generator yielding a list of values for the columns of the table.
         # The column_list argument must an iterable containing column names in the same order as produced by the rowsource.
@@ -206,6 +258,12 @@ class SQLiteDatabase(Database):
         # Get column indexes for selected column names.
         columns = column_list
         data_indexes = [ts_colnames.index(col) for col in columns]
+        kinds = self.column_kinds(sq_name) if existing_table else {}
+        converters = {
+            i: _integer_converter(column, sq_name)
+            for i, column in enumerate(columns)
+            if kinds.get(column.lower()) is DT_Long
+        }
         # Construct prepared SQL statement
         colspec = ",".join([self.type.quoted(c) for c in columns])
         paramspec = ",".join(["?" for c in columns])
@@ -228,7 +286,6 @@ class SQLiteDatabase(Database):
             except ErrInfo:
                 raise
             except Exception as e:
-                self.rollback()
                 raise ErrInfo(
                     type="db",
                     command_text=sql,
@@ -245,6 +302,8 @@ class SQLiteDatabase(Database):
 
         last_line: list[Any] = []
         try:
+            if converters:
+                self.begin_transaction()
             for line in rowsource:
                 # Skip empty rows.
                 if not (len(line) == 1 and line[0] is None):
@@ -260,6 +319,8 @@ class SQLiteDatabase(Database):
                                 if not _state.conf.empty_strings and line[i].strip() == "":
                                     line[i] = None
                     linedata = [line[ix] for ix in data_indexes]
+                    for i, convert in converters.items():
+                        linedata[i] = convert(linedata[i])
                     # Convert datetime, time, and Decimal values to strings.
                     for i in range(len(linedata)):
                         if type(linedata[i]) in (datetime.datetime, datetime.time, Decimal):
@@ -273,6 +334,9 @@ class SQLiteDatabase(Database):
                         if len(batch) >= batch_size:
                             _flush(last_line)
             _flush(last_line)
+        except Exception:
+            self.rollback()
+            raise
         finally:
             curs.close()
         if _state.exec_log:

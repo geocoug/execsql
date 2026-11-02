@@ -17,10 +17,12 @@ ______________________________________________________________________
 
 ### Changed
 
+- **`IMPORT` / `COPY` into existing SQLite integer columns** stores integral numeric text and Decimal values as exact integers; large values written with a decimal point or exponent no longer pass through SQLite’s floating-point rounding.
 - **Configured `include_required` and `include_optional` scripts** run before the main script, required files first, through both the CLI and `execsql.run()`. They were ignored; remove entries you do not want executed.
 
 ### Fixed
 
+- **`IMPORT` / `COPY` into existing SQLite integer columns** rejects fractional and out-of-range values with an error naming the value and column; a failed load keeps none of its new rows.
 - **`EXPORT … AS SQLITE`** rejects lossy numeric Decimal values and numeric Decimal NaN, before changing the destination. Cast the source column to text to preserve its exact spelling.
 - **`EXPORT … AS SQLITE` replacement** preserves the original table when reading, creating or inserting the replacement fails.
 - **`execsql.run(connection=...)`** rolls back pending work and closes connections the script opened with `CONNECT`, while leaving the supplied connection open. Commit work on script-created connections before the script ends if it must be kept.

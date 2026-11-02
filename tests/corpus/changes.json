@@ -1375,6 +1375,154 @@
    "why": "A failed SQLite export reads and validates its source before replacing the destination; an existing exported table survives a source-row error."
   }
  },
+ "sqlite_integer_exact": {
+  "tables/t": {
+   "execsql2": {
+    "columns": [
+     [
+      "v",
+      "INTEGER"
+     ]
+    ],
+    "rows": [
+     [
+      [
+       "integer",
+       "9007199254740993"
+      ]
+     ],
+     [
+      [
+       "integer",
+       "9223372036854775807"
+      ]
+     ],
+     [
+      [
+       "integer",
+       "-9007199254740993"
+      ]
+     ],
+     [
+      [
+       "integer",
+       "9007199254740993"
+      ]
+     ],
+     [
+      [
+       "integer",
+       "7"
+      ]
+     ]
+    ]
+   },
+   "status": "accepted",
+   "upstream": {
+    "columns": [
+     [
+      "v",
+      "INTEGER"
+     ]
+    ],
+    "rows": [
+     [
+      [
+       "integer",
+       "9007199254740992"
+      ]
+     ],
+     [
+      [
+       "real",
+       "9.223372036854776e+18"
+      ]
+     ],
+     [
+      [
+       "integer",
+       "-9007199254740992"
+      ]
+     ],
+     [
+      [
+       "integer",
+       "9007199254740992"
+      ]
+     ],
+     [
+      [
+       "text",
+       "'\\xa07'"
+      ]
+     ]
+    ]
+   },
+   "why": "Existing SQLite integer columns bind accepted integral numeric text as exact integers. This deliberately corrects SQLite text-affinity rounding and normalizes recognized whitespace-padded integral input instead of retaining it as text."
+  }
+ },
+ "sqlite_integer_fraction": {
+  "exit": {
+   "execsql2": 1,
+   "status": "accepted",
+   "upstream": 0,
+   "why": "IMPORT into an existing SQLite integer column rejects a fractional source value and keeps none of the load rows; upstream stored the fraction in the integer column."
+  },
+  "stderr": {
+   "execsql2": "**** General error.\n     Line 3 of script script.sql\n     Can't load '1.5' into column v of t: the column holds whole numbers, and the database would round the value.\n     Metacommand: IMPORT TO t FROM rows.csv\n     Error occurred at <TIME>.\n",
+   "status": "accepted",
+   "upstream": "",
+   "why": "IMPORT into an existing SQLite integer column rejects a fractional source value and keeps none of the load rows; upstream stored the fraction in the integer column."
+  },
+  "tables/t": {
+   "execsql2": {
+    "columns": [
+     [
+      "v",
+      "INTEGER"
+     ]
+    ],
+    "rows": [
+     [
+      [
+       "integer",
+       "42"
+      ]
+     ]
+    ]
+   },
+   "status": "accepted",
+   "upstream": {
+    "columns": [
+     [
+      "v",
+      "INTEGER"
+     ]
+    ],
+    "rows": [
+     [
+      [
+       "integer",
+       "42"
+      ]
+     ],
+     [
+      [
+       "integer",
+       "7"
+      ]
+     ],
+     [
+      [
+       "real",
+       "1.5"
+      ]
+     ]
+    ]
+   },
+   "why": "IMPORT into an existing SQLite integer column rejects a fractional source value and keeps none of the load rows; upstream stored the fraction in the integer column."
+  }
+ },
  "sub_backslash": {
   "exit": {
    "execsql2": 0,

@@ -5175,6 +5175,55 @@
    "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
   }
  },
+ "sqlite": {
+  "text/fractions -> integer": {
+   "after": "ERROR",
+   "before": [
+    "1.5",
+    "2.25"
+   ],
+   "why": "Existing SQLite integer columns reject fractional values before binding; a failed load rolls back all its rows instead of storing REAL values in the integer column."
+  },
+  "text/small_floats -> integer": {
+   "after": "ERROR",
+   "before": [
+    "0.1",
+    "1e-20"
+   ],
+   "why": "Existing SQLite integer columns reject fractional values before binding; a failed load rolls back all its rows instead of storing REAL values in the integer column."
+  },
+  "text/two_places -> integer": {
+   "after": "ERROR",
+   "before": [
+    "1.5",
+    "2"
+   ],
+   "why": "Existing SQLite integer columns reject fractional values before binding; a failed load rolls back all its rows instead of storing REAL values in the integer column."
+  },
+  "typed/decimal_fraction -> integer": {
+   "after": "ERROR",
+   "before": [
+    "1.5",
+    "2.25"
+   ],
+   "why": "Existing SQLite integer columns reject fractional values before binding; a failed load rolls back all its rows instead of storing REAL values in the integer column."
+  },
+  "typed/decimal_scale -> integer": {
+   "after": "ERROR",
+   "before": [
+    "1.5"
+   ],
+   "why": "Existing SQLite integer columns reject fractional values before binding; a failed load rolls back all its rows instead of storing REAL values in the integer column."
+  },
+  "typed/float_fraction -> integer": {
+   "after": "ERROR",
+   "before": [
+    "1.5",
+    "0.1"
+   ],
+   "why": "Existing SQLite integer columns reject fractional values before binding; a failed load rolls back all its rows instead of storing REAL values in the integer column."
+  }
+ },
  "sqlserver": {
   "text/TRUE_FALSE -> nvarchar(max)": {
    "after": [
