@@ -198,6 +198,8 @@ execsql2 adds an interactive debug REPL (no upstream equivalent), triggered eith
 
 ### Library API
 
+When `execsql.run(connection=...)` borrows the initial connection, it still rolls back and closes connections opened by the script with CONNECT. The borrowed object is excluded from this cleanup by identity under every alias and remains caller-owned; the existing error/interrupt rollback rules continue to apply. Uncommitted work on run-created connections is discarded on exit, so commit it before the script ends if it must be kept.
+
 `execsql.run(config_file=...)` preserves configured variables and runs configured required/optional startup files before the main script. Its `allow_system_cmd`, `allow_rm_file` and `allow_serve` arguments inherit configured values when omitted or `None`; explicit booleans override the configuration. Without a configuration file, the existing enabled defaults remain in effect.
 
 execsql2 exposes `execsql.run()` for programmatic execution — no upstream equivalent.

@@ -1102,9 +1102,17 @@ class DatabasePool:
             self.pool[alias].close()
             del self.pool[alias]
 
-    def closeall(self) -> None:
-        """Roll back and close every connection in the pool, then reset the pool to empty."""
+    def closeall(self, *, except_db: Database | None = None) -> None:
+        """Roll back and close the pool's connections except *except_db*.
+
+        The exception is matched by object identity under every alias and is
+        neither rolled back nor closed. All aliases are removed, including
+        aliases of the excluded caller-owned connection.
+        Rollback follows the pool's ``do_rollback`` setting.
+        """
         for alias, db in self.pool.items():
+            if db is except_db:
+                continue
             nm = db.name()
             try:
                 if self.do_rollback:

@@ -17,6 +17,7 @@ ______________________________________________________________________
 
 ### Fixed
 
+- **`execsql.run(connection=...)`** rolls back pending work and closes connections the script opened with `CONNECT`, while leaving the supplied connection open. Commit work on script-created connections before the script ends if it must be kept.
 - **`execsql.run(config_file=...)`** retains the substitution variables defined in the configuration file.
 - **`execsql.run()` safety switches** inherit configured `allow_system_cmd`, `allow_rm_file` and `allow_serve` values when omitted or `None`; explicit `True` or `False` overrides the configuration. Omitted arguments re-enabled disabled capabilities.
 - **`IMPORT … FROM JSON`** rejects distinct field paths that flatten to the same column name before creating, replacing or loading a table; ambiguous records silently lost one value. Rename the conflicting JSON keys before retrying.

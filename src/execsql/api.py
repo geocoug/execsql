@@ -361,6 +361,10 @@ def run(
             ``"postgresql://user:pass@host/db"``).
         connection: A pre-existing :class:`~execsql.db.base.Database`
             instance.  ``run()`` will NOT close this connection on exit.
+            Connections opened by the script with CONNECT are run-owned:
+            their pending work is rolled back and they are closed on exit,
+            including under AUTOCOMMIT OFF. Commit their work in the script
+            before it ends if it must be kept.
             What an interrupted SQL statement, metacommand or ``END BATCH``
             did is rolled back before the interrupt is re-raised: an SQL
             statement rolls back its connection's open transaction, and a
@@ -619,9 +623,12 @@ def run(
                 from execsql.utils.fileio import filewriter_end
 
                 filewriter_end(ctx.filewriter)
-            if owns_connection and ctx.dbs is not None:
+            if ctx.dbs is not None:
                 try:
-                    ctx.dbs.closeall()
+                    if owns_connection:
+                        ctx.dbs.closeall()
+                    else:
+                        ctx.dbs.closeall(except_db=connection)
                 except Exception:
                     pass
             if ctx.tempfiles is not None:

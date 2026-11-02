@@ -24,6 +24,12 @@ result: ScriptResult = run(
 
 See the [README](https://github.com/geocoug/execsql#library-api) for full examples.
 
+### Connection ownership
+
+With `dsn=`, `run()` owns the initial connection and closes it when the run ends. With `connection=`, the supplied connection remains open for the caller; the existing SQL-error and interrupt rollback rules still apply.
+
+Connections the script opens with CONNECT belong to that run in either mode. At exit, their pending work is rolled back and they are closed, even under AUTOCOMMIT OFF. Commit work on these connections before the script ends if it must be kept. Cleanup does not commit or additionally roll back the borrowed initial connection.
+
 ### Variables
 
 Each `variables` key becomes a `$` substitution variable, whether or not you write the `$`: `variables={"SCHEMA": "public"}` and `variables={"$SCHEMA": "public"}` both define `!!$SCHEMA!!`. (The CLI's `--var SCHEMA=public` defines `!!SCHEMA!!` instead.)
