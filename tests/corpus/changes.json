@@ -1150,6 +1150,14 @@
    "why": "Decimals with different numbers of places are a double, as upstream, unless a value has more than 15 significant digits: a double cannot hold 1234567890.1234567891, so execsql2 keeps that column DECIMAL(20,10) where upstream cut the value (divergence: 'Mixed-scale decimals keep every digit')."
   }
  },
+ "decimal_scale_rejection": {
+  "files/amounts.csv": {
+   "execsql2": "i,amount\n0,42.00\n100,1.00\n101,0.12\n",
+   "status": "accepted",
+   "upstream": "i,amount\n0,42.00\n100,1.00\n101,0.12\n200,1.00\n201,0.13\n",
+   "why": "Exact input that would be rounded to an existing decimal column scale is rejected and the entire failed load is rolled back. Trailing-zero inputs that fit the scale remain valid."
+  }
+ },
  "deferred_substitution": {
   "files/halt.txt": {
    "execsql2": "failed at stage two\n",

@@ -141,12 +141,18 @@ def test_decimal_target_differential_record(tmp_path, minimal_conf, case, declar
     key = f"{case} -> {declaration} / exact={exact}"
     baseline = json.loads((_RECORDS / "duckdb.json").read_text())
     changes = json.loads((_RECORDS / "changes.json").read_text())
+    expected = baseline[key]
     if key in changes:
-        assert changes[key]["before"] == baseline[key]
+        assert changes[key]["before"] == expected
         assert changes[key]["why"]
-        assert actual == changes[key]["after"]
-    else:
-        assert actual == baseline[key]
+        expected = changes[key]["after"]
+    scale_path = _RECORDS / "scale_changes.json"
+    scale_changes = json.loads(scale_path.read_text()) if scale_path.exists() else {}
+    if key in scale_changes:
+        assert scale_changes[key]["before"] == expected
+        assert scale_changes[key]["why"]
+        expected = scale_changes[key]["after"]
+    assert actual == expected
 
 
 @pytest.mark.parametrize("dbms", ["duckdb", "postgres", "mysql", "sqlserver"])

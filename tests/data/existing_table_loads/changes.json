@@ -99,6 +99,14 @@
    ],
    "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
   },
+  "text/small_floats -> decimal(18,3)": {
+   "after": "ERROR",
+   "before": [
+    "Decimal('0.100')",
+    "Decimal('0.000')"
+   ],
+   "why": "The source value 1e-20 has non-zero digits beyond the existing decimal column scale 3. Exact source values that require scale rounding now stop the load and roll back all its rows."
+  },
   "text/small_floats -> integer": {
    "after": "ERROR",
    "before": [
@@ -3304,6 +3312,14 @@
    ],
    "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
   },
+  "text/small_floats -> decimal(18,3)": {
+   "after": "ERROR",
+   "before": [
+    "Decimal('0.100')",
+    "Decimal('0.000')"
+   ],
+   "why": "The source value 1e-20 has non-zero digits beyond the existing decimal column scale 3. Exact source values that require scale rounding now stop the load and roll back all its rows."
+  },
   "text/small_floats -> integer": {
    "after": "ERROR",
    "before": [
@@ -4736,6 +4752,14 @@
    ],
    "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
   },
+  "text/small_floats -> numeric(18,3)": {
+   "after": "ERROR",
+   "before": [
+    "Decimal('0.100')",
+    "Decimal('0.000')"
+   ],
+   "why": "The source value 1e-20 has non-zero digits beyond the existing decimal column scale 3. Exact source values that require scale rounding now stop the load and roll back all its rows."
+  },
   "text/t_f -> bigint": {
    "after": [
     "1",
@@ -5398,6 +5422,14 @@
     "0"
    ],
    "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
+  },
+  "text/small_floats -> decimal(18,3)": {
+   "after": "ERROR",
+   "before": [
+    "Decimal('0.100')",
+    "Decimal('0.000')"
+   ],
+   "why": "The source value 1e-20 has non-zero digits beyond the existing decimal column scale 3. Exact source values that require scale rounding now stop the load and roll back all its rows."
   },
   "text/small_floats -> int": {
    "after": "ERROR",

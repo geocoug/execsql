@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any
 
 from execsql.db.base import Database, statement_start
-from execsql.db.target_types import kind_for_type_name
+from execsql.db.target_types import kind_for_type_name, kind_and_scale_for_type_name
 from execsql.types import DataType
 from execsql.exceptions import ErrInfo
 from execsql.utils.errors import exception_desc, fatal_error, install_hint
@@ -351,6 +351,10 @@ class DuckDBDatabase(Database):
     def _described_kind(self, description: Any) -> type[DataType] | None:
         """DuckDB describes a column by its type's name (``DECIMAL(18,3)``, ``TIMESTAMP WITH TIME ZONE``)."""
         return kind_for_type_name(str(description[1]))
+
+    def _described_column(self, description: Any) -> tuple[type[DataType] | None, int | None]:
+        _kind, scale = kind_and_scale_for_type_name(str(description[1]))
+        return self._described_kind(description), scale
 
     def view_exists(self, view_name: str, schema_name: str | None = None) -> bool:
         """Return True if the named view exists in the DuckDB database."""

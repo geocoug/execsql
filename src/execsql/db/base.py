@@ -24,7 +24,8 @@ from collections.abc import Callable, Generator, Iterator
 
 from execsql.exceptions import ErrInfo
 from execsql.utils.errors import exception_desc
-from execsql.db.target_types import ColumnKinds, existing_table_converter, kind_for_python_type
+from execsql.db.target_types import ColumnKinds, ColumnMetadata, existing_table_converter, kind_for_python_type
+from execsql.types import DT_Decimal
 from execsql.db.tiers import SupportTier, announce_tier
 from execsql.types import DataType
 import execsql.state as _state
@@ -627,15 +628,23 @@ class Database(ABC):
         *sq_name* is schema-qualified and quoted, as for an ``INSERT``, and
         is looked up the way the ``INSERT`` finds it.  Keys are lower-cased
         column names; a column with no fitting execsql type maps to ``None``.
-        This default reads the driver's description of an empty query on the
-        table; adapters whose catalog names types more exactly override it.
+        The dict-compatible result also carries known decimal scales in
+        ``ColumnMetadata.decimal_scales``. Legacy plain-dict providers remain
+        supported with unknown scales. This default reads the driver's empty
+        query description; adapters with exact catalog types override it.
         """
         description, _rows = self._column_type_query(sq_name, f"select * from {sq_name} where 1=0;")
-        return {d[0].lower(): self._described_kind(d) for d in description}
+        return ColumnMetadata({d[0].lower(): self._described_column(d) for d in description})
 
     def _described_kind(self, description: Any) -> type[DataType] | None:
         """The execsql type for one column of a cursor description (a DB-API 7-item sequence)."""
         return kind_for_python_type(description[1], description[5])
+
+    def _described_column(self, description: Any) -> tuple[type[DataType] | None, int | None]:
+        """Read a kind and decimal scale from a DB-API description."""
+        kind = self._described_kind(description)
+        scale = description[5]
+        return kind, scale if kind is DT_Decimal and type(scale) is int else None
 
     def _column_type_query(self, sq_name: str, sql: str, params: list | None = None) -> tuple[Any, list]:
         """Run *sql* for :meth:`column_kinds` of *sq_name*; return the cursor description and the rows."""
@@ -775,6 +784,7 @@ class Database(ABC):
         converters = [self._scanned_type_converter(col.column_type()[1]) for col in tablespec.cols]
         if existing_table:
             kinds = self.column_kinds(sq_name)
+            scales = kinds.decimal_scales if isinstance(kinds, ColumnMetadata) else {}
             converters = [
                 existing_table_converter(
                     kinds.get(col.name.lower()),
@@ -783,8 +793,9 @@ class Database(ABC):
                     col.name,
                     sq_name,
                     decimal_binding_precision=self.decimal_binding_precision,
+                    decimal_scale=scales.get(col.name.lower()) if included else None,
                 )
-                for col, convert in zip(tablespec.cols, converters)
+                for col, convert, included in zip(tablespec.cols, converters, incl_col)
             ]
         # Construct INSERT statement.
         columns = [self.type.quoted(col) for col in sel_cols]

@@ -127,14 +127,22 @@ def test_kind_for_python_type(type_code, scale, kind):
     assert kind_for_python_type(type_code, scale) is kind
 
 
+class _DescribedDatabase(Database):
+    def open_db(self):
+        pass
+
+    def exec_cmd(self, querycommand):
+        pass
+
+
 def _described(adapter_cls, description):
-    """column_kinds() of an adapter whose cursor describes *description*."""
-    db = MagicMock(spec=adapter_cls)
+    """column_kinds() using real method dispatch and a recording cursor."""
+    cls = _DescribedDatabase if adapter_cls is Database else adapter_cls
+    db = object.__new__(cls)
+    db._cursor = MagicMock()
     curs = MagicMock(description=description)
     curs.fetchall.return_value = []
     db._cursor.return_value.__enter__.return_value = curs
-    db._column_type_query = lambda *a, **k: Database._column_type_query(db, *a, **k)
-    db._described_kind = lambda d: adapter_cls._described_kind(db, d)
     return Database.column_kinds(db, '"t"')
 
 

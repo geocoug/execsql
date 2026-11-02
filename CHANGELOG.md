@@ -17,6 +17,7 @@ ______________________________________________________________________
 
 ### Changed
 
+- **`IMPORT` / `COPY` into existing DECIMAL columns** rejects numeric text, Decimal and integer values that would be rounded to a reported destination scale; trailing zeros remain valid. Round the source explicitly if rounding is intended.
 - **`IMPORT` / `COPY` into existing DECIMAL columns** retains exact numeric text, including exponent notation, and typed Decimal values regardless of `EXACT_DECIMALS`.
 - **`IMPORT` / `COPY` into existing SQLite integer columns** stores integral numeric text and Decimal values as exact integers; large values written with a decimal point or exponent no longer pass through SQLite’s floating-point rounding.
 - **Configured `include_required` and `include_optional` scripts** run before the main script, required files first, through both the CLI and `execsql.run()`. They were ignored; remove entries you do not want executed.

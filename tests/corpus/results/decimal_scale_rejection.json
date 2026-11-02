@@ -1,0 +1,10 @@
+{
+ "exit": 0,
+ "files": {
+  "amounts.csv": "i,amount\n0,42.00\n100,1.00\n101,0.12\n200,1.00\n201,0.13\n"
+ },
+ "recorded_with": "execsql 1.130.1",
+ "stderr": "",
+ "stdout": "",
+ "tables": {}
+}
