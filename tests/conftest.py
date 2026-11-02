@@ -183,6 +183,14 @@ def _no_real_browser(monkeypatch):
         monkeypatch.setenv("BROWSER", true)
 
 
+def pytest_report_header(config):
+    """Show the required integration backend selection in the test report."""
+    from tests.live_db import required_backends
+
+    names = required_backends()
+    return f"Required live database backends: {', '.join(sorted(names)) if names else 'none (optional local servers)'}"
+
+
 def pytest_configure(config):
     """Build pywin32's COM cache before the xdist workers start.
 
@@ -193,6 +201,9 @@ def pytest_configure(config):
     The controller (or a ``-n 0`` run) imports it first, so the workers find
     the file complete.
     """
+    from tests.live_db import required_backends
+
+    required_backends()
     if sys.platform != "win32" or hasattr(config, "workerinput"):
         return
     # Any failure, not only a missing pywin32: a cache a killed run left half
