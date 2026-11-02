@@ -21,7 +21,7 @@ import datetime
 import math
 import re
 from collections.abc import Callable
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from typing import Any, TypeAlias
 
 from execsql.exceptions import ErrInfo
@@ -255,18 +255,78 @@ def _true_false_as_number(default: Converter) -> Converter:
     return convert
 
 
+def _exact_decimal_converter(default: Converter, column: str, table: str, binding_precision: int | None) -> Converter:
+    """Retain finite exact source numbers for an existing decimal column.
+
+    Floats and non-numeric values keep the scanned conversion; converting a
+    float here cannot recover source digits already lost by its reader.
+    """
+
+    def bind(number: Decimal) -> Decimal | str:
+        if binding_precision is None:
+            return number
+        if number.is_zero():
+            return Decimal(0).copy_sign(number)
+        parts = number.as_tuple()
+        exponent = parts.exponent
+        assert isinstance(exponent, int)  # Only finite values reach this helper.
+        if exponent > 0:
+            if number.adjusted() >= binding_precision:
+                raise ErrInfo(
+                    type="error",
+                    other_msg=(
+                        f"Can't load {number!r} into column {column} of {table}: "
+                        f"the database supports at most {binding_precision} decimal digits."
+                    ),
+                )
+            # Expansion is bounded by the adapter, never by the input exponent.
+            return Decimal(format(number, "f"))
+        native_width = len(parts.digits)
+        if -exponent > native_width:
+            native_width = -exponent + 1
+        if native_width > binding_precision:
+            # Avoid a driver's silent Decimal-to-double fallback. Fixed text
+            # also avoids exponent parsing at the maximum supported scale.
+            if exponent >= -binding_precision:
+                return format(number, "f")
+            return str(number)
+        return number
+
+    def convert(value: Any) -> Any:
+        if isinstance(value, bool):
+            return default(value)
+        if isinstance(value, int):
+            return value
+        if isinstance(value, Decimal) and value.is_finite():
+            return bind(value)
+        if isinstance(value, str) and _NUMBER_TEXT.fullmatch(value):
+            try:
+                number = Decimal(value)
+            except InvalidOperation:
+                return default(value)
+            if number.is_finite():
+                return bind(number)
+        return default(value)
+
+    return convert
+
+
 def existing_table_converter(
     kind: type[DataType] | None,
     scanned: type[DataType],
     default: Converter,
     column: str,
     table: str,
+    *,
+    decimal_binding_precision: int | None = None,
 ) -> Converter:
     """How a value for *column* of existing table *table* is converted.
 
     *kind* is the column's type (``None`` if execsql has none that fits),
     *scanned* the type the source column scanned as, and *default* the
     conversion to that scanned type, which a new table's values get.
+    *decimal_binding_precision* bounds native Decimal parameter conversion
+    for drivers that need it; it does not change a destination column's scale.
     """
     if kind is DT_Text:
         return _as_given
@@ -274,4 +334,6 @@ def existing_table_converter(
         return _true_false_as_number(default)
     if kind is DT_Long:
         return _whole_number_converter(column, table, default)
+    if kind is DT_Decimal:
+        return _exact_decimal_converter(default, column, table, decimal_binding_precision)
     return default

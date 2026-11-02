@@ -439,7 +439,6 @@ def test_true_false_going_into_a_number_column_is_one_or_zero(kind):
         (None, DT_Boolean),  # no execsql type fits the column
         (DT_Boolean, DT_Boolean),
         (DT_Boolean, DT_Long),
-        (DT_Decimal, DT_Decimal),
         (DT_Float, DT_Long),
         (DT_Date, DT_Timestamp),
         (DT_Timestamp, DT_Text),

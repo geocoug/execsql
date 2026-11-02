@@ -659,7 +659,7 @@ Controls the data type the [IMPORT](#import) and [COPY](#copy) metacommands give
 -- !x! IMPORT TO NEW payments FROM payments.csv
 ```
 
-A column whose values all have the same number of decimal places is an exact decimal either way. This can also be set with the `exact_decimals` [configuration setting](configuration.md#config_input).
+A column whose values all have the same number of decimal places is an exact decimal either way. Existing exact-decimal targets preserve finite numeric text and typed Decimal values regardless of this setting. This can also be set with the `exact_decimals` [configuration setting](configuration.md#config_input).
 
 
 ```
@@ -2066,7 +2066,8 @@ If neither the NEW or REPLACEMENT keywords are used, the table must exist, must 
 - A text column (`CHAR`, `VARCHAR`, `TEXT`, …) gets the value as written in the file: `yes`, `00701`, `01/05/2024` and `1e3` are stored as those strings. A missing value is NULL.
 - An integer column (`INTEGER`, `BIGINT`, `DECIMAL(10,0)`, `NUMERIC(10)`, Oracle `NUMBER(10)`, …) gets whole numbers: `7`, `+7`, `7.0` and `7e0` load as 7. A value with a fraction, such as `1.5`, stops the IMPORT with an error that names the value and the column, and nothing is loaded; it is not rounded.
 - A number column gets a column of true/false values (`yes`/`no`, `t`/`f`, `1`/`0`; see [BOOLEAN_INT](#boolean_int) and [BOOLEAN_WORDS](#boolean_words)) as 1 and 0.
-- Any other column (a date, a timestamp, a Boolean, a decimal with places for a fraction) gets the value converted to the data type found by scanning that column of the input, as with NEW, and the database converts it to the column's type.
+- A fractional decimal column (`DECIMAL(p,s)`, `NUMERIC(p,s)`, …) gets numeric text, including exponent notation and surrounding whitespace, as exact Decimal values. Typed Decimal values and integers keep their exact value, regardless of `EXACT_DECIMALS`. Values already read as floating point keep their prior conversion: this step cannot recover digits lost by a source reader. True/false scanning keeps the numeric conversion above; non-numeric values keep the scanned conversion. The database still applies its declared precision and scale.
+- Any other column (a date, a timestamp, a Boolean) gets the value converted to the data type found by scanning that column of the input, as with NEW, and the database converts it to the column's type.
 
 On SQLite, this integer check also applies to ordinary and STRICT tables, including attached databases. Existing integer-kind columns reject fractions and numbers outside the signed 64-bit range (-9223372036854775808 through 9223372036854775807). Integral numeric text and Decimal values are converted to exact integers before loading. For example, `9007199254740993.0` is stored as integer `9007199254740993`, rather than SQLite’s rounded `9007199254740992`. Whitespace around numeric text, including non-breaking spaces, is accepted. The type names execsql recognizes as integer types, including `DECIMAL(p,0)`, determine this check; a custom SQLite type whose name merely contains `INT` does not. Non-numeric text still follows SQLite's own rules: an ordinary INTEGER column can store `abc` as text, while a STRICT INTEGER column rejects it. Other column types retain SQLite's existing conversions. NEW and REPLACEMENT loads retain their scanned-type behavior.
 

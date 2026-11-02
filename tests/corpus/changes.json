@@ -1174,6 +1174,20 @@
    "why": "DISCONNECT matches the alias in any case, as USE does, and an alias that is not connected is a metacommand error; upstream compared the alias as written, so DISCONNECT FROM B left a connection made AS b open, and ignored an unknown alias. A database an open batch has used is refused, as documented; upstream's check compared the alias to connection objects and never fired, so it closed the connection and the batch's statements were lost. The refusal is an error inside the batch, so END BATCH does not commit the batch either (divergence: 'DISCONNECT', 'Anything that fails inside a batch'; #124, #125)."
   }
  },
+ "existing_decimal_target": {
+  "files/result.csv": {
+   "execsql2": "i,v\n100,0.100000000000000000000000000000\n101,0.200000000000000000000000000000\n102,1000.000000000000000000000000000000\n103,-1000.000000000000000000000000000000\n",
+   "status": "accepted",
+   "upstream": "i,v\n100,0.100000000000000009025336901632\n101,0.200000000000000018050673803264\n102,1000.000000000000089690419062898688\n103,-1000.000000000000089690419062898688\n",
+   "why": "Existing exact-decimal columns retain finite numeric source values independently of source scanning and EXACT_DECIMALS. Upstream used floating-point conversions and stored binary artifacts. Values at scale 38 and positive exponents retain their exact numeric value."
+  },
+  "files/tiny-result.csv": {
+   "execsql2": "i,v\n100,1E-38\n101,2E-38\n102,1.23456789012345678E-21\n",
+   "status": "accepted",
+   "upstream": "i,v\n100,1E-38\n101,2E-38\n102,1.23456789012345680E-21\n",
+   "why": "Existing exact-decimal columns retain finite numeric source values independently of source scanning and EXACT_DECIMALS. Upstream used floating-point conversions and stored binary artifacts. Values at scale 38 and positive exponents retain their exact numeric value."
+  }
+ },
  "export_more_formats": {
   "files/t.xml": {
    "execsql2": "<?xml version='1.0' encoding='utf8'?>\n<t>\n  <row>\n    <id>1</id>\n    <name>Ann</name>\n    <note>has \"quotes\"</note>\n  </row>\n  <row>\n    <id>2</id>\n    <name>Bob</name>\n    <note></note>\n  </row>\n</t>\n",

@@ -172,6 +172,9 @@ class DuckDBDatabase(Database):
     and sees the run's temporary tables.
     """
 
+    #: Keep Decimal parameters exact across exponent/width conversion in drivers.
+    decimal_binding_precision = 38
+
     #: A transaction this adapter or a script's own BEGIN opened, not yet ended.
     in_transaction: bool = False
     #: The cursor whose result the connection holds, if any.

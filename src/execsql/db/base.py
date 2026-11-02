@@ -285,6 +285,9 @@ class Database(ABC):
     #: (an ODBC DSN without transactions): nothing can be held back.
     driver_autocommits: bool = False
 
+    #: Native Decimal parameter capacity for exact binding; None leaves it unchanged.
+    decimal_binding_precision: int | None = None
+
     def holding(self) -> bool:
         """Whether statements on this connection wait for a commit.
 
@@ -773,7 +776,14 @@ class Database(ABC):
         if existing_table:
             kinds = self.column_kinds(sq_name)
             converters = [
-                existing_table_converter(kinds.get(col.name.lower()), col.column_type()[1], convert, col.name, sq_name)
+                existing_table_converter(
+                    kinds.get(col.name.lower()),
+                    col.column_type()[1],
+                    convert,
+                    col.name,
+                    sq_name,
+                    decimal_binding_precision=self.decimal_binding_precision,
+                )
                 for col, convert in zip(tablespec.cols, converters)
             ]
         # Construct INSERT statement.
