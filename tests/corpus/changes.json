@@ -1346,6 +1346,35 @@
    "why": "SQLite IMPORT and COPY preserve the attached database qualifier for table checks, column lookup and inserts. Upstream loaded the rows into the same-named main table and left aux.t unchanged. The selected aux.t now receives the rows while main.t is unchanged (divergence: SQLite qualified table loading)."
   }
  },
+ "sqlite_export_failed_replacement": {
+  "files/out.db": {
+   "execsql2": {
+    "sqlite": {
+     "victim": {
+      "columns": [
+       [
+        "v",
+        "varchar"
+       ]
+      ],
+      "rows": [
+       [
+        [
+         "text",
+         "'keep me'"
+        ]
+       ]
+      ]
+     }
+    }
+   },
+   "status": "accepted",
+   "upstream": {
+    "sqlite": {}
+   },
+   "why": "A failed SQLite export reads and validates its source before replacing the destination; an existing exported table survives a source-row error."
+  }
+ },
  "sub_backslash": {
   "exit": {
    "execsql2": 0,

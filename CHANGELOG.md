@@ -11,12 +11,18 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Added
+
+- **`EXPORT … AS SQLITE`** accepts Decimal infinities as numeric values.
+
 ### Changed
 
 - **Configured `include_required` and `include_optional` scripts** run before the main script, required files first, through both the CLI and `execsql.run()`. They were ignored; remove entries you do not want executed.
 
 ### Fixed
 
+- **`EXPORT … AS SQLITE`** rejects lossy numeric Decimal values and numeric Decimal NaN, before changing the destination. Cast the source column to text to preserve its exact spelling.
+- **`EXPORT … AS SQLITE` replacement** preserves the original table when reading, creating or inserting the replacement fails.
 - **`execsql.run(connection=...)`** rolls back pending work and closes connections the script opened with `CONNECT`, while leaving the supplied connection open. Commit work on script-created connections before the script ends if it must be kept.
 - **`execsql.run(config_file=...)`** retains the substitution variables defined in the configuration file.
 - **`execsql.run()` safety switches** inherit configured `allow_system_cmd`, `allow_rm_file` and `allow_serve` values when omitted or `None`; explicit `True` or `False` overrides the configuration. Omitted arguments re-enabled disabled capabilities.
