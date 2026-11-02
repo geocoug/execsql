@@ -69,6 +69,8 @@ ______________________________________________________________________
 
 ### Bug Fixes
 
+`IMPORT … FROM JSON` rejects distinct paths within a record that flatten to the same column name, such as literal `a.b` and nested `a` → `b`, instead of silently keeping the last value. The error identifies both source paths. Validation finishes before any target table is created, replaced or populated; non-colliding flattened names and values are preserved. JSON import itself is an execsql2 addition.
+
 `IMPORT` and `COPY` into a database-qualified SQLite table preserve the qualifier during existence checks, column lookup and insertion. A target such as `aux.results` refers to the database attached as `aux`; a same-named table in `main` is left unchanged. Missing qualified targets fail instead of loading into an unqualified table.
 
 | Fix                             | Description                                                                                                                                                                                                                                                                                                              |

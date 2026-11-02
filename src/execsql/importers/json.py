@@ -3,7 +3,7 @@ from __future__ import annotations
 """
 JSON import for execsql.
 
-Provides :func:`import_json`, used by ``IMPORT … FORMAT json``.
+Provides :func:`import_json`, used by ``IMPORT … FROM JSON``.
 Supports JSON arrays of objects (``[{…}, …]``) and `JSON Lines
 <https://jsonlines.org/>`_ (JSONL, one object per line).  Nested
 objects are flattened with dot-separated keys; nested arrays and
@@ -27,19 +27,33 @@ def _flatten(obj: Any, prefix: str = "", sep: str = ".") -> dict[str, Any]:
 
     Nested dicts produce dot-separated keys.  All other compound values
     (lists, nested lists-of-dicts) are serialized as JSON strings so the
-    result is always ``{str: scalar}``.
+    result is always ``{str: scalar}``. Distinct paths that produce the
+    same column name raise ErrInfo instead of discarding a value.
     """
     items: dict[str, Any] = {}
-    if isinstance(obj, dict):
-        for key, value in obj.items():
-            new_key = f"{prefix}{sep}{key}" if prefix else key
+    source_paths: dict[str, tuple[str, ...]] = {}
+
+    def visit(current: Any, parent: str, path: tuple[str, ...]) -> None:
+        if not isinstance(current, dict):
+            return
+        for key, value in current.items():
+            column = f"{parent}{sep}{key}" if parent else key
+            source_path = (*path, key)
             if isinstance(value, dict):
-                items.update(_flatten(value, new_key, sep))
-            elif isinstance(value, list):
-                # Serialize arrays as JSON strings — tables are flat.
-                items[new_key] = json.dumps(value, default=str)
+                visit(value, column, source_path)
             else:
-                items[new_key] = value
+                if column in items:
+                    raise ErrInfo(
+                        type="error",
+                        other_msg=(
+                            f"JSON field paths {json.dumps(source_paths[column])} and {json.dumps(source_path)} "
+                            f"flatten to the same column {column!r}. Rename the conflicting keys."
+                        ),
+                    )
+                source_paths[column] = source_path
+                items[column] = json.dumps(value, default=str) if isinstance(value, list) else value
+
+    visit(obj, prefix, ())
     return items
 
 
@@ -126,7 +140,8 @@ def import_json(
 
     Objects are flattened so that nested keys become dot-separated column
     names (e.g. ``address.city``).  Arrays within objects are stored as
-    JSON strings.
+    JSON strings. Colliding paths within a record are rejected before
+    any table is created, replaced or populated.
     """
     from execsql.utils.errors import exception_desc
 
