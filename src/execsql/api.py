@@ -224,6 +224,11 @@ class _LibraryConfig:
         self.email_format = "plain"
         self.email_css: str | None = None
 
+        # Default capabilities when no configuration file is supplied.
+        self.allow_system_cmd = True
+        self.allow_rm_file = True
+        self.allow_serve = True
+
         # Includes
         self.include_req: list = []
         self.include_opt: list = []
@@ -340,9 +345,9 @@ def run(
     encoding: str = "utf-8",
     halt_on_error: bool = True,
     new_db: bool = False,
-    allow_system_cmd: bool = True,
-    allow_rm_file: bool = True,
-    allow_serve: bool = True,
+    allow_system_cmd: bool | None = None,
+    allow_rm_file: bool | None = None,
+    allow_serve: bool | None = None,
 ) -> ScriptResult:
     """Execute a SQL script and return the result.
 
@@ -370,7 +375,8 @@ def run(
         variables: Substitution variables as ``{"NAME": "value"}``.
             Keys without a ``$`` prefix get one added automatically, so
             ``{"SCHEMA": "public"}`` is referenced as ``!!$SCHEMA!!``.
-        config_file: Optional execsql configuration file to load.
+        config_file: Optional execsql configuration file to load. Configured
+            variables and startup includes apply before the main script runs.
         encoding: Script file encoding (default ``"utf-8"``).
         halt_on_error: If ``True`` (default), stop on the first SQL
             error.  If ``False``, capture errors and continue.
@@ -379,14 +385,17 @@ def run(
         allow_system_cmd: If ``False``, the SYSTEM_CMD metacommand is
             disabled and will raise an error if encountered. Matches the
             ``--no-system-cmd`` CLI flag and the ``allow_system_cmd``
-            config option.
+            config option. None (default) inherits the configured value,
+            or True without a config file; explicit True overrides a restriction.
         allow_rm_file: If ``False``, the RM_FILE metacommand is disabled
             and will raise an error if encountered. Matches the
             ``--no-rm-file`` CLI flag and the ``allow_rm_file`` config
-            option.
+            option. None (default) inherits the configured value;
+            an explicit boolean overrides it.
         allow_serve: If ``False``, the SERVE metacommand is disabled and
             will raise an error if encountered. Matches the ``--no-serve``
-            CLI flag and the ``allow_serve`` config option.
+            CLI flag and the ``allow_serve`` config option. None (default)
+            inherits the configured value; an explicit boolean overrides it.
 
     Returns:
         A :class:`ScriptResult` with execution outcome, timing, errors,
@@ -431,27 +440,6 @@ def run(
     # ------------------------------------------------------------------
     ctx = RuntimeContext()
 
-    # Configuration
-    conf_overrides: dict[str, Any] = {"script_encoding": encoding}
-    conf: Any
-    if config_file is not None:
-        # Load a real ConfigData with the explicit config file
-        from execsql.script.variables import SubVarSet
-
-        if not Path(config_file).is_file():
-            return _failed(f"Config file {str(config_file)!r} does not exist.", "<config>")
-        temp_subvars = SubVarSet()
-        script_dir = str(Path(script).resolve().parent) if script else os.getcwd()
-        try:
-            conf = ConfigData(script_dir, temp_subvars, config_file=str(config_file))
-        except Exception as exc:
-            return _failed(_error_text(exc), "<config>")
-        # Apply any overrides
-        for k, v in conf_overrides.items():
-            setattr(conf, k, v)
-    else:
-        conf = _LibraryConfig(**conf_overrides)
-
     # Substitution variables
     from execsql.script.variables import SubVarSet
 
@@ -472,6 +460,24 @@ def run(
 
     subvars.add_substitution("$HOSTNAME", platform.node())
 
+    # Configuration
+    conf_overrides: dict[str, Any] = {"script_encoding": encoding}
+    conf: Any
+    if config_file is not None:
+        # Load a real ConfigData with the explicit config file
+        if not Path(config_file).is_file():
+            return _failed(f"Config file {str(config_file)!r} does not exist.", "<config>")
+        script_dir = str(Path(script).resolve().parent) if script else os.getcwd()
+        try:
+            conf = ConfigData(script_dir, subvars, config_file=str(config_file))
+        except Exception as exc:
+            return _failed(_error_text(exc), "<config>")
+        # Apply any overrides
+        for k, v in conf_overrides.items():
+            setattr(conf, k, v)
+    else:
+        conf = _LibraryConfig(**conf_overrides)
+
     # User-supplied variables
     if variables:
         for name, value in variables.items():
@@ -487,10 +493,17 @@ def run(
     ctx.subvars = subvars
     ctx.status = StatObj()
     ctx.status.halt_on_err = halt_on_error
-    conf.allow_system_cmd = allow_system_cmd
-    conf.allow_rm_file = allow_rm_file
-    conf.allow_serve = allow_serve
+    if allow_system_cmd is not None:
+        conf.allow_system_cmd = allow_system_cmd
+    if allow_rm_file is not None:
+        conf.allow_rm_file = allow_rm_file
+    if allow_serve is not None:
+        conf.allow_serve = allow_serve
     ctx.conf = conf
+
+    from execsql.script.preparation import prepare_script
+
+    tree = prepare_script(tree, conf.include_req, conf.include_opt)
 
     # Capture output to a buffer (suppress stdout/stderr)
     stdout_buf = io.StringIO()

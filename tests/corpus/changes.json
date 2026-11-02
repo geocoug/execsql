@@ -1074,6 +1074,74 @@
    "why": "A delimited file with a line break inside a quoted value: upstream's delimiter detection found no delimiter and read every line as one column named 'id,note'; execsql2 reads the two columns (divergence: 'Line break inside a quoted value')."
   }
  },
+ "configured_startup": {
+  "exit": {
+   "execsql2": 0,
+   "status": "accepted",
+   "upstream": 1,
+   "why": "Configured required and optional startup includes execute before the main script in documented order. Upstream collected these settings without executing the files, so its main script failed because the startup table did not exist. execsql2 intentionally implements the documented configuration behavior; the Unreleased Changed entry tells users to remove entries they do not want executed (divergence: Configuration)."
+  },
+  "stderr": {
+   "execsql2": "",
+   "status": "accepted",
+   "upstream": "**** Exception.\n     Line 1 of script script.sql\n     OperationalError: no such table: sequence\n     SQL statement: \n         INSERT INTO sequence VALUES ('main');\n     Error occurred at <TIME>.\n",
+   "why": "Configured required and optional startup includes execute before the main script in documented order. Upstream collected these settings without executing the files, so its main script failed because the startup table did not exist. execsql2 intentionally implements the documented configuration behavior; the Unreleased Changed entry tells users to remove entries they do not want executed (divergence: Configuration)."
+  },
+  "tables/seen": {
+   "execsql2": {
+    "columns": [
+     [
+      "v",
+      "TEXT"
+     ]
+    ],
+    "rows": [
+     [
+      [
+       "text",
+       "'configured'"
+      ]
+     ]
+    ]
+   },
+   "status": "accepted",
+   "upstream": null,
+   "why": "Configured required and optional startup includes execute before the main script in documented order. Upstream collected these settings without executing the files, so its main script failed because the startup table did not exist. execsql2 intentionally implements the documented configuration behavior; the Unreleased Changed entry tells users to remove entries they do not want executed (divergence: Configuration)."
+  },
+  "tables/sequence": {
+   "execsql2": {
+    "columns": [
+     [
+      "v",
+      "TEXT"
+     ]
+    ],
+    "rows": [
+     [
+      [
+       "text",
+       "'required'"
+      ]
+     ],
+     [
+      [
+       "text",
+       "'optional'"
+      ]
+     ],
+     [
+      [
+       "text",
+       "'main'"
+      ]
+     ]
+    ]
+   },
+   "status": "accepted",
+   "upstream": null,
+   "why": "Configured required and optional startup includes execute before the main script in documented order. Upstream collected these settings without executing the files, so its main script failed because the startup table did not exist. execsql2 intentionally implements the documented configuration behavior; the Unreleased Changed entry tells users to remove entries they do not want executed (divergence: Configuration)."
+  }
+ },
  "decimal_digits": {
   "files/ddl.sql": {
    "execsql2": "CREATE TABLE short (\n    v double NOT NULL\n    );\nCREATE TABLE long (\n    v decimal(20,10) NOT NULL\n    );\n",

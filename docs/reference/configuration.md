@@ -444,6 +444,8 @@ ignore = V002
 
 There are no fixed properties for this section. All property names and their values that are specified in this section will be used to define substitution variables, just as if a series of SUB metacommands had been used at the beginning of the script. All variables defined in this section will be global.
 
+These definitions apply through both the CLI and `execsql.run(config_file=...)`, including within configured startup scripts.
+
 ## Sections `include_required` and `include_optional`
 
 Both sections list script files to be auto-included before the main script runs, without an explicit [INCLUDE](metacommands.md#include). Each property is an integer that specifies inclusion order; the value is a filename. Duplicate integers keep the last assignment, and each file is included at most once.
@@ -451,3 +453,5 @@ Both sections list script files to be auto-included before the main script runs,
 The difference between the sections is what happens when a file is missing: `include_required` halts *execsql* with an error; `include_optional` silently skips it.
 
 All `include_required` files run before any `include_optional` files. Across multiple config files, ordering follows the order in which those config files are read.
+
+This applies to both CLI and library runs. The files use the same `include_root` containment, circular-include detection and runtime error handling as explicit INCLUDE commands. An optional file is skipped only when absent; errors in a file that exists still follow the normal script error rules. `--dry-run` lists the configured startup includes before the main script without executing them.

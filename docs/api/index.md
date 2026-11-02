@@ -34,6 +34,17 @@ run(sql='-- !x! WRITE "loading into !!$SCHEMA!!"\n', dsn="sqlite:///my.db", vari
 
 `result.variables` holds every variable's final value, keyed by lower-case name without the sigil: `result.variables["schema"]`.
 
+### Configuration and startup scripts
+
+Pass `config_file=` to use a configuration file's variables and ordered startup scripts. The configured `include_required` files run first, then `include_optional` files, then the main script. Startup files can define tables, variables and named scripts used by the main script. Missing required files fail the run; missing optional files are skipped. Configured files follow the same containment and recursion rules as explicit INCLUDE commands.
+
+The `allow_system_cmd`, `allow_rm_file` and `allow_serve` arguments default to `None`: an omitted argument or `None` inherits the configuration file's value. An explicit `True` or `False` overrides that value. Without a configuration file, all three capabilities remain enabled unless explicitly disabled.
+
+```python
+result = run(script="load.sql", dsn="sqlite:///data.db", config_file="restricted.conf")
+# A configured allow_system_cmd=No stays disabled.
+```
+
 ### Errors
 
 `run()` never raises for a failed run. It returns `success=False`, and `result.errors` lists what went wrong in the order it happened. Each `ScriptError` has a `message`, a `source`, a `line`, and, for a failed SQL statement, the statement in `sql`.

@@ -198,6 +198,8 @@ execsql2 adds an interactive debug REPL (no upstream equivalent), triggered eith
 
 ### Library API
 
+`execsql.run(config_file=...)` preserves configured variables and runs configured required/optional startup files before the main script. Its `allow_system_cmd`, `allow_rm_file` and `allow_serve` arguments inherit configured values when omitted or `None`; explicit booleans override the configuration. Without a configuration file, the existing enabled defaults remain in effect.
+
 execsql2 exposes `execsql.run()` for programmatic execution — no upstream equivalent.
 
 ```python
@@ -251,6 +253,8 @@ No adapter is removed, deprecated, or changed in behavior — the tiers describe
 The default database type (`-t`) changed from Access (`a`) to SQLite (`l`). Upstream defaulted to Access, which requires Windows and pyodbc. SQLite is cross-platform, ships with Python, and is the most common use case. Users targeting Access databases should pass `-t a` explicitly.
 
 ### Configuration
+
+Configured `include_required` and `include_optional` files now execute before the main script through normal INCLUDE handling. Upstream and earlier execsql2 versions collected these settings but did not run the files, despite documenting them. Required files precede optional files, and each configured file runs once. Remove entries you do not want executed. The CLI dry run lists these includes without executing them.
 
 - **`linux_config_file`** — now only active on Linux (`sys.platform == "linux"`). Upstream applied it to all POSIX systems, including macOS. A new `macos_config_file` option handles macOS specifically.
 

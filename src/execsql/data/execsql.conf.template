@@ -305,6 +305,7 @@
 # Whether to allow the SYSTEM_CMD (SHELL) metacommand.
 # Set to No to prevent scripts from executing OS commands.
 # Also controllable via --no-system-cmd CLI flag.
+# Library API: omitted/None inherits this value; an explicit boolean overrides it.
 # Values: Yes or No.  Default: Yes.
 #allow_system_cmd=Yes
 
@@ -317,12 +318,14 @@
 # Whether to allow the RM_FILE metacommand (which deletes a file).
 # Set to No to prevent scripts from deleting files.
 # Also controllable via --no-rm-file CLI flag.
+# Library API: omitted/None inherits this value; an explicit boolean overrides it.
 # Values: Yes or No.  Default: Yes.
 #allow_rm_file=Yes
 
 # Whether to allow the SERVE metacommand (which copies a file to stdout
 # with HTTP headers, for CGI use). Set to No to disable.
 # Also controllable via --no-serve CLI flag.
+# Library API: omitted/None inherits this value; an explicit boolean overrides it.
 # Values: Yes or No.  Default: Yes.
 #allow_serve=Yes
 

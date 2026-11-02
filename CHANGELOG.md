@@ -11,8 +11,14 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Changed
+
+- **Configured `include_required` and `include_optional` scripts** run before the main script, required files first, through both the CLI and `execsql.run()`. They were ignored; remove entries you do not want executed.
+
 ### Fixed
 
+- **`execsql.run(config_file=...)`** retains the substitution variables defined in the configuration file.
+- **`execsql.run()` safety switches** inherit configured `allow_system_cmd`, `allow_rm_file` and `allow_serve` values when omitted or `None`; explicit `True` or `False` overrides the configuration. Omitted arguments re-enabled disabled capabilities.
 - **`IMPORT … FROM JSON`** rejects distinct field paths that flatten to the same column name before creating, replacing or loading a table; ambiguous records silently lost one value. Rename the conflicting JSON keys before retrying.
 - **`IMPORT` and `COPY` to `attached.table` in SQLite** use the selected attached database for table checks, column checks and loading instead of a same-named table in `main`.
 - **An SQL statement or metacommand interrupted before its commit** (Ctrl-C at a `BREAKPOINT` prompt or in a notebook running `execsql.run()`, or a `SystemExit` that a program's signal handler raises during `execsql.run()`) is rolled back, as a failed one is; the next commit on the connection stored what it had done. An SQL statement rolls back its connection's open transaction, and a metacommand everything not yet committed on each connection with `AUTOCOMMIT` on, its own writes included; under `AUTOCOMMIT OFF` its writes stay with what the script holds.
