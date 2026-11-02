@@ -98,11 +98,12 @@ class SQLiteDatabase(Database):
     unqualified_lookup_is_scoped = True
 
     def table_exists(self, table_name: str, schema_name: str | None = None) -> bool:
-        """Return True if the named table exists in the SQLite database."""
+        """Look up a table in *schema_name* (an attached database), or main."""
         # SQLite stores names as-created; match case-insensitively so a lookup
         # of "mytable" finds the catalog entry for MyTable.
         with self._cursor() as curs:
-            sql = "select name from sqlite_master where type='table' and lower(name)=lower(?);"
+            catalog = self.schema_qualified_table_name(schema_name or "main", "sqlite_master")
+            sql = f"select name from {catalog} where type='table' and lower(name)=lower(?);"
             try:
                 curs.execute(sql, (table_name,))
             except ErrInfo:
@@ -129,9 +130,9 @@ class SQLiteDatabase(Database):
         return column_name in cols
 
     def table_columns(self, table_name: str, schema_name: str | None = None) -> list[str]:
-        """Return a list of column names for the given SQLite table."""
+        """Return column names from the optionally database-qualified table."""
         with self._cursor() as curs:
-            quoted_tbl = self.quote_identifier(table_name)
+            quoted_tbl = self.schema_qualified_table_name(schema_name, table_name)
             sql = f"select * from {quoted_tbl} where 1=0;"
             try:
                 curs.execute(sql)
@@ -192,7 +193,7 @@ class SQLiteDatabase(Database):
         """
         # The rowsource argument must be a generator yielding a list of values for the columns of the table.
         # The column_list argument must an iterable containing column names in the same order as produced by the rowsource.
-        sq_name = self.schema_qualified_table_name(None, table_name)
+        sq_name = self.schema_qualified_table_name(schema_name, table_name)
         # Check specified column names.
         tablespec = tablespec_src()
         ts_colnames = [col.name for col in tablespec.cols]

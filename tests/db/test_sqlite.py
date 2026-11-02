@@ -88,8 +88,7 @@ class TestTableExists:
         db.conn.execute("CREATE TABLE t (id INTEGER);")
         assert db.table_exists("t") is True
 
-    def test_schema_arg_ignored_for_sqlite(self, db):
-        # SQLite has no schemas; the schema_name arg is accepted but unused.
+    def test_explicit_main_database(self, db):
         db.conn.execute("CREATE TABLE t2 (id INTEGER);")
         assert db.table_exists("t2", schema_name="main") is True
 

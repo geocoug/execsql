@@ -1172,6 +1172,112 @@
    "why": "WRITE SCRIPT writes the BEGIN SCRIPT / END SCRIPT lines as metacommands ('-- !x! BEGIN SCRIPT first'), so the file runs with INCLUDE; upstream wrote them bare, which a script would run as SQL (divergence: 'WRITE SCRIPT output')."
   }
  },
+ "sqlite_attached_target": {
+  "files/aux.db": {
+   "execsql2": {
+    "sqlite": {
+     "t": {
+      "columns": [
+       [
+        "v",
+        "TEXT"
+       ]
+      ],
+      "rows": [
+       [
+        [
+         "text",
+         "'aux-before'"
+        ]
+       ],
+       [
+        [
+         "text",
+         "'imported-row'"
+        ]
+       ],
+       [
+        [
+         "text",
+         "'copied-row'"
+        ]
+       ]
+      ]
+     }
+    }
+   },
+   "status": "accepted",
+   "upstream": {
+    "sqlite": {
+     "t": {
+      "columns": [
+       [
+        "v",
+        "TEXT"
+       ]
+      ],
+      "rows": [
+       [
+        [
+         "text",
+         "'aux-before'"
+        ]
+       ]
+      ]
+     }
+    }
+   },
+   "why": "SQLite IMPORT and COPY preserve the attached database qualifier for table checks, column lookup and inserts. Upstream loaded the rows into the same-named main table and left aux.t unchanged. The selected aux.t now receives the rows while main.t is unchanged (divergence: SQLite qualified table loading)."
+  },
+  "tables/t": {
+   "execsql2": {
+    "columns": [
+     [
+      "v",
+      "TEXT"
+     ]
+    ],
+    "rows": [
+     [
+      [
+       "text",
+       "'main-before'"
+      ]
+     ]
+    ]
+   },
+   "status": "accepted",
+   "upstream": {
+    "columns": [
+     [
+      "v",
+      "TEXT"
+     ]
+    ],
+    "rows": [
+     [
+      [
+       "text",
+       "'main-before'"
+      ]
+     ],
+     [
+      [
+       "text",
+       "'imported-row'"
+      ]
+     ],
+     [
+      [
+       "text",
+       "'copied-row'"
+      ]
+     ]
+    ]
+   },
+   "why": "SQLite IMPORT and COPY preserve the attached database qualifier for table checks, column lookup and inserts. Upstream loaded the rows into the same-named main table and left aux.t unchanged. The selected aux.t now receives the rows while main.t is unchanged (divergence: SQLite qualified table loading)."
+  }
+ },
  "sub_backslash": {
   "exit": {
    "execsql2": 0,
