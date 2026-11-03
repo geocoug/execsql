@@ -40,6 +40,8 @@ ______________________________________________________________________
 - **Configuration prompt template** uses the supported `CONFIG IMPORT_ONLY_COMMON_COLUMNS` spelling.
 - **`--output-dir` help** states that absolute EXPORT targets must remain inside the output root.
 - **IMPORT/EXPORT extension guides** describe the implemented registration paths.
+- **`ALIAS_DEFINED` and `DISCONNECT` match the alias case-insensitively** (`ALIAS_DEFINED(B)`, `DISCONNECT FROM B`), as `USE` always did; the same connection spelled differently reported "not defined" and could not be closed.
+- **`$CURRENT_DATABASE`, `$CURRENT_DBMS` and `$DB_SERVER` after a `DISCONNECT`** of the current database name the initial database the run switches to; they kept naming the database just closed. The log's connection record follows the switch too.
 - **`WRITE` / `TEE`** reports blocked background I/O, including filename resolution, at the output deadline and discards queued output without waiting again during shutdown; the I/O already in progress may finish later.
 - **`IMPORT` / `COPY`** converts only selected source columns; oversized decimals in excluded columns no longer reject a load.
 - **ODS `IMPORT`** rejects invalid repetition, span and space counts with an input error before changing target tables.

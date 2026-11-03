@@ -1,0 +1,9 @@
+-- A DISCONNECT of the current database switches the run to the initial
+-- database; $CURRENT_DATABASE and $CURRENT_DBMS must follow, not keep
+-- naming the database that was just closed.
+-- !x! CONNECT TO SQLITE(FILE=c.db, NEW) AS c
+-- !x! USE c
+-- !x! WRITE "before: !!$CURRENT_DATABASE!! (alias !!$CURRENT_ALIAS!!)" TO out.txt
+-- !x! DISCONNECT
+-- !x! WRITE "after: !!$CURRENT_DATABASE!! (alias !!$CURRENT_ALIAS!!)" TO out.txt
+-- !x! WRITE "dbms: !!$CURRENT_DBMS!!" TO out.txt
