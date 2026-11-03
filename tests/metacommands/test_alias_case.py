@@ -119,6 +119,7 @@ class TestXDisconnectCurrentCase:
         _state.status = MagicMock()
         _state.status.batch.uses_db.return_value = False
         _state.exec_log = MagicMock()
+        _state.subvars = MagicMock()
         try:
             pool.make_current("b")
             x_disconnect(alias="B")
@@ -128,6 +129,7 @@ class TestXDisconnectCurrentCase:
         finally:
             _state.status = None
             _state.exec_log = None
+            _state.subvars = None
 
     def test_lowercase_disconnect_of_current_switches_to_initial(self, pool):
         from unittest.mock import MagicMock
@@ -137,6 +139,7 @@ class TestXDisconnectCurrentCase:
         _state.status = MagicMock()
         _state.status.batch.uses_db.return_value = False
         _state.exec_log = MagicMock()
+        _state.subvars = MagicMock()
         try:
             pool.make_current("b")
             x_disconnect(alias="b")
@@ -145,3 +148,4 @@ class TestXDisconnectCurrentCase:
         finally:
             _state.status = None
             _state.exec_log = None
+            _state.subvars = None
