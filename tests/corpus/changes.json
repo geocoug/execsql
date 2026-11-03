@@ -1272,6 +1272,92 @@
    "why": "execsql2 substitutes a LOOP condition's variables before every pass; upstream substituted them once, when the LOOP line ran, so a loop on a variable defined before it ran until BREAK (k=5) and in execsql2 stops on the condition (k=3) (divergence: 'LOOP conditions are read on every pass')."
   }
  },
+ "ods_input_limits": {
+  "files/invalid-result.csv": {
+   "execsql2": "v\ninvalid_keep\n",
+   "status": "accepted",
+   "upstream": "v\nloaded\n",
+   "why": "ODS imports reject materialized-sheet expansion beyond configured budgets and invalid negative repetition counts before creating, replacing or loading a target. The original table is retained instead of being replaced. Raise import_max_cells for a trusted larger sheet; repair invalid repetition attributes."
+  },
+  "files/result.csv": {
+   "execsql2": "v\nkeep\n",
+   "status": "accepted",
+   "upstream": "v\nloaded\n",
+   "why": "ODS imports reject materialized-sheet expansion beyond configured budgets and invalid negative repetition counts before creating, replacing or loading a target. The original table is retained instead of being replaced. Raise import_max_cells for a trusted larger sheet; repair invalid repetition attributes."
+  },
+  "tables/invalid_target": {
+   "execsql2": {
+    "columns": [
+     [
+      "v",
+      "TEXT"
+     ]
+    ],
+    "rows": [
+     [
+      [
+       "text",
+       "'invalid_keep'"
+      ]
+     ]
+    ]
+   },
+   "status": "accepted",
+   "upstream": {
+    "columns": [
+     [
+      "v",
+      "varchar"
+     ]
+    ],
+    "rows": [
+     [
+      [
+       "text",
+       "'loaded'"
+      ]
+     ]
+    ]
+   },
+   "why": "ODS imports reject materialized-sheet expansion beyond configured budgets and invalid negative repetition counts before creating, replacing or loading a target. The original table is retained instead of being replaced. Raise import_max_cells for a trusted larger sheet; repair invalid repetition attributes."
+  },
+  "tables/t": {
+   "execsql2": {
+    "columns": [
+     [
+      "v",
+      "TEXT"
+     ]
+    ],
+    "rows": [
+     [
+      [
+       "text",
+       "'keep'"
+      ]
+     ]
+    ]
+   },
+   "status": "accepted",
+   "upstream": {
+    "columns": [
+     [
+      "v",
+      "varchar"
+     ]
+    ],
+    "rows": [
+     [
+      [
+       "text",
+       "'loaded'"
+      ]
+     ]
+    ]
+   },
+   "why": "ODS imports reject materialized-sheet expansion beyond configured budgets and invalid negative repetition counts before creating, replacing or loading a target. The original table is retained instead of being replaced. Raise import_max_cells for a trusted larger sheet; repair invalid repetition attributes."
+  }
+ },
  "on_error_halt_write": {
   "files/halt.txt": {
    "execsql2": "halted after created\n",

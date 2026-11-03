@@ -22,9 +22,10 @@ from typing import Any
 import execsql.state as _state
 from execsql.exceptions import ErrInfo
 from execsql.importers.csv import importfile, importtable
+from execsql.utils.spreadsheet import INPUT_LIMIT_DEFAULTS, SheetBudget
 from execsql.importers.feather import import_feather, import_parquet
 from execsql.importers.json import import_json
-from execsql.importers.ods import OdsFile, importods
+from execsql.importers.ods import OdsFile, check_ods_archive, importods
 from execsql.exporters.xls import XlsFile, XlsxFile
 from execsql.importers.xls import importxls
 from execsql.utils.errors import exception_desc
@@ -185,13 +186,21 @@ def x_import_ods_pattern(**kwargs: Any) -> None:
             command_text=kwargs["metacommandline"],
             other_msg="Input file does not exist",
         )
+    check_ods_archive(filename)
     wbk = OdsFile()
     try:
         wbk.open(filename)
     except Exception as e:
         raise ErrInfo(type="cmd", other_msg=f"{filename} is not a valid OpenDocument spreadsheet.") from e
-    sheets = wbk.sheetnames()
-    impsheets = [s for s in sheets if rx.search(s)]
+    try:
+        sheets = wbk.sheetnames()
+        impsheets = [s for s in sheets if rx.search(s)]
+        # Validate each selected sheet before the first target can be changed;
+        # discard the rows between sheets instead of retaining their expansion.
+        for sheet in impsheets:
+            wbk.sheet_data(sheet, hdr_rows, budget=SheetBudget(_state.conf, filename, sheet))
+    finally:
+        wbk.close()
     tables = list(impsheets)
     if _state.conf.clean_col_hdrs:
         tables = clean_words(tables)
@@ -461,3 +470,12 @@ def x_import_row_buffer(**kwargs: Any) -> None:
 def x_show_progress(**kwargs: Any) -> None:
     setting = kwargs["setting"].lower()
     _state.conf.show_progress = setting in ("yes", "on", "true", "1")
+
+
+def x_input_limit(**kwargs: Any) -> None:
+    """Set a non-negative spreadsheet input budget for subsequent imports."""
+    name = kwargs["name"].lower()
+    value = int(kwargs["value"])
+    if name not in INPUT_LIMIT_DEFAULTS or value < 0:
+        raise ErrInfo(type="cmd", other_msg=f"Invalid spreadsheet input limit: {name}={value}.")
+    setattr(_state.conf, name, value)

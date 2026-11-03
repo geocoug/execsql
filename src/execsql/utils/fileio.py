@@ -92,6 +92,8 @@ def check_zip_decompression_ratio(
     *,
     max_uncompressed_mb: int = 500,
     max_ratio: int = 100,
+    xml_only: bool = False,
+    limit_names: tuple[str, str] | None = None,
 ) -> None:
     """Reject a zip-based workbook that looks like a decompression bomb.
 
@@ -107,6 +109,9 @@ def check_zip_decompression_ratio(
     * ``max_ratio`` — per-member uncompressed:compressed ratio
       (default 100:1; legitimate XML-heavy XLSX rarely exceeds 30:1).
 
+    Zero disables the corresponding bound. With *xml_only*, the aggregate
+    counts XML members only (ODS); compression ratios still cover every member.
+    *limit_names* adds configuration setting names to rejection messages.
     No-op when *path* is not a zipfile (e.g. legacy ``.xls`` OLE-CDF).
     """
     import zipfile
@@ -115,26 +120,41 @@ def check_zip_decompression_ratio(
         with zipfile.ZipFile(path) as zf:
             total_uncompressed = 0
             for info in zf.infolist():
-                total_uncompressed += info.file_size
-                if info.compress_size > 0:
-                    ratio = info.file_size / info.compress_size
+                if not xml_only or info.filename.lower().endswith(".xml"):
+                    total_uncompressed += info.file_size
+                if max_ratio and info.file_size:
+                    ratio = info.file_size / info.compress_size if info.compress_size else float("inf")
                     if ratio > max_ratio:
+                        sizes = (
+                            f" ({info.file_size:,} uncompressed / {info.compress_size:,} compressed bytes)"
+                            if limit_names
+                            else ""
+                        )
                         raise ErrInfo(
                             type="error",
                             other_msg=(
                                 f"Refusing to open '{path}': member '{info.filename}' has "
-                                f"compression ratio {ratio:.1f}:1 (limit {max_ratio}:1) - "
+                                f"compression ratio {ratio:.1f}:1"
+                                f"{sizes} "
+                                f"(limit {max_ratio}:1"
+                                f"{(' set by ' + limit_names[1]) if limit_names else ''}) - "
                                 "possible zip-bomb."
                             ),
                         )
             limit_bytes = max_uncompressed_mb * 1024 * 1024
-            if total_uncompressed > limit_bytes:
+            if max_uncompressed_mb and total_uncompressed > limit_bytes:
+                observed = (
+                    f"{total_uncompressed:,} XML bytes" if xml_only else f"{total_uncompressed / 1024 / 1024:.0f} MB"
+                )
+                maximum = (
+                    f"{limit_bytes:,} bytes ({max_uncompressed_mb} MiB)" if limit_names else f"{max_uncompressed_mb} MB"
+                )
                 raise ErrInfo(
                     type="error",
                     other_msg=(
                         f"Refusing to open '{path}': total uncompressed size "
-                        f"{total_uncompressed / 1024 / 1024:.0f} MB exceeds limit "
-                        f"{max_uncompressed_mb} MB - possible zip-bomb."
+                        f"{observed} exceeds limit {maximum}"
+                        f"{(' set by ' + limit_names[0]) if limit_names else ''} - possible zip-bomb."
                     ),
                 )
     except zipfile.BadZipFile:

@@ -69,6 +69,8 @@ ______________________________________________________________________
 
 ### Bug Fixes
 
+ODS IMPORT checks configurable archive and logical expansion budgets before creating, replacing or loading tables. Unlike upstream's unbounded expansion, it rejects excessive rows, columns, rectangular padding and text before allocation; trailing filler is not counted. All selected sheets are checked before a SHEETS MATCHING import changes any target. Invalid repetition, span and space counts identify malformed input. Seven `[input]` settings and matching CONFIG forms allow raising limits or disabling individual limits with zero; the five `import_max_*` logical settings currently apply to ODS only.
+
 Decimal type inference, including IMPORT/COPY and database exports, counts positive exponents as integer digits with scale zero. Generated decimal column declarations keep the explicit zero scale instead of falling back to the database's default precision and scale.
 
 Finite Decimal values loaded into existing text columns are bound as exact decimal strings, preventing a driver's Decimal-to-DOUBLE fallback from rounding or overflowing them. SQLite numeric-affinity IMPORT/COPY destinations reject finite Decimal overflow instead of silently storing infinity, for both existing and newly created tables. Text/BLOB affinity retains the decimal string; ordinary finite SQLite numeric rounding is unchanged.

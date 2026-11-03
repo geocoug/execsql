@@ -77,6 +77,21 @@
 [input]
 # Settings for handling imported data.
 
+# ODS archive limits, checked before parsing. XML total is in MiB; the
+# compression ratio applies per archive member. 0 disables a limit.
+#ods_max_xml_mb=100
+#ods_max_compression_ratio=100
+
+# Materialized spreadsheet limits (currently enforced for ODS imports).
+# Rows include the header after SKIP; cells include rectangular padding.
+# Interior blanks count; trailing empty filler does not. Text counts include
+# repeated/spanned copies. 0 disables an individual limit; values are never truncated.
+#import_max_rows=1048576
+#import_max_columns=16384
+#import_max_cells=10000000
+#import_max_cell_chars=1048576
+#import_max_text_chars=268435456
+
 # MS Access: create columns for decimal data as NUMERIC(precision,scale)
 # (Yes) or as DOUBLE (No) when IMPORT or COPY creates a table.
 # Values: Yes or No.  Default: No.

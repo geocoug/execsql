@@ -195,6 +195,30 @@ The section and property names that may be used in a configuration file are list
 
 :   Removes any leading and trailing whitespace from text data on [IMPORT](metacommands.md#import).
 
+### Spreadsheet input limits { #spreadsheet-input-limits }
+
+ODS imports check archive limits before parsing and logical expansion before allocating rows, cells or repeated text. These are non-negative integers; `0` disables only that limit. Exceeding a limit rejects the import rather than truncating data. The error names the setting and measured count, so raise the named limit for an intentionally larger worksheet. The `import_max_*` names are shared spreadsheet settings; they currently apply to ODS, while XLSX keeps its existing archive checks.
+
+| Setting                     |     Default | Counted data                                                                      |
+| --------------------------- | ----------: | --------------------------------------------------------------------------------- |
+| `ods_max_xml_mb`            |         100 | Sum of all uncompressed XML members, in MiB (1,048,576 bytes), across the archive |
+| `ods_max_compression_ratio` |         100 | Uncompressed/compressed size for each archive member, including non-XML members   |
+| `import_max_rows`           |   1,048,576 | Materialized rows in a selected sheet after SKIP, including its header            |
+| `import_max_columns`        |      16,384 | Width of the materialized sheet                                                   |
+| `import_max_cells`          |  10,000,000 | Rows × widest row, including padding                                              |
+| `import_max_cell_chars`     |   1,048,576 | Characters in any one cell, including paragraphs and expanded spaces              |
+| `import_max_text_chars`     | 268,435,456 | Characters across all materialized cells, counting repeated rows/cells and spans  |
+
+Interior empty rows and cells count; trailing empty filler is discarded without expansion. Logical limits apply independently to each selected sheet. With SHEETS MATCHING, all selected sheets pass the resource checks before any target is created, replaced or loaded. Invalid negative or non-integer expansion counts are errors. Repeated rows removed by SKIP are not materialized or counted.
+
+Set these values under `[input]`, or use [CONFIG input limits](metacommands.md#config_input_limits) for subsequent imports in a script:
+
+```ini
+[input]
+import_max_cells=20000000
+ods_max_xml_mb=150
+```
+
 ## Section `output` { #config_output }
 
 `log_write_messages`

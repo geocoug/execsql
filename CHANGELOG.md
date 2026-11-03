@@ -13,10 +13,12 @@ ______________________________________________________________________
 
 ### Added
 
+- **ODS `IMPORT` input limits** add seven `[input]` settings and matching `CONFIG` forms; `0` disables an individual limit.
 - **`EXPORT … AS SQLITE`** accepts Decimal infinities as numeric values.
 
 ### Changed
 
+- **ODS `IMPORT`** rejects archives and sheet expansion over configured limits before changing targets; raise the setting named in the error for a trusted larger worksheet.
 - **`IMPORT … FROM JSON`** preserves fractional and exponent scalar numbers as exact decimals before loading. NEW/REPLACEMENT tables can infer DECIMAL instead of DOUBLE; existing decimal and integer targets validate the original digits.
 - **`IMPORT` / `COPY` into existing DECIMAL columns** rejects numeric text, Decimal and integer values that would be rounded to a reported destination scale; trailing zeros remain valid. Round the source explicitly if rounding is intended.
 - **`IMPORT` / `COPY` into existing DECIMAL columns** retains exact numeric text, including exponent notation, and typed Decimal values regardless of `EXACT_DECIMALS`.
@@ -25,6 +27,7 @@ ______________________________________________________________________
 
 ### Fixed
 
+- **ODS `IMPORT`** rejects invalid repetition, span and space counts with an input error before changing target tables.
 - **`IMPORT` / `COPY` into existing text columns** stores finite Decimal values as exact decimal text instead of allowing drivers to round them through floating point.
 - **`IMPORT` / `COPY` into SQLite numeric columns** rejects finite Decimal values that would overflow to infinity; a failed load keeps none of its new rows.
 - **DECIMAL type inference** counts positive exponents as integer digits with scale zero.

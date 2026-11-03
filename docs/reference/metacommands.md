@@ -601,6 +601,26 @@ Controls whether the [IMPORT](#import) metacommand will import CSV files with mo
 In addition to reducing the amount of data imported, this setting can also be used to work around some types of malformed input files.
 
 
+<a id="config_input_limits"></a>
+```
+CONFIG ODS_MAX_XML_MB <n>
+CONFIG ODS_MAX_COMPRESSION_RATIO <n>
+CONFIG IMPORT_MAX_ROWS <n>
+CONFIG IMPORT_MAX_COLUMNS <n>
+CONFIG IMPORT_MAX_CELLS <n>
+CONFIG IMPORT_MAX_CELL_CHARS <n>
+CONFIG IMPORT_MAX_TEXT_CHARS <n>
+```
+
+Sets an ODS input budget for subsequent IMPORTs. Each value is a non-negative integer; `0` disables that limit. See [spreadsheet input limits](configuration.md#spreadsheet-input-limits) for defaults and counting rules. The error identifies the setting to raise; no data is truncated. Archive limits run before the ODS parser. Rows, columns, padded cells and repeated text are checked before expansion, with the header included and SKIP rows excluded. Trailing empty filler does not consume the logical budgets. A rejected worksheet leaves its target unchanged, including with REPLACEMENT. SHEETS MATCHING checks all selected sheets before loading the first target.
+
+```sql
+-- Allow a known large ODS sheet, keeping the other limits in force.
+-- !x! CONFIG IMPORT_MAX_CELLS 20000000
+-- !x! IMPORT TO NEW results FROM results.ods SHEET Data
+```
+
+
 <a id="config_import_row_buffer"></a>
 ```
 CONFIG IMPORT_ROW_BUFFER <n>
@@ -1989,6 +2009,8 @@ The syntax for importing data from a single OpenDocument spreadsheet is:
 IMPORT TO [NEW|REPLACEMENT] <table_name> FROM <file_name>
     SHEET <sheet_name> [SKIP <rows>]
 ```
+
+ODS imports enforce configurable [archive and expansion budgets](#config_input_limits) before changing any target table.
 
 The syntax for importing data from multiple sheets within an OpenDocument workbook is:
 

@@ -39,6 +39,7 @@ from execsql.metacommands.io_import import (  # noqa: F401
     x_import_ods_pattern,
     x_import_parquet,
     x_import_row_buffer,
+    x_input_limit,
     x_import_xls,
     x_show_progress,
     x_import_xls_pattern,
