@@ -437,7 +437,7 @@ Valid encoding names can be displayed with `execsql list encodings`. See also [C
 
 `--dry-run`
 
-:   Parse the script (or `-c` command) and print the full command list with source locations, without connecting to a database. Substitution variables already populated at parse time (environment variables, `--assign-arg` and `--var` values, start-time built-ins) are expanded; execution-time variables (`$CURRENT_TIME`, `$DB_NAME`, etc.) and `~`-prefixed locals remain literal.
+:   Parse the script (or `-c` command) and print the full command list with source locations, without connecting to a database. Configured required and optional startup includes are listed before the main script and are not executed. Substitution variables already populated at parse time (environment variables, `--assign-arg` and `--var` values, start-time built-ins) are expanded; execution-time variables (`$CURRENT_TIME`, `$DB_NAME`, etc.) and `~`-prefixed locals remain literal.
 
 `--parse-tree`
 

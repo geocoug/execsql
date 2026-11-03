@@ -514,11 +514,12 @@ class DT_Decimal(DataType):
             self.precision = digits
             self.scale = 0
             return
-        if exponent < 0 and abs(exponent) > digits:
-            self.precision = abs(exponent) + 1
+        if exponent > 0:
+            self.precision = digits + exponent
+            self.scale = 0
         else:
-            self.precision = digits
-        self.scale = abs(exponent)
+            self.precision = -exponent + 1 if exponent < 0 and -exponent > digits else digits
+            self.scale = -exponent
 
     def _from_data(self, data: object) -> object:
         if data is None:
@@ -730,7 +731,7 @@ class DbType:
             ) from e
         if max_len and max_len > 0 and dts[1]:
             spec = f"{self.quoted(column_name)} {dts[0]}({max_len})"
-        elif data_type.precspec and precision and scale:
+        elif data_type.precspec and precision is not None and scale is not None:
             # numeric
             spec = f"{self.quoted(column_name)} {dts[0]}({precision},{scale})"
         else:

@@ -55,6 +55,8 @@ just test-all   # full 3.10–3.14 matrix in parallel
 
 Tests are run with [pytest](https://pytest.org/) via [tox-uv](https://github.com/tox-dev/tox-uv). Coverage is reported automatically.
 
+pytest runs the tests in parallel, one worker per CPU ([pytest-xdist](https://pytest-xdist.readthedocs.io/)), so each test must stand alone: use `tmp_path` for files, and never rely on another test having run first. Pass `-n 0` to run in one process, for example under a debugger (`uv run pytest -n 0 --pdb tests/test_x.py`) or to see live log output. Tests that run against a live database server share its database, so they are kept on one worker per server: a test parametrized with `postgres`, `mysql`, `mariadb` or `sqlserver` is grouped by `tests/conftest.py`, a module that tests one server throughout sets `pytestmark = pytest.mark.xdist_group("live-<server>")`, and a test that opens a server by name (`open_backend("postgres", tmp_path)`) carries `@pytest.mark.xdist_group("live-postgres")` itself.
+
 The scripts in `templates/` are tested against live PostgreSQL, MySQL, MariaDB and SQL Server (`tests/templates/`). The normal suite skips those tests when no server is running; CI's integration job runs them. To run them locally against throwaway containers:
 
 ```bash
@@ -62,7 +64,19 @@ just test-templates        # starts execsql-templates-* containers on ports 5544
 just test-templates-down   # removes the containers
 ```
 
+CI sets `EXECSQL_REQUIRED_BACKENDS=postgres,mysql,mariadb,sqlserver` for the in-process integration suite. A missing driver, failed connection or unavailable import prerequisite for one of those backends fails the run instead of skipping its checks. The selected names appear in pytest's report header. To require a locally provisioned server, run:
+
+```bash
+EXECSQL_REQUIRED_BACKENDS=postgres uv run pytest
+```
+
+The comma-separated list accepts `postgres`, `mysql`, `mariadb`, `sqlserver`, `sqlite` and `duckdb`; unknown names are configuration errors. With the variable unset, unavailable optional servers retain their cached local skips. Exporter table-creation and seed errors after a successful connection always fail, including locally.
+
 SQL Server is included only when an ODBC driver for it is installed. A template bug the tests have found but not yet fixed is marked with `known_bug(...)`, a strict expected failure: the fix makes the test pass, which fails the run until the marker is removed with it.
+
+### Transaction rules: generated scripts
+
+`tests/test_transaction_model.py` checks the transaction rules (batches, `BREAK`, failed commits, `AUTOCOMMIT`, `ERROR_HALT`, an `ON ERROR_HALT` script, and interrupts: `KeyboardInterrupt` or a plain `SystemExit` after a statement, inside a metacommand, or before or after a commit) against scripts [Hypothesis](https://hypothesis.readthedocs.io/) generates: a small model of one SQLite connection predicts the rows stored, the rows left pending on the caller's connection, the errors reported and `SQL_ERROR()`, and a mismatch is shrunk to the shortest script that still differs. Each run, CI included, tries 700 new scripts (about 7 s); `EXECSQL_MODEL_EXAMPLES=5000` tries more (about a minute). A failure of this test, in CI too, is a bug in execsql or in the model: add the script it prints as an `@example` and fix one or the other, rather than rerunning. When you change a transaction rule, change the model with it; a combination that matters but is rarely generated goes in an `@example`.
 
 ### Script behavior corpus
 

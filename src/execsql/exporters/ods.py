@@ -24,6 +24,7 @@ from execsql.script import current_script_line
 from execsql.utils.errors import exception_desc, fatal_error, install_hint
 from execsql.utils.fileio import filewriter_close
 from execsql.utils.strings import unquoted
+from execsql.utils.spreadsheet import CellTextBudget, SheetBudget
 
 __all__ = ["OdsFile", "export_ods", "write_query_to_ods", "write_queries_to_ods"]
 
@@ -179,26 +180,36 @@ class OdsFile:
                     return sheet
         return None
 
-    def sheet_data(self, sheetname: Any, junk_header_rows: int = 0) -> list:
-        """Return all row data from the named sheet, optionally skipping leading junk rows."""
+    def sheet_data(self, sheetname: Any, junk_header_rows: int = 0, *, budget: SheetBudget | None = None) -> list:
+        """Read a sheet after SKIP, checking optional budgets before expanding rows or padding."""
         sheet = self.sheet_named(sheetname)
         if not sheet:
             raise OdsFileError(f"There is no sheet named {sheetname}")
 
         rows: list[list | None] = []
         pending_empty = 0
+        skip_rows = max(0, junk_header_rows)
         for sheetrow in sheet.getElementsByType(of.table.TableRow):
-            data = _row_values(sheetrow)
-            repeat = int(sheetrow.getAttribute("numberrowsrepeated") or 1)
+            repeat = _expansion_count(sheetrow, "numberrowsrepeated")
+            skipped = min(skip_rows, repeat)
+            skip_rows -= skipped
+            repeat -= skipped
+            if repeat == 0:
+                _validate_expansion_counts(sheetrow)
+                continue
+            data = _row_values(sheetrow, budget, row_repeat=repeat, pending_rows=pending_empty)
             if not data:
                 # Empty rows are kept only when data follows them, so the
                 # filler rows a spreadsheet writes below the data are dropped.
                 pending_empty += repeat
                 continue
+            if budget is not None:
+                budget.add_row(data, repeat, pending_empty)
             rows.extend(None for _ in range(pending_empty))
             pending_empty = 0
             rows.extend(list(data) for _ in range(repeat))
-        rows = rows[junk_header_rows:]
+        if junk_header_rows < 0:
+            rows = rows[junk_header_rows:]
         # Every row is as wide as the widest, so a blank trailing header is
         # still seen, and an empty row inside the data is a row of NULLs that
         # EMPTY_ROWS keeps or drops.
@@ -309,20 +320,55 @@ class OdsFile:
         self.wbk = None
 
 
-def _paragraph_text(node: Any) -> str:
+def _expansion_count(node: Any, attribute: str) -> int:
+    """Read a non-negative ODS repeat/span/space count without expanding it."""
+    value = node.getAttribute(attribute) or "1"
+    try:
+        count = int(value)
+        if count < 0:
+            raise ValueError("negative count")
+    except (ValueError, TypeError) as exc:
+        shown = value[:120] + "..." if isinstance(value, str) and len(value) > 120 else value
+        raise ErrInfo(type="error", other_msg=f"Invalid ODS expansion count {shown!r} for {attribute}.") from exc
+    return count
+
+
+def _validate_expansion_counts(node: Any) -> None:
+    """Validate skipped content without allocating its repeated rows or text."""
+    qname = getattr(node, "qname", None)
+    if qname == (of.table.TABLENS, "table-row"):
+        _expansion_count(node, "numberrowsrepeated")
+    elif qname in ((of.table.TABLENS, "table-cell"), (of.table.TABLENS, "covered-table-cell")):
+        _expansion_count(node, "numbercolumnsrepeated")
+        if qname == (of.table.TABLENS, "table-cell"):
+            _expansion_count(node, "numbercolumnsspanned")
+            _expansion_count(node, "numberrowsspanned")
+    elif qname == (of.text.TEXTNS, "s"):
+        _expansion_count(node, "c")
+    for child in getattr(node, "childNodes", ()):
+        _validate_expansion_counts(child)
+
+
+def _paragraph_text(node: Any, budget: CellTextBudget | None = None) -> str:
     """Return the text of a ``<text:p>``, expanding ODF's space, tab and line-break elements."""
     parts: list[str] = []
     for child in node.childNodes:
         if child.nodeType == child.TEXT_NODE:
-            parts.append(str(child))
+            value = str(child)
+            if budget is not None:
+                budget.add(len(value))
         elif child.qname == (of.text.TEXTNS, "s"):
-            parts.append(" " * int(child.getAttribute("c") or 1))
-        elif child.qname == (of.text.TEXTNS, "tab"):
-            parts.append("\t")
-        elif child.qname == (of.text.TEXTNS, "line-break"):
-            parts.append("\n")
+            count = _expansion_count(child, "c")
+            if budget is not None:
+                budget.add(count)
+            value = " " * count
+        elif child.qname in ((of.text.TEXTNS, "tab"), (of.text.TEXTNS, "line-break")):
+            if budget is not None:
+                budget.add(1)
+            value = "\t" if child.qname == (of.text.TEXTNS, "tab") else "\n"
         else:
-            parts.append(_paragraph_text(child))
+            value = _paragraph_text(child, budget)
+        parts.append(value)
     return "".join(parts)
 
 
@@ -336,7 +382,7 @@ def _time_text(duration: str) -> str:
     return f"{int(hours):02d}:{int(minutes):02d}:{int(seconds):02d}{fraction}"
 
 
-def _cell_value(cell: Any) -> str | None:
+def _cell_value(cell: Any, budget: CellTextBudget | None = None) -> str | None:
     """Return a cell's stored value as text, or ``None`` for an empty cell.
 
     The value comes from the cell's ``office:value-type`` and value
@@ -361,25 +407,39 @@ def _cell_value(cell: Any) -> str | None:
     else:
         value = None
     if value:
+        if budget is not None:
+            budget.add(len(value))
         return value
     if vtype == "string":
         value = cell.getAttribute("stringvalue")
         if value:
+            if budget is not None:
+                budget.add(len(value))
             return value
     # A string cell, a cell with no type, or a typed cell missing its value
     # attribute: the paragraphs are the value, one line each.
-    paragraphs = [
-        _paragraph_text(child) for child in cell.childNodes if getattr(child, "qname", None) == (of.text.TEXTNS, "p")
-    ]
+    paragraphs: list[str] = []
+    for child in cell.childNodes:
+        if getattr(child, "qname", None) == (of.text.TEXTNS, "p"):
+            if paragraphs and budget is not None:
+                budget.add(1)
+            paragraphs.append(_paragraph_text(child, budget))
     text = "\n".join(paragraphs)
     return text or None
 
 
-def _row_values(sheetrow: Any) -> list:
+def _row_values(
+    sheetrow: Any,
+    budget: SheetBudget | None = None,
+    *,
+    row_repeat: int = 1,
+    pending_rows: int = 0,
+) -> list:
     """Return one value per column of a ``<table:table-row>``, without trailing empty cells."""
     values: list = []
     pending_empty = 0
     covered_by_span = 0
+    row_text = 0
     for cell in sheetrow.childNodes:
         qname = getattr(cell, "qname", None)
         if qname == (of.table.TABLENS, "table-cell"):
@@ -388,7 +448,7 @@ def _row_values(sheetrow: Any) -> list:
             covered = True
         else:
             continue
-        repeat = int(cell.getAttribute("numbercolumnsrepeated") or 1)
+        repeat = _expansion_count(cell, "numbercolumnsrepeated")
         if covered:
             # A horizontal merge repeats its value across the columns it
             # covers (below); covered cells left over belong to a merge from
@@ -398,11 +458,20 @@ def _row_values(sheetrow: Any) -> list:
             repeat -= skip
             value = None
         else:
-            value = _cell_value(cell)
-            spanned = int(cell.getAttribute("numbercolumnsspanned") or 1)
+            spanned = _expansion_count(cell, "numbercolumnsspanned")
+            _expansion_count(cell, "numberrowsspanned")
             if spanned > 1:
                 covered_by_span = spanned - 1
                 repeat *= spanned
+            if repeat == 0:
+                _validate_expansion_counts(cell)
+                continue
+            text_budget = (
+                CellTextBudget(budget, budget.text_chars + row_text * row_repeat, repeat * row_repeat)
+                if budget is not None
+                else None
+            )
+            value = _cell_value(cell, text_budget)
         if repeat <= 0:
             continue
         if value is None:
@@ -410,6 +479,9 @@ def _row_values(sheetrow: Any) -> list:
             # repeated across the whole sheet width costs nothing.
             pending_empty += repeat
             continue
+        if budget is not None:
+            budget.check_row(len(values) + pending_empty + repeat, row_repeat, pending_rows)
+        row_text += len(value) * repeat
         values.extend([None] * pending_empty)
         pending_empty = 0
         values.extend([value] * repeat)

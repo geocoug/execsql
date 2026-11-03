@@ -24,6 +24,12 @@ result: ScriptResult = run(
 
 See the [README](https://github.com/geocoug/execsql#library-api) for full examples.
 
+### Connection ownership
+
+With `dsn=`, `run()` owns the initial connection and closes it when the run ends. With `connection=`, the supplied connection remains open for the caller; the existing SQL-error and interrupt rollback rules still apply.
+
+Connections the script opens with CONNECT belong to that run in either mode. At exit, their pending work is rolled back and they are closed, even under AUTOCOMMIT OFF. Commit work on these connections before the script ends if it must be kept. Cleanup does not commit or additionally roll back the borrowed initial connection.
+
 ### Variables
 
 Each `variables` key becomes a `$` substitution variable, whether or not you write the `$`: `variables={"SCHEMA": "public"}` and `variables={"$SCHEMA": "public"}` both define `!!$SCHEMA!!`. (The CLI's `--var SCHEMA=public` defines `!!SCHEMA!!` instead.)
@@ -33,6 +39,17 @@ run(sql='-- !x! WRITE "loading into !!$SCHEMA!!"\n', dsn="sqlite:///my.db", vari
 ```
 
 `result.variables` holds every variable's final value, keyed by lower-case name without the sigil: `result.variables["schema"]`.
+
+### Configuration and startup scripts
+
+Pass `config_file=` to use a configuration file's variables and ordered startup scripts. The configured `include_required` files run first, then `include_optional` files, then the main script. Startup files can define tables, variables and named scripts used by the main script. Missing required files fail the run; missing optional files are skipped. Configured files follow the same containment and recursion rules as explicit INCLUDE commands.
+
+The `allow_system_cmd`, `allow_rm_file` and `allow_serve` arguments default to `None`: an omitted argument or `None` inherits the configuration file's value. An explicit `True` or `False` overrides that value. Without a configuration file, all three capabilities remain enabled unless explicitly disabled.
+
+```python
+result = run(script="load.sql", dsn="sqlite:///data.db", config_file="restricted.conf")
+# A configured allow_system_cmd=No stays disabled.
+```
 
 ### Errors
 
@@ -87,18 +104,21 @@ Four things are still shared by every thread in the process, so keep them apart 
 
 ### File Output { #file-output }
 
-`WRITE ... TO <file>`, `TEE`, and the other metacommands that write text files hand their output to a background writer thread. Each `run()` starts its own, then flushes and closes every file and stops the thread before returning, so a file a script wrote is on disk and complete the moment `run()` hands back control.
+`WRITE ... TO <file>`, `TEE`, and the other metacommands that write text files hand their output to a background writer thread. Each `run()` starts its own. On a successful run, all output is flushed and closed and the thread stops before returning, so files are complete and readable when `run()` hands back control.
 
 ```python
 from execsql import run
 
 result = run(sql='-- !x! WRITE "done" to report.txt\nselect 1;\n', dsn="sqlite:///data.db")
+assert result.success, result.errors
 open("report.txt").read()   # "done\n" — readable immediately
 ```
 
 The writer is a thread in your process, not a child process, so `run()` works the same from a `.py` file with or without an `if __name__ == "__main__":` guard, from a REPL, from a notebook, and from `python -c`.
 
 If a file stays locked (by a sync client, a backup, or a spreadsheet that has it open) for longer than [`outfile_open_timeout`](../reference/configuration.md#setting_outfile_open_timeout), `run()` returns `success=False` with an error naming the file and how many lines were lost. A write that fails (a full disk, a dropped network share) is reported the same way, with the OS error, and the run's other files are still written.
+
+If the worker blocks in an open, write, flush or close, the wait ends at [`outfile_open_timeout`](../reference/configuration.md#setting_outfile_open_timeout) plus five seconds, or the shorter halt deadline. Every status and error-report wait uses that same deadline. `run()` returns `success=False` with a `<output>` error naming the operation/file and queued destinations. It abandons the daemon rather than claiming to stop it, and does not wait for it again during cleanup. The I/O call in progress may finish later; no further opens or writes follow it. Queued text and abandoned buffers are discarded. A partial file can remain; WRITE/TEE outputs are incremental, not atomic publications. Other runs keep their own independent writers. EXPORT's synchronous I/O and stdout are outside this deadline.
 
 ## Extension Guides
 

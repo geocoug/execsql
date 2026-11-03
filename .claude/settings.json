@@ -1,0 +1,39 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"$CLAUDE_PROJECT_DIR\"/.agents/hooks/review-before-merge.sh",
+            "timeout": 120
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"$CLAUDE_PROJECT_DIR\"/.agents/hooks/review-before-merge.sh",
+            "timeout": 120
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "agent",
+            "prompt": "A file was just modified. Hook input: $ARGUMENTS\n\nLook at the tool_input.file_path field.\n\nFirst, skip silently (do nothing) if the modified file:\n- is inside docs/, README.md, CHANGELOG.md, src/execsql/data/execsql.conf.template\n- is inside .claude/, .agents/, .codex/, or memory/\n- is a test file (path contains /tests/)\n- is a config/build file (pyproject.toml, tox.ini, .gitignore, uv.lock, justfile, etc.)\n\nOtherwise, read the diff (old_string vs new_string from tool_input, or the full new content for Write) and decide: does this change affect user-visible behavior? Specifically check for changes to:\n- CLI flags or arguments \u2192 update docs/getting-started/syntax.md\n- Metacommand syntax, new metacommands, or conditional tests \u2192 update docs/reference/metacommands.md\n- Configuration options (INI sections/keys in config.py) \u2192 update docs/reference/configuration.md\n- Export formats or exporter behavior \u2192 update docs/reference/metacommands.md (EXPORT section)\n- Import formats or importer behavior \u2192 update docs/reference/metacommands.md (IMPORT section)\n- Substitution variable behavior or new system variables \u2192 update docs/reference/substitution_vars.md\n- Logging format or log record types \u2192 update docs/guides/logging.md\n- Database connection handling or new database support \u2192 update docs/getting-started/requirements.md and docs/getting-started/syntax.md\n- GUI behavior or framework support \u2192 update docs/getting-started/syntax.md (-v option) and docs/reference/configuration.md (gui_level)\n- Script formatter behavior \u2192 update docs/guides/formatter.md\n\nInternal refactors, bug fixes with no behavior change, test-only changes, and code style changes do NOT need doc updates.\n\nIf a doc update IS warranted: read the specific target doc page, and make the minimal targeted update using the same formatting conventions (mkdocs-material definition lists with `:   ` syntax, `{ #anchor_id }` for anchors, no `<a id>` HTML anchors, no `\\:` escaped colons). Do not rewrite sections that are still accurate.",
+            "timeout": 120,
+            "statusMessage": "Checking documentation..."
+          }
+        ]
+      }
+    ]
+  }
+}

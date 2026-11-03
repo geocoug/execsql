@@ -10,7 +10,7 @@ The ``target`` fixture runs a test once per DBMS a template family supports:
 PostgreSQL (``pg_``), MySQL and MariaDB (both ``md_``) and SQL Server (``ss_``).  Each
 reads the same connection settings as the integration tests and skips when its
 server is not reachable, so the suite stays green on a machine without them;
-CI's integration job provides all three.  Locally::
+CI's integration job requires all four via EXECSQL_REQUIRED_BACKENDS. Locally::
 
     just test-templates
 
@@ -29,6 +29,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
+
+from tests.live_db import backend_unavailable, required_backends
 
 TEMPLATES = Path(__file__).resolve().parents[2] / "templates"
 
@@ -142,19 +144,22 @@ _REACHABLE: dict[str, Server | str] = {}
 
 
 def _server(dbms: str) -> Server:
-    """The server for *dbms*, or a skip if it is not reachable (checked once per session)."""
+    """Open *dbms*, skipping only optional unavailable servers (probed once)."""
     if dbms not in _REACHABLE:
         try:
             server = _SERVERS[dbms]()
             server.query("select 1")
             _REACHABLE[dbms] = server
-        except pytest.skip.Exception:
-            raise
+        except pytest.skip.Exception as exc:
+            backend_unavailable(dbms, str(exc))
         except Exception as exc:  # any driver's connection failure
-            _REACHABLE[dbms] = f"{dbms} not reachable: {type(exc).__name__}: {str(exc).splitlines()[0][:120]}"
+            reason = f"{dbms} not reachable: {type(exc).__name__}: {str(exc).splitlines()[0][:120]}"
+            if dbms not in required_backends():
+                _REACHABLE[dbms] = reason
+            backend_unavailable(dbms, reason)
     found = _REACHABLE[dbms]
     if isinstance(found, str):
-        pytest.skip(found)
+        backend_unavailable(dbms, found)
     return found
 
 

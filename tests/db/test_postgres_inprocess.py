@@ -25,6 +25,9 @@ import pytest
 
 import execsql.state as _state
 
+# One worker runs a server's tests, one at a time: they share its database.
+pytestmark = pytest.mark.xdist_group("live-postgres")
+
 
 # ---------------------------------------------------------------------------
 # Skip the entire module when the driver or server is unavailable

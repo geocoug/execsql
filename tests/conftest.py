@@ -11,6 +11,7 @@ requiring a full ConfigData / database initialisation.
 from __future__ import annotations
 
 import contextlib
+import sys
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -73,6 +74,15 @@ def minimal_conf():
         allow_system_cmd=True,
     )
     yield _state.conf
+    # A CLI run invoked in-process (CliRunner) leaves its file writer running
+    # (the CLI stops it at process exit), and reset() keeps a live writer (it
+    # is atexit-managed and must not be discarded while alive), so it would
+    # outlive this test and be reused by the next CLI run.  Stop it here, so
+    # no test leaves a writer thread behind.
+    if _state.filewriter is not None:
+        from execsql.utils.fileio import filewriter_end
+
+        filewriter_end(_state.filewriter)
     _state.reset()
 
 
@@ -130,6 +140,21 @@ def _restore_cwd():
 
 
 @pytest.fixture(autouse=True)
+def _fresh_sigterm_state(monkeypatch):
+    """Start every test with no SIGTERM held, pending or acted on.
+
+    A test that calls the SIGTERM handler marks the run as terminated, and
+    every ``SYSTEM_CMD`` after that in the same process would end at once.
+    """
+    import execsql.utils.sigterm as sigterm
+
+    monkeypatch.setattr(sigterm, "_held", 0)
+    monkeypatch.setattr(sigterm, "_pending", None)
+    monkeypatch.setattr(sigterm, "_terminated", None)
+    monkeypatch.setattr(sigterm, "_commands", [])
+
+
+@pytest.fixture(autouse=True)
 def _no_real_browser(monkeypatch):
     """Fail any test that would open a real browser tab.
 
@@ -156,3 +181,55 @@ def _no_real_browser(monkeypatch):
     true = shutil.which("true")
     if true:
         monkeypatch.setenv("BROWSER", true)
+
+
+def pytest_report_header(config):
+    """Show the required integration backend selection in the test report."""
+    from tests.live_db import required_backends
+
+    names = required_backends()
+    return f"Required live database backends: {', '.join(sorted(names)) if names else 'none (optional local servers)'}"
+
+
+def pytest_configure(config):
+    """Build pywin32's COM cache before the xdist workers start.
+
+    Every worker imports ``win32com.client`` as it collects
+    ``tests/db/test_access_windows.py``.  On a fresh environment that import
+    writes ``win32com/gen_py/dicts.dat``, and a worker that reads the file
+    while another is writing it fails with ``EOFError: Ran out of input``.
+    The controller (or a ``-n 0`` run) imports it first, so the workers find
+    the file complete.
+    """
+    from tests.live_db import required_backends
+
+    required_backends()
+    if sys.platform != "win32" or hasattr(config, "workerinput"):
+        return
+    # Any failure, not only a missing pywin32: a cache a killed run left half
+    # written fails here too, and then only that module fails to collect.
+    with contextlib.suppress(Exception):
+        import win32com.client  # noqa: F401
+
+
+#: Parameter values that name a live database server (see ``tests/live_db.py``
+#: and the templates' ``target`` fixture).
+_LIVE_SERVERS = frozenset({"postgres", "mysql", "mariadb", "sqlserver"})
+
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_collection_modifyitems(items):
+    """Put each test parametrized with a live server in that server's xdist group.
+
+    Tests against one server share its database, and many reuse table names,
+    so ``--dist loadgroup`` must hand them all to one worker. Modules that test
+    one server throughout set ``pytestmark`` instead. ``tryfirst``: xdist reads
+    the groups in its own ``pytest_collection_modifyitems``.
+    """
+    for item in items:
+        callspec = getattr(item, "callspec", None)
+        if callspec is None:
+            continue
+        for value in callspec.params.values():
+            if isinstance(value, str) and value in _LIVE_SERVERS:
+                item.add_marker(pytest.mark.xdist_group(f"live-{value}"))

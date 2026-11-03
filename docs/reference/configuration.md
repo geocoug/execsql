@@ -143,7 +143,7 @@ The section and property names that may be used in a configuration file are list
 
 `exact_decimals`
 
-:   Determines the data type of a column of decimal numbers with different numbers of decimal places, such as `1.50`, `2` and `-3.25`, when the [IMPORT](metacommands.md#import) or [COPY](metacommands.md#copy) metacommand creates a table. The default, "No", gives such a column a floating-point type (`double precision` on PostgreSQL, `double` on MySQL and DuckDB, `float` on SQL Server), unless a value has more than 15 significant digits, which a floating-point column cannot hold exactly: then the column is an exact decimal, so no digit is lost. "Yes" always gives such a column an exact decimal type wide enough for every value (`numeric(3,2)` for those values), for values such as money amounts that should be stored and compared exactly. A column whose values all have the same number of decimal places is an exact decimal either way. The metacommand [CONFIG EXACT_DECIMALS](metacommands.md#exact_decimals) can also be used to change this configuration item.
+:   Determines the data type of a column of decimal numbers with different numbers of decimal places, such as `1.50`, `2` and `-3.25`, when the [IMPORT](metacommands.md#import) or [COPY](metacommands.md#copy) metacommand creates a table. The default, "No", gives such a column a floating-point type (`double precision` on PostgreSQL, `double` on MySQL and DuckDB, `float` on SQL Server), unless a value has more than 15 significant digits, which a floating-point column cannot hold exactly: then the column is an exact decimal, so no digit is lost. "Yes" always gives such a column an exact decimal type wide enough for every value (`numeric(3,2)` for those values), for values such as money amounts that should be stored and compared exactly. A column whose values all have the same number of decimal places is an exact decimal either way. This setting does not control conversion into an existing exact-decimal column: finite numeric text and typed Decimal values retain their exact value regardless of the setting. The metacommand [CONFIG EXACT_DECIMALS](metacommands.md#exact_decimals) can also be used to change this configuration item.
 
 `fold_column_headers` { #setting_fold_column_headers }
 
@@ -195,36 +195,72 @@ The section and property names that may be used in a configuration file are list
 
 :   Removes any leading and trailing whitespace from text data on [IMPORT](metacommands.md#import).
 
+### Spreadsheet input limits { #spreadsheet-input-limits }
+
+ODS imports check archive limits before parsing and logical expansion before allocating rows, cells or repeated text. These are non-negative integers; `0` disables only that limit. Exceeding a limit rejects the import rather than truncating data. The error names the setting and measured count, so raise the named limit for an intentionally larger worksheet. The `import_max_*` names are shared spreadsheet settings; they currently apply to ODS, while XLSX keeps its existing archive checks.
+
+| Setting                     |     Default | Counted data                                                                      |
+| --------------------------- | ----------: | --------------------------------------------------------------------------------- |
+| `ods_max_xml_mb`            |         100 | Sum of all uncompressed XML members, in MiB (1,048,576 bytes), across the archive |
+| `ods_max_compression_ratio` |         100 | Uncompressed/compressed size for each archive member, including non-XML members   |
+| `import_max_rows`           |   1,048,576 | Materialized rows in a selected sheet after SKIP, including its header            |
+| `import_max_columns`        |      16,384 | Width of the materialized sheet                                                   |
+| `import_max_cells`          |  10,000,000 | Rows × widest row, including padding                                              |
+| `import_max_cell_chars`     |   1,048,576 | Characters in any one cell, including paragraphs and expanded spaces              |
+| `import_max_text_chars`     | 268,435,456 | Characters across all materialized cells, counting repeated rows/cells and spans  |
+
+Interior empty rows and cells count; trailing empty filler is discarded without expansion. Logical limits apply independently to each selected sheet. With SHEETS MATCHING, all selected sheets pass the resource checks before any target is created, replaced or loaded. Invalid negative or non-integer expansion counts are errors. Repeated rows removed by SKIP are not materialized or counted.
+
+Set these values under `[input]`, or use [CONFIG input limits](metacommands.md#config_input_limits) for subsequent imports in a script:
+
+```ini
+[input]
+import_max_cells=20000000
+ods_max_xml_mb=150
+```
+
 ## Section `output` { #config_output }
 
 `log_write_messages`
+
 :   Specifies whether output of the [WRITE](metacommands.md#write) metacommand will also be written to *execsql*'s log file. The property value should be either "Yes" or "No". The default is "No". This configuration property can also be controlled within a script with the [CONFIG LOG_WRITE_MESSAGES](metacommands.md#logwritemessages) metacommand.
 
 `make_export_dirs` { #make_export_dirs }
+
 :   The output directories used in the [EXPORT](metacommands.md#export) and [WRITE](metacommands.md#write) metacommands will be automatically created if they do not exist (and the user has the necessary permission). The property value should be either "Yes" or "No". This is equivalent to the "-d" command-line option.
 
 `quote_all_text`
+
 :   Controls whether all text values written to a delimited text file by the [EXPORT](metacommands.md#export) metacommand will be quoted. The property value should be either "Yes" or "No"--the default is "No".
 
 `outfile_open_timeout` { #setting_outfile_open_timeout }
-:   How long (in seconds) the WRITE background process keeps retrying when a target file is held open by another process (backup, sync, etc.); output is buffered during the wait. At the end of the script (and before a [SYSTEM_CMD](metacommands.md#system_cmd)) *execsql* waits up to this long for the file to open. If it never does, the buffered output is discarded and the run fails with an error naming the file. A target that can never be opened, such as an existing directory or a file on a read-only filesystem, is not waited for: the run fails at once. When the script halts on an error, *execsql* waits at most 10 seconds, then reports whatever output was lost along with the error. Default: 600.
+
+:   How long (in seconds) the WRITE background writer keeps retrying when a target file is held open by another process (backup, sync, etc.); output is buffered during the wait. At the end of the script (and before a [SYSTEM_CMD](metacommands.md#system_cmd)) *execsql* waits up to this long for the file to open. If it never does, the buffered output is discarded and the run fails with an error naming the file. A target that can never be opened, such as an existing directory or a file on a read-only filesystem, is not waited for: the run fails at once. When the script halts on an error, *execsql* waits at most 10 seconds, then reports whatever output was lost along with the error. Default: 600.
+
+    All waits for the background writer, including file status, close and loss reporting, share a deadline of this value plus five seconds. A flush with a shorter maximum wait uses that maximum; a halt keeps its ten-second cap. A blocked open, write, flush or close cannot hold that wait indefinitely. On expiry the run reports an output error and discards queued output, including other files behind the blocked operation. The daemon is abandoned rather than killed: the operation in progress can finish later, and a partial file may remain. It starts no further opens or writes once that operation returns; cleanup discards buffered text instead of flushing it later. These bounds apply to background-writer waits; EXPORT's own synchronous I/O and stdout are outside them.
 
 `export_row_buffer` { #setting_export_row_buffer }
+
 :   The number of data rows to be buffered from the database when exporting data. Larger values result in faster exports, up to a point, and at a diminishing rate of return. Larger values also require more memory. The setting value must be a positive integer greater than zero. The default value is 1000 rows. This value cannot be customized when using DuckDB.
 
 `hdf5_text_len`
+
 :   The length to be assigned to columns that have the 'text' data type when data are exported in the HDF5 format. The default is `1000`.
 
 `css_file`
+
 :   The URI of a CSS file to be included in the header of an HTML file created with the [EXPORT](metacommands.md#export) metacommand. If this is specified, it will replace the CSS styles that *execsql* would otherwise use.
 
 `css_styles`
+
 :   A set of CSS style specifications to be included in the header of an HTML file created with the [EXPORT](metacommands.md#export) metacommand. If this is specified, it will replace the CSS styles that *execsql* would otherwise use. Both css_file and css_style may be specified; if they are, they will be included in the header of the HTML file in that order.
 
 `template_processor`
+
 :   Template engine for `EXPORT … WITH TEMPLATE`. Default is Python's `string.Template`, applied once per row with `$column_name` placeholders. Set to `jinja` (the only other valid value) to render the full result set in one pass via [Jinja2](https://jinja.palletsprojects.com/), exposing the data as `headers` (list of column names) and `datatable` (list of row dicts) so the template can loop, filter, and conditionalize. Requires `jinja2`.
 
 `zip_buffer_mb` { #zip_buffer_mb }
+
 :   The size of the internal buffer used when the [EXPORT](metacommands.md#export) metacommand exports data to a zipfile, in Mb. The default value is 10. The buffer should be at least as large as the largest data row to be exported. This value typically has little effect on performance, and only affects memory usage.
 
 !!! note "CLI-only output options"
@@ -376,7 +412,7 @@ The section and property names that may be used in a configuration file are list
 :   When set to "No", the `SYSTEM_CMD` (SHELL) metacommand is disabled. Any script that attempts to execute an OS command will fail with an error. The default is "Yes". This can also be set via the `--no-system-cmd` CLI flag or `allow_system_cmd=False` in the library API. See [Security — Disabling SYSTEM_CMD](security.md#disable_system_cmd) for details.
 
 `system_cmd_timeout` { #system_cmd_timeout }
-:   Maximum number of seconds a foreground `SYSTEM_CMD` may run before *execsql* stops it. The default is `0`, which means no timeout. When a foreground command times out, `$SYSTEM_CMD_EXIT_STATUS` is set to `124` and the metacommand fails. `SYSTEM_CMD ... CONTINUE` starts a detached background process and is not timeout-managed by this setting.
+:   Maximum number of seconds a foreground `SYSTEM_CMD` may run before *execsql* stops it. The default is `0`, which means no timeout. When a foreground command times out, `$SYSTEM_CMD_EXIT_STATUS` is set to `124` and the metacommand fails. If the operating system will not let *execsql* stop the command (it runs as another user, through `sudo` for example), the error says so and gives its process ID. `SYSTEM_CMD ... CONTINUE` starts a detached background process and is not timeout-managed by this setting.
 
 `allow_rm_file` { #allow_rm_file }
 :   When set to "No", the `RM_FILE` metacommand (which deletes a file) is disabled. Any script that attempts to remove a file will fail with an error. The default is "Yes". This can also be set via the `--no-rm-file` CLI flag or `allow_rm_file=False` in the library API. Symmetric with `allow_system_cmd`.
@@ -444,6 +480,8 @@ ignore = V002
 
 There are no fixed properties for this section. All property names and their values that are specified in this section will be used to define substitution variables, just as if a series of SUB metacommands had been used at the beginning of the script. All variables defined in this section will be global.
 
+These definitions apply through both the CLI and `execsql.run(config_file=...)`, including within configured startup scripts.
+
 ## Sections `include_required` and `include_optional`
 
 Both sections list script files to be auto-included before the main script runs, without an explicit [INCLUDE](metacommands.md#include). Each property is an integer that specifies inclusion order; the value is a filename. Duplicate integers keep the last assignment, and each file is included at most once.
@@ -451,3 +489,5 @@ Both sections list script files to be auto-included before the main script runs,
 The difference between the sections is what happens when a file is missing: `include_required` halts *execsql* with an error; `include_optional` silently skips it.
 
 All `include_required` files run before any `include_optional` files. Across multiple config files, ordering follows the order in which those config files are read.
+
+This applies to both CLI and library runs. The files use the same `include_root` containment, circular-include detection and runtime error handling as explicit INCLUDE commands. An optional file is skipped only when absent; errors in a file that exists still follow the normal script error rules. `--dry-run` lists the configured startup includes before the main script without executing them.

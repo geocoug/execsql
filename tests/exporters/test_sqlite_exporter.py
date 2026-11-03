@@ -126,7 +126,7 @@ class TestExportSqlite:
         assert rows == [(None,)]
 
     def test_decimal_column_binds_without_error(self, tmp_path):
-        """Decimal values are normalised to str before binding; verify round-trip."""
+        """Exactly recoverable Decimal values are bound as SQLite numbers."""
         out = str(tmp_path / "out.db")
         export_sqlite(
             out,
@@ -140,11 +140,7 @@ class TestExportSqlite:
             rows = con.execute("SELECT price FROM products ORDER BY price").fetchall()
         finally:
             con.close()
-        # normalize_rows converts Decimal→str; SQLite NUMERIC affinity may
-        # store those strings as REAL, so accept either representation.
-        flat = [r[0] for r in rows]
-        assert flat[0] in ("9.99", 9.99)
-        assert flat[1] in ("12.50", "12.5", 12.5)
+        assert [Decimal(repr(row[0])) for row in rows] == [Decimal("9.99"), Decimal("12.50")]
 
     def test_unknown_object_stringified(self, tmp_path):
         """Objects not natively bindable by sqlite3 are coerced via str()."""

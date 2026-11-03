@@ -32,9 +32,13 @@ updates:
       # its output changes between releases, so a bump is deliberate. Bump all
       # three together, `uv lock --upgrade-package sqlglot==<new>`, and run the
       # formatter corpus (CLAUDE.md) before merging.
+      # pytest is capped below 9.2 in pyproject.toml's dev group until a
+      # pytest-xdist release supports it; remove this entry with the cap.
       ignore:
           - dependency-name: ruff
           - dependency-name: sqlglot
+          - dependency-name: pytest
+            versions: [">=9.2"]
       groups:
           python-minor-and-patch:
               patterns:

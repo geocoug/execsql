@@ -304,6 +304,11 @@ class OracleDatabase(Database):
             type_name = _ORACLE_TYPE_NAMES.get(name, "")
         return kind_for_type_name(type_name, oracle=True)
 
+    def _described_column(self, description: Any) -> tuple[type[DataType] | None, int | None]:
+        kind, scale = super()._described_column(description)
+        # oracledb uses -127 for unconstrained NUMBER and FLOAT, not rounding.
+        return kind, None if description[5] == -127 else scale
+
     def view_exists(self, view_name: str, schema_name: str | None = None) -> bool:
         """Return True if the named view exists in the Oracle database."""
         # Oracle folds unquoted identifiers to uppercase.

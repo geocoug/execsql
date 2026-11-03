@@ -1,0 +1,972 @@
+{
+ "text_and_null -> DECIMAL(10,2) / exact=False": [
+  "Decimal('0.10')",
+  "None"
+ ],
+ "text_and_null -> DECIMAL(10,2) / exact=True": [
+  "Decimal('0.10')",
+  "None"
+ ],
+ "text_and_null -> DECIMAL(38,18) / exact=False": [
+  "Decimal('0.100000000000000000')",
+  "None"
+ ],
+ "text_and_null -> DECIMAL(38,18) / exact=True": [
+  "Decimal('0.100000000000000000')",
+  "None"
+ ],
+ "text_and_null -> DECIMAL(38,30) / exact=False": [
+  "Decimal('0.100000000000000000000000000000')",
+  "None"
+ ],
+ "text_and_null -> DECIMAL(38,30) / exact=True": [
+  "Decimal('0.100000000000000000000000000000')",
+  "None"
+ ],
+ "text_and_null -> DOUBLE / exact=False": [
+  "0.1",
+  "None"
+ ],
+ "text_and_null -> DOUBLE / exact=True": [
+  "0.1",
+  "None"
+ ],
+ "text_and_null -> INTEGER / exact=False": "ERROR",
+ "text_and_null -> INTEGER / exact=True": "ERROR",
+ "text_and_null -> NUMERIC / exact=False": [
+  "Decimal('0.100')",
+  "None"
+ ],
+ "text_and_null -> NUMERIC / exact=True": [
+  "Decimal('0.100')",
+  "None"
+ ],
+ "text_and_null -> TEXT / exact=False": [
+  "'0.1'",
+  "None"
+ ],
+ "text_and_null -> TEXT / exact=True": [
+  "'0.1'",
+  "None"
+ ],
+ "text_empty -> DECIMAL(10,2) / exact=False": "ERROR",
+ "text_empty -> DECIMAL(10,2) / exact=True": "ERROR",
+ "text_empty -> DECIMAL(38,18) / exact=False": "ERROR",
+ "text_empty -> DECIMAL(38,18) / exact=True": "ERROR",
+ "text_empty -> DECIMAL(38,30) / exact=False": "ERROR",
+ "text_empty -> DECIMAL(38,30) / exact=True": "ERROR",
+ "text_empty -> DOUBLE / exact=False": "ERROR",
+ "text_empty -> DOUBLE / exact=True": "ERROR",
+ "text_empty -> INTEGER / exact=False": "ERROR",
+ "text_empty -> INTEGER / exact=True": "ERROR",
+ "text_empty -> NUMERIC / exact=False": "ERROR",
+ "text_empty -> NUMERIC / exact=True": "ERROR",
+ "text_empty -> TEXT / exact=False": [
+  "''",
+  "'0.20'"
+ ],
+ "text_empty -> TEXT / exact=True": [
+  "''",
+  "'0.20'"
+ ],
+ "text_exponent -> DECIMAL(10,2) / exact=False": [
+  "Decimal('123456.79')",
+  "Decimal('0.20')"
+ ],
+ "text_exponent -> DECIMAL(10,2) / exact=True": [
+  "Decimal('123456.79')",
+  "Decimal('0.20')"
+ ],
+ "text_exponent -> DECIMAL(38,18) / exact=False": [
+  "Decimal('123456.789012345669025792')",
+  "Decimal('0.200000000000000000')"
+ ],
+ "text_exponent -> DECIMAL(38,18) / exact=True": [
+  "Decimal('123456.789012345669025792')",
+  "Decimal('0.200000000000000000')"
+ ],
+ "text_exponent -> DECIMAL(38,30) / exact=False": [
+  "Decimal('123456.789012345680420001586706644992')",
+  "Decimal('0.200000000000000018050673803264')"
+ ],
+ "text_exponent -> DECIMAL(38,30) / exact=True": [
+  "Decimal('123456.789012345680420001586706644992')",
+  "Decimal('0.200000000000000018050673803264')"
+ ],
+ "text_exponent -> DOUBLE / exact=False": [
+  "123456.78901234567",
+  "0.2"
+ ],
+ "text_exponent -> DOUBLE / exact=True": [
+  "123456.78901234567",
+  "0.2"
+ ],
+ "text_exponent -> INTEGER / exact=False": "ERROR",
+ "text_exponent -> INTEGER / exact=True": "ERROR",
+ "text_exponent -> NUMERIC / exact=False": [
+  "Decimal('123456.789')",
+  "Decimal('0.200')"
+ ],
+ "text_exponent -> NUMERIC / exact=True": [
+  "Decimal('123456.789')",
+  "Decimal('0.200')"
+ ],
+ "text_exponent -> TEXT / exact=False": [
+  "'1.2345678901234567891e5'",
+  "'0.20'"
+ ],
+ "text_exponent -> TEXT / exact=True": [
+  "'1.2345678901234567891e5'",
+  "'0.20'"
+ ],
+ "text_high_precision -> DECIMAL(10,2) / exact=False": [
+  "Decimal('0.12')",
+  "Decimal('0.20')"
+ ],
+ "text_high_precision -> DECIMAL(10,2) / exact=True": [
+  "Decimal('0.12')",
+  "Decimal('0.20')"
+ ],
+ "text_high_precision -> DECIMAL(38,18) / exact=False": [
+  "Decimal('0.123456789012345679')",
+  "Decimal('0.200000000000000000')"
+ ],
+ "text_high_precision -> DECIMAL(38,18) / exact=True": [
+  "Decimal('0.123456789012345679')",
+  "Decimal('0.200000000000000000')"
+ ],
+ "text_high_precision -> DECIMAL(38,30) / exact=False": [
+  "Decimal('0.123456789012345678901200000000')",
+  "Decimal('0.200000000000000000000000000000')"
+ ],
+ "text_high_precision -> DECIMAL(38,30) / exact=True": [
+  "Decimal('0.123456789012345678901200000000')",
+  "Decimal('0.200000000000000000000000000000')"
+ ],
+ "text_high_precision -> DOUBLE / exact=False": [
+  "0.12345678901234568",
+  "0.2"
+ ],
+ "text_high_precision -> DOUBLE / exact=True": [
+  "0.12345678901234568",
+  "0.2"
+ ],
+ "text_high_precision -> INTEGER / exact=False": "ERROR",
+ "text_high_precision -> INTEGER / exact=True": "ERROR",
+ "text_high_precision -> NUMERIC / exact=False": [
+  "Decimal('0.123')",
+  "Decimal('0.200')"
+ ],
+ "text_high_precision -> NUMERIC / exact=True": [
+  "Decimal('0.123')",
+  "Decimal('0.200')"
+ ],
+ "text_high_precision -> TEXT / exact=False": [
+  "'0.1234567890123456789012'",
+  "'0.20'"
+ ],
+ "text_high_precision -> TEXT / exact=True": [
+  "'0.1234567890123456789012'",
+  "'0.20'"
+ ],
+ "text_leading_zeros -> DECIMAL(10,2) / exact=False": [
+  "Decimal('1.20')",
+  "Decimal('0.20')"
+ ],
+ "text_leading_zeros -> DECIMAL(10,2) / exact=True": [
+  "Decimal('1.20')",
+  "Decimal('0.20')"
+ ],
+ "text_leading_zeros -> DECIMAL(38,18) / exact=False": [
+  "Decimal('1.200000000000000000')",
+  "Decimal('0.200000000000000000')"
+ ],
+ "text_leading_zeros -> DECIMAL(38,18) / exact=True": [
+  "Decimal('1.200000000000000000')",
+  "Decimal('0.200000000000000000')"
+ ],
+ "text_leading_zeros -> DECIMAL(38,30) / exact=False": [
+  "Decimal('1.200000000000000000000000000000')",
+  "Decimal('0.200000000000000000000000000000')"
+ ],
+ "text_leading_zeros -> DECIMAL(38,30) / exact=True": [
+  "Decimal('1.200000000000000000000000000000')",
+  "Decimal('0.200000000000000000000000000000')"
+ ],
+ "text_leading_zeros -> DOUBLE / exact=False": [
+  "1.2",
+  "0.2"
+ ],
+ "text_leading_zeros -> DOUBLE / exact=True": [
+  "1.2",
+  "0.2"
+ ],
+ "text_leading_zeros -> INTEGER / exact=False": "ERROR",
+ "text_leading_zeros -> INTEGER / exact=True": "ERROR",
+ "text_leading_zeros -> NUMERIC / exact=False": [
+  "Decimal('1.200')",
+  "Decimal('0.200')"
+ ],
+ "text_leading_zeros -> NUMERIC / exact=True": [
+  "Decimal('1.200')",
+  "Decimal('0.200')"
+ ],
+ "text_leading_zeros -> TEXT / exact=False": [
+  "'0001.20'",
+  "'0.20'"
+ ],
+ "text_leading_zeros -> TEXT / exact=True": [
+  "'0001.20'",
+  "'0.20'"
+ ],
+ "text_long_trailing_zeros -> DECIMAL(10,2) / exact=False": [
+  "Decimal('0.10')",
+  "Decimal('0.20')"
+ ],
+ "text_long_trailing_zeros -> DECIMAL(10,2) / exact=True": [
+  "Decimal('0.10')",
+  "Decimal('0.20')"
+ ],
+ "text_long_trailing_zeros -> DECIMAL(38,18) / exact=False": [
+  "Decimal('0.100000000000000000')",
+  "Decimal('0.200000000000000000')"
+ ],
+ "text_long_trailing_zeros -> DECIMAL(38,18) / exact=True": [
+  "Decimal('0.100000000000000000')",
+  "Decimal('0.200000000000000000')"
+ ],
+ "text_long_trailing_zeros -> DECIMAL(38,30) / exact=False": [
+  "Decimal('0.100000000000000009025336901632')",
+  "Decimal('0.200000000000000000000000000000')"
+ ],
+ "text_long_trailing_zeros -> DECIMAL(38,30) / exact=True": [
+  "Decimal('0.100000000000000009025336901632')",
+  "Decimal('0.200000000000000000000000000000')"
+ ],
+ "text_long_trailing_zeros -> DOUBLE / exact=False": [
+  "0.1",
+  "0.2"
+ ],
+ "text_long_trailing_zeros -> DOUBLE / exact=True": [
+  "0.1",
+  "0.2"
+ ],
+ "text_long_trailing_zeros -> INTEGER / exact=False": "ERROR",
+ "text_long_trailing_zeros -> INTEGER / exact=True": "ERROR",
+ "text_long_trailing_zeros -> NUMERIC / exact=False": [
+  "Decimal('0.100')",
+  "Decimal('0.200')"
+ ],
+ "text_long_trailing_zeros -> NUMERIC / exact=True": [
+  "Decimal('0.100')",
+  "Decimal('0.200')"
+ ],
+ "text_long_trailing_zeros -> TEXT / exact=False": [
+  "'0.10000000000000000000000000000000000000000'",
+  "'0.20'"
+ ],
+ "text_long_trailing_zeros -> TEXT / exact=True": [
+  "'0.10000000000000000000000000000000000000000'",
+  "'0.20'"
+ ],
+ "text_malformed -> DECIMAL(10,2) / exact=False": "ERROR",
+ "text_malformed -> DECIMAL(10,2) / exact=True": "ERROR",
+ "text_malformed -> DECIMAL(38,18) / exact=False": "ERROR",
+ "text_malformed -> DECIMAL(38,18) / exact=True": "ERROR",
+ "text_malformed -> DECIMAL(38,30) / exact=False": "ERROR",
+ "text_malformed -> DECIMAL(38,30) / exact=True": "ERROR",
+ "text_malformed -> DOUBLE / exact=False": "ERROR",
+ "text_malformed -> DOUBLE / exact=True": "ERROR",
+ "text_malformed -> INTEGER / exact=False": "ERROR",
+ "text_malformed -> INTEGER / exact=True": "ERROR",
+ "text_malformed -> NUMERIC / exact=False": "ERROR",
+ "text_malformed -> NUMERIC / exact=True": "ERROR",
+ "text_malformed -> TEXT / exact=False": [
+  "'abc'",
+  "'0.20'"
+ ],
+ "text_malformed -> TEXT / exact=True": [
+  "'abc'",
+  "'0.20'"
+ ],
+ "text_mixed_scale -> DECIMAL(10,2) / exact=False": [
+  "Decimal('0.10')",
+  "Decimal('0.20')"
+ ],
+ "text_mixed_scale -> DECIMAL(10,2) / exact=True": [
+  "Decimal('0.10')",
+  "Decimal('0.20')"
+ ],
+ "text_mixed_scale -> DECIMAL(38,18) / exact=False": [
+  "Decimal('0.100000000000000000')",
+  "Decimal('0.200000000000000000')"
+ ],
+ "text_mixed_scale -> DECIMAL(38,18) / exact=True": [
+  "Decimal('0.100000000000000000')",
+  "Decimal('0.200000000000000000')"
+ ],
+ "text_mixed_scale -> DECIMAL(38,30) / exact=False": [
+  "Decimal('0.100000000000000009025336901632')",
+  "Decimal('0.200000000000000018050673803264')"
+ ],
+ "text_mixed_scale -> DECIMAL(38,30) / exact=True": [
+  "Decimal('0.100000000000000000000000000000')",
+  "Decimal('0.200000000000000000000000000000')"
+ ],
+ "text_mixed_scale -> DOUBLE / exact=False": [
+  "0.1",
+  "0.2"
+ ],
+ "text_mixed_scale -> DOUBLE / exact=True": [
+  "0.1",
+  "0.2"
+ ],
+ "text_mixed_scale -> INTEGER / exact=False": "ERROR",
+ "text_mixed_scale -> INTEGER / exact=True": "ERROR",
+ "text_mixed_scale -> NUMERIC / exact=False": [
+  "Decimal('0.100')",
+  "Decimal('0.200')"
+ ],
+ "text_mixed_scale -> NUMERIC / exact=True": [
+  "Decimal('0.100')",
+  "Decimal('0.200')"
+ ],
+ "text_mixed_scale -> TEXT / exact=False": [
+  "'0.1'",
+  "'0.20'"
+ ],
+ "text_mixed_scale -> TEXT / exact=True": [
+  "'0.1'",
+  "'0.20'"
+ ],
+ "text_overflow -> DECIMAL(10,2) / exact=False": "ERROR",
+ "text_overflow -> DECIMAL(10,2) / exact=True": "ERROR",
+ "text_overflow -> DECIMAL(38,18) / exact=False": "ERROR",
+ "text_overflow -> DECIMAL(38,18) / exact=True": "ERROR",
+ "text_overflow -> DECIMAL(38,30) / exact=False": "ERROR",
+ "text_overflow -> DECIMAL(38,30) / exact=True": "ERROR",
+ "text_overflow -> DOUBLE / exact=False": [
+  "1.2345678901234568e+20",
+  "0.2"
+ ],
+ "text_overflow -> DOUBLE / exact=True": [
+  "1.2345678901234568e+20",
+  "0.2"
+ ],
+ "text_overflow -> INTEGER / exact=False": "ERROR",
+ "text_overflow -> INTEGER / exact=True": "ERROR",
+ "text_overflow -> NUMERIC / exact=False": "ERROR",
+ "text_overflow -> NUMERIC / exact=True": "ERROR",
+ "text_overflow -> TEXT / exact=False": [
+  "'123456789012345678901'",
+  "'0.20'"
+ ],
+ "text_overflow -> TEXT / exact=True": [
+  "'123456789012345678901'",
+  "'0.20'"
+ ],
+ "text_positive_exponent -> DECIMAL(10,2) / exact=False": [
+  "Decimal('1000.00')",
+  "Decimal('0.20')"
+ ],
+ "text_positive_exponent -> DECIMAL(10,2) / exact=True": [
+  "Decimal('1000.00')",
+  "Decimal('0.20')"
+ ],
+ "text_positive_exponent -> DECIMAL(38,18) / exact=False": [
+  "Decimal('1000.000000000000000000')",
+  "Decimal('0.200000000000000000')"
+ ],
+ "text_positive_exponent -> DECIMAL(38,18) / exact=True": [
+  "Decimal('1000.000000000000000000')",
+  "Decimal('0.200000000000000000')"
+ ],
+ "text_positive_exponent -> DECIMAL(38,30) / exact=False": [
+  "Decimal('1000.000000000000089690419062898688')",
+  "Decimal('0.200000000000000018050673803264')"
+ ],
+ "text_positive_exponent -> DECIMAL(38,30) / exact=True": [
+  "Decimal('1000.000000000000089690419062898688')",
+  "Decimal('0.200000000000000018050673803264')"
+ ],
+ "text_positive_exponent -> DOUBLE / exact=False": [
+  "1000.0",
+  "0.2"
+ ],
+ "text_positive_exponent -> DOUBLE / exact=True": [
+  "1000.0",
+  "0.2"
+ ],
+ "text_positive_exponent -> INTEGER / exact=False": "ERROR",
+ "text_positive_exponent -> INTEGER / exact=True": "ERROR",
+ "text_positive_exponent -> NUMERIC / exact=False": [
+  "Decimal('1000.000')",
+  "Decimal('0.200')"
+ ],
+ "text_positive_exponent -> NUMERIC / exact=True": [
+  "Decimal('1000.000')",
+  "Decimal('0.200')"
+ ],
+ "text_positive_exponent -> TEXT / exact=False": [
+  "'1e3'",
+  "'0.20'"
+ ],
+ "text_positive_exponent -> TEXT / exact=True": [
+  "'1e3'",
+  "'0.20'"
+ ],
+ "text_scale_rounding -> DECIMAL(10,2) / exact=False": [
+  "Decimal('0.13')",
+  "Decimal('0.20')"
+ ],
+ "text_scale_rounding -> DECIMAL(10,2) / exact=True": [
+  "Decimal('0.13')",
+  "Decimal('0.20')"
+ ],
+ "text_scale_rounding -> DECIMAL(38,18) / exact=False": [
+  "Decimal('0.125000000000000000')",
+  "Decimal('0.200000000000000000')"
+ ],
+ "text_scale_rounding -> DECIMAL(38,18) / exact=True": [
+  "Decimal('0.125000000000000000')",
+  "Decimal('0.200000000000000000')"
+ ],
+ "text_scale_rounding -> DECIMAL(38,30) / exact=False": [
+  "Decimal('0.125000000000000002485578104832')",
+  "Decimal('0.200000000000000018050673803264')"
+ ],
+ "text_scale_rounding -> DECIMAL(38,30) / exact=True": [
+  "Decimal('0.125000000000000000000000000000')",
+  "Decimal('0.200000000000000000000000000000')"
+ ],
+ "text_scale_rounding -> DOUBLE / exact=False": [
+  "0.125",
+  "0.2"
+ ],
+ "text_scale_rounding -> DOUBLE / exact=True": [
+  "0.125",
+  "0.2"
+ ],
+ "text_scale_rounding -> INTEGER / exact=False": "ERROR",
+ "text_scale_rounding -> INTEGER / exact=True": "ERROR",
+ "text_scale_rounding -> NUMERIC / exact=False": [
+  "Decimal('0.125')",
+  "Decimal('0.200')"
+ ],
+ "text_scale_rounding -> NUMERIC / exact=True": [
+  "Decimal('0.125')",
+  "Decimal('0.200')"
+ ],
+ "text_scale_rounding -> TEXT / exact=False": [
+  "'0.125'",
+  "'0.20'"
+ ],
+ "text_scale_rounding -> TEXT / exact=True": [
+  "'0.125'",
+  "'0.20'"
+ ],
+ "text_spaces -> DECIMAL(10,2) / exact=False": [
+  "Decimal('0.10')",
+  "Decimal('0.20')"
+ ],
+ "text_spaces -> DECIMAL(10,2) / exact=True": [
+  "Decimal('0.10')",
+  "Decimal('0.20')"
+ ],
+ "text_spaces -> DECIMAL(38,18) / exact=False": [
+  "Decimal('0.100000000000000000')",
+  "Decimal('0.200000000000000000')"
+ ],
+ "text_spaces -> DECIMAL(38,18) / exact=True": [
+  "Decimal('0.100000000000000000')",
+  "Decimal('0.200000000000000000')"
+ ],
+ "text_spaces -> DECIMAL(38,30) / exact=False": [
+  "Decimal('0.100000000000000000000000000000')",
+  "Decimal('0.200000000000000000000000000000')"
+ ],
+ "text_spaces -> DECIMAL(38,30) / exact=True": [
+  "Decimal('0.100000000000000000000000000000')",
+  "Decimal('0.200000000000000000000000000000')"
+ ],
+ "text_spaces -> DOUBLE / exact=False": [
+  "0.1",
+  "0.2"
+ ],
+ "text_spaces -> DOUBLE / exact=True": [
+  "0.1",
+  "0.2"
+ ],
+ "text_spaces -> INTEGER / exact=False": "ERROR",
+ "text_spaces -> INTEGER / exact=True": "ERROR",
+ "text_spaces -> NUMERIC / exact=False": [
+  "Decimal('0.100')",
+  "Decimal('0.200')"
+ ],
+ "text_spaces -> NUMERIC / exact=True": [
+  "Decimal('0.100')",
+  "Decimal('0.200')"
+ ],
+ "text_spaces -> TEXT / exact=False": [
+  "' +0.10 '",
+  "'0.20'"
+ ],
+ "text_spaces -> TEXT / exact=True": [
+  "' +0.10 '",
+  "'0.20'"
+ ],
+ "typed_big_integer -> DECIMAL(10,2) / exact=False": "ERROR",
+ "typed_big_integer -> DECIMAL(10,2) / exact=True": "ERROR",
+ "typed_big_integer -> DECIMAL(38,18) / exact=False": [
+  "Decimal('9223372036854775808.000000000000000000')",
+  "Decimal('20.000000000000000000')"
+ ],
+ "typed_big_integer -> DECIMAL(38,18) / exact=True": [
+  "Decimal('9223372036854775808.000000000000000000')",
+  "Decimal('20.000000000000000000')"
+ ],
+ "typed_big_integer -> DECIMAL(38,30) / exact=False": "ERROR",
+ "typed_big_integer -> DECIMAL(38,30) / exact=True": "ERROR",
+ "typed_big_integer -> DOUBLE / exact=False": [
+  "9.223372036854776e+18",
+  "20.0"
+ ],
+ "typed_big_integer -> DOUBLE / exact=True": [
+  "9.223372036854776e+18",
+  "20.0"
+ ],
+ "typed_big_integer -> INTEGER / exact=False": "ERROR",
+ "typed_big_integer -> INTEGER / exact=True": "ERROR",
+ "typed_big_integer -> NUMERIC / exact=False": "ERROR",
+ "typed_big_integer -> NUMERIC / exact=True": "ERROR",
+ "typed_big_integer -> TEXT / exact=False": [
+  "'9223372036854775808'",
+  "'20'"
+ ],
+ "typed_big_integer -> TEXT / exact=True": [
+  "'9223372036854775808'",
+  "'20'"
+ ],
+ "typed_bool -> DECIMAL(10,2) / exact=False": [
+  "Decimal('1.00')",
+  "Decimal('0.00')"
+ ],
+ "typed_bool -> DECIMAL(10,2) / exact=True": [
+  "Decimal('1.00')",
+  "Decimal('0.00')"
+ ],
+ "typed_bool -> DECIMAL(38,18) / exact=False": [
+  "Decimal('1.000000000000000000')",
+  "Decimal('0E-18')"
+ ],
+ "typed_bool -> DECIMAL(38,18) / exact=True": [
+  "Decimal('1.000000000000000000')",
+  "Decimal('0E-18')"
+ ],
+ "typed_bool -> DECIMAL(38,30) / exact=False": [
+  "Decimal('1.000000000000000000000000000000')",
+  "Decimal('0E-30')"
+ ],
+ "typed_bool -> DECIMAL(38,30) / exact=True": [
+  "Decimal('1.000000000000000000000000000000')",
+  "Decimal('0E-30')"
+ ],
+ "typed_bool -> DOUBLE / exact=False": [
+  "1.0",
+  "0.0"
+ ],
+ "typed_bool -> DOUBLE / exact=True": [
+  "1.0",
+  "0.0"
+ ],
+ "typed_bool -> INTEGER / exact=False": [
+  "1",
+  "0"
+ ],
+ "typed_bool -> INTEGER / exact=True": [
+  "1",
+  "0"
+ ],
+ "typed_bool -> NUMERIC / exact=False": [
+  "Decimal('1.000')",
+  "Decimal('0.000')"
+ ],
+ "typed_bool -> NUMERIC / exact=True": [
+  "Decimal('1.000')",
+  "Decimal('0.000')"
+ ],
+ "typed_bool -> TEXT / exact=False": [
+  "'true'",
+  "'false'"
+ ],
+ "typed_bool -> TEXT / exact=True": [
+  "'true'",
+  "'false'"
+ ],
+ "typed_bytes -> DECIMAL(10,2) / exact=False": "ERROR",
+ "typed_bytes -> DECIMAL(10,2) / exact=True": "ERROR",
+ "typed_bytes -> DECIMAL(38,18) / exact=False": "ERROR",
+ "typed_bytes -> DECIMAL(38,18) / exact=True": "ERROR",
+ "typed_bytes -> DECIMAL(38,30) / exact=False": "ERROR",
+ "typed_bytes -> DECIMAL(38,30) / exact=True": "ERROR",
+ "typed_bytes -> DOUBLE / exact=False": "ERROR",
+ "typed_bytes -> DOUBLE / exact=True": "ERROR",
+ "typed_bytes -> INTEGER / exact=False": "ERROR",
+ "typed_bytes -> INTEGER / exact=True": "ERROR",
+ "typed_bytes -> NUMERIC / exact=False": "ERROR",
+ "typed_bytes -> NUMERIC / exact=True": "ERROR",
+ "typed_bytes -> TEXT / exact=False": [
+  "'0.1'",
+  "'0.20'"
+ ],
+ "typed_bytes -> TEXT / exact=True": [
+  "'0.1'",
+  "'0.20'"
+ ],
+ "typed_date -> DECIMAL(10,2) / exact=False": "ERROR",
+ "typed_date -> DECIMAL(10,2) / exact=True": "ERROR",
+ "typed_date -> DECIMAL(38,18) / exact=False": "ERROR",
+ "typed_date -> DECIMAL(38,18) / exact=True": "ERROR",
+ "typed_date -> DECIMAL(38,30) / exact=False": "ERROR",
+ "typed_date -> DECIMAL(38,30) / exact=True": "ERROR",
+ "typed_date -> DOUBLE / exact=False": "ERROR",
+ "typed_date -> DOUBLE / exact=True": "ERROR",
+ "typed_date -> INTEGER / exact=False": "ERROR",
+ "typed_date -> INTEGER / exact=True": "ERROR",
+ "typed_date -> NUMERIC / exact=False": "ERROR",
+ "typed_date -> NUMERIC / exact=True": "ERROR",
+ "typed_date -> TEXT / exact=False": [
+  "'2026-01-02'",
+  "'2026-01-03'"
+ ],
+ "typed_date -> TEXT / exact=True": [
+  "'2026-01-02'",
+  "'2026-01-03'"
+ ],
+ "typed_datetime -> DECIMAL(10,2) / exact=False": "ERROR",
+ "typed_datetime -> DECIMAL(10,2) / exact=True": "ERROR",
+ "typed_datetime -> DECIMAL(38,18) / exact=False": "ERROR",
+ "typed_datetime -> DECIMAL(38,18) / exact=True": "ERROR",
+ "typed_datetime -> DECIMAL(38,30) / exact=False": "ERROR",
+ "typed_datetime -> DECIMAL(38,30) / exact=True": "ERROR",
+ "typed_datetime -> DOUBLE / exact=False": "ERROR",
+ "typed_datetime -> DOUBLE / exact=True": "ERROR",
+ "typed_datetime -> INTEGER / exact=False": "ERROR",
+ "typed_datetime -> INTEGER / exact=True": "ERROR",
+ "typed_datetime -> NUMERIC / exact=False": "ERROR",
+ "typed_datetime -> NUMERIC / exact=True": "ERROR",
+ "typed_datetime -> TEXT / exact=False": [
+  "'2026-01-02 03:04:00'",
+  "'2026-01-03 03:04:00'"
+ ],
+ "typed_datetime -> TEXT / exact=True": [
+  "'2026-01-02 03:04:00'",
+  "'2026-01-03 03:04:00'"
+ ],
+ "typed_decimal_and_integer -> DECIMAL(10,2) / exact=False": [
+  "Decimal('0.10')",
+  "Decimal('7.00')"
+ ],
+ "typed_decimal_and_integer -> DECIMAL(10,2) / exact=True": [
+  "Decimal('0.10')",
+  "Decimal('7.00')"
+ ],
+ "typed_decimal_and_integer -> DECIMAL(38,18) / exact=False": [
+  "Decimal('0.100000000000000000')",
+  "Decimal('7.000000000000000000')"
+ ],
+ "typed_decimal_and_integer -> DECIMAL(38,18) / exact=True": [
+  "Decimal('0.100000000000000000')",
+  "Decimal('7.000000000000000000')"
+ ],
+ "typed_decimal_and_integer -> DECIMAL(38,30) / exact=False": [
+  "Decimal('0.100000000000000009025336901632')",
+  "Decimal('7.000000000000000420667350581248')"
+ ],
+ "typed_decimal_and_integer -> DECIMAL(38,30) / exact=True": [
+  "Decimal('0.100000000000000009025336901632')",
+  "Decimal('7.000000000000000420667350581248')"
+ ],
+ "typed_decimal_and_integer -> DOUBLE / exact=False": [
+  "0.1",
+  "7.0"
+ ],
+ "typed_decimal_and_integer -> DOUBLE / exact=True": [
+  "0.1",
+  "7.0"
+ ],
+ "typed_decimal_and_integer -> INTEGER / exact=False": "ERROR",
+ "typed_decimal_and_integer -> INTEGER / exact=True": "ERROR",
+ "typed_decimal_and_integer -> NUMERIC / exact=False": [
+  "Decimal('0.100')",
+  "Decimal('7.000')"
+ ],
+ "typed_decimal_and_integer -> NUMERIC / exact=True": [
+  "Decimal('0.100')",
+  "Decimal('7.000')"
+ ],
+ "typed_decimal_and_integer -> TEXT / exact=False": [
+  "'.1'",
+  "'7'"
+ ],
+ "typed_decimal_and_integer -> TEXT / exact=True": [
+  "'.1'",
+  "'7'"
+ ],
+ "typed_float -> DECIMAL(10,2) / exact=False": [
+  "Decimal('0.10')",
+  "Decimal('0.20')"
+ ],
+ "typed_float -> DECIMAL(10,2) / exact=True": [
+  "Decimal('0.10')",
+  "Decimal('0.20')"
+ ],
+ "typed_float -> DECIMAL(38,18) / exact=False": [
+  "Decimal('0.100000000000000000')",
+  "Decimal('0.200000000000000000')"
+ ],
+ "typed_float -> DECIMAL(38,18) / exact=True": [
+  "Decimal('0.100000000000000000')",
+  "Decimal('0.200000000000000000')"
+ ],
+ "typed_float -> DECIMAL(38,30) / exact=False": [
+  "Decimal('0.100000000000000009025336901632')",
+  "Decimal('0.200000000000000018050673803264')"
+ ],
+ "typed_float -> DECIMAL(38,30) / exact=True": [
+  "Decimal('0.100000000000000009025336901632')",
+  "Decimal('0.200000000000000018050673803264')"
+ ],
+ "typed_float -> DOUBLE / exact=False": [
+  "0.1",
+  "0.2"
+ ],
+ "typed_float -> DOUBLE / exact=True": [
+  "0.1",
+  "0.2"
+ ],
+ "typed_float -> INTEGER / exact=False": "ERROR",
+ "typed_float -> INTEGER / exact=True": "ERROR",
+ "typed_float -> NUMERIC / exact=False": [
+  "Decimal('0.100')",
+  "Decimal('0.200')"
+ ],
+ "typed_float -> NUMERIC / exact=True": [
+  "Decimal('0.100')",
+  "Decimal('0.200')"
+ ],
+ "typed_float -> TEXT / exact=False": [
+  "'0.1'",
+  "'0.2'"
+ ],
+ "typed_float -> TEXT / exact=True": [
+  "'0.1'",
+  "'0.2'"
+ ],
+ "typed_float_and_text -> DECIMAL(10,2) / exact=False": [
+  "Decimal('0.10')",
+  "Decimal('1.20')"
+ ],
+ "typed_float_and_text -> DECIMAL(10,2) / exact=True": [
+  "Decimal('0.10')",
+  "Decimal('1.20')"
+ ],
+ "typed_float_and_text -> DECIMAL(38,18) / exact=False": [
+  "Decimal('0.100000000000000000')",
+  "Decimal('1.200000000000000000')"
+ ],
+ "typed_float_and_text -> DECIMAL(38,18) / exact=True": [
+  "Decimal('0.100000000000000000')",
+  "Decimal('1.200000000000000000')"
+ ],
+ "typed_float_and_text -> DECIMAL(38,30) / exact=False": [
+  "Decimal('0.100000000000000000000000000000')",
+  "Decimal('1.200000000000000000000000000000')"
+ ],
+ "typed_float_and_text -> DECIMAL(38,30) / exact=True": [
+  "Decimal('0.100000000000000000000000000000')",
+  "Decimal('1.200000000000000000000000000000')"
+ ],
+ "typed_float_and_text -> DOUBLE / exact=False": [
+  "0.1",
+  "1.2"
+ ],
+ "typed_float_and_text -> DOUBLE / exact=True": [
+  "0.1",
+  "1.2"
+ ],
+ "typed_float_and_text -> INTEGER / exact=False": "ERROR",
+ "typed_float_and_text -> INTEGER / exact=True": "ERROR",
+ "typed_float_and_text -> NUMERIC / exact=False": [
+  "Decimal('0.100')",
+  "Decimal('1.200')"
+ ],
+ "typed_float_and_text -> NUMERIC / exact=True": [
+  "Decimal('0.100')",
+  "Decimal('1.200')"
+ ],
+ "typed_float_and_text -> TEXT / exact=False": [
+  "'0.1'",
+  "'0001.20'"
+ ],
+ "typed_float_and_text -> TEXT / exact=True": [
+  "'0.1'",
+  "'0001.20'"
+ ],
+ "typed_integer -> DECIMAL(10,2) / exact=False": [
+  "Decimal('7.00')",
+  "Decimal('20.00')"
+ ],
+ "typed_integer -> DECIMAL(10,2) / exact=True": [
+  "Decimal('7.00')",
+  "Decimal('20.00')"
+ ],
+ "typed_integer -> DECIMAL(38,18) / exact=False": [
+  "Decimal('7.000000000000000000')",
+  "Decimal('20.000000000000000000')"
+ ],
+ "typed_integer -> DECIMAL(38,18) / exact=True": [
+  "Decimal('7.000000000000000000')",
+  "Decimal('20.000000000000000000')"
+ ],
+ "typed_integer -> DECIMAL(38,30) / exact=False": [
+  "Decimal('7.000000000000000000000000000000')",
+  "Decimal('20.000000000000000000000000000000')"
+ ],
+ "typed_integer -> DECIMAL(38,30) / exact=True": [
+  "Decimal('7.000000000000000000000000000000')",
+  "Decimal('20.000000000000000000000000000000')"
+ ],
+ "typed_integer -> DOUBLE / exact=False": [
+  "7.0",
+  "20.0"
+ ],
+ "typed_integer -> DOUBLE / exact=True": [
+  "7.0",
+  "20.0"
+ ],
+ "typed_integer -> INTEGER / exact=False": [
+  "7",
+  "20"
+ ],
+ "typed_integer -> INTEGER / exact=True": [
+  "7",
+  "20"
+ ],
+ "typed_integer -> NUMERIC / exact=False": [
+  "Decimal('7.000')",
+  "Decimal('20.000')"
+ ],
+ "typed_integer -> NUMERIC / exact=True": [
+  "Decimal('7.000')",
+  "Decimal('20.000')"
+ ],
+ "typed_integer -> TEXT / exact=False": [
+  "'7'",
+  "'20'"
+ ],
+ "typed_integer -> TEXT / exact=True": [
+  "'7'",
+  "'20'"
+ ],
+ "typed_long_coefficient -> DECIMAL(10,2) / exact=False": [
+  "Decimal('0.12')",
+  "Decimal('0.20')"
+ ],
+ "typed_long_coefficient -> DECIMAL(10,2) / exact=True": [
+  "Decimal('0.12')",
+  "Decimal('0.20')"
+ ],
+ "typed_long_coefficient -> DECIMAL(38,18) / exact=False": [
+  "Decimal('0.123456789012345680')",
+  "Decimal('0.200000000000000000')"
+ ],
+ "typed_long_coefficient -> DECIMAL(38,18) / exact=True": [
+  "Decimal('0.123456789012345680')",
+  "Decimal('0.200000000000000000')"
+ ],
+ "typed_long_coefficient -> DECIMAL(38,30) / exact=False": [
+  "Decimal('0.123456789012345677877719597056')",
+  "Decimal('0.200000000000000000000000000000')"
+ ],
+ "typed_long_coefficient -> DECIMAL(38,30) / exact=True": [
+  "Decimal('0.123456789012345677877719597056')",
+  "Decimal('0.200000000000000000000000000000')"
+ ],
+ "typed_long_coefficient -> DOUBLE / exact=False": [
+  "0.12345678901234568",
+  "0.2"
+ ],
+ "typed_long_coefficient -> DOUBLE / exact=True": [
+  "0.12345678901234568",
+  "0.2"
+ ],
+ "typed_long_coefficient -> INTEGER / exact=False": "ERROR",
+ "typed_long_coefficient -> INTEGER / exact=True": "ERROR",
+ "typed_long_coefficient -> NUMERIC / exact=False": [
+  "Decimal('0.123')",
+  "Decimal('0.200')"
+ ],
+ "typed_long_coefficient -> NUMERIC / exact=True": [
+  "Decimal('0.123')",
+  "Decimal('0.200')"
+ ],
+ "typed_long_coefficient -> TEXT / exact=False": [
+  "'0.12345678901234568'",
+  "'.20'"
+ ],
+ "typed_long_coefficient -> TEXT / exact=True": [
+  "'0.12345678901234568'",
+  "'.20'"
+ ],
+ "typed_mixed_scale -> DECIMAL(10,2) / exact=False": [
+  "Decimal('0.10')",
+  "Decimal('0.20')"
+ ],
+ "typed_mixed_scale -> DECIMAL(10,2) / exact=True": [
+  "Decimal('0.10')",
+  "Decimal('0.20')"
+ ],
+ "typed_mixed_scale -> DECIMAL(38,18) / exact=False": [
+  "Decimal('0.100000000000000000')",
+  "Decimal('0.200000000000000000')"
+ ],
+ "typed_mixed_scale -> DECIMAL(38,18) / exact=True": [
+  "Decimal('0.100000000000000000')",
+  "Decimal('0.200000000000000000')"
+ ],
+ "typed_mixed_scale -> DECIMAL(38,30) / exact=False": [
+  "Decimal('0.100000000000000009025336901632')",
+  "Decimal('0.200000000000000018050673803264')"
+ ],
+ "typed_mixed_scale -> DECIMAL(38,30) / exact=True": [
+  "Decimal('0.100000000000000000000000000000')",
+  "Decimal('0.200000000000000000000000000000')"
+ ],
+ "typed_mixed_scale -> DOUBLE / exact=False": [
+  "0.1",
+  "0.2"
+ ],
+ "typed_mixed_scale -> DOUBLE / exact=True": [
+  "0.1",
+  "0.2"
+ ],
+ "typed_mixed_scale -> INTEGER / exact=False": "ERROR",
+ "typed_mixed_scale -> INTEGER / exact=True": "ERROR",
+ "typed_mixed_scale -> NUMERIC / exact=False": [
+  "Decimal('0.100')",
+  "Decimal('0.200')"
+ ],
+ "typed_mixed_scale -> NUMERIC / exact=True": [
+  "Decimal('0.100')",
+  "Decimal('0.200')"
+ ],
+ "typed_mixed_scale -> TEXT / exact=False": [
+  "'.1'",
+  "'.20'"
+ ],
+ "typed_mixed_scale -> TEXT / exact=True": [
+  "'.1'",
+  "'.20'"
+ ]
+}

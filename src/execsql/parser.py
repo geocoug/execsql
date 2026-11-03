@@ -48,8 +48,6 @@ class SourceString:
 
     def eoi(self) -> bool:
         """Return True if the entire source string has been consumed."""
-        # Returns True or False indicating whether or not there is any of
-        # the source string left to be consumed.
         return self.currpos >= len(self.str)
 
     def eat_whitespace(self) -> None:
@@ -59,55 +57,34 @@ class SourceString:
 
     def match_str(self, str: str) -> str | None:
         """Match a string case-insensitively at the current position and advance."""
-        # Tries to match the 'str' argument at the current position in the
-        # source string.  Matching is case-insensitive.  If matching succeeds,
-        # the matched string is returned and the internal pointer is incremented.
-        # If matching fails, None is returned and the internal pointer is unchanged.
         self.eat_whitespace()
-        if self.eoi():
+        if self.eoi() or not self.str.lower().startswith(str.lower(), self.currpos):
             return None
-        else:
-            found = self.str.lower().startswith(str.lower(), self.currpos)
-            if found:
-                matched = self.str[self.currpos : self.currpos + len(str)]
-                self.currpos += len(str)
-                return matched
-            else:
-                return None
+        matched = self.str[self.currpos : self.currpos + len(str)]
+        self.currpos += len(str)
+        return matched
 
     def match_regex(self, regex: Any) -> dict | None:
         """Match a compiled regex at the current position and return named groups."""
-        # Tries to match the 'regex' argument at the current position in the
-        # source string.  If it succeeds, a dictionary of all of the named
-        # groups is returned, and the internal pointer is incremented.
         self.eat_whitespace()
         if self.eoi():
             return None
-        else:
-            m = regex.match(self.str[self.currpos :])
-            if m:
-                self.currpos += m.end(0)
-                return m.groupdict() or {}
-            else:
-                return None
+        m = regex.match(self.str[self.currpos :])
+        if not m:
+            return None
+        self.currpos += m.end(0)
+        return m.groupdict() or {}
 
     def match_metacommand(self, commandlist: Any) -> tuple | None:
         """Match a metacommand from the command list at the current position."""
-        # Tries to match text at the current position to any metacommand
-        # in the specified commandlist.
-        # If it succeeds, the return value is a tuple of the MetaCommand object
-        # and a dictionary of all of the named groups.  The internal pointer is
-        # incremented past the match.
         self.eat_whitespace()
         if self.eoi():
             return None
-        else:
-            m = commandlist.get_match(self.str[self.currpos :])
-            if m is not None:
-                self.currpos += m[1].end(0)
-                return (m[0], m[1].groupdict() or {})
-            else:
-                return None
+        m = commandlist.get_match(self.str[self.currpos :])
+        if m is None:
+            return None
+        self.currpos += m[1].end(0)
+        return (m[0], m[1].groupdict() or {})
 
     def remainder(self) -> str:
         """Return the unconsumed portion of the source string."""

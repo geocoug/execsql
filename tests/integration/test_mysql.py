@@ -25,6 +25,9 @@ import pytest
 
 from tests.integration.conftest import write_script
 
+# One worker runs a server's tests, one at a time: they share its database.
+pytestmark = pytest.mark.xdist_group("live-mysql")
+
 # ---------------------------------------------------------------------------
 # Module-level skip: require pymysql and a reachable MySQL server
 # ---------------------------------------------------------------------------

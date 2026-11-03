@@ -13,7 +13,7 @@ import tempfile
 from typing import Any, cast
 
 from execsql.db.base import Database
-from execsql.db.target_types import ColumnKinds, kind_for_type_name
+from execsql.db.target_types import ColumnKinds, ColumnMetadata, kind_and_scale_for_type_name
 from execsql.exceptions import ErrInfo
 from execsql.utils.errors import exception_desc, fatal_error, install_hint
 from execsql.utils.auth import (
@@ -87,7 +87,12 @@ def _data_length(filename: str) -> int | None:
     except OSError:
         return None
     # Keep the line ending of the last line of data.
-    keep = content_end + (2 if ending == b"\r\n" else 1 if ending[:1] in (b"\r", b"\n") else 0)
+    if ending == b"\r\n":
+        keep = content_end + 2
+    elif ending[:1] in (b"\r", b"\n"):
+        keep = content_end + 1
+    else:
+        keep = content_end
     return keep if keep < size else None
 
 
@@ -248,7 +253,7 @@ class MySQLDatabase(Database):
     def column_kinds(self, sq_name: str) -> ColumnKinds:
         """The execsql type of each column of *sq_name*, from ``SHOW COLUMNS`` (which tells BOOLEAN from TINYINT)."""
         _description, rows = self._column_type_query(sq_name, f"show columns from {sq_name};")
-        return {str(row[0]).lower(): kind_for_type_name(_text(row[1])) for row in rows}
+        return ColumnMetadata({str(row[0]).lower(): kind_and_scale_for_type_name(_text(row[1])) for row in rows})
 
     def view_exists(self, view_name: str, schema_name: str | None = None) -> bool:
         return super().view_exists(

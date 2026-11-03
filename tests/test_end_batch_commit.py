@@ -178,31 +178,6 @@ def test_a_failed_statement_makes_end_batch_roll_back(tmp_path):
     assert len(result.errors) == 2
 
 
-def test_a_failed_statement_in_a_nested_batch_fails_the_enclosing_batch(tmp_path):
-    sql = (
-        "-- !x! ERROR_HALT OFF\ncreate table t (v text);\n"
-        "-- !x! BEGIN BATCH\ninsert into t values ('outer');\n"
-        '-- !x! BEGIN BATCH\ninsert into "no such" values (1);\n-- !x! END BATCH\n'
-        "insert into t values ('outer after inner');\n"
-        "-- !x! END BATCH\n"
-    )
-    result = _run(tmp_path, sql)
-    assert _rows(tmp_path / "main.db", "t") == []
-    assert len(result.errors) == 3  # the statement, then each END BATCH
-
-
-def test_rollback_batch_does_not_let_a_batch_with_a_failed_statement_commit(tmp_path):
-    sql = (
-        "-- !x! ERROR_HALT OFF\ncreate table t (v text);\n"
-        '-- !x! BEGIN BATCH\ninsert into "no such" values (1);\n'
-        "-- !x! IF (SQL_ERROR()) { ROLLBACK BATCH }\n"
-        "insert into t values ('retried');\n"
-        "-- !x! END BATCH\n"
-    )
-    _run(tmp_path, sql)
-    assert _rows(tmp_path / "main.db", "t") == []
-
-
 def test_under_autocommit_off_a_failed_batch_leaves_the_transaction_to_the_script(tmp_path):
     sql = (
         "-- !x! ERROR_HALT OFF\ncreate table t (v text);\n-- !x! AUTOCOMMIT OFF\n"

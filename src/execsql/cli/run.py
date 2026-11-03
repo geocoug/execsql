@@ -23,6 +23,7 @@ from execsql.cli.help import _console, _err_console
 from execsql.config import ConfigData, StatObj
 from execsql.exceptions import ConfigError, ErrInfo
 from execsql.script import SubVarSet, current_script_line, substitute_vars
+from execsql.script.preparation import prepare_script
 from execsql.utils.fileio import FileWriter, Logger, filewriter_end
 from execsql.utils.gui import gui_connect, gui_console_isrunning, gui_console_off, gui_console_on, gui_console_wait_user
 
@@ -735,6 +736,8 @@ def _run(
         for name, value in named_vars or ():
             _state.subvars.add_substitution(name, value)
         _ast_tree = _load_script(command, script_name, conf.script_encoding)
+        if _ast_tree is not None:
+            _ast_tree = prepare_script(_ast_tree, conf.include_req, conf.include_opt)
         _print_dry_run(_ast_tree)
         raise SystemExit(0)
 
@@ -795,6 +798,8 @@ def _run(
     # Load the SQL script (--dry-run / --ping already exited above)
     # ------------------------------------------------------------------
     _ast_tree = _load_script(command, script_name, conf.script_encoding)
+    if _ast_tree is not None:
+        _ast_tree = prepare_script(_ast_tree, conf.include_req, conf.include_opt)
 
     # ------------------------------------------------------------------
     # Start GUI console if requested
@@ -871,14 +876,9 @@ def _end_run_on_sigterm() -> None:
     """
     import signal
 
-    def _terminate(signum: int, _frame: Any) -> None:
-        import execsql.state as _state
+    from execsql.utils.sigterm import terminate
 
-        if _state.exec_log is not None:
-            _state.exec_log.log_exit_terminated()
-        raise SystemExit(128 + signum)
-
-    signal.signal(signal.SIGTERM, _terminate)
+    signal.signal(signal.SIGTERM, terminate)
 
 
 def _execute_script_ast(

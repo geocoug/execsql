@@ -89,15 +89,25 @@ class BatchLevels:
         autocommit off, whose transaction is the script's) before the error
         is raised: a commit that already succeeded
         cannot be undone, but nothing else of the batch is left pending for
-        a later statement to commit.
+        a later statement to commit.  An interrupt rolls back the database
+        it landed on as well, since it may have come before that database's
+        own rollback.  The level leaves the stack last, so until then an
+        interrupt finds it there to abandon.
         """
-        b = self.batchlevels.pop()
-        for i, db in enumerate(b.dbs_used):
-            try:
+        b = self.batchlevels[-1]
+        committed = 0
+        try:
+            for db in b.dbs_used:
                 db.commit()
-            except BaseException:
-                _roll_back(b.dbs_used[i + 1 :])
-                raise
+                committed += 1
+        except Exception:
+            _roll_back(b.dbs_used[committed + 1 :])
+            raise
+        except BaseException:
+            _roll_back(b.dbs_used[committed:])
+            raise
+        finally:
+            self.batchlevels.pop()
 
     def abandon_batch(self) -> None:
         """Pop the innermost batch level without committing it.

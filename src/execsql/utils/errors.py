@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Any
 
 import execsql.state as _state
-from execsql.exceptions import ErrInfo
+from execsql.exceptions import ErrInfo, ScriptExit
 
 __all__ = [
     "error_origin",
@@ -278,7 +278,7 @@ def exit_now(exit_status: int, errinfo: ErrInfo | None, logmsg: str | None = Non
         if lost_output is not None:
             manifest.add_error(lost_output)
         manifest.finish(exit_status, errinfo)
-    sys.exit(exit_status)
+    raise ScriptExit(exit_status)
 
 
 def fatal_error(error_msg: str | None = None) -> None:

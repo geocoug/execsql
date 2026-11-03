@@ -106,6 +106,7 @@ def hover(index: ScriptIndex, source: str, line: int, character: int) -> types.H
     start = m.end("lead")
     written = re.match(r"\s*".join(map(re.escape, entry.keyword.split())), text[start:], re.I)
     first_word = re.match(r"[A-Za-z_]+", text[start:])
-    keyword_end = start + (written.end() if written else first_word.end() if first_word else 0)
+    keyword = written or first_word
+    keyword_end = start + (keyword.end() if keyword else 0)
     body = f"**{entry.keyword}** — {entry.category} metacommand\n\n{entry.summary}\n\n{_syntax_block(entry.forms)}\n\n[Reference]({entry.url})"
     return types.Hover(contents=markdown(body), range=span(line, start, keyword_end))

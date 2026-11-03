@@ -101,6 +101,9 @@ class TestWriterPerRun:
     def test_run_stops_its_writer_before_returning(self, tmp_path):
         import threading
 
+        def writers():
+            return {t for t in threading.enumerate() if t.name == "execsql-filewriter"}
+
         out = tmp_path / "out.txt"
         result = api.run(
             sql=f'-- !x! WRITE "hello" to {out}\nselect 1;\n',
@@ -109,7 +112,7 @@ class TestWriterPerRun:
         )
         assert result.success, result.errors
         assert out.read_text() == "hello\n"
-        assert not [t for t in threading.enumerate() if t.name == "execsql-filewriter"]
+        assert not writers()
 
     def test_run_leaves_the_callers_writer_alone(self, tmp_path):
         """A writer already active in this thread (a CLI run calling run()) keeps running."""

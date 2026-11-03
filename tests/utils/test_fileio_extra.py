@@ -249,7 +249,7 @@ class TestFileControlWrite:
 class TestFileWriterMethods:
     def test_write_creates_filecontrol(self, tmp_path):
 
-        fw = FileWriter.__new__(FileWriter)
+        fw = FileWriter()
         fw.files = {}
         fw.file_encoding = "utf-8"
         fw.open_timeout = 5
@@ -260,7 +260,7 @@ class TestFileWriterMethods:
 
     def test_close_if_open(self, tmp_path):
 
-        fw = FileWriter.__new__(FileWriter)
+        fw = FileWriter()
         fw.files = {}
         fw.file_encoding = "utf-8"
         fw.open_timeout = 5
@@ -271,7 +271,7 @@ class TestFileWriterMethods:
 
     def test_open_as_new(self, tmp_path):
 
-        fw = FileWriter.__new__(FileWriter)
+        fw = FileWriter()
         fw.files = {}
         fw.file_encoding = "utf-8"
         fw.open_timeout = 5
@@ -283,7 +283,7 @@ class TestFileWriterMethods:
     def test_status_unopened(self, tmp_path):
         import queue
 
-        fw = FileWriter.__new__(FileWriter)
+        fw = FileWriter()
         fw.files = {}
         fw.file_encoding = "utf-8"
         fw.open_timeout = 5
@@ -296,7 +296,7 @@ class TestFileWriterMethods:
     def test_status_open(self, tmp_path):
         import queue
 
-        fw = FileWriter.__new__(FileWriter)
+        fw = FileWriter()
         fw.files = {}
         fw.file_encoding = "utf-8"
         fw.open_timeout = 5
@@ -312,7 +312,7 @@ class TestFileWriterMethods:
     def test_closed_status_all_closed(self, tmp_path):
         import queue
 
-        fw = FileWriter.__new__(FileWriter)
+        fw = FileWriter()
         fw.files = {}
         fw.file_encoding = "utf-8"
         fw.open_timeout = 5
@@ -323,7 +323,7 @@ class TestFileWriterMethods:
         assert result == FileWriter.FileControl.STATUS_CLOSED
 
     def test_shutdown(self, tmp_path):
-        fw = FileWriter.__new__(FileWriter)
+        fw = FileWriter()
         fw.files = {}
         fw.active = True
         fw.shutdown()
@@ -340,7 +340,7 @@ class TestLockedOutputFile:
     def _writer(open_timeout):
         import queue
 
-        fw = FileWriter.__new__(FileWriter)
+        fw = FileWriter()
         fw.files = {}
         fw.file_encoding = "utf-8"
         fw.open_timeout = open_timeout

@@ -1,0 +1,2469 @@
+{
+ "duckdb": {
+  "fraction -> DECIMAL(38,30) / exact=False": {
+   "after": {
+    "type": "DECIMAL(38,30)",
+    "values": [
+     "Decimal('0.125000000000000000000000000000')",
+     "Decimal('0.200000000000000000000000000000')"
+    ]
+   },
+   "before": {
+    "type": "DECIMAL(38,30)",
+    "values": [
+     "Decimal('0.125000000000000002485578104832')",
+     "Decimal('0.200000000000000018050673803264')"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "fraction -> DECIMAL(38,30) / exact=True": {
+   "after": {
+    "type": "DECIMAL(38,30)",
+    "values": [
+     "Decimal('0.125000000000000000000000000000')",
+     "Decimal('0.200000000000000000000000000000')"
+    ]
+   },
+   "before": {
+    "type": "DECIMAL(38,30)",
+    "values": [
+     "Decimal('0.125000000000000002485578104832')",
+     "Decimal('0.200000000000000018050673803264')"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "fraction -> NEW / exact=True": {
+   "after": {
+    "type": "DECIMAL(3,3)",
+    "values": [
+     "Decimal('0.125')",
+     "Decimal('0.200')"
+    ]
+   },
+   "before": {
+    "type": "DOUBLE",
+    "values": [
+     "0.125",
+     "0.2"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "fraction -> TEXT / exact=False": {
+   "after": {
+    "type": "VARCHAR",
+    "values": [
+     "'0.125'",
+     "'0.20'"
+    ]
+   },
+   "before": {
+    "type": "VARCHAR",
+    "values": [
+     "'0.125'",
+     "'0.2'"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "fraction -> TEXT / exact=True": {
+   "after": {
+    "type": "VARCHAR",
+    "values": [
+     "'0.125'",
+     "'0.20'"
+    ]
+   },
+   "before": {
+    "type": "VARCHAR",
+    "values": [
+     "'0.125'",
+     "'0.2'"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "integer_edge -> DECIMAL(38,18) / exact=False": {
+   "after": {
+    "type": "DECIMAL(38,18)",
+    "values": [
+     "Decimal('9007199254740993.000000000000000000')",
+     "Decimal('20.000000000000000000')"
+    ]
+   },
+   "before": {
+    "type": "DECIMAL(38,18)",
+    "values": [
+     "Decimal('9007199254740992.000000000000000000')",
+     "Decimal('20.000000000000000000')"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "integer_edge -> DECIMAL(38,18) / exact=True": {
+   "after": {
+    "type": "DECIMAL(38,18)",
+    "values": [
+     "Decimal('9007199254740993.000000000000000000')",
+     "Decimal('20.000000000000000000')"
+    ]
+   },
+   "before": {
+    "type": "DECIMAL(38,18)",
+    "values": [
+     "Decimal('9007199254740992.000000000000000000')",
+     "Decimal('20.000000000000000000')"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "integer_edge -> NEW / exact=False": {
+   "after": {
+    "type": "DECIMAL(17,1)",
+    "values": [
+     "Decimal('9007199254740993.0')",
+     "Decimal('20.0')"
+    ]
+   },
+   "before": {
+    "type": "BIGINT",
+    "values": [
+     "9007199254740992",
+     "20"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "integer_edge -> NEW / exact=True": {
+   "after": {
+    "type": "DECIMAL(17,1)",
+    "values": [
+     "Decimal('9007199254740993.0')",
+     "Decimal('20.0')"
+    ]
+   },
+   "before": {
+    "type": "BIGINT",
+    "values": [
+     "9007199254740992",
+     "20"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "integer_edge -> TEXT / exact=False": {
+   "after": {
+    "type": "VARCHAR",
+    "values": [
+     "'9007199254740993.0'",
+     "'20.0'"
+    ]
+   },
+   "before": {
+    "type": "VARCHAR",
+    "values": [
+     "'9007199254740992.0'",
+     "'20.0'"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "integer_edge -> TEXT / exact=True": {
+   "after": {
+    "type": "VARCHAR",
+    "values": [
+     "'9007199254740993.0'",
+     "'20.0'"
+    ]
+   },
+   "before": {
+    "type": "VARCHAR",
+    "values": [
+     "'9007199254740992.0'",
+     "'20.0'"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "integer_fraction -> DECIMAL(38,18) / exact=False": {
+   "after": {
+    "type": "DECIMAL(38,18)",
+    "values": [
+     "Decimal('1.000000000000000100')",
+     "Decimal('2.000000000000000000')"
+    ]
+   },
+   "before": {
+    "type": "DECIMAL(38,18)",
+    "values": [
+     "Decimal('1.000000000000000000')",
+     "Decimal('2.000000000000000000')"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "integer_fraction -> DECIMAL(38,18) / exact=True": {
+   "after": {
+    "type": "DECIMAL(38,18)",
+    "values": [
+     "Decimal('1.000000000000000100')",
+     "Decimal('2.000000000000000000')"
+    ]
+   },
+   "before": {
+    "type": "DECIMAL(38,18)",
+    "values": [
+     "Decimal('1.000000000000000000')",
+     "Decimal('2.000000000000000000')"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "integer_fraction -> DECIMAL(38,30) / exact=False": {
+   "after": {
+    "type": "DECIMAL(38,30)",
+    "values": [
+     "Decimal('1.000000000000000100000000000000')",
+     "Decimal('2.000000000000000000000000000000')"
+    ]
+   },
+   "before": {
+    "type": "DECIMAL(38,30)",
+    "values": [
+     "Decimal('1.000000000000000000000000000000')",
+     "Decimal('2.000000000000000000000000000000')"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "integer_fraction -> DECIMAL(38,30) / exact=True": {
+   "after": {
+    "type": "DECIMAL(38,30)",
+    "values": [
+     "Decimal('1.000000000000000100000000000000')",
+     "Decimal('2.000000000000000000000000000000')"
+    ]
+   },
+   "before": {
+    "type": "DECIMAL(38,30)",
+    "values": [
+     "Decimal('1.000000000000000000000000000000')",
+     "Decimal('2.000000000000000000000000000000')"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "integer_fraction -> INTEGER / exact=False": {
+   "after": "ERROR",
+   "before": {
+    "type": "INTEGER",
+    "values": [
+     "1",
+     "2"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "integer_fraction -> INTEGER / exact=True": {
+   "after": "ERROR",
+   "before": {
+    "type": "INTEGER",
+    "values": [
+     "1",
+     "2"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "integer_fraction -> NEW / exact=False": {
+   "after": {
+    "type": "DECIMAL(17,16)",
+    "values": [
+     "Decimal('1.0000000000000001')",
+     "Decimal('2.0000000000000000')"
+    ]
+   },
+   "before": {
+    "type": "BIGINT",
+    "values": [
+     "1",
+     "2"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "integer_fraction -> NEW / exact=True": {
+   "after": {
+    "type": "DECIMAL(17,16)",
+    "values": [
+     "Decimal('1.0000000000000001')",
+     "Decimal('2.0000000000000000')"
+    ]
+   },
+   "before": {
+    "type": "BIGINT",
+    "values": [
+     "1",
+     "2"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "integer_fraction -> NUMERIC / exact=False": {
+   "after": "ERROR",
+   "before": {
+    "type": "DECIMAL(18,3)",
+    "values": [
+     "Decimal('1.000')",
+     "Decimal('2.000')"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "integer_fraction -> NUMERIC / exact=True": {
+   "after": "ERROR",
+   "before": {
+    "type": "DECIMAL(18,3)",
+    "values": [
+     "Decimal('1.000')",
+     "Decimal('2.000')"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "integer_fraction -> TEXT / exact=False": {
+   "after": {
+    "type": "VARCHAR",
+    "values": [
+     "'1.0000000000000001'",
+     "'2.0'"
+    ]
+   },
+   "before": {
+    "type": "VARCHAR",
+    "values": [
+     "'1.0'",
+     "'2.0'"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "integer_fraction -> TEXT / exact=True": {
+   "after": {
+    "type": "VARCHAR",
+    "values": [
+     "'1.0000000000000001'",
+     "'2.0'"
+    ]
+   },
+   "before": {
+    "type": "VARCHAR",
+    "values": [
+     "'1.0'",
+     "'2.0'"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "mixed_exponent -> DECIMAL(38,30) / exact=False": {
+   "after": {
+    "type": "DECIMAL(38,30)",
+    "values": [
+     "Decimal('1000.000000000000000000000000000000')",
+     "Decimal('0.200000000000000000000000000000')"
+    ]
+   },
+   "before": {
+    "type": "DECIMAL(38,30)",
+    "values": [
+     "Decimal('1000.000000000000089690419062898688')",
+     "Decimal('0.200000000000000018050673803264')"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "mixed_exponent -> DECIMAL(38,30) / exact=True": {
+   "after": {
+    "type": "DECIMAL(38,30)",
+    "values": [
+     "Decimal('1000.000000000000000000000000000000')",
+     "Decimal('0.200000000000000000000000000000')"
+    ]
+   },
+   "before": {
+    "type": "DECIMAL(38,30)",
+    "values": [
+     "Decimal('1000.000000000000089690419062898688')",
+     "Decimal('0.200000000000000018050673803264')"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "mixed_exponent -> NEW / exact=True": {
+   "after": {
+    "type": "DECIMAL(6,2)",
+    "values": [
+     "Decimal('1000.00')",
+     "Decimal('0.20')"
+    ]
+   },
+   "before": {
+    "type": "DOUBLE",
+    "values": [
+     "1000.0",
+     "0.2"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "mixed_exponent -> TEXT / exact=False": {
+   "after": {
+    "type": "VARCHAR",
+    "values": [
+     "'1E+3'",
+     "'0.20'"
+    ]
+   },
+   "before": {
+    "type": "VARCHAR",
+    "values": [
+     "'1000.0'",
+     "'0.2'"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "mixed_exponent -> TEXT / exact=True": {
+   "after": {
+    "type": "VARCHAR",
+    "values": [
+     "'1E+3'",
+     "'0.20'"
+    ]
+   },
+   "before": {
+    "type": "VARCHAR",
+    "values": [
+     "'1000.0'",
+     "'0.2'"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "mixed_scale -> DECIMAL(38,30) / exact=False": {
+   "after": {
+    "type": "DECIMAL(38,30)",
+    "values": [
+     "Decimal('0.100000000000000000000000000000')",
+     "Decimal('0.200000000000000000000000000000')"
+    ]
+   },
+   "before": {
+    "type": "DECIMAL(38,30)",
+    "values": [
+     "Decimal('0.100000000000000009025336901632')",
+     "Decimal('0.200000000000000018050673803264')"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "mixed_scale -> DECIMAL(38,30) / exact=True": {
+   "after": {
+    "type": "DECIMAL(38,30)",
+    "values": [
+     "Decimal('0.100000000000000000000000000000')",
+     "Decimal('0.200000000000000000000000000000')"
+    ]
+   },
+   "before": {
+    "type": "DECIMAL(38,30)",
+    "values": [
+     "Decimal('0.100000000000000009025336901632')",
+     "Decimal('0.200000000000000018050673803264')"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "mixed_scale -> NEW / exact=True": {
+   "after": {
+    "type": "DECIMAL(2,2)",
+    "values": [
+     "Decimal('0.10')",
+     "Decimal('0.20')"
+    ]
+   },
+   "before": {
+    "type": "DOUBLE",
+    "values": [
+     "0.1",
+     "0.2"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "mixed_scale -> TEXT / exact=False": {
+   "after": {
+    "type": "VARCHAR",
+    "values": [
+     "'0.1'",
+     "'0.20'"
+    ]
+   },
+   "before": {
+    "type": "VARCHAR",
+    "values": [
+     "'0.1'",
+     "'0.2'"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "mixed_scale -> TEXT / exact=True": {
+   "after": {
+    "type": "VARCHAR",
+    "values": [
+     "'0.1'",
+     "'0.20'"
+    ]
+   },
+   "before": {
+    "type": "VARCHAR",
+    "values": [
+     "'0.1'",
+     "'0.2'"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "negative_zero -> DOUBLE / exact=False": {
+   "after": {
+    "type": "DOUBLE",
+    "values": [
+     "-0.0",
+     "0.0"
+    ]
+   },
+   "before": {
+    "type": "DOUBLE",
+    "values": [
+     "0.0",
+     "0.0"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "negative_zero -> NEW / exact=False": {
+   "after": {
+    "type": "DOUBLE",
+    "values": [
+     "-0.0",
+     "0.0"
+    ]
+   },
+   "before": {
+    "type": "BIGINT",
+    "values": [
+     "0",
+     "0"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "negative_zero -> NEW / exact=True": {
+   "after": {
+    "type": "DECIMAL(3,2)",
+    "values": [
+     "Decimal('0.00')",
+     "Decimal('0.00')"
+    ]
+   },
+   "before": {
+    "type": "BIGINT",
+    "values": [
+     "0",
+     "0"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "negative_zero -> TEXT / exact=False": {
+   "after": {
+    "type": "VARCHAR",
+    "values": [
+     "'-0.0'",
+     "'0.00'"
+    ]
+   },
+   "before": {
+    "type": "VARCHAR",
+    "values": [
+     "'-0.0'",
+     "'0.0'"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "negative_zero -> TEXT / exact=True": {
+   "after": {
+    "type": "VARCHAR",
+    "values": [
+     "'-0.0'",
+     "'0.00'"
+    ]
+   },
+   "before": {
+    "type": "VARCHAR",
+    "values": [
+     "'-0.0'",
+     "'0.0'"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "nested -> DECIMAL(38,18) / exact=False": {
+   "after": {
+    "type": "DECIMAL(38,18)",
+    "values": [
+     "Decimal('1234567890.123456789100000000')",
+     "Decimal('0.200000000000000000')"
+    ]
+   },
+   "before": {
+    "type": "DECIMAL(38,18)",
+    "values": [
+     "Decimal('1234567890.123456712806498304')",
+     "Decimal('0.200000000000000000')"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "nested -> DECIMAL(38,18) / exact=True": {
+   "after": {
+    "type": "DECIMAL(38,18)",
+    "values": [
+     "Decimal('1234567890.123456789100000000')",
+     "Decimal('0.200000000000000000')"
+    ]
+   },
+   "before": {
+    "type": "DECIMAL(38,18)",
+    "values": [
+     "Decimal('1234567890.123456712806498304')",
+     "Decimal('0.200000000000000000')"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "nested -> NEW / exact=False": {
+   "after": {
+    "type": "DECIMAL(20,10)",
+    "values": [
+     "Decimal('1234567890.1234567891')",
+     "Decimal('0.2000000000')"
+    ]
+   },
+   "before": {
+    "type": "DOUBLE",
+    "values": [
+     "1234567890.1234567",
+     "0.2"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "nested -> NEW / exact=True": {
+   "after": {
+    "type": "DECIMAL(20,10)",
+    "values": [
+     "Decimal('1234567890.1234567891')",
+     "Decimal('0.2000000000')"
+    ]
+   },
+   "before": {
+    "type": "DOUBLE",
+    "values": [
+     "1234567890.1234567",
+     "0.2"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "nested -> NUMERIC / exact=False": {
+   "after": "ERROR",
+   "before": {
+    "type": "DECIMAL(18,3)",
+    "values": [
+     "Decimal('1234567890.123')",
+     "Decimal('0.200')"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "nested -> NUMERIC / exact=True": {
+   "after": "ERROR",
+   "before": {
+    "type": "DECIMAL(18,3)",
+    "values": [
+     "Decimal('1234567890.123')",
+     "Decimal('0.200')"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "nested -> TEXT / exact=False": {
+   "after": {
+    "type": "VARCHAR",
+    "values": [
+     "'1234567890.1234567891'",
+     "'0.20'"
+    ]
+   },
+   "before": {
+    "type": "VARCHAR",
+    "values": [
+     "'1234567890.1234567'",
+     "'0.2'"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "nested -> TEXT / exact=True": {
+   "after": {
+    "type": "VARCHAR",
+    "values": [
+     "'1234567890.1234567891'",
+     "'0.20'"
+    ]
+   },
+   "before": {
+    "type": "VARCHAR",
+    "values": [
+     "'1234567890.1234567'",
+     "'0.2'"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "null -> DECIMAL(38,30) / exact=False": {
+   "after": {
+    "type": "DECIMAL(38,30)",
+    "values": [
+     "Decimal('0.100000000000000000000000000000')"
+    ]
+   },
+   "before": {
+    "type": "DECIMAL(38,30)",
+    "values": [
+     "Decimal('0.100000000000000009025336901632')"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "null -> DECIMAL(38,30) / exact=True": {
+   "after": {
+    "type": "DECIMAL(38,30)",
+    "values": [
+     "Decimal('0.100000000000000000000000000000')"
+    ]
+   },
+   "before": {
+    "type": "DECIMAL(38,30)",
+    "values": [
+     "Decimal('0.100000000000000009025336901632')"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "null -> NEW / exact=False": {
+   "after": {
+    "type": "DECIMAL(1,1)",
+    "values": [
+     "Decimal('0.1')"
+    ]
+   },
+   "before": {
+    "type": "DOUBLE",
+    "values": [
+     "0.1"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "null -> NEW / exact=True": {
+   "after": {
+    "type": "DECIMAL(1,1)",
+    "values": [
+     "Decimal('0.1')"
+    ]
+   },
+   "before": {
+    "type": "DOUBLE",
+    "values": [
+     "0.1"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "overflow -> TEXT / exact=False": {
+   "after": {
+    "type": "VARCHAR",
+    "values": [
+     "'1E+400'",
+     "'2.0'"
+    ]
+   },
+   "before": "ERROR",
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "overflow -> TEXT / exact=True": {
+   "after": {
+    "type": "VARCHAR",
+    "values": [
+     "'1E+400'",
+     "'2.0'"
+    ]
+   },
+   "before": "ERROR",
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "positive_exponent -> NEW / exact=False": {
+   "after": {
+    "type": "DECIMAL(4,0)",
+    "values": [
+     "Decimal('1000')",
+     "Decimal('200')"
+    ]
+   },
+   "before": {
+    "type": "BIGINT",
+    "values": [
+     "1000",
+     "200"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "positive_exponent -> NEW / exact=True": {
+   "after": {
+    "type": "DECIMAL(4,0)",
+    "values": [
+     "Decimal('1000')",
+     "Decimal('200')"
+    ]
+   },
+   "before": {
+    "type": "BIGINT",
+    "values": [
+     "1000",
+     "200"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "positive_exponent -> TEXT / exact=False": {
+   "after": {
+    "type": "VARCHAR",
+    "values": [
+     "'1E+3'",
+     "'2E+2'"
+    ]
+   },
+   "before": {
+    "type": "VARCHAR",
+    "values": [
+     "'1000.0'",
+     "'200.0'"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "positive_exponent -> TEXT / exact=True": {
+   "after": {
+    "type": "VARCHAR",
+    "values": [
+     "'1E+3'",
+     "'2E+2'"
+    ]
+   },
+   "before": {
+    "type": "VARCHAR",
+    "values": [
+     "'1000.0'",
+     "'200.0'"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "precision -> DECIMAL(38,18) / exact=False": {
+   "after": {
+    "type": "DECIMAL(38,18)",
+    "values": [
+     "Decimal('1234567890.123456789100000000')",
+     "Decimal('0.200000000000000000')"
+    ]
+   },
+   "before": {
+    "type": "DECIMAL(38,18)",
+    "values": [
+     "Decimal('1234567890.123456712806498304')",
+     "Decimal('0.200000000000000000')"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "precision -> DECIMAL(38,18) / exact=True": {
+   "after": {
+    "type": "DECIMAL(38,18)",
+    "values": [
+     "Decimal('1234567890.123456789100000000')",
+     "Decimal('0.200000000000000000')"
+    ]
+   },
+   "before": {
+    "type": "DECIMAL(38,18)",
+    "values": [
+     "Decimal('1234567890.123456712806498304')",
+     "Decimal('0.200000000000000000')"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "precision -> NEW / exact=False": {
+   "after": {
+    "type": "DECIMAL(20,10)",
+    "values": [
+     "Decimal('1234567890.1234567891')",
+     "Decimal('0.2000000000')"
+    ]
+   },
+   "before": {
+    "type": "DOUBLE",
+    "values": [
+     "1234567890.1234567",
+     "0.2"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "precision -> NEW / exact=True": {
+   "after": {
+    "type": "DECIMAL(20,10)",
+    "values": [
+     "Decimal('1234567890.1234567891')",
+     "Decimal('0.2000000000')"
+    ]
+   },
+   "before": {
+    "type": "DOUBLE",
+    "values": [
+     "1234567890.1234567",
+     "0.2"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "precision -> NUMERIC / exact=False": {
+   "after": "ERROR",
+   "before": {
+    "type": "DECIMAL(18,3)",
+    "values": [
+     "Decimal('1234567890.123')",
+     "Decimal('0.200')"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "precision -> NUMERIC / exact=True": {
+   "after": "ERROR",
+   "before": {
+    "type": "DECIMAL(18,3)",
+    "values": [
+     "Decimal('1234567890.123')",
+     "Decimal('0.200')"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "precision -> TEXT / exact=False": {
+   "after": {
+    "type": "VARCHAR",
+    "values": [
+     "'1234567890.1234567891'",
+     "'0.20'"
+    ]
+   },
+   "before": {
+    "type": "VARCHAR",
+    "values": [
+     "'1234567890.1234567'",
+     "'0.2'"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "precision -> TEXT / exact=True": {
+   "after": {
+    "type": "VARCHAR",
+    "values": [
+     "'1234567890.1234567891'",
+     "'0.20'"
+    ]
+   },
+   "before": {
+    "type": "VARCHAR",
+    "values": [
+     "'1234567890.1234567'",
+     "'0.2'"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "scale38 -> DECIMAL(38,18) / exact=False": {
+   "after": "ERROR",
+   "before": {
+    "type": "DECIMAL(38,18)",
+    "values": [
+     "Decimal('0E-18')",
+     "Decimal('0E-18')"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "scale38 -> DECIMAL(38,18) / exact=True": {
+   "after": "ERROR",
+   "before": {
+    "type": "DECIMAL(38,18)",
+    "values": [
+     "Decimal('0E-18')",
+     "Decimal('0E-18')"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "scale38 -> DECIMAL(38,30) / exact=False": {
+   "after": "ERROR",
+   "before": {
+    "type": "DECIMAL(38,30)",
+    "values": [
+     "Decimal('0E-30')",
+     "Decimal('0E-30')"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "scale38 -> DECIMAL(38,30) / exact=True": {
+   "after": "ERROR",
+   "before": {
+    "type": "DECIMAL(38,30)",
+    "values": [
+     "Decimal('0E-30')",
+     "Decimal('0E-30')"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "scale38 -> NEW / exact=False": {
+   "after": "ERROR",
+   "before": {
+    "type": "DOUBLE",
+    "values": [
+     "1e-38",
+     "2e-38"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "scale38 -> NEW / exact=True": {
+   "after": "ERROR",
+   "before": {
+    "type": "DOUBLE",
+    "values": [
+     "1e-38",
+     "2e-38"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "scale38 -> NUMERIC / exact=False": {
+   "after": "ERROR",
+   "before": {
+    "type": "DECIMAL(18,3)",
+    "values": [
+     "Decimal('0.000')",
+     "Decimal('0.000')"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "scale38 -> NUMERIC / exact=True": {
+   "after": "ERROR",
+   "before": {
+    "type": "DECIMAL(18,3)",
+    "values": [
+     "Decimal('0.000')",
+     "Decimal('0.000')"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "scale38 -> TEXT / exact=False": {
+   "after": {
+    "type": "VARCHAR",
+    "values": [
+     "'1E-38'",
+     "'2E-38'"
+    ]
+   },
+   "before": {
+    "type": "VARCHAR",
+    "values": [
+     "'1e-38'",
+     "'2e-38'"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "scale38 -> TEXT / exact=True": {
+   "after": {
+    "type": "VARCHAR",
+    "values": [
+     "'1E-38'",
+     "'2E-38'"
+    ]
+   },
+   "before": {
+    "type": "VARCHAR",
+    "values": [
+     "'1e-38'",
+     "'2e-38'"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "tiny -> DECIMAL(38,18) / exact=False": {
+   "after": "ERROR",
+   "before": {
+    "type": "DECIMAL(38,18)",
+    "values": [
+     "Decimal('0E-18')",
+     "Decimal('0.100000000000000000')"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "tiny -> DECIMAL(38,18) / exact=True": {
+   "after": "ERROR",
+   "before": {
+    "type": "DECIMAL(38,18)",
+    "values": [
+     "Decimal('0E-18')",
+     "Decimal('0.100000000000000000')"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "tiny -> DECIMAL(38,30) / exact=False": {
+   "after": {
+    "type": "DECIMAL(38,30)",
+    "values": [
+     "Decimal('1.0000000000E-20')",
+     "Decimal('0.100000000000000000000000000000')"
+    ]
+   },
+   "before": {
+    "type": "DECIMAL(38,30)",
+    "values": [
+     "Decimal('1.0000000000E-20')",
+     "Decimal('0.100000000000000009025336901632')"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "tiny -> DECIMAL(38,30) / exact=True": {
+   "after": {
+    "type": "DECIMAL(38,30)",
+    "values": [
+     "Decimal('1.0000000000E-20')",
+     "Decimal('0.100000000000000000000000000000')"
+    ]
+   },
+   "before": {
+    "type": "DECIMAL(38,30)",
+    "values": [
+     "Decimal('1.0000000000E-20')",
+     "Decimal('0.100000000000000009025336901632')"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "tiny -> NEW / exact=False": {
+   "after": {
+    "type": "DECIMAL(21,20)",
+    "values": [
+     "Decimal('1E-20')",
+     "Decimal('0.10000000000000000000')"
+    ]
+   },
+   "before": {
+    "type": "DOUBLE",
+    "values": [
+     "1e-20",
+     "0.1"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "tiny -> NEW / exact=True": {
+   "after": {
+    "type": "DECIMAL(21,20)",
+    "values": [
+     "Decimal('1E-20')",
+     "Decimal('0.10000000000000000000')"
+    ]
+   },
+   "before": {
+    "type": "DOUBLE",
+    "values": [
+     "1e-20",
+     "0.1"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "tiny -> NUMERIC / exact=False": {
+   "after": "ERROR",
+   "before": {
+    "type": "DECIMAL(18,3)",
+    "values": [
+     "Decimal('0.000')",
+     "Decimal('0.100')"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "tiny -> NUMERIC / exact=True": {
+   "after": "ERROR",
+   "before": {
+    "type": "DECIMAL(18,3)",
+    "values": [
+     "Decimal('0.000')",
+     "Decimal('0.100')"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "tiny -> TEXT / exact=False": {
+   "after": {
+    "type": "VARCHAR",
+    "values": [
+     "'1E-20'",
+     "'0.1'"
+    ]
+   },
+   "before": {
+    "type": "VARCHAR",
+    "values": [
+     "'1e-20'",
+     "'0.1'"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "tiny -> TEXT / exact=True": {
+   "after": {
+    "type": "VARCHAR",
+    "values": [
+     "'1E-20'",
+     "'0.1'"
+    ]
+   },
+   "before": {
+    "type": "VARCHAR",
+    "values": [
+     "'1e-20'",
+     "'0.1'"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "trailing_zeros -> NEW / exact=False": {
+   "after": {
+    "type": "DECIMAL(4,3)",
+    "values": [
+     "Decimal('1.000')",
+     "Decimal('2.000')"
+    ]
+   },
+   "before": {
+    "type": "BIGINT",
+    "values": [
+     "1",
+     "2"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "trailing_zeros -> NEW / exact=True": {
+   "after": {
+    "type": "DECIMAL(4,3)",
+    "values": [
+     "Decimal('1.000')",
+     "Decimal('2.000')"
+    ]
+   },
+   "before": {
+    "type": "BIGINT",
+    "values": [
+     "1",
+     "2"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "trailing_zeros -> TEXT / exact=False": {
+   "after": {
+    "type": "VARCHAR",
+    "values": [
+     "'1.000'",
+     "'2.000'"
+    ]
+   },
+   "before": {
+    "type": "VARCHAR",
+    "values": [
+     "'1.0'",
+     "'2.0'"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "trailing_zeros -> TEXT / exact=True": {
+   "after": {
+    "type": "VARCHAR",
+    "values": [
+     "'1.000'",
+     "'2.000'"
+    ]
+   },
+   "before": {
+    "type": "VARCHAR",
+    "values": [
+     "'1.0'",
+     "'2.0'"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "underflow -> DECIMAL(38,18) / exact=False": {
+   "after": "ERROR",
+   "before": {
+    "type": "DECIMAL(38,18)",
+    "values": [
+     "Decimal('0E-18')",
+     "Decimal('2.000000000000000000')"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "underflow -> DECIMAL(38,18) / exact=True": {
+   "after": "ERROR",
+   "before": {
+    "type": "DECIMAL(38,18)",
+    "values": [
+     "Decimal('0E-18')",
+     "Decimal('2.000000000000000000')"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "underflow -> DECIMAL(38,30) / exact=False": {
+   "after": "ERROR",
+   "before": {
+    "type": "DECIMAL(38,30)",
+    "values": [
+     "Decimal('0E-30')",
+     "Decimal('2.000000000000000000000000000000')"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "underflow -> DECIMAL(38,30) / exact=True": {
+   "after": "ERROR",
+   "before": {
+    "type": "DECIMAL(38,30)",
+    "values": [
+     "Decimal('0E-30')",
+     "Decimal('2.000000000000000000000000000000')"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "underflow -> INTEGER / exact=False": {
+   "after": "ERROR",
+   "before": {
+    "type": "INTEGER",
+    "values": [
+     "0",
+     "2"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "underflow -> INTEGER / exact=True": {
+   "after": "ERROR",
+   "before": {
+    "type": "INTEGER",
+    "values": [
+     "0",
+     "2"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "underflow -> NEW / exact=False": {
+   "after": "ERROR",
+   "before": {
+    "type": "BIGINT",
+    "values": [
+     "0",
+     "2"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "underflow -> NEW / exact=True": {
+   "after": "ERROR",
+   "before": {
+    "type": "BIGINT",
+    "values": [
+     "0",
+     "2"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "underflow -> NUMERIC / exact=False": {
+   "after": "ERROR",
+   "before": {
+    "type": "DECIMAL(18,3)",
+    "values": [
+     "Decimal('0.000')",
+     "Decimal('2.000')"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "underflow -> NUMERIC / exact=True": {
+   "after": "ERROR",
+   "before": {
+    "type": "DECIMAL(18,3)",
+    "values": [
+     "Decimal('0.000')",
+     "Decimal('2.000')"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "underflow -> TEXT / exact=False": {
+   "after": {
+    "type": "VARCHAR",
+    "values": [
+     "'1E-400'",
+     "'2.0'"
+    ]
+   },
+   "before": {
+    "type": "VARCHAR",
+    "values": [
+     "'0.0'",
+     "'2.0'"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "underflow -> TEXT / exact=True": {
+   "after": {
+    "type": "VARCHAR",
+    "values": [
+     "'1E-400'",
+     "'2.0'"
+    ]
+   },
+   "before": {
+    "type": "VARCHAR",
+    "values": [
+     "'0.0'",
+     "'2.0'"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  }
+ },
+ "sqlite": {
+  "fraction -> NEW / exact=True": {
+   "after": {
+    "type": "decimal(3,3)",
+    "values": [
+     "0.125",
+     "0.2"
+    ]
+   },
+   "before": {
+    "type": "double",
+    "values": [
+     "0.125",
+     "0.2"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "fraction -> TEXT / exact=False": {
+   "after": {
+    "type": "TEXT",
+    "values": [
+     "'0.125'",
+     "'0.20'"
+    ]
+   },
+   "before": {
+    "type": "TEXT",
+    "values": [
+     "'0.125'",
+     "'0.2'"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "fraction -> TEXT / exact=True": {
+   "after": {
+    "type": "TEXT",
+    "values": [
+     "'0.125'",
+     "'0.20'"
+    ]
+   },
+   "before": {
+    "type": "TEXT",
+    "values": [
+     "'0.125'",
+     "'0.2'"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "integer_edge -> INTEGER / exact=False": {
+   "after": {
+    "type": "INTEGER",
+    "values": [
+     "9007199254740993",
+     "20"
+    ]
+   },
+   "before": {
+    "type": "INTEGER",
+    "values": [
+     "9007199254740992",
+     "20"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "integer_edge -> INTEGER / exact=True": {
+   "after": {
+    "type": "INTEGER",
+    "values": [
+     "9007199254740993",
+     "20"
+    ]
+   },
+   "before": {
+    "type": "INTEGER",
+    "values": [
+     "9007199254740992",
+     "20"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "integer_edge -> NEW / exact=False": {
+   "after": {
+    "type": "decimal(17,1)",
+    "values": [
+     "9007199254740992",
+     "20"
+    ]
+   },
+   "before": {
+    "type": "hugeint",
+    "values": [
+     "9007199254740992",
+     "20"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "integer_edge -> NEW / exact=True": {
+   "after": {
+    "type": "decimal(17,1)",
+    "values": [
+     "9007199254740992",
+     "20"
+    ]
+   },
+   "before": {
+    "type": "hugeint",
+    "values": [
+     "9007199254740992",
+     "20"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "integer_edge -> TEXT / exact=False": {
+   "after": {
+    "type": "TEXT",
+    "values": [
+     "'9007199254740993.0'",
+     "'20.0'"
+    ]
+   },
+   "before": {
+    "type": "TEXT",
+    "values": [
+     "'9.00719925474099e+15'",
+     "'20.0'"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "integer_edge -> TEXT / exact=True": {
+   "after": {
+    "type": "TEXT",
+    "values": [
+     "'9007199254740993.0'",
+     "'20.0'"
+    ]
+   },
+   "before": {
+    "type": "TEXT",
+    "values": [
+     "'9.00719925474099e+15'",
+     "'20.0'"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "integer_fraction -> INTEGER / exact=False": {
+   "after": "ERROR",
+   "before": {
+    "type": "INTEGER",
+    "values": [
+     "1",
+     "2"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "integer_fraction -> INTEGER / exact=True": {
+   "after": "ERROR",
+   "before": {
+    "type": "INTEGER",
+    "values": [
+     "1",
+     "2"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "integer_fraction -> NEW / exact=False": {
+   "after": {
+    "type": "decimal(17,16)",
+    "values": [
+     "1",
+     "2"
+    ]
+   },
+   "before": {
+    "type": "hugeint",
+    "values": [
+     "1",
+     "2"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "integer_fraction -> NEW / exact=True": {
+   "after": {
+    "type": "decimal(17,16)",
+    "values": [
+     "1",
+     "2"
+    ]
+   },
+   "before": {
+    "type": "hugeint",
+    "values": [
+     "1",
+     "2"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "integer_fraction -> TEXT / exact=False": {
+   "after": {
+    "type": "TEXT",
+    "values": [
+     "'1.0000000000000001'",
+     "'2.0'"
+    ]
+   },
+   "before": {
+    "type": "TEXT",
+    "values": [
+     "'1.0'",
+     "'2.0'"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "integer_fraction -> TEXT / exact=True": {
+   "after": {
+    "type": "TEXT",
+    "values": [
+     "'1.0000000000000001'",
+     "'2.0'"
+    ]
+   },
+   "before": {
+    "type": "TEXT",
+    "values": [
+     "'1.0'",
+     "'2.0'"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "mixed_exponent -> NEW / exact=True": {
+   "after": {
+    "type": "decimal(6,2)",
+    "values": [
+     "1000",
+     "0.2"
+    ]
+   },
+   "before": {
+    "type": "double",
+    "values": [
+     "1000.0",
+     "0.2"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "mixed_exponent -> TEXT / exact=False": {
+   "after": {
+    "type": "TEXT",
+    "values": [
+     "'1E+3'",
+     "'0.20'"
+    ]
+   },
+   "before": {
+    "type": "TEXT",
+    "values": [
+     "'1000.0'",
+     "'0.2'"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "mixed_exponent -> TEXT / exact=True": {
+   "after": {
+    "type": "TEXT",
+    "values": [
+     "'1E+3'",
+     "'0.20'"
+    ]
+   },
+   "before": {
+    "type": "TEXT",
+    "values": [
+     "'1000.0'",
+     "'0.2'"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "mixed_scale -> NEW / exact=True": {
+   "after": {
+    "type": "decimal(2,2)",
+    "values": [
+     "0.1",
+     "0.2"
+    ]
+   },
+   "before": {
+    "type": "double",
+    "values": [
+     "0.1",
+     "0.2"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "mixed_scale -> TEXT / exact=False": {
+   "after": {
+    "type": "TEXT",
+    "values": [
+     "'0.1'",
+     "'0.20'"
+    ]
+   },
+   "before": {
+    "type": "TEXT",
+    "values": [
+     "'0.1'",
+     "'0.2'"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "mixed_scale -> TEXT / exact=True": {
+   "after": {
+    "type": "TEXT",
+    "values": [
+     "'0.1'",
+     "'0.20'"
+    ]
+   },
+   "before": {
+    "type": "TEXT",
+    "values": [
+     "'0.1'",
+     "'0.2'"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "negative_zero -> NEW / exact=False": {
+   "after": {
+    "type": "double",
+    "values": [
+     "0.0",
+     "0.0"
+    ]
+   },
+   "before": {
+    "type": "hugeint",
+    "values": [
+     "0",
+     "0"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "negative_zero -> NEW / exact=True": {
+   "after": {
+    "type": "decimal(3,2)",
+    "values": [
+     "0",
+     "0"
+    ]
+   },
+   "before": {
+    "type": "hugeint",
+    "values": [
+     "0",
+     "0"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "negative_zero -> TEXT / exact=False": {
+   "after": {
+    "type": "TEXT",
+    "values": [
+     "'-0.0'",
+     "'0.00'"
+    ]
+   },
+   "before": {
+    "type": "TEXT",
+    "values": [
+     "'0.0'",
+     "'0.0'"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "negative_zero -> TEXT / exact=True": {
+   "after": {
+    "type": "TEXT",
+    "values": [
+     "'-0.0'",
+     "'0.00'"
+    ]
+   },
+   "before": {
+    "type": "TEXT",
+    "values": [
+     "'0.0'",
+     "'0.0'"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "nested -> NEW / exact=False": {
+   "after": {
+    "type": "decimal(20,10)",
+    "values": [
+     "1234567890.1234567",
+     "0.2"
+    ]
+   },
+   "before": {
+    "type": "double",
+    "values": [
+     "1234567890.1234567",
+     "0.2"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "nested -> NEW / exact=True": {
+   "after": {
+    "type": "decimal(20,10)",
+    "values": [
+     "1234567890.1234567",
+     "0.2"
+    ]
+   },
+   "before": {
+    "type": "double",
+    "values": [
+     "1234567890.1234567",
+     "0.2"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "nested -> TEXT / exact=False": {
+   "after": {
+    "type": "TEXT",
+    "values": [
+     "'1234567890.1234567891'",
+     "'0.20'"
+    ]
+   },
+   "before": {
+    "type": "TEXT",
+    "values": [
+     "'1234567890.12346'",
+     "'0.2'"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "nested -> TEXT / exact=True": {
+   "after": {
+    "type": "TEXT",
+    "values": [
+     "'1234567890.1234567891'",
+     "'0.20'"
+    ]
+   },
+   "before": {
+    "type": "TEXT",
+    "values": [
+     "'1234567890.12346'",
+     "'0.2'"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "null -> NEW / exact=False": {
+   "after": {
+    "type": "decimal(1,1)",
+    "values": [
+     "0.1"
+    ]
+   },
+   "before": {
+    "type": "double",
+    "values": [
+     "0.1"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "null -> NEW / exact=True": {
+   "after": {
+    "type": "decimal(1,1)",
+    "values": [
+     "0.1"
+    ]
+   },
+   "before": {
+    "type": "double",
+    "values": [
+     "0.1"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "overflow -> TEXT / exact=False": {
+   "after": {
+    "type": "TEXT",
+    "values": [
+     "'1E+400'",
+     "'2.0'"
+    ]
+   },
+   "before": "ERROR",
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "overflow -> TEXT / exact=True": {
+   "after": {
+    "type": "TEXT",
+    "values": [
+     "'1E+400'",
+     "'2.0'"
+    ]
+   },
+   "before": "ERROR",
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "positive_exponent -> NEW / exact=False": {
+   "after": {
+    "type": "decimal(4,0)",
+    "values": [
+     "1000",
+     "200"
+    ]
+   },
+   "before": {
+    "type": "hugeint",
+    "values": [
+     "1000",
+     "200"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "positive_exponent -> NEW / exact=True": {
+   "after": {
+    "type": "decimal(4,0)",
+    "values": [
+     "1000",
+     "200"
+    ]
+   },
+   "before": {
+    "type": "hugeint",
+    "values": [
+     "1000",
+     "200"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "positive_exponent -> TEXT / exact=False": {
+   "after": {
+    "type": "TEXT",
+    "values": [
+     "'1E+3'",
+     "'2E+2'"
+    ]
+   },
+   "before": {
+    "type": "TEXT",
+    "values": [
+     "'1000.0'",
+     "'200.0'"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "positive_exponent -> TEXT / exact=True": {
+   "after": {
+    "type": "TEXT",
+    "values": [
+     "'1E+3'",
+     "'2E+2'"
+    ]
+   },
+   "before": {
+    "type": "TEXT",
+    "values": [
+     "'1000.0'",
+     "'200.0'"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "precision -> NEW / exact=False": {
+   "after": {
+    "type": "decimal(20,10)",
+    "values": [
+     "1234567890.1234567",
+     "0.2"
+    ]
+   },
+   "before": {
+    "type": "double",
+    "values": [
+     "1234567890.1234567",
+     "0.2"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "precision -> NEW / exact=True": {
+   "after": {
+    "type": "decimal(20,10)",
+    "values": [
+     "1234567890.1234567",
+     "0.2"
+    ]
+   },
+   "before": {
+    "type": "double",
+    "values": [
+     "1234567890.1234567",
+     "0.2"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "precision -> TEXT / exact=False": {
+   "after": {
+    "type": "TEXT",
+    "values": [
+     "'1234567890.1234567891'",
+     "'0.20'"
+    ]
+   },
+   "before": {
+    "type": "TEXT",
+    "values": [
+     "'1234567890.12346'",
+     "'0.2'"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "precision -> TEXT / exact=True": {
+   "after": {
+    "type": "TEXT",
+    "values": [
+     "'1234567890.1234567891'",
+     "'0.20'"
+    ]
+   },
+   "before": {
+    "type": "TEXT",
+    "values": [
+     "'1234567890.12346'",
+     "'0.2'"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "scale38 -> NEW / exact=False": {
+   "after": {
+    "type": "decimal(39,38)",
+    "values": [
+     "1e-38",
+     "2e-38"
+    ]
+   },
+   "before": {
+    "type": "double",
+    "values": [
+     "1e-38",
+     "2e-38"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "scale38 -> NEW / exact=True": {
+   "after": {
+    "type": "decimal(39,38)",
+    "values": [
+     "1e-38",
+     "2e-38"
+    ]
+   },
+   "before": {
+    "type": "double",
+    "values": [
+     "1e-38",
+     "2e-38"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "scale38 -> TEXT / exact=False": {
+   "after": {
+    "type": "TEXT",
+    "values": [
+     "'1E-38'",
+     "'2E-38'"
+    ]
+   },
+   "before": {
+    "type": "TEXT",
+    "values": [
+     "'1.0e-38'",
+     "'2.0e-38'"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "scale38 -> TEXT / exact=True": {
+   "after": {
+    "type": "TEXT",
+    "values": [
+     "'1E-38'",
+     "'2E-38'"
+    ]
+   },
+   "before": {
+    "type": "TEXT",
+    "values": [
+     "'1.0e-38'",
+     "'2.0e-38'"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "tiny -> NEW / exact=False": {
+   "after": {
+    "type": "decimal(21,20)",
+    "values": [
+     "1e-20",
+     "0.1"
+    ]
+   },
+   "before": {
+    "type": "double",
+    "values": [
+     "1e-20",
+     "0.1"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "tiny -> NEW / exact=True": {
+   "after": {
+    "type": "decimal(21,20)",
+    "values": [
+     "1e-20",
+     "0.1"
+    ]
+   },
+   "before": {
+    "type": "double",
+    "values": [
+     "1e-20",
+     "0.1"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "tiny -> TEXT / exact=False": {
+   "after": {
+    "type": "TEXT",
+    "values": [
+     "'1E-20'",
+     "'0.1'"
+    ]
+   },
+   "before": {
+    "type": "TEXT",
+    "values": [
+     "'1.0e-20'",
+     "'0.1'"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "tiny -> TEXT / exact=True": {
+   "after": {
+    "type": "TEXT",
+    "values": [
+     "'1E-20'",
+     "'0.1'"
+    ]
+   },
+   "before": {
+    "type": "TEXT",
+    "values": [
+     "'1.0e-20'",
+     "'0.1'"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "trailing_zeros -> NEW / exact=False": {
+   "after": {
+    "type": "decimal(4,3)",
+    "values": [
+     "1",
+     "2"
+    ]
+   },
+   "before": {
+    "type": "hugeint",
+    "values": [
+     "1",
+     "2"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "trailing_zeros -> NEW / exact=True": {
+   "after": {
+    "type": "decimal(4,3)",
+    "values": [
+     "1",
+     "2"
+    ]
+   },
+   "before": {
+    "type": "hugeint",
+    "values": [
+     "1",
+     "2"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "trailing_zeros -> TEXT / exact=False": {
+   "after": {
+    "type": "TEXT",
+    "values": [
+     "'1.000'",
+     "'2.000'"
+    ]
+   },
+   "before": {
+    "type": "TEXT",
+    "values": [
+     "'1.0'",
+     "'2.0'"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "trailing_zeros -> TEXT / exact=True": {
+   "after": {
+    "type": "TEXT",
+    "values": [
+     "'1.000'",
+     "'2.000'"
+    ]
+   },
+   "before": {
+    "type": "TEXT",
+    "values": [
+     "'1.0'",
+     "'2.0'"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "underflow -> INTEGER / exact=False": {
+   "after": "ERROR",
+   "before": {
+    "type": "INTEGER",
+    "values": [
+     "0",
+     "2"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "underflow -> INTEGER / exact=True": {
+   "after": "ERROR",
+   "before": {
+    "type": "INTEGER",
+    "values": [
+     "0",
+     "2"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "underflow -> NEW / exact=False": {
+   "after": {
+    "type": "decimal(401,400)",
+    "values": [
+     "0",
+     "2"
+    ]
+   },
+   "before": {
+    "type": "hugeint",
+    "values": [
+     "0",
+     "2"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "underflow -> NEW / exact=True": {
+   "after": {
+    "type": "decimal(401,400)",
+    "values": [
+     "0",
+     "2"
+    ]
+   },
+   "before": {
+    "type": "hugeint",
+    "values": [
+     "0",
+     "2"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "underflow -> TEXT / exact=False": {
+   "after": {
+    "type": "TEXT",
+    "values": [
+     "'1E-400'",
+     "'2.0'"
+    ]
+   },
+   "before": {
+    "type": "TEXT",
+    "values": [
+     "'0.0'",
+     "'2.0'"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  },
+  "underflow -> TEXT / exact=True": {
+   "after": {
+    "type": "TEXT",
+    "values": [
+     "'1E-400'",
+     "'2.0'"
+    ]
+   },
+   "before": {
+    "type": "TEXT",
+    "values": [
+     "'0.0'",
+     "'2.0'"
+    ]
+   },
+   "why": "JSON fractional and exponent scalar numbers now retain exact Decimal digits before scanning. Existing target conversions, including scale and integer rejection, use those digits; NEW inference uses Decimal precision/scale and EXACT_DECIMALS. Decimal-to-text binding preserves exact spelling. SQLite rejects finite decimal overflow rather than storing infinity."
+  }
+ }
+}
