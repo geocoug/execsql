@@ -192,19 +192,20 @@ def test_live_writer_flushes_lines_without_changing_encoding(tmp_path, encoding)
 
 def test_status_and_failure_report_share_one_deadline(tmp_path, monkeypatch):
     failure_entered, release = threading.Event(), threading.Event()
-    real_status = fileio.FileWriter.closed_status
     real_failures = fileio.FileWriter.open_failures
+    real_reply = fileio._writer_reply
+    deadlines = []
 
-    def status(self):
-        time.sleep(0.4)
-        real_status(self)
+    def reply(writer, deadline, wait):
+        deadlines.append(deadline)
+        return real_reply(writer, deadline, wait)
 
     def failures(self):
         failure_entered.set()
         assert release.wait(2)
         real_failures(self)
 
-    monkeypatch.setattr(fileio.FileWriter, "closed_status", status)
+    monkeypatch.setattr(fileio, "_writer_reply", reply)
     monkeypatch.setattr(fileio.FileWriter, "open_failures", failures)
     writer = fileio.FileWriter(open_timeout=1)
     state.filewriter = writer
@@ -218,6 +219,8 @@ def test_status_and_failure_report_share_one_deadline(tmp_path, monkeypatch):
             fileio.filewriter_close_all_after_write(max_wait=0.5)
         assert time.monotonic() - started <= 0.75
         assert failure_entered.is_set()
+        assert len(deadlines) == 2
+        assert deadlines[0] == deadlines[1], "status and failure collection must reuse the same deadline"
     finally:
         release.set()
         safety.cancel()

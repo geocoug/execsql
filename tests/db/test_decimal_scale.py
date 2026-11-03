@@ -222,6 +222,7 @@ def test_declared_scale_across_load_paths(dbms, tmp_path, exact, format, value, 
         db.execute(f"DROP TABLE IF EXISTS {name}")
         db.execute(f"CREATE TABLE {name}(i INTEGER, amount DECIMAL(10,2))")
         db.execute(f"INSERT INTO {name} VALUES (0,42)")
+        db.commit()
         if format == "typed":
             import execsql.state as state
 

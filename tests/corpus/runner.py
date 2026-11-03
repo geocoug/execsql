@@ -53,7 +53,9 @@ _SQLITE_HEADER = b"SQLite format 3\x00"
 _ERROR_TIME = re.compile(r"Error occurred at \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} UTC\.")
 # Upstream adds where in its own source an exception was raised.
 _UPSTREAM_SOURCE = re.compile(r" in \S*execsql\.py on line \d+ of execsql\.")
-_SKIPPED_FILES = {DB_NAME, "execsql.log"}
+# Numeric corpus cases export their DuckDB observations as CSV. Ignore their
+# scratch database, including when upstream stops before the cleanup commands.
+_SKIPPED_FILES = {DB_NAME, "execsql.log", "target.duckdb"}
 
 
 def case_names() -> list[str]:

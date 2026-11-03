@@ -1,4 +1,4 @@
--- !x! CONNECT TO DUCKDB(FILE=:memory:, NEW) AS target
+-- !x! CONNECT TO DUCKDB(FILE=target.duckdb, NEW) AS target
 -- !x! USE target
 CREATE TABLE amounts(i INTEGER, v DECIMAL(38,18));
 -- !x! IMPORT TO amounts FROM JSON exact.json
@@ -6,3 +6,5 @@ CREATE TABLE amounts(i INTEGER, v DECIMAL(38,18));
 -- !x! CONFIG EXACT_DECIMALS YES
 -- !x! IMPORT TO NEW powers FROM JSON powers.jsonl
 -- !x! EXPORT powers TO powers.csv AS CSV
+-- !x! DISCONNECT FROM target
+-- !x! RM_FILE target.duckdb

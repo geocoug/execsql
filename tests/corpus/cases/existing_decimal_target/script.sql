@@ -1,4 +1,4 @@
--- !x! CONNECT TO DUCKDB(FILE=:memory:, NEW) AS target
+-- !x! CONNECT TO DUCKDB(FILE=target.duckdb, NEW) AS target
 -- !x! USE target
 CREATE TABLE precise (i INTEGER, v DECIMAL(38,30));
 -- !x! IMPORT TO precise FROM rows.csv
@@ -6,3 +6,5 @@ CREATE TABLE precise (i INTEGER, v DECIMAL(38,30));
 CREATE TABLE microscopic (i INTEGER, v DECIMAL(38,38));
 -- !x! IMPORT TO microscopic FROM tiny.csv
 -- !x! EXPORT microscopic TO tiny-result.csv AS CSV
+-- !x! DISCONNECT FROM target
+-- !x! RM_FILE target.duckdb

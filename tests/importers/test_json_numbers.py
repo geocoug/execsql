@@ -158,6 +158,7 @@ def test_new_json_numbers_store_exact_values_across_backends(tmp_path, backend, 
 def test_failed_json_load_keeps_existing_rows(tmp_path, format, token):
     import execsql
 
+    pytest.importorskip("duckdb")
     db = DuckDBDatabase(":memory:")
     path = tmp_path / "values.json"
     records = ['{"i":100,"v":1.00}', '{"i":101,"v":' + token + "}"]

@@ -189,6 +189,8 @@ def test_dry_run_lists_configured_includes_without_executing_them(tmp_path):
         cli_options=("--dry-run",),
     )
     assert success, output
+    # Rich wraps long temporary paths differently on each runner.
+    output = "".join(output.splitlines())
     assert included.name in output
     assert output.index(included.name) < output.index("select 1;")
     assert not database.exists()
