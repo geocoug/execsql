@@ -21,12 +21,7 @@ For [execsql](https://execsql2.readthedocs.io/) scripts in `.sql` files:
 
 ## Settings
 
-| Setting                   | Default   |                                                                                                                                                                                      |
-| ------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `execsql.server.enabled`  | `true`    | Start the language server for SQL files. Turning it off stops the server; no reload is needed.                                                                                       |
-| `execsql.server.path`     | `execsql` | The command to run as `<path> lsp`, if `execsql` is not on VS Code's PATH, e.g. `~/.local/bin/execsql`.                                                                              |
-| `execsql.server.logLevel` | `info`    | How much the server writes to **Output → execsql**: `error`, `warning`, `info` (a startup record and each folder's config files) or `debug` (every message, scripts' text included). |
-| `execsql.trace.server`    | `off`     | Trace the protocol messages in the same Output channel: `messages` or `verbose`.                                                                                                     |
+The [VS Code settings reference](https://execsql2.readthedocs.io/en/stable/guides/editors/vscode/#settings) lists executable path, startup and logging options with their defaults.
 
 After installing or upgrading execsql, run **execsql: Restart Language Server** from the Command Palette.
 
@@ -71,14 +66,17 @@ ______________________________________________________________________
 
 ### From a release
 
-Each [GitHub release](https://github.com/geocoug/execsql/releases) has an `execsql-syntax.vsix` attached.
-Download it, then:
+Download **execsql-syntax.vsix** from the [current GitHub release](https://github.com/geocoug/execsql/releases/latest). In VS Code choose **Extensions → … → Install from VSIX…** and select that downloaded file.
+
+With `curl` and the `code` command available, run these in the same directory:
 
 ```sh
-code --install-extension execsql-syntax.vsix
+curl -fL --output execsql-syntax.vsix \
+  https://github.com/geocoug/execsql/releases/latest/download/execsql-syntax.vsix
+code --install-extension ./execsql-syntax.vsix
 ```
 
-or, in VS Code, **Extensions** → `…` menu → **Install from VSIX…**.
+`ENOENT` means that local file is missing or its path is wrong. Passing a filename does not download it. See [setup, verification and troubleshooting](https://execsql2.readthedocs.io/en/stable/guides/editors/vscode/). Highlighting works independently of the language server; `execsql lsp --check` verifies its Python dependencies.
 
 ### From a clone (to work on the extension)
 

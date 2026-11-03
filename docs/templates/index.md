@@ -1,13 +1,13 @@
 # Templates { #templates }
 
-The `templates/` folder of the [execsql2 repository](https://github.com/geocoug/execsql/tree/main/templates) holds ready-to-use execsql scripts. Most are libraries of named scripts (see [BEGIN SCRIPT](../reference/metacommands.md#beginscript)) that you read into your own script with [INCLUDE](../reference/metacommands.md#include) and then run with [EXECUTE SCRIPT](../reference/metacommands.md#executescript). They are driven by the database's `information_schema` views, so each one works on any table without modification.
+The `templates/` folder of the [execsql2 repository](https://github.com/geocoug/execsql/tree/main/templates) holds ready-to-use execsql scripts. Most are libraries of named scripts (see [BEGIN SCRIPT](../reference/metacommands.md#beginscript)) that you read into your own script with [INCLUDE](../reference/metacommands.md#include) and then run with [EXECUTE SCRIPT](../reference/metacommands.md#executescript). They use DBMS-specific catalog queries and have identifier, key and type requirements described on each family page.
 
 The templates are **not installed with the package**. Download or clone the repository, then either copy the file you need next to your own scripts or INCLUDE it straight from a checkout.
 
 ## Using a template { #using }
 
 1. Copy the template file you need (for example `md_compare.sql`) to a convenient location, or note its path in a checkout.
-1. In your driver script, INCLUDE the file. This only defines the scripts; it does not run anything.
+1. For a functional library (upsert, compare or glossary), INCLUDE the file in your driver script to define its named scripts. The executable demos and rebuild script below are different: including them executes their top-level commands.
 1. Call the scripts you need with EXECUTE SCRIPT, passing the arguments each one declares.
 
 ```sql
@@ -47,7 +47,7 @@ The MySQL/MariaDB scripts (`md_`) take a staging-table **prefix** (`stage_pfx`) 
 :   A framework for new scripts: a configuration section (`CONFIG` settings), run numbering with an optional run description, custom log file creation, and reporting of unexpected exits through user cancellation or errors. Copy it and fill in the blanks. It asks for a run description when it starts; for an unattended run, set `get_run_description` to `False` (and `do_run_numbering` too, for no run numbers) in the `[variables]` section of a configuration file, or pass it to `execsql.run(variables=...)`. A value set before the script runs wins.
 
 `config_settings.sqlite`, `example_config_prompt.sql`, `make_config_db.sql`
-:   A SQLite database that holds a specification of every setting configurable with the [CONFIG](../reference/metacommands.md#config) metacommand, in the form the `PROMPT ENTRY_FORM` metacommand uses, plus an example script that prompts the user for some or all of the settings. `make_config_db.sql` rebuilds the database. To use the prompt in your own script, include the `prompt_config` script defined in `example_config_prompt.sql` and either connect to the database with the alias `config_db` or set the `sub_config` variable to its path.
+:   A legacy sample of CONFIG settings in the form used by `PROMPT ENTRY_FORM`; it does not cover every current setting (for example exact-decimal and newer input limits). `make_config_db.sql` drops/recreates its configuration tables: use only a disposable copy. `example_config_prompt.sql` is an executable GUI demo, not a definition-only library: its top-level commands set a path and open the form. To reuse it without those actions, copy just the `BEGIN SCRIPT prompt_config` definition into your own library, then connect to the sample database under alias `config_db` or set the substitution variable `config_db` to its path before calling it.
 
 For an annotated list of every configuration option, run `execsql config --init > execsql.conf` instead; see [Configuration](../reference/configuration.md).
 

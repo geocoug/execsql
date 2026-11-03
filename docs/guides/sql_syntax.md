@@ -26,7 +26,9 @@ SET SESSION sql_mode = 'ANSI';
 
 ## Implicit Commits
 
-By default, execsql immediately commits all SQL statements. The [AUTOCOMMIT](../reference/metacommands.md#autocommit) metacommand can be used to turn off automatic commits, and the [BATCH](../reference/metacommands.md#batch) metacommand can be used to delay commits until the end of a batch. [IMPORT](../reference/metacommands.md#import) and [COPY](../reference/metacommands.md#copy) are the only metacommands that change data, and they also automatically commit their changes when complete (unless [AUTOCOMMIT](../reference/metacommands.md#autocommit) has been turned off). If a new table is created with either of these metacommands (through the use of the NEW or REPLACEMENT keywords), the CREATE TABLE statement will not be committed separately from the data addition, except when using Firebird. Thus, if an error occurs during addition of the data, the new target table will not exist---except when using Firebird.
+By default, execsql commits each successful SQL statement. [AUTOCOMMIT OFF](../reference/metacommands.md#autocommit) leaves commits to the script; [BEGIN BATCH](../reference/metacommands.md#batch) holds eligible statements until `END BATCH`.
+
+Metacommands can change data too. `IMPORT`, `COPY`, `EXECUTE` and `PG_UPSERT` have their own loading/execution rules; do not assume a surrounding batch holds every write. See the canonical [transaction and batch rules](../reference/metacommands.md#batch), including independently committing operations, DBMS-specific DDL and failed-batch handling. For IMPORT/COPY replacement behavior, read [Implicit DROP TABLE statements](#implicit_drop) before replacing an existing target.
 
 When adding a very large amount of data with the [IMPORT](../reference/metacommands.md#import) or [COPY](../reference/metacommands.md#copy) metacommands, internal transaction limits may be exceeded for some DBMSs. For example, MS-Access may produce a 'file sharing lock count exceeded' error when large data sets are loaded.
 
@@ -58,7 +60,19 @@ settings](../reference/configuration.md#config_input) or with the [CONFIG BOOLEA
 
 ## Schemas, the IMPORT and COPY Metacommands, and Schema-less DBMSs
 
-If a schema name is used with the table specifications for the [IMPORT](../reference/metacommands.md#import) or [COPY](../reference/metacommands.md#copy) metacommands, when the command is run against either MS-Access or SQLite, the schema name will be ignored. No error or warning message will be issued. Such irrelevant schema specifications are ignored to reduce the need to customize scripts for use with different DBMSs.
+On SQLite, `main.table`, `temp.table` and `attached_name.table` identify different targets. `IMPORT` and `COPY` preserve that qualifier when checking, creating and loading a target. An unknown or invalid qualifier is an error; it is not silently removed. For example, this SQLite script loads only the attached database:
+
+```sql
+ATTACH DATABASE ':memory:' AS aux;
+create table aux.results (sample_id text, value integer);
+-- !x! IMPORT TO aux.results FROM measurements.csv
+-- !x! ASSERT HASROWS(aux.results) "Attached target was not loaded"
+-- !x! ASSERT NOT TABLE_EXISTS(main.results) "Unexpected main target"
+```
+
+Supply `measurements.csv` with matching headers and rows. Use an explicit `main.` prefix when that is the intended destination. See [IMPORT](../reference/metacommands.md#import) for qualified-target details.
+
+MS-Access has no schema namespace: use unqualified target names. Do not rely on a schema component being discarded; some metadata checks ignore it, but SQL generation can retain it. SQLite and DBMSs with schemas require the qualifier to identify the intended target.
 
 ## MS-Access Quirks
 

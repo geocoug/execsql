@@ -99,14 +99,11 @@ all = [
 execsql = "execsql.cli.dispatch:dispatch"
 
 [dependency-groups]
-# Development tools: not published, unlike the extras above. `uv sync`
-# installs `dev` (and with it `docs`); pip 25.1+ takes `--group dev`.
-docs = ["mkdocstrings-python>=2.0.3", "zensical==0.0.67"]
-dev = [
-    "bump-my-version>=1.2.7",
+# Unpublished tool groups: use Python 3.13 for development (minimum 3.11).
+# The test-only group remains compatible with the package's Python 3.10 floor.
+docs = ["mkdocstrings-python>=2.0.3", "zensical==0.0.74"]
+test = [
     "hypothesis>=6.100",
-    "mypy>=1.10",
-    "pre-commit>=3.5.0",
     # pytest 9.2 builds nodeid from Node._id, so pytest-xdist 3.8.0's --dist
     # loadgroup no longer groups the live-DB tests (pytest-xdist#1386, fixed
     # by #1388 on its main, unreleased). When an xdist release has #1388,
@@ -117,10 +114,20 @@ dev = [
     "pytest-cov>=5.0.0",
     "pytest-lsp>=1.0",
     "pytest-xdist>=3.8.0",
+]
+dev = [
+    "bump-my-version>=1.2.7",
+    "mypy>=1.10",
+    "pre-commit>=3.5.0",
     "ruff>=0.4",
     "tox-uv>=1.13.1",
+    { include-group = "test" },
     { include-group = "docs" },
 ]
+
+[tool.uv.dependency-groups]
+dev = { requires-python = ">=3.11" }
+docs = { requires-python = ">=3.11" }
 
 [project.urls]
 Homepage = "https://execsql2.readthedocs.io/en/stable/"
@@ -352,9 +359,9 @@ basepython = "python3.13"
 [tool.tox.env_run_base]
 description = "Run tests under {base_python}"
 extras = ["all"]
-dependency_groups = ["dev"]
+dependency_groups = ["test"]
 allowlist_externals = ["pytest"]
-commands = [["pytest", "{posargs}"]]
+commands = [["pytest", { replace = "posargs", extend = true }]]
 # Pass through user/login env vars so getpass.getuser() works on Windows
 # (tox strips the environment by default; without these it falls through to
 # `import pwd` which does not exist on Windows).

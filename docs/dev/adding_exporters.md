@@ -1,67 +1,38 @@
 # Adding a New Exporter
 
-This guide walks through every step required to add a new export format to execsql. The process involves three files: write the exporter function, register the format string in the EXPORT handler, and add tests.
+Choose between an in-tree EXPORT format and a separately installed metacommand plugin. This guide describes the complete in-tree registration path. The example adds a `MYFORMAT` alias for CSV so registration, file handling and tests can be exercised without inventing a file format. A new encoding needs its own writer and value-preservation tests.
 
-______________________________________________________________________
+<a id="background-how-exporters-work"></a>
+<a id="the-export-dispatch"></a>
+<a id="the-core-pattern"></a>
 
-## Background: How Exporters Work
+## Follow the actual dispatch
 
-Exporters are standalone module-level functions. There is no base class to subclass — every exporter follows the same call signature and pattern, but is otherwise independent.
+Users write either:
 
-### The EXPORT dispatch
-
-When a script runs `-- !x! EXPORT TO myfile.ext FORMAT myformat`, the `x_export` handler in `src/execsql/metacommands/io_export.py` matches the format string against an `if filefmt in (...): ... elif ...:` chain and calls the corresponding exporter function. Adding a new format means adding one `elif` branch.
-
-### The core pattern
-
-Every exporter does three things:
-
-1. Call `db.select_rowsource(select_stmt)` to get a streaming `(headers, rows)` generator from the database.
-1. Open an output file (or a `ZipWriter` wrapper if writing into a zip).
-1. Iterate `rows`, write output, and close.
-
-```python
-def write_query_to_myformat(
-    select_stmt: str,
-    db: Any,
-    outfile: str,
-    append: bool = False,
-    desc: str | None = None,
-    zipfile: str | None = None,
-) -> None:
-    hdrs, rows = db.select_rowsource(select_stmt)
-    # open output and write...
+```sql
+-- !x! EXPORT t TO out.myformat AS MYFORMAT
+-- !x! EXPORT QUERY <<select * from t;>> TO out.myformat AS MYFORMAT
 ```
 
-`db.select_rowsource()` returns a tuple of `(list[str], generator)`. The generator yields one row at a time as a list of Python values. Reading it is lazy — execsql never loads the entire result set into memory.
+These forms work **after** implementing and registering the format below. There is no `EXPORT SELECT ... FORMAT ...` form.
 
-______________________________________________________________________
+`metacommands/dispatch.py` accepts format names from constants in `metacommands/__init__.py`. Table and query handlers in `metacommands/io_export.py` both call `_dispatch_format()`. Adding a writer or handler branch alone does not make a format reachable: the grammar must accept its name too.
 
-## Step-by-step: Adding an Exporter
+Writers may open their own row source or receive headers and an iterable of rows from the handler. For example, the Parquet branch receives the streaming row generator returned by `db.select_rowsource()`, not necessarily materialized rows. Follow the branch you extend; there is no universal writer signature.
 
-### Step 1 — Write the exporter function
+<a id="step-by-step-adding-an-exporter"></a>
+<a id="step-1-write-the-exporter-function"></a>
 
-Create a new file `src/execsql/exporters/myformat.py` (or add to an existing module if the format is closely related to one that already exists).
+## Implement the writer
 
-Here is a minimal plain-text exporter as a working skeleton:
+Create `src/execsql/exporters/myformat.py`:
 
 ```python
-# src/execsql/exporters/myformat.py
-from __future__ import annotations
-
-"""
-Plain-text (tab-separated) export for execsql.
-
-Provides :func:`write_query_to_myformat`.
-"""
-
 from typing import Any
 
 import execsql.state as _state
-from execsql.exceptions import ErrInfo
-from execsql.exporters.zip import ZipWriter
-from execsql.utils.errors import exception_desc
-from execsql.utils.fileio import filewriter_close
+from execsql.exporters.delimited import write_delimited_file
 
 
 def write_query_to_myformat(
@@ -72,121 +43,75 @@ def write_query_to_myformat(
     desc: str | None = None,
     zipfile: str | None = None,
 ) -> None:
-    """Export *select_stmt* result set to *outfile* in my custom format."""
-    conf = _state.conf
+    """Write CSV using the existing CSV value and output rules."""
+    headers, rows = db.select_rowsource(select_stmt)
     try:
-        hdrs, rows = db.select_rowsource(select_stmt)
-    except ErrInfo:
-        raise
-    except Exception:
-        raise ErrInfo("db", select_stmt, exception_msg=exception_desc())
-
-    if zipfile is None:
-        filewriter_close(outfile)
-        from execsql.utils.fileio import EncodedFile
-
-        ef = EncodedFile(outfile, conf.output_encoding)
-        f = ef.open("at" if append else "wt")
-    else:
-        f = ZipWriter(zipfile, outfile, append)
-
-    # Write header line
-    f.write("\t".join(str(h) for h in hdrs) + "\n")
-
-    # Write data rows
-    for row in rows:
-        f.write("\t".join("" if v is None else str(v) for v in row) + "\n")
-
-    f.close()
+        write_delimited_file(
+            outfile, "csv", headers, rows,
+            _state.conf.output_encoding, append, zipfile,
+        )
+    finally:
+        rows.close()
 ```
 
-Key points:
+Reusing the CSV writer retains its quoting, encoding, APPEND, stdout and ZIP behavior. It also handles coordination with pending background text writes. `desc` is deliberately ignored because CSV has no description header.
 
-- **Always call `filewriter_close(outfile)` before opening** when writing to a plain file. This flushes any pending background write for the same path from a previous EXPORT in the same script run.
-- **Support `append`** — open in `"at"` mode when `append=True`, `"wt"` otherwise.
-- **Support `zipfile`** — use `ZipWriter` when a zip output path is provided.
-- **Raise `ErrInfo`** for expected failure conditions rather than a bare `raise` or `sys.exit`.
-- **Import lazily** if the format requires an optional dependency (e.g., `import mylib` inside the function body) so that execsql still runs for users who do not have the library installed.
+For a genuinely new writer, define null, number, timestamp, binary and text representations explicitly. Close the row source and output handles on failures; do not close stdout. Flush/close pending background writes with `filewriter_close(outfile)` before opening the same plain file synchronously. Use `ZipWriter` only if the format can be streamed into an archive. Import optional dependencies lazily and report expected failures as `ErrInfo`. Match existing stored/exported values rather than optimizing through a different conversion path.
 
-The `desc` parameter is optional metadata passed from the EXPORT metacommand. Store it in the output header if your format supports it; otherwise ignore it.
+<a id="step-2-register-the-format-in-the-export-handler"></a>
+<a id="checklist"></a>
 
-### Step 2 — Register the format in the EXPORT handler
+## Register grammar and dispatch
 
-Open `src/execsql/metacommands/io_export.py`. At the top, import your new function:
+1. Add `"MYFORMAT"` to both `QUERY_EXPORT_FORMATS` and `TABLE_EXPORT_FORMATS` in `src/execsql/metacommands/__init__.py`. Names in these lists are uppercase. `ALL_EXPORT_FORMATS` is derived from them; do not create a competing list.
 
-```python
-from execsql.exporters.myformat import write_query_to_myformat
-```
+1. Import `write_query_to_myformat` in `src/execsql/metacommands/io_export.py`.
 
-Then find the `if filefmt in ("txt", "text"):` chain inside the `x_export` handler and add a new `elif` branch at the appropriate position:
+1. Add this branch to `_dispatch_format()` alongside the other named writers. Handler format values are lowercase:
 
-```python
-elif filefmt == "myformat":
-    write_query_to_myformat(
-        select_stmt,
-        _state.dbs.current(),
-        outfile,
-        append,
-        desc=description,
-        zipfile=zipfilename,
-    )
-```
+    ```python
+    elif filefmt == "myformat":
+        write_query_to_myformat(
+            select_stmt, db, outfile, append,
+            desc=description, zipfile=zipfilename,
+        )
+    ```
 
-**Format string naming:** the format string is what the user writes after `FORMAT` in the EXPORT metacommand (`FORMAT myformat`). Use lowercase, no spaces. If you need to support multiple aliases (e.g., `myformat` and `myfmt`), use `elif filefmt in ("myformat", "myfmt"):`.
+1. Document the new AS format and its semantics in [EXPORT](../reference/metacommands.md#export). Update any syntax forms that enumerate formats in `metacommands/reference.py`; retain valid reference samples. If you add a separate metacommand rather than a format, follow the complete [metacommand registration checklist](adding_metacommands.md).
 
-If your format does not support zip output, add a guard near the top of the function alongside the existing `feather` and `hdf5` checks:
+1. Run `just install-vscode` after changing the keyword vocabulary to regenerate the extension grammar. This command also installs/links the local development extension; use a development environment where that action is intended.
 
-```python
-if zipfilename is not None:
-    if filefmt == "myformat":
-        raise ErrInfo("error", other_msg="Cannot export to myformat within a zipfile.")
-```
+If a new format does not support ZIP, add it to `_NO_ZIP_FORMATS`, which `_check_zip_compat()` reads, in `io_export.py` and test rejection. If it does not support APPEND, reject that combination explicitly instead of silently overwriting or ignoring it. Follow the existing type-specific handlers if the format needs additional arguments, such as a destination table.
 
-### Step 3 — Add tests
+<a id="step-3-add-tests"></a>
 
-Add a test class to `tests/exporters/test_myformat_exporter.py` (or the appropriate test file). Integration tests against a real SQLite database are preferred:
+## Test the whole path
+
+After registration, use a temporary SQLite database and the real CLI. A test should cover table and query forms, not just a direct writer call:
 
 ```python
-import pytest
-from pathlib import Path
+import csv
 from typer.testing import CliRunner
 from execsql.cli import app
 
 
-@pytest.fixture()
-def runner():
-    return CliRunner()
-
-
-class TestMyFormatExporter:
-    """EXPORT FORMAT myformat."""
-
-    def test_basic_export(self, runner, tmp_path):
-        db = tmp_path / "test.db"
-        out = tmp_path / "out.myformat"
-        script = tmp_path / "test.sql"
-        script.write_text(
-            "CREATE TABLE t (id INTEGER, name TEXT);\n"
-            "INSERT INTO t VALUES (1, 'alpha'), (2, 'beta');\n"
-            f"-- !x! EXPORT SELECT * FROM t TO {out} FORMAT myformat\n"
-        )
-        result = runner.invoke(app, ["-tl", str(script), str(db), "-n"])
-        assert result.exit_code == 0, result.output
-        assert out.exists()
-        content = out.read_text()
-        assert "alpha" in content
-        assert "beta" in content
+def test_myformat_export(tmp_path):
+    script = tmp_path / "export.sql"
+    target = tmp_path / "out.myformat"
+    script.write_text(
+        "create table t (id integer, name text);\n"
+        "insert into t values (1, 'alpha'), (2, 'O''Brien');\n"
+        f'-- !x! EXPORT QUERY <<select * from t order by id;>> TO "{target}" AS MYFORMAT\n',
+        encoding="utf-8",
+    )
+    result = CliRunner().invoke(app, ["run", "--dsn", "sqlite:///:memory:", str(script)])
+    assert result.exit_code == 0, result.output
+    with target.open(newline="", encoding="utf-8-sig") as stream:
+        assert list(csv.reader(stream)) == [["id", "name"], ["1", "alpha"], ["2", "O'Brien"]]
 ```
 
-______________________________________________________________________
+Add cases for empty results, delimiters/newlines/quotes in values, every supported value type, append, ZIP, stdout, encoding, invalid output paths and cleanup after an I/O error. For an optimization, compare the existing and new output over the full value/type/error matrix. Run the registry/reference tests and the applicable exporter tests, then the normal quality gates in [CONTRIBUTING](contributing.md).
 
-## Checklist
+## Plugin alternative
 
-- [ ] Exporter function written in `src/execsql/exporters/myformat.py`
-- [ ] Function imported in `src/execsql/metacommands/io_export.py`
-- [ ] `elif filefmt == "myformat":` branch added in `x_export()`
-- [ ] Zip guard added if the format does not support zip output
-- [ ] Test added to `tests/exporters/`
-- [ ] `pytest` passes locally
-- [ ] New format string documented in [Metacommands — EXPORT](../reference/metacommands.md#export)
-- [ ] New library dependency (if any) added to `pyproject.toml` extras and documented in [Requirements](../getting-started/requirements.md#libraries)
+An installed plugin can register a custom metacommand and call its writer without editing core files; use `extras/plugin-template/` and [Adding Metacommands](adding_metacommands.md). Install it in the same Python environment as execsql. `execsql list plugins` lists installed entry-point names; it does not invoke exporter-registration callbacks or populate their registries. See the canonical [plugin lifecycle](architecture.md#plugin-system). Supply a metacommand handler for the custom format, or use the in-tree path above, and verify a real script invocation.

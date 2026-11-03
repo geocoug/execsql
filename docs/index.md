@@ -1,67 +1,65 @@
 # A Multi-DBMS SQL Script Processor
 
-[![image](images/execsql_logo_01.png)](https://pypi.org/project/execsql2/)
+[![execsql logo](images/execsql_logo_01.png)](https://pypi.org/project/execsql2/)
 
-*execsql* is a command-line tool that applies a SQL script stored in a text file to a PostgreSQL, SQLite, DuckDB, MS-SQL-Server, MariaDB, MySQL, Firebird, MS-Access, or Oracle database, or an ODBC DSN. *execsql* also supports a set of special commands ([metacommands](reference/metacommands.md#metacommands)) that can import and export data, copy data between databases, display data, and conditionally execute SQL statements and metacommands. These metacommands make up a control language that works the same across all supported database management systems (DBMSs). The metacommands are embedded in SQL comments, so they will be ignored by other script processors (e.g., *psql* for Postgres and *sqlcmd* for SQL Server). The metacommands are a toolbox that can be used to create both automated and interactive data processing applications; some of these uses are illustrated in the [examples](guides/examples.md#examples).
+**execsql2** is a command-line tool for turning SQL scripts into repeatable data workflows. Use SQL to transform your data, with commands for loading files, checking results, moving data between databases and producing reports in the same script.
 
-# Capabilities
+The Python package is **execsql2**; its command and importable module are **execsql**. It works with PostgreSQL, MySQL/MariaDB, SQL Server, SQLite, DuckDB, Firebird, MS Access, Oracle and ODBC DSNs. See [database support and requirements](getting-started/requirements.md#support-tiers) for drivers and support tiers.
 
-You can use *execsql* to:
+## Why use execsql?
 
-- Import data from text files and spreadsheets into a database.
-- Export tables and views to ~30 data formats including CSV, OpenDocument spreadsheets, XLSX, HTML, JSON, JSON Lines, YAML, Markdown, LaTeX, XML, Parquet, Feather, HDF5, SQLite, and DuckDB.
-- Copy data between different databases, even databases using different DBMSs.
-- Display tables or views on the terminal or in a GUI dialog window.
-- Export data using template processors to produce non-tabular output with customized format and contents.
-- Conditionally execute different SQL commands and metacommands based on the DBMS in use, the database in use, data values, user input, and other conditions.
-- Execute blocks of SQL statements and metacommands repeatedly, using any of three different looping methods.
-- Prompt the user to select files or directories, answer questions, or enter data values.
-- Allow the user to visually compare two tables or views.
-- Serve data tables to a web application when used as a CGI script.
-- Write messages to the console or to a file during the processing of a SQL script. These messages can be used to display the progress of the script or create a custom log of the operations that have been carried out or results obtained. Status messages and data exported in text format can be combined in a single text file. Data tables can be exported in a text format that is compatible with Markdown pipe tables, so that script output can be converted into a variety of document formats (see [Example 8](guides/examples.md#example8) and [Example 11](guides/examples.md#example11)).
+**Keep the workflow beside the SQL.** An import, a transformation, a validation check and an export can live in one readable, version-controlled file. You can run it from your terminal, schedule it or call it from another program, without writing a separate application to coordinate those steps.
 
-Different DBMSs and DBMS-specific client programs provide different and incompatible extensions to SQL, ordinarily to allow interactions with the file system and to allow conditional tests and looping. Some DBMSs do not have any native extensions of this sort. *execsql* provides these features, as well as features for user interaction, in an identical fashion for all supported DBMSs. This allows standardization of the SQL scripting language used for different types of database management systems.
+**Use the same scripting tools across databases.** Variables, conditions, loops, file operations and prompts use the same metacommands on every supported backend. Your SQL still needs to match the database's dialect, but you can reuse the surrounding workflow and branch where databases differ.
 
-*execsql*'s features for conditional tests, looping, and sub-scripts allow the script author to write modular, maintainable, and re-usable code.
+**Make routine work repeatable and inspectable.** Parameterize a script for different inputs, stop when a validation fails, split shared work into reusable scripts and keep a log of each run. Add prompts and data displays when a person needs to choose a file or review results.
 
-*execsql* is inherently a command-line program that can operate in a completely non-interactive mode (except, in some cases, for password prompts). Therefore, it is suitable for incorporation into a toolchain controlled by a shell script (on Linux), batch file (on Windows), or other system-level scripting application. However, several [metacommands](reference/metacommands.md#metacommands) can be used to generate interactive prompts and data displays, so *execsql* scripts can be written to provide some user interactivity.
+<a id="capabilities"></a>
 
-In addition, *execsql* automatically maintains a [log](guides/logging.md#logging) that documents key information about each run of the program, including the databases that are used, the scripts that are run, and the user's choices in response to interactive prompts. Together, the script and the log provide documentation of all actions carried out that may have altered data.
+## What can you do with it?
 
-# Documentation Guide
+- **Load and validate data:** import CSV, JSON or spreadsheets, transform records with SQL, and use `ASSERT` to check assumptions before continuing. Start with the [CSV-to-SQLite walkthrough](getting-started/first-script.md).
+- **Move data between systems:** connect to multiple databases and copy tables or query results between them, including different DBMSs. See [data movement and validation examples](guides/examples/data-movement.md).
+- **Produce deliverables:** export tables and queries to CSV, XLSX, JSON, Parquet, HTML and other formats, or use templates for custom reports. See [reports and external commands](guides/examples/reports.md). Some formats require [optional extras](getting-started/installation.md#extras).
+- **Automate recurring jobs:** use variables, conditions, loops and named scripts for repeatable loads, checks and exports. See [control-flow examples](guides/examples/control-flow.md) and [transaction behavior](guides/usage.md#autocommit) before changing persistent data.
+- **Build interactive SQL tools:** ask for input, select files and display results for review. See [interactive tools and debugging](guides/examples/interactive.md) for examples and GUI/TUI requirements.
 
-The sections of the *execsql* documentation fall into several categories, described in the following sections.
+## How scripts work
 
-## Getting Started
+Write ordinary SQL and add metacommands in comments beginning with `-- !x!`. execsql runs the SQL against your database and handles the metacommands itself. Other SQL tools ignore those comments; scripts that depend on them or on variable substitution need execsql to perform their intended work.
 
-These documentation sections contain information that most users will need to read in order to start using *execsql*.
+The toolchain also helps before you run a script: **`execsql format`** formats SQL and metacommands, **`execsql lint`** checks scripts without a database, and the [language server](guides/editors.md) brings diagnostics, completion, navigation and formatting into your editor. Formatting and linting can also run in pre-commit or CI.
 
-- [Installation](getting-started/installation.md#installation): Installation of *execsql*.
-- [Requirements](getting-started/requirements.md#requirements): Other Python packages that may be needed.
-- [Syntax and Options](getting-started/syntax.md#syntax): Command-line arguments and flags.
+<a id="getting-started"></a>
 
-## Major Features and Reference
+## Start here
 
-These documentation sections contain detailed descriptions of major features of *execsql*. These sections may need to be consulted repeatedly when writing SQL scripts. Some tips and guidance are included within these sections; see below for other sections containing tips and guidance.
+[Your first script](getting-started/first-script.md) supplies a CSV file, a SQLite script, exact commands and expected results. No server or account is needed.
 
-- [Configuration Files](reference/configuration.md#configuration): Fire-and-forget control over *execsql*'s environment and operation.
-- [Substitution Variables](reference/substitution_vars.md#substitution_vars): Text substitutions to customize any part of a script.
-- [Metacommands](reference/metacommands.md#metacommands): Import and export data, interact with the user, and dynamically control script flow.
+```sh
+uv tool install execsql2
+execsql --help
+```
 
-## Tips and Guidance
+<a id="documentation-guide"></a>
+<a id="major-features-and-reference"></a>
+<a id="tips-and-guidance"></a>
+<a id="examples"></a>
 
-These documentation sections include information that is pertinent to specific DBMSs and may improve your understanding and usage of *execsql*'s features. If you are encountering unexpected behavior, information in these sections may be of assistance.
+## Choose a task
 
-- [Usage Notes](guides/usage.md#usage): Important but not necessarily essential information about *execsql*'s operation.
-- [SQL Syntax Notes](guides/sql_syntax.md#sql_syntax): Details about handling of SQL statements.
-- [Logging](guides/logging.md#logging): A description of the automatically maintained log file, which can be useful for *post-mortem* evaluation of script actions.
-- [Character Encoding](guides/encoding.md#encoding): Information on handling of different character encodings.
-- [Using Script Files](guides/using_scripts.md#scripting): Recommendations (really, advocacy) for the use of script files.
-- [Documenting Script Actions](guides/documentation.md#documentation): Information to support the creation of comprehensive documentation.
-- [Debugging](guides/debugging.md#debugging): Metacommands to assist with SQL script debugging.
+| Task                                          | Read                                                                                                |
+| --------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| Install or add database/format support        | [Installation and extras](getting-started/installation.md)                                          |
+| Find a CLI subcommand or option               | [Commands](reference/cli/index.md)                                                                  |
+| Write scripts with variables and metacommands | [Metacommands](reference/metacommands.md), [substitution variables](reference/substitution_vars.md) |
+| Understand commits, errors and rollback       | [Transaction behavior](guides/usage.md#autocommit)                                                  |
+| Find a worked recipe                          | [Examples by task](guides/examples.md), [script templates](templates/index.md)                      |
+| Set up VS Code or another editor              | [Editor setup](guides/editors.md)                                                                   |
+| Call execsql from Python                      | [Library API](api/index.md)                                                                         |
 
-## Examples
+## About the package
 
-This section contains examples of *execsql*'s usage, focusing primarily on [metacommands](reference/metacommands.md#metacommands). The code snippets in these examples can generally be easily modified for use in other applications.
+execsql2 is a maintained fork of execsql 1.130.1, originally written by R.Dreas Nielsen, and is maintained by [Caleb Grant](https://github.com/geocoug). Migrating users should read [changes from upstream](about/divergence.md); deliberate differences and deprecations are documented there. [Release notes](about/change_log.md) describe changes between execsql2 versions.
 
-- [Examples](guides/examples.md#examples): Code snippets to illustrate *execsql* usage.
+The package is available on [PyPI](https://pypi.org/project/execsql2/), with source code and issue tracking on [GitHub](https://github.com/geocoug/execsql).

@@ -2,64 +2,93 @@
 site_name = "execsql2"
 site_author = "Caleb Grant"
 site_description = "A multi-DBMS SQL script processor"
-site_url = "https://execsql2.readthedocs.io/"
+site_url = "https://execsql2.readthedocs.io/en/stable/"
 repo_url = "https://github.com/geocoug/execsql"
 repo_name = "geocoug/execsql"
 docs_dir = "docs"
+# These are public script-template guides; Zensical excludes templates/ by default.
+exclude_docs = "!/templates/"
 copyright = "Copyright &copy; 2007-2025 R.Dreas Nielsen, 2026-present Caleb Grant"
 nav = [
     { "Home" = "index.md" },
     { "Getting Started" = [
         { "Installation" = "getting-started/installation.md" },
-        { "Requirements" = "getting-started/requirements.md" },
-        { "Syntax & Options" = "getting-started/syntax.md" }
+        { "Your First Script" = "getting-started/first-script.md" },
+        { "Database Support & Requirements" = "getting-started/requirements.md" }
     ] },
-    { "Reference" = [
-        { "Configuration" = "reference/configuration.md" },
-        { "Substitution Variables" = "reference/substitution_vars.md" },
-        { "Metacommands" = "reference/metacommands.md" },
-        { "Lint Rules" = "reference/lint.md" },
-        { "Security" = "reference/security.md" }
-    ] },
-    { "Guides" = [
-        { "Usage Notes" = "guides/usage.md" },
-        { "SQL Syntax Notes" = "guides/sql_syntax.md" },
-        { "Logging" = "guides/logging.md" },
-        { "Character Encoding" = "guides/encoding.md" },
-        { "Using Script Files" = "guides/using_scripts.md" },
-        { "Documenting Script Actions" = "guides/documentation.md" },
-        { "Debugging" = "guides/debugging.md" },
+    { "Commands" = [
+        { "Overview" = "reference/cli/index.md" },
+        { "execsql run" = "getting-started/syntax.md" },
         { "execsql format" = "guides/formatter.md" },
-        { "Editor Support" = "guides/editors.md" },
-        { "Examples" = "guides/examples.md" }
+        { "execsql lint" = "reference/lint.md" },
+        { "execsql config" = "reference/cli/config.md" },
+        { "execsql list" = "reference/cli/list.md" },
+        { "execsql init" = "reference/cli/init.md" },
+        { "execsql lsp" = "reference/cli/lsp.md" }
     ] },
-    { "Templates" = [
-        { "Overview" = "templates/index.md" },
-        { "Upsert" = "templates/upsert.md" },
-        { "Compare" = "templates/compare.md" },
-        { "Glossary" = "templates/glossary.md" }
+    { "Scripting" = [
+        { "Reference" = [
+            { "Metacommands" = "reference/metacommands.md" },
+            { "Substitution Variables" = "reference/substitution_vars.md" },
+            { "Configuration" = "reference/configuration.md" },
+            { "Security" = "reference/security.md" }
+        ] },
+        { "Guides" = [
+            { "SQL Syntax" = "guides/sql_syntax.md" },
+            { "Execution & Transactions" = "guides/usage.md" },
+            { "Logging" = "guides/logging.md" },
+            { "Documenting Script Actions" = "guides/documentation.md" },
+            { "Character Encoding" = "guides/encoding.md" },
+            { "Using Script Files" = "guides/using_scripts.md" },
+            { "Debugging" = "guides/debugging.md" }
+        ] }
     ] },
-    { "Contributing" = [
+    { "Examples & Templates" = [
+        { "Examples by Task" = [
+            { "Overview" = "guides/examples.md" },
+            { "Basics & Variables" = "guides/examples/basics.md" },
+            { "Data Movement & Validation" = "guides/examples/data-movement.md" },
+            { "Control Flow" = "guides/examples/control-flow.md" },
+            { "Reports & External Commands" = "guides/examples/reports.md" },
+            { "Interactive Tools & Debugging" = "guides/examples/interactive.md" }
+        ] },
+        { "Script Templates" = [
+            { "Overview" = "templates/index.md" },
+            { "Upsert" = "templates/upsert.md" },
+            { "Compare" = "templates/compare.md" },
+            { "Glossary" = "templates/glossary.md" }
+        ] }
+    ] },
+    { "Editors" = [
+        { "Setup & Overview" = "guides/editors.md" },
+        { "VS Code" = "guides/editors/vscode.md" },
+        { "Other Editors" = "guides/editors/other-editors.md" },
+        { "Language-server Features" = "reference/language-server.md" }
+    ] },
+    { "Development" = [
+        { "Contributing" = "dev/contributing.md" },
+        { "Python Library API" = [
+            { "Overview & Examples" = "api/index.md" },
+            { "CLI Internals" = "api/cli.md" },
+            { "Databases" = "api/db.md" },
+            { "Exporters" = "api/exporters.md" },
+            { "Importers" = "api/importers.md" },
+            { "Metacommands" = "api/metacommands.md" }
+        ] },
         { "Architecture" = "dev/architecture.md" },
-        { "Adding Metacommands" = "dev/adding_metacommands.md" },
-        { "Adding Exporters" = "dev/adding_exporters.md" },
-        { "Adding Database Adapters" = "dev/adding_db_adapters.md" },
-        { "Adding Importers" = "dev/adding_importers.md" },
+        { "Extension Development" = [
+            { "Adding Metacommands" = "dev/adding_metacommands.md" },
+            { "Adding Exporters" = "dev/adding_exporters.md" },
+            { "Adding Importers" = "dev/adding_importers.md" },
+            { "Adding Database Adapters" = "dev/adding_db_adapters.md" }
+        ] },
         { "Release Process" = "dev/releasing.md" }
     ] },
-    { "API Reference" = [
-        { "Overview" = "api/index.md" },
-        { "CLI" = "api/cli.md" },
-        { "Databases" = "api/db.md" },
-        { "Exporters" = "api/exporters.md" },
-        { "Importers" = "api/importers.md" },
-        { "Metacommands" = "api/metacommands.md" }
-    ] },
     { "About" = [
-        { "Divergence from Upstream" = "about/divergence.md" },
+        { "Changes from Upstream" = "about/divergence.md" },
+        { "Changelog" = "about/change_log.md" },
         { "Copyright" = "about/copyright.md" },
-        { "Contributors" = "about/contributors.md" },
-        { "Change Log" = "about/change_log.md" }
+        { "Contributors" = "about/contributors.md" }
     ] }
 ]
 
@@ -81,12 +110,14 @@ features = [
     "navigation.tabs",
     "navigation.tabs.sticky",
     "navigation.sections",
+    "navigation.indexes",
     "navigation.path",
     "navigation.tracking",
     "navigation.top",
     "toc.follow",
     "search.highlight",
     "content.code.copy",
+    "content.action.copy",
     "content.code.annotate",
     "content.tabs.link",
 ]
@@ -137,3 +168,74 @@ format = "pymdownx.superfences.fence_code_format"
 alternate_style = true
 [project.markdown_extensions.pymdownx.tasklist]
 custom_checkbox = true
+
+# Preserve published section bookmarks after splitting editor and example pages.
+[project.plugins.redirects.redirect_maps]
+"guides/examples.md#example1" = "guides/examples/basics.md#example1"
+"guides/examples.md#example5" = "guides/examples/basics.md#example5"
+"guides/examples.md#example7" = "guides/examples/basics.md#example7"
+"guides/examples.md#example9" = "guides/examples/basics.md#example9"
+"guides/examples.md#example16" = "guides/examples/basics.md#example16"
+"guides/examples.md#example24" = "guides/examples/basics.md#example24"
+"guides/examples.md#example42" = "guides/examples/basics.md#example42"
+"guides/examples.md#example6" = "guides/examples/control-flow.md#example6"
+"guides/examples.md#example10" = "guides/examples/control-flow.md#example10"
+"guides/examples.md#example11" = "guides/examples/control-flow.md#example11"
+"guides/examples.md#example14" = "guides/examples/control-flow.md#example14"
+"guides/examples.md#example15" = "guides/examples/control-flow.md#example15"
+"guides/examples.md#example3" = "guides/examples/data-movement.md#example3"
+"guides/examples.md#example4" = "guides/examples/data-movement.md#example4"
+"guides/examples.md#example12" = "guides/examples/data-movement.md#example12"
+"guides/examples.md#example13" = "guides/examples/data-movement.md#example13"
+"guides/examples.md#example19" = "guides/examples/data-movement.md#example19"
+"guides/examples.md#example20" = "guides/examples/data-movement.md#example20"
+"guides/examples.md#example21" = "guides/examples/data-movement.md#example21"
+"guides/examples.md#example25" = "guides/examples/data-movement.md#example25"
+"guides/examples.md#example28" = "guides/examples/data-movement.md#example28"
+"guides/examples.md#example31" = "guides/examples/data-movement.md#example31"
+"guides/examples.md#example34" = "guides/examples/data-movement.md#example34"
+"guides/examples.md#example35" = "guides/examples/data-movement.md#example35"
+"guides/examples.md#example40" = "guides/examples/data-movement.md#example40"
+"guides/examples.md#example2" = "guides/examples/interactive.md#example2"
+"guides/examples.md#example17" = "guides/examples/interactive.md#example17"
+"guides/examples.md#example18" = "guides/examples/interactive.md#example18"
+"guides/examples.md#example23" = "guides/examples/interactive.md#example23"
+"guides/examples.md#example27" = "guides/examples/interactive.md#example27"
+"guides/examples.md#example30" = "guides/examples/interactive.md#example30"
+"guides/examples.md#example32" = "guides/examples/interactive.md#example32"
+"guides/examples.md#example36" = "guides/examples/interactive.md#example36"
+"guides/examples.md#example37" = "guides/examples/interactive.md#example37"
+"guides/examples.md#example38" = "guides/examples/interactive.md#example38"
+"guides/examples.md#example39" = "guides/examples/interactive.md#example39"
+"guides/examples.md#example8" = "guides/examples/reports.md#example8"
+"guides/examples.md#example22" = "guides/examples/reports.md#example22"
+"guides/examples.md#example26" = "guides/examples/reports.md#example26"
+"guides/examples.md#example29" = "guides/examples/reports.md#example29"
+"guides/examples.md#example33" = "guides/examples/reports.md#example33"
+"guides/examples.md#example41" = "guides/examples/reports.md#example41"
+"guides/examples.md#example43" = "guides/examples/reports.md#example43"
+"guides/examples.md#a-using-prompt-enter_sub" = "guides/examples/interactive.md#a-using-prompt-enter_sub"
+"guides/examples.md#b-using-prompt-entry_form" = "guides/examples/interactive.md#b-using-prompt-entry_form"
+"guides/editors.md#vscode" = "guides/editors/vscode.md"
+"guides/editors.md#neovim" = "guides/editors/other-editors.md#neovim"
+"guides/editors.md#helix" = "guides/editors/other-editors.md#helix"
+"guides/editors.md#other" = "guides/editors/other-editors.md#other"
+"getting-started/syntax.md#config_command" = "reference/cli/config.md"
+"getting-started/syntax.md#config_validate" = "reference/cli/config.md#config_validate"
+"getting-started/syntax.md#list" = "reference/cli/list.md"
+"getting-started/syntax.md#init" = "reference/cli/init.md"
+"guides/editors.md#completion" = "reference/language-server.md#completion"
+"guides/editors.md#hover" = "reference/language-server.md#hover"
+"guides/editors.md#navigation" = "reference/language-server.md#navigation"
+"guides/editors.md#rename" = "reference/language-server.md#rename"
+"guides/editors.md#folding" = "reference/language-server.md#folding"
+"guides/editors.md#quick-fixes" = "reference/language-server.md#quick-fixes"
+"guides/editors.md#formatting" = "reference/language-server.md#formatting"
+
+# Curated public Markdown exports; omit generated API internals and historical release notes.
+[project.plugins.llmstxt.sections]
+"Start here" = ["index.md", "getting-started/installation.md", "getting-started/first-script.md", "getting-started/requirements.md"]
+"Commands" = ["reference/cli/*.md", "getting-started/syntax.md", "guides/formatter.md", "reference/lint.md"]
+"Scripting" = ["reference/configuration.md", "reference/metacommands.md", "reference/substitution_vars.md", "reference/security.md", "guides/usage.md", "guides/sql_syntax.md"]
+"Recipes" = ["guides/examples.md", "guides/examples/*.md", "templates/*.md"]
+"Editors and Python API" = ["guides/editors.md", "guides/editors/*.md", "reference/language-server.md", "api/index.md"]

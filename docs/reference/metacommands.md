@@ -144,7 +144,7 @@ Pauses script execution and drops into an interactive debug REPL (read-eval-prin
 
 **Non-interactive safety:** If `sys.stdin` is not a TTY (e.g. CI pipelines, piped input, batch execution) the metacommand is silently skipped. Scripts will never hang in automation.
 
-All REPL commands are dot-prefixed to avoid ambiguity with variable names and SQL. Anything without a dot prefix is treated as a variable lookup or SQL.
+Debugger commands are dot-prefixed. The REPL also accepts SQL and metacommands beginning with `-- !x!` or `!x!`; use `.vars NAME` to inspect a substitution variable.
 
 **REPL commands (dot-prefixed):**
 
@@ -168,9 +168,9 @@ All REPL commands are dot-prefixed to avoid ambiguity with variable names and SQ
 |-------|-------------|
 | `SELECT * FROM t;` | Run ad-hoc SQL against the current database and pretty-print results |
 | `SELECT *` then `FROM t;` | Multi-line SQL — the prompt switches to a continuation form (`  ...        > `) until a line ends with `;` |
-| `INSERT INTO t …;`, `BEGIN;`, `COMMIT;`, etc. | DML, DDL, and transaction-control statements all run. DML/DDL is irreversible on most adapters — use `BEGIN; … ROLLBACK;` to bracket exploratory changes. |
+| `INSERT INTO t …;`, `BEGIN;`, `COMMIT;`, etc. | DML, DDL, and transaction-control statements all run. Statements use the active connection’s autocommit/batch policy. Enter `-- !x! AUTOCOMMIT OFF` before exploratory writes and explicitly roll back; a SQL `BEGIN` alone does not disable execsql’s default commits. See [transaction rules](#autocommit). |
 
-All non-dot input is SQL — there is no bare-identifier variable lookup. Type `.vars VAR` to inspect a variable. Errors raised by the SQL or by a dot-command print an inline `Error:` line and re-prompt; the REPL session does not exit on a typo. The trailing `;` is the SQL terminator both within one line and across multiple lines, and acts as a deliberate intent gate — the REPL has no read-only mode, and DDL on Oracle / MySQL / SQL Server / MS Access / SQLite is irreversible.
+Non-dot input is SQL or a prefixed metacommand — there is no bare-identifier variable lookup. Type `.vars VAR` to inspect a variable. Errors raised by the SQL or by a dot-command print an inline `Error:` line and re-prompt; the REPL session does not exit on a typo. The trailing `;` is the SQL terminator both within one line and across multiple lines, and acts as a deliberate intent gate — the REPL has no read-only mode, and executed SQL can change data. DDL rollback depends on the DBMS and transaction policy; SQL Server and SQLite can hold eligible DDL under `AUTOCOMMIT OFF` or a batch. See [transaction rules](#autocommit) for backend exceptions.
 
 Pressing Ctrl-D (EOF) or Ctrl-C (KeyboardInterrupt) at the `execsql debug>` prompt resumes execution, the same as typing `.continue`.
 
@@ -347,7 +347,7 @@ INSERT INTO !!#table!! SELECT * FROM staging;
 
 If a script name is provided with the END SCRIPT metacommand, it must match the name used in the corresponding BEGIN SCRIPT metacommand. If it does not, *execsql* will halt with an error message.
 
-A BEGIN/END SCRIPT block can be used in ways similar to a separate script file that is included with the [INCLUDE](#include) metacommand. Both allow the same code to be executed repeatedly, either at different locations in the main script or recursively to perform looping.
+A BEGIN/END SCRIPT block can be used in ways similar to a separate script file that is included with the [INCLUDE](#include) metacommand. Both allow reuse at different locations. File INCLUDE cycles, including self-INCLUDE, are rejected. Use LOOP or repeated EXECUTE SCRIPT calls for iteration; named-script recursion is distinct from file inclusion.
 
 
 The BEGIN SCRIPT and END SCRIPT metacommands are executed when a script file is read, not while the the script is being executed. As a consequence:
@@ -1159,7 +1159,7 @@ When a WHILE or UNTIL clause is used, the conditional expression will be evaluat
 If the conditional expression includes tests that use substitution variables, the time of evaluation of those substitution variables should be considered, because [deferred substitution](substitution_vars.md#deferred_substitution) may need to be used for some of them. For example, a script that is intended to be run 10 times, using a [counter variable](substitution_vars.md#counter_vars) in the UNTIL clause, should use [deferred substitution](substitution_vars.md#deferred_substitution) like this:
 
 ```
-EXECUTE SCRIPT do_me_over UNTIL (EQUAL("!!", "10"))
+EXECUTE SCRIPT do_me_over UNTIL (EQUAL("!{$COUNTER_1}!", "10"))
 ```
 
 If deferred substitution were not used, the value of \$COUNTER_1 would be immediately substituted as a fixed value during the first evaluation of the metacommand, and, presuming that this value does not already equal 10, the loop would then run forever, never finishing.
@@ -3010,7 +3010,7 @@ The background color for rows that have been selected from *table1* will be set 
 
 If a URL is provided with the HELP keyword, the dialog box will include a button that will open that URL when clicked. The URL must be double-quoted if it contains spaces.
 
-**Console backend (headless POSIX, `--gui-framework console`):** PROMPT SELECT_ROWS is a *degraded no-op* under the text-only console backend — the rows of *table1* are printed alongside a `"requires a GUI backend"` notice, but the dialog cannot collect double-click row selections. *Table2* is left in whatever state it was before the metacommand fired; scripts that depend on rows being populated must guard against this case (e.g. check `$LAST_ROWCOUNT` of `table2` afterwards, or run the script under `--gui-framework tkinter` / `textual` where the dialog is fully interactive). Tkinter and Textual backends are unaffected.
+**Console fallback (when an interactive GUI backend is unavailable):** PROMPT SELECT_ROWS is a *degraded no-op* under the text-only console backend — the rows of *table1* are printed alongside a `"requires a GUI backend"` notice, but the dialog cannot collect double-click row selections. *Table2* is left in whatever state it was before the metacommand fired; scripts that depend on rows being populated must guard against this case (e.g. check `$LAST_ROWCOUNT` of `table2` afterwards, or run the script under `--gui-framework tkinter` / `textual` where the dialog is fully interactive). Tkinter and Textual backends are unaffected.
 
 
 ## PROMPT SELECT_SUB { #prompt_selsub }

@@ -2,7 +2,7 @@
 
 ## Development Setup
 
-Requires [uv](https://docs.astral.sh/uv/) and [just](https://just.systems/).
+Use **Python 3.13** for development, as selected by `.python-version`. The development and docs tools require **Python 3.11 or later**. Install [uv](https://docs.astral.sh/uv/) and [just](https://just.systems/).
 
 ```bash
 git clone https://github.com/geocoug/execsql
@@ -53,7 +53,16 @@ just test       # active Python only
 just test-all   # full 3.10–3.14 matrix in parallel
 ```
 
-Tests are run with [pytest](https://pytest.org/) via [tox-uv](https://github.com/tox-dev/tox-uv). Coverage is reported automatically.
+Tests are run with [pytest](https://pytest.org/) via [tox-uv](https://github.com/tox-dev/tox-uv). Coverage is reported automatically. Tox and CI install the unpublished `test` dependency group inside each test environment, so the full Python 3.10–3.14 matrix does not need development/docs tools on Python 3.10.
+
+To make a separate Python 3.10 test environment with uv, run:
+
+```bash
+UV_PROJECT_ENVIRONMENT=.tox/uv-py310 uv sync --python 3.10 --no-dev --group test --all-extras
+UV_PROJECT_ENVIRONMENT=.tox/uv-py310 uv run --python 3.10 --no-dev --group test pytest
+```
+
+The separate path keeps your Python 3.13 development environment intact. With pip in an existing Python 3.10 virtual environment, use `pip install -e ".[all]" --group test` instead of `--group dev`.
 
 pytest runs the tests in parallel, one worker per CPU ([pytest-xdist](https://pytest-xdist.readthedocs.io/)), so each test must stand alone: use `tmp_path` for files, and never rely on another test having run first. Pass `-n 0` to run in one process, for example under a debugger (`uv run pytest -n 0 --pdb tests/test_x.py`) or to see live log output. Tests that run against a live database server share its database, so they are kept on one worker per server: a test parametrized with `postgres`, `mysql`, `mariadb` or `sqlserver` is grouped by `tests/conftest.py`, a module that tests one server throughout sets `pytestmark = pytest.mark.xdist_group("live-<server>")`, and a test that opens a server by name (`open_backend("postgres", tmp_path)`) carries `@pytest.mark.xdist_group("live-postgres")` itself.
 
@@ -98,7 +107,11 @@ just docs-serve   # live-reloading local preview
 just docs         # build static site to site/
 ```
 
-Docs are built with [Zensical](https://zensical.dev/) (MkDocs + Material theme).
+Docs are built with [Zensical](https://zensical.org/), using MkDocs-compatible configuration and Markdown extensions. `zensical.toml` owns navigation and theme settings. `just docs` builds in strict mode; a warning fails the build.
+
+The `docs` group pins Zensical 0.0.74 and requires Python 3.11+. The `dev` group includes docs and test tools, so it has the same minimum; Python 3.13 is the recommended working environment. This does not change execsql2’s Python 3.10 runtime support.
+
+Use native anchor redirects in `[project.plugins.redirects.redirect_maps]` when moving published sections. Keep a usable old-page link as a fallback. The `llmstxt` configuration exports selected public pages as Markdown and enables **Copy as Markdown**; update its sections when adding a major documentation area. The canonical site URL includes Read the Docs’ `/en/stable/` prefix so generated sitemaps and Markdown links resolve to the published site.
 
 ## Building a Distribution
 

@@ -1,4 +1,4 @@
-# Syntax and Options { #syntax }
+# execsql run: syntax and options { #syntax }
 
 *execsql* is a command-line tool installed via the `execsql2` package. After [installation](installation.md#installation), the `execsql` command is available on your PATH. Run it from a shell prompt on Linux/macOS or a command window on Windows.
 
@@ -6,7 +6,7 @@
 
 ## Commands { #commands }
 
-*execsql* is six commands behind one program. Only `run` connects to a database:
+*execsql* has seven subcommands. See the [command overview](../reference/cli/index.md). Only `run` connects to a database:
 
 ```text
 execsql run    [OPTIONS] SQL_SCRIPT [SERVER DATABASE | DATABASE_FILE]
@@ -15,6 +15,7 @@ execsql lint   [OPTIONS] FILE_OR_DIR...
 execsql config [SQL_SCRIPT] [--init] [--config FILE]
 execsql list   metacommands|encodings|plugins|keywords [--output-format text|json]
 execsql init   [DIR] [--script NAME | --no-script] [--no-config] [--no-pre-commit] [--force]
+execsql lsp    [--check] [--log-level LEVEL] [--log-file PATH]
 ```
 
 | Command  | Purpose                                                                                                 |
@@ -58,129 +59,26 @@ once per invocation, not from each script's directory.
     | `execsql --ping …`        | `execsql run --ping …`                       |
 
     Until then, a script named exactly like a command — `run`, `format`,
-    `lint`, `config`, `list` or `init`, with no extension — must be run
+    `lint`, `config`, `list`, `init` or `lsp`, with no extension — must be run
     as `execsql run lint`: a command name always selects
     the command. Names with an extension, such as `lint.sql`, are never
     ambiguous.
 
-### config { #config_command }
+<a id="config_command"></a>
 
-```text
-execsql config [SQL_SCRIPT] [--init | --validate] [--config FILE] [--output-format text|json]
-```
+See [`execsql config`](../reference/cli/config.md) for usage, options and examples.
 
-Lists every configuration option: its current value, its default, and the
-file that set it. Config files are read from the same places a run reads
-them, in the same order. Passwords are shown as `***`.
+<a id="config_validate"></a>
 
-```sh
-execsql config                       # system, user and working-directory files
-execsql config scripts/etl.sql       # also scripts/execsql.conf, as `run scripts/etl.sql` would
-execsql config --config ci.conf      # also ci.conf, loaded last
-execsql config --output-format json  # {"files_read": [...], "options": [...]}
-execsql config --init > execsql.conf # start a new config file from the template
-```
+See [configuration validation](../reference/cli/config.md#config_validate).
 
-```text
-Config files read, in order:
-  /home/etl/.config/execsql.conf
-  /home/etl/project/scripts/execsql.conf
+<a id="list"></a>
 
-[connect]
-  server    db.example.com  /home/etl/.config/execsql.conf
-  db_type   p               /home/etl/project/scripts/execsql.conf
-  port                      default
-```
+See [`execsql list`](../reference/cli/list.md) for usage, options and examples.
 
-Each JSON option has `section`, `key`, `type`, `value`, `default` and
-`source` (`null` when the default applies).
+<a id="init"></a>
 
-#### Validating config files { #config_validate }
-
-A run stops at the first invalid value in a config file, and silently ignores
-anything it does not recognize, so a misspelled key simply does nothing.
-`--validate` checks every file a run would read — the same files, including
-any a `config_file` setting chains to — and reports every problem with its
-file and line:
-
-```sh
-execsql config --validate                   # the files a run from here would read
-execsql config --validate scripts/etl.sql   # plus scripts/execsql.conf
-execsql config --validate --config ci.conf  # plus ci.conf
-```
-
-```text
-~/.config/execsql.conf
-  2  warning  unknown key 'sever' in [connect]; did you mean 'server'?
-  3  error    db_type = q: Invalid database type: q
-  5  warning  unknown section [conect]; did you mean [connect]?
-  8  warning  scan_lines belongs in [input], not [interface]
-
-Found 4 problems in 1 file: 1 error, 3 warnings (2 config files checked)
-```
-
-| Severity  | Problem                                                                                                                                                        |
-| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `error`   | An invalid value; a missing `[include_required]` file; a file that cannot be parsed (no section header, a key set twice, a bare `%`). A run fails on these.    |
-| `warning` | An unknown section or key, with the likely intended name; a key in the wrong section; a `config_file` that names a missing file. A run ignores these silently. |
-
-Values are checked by the same code a run uses, so `--validate` and a run
-never disagree about a value. It exits `1` when any error is found; warnings
-alone exit `0`. With `--output-format json` it prints
-`{"files_checked": [...], "problems": [...]}`, each problem with `file`,
-`line`, `severity` and `message`.
-
-### list { #list }
-
-```text
-execsql list metacommands|encodings|plugins|keywords [--output-format text|json]
-execsql list metacommands [KEYWORD] [--output-format text|json]
-```
-
-| Command        | Prints                                                                                                                                                                                      |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `metacommands` | Every metacommand with its category and a one-line summary. With a keyword (`execsql list metacommands export query`), that metacommand's syntax lines and a link to its reference section. |
-| `encodings`    | Every character encoding name accepted by `-e`, `-f`, `-g` and `-i`.                                                                                                                        |
-| `plugins`      | Installed plugins: metacommands, exporters, importers. See [Plugin System](../dev/architecture.md#plugin-system).                                                                           |
-| `keywords`     | The full vocabulary: metacommands by category, conditions, CONFIG options, export formats, database types, variable patterns.                                                               |
-
-Each list is its own command, `execsql list keywords --help` included. With
-`--output-format json`, `keywords` prints the JSON that editor tooling such as
-the VS Code grammar generator reads.
-
-### init { #init }
-
-```text
-execsql init [DIR] [--script NAME | --no-script] [--no-config] [--no-pre-commit] [--force]
-```
-
-Sets up execsql in `DIR` (default: the current directory, created if missing):
-
-| File                           | Content                                                                              | Skip with         |
-| ------------------------------ | ------------------------------------------------------------------------------------ | ----------------- |
-| `execsql.conf`                 | The commented template, as `execsql config --init` prints it                         | `--no-config`     |
-| `main.sql`, or `--script NAME` | A header: PURPOSE, NOTES, PROJECT, COPYRIGHT, AUTHORS, and HISTORY with today's date | `--no-script`     |
-| `.pre-commit-config.yaml`      | The `execsql-format` and `execsql-lint` hooks at this version                        | `--no-pre-commit` |
-
-```text
-$ execsql init warehouse --script load
-  created     warehouse/execsql.conf
-  created     warehouse/load.sql
-  created     warehouse/.pre-commit-config.yaml
-```
-
-Existing files are never changed unless `--force` is given, and even then
-`.pre-commit-config.yaml` is only ever added to: if it exists without the
-execsql hooks, they are appended under `repos:` in the file's own
-indentation, or — when `repos:` is not the file's last key — printed for you to
-add by hand. `.sql` is added to a `--script` name without one, and folders in it
-are created. To add a script to an existing project:
-
-```sh
-execsql init --no-config --no-pre-commit --script scripts/transform.sql
-```
-
-The new script passes the `execsql-format` and `execsql-lint` hooks as written.
+See [`execsql init`](../reference/cli/init.md) for usage, options and examples.
 
 ### Help and color { #help_color }
 
@@ -203,8 +101,8 @@ The same two variables also turn off color in the [debug REPL](../reference/meta
 
 ### Exit codes { #exit_codes }
 
-Every command uses the same three exit codes, so a CI step or shell script can
-tell a problem in the scripts from a mistake in the command line.
+The tool commands use the statuses below. `run` also reports script-controlled
+and lifecycle statuses; inspect the second table when automating script execution.
 
 | Code | Meaning                           | Examples                                                                                                                                                                                                                                                                                   |
 | ---- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -212,8 +110,18 @@ tell a problem in the scripts from a mistake in the command line.
 | `1`  | The task failed or found problems | A script error; `lint` found an error (or any issue, with `--strict`); `format --check` or `--diff` would change a file; `run --ping` could not connect; no `.sql` files were found.                                                                                                       |
 | `2`  | Bad command line                  | An unknown option or command, an invalid choice, a missing config file named by `--config`, `run --lint`. Until execsql2 3.0, a first word that is not a command is taken as a script (the deprecated bare form), so a mistyped command exits `1`: `SQL script file "lnt" does not exist`. |
 
-`run` keeps upstream execsql's exit codes where they differ: a missing script
-file exits `1`, and unknown options after the script are not rejected.
+Additional `run` statuses:
+
+| Code            | Meaning                                                                                     |
+| --------------- | ------------------------------------------------------------------------------------------- |
+| `0`             | Normal completion, or an explicitly selected successful HALT status.                        |
+| `1`             | Halting script/SQL/metacommand error, or a missing script file.                             |
+| `2`             | A cancelled prompt with `CANCEL_HALT ON`, as well as command-line usage errors.             |
+| `3`             | `HALT` without an explicit status.                                                          |
+| Explicit status | `HALT EXIT_STATUS N` returns the requested status; operating-system exit-code limits apply. |
+| `143`           | SIGTERM handled by the CLI (`128 + 15`).                                                    |
+
+Arguments after a script are not all validated like subcommand options. Use the documented invocation forms, and do not interpret every `2` from `run` as a bad option.
 
 A `run` stopped with SIGTERM (`kill`, `timeout`, `docker stop`, a cancelled CI
 job) exits `143`. It first stops a running `SYSTEM_CMD`, rolls back the open
@@ -301,8 +209,8 @@ The options below belong to `run`: `execsql run -tl script.sql mydb.sqlite`.
 and anywhere on a `run` command line.
 `format` has its own options, described in the [formatter guide](../guides/formatter.md);
 `lint`'s are in the [lint rules reference](../reference/lint.md); `lsp`'s (`--check`,
-`--log-level`, `--log-file`) in [Editor Support](../guides/editors.md#troubleshooting); `config`, `list` and `init` are described
-[above](#config_command).
+`--log-level`, `--log-file`) are in the [language-server command reference](../reference/cli/lsp.md#options).
+See the individual references for [config](../reference/cli/config.md), [list](../reference/cli/list.md) and [init](../reference/cli/init.md).
 
 ### Connection options
 
@@ -384,7 +292,7 @@ Valid encoding names can be displayed with `execsql list encodings`. See also [C
 :   Create missing output directories for the EXPORT and WRITE metacommands (`y`), or stop with an error when the directory does not exist (`n`, the default). The value is required: `-d y script.sql`, not `-d script.sql`. Equivalent to the [`make_export_dirs`](../reference/configuration.md#make_export_dirs) configuration setting.
 
 `--output-dir` *DIR*
-:   Default base directory for EXPORT output files. Relative paths in EXPORT metacommands are joined to this directory. Absolute paths and `stdout` are unaffected.
+:   Containment root for EXPORT output. Relative paths are resolved beneath this directory; absolute targets must also be inside it. Resolved paths, including symlinks and `..`, cannot escape the root. ZIP archive paths and member names are checked as well. `stdout` is exempt. This flag does not constrain WRITE output or every filesystem operation; see [path restrictions](../reference/security.md#path-containment-roots).
 
 `-l`, `--user-logfile`
 :   Write the run log to `~/execsql.log` instead of `execsql.log` in the current directory.

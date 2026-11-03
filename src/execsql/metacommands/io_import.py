@@ -1,11 +1,11 @@
 """Import metacommand handlers.
 
-- ``x_import`` — IMPORT (delimited text / CSV; dispatches by extension
-  for .ods/.xls/.xlsx in the same handler).
+- ``x_import`` — IMPORT (delimited text / CSV; spreadsheet forms have separate handlers).
 - ``x_import_file`` — IMPORT_FILE (insert a binary file blob as a row).
-- ``x_import_ods`` / ``x_import_ods_pattern`` — IMPORT … FROM ODS,
-  single-sheet and SHEETS MATCHING <pattern>.
-- ``x_import_xls`` / ``x_import_xls_pattern`` — same for XLS/XLSX.
+- ``x_import_ods`` / ``x_import_ods_pattern`` — IMPORT … FROM <file>
+  SHEET <name> / SHEETS MATCHING <pattern> (ODS).
+- ``x_import_xls`` / ``x_import_xls_pattern`` — IMPORT … FROM EXCEL <file>
+  SHEET <name> / SHEETS MATCHING <pattern> (XLS/XLSX).
 - ``x_import_parquet`` — IMPORT … FROM PARQUET (via polars).
 - ``x_import_feather`` — IMPORT … FROM FEATHER (via polars).
 - ``x_import_json`` — IMPORT … FROM JSON (array of objects or JSON Lines).

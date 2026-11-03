@@ -2,7 +2,7 @@
 
 ## Required Arguments
 
-A script file name is the only required argument; database connection information can come from one or more [configuration files](../reference/configuration.md#configuration). Running *execsql* with no arguments prints the [syntax description](../getting-started/syntax.md#syntax).
+Use `execsql run SCRIPT.sql` or `execsql run -c "SQL or metacommand text"`. Connection information can come from [configuration files](../reference/configuration.md#configuration), a DSN or positional connection arguments. `execsql --help` lists all seven subcommands; invoking execsql without arguments prints usage and exits with status 2.
 
 <a id="continuationchars"></a>
 
@@ -41,9 +41,11 @@ The special commands that are available are described in the [Metacommands](../r
 
 ## Autocommit
 
-SQL statements are ordinarily automatically committed by *execsql*. Consequently, database transactions that are initiated with a "BEGIN TRANSACTION;" SQL statement will not work as expected under default conditions. The [AUTOCOMMIT](../reference/metacommands.md#autocommit) and [BATCH](../reference/metacommands.md#batch) metacommands provide two different ways to alter *execsql's* default autocommit behavior. Transactions created with SQL statements will work as expected either within a batch or after autocommit has been turned off. Transactions can be managed entirely using the [AUTOCOMMIT](../reference/metacommands.md#autocommit) and [BATCH](../reference/metacommands.md#batch) metacommands, however, so that transactions need not be managed using SQL statements. In some cases, such as SQL Server, because *execsql* uses ODBC to connect to the DBMS, [SQL statements should not be used to manage transactions](https://docs.microsoft.com/en-us/sql/relational-databases/native-client/odbc/performing-transactions-in-odbc?view=sql-server-2017) and *execsql's* features should be preferred.
+SQL statements normally commit after each successful execution. [AUTOCOMMIT OFF](../reference/metacommands.md#autocommit) leaves transaction completion to the script. [BEGIN BATCH](../reference/metacommands.md#batch) holds eligible statements until `END BATCH`, which commits only if the batch and its enclosing batches have not failed.
 
-One difference between these two approaches is that within transactions inside a batch, changes to data tables are not visible to metacommands such as [PROMPT DISPLAY](../reference/metacommands.md#prompt), whereas these data are visible within transactions that follow an [AUTOCOMMIT OFF](../reference/metacommands.md#autocommit) metacommand. This difference in data visibility affects what tests can be done to decide whether to commit or roll back a transaction.
+SQL and metacommands using the same connection can see that connection's pending changes. For example, `ASSERT HASROWS(t)` can check an INSERT inside a batch before commit. Other connections follow the DBMS's transaction isolation rules.
+
+Read the canonical [batch rules](../reference/metacommands.md#batch) before choosing a boundary. They cover failed statements, early exits, DDL support, `AUTOCOMMIT OFF` and metacommands that commit independently. A batch across connections is not an atomic distributed transaction.
 
 ## Rollback on Exit
 
@@ -51,7 +53,7 @@ When *execsql* exits, or closes a database connection because the same alias wil
 
 ## Exit Status
 
-If *execsql* finishes normally, without errors and without being halted either by script conditions or the user, the system exit status will be set to 0 (zero). If an error occurs that causes the script to halt, the exit status will be set to 1. If the user cancels script processing in response to any prompt, the exit status will be set to 2. If the script is halted with the [HALT](../reference/metacommands.md#halt) metacommand, the system exit status will be set to 3 unless an alternate value is specified as part of the metacommand.
+See the [CLI exit-status reference](../getting-started/syntax.md#exit_codes) for the common tool statuses and `run`'s additional HALT, cancellation and signal statuses. A nonzero status does not always mean bad command-line syntax.
 
 ## Performance
 
@@ -59,14 +61,11 @@ Data import, export, display, and logging all affect the run time of an *execsql
 
 ### Importing Data
 
-When the NEW or REPLACEMENT keywords are used with the [IMPORT](../reference/metacommands.md#import) metacommand, *execsql* first reads the entire data set to determine the data type for each column. This ensures that the data set will be imported successfully. However, the step of diagnosing the data type of every column can take longer than the step of importing the data and inserting it to the database table. If the structure of the incoming data is known, then creating the table first with a CREATE TABLE statement will result in better performance than using the NEW or REPLACEMENT keywords.
+`IMPORT` / `COPY` scan input to choose types for NEW/REPLACEMENT tables. Existing targets convert values using the target column types; text columns retain the source text, and fractional values cannot enter integer columns. Choosing the target schema explicitly is useful when input inference would not express the desired types. It does not bypass value validation or necessarily avoid scanning the source.
 
-*execsql* will use the fast file reading features of Postgres and MariaDB/MySQL when it can, ordinarily resulting in substantially faster data import than using INSERT statements, as *execsql* does otherwise. Any specific data handling operation that *execsql* is required to perform on the imported data before inserting it to the database will prevent the use of fast file reading features. To allow maximum performance:
+PostgreSQL and MySQL/MariaDB can use file-loading paths for eligible delimited imports: `COPY FROM STDIN` on PostgreSQL and `LOAD DATA LOCAL INFILE` on MySQL/MariaDB. These paths require the file columns to match the target columns in order, `EMPTY_STRINGS` and `EMPTY_ROWS` enabled, and `DELETE_EMPTY_COLUMNS`, `CREATE_COLUMN_HEADERS`, `TRIM_STRINGS` and `REPLACE_NEWLINES` disabled. Neither accepts a detected escape character on its fast path. PostgreSQL additionally requires a detected/configured quote character and matching input/database encodings. Otherwise the adapter uses its row insertion path.
 
-- Do not convert [empty strings to null](../reference/metacommands.md#empty_strings)
-- Do not [exclude empty rows](../reference/metacommands.md#empty_rows)
-- Ensure that the incoming data and the data table have the same columns, in the same order, and do not use the 'import common columns' [metacommand](../reference/metacommands.md#import_common_cols) or [configuration setting](../reference/configuration.md#import_only_common).
-- Ensure compatibility of the encodings used in the data source and the database.
+`EMPTY_STRINGS NO` disables these file-loading paths, which can help diagnose a driver or server incompatibility. It also changes how empty fields are interpreted. Choose null/empty-row and text-cleaning settings for the input's meaning, rather than changing stored values merely to pursue a faster path. The row buffer setting does not control a server's native file loader.
 
 Changing the size of the import row buffer, using either the appropriate [metacommand](../reference/metacommands.md#config_import_row_buffer) or [configuration setting](../reference/configuration.md#setting_import_row_buffer) may affect the performance of data imports.
 
@@ -84,12 +83,7 @@ When a DSN is used as a data source, *execsql* has no information about the feat
 
 ## PostgreSQL-Compatible Databases
 
-Amazon [Redshift](https://docs.aws.amazon.com/redshift/index.html) is built on PostgreSQL 8.0.3 and [CockroachDB](https://www.cockroachlabs.com/) uses the *psycopg* library for connections from Python. Both of these databases can therefore potentially be used with *execsql* by specifying the database type as Postgres (i.e., db_type=p).
-
-The following Postgres-specific features that are used by *execsql* may function differently or not at all in other Postgres-compatible databases:
-
-- The [IMPORT](../reference/metacommands.md#import) metacommand: This uses PostgreSQL's [COPY](https://www.postgresql.org/docs/12/sql-copy.html) command by default. The use of COPY can be disabled by setting the [CONFIG EMPTY_STRINGS](../reference/metacommands.md#empty_strings) setting to NO.
-- Redshift does not support Postgres roles, so the [ROLE_EXISTS](../reference/metacommands.md#roleexists) conditional should not be used.
+A server that accepts PostgreSQL connections is not necessarily compatible with every PostgreSQL SQL statement, catalog query or transaction behavior used by execsql. Such servers have no independent support tier or live CI coverage here. Test the particular scripts and adapter operations you need against a disposable database; use the [database support table](../getting-started/requirements.md#support-tiers) for the backends actually verified by this project.
 
 ## SCRIPTs and CURRENT_SCRIPT System Variables
 
@@ -97,70 +91,19 @@ If any of the $CURRENT_SCRIPT system variables are used in a sub-script that is 
 
 ## Editor Customization
 
-### Running Execsql From Within the Geany Editor
+Editor setup has moved to [Editors](editors.md). The [Geany and Vim instructions](editors/other-editors.md#geany-and-vim) retain the build-command and highlighting examples.
 
-[Geany](http://www.geany.org/) can be used not only as an editor, but as an integrated development environment, and therefore contains features that allow code to be run from inside the editor, and error messages parsed so that lines containing errors can be highlighted in the editor.
+<a id="running-execsql-from-within-the-geany-editor"></a>
 
-These features can be used to run *execsql* from within the editor, and if an error occurs, have the error line highlighted so that a correction can be easily made. The result of this is illustrated in the following figure.
+[Running execsql from Geany](editors/other-editors.md#running-execsql-from-within-the-geany-editor).
 
-![An execsql error displayed in Geany](../images/data_error1_screenshot.jpg)
+<a id="highlighting-execsql-metacommands-in-vim"></a>
 
-To enable this capability, use the *Build/Set Build Commands* menu item. A dialog box like that shown below will be displayed. This will allow you to create a new build command to run *execsql* on the script being edited. You should enter a label for this command (e.g., "Run with execsql"); the command to run, using *%f* as a placeholder for the name of the current script (e.g., "execsql run -v2 %f"); and the regular expression that Geany will use to extract the line number and file name out of *execsql's* error message--this should be "Line\\s(\\d+)\\sof\\sscript\\s(.+)".
+[Highlighting metacommands in Vim](editors/other-editors.md#highlighting-execsql-metacommands-in-vim).
 
-![The Geany dialog to set build commands](../images/set_build_commands.jpg)
+<a id="highlighting-execsql-metacommands-in-bluefish"></a>
 
-After entering this information, a new item ("Run with execsql") will be available on Geany's Build menu. You can also invoke this command with the F8 key.
-
-If *execsql* will be used with multiple databases, then connection parameters and other configuration information should be provided in a configuration file rather than on the command line. Some command-line options may be included on the default command line, as shown by the "-v2" option shown above. The "-v" option with a value of 1 or higher must be used when running *execsql* from within Geany because Geany captures console output and does not allow console input.
-
-### Highlighting Execsql Metacommands in Vim
-
-When using Vim, the standard syntax highlighting for SQL files can be extended with alternate highlighting for the comment lines that contain *execsql* metacommands. The extra syntax highlighting rules should be put in a file named "sql.vim" in the 'syntax' subdirectory of the 'after' directory; on Linux this is:
-
-```
-~/.vim/after/syntax/sql.vim
-```
-
-To find the 'after' directory on Windows, on the Vim command line, run:
-
-```
-echo &rtp
-```
-
-This will display Vim's runtime path, which should include an 'after' directory (which may not yet exist).
-
-The lines to add to the "sql.vim" file are:
-
-```
-syntax match XSql "^\s*--\s*![xX]!.*$"
-highlight XSql ctermfg=Brown guifg=#824E41
-```
-
-The first of these lines establishes a group name ("XSql") for metacommand lines, and the second applies a brown foreground (text) color in both the terminal and GUI versions of Vim. Of course, any other formatting could be applied instead of the colors shown above.
-
-An illustration of custom highlighting for *execsql* metacommands is shown below.
-
-![Execsql metacommand highlighting in Vim](../images/vim_execsql_highlight.png)
-
-The screenshot above uses the *ancient* colorscheme. The same color specification works well with the *desert-night* dark color scheme.
-
-### Highlighting Execsql Metacommands in Bluefish
-
-To add metacommand highlighting to Bluefish, edit `sql.bflang2` (`/usr/share/bluefish/bflang/` on Linux, or `share\bluefish\bflang\` under the install directory on Windows; copy to `~/.bluefish/` to override globally). In the `<header>` section, add:
-
-```
-<highlight name="execsql_metacommand" style="execsql_metacommand" />
-```
-
-Within `<context>`, add:
-
-```
-<group case_insens="1" highlight="execsql_metacommand">
-    <element pattern="-- *!x![^&#10;&#13;]*" is_regex="1" />
-</group>
-```
-
-Assign visual attributes for the `execsql_metacommand` style via *Edit / Preferences / Editor settings / Text styles* with a SQL file open.
+[Bluefish highlighting](editors/other-editors.md#highlighting-execsql-metacommands-in-bluefish) is documented with the other editor setups.
 
 ## MS-Access-Specific Considerations
 

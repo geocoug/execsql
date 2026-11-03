@@ -102,20 +102,25 @@ owner `geocoug`, repository `execsql`, workflow `ci-cd.yml`, environment
 
 ## When something goes wrong
 
-### A test failed after the tag push (PyPI not yet published)
+<a id="a-test-failed-after-the-tag-push-pypi-not-yet-published"></a>
 
-The `build` job won't run if any earlier job is red, so `publish` won't
-fire. Fix:
+### A test failed after the tag push
 
-1. Identify the failure: `gh run view <RUN_ID> --log-failed`.
-1. Fix it on `main`.
-1. Move the unpublished version's `CHANGELOG.md` section back under
-    `[Unreleased]` (drop its heading and separator), so the next release's
-    notes carry those changes.
-1. Re-bump: `just bump-patch` (this creates a *new* tag at the next patch
-    level; do NOT delete the old tag and retag the new commit — once a
-    tag has been visible publicly, treat it as immutable).
-1. Push and re-watch.
+Check the individual `build`, `publish` and `generate-release` outcomes before choosing recovery:
+
+```sh
+gh run view <RUN_ID>
+gh run view <RUN_ID> --log-failed
+gh release view <TAG> --json tagName,assets,url
+```
+
+Only jobs in `build.needs` gate the build. The conditional Windows Access job is not in that list: its failure can coexist with a successfully published version. A red workflow or a nonzero `gh run watch` result is not proof that PyPI has no distribution.
+
+If publication was attempted, inspect that version's PyPI files as well as the GitHub release assets. A failed upload can leave some distributions published. Treat any publicly visible version/tag as immutable.
+
+Once you have verified that the version was **not published**, fix the gating failure on `main`, move that unpublished version's notes back under `[Unreleased]` (remove its empty dated heading and separator), and bump a new patch version. Push and watch the new tag. Do not delete/reassign the old public tag.
+
+If the version **was published**, keep its dated changelog section. Fix the problem and release a new version, or use the artifact/release-only recovery below when no package change is needed.
 
 ### `build` failed: tag does not match the package version
 
@@ -127,23 +132,51 @@ moving the tag.
 
 ### `publish` failed but the tag is live
 
-PyPI does not have the version, and the GitHub release was not created
-(it waits for `publish`). Fix:
+Do not infer package absence from a failed publish job. Read its log and inspect the version's actual PyPI files first; a partial upload or a failed retry can leave a published distribution. Inspect `generate-release` and GitHub assets separately.
 
-1. `gh run view <RUN_ID> --log-failed` and read the publish job log.
-1. Common cause: OIDC trust-policy drift, transient PyPI 5xx, or a name
-    collision with the pre-release tag.
-1. If transient, or once a cause outside the repository is fixed (the
-    trusted-publisher settings on PyPI): `gh run rerun --failed <RUN_ID>`
-    and watch again. This re-runs `publish` and `generate-release` after it.
-1. If the fix needs a code change: fix it on `main` and re-bump. The tag
-    is the source of truth for the version; don't reassign it.
+1. Read `gh run view <RUN_ID> --log-failed` and identify the failure and remote artifact state.
+1. For an external/transient failure with no uploaded distributions, fix the trust/availability issue and use `gh run rerun --failed <RUN_ID>`, then watch it.
+1. If any distributions already exist, do not blindly re-upload the same version or move its changelog notes. Resolve missing release assets using the state-specific procedure below, or make a code fix on `main` and bump a new version.
+1. Preserve the public tag in every case; never reassign it to another commit.
 
 ### `build` failed: CHANGELOG.md has no section for the tag
 
 Nothing was published. The bump turns `[Unreleased]` into the dated
 section, so this means the section is empty or the tag was made by hand.
 Add the notes on `main` and bump again.
+
+### GitHub release generation failed or assets are missing
+
+When PyPI already has the version, recover the GitHub release without re-uploading the package or changing its tag. First check that `publish` succeeded and the original run still has the wheel, sdist and `vscode-extension` artifacts.
+
+Find the **Generate GitHub Release** job's `databaseId` and rerun that job, rather than the publish job or the whole workflow:
+
+```sh
+gh run view <RUN_ID> --json jobs --jq '.jobs[] | {name, databaseId, conclusion}'
+gh run rerun <RUN_ID> --job <GENERATE_RELEASE_DATABASE_ID>
+gh run watch <RUN_ID> --exit-status
+gh release view <TAG> --json tagName,assets,url
+```
+
+Use the `databaseId` from the JSON, not the number in a browser job URL. Inspect the individual job and remote release again even if an unrelated job leaves the run red.
+
+If the job cannot be rerun but its original artifacts remain available, use a fresh local `recovery/` directory:
+
+```sh
+gh run download <RUN_ID> --name execsql --dir recovery/dist
+gh run download <RUN_ID> --name vscode-extension --dir recovery/dist
+python scripts/release_notes.py <TAG> > recovery/release-notes.md
+```
+
+Run the notes command from a checkout whose CHANGELOG has the reviewed section for that exact tag. Check the downloaded wheel/sdist versions and the VSIX version against the tag before attaching anything. If the release does not exist, create it from the existing tag:
+
+```sh
+gh release create <TAG> --verify-tag --notes-file recovery/release-notes.md recovery/dist/*
+```
+
+For an alpha, beta or release-candidate tag, add `--prerelease`. If a release already exists, upload only the missing original assets with `gh release upload <TAG> recovery/dist/<MISSING_ASSET>`; do not overwrite existing assets blindly. Confirm that the wheel, sdist and `execsql-syntax.vsix` are all attached. These commands do not publish to PyPI.
+
+If the original artifacts have expired or do not match the tag, stop this recovery path. Do not substitute a new local build for the published distributions; recover the exact originals from a trusted source or publish a new version using the normal checklist.
 
 ### The Release text needs a correction
 

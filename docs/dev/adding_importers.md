@@ -1,173 +1,125 @@
 # Adding a New Importer
 
-This guide walks through every step required to add support for a new import file format to execsql. The process involves two files: write the importer function and register the format string in the IMPORT handler.
+This guide adds an in-tree `IMPORT ... FROM MYFORMAT` form. The concrete example reads pipe-delimited text through Python's CSV reader and sends headers and rows to the shared table loader. The form is available only after its handler and grammar are registered.
 
-______________________________________________________________________
+For a separately installed extension, a metacommand plugin can call the same loading function; see [Plugin alternative](#plugin-alternative).
 
-## Background: How Importers Work
+<a id="background-how-importers-work"></a>
+<a id="the-shared-back-end"></a>
+<a id="the-import-dispatch"></a>
 
-Importers are standalone module-level functions. There is no base class to subclass — every importer follows the same pattern: parse the source file into column headers and rows, then hand off to `import_data_table()` (the shared back-end in `src/execsql/importers/base.py`) to create the table and load the data.
+## Understand the existing paths
 
-### The shared back-end
+Plain `IMPORT TO [NEW|REPLACEMENT] table FROM file` reads delimited text. Its `x_import()` handler calls `importers.csv.importtable()` directly; it does not select a format from the file extension or a `filefmt` chain.
 
-`import_data_table(db, schemaname, tablename, is_new, hdrs, data)` handles everything after parsing:
+ODS, XLS/XLSX, JSON, Feather and Parquet have explicit syntax and separate handlers registered in `metacommands/dispatch.py`. Follow one of those patterns for a new format. There is no `IMPORT file TO table FORMAT name NEW` syntax.
 
-- Cleans column headers according to config settings (trimming, folding, deduplication).
-- Issues `CREATE TABLE` when `is_new` is `1` or `2`.
-- Calls `db.populate_table()` to bulk-insert the rows.
-- Commits the transaction.
+Most row-based importers use `import_data_table()` in `importers/base.py`. It cleans/validates headers, handles NEW/REPLACEMENT table creation, selects target columns, delegates conversion/insertion to the adapter and commits according to the connection policy. CSV has a separate file-oriented path; it is not evidence that every importer calls this shared function.
 
-Your importer just needs to open and parse the source file, then call `import_data_table()`.
+NEW/REPLACEMENT infer column types from the source. Existing tables convert according to their target column types. Preserve the [data integrity rules](../reference/metacommands.md#import); a faster parser is not allowed to silently alter values, remove errors or round fractional integers.
 
-### The IMPORT dispatch
+<a id="step-by-step-adding-an-importer"></a>
+<a id="step-1-write-the-importer-function"></a>
 
-Unlike `EXPORT`, the `IMPORT` machinery in `src/execsql/metacommands/io_import.py` is split. The main `x_import` handler dispatches by file extension (`.csv`, `.txt`, `.ods`, `.xls`/`.xlsx`) and calls the matching importer directly. Some formats (e.g. Feather, Parquet) have their own top-level handlers — `x_import_feather`, `x_import_parquet` — registered separately in the dispatch table.
-
-When adding a new format, pick the right pattern: extend the extension-dispatch in `x_import` for a format that fits the standard `IMPORT … TO …` shape, or write a new `x_import_<format>` handler if the format needs its own metacommand syntax.
-
-______________________________________________________________________
-
-## Step-by-step: Adding an Importer
-
-### Step 1 — Write the importer function
+## Implement the reader
 
 Create `src/execsql/importers/myformat.py`:
 
 ```python
-# src/execsql/importers/myformat.py
-from __future__ import annotations
+import csv
 
-"""
-MyFormat import for execsql.
-
-Provides :func:`importtable_myformat`, which reads a `.myfmt` file and
-loads it into a database table.
-"""
-
-from typing import Any
-
+import execsql.state as _state
 from execsql.db.base import Database
 from execsql.exceptions import ErrInfo
 from execsql.importers.base import import_data_table
-import execsql.state as _state
 
 
-def importtable_myformat(
+def import_myformat(
     db: Database,
-    schemaname: str | None,
-    tablename: str,
+    schema: str | None,
+    table: str,
     filename: str,
-    is_new: Any,
-    encoding: str | None = None,
+    is_new: int,
 ) -> None:
-    """Import *filename* (MyFormat) into *tablename*.
-
-    Args:
-        db: Active database connection.
-        schemaname: Schema name, or ``None`` for the default schema.
-        tablename: Target table name.
-        filename: Path to the source file.
-        is_new: ``1`` to CREATE the table, ``2`` to DROP and re-CREATE,
-            ``0`` to append to an existing table.
-        encoding: File encoding override. Falls back to the configured
-            import encoding.
-    """
-    from pathlib import Path
-
-    if not Path(filename).is_file():
-        raise ErrInfo(
-            type="error",
-            other_msg=f"Non-existent file ({filename}) used with the IMPORT metacommand",
-        )
-
-    enc = encoding if encoding else _state.conf.import_encoding
-
+    """Read pipe-delimited text with a mandatory header row."""
     try:
-        import myformat_lib  # lazy import of optional dependency
-    except ImportError:
-        raise ErrInfo(
-            type="error",
-            other_msg="The myformat_lib package is required to import MyFormat files.",
-        )
-
-    # Parse headers and rows from the source file.
-    reader = myformat_lib.open(filename, encoding=enc)
-    hdrs = reader.column_names()       # list[str]
-    rows = reader.iter_rows()          # iterable of list[Any]
-
-    import_data_table(db, schemaname, tablename, is_new, hdrs, rows)
+        with open(filename, newline="", encoding=_state.conf.import_encoding) as stream:
+            reader = csv.reader(stream, delimiter="|", strict=True)
+            headers = next(reader, None)
+            if not headers:
+                raise ErrInfo(type="error", other_msg=f"Missing header row in {filename}")
+            rows = list(reader)
+    except (OSError, UnicodeError, csv.Error) as exc:
+        raise ErrInfo(type="error", other_msg=f"Cannot read {filename}: {exc}") from exc
+    import_data_table(db, schema, table, is_new, headers, rows)
 ```
 
-Key points:
+This reader materializes its rows because the shared loader scans/indexes that collection; it is not a streaming import interface. Impose appropriate file/resource limits for a production format. Parse and validate source structure before modifying a destination. Optional parser dependencies belong inside the reader and in a documented optional extra, not at module import time.
 
-- **Naming is not standardized.** Existing importers use `importtable` (csv), `importods`, `importxls`, `import_feather`, `import_parquet`. Pick a descriptive function name; the example `importtable_myformat` is one option, not a required convention.
-- **Call `import_data_table()`** — do not call `db.populate_table()` directly. The shared back-end handles column header cleaning, `CREATE TABLE`, and commit.
-- **Import optional dependencies lazily** inside the function body so execsql still runs for users who do not have the library installed.
-- **Raise `ErrInfo`** for expected failures rather than a bare `raise` or `sys.exit`.
-- The `is_new` parameter values are: `0` = append to existing table, `1` = create new table, `2` = drop and re-create.
+`is_new` is `0` for an existing target, `1` for NEW and `2` for REPLACEMENT. REPLACEMENT can remove an existing target; make that consequence explicit in user documentation.
 
-### Step 2 — Register the format in the IMPORT handler
+<a id="step-2-register-the-format-in-the-import-handler"></a>
+<a id="checklist"></a>
 
-Open `src/execsql/metacommands/io_import.py`. At the top, import your function:
+## Add the handler and grammar
 
-```python
-from execsql.importers.myformat import importtable_myformat
-```
-
-Then find the IMPORT format dispatch (the block that calls `importtable` for CSV, `importtable_ods` for ODS, etc.) and add a new `elif` branch:
+In `src/execsql/metacommands/io_import.py`, import your reader and add:
 
 ```python
-elif filefmt == "myformat":
-    importtable_myformat(
-        _state.dbs.current(),
-        schemaname,
-        tablename,
-        filename,
-        is_new,
-        encoding=enc,
+from execsql.importers.myformat import import_myformat
+
+
+def x_import_myformat(**kwargs):
+    mode = (kwargs["new"] or "").lower()
+    is_new = {"": 0, "new": 1, "replacement": 2}[mode]
+    import_myformat(
+        _state.dbs.current(), kwargs["schema"], kwargs["table"],
+        kwargs["filename"], is_new,
     )
 ```
 
-**Format string naming:** the format string is what the user writes after `FORMAT` in the IMPORT metacommand (`FORMAT myformat`). Use lowercase, no spaces. If you need aliases, use `elif filefmt in ("myformat", "myfmt"):`.
-
-### Step 3 — Add tests
+Re-export the handler from `metacommands/io.py` (including its `__all__`), then through the `metacommands/__init__.py` facade. Import it from `execsql.metacommands.io` in `dispatch.py`, alongside the other IMPORT handlers, then add a registration in `build_dispatch_table()` using the existing regex helpers:
 
 ```python
-# tests/importers/test_myformat_importer.py
-import pytest
-from pathlib import Path
-from typer.testing import CliRunner
-from execsql.cli import app
-
-
-@pytest.fixture()
-def runner():
-    return CliRunner()
-
-
-class TestMyFormatImporter:
-    """IMPORT FORMAT myformat."""
-
-    def test_basic_import(self, runner, tmp_path):
-        db = tmp_path / "test.db"
-        src = tmp_path / "data.myfmt"
-        src.write_text(...)  # write a minimal test file in your format
-        script = tmp_path / "test.sql"
-        script.write_text(
-            f"-- !x! IMPORT {src} TO mytable FORMAT myformat NEW\n"
-        )
-        result = runner.invoke(app, ["-tl", str(script), str(db), "-n"])
-        assert result.exit_code == 0, result.output
+mcl.add(
+    ins_table_rxs(
+        r"^\s*IMPORT\s+TO\s+(?:(?P<new>NEW|REPLACEMENT)\s+)?",
+        ins_fn_rxs(r"\s+FROM\s+MYFORMAT\s+", r"\s*$"),
+    ),
+    x_import_myformat,
+    description="IMPORT",
+    category="action",
+)
 ```
 
-______________________________________________________________________
+The helpers supply `schema`, `table` and `filename`, including the quoted-name forms they accept. If the format needs encoding overrides, sheet names or other options, capture and validate them explicitly; do not invent an extension switch in `x_import()`.
 
-## Checklist
+Add the new syntax form to the IMPORT entry in `metacommands/reference.py` and document it under [IMPORT](../reference/metacommands.md#import). Update the public handler export list where applicable, optional dependencies/extras and requirements, then run `just install-vscode` to regenerate the keyword grammar (and install/link the local development extension). Follow [Adding Metacommands](adding_metacommands.md) for the full registry/reference checklist.
 
-- [ ] Importer function written in `src/execsql/importers/myformat.py`
-- [ ] Function imported in `src/execsql/metacommands/io_import.py`
-- [ ] `elif filefmt == "myformat":` branch added in the IMPORT handler
-- [ ] Test added to `tests/importers/`
-- [ ] `pytest` passes locally
-- [ ] New format string documented in [Metacommands — IMPORT](../reference/metacommands.md#import)
-- [ ] New library dependency (if any) added to `pyproject.toml` extras and documented in [Requirements](../getting-started/requirements.md#libraries)
+<a id="step-3-add-tests"></a>
+
+## Verify a complete import
+
+After registration, save `data.myfmt`:
+
+```text
+id|name
+2|alpha
+3|O'Brien
+```
+
+Save `load.sql` next to it:
+
+```sql
+-- !x! IMPORT TO NEW mytable FROM MYFORMAT data.myfmt
+-- !x! ASSERT ROW_COUNT_EQ(mytable, 2) "Expected two rows"
+-- !x! EXPORT mytable TO stdout AS CSV
+```
+
+Run from that directory: `execsql run --dsn sqlite:///:memory: load.sql`. Expected CSV rows are `2,alpha` and `3,O'Brien` beneath `id,name`. Add a real CLI/API test with this fixture to `tests/importers/`, not only a direct reader test.
+
+Also cover existing target types, NEW conflicts, REPLACEMENT, malformed headers/rows, empty files, encodings, quotes/delimiters/newlines in values, null policy, optional dependency failures, rollback and resource cleanup. Use differential value × target-column-type tests for conversion changes. Run reference/registry tests and normal quality gates. Never test destructive replacement on a real shared database.
+
+## Plugin alternative
+
+Register a custom metacommand via the `execsql.metacommands` entry-point group and call `import_myformat()` from its handler. Install the plugin into the environment that runs execsql and verify both `execsql list plugins` and a complete script. The listing does not invoke importer-registration callbacks or populate their registries; see the canonical [plugin lifecycle](architecture.md#plugin-system). An importer entry-point name alone does not add an IMPORT form or route a built-in handler to your reader.

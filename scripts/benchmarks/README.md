@@ -39,10 +39,12 @@ depending on hardware.
 | **config**       | Same import job with `scan_lines`, `-z` (buffer), and `trim_strings` variants |
 | **metacommands** | Two WHILE loop sizes; delta isolates per-dispatch overhead                    |
 
-XLSX and ODS *export* benchmarks are included. XLSX and ODS *import* is not
-benchmarked: execsql's `IMPORT` metacommand reads tabular text (CSV, TSV, etc.),
-not binary spreadsheet files. These benchmarks are silently skipped when the
-`formats` extra is absent.
+XLSX and ODS export benchmarks are included and need the `formats` extra. The
+harness also attempts spreadsheet imports, but currently uses the plain delimited
+IMPORT form for those files instead of `FROM EXCEL … SHEET …` (XLSX) or
+`FROM … SHEET …` (ODS). Those failed attempts are printed as skips; they are not
+valid spreadsheet-import measurements. Missing optional dependencies can also
+cause printed skips. Use only the completed measurements when comparing runs.
 
 ## Methodology
 
