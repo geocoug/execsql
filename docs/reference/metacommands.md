@@ -1031,7 +1031,7 @@ Disconnecting from an alias that is not connected is an error, so a misspelled a
 -- !x! IF (ALIAS_DEFINED(staging)) { DISCONNECT FROM staging }
 ```
 
-Write the alias in lowercase inside `ALIAS_DEFINED`: aliases are stored in lowercase, and `ALIAS_DEFINED` compares them as written, so `ALIAS_DEFINED(Staging)` is false for a connection made `AS Staging`.
+`ALIAS_DEFINED` matches aliases in any case, as `USE` and `DISCONNECT` do: `ALIAS_DEFINED(Staging)` and `ALIAS_DEFINED(staging)` are both true for a connection made `AS Staging`.
 
 Attempting to disconnect from the initial database connection is also an error.
 
@@ -1641,7 +1641,7 @@ The following subsections describe all available conditional tests. Each one eva
 ALIAS_DEFINED(<alias>)
 ```
 
-Evaluates whether a database connection has been made using the specified alias. Database aliases are defined using the [CONNECT](#connect) and [PROMPT CONNECT](#prompt_connect) metacommands.
+Evaluates whether a database connection has been made using the specified alias. Database aliases are defined using the [CONNECT](#connect) and [PROMPT CONNECT](#prompt_connect) metacommands. Matching is case-insensitive: `ALIAS_DEFINED(Staging)` and `ALIAS_DEFINED(staging)` identify the same connection.
 
 
 ### *COLUMN_EXISTS*

@@ -401,7 +401,9 @@ def xf_columnexists(**kwargs: Any) -> bool:
 
 def xf_aliasdefined(**kwargs: Any) -> bool:
     alias = kwargs["alias"]
-    return alias in _state.dbs.aliases()
+    # CONNECT stores the alias lowercased; match it case-insensitively,
+    # as USE and make_current already do.
+    return alias.lower() in _state.dbs.aliases()
 
 
 def xf_metacommanderror(**kwargs: Any) -> bool:
