@@ -492,6 +492,19 @@ class FileWriter(threading.Thread):
             else:
                 self._pending.pop(filename, None)
 
+    def _resolved_write(self, requested: str, filename: str) -> None:
+        """Move this write's accounting to the worker-resolved destination."""
+        if requested == filename:
+            return
+        with self._pending_lock:
+            count = self._pending.get(requested, 0)
+            if count:
+                if count == 1:
+                    del self._pending[requested]
+                else:
+                    self._pending[requested] = count - 1
+                self._pending[filename] = self._pending.get(filename, 0) + 1
+
     def __del__(self) -> None:
         try:
             self.close_all()
@@ -609,6 +622,7 @@ class FileWriter(threading.Thread):
                 writer=self,
             )
         fc = self.files[filename]
+        self._resolved_write(fn, filename)
         self._on_file(fc, lambda: fc.write(content))
 
     def shutdown(self) -> None:
@@ -734,10 +748,11 @@ def _active_writer() -> FileWriter | None:
 def _abspath(filename: str) -> str:
     """*filename* made absolute against the working directory as it is now.
 
-    Resolved here, on the run's thread, rather than in the writer: a ``CD``
-    later in the script must not redirect output already queued.
+    Capture the current directory here so a later ``CD`` cannot redirect
+    queued output. Physical resolution belongs to the writer: metadata I/O
+    must not block the caller. Preserve ``..`` until symlinks are resolved.
     """
-    return str(Path(filename).resolve())
+    return str(Path(filename).absolute())
 
 
 #: Sentinel returned by :func:`_writer_reply` when the writer died before

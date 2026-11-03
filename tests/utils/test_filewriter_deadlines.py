@@ -44,6 +44,92 @@ class GatedHandle:
         return self.handle.close()
 
 
+@pytest.mark.parametrize("action", ["write", "new", "status", "close"])
+def test_public_writer_calls_never_resolve_on_the_caller(tmp_path, monkeypatch, action):
+    caller = threading.current_thread()
+    caller_resolved = threading.Event()
+    real_resolve = Path.resolve
+
+    def resolve(path, *args, **kwargs):
+        if threading.current_thread() is caller:
+            caller_resolved.set()
+            raise OSError("filesystem metadata is unavailable on the caller")
+        return real_resolve(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "resolve", resolve)
+    writer = fileio.FileWriter(open_timeout=1)
+    state.filewriter = writer
+    writer.start()
+    target = str(tmp_path / "out.txt")
+    try:
+        if action == "write":
+            fileio.filewriter_write(target, "line\n")
+        elif action == "new":
+            fileio.filewriter_open_as_new(target)
+        elif action == "status":
+            fileio.filewriter_filestatus(target)
+        else:
+            fileio.filewriter_close(target)
+        fileio.filewriter_close_all_after_write(max_wait=1)
+        assert not caller_resolved.is_set()
+    finally:
+        fileio.filewriter_end(writer)
+        state.filewriter = None
+
+
+def test_resolved_aliases_retire_pending_writes_and_share_one_handle(tmp_path):
+    (tmp_path / "sub").mkdir()
+    target = tmp_path / "out.txt"
+    alias = tmp_path / "sub" / ".." / "out.txt"
+    writer = fileio.FileWriter(open_timeout=1)
+    state.filewriter = writer
+    writer.start()
+    try:
+        for path in (alias, target, alias, target):
+            fileio.filewriter_write(str(path), "line\n")
+        fileio.filewriter_close_all_after_write(max_wait=1)
+        assert target.read_text() == "line\n" * 4
+        assert len(writer.files) == 1
+        assert not writer._pending
+    finally:
+        fileio.filewriter_end(writer)
+        state.filewriter = None
+
+
+def test_relative_write_keeps_its_directory_until_worker_resolution(tmp_path, monkeypatch):
+    first, second = tmp_path / "first", tmp_path / "second"
+    first.mkdir()
+    second.mkdir()
+    monkeypatch.chdir(first)
+    entered, release = threading.Event(), threading.Event()
+    real_resolve = Path.resolve
+
+    def resolve(path, *args, **kwargs):
+        if threading.current_thread() is writer:
+            entered.set()
+            assert release.wait(2)
+        return real_resolve(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "resolve", resolve)
+    writer = fileio.FileWriter(open_timeout=1)
+    state.filewriter = writer
+    writer.start()
+    try:
+        fileio.filewriter_write("out.txt", "first\n")
+        assert entered.wait(1)
+        monkeypatch.chdir(second)
+        release.set()
+        fileio.filewriter_close_all_after_write(max_wait=1)
+        assert (first / "out.txt").read_text() == "first\n"
+        assert not (second / "out.txt").exists()
+        assert not writer._pending
+    finally:
+        release.set()
+        fileio.filewriter_end(writer)
+        writer.join(2)
+        state.filewriter = None
+
+
 @pytest.mark.parametrize("phase", ["resolve", "open", "write", "flush", "close", "failures"])
 def test_flush_deadline_bounds_live_worker_and_prevents_later_output(tmp_path, monkeypatch, phase):
     entered, release = threading.Event(), threading.Event()

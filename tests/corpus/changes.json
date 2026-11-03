@@ -1251,6 +1251,12 @@
    "upstream": null,
    "why": "JSON import is an execsql2 feature. Fractional and exponent scalar numbers are parsed as exact Decimal values before inference and loading; existing DECIMAL destinations preserve their source digits and positive exponents create correctly sized new decimal columns with explicit zero scale."
   },
+  "files/ids.csv": {
+   "execsql2": "i\n100\n",
+   "status": "accepted",
+   "upstream": null,
+   "why": "JSON IMPORT with IMPORT_COMMON_COLUMNS_ONLY loads selected columns without binding or rejecting excluded numeric values; upstream does not support this JSON import."
+  },
   "files/powers.csv": {
    "execsql2": "i,v\n100,1000\n101,200\n",
    "status": "accepted",

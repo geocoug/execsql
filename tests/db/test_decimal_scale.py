@@ -334,3 +334,28 @@ def test_scale_validation_applies_only_to_loaded_columns(minimal_conf):
         assert db.select_data("SELECT i,amount FROM t")[1] == [(100, Decimal("0.00"))]
     finally:
         db.close()
+
+
+@pytest.mark.parametrize("exact", [False, True])
+@pytest.mark.parametrize("token", ["1e39", "-1e39", "1e999999999"])
+def test_common_column_json_load_ignores_unbound_decimals(tmp_path, exact, token):
+    import execsql
+
+    pytest.importorskip("duckdb")
+    db = DuckDBDatabase(":memory:")
+    path = tmp_path / "values.json"
+    path.write_text('[{"i":100,"unused":' + token + "}]")
+    try:
+        db.execute("CREATE TABLE t(i INTEGER)")
+        result = execsql.run(
+            sql=(
+                "-- !x! IMPORT_COMMON_COLUMNS_ONLY YES\n"
+                f"-- !x! CONFIG EXACT_DECIMALS {'YES' if exact else 'NO'}\n"
+                f'-- !x! IMPORT TO t FROM JSON "{path}"\n'
+            ),
+            connection=db,
+        )
+        assert result.success, result.errors
+        assert db.select_data("SELECT i FROM t")[1] == [(100,)]
+    finally:
+        db.close()

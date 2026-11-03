@@ -28,7 +28,8 @@ ______________________________________________________________________
 
 ### Fixed
 
-- **`WRITE` / `TEE`** reports blocked background I/O at the output deadline and discards queued output without waiting again during shutdown; the I/O already in progress may finish later.
+- **`WRITE` / `TEE`** reports blocked background I/O, including filename resolution, at the output deadline and discards queued output without waiting again during shutdown; the I/O already in progress may finish later.
+- **`IMPORT` / `COPY`** converts only selected source columns; oversized decimals in excluded columns no longer reject a load.
 - **ODS `IMPORT`** rejects invalid repetition, span and space counts with an input error before changing target tables.
 - **`IMPORT` / `COPY` into existing text columns** stores finite Decimal values as exact decimal text instead of allowing drivers to round them through floating point.
 - **`IMPORT` / `COPY` into SQLite numeric columns** rejects finite Decimal values that would overflow to infinity; a failed load keeps none of its new rows.

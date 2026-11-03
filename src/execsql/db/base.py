@@ -758,7 +758,7 @@ class Database(ABC):
 
         *rowsource* must be a generator yielding lists of values in column order.
         *tablespec_src* is a zero-argument callable that returns the table's type specification.
-        Each value is converted to the type scanned for its column; with
+        Only selected columns are converted to the type scanned for each column; with
         *existing_table* (the table was there before the IMPORT or COPY), the
         type of the column it goes into decides instead (see
         ``db.target_types.existing_table_converter``).
@@ -894,11 +894,7 @@ class Database(ABC):
                                             line[i] = None
                             # Trailing values left off the line are NULL.
                             line = list(line) + [None] * (len(ts_colnames) - len(line))
-                            lt = [converters[i](val) for i, val in enumerate(line)]
-                            row = []
-                            for i, v in enumerate(lt):
-                                if incl_col[i]:
-                                    row.append(v)
+                            row = [converters[i](val) for i, val in enumerate(line) if incl_col[i]]
                             add_line = True
                             if not _state.conf.empty_rows:
                                 add_line = not all(c is None for c in row)
