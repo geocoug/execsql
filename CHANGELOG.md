@@ -28,6 +28,8 @@ ______________________________________________________________________
 
 ### Fixed
 
+- **`ALIAS_DEFINED` and `DISCONNECT` match the alias case-insensitively** (`ALIAS_DEFINED(B)`, `DISCONNECT FROM B`), as `USE` always did; the same connection spelled differently reported "not defined" and could not be closed.
+- **`$CURRENT_DATABASE`, `$CURRENT_DBMS` and `$DB_SERVER` after a `DISCONNECT`** of the current database name the initial database the run switches to; they kept naming the database just closed. The log's connection record follows the switch too.
 - **`WRITE` / `TEE`** reports blocked background I/O, including filename resolution, at the output deadline and discards queued output without waiting again during shutdown; the I/O already in progress may finish later.
 - **`IMPORT` / `COPY`** converts only selected source columns; oversized decimals in excluded columns no longer reject a load.
 - **ODS `IMPORT`** rejects invalid repetition, span and space counts with an input error before changing target tables.
@@ -78,7 +80,6 @@ ______________________________________________________________________
 - **SIGTERM while `SYSTEM_CMD` runs a command** stops the command just as it starts, as its `system_cmd_timeout` runs out, and under the Textual console (`--gui-framework textual`), where the script also stops at that `SYSTEM_CMD`; the command was left running after execsql exited.
 - **`system_cmd_timeout` running out on a command *execsql* cannot stop** (one run as another user, through `sudo` for example) fails the `SYSTEM_CMD` at once, with `$SYSTEM_CMD_EXIT_STATUS` 124 and an error giving the command's process ID; execsql waited for the command to finish and then stopped with a permission error.
 - **`END BATCH` whose commit fails on one database** rolls back the batch's databases not yet committed; a later statement on them, such as an `ON ERROR_HALT` script's, committed the failed batch's rows.
-- **`ALIAS_DEFINED` and `DISCONNECT` match the alias case-insensitively** (`ALIAS_DEFINED(B)`, `DISCONNECT FROM B`), as `USE` always did; the same connection spelled differently reported "not defined" and could not be closed.
 - **`BREAK` in the main script, outside any `LOOP`, `SCRIPT` or `INCLUDE`d file,** is reported on its own line; it named the statement before it.
 - **`INCLUDE` and `EXECUTE SCRIPT` inside an inline `IF (…) { … }`** run again; they stopped the run with "should be handled by the AST executor".
 - **`INCLUDE`, `EXECUTE SCRIPT` and an inline `IF` added with `EXTEND SCRIPT … WITH METACOMMAND`** run when the script does; they stopped the run the same way.
