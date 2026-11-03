@@ -281,6 +281,7 @@ class TestXDisconnect:
         mock_dbs.current_alias.return_value = "testdb"
         _setup_exec_log()
         _setup_status()
+        _state.subvars = MagicMock()
 
         x_disconnect(alias="testdb")
 

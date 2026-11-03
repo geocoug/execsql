@@ -1076,7 +1076,7 @@
  },
  "current_db_vars_after_disconnect": {
   "files/out.txt": {
-   "execsql2": "before: SQLite(file c.db) (alias c)\nafter: SQLite(file t.db) (alias initial)\ndbms: SQLite\n",
+   "execsql2": "before: SQLite(file c.db) (alias initial)\nafter: SQLite(file t.db) (alias initial)\ndbms: SQLite\n",
    "status": "accepted",
    "upstream": "before: SQLite(file c.db) (alias c)\nafter: SQLite(file c.db) (alias initial)\ndbms: SQLite\n",
    "why": "A DISCONNECT of the current database switches the run to the initial database, but $CURRENT_DATABASE, $CURRENT_DBMS and $DB_SERVER kept naming the database just closed, so a script branching on $CURRENT_DBMS after a DISCONNECT picked the wrong dialect; the variables now follow the switch, shared with USE (#127)."

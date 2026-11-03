@@ -1437,6 +1437,7 @@ class TestXDisconnect:
         mock_dbs = _make_mock_dbs(current_alias="mydb")
         _make_mock_exec_log()
         _make_mock_status()
+        _make_mock_subvars()
 
         x_disconnect(alias=None)
 
@@ -1470,6 +1471,7 @@ class TestXDisconnect:
         mock_dbs = _make_mock_dbs(current_alias="mydb")
         _make_mock_exec_log()
         _make_mock_status()
+        _make_mock_subvars()
 
         x_disconnect(alias="mydb")
 
