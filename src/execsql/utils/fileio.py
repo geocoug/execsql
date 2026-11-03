@@ -8,7 +8,7 @@ Provides:
 - :class:`EncodedFile` — opens files with a specific encoding and error
   handler; supports the script-, output-, and import-encoding settings.
 - :class:`FileWriter` — asynchronous text-file writer thread, one per run,
-  used for export output to avoid blocking the main execution loop.
+  used for WRITE/TEE output to avoid blocking the main execution loop.
 - :class:`Logger` — wraps a log file with timestamped write methods;
   mirrors output to stderr when ``tee_write_log`` is set.
 - :class:`TempFileMgr` — registry of temporary files that are cleaned up
@@ -23,6 +23,7 @@ import atexit
 import codecs
 import collections
 import errno
+from functools import partial
 import io
 import os
 import queue
@@ -92,6 +93,8 @@ def check_zip_decompression_ratio(
     *,
     max_uncompressed_mb: int = 500,
     max_ratio: int = 100,
+    xml_only: bool = False,
+    limit_names: tuple[str, str] | None = None,
 ) -> None:
     """Reject a zip-based workbook that looks like a decompression bomb.
 
@@ -107,6 +110,9 @@ def check_zip_decompression_ratio(
     * ``max_ratio`` — per-member uncompressed:compressed ratio
       (default 100:1; legitimate XML-heavy XLSX rarely exceeds 30:1).
 
+    Zero disables the corresponding bound. With *xml_only*, the aggregate
+    counts XML members only (ODS); compression ratios still cover every member.
+    *limit_names* adds configuration setting names to rejection messages.
     No-op when *path* is not a zipfile (e.g. legacy ``.xls`` OLE-CDF).
     """
     import zipfile
@@ -115,26 +121,41 @@ def check_zip_decompression_ratio(
         with zipfile.ZipFile(path) as zf:
             total_uncompressed = 0
             for info in zf.infolist():
-                total_uncompressed += info.file_size
-                if info.compress_size > 0:
-                    ratio = info.file_size / info.compress_size
+                if not xml_only or info.filename.lower().endswith(".xml"):
+                    total_uncompressed += info.file_size
+                if max_ratio and info.file_size:
+                    ratio = info.file_size / info.compress_size if info.compress_size else float("inf")
                     if ratio > max_ratio:
+                        sizes = (
+                            f" ({info.file_size:,} uncompressed / {info.compress_size:,} compressed bytes)"
+                            if limit_names
+                            else ""
+                        )
                         raise ErrInfo(
                             type="error",
                             other_msg=(
                                 f"Refusing to open '{path}': member '{info.filename}' has "
-                                f"compression ratio {ratio:.1f}:1 (limit {max_ratio}:1) - "
+                                f"compression ratio {ratio:.1f}:1"
+                                f"{sizes} "
+                                f"(limit {max_ratio}:1"
+                                f"{(' set by ' + limit_names[1]) if limit_names else ''}) - "
                                 "possible zip-bomb."
                             ),
                         )
             limit_bytes = max_uncompressed_mb * 1024 * 1024
-            if total_uncompressed > limit_bytes:
+            if max_uncompressed_mb and total_uncompressed > limit_bytes:
+                observed = (
+                    f"{total_uncompressed:,} XML bytes" if xml_only else f"{total_uncompressed / 1024 / 1024:.0f} MB"
+                )
+                maximum = (
+                    f"{limit_bytes:,} bytes ({max_uncompressed_mb} MiB)" if limit_names else f"{max_uncompressed_mb} MB"
+                )
                 raise ErrInfo(
                     type="error",
                     other_msg=(
                         f"Refusing to open '{path}': total uncompressed size "
-                        f"{total_uncompressed / 1024 / 1024:.0f} MB exceeds limit "
-                        f"{max_uncompressed_mb} MB - possible zip-bomb."
+                        f"{observed} exceeds limit {maximum}"
+                        f"{(' set by ' + limit_names[0]) if limit_names else ''} - possible zip-bomb."
                     ),
                 )
     except zipfile.BadZipFile:
@@ -219,24 +240,27 @@ class FileWriter(threading.Thread):
         STATUS_OPEN, STATUS_WAITING, STATUS_UNOPENED, STATUS_CLOSED, STATUS_OPENFAILURE, STATUS_WRITEFAILURE = range(6)
         FAILED = (STATUS_OPENFAILURE, STATUS_WRITEFAILURE)
 
-        def __init__(self, fn: str, open_timeout: int, encoding: str = "utf-8") -> None:
+        def __init__(
+            self,
+            fn: str,
+            open_timeout: int,
+            encoding: str = "utf-8",
+            *,
+            writer: FileWriter | None = None,
+        ) -> None:
             self.filename = fn
             self.open_timeout = open_timeout
             self.encoding = encoding
+            self._writer_ref = weakref.ref(writer) if writer is not None else None
+            self._discarded = False
             self.openmode = "a"
             self.handle: io.TextIOWrapper | None = None
             self.status = self.STATUS_UNOPENED
             self.open_start_time: float | None = None
             self.output_queue: collections.deque[str] = collections.deque()
             self.close_after_write = False
-            # Lines discarded because the file could not be opened within
-            # open_timeout, or could not be written; reported back to the
-            # caller, never silently lost.
             self.dropped = 0
-            # The OS error that failed the file; None for an open that timed out.
             self.error: str | None = None
-            # Lines discarded because the file was closed while still locked
-            # (a halt, or an exporter about to write the same path).
             self.abandoned = 0
 
         def __del__(self) -> None:
@@ -245,31 +269,97 @@ class FileWriter(threading.Thread):
             except Exception:
                 pass  # Best-effort cleanup at interpreter shutdown.
 
-        def fail(self, status: int, exc: BaseException) -> None:
-            """Give up on the file after *exc*: discard (and count) what is buffered, and buffer nothing more."""
-            self.status = status
-            self.error = str(exc)
+        @property
+        def writer(self) -> FileWriter | None:
+            return self._writer_ref() if self._writer_ref is not None else None
+
+        def _stopped(self) -> bool:
+            writer = self.writer
+            return self._discarded or (writer is not None and writer.abandoned.is_set())
+
+        def _retire(self, count: int) -> None:
+            writer = self.writer
+            if writer is not None:
+                writer.completed(self.filename, count)
+
+        def _io(self, operation: str, action: Callable[[], Any], *, cleanup: bool = False) -> Any:
+            if not cleanup and self._stopped():
+                return None
+            writer = self.writer
+            if writer is not None:
+                writer.current_op = (operation, self.filename, time.monotonic())
+            try:
+                # Publish the operation before the final abandonment check: a
+                # call reserved here is the one that may finish after timeout.
+                if not cleanup and self._stopped():
+                    return None
+                return action()
+            finally:
+                if writer is not None:
+                    writer.current_op = None
+
+        def _close_handle(self, *, discard: bool = False) -> None:
+            handle = self.handle
+            if handle is None:
+                return
+            if discard or self._stopped():
+                # TextIOWrapper.close() flushes. Close the raw file first when
+                # abandoning a write/flush so its buffered bytes cannot escape
+                # later; keep normal text encoding/newline/BOM behavior intact.
+                raw = getattr(getattr(handle, "buffer", None), "raw", None)
+                if raw is not None:
+                    try:
+                        self._io("close", raw.close, cleanup=True)
+                    except Exception:
+                        pass
+                try:
+                    self._io("close", handle.close, cleanup=True)
+                except Exception:
+                    pass
+            else:
+                self._io("close", handle.close)
+                if self._stopped():
+                    self._close_handle(discard=True)
+            self.handle = None
+
+        def discard(self) -> None:
+            """Drop queued text and close without flushing abandoned buffers."""
+            self._discarded = True
             self.dropped += len(self.output_queue)
+            self._retire(len(self.output_queue))
             self.output_queue.clear()
             self.close_after_write = False
-            handle, self.handle = self.handle, None
-            if handle is not None:
-                try:
-                    handle.close()
-                except OSError:
-                    pass  # The file has already failed; its error is the one to report.
+            self._close_handle(discard=True)
+            if self.status not in self.FAILED:
+                self.status = self.STATUS_CLOSED
+
+        def fail(self, status: int, exc: BaseException) -> None:
+            """Fail this file alone, discarding any text it cannot safely write."""
+            self.status = status
+            self.error = str(exc)
+            self.discard()
 
         def write_queue(self) -> None:
-            assert self.handle is not None
-            while len(self.output_queue) > 0:
-                m = self.output_queue.pop()
+            if self._stopped():
+                return
+            handle = self.handle
+            assert handle is not None
+            while self.output_queue and not self._stopped():
+                message = self.output_queue.pop()
                 try:
-                    self.handle.write(m)
-                except OSError as exc:  # disk full, a share that dropped, ...
+                    self._io("write", partial(handle.write, message))
+                    if self._stopped():
+                        self.dropped += 1
+                        self._retire(1)
+                        return
+                    self._io("write", handle.flush)
+                except Exception as exc:
                     self.dropped += 1
+                    self._retire(1)
                     self.fail(self.STATUS_WRITEFAILURE, exc)
                     return
-            if self.close_after_write:
+                self._retire(1)
+            if self.close_after_write and not self._stopped():
                 self.close_after_write = False
                 self.close()
 
@@ -278,14 +368,16 @@ class FileWriter(threading.Thread):
             self.openmode = "w"
 
         def try_open(self) -> None:
+            if self._stopped():
+                return
             if self.status != self.STATUS_OPEN or self.handle is None:
                 if self.open_start_time is None:
                     self.open_start_time = time.time()
                 if time.time() - self.open_start_time < self.open_timeout:
                     try:
-                        self.handle = cast(
-                            io.TextIOWrapper,
-                            open(  # noqa: SIM115
+                        self.handle = self._io(
+                            "open",
+                            lambda: open(  # noqa: SIM115
                                 file=self.filename,
                                 mode=self.openmode,
                                 encoding=self.encoding,
@@ -293,25 +385,29 @@ class FileWriter(threading.Thread):
                             ),
                         )
                     except Exception as exc:
-                        if _never_opens(self.filename, exc):
+                        if self._io("open", partial(_never_opens, self.filename, exc)):
                             self.fail(self.STATUS_OPENFAILURE, exc)
                         else:
                             self.status = self.STATUS_WAITING
                     else:
-                        self.status = self.STATUS_OPEN
-                        self.openmode = "a"  # Return to default for next open command.
-                        self.open_start_time = None
+                        if self.handle is not None:
+                            self.status = self.STATUS_OPEN
+                            self.openmode = "a"
+                            self.open_start_time = None
                 else:
-                    # Give up: discard what was buffered (counting it so the
-                    # caller can report the loss) and stop buffering.
                     self.status = self.STATUS_OPENFAILURE
                     self.dropped += len(self.output_queue)
+                    self._retire(len(self.output_queue))
                     self.output_queue.clear()
                     self.close_after_write = False
 
         def close(self) -> None:
+            if self._stopped():
+                self.discard()
+                return
             if self.status == self.STATUS_WAITING:
                 self.abandoned += len(self.output_queue)
+                self._retire(len(self.output_queue))
                 self.output_queue.clear()
                 self.close_after_write = False
             if self.status == self.STATUS_OPEN and self.handle is not None:
@@ -319,16 +415,14 @@ class FileWriter(threading.Thread):
                 if self.status == self.STATUS_WRITEFAILURE:
                     return
                 try:
-                    self.handle.close()
-                except OSError as exc:  # the final flush failed
-                    self.handle = None
+                    self._close_handle()
+                except OSError as exc:
                     self.fail(self.STATUS_WRITEFAILURE, exc)
                     return
-                self.handle = None
             if self.status in self.FAILED:
-                return  # Kept until the caller has been told about the loss.
+                return
             self.status = self.STATUS_CLOSED
-            self.openmode = "a"  # Return this to the default in case it had been changed for the last open.
+            self.openmode = "a"
 
         def clean_close(self) -> None:
             if self.status == self.STATUS_WAITING:
@@ -337,8 +431,9 @@ class FileWriter(threading.Thread):
                 self.close()
 
         def write(self, content: str) -> None:
-            if self.status in self.FAILED:
+            if self._stopped() or self.status in self.FAILED:
                 self.dropped += 1
+                self._retire(1)
                 return
             self.output_queue.appendleft(content)
             self.try_open()
@@ -348,14 +443,19 @@ class FileWriter(threading.Thread):
     def __init__(self, file_encoding: str = "utf-8", open_timeout: int = 600) -> None:
         # open_timeout is the maximum time, in seconds, that opening will be retried
         # if a file cannot be initially opened for writing.
-        # Daemon, so a run that never reaches filewriter_end() cannot hold the
-        # interpreter open; the atexit handlers flush before daemons stop.
+        # A daemon cannot hold interpreter shutdown on an abandoned I/O call.
+        # Normal callers flush first, then request shutdown.
         super().__init__(name="execsql-filewriter", daemon=True)
         self.input_queue: queue.Queue[tuple[int, tuple[Any, ...]]] = queue.Queue()
         self.return_msg_queue: queue.Queue[Any] = queue.Queue()
         self.file_encoding = file_encoding
         self.open_timeout = open_timeout
         self.files: dict[str, FileWriter.FileControl] = {}
+        self.abandoned = threading.Event()
+        self.current_op: tuple[str, str, float] | None = None
+        self.output_error: ErrInfo | None = None
+        self._pending: dict[str, int] = {}
+        self._pending_lock = threading.Lock()
         # Commands that raised something other than a file's own OSError,
         # reported with the failed files.
         self.errors: list[LostOutput] = []
@@ -373,6 +473,38 @@ class FileWriter(threading.Thread):
             self.open_failures,
         )
 
+    def submit(self, command: int, arguments: tuple[Any, ...]) -> None:
+        """Queue a command, recording pending destinations without holding locks during I/O."""
+        with self._pending_lock:
+            if self.abandoned.is_set():
+                raise _abandoned_writer_error(self)
+            if command == self.CMD_WRITE:
+                filename = arguments[0]
+                self._pending[filename] = self._pending.get(filename, 0) + 1
+            self.input_queue.put((command, arguments))
+
+    def completed(self, filename: str, count: int) -> None:
+        """Retire writes only after flushing them or recording their loss."""
+        with self._pending_lock:
+            remaining = self._pending.get(filename, 0) - count
+            if remaining > 0:
+                self._pending[filename] = remaining
+            else:
+                self._pending.pop(filename, None)
+
+    def _resolved_write(self, requested: str, filename: str) -> None:
+        """Move this write's accounting to the worker-resolved destination."""
+        if requested == filename:
+            return
+        with self._pending_lock:
+            count = self._pending.get(requested, 0)
+            if count:
+                if count == 1:
+                    del self._pending[requested]
+                else:
+                    self._pending[requested] = count - 1
+                self._pending[filename] = self._pending.get(filename, 0) + 1
+
     def __del__(self) -> None:
         try:
             self.close_all()
@@ -387,12 +519,21 @@ class FileWriter(threading.Thread):
         except Exception as exc:
             fc.fail(fc.STATUS_WRITEFAILURE, exc)
 
+    def _resolve_filename(self, filename: str) -> str:
+        self.current_op = ("open", filename, time.monotonic())
+        try:
+            if self.abandoned.is_set():
+                raise _abandoned_writer_error(self)
+            return str(Path(filename).resolve())
+        finally:
+            self.current_op = None
+
     def close_all(self) -> None:
         for fc in getattr(self, "files", {}).values():
             self._on_file(fc, fc.close)
 
     def close_if_open(self, fn: str) -> None:
-        filename = str(Path(fn).resolve())
+        filename = self._resolve_filename(fn)
         if filename in self.files:
             fc = self.files[filename]
             self._on_file(fc, fc.close)
@@ -453,32 +594,35 @@ class FileWriter(threading.Thread):
         self.return_msg_queue.put(failed)
 
     def open_as_new(self, fn: str) -> None:
-        filename = str(Path(fn).resolve())
+        filename = self._resolve_filename(fn)
         if filename not in self.files:
             self.files[filename] = self.FileControl(
                 filename,
                 open_timeout=self.open_timeout,
                 encoding=self.file_encoding,
+                writer=self,
             )
         fc = self.files[filename]
         self._on_file(fc, fc.open_as_new)
 
     def status(self, fn: str) -> None:
-        filename = str(Path(fn).resolve())
+        filename = self._resolve_filename(fn)
         if filename in self.files:
             self.return_msg_queue.put(self.files[filename].status)
         else:
             self.return_msg_queue.put(self.FileControl.STATUS_UNOPENED)
 
     def write(self, fn: str, content: str) -> None:
-        filename = str(Path(fn).resolve())
+        filename = self._resolve_filename(fn)
         if filename not in self.files:
             self.files[filename] = self.FileControl(
                 filename,
                 open_timeout=self.open_timeout,
                 encoding=self.file_encoding,
+                writer=self,
             )
         fc = self.files[filename]
+        self._resolved_write(fn, filename)
         self._on_file(fc, lambda: fc.write(content))
 
     def shutdown(self) -> None:
@@ -492,22 +636,39 @@ class FileWriter(threading.Thread):
         # Waiting files are retried on a timer rather than only when the queue
         # is idle: a caller polling CMD_CLOSED_STATUS keeps the queue busy.
         last_retry = time.monotonic()
-        while self.active:
-            try:
-                command, argtuple = self.input_queue.get(timeout=0.1)
-            except queue.Empty:
-                pass
-            else:
+        try:
+            while self.active and not self.abandoned.is_set():
                 try:
-                    self.execvec[command](*argtuple)
-                except Exception as exc:
-                    self._command_failed(command, argtuple, exc)
-            if time.monotonic() - last_retry >= 0.1:
-                try:
-                    self.retry_waiting()
-                except Exception as exc:
-                    self.errors.append(LostOutput("", 0, str(exc), "writer"))
-                last_retry = time.monotonic()
+                    command, argtuple = self.input_queue.get(timeout=0.1)
+                except queue.Empty:
+                    pass
+                else:
+                    if self.abandoned.is_set():
+                        break
+                    try:
+                        self.execvec[command](*argtuple)
+                    except Exception as exc:
+                        self._command_failed(command, argtuple, exc)
+                if self.abandoned.is_set():
+                    break
+                if time.monotonic() - last_retry >= 0.1:
+                    try:
+                        self.retry_waiting()
+                    except Exception as exc:
+                        self.errors.append(LostOutput("", 0, str(exc), "writer"))
+                    last_retry = time.monotonic()
+        finally:
+            if self.abandoned.is_set():
+                self.active = False
+                while True:
+                    try:
+                        self.input_queue.get_nowait()
+                    except queue.Empty:
+                        break
+                for fc in self.files.values():
+                    fc.discard()
+                with self._pending_lock:
+                    self._pending.clear()
 
     def _command_failed(self, command: int, argtuple: tuple[Any, ...], exc: Exception) -> None:
         """Record a command that raised, and still answer it if the caller waits for an answer.
@@ -517,7 +678,10 @@ class FileWriter(threading.Thread):
         every later write, to any file).
         """
         filename = argtuple[0] if argtuple and isinstance(argtuple[0], str) else ""
-        lost = LostOutput(filename, 0, str(exc), "writer")
+        dropped = 1 if command == self.CMD_WRITE else 0
+        if dropped:
+            self.completed(filename, dropped)
+        lost = LostOutput(filename, dropped, str(exc), "writer")
         if command == self.CMD_OPEN_FAILURES:
             self.return_msg_queue.put([lost])
             return
@@ -572,18 +736,23 @@ def _active_writer() -> FileWriter | None:
     import execsql.state as _state
 
     fw = _state.filewriter
-    if fw is not None and _writer_stopped(fw):
+    if fw is None or fw.ident is None:
+        return None
+    if fw.abandoned.is_set():
+        raise _abandoned_writer_error(fw)
+    if _writer_stopped(fw):
         raise _writer_stopped_error()
-    return fw if fw is not None and fw.is_alive() else None
+    return fw if fw.is_alive() else None
 
 
 def _abspath(filename: str) -> str:
     """*filename* made absolute against the working directory as it is now.
 
-    Resolved here, on the run's thread, rather than in the writer: a ``CD``
-    later in the script must not redirect output already queued.
+    Capture the current directory here so a later ``CD`` cannot redirect
+    queued output. Physical resolution belongs to the writer: metadata I/O
+    must not block the caller. Preserve ``..`` until symlinks are resolved.
     """
-    return str(Path(filename).resolve())
+    return str(Path(filename).absolute())
 
 
 #: Sentinel returned by :func:`_writer_reply` when the writer died before
@@ -591,30 +760,75 @@ def _abspath(filename: str) -> str:
 _NO_REPLY = object()
 
 
-def _writer_reply(fw: FileWriter) -> Any:
-    """Wait for *fw*'s answer to the command just sent.
+def _abandoned_writer_error(fw: FileWriter) -> ErrInfo:
+    return fw.output_error or ErrInfo(
+        "error",
+        other_msg="File output lost: the file writer was abandoned; queued output was discarded.",
+    )
 
-    Polls with a short timeout and re-checks liveness between polls, so a
-    writer that dies mid-request cannot block the caller forever.  Returns
-    :data:`_NO_REPLY` if it died.
-    """
+
+def _abandon_writer(fw: FileWriter, wait: float) -> ErrInfo:
+    """Stop admission immediately; the daemon may still be inside its last I/O call."""
+    with fw._pending_lock:
+        if fw.output_error is not None:
+            return fw.output_error
+        operation = fw.current_op
+        fw.abandoned.set()
+        pending = tuple(fw._pending)
+        if operation is not None:
+            phase, filename, started = operation
+            elapsed = time.monotonic() - started
+            where = f"in {phase} of {filename}"
+        else:
+            elapsed = wait
+            where = "while waiting for a file writer reply"
+        queued = "; queued output files: " + ", ".join(pending) if pending else ""
+        fw.output_error = ErrInfo(
+            "error",
+            other_msg=(
+                f"File output lost: the file writer has been blocked for {elapsed:.3f} seconds {where}; "
+                f"output queued after it was discarded{queued}. The in-progress I/O may complete later."
+            ),
+        )
+        return fw.output_error
+
+
+def _writer_deadline(fw: FileWriter, max_wait: float | None = None) -> tuple[float, float]:
+    wait = fw.open_timeout + 5.0
+    if max_wait is not None:
+        wait = min(wait, max_wait)
+    wait = max(0.0, wait)
+    return time.monotonic() + wait, wait
+
+
+def _writer_reply(fw: FileWriter, deadline: float, wait: float) -> Any:
+    """Wait only until the caller's absolute deadline, checking worker liveness."""
     while True:
+        if fw.abandoned.is_set():
+            raise _abandoned_writer_error(fw)
+        if not fw.is_alive():
+            return _NO_REPLY
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise _abandon_writer(fw, wait)
         try:
-            return fw.return_msg_queue.get(timeout=2.0)
+            return fw.return_msg_queue.get(timeout=min(0.05, remaining))
         except queue.Empty:
-            if not fw.is_alive():
-                return _NO_REPLY
+            pass
+
+
+def _filewriter_status(fw: FileWriter, filename: str, deadline: float, wait: float) -> int:
+    fw.submit(FileWriter.CMD_GET_STATUS, (filename,))
+    reply = _writer_reply(fw, deadline, wait)
+    return FileWriter.FileControl.STATUS_CLOSED if reply is _NO_REPLY else cast(int, reply)
 
 
 def filewriter_filestatus(filename: str) -> int:
     fw = _active_writer()
     if fw is None:
         return FileWriter.FileControl.STATUS_CLOSED
-    fw.input_queue.put((FileWriter.CMD_GET_STATUS, (_abspath(filename),)))
-    reply = _writer_reply(fw)
-    if reply is _NO_REPLY:
-        return FileWriter.FileControl.STATUS_CLOSED
-    return cast(int, reply)
+    deadline, wait = _writer_deadline(fw)
+    return _filewriter_status(fw, _abspath(filename), deadline, wait)
 
 
 #: Set once the first dropped write has been reported, so a script writing
@@ -651,7 +865,7 @@ def filewriter_write(filename: str, message: str) -> None:
     if fw is None:
         _warn_write_dropped(filename)
         return
-    fw.input_queue.put((FileWriter.CMD_WRITE, (_abspath(filename), message)))
+    fw.submit(FileWriter.CMD_WRITE, (_abspath(filename), message))
 
 
 def filewriter_open_as_new(filename: str) -> None:
@@ -661,59 +875,52 @@ def filewriter_open_as_new(filename: str) -> None:
     if fw is None:
         _warn_write_dropped(filename)
         return
-    fw.input_queue.put((FileWriter.CMD_OPEN_AS_NEW, (_abspath(filename),)))
+    fw.submit(FileWriter.CMD_OPEN_AS_NEW, (_abspath(filename),))
 
 
 def filewriter_close(filename: str) -> None:
-    # This is intended to be used by the executing thread to ensure that a
-    # file is closed before it writes to that file itself.
+    """Release a writer-held path before synchronous output, using one bounded deadline."""
     fw = _active_writer()
     if fw is None:
         return
     filename = _abspath(filename)
-    fw.input_queue.put((FileWriter.CMD_CLOSE_IF_OPEN, (filename,)))
-    while filewriter_filestatus(filename) == FileWriter.FileControl.STATUS_OPEN:
-        time.sleep(0.05)
+    deadline, wait = _writer_deadline(fw)
+    fw.submit(FileWriter.CMD_CLOSE_IF_OPEN, (filename,))
+    while _filewriter_status(fw, filename, deadline, wait) == FileWriter.FileControl.STATUS_OPEN:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise _abandon_writer(fw, wait)
+        time.sleep(min(0.05, remaining))
 
 
 def filewriter_close_all_after_write(max_wait: float | None = None) -> None:
-    """Flush and close every file the active run's writer holds, then report lost output.
+    """Flush and report output loss within one absolute deadline, including reply waits.
 
-    Waits for files still locked by another process for up to the writer's
-    ``open_timeout`` (plus a small margin), or *max_wait* seconds if that is
-    shorter.  A file still locked then is closed and its output discarded,
-    and this raises :class:`ErrInfo` naming each file whose output was lost
-    and how much — a lost write is an error, not a silent success.
+    The deadline is open_timeout + 5 seconds, capped by max_wait when supplied.
+    On expiry the daemon is abandoned, not killed: its current I/O may finish
+    later, but it will discard queued writes and close without flushing them.
     """
     fw = _active_writer()
     if fw is None:
         return
-    wait = fw.open_timeout + 5.0 if max_wait is None else min(fw.open_timeout + 5.0, max_wait)
-    deadline = time.monotonic() + wait
-    fw.input_queue.put((FileWriter.CMD_CLOSE_ALL_AFTER_WRITE, ()))
-    timed_out = False
+    deadline, wait = _writer_deadline(fw, max_wait)
+    fw.submit(FileWriter.CMD_CLOSE_ALL_AFTER_WRITE, ())
     while True:
-        if not fw.is_alive():
-            raise _writer_stopped_error()
-        fw.input_queue.put((FileWriter.CMD_CLOSED_STATUS, ()))
-        close_status = _writer_reply(fw)
+        fw.submit(FileWriter.CMD_CLOSED_STATUS, ())
+        close_status = _writer_reply(fw, deadline, wait)
         if close_status is _NO_REPLY:
             raise _writer_stopped_error()
         if close_status == FileWriter.FileControl.STATUS_CLOSED:
             break
-        if time.monotonic() > deadline:
-            timed_out = True
-            # Close what is still locked, so its discarded output is counted.
-            fw.input_queue.put((FileWriter.CMD_CLOSE_ALL, ()))
-            break
-        time.sleep(0.05)
-    fw.input_queue.put((FileWriter.CMD_OPEN_FAILURES, ()))
-    failures = _writer_reply(fw)
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise _abandon_writer(fw, wait)
+        time.sleep(min(0.05, remaining))
+    fw.submit(FileWriter.CMD_OPEN_FAILURES, ())
+    failures = _writer_reply(fw, deadline, wait)
     if failures is _NO_REPLY:
         raise _writer_stopped_error()
     messages = [_lost_output_message(lost, fw.open_timeout) for lost in failures]
-    if timed_out and not messages:
-        messages.append(f"one or more output files were still locked after {wait:.0f} seconds")
     if messages:
         raise ErrInfo("error", other_msg="File output lost: " + "; ".join(messages) + ".")
 
@@ -735,11 +942,13 @@ def _lost_output_message(lost: LostOutput, open_timeout: int) -> str:
 
 
 def filewriter_end(writer: FileWriter | None = None) -> None:
-    """Close every file and stop *writer*, or the active run's writer if omitted.
+    """Request this writer's shutdown, or detach it immediately if already abandoned.
 
-    Only that one writer is stopped: a run that halts leaves other runs'
-    output alone.  The join is capped so an ``atexit`` handler cannot wedge
-    interpreter shutdown on a writer stuck opening a file.
+    A healthy worker closes its files and stops; a stalled one is abandoned
+    after the capped join and may remain alive. Other runs' writers are left
+    alone. The join is capped so an ``atexit`` handler cannot wedge
+    interpreter shutdown on a writer stuck in I/O. An abandoned writer is
+    detached immediately, without a second wait for its in-progress call.
     """
     import execsql.state as _state
 
@@ -747,9 +956,11 @@ def filewriter_end(writer: FileWriter | None = None) -> None:
     if fw is None:
         return
     try:
-        if fw.is_alive():
-            fw.input_queue.put((FileWriter.CMD_SHUTDOWN, ()))
+        if fw.is_alive() and not fw.abandoned.is_set():
+            fw.submit(FileWriter.CMD_SHUTDOWN, ())
             fw.join(timeout=5.0)
+            if fw.is_alive():
+                _abandon_writer(fw, 5.0)
     except Exception:
         pass  # Best-effort cleanup at interpreter shutdown.
     if _state.filewriter is fw:

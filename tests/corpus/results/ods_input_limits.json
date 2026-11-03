@@ -1,0 +1,44 @@
+{
+ "exit": 0,
+ "files": {
+  "invalid-result.csv": "v\nloaded\n",
+  "result.csv": "v\nloaded\n"
+ },
+ "recorded_with": "execsql 1.130.1",
+ "stderr": "",
+ "stdout": "",
+ "tables": {
+  "invalid_target": {
+   "columns": [
+    [
+     "v",
+     "varchar"
+    ]
+   ],
+   "rows": [
+    [
+     [
+      "text",
+      "'loaded'"
+     ]
+    ]
+   ]
+  },
+  "t": {
+   "columns": [
+    [
+     "v",
+     "varchar"
+    ]
+   ],
+   "rows": [
+    [
+     [
+      "text",
+      "'loaded'"
+     ]
+    ]
+   ]
+  }
+ }
+}

@@ -224,6 +224,11 @@ class _LibraryConfig:
         self.email_format = "plain"
         self.email_css: str | None = None
 
+        # Default capabilities when no configuration file is supplied.
+        self.allow_system_cmd = True
+        self.allow_rm_file = True
+        self.allow_serve = True
+
         # Includes
         self.include_req: list = []
         self.include_opt: list = []
@@ -340,9 +345,9 @@ def run(
     encoding: str = "utf-8",
     halt_on_error: bool = True,
     new_db: bool = False,
-    allow_system_cmd: bool = True,
-    allow_rm_file: bool = True,
-    allow_serve: bool = True,
+    allow_system_cmd: bool | None = None,
+    allow_rm_file: bool | None = None,
+    allow_serve: bool | None = None,
 ) -> ScriptResult:
     """Execute a SQL script and return the result.
 
@@ -356,6 +361,10 @@ def run(
             ``"postgresql://user:pass@host/db"``).
         connection: A pre-existing :class:`~execsql.db.base.Database`
             instance.  ``run()`` will NOT close this connection on exit.
+            Connections opened by the script with CONNECT are run-owned:
+            their pending work is rolled back and they are closed on exit,
+            including under AUTOCOMMIT OFF. Commit their work in the script
+            before it ends if it must be kept.
             What an interrupted SQL statement, metacommand or ``END BATCH``
             did is rolled back before the interrupt is re-raised: an SQL
             statement rolls back its connection's open transaction, and a
@@ -370,7 +379,8 @@ def run(
         variables: Substitution variables as ``{"NAME": "value"}``.
             Keys without a ``$`` prefix get one added automatically, so
             ``{"SCHEMA": "public"}`` is referenced as ``!!$SCHEMA!!``.
-        config_file: Optional execsql configuration file to load.
+        config_file: Optional execsql configuration file to load. Configured
+            variables and startup includes apply before the main script runs.
         encoding: Script file encoding (default ``"utf-8"``).
         halt_on_error: If ``True`` (default), stop on the first SQL
             error.  If ``False``, capture errors and continue.
@@ -379,20 +389,26 @@ def run(
         allow_system_cmd: If ``False``, the SYSTEM_CMD metacommand is
             disabled and will raise an error if encountered. Matches the
             ``--no-system-cmd`` CLI flag and the ``allow_system_cmd``
-            config option.
+            config option. None (default) inherits the configured value,
+            or True without a config file; explicit True overrides a restriction.
         allow_rm_file: If ``False``, the RM_FILE metacommand is disabled
             and will raise an error if encountered. Matches the
             ``--no-rm-file`` CLI flag and the ``allow_rm_file`` config
-            option.
+            option. None (default) inherits the configured value;
+            an explicit boolean overrides it.
         allow_serve: If ``False``, the SERVE metacommand is disabled and
             will raise an error if encountered. Matches the ``--no-serve``
-            CLI flag and the ``allow_serve`` config option.
+            CLI flag and the ``allow_serve`` config option. None (default)
+            inherits the configured value; an explicit boolean overrides it.
 
     Returns:
         A :class:`ScriptResult` with execution outcome, timing, errors,
         and final variable state.  A script that cannot be read, a bad
         *config_file*, and a *dsn* that cannot be parsed or opened all
-        return ``success=False`` rather than raising.
+        return ``success=False`` rather than raising. A blocked background
+        output writer adds an error with source ``<output>`` and is abandoned
+        at its flush deadline. Its current I/O may finish later; queued
+        output is discarded and no further opens or writes are started.
 
     Raises:
         ValueError: If the argument combination is invalid (e.g. both
@@ -431,27 +447,6 @@ def run(
     # ------------------------------------------------------------------
     ctx = RuntimeContext()
 
-    # Configuration
-    conf_overrides: dict[str, Any] = {"script_encoding": encoding}
-    conf: Any
-    if config_file is not None:
-        # Load a real ConfigData with the explicit config file
-        from execsql.script.variables import SubVarSet
-
-        if not Path(config_file).is_file():
-            return _failed(f"Config file {str(config_file)!r} does not exist.", "<config>")
-        temp_subvars = SubVarSet()
-        script_dir = str(Path(script).resolve().parent) if script else os.getcwd()
-        try:
-            conf = ConfigData(script_dir, temp_subvars, config_file=str(config_file))
-        except Exception as exc:
-            return _failed(_error_text(exc), "<config>")
-        # Apply any overrides
-        for k, v in conf_overrides.items():
-            setattr(conf, k, v)
-    else:
-        conf = _LibraryConfig(**conf_overrides)
-
     # Substitution variables
     from execsql.script.variables import SubVarSet
 
@@ -472,6 +467,24 @@ def run(
 
     subvars.add_substitution("$HOSTNAME", platform.node())
 
+    # Configuration
+    conf_overrides: dict[str, Any] = {"script_encoding": encoding}
+    conf: Any
+    if config_file is not None:
+        # Load a real ConfigData with the explicit config file
+        if not Path(config_file).is_file():
+            return _failed(f"Config file {str(config_file)!r} does not exist.", "<config>")
+        script_dir = str(Path(script).resolve().parent) if script else os.getcwd()
+        try:
+            conf = ConfigData(script_dir, subvars, config_file=str(config_file))
+        except Exception as exc:
+            return _failed(_error_text(exc), "<config>")
+        # Apply any overrides
+        for k, v in conf_overrides.items():
+            setattr(conf, k, v)
+    else:
+        conf = _LibraryConfig(**conf_overrides)
+
     # User-supplied variables
     if variables:
         for name, value in variables.items():
@@ -487,10 +500,17 @@ def run(
     ctx.subvars = subvars
     ctx.status = StatObj()
     ctx.status.halt_on_err = halt_on_error
-    conf.allow_system_cmd = allow_system_cmd
-    conf.allow_rm_file = allow_rm_file
-    conf.allow_serve = allow_serve
+    if allow_system_cmd is not None:
+        conf.allow_system_cmd = allow_system_cmd
+    if allow_rm_file is not None:
+        conf.allow_rm_file = allow_rm_file
+    if allow_serve is not None:
+        conf.allow_serve = allow_serve
     ctx.conf = conf
+
+    from execsql.script.preparation import prepare_script
+
+    tree = prepare_script(tree, conf.include_req, conf.include_opt)
 
     # Capture output to a buffer (suppress stdout/stderr)
     stdout_buf = io.StringIO()
@@ -579,13 +599,15 @@ def run(
 
             # Flush and close every file the script wrote, so the caller can read
             # them the moment run() returns.  Output to a file that could not be
-            # opened is reported as an error.  The writer is stopped below.
+            # opened is reported as an error. A blocked writer is abandoned;
+            # healthy writers are stopped below.
             from execsql.utils.fileio import filewriter_close_all_after_write
 
             try:
                 filewriter_close_all_after_write()
             except ErrInfo as exc:
-                errors.append(ScriptError(message=exc.errmsg(), source="<output>"))
+                if ctx.halt_output_error is not exc:
+                    errors.append(ScriptError(message=exc.errmsg(), source="<output>"))
             except Exception:
                 pass  # Best-effort: a failed flush must not mask a script error.
 
@@ -606,9 +628,12 @@ def run(
                 from execsql.utils.fileio import filewriter_end
 
                 filewriter_end(ctx.filewriter)
-            if owns_connection and ctx.dbs is not None:
+            if ctx.dbs is not None:
                 try:
-                    ctx.dbs.closeall()
+                    if owns_connection:
+                        ctx.dbs.closeall()
+                    else:
+                        ctx.dbs.closeall(except_db=connection)
                 except Exception:
                     pass
             if ctx.tempfiles is not None:
@@ -638,8 +663,8 @@ def _start_filewriter(ctx: RuntimeContext, conf: Any) -> None:
     writer, and every entry point in :mod:`execsql.utils.fileio` drops the
     write when none is running.  A writer per run keeps concurrent runs from
     sharing open files or reply queues, and a halt in one run (which stops
-    its writer) from discarding another run's output.  :func:`run` stops the
-    writer before it returns.
+    its writer) from discarding another run's output. Healthy writers stop
+    before run() returns; a blocked daemon is abandoned with an output error.
     """
     from execsql.utils.fileio import FileWriter
 

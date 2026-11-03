@@ -24,7 +24,8 @@ from collections.abc import Callable, Generator, Iterator
 
 from execsql.exceptions import ErrInfo
 from execsql.utils.errors import exception_desc
-from execsql.db.target_types import ColumnKinds, existing_table_converter, kind_for_python_type
+from execsql.db.target_types import ColumnKinds, ColumnMetadata, existing_table_converter, kind_for_python_type
+from execsql.types import DT_Decimal
 from execsql.db.tiers import SupportTier, announce_tier
 from execsql.types import DataType
 import execsql.state as _state
@@ -284,6 +285,9 @@ class Database(ABC):
     #: Set on a connection whose driver could only connect in autocommit mode
     #: (an ODBC DSN without transactions): nothing can be held back.
     driver_autocommits: bool = False
+
+    #: Native Decimal parameter capacity for exact binding; None leaves it unchanged.
+    decimal_binding_precision: int | None = None
 
     def holding(self) -> bool:
         """Whether statements on this connection wait for a commit.
@@ -624,15 +628,23 @@ class Database(ABC):
         *sq_name* is schema-qualified and quoted, as for an ``INSERT``, and
         is looked up the way the ``INSERT`` finds it.  Keys are lower-cased
         column names; a column with no fitting execsql type maps to ``None``.
-        This default reads the driver's description of an empty query on the
-        table; adapters whose catalog names types more exactly override it.
+        The dict-compatible result also carries known decimal scales in
+        ``ColumnMetadata.decimal_scales``. Legacy plain-dict providers remain
+        supported with unknown scales. This default reads the driver's empty
+        query description; adapters with exact catalog types override it.
         """
         description, _rows = self._column_type_query(sq_name, f"select * from {sq_name} where 1=0;")
-        return {d[0].lower(): self._described_kind(d) for d in description}
+        return ColumnMetadata({d[0].lower(): self._described_column(d) for d in description})
 
     def _described_kind(self, description: Any) -> type[DataType] | None:
         """The execsql type for one column of a cursor description (a DB-API 7-item sequence)."""
         return kind_for_python_type(description[1], description[5])
+
+    def _described_column(self, description: Any) -> tuple[type[DataType] | None, int | None]:
+        """Read a kind and decimal scale from a DB-API description."""
+        kind = self._described_kind(description)
+        scale = description[5]
+        return kind, scale if kind is DT_Decimal and type(scale) is int else None
 
     def _column_type_query(self, sq_name: str, sql: str, params: list | None = None) -> tuple[Any, list]:
         """Run *sql* for :meth:`column_kinds` of *sq_name*; return the cursor description and the rows."""
@@ -746,7 +758,7 @@ class Database(ABC):
 
         *rowsource* must be a generator yielding lists of values in column order.
         *tablespec_src* is a zero-argument callable that returns the table's type specification.
-        Each value is converted to the type scanned for its column; with
+        Only selected columns are converted to the type scanned for each column; with
         *existing_table* (the table was there before the IMPORT or COPY), the
         type of the column it goes into decides instead (see
         ``db.target_types.existing_table_converter``).
@@ -772,9 +784,18 @@ class Database(ABC):
         converters = [self._scanned_type_converter(col.column_type()[1]) for col in tablespec.cols]
         if existing_table:
             kinds = self.column_kinds(sq_name)
+            scales = kinds.decimal_scales if isinstance(kinds, ColumnMetadata) else {}
             converters = [
-                existing_table_converter(kinds.get(col.name.lower()), col.column_type()[1], convert, col.name, sq_name)
-                for col, convert in zip(tablespec.cols, converters)
+                existing_table_converter(
+                    kinds.get(col.name.lower()),
+                    col.column_type()[1],
+                    convert,
+                    col.name,
+                    sq_name,
+                    decimal_binding_precision=self.decimal_binding_precision,
+                    decimal_scale=scales.get(col.name.lower()) if included else None,
+                )
+                for col, convert, included in zip(tablespec.cols, converters, incl_col)
             ]
         # Construct INSERT statement.
         columns = [self.type.quoted(col) for col in sel_cols]
@@ -873,11 +894,7 @@ class Database(ABC):
                                             line[i] = None
                             # Trailing values left off the line are NULL.
                             line = list(line) + [None] * (len(ts_colnames) - len(line))
-                            lt = [converters[i](val) for i, val in enumerate(line)]
-                            row = []
-                            for i, v in enumerate(lt):
-                                if incl_col[i]:
-                                    row.append(v)
+                            row = [converters[i](val) for i, val in enumerate(line) if incl_col[i]]
                             add_line = True
                             if not _state.conf.empty_rows:
                                 add_line = not all(c is None for c in row)
@@ -1102,9 +1119,17 @@ class DatabasePool:
             self.pool[alias].close()
             del self.pool[alias]
 
-    def closeall(self) -> None:
-        """Roll back and close every connection in the pool, then reset the pool to empty."""
+    def closeall(self, *, except_db: Database | None = None) -> None:
+        """Roll back and close the pool's connections except *except_db*.
+
+        The exception is matched by object identity under every alias and is
+        neither rolled back nor closed. All aliases are removed, including
+        aliases of the excluded caller-owned connection.
+        Rollback follows the pool's ``do_rollback`` setting.
+        """
         for alias, db in self.pool.items():
+            if db is except_db:
+                continue
             nm = db.name()
             try:
                 if self.do_rollback:

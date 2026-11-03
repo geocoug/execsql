@@ -1,0 +1,68 @@
+{
+ "typed_decimal_and_integer -> TEXT / exact=False": {
+  "after": [
+   "'0.1'",
+   "'7'"
+  ],
+  "before": [
+   "'.1'",
+   "'7'"
+  ],
+  "why": "Finite Decimal values destined for text now bind as their exact decimal spelling, so a driver cannot round them through a DOUBLE parameter, omit a leading zero, or discard trailing zeros."
+ },
+ "typed_decimal_and_integer -> TEXT / exact=True": {
+  "after": [
+   "'0.1'",
+   "'7'"
+  ],
+  "before": [
+   "'.1'",
+   "'7'"
+  ],
+  "why": "Finite Decimal values destined for text now bind as their exact decimal spelling, so a driver cannot round them through a DOUBLE parameter, omit a leading zero, or discard trailing zeros."
+ },
+ "typed_long_coefficient -> TEXT / exact=False": {
+  "after": [
+   "'0.1234567890123456789012345678901234567890'",
+   "'0.20'"
+  ],
+  "before": [
+   "'0.12345678901234568'",
+   "'.20'"
+  ],
+  "why": "Finite Decimal values destined for text now bind as their exact decimal spelling, so a driver cannot round them through a DOUBLE parameter, omit a leading zero, or discard trailing zeros."
+ },
+ "typed_long_coefficient -> TEXT / exact=True": {
+  "after": [
+   "'0.1234567890123456789012345678901234567890'",
+   "'0.20'"
+  ],
+  "before": [
+   "'0.12345678901234568'",
+   "'.20'"
+  ],
+  "why": "Finite Decimal values destined for text now bind as their exact decimal spelling, so a driver cannot round them through a DOUBLE parameter, omit a leading zero, or discard trailing zeros."
+ },
+ "typed_mixed_scale -> TEXT / exact=False": {
+  "after": [
+   "'0.1'",
+   "'0.20'"
+  ],
+  "before": [
+   "'.1'",
+   "'.20'"
+  ],
+  "why": "Finite Decimal values destined for text now bind as their exact decimal spelling, so a driver cannot round them through a DOUBLE parameter, omit a leading zero, or discard trailing zeros."
+ },
+ "typed_mixed_scale -> TEXT / exact=True": {
+  "after": [
+   "'0.1'",
+   "'0.20'"
+  ],
+  "before": [
+   "'.1'",
+   "'.20'"
+  ],
+  "why": "Finite Decimal values destined for text now bind as their exact decimal spelling, so a driver cannot round them through a DOUBLE parameter, omit a leading zero, or discard trailing zeros."
+ }
+}

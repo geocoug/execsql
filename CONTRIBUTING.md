@@ -64,6 +64,14 @@ just test-templates        # starts execsql-templates-* containers on ports 5544
 just test-templates-down   # removes the containers
 ```
 
+CI sets `EXECSQL_REQUIRED_BACKENDS=postgres,mysql,mariadb,sqlserver` for the in-process integration suite. A missing driver, failed connection or unavailable import prerequisite for one of those backends fails the run instead of skipping its checks. The selected names appear in pytest's report header. To require a locally provisioned server, run:
+
+```bash
+EXECSQL_REQUIRED_BACKENDS=postgres uv run pytest
+```
+
+The comma-separated list accepts `postgres`, `mysql`, `mariadb`, `sqlserver`, `sqlite` and `duckdb`; unknown names are configuration errors. With the variable unset, unavailable optional servers retain their cached local skips. Exporter table-creation and seed errors after a successful connection always fail, including locally.
+
 SQL Server is included only when an ODBC driver for it is installed. A template bug the tests have found but not yet fixed is marked with `known_bug(...)`, a strict expected failure: the fix makes the test pass, which fails the run until the marker is removed with it.
 
 ### Transaction rules: generated scripts

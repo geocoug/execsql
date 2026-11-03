@@ -1074,6 +1074,74 @@
    "why": "A delimited file with a line break inside a quoted value: upstream's delimiter detection found no delimiter and read every line as one column named 'id,note'; execsql2 reads the two columns (divergence: 'Line break inside a quoted value')."
   }
  },
+ "configured_startup": {
+  "exit": {
+   "execsql2": 0,
+   "status": "accepted",
+   "upstream": 1,
+   "why": "Configured required and optional startup includes execute before the main script in documented order. Upstream collected these settings without executing the files, so its main script failed because the startup table did not exist. execsql2 intentionally implements the documented configuration behavior; the Unreleased Changed entry tells users to remove entries they do not want executed (divergence: Configuration)."
+  },
+  "stderr": {
+   "execsql2": "",
+   "status": "accepted",
+   "upstream": "**** Exception.\n     Line 1 of script script.sql\n     OperationalError: no such table: sequence\n     SQL statement: \n         INSERT INTO sequence VALUES ('main');\n     Error occurred at <TIME>.\n",
+   "why": "Configured required and optional startup includes execute before the main script in documented order. Upstream collected these settings without executing the files, so its main script failed because the startup table did not exist. execsql2 intentionally implements the documented configuration behavior; the Unreleased Changed entry tells users to remove entries they do not want executed (divergence: Configuration)."
+  },
+  "tables/seen": {
+   "execsql2": {
+    "columns": [
+     [
+      "v",
+      "TEXT"
+     ]
+    ],
+    "rows": [
+     [
+      [
+       "text",
+       "'configured'"
+      ]
+     ]
+    ]
+   },
+   "status": "accepted",
+   "upstream": null,
+   "why": "Configured required and optional startup includes execute before the main script in documented order. Upstream collected these settings without executing the files, so its main script failed because the startup table did not exist. execsql2 intentionally implements the documented configuration behavior; the Unreleased Changed entry tells users to remove entries they do not want executed (divergence: Configuration)."
+  },
+  "tables/sequence": {
+   "execsql2": {
+    "columns": [
+     [
+      "v",
+      "TEXT"
+     ]
+    ],
+    "rows": [
+     [
+      [
+       "text",
+       "'required'"
+      ]
+     ],
+     [
+      [
+       "text",
+       "'optional'"
+      ]
+     ],
+     [
+      [
+       "text",
+       "'main'"
+      ]
+     ]
+    ]
+   },
+   "status": "accepted",
+   "upstream": null,
+   "why": "Configured required and optional startup includes execute before the main script in documented order. Upstream collected these settings without executing the files, so its main script failed because the startup table did not exist. execsql2 intentionally implements the documented configuration behavior; the Unreleased Changed entry tells users to remove entries they do not want executed (divergence: Configuration)."
+  }
+ },
  "decimal_digits": {
   "files/ddl.sql": {
    "execsql2": "CREATE TABLE short (\n    v double NOT NULL\n    );\nCREATE TABLE long (\n    v decimal(20,10) NOT NULL\n    );\n",
@@ -1082,12 +1150,20 @@
    "why": "Decimals with different numbers of places are a double, as upstream, unless a value has more than 15 significant digits: a double cannot hold 1234567890.1234567891, so execsql2 keeps that column DECIMAL(20,10) where upstream cut the value (divergence: 'Mixed-scale decimals keep every digit')."
   }
  },
+ "decimal_scale_rejection": {
+  "files/amounts.csv": {
+   "execsql2": "i,amount\n0,42.00\n100,1.00\n101,0.12\n",
+   "status": "accepted",
+   "upstream": "i,amount\n0,42.00\n100,1.00\n101,0.12\n200,1.00\n201,0.13\n",
+   "why": "Exact input that would be rounded to an existing decimal column scale is rejected and the entire failed load is rolled back. Trailing-zero inputs that fit the scale remain valid."
+  }
+ },
  "deferred_substitution": {
   "files/halt.txt": {
    "execsql2": "failed at stage two\n",
    "status": "accepted",
    "upstream": "",
-   "why": "Upstream passed substitute_all's (text, flag) pair on as the text, so ON ERROR_HALT WRITE … TO <file> left the file empty; execsql2 writes the message (divergence: 'ON ERROR_HALT WRITE … TO a file wrote nothing')."
+   "why": "Upstream passed substitute_all's (text, flag) pair on as the text, so ON ERROR_HALT WRITE \u2026 TO <file> left the file empty; execsql2 writes the message (divergence: 'ON ERROR_HALT WRITE \u2026 TO a file wrote nothing')."
   }
  },
  "directive_from_variable": {
@@ -1104,6 +1180,20 @@
    "status": "accepted",
    "upstream": "DISCONNECT FROM B left b open\nDISCONNECT FROM nosuch: no error\nDISCONNECT FROM c in the batch: closed c\nc.t kept the batch's row\nc.t has no rows\n",
    "why": "DISCONNECT matches the alias in any case, as USE does, and an alias that is not connected is a metacommand error; upstream compared the alias as written, so DISCONNECT FROM B left a connection made AS b open, and ignored an unknown alias. A database an open batch has used is refused, as documented; upstream's check compared the alias to connection objects and never fired, so it closed the connection and the batch's statements were lost. The refusal is an error inside the batch, so END BATCH does not commit the batch either (divergence: 'DISCONNECT', 'Anything that fails inside a batch'; #124, #125)."
+  }
+ },
+ "existing_decimal_target": {
+  "files/result.csv": {
+   "execsql2": "i,v\n100,0.100000000000000000000000000000\n101,0.200000000000000000000000000000\n102,1000.000000000000000000000000000000\n103,-1000.000000000000000000000000000000\n",
+   "status": "accepted",
+   "upstream": "i,v\n100,0.100000000000000009025336901632\n101,0.200000000000000018050673803264\n102,1000.000000000000089690419062898688\n103,-1000.000000000000089690419062898688\n",
+   "why": "Existing exact-decimal columns retain finite numeric source values independently of source scanning and EXACT_DECIMALS. Upstream used floating-point conversions and stored binary artifacts. Values at scale 38 and positive exponents retain their exact numeric value."
+  },
+  "files/tiny-result.csv": {
+   "execsql2": "i,v\n100,1E-38\n101,2E-38\n102,1.23456789012345678E-21\n",
+   "status": "accepted",
+   "upstream": "i,v\n100,1E-38\n101,2E-38\n102,1.23456789012345680E-21\n",
+   "why": "Existing exact-decimal columns retain finite numeric source values independently of source scanning and EXACT_DECIMALS. Upstream used floating-point conversions and stored binary artifacts. Values at scale 38 and positive exponents retain their exact numeric value."
   }
  },
  "export_more_formats": {
@@ -1148,6 +1238,38 @@
    "why": "An IF condition that cannot be evaluated stops the run in execsql2, whatever METACOMMAND_ERROR_HALT says; upstream made an inline IF's bad condition a metacommand error and carried on. Kept on purpose (#112): a condition that cannot be evaluated is a script bug, and carrying on runs the script down a branch nobody chose (divergence: 'A condition that cannot be evaluated stops the run')."
   }
  },
+ "json_exact_numbers": {
+  "exit": {
+   "execsql2": 0,
+   "status": "accepted",
+   "upstream": 1,
+   "why": "JSON import is an execsql2 feature. Fractional and exponent scalar numbers are parsed as exact Decimal values before inference and loading; existing DECIMAL destinations preserve their source digits and positive exponents create correctly sized new decimal columns with explicit zero scale."
+  },
+  "files/amounts.csv": {
+   "execsql2": "i,v\n100,1234567890.123456789100000000\n101,0.200000000000000000\n",
+   "status": "accepted",
+   "upstream": null,
+   "why": "JSON import is an execsql2 feature. Fractional and exponent scalar numbers are parsed as exact Decimal values before inference and loading; existing DECIMAL destinations preserve their source digits and positive exponents create correctly sized new decimal columns with explicit zero scale."
+  },
+  "files/ids.csv": {
+   "execsql2": "i\n100\n",
+   "status": "accepted",
+   "upstream": null,
+   "why": "JSON IMPORT with IMPORT_COMMON_COLUMNS_ONLY loads selected columns without binding or rejecting excluded numeric values; upstream does not support this JSON import."
+  },
+  "files/powers.csv": {
+   "execsql2": "i,v\n100,1000\n101,200\n",
+   "status": "accepted",
+   "upstream": null,
+   "why": "JSON import is an execsql2 feature. Fractional and exponent scalar numbers are parsed as exact Decimal values before inference and loading; existing DECIMAL destinations preserve their source digits and positive exponents create correctly sized new decimal columns with explicit zero scale."
+  },
+  "stderr": {
+   "execsql2": "",
+   "status": "accepted",
+   "upstream": "**** Error in metacommand.\n     Line 4 of script script.sql\n     Unknown metacommand\n     IMPORT TO amounts FROM JSON exact.json\n     Metacommand: IMPORT TO amounts FROM JSON exact.json\n     Error occurred at <TIME>.\n",
+   "why": "JSON import is an execsql2 feature. Fractional and exponent scalar numbers are parsed as exact Decimal values before inference and loading; existing DECIMAL destinations preserve their source digits and positive exponents create correctly sized new decimal columns with explicit zero scale."
+  }
+ },
  "loop_while_until": {
   "files/out.txt": {
    "execsql2": "until pass 1\nuntil pass 2\nuntil pass 3\ni=5 j=3 k=3\n",
@@ -1156,12 +1278,98 @@
    "why": "execsql2 substitutes a LOOP condition's variables before every pass; upstream substituted them once, when the LOOP line ran, so a loop on a variable defined before it ran until BREAK (k=5) and in execsql2 stops on the condition (k=3) (divergence: 'LOOP conditions are read on every pass')."
   }
  },
+ "ods_input_limits": {
+  "files/invalid-result.csv": {
+   "execsql2": "v\ninvalid_keep\n",
+   "status": "accepted",
+   "upstream": "v\nloaded\n",
+   "why": "ODS imports reject materialized-sheet expansion beyond configured budgets and invalid negative repetition counts before creating, replacing or loading a target. The original table is retained instead of being replaced. Raise import_max_cells for a trusted larger sheet; repair invalid repetition attributes."
+  },
+  "files/result.csv": {
+   "execsql2": "v\nkeep\n",
+   "status": "accepted",
+   "upstream": "v\nloaded\n",
+   "why": "ODS imports reject materialized-sheet expansion beyond configured budgets and invalid negative repetition counts before creating, replacing or loading a target. The original table is retained instead of being replaced. Raise import_max_cells for a trusted larger sheet; repair invalid repetition attributes."
+  },
+  "tables/invalid_target": {
+   "execsql2": {
+    "columns": [
+     [
+      "v",
+      "TEXT"
+     ]
+    ],
+    "rows": [
+     [
+      [
+       "text",
+       "'invalid_keep'"
+      ]
+     ]
+    ]
+   },
+   "status": "accepted",
+   "upstream": {
+    "columns": [
+     [
+      "v",
+      "varchar"
+     ]
+    ],
+    "rows": [
+     [
+      [
+       "text",
+       "'loaded'"
+      ]
+     ]
+    ]
+   },
+   "why": "ODS imports reject materialized-sheet expansion beyond configured budgets and invalid negative repetition counts before creating, replacing or loading a target. The original table is retained instead of being replaced. Raise import_max_cells for a trusted larger sheet; repair invalid repetition attributes."
+  },
+  "tables/t": {
+   "execsql2": {
+    "columns": [
+     [
+      "v",
+      "TEXT"
+     ]
+    ],
+    "rows": [
+     [
+      [
+       "text",
+       "'keep'"
+      ]
+     ]
+    ]
+   },
+   "status": "accepted",
+   "upstream": {
+    "columns": [
+     [
+      "v",
+      "varchar"
+     ]
+    ],
+    "rows": [
+     [
+      [
+       "text",
+       "'loaded'"
+      ]
+     ]
+    ]
+   },
+   "why": "ODS imports reject materialized-sheet expansion beyond configured budgets and invalid negative repetition counts before creating, replacing or loading a target. The original table is retained instead of being replaced. Raise import_max_cells for a trusted larger sheet; repair invalid repetition attributes."
+  }
+ },
  "on_error_halt_write": {
   "files/halt.txt": {
    "execsql2": "halted after created\n",
    "status": "accepted",
    "upstream": "",
-   "why": "Upstream passed substitute_all's (text, flag) pair on as the text, so ON ERROR_HALT WRITE … TO <file> left the file empty; execsql2 writes the message (divergence: 'ON ERROR_HALT WRITE … TO a file wrote nothing')."
+   "why": "Upstream passed substitute_all's (text, flag) pair on as the text, so ON ERROR_HALT WRITE \u2026 TO <file> left the file empty; execsql2 writes the message (divergence: 'ON ERROR_HALT WRITE \u2026 TO a file wrote nothing')."
   }
  },
  "script_extend_and_write": {
@@ -1170,6 +1378,289 @@
    "status": "accepted",
    "upstream": "BEGIN SCRIPT first\ninsert into log values ('first');\ninsert into log values ('second');\n-- !x! WRITE \"extended\" TO out.txt\ninsert into log values ('extended sql');\nEND SCRIPT first\n",
    "why": "WRITE SCRIPT writes the BEGIN SCRIPT / END SCRIPT lines as metacommands ('-- !x! BEGIN SCRIPT first'), so the file runs with INCLUDE; upstream wrote them bare, which a script would run as SQL (divergence: 'WRITE SCRIPT output')."
+  }
+ },
+ "sqlite_attached_target": {
+  "files/aux.db": {
+   "execsql2": {
+    "sqlite": {
+     "t": {
+      "columns": [
+       [
+        "v",
+        "TEXT"
+       ]
+      ],
+      "rows": [
+       [
+        [
+         "text",
+         "'aux-before'"
+        ]
+       ],
+       [
+        [
+         "text",
+         "'imported-row'"
+        ]
+       ],
+       [
+        [
+         "text",
+         "'copied-row'"
+        ]
+       ]
+      ]
+     }
+    }
+   },
+   "status": "accepted",
+   "upstream": {
+    "sqlite": {
+     "t": {
+      "columns": [
+       [
+        "v",
+        "TEXT"
+       ]
+      ],
+      "rows": [
+       [
+        [
+         "text",
+         "'aux-before'"
+        ]
+       ]
+      ]
+     }
+    }
+   },
+   "why": "SQLite IMPORT and COPY preserve the attached database qualifier for table checks, column lookup and inserts. Upstream loaded the rows into the same-named main table and left aux.t unchanged. The selected aux.t now receives the rows while main.t is unchanged (divergence: SQLite qualified table loading)."
+  },
+  "tables/t": {
+   "execsql2": {
+    "columns": [
+     [
+      "v",
+      "TEXT"
+     ]
+    ],
+    "rows": [
+     [
+      [
+       "text",
+       "'main-before'"
+      ]
+     ]
+    ]
+   },
+   "status": "accepted",
+   "upstream": {
+    "columns": [
+     [
+      "v",
+      "TEXT"
+     ]
+    ],
+    "rows": [
+     [
+      [
+       "text",
+       "'main-before'"
+      ]
+     ],
+     [
+      [
+       "text",
+       "'imported-row'"
+      ]
+     ],
+     [
+      [
+       "text",
+       "'copied-row'"
+      ]
+     ]
+    ]
+   },
+   "why": "SQLite IMPORT and COPY preserve the attached database qualifier for table checks, column lookup and inserts. Upstream loaded the rows into the same-named main table and left aux.t unchanged. The selected aux.t now receives the rows while main.t is unchanged (divergence: SQLite qualified table loading)."
+  }
+ },
+ "sqlite_export_failed_replacement": {
+  "files/out.db": {
+   "execsql2": {
+    "sqlite": {
+     "victim": {
+      "columns": [
+       [
+        "v",
+        "varchar"
+       ]
+      ],
+      "rows": [
+       [
+        [
+         "text",
+         "'keep me'"
+        ]
+       ]
+      ]
+     }
+    }
+   },
+   "status": "accepted",
+   "upstream": {
+    "sqlite": {}
+   },
+   "why": "A failed SQLite export reads and validates its source before replacing the destination; an existing exported table survives a source-row error."
+  }
+ },
+ "sqlite_integer_exact": {
+  "tables/t": {
+   "execsql2": {
+    "columns": [
+     [
+      "v",
+      "INTEGER"
+     ]
+    ],
+    "rows": [
+     [
+      [
+       "integer",
+       "9007199254740993"
+      ]
+     ],
+     [
+      [
+       "integer",
+       "9223372036854775807"
+      ]
+     ],
+     [
+      [
+       "integer",
+       "-9007199254740993"
+      ]
+     ],
+     [
+      [
+       "integer",
+       "9007199254740993"
+      ]
+     ],
+     [
+      [
+       "integer",
+       "7"
+      ]
+     ]
+    ]
+   },
+   "status": "accepted",
+   "upstream": {
+    "columns": [
+     [
+      "v",
+      "INTEGER"
+     ]
+    ],
+    "rows": [
+     [
+      [
+       "integer",
+       "9007199254740992"
+      ]
+     ],
+     [
+      [
+       "real",
+       "9.223372036854776e+18"
+      ]
+     ],
+     [
+      [
+       "integer",
+       "-9007199254740992"
+      ]
+     ],
+     [
+      [
+       "integer",
+       "9007199254740992"
+      ]
+     ],
+     [
+      [
+       "text",
+       "'\\xa07'"
+      ]
+     ]
+    ]
+   },
+   "why": "Existing SQLite integer columns bind accepted integral numeric text as exact integers. This deliberately corrects SQLite text-affinity rounding and normalizes recognized whitespace-padded integral input instead of retaining it as text."
+  }
+ },
+ "sqlite_integer_fraction": {
+  "exit": {
+   "execsql2": 1,
+   "status": "accepted",
+   "upstream": 0,
+   "why": "IMPORT into an existing SQLite integer column rejects a fractional source value and keeps none of the load rows; upstream stored the fraction in the integer column."
+  },
+  "stderr": {
+   "execsql2": "**** General error.\n     Line 3 of script script.sql\n     Can't load '1.5' into column v of t: the column holds whole numbers, and the database would round the value.\n     Metacommand: IMPORT TO t FROM rows.csv\n     Error occurred at <TIME>.\n",
+   "status": "accepted",
+   "upstream": "",
+   "why": "IMPORT into an existing SQLite integer column rejects a fractional source value and keeps none of the load rows; upstream stored the fraction in the integer column."
+  },
+  "tables/t": {
+   "execsql2": {
+    "columns": [
+     [
+      "v",
+      "INTEGER"
+     ]
+    ],
+    "rows": [
+     [
+      [
+       "integer",
+       "42"
+      ]
+     ]
+    ]
+   },
+   "status": "accepted",
+   "upstream": {
+    "columns": [
+     [
+      "v",
+      "INTEGER"
+     ]
+    ],
+    "rows": [
+     [
+      [
+       "integer",
+       "42"
+      ]
+     ],
+     [
+      [
+       "integer",
+       "7"
+      ]
+     ],
+     [
+      [
+       "real",
+       "1.5"
+      ]
+     ]
+    ]
+   },
+   "why": "IMPORT into an existing SQLite integer column rejects a fractional source value and keeps none of the load rows; upstream stored the fraction in the integer column."
   }
  },
  "sub_backslash": {
@@ -1329,6 +1820,44 @@
     ]
    },
    "why": "!'!v!'! is a complete string literal in execsql2: the value is wrapped in quotes and its apostrophes doubled. Upstream only doubled the apostrophes, so its scripts wrote '!'!v!'!', which has two sets of quotes in execsql2, and the bare form was not a literal upstream (divergence: \"!'!var!'! adds the quotes\")."
+  }
+ },
+ "write_visibility": {
+  "tables/observed": {
+   "execsql2": {
+    "columns": [
+     [
+      "n",
+      "INTEGER"
+     ]
+    ],
+    "rows": [
+     [
+      [
+       "integer",
+       "6"
+      ]
+     ]
+    ]
+   },
+   "status": "accepted",
+   "upstream": {
+    "columns": [
+     [
+      "n",
+      "INTEGER"
+     ]
+    ],
+    "rows": [
+     [
+      [
+       "integer",
+       "0"
+      ]
+     ]
+    ]
+   },
+   "why": "Each completed WRITE is flushed before the next write so abandoning the worker can discard buffered text without a later close writing it. A file read while its writer handle is still open now sees that completed line rather than the old empty buffer."
   }
  }
 }

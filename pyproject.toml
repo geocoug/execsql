@@ -317,6 +317,8 @@ follow_imports = "skip"
 follow_imports_for_stubs = true
 
 [tool.typos.default.extend-words]
+# SQLite's documented type-affinity substring for DOUBLE declarations
+doub = "doub"
 # SQL table alias used throughout upsert templates
 ot = "ot"
 # Deliberate misspelling of EXPORT in tests of "did you mean" suggestions
