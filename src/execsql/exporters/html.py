@@ -28,6 +28,26 @@ from execsql.utils.fileio import filewriter_close
 __all__ = ["export_html", "export_cgi_html", "write_query_to_html", "write_query_to_cgi_html"]
 
 
+def _write_table(f: Any, hdrs: list[str], rows: Any, desc: str | None) -> None:
+    """Write the table fragment shared by standalone and CGI HTML exports."""
+    f.write("<table>\n")
+    if desc is not None:
+        f.write(f"<caption>{desc}</caption>\n")
+    f.write("<thead><tr>")
+    for h in hdrs:
+        f.write(f"<th>{html_mod.escape(str(h))}</th>")
+    f.write("</tr></thead>\n<tbody>\n")
+    for r in rows:
+        f.write("<tr>")
+        for v in r:
+            # `if v is not None`, not `if v`: 0, False, and an empty
+            # string are all falsy, and a zero measurement silently became
+            # an empty cell.
+            f.write(f"<td>{html_mod.escape(str(v)) if v is not None else ''}</td>")
+        f.write("</tr>\n")
+    f.write("</tbody>\n</table>\n")
+
+
 def export_html(
     outfile: str,
     hdrs: list[str],
@@ -39,24 +59,6 @@ def export_html(
 ) -> None:
     """Write a complete HTML document containing a data table to a file or ZIP archive."""
     conf = _state.conf
-
-    def write_table(f):
-        f.write("<table>\n")
-        if desc is not None:
-            f.write(f"<caption>{desc}</caption>\n")
-        f.write("<thead><tr>")
-        for h in hdrs:
-            f.write(f"<th>{html_mod.escape(str(h))}</th>")
-        f.write("</tr></thead>\n<tbody>\n")
-        for r in rows:
-            f.write("<tr>")
-            for v in r:
-                # `if v is not None`, not `if v`: 0, False, and an empty
-                # string are all falsy, and a zero measurement silently became
-                # an empty cell.
-                f.write(f"<td>{html_mod.escape(str(v)) if v is not None else ''}</td>")
-            f.write("</tr>\n")
-        f.write("</tbody>\n</table>\n")
 
     script, lno = current_script_line()
     # If not append, write a complete HTML document with header and table.
@@ -112,7 +114,7 @@ def export_html(
                 f.write("tbody tr { border-bottom: 1px dotted #814324; }\n")
                 f.write("</style>")
             f.write("\n</head>\n<body>\n")
-            write_table(f)
+            _write_table(f, hdrs, rows, desc)
             f.write("</body>\n</html>\n")
         finally:
             if outfile.lower() != "stdout":
@@ -120,14 +122,14 @@ def export_html(
     elif not zipfile and append:
         if outfile.lower() == "stdout":
             f = sys.stdout
-            write_table(f)
+            _write_table(f, hdrs, rows, desc)
         elif not Path(outfile).is_file():
             from execsql.utils.fileio import EncodedFile
 
             ef = EncodedFile(outfile, conf.output_encoding)
             f = ef.open("wt")
             try:
-                write_table(f)
+                _write_table(f, hdrs, rows, desc)
             finally:
                 f.close()
         else:
@@ -152,7 +154,7 @@ def export_html(
                     else:
                         t.write(line)
                 t.write("\n")
-                write_table(t)
+                _write_table(t, hdrs, rows, desc)
                 t.write(remainder)
                 for line in f:
                     t.write(line)
@@ -183,24 +185,6 @@ def export_cgi_html(
     """Write a CGI-style HTML fragment (Content-Type header + table) to a file or ZIP archive."""
     conf = _state.conf
 
-    def write_table(f):
-        f.write("<table>\n")
-        if desc is not None:
-            f.write(f"<caption>{desc}</caption>\n")
-        f.write("<thead><tr>")
-        for h in hdrs:
-            f.write(f"<th>{html_mod.escape(str(h))}</th>")
-        f.write("</tr></thead>\n<tbody>\n")
-        for r in rows:
-            f.write("<tr>")
-            for v in r:
-                # `if v is not None`, not `if v`: 0, False, and an empty
-                # string are all falsy, and a zero measurement silently became
-                # an empty cell.
-                f.write(f"<td>{html_mod.escape(str(v)) if v is not None else ''}</td>")
-            f.write("</tr>\n")
-        f.write("</tbody>\n</table>\n")
-
     script, lno = current_script_line()
     if zipfile or not append or (append and not Path(outfile).is_file()):
         if zipfile is None:
@@ -216,7 +200,7 @@ def export_cgi_html(
             f = ZipWriter(zipfile, outfile, append)
         try:
             f.write("Content-Type: text/html\n\n")
-            write_table(f)
+            _write_table(f, hdrs, rows, desc)
         finally:
             if outfile.lower() != "stdout":
                 f.close()
@@ -229,7 +213,7 @@ def export_cgi_html(
             ef = EncodedFile(outfile, conf.output_encoding)
             f = ef.open("a")
         try:
-            write_table(f)
+            _write_table(f, hdrs, rows, desc)
         finally:
             if outfile.lower() != "stdout":
                 f.close()

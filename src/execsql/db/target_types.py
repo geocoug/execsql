@@ -192,8 +192,12 @@ def kind_and_scale_for_type_name(type_name: str, *, oracle: bool = False) -> tup
     if base not in _DECIMAL or params is None:
         return kind, None
     args = [arg.strip() for arg in params.group(1).split(",")]
+    if len(args) == 1:
+        return kind, 0
+    if len(args) != 2:
+        return kind, None
     try:
-        scale = 0 if len(args) == 1 else int(args[1]) if len(args) == 2 else None
+        scale = int(args[1])
     except ValueError:
         scale = None
     return kind, scale

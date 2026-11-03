@@ -468,7 +468,6 @@ def run(
     subvars.add_substitution("$HOSTNAME", platform.node())
 
     # Configuration
-    conf_overrides: dict[str, Any] = {"script_encoding": encoding}
     conf: Any
     if config_file is not None:
         # Load a real ConfigData with the explicit config file
@@ -479,11 +478,9 @@ def run(
             conf = ConfigData(script_dir, subvars, config_file=str(config_file))
         except Exception as exc:
             return _failed(_error_text(exc), "<config>")
-        # Apply any overrides
-        for k, v in conf_overrides.items():
-            setattr(conf, k, v)
+        conf.script_encoding = encoding
     else:
-        conf = _LibraryConfig(**conf_overrides)
+        conf = _LibraryConfig(script_encoding=encoding)
 
     # User-supplied variables
     if variables:
