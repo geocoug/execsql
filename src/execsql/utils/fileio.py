@@ -498,12 +498,13 @@ class FileWriter(threading.Thread):
             return
         with self._pending_lock:
             count = self._pending.get(requested, 0)
-            if count:
-                if count == 1:
-                    del self._pending[requested]
-                else:
-                    self._pending[requested] = count - 1
-                self._pending[filename] = self._pending.get(filename, 0) + 1
+            if not count:
+                return
+            if count == 1:
+                del self._pending[requested]
+            else:
+                self._pending[requested] = count - 1
+            self._pending[filename] = self._pending.get(filename, 0) + 1
 
     def __del__(self) -> None:
         try:
@@ -593,8 +594,8 @@ class FileWriter(threading.Thread):
         self.errors = []
         self.return_msg_queue.put(failed)
 
-    def open_as_new(self, fn: str) -> None:
-        filename = self._resolve_filename(fn)
+    def _file_control(self, filename: str) -> FileWriter.FileControl:
+        """Get or create the control for a worker-resolved filename."""
         if filename not in self.files:
             self.files[filename] = self.FileControl(
                 filename,
@@ -602,7 +603,10 @@ class FileWriter(threading.Thread):
                 encoding=self.file_encoding,
                 writer=self,
             )
-        fc = self.files[filename]
+        return self.files[filename]
+
+    def open_as_new(self, fn: str) -> None:
+        fc = self._file_control(self._resolve_filename(fn))
         self._on_file(fc, fc.open_as_new)
 
     def status(self, fn: str) -> None:
@@ -614,14 +618,7 @@ class FileWriter(threading.Thread):
 
     def write(self, fn: str, content: str) -> None:
         filename = self._resolve_filename(fn)
-        if filename not in self.files:
-            self.files[filename] = self.FileControl(
-                filename,
-                open_timeout=self.open_timeout,
-                encoding=self.file_encoding,
-                writer=self,
-            )
-        fc = self.files[filename]
+        fc = self._file_control(filename)
         self._resolved_write(fn, filename)
         self._on_file(fc, lambda: fc.write(content))
 

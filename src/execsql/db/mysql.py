@@ -87,7 +87,12 @@ def _data_length(filename: str) -> int | None:
     except OSError:
         return None
     # Keep the line ending of the last line of data.
-    keep = content_end + (2 if ending == b"\r\n" else 1 if ending[:1] in (b"\r", b"\n") else 0)
+    if ending == b"\r\n":
+        keep = content_end + 2
+    elif ending[:1] in (b"\r", b"\n"):
+        keep = content_end + 1
+    else:
+        keep = content_end
     return keep if keep < size else None
 
 

@@ -123,6 +123,19 @@ class TestDedupWords:
     def test_empty_list(self):
         assert dedup_words([]) == []
 
+    @pytest.mark.parametrize(
+        "names, expected",
+        [
+            (["x", "x", "x_2"], ["x", "x_2", "x_2_3"]),
+            (["X", "x", "x_2", "X_2_3"], ["X", "x_2", "x_2_3", "X_2_3_4"]),
+            (["é", "É", "É_2"], ["é", "É_2", "É_2_3"]),
+        ],
+    )
+    def test_generated_suffix_collisions_preserve_names_and_input(self, names, expected):
+        original = names.copy()
+        assert dedup_words(names) == expected
+        assert names == original
+
 
 # ---------------------------------------------------------------------------
 # is_doublequoted

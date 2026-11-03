@@ -18,6 +18,7 @@ from shutil import copyfileobj
 from typing import Any, Literal
 
 import execsql.state as _state
+from execsql.db.base import Database
 from execsql.exceptions import ErrInfo
 from execsql.importers.base import refuse_existing_table
 from execsql.models import DataTable
@@ -102,73 +103,8 @@ def x_copy(**kwargs: Any) -> None:
     db1 = _state.dbs.aliased_as(alias1)
     db2 = _state.dbs.aliased_as(alias2)
     tbl1 = db1.schema_qualified_table_name(schema1, table1)
-    tbl2 = db2.schema_qualified_table_name(schema2, table2)
-    # No check that the source exists: the database may fold an unquoted name
-    # (PostgreSQL reads Orders as orders), and the SELECT below names a missing
-    # source in the database's own words.
-    if new_tbl2 and new_tbl2 == "new":
-        refuse_existing_table(db2, schema2, table2)
-    select_stmt = f"select * from {tbl1};"
-
-    get_ts_tablespec = None
-    rows_to_close = None
-    spool: _RowSpool | None = None
-    rows_for_insert: Any
-
-    if new_tbl2:
-        try:
-            hdrs, rows = db1.select_rowsource(select_stmt, decode_bytes=False)
-        except ErrInfo:
-            raise
-        except Exception as e:
-            raise ErrInfo("db", select_stmt, exception_msg=exception_desc()) from e
-        rows_to_close = rows
-        # Values come from a database cursor, so a text value stays text.
-        spool = _RowSpool(rows)
-        get_ts_tablespec = DataTable(hdrs, spool, infer_strings=False)
-        rows_for_insert = spool.replay()
-        tbl_desc = get_ts_tablespec
-        create_tbl = tbl_desc.create_table(db2.type, schema2, table2)
-        if new_tbl2 == "replacement":
-            try:
-                db2.drop_table_for_replacement(schema2, table2)
-            except ErrInfo:
-                raise
-            except Exception as e:
-                raise ErrInfo(
-                    type="db",
-                    other_msg=f"Could not drop existing table ({tbl2}) for COPY metacommand",
-                    exception_msg=exception_desc(),
-                ) from e
-        db2.execute(create_tbl)
-        if db2.needs_explicit_commit_after_ddl():
-            db2.execute("COMMIT;")
-    else:
-        try:
-            hdrs, rows = db1.select_rowsource(select_stmt, decode_bytes=False)
-        except ErrInfo:
-            raise
-        except Exception as e:
-            raise ErrInfo("db", select_stmt, exception_msg=exception_desc()) from e
-        rows_to_close = rows
-        rows_for_insert = rows
-
-    def get_ts() -> DataTable:
-        nonlocal get_ts_tablespec
-        if get_ts_tablespec is None:
-            ts_hdrs, ts_rows = db1.select_rowsource(select_stmt, decode_bytes=False)
-            get_ts_tablespec = DataTable(ts_hdrs, ts_rows, infer_strings=False)
-        return get_ts_tablespec
-
-    try:
-        db2.populate_table(schema2, table2, rows_for_insert, hdrs, get_ts, existing_table=not new_tbl2)
-        db2.commit()
-    except BaseException:
-        _close_rowsource(rows_to_close)
-        raise
-    finally:
-        if spool is not None:
-            spool.close()
+    # Let the source database resolve unquoted names and report missing tables.
+    _copy_rows(db1, db2, f"select * from {tbl1};", schema2, table2, new_tbl2)
 
 
 def x_copy_query(**kwargs: Any) -> None:
@@ -193,29 +129,38 @@ def x_copy_query(**kwargs: Any) -> None:
         )
     db1 = _state.dbs.aliased_as(alias1)
     db2 = _state.dbs.aliased_as(alias2)
+    _copy_rows(db1, db2, select_stmt, schema2, table2, new_tbl2)
+
+
+def _copy_rows(
+    db1: Database,
+    db2: Database,
+    select_stmt: str,
+    schema2: str | None,
+    table2: str,
+    new_tbl2: str | None,
+) -> None:
+    """Copy a query's rows, sharing table creation, type inference and spool cleanup."""
     tbl2 = db2.schema_qualified_table_name(schema2, table2)
-    if new_tbl2 and new_tbl2 == "new":
+    if new_tbl2 == "new":
         refuse_existing_table(db2, schema2, table2)
 
-    get_ts_tablespec = None
-    rows_to_close = None
+    get_ts_tablespec: DataTable | None = None
     spool: _RowSpool | None = None
-    rows_for_insert: Any
+    try:
+        hdrs, rows = db1.select_rowsource(select_stmt, decode_bytes=False)
+    except ErrInfo:
+        raise
+    except Exception as e:
+        raise ErrInfo("db", select_stmt, exception_msg=exception_desc()) from e
+    rows_for_insert: Iterator[Any] = rows
 
     if new_tbl2:
-        try:
-            hdrs, rows = db1.select_rowsource(select_stmt, decode_bytes=False)
-        except ErrInfo:
-            raise
-        except Exception as e:
-            raise ErrInfo("db", select_stmt, exception_msg=exception_desc()) from e
-        rows_to_close = rows
         # Values come from a database cursor, so a text value stays text.
         spool = _RowSpool(rows)
         get_ts_tablespec = DataTable(hdrs, spool, infer_strings=False)
         rows_for_insert = spool.replay()
-        tbl_desc = get_ts_tablespec
-        create_tbl = tbl_desc.create_table(db2.type, schema2, table2)
+        create_tbl = get_ts_tablespec.create_table(db2.type, schema2, table2)
         if new_tbl2 == "replacement":
             try:
                 db2.drop_table_for_replacement(schema2, table2)
@@ -230,15 +175,6 @@ def x_copy_query(**kwargs: Any) -> None:
         db2.execute(create_tbl)
         if db2.needs_explicit_commit_after_ddl():
             db2.execute("COMMIT;")
-    else:
-        try:
-            hdrs, rows = db1.select_rowsource(select_stmt, decode_bytes=False)
-        except ErrInfo:
-            raise
-        except Exception as e:
-            raise ErrInfo("db", select_stmt, exception_msg=exception_desc()) from e
-        rows_to_close = rows
-        rows_for_insert = rows
 
     def get_ts() -> DataTable:
         nonlocal get_ts_tablespec
@@ -251,7 +187,7 @@ def x_copy_query(**kwargs: Any) -> None:
         db2.populate_table(schema2, table2, rows_for_insert, hdrs, get_ts, existing_table=not new_tbl2)
         db2.commit()
     except BaseException:
-        _close_rowsource(rows_to_close)
+        _close_rowsource(rows)
         raise
     finally:
         if spool is not None:

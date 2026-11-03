@@ -1079,7 +1079,12 @@ def lint(
         issues.append(_issue("S001", script_path or script.source, 0, "script is empty"))
         return issues
 
-    script_dir = Path(script_path).resolve().parent if script_path else (Path(base_dir) if base_dir else None)
+    if script_path:
+        script_dir = Path(script_path).resolve().parent
+    elif base_dir:
+        script_dir = Path(base_dir)
+    else:
+        script_dir = None
     script_blocks = _collect_script_blocks(script)
 
     # Pass 1: collect all variable definitions

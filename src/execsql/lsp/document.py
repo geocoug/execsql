@@ -173,7 +173,12 @@ def file_facts(source: str, path: str | None, base_dir: str | None = None) -> Fi
     steps: list[_Define | _ScriptDef | _ScriptCall | _Include] = []
     reads_ini = False
     lines = source.splitlines()
-    script_dir = Path(path).parent if path else (Path(base_dir) if base_dir else None)
+    if path:
+        script_dir = Path(path).parent
+    elif base_dir:
+        script_dir = Path(base_dir)
+    else:
+        script_dir = None
     tree = parse_string(source, path or "<untitled>", errors=[])
 
     for node in tree.walk():
