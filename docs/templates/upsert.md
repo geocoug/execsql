@@ -8,7 +8,7 @@
 
 "Automated" means the operation is driven by the database's [information schema](https://en.wikipedia.org/wiki/Information_schema). All you do is list the tables to update and say where the base and staging tables are. The scripts provide features that native MERGE or `INSERT ... ON CONFLICT` statements lack:
 
-- They can be applied to any table in any database without modification.
+- They generate SQL from catalog metadata for compatible base/staging tables on the supported DBMSs; see the [identifier, key and transaction limitations](#limitations).
 - They can be applied to several tables at once, and upsert them in top-down foreign key order to maintain referential integrity.
 - Before upserting, they check each staging table for nulls in columns that must be non-null, for duplicate primary key values, and for foreign key values that match neither the base table nor another staging table.
 - They do not upsert any table if any check fails.

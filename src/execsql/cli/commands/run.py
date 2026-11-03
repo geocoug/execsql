@@ -114,9 +114,9 @@ def main(
         "--output-dir",
         metavar="DIR",
         help=(
-            "Default base directory for EXPORT output files. "
+            "Containment root for EXPORT output files. "
             "Relative paths in EXPORT metacommands are joined to this directory. "
-            "Absolute paths and stdout are unaffected."
+            "Absolute paths must also stay inside it; stdout is exempt. WRITE is not constrained."
         ),
     ),
     progress: bool = typer.Option(

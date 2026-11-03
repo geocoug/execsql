@@ -265,7 +265,7 @@ ods_max_xml_mb=150
 
 !!! note "CLI-only output options"
 
-    The [`--output-dir`](../getting-started/syntax.md) option sets a default base directory for EXPORT output files. Relative paths in EXPORT metacommands are automatically joined to this directory; absolute paths and `stdout` are unaffected. This option is **only available on the command line** — there is no equivalent configuration file setting.
+    The [`--output-dir`](../getting-started/syntax.md) option sets a containment root for EXPORT output files. Relative paths are joined to this directory; absolute paths must also resolve inside it. Escaping paths are rejected. `stdout` is exempt, and WRITE is not constrained by this option. This option is **only available on the command line** — there is no equivalent configuration file setting.
 
 ## Section `interface`
 

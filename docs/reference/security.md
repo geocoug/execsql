@@ -4,7 +4,7 @@ This page describes the trust model, security boundaries, and known limitations 
 
 ## Trust Model { #trust_model }
 
-execsql treats the script author as fully trusted. Scripts run with the same OS and database privileges as the user who invoked `execsql`. There is no sandboxing, privilege separation, or policy enforcement of any kind. A script can read and write files, execute OS commands, connect to databases, and send email — subject only to the permissions of the running user.
+execsql treats the script author as fully trusted. Scripts run with the same OS and database privileges as the user who invoked `execsql`. There is no sandboxing or privilege separation. Capability switches and path-containment settings restrict specific operations, but a script can otherwise read and write files, execute OS commands, connect to databases and send email with the running user’s permissions.
 
 **Do not run scripts from untrusted sources.**
 
@@ -55,7 +55,7 @@ The `--no-system-cmd` CLI flag always takes precedence — if the flag is passed
 
 ### Interactive password prompts
 
-When execsql needs a database password and none is stored or configured, it prompts interactively. In terminal mode, the prompt uses `getpass` (input is not echoed). In GUI mode, a dialog with a hidden-text entry field is used. Passwords entered interactively are held in process memory only and are not written to disk by execsql.
+When execsql needs a database password and none is stored or configured, it prompts interactively. In terminal mode, the prompt uses `getpass` (input is not echoed). In GUI mode, a dialog with a hidden-text entry field is used. With keyring use disabled, execsql keeps prompted passwords in process memory. With an installed keyring backend and `use_keyring = Yes`, a password is saved to that backend after it successfully authenticates; see below for storage and opt-out settings.
 
 <a id="keyring_setup"></a>
 
@@ -95,6 +95,12 @@ password = <plaintext password here>
 enc_password = <base64 obfuscated value here>
 ```
 
+### Passwords in command-line arguments
+
+A password embedded in a `--dsn` URL can be visible in process listings, shell history and process accounting. The CLI warns about this; log redaction does not remove those external copies. Prefer a password-less DSN with a prompt or OS keyring. Other command-line arguments can also be exposed by the operating system.
+
+ODBC connection-string attribute values containing `;` or beginning with `{` are brace-quoted, doubling embedded closing braces, to keep a password or DSN value from adding connection attributes. This does not make a caller-supplied connection string trustworthy.
+
 ### Environment variables and log redaction { #env_redaction }
 
 execsql seeds every readable environment variable into the substitution-variable pool as `&NAME` so SQL scripts can reference them. To keep obvious secrets out of the pool — and out of `~/execsql.log` when `-l` / `--user-logfile` is enabled — env-var names whose uppercased form contains any of the following substrings are skipped:
@@ -127,6 +133,16 @@ Beyond `-a`, every secret a run handles is registered with the log as it arrives
 | `SUB_DECRYPT` result                  | the value is decrypted                   |
 
 The same replacement applies to the console warning about a possibly un-substituted variable, which echoes the command. Replacement is by value: any text in the log that happens to equal a registered secret is masked too, so a password that is also the user name or database name hides those as well. Only a record's text fields are masked, never its record type, run identifier, timestamp, sequence number or line number, so a short value such as `-a 2024` leaves the log's structure readable.
+
+On POSIX, execsql attempts to restrict its active log file to mode `0600` after opening it. This is best-effort; verify filesystem permissions for sensitive runs. The normal log is `execsql.log` in the working directory, unless configured otherwise. Redaction cannot recognize every secret or remove sensitive data exported to other files.
+
+## Input limits and regular expressions { #input-limits }
+
+All substitution forms reject NUL bytes. Expanded substitutions also have a configurable [`max_substitution_bytes`](configuration.md#max_substitution_bytes) limit (10 MB by default), which limits expansion size rather than validating the resulting SQL or command.
+
+XLSX readers and writers inspect ZIP metadata before parsing an existing workbook. The default limits reject more than 500 MB of declared uncompressed content or a member compression ratio above 100:1. These checks reduce decompression-bomb risk; they do not bound every possible parser allocation. ODS has separate configurable archive, XML, row, column and cell limits; see [ODS resource limits](configuration.md#spreadsheet-input-limits).
+
+Spreadsheet `IMPORT … SHEETS MATCHING` selectors compile the supplied regular expression with Python's standard `re` engine. There is no regex timeout or complexity cap: a pathological pattern can cause excessive matching time. Use trusted patterns and bounded inputs. String predicates such as `CONTAINS`, `STARTSWITH` and `ENDSWITH` perform literal comparisons; they are not user-regex interfaces.
 
 ## File System Access { #filesystem }
 
@@ -169,7 +185,7 @@ An `INCLUDE` refused by `include_root` stops the run even with [`METACOMMAND_ERR
 | `serve_root`    | `SERVE` targets                           | unrestricted |
 | `template_root` | Jinja2 and `string.Template` loader paths | unrestricted |
 
-These roots do not contain every filesystem operation. In particular, `EXPORT` and `WRITE` output paths are governed by their output-directory behavior, and remain writable anywhere the process user can write unless separately constrained by how you invoke execsql.
+These roots do not contain every filesystem operation. `--output-dir DIR` separately confines EXPORT targets, including absolute paths, to the resolved root. An escaping `..` or symlink target is refused. ZIP archive paths and member names are also checked; `stdout` is exempt. WRITE is not constrained by `--output-dir` and can write wherever the process user has permission. See the [option reference](../getting-started/syntax.md#options).
 
 ## Email (SMTP) { #smtp }
 
@@ -179,10 +195,23 @@ TLS is off by default. The relevant `execsql.conf` settings are:
 [email]
 host = mail.example.com
 port = 587
-use_tls = yes   # STARTTLS after initial plaintext connection
-use_ssl = yes   # implicit TLS from connection start (preferred)
-verify_certificate = yes   # default
-ca_file = /etc/ssl/certs/corp-root-ca.pem   # only for an internal CA
+use_tls = yes
+use_ssl = no
+# Certificate verification is on by default.
+verify_certificate = yes
+# Set only if your relay uses an internal CA.
+# ca_file = /etc/ssl/certs/corp-root-ca.pem
+```
+
+The block above uses STARTTLS on port 587. For implicit TLS, use this alternative instead; do not enable both modes:
+
+```ini
+[email]
+host = mail.example.com
+port = 465
+use_ssl = yes
+use_tls = no
+verify_certificate = yes
 ```
 
 With either TLS mode, execsql verifies the server's certificate: it must chain to a trusted certificate authority and match `host`, or the `EMAIL` metacommand fails before the SMTP password is sent. For a relay with an internal or self-signed certificate, point `ca_file` at its CA certificate. `verify_certificate = no` turns the check off, which lets anyone on the network path pose as the server; use it only for a test relay. For production deployments:
@@ -210,7 +239,7 @@ The `!'!varname!'!` dereferencing form wraps the value in single quotes and doub
 SELECT * FROM documents WHERE author = !'!author_name!'!;
 ```
 
-This does not constitute full SQL escaping. For untrusted string input, validate the value before substitution.
+Use the literal form as a complete SQL value, without additional surrounding quotes. Identifier and SQL-fragment contexts need their own quoting or validation; the literal form does not make arbitrary SQL structure safe. Backslash handling follows the active adapter and string context rather than one universal escape rule.
 
 ## Recommendations { #recommendations }
 
@@ -220,7 +249,7 @@ This does not constitute full SQL escaping. For untrusted string input, validate
 
 1. **Use OS credential stores instead of config-file passwords.** Install `execsql2[auth]` and rely on the keyring integration rather than storing passwords in `execsql.conf`.
 
-1. **Enable TLS for SMTP.** Set `use_ssl = yes` in the `[email]` section, or at minimum `use_tls = yes`. Do not send credentials over an unencrypted SMTP connection.
+1. **Enable TLS for SMTP.** Choose one mode: `use_ssl = yes, use_tls = no` (implicit TLS) or `use_tls = yes, use_ssl = no` (STARTTLS). Do not send credentials over an unencrypted SMTP connection.
 
 1. **Audit scripts that use `SYSTEM_CMD` or `INCLUDE` with variable-derived paths.** Trace where each variable originates. If any value comes from outside the script (environment, prompt, file content), validate it before use in a command that touches the filesystem or executes a process.
 

@@ -70,7 +70,7 @@ jobs:
             - run: |
                   floor=$(grep -oP '"typer>=\K[0-9.]+' pyproject.toml)
                   echo "Typer floor: $floor"
-                  python -m pip install ".[formats,formatter,lsp]" --group dev "typer==$floor"
+                  python -m pip install ".[formats,formatter,lsp]" --group test "typer==$floor"
             - run: pytest tests/cli --no-cov -q
 
     pre-commit:
@@ -139,7 +139,7 @@ jobs:
                   python-version: "3.13"
                   cache: "pip"
             - run: python -m pip install --upgrade pip
-            - run: python -m pip install ".[formats,formatter,lsp]" --group dev
+            - run: python -m pip install ".[formats,formatter,lsp]" --group docs
             - run: cp CHANGELOG.md docs/about/change_log.md
             # --strict: a warning, such as a link to an #anchor that does not exist, fails the job.
             - run: zensical build --strict
@@ -180,8 +180,8 @@ jobs:
             - name: Install dependencies
               run: |
                   python -m pip install --upgrade pip
-                  python -m pip install tox
-                  python -m pip install ".[formats,formatter,lsp]" --group dev
+                  python -m pip install tox tox-uv
+                  python -m pip install ".[formats,formatter,lsp]" --group test
             - name: Install tkinter (Ubuntu)
               if: runner.os == 'Linux'
               run: sudo apt-get install -y python3-tk
@@ -291,7 +291,7 @@ jobs:
             - name: Install dependencies
               run: |
                   python -m pip install --upgrade pip
-                  python -m pip install ".[formats,formatter,lsp,postgres,mysql,mssql,upsert,duckdb]" --group dev
+                  python -m pip install ".[formats,formatter,lsp,postgres,mysql,mssql,upsert,duckdb]" --group test
             - name: Run subprocess integration tests
               run: |
                   python -m pytest tests/integration/test_postgres.py tests/integration/test_mysql.py -v --override-ini="addopts="
@@ -356,7 +356,7 @@ jobs:
               if: steps.install_access.outcome == 'success'
               run: |
                   python -m pip install --upgrade pip
-                  python -m pip install ".[formats,formatter,lsp,odbc]" --group dev pywin32
+                  python -m pip install ".[formats,formatter,lsp,odbc]" --group test pywin32
               shell: pwsh
             - name: Run Access real-driver tests
               # Gating: a real regression in src/execsql/db/access.py blocks

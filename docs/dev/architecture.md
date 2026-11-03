@@ -173,16 +173,16 @@ ______________________________________________________________________
 
 ## Plugin System
 
-execsql supports plugins via Python entry points. Plugins can register custom metacommands, export formats, and import formats.
+execsql supports plugins via Python entry points. Metacommand plugins extend executable syntax. Exporter/importer entry-point names can be listed, but execsql does not automatically call their registration callbacks or populate their discovery registries. They do not extend the built-in IMPORT/EXPORT grammar or format handlers. Use a metacommand plugin to wire a custom format handler, or follow the in-tree extension guides.
 
-Plugins cannot add CLI commands. The command set (`run`, `format`, `lint`, `config`, `list`, `init`) is defined only in `src/execsql/cli/commands/` and pinned by `tests/cli/test_cli_surface.py`, so every change to it is reviewed in one place.
+Plugins cannot add CLI commands. The command set (`run`, `format`, `lint`, `config`, `list`, `init`, `lsp`) is defined only in `src/execsql/cli/commands/` and pinned by `tests/cli/test_cli_surface.py`, so every change to it is reviewed in one place.
 
 - **Entry point groups**: `execsql.metacommands`, `execsql.exporters`, `execsql.importers`
-- **Discovery**: `plugins.discover_metacommand_plugins()` is called during `state.initialize()`. Exporter/importer plugins are discovered via `discover_exporter_plugins()` / `discover_importer_plugins()`.
+- **Discovery**: `plugins.register_metacommand_plugins_once()` is called during `state.initialize()`. `discover_exporter_plugins()` / `discover_importer_plugins()` are explicit helper APIs, not startup hooks. `execsql list plugins` loads entry-point metadata/callables for listing; it does not invoke their format-registration callbacks.
 - **Error handling**: Broken plugins are logged and skipped -- they cannot prevent execsql from starting.
 - **Template**: `extras/plugin-template/` provides a starting point for creating plugins.
 
-Run `execsql list plugins` to view discovered plugins.
+Run `execsql list plugins` to view installed entry points. A listed format entry point is not proof that its callback ran or that an IMPORT/EXPORT form can execute.
 
 ______________________________________________________________________
 
@@ -288,7 +288,7 @@ ______________________________________________________________________
 
 ### Export flow
 
-1. An `EXPORT` metacommand is parsed and dispatched to `x_export` (in `metacommands/data.py`).
+1. An `EXPORT` metacommand is parsed and dispatched to `x_export` (in `metacommands/io_export.py`).
 1. The handler determines the output format from the metacommand arguments.
 1. It calls `select_data()` or `select_rowsource()` on the current database to fetch results.
 1. The appropriate exporter module (e.g., `exporters/delimited.py`, `exporters/json.py`) formats and writes the output.
@@ -299,7 +299,7 @@ The writer tracks its current I/O operation and pending destinations independent
 ### Import flow
 
 1. An `IMPORT` metacommand is dispatched to the appropriate handler.
-1. The handler instantiates the correct importer (e.g., `importers/csv.py`, `importers/ods.py`) based on the file type.
+1. The handler instantiates the correct importer (e.g., `importers/csv.py`, `importers/ods.py`) from the explicit grammar form (delimited `FROM file`, ODS `FROM file SHEET …`, Excel `FROM EXCEL file SHEET …`, or `FROM JSON/PARQUET/FEATHER file`).
 1. The importer reads the file and yields rows.
 1. `Database.populate_table()` converts the rows and inserts them in batches of `import_row_buffer` rows, in one transaction, with optional progress bars. Each batch goes through the adapter's `row_inserter()`: `executemany()` by default, and multi-row `INSERT ... VALUES` on DuckDB, whose `executemany()` binds one row at a time.
 

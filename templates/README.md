@@ -8,7 +8,7 @@ Several types of templates are provided that may be useful in conjunction with e
 
 - **script_template.sql** — A framework for SQL scripts that make use of several execsql features. It includes sections for custom configuration settings, custom logfile creation, and reporting of unexpected script exits (through user cancellation or errors).
 
-- **config_settings.sqlite** and **example_config_prompt.sql** — A SQLite database containing specifications for all settings configurable with the CONFIG metacommand, in the form used by the PROMPT ENTRY_FORM metacommand, and a SQL script illustrating how this database can be used to prompt the user for some or all of the configuration settings.
+- **config_settings.sqlite** and **example_config_prompt.sql** — A SQLite database containing a legacy subset of settings configurable with the CONFIG metacommand, in the form used by the PROMPT ENTRY_FORM metacommand, and a SQL script illustrating how this database can be used to prompt the user for those sample settings. This demo opens a GUI when executed or included; `make_config_db.sql` rebuilds its tables and belongs in a disposable copy. For all current settings, use `execsql config --init` and `execsql config --validate`.
 
 ## Functional Scripts for execsql
 
@@ -16,7 +16,7 @@ These script files provide useful functionality that should be accessed by inclu
 
 ### Upsert Scripts
 
-These scripts perform automated upsert operations on any tables of any database in a DBMS that supports the standard *information_schema* views. Currently that includes:
+These scripts perform upsert operations on tables meeting the key, identifier and type requirements in the family guide, for the named DBMSs. Currently that includes:
 
 - **PostgreSQL:** use the [`PG_UPSERT`](https://execsql2.readthedocs.io/en/stable/reference/metacommands/#pg_upsert) metacommand, which does the same with the [pg-upsert](https://pg-upsert.readthedocs.io/) package; it replaced `pg_upsert.sql`.
 - **MySQL/MariaDB:** `md_upsert.sql`
@@ -26,7 +26,7 @@ These scripts perform the upsert operation by using standard SQL UPDATE and INSE
 
 Features of these upsert scripts include:
 
-- They can be applied to any table in any database without modification.
+- They are reusable across tables that meet the [documented prerequisites and limitations](https://execsql2.readthedocs.io/en/stable/templates/upsert/).
 - They can be applied to multiple tables simultaneously, and will perform the upsert operations in top-down order to maintain referential integrity among tables.
 - Prior to performing the upsert operation, they check for null values in the columns of each staging table that must be non-null in the corresponding base table.
 - Prior to performing the upsert operation, they check for duplicate primary key values in the staging tables.
@@ -43,7 +43,7 @@ Complete documentation is in the [Upsert Scripts](https://execsql2.readthedocs.i
 
 These scripts generate SQL that can be used to identify differences in the content of two tables with equivalent structure. These are specifically intended to be base and staging tables. Running the SQL provided by these scripts will provide different summaries of the types of changes that would be made to the base tables by upserting the staging tables.
 
-These scripts work with any tables of any database in a DBMS that supports the standard *information_schema* views. Currently that includes:
+These scripts support compatible base/staging tables on the following DBMSs, subject to the [key and identifier requirements](https://execsql2.readthedocs.io/en/stable/templates/compare/#limitations):
 
 - **PostgreSQL:** `pg_compare.sql`
 - **MySQL/MariaDB:** `md_compare.sql`
@@ -53,7 +53,7 @@ Complete documentation is in the [Compare Scripts](https://execsql2.readthedocs.
 
 ### Glossary Creation Scripts
 
-These scripts create a glossary of column names or other terms that can be exported to accompany a data summary. These scripts work with any tables of any database in a DBMS that supports the standard *information_schema* views. Currently that includes:
+These scripts create a glossary of column names or other terms that can be exported to accompany a data summary. They support the following DBMSs, subject to the [catalog, identifier and permission requirements](https://execsql2.readthedocs.io/en/stable/templates/glossary/#limitations):
 
 - **PostgreSQL:** `pg_glossary.sql`
 - **MySQL/MariaDB:** `md_glossary.sql`

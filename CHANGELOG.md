@@ -13,11 +13,13 @@ ______________________________________________________________________
 
 ### Added
 
+- **Documentation** offers Copy as Markdown and a curated `llms.txt` index.
 - **ODS `IMPORT` input limits** add seven `[input]` settings and matching `CONFIG` forms; `0` disables an individual limit.
 - **`EXPORT … AS SQLITE`** accepts Decimal infinities as numeric values.
 
 ### Changed
 
+- **Documentation navigation** groups CLI subcommands under Commands, editor setup under Editors, and examples by task; existing page URLs and example anchors remain valid.
 - **`WRITE` / `TEE`** flushes each completed write so other readers can see it before the output file is closed.
 - **ODS `IMPORT`** rejects archives and sheet expansion over configured limits before changing targets; raise the setting named in the error for a trusted larger worksheet.
 - **`IMPORT … FROM JSON`** preserves fractional and exponent scalar numbers as exact decimals before loading. NEW/REPLACEMENT tables can infer DECIMAL instead of DOUBLE; existing decimal and integer targets validate the original digits.
@@ -28,6 +30,16 @@ ______________________________________________________________________
 
 ### Fixed
 
+- **Documentation bookmarks** redirect moved examples, editor features and command sections to their current pages.
+- **Documentation canonical URLs and sitemaps** include the Read the Docs `/en/stable/` path.
+- **VS Code installation instructions** include the VSIX download before the local installation command.
+- **Looping examples** use `LOOP` instead of rejected recursive self-`INCLUDE` calls.
+- **SQL text examples** quote input values with `!'!name!'!`.
+- **Batch-processing example** exports the selected order IDs after updating them.
+- **Access summary example** applies the nondetect half-limit adjustment once.
+- **Configuration prompt template** uses the supported `CONFIG IMPORT_ONLY_COMMON_COLUMNS` spelling.
+- **`--output-dir` help** states that absolute EXPORT targets must remain inside the output root.
+- **IMPORT/EXPORT extension guides** describe the implemented registration paths.
 - **`ALIAS_DEFINED` and `DISCONNECT` match the alias case-insensitively** (`ALIAS_DEFINED(B)`, `DISCONNECT FROM B`), as `USE` always did; the same connection spelled differently reported "not defined" and could not be closed.
 - **`$CURRENT_DATABASE`, `$CURRENT_DBMS` and `$DB_SERVER` after a `DISCONNECT`** of the current database name the initial database the run switches to; they kept naming the database just closed. The log's connection record follows the switch too.
 - **`WRITE` / `TEE`** reports blocked background I/O, including filename resolution, at the output deadline and discards queued output without waiting again during shutdown; the I/O already in progress may finish later.

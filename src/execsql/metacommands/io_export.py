@@ -11,8 +11,7 @@
 - ``x_export_row_buffer`` — CONFIG EXPORT_ROW_BUFFER (set the per-export
   row-buffer size).
 
-Per-format dispatch happens inside ``x_export``'s
-``if filefmt in (...): ... elif ...`` chain, which calls the
+Per-format dispatch happens inside ``_dispatch_format()``, which calls the
 appropriate writer in :mod:`execsql.exporters`.
 """
 

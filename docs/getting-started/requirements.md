@@ -15,10 +15,10 @@ The specific libraries installed by each extra are:
 execsql2 ships nine DBMS adapters, but they are not all verified to the same
 standard. The tier tells you which ones have actually been run.
 
-| Tier            | Databases                                                | What it means                                                                                                                                                                                       |
-| --------------- | -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Supported**   | PostgreSQL, MySQL/MariaDB, MS SQL Server, SQLite, DuckDB | Exercised against a live server (or a real database file) on every CI run. A regression blocks the release, and bugs are fixed.                                                                     |
-| **Best effort** | MS Access, Firebird, Oracle, ODBC DSN                    | Carried forward from the upstream monolith and not exercised in CI. The code is present and may work; nothing proves it still does. Issues and pull requests are welcome, but no guarantee is made. |
+| Tier            | Databases                                                | What it means                                                                                                                                                                                                                                      |
+| --------------- | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Supported**   | PostgreSQL, MySQL/MariaDB, MS SQL Server, SQLite, DuckDB | Exercised against a live server (or a real database file) on every CI run. A regression blocks the release, and bugs are fixed.                                                                                                                    |
+| **Best effort** | MS Access, Firebird, Oracle, ODBC DSN                    | Access has conditional Windows checks when its engine installs; that job does not gate release builds. Firebird, Oracle and ODBC DSN lack required real-driver CI checks. These adapters remain best effort; issues and pull requests are welcome. |
 
 Opening a best-effort connection writes one informational line to stderr, once
 per DBMS per run:
@@ -54,7 +54,7 @@ tests that run against something real.
 | Format                                                             | Library                                                                                                 |
 | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------- |
 | [OpenDocument](http://www.opendocumentformat.org/) spreadsheets    | [odfpy](https://pypi.org/project/odfpy/)                                                                |
-| Excel spreadsheets (read only)                                     | [xlrd](https://pypi.org/project/xlrd) (.xls) and [openpyxl](https://pypi.org/project/openpyxl/) (.xlsx) |
+| Excel: .xls reading; .xlsx reading/writing                         | [xlrd](https://pypi.org/project/xlrd) (.xls) and [openpyxl](https://pypi.org/project/openpyxl/) (.xlsx) |
 | [Jinja2](https://jinja.palletsprojects.com/) templates             | [Jinja2](https://pypi.org/project/Jinja2/)                                                              |
 | [Feather](https://arrow.apache.org/docs/python/feather.html) files | [polars](https://pypi.org/project/polars/)                                                              |
 | [Parquet](https://parquet.apache.org/) files                       | [polars](https://pypi.org/project/polars/)                                                              |

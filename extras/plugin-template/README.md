@@ -10,8 +10,7 @@ pip install execsql-plugin-YOURNAME
 execsql list plugins  # verify it's detected
 ```
 
-That's it — execsql discovers installed plugins automatically via Python
-entry points. No configuration needed.
+Install the plugin in the same environment as execsql. For a uv tool installation use `uv tool install execsql2 --with execsql-plugin-YOURNAME`, retaining any extras in the execsql2 package specification. For pipx use `pipx inject execsql2 execsql-plugin-YOURNAME`; for a project environment use the pip command above. Verify the plugin’s documented script invocation as well as its presence in the listing. Only metacommand registration runs automatically; see the [plugin lifecycle](https://execsql2.readthedocs.io/en/stable/dev/architecture/#plugin-system).
 
 ## For plugin developers
 
@@ -67,5 +66,4 @@ pytest tests/      # run tests
 ## Plugin types
 
 - **Metacommands**: Add new `-- !x! COMMAND` syntax. Edit `register_metacommands()`.
-- **Exporters**: Add new `EXPORT TO YOURFORMAT` support. Uncomment `register_exporters()`.
-- **Importers**: Add new `IMPORT FROM YOURFORMAT` support. Uncomment `register_importers()`.
+- **Exporters/importers**: The template's `execsql.exporters` and `execsql.importers` entry-point blocks are commented out in `pyproject.toml`. Uncomment the relevant block to expose a name in `execsql list plugins`. Their `register_exporters()` / `register_importers()` callbacks are not invoked automatically. To execute a custom format, register a metacommand that calls the writer/reader, or follow the in-tree [exporter](https://execsql2.readthedocs.io/en/stable/dev/adding_exporters/) or [importer](https://execsql2.readthedocs.io/en/stable/dev/adding_importers/) guide.

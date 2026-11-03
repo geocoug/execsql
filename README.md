@@ -1,5 +1,5 @@
 > [!NOTE]
-> ***execsql2* is a maintained fork of [execsql](https://execsql.readthedocs.io/)**, originally authored by R.Dreas Nielsen and no longer actively maintained upstream. The monolith has been fully refactored into a modular package; the CLI and configuration remain backwards-compatible with upstream v1.130.1. Maintained by [Caleb Grant](https://github.com/geocoug) and distributed on PyPI as [`execsql2`](https://pypi.org/project/execsql2/). Report issues at [github.com/geocoug/execsql/issues](https://github.com/geocoug/execsql/issues).
+> ***execsql2* is a maintained fork of [execsql](https://execsql.readthedocs.io/)**, originally authored by R.Dreas Nielsen and no longer actively maintained upstream. The monolith has been refactored into a modular package with deliberate [CLI, configuration and script-behavior changes](https://execsql2.readthedocs.io/en/stable/about/divergence/); review them when migrating from upstream. Maintained by [Caleb Grant](https://github.com/geocoug) and distributed on PyPI as [`execsql2`](https://pypi.org/project/execsql2/). Report issues at [github.com/geocoug/execsql/issues](https://github.com/geocoug/execsql/issues).
 
 <div align="center">
 
@@ -25,7 +25,7 @@
 
 *execsql* is a toolchain for SQL scripts: **write** them with editor support, **format** them consistently, **lint** them without a database, and **run** them against nine DBMSs.
 
-Scripts are ordinary SQL plus metacommands embedded in comments (`-- !x!`), which add importing and exporting data, copying between databases, conditional execution, looping, substitution variables, and interactive prompts. Because the metacommands live in comments, the scripts stay valid SQL and other tools (`psql`, `sqlcmd`, your editor) ignore them.
+Scripts are ordinary SQL plus metacommands embedded in comments (`-- !x!`), which add importing and exporting data, copying between databases, conditional execution, looping, substitution variables, and interactive prompts. Other SQL tools (`psql`, `sqlcmd`, your editor) ignore the metacommand comments. Scripts that depend on those commands or on variable substitution need execsql to perform their intended work.
 
 | Command                                    | What it does                                                                                                                                                          | Needs a database? |
 | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- |
@@ -75,41 +75,20 @@ Found 3 issues in 1 file: 3 warnings (1 file checked)
 
 ## Example
 
-Lines prefixed with `-- !x!` are metacommands; identifiers wrapped in `!!` are substitution variables:
+This complete SQLite example needs no server, GUI or extras. Save as `hello.sql`:
 
 ```sql
--- ==== Configuration ====
--- Put the (date-tagged) logfile name in the 'inputfile' substitution variable.
--- !x! SUB inputfile logs/errors_!!$date_tag!!
--- Ensure that the export directory will be created if necessary.
--- !x! CONFIG MAKE_EXPORT_DIRS Yes
-
--- ==== Display Fatal Errors ====
--- !x! IF(file_exists(!!inputfile!!))
-    -- Import the data to a staging table.
-    -- !x! IMPORT TO REPLACEMENT staging.errorlog FROM !!inputfile!!
-    -- Create a view to display only fatal errors.
-    create temporary view fatals as
-        select user, run_time, process
-        from   staging.errorlog
-        where  severity = 'FATAL';
-    -- !x! IF(HASROWS(fatals))
-        -- Export the fatal errors to a dated report.
-        -- !x! EXPORT fatals TO reports/error_report_!!$date_tag!! AS CSV
-        -- Also display it to the user in a GUI.
-        -- !x! PROMPT MESSAGE "Fatal errors in !!inputfile!!:" DISPLAY fatals
-    -- !x! ELSE
-        -- !x! WRITE "There are no fatal errors."
-    -- !x! ENDIF
--- !x! ELSE
-    -- !x! WRITE "There is no error log."
--- !x! ENDIF
-drop table if exists staging.errorlog cascade;
+create table sales (product text, quantity integer);
+insert into sales values ('book', 2), ('book', 3), ('pen', 4);
+-- !x! ASSERT ROW_COUNT_EQ(sales, 3) "Expected three input rows"
+-- !x! EXPORT QUERY <<select product, sum(quantity) as quantity from sales group by product order by product;>> TO totals.csv AS CSV
 ```
 
-The `PROMPT` metacommand produces a GUI display of the data:
+```sh
+execsql run --dsn sqlite:///:memory: hello.sql
+```
 
-![PROMPT display of 'fatals' view](https://execsql2.readthedocs.io/en/stable/images/fatals.png)
+It creates `totals.csv` with `book,5` and `pen,4` beneath a header, and writes `execsql.log`. The database is in memory; each run replaces the CSV. [Your first script](https://execsql2.readthedocs.io/en/stable/getting-started/first-script/) extends this into a CSV import/export workflow with expected output.
 
 ## Installation
 
@@ -135,6 +114,7 @@ execsql lint   [OPTIONS] FILE_OR_DIR...
 execsql config [SQL_SCRIPT] [--init] [--config FILE]
 execsql list   metacommands|encodings|plugins|keywords
 execsql init   [DIR] [--script NAME] [--no-script] [--no-config] [--no-pre-commit]
+execsql lsp    [--check] [--log-level LEVEL] [--log-file PATH]
 ```
 
 Examples:
@@ -158,19 +138,12 @@ execsql run script.sql                          # read connection from config fi
 | `s`  | MS SQL Server   | Supported: verified against a live server in CI |
 | `l`  | SQLite          | Supported: verified against real files in CI    |
 | `k`  | DuckDB          | Supported: verified against real files in CI    |
-| `a`  | MS Access       | Best effort: not verified in CI                 |
+| `a`  | MS Access       | Best effort: conditional Windows CI checks      |
 | `f`  | Firebird        | Best effort: not verified in CI                 |
 | `o`  | Oracle          | Best effort: not verified in CI                 |
 | `d`  | ODBC DSN        | Best effort: not verified in CI                 |
 
-**Supported** adapters run against a live server or a real database file on
-every CI run; a regression blocks the release and bugs get fixed. **Best
-effort** adapters are carried forward from the upstream monolith and are not
-exercised anywhere in CI. The code is there and may work, but nothing proves
-it still does. Issues and pull requests are welcome for them; no guarantee is
-made. Opening a best-effort connection prints one informational line, which
-`support_tier_notice=No` in the `[interface]` section of `execsql.conf`
-silences.
+**Supported** adapters have required real-database checks in CI. Access remains **best effort**: its Windows checks run when the engine installs and do not gate release builds. Firebird, Oracle and ODBC DSN have no required real-driver CI coverage. See the [support table](https://execsql2.readthedocs.io/en/stable/getting-started/requirements/#support-tiers) for requirements and the notice setting.
 
 ### Common options
 
@@ -180,7 +153,7 @@ silences.
 | `-u USER`                                         | Database username                                                          |
 | `-p PORT`                                         | Server port                                                                |
 | `--dsn URL`                                       | Connection string (e.g. `postgresql://user:pass@host/db`)                  |
-| `-n`                                              | Create a new SQLite or PostgreSQL database if it does not exist            |
+| `-n`                                              | Create a new SQLite, DuckDB or PostgreSQL database if it does not exist    |
 | `-c SCRIPT`                                       | Execute inline SQL or metacommand string                                   |
 | `-a VALUE`                                        | Set substitution variable `$ARG_x`                                         |
 | `--var NAME=VALUE`                                | Set the substitution variable `!!NAME!!`                                   |
@@ -220,83 +193,20 @@ See the [full options reference](https://execsql2.readthedocs.io/en/stable/getti
 
 ## Library API
 
-execsql can be used as a Python library for programmatic script execution:
+Install `execsql2` in your Python project, then call `run`:
 
 ```python
 from execsql import run
 
-# Execute a script file
-result = run(script="pipeline.sql", dsn="postgresql://user:pass@host/db")
-
-# Execute inline SQL
 result = run(
-    sql="CREATE TABLE t (id INT);\nINSERT INTO t VALUES (1);",
-    dsn="sqlite:///my.db",
-    new_db=True,
+    sql="CREATE TABLE t (id INTEGER);\nINSERT INTO t VALUES (1);",
+    dsn="sqlite:///:memory:",
 )
-
-# With substitution variables: each key becomes a $ variable,
-# so the script refers to these as !!$SCHEMA!! and !!$DATE!!
-result = run(
-    script="etl.sql",
-    dsn="sqlite:///data.db",
-    variables={"SCHEMA": "public", "DATE": "2026-01-01"},
-)
-
-# Check results
-print(result.success)       # True
-print(result.commands_run)  # 2
-print(result.elapsed)       # 0.003 (seconds)
-print(result.variables)     # {"schema": "public", ...} (names lower-cased, no $)
+result.raise_on_error()
+print(result.success)  # True
 ```
 
-Error handling:
-
-```python
-result = run(sql="SELECT * FROM nonexistent;", dsn="sqlite:///:memory:")
-if not result.success:
-    for err in result.errors:
-        print(f"{err.source}:{err.line}: {err.message}")
-
-# Or raise on failure
-result.raise_on_error()  # raises ExecSqlError
-```
-
-Use a pre-existing database connection instead of a DSN. This is useful for reusing one connection across multiple `run()` calls, or when connection parameters come from your application's configuration rather than a URL:
-
-```python
-from execsql import run
-from execsql.db.factory import db_Postgres, db_SQLite
-
-# PostgreSQL connection object (psycopg3 under the hood)
-conn = db_Postgres(
-    "db.example.com",              # server
-    "warehouse",                   # database
-    user="etl",
-    port=5432,                     # optional, default 5432
-    password="s3cret",             # omit to use keyring / interactive prompt
-)
-
-# Reuse the same connection across multiple calls
-staged = run(script="stage.sql", connection=conn)
-loaded = run(
-    script="load.sql",
-    connection=conn,
-    variables={"RUN_DATE": "2026-07-03"},
-)
-
-# run() does NOT close the connection; you manage its lifecycle
-conn.close()
-
-# SQLite works the same way
-conn = db_SQLite("my.db", new_db=True)
-result = run(sql="SELECT 1;", connection=conn)
-conn.close()
-```
-
-Factory functions exist for every supported backend (`db_Postgres`, `db_MySQL`, `db_SQLite`, `db_DuckDB`, `db_SqlServer`, `db_Oracle`, `db_Firebird`, `db_Access`, `db_Dsn`). See [`execsql.db.factory`](https://execsql2.readthedocs.io/en/stable/api/db/).
-
-Each call to `run()` uses an isolated `RuntimeContext`, so multiple calls do not share state.
+The [Python API guide](https://execsql2.readthedocs.io/en/stable/api/) covers script files, variables, supplied connections, result/error handling and setup exceptions. Each call uses its own runtime context; the caller manages a supplied connection's lifetime.
 
 ## Formatting Scripts
 
@@ -331,16 +241,19 @@ The format hook rewrites `*.sql` files in place by default; the lint hook fails 
 
 ## VS Code
 
-The VS Code extension in [`extras/vscode-execsql`](extras/vscode-execsql) highlights execsql syntax in `.sql` files (metacommand markers, keywords, variable substitutions, export formats, config options) on top of standard SQL highlighting, and starts the execsql language server for lint findings as you type and completion. Each GitHub release has the extension attached as `execsql-syntax.vsix`:
+Install the language server, then download the extension separately:
 
 ```sh
-uv tool install "execsql2[lsp]"                     # the language server
-code --install-extension execsql-syntax.vsix        # the extension, from the release
+uv tool install "execsql2[lsp]"
+execsql lsp --check
+curl -fL --output execsql-syntax.vsix \
+  https://github.com/geocoug/execsql/releases/latest/download/execsql-syntax.vsix
+code --install-extension ./execsql-syntax.vsix
 ```
 
-If execsql is already installed with other extras, name them too, e.g. `uv tool install "execsql2[postgres,lsp]"` or `pipx install --force "execsql2[postgres,lsp]"`: the new list replaces the old one (see [Adding an extra later](https://execsql2.readthedocs.io/en/stable/getting-started/installation/#adding-an-extra-later)).
+Run the download and install commands in the same directory. The last command reads a local file; it fails with `ENOENT` if the file is missing. Alternatively, download the VSIX from the [current release](https://github.com/geocoug/execsql/releases/latest), then use VS Code's **Extensions → … → Install from VSIX…**.
 
-Other editors use the language server directly: see [Editor Support](https://execsql2.readthedocs.io/en/stable/guides/editors/). The [extension README](extras/vscode-execsql/README.md) covers settings, installing from a clone, color customization, and troubleshooting.
+If you use other extras, retain them in the install command, for example `"execsql2[postgres,lsp]"`. See [VS Code setup and troubleshooting](https://execsql2.readthedocs.io/en/stable/guides/editors/vscode/) or [other editor setup](https://execsql2.readthedocs.io/en/stable/guides/editors/).
 
 ## Templates
 
@@ -353,7 +266,7 @@ The `templates/` directory in this repository includes ready-to-use execsql scri
 
 ## Documentation
 
-Full documentation, including a complete metacommand reference and 30+ examples, is at [execsql2.readthedocs.io](https://execsql2.readthedocs.io/).
+Full documentation, including a complete metacommand reference and examples grouped by task, is at [execsql2.readthedocs.io](https://execsql2.readthedocs.io/).
 
 ## Copyright and License
 

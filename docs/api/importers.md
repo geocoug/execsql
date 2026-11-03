@@ -2,7 +2,7 @@
 
 ## Base infrastructure
 
-`import_data_table()` is the shared back-end called by every importer. It handles column header cleaning, `CREATE TABLE` (when requested), and bulk-insertion via `db.populate_table()`. Format-specific importers only need to parse their file into headers and rows, then call `import_data_table()`.
+`import_data_table()` is the shared back-end used by many row-based importers. CSV also has a separate file-oriented loading path. It handles column header cleaning, `CREATE TABLE` (when requested), and bulk-insertion via `db.populate_table()`. A reader using this back-end supplies headers and materialized rows; it also owns format validation and resource cleanup. Existing-target conversions use target column types, while NEW/REPLACEMENT infer types.
 
 If you are adding support for a new file format, start with the [Adding Importers](../dev/adding_importers.md) guide.
 

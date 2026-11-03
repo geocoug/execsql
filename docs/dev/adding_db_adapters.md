@@ -1,6 +1,6 @@
 # Adding a New Database Adapter
 
-This guide walks through every step required to add support for a new database management system (DBMS) to execsql. The process involves three files: subclass `Database`, write a factory function, and wire the new type into the CLI.
+This guide walks through every step required to add support for a new database management system (DBMS) to execsql. The path includes an adapter, factory, type mappings, CLI/config validation, optional dependencies and tests. The hypothetical `mydb_driver` and catalog below must be replaced by your actual driver and DBMS catalog; this is an interface walkthrough, not an implemented MyDB backend. The example treats MyDB as a file-based, schemaless database; reject schema qualifiers rather than silently querying a different target.
 
 ______________________________________________________________________
 
@@ -79,9 +79,18 @@ class MyDBDatabase(Database):
                     other_msg=f"Can't open MyDB database {self.db_name}",
                 )
 
-    # --- Schema introspection (required) ---
+    def exec_cmd(self, querycommand: str) -> None:
+        raise ErrInfo(type="error", other_msg="EXECUTE is not supported by MyDB")
+
+    def schema_qualified_table_name(self, schema_name: str | None, table_name: str) -> str:
+        if schema_name:
+            raise ErrInfo(type="error", other_msg="MyDB does not support schema qualifiers")
+        return super().schema_qualified_table_name(None, table_name)
+
+    # --- Schema introspection for this schemaless example ---
 
     def table_exists(self, table_name: str, schema_name: str | None = None) -> bool:
+        self.schema_qualified_table_name(schema_name, table_name)  # reject qualifiers
         # Query the DBMS catalog for the table. Use parameterized queries.
         curs = self.cursor()
         curs.execute("SELECT name FROM mydb_tables WHERE name = ?", (table_name,))
@@ -95,10 +104,11 @@ class MyDBDatabase(Database):
 
     def table_columns(self, table_name: str, schema_name: str | None = None) -> list[str]:
         curs = self.cursor()
-        curs.execute(f'SELECT * FROM "{table_name}" WHERE 1=0')
+        curs.execute(f"SELECT * FROM {self.schema_qualified_table_name(schema_name, table_name)} WHERE 1=0")
         return [d[0] for d in curs.description]
 
     def view_exists(self, view_name: str, schema_name: str | None = None) -> bool:
+        self.schema_qualified_table_name(schema_name, view_name)  # reject qualifiers
         curs = self.cursor()
         curs.execute("SELECT name FROM mydb_views WHERE name = ?", (view_name,))
         return curs.fetchone() is not None
@@ -107,27 +117,14 @@ class MyDBDatabase(Database):
         return False  # set True and implement if the DBMS supports schemas
 
     def drop_table(self, tablename: str) -> None:
-        self.execute(f'DROP TABLE IF EXISTS "{tablename}"')
+        self.execute(f"DROP TABLE IF EXISTS {tablename}")  # already qualified and quoted
 
-    # --- Data loading (required for IMPORT support) ---
+    # Inherit Database.populate_table(): its conversion and rollback rules
+    # apply to IMPORT/COPY. Override row_inserter only with equivalence tests.
 
-    def populate_table(
-        self,
-        schema_name: str | None,
-        table_name: str,
-        rowsource: Any,
-        column_list: list[str],
-        tablespec_src: Any,
-    ) -> None:
-        sq_name = self.schema_qualified_table_name(schema_name, table_name)
-        colspec = ", ".join(f'"{c}"' for c in column_list)
-        paramspec = ", ".join("?" for _ in column_list)
-        sql = f"INSERT INTO {sq_name} ({colspec}) VALUES ({paramspec})"
-        curs = self.cursor()
-        for row in rowsource:
-            if not (len(row) == 1 and row[0] is None):
-                curs.execute(sql, row)
 ```
+
+The inherited population method supplies the normal driver insertion loop and shared conversion rules. Before enabling IMPORT/COPY for a new backend, implement and verify existing-target conversion (`column_kinds`/target descriptors), null/row policy, error rollback and commit boundaries using the existing adapters as the contract. Parameter binding alone is not proof of correct type conversion. Quoted schema/table names and metadata queries must preserve the actual target identity.
 
 ### Step 2 — Key attributes and methods
 
@@ -138,7 +135,7 @@ These are the instance attributes and methods you must configure correctly:
 | `self.type`        | `DbType`          | DBMS type token (e.g., `dbt_sqlite`). Controls quoting and type-mapping.                                                                                                            |
 | `self.paramstr`    | `str`             | SQL parameter placeholder: `"?"` (most drivers) or `"%s"` (psycopg, PyMySQL).                                                                                                       |
 | `self.encoding`    | `str`             | Database character encoding. Detect from the database on connect if possible.                                                                                                       |
-| `self.autocommit`  | `bool`            | `True` means the driver commits automatically; `False` requires explicit commits.                                                                                                   |
+| `self.autocommit`  | `bool`            | `True` enables execsql’s automatic commits; it does not necessarily enable the driver’s native autocommit mode.                                                                     |
 | `self.conn`        | driver connection | Set in `open_db()`.                                                                                                                                                                 |
 | `open_db()`        | method            | **Must override.** Establish the connection and assign `self.conn`.                                                                                                                 |
 | `table_exists()`   | method            | **Must override.** Query the DBMS catalog. Use parameterized queries.                                                                                                               |
@@ -147,10 +144,10 @@ These are the instance attributes and methods you must configure correctly:
 | `view_exists()`    | method            | **Must override.** Check view presence.                                                                                                                                             |
 | `schema_exists()`  | method            | **Must override.** Return `False` if schemas are not supported.                                                                                                                     |
 | `drop_table()`     | method            | **Must override.** Drop a table (used by IMPORT when creating fresh).                                                                                                               |
-| `populate_table()` | method            | **Must override.** Bulk-load rows from a generator (used by IMPORT).                                                                                                                |
+| `populate_table()` | method            | Inherited shared conversion/loading path. Override only when backend-specific behavior requires it.                                                                                 |
 | `row_inserter()`   | method            | Override for a faster bulk path that stores exactly what `executemany()` stores.                                                                                                    |
 | `column_kinds()`   | method            | Override if the driver's description of a table does not tell its column types apart (see `db/target_types.py`); IMPORT and COPY into an existing table convert each value by them. |
-| `exec_cmd()`       | method            | Override if the DBMS can execute stored procedures or views as commands.                                                                                                            |
+| `exec_cmd()`       | method            | **Must override (abstract).** Execute a supported stored command, or raise a clear ErrInfo when the backend cannot support EXECUTE.                                                 |
 
 Methods inherited from `Database` that you get for free include `execute()`, `cursor()`, `close()`, `commit()`, `rollback()`, `select_rowsource()`, `select_data()`, `schema_qualified_table_name()`, `quote_identifier()`, and `paramsubs()`.
 
@@ -186,13 +183,21 @@ elif conf.db_type == "y":
     return db_MyDB(conf.db_file, new_db=conf.new_db)
 ```
 
-Also add the new code to the validation tuple in `cli/commands/run.py` (search for the `("a", "d", "p", ...)` check) so Typer accepts it.
+Update every entry path, rather than only the factory dispatch:
+
+1. Add `y` to both validators: the CLI check in `cli/commands/run.py` and the `db_type` configuration check in `config.py`.
+1. Because MyDB is file-based, add `y` to `_route_positionals()`'s file-backend tuple in `cli/run.py`. Otherwise a positional filename is stored as `server`, leaving `db_file` unset.
+1. For a `mydb:///path` DSN, add its scheme to `_SCHEME_TO_DBTYPE` in `cli/dsn.py` and add `y` to that parser's file-path branch. Add the factory branch in `api._connect_from_dsn()` as well as the CLI branch above; the Python API has its own connection dispatch.
+1. Add a `CONNECT TO MYDB(...)` handler in `metacommands/connect.py`, re-export it through `metacommands/__init__.py`, and register its syntax in `metacommands/dispatch.py` and `metacommands/reference.py`. Add the backend name to `DATABASE_TYPES` in `metacommands/__init__.py`. Follow [Adding Metacommands](adding_metacommands.md) for descriptions, categories, documentation and grammar regeneration.
+1. Export the adapter/factory through the relevant `db` module interfaces used by callers, add the driver extra to `pyproject.toml`, and document CLI, DSN and CONNECT forms and their requirements.
+
+Test config-file selection, a positional file, a DSN, a script's CONNECT and a supplied adapter independently. Passing one entry path does not establish the others.
 
 Define the `dbt_mydb` type token in `src/execsql/types.py` following the pattern used by `dbt_sqlite` / `dbt_duckdb` — instantiate `DbType("MyDB")` and call `name_datatype()` for every `DT_*` type your DBMS supports.
 
 ### Step 5 — Add tests
 
-Integration tests exercise the full CLI against a temporary database:
+After the real driver, catalog queries, type mappings and validation paths are implemented, integration tests exercise the full CLI against a temporary database:
 
 ```python
 # tests/db/test_mydb.py
@@ -217,7 +222,7 @@ class TestMyDBAdapter:
             "CREATE TABLE t (id INTEGER, val TEXT);\n"
             "INSERT INTO t VALUES (1, 'hello');\n"
         )
-        result = runner.invoke(app, ["-ty", str(script), str(db), "-n"])
+        result = runner.invoke(app, ["run", "-ty", "-n", str(script), str(db)])
         assert result.exit_code == 0, result.output
 ```
 
@@ -226,10 +231,12 @@ ______________________________________________________________________
 ## Checklist
 
 - [ ] `MyDBDatabase` class written in `src/execsql/db/mydb.py`
-- [ ] All required methods implemented (`open_db`, `table_exists`, `column_exists`, `table_columns`, `view_exists`, `schema_exists`, `drop_table`, `populate_table`)
+- [ ] All required methods implemented (`open_db`, `table_exists`, `column_exists`, `table_columns`, `view_exists`, `schema_exists`, `drop_table`, `exec_cmd`)
 - [ ] Factory function `db_MyDB()` added to `src/execsql/db/factory.py`
 - [ ] Type token `dbt_mydb` defined in `src/execsql/types.py`
-- [ ] CLI dispatch branch added in `_connect_initial_db()` (`src/execsql/cli/run.py`) and new type code added to the validator tuple in `cli/commands/run.py`
+- [ ] CLI factory dispatch, both CLI/config validators and file-position routing updated
+- [ ] DSN scheme/file-path parsing and Python API connection dispatch updated
+- [ ] CONNECT handler, dispatch/reference entries and DATABASE_TYPES vocabulary updated
 - [ ] Integration test added to `tests/db/`
 - [ ] `pytest` passes locally
 - [ ] New type code added to the `-t` flag table in [Syntax & Options](../getting-started/syntax.md#db_types)

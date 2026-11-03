@@ -17,7 +17,7 @@
 --	4. To replicate this example (or something like it) in production code:
 --		a. Include the "prompt_config" script (defined below) in
 --			your own script.
---		b. Either define the "sub_config" variable so that it contains
+--		b. Either define the "config_db" variable so that it contains
 --			the path and filename of the configuration database,
 --			or use the CONNECT metacommand to connect to that database
 --			yourself with an alias of "config_db".
@@ -138,7 +138,7 @@
 	-- !x! if(sub_defined(~trim_strings)) {config trim_strings !!~trim_strings!!}
 	-- !x! if(sub_defined(~replace_newlines)) {config replace_newlines !!~replace_newlines!!}
 	-- !x! if(sub_defined(~scan_lines)) {config scan_lines !!~scan_lines!!}
-	-- !x! if(sub_defined(~import_common)) {config import_common_columns_only !!~import_common!!}
+	-- !x! if(sub_defined(~import_common)) {config import_only_common_columns !!~import_common!!}
 	-- !x! if(sub_defined(~console_height)) {console height !!~console_height!!}
 	-- !x! if(sub_defined(~console_width)) {console width !!~console_width!!}
 	-- !x! if(sub_defined(~console_wait_done)) {config console wait_when_done !!~console_wait_done!!}

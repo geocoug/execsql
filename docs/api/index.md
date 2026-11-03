@@ -18,17 +18,39 @@ result: ScriptResult = run(
     dsn="sqlite:///my.db",       # or connection=existing_db_object
     variables={"KEY": "value"},  # optional; referenced as !!$KEY!! in the script
     halt_on_error=True,          # stop on first error (default)
-    new_db=False,                # create DB if missing
+    new_db=False,                # require an existing database
 )
 ```
 
-See the [README](https://github.com/geocoug/execsql#library-api) for full examples.
+The [regional-summary recipe](#regional-summary) supplies a script, input data and expected output. For a supplied connection and factory functions, see [Connection ownership](#connection-ownership) below.
 
 ### Connection ownership
 
 With `dsn=`, `run()` owns the initial connection and closes it when the run ends. With `connection=`, the supplied connection remains open for the caller; the existing SQL-error and interrupt rollback rules still apply.
 
 Connections the script opens with CONNECT belong to that run in either mode. At exit, their pending work is rolled back and they are closed, even under AUTOCOMMIT OFF. Commit work on these connections before the script ends if it must be kept. Cleanup does not commit or additionally roll back the borrowed initial connection.
+
+For example, `db_SQLite()` returns an execsql adapter that can be reused across calls. This complete in-memory example closes it only after both runs finish:
+
+```python
+from execsql import run
+from execsql.db.factory import db_SQLite
+
+connection = db_SQLite(":memory:", new_db=True)
+try:
+    run(sql="create table counts (n integer);", connection=connection).raise_on_error()
+    result = run(
+        sql="insert into counts values (2);\n"
+            "-- !x! SUBDATA saved_count counts\n",
+        connection=connection,
+    )
+    result.raise_on_error()
+    print(result.variables["saved_count"])
+finally:
+    connection.close()
+```
+
+The output is `2`. Supply an execsql `Database` adapter, not a raw driver connection. Other factories, such as `db_Postgres()`, are documented in the [database API](db.md); install their corresponding driver extras first.
 
 ### Variables
 
@@ -53,7 +75,7 @@ result = run(script="load.sql", dsn="sqlite:///data.db", config_file="restricted
 
 ### Errors
 
-`run()` never raises for a failed run. It returns `success=False`, and `result.errors` lists what went wrong in the order it happened. Each `ScriptError` has a `message`, a `source`, a `line`, and, for a failed SQL statement, the statement in `sql`.
+Expected configuration, connection and script-execution failures normally return `success=False`; `result.errors` lists what went wrong in the order it happened. Each `ScriptError` has a `message`, a `source`, a `line`, and, for a failed SQL statement, the statement in `sql`.
 
 | `source`                   | What failed                                                                                |
 | -------------------------- | ------------------------------------------------------------------------------------------ |
@@ -69,7 +91,17 @@ result.errors[0].message  # "... no such table: nope ..."
 result.errors[0].sql      # "select * from nope;"
 ```
 
-`run()` raises only `ValueError`, for an invalid combination of arguments (both or neither of `script`/`sql`, both or neither of `dsn`/`connection`). Call `result.raise_on_error()` to turn a failed result into an `ExecSqlError`.
+An invalid combination of arguments (both or neither of `script`/`sql`, both or neither of `dsn`/`connection`) raises `ValueError`. Some setup failures can also propagate before a result is available: for example, a script containing invalid bytes for its selected encoding raises `UnicodeDecodeError`. A missing script is instead reported in `result.errors`. Catch decoding errors at the call boundary if input files may use an unexpected encoding; `result.raise_on_error()` only covers failures already recorded in a returned result.
+
+```python
+try:
+    result = run(script="load.sql", dsn="sqlite:///data.db")
+except UnicodeDecodeError:
+    # Select the correct script encoding before retrying.
+    raise
+else:
+    result.raise_on_error()
+```
 
 ### Thread Safety
 
@@ -138,3 +170,57 @@ If the worker blocks in an open, write, flush or close, the wait ends at [`outfi
 | [Exporters](exporters.md)       | Export metadata, write specs, and format writers      |
 | [Importers](importers.md)       | Data-import back-end used by all importer sub-modules |
 | [Metacommands](metacommands.md) | Dispatch table and metacommand handler modules        |
+
+## A complete Python recipe { #regional-summary }
+
+**Runnable Python example.** Install `execsql2` in your Python project, save the SQL as `regional_summary.sql` beside the Python file, and run that file from the same directory. The source fixture is in memory and produces `region_total` equal to `"1650.5"`; no sales database is required. The final error-handling block intentionally reports a missing table.
+
+execsql can be used as a Python library, embedding script execution in pipelines, notebooks, or applications. `run()` executes a script (or inline SQL) and returns a `ScriptResult`. Variables passed via the `variables=` dict are given a `$` prefix, so a key of `"REGION"` is referenced in the script as `!!$REGION!!`:
+
+``` sql
+-- regional_summary.sql
+create temporary view region_sales as
+    select sum(amount) as region_total
+    from product_sales
+    where region = !'!$REGION!'!;
+-- !x! SUBDATA region_total region_sales
+```
+
+``` python
+from execsql import run
+from execsql.db.factory import db_SQLite
+
+conn = db_SQLite(":memory:")
+conn.execute("create table product_sales (region text, amount numeric);")
+conn.execute("insert into product_sales values ('north', 1000), ('north', 650.5), ('south', 20);")
+
+result = run(
+    script="regional_summary.sql",
+    connection=conn,
+    variables={"REGION": "north"},
+)
+print(result.success)                       # True
+print(result.variables["region_total"])    # "1650.5"
+
+# Keep this connection open for the error-handling example below.
+```
+
+If the run is interrupted (Ctrl-C in a notebook), what the interrupted SQL statement, metacommand or `END BATCH` did is rolled back before the interrupt reaches your code, so your next commit on `conn` does not store it; only a commit the database had already finished when the interrupt arrived stays. A `SystemExit` that your own signal handler raises (a timeout, for example) is handled the same way, and `run()` returns a failed result instead of raising it. An interrupted SQL statement rolls back the connection's whole open transaction, as a failed one does, including any work of your own not yet committed; so does any interrupt that ends the run, on every connection with `AUTOCOMMIT` on. Under [AUTOCOMMIT](../reference/metacommands.md#autocommit) OFF, call `conn.rollback()` after the interrupt (or after a failed result from a `SystemExit`) unless you mean to keep what the script was holding.
+
+`result.variables` holds the final state of all substitution variables (system variables have the leading `$` stripped), so values computed by the script — via [SUBDATA](../reference/metacommands.md#subdata), [SUB](../reference/metacommands.md#subcmd), or counters — flow back to Python.
+
+Error handling follows the `halt_on_error` argument. With the default (`True`), execution stops at the first error; with `False`, execution continues and every non-halting error is collected:
+
+``` python
+result = run(sql="select * from nonexistent;", connection=conn, halt_on_error=False)
+if not result.success:
+    for err in result.errors:
+        print(f"{err.source}:{err.line}: {err.message}")
+
+try:
+    result.raise_on_error()  # raises ExecSqlError for recorded errors
+finally:
+    conn.close()  # run() leaves a supplied connection open
+```
+
+Each `run()` call executes in an isolated context, so repeated or concurrent calls (from different threads) do not share variables or state. See the [Library API reference](../api/index.md#library-api) for the full argument list, including `dsn=` connection URLs and the `allow_system_cmd` / `allow_rm_file` / `allow_serve` safety switches.

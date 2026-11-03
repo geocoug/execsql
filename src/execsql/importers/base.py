@@ -1,14 +1,16 @@
-from __future__ import annotations
-
 """
 Shared data-import utilities for execsql.
 
-Provides :func:`import_data_table`, the common back-end used by all
-importer sub-modules.  Given a :class:`~execsql.models.DataTable` and a
-:class:`~execsql.db.base.Database`, it generates and executes a
-``CREATE TABLE`` statement and inserts all rows using the column type
-information inferred during scanning.
+Provides :func:`import_data_table`, a common back-end for row-based
+importers. CSV also has a separate file-oriented path. Input
+headers are processed before target changes. For REPLACEMENT, the existing
+target is dropped before source-row scanning/type inference; a later validation
+failure does not guarantee that the previous table survives.
+NEW/REPLACEMENT infer column declarations from the source; existing targets
+convert values according to their destination column types.
 """
+
+from __future__ import annotations
 
 from typing import Any
 

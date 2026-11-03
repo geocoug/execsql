@@ -1,6 +1,6 @@
 # Compare Scripts { #compare }
 
-The compare templates generate SQL SELECT statements that compare the data in a staging table with the corresponding base table. They are meant to show what an upsert of the staging table would change, before you do it. The scripts read the primary key and attribute (non-key) columns of the base table from the `information_schema` views, so they work on any table without modification.
+The compare templates generate SQL SELECT statements that compare the data in a staging table with the corresponding base table. They are meant to show what an upsert of the staging table would change, before you do it. The scripts read the primary key and attribute (non-key) columns of the base table from the `information_schema` views, so compatible tables do not need a separately written comparison query. The tables must meet the [key and identifier requirements](#limitations).
 
 | DBMS            | File             |
 | --------------- | ---------------- |
