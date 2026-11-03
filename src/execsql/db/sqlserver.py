@@ -8,7 +8,7 @@ Server via ``pyodbc``.  Corresponds to ``-t s`` on the CLI.
 """
 
 from execsql.db.base import Database
-from execsql.db.target_types import ColumnKinds, kind_for_type_name
+from execsql.db.target_types import ColumnKinds, ColumnMetadata, kind_and_scale_for_type_name
 from execsql.db.odbc import connection_string, fresh_sessions, loggable
 from execsql.exceptions import ErrInfo
 from execsql.utils.errors import fatal_error, install_hint
@@ -245,12 +245,16 @@ class SqlServerDatabase(Database):
         )
         if not rows:
             return super().column_kinds(sq_name)
-        return {
-            name.lower(): kind_for_type_name(
-                f"{type_name}({precision},{scale})" if type_name in ("decimal", "numeric") else type_name,
-            )
-            for name, type_name, precision, scale in rows
-        }
+        return ColumnMetadata(
+            {
+                name.lower(): kind_and_scale_for_type_name(
+                    f"{type_name}({precision},{scale})"
+                    if type_name in ("decimal", "numeric", "money", "smallmoney")
+                    else type_name,
+                )
+                for name, type_name, precision, scale in rows
+            },
+        )
 
     def drop_table(self, tablename: str) -> None:
         """Drop *tablename*, schema-qualified and quoted by the caller."""

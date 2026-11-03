@@ -6,6 +6,10 @@ preserves original ErrInfo), 6 (empty-script guard), and 7 (write_warning always
 
 from __future__ import annotations
 
+import pytest
+
+from execsql.exceptions import ScriptExit
+
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -139,7 +143,7 @@ class TestExitNowStampsErrinfo:
         _state.output = MagicMock()
 
         e = ErrInfo("db", exception_msg="bad SQL")
-        with patch("execsql.utils.errors.sys.exit"), patch("execsql.utils.fileio.filewriter_end"):
+        with pytest.raises(ScriptExit), patch("execsql.utils.fileio.filewriter_end"):
             exit_now(1, e)
 
         assert e.script_file == "run.sql"
@@ -155,7 +159,7 @@ class TestExitNowStampsErrinfo:
         _state.output = MagicMock()
 
         e = ErrInfo("db", other_msg="connection refused")
-        with patch("execsql.utils.errors.sys.exit"), patch("execsql.utils.fileio.filewriter_end"):
+        with pytest.raises(ScriptExit), patch("execsql.utils.fileio.filewriter_end"):
             exit_now(1, e)
 
         em = _state.subvars.varvalue("$ERROR_MESSAGE")
@@ -170,8 +174,8 @@ class TestExitNowStampsErrinfo:
         _state.subvars = SubVarSet()
         _state.subvars.add_substitution("$ERROR_MESSAGE", "prior")
 
-        with patch("execsql.utils.errors.sys.exit"), patch("execsql.utils.fileio.filewriter_end"):
-            exit_now(0, None)  # must not raise
+        with pytest.raises(ScriptExit), patch("execsql.utils.fileio.filewriter_end"):
+            exit_now(0, None)
 
         # $ERROR_MESSAGE should be unchanged when errinfo is None.
         assert _state.subvars.varvalue("$ERROR_MESSAGE") == "prior"

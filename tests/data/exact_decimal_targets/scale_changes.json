@@ -1,0 +1,162 @@
+{
+ "text_exponent -> DECIMAL(10,2) / exact=False": {
+  "after": "ERROR",
+  "before": [
+   "Decimal('123456.79')",
+   "Decimal('0.20')"
+  ],
+  "why": "Exact source values with non-zero digits beyond the existing destination scale now stop the entire load rather than being rounded by the database. Trailing zeros and all other destination kinds are unchanged."
+ },
+ "text_exponent -> DECIMAL(10,2) / exact=True": {
+  "after": "ERROR",
+  "before": [
+   "Decimal('123456.79')",
+   "Decimal('0.20')"
+  ],
+  "why": "Exact source values with non-zero digits beyond the existing destination scale now stop the entire load rather than being rounded by the database. Trailing zeros and all other destination kinds are unchanged."
+ },
+ "text_exponent -> NUMERIC / exact=False": {
+  "after": "ERROR",
+  "before": [
+   "Decimal('123456.789')",
+   "Decimal('0.200')"
+  ],
+  "why": "Exact source values with non-zero digits beyond the existing destination scale now stop the entire load rather than being rounded by the database. Trailing zeros and all other destination kinds are unchanged."
+ },
+ "text_exponent -> NUMERIC / exact=True": {
+  "after": "ERROR",
+  "before": [
+   "Decimal('123456.789')",
+   "Decimal('0.200')"
+  ],
+  "why": "Exact source values with non-zero digits beyond the existing destination scale now stop the entire load rather than being rounded by the database. Trailing zeros and all other destination kinds are unchanged."
+ },
+ "text_high_precision -> DECIMAL(10,2) / exact=False": {
+  "after": "ERROR",
+  "before": [
+   "Decimal('0.12')",
+   "Decimal('0.20')"
+  ],
+  "why": "Exact source values with non-zero digits beyond the existing destination scale now stop the entire load rather than being rounded by the database. Trailing zeros and all other destination kinds are unchanged."
+ },
+ "text_high_precision -> DECIMAL(10,2) / exact=True": {
+  "after": "ERROR",
+  "before": [
+   "Decimal('0.12')",
+   "Decimal('0.20')"
+  ],
+  "why": "Exact source values with non-zero digits beyond the existing destination scale now stop the entire load rather than being rounded by the database. Trailing zeros and all other destination kinds are unchanged."
+ },
+ "text_high_precision -> DECIMAL(38,18) / exact=False": {
+  "after": "ERROR",
+  "before": [
+   "Decimal('0.123456789012345679')",
+   "Decimal('0.200000000000000000')"
+  ],
+  "why": "Exact source values with non-zero digits beyond the existing destination scale now stop the entire load rather than being rounded by the database. Trailing zeros and all other destination kinds are unchanged."
+ },
+ "text_high_precision -> DECIMAL(38,18) / exact=True": {
+  "after": "ERROR",
+  "before": [
+   "Decimal('0.123456789012345679')",
+   "Decimal('0.200000000000000000')"
+  ],
+  "why": "Exact source values with non-zero digits beyond the existing destination scale now stop the entire load rather than being rounded by the database. Trailing zeros and all other destination kinds are unchanged."
+ },
+ "text_high_precision -> NUMERIC / exact=False": {
+  "after": "ERROR",
+  "before": [
+   "Decimal('0.123')",
+   "Decimal('0.200')"
+  ],
+  "why": "Exact source values with non-zero digits beyond the existing destination scale now stop the entire load rather than being rounded by the database. Trailing zeros and all other destination kinds are unchanged."
+ },
+ "text_high_precision -> NUMERIC / exact=True": {
+  "after": "ERROR",
+  "before": [
+   "Decimal('0.123')",
+   "Decimal('0.200')"
+  ],
+  "why": "Exact source values with non-zero digits beyond the existing destination scale now stop the entire load rather than being rounded by the database. Trailing zeros and all other destination kinds are unchanged."
+ },
+ "text_scale_rounding -> DECIMAL(10,2) / exact=False": {
+  "after": "ERROR",
+  "before": [
+   "Decimal('0.13')",
+   "Decimal('0.20')"
+  ],
+  "why": "Exact source values with non-zero digits beyond the existing destination scale now stop the entire load rather than being rounded by the database. Trailing zeros and all other destination kinds are unchanged."
+ },
+ "text_scale_rounding -> DECIMAL(10,2) / exact=True": {
+  "after": "ERROR",
+  "before": [
+   "Decimal('0.13')",
+   "Decimal('0.20')"
+  ],
+  "why": "Exact source values with non-zero digits beyond the existing destination scale now stop the entire load rather than being rounded by the database. Trailing zeros and all other destination kinds are unchanged."
+ },
+ "typed_long_coefficient -> DECIMAL(10,2) / exact=False": {
+  "after": "ERROR",
+  "before": [
+   "Decimal('0.12')",
+   "Decimal('0.20')"
+  ],
+  "why": "Exact source values with non-zero digits beyond the existing destination scale now stop the entire load rather than being rounded by the database. Trailing zeros and all other destination kinds are unchanged."
+ },
+ "typed_long_coefficient -> DECIMAL(10,2) / exact=True": {
+  "after": "ERROR",
+  "before": [
+   "Decimal('0.12')",
+   "Decimal('0.20')"
+  ],
+  "why": "Exact source values with non-zero digits beyond the existing destination scale now stop the entire load rather than being rounded by the database. Trailing zeros and all other destination kinds are unchanged."
+ },
+ "typed_long_coefficient -> DECIMAL(38,18) / exact=False": {
+  "after": "ERROR",
+  "before": [
+   "Decimal('0.123456789012345679')",
+   "Decimal('0.200000000000000000')"
+  ],
+  "why": "Exact source values with non-zero digits beyond the existing destination scale now stop the entire load rather than being rounded by the database. Trailing zeros and all other destination kinds are unchanged."
+ },
+ "typed_long_coefficient -> DECIMAL(38,18) / exact=True": {
+  "after": "ERROR",
+  "before": [
+   "Decimal('0.123456789012345679')",
+   "Decimal('0.200000000000000000')"
+  ],
+  "why": "Exact source values with non-zero digits beyond the existing destination scale now stop the entire load rather than being rounded by the database. Trailing zeros and all other destination kinds are unchanged."
+ },
+ "typed_long_coefficient -> DECIMAL(38,30) / exact=False": {
+  "after": "ERROR",
+  "before": [
+   "Decimal('0.123456789012345678901234567890')",
+   "Decimal('0.200000000000000000000000000000')"
+  ],
+  "why": "Exact source values with non-zero digits beyond the existing destination scale now stop the entire load rather than being rounded by the database. Trailing zeros and all other destination kinds are unchanged."
+ },
+ "typed_long_coefficient -> DECIMAL(38,30) / exact=True": {
+  "after": "ERROR",
+  "before": [
+   "Decimal('0.123456789012345678901234567890')",
+   "Decimal('0.200000000000000000000000000000')"
+  ],
+  "why": "Exact source values with non-zero digits beyond the existing destination scale now stop the entire load rather than being rounded by the database. Trailing zeros and all other destination kinds are unchanged."
+ },
+ "typed_long_coefficient -> NUMERIC / exact=False": {
+  "after": "ERROR",
+  "before": [
+   "Decimal('0.123')",
+   "Decimal('0.200')"
+  ],
+  "why": "Exact source values with non-zero digits beyond the existing destination scale now stop the entire load rather than being rounded by the database. Trailing zeros and all other destination kinds are unchanged."
+ },
+ "typed_long_coefficient -> NUMERIC / exact=True": {
+  "after": "ERROR",
+  "before": [
+   "Decimal('0.123')",
+   "Decimal('0.200')"
+  ],
+  "why": "Exact source values with non-zero digits beyond the existing destination scale now stop the entire load rather than being rounded by the database. Trailing zeros and all other destination kinds are unchanged."
+ }
+}

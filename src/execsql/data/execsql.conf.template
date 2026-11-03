@@ -77,6 +77,21 @@
 [input]
 # Settings for handling imported data.
 
+# ODS archive limits, checked before parsing. XML total is in MiB; the
+# compression ratio applies per archive member. 0 disables a limit.
+#ods_max_xml_mb=100
+#ods_max_compression_ratio=100
+
+# Materialized spreadsheet limits (currently enforced for ODS imports).
+# Rows include the header after SKIP; cells include rectangular padding.
+# Interior blanks count; trailing empty filler does not. Text counts include
+# repeated/spanned copies. 0 disables an individual limit; values are never truncated.
+#import_max_rows=1048576
+#import_max_columns=16384
+#import_max_cells=10000000
+#import_max_cell_chars=1048576
+#import_max_text_chars=268435456
+
 # MS Access: create columns for decimal data as NUMERIC(precision,scale)
 # (Yes) or as DOUBLE (No) when IMPORT or COPY creates a table.
 # Values: Yes or No.  Default: No.
@@ -199,6 +214,9 @@
 #css_styles=
 
 # Seconds to keep retrying when an output file has an access conflict.
+# Background-writer waits, including blocked writes/closes, end after this
+# interval plus 5 seconds (at most 10 seconds on a halt). On timeout, queued
+# output is discarded; the one I/O call already in progress may finish later.
 # Value: A positive non-zero number.  Default: 600.
 #outfile_open_timeout=600
 
@@ -305,6 +323,7 @@
 # Whether to allow the SYSTEM_CMD (SHELL) metacommand.
 # Set to No to prevent scripts from executing OS commands.
 # Also controllable via --no-system-cmd CLI flag.
+# Library API: omitted/None inherits this value; an explicit boolean overrides it.
 # Values: Yes or No.  Default: Yes.
 #allow_system_cmd=Yes
 
@@ -317,12 +336,14 @@
 # Whether to allow the RM_FILE metacommand (which deletes a file).
 # Set to No to prevent scripts from deleting files.
 # Also controllable via --no-rm-file CLI flag.
+# Library API: omitted/None inherits this value; an explicit boolean overrides it.
 # Values: Yes or No.  Default: Yes.
 #allow_rm_file=Yes
 
 # Whether to allow the SERVE metacommand (which copies a file to stdout
 # with HTTP headers, for CGI use). Set to No to disable.
 # Also controllable via --no-serve CLI flag.
+# Library API: omitted/None inherits this value; an explicit boolean overrides it.
 # Values: Yes or No.  Default: Yes.
 #allow_serve=Yes
 

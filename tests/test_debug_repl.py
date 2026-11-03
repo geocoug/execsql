@@ -22,6 +22,7 @@ import pytest
 
 import execsql.state as _state
 from execsql.config import WriteHooks
+from execsql.exceptions import ScriptExit
 from execsql.debug.repl import (
     _c,
     _debug_repl,
@@ -311,12 +312,12 @@ class TestEnableStepMode:
 
 
 class TestHandleDotCommand:
-    def test_abort_raises_system_exit(self, capture):
-        with pytest.raises(SystemExit):
+    def test_abort_raises_script_exit(self, capture):
+        with pytest.raises(ScriptExit):
             _handle_dot_command(".abort")
 
-    def test_quit_raises_system_exit(self, capture):
-        with pytest.raises(SystemExit):
+    def test_quit_raises_script_exit(self, capture):
+        with pytest.raises(ScriptExit):
             _handle_dot_command(".q")
 
     def test_help(self, capture):

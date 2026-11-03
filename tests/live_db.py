@@ -8,6 +8,9 @@ non-root conftest cannot be registered twice.
 A backend whose driver is missing or whose server is not listening is probed
 once per session and skipped thereafter — re-dialling per test is what pushed
 the Windows CI jobs from fifteen minutes to thirty.
+
+EXECSQL_REQUIRED_BACKENDS lists backends provisioned for this run. Their
+connection and driver failures are errors, never cached as optional skips.
 """
 
 from __future__ import annotations
@@ -114,17 +117,38 @@ _BACKENDS = {
 _unusable: dict[str, str] = {}
 
 
-def open_backend(dbms: str, tmp_path):
-    """Open *dbms*, or skip with the cached reason if it is unusable."""
+def required_backends() -> set[str]:
+    """Read the explicitly required test backends; reject misspelled names."""
+    names = {name.strip() for name in os.environ.get("EXECSQL_REQUIRED_BACKENDS", "").split(",") if name.strip()}
+    unknown = names - {*_BACKENDS, *_OTHER_BACKENDS, "mariadb"}
+    if unknown:
+        raise pytest.UsageError(f"Unknown EXECSQL_REQUIRED_BACKENDS: {', '.join(sorted(unknown))}")
+    return names
+
+
+def backend_unavailable(dbms: str, reason: str) -> None:
+    """Fail for a required backend, or skip an optional local backend."""
+    if dbms in required_backends():
+        pytest.fail(f"Required database backend {dbms}: {reason}", pytrace=False)
+    pytest.skip(reason)
+
+
+def open_backend(dbms: str, tmp_path, *, factory=None):
+    """Open *dbms*, failing unavailable required backends instead of skipping."""
+    # Validate the selection even when the requested backend is available.
+    required = dbms in required_backends()
     if dbms in _unusable:
-        pytest.skip(_unusable[dbms])
+        backend_unavailable(dbms, _unusable[dbms])
+    connect = factory if factory is not None else {**_BACKENDS, **_OTHER_BACKENDS}[dbms]
     try:
-        return {**_BACKENDS, **_OTHER_BACKENDS}[dbms](tmp_path)
-    except pytest.skip.Exception:
-        raise
+        return connect(tmp_path)
+    except pytest.skip.Exception as exc:
+        backend_unavailable(dbms, str(exc))
     except Exception as exc:
-        _unusable[dbms] = f"{dbms} not reachable: {type(exc).__name__}: {exc}"
-        pytest.skip(_unusable[dbms])
+        reason = f"{dbms} not reachable: {type(exc).__name__}: {exc}"
+        if not required:
+            _unusable[dbms] = reason
+        backend_unavailable(dbms, reason)
 
 
 BACKEND_NAMES = sorted(_BACKENDS)

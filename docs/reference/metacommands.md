@@ -601,6 +601,26 @@ Controls whether the [IMPORT](#import) metacommand will import CSV files with mo
 In addition to reducing the amount of data imported, this setting can also be used to work around some types of malformed input files.
 
 
+<a id="config_input_limits"></a>
+```
+CONFIG ODS_MAX_XML_MB <n>
+CONFIG ODS_MAX_COMPRESSION_RATIO <n>
+CONFIG IMPORT_MAX_ROWS <n>
+CONFIG IMPORT_MAX_COLUMNS <n>
+CONFIG IMPORT_MAX_CELLS <n>
+CONFIG IMPORT_MAX_CELL_CHARS <n>
+CONFIG IMPORT_MAX_TEXT_CHARS <n>
+```
+
+Sets an ODS input budget for subsequent IMPORTs. Each value is a non-negative integer; `0` disables that limit. See [spreadsheet input limits](configuration.md#spreadsheet-input-limits) for defaults and counting rules. The error identifies the setting to raise; no data is truncated. Archive limits run before the ODS parser. Rows, columns, padded cells and repeated text are checked before expansion, with the header included and SKIP rows excluded. Trailing empty filler does not consume the logical budgets. A rejected worksheet leaves its target unchanged, including with REPLACEMENT. SHEETS MATCHING checks all selected sheets before loading the first target.
+
+```sql
+-- Allow a known large ODS sheet, keeping the other limits in force.
+-- !x! CONFIG IMPORT_MAX_CELLS 20000000
+-- !x! IMPORT TO NEW results FROM results.ods SHEET Data
+```
+
+
 <a id="config_import_row_buffer"></a>
 ```
 CONFIG IMPORT_ROW_BUFFER <n>
@@ -659,7 +679,7 @@ Controls the data type the [IMPORT](#import) and [COPY](#copy) metacommands give
 -- !x! IMPORT TO NEW payments FROM payments.csv
 ```
 
-A column whose values all have the same number of decimal places is an exact decimal either way. This can also be set with the `exact_decimals` [configuration setting](configuration.md#config_input).
+A column whose values all have the same number of decimal places is an exact decimal either way. Existing exact-decimal targets preserve finite numeric text and typed Decimal values regardless of this setting. This can also be set with the `exact_decimals` [configuration setting](configuration.md#config_input).
 
 
 ```
@@ -1285,7 +1305,9 @@ SQLITE
 
 :   A [SQLite](https://www.sqlite.org/index.html) file-based database. If the specified database file does not exist, it will be created. If the database file already exists and has a table of the same name as the table or view that is exported, then the existing table will be replaced unless the "APPEND" keyword is used. When "APPEND" is used and the table already exists, an error will occur. The "DESCRIPTION" keyword is ignored when this format is used. SQLite database files cannot be created in a zipfile; if the "ZIPFILE" keyword is used, an error will occur.
 
-    When exporting a query result from a typed database (PostgreSQL, MySQL, etc.), the column schema is inferred from the Python types returned by the database driver rather than re-parsed from the string shape of values. A `TEXT` column whose values look like timestamps or numbers is exported as a text column, not as `TIMESTAMP` or `INTEGER`. `decimal.Decimal` values are stored as their exact string representation (SQLite's NUMERIC affinity handles them losslessly). Python objects not natively bindable by SQLite (e.g. PostGIS geometry) are stringified rather than raising a bind error.
+    The entire source is read and decimal values are checked before opening the destination. Table replacement and insertion use one transaction: a source, schema, insert or commit failure preserves an existing table and its indexes.
+
+    When exporting a query result from a typed database (PostgreSQL, MySQL, etc.), the column schema is inferred from the Python types returned by the database driver rather than re-parsed from the string shape of values. A `TEXT` column whose values look like timestamps or numbers is exported as a text column, not as `TIMESTAMP` or `INTEGER`. `decimal.Decimal` values in numeric columns are exported only when their numeric value can be read back without losing digits; scale, trailing zeros and signed zero are not preserved. Values that SQLite would round, and Decimal NaN, cause an error before the destination is changed. Numeric Decimal infinities are supported. Decimal values in a text column retain their string representation. To preserve exact spelling, or export a decimal that SQLite cannot store without losing digits, cast the source column to text, for example `SELECT CAST(amount AS VARCHAR) AS amount FROM measurements`. Python objects not natively bindable by SQLite (e.g. PostGIS geometry) are stringified rather than raising a bind error.
 
 
 
@@ -1988,6 +2010,8 @@ IMPORT TO [NEW|REPLACEMENT] <table_name> FROM <file_name>
     SHEET <sheet_name> [SKIP <rows>]
 ```
 
+ODS imports enforce configurable [archive and expansion budgets](#config_input_limits) before changing any target table.
+
 The syntax for importing data from multiple sheets within an OpenDocument workbook is:
 
 ```
@@ -2033,6 +2057,12 @@ IMPORT TO [NEW|REPLACEMENT] <table_name> FROM JSON <file_name>
 
 The JSON file must contain either a JSON array of objects (`[{…}, …]`) or [JSON Lines](https://jsonlines.org/) (JSONL, one object per line). Nested objects are flattened with dot-separated column names (e.g., an object `{"address": {"city": "Portland"}}` produces column `address.city`). Nested arrays within objects are stored as JSON strings. Records with different keys produce a superset of columns — missing keys become NULL. The parser auto-detects which form is present by peeking at the first non-whitespace character (`[` → array, `{` → JSON Lines); the file extension is not consulted. A file written by [EXPORT … AS JSONL](#export) is read as JSON Lines.
 
+Scalar JSON numbers containing a decimal point or exponent are parsed as exact decimals, including fields inside nested objects. For example, `1234567890.1234567891` retains all its digits and `1e3` means exactly 1000. Integers remain exact integers. Existing DECIMAL and integer columns validate these original digits: `1.0000000000000001` cannot be loaded into an integer column, and `0.125` cannot be loaded into a DECIMAL column with scale 2. Round the source explicitly if rounding is intended.
+
+For NEW/REPLACEMENT tables, these values participate in decimal type inference; a column that previously became DOUBLE can now become DECIMAL. `CONFIG EXACT_DECIMALS` still controls mixed-scale inference as described below. Positive exponents contribute integer digits and have scale zero (`1e3` alone produces precision 4, scale 0). A value outside the database's supported precision or scale is rejected by that database. Text destinations receive the decimal spelling (for example, `1E+3` or `0.20`) instead of the former float spelling. Numeric strings in JSON retain the usual string-scanning behavior. Numbers inside arrays stored as JSON strings retain the existing JSON text formatting, including its floating-point conversion; they are not scalar database columns.
+
+Distinct field paths within one JSON record must not flatten to the same column name. For example, `{"a.b": 10, "a": {"b": 20}}` has two fields for `a.b` and is rejected with an error identifying both source paths. Rename the conflicting keys before importing. All records are checked before creating, replacing or loading the target, so an ambiguous record leaves the destination unchanged. A literal dotted key is allowed when it does not collide with another path in the same record.
+
 Column names in the input must be valid for the DBMS in use.
 
 If the "WITH QUOTE \<quote_char\> DELIMITER \<delim_char\>" clause is not used with text files, *execsql* will scan the text file to determine the quote and delimiter characters that are used in the file. By default, the first 100 lines of the file will be scanned. You can control the number of lines scanned with the "-s" option on *execsql*'s command line and with the *scan_lines* setting in a [configuration file](configuration.md#scan_lines). If the "WITH\..." clause is used, the file will not be scanned to identify the quote and delimiter characters regardless of the setting of the "-s" option.
@@ -2047,6 +2077,8 @@ The SKIP key phrase specifies the number of lines (or rows) at the beginning of 
 
 A worksheet's data ends at the first row whose cells are all empty; a row of zeros or FALSE values is data.
 
+In SQLite, a table qualifier names an attached database. After `ATTACH 'archive.db' AS archive;`, `IMPORT TO archive.results FROM results.csv` loads only `archive.results`; a same-named table in `main` is left unchanged. This also applies to NEW, REPLACEMENT and COPY targets. Existence and column checks use the qualified target. A missing qualified target fails instead of falling back to a table in another database.
+
 If the NEW keyword is used, the input will be scanned to determine the data type of each column, and a CREATE TABLE statement run to create a new table for the data. A column is typed as a date or timestamp only if every value gives a full date with the year written out (`2024-01-05`, `1/5/2024`, `Jan 5, 2024`) or as a month-first two-digit year (`1/5/24`, `01-05-24`); values such as `1-2`, `5/6`, `March 5`, `Jan`, `Monday` or a day-first `13-05-24` leave the column as text. Scanning of the file to determine data formats is separate from the scanning that may be done to determine the quote and delimiter characters. If a table of that name already exists, the IMPORT stops before creating or loading anything, with the error `Table <name> already exists`. A table name without a schema is looked for only in the schema the table would be created in (on MySQL, the current database), so a table of the same name in another schema does not stop the IMPORT. If the table already exists when the NEW keyword is used, a fatal error will result and *execsql* will halt. If the REPLACEMENT keyword is used, the result is the same as if the NEW keyword were used, except that an existing table of the given name will be deleted first. This replacement is not atomic: if the drop succeeds but a later create or load step fails, the old table has already been removed. If the drop fails, *execsql* stops the IMPORT command before creating or loading the replacement table. *execsql* uses a "drop table" statement to drop an existing table, and the "drop table" statement may not succeed if there are dependencies on that table (see the discussion of [implicit drop table
 statements](../guides/sql_syntax.md#implicit_drop)). If the table to be dropped does not exist, an informational message will be written to the log.
 
@@ -2057,12 +2089,15 @@ The rows are loaded in one transaction: if the load fails part-way (a constraint
 <a id="import_existing_table_types"></a>
 If neither the NEW or REPLACEMENT keywords are used, the table must exist, must have column names identical to those in the input data, and columns must have data types that are compatible with (though not necessarily identical to) those in the input data. Each value is converted for the column it goes into:
 
-- A text column (`CHAR`, `VARCHAR`, `TEXT`, …) gets the value as written in the file: `yes`, `00701`, `01/05/2024` and `1e3` are stored as those strings. A missing value is NULL.
+- A text column (`CHAR`, `VARCHAR`, `TEXT`, …) gets the value as written in the file: `yes`, `00701`, `01/05/2024` and `1e3` are stored as those strings. Typed finite Decimal values are bound as their exact decimal spelling rather than cast through a driver's floating-point parameter. A missing value is NULL.
 - An integer column (`INTEGER`, `BIGINT`, `DECIMAL(10,0)`, `NUMERIC(10)`, Oracle `NUMBER(10)`, …) gets whole numbers: `7`, `+7`, `7.0` and `7e0` load as 7. A value with a fraction, such as `1.5`, stops the IMPORT with an error that names the value and the column, and nothing is loaded; it is not rounded.
 - A number column gets a column of true/false values (`yes`/`no`, `t`/`f`, `1`/`0`; see [BOOLEAN_INT](#boolean_int) and [BOOLEAN_WORDS](#boolean_words)) as 1 and 0.
-- Any other column (a date, a timestamp, a Boolean, a decimal with places for a fraction) gets the value converted to the data type found by scanning that column of the input, as with NEW, and the database converts it to the column's type.
+- A fractional decimal column (`DECIMAL(p,s)`, `NUMERIC(p,s)`, …) gets numeric text, including exponent notation and surrounding whitespace, as exact Decimal values. Typed Decimal values and integers keep their exact value, regardless of `EXACT_DECIMALS`. Values already read as floating point keep their prior conversion: this step cannot recover digits lost by a source reader. True/false scanning keeps the numeric conversion above; non-numeric values keep the scanned conversion. When the driver reports a fixed destination scale, a non-zero digit beyond that scale stops the load before binding and rolls back its rows. For example, `0.125` into `DECIMAL(10,2)` is an error, while `1.000` is valid and stores `1.00`. Negative scales require the corresponding whole-number multiple: a scale of -2 accepts `100` and rejects `101`. Round source values explicitly before loading if rounding is intended. Unconstrained decimals and unknown scales remain governed by the database; already-parsed floating-point values keep their prior conversion. The database still enforces destination precision.
+- Any other column (a date, a timestamp, a Boolean) gets the value converted to the data type found by scanning that column of the input, as with NEW, and the database converts it to the column's type.
 
-On PostgreSQL and MySQL a delimited text file goes to the server's own loader (`COPY`, `LOAD DATA`, or on PostgreSQL an `INSERT` of each value as text), and the server converts each value as written; the rules above apply to the other file formats, and to delimited files on the other DBMSs. On MySQL a value that the server can't store as given (out of range, an invalid date, text longer than the column) stops the IMPORT with an error, and nothing is loaded; see [MySQL strict mode](../guides/sql_syntax.md#mysql_strict_mode).
+On SQLite, this integer check also applies to ordinary and STRICT tables, including attached databases. Existing integer-kind columns reject fractions and numbers outside the signed 64-bit range (-9223372036854775808 through 9223372036854775807). Integral numeric text and Decimal values are converted to exact integers before loading. For example, `9007199254740993.0` is stored as integer `9007199254740993`, rather than SQLite’s rounded `9007199254740992`. Whitespace around numeric text, including non-breaking spaces, is accepted. The type names execsql recognizes as integer types, including `DECIMAL(p,0)`, determine this check; a custom SQLite type whose name merely contains `INT` does not. Non-numeric text still follows SQLite's own rules: an ordinary INTEGER column can store `abc` as text, while a STRICT INTEGER column rejects it. Finite Decimal values that would overflow to infinity in any numeric-affinity column are rejected, for existing and NEW/REPLACEMENT tables; text and BLOB-affinity columns retain the exact decimal string. Other finite numeric values retain SQLite's existing conversions. SQLite NUMERIC/DECIMAL declarations have affinity rather than enforced decimal precision or scale, so the fractional-decimal scale check does not apply there. NEW and REPLACEMENT loads retain their scanned-type behavior.
+
+On PostgreSQL and MySQL a delimited text file goes to the server's own loader (`COPY`, `LOAD DATA`, or on PostgreSQL an `INSERT` of each value as text), and the server converts each value as written; the rules above apply to the other file formats, and to delimited files on the other DBMSs. Those PostgreSQL/MySQL delimited-file paths keep server-side decimal conversion, including its scale rounding; use an application-converted format or COPY when exact-source scale validation is required. On MySQL a value that the server can't store as given (out of range, an invalid date, text longer than the column) stops the IMPORT with an error, and nothing is loaded; see [MySQL strict mode](../guides/sql_syntax.md#mysql_strict_mode).
 
 If a table is scanned to determine data types, any column that is completely empty (all null) will be created with the text data type. This provides the greatest flexibility for subsequent addition of data to the table. However, if that column ought to have a different data type, and a WHERE clause is applied to that column assuming a different data type, the DBMS may report an error because of incomparable data types.
 
@@ -2095,7 +2130,7 @@ option](configuration.md#config_encoding). If not specified in either of these w
 If the ENCODING clause is not used when importing an Excel file, an attempt will be made to automatically diagnose the encoding used in the file. This may not be correct in some cases (for example, if the file uses unusual or multiple mutually-incompatible encodings). In those cases, the ENCODING clause may be useful.
 
 By default, the target table must have all of the columns that are present in the text file to be imported. If it does not, an error will result. The `import_common_columns_only` [configuration
-parameter](configuration.md#import_only_common) can be used to allow import of data from text files with more columns than the target table. In either case, the target table may have more columns than the text file being imported.
+parameter](configuration.md#import_only_common) can be used to allow import of data from text files with more columns than the target table. Excluded columns are not converted or checked against database binding limits. In either case, the target table may have more columns than the text file being imported.
 
 Data handling during import can be modified in several ways through the use of settings in the ['input' sections of a configuration file](configuration.md#config_input) or through corresponding [CONFIG metacommands](#config). Data handling options include:
 
@@ -3341,8 +3376,10 @@ Writes the specified text to the console or a file, or both. The text to be writ
 
 The text to be written may be enclosed in double quotes (as shown above), or in single quotes, matching square brackets, backticks, tildes, or hash marks (#).
 
-When the text is to be written to a file, the file is opened by a background writer to try to avoid access conflicts that may occur if that file has been temporarily opened by some other user or process (such as a backup or syncing process). If the output file cannot immediately be opened, the WRITE process will continue trying to open the file for a period determined by the [outfile_open_timeout](configuration.md#setting_outfile_open_timeout) configuration setting. The WRITE process will buffer multiple output to a blocked file until the file is successfully opened or the timeout period has expired. Text can be written to other output files during the timeout period. *execsql* waits for pending output before running a [SYSTEM_CMD](#system_cmd) and at the end of the script. If an output file cannot be opened before the timeout expires, all pending WRITE output to that file is lost, and the run fails with an error that names the file. The same happens, without the wait, when writing to the file fails (for example, the disk is full) or when it can never be opened (for example, it is a directory); output to other files is still written. When the script halts, *execsql* waits up to 10 seconds for a locked file, including one written by [ON ERROR_HALT WRITE](#error_halt_write), and reports any output that is still lost.
+When the text is to be written to a file, the file is opened by a background writer to try to avoid access conflicts that may occur if that file has been temporarily opened by some other user or process (such as a backup or syncing process). If the output file cannot immediately be opened, the WRITE process will continue trying to open the file for a period determined by the [outfile_open_timeout](configuration.md#setting_outfile_open_timeout) configuration setting. The WRITE process will buffer multiple output to a blocked file until the file is successfully opened or the timeout period has expired. When open attempts return lock errors, the writer can serve other output files between retries. A single I/O call that blocks holds up this run's writer, including queued output to its other files. *execsql* waits for pending output before running a [SYSTEM_CMD](#system_cmd) and at the end of the script. If an output file cannot be opened before the timeout expires, all pending WRITE output to that file is lost, and the run fails with an error that names the file. The same happens, without the wait, when writing to the file fails (for example, the disk is full) or when it can never be opened (for example, it is a directory); output to other files is still written. When the script halts, *execsql* waits up to 10 seconds for a locked file, including one written by [ON ERROR_HALT WRITE](#error_halt_write), and reports any output that is still lost.
 
+
+The waits for this background writer use one absolute deadline, including status and error-report replies: `outfile_open_timeout + 5` seconds, capped at 10 seconds during a halt. If filename resolution, an open, write, flush or close blocks past it, the run reports the file and operation and abandons the worker; queued output to every affected file is discarded. The thread is not killed. Its one in-progress I/O call may finish later, but it starts no subsequent opens or writes, and closing abandoned handles does not flush buffered text. Successful writes are flushed individually. Files are incremental outputs, so a partial file can remain; output is not published atomically. EXPORT's synchronous writes and stdout do not use this background-writer deadline.
 
 ## WRITE CREATE_TABLE
 

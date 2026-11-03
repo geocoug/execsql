@@ -21,6 +21,7 @@ can import from a single location. Notable exceptions:
   — spreadsheet I/O failures.
 - :class:`ConsoleUIError` — GUI console errors.
 - :class:`CondParserError` / :class:`NumericParserError` — parser failures.
+- :class:`ScriptExit` — execsql ending the run on purpose (a ``SystemExit``).
 
 Note:
     The ``execsql`` top-level package re-exports a *separate*
@@ -49,6 +50,7 @@ __all__ = [
     "ConsoleUIError",
     "CondParserError",
     "NumericParserError",
+    "ScriptExit",
 ]
 
 
@@ -272,3 +274,15 @@ class CondParserError(ExecSqlError):
 
 class NumericParserError(ExecSqlError):
     """Raised for numeric-expression parse errors."""
+
+
+class ScriptExit(SystemExit):
+    """execsql ending the run on purpose.
+
+    Raised by ``exit_now()`` (``HALT``, an error that halts the run, a
+    cancelled ``PROMPT``), by a cancelled dialog, and by ``.quit`` / ``.abort``
+    at a ``BREAKPOINT`` prompt.  A ``SystemExit``, so everything that catches
+    one still does.  A plain ``SystemExit`` -- from a signal handler, execsql's
+    own SIGTERM handler, or quitting the Textual console -- is an interrupt:
+    the statement it stops is rolled back like a failed one.
+    """

@@ -22,7 +22,7 @@ posix_only = pytest.mark.skipif(os.name == "nt", reason="POSIX signal delivery")
 # The SYSTEM_CMD child records its pid, sends SIGTERM to execsql (its parent)
 # and then execs a long sleep in place of the shell, so the recorded pid is
 # the process execsql must stop.
-_KILL_PARENT = "-- !x! SYSTEM_CMD (sh -c 'echo $$ > child.pid; kill -TERM $PPID; exec sleep 30')\n"
+_KILL_PARENT = "-- !x! SYSTEM_CMD (sh -c 'echo $$ > child.pid; kill -TERM $PPID; exec sleep 120')\n"
 
 
 def _run(tmp_path, body: str) -> subprocess.CompletedProcess:
@@ -79,10 +79,53 @@ def test_sigterm_keeps_write_output(tmp_path):
 def test_sigterm_stops_a_running_system_cmd(tmp_path):
     _run(tmp_path, _KILL_PARENT)
     child = int((tmp_path / "child.pid").read_text())
-    deadline = time.monotonic() + 3
+    # The loop ends as soon as the child has gone; 20 s allows for a loaded
+    # machine, and a child left running sleeps far longer (120 s).
+    deadline = time.monotonic() + 20
     while _alive(child) and time.monotonic() < deadline:
         time.sleep(0.05)
     assert not _alive(child)
+
+
+@posix_only
+def test_a_sigterm_while_the_command_starts_still_stops_it(tmp_path):
+    """The SIGTERM lands inside ``Popen()``: the command has been forked, but
+    ``Popen`` has not returned it, so nothing could stop it (seen in CI)."""
+    import execsql.state as _state
+    from execsql.metacommands.system import x_system_cmd
+    from execsql.utils.sigterm import terminate
+
+    started: list[subprocess.Popen] = []
+    real_popen = subprocess.Popen
+
+    def popen_then_sigterm(*args, **kwargs):
+        proc = real_popen(*args, **kwargs)
+        started.append(proc)
+        os.kill(os.getpid(), signal.SIGTERM)
+        return proc
+
+    _state.conf.allow_system_cmd = True
+    _state.exec_log = MagicMock()
+    _state.subvars = MagicMock()
+    previous = signal.signal(signal.SIGTERM, terminate)
+    try:
+        with (
+            patch("execsql.metacommands.system.subprocess.Popen", popen_then_sigterm),
+            patch("execsql.metacommands.system.current_script_line", return_value=("s.sql", 1)),
+            patch("execsql.metacommands.system.filewriter_close_all_after_write"),
+            pytest.raises(SystemExit) as exc,
+        ):
+            x_system_cmd(command="sleep 30", **{"continue": None})
+    finally:
+        signal.signal(signal.SIGTERM, previous)
+        for proc in started:
+            if proc.poll() is None:
+                proc.kill()
+                proc.wait()
+                pytest.fail("the command was left running")
+    assert exc.value.code == 143
+    assert started[0].returncode == -signal.SIGKILL
+    _state.exec_log.log_exit_terminated.assert_called_once_with()
 
 
 def test_a_terminated_run_does_not_wait_for_the_gui_console():

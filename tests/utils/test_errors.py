@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import pytest
+
+from execsql.exceptions import ScriptExit
+
 import os
 import tempfile
 
@@ -237,9 +241,9 @@ class TestExitNow:
         from unittest.mock import patch
         from execsql.utils.errors import exit_now
 
-        with patch("execsql.utils.errors.sys.exit") as mock_exit, patch("execsql.utils.fileio.filewriter_end"):
+        with pytest.raises(ScriptExit) as halted, patch("execsql.utils.fileio.filewriter_end"):
             exit_now(0, None)
-            mock_exit.assert_called_once_with(0)
+        assert halted.value.code == 0
 
     def test_exit_now_logs_error_message(self):
         from unittest.mock import patch, MagicMock
@@ -248,9 +252,9 @@ class TestExitNow:
         fake_log = MagicMock()
         _state.exec_log = fake_log
 
-        with patch("execsql.utils.errors.sys.exit"), patch("execsql.utils.fileio.filewriter_end"):
+        with pytest.raises(ScriptExit), patch("execsql.utils.fileio.filewriter_end"):
             exit_now(1, None, logmsg="custom error")
-            fake_log.log_exit_error.assert_called_once_with("custom error")
+        fake_log.log_exit_error.assert_called_once_with("custom error")
 
     def test_exit_now_logs_errinfo_message(self):
         from unittest.mock import patch, MagicMock
@@ -262,9 +266,9 @@ class TestExitNow:
         _state.output = MagicMock()  # ErrInfo.write() needs output
 
         errinfo = ErrInfo("error", other_msg="boom")
-        with patch("execsql.utils.errors.sys.exit"), patch("execsql.utils.fileio.filewriter_end"):
+        with pytest.raises(ScriptExit), patch("execsql.utils.fileio.filewriter_end"):
             exit_now(1, errinfo)
-            fake_log.log_exit_error.assert_called_once()
+        fake_log.log_exit_error.assert_called_once()
 
 
 # ---------------------------------------------------------------------------
@@ -284,9 +288,9 @@ class TestFatalError:
         from execsql.utils.errors import fatal_error
 
         _state.output = type("FakeOutput", (), {"write_err": lambda self, m: None})()
-        with patch("execsql.utils.errors.sys.exit") as mock_exit, patch("execsql.utils.fileio.filewriter_end"):
+        with pytest.raises(ScriptExit) as halted, patch("execsql.utils.fileio.filewriter_end"):
             fatal_error("test error")
-            mock_exit.assert_called_once_with(1)
+        assert halted.value.code == 1
 
 
 class TestInstallHint:

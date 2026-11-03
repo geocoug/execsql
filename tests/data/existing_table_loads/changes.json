@@ -99,6 +99,14 @@
    ],
    "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
   },
+  "text/small_floats -> decimal(18,3)": {
+   "after": "ERROR",
+   "before": [
+    "Decimal('0.100')",
+    "Decimal('0.000')"
+   ],
+   "why": "The source value 1e-20 has non-zero digits beyond the existing decimal column scale 3. Exact source values that require scale rounding now stop the load and roll back all its rows."
+  },
   "text/small_floats -> integer": {
    "after": "ERROR",
    "before": [
@@ -3304,6 +3312,14 @@
    ],
    "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
   },
+  "text/small_floats -> decimal(18,3)": {
+   "after": "ERROR",
+   "before": [
+    "Decimal('0.100')",
+    "Decimal('0.000')"
+   ],
+   "why": "The source value 1e-20 has non-zero digits beyond the existing decimal column scale 3. Exact source values that require scale rounding now stop the load and roll back all its rows."
+  },
   "text/small_floats -> integer": {
    "after": "ERROR",
    "before": [
@@ -4736,6 +4752,14 @@
    ],
    "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
   },
+  "text/small_floats -> numeric(18,3)": {
+   "after": "ERROR",
+   "before": [
+    "Decimal('0.100')",
+    "Decimal('0.000')"
+   ],
+   "why": "The source value 1e-20 has non-zero digits beyond the existing decimal column scale 3. Exact source values that require scale rounding now stop the load and roll back all its rows."
+  },
   "text/t_f -> bigint": {
    "after": [
     "1",
@@ -5175,6 +5199,55 @@
    "why": "A text column gets the source value as written, not the value converted to the type scanned from the source (#100)."
   }
  },
+ "sqlite": {
+  "text/fractions -> integer": {
+   "after": "ERROR",
+   "before": [
+    "1.5",
+    "2.25"
+   ],
+   "why": "Existing SQLite integer columns reject fractional values before binding; a failed load rolls back all its rows instead of storing REAL values in the integer column."
+  },
+  "text/small_floats -> integer": {
+   "after": "ERROR",
+   "before": [
+    "0.1",
+    "1e-20"
+   ],
+   "why": "Existing SQLite integer columns reject fractional values before binding; a failed load rolls back all its rows instead of storing REAL values in the integer column."
+  },
+  "text/two_places -> integer": {
+   "after": "ERROR",
+   "before": [
+    "1.5",
+    "2"
+   ],
+   "why": "Existing SQLite integer columns reject fractional values before binding; a failed load rolls back all its rows instead of storing REAL values in the integer column."
+  },
+  "typed/decimal_fraction -> integer": {
+   "after": "ERROR",
+   "before": [
+    "1.5",
+    "2.25"
+   ],
+   "why": "Existing SQLite integer columns reject fractional values before binding; a failed load rolls back all its rows instead of storing REAL values in the integer column."
+  },
+  "typed/decimal_scale -> integer": {
+   "after": "ERROR",
+   "before": [
+    "1.5"
+   ],
+   "why": "Existing SQLite integer columns reject fractional values before binding; a failed load rolls back all its rows instead of storing REAL values in the integer column."
+  },
+  "typed/float_fraction -> integer": {
+   "after": "ERROR",
+   "before": [
+    "1.5",
+    "0.1"
+   ],
+   "why": "Existing SQLite integer columns reject fractional values before binding; a failed load rolls back all its rows instead of storing REAL values in the integer column."
+  }
+ },
  "sqlserver": {
   "text/TRUE_FALSE -> nvarchar(max)": {
    "after": [
@@ -5349,6 +5422,14 @@
     "0"
    ],
    "why": "A value with a fraction going into an integer column is an error; the database rounded or truncated it (#100)."
+  },
+  "text/small_floats -> decimal(18,3)": {
+   "after": "ERROR",
+   "before": [
+    "Decimal('0.100')",
+    "Decimal('0.000')"
+   ],
+   "why": "The source value 1e-20 has non-zero digits beyond the existing decimal column scale 3. Exact source values that require scale rounding now stop the load and roll back all its rows."
   },
   "text/small_floats -> int": {
    "after": "ERROR",

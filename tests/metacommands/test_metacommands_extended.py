@@ -15,7 +15,6 @@ Coverage targets:
 
 from __future__ import annotations
 
-from types import SimpleNamespace
 import queue
 from unittest.mock import MagicMock, create_autospec, patch
 
@@ -606,14 +605,13 @@ class TestSystemHandlers:
     def test_x_system_cmd_sync(self):
         from execsql.metacommands.system import x_system_cmd
 
-        mock_result = SimpleNamespace(returncode=0)
         with (
             patch("execsql.metacommands.system.current_script_line", return_value=("test.sql", 1)),
             patch("execsql.metacommands.system.filewriter_close_all_after_write"),
-            patch("execsql.metacommands.system.subprocess.run", return_value=mock_result) as mock_run,
+            patch("execsql.metacommands.system.subprocess.Popen", return_value=MagicMock(returncode=0)) as mock_popen,
         ):
             x_system_cmd(command="echo hello", **{"continue": None})
-        mock_run.assert_called_once()
+        mock_popen.assert_called_once()
         assert _state.subvars.varvalue("$system_cmd_exit_status") == "0"
 
     def test_x_system_cmd_async(self):

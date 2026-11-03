@@ -83,13 +83,19 @@ def fold_words(wordlist: list[str], foldspec: str) -> list[str]:
 
 
 def dedup_words(wordlist: list[str]) -> list[str]:
-    # Adds an item number suffix to duplicated words.
-    w2 = wordlist
-    dup_ix = [ix for ix, w in enumerate(w2) if w.lower() in [wrd.lower() for wrd in w2[:ix]]]
-    while len(dup_ix) > 0:
-        w2 = [w + f"_{str(ix + 1)}" if ix in dup_ix else w for ix, w in enumerate(w2)]
-        dup_ix = [ix for ix, w in enumerate(w2) if w.lower() in [wrd.lower() for wrd in w2[:ix]]]
-    return w2
+    """Suffix duplicate names by position, repeating if a suffix collides."""
+    words = wordlist
+    while True:
+        seen: set[str] = set()
+        duplicates: set[int] = set()
+        for index, word in enumerate(words):
+            normalized = word.lower()
+            if normalized in seen:
+                duplicates.add(index)
+            seen.add(normalized)
+        if not duplicates:
+            return words
+        words = [f"{word}_{index + 1}" if index in duplicates else word for index, word in enumerate(words)]
 
 
 def is_doublequoted(s: str) -> bool:

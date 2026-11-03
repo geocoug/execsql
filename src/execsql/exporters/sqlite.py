@@ -7,17 +7,33 @@ Provides :func:`write_query_to_sqlite`, which writes a query result set
 to a table in an SQLite database file.  Used by ``EXPORT … FORMAT sqlite``.
 """
 
-import math
 from decimal import Decimal
-from pathlib import Path
 from typing import Any
 
+from execsql.db.sqlite import sqlite_affinity as _affinity
 from execsql.exceptions import ErrInfo
 from execsql.types import dbt_sqlite
 
 _SQLITE_SAFE = (int, float, str, bytes)
 
 __all__ = ["export_sqlite", "write_query_to_sqlite"]
+
+
+def _exact_number(value: Decimal, affinity: str) -> int | float:
+    """Bind a Decimal only if its numeric readback retains the source value."""
+    if value.is_nan():
+        raise ValueError("NaN has no SQLite numeric representation")
+    if value.is_infinite():
+        return float(value)
+    if -(2**63) <= value <= 2**63 - 1 and value == value.to_integral_value():
+        number = int(value)
+        if affinity == "REAL" and Decimal(repr(float(number))) != value:
+            raise ValueError("the integer is not exactly representable in a SQLite REAL")
+        return number
+    result = float(value)
+    if Decimal(repr(result)) != value:
+        raise ValueError("the decimal cannot be read back without losing digits")
+    return result
 
 
 def export_sqlite(
@@ -27,60 +43,79 @@ def export_sqlite(
     append: bool,
     tablename: str,
 ) -> None:
-    """Write pre-fetched rows to a table in an SQLite database file, creating it if necessary."""
+    """Export rows, rejecting lossy decimals before opening the destination.
+
+    Numeric Decimal values must read back equal to their source; spelling and
+    scale are not retained. Text columns retain their string representation.
+    Replacement DDL and inserts share a transaction, restored on any failure.
+    APPEND still refuses an existing table.
+    """
     import sqlite3
 
     from execsql.models import DataTable
 
-    chunksize = 10000
-    # B07a/F025: tablename is substituted from user input — use the
-    # existing dbt_sqlite.quoted helper to identifier-quote every site
-    # rather than f-string-interpolating into SQL.
+    rowdata = list(rows)
+    # Non-finite Decimals cannot pass the general-purpose integer scanner.
+    # A fractional placeholder preserves numeric inference without changing data.
+    scanrows = (
+        tuple(Decimal("0.5") if isinstance(v, Decimal) and not v.is_finite() else v for v in row) for row in rowdata
+    )
+    tablespec = DataTable(hdrs, scanrows, infer_strings=False)
+    create_sql = tablespec.create_table(dbt_sqlite, schemaname=None, tablename=tablename)
     qtable = dbt_sqlite.quoted(tablename)
-    pre_exist = Path(outfile).is_file()
-    sdb = sqlite3.connect(outfile)
+    # Let SQLite expose the generated declarations, including quoted identifiers.
+    probe = sqlite3.connect(":memory:")
     try:
-        if pre_exist:
-            curs = sdb.cursor()
-            # Existence check: the table name is a value here (not an
-            # identifier), so use a parameter rather than string concat.
-            res = curs.execute(
-                "select name from sqlite_master where type='table' and name=?;",
-                (tablename,),
-            )
-            rv = res.fetchone()
-            if not (rv is None or rv[0] == 0):
-                if append:
-                    raise ErrInfo(type="error", other_msg=f"The table {tablename} already exists in {outfile}.")
+        probe.execute(create_sql)
+        affinities = [_affinity(col[2]) for col in probe.execute(f"PRAGMA table_info({qtable})")]
+        converted = []
+        for row in rowdata:
+            bound: list[Any] = []
+            for i, value in enumerate(row):
+                if isinstance(value, Decimal) and i < len(affinities) and affinities[i] not in ("TEXT", "BLOB"):
+                    try:
+                        number = _exact_number(value, affinities[i])
+                        if value.is_finite():
+                            # Preserve the previous stored value too: SQLite's text
+                            # parser can round differently from Python's conversion.
+                            cast_type = "REAL" if affinities[i] == "REAL" else "NUMERIC"
+                            previous = probe.execute(f"SELECT CAST(? AS {cast_type})", (str(value),)).fetchone()[0]
+                            if Decimal(repr(previous)) != value:
+                                raise ValueError("SQLite's numeric conversion loses source digits")
+                        bound.append(number)
+                    except ValueError as exc:
+                        raise ErrInfo(
+                            type="error",
+                            other_msg=(
+                                f"Can't export column {hdrs[i]} to SQLite table {tablename}: {value} "
+                                f"cannot be stored without losing digits. Nothing was written. "
+                                "To preserve the exact text, export CAST(column AS VARCHAR)."
+                            ),
+                        ) from exc
                 else:
-                    curs.execute(f"drop table {qtable};")
-            curs.close()
-        # Construct and run the CREATE TABLE statement
-        rowdata = list(rows)
-        tablespec = DataTable(hdrs, rowdata, infer_strings=False)
-        rowdata = [
-            tuple(
-                str(v) if isinstance(v, Decimal) else v if (v is None or isinstance(v, _SQLITE_SAFE)) else str(v)
-                for v in row
-            )
-            for row in rowdata
-        ]
-        sql = tablespec.create_table(dbt_sqlite, schemaname=None, tablename=tablename)
-        curs = sdb.cursor()
-        curs.execute(sql)
-        # Export all rows of data
-        columns = [dbt_sqlite.quoted(col) for col in hdrs]
-        colspec = ",".join(columns)
-        paramspec = ",".join(("?",) * len(columns))
-        sql = f"insert into {qtable} ({colspec}) values ({paramspec});"
-        n_chunks = math.ceil(len(rowdata) / chunksize)
-        for i in range(n_chunks):
-            start = i * chunksize
-            end = start + chunksize
-            curs.executemany(sql, rowdata[start:end])
-        sdb.commit()
-        curs.close()
+                    bound.append(value if value is None or isinstance(value, _SQLITE_SAFE) else str(value))
+            converted.append(tuple(bound))
     finally:
+        probe.close()
+
+    sdb = sqlite3.connect(outfile, isolation_level=None)
+    try:
+        sdb.execute("BEGIN")
+        exists = sdb.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (tablename,)).fetchone()
+        if exists is not None:
+            if append:
+                raise ErrInfo(type="error", other_msg=f"The table {tablename} already exists in {outfile}.")
+            sdb.execute(f"DROP TABLE {qtable}")
+        sdb.execute(create_sql)
+        columns = ",".join(dbt_sqlite.quoted(col) for col in hdrs)
+        parameters = ",".join("?" for _ in hdrs)
+        insert_sql = f"INSERT INTO {qtable} ({columns}) VALUES ({parameters})"
+        chunksize = 10000
+        for start in range(0, len(converted), chunksize):
+            sdb.executemany(insert_sql, converted[start : start + chunksize])
+        sdb.commit()
+    finally:
+        # close() rolls back an open transaction, including on BaseException.
         sdb.close()
 
 

@@ -9,18 +9,68 @@ files via the Python standard library ``sqlite3`` module.  Corresponds to
 """
 
 import datetime
+import math
 import re
-from decimal import Decimal
+from collections.abc import Callable
+from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from execsql.db.base import Database
+from execsql.db.target_types import ColumnKinds, _NUMBER_TEXT, _whole_number_converter, kind_for_type_name
+from execsql.types import DT_Long
 from execsql.exceptions import ErrInfo
 from execsql.utils.errors import exception_desc, fatal_error
 import execsql.state as _state
 
-__all__ = ["SQLiteDatabase"]
+__all__ = ["SQLiteDatabase", "sqlite_affinity"]
 
 DEFAULT_CONNECT_TIMEOUT = 30  # seconds
+
+
+def sqlite_affinity(declaration: str) -> str:
+    """Return SQLite's affinity, observing its ordered type-name rules."""
+    name = declaration.upper()
+    if "INT" in name:
+        return "INTEGER"
+    if any(part in name for part in ("CHAR", "CLOB", "TEXT")):
+        return "TEXT"
+    if not name or "BLOB" in name:
+        return "BLOB"
+    if any(part in name for part in ("REAL", "FLOA", "DOUB")):
+        return "REAL"
+    return "NUMERIC"
+
+
+def _integer_converter(column: str, table: str) -> Callable[[Any], Any]:
+    """Use the shared whole-number rule with SQLite's signed int64 bounds."""
+    whole_number = _whole_number_converter(column, table, lambda value: value)
+
+    def range_error(value: Any) -> ErrInfo:
+        return ErrInfo(
+            type="error",
+            other_msg=(
+                f"Can't load {value!r} into column {column} of {table}: the column holds whole numbers "
+                "in SQLite's signed 64-bit integer range."
+            ),
+        )
+
+    def convert(value: Any) -> Any:
+        number = None
+        try:
+            if (
+                isinstance(value, (int, float, Decimal))
+                and not isinstance(value, bool)
+                or isinstance(value, str)
+                and _NUMBER_TEXT.fullmatch(value)
+            ):
+                number = Decimal(value)
+        except InvalidOperation as exc:
+            raise range_error(value) from exc
+        if number is not None and number.is_finite() and not -(2**63) <= number <= 2**63 - 1:
+            raise range_error(value)
+        return whole_number(value)
+
+    return convert
 
 
 class SQLiteDatabase(Database):
@@ -98,11 +148,12 @@ class SQLiteDatabase(Database):
     unqualified_lookup_is_scoped = True
 
     def table_exists(self, table_name: str, schema_name: str | None = None) -> bool:
-        """Return True if the named table exists in the SQLite database."""
+        """Look up a table in *schema_name* (an attached database), or main."""
         # SQLite stores names as-created; match case-insensitively so a lookup
         # of "mytable" finds the catalog entry for MyTable.
         with self._cursor() as curs:
-            sql = "select name from sqlite_master where type='table' and lower(name)=lower(?);"
+            catalog = self.schema_qualified_table_name(schema_name or "main", "sqlite_master")
+            sql = f"select name from {catalog} where type='table' and lower(name)=lower(?);"
             try:
                 curs.execute(sql, (table_name,))
             except ErrInfo:
@@ -129,9 +180,9 @@ class SQLiteDatabase(Database):
         return column_name in cols
 
     def table_columns(self, table_name: str, schema_name: str | None = None) -> list[str]:
-        """Return a list of column names for the given SQLite table."""
+        """Return column names from the optionally database-qualified table."""
         with self._cursor() as curs:
-            quoted_tbl = self.quote_identifier(table_name)
+            quoted_tbl = self.schema_qualified_table_name(schema_name, table_name)
             sql = f"select * from {quoted_tbl} where 1=0;"
             try:
                 curs.execute(sql)
@@ -146,6 +197,28 @@ class SQLiteDatabase(Database):
                     other_msg=f"Failed to get column names for table {table_name} of {self.name()}",
                 ) from e
             return [d[0] for d in curs.description]
+
+    def column_kinds(self, sq_name: str) -> ColumnKinds:
+        """Read declared types from the database INSERT resolves for *sq_name*.
+
+        Use execsql's type names, including scale-zero DECIMAL, rather than
+        SQLite's broader INTEGER-affinity substring rule. An unqualified name
+        keeps SQLite's normal temporary/main/attached lookup order.
+        """
+        return {
+            name: kind_for_type_name(declaration) for name, declaration in self._column_declarations(sq_name).items()
+        }
+
+    def _column_declarations(self, sq_name: str) -> dict[str, str]:
+        """Read declared column types from the same qualified table INSERT uses."""
+        identifier = r'(?:"(?:[^"]|"")*"|\w+)'
+        name = re.fullmatch(rf"(?:(?P<schema>{identifier})\.)?(?P<table>{identifier})", sq_name)
+        if name is None:
+            raise ErrInfo(type="error", other_msg=f"Invalid SQLite table name: {sq_name}")
+        prefix = f"{name['schema']}." if name["schema"] else ""
+        sql = f"PRAGMA {prefix}table_xinfo({name['table']})"
+        _description, rows = self._column_type_query(sq_name, sql)
+        return {row[1].lower(): row[2] for row in rows}
 
     def view_exists(self, view_name: str, schema_name: str | None = None) -> bool:
         """Return True if the named view exists in the SQLite database."""
@@ -187,12 +260,14 @@ class SQLiteDatabase(Database):
     ) -> None:
         """Populate a SQLite table from a row source generator.
 
-        Values are inserted as the source gives them (dates, times and
-        decimals as text), so *existing_table* changes nothing here.
+        Existing integer-kind columns reject fractions and values outside the
+        signed 64-bit range. Other columns retain their pass-through behavior
+        (dates, times and decimals as text). Finite decimals cannot overflow
+        a numeric-affinity column to infinity. A failed load is rolled back.
         """
         # The rowsource argument must be a generator yielding a list of values for the columns of the table.
         # The column_list argument must an iterable containing column names in the same order as produced by the rowsource.
-        sq_name = self.schema_qualified_table_name(None, table_name)
+        sq_name = self.schema_qualified_table_name(schema_name, table_name)
         # Check specified column names.
         tablespec = tablespec_src()
         ts_colnames = [col.name for col in tablespec.cols]
@@ -205,6 +280,22 @@ class SQLiteDatabase(Database):
         # Get column indexes for selected column names.
         columns = column_list
         data_indexes = [ts_colnames.index(col) for col in columns]
+        declarations = self._column_declarations(sq_name)
+        kinds = (
+            {name: kind_for_type_name(declaration) for name, declaration in declarations.items()}
+            if existing_table
+            else {}
+        )
+        numeric_columns = {
+            i
+            for i, column in enumerate(columns)
+            if sqlite_affinity(declarations.get(column.lower(), "")) in ("NUMERIC", "REAL", "INTEGER")
+        }
+        converters = {
+            i: _integer_converter(column, sq_name)
+            for i, column in enumerate(columns)
+            if kinds.get(column.lower()) is DT_Long
+        }
         # Construct prepared SQL statement
         colspec = ",".join([self.type.quoted(c) for c in columns])
         paramspec = ",".join(["?" for c in columns])
@@ -227,7 +318,6 @@ class SQLiteDatabase(Database):
             except ErrInfo:
                 raise
             except Exception as e:
-                self.rollback()
                 raise ErrInfo(
                     type="db",
                     command_text=sql,
@@ -244,6 +334,8 @@ class SQLiteDatabase(Database):
 
         last_line: list[Any] = []
         try:
+            if converters or numeric_columns:
+                self.begin_transaction()
             for line in rowsource:
                 # Skip empty rows.
                 if not (len(line) == 1 and line[0] is None):
@@ -259,6 +351,18 @@ class SQLiteDatabase(Database):
                                 if not _state.conf.empty_strings and line[i].strip() == "":
                                     line[i] = None
                     linedata = [line[ix] for ix in data_indexes]
+                    for i, convert in converters.items():
+                        linedata[i] = convert(linedata[i])
+                    for i in numeric_columns:
+                        value = linedata[i]
+                        if isinstance(value, Decimal) and value.is_finite() and math.isinf(float(value)):
+                            raise ErrInfo(
+                                type="error",
+                                other_msg=(
+                                    f"Can't load {value!r} into column {columns[i]} of {sq_name}: "
+                                    "SQLite would store infinity instead of this finite value."
+                                ),
+                            )
                     # Convert datetime, time, and Decimal values to strings.
                     for i in range(len(linedata)):
                         if type(linedata[i]) in (datetime.datetime, datetime.time, Decimal):
@@ -272,6 +376,9 @@ class SQLiteDatabase(Database):
                         if len(batch) >= batch_size:
                             _flush(last_line)
             _flush(last_line)
+        except Exception:
+            self.rollback()
+            raise
         finally:
             curs.close()
         if _state.exec_log:

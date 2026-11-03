@@ -23,6 +23,7 @@ import queue as _stdlib_queue
 import threading
 from typing import Any, Literal, cast
 
+from execsql.exceptions import ScriptExit
 from execsql.gui.base import GuiBackend
 
 # ---------------------------------------------------------------------------
@@ -1449,7 +1450,7 @@ class _TextualSyncQueue:
             spec.return_queue.put({"error": str(exc), "button": None})
             return
         if result is not None and result.get("cancelled"):
-            raise SystemExit(2)
+            raise ScriptExit(2)
         spec.return_queue.put(result if result is not None else {})
 
     def get_nowait(self) -> Any:
@@ -1604,7 +1605,7 @@ class ConsoleApp(App):
                     if tid is not None:
                         ctypes.pythonapi.PyThreadState_SetAsyncExc(
                             ctypes.c_ulong(tid),
-                            ctypes.py_object(SystemExit),
+                            ctypes.py_object(ScriptExit),
                         )
                 spec.return_queue.put(result if result is not None else {})
             else:
@@ -1651,6 +1652,8 @@ class ConsoleApp(App):
             pass  # Widget may not be mounted yet.
 
     def action_request_quit(self) -> None:
+        # A plain SystemExit, not ScriptExit: quitting while a statement runs
+        # interrupts it, and it is rolled back like a failed one.
         if self._script_thread and self._script_thread.is_alive():
             tid = self._script_thread.ident
             if tid is not None:

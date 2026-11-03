@@ -11,6 +11,52 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Added
+
+- **ODS `IMPORT` input limits** add seven `[input]` settings and matching `CONFIG` forms; `0` disables an individual limit.
+- **`EXPORT … AS SQLITE`** accepts Decimal infinities as numeric values.
+
+### Changed
+
+- **`WRITE` / `TEE`** flushes each completed write so other readers can see it before the output file is closed.
+- **ODS `IMPORT`** rejects archives and sheet expansion over configured limits before changing targets; raise the setting named in the error for a trusted larger worksheet.
+- **`IMPORT … FROM JSON`** preserves fractional and exponent scalar numbers as exact decimals before loading. NEW/REPLACEMENT tables can infer DECIMAL instead of DOUBLE; existing decimal and integer targets validate the original digits.
+- **`IMPORT` / `COPY` into existing DECIMAL columns** rejects numeric text, Decimal and integer values that would be rounded to a reported destination scale; trailing zeros remain valid. Round the source explicitly if rounding is intended.
+- **`IMPORT` / `COPY` into existing DECIMAL columns** retains exact numeric text, including exponent notation, and typed Decimal values regardless of `EXACT_DECIMALS`.
+- **`IMPORT` / `COPY` into existing SQLite integer columns** stores integral numeric text and Decimal values as exact integers; large values written with a decimal point or exponent no longer pass through SQLite’s floating-point rounding.
+- **Configured `include_required` and `include_optional` scripts** run before the main script, required files first, through both the CLI and `execsql.run()`. They were ignored; remove entries you do not want executed.
+
+### Fixed
+
+- **`WRITE` / `TEE`** reports blocked background I/O, including filename resolution, at the output deadline and discards queued output without waiting again during shutdown; the I/O already in progress may finish later.
+- **`IMPORT` / `COPY`** converts only selected source columns; oversized decimals in excluded columns no longer reject a load.
+- **ODS `IMPORT`** rejects invalid repetition, span and space counts with an input error before changing target tables.
+- **`IMPORT` / `COPY` into existing text columns** stores finite Decimal values as exact decimal text instead of allowing drivers to round them through floating point.
+- **`IMPORT` / `COPY` into SQLite numeric columns** rejects finite Decimal values that would overflow to infinity; a failed load keeps none of its new rows.
+- **DECIMAL type inference** counts positive exponents as integer digits with scale zero.
+- **DECIMAL table declarations** retain zero scale instead of omitting precision and scale.
+- **`IMPORT` / `COPY` into new DuckDB DECIMAL columns** preserves positive-exponent values when binding them.
+- **`IMPORT` / `COPY` into existing SQLite integer columns** rejects fractional and out-of-range values with an error naming the value and column; a failed load keeps none of its new rows.
+- **`EXPORT … AS SQLITE`** rejects lossy numeric Decimal values and numeric Decimal NaN, before changing the destination. Cast the source column to text to preserve its exact spelling.
+- **`EXPORT … AS SQLITE` replacement** preserves the original table when reading, creating or inserting the replacement fails.
+- **`execsql.run(connection=...)`** rolls back pending work and closes connections the script opened with `CONNECT`, while leaving the supplied connection open. Commit work on script-created connections before the script ends if it must be kept.
+- **`execsql.run(config_file=...)`** retains the substitution variables defined in the configuration file.
+- **`execsql.run()` safety switches** inherit configured `allow_system_cmd`, `allow_rm_file` and `allow_serve` values when omitted or `None`; explicit `True` or `False` overrides the configuration. Omitted arguments re-enabled disabled capabilities.
+- **`IMPORT … FROM JSON`** rejects distinct field paths that flatten to the same column name before creating, replacing or loading a table; ambiguous records silently lost one value. Rename the conflicting JSON keys before retrying.
+- **`IMPORT` and `COPY` to `attached.table` in SQLite** use the selected attached database for table checks, column checks and loading instead of a same-named table in `main`.
+- **An SQL statement or metacommand interrupted before its commit** (Ctrl-C at a `BREAKPOINT` prompt or in a notebook running `execsql.run()`, or a `SystemExit` that a program's signal handler raises during `execsql.run()`) is rolled back, as a failed one is; the next commit on the connection stored what it had done. An SQL statement rolls back its connection's open transaction, and a metacommand everything not yet committed on each connection with `AUTOCOMMIT` on, its own writes included; under `AUTOCOMMIT OFF` its writes stay with what the script holds.
+- **An interrupt that ends `execsql.run()` or the input typed at a `BREAKPOINT` prompt** rolls back everything not yet committed on each connection with `AUTOCOMMIT` on, so the next commit stores none of the script's unfinished work; this includes your own uncommitted work on `connection=`.
+- **An interrupted SQL statement or metacommand** sets `SQL_ERROR()` or `METACOMMAND_ERROR()`, which a `BREAKPOINT` prompt can test.
+- **An interrupt inside `BEGIN BATCH`**, whether it stops a statement, a metacommand, an `IF` or `LOOP` condition, or `END BATCH`, keeps that batch and the batches around it from committing.
+- **An error in input typed at a `BREAKPOINT` prompt inside `BEGIN BATCH`** that is not an SQL or metacommand error, such as substitution variables that refer to each other, keeps the batch from committing, as the same error in the script does; the batch committed.
+- **`execsql.log`** records an interrupted SQL statement or metacommand, with its line.
+- **`execsql.run()` ended by a signal handler's `SystemExit`** reports "Script interrupted by SystemExit with exit status N."; it said "Script halted by HALT".
+- **A DuckDB rollback with no transaction open** no longer writes "Rollback failed … no transaction is active" to `execsql.log`.
+
+______________________________________________________________________
+
+## [2.37.0] - 2026-10-23
+
 ### Changed
 
 - **A failed commit at `END BATCH`** is an SQL error on the `END BATCH` line, which `ERROR_HALT` governs; it was reported as an uncaught exception on a line of execsql's own source and always stopped the run. With `ERROR_HALT OFF` the script now carries on: test `SQL_ERROR()` right after `END BATCH`.
@@ -29,6 +75,8 @@ ______________________________________________________________________
 ### Fixed
 
 - **A commit that fails** (a deferred constraint checked at COMMIT) rolls back what it was committing, so none of it is stored: an SQL statement, `IMPORT`, `COPY`, `EXECUTE`, or `AUTOCOMMIT ON` committing what was held under `AUTOCOMMIT OFF`. On SQLite, when the script carried on (`ERROR_HALT OFF` for an SQL statement, `METACOMMAND_ERROR_HALT OFF` for a metacommand, or an `ON ERROR_HALT` script), the next statement's commit stored it, including the rows reported as failed.
+- **SIGTERM while `SYSTEM_CMD` runs a command** stops the command just as it starts, as its `system_cmd_timeout` runs out, and under the Textual console (`--gui-framework textual`), where the script also stops at that `SYSTEM_CMD`; the command was left running after execsql exited.
+- **`system_cmd_timeout` running out on a command *execsql* cannot stop** (one run as another user, through `sudo` for example) fails the `SYSTEM_CMD` at once, with `$SYSTEM_CMD_EXIT_STATUS` 124 and an error giving the command's process ID; execsql waited for the command to finish and then stopped with a permission error.
 - **`END BATCH` whose commit fails on one database** rolls back the batch's databases not yet committed; a later statement on them, such as an `ON ERROR_HALT` script's, committed the failed batch's rows.
 - **`ALIAS_DEFINED` and `DISCONNECT` match the alias case-insensitively** (`ALIAS_DEFINED(B)`, `DISCONNECT FROM B`), as `USE` always did; the same connection spelled differently reported "not defined" and could not be closed.
 - **`BREAK` in the main script, outside any `LOOP`, `SCRIPT` or `INCLUDE`d file,** is reported on its own line; it named the statement before it.

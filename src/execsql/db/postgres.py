@@ -14,7 +14,7 @@ import re
 from typing import Any
 
 from execsql.db.base import Database
-from execsql.db.target_types import ColumnKinds, kind_for_type_name
+from execsql.db.target_types import ColumnKinds, ColumnMetadata, kind_and_scale_for_type_name
 from execsql.exceptions import ErrInfo
 from execsql.utils.errors import exception_desc, fatal_error, install_hint
 from execsql.utils.auth import (
@@ -233,7 +233,7 @@ class PostgresDatabase(Database):
             "where attrelid = %s::regclass and attnum > 0 and not attisdropped order by attnum;",
             [sq_name],
         )
-        return {name.lower(): kind_for_type_name(type_name) for name, type_name in rows}
+        return ColumnMetadata({name.lower(): kind_and_scale_for_type_name(type_name) for name, type_name in rows})
 
     def view_exists(self, view_name: str, schema_name: str | None = None) -> bool:
         """Return True if the named view exists in the PostgreSQL database."""
