@@ -405,7 +405,10 @@ def run(
         A :class:`ScriptResult` with execution outcome, timing, errors,
         and final variable state.  A script that cannot be read, a bad
         *config_file*, and a *dsn* that cannot be parsed or opened all
-        return ``success=False`` rather than raising.
+        return ``success=False`` rather than raising. A blocked background
+        output writer adds an error with source ``<output>`` and is abandoned
+        at its flush deadline. Its current I/O may finish later; queued
+        output is discarded and no further opens or writes are started.
 
     Raises:
         ValueError: If the argument combination is invalid (e.g. both
@@ -596,13 +599,15 @@ def run(
 
             # Flush and close every file the script wrote, so the caller can read
             # them the moment run() returns.  Output to a file that could not be
-            # opened is reported as an error.  The writer is stopped below.
+            # opened is reported as an error. A blocked writer is abandoned;
+            # healthy writers are stopped below.
             from execsql.utils.fileio import filewriter_close_all_after_write
 
             try:
                 filewriter_close_all_after_write()
             except ErrInfo as exc:
-                errors.append(ScriptError(message=exc.errmsg(), source="<output>"))
+                if ctx.halt_output_error is not exc:
+                    errors.append(ScriptError(message=exc.errmsg(), source="<output>"))
             except Exception:
                 pass  # Best-effort: a failed flush must not mask a script error.
 
@@ -658,8 +663,8 @@ def _start_filewriter(ctx: RuntimeContext, conf: Any) -> None:
     writer, and every entry point in :mod:`execsql.utils.fileio` drops the
     write when none is running.  A writer per run keeps concurrent runs from
     sharing open files or reply queues, and a halt in one run (which stops
-    its writer) from discarding another run's output.  :func:`run` stops the
-    writer before it returns.
+    its writer) from discarding another run's output. Healthy writers stop
+    before run() returns; a blocked daemon is abandoned with an output error.
     """
     from execsql.utils.fileio import FileWriter
 

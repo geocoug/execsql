@@ -214,6 +214,9 @@
 #css_styles=
 
 # Seconds to keep retrying when an output file has an access conflict.
+# Background-writer waits, including blocked writes/closes, end after this
+# interval plus 5 seconds (at most 10 seconds on a halt). On timeout, queued
+# output is discarded; the one I/O call already in progress may finish later.
 # Value: A positive non-zero number.  Default: 600.
 #outfile_open_timeout=600
 

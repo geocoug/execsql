@@ -18,6 +18,7 @@ ______________________________________________________________________
 
 ### Changed
 
+- **`WRITE` / `TEE`** flushes each completed write so other readers can see it before the output file is closed.
 - **ODS `IMPORT`** rejects archives and sheet expansion over configured limits before changing targets; raise the setting named in the error for a trusted larger worksheet.
 - **`IMPORT … FROM JSON`** preserves fractional and exponent scalar numbers as exact decimals before loading. NEW/REPLACEMENT tables can infer DECIMAL instead of DOUBLE; existing decimal and integer targets validate the original digits.
 - **`IMPORT` / `COPY` into existing DECIMAL columns** rejects numeric text, Decimal and integer values that would be rounded to a reported destination scale; trailing zeros remain valid. Round the source explicitly if rounding is intended.
@@ -27,6 +28,7 @@ ______________________________________________________________________
 
 ### Fixed
 
+- **`WRITE` / `TEE`** reports blocked background I/O at the output deadline and discards queued output without waiting again during shutdown; the I/O already in progress may finish later.
 - **ODS `IMPORT`** rejects invalid repetition, span and space counts with an input error before changing target tables.
 - **`IMPORT` / `COPY` into existing text columns** stores finite Decimal values as exact decimal text instead of allowing drivers to round them through floating point.
 - **`IMPORT` / `COPY` into SQLite numeric columns** rejects finite Decimal values that would overflow to infinity; a failed load keeps none of its new rows.

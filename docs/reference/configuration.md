@@ -222,33 +222,45 @@ ods_max_xml_mb=150
 ## Section `output` { #config_output }
 
 `log_write_messages`
+
 :   Specifies whether output of the [WRITE](metacommands.md#write) metacommand will also be written to *execsql*'s log file. The property value should be either "Yes" or "No". The default is "No". This configuration property can also be controlled within a script with the [CONFIG LOG_WRITE_MESSAGES](metacommands.md#logwritemessages) metacommand.
 
 `make_export_dirs` { #make_export_dirs }
+
 :   The output directories used in the [EXPORT](metacommands.md#export) and [WRITE](metacommands.md#write) metacommands will be automatically created if they do not exist (and the user has the necessary permission). The property value should be either "Yes" or "No". This is equivalent to the "-d" command-line option.
 
 `quote_all_text`
+
 :   Controls whether all text values written to a delimited text file by the [EXPORT](metacommands.md#export) metacommand will be quoted. The property value should be either "Yes" or "No"--the default is "No".
 
 `outfile_open_timeout` { #setting_outfile_open_timeout }
-:   How long (in seconds) the WRITE background process keeps retrying when a target file is held open by another process (backup, sync, etc.); output is buffered during the wait. At the end of the script (and before a [SYSTEM_CMD](metacommands.md#system_cmd)) *execsql* waits up to this long for the file to open. If it never does, the buffered output is discarded and the run fails with an error naming the file. A target that can never be opened, such as an existing directory or a file on a read-only filesystem, is not waited for: the run fails at once. When the script halts on an error, *execsql* waits at most 10 seconds, then reports whatever output was lost along with the error. Default: 600.
+
+:   How long (in seconds) the WRITE background writer keeps retrying when a target file is held open by another process (backup, sync, etc.); output is buffered during the wait. At the end of the script (and before a [SYSTEM_CMD](metacommands.md#system_cmd)) *execsql* waits up to this long for the file to open. If it never does, the buffered output is discarded and the run fails with an error naming the file. A target that can never be opened, such as an existing directory or a file on a read-only filesystem, is not waited for: the run fails at once. When the script halts on an error, *execsql* waits at most 10 seconds, then reports whatever output was lost along with the error. Default: 600.
+
+    All waits for the background writer, including file status, close and loss reporting, share a deadline of this value plus five seconds. A flush with a shorter maximum wait uses that maximum; a halt keeps its ten-second cap. A blocked open, write, flush or close cannot hold that wait indefinitely. On expiry the run reports an output error and discards queued output, including other files behind the blocked operation. The daemon is abandoned rather than killed: the operation in progress can finish later, and a partial file may remain. It starts no further opens or writes once that operation returns; cleanup discards buffered text instead of flushing it later. These bounds apply to background-writer waits; EXPORT's own synchronous I/O and stdout are outside them.
 
 `export_row_buffer` { #setting_export_row_buffer }
+
 :   The number of data rows to be buffered from the database when exporting data. Larger values result in faster exports, up to a point, and at a diminishing rate of return. Larger values also require more memory. The setting value must be a positive integer greater than zero. The default value is 1000 rows. This value cannot be customized when using DuckDB.
 
 `hdf5_text_len`
+
 :   The length to be assigned to columns that have the 'text' data type when data are exported in the HDF5 format. The default is `1000`.
 
 `css_file`
+
 :   The URI of a CSS file to be included in the header of an HTML file created with the [EXPORT](metacommands.md#export) metacommand. If this is specified, it will replace the CSS styles that *execsql* would otherwise use.
 
 `css_styles`
+
 :   A set of CSS style specifications to be included in the header of an HTML file created with the [EXPORT](metacommands.md#export) metacommand. If this is specified, it will replace the CSS styles that *execsql* would otherwise use. Both css_file and css_style may be specified; if they are, they will be included in the header of the HTML file in that order.
 
 `template_processor`
+
 :   Template engine for `EXPORT … WITH TEMPLATE`. Default is Python's `string.Template`, applied once per row with `$column_name` placeholders. Set to `jinja` (the only other valid value) to render the full result set in one pass via [Jinja2](https://jinja.palletsprojects.com/), exposing the data as `headers` (list of column names) and `datatable` (list of row dicts) so the template can loop, filter, and conditionalize. Requires `jinja2`.
 
 `zip_buffer_mb` { #zip_buffer_mb }
+
 :   The size of the internal buffer used when the [EXPORT](metacommands.md#export) metacommand exports data to a zipfile, in Mb. The default value is 10. The buffer should be at least as large as the largest data row to be exported. This value typically has little effect on performance, and only affects memory usage.
 
 !!! note "CLI-only output options"

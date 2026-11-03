@@ -104,18 +104,21 @@ Four things are still shared by every thread in the process, so keep them apart 
 
 ### File Output { #file-output }
 
-`WRITE ... TO <file>`, `TEE`, and the other metacommands that write text files hand their output to a background writer thread. Each `run()` starts its own, then flushes and closes every file and stops the thread before returning, so a file a script wrote is on disk and complete the moment `run()` hands back control.
+`WRITE ... TO <file>`, `TEE`, and the other metacommands that write text files hand their output to a background writer thread. Each `run()` starts its own. On a successful run, all output is flushed and closed and the thread stops before returning, so files are complete and readable when `run()` hands back control.
 
 ```python
 from execsql import run
 
 result = run(sql='-- !x! WRITE "done" to report.txt\nselect 1;\n', dsn="sqlite:///data.db")
+assert result.success, result.errors
 open("report.txt").read()   # "done\n" — readable immediately
 ```
 
 The writer is a thread in your process, not a child process, so `run()` works the same from a `.py` file with or without an `if __name__ == "__main__":` guard, from a REPL, from a notebook, and from `python -c`.
 
 If a file stays locked (by a sync client, a backup, or a spreadsheet that has it open) for longer than [`outfile_open_timeout`](../reference/configuration.md#setting_outfile_open_timeout), `run()` returns `success=False` with an error naming the file and how many lines were lost. A write that fails (a full disk, a dropped network share) is reported the same way, with the OS error, and the run's other files are still written.
+
+If the worker blocks in an open, write, flush or close, the wait ends at [`outfile_open_timeout`](../reference/configuration.md#setting_outfile_open_timeout) plus five seconds, or the shorter halt deadline. Every status and error-report wait uses that same deadline. `run()` returns `success=False` with a `<output>` error naming the operation/file and queued destinations. It abandons the daemon rather than claiming to stop it, and does not wait for it again during cleanup. The I/O call in progress may finish later; no further opens or writes follow it. Queued text and abandoned buffers are discarded. A partial file can remain; WRITE/TEE outputs are incremental, not atomic publications. Other runs keep their own independent writers. EXPORT's synchronous I/O and stdout are outside this deadline.
 
 ## Extension Guides
 
