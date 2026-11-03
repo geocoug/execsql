@@ -294,6 +294,8 @@ ______________________________________________________________________
 1. The appropriate exporter module (e.g., `exporters/delimited.py`, `exporters/json.py`) formats and writes the output.
 1. Text output from `WRITE`, `TEE` and similar metacommands is asynchronous via `FileWriter`, a background thread that each run owns (held on its `RuntimeContext`) and that serializes writes through its own queue.
 
+The writer tracks its current I/O operation and pending destinations independently of reply messages. A timeout abandons the daemon through an Event; it does not cancel an OS call or wait for the worker again. The worker stops admitting opens/writes after that in-progress call, discards queued commands and buffered text, and closes its handles. Successful writes are flushed before the next one. Pending-write bookkeeping uses a lock that is never held across filesystem I/O; file controls refer weakly to their owner to avoid a per-run reference cycle. See [file output](../api/index.md#file-output) for the caller-visible contract.
+
 ### Import flow
 
 1. An `IMPORT` metacommand is dispatched to the appropriate handler.

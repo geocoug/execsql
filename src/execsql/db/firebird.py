@@ -8,7 +8,10 @@ via the ``firebird-driver`` package.  Corresponds to ``-t f`` on the CLI.
 """
 
 
+from typing import Any
+
 from execsql.db.base import Database
+from execsql.types import DataType, DT_Decimal
 from execsql.db.tiers import SupportTier
 from execsql.exceptions import ErrInfo
 from execsql.utils.errors import exception_desc, fatal_error, install_hint
@@ -31,6 +34,11 @@ class FirebirdDatabase(Database):
     #: No Firebird server runs in CI; this adapter has no tests.
     support_tier = SupportTier.BEST_EFFORT
     support_tier_name = "Firebird"
+
+    def _described_column(self, description: Any) -> tuple[type[DataType] | None, int | None]:
+        kind, scale = super()._described_column(description)
+        # firebird-driver exposes the engine's exponent, the negative SQL scale.
+        return kind, -scale if kind is DT_Decimal and scale is not None else None
 
     def __init__(
         self,

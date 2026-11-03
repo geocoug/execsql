@@ -17,8 +17,9 @@ checked against every driver's idea of what those values are.
 
 Set ``EXECSQL_PG_HOST`` and friends to point at a server; see
 ``tests/db/test_postgres_inprocess.py`` for the full list of variables.  A
-backend that is not reachable is skipped, never failed — a laptop with no
-containers running still gets SQLite and DuckDB coverage.
+backend that is not reachable is skipped unless EXECSQL_REQUIRED_BACKENDS
+requires it. A laptop with no containers still gets SQLite and DuckDB coverage;
+DDL and seed failures after a successful connection always surface as errors.
 
 No backend is given an explicit encoding: each one is opened exactly the way a
 user running ``execsql`` with no ``-e`` flag opens it.  The unicode column is
@@ -35,6 +36,7 @@ from decimal import Decimal
 import pytest
 
 import execsql.state as _state
+from tests.live_db import open_backend
 
 # ---------------------------------------------------------------------------
 # The awkward-values table
@@ -196,13 +198,6 @@ _BACKENDS = {
     "mysql": _mysql_db,
 }
 
-#: Why a backend is unusable, cached after the first attempt.  Without this the
-#: fixture re-attempts a TCP connection for every parametrized test, and on a
-#: machine with no server listening — every Windows CI runner — that cost more
-#: than the rest of the suite combined: the Windows jobs went from 15 minutes to
-#: 30, straight into the tox timeout.  One probe per backend per session.
-_unusable: dict[str, str] = {}
-
 
 def _server_listening(host: str, port: int, timeout: float = 1.0) -> bool:
     """True if something accepts a TCP connection at *host*:*port*.
@@ -223,19 +218,11 @@ def _server_listening(host: str, port: int, timeout: float = 1.0) -> bool:
 def export_db(request, tmp_path, minimal_conf):
     """A Tier 1 database seeded with the awkward-values table.
 
-    Parametrized across backends; a backend whose driver is missing or whose
-    server is unreachable is skipped rather than failed.
+    Optional unavailable backends skip locally; required CI backends fail.
+    Once connected, a DDL or seed failure is always an error.
     """
     dbms = request.param
-    if dbms in _unusable:
-        pytest.skip(_unusable[dbms])
-    try:
-        db = _BACKENDS[dbms](tmp_path)
-    except pytest.skip.Exception:
-        raise
-    except Exception as exc:
-        _unusable[dbms] = f"{dbms} not reachable: {type(exc).__name__}: {exc}"
-        pytest.skip(_unusable[dbms])
+    db = open_backend(dbms, tmp_path, factory=_BACKENDS[dbms])
 
     try:
         with db._cursor() as curs:
@@ -243,9 +230,9 @@ def export_db(request, tmp_path, minimal_conf):
             curs.execute(_ddl(dbms))
         db.commit()
         _insert(db, dbms)
-    except Exception as exc:  # setup failure is a skip, not a red test
+    except BaseException:
         db.close()
-        pytest.skip(f"{dbms} setup failed: {type(exc).__name__}: {exc}")
+        raise
 
     # Register the connection the way a run does: several exporters reach for
     # _state.dbs.current() to record provenance, and a bare adapter is not how

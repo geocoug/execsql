@@ -1,0 +1,74 @@
+{
+ "exit": 0,
+ "files": {
+  "aux.db": {
+   "sqlite": {
+    "t": {
+     "columns": [
+      [
+       "v",
+       "TEXT"
+      ]
+     ],
+     "rows": [
+      [
+       [
+        "text",
+        "'aux-before'"
+       ]
+      ]
+     ]
+    }
+   }
+  }
+ },
+ "recorded_with": "execsql 1.130.1",
+ "stderr": "",
+ "stdout": "",
+ "tables": {
+  "source": {
+   "columns": [
+    [
+     "v",
+     "TEXT"
+    ]
+   ],
+   "rows": [
+    [
+     [
+      "text",
+      "'copied-row'"
+     ]
+    ]
+   ]
+  },
+  "t": {
+   "columns": [
+    [
+     "v",
+     "TEXT"
+    ]
+   ],
+   "rows": [
+    [
+     [
+      "text",
+      "'main-before'"
+     ]
+    ],
+    [
+     [
+      "text",
+      "'imported-row'"
+     ]
+    ],
+    [
+     [
+      "text",
+      "'copied-row'"
+     ]
+    ]
+   ]
+  }
+ }
+}

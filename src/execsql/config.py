@@ -23,6 +23,7 @@ from configparser import ConfigParser
 from pathlib import Path
 from typing import Protocol
 
+from execsql.utils.spreadsheet import INPUT_LIMIT_DEFAULTS
 from execsql.utils.paths import is_network_path
 from execsql.exceptions import ConfigError, ConfigFileError
 from execsql.utils.crypto import Encrypt
@@ -296,6 +297,10 @@ class ConfigData:
             ("ignore", "replace", "xmlcharrefreplace", "backslashreplace"),
         )
         # --- [input] ---
+        for name in INPUT_LIMIT_DEFAULTS:
+            self._get_int(cp, self._INPUT_SECTION, name, name)
+            if cp.has_option(self._INPUT_SECTION, name) and getattr(self, name) < 0:
+                raise ConfigError(f"Invalid {name}: {getattr(self, name)}; must be >= 0.")
         self._get_int(cp, self._INPUT_SECTION, "max_int", "max_int")
         self._get_bool(cp, self._INPUT_SECTION, "boolean_int", "boolean_int")
         self._get_bool(cp, self._INPUT_SECTION, "boolean_words", "boolean_words")
@@ -500,6 +505,8 @@ class ConfigData:
         self.import_encoding = "utf8"
         self.enc_err_disposition: str | None = None
         self.import_common_cols_only = False
+        for name, default in INPUT_LIMIT_DEFAULTS.items():
+            setattr(self, name, default)
         self.max_int = 2147483647
         self.boolean_int = True
         self.boolean_words = False

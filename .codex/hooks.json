@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "^(Bash|apply_patch)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh -c 'root=$(pwd -P) || exit 2; while [ ! -e \"$root/.git\" ]; do [ \"$root\" != / ] || { echo \"Blocked: cannot locate repository for merge review hook.\" >&2; exit 2; }; root=${root%/*}; root=${root:-/}; done; exec sh \"$root/.agents/hooks/review-before-merge.sh\"'",
+            "timeout": 120,
+            "statusMessage": "Checking merge review policy"
+          }
+        ]
+      }
+    ]
+  }
+}

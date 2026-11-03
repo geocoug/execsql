@@ -12,6 +12,8 @@ from __future__ import annotations
 
 import re
 
+from execsql.utils.spreadsheet import INPUT_LIMIT_DEFAULTS
+
 # Handler imports — grouped by module for readability.
 from execsql.metacommands.connect import (
     x_autocommit_off,
@@ -125,6 +127,7 @@ from execsql.metacommands.io import (
     x_import_ods_pattern,
     x_import_parquet,
     x_import_row_buffer,
+    x_input_limit,
     x_import_xls,
     x_import_xls_pattern,
     x_include,
@@ -713,6 +716,13 @@ def build_dispatch_table() -> MetaCommandList:
         description="MAX_INT",
         category="config_option",
     )
+    for name in INPUT_LIMIT_DEFAULTS:
+        mcl.add(
+            rf"^\s*CONFIG\s+(?P<name>{name.upper()})\s+(?P<value>[0-9]+)\s*$",
+            x_input_limit,
+            description=name.upper(),
+            category="config_option",
+        )
     mcl.add(
         r"^\s*CONFIG\s+IMPORT_ROW_BUFFER\s+(?P<rows>[1-9][0-9]*)\s*$",
         x_import_row_buffer,

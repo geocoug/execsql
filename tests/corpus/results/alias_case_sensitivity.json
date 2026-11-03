@@ -1,0 +1,11 @@
+{
+ "exit": 0,
+ "files": {
+  "b.db": "",
+  "out.txt": "lowercase alias defined\n"
+ },
+ "recorded_with": "execsql 1.130.1",
+ "stderr": "",
+ "stdout": "",
+ "tables": {}
+}

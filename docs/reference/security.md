@@ -225,3 +225,9 @@ This does not constitute full SQL escaping. For untrusted string input, validate
 1. **Audit scripts that use `SYSTEM_CMD` or `INCLUDE` with variable-derived paths.** Trace where each variable originates. If any value comes from outside the script (environment, prompt, file content), validate it before use in a command that touches the filesystem or executes a process.
 
 1. **Restrict access to `execsql.conf`.** Configuration files may contain usernames, SMTP settings, and obfuscated passwords. Ensure file permissions prevent reads by other users (`chmod 600 execsql.conf` on Linux/macOS).
+
+## ODS resource limits
+
+ODS IMPORT checks total XML size and each archive member's compression ratio before opening the workbook. It also bounds materialized rows, columns, padded cells, characters per cell and total text before expanding repetition/span attributes. Defaults and overrides are listed in [spreadsheet input limits](configuration.md#spreadsheet-input-limits); `0` disables the named limit. Rejected sheets leave their targets unchanged. All matched sheets are checked before a multi-sheet import changes any target.
+
+The archive check bounds XML input to odfpy's in-memory parser; the logical checks bound the subsequent spreadsheet expansion. XLSX continues to use its existing archive checks; the shared `import_max_*` logical settings currently apply to ODS only.

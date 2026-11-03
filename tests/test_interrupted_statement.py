@@ -147,6 +147,257 @@ def test_end_batch_interrupted_at_the_prompt_fails_the_enclosing_batch(tmp_path)
     assert rows == []  # not the outer batch's insert 2 alone
 
 
+# Ctrl-C at END BATCH before the commit starts (after the last statement, or
+# as Database.commit() is entered) left the batch pending on the caller's
+# connection, and the caller's next commit stored it.
+
+
+def _end_batch_interrupted(where):
+    from execsql.db.base import Database
+    from execsql.script.control import BatchLevels
+
+    if where == "before the commit":
+
+        def failure(self):
+            raise KeyboardInterrupt
+
+        return patch.object(BatchLevels, "failure", failure)
+
+    real_commit = Database.commit
+
+    def commit(self):
+        if self.autocommit and self.conn.in_transaction:  # END BATCH's, not the create table's
+            raise KeyboardInterrupt
+        return real_commit(self)
+
+    return patch.object(Database, "commit", commit)
+
+
+@pytest.mark.parametrize("where", ["before the commit", "entering Database.commit()"])
+@pytest.mark.parametrize("nested", [False, True])
+def test_end_batch_interrupted_before_its_commit_leaves_nothing_pending(db_file, where, nested):
+    conn = db_SQLite(str(db_file))
+    batch = "-- !x! begin batch\ninsert into t values ('batched');\n-- !x! end batch\n"
+    if nested:
+        batch = f"-- !x! begin batch\ninsert into t values ('outer');\n{batch}-- !x! end batch\n"
+    with _end_batch_interrupted(where), pytest.raises(KeyboardInterrupt):
+        run(sql=batch, connection=conn)
+    conn.execute("insert into t values ('the caller''s own');")
+    conn.commit()
+    conn.close()
+    assert _rows(db_file) == ["the caller's own"]
+
+
+@pytest.mark.parametrize("where", ["before the commit", "entering Database.commit()"])
+def test_end_batch_interrupted_at_the_prompt_reports_the_interrupt(tmp_path, where):
+    from execsql.db.base import Database
+    from execsql.script.control import BatchLevels
+    from tests.test_interactive import _paused as paused
+
+    real_commit = Database.commit
+    commits = []
+
+    def commit(self):
+        commits.append(self)
+        if len(commits) == 2:  # the typed END BATCH (the first is the create table)
+            raise KeyboardInterrupt
+        return real_commit(self)
+
+    def failure(self):
+        raise KeyboardInterrupt
+
+    out = tmp_path / "out.txt"
+    script = (
+        "create table t (n integer);\n-- !x! breakpoint\n"
+        f'-- !x! IF (SQL_ERROR()) {{ WRITE "!!$LAST_ERROR!!: !!$ERROR_MESSAGE!!" TO {out} }}\n'
+        # The run carries on: its next commit must not store the typed batch.
+        "insert into t values (1);\n"
+    )
+    typed = ["-- !x! begin batch", "insert into t values (9);", "-- !x! end batch", ".c"]
+    if where == "before the commit":
+        interrupted = patch.object(BatchLevels, "failure", failure)
+    else:
+        interrupted = patch.object(Database, "commit", commit)
+    with interrupted:
+        _, prompt, _, rows = paused(tmp_path, script, typed)
+    assert "(interrupted)" in prompt
+    assert out.read_text().splitlines() == ["END BATCH: Interrupted."]
+    assert rows == [1]
+
+
+def test_an_error_at_end_batch_typed_at_the_prompt_is_not_an_interrupt(tmp_path):
+    # With ERROR_HALT ON, exit_now() raises the error at a prompt instead of
+    # halting; END BATCH reported it as an interrupt.
+    from tests.test_interactive import _paused as paused
+
+    out = tmp_path / "out.txt"
+    script = (
+        "create table t (n integer);\n-- !x! breakpoint\n"
+        f'-- !x! IF (SQL_ERROR()) {{ WRITE "!!$ERROR_MESSAGE!!" TO {out} }}\n'
+    )
+    typed = [
+        "-- !x! error_halt off",
+        "-- !x! begin batch",
+        "insert into no_such_table values (1);",
+        "-- !x! error_halt on",
+        "-- !x! end batch",
+        ".c",
+    ]
+    _, prompt, _, _ = paused(tmp_path, script, typed)
+    assert "(interrupted)" not in prompt
+    assert "The batch was not committed: an error on line 2 of <breakpoint>." in out.read_text()
+
+
+# An interrupt can land between any two lines of Python, even between the
+# rollbacks of a failed batch's databases: run() rolls back what it left.
+
+
+@pytest.mark.parametrize("exc", [KeyboardInterrupt, _Interrupt, SystemExit])
+def test_an_interrupt_between_a_batchs_rollbacks_leaves_nothing_pending(db_file, tmp_path, exc):
+    from execsql.db.base import Database
+
+    other = tmp_path / "other.db"
+    with sqlite3.connect(other) as c:
+        c.execute("create table u (v text)")
+    real_rollback = Database.rollback
+    interrupted = []
+
+    def rollback(self):
+        real_rollback(self)
+        if self.db_name == str(other) and not interrupted:
+            interrupted.append(self)
+            raise exc  # after the other database's rollback, before the caller's
+
+    conn = db_SQLite(str(db_file))
+    sql = (
+        f"-- !x! connect to sqlite(file={other}) as other\n"
+        "-- !x! metacommand_error_halt off\n"
+        "-- !x! begin batch\n"
+        "-- !x! use other\ninsert into u values ('other');\n"
+        "-- !x! use initial\ninsert into t values ('batched');\n"
+        "-- !x! use no_such_alias\n"  # fails, so END BATCH rolls the batch back
+        "-- !x! end batch\n"
+    )
+    with patch.object(Database, "rollback", rollback):
+        if exc is SystemExit:
+            assert not run(sql=sql, connection=conn).success
+        else:
+            with pytest.raises(exc):
+                run(sql=sql, connection=conn)
+    assert interrupted
+    conn.execute("insert into t values ('the caller''s own');")
+    conn.commit()
+    conn.close()
+    assert _rows(db_file) == ["the caller's own"]
+
+
+def test_an_interrupt_between_a_batchs_rollbacks_at_the_prompt_leaves_nothing_pending(tmp_path):
+    # The prompt carries on after Ctrl-C, so the script's next commit would
+    # store what the interrupted rollbacks left.
+    from execsql.db.base import Database
+    from tests.test_interactive import _paused as paused
+
+    other = tmp_path / "other.db"
+    with sqlite3.connect(other) as c:
+        c.execute("create table u (v text)")
+    real_rollback = Database.rollback
+    interrupted = []
+
+    def rollback(self):
+        real_rollback(self)
+        if self.db_name == str(other) and not interrupted:
+            interrupted.append(self)
+            raise KeyboardInterrupt  # after the other database's rollback, before this one's
+
+    script = (
+        f"create table t (n integer);\n-- !x! connect to sqlite(file={other}) as other\n"
+        "-- !x! breakpoint\ninsert into t values (1);\n"
+    )
+    typed = [
+        "-- !x! metacommand_error_halt off",
+        "-- !x! begin batch",
+        "-- !x! use other",
+        "insert into u values ('other');",
+        "-- !x! use initial",
+        "insert into t values (9);",
+        "-- !x! use no_such_alias",  # fails, so END BATCH rolls the batch back
+        "-- !x! end batch",
+        ".c",
+    ]
+    with patch.object(Database, "rollback", rollback):
+        _, prompt, _, rows = paused(tmp_path, script, typed)
+    assert interrupted
+    assert "(interrupted)" in prompt
+    assert rows == [1]
+
+
+def test_a_second_interrupt_does_not_stop_the_other_rollbacks():
+    from types import SimpleNamespace
+
+    from execsql.script.executor import _roll_back_after_interrupt
+
+    rolled_back = []
+
+    class Db:
+        def __init__(self, name, autocommit=True, interrupt=False):
+            self.name, self.autocommit, self.interrupt = name, autocommit, interrupt
+
+        def rollback(self):
+            rolled_back.append(self.name)
+            if self.interrupt:
+                raise KeyboardInterrupt
+
+    pool = {"a": Db("a", interrupt=True), "b": Db("b"), "c": Db("c", autocommit=False)}
+    dbs = SimpleNamespace(aliases=lambda: list(pool), aliased_as=pool.__getitem__)
+    with pytest.raises(KeyboardInterrupt):
+        _roll_back_after_interrupt(SimpleNamespace(dbs=dbs))
+    assert rolled_back == ["a", "b"]  # not c: under AUTOCOMMIT OFF the transaction is the script's
+
+
+@pytest.mark.parametrize("landed", [0, 1, 2])
+def test_end_batch_interrupted_rolls_back_the_database_it_landed_on_and_the_rest(landed):
+    # execsql.execute() has no backstop: end_batch itself must roll back.
+    from execsql.script.control import BatchLevels
+
+    class Db:
+        autocommit = True
+
+        def __init__(self, n):
+            self.n, self.committed, self.rolled_back = n, False, False
+
+        def commit(self):
+            if self.n == landed:
+                raise KeyboardInterrupt  # before the driver's commit
+            self.committed = True
+
+        def rollback(self):
+            self.rolled_back = True
+
+    dbs = [Db(n) for n in range(3)]
+    levels = BatchLevels()
+    levels.new_batch()
+    for db in dbs:
+        levels.using_db(db)
+    with pytest.raises(KeyboardInterrupt):
+        levels.end_batch()
+    assert not levels.in_batch()
+    assert [db.committed for db in dbs] == [n < landed for n in range(3)]
+    assert [db.rolled_back for db in dbs] == [n >= landed for n in range(3)]
+
+
+def test_an_error_typed_at_the_prompt_does_not_roll_back_held_work(tmp_path):
+    # Only an interrupt rolls back what plain AUTOCOMMIT ON left held; an
+    # error typed at the prompt leaves it for the next commit, as in a script.
+    from tests.test_interactive import _paused as paused
+
+    script = (
+        "create table t (n integer);\n-- !x! autocommit off\ninsert into t values (1);\n"
+        "-- !x! autocommit on\n-- !x! breakpoint\ninsert into t values (2);\n"
+    )
+    _, _, _, rows = paused(tmp_path, script, ["-- !x! use no_such_alias", ".c"])
+    assert rows == [1, 2]
+
+
 # A metacommand that writes is interrupted the same way: EXECUTE runs a
 # procedure that writes, and the interrupt lands before EXECUTE commits.
 

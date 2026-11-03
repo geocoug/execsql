@@ -9,6 +9,7 @@ on the CLI.
 """
 
 import importlib.util
+from decimal import Decimal
 import re
 import sys
 from collections import deque
@@ -18,8 +19,8 @@ from pathlib import Path
 from typing import Any
 
 from execsql.db.base import Database, statement_start
-from execsql.db.target_types import kind_for_type_name
-from execsql.types import DataType
+from execsql.db.target_types import kind_for_type_name, kind_and_scale_for_type_name, decimal_parameter
+from execsql.types import DataType, DT_Decimal
 from execsql.exceptions import ErrInfo
 from execsql.utils.errors import exception_desc, fatal_error, install_hint
 import execsql.state as _state
@@ -171,6 +172,9 @@ class DuckDBDatabase(Database):
     on a cursor (see :class:`_SharedCursor`), so it joins that transaction
     and sees the run's temporary tables.
     """
+
+    #: Keep Decimal parameters exact across exponent/width conversion in drivers.
+    decimal_binding_precision = 38
 
     #: A transaction this adapter or a script's own BEGIN opened, not yet ended.
     in_transaction: bool = False
@@ -348,6 +352,25 @@ class DuckDBDatabase(Database):
     def _described_kind(self, description: Any) -> type[DataType] | None:
         """DuckDB describes a column by its type's name (``DECIMAL(18,3)``, ``TIMESTAMP WITH TIME ZONE``)."""
         return kind_for_type_name(str(description[1]))
+
+    def _scanned_type_converter(self, data_type: type[DataType]) -> Callable[[Any], Any]:
+        convert = super()._scanned_type_converter(data_type)
+        if data_type is not DT_Decimal:
+            return convert
+
+        def bind(value: Any) -> Any:
+            result = convert(value)
+            if isinstance(result, Decimal) and result.is_finite():
+                exponent = result.as_tuple().exponent
+                if isinstance(exponent, int) and exponent > 0:
+                    return decimal_parameter(result, self.decimal_binding_precision, "value", "target table")
+            return result
+
+        return bind
+
+    def _described_column(self, description: Any) -> tuple[type[DataType] | None, int | None]:
+        _kind, scale = kind_and_scale_for_type_name(str(description[1]))
+        return self._described_kind(description), scale
 
     def view_exists(self, view_name: str, schema_name: str | None = None) -> bool:
         """Return True if the named view exists in the DuckDB database."""

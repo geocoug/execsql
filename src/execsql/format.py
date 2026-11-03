@@ -1032,12 +1032,20 @@ def format_sql_block(
     layout_lines = [line for i, line in enumerate(lines) if line.strip() and i not in interior]
     base = min((len(line) - len(line.lstrip()) for line in layout_lines), default=0)
     target_prefix = " " * (depth * indent)
-    rebased = [line if i in interior else (line[base:] if line.strip() else "") for i, line in enumerate(lines)]
+    rebased = []
+    for i, line in enumerate(lines):
+        if i in interior:
+            rebased.append(line)
+        elif line.strip():
+            rebased.append(line[base:])
+        else:
+            rebased.append("")
 
     if not use_sql:
-        return [
-            line if i in interior else (target_prefix + line if line.strip() else "") for i, line in enumerate(rebased)
-        ]
+        for i, line in enumerate(rebased):
+            if i not in interior and line.strip():
+                rebased[i] = target_prefix + line
+        return rebased
 
     # When comments appear mid-statement, use the marker-based approach
     # which preserves both comments AND sqlglot formatting.  When all

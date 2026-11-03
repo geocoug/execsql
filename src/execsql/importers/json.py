@@ -3,7 +3,7 @@ from __future__ import annotations
 """
 JSON import for execsql.
 
-Provides :func:`import_json`, used by ``IMPORT … FORMAT json``.
+Provides :func:`import_json`, used by ``IMPORT … FROM JSON``.
 Supports JSON arrays of objects (``[{…}, …]``) and `JSON Lines
 <https://jsonlines.org/>`_ (JSONL, one object per line).  Nested
 objects are flattened with dot-separated keys; nested arrays and
@@ -12,6 +12,7 @@ maps to a scalar database value.
 """
 
 import json
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -22,30 +23,51 @@ from execsql.importers.base import import_data_table
 __all__ = ["import_json"]
 
 
+def _array_number(value: Any) -> Any:
+    """Keep the established JSON text representation of numbers inside arrays."""
+    return float(value) if isinstance(value, Decimal) else str(value)
+
+
 def _flatten(obj: Any, prefix: str = "", sep: str = ".") -> dict[str, Any]:
     """Recursively flatten a nested dict.
 
     Nested dicts produce dot-separated keys.  All other compound values
     (lists, nested lists-of-dicts) are serialized as JSON strings so the
-    result is always ``{str: scalar}``.
+    result is always ``{str: scalar}``. Distinct paths that produce the
+    same column name raise ErrInfo instead of discarding a value.
     """
     items: dict[str, Any] = {}
-    if isinstance(obj, dict):
-        for key, value in obj.items():
-            new_key = f"{prefix}{sep}{key}" if prefix else key
+    source_paths: dict[str, tuple[str, ...]] = {}
+
+    def visit(current: Any, parent: str, path: tuple[str, ...]) -> None:
+        if not isinstance(current, dict):
+            return
+        for key, value in current.items():
+            column = f"{parent}{sep}{key}" if parent else key
+            source_path = (*path, key)
             if isinstance(value, dict):
-                items.update(_flatten(value, new_key, sep))
-            elif isinstance(value, list):
-                # Serialize arrays as JSON strings — tables are flat.
-                items[new_key] = json.dumps(value, default=str)
+                visit(value, column, source_path)
             else:
-                items[new_key] = value
+                if column in items:
+                    raise ErrInfo(
+                        type="error",
+                        other_msg=(
+                            f"JSON field paths {json.dumps(source_paths[column])} and {json.dumps(source_path)} "
+                            f"flatten to the same column {column!r}. Rename the conflicting keys."
+                        ),
+                    )
+                source_paths[column] = source_path
+                items[column] = json.dumps(value, default=_array_number) if isinstance(value, list) else value
+
+    visit(obj, prefix, ())
     return items
 
 
 def _parse_json_file(filename: str, encoding: str) -> list[dict[str, Any]]:
     """Read a JSON file and return a list of flat dicts.
 
+    Fractional and exponent scalar numbers retain their exact Decimal digits;
+    integers remain int. Arrays retain their established JSON text encoding.
     Accepts either a JSON array of objects or `JSON Lines
     <https://jsonlines.org/>`_ (JSONL). The JSONL path streams the
     file line-by-line so the raw text isn't buffered alongside the
@@ -69,7 +91,7 @@ def _parse_json_file(filename: str, encoding: str) -> list[dict[str, Any]]:
         # Standard JSON array — must buffer the whole file (json.loads
         # has no streaming mode; ijson would be needed for that).
         text = Path(filename).read_text(encoding=encoding)
-        raw = json.loads(text)
+        raw = json.loads(text, parse_float=Decimal)
         if not isinstance(raw, list):
             raise ErrInfo(type="error", other_msg="JSON file root is not an array of objects.")
         records = raw
@@ -82,7 +104,7 @@ def _parse_json_file(filename: str, encoding: str) -> list[dict[str, Any]]:
                 if not line:
                     continue
                 try:
-                    obj = json.loads(line)
+                    obj = json.loads(line, parse_float=Decimal)
                 except json.JSONDecodeError as exc:
                     raise ErrInfo(
                         type="error",
@@ -126,7 +148,9 @@ def import_json(
 
     Objects are flattened so that nested keys become dot-separated column
     names (e.g. ``address.city``).  Arrays within objects are stored as
-    JSON strings.
+    JSON strings. Colliding paths within a record are rejected before
+    any table is created, replaced or populated. Fractional and exponent scalar
+    numbers are parsed as Decimal before table inference and target conversion.
     """
     from execsql.utils.errors import exception_desc
 

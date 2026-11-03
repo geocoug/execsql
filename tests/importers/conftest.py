@@ -49,7 +49,7 @@ ROWS = [
 ]
 
 
-from tests.live_db import BACKEND_NAMES, open_backend
+from tests.live_db import BACKEND_NAMES, backend_unavailable, open_backend, required_backends
 
 
 @pytest.fixture(params=BACKEND_NAMES, ids=BACKEND_NAMES)
@@ -75,11 +75,15 @@ def import_db(request, tmp_path, minimal_conf):
     pool.add("initial", db)
     _state.dbs = pool
 
-    _drop(db)
     db.dbms_name = dbms  # type: ignore[attr-defined]
-    yield db
-    _drop(db)
-    db.close()
+    try:
+        _drop(db)
+        yield db
+    finally:
+        try:
+            _drop(db)
+        finally:
+            db.close()
 
 
 def requires_local_infile(db) -> None:
@@ -96,9 +100,12 @@ def requires_local_infile(db) -> None:
             curs.execute("show global variables like 'local_infile';")
             row = curs.fetchone()
     except Exception:
+        if "mysql" in required_backends():
+            raise
         return
     if row and str(row[1]).upper() not in ("ON", "1"):
-        pytest.skip(
+        backend_unavailable(
+            "mysql",
             "MySQL server has local_infile=OFF; start it with --local-infile=1 to exercise the LOAD DATA import path",
         )
 
@@ -110,7 +117,8 @@ def _drop(db) -> None:
                 curs.execute(f"drop table if exists {table};")
             db.commit()
         except Exception:
-            pass
+            if getattr(db, "dbms_name", None) in required_backends():
+                raise
 
 
 def write_csv(path, rows=None, headers=None, delimiter=",") -> str:

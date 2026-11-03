@@ -15,9 +15,23 @@ from execsql.exceptions import ErrInfo
 from execsql.db.base import Database
 from execsql.exporters.ods import OdsFile
 from execsql.importers.base import import_data_table
+from execsql.utils.fileio import check_zip_decompression_ratio
+from execsql.utils.spreadsheet import SheetBudget
 import execsql.state as _state
 
-__all__ = ["importods", "ods_data"]
+__all__ = ["check_ods_archive", "importods", "ods_data"]
+
+
+def check_ods_archive(filename: str) -> None:
+    """Apply ODS archive limits before any reader, including sheet-name discovery."""
+    budget = SheetBudget(_state.conf, filename, "<workbook>")
+    check_zip_decompression_ratio(
+        filename,
+        max_uncompressed_mb=budget.limits["ods_max_xml_mb"],
+        max_ratio=budget.limits["ods_max_compression_ratio"],
+        xml_only=True,
+        limit_names=("ods_max_xml_mb", "ods_max_compression_ratio"),
+    )
 
 
 def ods_data(
@@ -30,15 +44,21 @@ def ods_data(
 
     conf = _state.conf
 
+    budget = SheetBudget(conf, filename, sheetname)
+    check_ods_archive(filename)
     wbk = OdsFile()
     try:
         wbk.open(filename)
     except Exception as e:
         raise ErrInfo(type="cmd", other_msg=f"{filename} is not a valid OpenDocument spreadsheet.") from e
     try:
-        alldata = wbk.sheet_data(sheetname, junk_header_rows)
+        alldata = wbk.sheet_data(sheetname, junk_header_rows, budget=budget)
+    except ErrInfo:
+        raise
     except Exception as e:
         raise ErrInfo(type="cmd", other_msg=f"{sheetname} is not a worksheet in {filename}.") from e
+    finally:
+        wbk.close()
     if not alldata:
         raise ErrInfo(type="error", other_msg=f"The input file {filename}, sheet {sheetname} contains no data.")
     colhdrs = alldata[0]
