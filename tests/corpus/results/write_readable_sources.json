@@ -1,0 +1,10 @@
+{
+ "exit": 0,
+ "files": {
+  "ddl.sql": "CREATE TABLE temp_source (\n    v varchar NOT NULL\n    );CREATE TABLE view_source (\n    v varchar NOT NULL\n    );"
+ },
+ "recorded_with": "execsql 1.130.1",
+ "stderr": "",
+ "stdout": "",
+ "tables": {}
+}

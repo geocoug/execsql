@@ -1,0 +1,8 @@
+{
+ "exit": 1,
+ "files": {},
+ "recorded_with": "execsql 1.130.1",
+ "stderr": "**** Error in metacommand.\n     Line 1 of script script.sql\n     OperationalError: no such table: missing\n     PROMPT ACTION missing MESSAGE \"Choose\"\n     Metacommand: PROMPT ACTION missing MESSAGE \"Choose\"\n     Error occurred at <TIME>.\n",
+ "stdout": "",
+ "tables": {}
+}

@@ -325,6 +325,8 @@ The legacy flat command-list engine (`_parse_script_lines` / `runscripts` / `Com
 
 ### Error Handling
 
+**Catalog lookups cannot silently discard batch work** — `IMPORT` / `COPY … TO NEW` report failed table-existence or current-schema queries as metacommand errors, failing every enclosing batch even with `METACOMMAND_ERROR_HALT OFF`. An unknown current schema returned as `None` still leaves the unqualified conflict check to `CREATE TABLE`; a query that raises is an error. `WRITE CREATE_TABLE … IN`, `PROMPT ENTRY_FORM`, and `PROMPT ACTION` read their sources directly instead of probing the catalog first. This keeps readable temporary tables and views working without catalog permissions. Upstream attempted the read after swallowing any catalog error, even when that query had rolled back earlier batch statements. Read errors now reach the existing metacommand-error path without a preceding metadata query; an open batch cannot silently commit only its remaining work (#136).
+
 - **Exception hierarchy** — All custom exceptions inherit from `ExecSqlError`, enabling `except ExecSqlError` to catch any execsql-originated error.
 - **Exception chaining** — All `raise` statements inside `except` blocks preserve the original traceback via `from`.
 - **Database and driver error messages** — End with the error itself (`OperationalError: table t already exists`). Upstream appended "in <file> on line N of execsql", a line of its own source; in the package the file was often a driver's and the line number another file's. Where in execsql the error was raised goes to `execsql.log` as `Raised at: execsql/<module>.py:<line>`.
