@@ -222,6 +222,8 @@ When the END BATCH metacommand is processed by *execsql*, a commit command is se
 
 Anything that fails inside a batch has the same result: an SQL statement, a metacommand, or SQL that a metacommand runs (EXECUTE, EXPORT QUERY, SUBDATA, SELECT_SUB, IMPORT and the like). If anything in a batch fails, the batch is not committed. A failed SQL statement has already rolled back its connection, taking the batch's earlier statements on it with it, and a metacommand's SQL may have done the same. END BATCH rolls back what the batch ran after the failure and reports an SQL error, "The batch was not committed: an error on line ….", which the test above catches. The script reaches END BATCH only if the error did not stop it: ERROR_HALT OFF for an SQL error, METACOMMAND_ERROR_HALT OFF for a metacommand error. If ERROR_HALT is ON at END BATCH (the default), the run stops there. Put a statement or metacommand that may fail, and that the script handles, outside the batch. Under AUTOCOMMIT OFF, END BATCH still reports the error, but the script's own transaction is left to its COMMIT or ROLLBACK. On a connection whose driver commits every statement (an ODBC DSN without transactions), the batch's statements were committed as they ran, whatever END BATCH reports.
 
+A failed catalog query is an error too. The table-existence checks used by IMPORT / COPY TO NEW report lookup failures as metacommand errors. A failed current-schema query for TO NEW does the same. An adapter may already have rolled back earlier statements on that connection; END BATCH therefore refuses to commit the remaining statements, even with METACOMMAND_ERROR_HALT OFF. Restore catalog access or correct the schema name before retrying.
+
 If the failing batch is nested in another, or the failure is in a nested batch, the rollback can take the enclosing batch's earlier statements with it, so the enclosing batch is rolled back at its own END BATCH instead of committing, with an error of its own ("The batch was not committed: …", naming the failure). Once anything in a batch has failed, no END BATCH in that stack of batches commits: a batch opened inside the enclosing batch afterwards is not committed either, and ROLLBACK BATCH does not undo the failure. IMPORT, COPY, EXECUTE and AUTOCOMMIT ON WITH COMMIT, which commit on their own, still do unless AUTOCOMMIT is OFF, as they do in any batch. Statements after the outermost END BATCH run and commit as usual.
 
 The BEGIN/END BATCH metacommands can be nested. However, the inner END BATCH metacommand will ordinarily commit all changes to the databases that have been used, which may include databases used in the outer batch as well. (This behavior may be DBMS-specific, and also depend on whether any additional explicit transaction control is being used.) Therefore completion of a nested batch may result in premature commitment of some or all SQL statements in the outer batch. Similarly, a ROLLBACK BATCH metacommand within the inner batch will also roll back any SQL commands sent to the same databases in the outer batch. Thus, although the BATCH commands can be nested, database transactions may not be, depending on the DBMS in use. Nesting of BATCH metacommands allows a script file or a [SCRIPT](#beginscript) containing a batch to be [INCLUDEEd](#include) or [EXECUTEEd](#executescript), respectively, within another batch.
@@ -2618,6 +2620,8 @@ This metacommand has no effect if the current DBMS is not PostgreSQL.
 
 ## PROMPT ACTION { #prompt_action }
 
+The specification can be a table, temporary table or view readable by the current connection. It is read directly, without a catalog lookup. A failed read is a metacommand error before a dialog is opened and also prevents an open [batch](#batch) from committing.
+
 ```
 PROMPT ACTION <specification_table> MESSAGE "<text>"
     [DISPLAY <table_or_view>] [COMPACT <columns>] [CONTINUE]
@@ -2827,6 +2831,8 @@ If a URL is provided with the HELP keyword, the dialog box will include a button
 <a id="prompt_entry"></a>
 
 ## PROMPT ENTRY_FORM
+
+The specification can be a table, temporary table or view readable by the current connection. It is read directly, without a catalog lookup. A failed read is a metacommand error before a dialog is opened and also prevents an open [batch](#batch) from committing.
 
 ```
 PROMPT ENTRY_FORM <specification_table> [HELP <url>] MESSAGE "<text>"
@@ -3416,6 +3422,8 @@ WRITE CREATE_TABLE <table_name> FROM <table_name>
 ```
 
 Generates the CREATE TABLE statement that would be executed prior to [importing](#import) data from the specified file or worksheet, or copying data from the specified aliased database, if the NEW or REPLACEMENT keyword were used with the [IMPORT](#import) or [COPY](#copy) metacommand. The comment text, if provided, will be written as a SQL comment preceding the CREATE TABLE statement. The comment text must be double-quoted; table, file, and worksheet names can be quoted or unquoted. If no output filename is specified, the text will be written to the console. Text will always be appended to any existing file of the given name. The output file directory will be created if it does not exist and the `make_export_dirs` [configuration setting](configuration.md#config_output) is set to "Yes". See [Example 12](../guides/examples.md#example12) for an illustration of the use of this metacommand.
+
+An aliased source can be a table, temporary table or view readable by that connection. The source is read directly, without a catalog lookup. A failed read is a metacommand error and prevents an open [batch](#batch) from committing, even with METACOMMAND_ERROR_HALT OFF.
 
 The SKIP key phrase specifies the number of lines at the beginning of the file or worksheet to discard before evaluating the remainder of the file as a data table.
 

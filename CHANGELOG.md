@@ -11,6 +11,14 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Changed
+
+- **`IMPORT` / `COPY … TO NEW`** report failed catalog checks as metacommand errors; restore catalog access before retrying. An open batch fails even with `METACOMMAND_ERROR_HALT OFF`.
+
+### Fixed
+
+- **`WRITE CREATE_TABLE … IN`, `PROMPT ENTRY_FORM`, and `PROMPT ACTION`** read sources without catalog access, preserving temporary tables and views and avoiding catalog-query rollbacks inside batches.
+
 ______________________________________________________________________
 
 ## [2.38.0] - 2026-11-03
