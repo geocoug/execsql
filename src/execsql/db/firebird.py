@@ -8,7 +8,10 @@ via the ``firebird-driver`` package.  Corresponds to ``-t f`` on the CLI.
 """
 
 
+from contextlib import ExitStack
+from threading import RLock
 from typing import Any
+from uuid import uuid4
 
 from execsql.db.base import Database
 from execsql.types import DataType, DT_Decimal
@@ -27,11 +30,13 @@ import execsql.state as _state
 
 __all__ = ["FirebirdDatabase"]
 
+_CONFIG_LOCK = RLock()
+
 
 class FirebirdDatabase(Database):
     """Firebird adapter using the firebird-driver package."""
 
-    #: No Firebird server runs in CI; this adapter has no tests.
+    #: Live Firebird tests are opt-in; no Firebird server runs in CI.
     support_tier = SupportTier.BEST_EFFORT
     support_tier_name = "Firebird"
 
@@ -92,24 +97,29 @@ class FirebirdDatabase(Database):
         connect_timeout = 30
 
         def db_conn():
-            if self.user and self.password:
-                return firebird_lib.connect(
-                    host=self.server_name,
-                    database=self.db_name,
-                    port=self.port,
-                    user=self.user,
-                    password=self.password,
-                    charset=self.encoding,
-                    timeout=connect_timeout,
-                )
-            else:
-                return firebird_lib.connect(
-                    host=self.server_name,
-                    database=self.db_name,
-                    port=self.port,
-                    charset=self.encoding,
-                    timeout=connect_timeout,
-                )
+            # firebird-driver takes connection options through named configs,
+            # not connect(host=, port=, timeout=). Private configs leave the
+            # process-wide defaults and other concurrent connections alone.
+            config_name = f"execsql_{uuid4().hex}"
+            config = firebird_lib.driver_config
+            with _CONFIG_LOCK, ExitStack() as cleanup:
+                server = config.register_server(config_name)
+                cleanup.callback(config.servers.value.remove, server)
+                server.host.value = self.server_name
+                server.port.value = str(self.port)
+                database = config.register_database(config_name)
+                cleanup.callback(config.databases.value.remove, database)
+                database.server.value = config_name
+                database.database.value = self.db_name
+                database.timeout.value = connect_timeout
+                if self.user and self.password:
+                    return firebird_lib.connect(
+                        config_name,
+                        user=self.user,
+                        password=self.password,
+                        charset=self.encoding,
+                    )
+                return firebird_lib.connect(config_name, charset=self.encoding)
 
         if self.conn is None:
             try:
@@ -189,7 +199,8 @@ class FirebirdDatabase(Database):
                     other_msg=f"Failed test for existence of Firebird table {table_name}",
                 ) from e
             rows = curs.fetchall()
-        self.conn.commit()
+        if not self.holding():
+            self.commit()
         return len(rows) > 0
 
     def column_exists(
@@ -268,4 +279,4 @@ class FirebirdDatabase(Database):
         """Drop *tablename*, schema-qualified and quoted by the caller."""
         # Firebird will thrown an error if there are foreign keys into the table.
         self.execute(f"DROP TABLE {tablename};")
-        self.conn.commit()
+        self.commit_now()

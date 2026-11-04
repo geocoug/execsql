@@ -19,6 +19,10 @@ ______________________________________________________________________
 
 ### Fixed
 
+- **Firebird** table checks preserve pending work under `AUTOCOMMIT OFF` and inside batches; failed catalog and `IMPORT` / `COPY` DDL commits roll back instead of leaving work for a later commit.
+
+- **Firebird connections** accept the configured host, port and 30-second timeout with the `firebird-driver` extra.
+
 - **`WRITE CREATE_TABLE … IN`, `PROMPT ENTRY_FORM`, and `PROMPT ACTION`** read sources without catalog access, preserving temporary tables and views and avoiding catalog-query rollbacks inside batches.
 
 ______________________________________________________________________

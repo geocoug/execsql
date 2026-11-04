@@ -16,7 +16,6 @@ from execsql.exceptions import ErrInfo
 from execsql.db.base import Database
 from execsql.importers.base import refuse_existing_table
 import execsql.state as _state
-from execsql.types import dbt_firebird
 
 __all__ = ["importfile", "importtable"]
 
@@ -66,10 +65,9 @@ def importtable(
                 ) from e
         try:
             db.execute(sql)
-            # Don't commit table creation here; the commit will be done after data import
-            # ...except for Firebird.  Execute the commit directly via the connection so it is always done.
-            if db.type == dbt_firebird:
-                db.conn.commit()
+            # Firebird requires the DDL committed before the new table is used.
+            if db.needs_explicit_commit_after_ddl():
+                db.commit_now()
         except Exception as e:
             raise ErrInfo(
                 type="db",

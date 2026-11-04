@@ -1981,5 +1981,13 @@
    },
    "why": "An unevaluable WAIT_UNTIL condition stops the run even with ERROR_HALT OFF and METACOMMAND_ERROR_HALT OFF; a failed check must not be skipped. Upstream continued after the condition error. Open batches are abandoned before the error hook instead of allowing later statements to commit a partial batch (#117; divergence: A condition that cannot be evaluated stops the run)."
   }
+ },
+ "firebird_catalog_holds": {
+  "files/rows.csv": {
+   "status": "accepted",
+   "upstream": "V\n1\n",
+   "execsql2": "V\n",
+   "why": "Firebird TABLE_EXISTS no longer commits held writes under AUTOCOMMIT OFF or in a batch (#138). The explicit rollback now removes the row."
+  }
  }
 }

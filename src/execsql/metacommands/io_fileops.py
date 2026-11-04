@@ -174,7 +174,7 @@ def _copy_rows(
                 ) from e
         db2.execute(create_tbl)
         if db2.needs_explicit_commit_after_ddl():
-            db2.execute("COMMIT;")
+            db2.commit_now()
 
     def get_ts() -> DataTable:
         nonlocal get_ts_tablespec

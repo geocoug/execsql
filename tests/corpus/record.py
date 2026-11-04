@@ -20,7 +20,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from tests.corpus.runner import RESULTS, case_names, run_case
+from tests.corpus.runner import RESULTS, case_names, requires_firebird, run_case
 
 UPSTREAM_VERSION = "1.130.1"
 _MAIN = "import sys; sys.argv[0] = 'execsql'; from execsql.execsql import main; main()"
@@ -41,6 +41,11 @@ def main(names: list[str]) -> None:
     command = [str(upstream_python()), "-c", _MAIN]
     RESULTS.mkdir(exist_ok=True)
     for case in names or case_names():
+        if requires_firebird(case) and not os.environ.get("EXECSQL_FIREBIRD_DATABASE"):
+            if names:
+                raise SystemExit(f"{case}: set EXECSQL_FIREBIRD_DATABASE to a disposable Firebird database")
+            print(f"{case}: skipped (Firebird not configured)")
+            continue
         with tempfile.TemporaryDirectory() as tmp:
             result = run_case(case, command, Path(tmp) / "work")
         result["recorded_with"] = f"execsql {UPSTREAM_VERSION}"

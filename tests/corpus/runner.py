@@ -27,6 +27,10 @@ one machine at one time compare on another.  Line endings are compared as
 programs write text files with ``\r\n``.  Standard input is empty, so a
 prompt cannot wait for an answer.
 
+Cases containing a ``requires-firebird`` marker use the disposable server
+configured by ``EXECSQL_FIREBIRD_*`` instead of SQLite and export their
+observations to files. They require an explicit database setting.
+
 ``execsql.log`` is left out: its records carry timestamps and a run id,
 and the log format is not something a script reads.
 """
@@ -62,6 +66,10 @@ def case_names() -> list[str]:
     return sorted(p.name for p in CASES.iterdir() if (p / "script.sql").is_file())
 
 
+def requires_firebird(case: str) -> bool:
+    return (CASES / case / "requires-firebird").is_file()
+
+
 def run_case(case: str, command: list[str], workdir: Path, *, timeout: int = 30) -> dict[str, Any]:
     """Run *case* with *command* (the execsql to call, without its arguments) in the empty *workdir*."""
     source = CASES / case
@@ -79,8 +87,25 @@ def run_case(case: str, command: list[str], workdir: Path, *, timeout: int = 30)
             "PYTHONIOENCODING": "utf-8",
         },
     )
+    arguments = ["-t", "l", "-n", "script.sql", DB_NAME]
+    if requires_firebird(case):
+        # Both drivers read credentials from these variables. Never put a
+        # password in a recorded script, command line or result.
+        database = os.environ["EXECSQL_FIREBIRD_DATABASE"]
+        env["ISC_USER"] = os.environ.get("EXECSQL_FIREBIRD_USER", "SYSDBA")
+        env["ISC_PASSWORD"] = os.environ.get("EXECSQL_FIREBIRD_PASSWORD", "masterkey")
+        arguments = [
+            "-t",
+            "f",
+            "-w",
+            "-p",
+            os.environ.get("EXECSQL_FIREBIRD_PORT", "3050"),
+            "script.sql",
+            os.environ.get("EXECSQL_FIREBIRD_HOST", "localhost"),
+            database,
+        ]
     proc = subprocess.run(
-        [*command, "-t", "l", "-n", "script.sql", DB_NAME],
+        [*command, *arguments],
         cwd=workdir,
         env=env,
         stdin=subprocess.DEVNULL,

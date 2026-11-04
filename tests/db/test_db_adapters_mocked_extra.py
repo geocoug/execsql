@@ -397,7 +397,13 @@ def test_drop_table_does_not_quote_the_name_again(module, cls, dbtype):
     adapter = getattr(importlib.import_module(f"execsql.db.{module}"), cls)
     dbt = getattr(dbtypes, dbtype)
     name = f"{dbt.quoted('stage area')}.{dbt.quoted('my tbl')}"
-    fake = SimpleNamespace(type=dbt, execute=MagicMock(), conn=MagicMock(), dao_flush_check=lambda: None)
+    fake = SimpleNamespace(
+        type=dbt,
+        execute=MagicMock(),
+        conn=MagicMock(),
+        commit_now=MagicMock(),
+        dao_flush_check=lambda: None,
+    )
     adapter.drop_table(fake, name)
     executed = fake.execute.call_args[0][0]
     assert f" {name}" in executed
