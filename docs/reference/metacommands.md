@@ -60,7 +60,9 @@ Evaluates `<condition>` using the same expression engine as [IF](#if_cmd). If th
 
 A failed assertion produces `**** Assertion failed.` (not `**** Error in metacommand.`) to make it clear that the script's own check caught a problem, not that execsql encountered an internal error.
 
-When [HALT_ON_METACOMMAND_ERROR](#config) is `ON` (the default), a failed assertion halts the script. When it is `OFF`, execution continues after the failure is logged.
+When [METACOMMAND_ERROR_HALT](#metacommanderrorhalt) is `ON` (the default), a condition that evaluates to false halts the script with an assertion failure. When it is `OFF`, execution continues after that failure is recorded.
+
+A condition that cannot be parsed or evaluated always stops the run, even with METACOMMAND_ERROR_HALT OFF and ERROR_HALT OFF. This includes an unknown test, malformed arguments, or a database error inside a test such as `HASROWS(missing_table)`. Correct the condition or the underlying query; turning off error halting does not skip the check.
 
 The `<condition>` supports all [conditional tests](metacommands.md#conditional_tests) available to `IF`, including:
 
@@ -2242,7 +2244,7 @@ METACOMMAND_ERROR_HALT ON|OFF
 
 When METACOMMAND_ERROR_HALT is set to ON, which is the default, any errors that occur during execution of a metacommand will cause an error message to be displayed immediately, and *execsql* to halt. When METACOMMAND_ERROR_HALT is set to OFF, then metacommand errors will be ignored, but can be evaluated with the [IF METACOMMAND_ERROR](#metacommanderror) conditional; `$LAST_ERROR` and `$ERROR_MESSAGE` hold the failed metacommand and its message. Inside a [BATCH](#batch), a metacommand error that the script carries on from still keeps the batch from being committed: END BATCH rolls it back and reports an SQL error.
 
-A condition that cannot be evaluated is not covered by this setting: an `IF`, `ELSEIF`, `ANDIF`, `ORIF`, `LOOP` or `EXECUTE SCRIPT … WHILE` / `UNTIL` whose condition names an unknown test or is malformed (`IF (NO_SUCH_FN(x))`), or whose test fails in the database (`HASROWS(no_such_table)`), stops the run even with METACOMMAND_ERROR_HALT OFF, because no branch can be chosen. `execsql lint` reports an unknown test or malformed condition before a run (P004); a test that fails in the database shows up only when the script runs.
+A condition that cannot be evaluated is not covered by this setting: an `IF`, `ELSEIF`, `ANDIF`, `ORIF`, `LOOP`, `ASSERT`, `WAIT_UNTIL` or `EXECUTE SCRIPT … WHILE` / `UNTIL` whose condition names an unknown test or is malformed (`IF (NO_SUCH_FN(x))`), or whose test fails in the database (`HASROWS(no_such_table)`), stops the run even with METACOMMAND_ERROR_HALT OFF and ERROR_HALT OFF. Its condition has no valid result, so the script cannot safely proceed. `execsql lint` reports an unknown test or malformed condition before a run (P004); a test that fails in the database shows up only when the script runs. A valid false ASSERT still follows METACOMMAND_ERROR_HALT, and WAIT_UNTIL still follows its timeout clause when a valid condition remains false.
 
 The METACOMMAND_ERROR_HALT metacommand does not itself set or reset the internal flag that indicates whether a metacommand has encountered an error. This is so that a "METACOMMAND_ERROR_HALT Off" command can be used immediately after a potentially-failing metacommand and not alter the error flag that is set by the previous command. Specifically, constructions like this:
 
@@ -3362,6 +3364,8 @@ WAIT_UNTIL <conditional_expression> HALT|CONTINUE AFTER <n> SECONDS
 Suspends execution of the SQL script until the specified conditional expression becomes true. The conditional expressions that can be used with the WAIT_UNTIL metacommand are the same as those that can be used with the [IF](#if_cmd) metacommands.
 
 The condition is tested once per second for up to \<n\> seconds. If the condition has not become true by that time, then the script either halts or continues, as specified.
+
+If a tested condition cannot be parsed or evaluated, the run stops immediately, even with METACOMMAND_ERROR_HALT OFF and ERROR_HALT OFF. This applies to every poll, including a database error after earlier polls returned false. CONTINUE applies only to a valid condition that stays false until the timeout; it does not skip a condition error.
 
 The primary purpose of the WAIT_UNTIL metacommand is to allow synchronization with a separate process. Checks for table, view, or file existence, or number of rows in a table, are tests that are therefore likely to be used in the conditional expression.
 

@@ -1,0 +1,4 @@
+-- !x! ERROR_HALT OFF
+-- !x! METACOMMAND_ERROR_HALT OFF
+-- !x! WAIT_UNTIL NO_SUCH_FN(x) CONTINUE AFTER 1 SECONDS
+-- !x! WRITE "after bad condition" TO after.txt

@@ -35,9 +35,20 @@ from typing import Any
 import execsql.state as _state
 from execsql.gui.base import format_table, row_count_text
 from execsql.script import current_script_line
-from execsql.utils.errors import exit_now
+from execsql.utils.errors import exception_desc, exit_now
 from execsql.utils.fileio import EncodedFile, check_dir
 from execsql.utils.gui import GUI_HALT, GuiSpec, enable_gui, gui_console_isrunning
+
+
+def _condition_value(condition: str) -> bool:
+    """Evaluate a required condition; an evaluation error cannot be ignored."""
+    try:
+        return _state.xcmd_test(condition)
+    except ErrInfo as error:
+        error.always_halt = True
+        raise
+    except Exception as error:
+        raise ErrInfo("cmd", exception_msg=exception_desc(), always_halt=True) from error
 
 
 def x_assert(**kwargs: Any) -> None:
@@ -66,7 +77,7 @@ def x_assert(**kwargs: Any) -> None:
     else:
         message = f"Assertion failed: {condition}"
 
-    result = _state.xcmd_test(condition)
+    result = _condition_value(condition)
     if result:
         if _state.exec_log is not None:
             _state.exec_log.log_user_msg(f"ASSERT passed: {condition}")
@@ -199,7 +210,7 @@ def x_break(**kwargs: Any) -> None:
 def x_wait_until(**kwargs: Any) -> None:
     countdown = int(kwargs["seconds"])
     while countdown > 0:
-        if _state.xcmd_test(kwargs["condition"]):
+        if _condition_value(kwargs["condition"]):
             return
         time.sleep(1)
         countdown -= 1

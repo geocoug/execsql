@@ -8,6 +8,7 @@ prompt runs inside the paused script exactly as it would for a user.
 from __future__ import annotations
 
 import sqlite3
+from contextlib import closing
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -45,7 +46,8 @@ def _paused(tmp_path, script: str, typed: list[str]):
         patch("execsql.debug.repl._use_color", return_value=False),
     ):
         result = run(sql=script, dsn=f"sqlite:///{db}", new_db=True)
-    rows = sqlite3.connect(db).execute("select n from t order by n").fetchall()
+    with closing(sqlite3.connect(db)) as observer:
+        rows = observer.execute("select n from t order by n").fetchall()
     return result, "".join(out), feed, [r[0] for r in rows]
 
 

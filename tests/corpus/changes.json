@@ -1912,5 +1912,74 @@
    },
    "why": "A failed IMPORT TO NEW catalog query reaches metacommand error handling and fails the batch, even with METACOMMAND_ERROR_HALT OFF. END BATCH rolls back the remaining statements and reports failure instead of committing a partial batch (#136; divergence: Catalog lookups cannot silently discard batch work)."
   }
+ },
+ "wait_until_bad_condition": {
+  "exit": {
+   "execsql2": 1,
+   "status": "accepted",
+   "upstream": 0,
+   "why": "An unevaluable WAIT_UNTIL condition stops the run even with ERROR_HALT OFF and METACOMMAND_ERROR_HALT OFF; a failed check must not be skipped. Upstream continued after the condition error. Open batches are abandoned before the error hook instead of allowing later statements to commit a partial batch (#117; divergence: A condition that cannot be evaluated stops the run)."
+  },
+  "files/after.txt": {
+   "execsql2": null,
+   "status": "accepted",
+   "upstream": "after bad condition\n",
+   "why": "An unevaluable WAIT_UNTIL condition stops the run even with ERROR_HALT OFF and METACOMMAND_ERROR_HALT OFF; a failed check must not be skipped. Upstream continued after the condition error. Open batches are abandoned before the error hook instead of allowing later statements to commit a partial batch (#117; divergence: A condition that cannot be evaluated stops the run)."
+  },
+  "stderr": {
+   "execsql2": "**** Error in metacommand.\n     Line 3 of script script.sql\n     CondParserError: Conditional expression parser did not consume entire string; remainder = _SUCH_FN(x).\n     Metacommand: WAIT_UNTIL NO_SUCH_FN(x) CONTINUE AFTER 1 SECONDS\n     Error occurred at <TIME>.\n",
+   "status": "accepted",
+   "upstream": "",
+   "why": "An unevaluable WAIT_UNTIL condition stops the run even with ERROR_HALT OFF and METACOMMAND_ERROR_HALT OFF; a failed check must not be skipped. Upstream continued after the condition error. Open batches are abandoned before the error hook instead of allowing later statements to commit a partial batch (#117; divergence: A condition that cannot be evaluated stops the run)."
+  }
+ },
+ "wait_until_condition_database_error": {
+  "exit": {
+   "execsql2": 1,
+   "status": "accepted",
+   "upstream": 0,
+   "why": "An unevaluable WAIT_UNTIL condition stops the run even with ERROR_HALT OFF and METACOMMAND_ERROR_HALT OFF; a failed check must not be skipped. Upstream continued after the condition error. Open batches are abandoned before the error hook instead of allowing later statements to commit a partial batch (#117; divergence: A condition that cannot be evaluated stops the run)."
+  },
+  "files/after.txt": {
+   "execsql2": null,
+   "status": "accepted",
+   "upstream": "after batch\n",
+   "why": "An unevaluable WAIT_UNTIL condition stops the run even with ERROR_HALT OFF and METACOMMAND_ERROR_HALT OFF; a failed check must not be skipped. Upstream continued after the condition error. Open batches are abandoned before the error hook instead of allowing later statements to commit a partial batch (#117; divergence: A condition that cannot be evaluated stops the run)."
+  },
+  "stderr": {
+   "execsql2": "**** Error in SQL statement.\n     Line 6 of script script.sql\n     OperationalError: no such table: missing\n     select count(*) from \"missing\";\n     Metacommand: WAIT_UNTIL HASROWS(missing) CONTINUE AFTER 1 SECONDS\n     Error occurred at <TIME>.\n",
+   "status": "accepted",
+   "upstream": "",
+   "why": "An unevaluable WAIT_UNTIL condition stops the run even with ERROR_HALT OFF and METACOMMAND_ERROR_HALT OFF; a failed check must not be skipped. Upstream continued after the condition error. Open batches are abandoned before the error hook instead of allowing later statements to commit a partial batch (#117; divergence: A condition that cannot be evaluated stops the run)."
+  },
+  "tables/t": {
+   "execsql2": {
+    "columns": [
+     [
+      "v",
+      "TEXT"
+     ]
+    ],
+    "rows": []
+   },
+   "status": "accepted",
+   "upstream": {
+    "columns": [
+     [
+      "v",
+      "TEXT"
+     ]
+    ],
+    "rows": [
+     [
+      [
+       "text",
+       "'after condition'"
+      ]
+     ]
+    ]
+   },
+   "why": "An unevaluable WAIT_UNTIL condition stops the run even with ERROR_HALT OFF and METACOMMAND_ERROR_HALT OFF; a failed check must not be skipped. Upstream continued after the condition error. Open batches are abandoned before the error hook instead of allowing later statements to commit a partial batch (#117; divergence: A condition that cannot be evaluated stops the run)."
+  }
  }
 }

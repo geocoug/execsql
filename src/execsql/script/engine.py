@@ -128,7 +128,7 @@ class MetaCommand:
             if er:
                 # The caller records the error ($LAST_ERROR, $ERROR_MESSAGE,
                 # the log, the error history) and halts or carries on.
-                if self.set_error_flag or _state.status.halt_on_metacommand_err:
+                if self.set_error_flag or _state.status.halt_on_metacommand_err or er.always_halt:
                     raise er
             else:
                 if self.set_error_flag:
