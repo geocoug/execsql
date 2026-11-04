@@ -451,7 +451,7 @@ def _metacommand_failed(
     if ctx.exec_log is not None:
         ctx.exec_log.log_status_info(f"Metacommand error: {logged_error(e)}")
     _fail_open_batches(ctx, source, line_no)
-    if status.halt_on_metacommand_err or always_halt:
+    if status.halt_on_metacommand_err or always_halt or e.always_halt:
         exit_now(1, e)
     status.error_history.append((source, line_no, cmd, e.errmsg()))
 

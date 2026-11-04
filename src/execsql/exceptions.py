@@ -108,6 +108,8 @@ class ErrInfo(ExecSqlError):
 
     ``eval_err()`` / ``write()`` remain available for the full formatted
     message including script location, timestamp, and command context.
+    ``always_halt`` makes a metacommand failure stop execution regardless
+    of the metacommand-error setting, such as an unevaluable condition.
     """
 
     def __repr__(self) -> str:
@@ -122,6 +124,8 @@ class ErrInfo(ExecSqlError):
         command_text: str | None = None,
         exception_msg: str | None = None,
         other_msg: str | None = None,
+        *,
+        always_halt: bool = False,
     ) -> None:
         self.type: str = type
         self.command: str | None = command_text
@@ -132,6 +136,7 @@ class ErrInfo(ExecSqlError):
         self.cmd: str | None = None
         self.cmdtype: str | None = None
         self.error_message: str | None = None
+        self.always_halt = always_halt
         # Pass a concise message to Exception so str(e), e.args, and
         # standard loggers produce useful output.
         super().__init__(self.other or self.exception or self.type)

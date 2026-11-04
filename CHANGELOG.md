@@ -13,6 +13,8 @@ ______________________________________________________________________
 
 ### Changed
 
+- **`ASSERT` and `WAIT_UNTIL`** stop when a condition cannot be parsed or evaluated, even with `METACOMMAND_ERROR_HALT OFF`. Correct the condition or its query instead of skipping the check.
+
 - **`IMPORT` / `COPY … TO NEW`** report failed catalog checks as metacommand errors; restore catalog access before retrying. An open batch fails even with `METACOMMAND_ERROR_HALT OFF`.
 
 ### Fixed
