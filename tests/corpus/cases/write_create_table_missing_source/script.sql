@@ -1,1 +1,1 @@
--- !x! WRITE CREATE_TABLE missing FROM output IN initial
+-- !x! WRITE CREATE_TABLE missing FROM missing IN initial

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
+from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
@@ -17,9 +18,12 @@ _COMMANDS = [
     pytest.param("IMPORT TO NEW lookup FROM JSON {d}/input.json", False, id="json"),
     pytest.param("COPY source FROM initial TO NEW lookup IN initial", False, id="copy"),
     pytest.param("IMPORT TO NEW lookup FROM {d}/input.csv", True, id="current-schema"),
-    pytest.param("WRITE CREATE_TABLE lookup FROM output IN initial", False, id="write"),
-    pytest.param('PROMPT ENTRY_FORM lookup MESSAGE "Enter values"', False, id="entry-form"),
-    pytest.param('PROMPT ACTION lookup MESSAGE "Choose"', False, id="action"),
+]
+
+_READ_COMMANDS = [
+    "WRITE CREATE_TABLE lookup FROM output IN initial",
+    'PROMPT ENTRY_FORM lookup MESSAGE "Enter values"',
+    'PROMPT ACTION lookup MESSAGE "Choose"',
 ]
 
 
@@ -36,8 +40,6 @@ def test_catalog_failure_is_reported_and_cannot_commit_a_partial_batch(
     (tmp_path / "input.json").write_text('[{"v": "loaded"}]', encoding="utf-8")
     db = SQLiteDatabase(str(tmp_path / "t.db"))
     db.conn.executescript("create table t (v text); create table source (v text);")
-    if command.startswith(("WRITE", "PROMPT")):
-        db.conn.execute("create table lookup (v text)")
     lookup = Mock()
     original = SQLiteDatabase.table_exists
 
@@ -100,20 +102,19 @@ def test_catalog_failure_is_reported_and_cannot_commit_a_partial_batch(
         'PROMPT ACTION missing MESSAGE "Choose"',
     ],
 )
-def test_missing_table_reports_the_check_error_before_reading_or_opening_a_dialog(tmp_path, monkeypatch, command):
+def test_missing_table_reports_the_read_error_without_opening_a_dialog(tmp_path, monkeypatch, command):
     gui = Mock(side_effect=AssertionError("A missing table must not open a dialog"))
     monkeypatch.setattr("execsql.metacommands.prompt.enable_gui", gui)
     result = run(sql=f"-- !x! {command}\n", dsn=f"sqlite:///{tmp_path / 't.db'}", new_db=True)
     assert not result.success
-    assert "Table missing does not exist" in result.errors[0].message
+    assert "no such table: missing" in result.errors[0].message
     assert result.errors[0].line == 1
-    assert "no such table" not in result.errors[0].message
     gui.assert_not_called()
 
 
-@pytest.mark.parametrize("command", [p.values[0] for p in _COMMANDS if not p.values[1]])
-def test_real_sqlite_catalog_error_rolls_back_the_batch(tmp_path, command):
-    """An unknown attached schema fails inside SQLite's actual catalog query."""
+@pytest.mark.parametrize("command", [p.values[0] for p in _COMMANDS if not p.values[1]] + _READ_COMMANDS)
+def test_real_sqlite_catalog_or_source_error_rolls_back_the_batch(tmp_path, command):
+    """An unknown attached schema fails inside SQLite's actual catalog query or SELECT."""
     (tmp_path / "input.csv").write_text("v\nloaded\n", encoding="utf-8")
     (tmp_path / "input.json").write_text('[{"v": "loaded"}]', encoding="utf-8")
     command = command.replace("lookup", "missing_schema.lookup").format(d=tmp_path)
@@ -128,8 +129,39 @@ def test_real_sqlite_catalog_error_rolls_back_the_batch(tmp_path, command):
     )
     result = run(sql=script, dsn=f"sqlite:///{tmp_path / 't.db'}", new_db=True)
     assert not result.success
-    assert "missing_schema.sqlite_master" in result.errors[0].message
+    assert "missing_schema." in result.errors[0].message
     assert result.variables["lookup_failed"] == "yes"
     assert result.variables["batch_failed"] == "yes"
     with sqlite3.connect(tmp_path / "t.db") as observer:
         assert observer.execute("select v from t").fetchall() == []
+
+
+@pytest.mark.parametrize("source_kind", ["temp table", "view"])
+@pytest.mark.parametrize(
+    ("command", "query"),
+    [
+        (_READ_COMMANDS[0], "select 1 as v"),
+        (_READ_COMMANDS[1], "select 'answer' as sub_var, 'Value' as prompt"),
+        (_READ_COMMANDS[2], "select 'Run' as label, 'Run script' as prompt, 'noop' as script"),
+    ],
+)
+def test_readable_sources_need_no_catalog_access(tmp_path, monkeypatch, source_kind, command, query):
+    import execsql.state as state
+
+    catalog = Mock(side_effect=AssertionError("Read-only sources need no catalog query"))
+    monkeypatch.setattr(SQLiteDatabase, "table_exists", catalog)
+    dialogs = []
+
+    def respond(spec):
+        dialogs.append(spec)
+        spec.return_queue.put({"button": 1, "return_value": []})
+
+    def enable_gui():
+        state.gui_manager_queue = SimpleNamespace(put=respond)
+
+    monkeypatch.setattr("execsql.metacommands.prompt.enable_gui", enable_gui)
+    script = f"create {source_kind} lookup as {query};\n-- !x! {command}\n"
+    result = run(sql=script, dsn=f"sqlite:///{tmp_path / 't.db'}", new_db=True)
+    assert result.success, result.errors
+    catalog.assert_not_called()
+    assert len(dialogs) == (1 if command.startswith("PROMPT") else 0)

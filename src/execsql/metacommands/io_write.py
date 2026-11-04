@@ -182,12 +182,6 @@ def x_write_create_table_alias(**kwargs: Any) -> None:
         )
     db = _state.dbs.aliased_as(alias)
     tbl = db.schema_qualified_table_name(schema, table)
-    if not db.table_exists(table, schema):
-        raise ErrInfo(
-            type="cmd",
-            command_text=kwargs["metacommandline"],
-            other_msg=f"Table {tbl} does not exist",
-        )
     select_stmt = f"select * from {tbl};"
     try:
         hdrs, rows = db.select_rowsource(select_stmt)

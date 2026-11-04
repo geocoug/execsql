@@ -13,11 +13,11 @@ ______________________________________________________________________
 
 ### Changed
 
-- **`IMPORT` / `COPY … TO NEW`, `WRITE CREATE_TABLE … IN`, `PROMPT ENTRY_FORM`, and `PROMPT ACTION`** report failed catalog checks as metacommand errors; restore catalog access before retrying. An open batch fails even with `METACOMMAND_ERROR_HALT OFF`.
+- **`IMPORT` / `COPY … TO NEW`** report failed catalog checks as metacommand errors; restore catalog access before retrying. An open batch fails even with `METACOMMAND_ERROR_HALT OFF`.
 
 ### Fixed
 
-- **`WRITE CREATE_TABLE … IN`, `PROMPT ENTRY_FORM`, and `PROMPT ACTION`** report a missing source or specification table before trying to read it.
+- **`WRITE CREATE_TABLE … IN`, `PROMPT ENTRY_FORM`, and `PROMPT ACTION`** read sources without catalog access, preserving temporary tables and views and avoiding catalog-query rollbacks inside batches.
 
 ______________________________________________________________________
 
