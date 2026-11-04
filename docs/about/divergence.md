@@ -295,16 +295,29 @@ All 33 mutable runtime globals in `state.py` have been consolidated into a `Runt
 ### Database Adapters
 
 - **PostgreSQL driver is psycopg3** — the PostgreSQL adapter uses `psycopg` (psycopg3, installed via the `psycopg[binary]` extra) instead of upstream's `psycopg2`. The connection now passes the libpq `dbname` keyword (psycopg3 rejects psycopg2's `database`), `VACUUM` toggles `conn.autocommit` instead of the removed `set_session()`, server-side `COPY` import uses psycopg3's `cursor.copy()` context manager instead of `copy_expert()`, and binary `IMPORT` sends raw `bytes` instead of `psycopg2.Binary()`. This also makes `db.conn` directly usable by the `PG_UPSERT` metacommand's pg-upsert ≥1.26.0 dependency, which itself requires a psycopg3 connection. The connection sets `prepare_threshold=None` to disable psycopg3's automatic server-side prepared statements, which psycopg2 never used; without this, re-running a query (e.g. via `EXPORT`) against an object the script drops/recreates or alters raises `FeatureNotSupported: cached plan must not change result type`.
+
 - **Oracle driver is python-oracledb** — the Oracle adapter imports `oracledb`, the driver the `oracle` extra installs, instead of upstream's `cx_Oracle` (which ships no wheels for Python 3.12+). The `makedsn` / `connect` calls are the same. `cx_Oracle` is still used when it is the only Oracle driver installed.
+
 - **SQL Server tries ODBC Driver 18 first** — upstream's driver list stopped at Driver 17, so a machine with only Microsoft's current driver could not connect. Driver 18 encrypts the connection and verifies the server's certificate; the `trust_server_certificate` setting accepts a self-signed one.
+
 - **DuckDB bulk inserts** — `IMPORT`, `COPY` and `EXPORT ... AS DUCKDB` insert many rows per `INSERT ... VALUES` statement instead of `executemany()`, which DuckDB runs one row at a time; the values stored are the same. While binding them, and only when pandas is not installed, `sys.modules["pandas"]` is `None`: the duckdb package looks pandas up twice per row, and without that entry each lookup searched `sys.path`.
+
 - **Each pyodbc connection is a new session** — the SQL Server, Access and ODBC DSN adapters set `pyodbc.pooling = False` before they connect. With pyodbc's default pooling, unixODBC (macOS, Linux) handed a closed connection's session unchanged to the next connection to the same server, so temp tables and `SET` options from one `CONNECT`, or one `execsql.run()`, were still there in the next. pyodbc applies the setting at the process's first pyodbc connection, so it also covers other pyodbc connections the process makes, and has no effect if the program connected with pyodbc before execsql did.
+
 - **`Database` is an ABC** — `open_db()` and `exec_cmd()` are abstract methods. Subclasses that omit them raise `TypeError` at instantiation instead of at call time.
+
 - **Connection timeouts** — PostgreSQL and SQLite adapters accept a connection timeout parameter (default 30 seconds).
+
 - **DuckDB temporal types** — `TIMESTAMPTZ`, `TIMESTAMP`, `DATE`, `TIME` now map to native DuckDB types instead of `TEXT`.
+
+- **Firebird transaction boundaries** — `TABLE_EXISTS` and internal table checks no longer commit while AUTOCOMMIT is OFF or a batch is open. A failed catalog or mandatory DDL commit rolls back its transaction, including failures during IMPORT / COPY NEW or REPLACEMENT, instead of leaving work for a later commit. Successful mandatory DDL commits still commit all pending work even under AUTOCOMMIT OFF. Connections use the modern driver's named configuration API for host, port and the 30-second timeout.
+
 - **`Database.auto_commits_ddl()` not provided** — 2.18.0 shipped this capability hook on the base `Database` class with `True` overrides on Oracle, MySQL, SQL Server, and MS Access. No call site ever consumed the hook, so 2.19.0 removed it. Its replacement is `Database.implicit_commit_rx`: MySQL and Oracle name the statements their server commits on its own (DDL), and a warning is written when one runs while `AUTOCOMMIT` is `OFF` or a batch is open. SQL Server holds DDL in a transaction like any other statement. (The companion hook `Database.needs_explicit_commit_after_ddl()`, used by the Firebird import path, remains.)
+
 - **Statements are held until commit on every adapter** — while `AUTOCOMMIT` is `OFF` or a batch is open, `Database.before_statement()` makes sure each statement is inside a transaction. Most drivers already opened one; SQLite's (Python's `sqlite3`) opened one only before `INSERT`/`UPDATE`/`DELETE`/`REPLACE`, and DuckDB's never did, so upstream committed SQLite DDL, and every DuckDB statement, at once. SQLite now begins a transaction before other statements (except `VACUUM`, `ATTACH`, `DETACH`, `PRAGMA`); DuckDB begins one itself and tracks it.
+
 - **DuckDB statements share one connection** — a DuckDB cursor is a separate connection with its own transaction and its own temporary tables, and upstream ran each statement on a new cursor, so a `CREATE TEMPORARY TABLE` was gone by the next statement and a held transaction did not cover them. Every statement now runs on the database's one connection. That connection holds one result at a time, so when a statement runs while another query's rows are still being read (`COPY` scans its source while reading it), the unread rows are fetched into memory first; an `EXPORT` still streams.
+
 - **DuckDB `$LAST_ROWCOUNT`** — the duckdb driver's `rowcount` is always `-1`; DuckDB answers an `INSERT`, `UPDATE` or `DELETE` with a one-column `Count` result instead. The DuckDB adapter reads that result, so `$LAST_ROWCOUNT` holds the rows changed, as on the other adapters. Upstream set it to `-1`.
 
 ### Execution Engine

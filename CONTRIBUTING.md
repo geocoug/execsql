@@ -98,6 +98,21 @@ uv run python -m tests.corpus.record my_new_case
 uv run pytest tests/corpus
 ```
 
+Firebird transaction regressions run against a disposable database when `EXECSQL_FIREBIRD_DATABASE` is set. Install the `[firebird]` extra and the native Firebird client library, then set these variables for a server you own:
+
+```sh
+export EXECSQL_FIREBIRD_DATABASE=/var/lib/firebird/data/execsql.fdb
+export EXECSQL_FIREBIRD_HOST=localhost
+export EXECSQL_FIREBIRD_PORT=3050
+export EXECSQL_FIREBIRD_USER=SYSDBA
+export EXECSQL_FIREBIRD_PASSWORD=your-test-password
+uv run pytest tests/db/test_firebird_live.py tests/corpus -k firebird
+```
+
+The tests create and drop tables, exceptions and transaction triggers: use only a disposable database. The official [Firebird Docker image](https://github.com/FirebirdSQL/firebird-docker) can provide one; the fix for #138 was verified with Firebird 5.0.4. This opt-in suite does not change Firebird's best-effort support tier.
+
+A corpus case with a `requires-firebird` marker starts with Firebird instead of SQLite and exports observations to files. Its test skips when the database variable is absent; recording all cases skips it too, while explicitly recording it requires a configured server. To re-record it, install `fdb` into the upstream environment as well as the native client library, then run `uv run python -m tests.corpus.record firebird_catalog_holds`. Credentials are passed through the driver's environment variables and are never recorded. The live tests and native corpus cases share an xdist group so their transaction triggers cannot interfere.
+
 Use only syntax upstream accepts; read `_execsql/execsql.py` when unsure. A case must not open a GUI dialog (`HALT "message"`, `PROMPT`) or loop forever under upstream: both hang the recording. Nor may it read a file it has just written (`FILE_EXISTS`, `ZIP`, `IMPORT` right after a `WRITE`): both programs write files in the background, so the result depends on timing; put such a file among the case's inputs instead. A difference from upstream fails the test unless `tests/corpus/changes.json` lists it with both values, a `status` (`accepted` for an upstream bug execsql2 fixed on purpose, `open` for one not yet decided) and the reason.
 
 ## Building the Docs

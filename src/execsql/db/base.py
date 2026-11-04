@@ -364,6 +364,15 @@ class Database(ABC):
         what was just reported as failed.
         """
         if self.conn and self.autocommit:
+            self.commit_now()
+
+    def commit_now(self) -> None:
+        """Commit even under AUTOCOMMIT OFF, rolling back a failed commit.
+
+        Used only where a DBMS requires an immediate DDL commit before the
+        next statement can use the change. This commits the whole transaction.
+        """
+        if self.conn:
             try:
                 self.conn.commit()
             except BaseException:

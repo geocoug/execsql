@@ -118,7 +118,7 @@ def import_data_table(
             # Most adapters delay commit until after populating the table; adapters
             # that need DDL committed first (Firebird) must do it here.
             if db.needs_explicit_commit_after_ddl():
-                db.conn.commit()
+                db.commit_now()
         except Exception as e:
             raise ErrInfo(
                 type="db",

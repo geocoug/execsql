@@ -18,12 +18,13 @@ upstream, or accepted and added to ``docs/about/divergence.md``.
 from __future__ import annotations
 
 import json
+import os
 import sys
 from typing import Any
 
 import pytest
 
-from tests.corpus.runner import CORPUS, RESULTS, case_names, run_case
+from tests.corpus.runner import CORPUS, RESULTS, case_names, requires_firebird, run_case
 
 _CHANGES = json.loads((CORPUS / "changes.json").read_text("utf-8"))
 
@@ -53,8 +54,16 @@ def test_every_change_says_whether_it_is_decided_and_why():
             assert entry.get("why"), f"{case} {part}: why"
 
 
-@pytest.mark.parametrize("case", case_names())
+@pytest.mark.parametrize(
+    "case",
+    [
+        pytest.param(case, marks=pytest.mark.xdist_group("live-firebird")) if requires_firebird(case) else case
+        for case in case_names()
+    ],
+)
 def test_script_does_what_upstream_did(case, tmp_path):
+    if requires_firebird(case) and not os.environ.get("EXECSQL_FIREBIRD_DATABASE"):
+        pytest.skip("set EXECSQL_FIREBIRD_DATABASE to a disposable Firebird database")
     upstream = _parts(json.loads((RESULTS / f"{case}.json").read_text("utf-8")))
     ours = _parts(run_case(case, [sys.executable, "-m", "execsql", "run"], tmp_path / "work"))
     accepted = _CHANGES.get(case, {})

@@ -47,7 +47,12 @@ def test_with_error_halt_off_the_next_commit_does_not_store_the_failed_statement
 
 @pytest.mark.parametrize("exc", [RuntimeError("deferred constraint"), KeyboardInterrupt()])
 def test_commit_rolls_back_before_raising(exc):
-    db = MagicMock(autocommit=True)
+    from execsql.db.sqlite import SQLiteDatabase
+
+    db = object.__new__(SQLiteDatabase)
+    db.autocommit = True
+    db.conn = MagicMock()
+    db.rollback = MagicMock()
     db.conn.commit.side_effect = exc
     with pytest.raises(type(exc)):
         Database.commit(db)
@@ -63,8 +68,8 @@ def test_commit_under_autocommit_off_does_nothing():
 
 # IMPORT, COPY and AUTOCOMMIT ON commit through Database.commit(): a row whose
 # commit fails is not stored by the next statement's commit, here the parent
-# row that would make it valid.  (Firebird's DDL and catalog commits call the
-# driver directly; see the follow-up issue.)
+# row that would make it valid. Firebird's mandatory DDL commits are covered
+# by test_firebird_commits.py and the opt-in live tests.
 
 
 def _load(tmp_path, how):
