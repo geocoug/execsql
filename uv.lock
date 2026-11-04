@@ -933,8 +933,7 @@ dependencies = [
 all = [
     { name = "defusedxml" },
     { name = "duckdb" },
-    { name = "firebird-driver", version = "1.10.11", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
-    { name = "firebird-driver", version = "2.0.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "firebird-driver" },
     { name = "jinja2" },
     { name = "keyring" },
     { name = "lsprotocol" },
@@ -957,8 +956,7 @@ all = [
 ]
 all-db = [
     { name = "duckdb" },
-    { name = "firebird-driver", version = "1.10.11", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
-    { name = "firebird-driver", version = "2.0.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "firebird-driver" },
     { name = "oracledb" },
     { name = "psycopg", extra = ["binary"] },
     { name = "pymysql" },
@@ -982,8 +980,7 @@ duckdb = [
     { name = "pytz" },
 ]
 firebird = [
-    { name = "firebird-driver", version = "1.10.11", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
-    { name = "firebird-driver", version = "2.0.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "firebird-driver" },
 ]
 formats = [
     { name = "defusedxml" },
@@ -1153,9 +1150,6 @@ wheels = [
 name = "firebird-base"
 version = "1.8.0"
 source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version < '3.11'",
-]
 dependencies = [
     { name = "protobuf" },
 ]
@@ -1165,54 +1159,16 @@ wheels = [
 ]
 
 [[package]]
-name = "firebird-base"
-version = "2.0.3"
-source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version >= '3.15'",
-    "python_full_version >= '3.12' and python_full_version < '3.15'",
-    "python_full_version == '3.11.*'",
-]
-dependencies = [
-    { name = "protobuf" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/5d/6b/d10033f0353aaa8a88ace95c6bd5b0ce97f99232c87f19fe494f4ed36a66/firebird_base-2.0.3.tar.gz", hash = "sha256:fa4ed0c0678517dcf824c61cc323f8b802906c2b853ace5b235fbb418987fa84", size = 74683, upload-time = "2026-04-17T15:29:56.177Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/0d/d4/c38068334a33bb58f6276a504ba13f8aade2d4296d8bbad96b7c7c4e6bf7/firebird_base-2.0.3-py3-none-any.whl", hash = "sha256:91b4f3c967d748b199b915bfd8cfa67818f6dff90ad636bd4ae84ff76ae89ab5", size = 87372, upload-time = "2026-04-17T15:29:57.494Z" },
-]
-
-[[package]]
 name = "firebird-driver"
 version = "1.10.11"
 source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version < '3.11'",
-]
 dependencies = [
-    { name = "firebird-base", version = "1.8.0", source = { registry = "https://pypi.org/simple" } },
+    { name = "firebird-base" },
     { name = "python-dateutil" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/e5/78/79161f44d0971f10375b458d2bc9e5a26db113f38ac97266e3cff4a68cda/firebird_driver-1.10.11.tar.gz", hash = "sha256:e671508d4ddb4c4f2569c5e38013dae82ec4748396d9d7e83af52d6d4d115357", size = 100912, upload-time = "2025-04-22T10:00:17.502Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b7/32/c576baf7f12faf3a150410fb23b5287d9fd1beb840c855c72ae1a6dad920/firebird_driver-1.10.11-py3-none-any.whl", hash = "sha256:9798dda2bb465070737268a6b31b562b29823908810c4f1faeeb78133c502bb1", size = 105625, upload-time = "2025-04-22T10:00:18.876Z" },
-]
-
-[[package]]
-name = "firebird-driver"
-version = "2.0.3"
-source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version >= '3.15'",
-    "python_full_version >= '3.12' and python_full_version < '3.15'",
-    "python_full_version == '3.11.*'",
-]
-dependencies = [
-    { name = "firebird-base", version = "2.0.3", source = { registry = "https://pypi.org/simple" } },
-    { name = "python-dateutil" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/97/da/48da8f865f17bc7d0184717f8e92d1b7c52418ae77af315c0239cf7f3739/firebird_driver-2.0.3.tar.gz", hash = "sha256:3c78c63a1d69252880b02126c539d4a712d28563f45e896247c397cd2ada75ad", size = 105031, upload-time = "2026-04-20T12:01:55.13Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/ff/bf/c396b8725f5d7d0df1c54ea5fecc8d4a99d515a8b116b7915e7813ad2994/firebird_driver-2.0.3-py3-none-any.whl", hash = "sha256:0c4dbea53c8ff003cd1c6fd254524f72757fa921f13a6ae23d846c7071d4f337", size = 109811, upload-time = "2026-04-20T12:01:56.855Z" },
 ]
 
 [[package]]
@@ -3581,14 +3537,15 @@ wheels = [
 
 [[package]]
 name = "python-dateutil"
-version = "2.9.0.post0"
+version = "3.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "six" },
+    { name = "tzdata" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/66/c0/0c8b6ad9f17a802ee498c46e004a0eb49bc148f2fd230864601a86dcf6db/python-dateutil-2.9.0.post0.tar.gz", hash = "sha256:37dd54208da7e1cd875388217d5e00ebd4179249f90fb72437e91a35459a0ad3", size = 342432, upload-time = "2024-03-01T18:36:20.211Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/0e/df/f15f80383f152452d8985b36d95cb8751f901a3e0ff4cd27f7e118f168e2/python_dateutil-3.0.0.tar.gz", hash = "sha256:7ebcb3c29a92f3ceafe79a7a48a5c45677e9e004bbeec5742ac0bbb00560b7a2", size = 271066, upload-time = "2026-10-21T23:41:45.075Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ec/57/56b9bcc3c9c6a792fcbaf139543cee77261f3651ca9da0c93f5c1221264b/python_dateutil-2.9.0.post0-py2.py3-none-any.whl", hash = "sha256:a8b2bc7bffae282281c8140a97d3aa9c14da0b136dfe83f850eea9a5f7470427", size = 229892, upload-time = "2024-03-01T18:36:18.57Z" },
+    { url = "https://files.pythonhosted.org/packages/5a/17/cebee01d1c0c1441174cf0456ddc91b280d79acb65340c05e41d77866ee8/python_dateutil-3.0.0-py2.py3-none-any.whl", hash = "sha256:3c79630202e4152c6add678446984236efe4f57e84d8e892aab0637bab82e9fd", size = 94659, upload-time = "2026-10-21T23:41:43.431Z" },
 ]
 
 [[package]]
