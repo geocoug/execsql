@@ -1,7 +1,7 @@
 """``TO NEW`` refuses an existing table with execsql's own message, before any DDL.
 
-The checks are best effort: when the database cannot say whether the table
-exists, the command goes ahead and the database reports any problem itself.
+A database with no known current schema leaves unqualified conflict checks
+to CREATE TABLE. A failed catalog query is an error, not an unknown schema.
 """
 
 from __future__ import annotations
@@ -63,7 +63,7 @@ def test_copy_from_a_missing_source_reports_the_database_error(files):
     assert "no such table: no_such_table" in message
 
 
-def test_a_check_the_database_cannot_answer_does_not_stop_the_command(files, monkeypatch):
+def test_a_failed_catalog_check_stops_the_command(files, monkeypatch):
     from execsql.db.sqlite import SQLiteDatabase
 
     original = SQLiteDatabase.table_exists
@@ -77,7 +77,9 @@ def test_a_check_the_database_cannot_answer_does_not_stop_the_command(files, mon
 
     monkeypatch.setattr(SQLiteDatabase, "table_exists", cannot_tell_the_first_time)
     result = _run(files, f"-- !x! IMPORT TO NEW lab FROM {files}/q.csv\n")
-    assert result.success, result.errors
+    assert not result.success
+    assert "no catalog access" in result.errors[0].message
+    assert len(calls) == 1
 
 
 class TestOnlyTheTargetSchemaCounts:

@@ -162,15 +162,12 @@ def x_prompt_entryform(**kwargs: Any) -> None:
     message = kwargs["message"]
     help_url = unquoted(kwargs["help"])
     tbl1 = _state.dbs.current().schema_qualified_table_name(spec_schema, spec_table)
-    try:
-        if not _state.dbs.current().table_exists(spec_table, spec_schema):
-            raise ErrInfo(
-                type="cmd",
-                command_text=kwargs["metacommandline"],
-                other_msg=f"Table {spec_table} does not exist",
-            )
-    except Exception:
-        pass  # Best-effort check; some adapters lack information_schema.
+    if not _state.dbs.current().table_exists(spec_table, spec_schema):
+        raise ErrInfo(
+            type="cmd",
+            command_text=kwargs["metacommandline"],
+            other_msg=f"Table {spec_table} does not exist",
+        )
     curs = _state.dbs.current().cursor()
     cmd = f"select * from {tbl1};"
     curs.execute(cmd)
@@ -540,15 +537,12 @@ def x_prompt_action(**kwargs: Any) -> None:
     if do_continue is not None:
         do_continue = bool(do_continue)
     tbl1 = _state.dbs.current().schema_qualified_table_name(spec_schema, spec_table)
-    try:
-        if not _state.dbs.current().table_exists(spec_table, spec_schema):
-            raise ErrInfo(
-                type="cmd",
-                command_text=kwargs["metacommandline"],
-                other_msg=f"Table {spec_table} does not exist",
-            )
-    except Exception:
-        pass  # Best-effort check; some adapters lack information_schema.
+    if not _state.dbs.current().table_exists(spec_table, spec_schema):
+        raise ErrInfo(
+            type="cmd",
+            command_text=kwargs["metacommandline"],
+            other_msg=f"Table {spec_table} does not exist",
+        )
     curs = _state.dbs.current().cursor()
     cmd = f"select * from {tbl1};"
     curs.execute(cmd)

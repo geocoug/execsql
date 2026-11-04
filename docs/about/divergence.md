@@ -325,6 +325,8 @@ The legacy flat command-list engine (`_parse_script_lines` / `runscripts` / `Com
 
 ### Error Handling
 
+**Catalog lookup failures are metacommand errors** — `IMPORT` / `COPY … TO NEW`, `WRITE CREATE_TABLE … IN`, `PROMPT ENTRY_FORM`, and `PROMPT ACTION` no longer ignore failed table-existence checks; `TO NEW` also reports failures while looking up the current schema. An adapter may have rolled back earlier statements when its query failed, so ignoring that failure let `END BATCH` commit a partial batch. The error now fails every enclosing batch through the normal metacommand-error path, even with `METACOMMAND_ERROR_HALT OFF`. An unknown current schema returned as `None` still leaves the unqualified `TO NEW` conflict check to `CREATE TABLE`; a query that raises is an error. The write and prompt commands also preserve their explicit missing-table error instead of swallowing it and attempting a read. Upstream ignored these write/prompt lookup errors and attempted the read; its `TO NEW` path did not have execsql2's early conflict check (#136).
+
 - **Exception hierarchy** — All custom exceptions inherit from `ExecSqlError`, enabling `except ExecSqlError` to catch any execsql-originated error.
 - **Exception chaining** — All `raise` statements inside `except` blocks preserve the original traceback via `from`.
 - **Database and driver error messages** — End with the error itself (`OperationalError: table t already exists`). Upstream appended "in <file> on line N of execsql", a line of its own source; in the package the file was often a driver's and the line number another file's. Where in execsql the error was raised goes to `execsql.log` as `Raised at: execsql/<module>.py:<line>`.

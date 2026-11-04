@@ -1875,5 +1875,37 @@
    },
    "why": "Each completed WRITE is flushed before the next write so abandoning the worker can discard buffered text without a later close writing it. A file read while its writer handle is still open now sees that completed line rather than the old empty buffer."
   }
+ },
+ "catalog_lookup_errors": {
+  "stderr": {
+   "execsql2": "**** Error in SQL statement.\n     Line 1 of script script.sql\n     OperationalError: no such table: unknown_schema.sqlite_master\n     Failed test for existence of SQLite table \"missing\";\n     select name from unknown_schema.sqlite_master where type='table' and lower(name)=lower(?);\n     Metacommand: PROMPT ACTION unknown_schema.missing MESSAGE \"Choose\"\n     Error occurred at <TIME>.\n",
+   "status": "accepted",
+   "upstream": "**** Error in metacommand.\n     Line 1 of script script.sql\n     OperationalError: no such table: unknown_schema.missing\n     PROMPT ACTION unknown_schema.missing MESSAGE \"Choose\"\n     Metacommand: PROMPT ACTION unknown_schema.missing MESSAGE \"Choose\"\n     Error occurred at <TIME>.\n",
+   "why": "WRITE CREATE_TABLE and PROMPT report missing tables and failed catalog lookups before reading the table. Upstream swallowed the check and attempted the read. Lookup failures now reach metacommand error handling and fail open batches (#136; divergence: Catalog lookup failures are metacommand errors)."
+  }
+ },
+ "prompt_action_missing_spec": {
+  "stderr": {
+   "execsql2": "**** Error in metacommand.\n     Line 1 of script script.sql\n     Table missing does not exist\n     PROMPT ACTION missing MESSAGE \"Choose\"\n     Metacommand: PROMPT ACTION missing MESSAGE \"Choose\"\n     Error occurred at <TIME>.\n",
+   "status": "accepted",
+   "upstream": "**** Error in metacommand.\n     Line 1 of script script.sql\n     OperationalError: no such table: missing\n     PROMPT ACTION missing MESSAGE \"Choose\"\n     Metacommand: PROMPT ACTION missing MESSAGE \"Choose\"\n     Error occurred at <TIME>.\n",
+   "why": "WRITE CREATE_TABLE and PROMPT report missing tables and failed catalog lookups before reading the table. Upstream swallowed the check and attempted the read. Lookup failures now reach metacommand error handling and fail open batches (#136; divergence: Catalog lookup failures are metacommand errors)."
+  }
+ },
+ "prompt_entry_form_missing_spec": {
+  "stderr": {
+   "execsql2": "**** Error in metacommand.\n     Line 1 of script script.sql\n     Table missing does not exist\n     PROMPT ENTRY_FORM missing MESSAGE \"Enter values\"\n     Metacommand: PROMPT ENTRY_FORM missing MESSAGE \"Enter values\"\n     Error occurred at <TIME>.\n",
+   "status": "accepted",
+   "upstream": "**** Error in metacommand.\n     Line 1 of script script.sql\n     OperationalError: no such table: missing\n     PROMPT ENTRY_FORM missing MESSAGE \"Enter values\"\n     Metacommand: PROMPT ENTRY_FORM missing MESSAGE \"Enter values\"\n     Error occurred at <TIME>.\n",
+   "why": "WRITE CREATE_TABLE and PROMPT report missing tables and failed catalog lookups before reading the table. Upstream swallowed the check and attempted the read. Lookup failures now reach metacommand error handling and fail open batches (#136; divergence: Catalog lookup failures are metacommand errors)."
+  }
+ },
+ "write_create_table_missing_source": {
+  "stderr": {
+   "execsql2": "**** Error in metacommand.\n     Line 1 of script script.sql\n     Table missing does not exist\n     WRITE CREATE_TABLE missing FROM output IN initial\n     Metacommand: WRITE CREATE_TABLE missing FROM output IN initial\n     Error occurred at <TIME>.\n",
+   "status": "accepted",
+   "upstream": "**** Error in SQL statement.\n     Line 1 of script script.sql\n     OperationalError: no such table: output\n     select * from output;\n     Metacommand: WRITE CREATE_TABLE missing FROM output IN initial\n     Error occurred at <TIME>.\n",
+   "why": "WRITE CREATE_TABLE and PROMPT report missing tables and failed catalog lookups before reading the table. Upstream swallowed the check and attempted the read. Lookup failures now reach metacommand error handling and fail open batches (#136; divergence: Catalog lookup failures are metacommand errors)."
+  }
  }
 }

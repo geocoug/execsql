@@ -1,0 +1,1 @@
+-- !x! WRITE CREATE_TABLE missing FROM output IN initial
