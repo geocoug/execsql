@@ -712,7 +712,7 @@ class TestXPromptSelectRows:
         return base
 
     def test_continue_returns(self, fake_state) -> None:
-        s = fake_state(gui_responses={GUI_SELECTROWS: {"button": 1}})
+        s = fake_state(gui_responses={GUI_SELECTROWS: {"button": 1, "rows": []}})
         s.db.select_data.side_effect = [
             (["id", "v"], [(1, "a")]),
             (["id", "v"], [(1, "b")]),

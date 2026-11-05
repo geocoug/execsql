@@ -19,6 +19,8 @@ ______________________________________________________________________
 
 ### Fixed
 
+- **`PROMPT SELECT_ROWS` with Tkinter or Textual** saves confirmed selections to the destination table, preserving typed values, duplicate selections and existing rows. Cancel discards the selections; `AUTOCOMMIT OFF` and batches retain control of the transaction.
+
 - **`INCLUDE` inside `LOOP`** resolves deferred variables in filenames on each pass; use `INCLUDE part_!{i}!.sql` to select a different file per iteration.
 
 - **Firebird** table checks preserve pending work under `AUTOCOMMIT OFF` and inside batches; failed catalog and `IMPORT` / `COPY` DDL commits roll back instead of leaving work for a later commit.

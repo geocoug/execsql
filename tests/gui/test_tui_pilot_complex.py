@@ -243,6 +243,52 @@ class TestSelectRowsScreen:
         )
         assert isinstance(result, dict)
 
+    @pytest.mark.parametrize("finish", ["button", "submit", "cancel"])
+    def test_selection_returns_original_values_and_projects_the_display(self, finish):
+        from datetime import date
+        from decimal import Decimal
+
+        from textual.widgets import DataTable
+
+        rows = [(Decimal("1.234567890123456789"), None), (date(2026, 11, 5), b"\x00\xff")]
+
+        async def interact(pilot):
+            screen = pilot.app.screen
+            source = screen.query_one("#source_table", DataTable)
+            keys = list(source.rows)
+            for index in (0, 0, 1):
+                screen.on_data_table_row_selected(DataTable.RowSelected(source, index, keys[index]))
+            dest = screen.query_one("#dest_table", DataTable)
+            assert dest.get_row_at(0) == ["old", "keep", "0"]
+            assert dest.get_row_at(1) == ["", "", str(rows[0][0])]
+            assert dest.get_row_at(3) == [str(rows[1][1]), "", str(rows[1][0])]
+            if finish == "button":
+                await pilot.click("#btn_0")
+            elif finish == "submit":
+                screen.action_submit()
+            else:
+                await pilot.press("escape")
+            await pilot.pause()
+
+        result = _run_dialog(
+            SelectRowsScreen,
+            self._args(rows1=rows, headers2=["name", "extra", "id"], rows2=[("old", "keep", 0)]),
+            interact,
+        )
+        if finish == "cancel":
+            assert result["button"] is None
+            assert result.get("rows") is None
+        else:
+            assert result == {"button": 1, "rows": [list(rows[0]), list(rows[0]), list(rows[1])]}
+
+    def test_continue_without_selections_returns_an_empty_list(self):
+        async def interact(pilot):
+            pilot.app.screen.action_submit()
+            await pilot.pause()
+
+        result = _run_dialog(SelectRowsScreen, self._args(), interact)
+        assert result == {"button": 1, "rows": []}
+
 
 # ---------------------------------------------------------------------------
 # SelectSubScreen
