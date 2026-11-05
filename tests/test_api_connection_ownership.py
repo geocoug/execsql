@@ -127,6 +127,50 @@ def test_owned_initial_and_script_connections_still_close(tmp_path, monkeypatch)
     assert created[0].conn is None
 
 
+@pytest.mark.parametrize(
+    "ending",
+    ["", "-- !x! HALT\n", "select * from missing_table;\n"],
+    ids=["success", "halt", "error"],
+)
+def test_cleanup_preserves_committed_work_and_releases_all_script_connections(tmp_path, monkeypatch, ending):
+    caller = SQLiteDatabase(":memory:")
+    committed = tmp_path / "committed.db"
+    pending = tmp_path / "pending.db"
+    for path in (committed, pending):
+        _empty_secondary(path)
+    created = _observe_created_connections(monkeypatch)
+    try:
+        result = run(
+            sql=(
+                f'-- !x! CONNECT TO SQLITE(FILE="{committed}") AS committed\n'
+                "-- !x! USE committed\ninsert into pending values (1);\n"
+                f'-- !x! CONNECT TO SQLITE(FILE="{pending}") AS pending\n'
+                "-- !x! USE pending\n-- !x! AUTOCOMMIT OFF\ninsert into pending values (2);\n" + ending
+            ),
+            connection=caller,
+        )
+        assert result.success == (ending == ""), result.errors
+        assert len(created) == 2
+        assert all(db.conn is None for db in created)
+        for path, expected in ((committed, [(1,)]), (pending, [])):
+            observer = sqlite3.connect(path, timeout=0.05)
+            try:
+                assert observer.execute("select * from pending").fetchall() == expected
+                observer.execute("insert into pending values (3)")
+                observer.commit()
+            finally:
+                observer.close()
+        # Cleanup must also leave the borrowed connection usable in another run.
+        reused = run(sql="select 1;", connection=caller)
+        assert reused.success, reused.errors
+    finally:
+        for db in created:
+            if db.conn is not None:
+                db.rollback()
+                db.close()
+        caller.close()
+
+
 def test_pool_excludes_the_borrowed_object_under_every_alias(monkeypatch):
     borrowed, owned = SQLiteDatabase(":memory:"), SQLiteDatabase(":memory:")
     borrowed.conn.execute("create table held (v integer)")

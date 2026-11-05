@@ -194,6 +194,12 @@ jobs:
             - name: Test with tox
               env:
                   DISPLAY: ""
+                  # Profile TEMP on Windows is on the slow system disk; SQLite
+                  # commits there exceeded CLI deadlines. Keep disposable test
+                  # databases on the runner's temp volume instead.
+                  TMPDIR: ${{ runner.temp }}
+                  TEMP: ${{ runner.temp }}
+                  TMP: ${{ runner.temp }}
               # Ubuntu finishes in ~9 min and Windows in ~16 min; 30 leaves
               # ample headroom. Step-level timeout fails the step (not the
               # job), so continue-on-error can mask it on macOS.
