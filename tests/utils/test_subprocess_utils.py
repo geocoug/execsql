@@ -45,3 +45,30 @@ def test_success_after_watchdog_preserves_output(tmp_path):
     assert result.stdout == "normal stdout\n"
     assert result.stderr == "normal stderr\n"
     assert sorted(path.name for path in tmp_path.iterdir()) == ["execsql"]
+
+
+def test_watchdog_preserves_module_execution_context(tmp_path):
+    package = tmp_path / "execsql"
+    package.mkdir()
+    (package / "__init__.py").touch()
+    (tmp_path / "elsewhere").mkdir()
+    (package / "__main__.py").write_text(
+        "import os, sys\n"
+        "assert sys.modules['__main__'].__spec__.name == 'execsql.__main__'\n"
+        "assert sys.argv[0].endswith('__main__.py')\n"
+        "initial_path = sys.path[0]\n"
+        "assert initial_path == os.getcwd()\n"
+        "os.chdir('elsewhere')\n"
+        "assert sys.path[0] == initial_path\n"
+        "print(sys.argv[1:])\n",
+    )
+    result = run_with_traceback(
+        [sys.executable, "-m", "execsql", "run", "script.sql"],
+        timeout=5,
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "['run', 'script.sql']\n"
+    assert result.stderr == ""

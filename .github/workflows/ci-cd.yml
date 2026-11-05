@@ -191,14 +191,40 @@ jobs:
               # package, otherwise importing it fails and any DSN test bails.
               if: runner.os == 'macOS'
               run: brew install unixodbc
-            - name: Diagnose Windows CLI timeouts
-              if: matrix.os == 'windows-latest' && matrix.python-version == '3.14'
-              timeout-minutes: 15
+            - name: Compare SQLite temporary-disk latency
+              if: runner.os == 'Windows' && matrix.python-version == '3.14'
+              timeout-minutes: 5
               run: |
-                  tox -e py -- --no-cov tests/test_executor.py tests/integration/test_sqlite.py tests/scripts/test_sql_scripts.py tests/corpus
+                  @'
+                  import concurrent.futures, json, os, pathlib, sqlite3, tempfile, time
+                  def measure(base):
+                      with tempfile.TemporaryDirectory(dir=base) as directory:
+                          con = sqlite3.connect(pathlib.Path(directory) / "probe.db")
+                          try:
+                              con.execute("CREATE TABLE t (v INTEGER)")
+                              con.commit()
+                              started = time.monotonic()
+                              for value in range(10):
+                                  con.execute("INSERT INTO t VALUES (?)", (value,))
+                                  con.commit()
+                              return round(time.monotonic() - started, 4)
+                          finally:
+                              con.close()
+                  bases = [pathlib.Path.home() / "AppData/Local/Temp", pathlib.Path(os.environ["RUNNER_TEMP"])]
+                  for base in bases:
+                      with concurrent.futures.ThreadPoolExecutor(max_workers=4) as workers:
+                          results = list(workers.map(measure, [base] * 4))
+                      print(json.dumps({"directory": str(base), "ten_commits_seconds": results}), flush=True)
+                  '@ | python -
             - name: Test with tox
               env:
                   DISPLAY: ""
+                  # Profile TEMP on Windows is on the slow system disk; SQLite
+                  # commits there exceeded CLI deadlines. Keep disposable test
+                  # databases on the runner's temp volume instead.
+                  TMPDIR: ${{ runner.temp }}
+                  TEMP: ${{ runner.temp }}
+                  TMP: ${{ runner.temp }}
               # Ubuntu finishes in ~9 min and Windows in ~16 min; 30 leaves
               # ample headroom. Step-level timeout fails the step (not the
               # job), so continue-on-error can mask it on macOS.

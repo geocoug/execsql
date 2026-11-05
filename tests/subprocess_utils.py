@@ -20,12 +20,14 @@ def run_with_traceback(command: list[str], *, timeout: float, **kwargs: Any) -> 
             # Keep the stream alive until interpreter shutdown, just as stderr
             # would be. runpy preserves the normal -m entrypoint and arguments.
             bootstrap = (
-                "import atexit, faulthandler, runpy, sys; "
-                f"_trace_file = open({str(trace)!r}, 'w'); "
-                f"faulthandler.dump_traceback_later({timeout / 2!r}, repeat=True, file=_trace_file); "
-                "atexit.register(faulthandler.cancel_dump_traceback_later); "
-                "sys.argv = ['execsql', *sys.argv[1:]]; "
-                "runpy.run_module('execsql', run_name='__main__')"
+                "import atexit, faulthandler, os, runpy, sys\n"
+                f"_trace_file = open({str(trace)!r}, 'w')\n"
+                f"faulthandler.dump_traceback_later({timeout / 2!r}, repeat=True, file=_trace_file)\n"
+                "atexit.register(faulthandler.cancel_dump_traceback_later)\n"
+                "sys.argv = ['execsql', *sys.argv[1:]]\n"
+                "if sys.path[:1] == ['']:\n"
+                "    sys.path[0] = os.getcwd()\n"
+                "runpy.run_module('execsql', run_name='__main__', alter_sys=True)\n"
             )
             command = [command[0], "-c", bootstrap, *command[3:]]
         try:
