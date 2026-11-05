@@ -101,7 +101,7 @@ _SQL_SCRIPTS = sorted(s for s in _FIXTURES.glob("*.sql") if s.name not in _DEDIC
 def test_fixture_scripts_with_ast(tmp_path: Path, sql_script: Path) -> None:
     """Execute each self-verifying fixture and assert exit-code 0."""
     db = tmp_path / "test.db"
-    result = subprocess.run(
+    result = run_with_traceback(
         [sys.executable, "-m", "execsql", "run", str(sql_script), str(db), "-t", "l", "-n"],
         cwd=str(tmp_path),
         capture_output=True,
@@ -912,7 +912,7 @@ class TestInclude:
             "CREATE TABLE IF NOT EXISTS t (x INT);\n-- !x! INCLUDE test.sql",
         )
         db = tmp_path / "test.db"
-        result = subprocess.run(
+        result = run_with_traceback(
             [sys.executable, "-m", "execsql", "run", str(script_file), str(db), "-t", "l", "-n"],
             cwd=str(tmp_path),
             capture_output=True,
