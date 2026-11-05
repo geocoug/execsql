@@ -637,7 +637,7 @@ def _execute_node(
 
     elif isinstance(node, IncludeDirective):
         ctx.last_command = ExecutingStatement(node)
-        _execute_include(ctx, node, localvars)
+        _execute_include(ctx, node, localvars, in_loop=in_loop)
 
     else:
         raise ErrInfo(
@@ -878,6 +878,8 @@ def _execute_include(
     ctx: RuntimeContext,
     node: IncludeDirective,
     localvars: SubVarSet | None = None,
+    *,
+    in_loop: bool = False,
 ) -> None:
     """Run an INCLUDE or EXECUTE SCRIPT written in the script.
 
@@ -885,9 +887,17 @@ def _execute_include(
     as in any other metacommand, so ``!!$COUNTER_1!!`` counts once and
     ``$LAST_ERROR`` holds the text that ran.  An EXECUTE SCRIPT ``WHILE`` /
     ``UNTIL`` condition is substituted on each pass instead.
+    In a LOOP body, INCLUDE filenames resolve deferred variables before
+    that substitution; EXECUTE SCRIPT arguments keep their own deferred semantics.
     """
     effective_locals = _stack_localvars(ctx) or localvars
-    directive = substitute_directive(node, lambda text: substitute_vars(text, effective_locals, ctx=ctx))
+
+    def substitute(text: str) -> str:
+        if in_loop and not node.is_execute_script:
+            text = _convert_deferred_vars(text)
+        return substitute_vars(text, effective_locals, ctx=ctx)
+
+    directive = substitute_directive(node, substitute)
     _run_directive(ctx, directive, localvars)
 
 

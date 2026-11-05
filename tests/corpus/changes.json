@@ -1,4 +1,102 @@
 {
+ "deferred_include_while": {
+  "exit": {
+   "execsql2": 0,
+   "status": "accepted",
+   "upstream": 1,
+   "why": "INCLUDE filenames inside a LOOP resolve deferred variables on each iteration; upstream leaves the converted !!i!! token unresolved and cannot open the file (#114)."
+  },
+  "stderr": {
+   "execsql2": "",
+   "status": "accepted",
+   "upstream": "**** General error.\n     Line 4 of script script.sql\n     File part_!!i!!.sql does not exist.\n     Metacommand: INCLUDE part_!{i}!.sql\n     Error occurred at <TIME>.\n",
+   "why": "INCLUDE filenames inside a LOOP resolve deferred variables on each iteration; upstream leaves the converted !!i!! token unresolved and cannot open the file (#114)."
+  },
+  "tables/seen": {
+   "execsql2": {
+    "columns": [
+     [
+      "n",
+      "INTEGER"
+     ]
+    ],
+    "rows": [
+     [
+      [
+       "integer",
+       "1"
+      ]
+     ],
+     [
+      [
+       "integer",
+       "2"
+      ]
+     ]
+    ]
+   },
+   "status": "accepted",
+   "upstream": {
+    "columns": [
+     [
+      "n",
+      "INTEGER"
+     ]
+    ],
+    "rows": []
+   },
+   "why": "INCLUDE filenames inside a LOOP resolve deferred variables on each iteration; upstream leaves the converted !!i!! token unresolved and cannot open the file (#114)."
+  }
+ },
+ "deferred_include_until": {
+  "exit": {
+   "execsql2": 0,
+   "status": "accepted",
+   "upstream": 1,
+   "why": "INCLUDE filenames inside a LOOP resolve deferred variables on each iteration; upstream leaves the converted !!i!! token unresolved and cannot open the file (#114)."
+  },
+  "stderr": {
+   "execsql2": "",
+   "status": "accepted",
+   "upstream": "**** General error.\n     Line 4 of script script.sql\n     File part_!!i!!.sql does not exist.\n     Metacommand: INCLUDE part_!{i}!.sql\n     Error occurred at <TIME>.\n",
+   "why": "INCLUDE filenames inside a LOOP resolve deferred variables on each iteration; upstream leaves the converted !!i!! token unresolved and cannot open the file (#114)."
+  },
+  "tables/seen": {
+   "execsql2": {
+    "columns": [
+     [
+      "n",
+      "INTEGER"
+     ]
+    ],
+    "rows": [
+     [
+      [
+       "integer",
+       "1"
+      ]
+     ],
+     [
+      [
+       "integer",
+       "2"
+      ]
+     ]
+    ]
+   },
+   "status": "accepted",
+   "upstream": {
+    "columns": [
+     [
+      "n",
+      "INTEGER"
+     ]
+    ],
+    "rows": []
+   },
+   "why": "INCLUDE filenames inside a LOOP resolve deferred variables on each iteration; upstream leaves the converted !!i!! token unresolved and cannot open the file (#114)."
+  }
+ },
  "batch_commit_fails": {
   "files/b.db": {
    "execsql2": {

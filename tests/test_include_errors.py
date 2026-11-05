@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from execsql import run
 
 
@@ -64,6 +66,71 @@ def test_an_include_in_an_inline_if_runs_the_file(tmp_path):
     result = _run(tmp_path, f"-- !x! IF (TRUE) {{ INCLUDE {tmp_path / 'part.sql'} }}\n")
     assert result.success, result.errors
     assert out.read_text().splitlines() == ["in part"]
+
+
+@pytest.mark.parametrize("loop", ["WHILE (IS_GT(3, !{i}!))", "UNTIL (IS_GT(!{i}!, 2))"])
+@pytest.mark.parametrize("wrapper", ["direct", "inline_if", "block_if", "batch"])
+def test_deferred_include_filename_changes_on_each_loop_pass(tmp_path, loop, wrapper):
+    for i in (1, 2):
+        (tmp_path / f"part_{i}.sql").write_text(f"insert into seen values ({i});\n")
+    command = f'INCLUDE "{tmp_path}/part_!{{i}}!.sql"'
+    body = f"-- !x! {command}\n"
+    if wrapper == "inline_if":
+        body = f"-- !x! IF (TRUE) {{ {command} }}\n"
+    elif wrapper == "block_if":
+        body = f"-- !x! IF (TRUE)\n{body}-- !x! ENDIF\n"
+    elif wrapper == "batch":
+        body = f"-- !x! BEGIN BATCH\n{body}-- !x! END BATCH\n"
+    out = tmp_path / "out.csv"
+    result = _run(
+        tmp_path,
+        "create table seen (n integer);\n-- !x! SUB i 1\n"
+        f"-- !x! LOOP {loop}\n{body}-- !x! SUB_ADD i 1\n-- !x! END LOOP\n"
+        f'-- !x! EXPORT seen TO "{out}" AS CSV\n',
+    )
+    assert result.success, result.errors
+    assert out.read_text().splitlines() == ["n", "1", "2"]
+
+
+def test_deferred_include_uses_script_local_variables(tmp_path):
+    out = tmp_path / "out.txt"
+    for i in (1, 2):
+        (tmp_path / f"part_{i}.sql").write_text(f'-- !x! WRITE "part {i}" TO "{out}"\n')
+    result = _run(
+        tmp_path,
+        "-- !x! BEGIN SCRIPT load\n-- !x! SUB ~i 1\n"
+        "-- !x! LOOP WHILE (IS_GT(3, !{~i}!))\n"
+        f'-- !x! INCLUDE "{tmp_path}/part_!{{~i}}!.sql"\n'
+        "-- !x! SUB_ADD ~i 1\n-- !x! END LOOP\n-- !x! END SCRIPT\n-- !x! EXECUTE SCRIPT load\n",
+    )
+    assert result.success, result.errors
+    assert out.read_text().splitlines() == ["part 1", "part 2"]
+
+
+def test_deferred_include_if_exists_skips_only_the_missing_iteration(tmp_path):
+    out = tmp_path / "out.txt"
+    (tmp_path / "part_2.sql").write_text(f'-- !x! WRITE "second" TO "{out}"\n')
+    result = _run(
+        tmp_path,
+        "-- !x! SUB i 1\n-- !x! LOOP WHILE (IS_GT(3, !{i}!))\n"
+        f'-- !x! INCLUDE IF EXISTS "{tmp_path}/part_!{{i}}!.sql"\n'
+        "-- !x! SUB_ADD i 1\n-- !x! END LOOP\n",
+    )
+    assert result.success, result.errors
+    assert out.read_text().splitlines() == ["second"]
+
+
+def test_failed_deferred_include_substitutes_once_and_records_the_resolved_filename(tmp_path):
+    result = _run(
+        tmp_path,
+        "-- !x! METACOMMAND_ERROR_HALT OFF\n-- !x! LOOP WHILE (TRUE)\n"
+        f'-- !x! INCLUDE "{tmp_path}/missing_!{{$COUNTER_1}}!.sql"\n'
+        "-- !x! BREAK\n-- !x! END LOOP\n-- !x! SUB next !!$COUNTER_1!!\n",
+    )
+    assert len(result.errors) == 1
+    assert result.variables["last_error"] == f'INCLUDE "{tmp_path}/missing_1.sql"'
+    assert "missing_1.sql" in result.errors[0].message
+    assert result.variables["next"] == "2"
 
 
 def test_an_execute_script_in_an_inline_if_runs_the_script(tmp_path):

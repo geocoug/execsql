@@ -331,3 +331,18 @@ This problem can be eliminated by deferring variable substitution. Variables for
 ```
 ON ERROR_HALT WRITE "Error in line: !{$LAST_ERROR}!"
 ```
+
+Within a `LOOP WHILE` or `LOOP UNTIL` body, deferred variables also work in
+`INCLUDE` filenames. For example,
+this loop runs `part_1.sql` and then `part_2.sql`:
+
+```sql
+-- !x! SUB i 1
+-- !x! LOOP WHILE (IS_GT(3, !{i}!))
+-- !x! INCLUDE part_!{i}!.sql
+-- !x! SUB_ADD i 1
+-- !x! END LOOP
+```
+
+`INCLUDE IF EXISTS part_!{i}!.sql` skips a missing file for that iteration.
+Quote the filename if its path contains spaces.

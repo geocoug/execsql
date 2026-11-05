@@ -69,6 +69,13 @@ ______________________________________________________________________
 
 ### Bug Fixes
 
+`INCLUDE` filenames inside `LOOP WHILE`
+or `LOOP UNTIL` resolve deferred variables on every iteration, including through
+IF and BATCH blocks. Upstream leaves the converted `!!var!!` token unresolved
+in an INCLUDE filename, so `INCLUDE part_!{i}!.sql`
+cannot select a file per pass. Substitution still happens once, so counters
+advance once and a failed directive reports its resolved filename (#114).
+
 IMPORT/COPY converts only selected source columns; excluded values cannot fail database binding checks. Upstream converted all source columns before discarding excluded ones.
 
 WRITE/TEE background-writer waits use an absolute deadline for filename resolution and status, close and failure replies, so a live worker blocked in I/O cannot hold the script or API flush forever. On timeout the worker is abandoned, queued output is discarded, and cleanup does not wait again or flush abandoned buffers. Its in-progress I/O can finish later; after that it starts no new opens or writes. Each successful write is flushed, and the error names the operation, file and queued destinations. Output remains incremental and can be partial; synchronous EXPORT I/O is outside this guarantee. Upstream could wait indefinitely or continue queued writes after the caller stopped waiting.
