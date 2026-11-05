@@ -23,6 +23,7 @@ Classes:
 """
 
 import re
+from collections.abc import Callable
 from difflib import get_close_matches
 from typing import Any, cast
 
@@ -193,17 +194,28 @@ class CondParser(CondTokens):
     """Recursive-descent parser for boolean conditional expressions."""
 
     # Takes a conditional expression string.
-    def __init__(self, condexpr: str, conditionallist: Any = None) -> None:
+    def __init__(
+        self,
+        condexpr: str,
+        conditionallist: Any = None,
+        *,
+        diagnostic_source: Callable[[int], tuple[str, int]] | None = None,
+    ) -> None:
         """Initialise the parser with the conditional expression string.
 
         *conditionallist* is the table of conditional tests to match against;
         ``None`` means the current run's ``conditionallist``.  Passing one lets
         a caller with no run in progress, such as ``execsql lint``, parse
         (without evaluating) a condition.
+
+        *diagnostic_source* maps a parsed position to the original text and
+        position, so lint can parse placeholder values but display variables.
         """
         self.condexpr = condexpr
         self.cond_expr = SourceString(condexpr)
         self.conditionallist = conditionallist
+        self._diagnostic_source = diagnostic_source or (lambda position: (condexpr, position))
+        self._operand_start = 0
 
     def _test_syntax(self, name: str) -> str | None:
         """Find a rejected test's documented syntax, including registered aliases."""
@@ -246,15 +258,19 @@ class CondParser(CondTokens):
         position = self.cond_expr.currpos
         # A literal such as NO or a NOT operator can consume the beginning of
         # an unknown name (NO_SUCH_FN). Report the complete identifier.
-        if position < len(source) and (source[position].isalnum() or source[position] == "_"):
-            while position and (source[position - 1].isalnum() or source[position - 1] == "_"):
+        suffix = re.match(r"([A-Za-z_]\w*)\s*\(", source[position:])
+        known_suffix = suffix is not None and self._test_syntax(suffix[1].upper()) is not None
+        if not known_suffix and position < len(source) and (source[position].isalnum() or source[position] == "_"):
+            while position > self._operand_start and (source[position - 1].isalnum() or source[position - 1] == "_"):
                 position -= 1
+        _, cursor = self._diagnostic_source(self.cond_expr.currpos)
+        source, position = self._diagnostic_source(position)
         fragment = source[position:].strip()
         if not fragment:
             return f"Expected a condition test at the end of condition: {source.strip()}."
         if fragment.startswith(")"):
             return f"Unexpected ')' in condition: {source.strip()}."
-        if trailing and position == self.cond_expr.currpos and not fragment.startswith(("=", "<", ">", "!")):
+        if trailing and position == cursor and not fragment.startswith(("=", "<", ">", "!")):
             return f"Expected AND or OR before {fragment!r} in condition: {source.strip()}."
         match = re.match(r"(?P<name>[A-Za-z_]\w*)\s*(?P<opening>\()?", fragment)
         if match is None or (not match["opening"] and re.match(r"[=<>!]+", fragment[match.end() :].lstrip())):
@@ -307,6 +323,7 @@ class CondParser(CondTokens):
         # Try to match 'AND' operator. If not found, return None
         m1 = self.cond_expr.match_str("AND")
         if m1 is not None:
+            self._operand_start = self.cond_expr.currpos
             return self.AND
         return None
 
@@ -315,6 +332,7 @@ class CondParser(CondTokens):
         # Try to match 'OR' operator. If not found, return None
         m1 = self.cond_expr.match_str("OR")
         if m1 is not None:
+            self._operand_start = self.cond_expr.currpos
             return self.OR
         return None
 
@@ -342,7 +360,7 @@ class CondParser(CondTokens):
                     if not self.cond_expr.eoi():
                         raise CondParserError(self._syntax_error(trailing=True))
                     raise CondParserError(
-                        f"Missing ')' in condition: {self.condexpr.strip()}.",
+                        f"Missing ')' in condition: {self._diagnostic_source(0)[0].strip()}.",
                     )
                 return m1
             else:

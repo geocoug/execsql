@@ -114,3 +114,29 @@ def test_custom_registered_tests_are_not_called_unknown_or_evaluated():
 
 def test_missing_comma_shows_the_documented_syntax():
     assert "Expected: IS_GT(<value1>, <value2>)" in _message("IS_GT(1 2)")
+
+
+@pytest.mark.parametrize(
+    "prefix",
+    ["!!flag!! AND ", '"!!flag!!" AND ', "!{flag}! OR ", "ROW_COUNT_GT(t, !!n!!) AND "],
+)
+@pytest.mark.parametrize("bad", ["HAS_ROWZ(t)", "IS_GT(!!a!! !!b!!)", "TABLE_EXISTS("])
+def test_variables_before_a_real_error_do_not_hide_it_in_lint_or_lsp(prefix, bad):
+    source = "-- !x! SUB flag TRUE\n-- !x! ASSERT " + prefix + bad + "\n"
+    issues = [i for i in lint_source(source, "test.sql") if i.code == "P004"]
+    assert [(i.line, i.message) for i in issues] == [(2, _message(bad))]
+    pytest.importorskip("pygls")
+    from execsql.lsp.diagnostics import diagnostics
+
+    assert [d.message for d in diagnostics(source, None) if d.code == "P004"] == [_message(bad)]
+
+
+@pytest.mark.parametrize("prefix", ["NOT", "TRUE AND", "FALSE OR", "TRUE ANDNOT"])
+def test_adjacent_operators_do_not_become_part_of_a_known_test_name(prefix):
+    assert _message(prefix + "TABLE_EXISTS()") == _message("TABLE_EXISTS()")
+    assert _message(prefix + "IS_GT(1 2)") == _message("IS_GT(1 2)")
+
+
+@pytest.mark.parametrize("prefix", ["TRUE AND", "FALSE OR"])
+def test_recovering_an_unknown_name_does_not_cross_an_adjacent_binary_operator(prefix):
+    assert _message(prefix + "NO_SUCH_FN(x)") == _message("NO_SUCH_FN(x)")
