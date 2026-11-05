@@ -1,0 +1,8 @@
+{
+ "exit": 1,
+ "files": {},
+ "recorded_with": "execsql 1.130.1",
+ "stderr": "**** Error in metacommand.\n     Line 1 of script script.sql\n     CondParserError: Can't parse a factor at position 0 of IS_GT(1 2).\n     IF (IS_GT(1 2)) { WRITE \"ran\" }\n     Metacommand: IF (IS_GT(1 2)) { WRITE \"ran\" }\n     Error occurred at <TIME>.\n",
+ "stdout": "",
+ "tables": {}
+}

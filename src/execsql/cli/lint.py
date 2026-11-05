@@ -52,7 +52,7 @@ import functools
 import json
 import re
 from collections import Counter
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple
 
@@ -730,6 +730,21 @@ def _placeholder_forms(text: str) -> list[str]:
     return [_with_placeholders(text, value) for value in _PLACEHOLDERS]
 
 
+def _condition_placeholder(text: str, value: str) -> tuple[str, Callable[[int], tuple[str, int]]]:
+    """Replace variables and retain a map from parsed offsets to original text."""
+    pieces: list[str] = []
+    offsets: list[int] = []
+    start = 0
+    for match in _RX_ANY_VAR.finditer(text):
+        pieces.extend((text[start : match.start()], value))
+        offsets.extend(range(start, match.start()))
+        offsets.extend([match.start()] * len(value))
+        start = match.end()
+    pieces.append(text[start:])
+    offsets.extend(range(start, len(text) + 1))  # includes the end-of-input position
+    return "".join(pieces), lambda position: (text, offsets[position])
+
+
 # Named groups that capture a condition in a metacommand's pattern: ASSERT,
 # WAIT_UNTIL, and the WHILE / UNTIL of ON ... EXECUTE SCRIPT.
 _CONDITION_GROUPS = ("condtest", "condition", "loopcond")
@@ -777,15 +792,32 @@ def _check_condition(condition: str, source: str, line_no: int, issues: list[_Is
     from execsql.exceptions import CondParserError
     from execsql.parser import CondParser
 
-    forms = _placeholder_forms(condition) if _RX_ANY_VAR.search(condition) else [condition]
-    for form in forms:
+    forms = (
+        [_condition_placeholder(condition, value) for value in _PLACEHOLDERS]
+        if _RX_ANY_VAR.search(condition)
+        else [(condition, None)]
+    )
+    message = ""
+    furthest = -1
+    for form, original in forms:
+        parser = CondParser(form, _conditional_table(), diagnostic_source=original)
         try:
-            CondParser(form, _conditional_table()).parse()
-        except (CondParserError, RecursionError):  # RecursionError: nested past the parser's depth
-            continue
-        return
+            parser.parse()
+        except CondParserError as exc:
+            problem = str(exc)
+        except RecursionError:
+            problem = "Condition nests too deeply to parse."
+        else:
+            return
+        position = parser.cond_expr.currpos
+        if original is not None:
+            _, position = original(position)
+        # A boolean placeholder can reach a real error after the variable;
+        # an identifier placeholder might fail at the variable itself.
+        if position > furthest:
+            furthest, message = position, problem
     issues.append(
-        _issue("P004", source, line_no, f"unknown or malformed condition: {condition.strip()}"),
+        _issue("P004", source, line_no, message),
     )
 
 

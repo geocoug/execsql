@@ -1,0 +1,8 @@
+{
+ "exit": 1,
+ "files": {},
+ "recorded_with": "execsql 1.130.1",
+ "stderr": "**** Error in metacommand.\n     Line 2 of script script.sql\n     CondParserError: Conditional expression parser did not consume entire string; remainder = = TRUE.\n     IF (TRUE = TRUE) { WRITE \"ran\" }\n     Metacommand: IF (!!flag!! = TRUE) { WRITE \"ran\" }\n     Error occurred at <TIME>.\n",
+ "stdout": "",
+ "tables": {}
+}

@@ -1,4 +1,28 @@
 {
+ "condition_missing_comma": {
+  "stderr": {
+   "status": "accepted",
+   "upstream": "**** Error in metacommand.\n     Line 1 of script script.sql\n     CondParserError: Can't parse a factor at position 0 of IS_GT(1 2).\n     IF (IS_GT(1 2)) { WRITE \"ran\" }\n     Metacommand: IF (IS_GT(1 2)) { WRITE \"ran\" }\n     Error occurred at <TIME>.\n",
+   "execsql2": "**** Exception.\n     Line 1 of script script.sql\n     CondParserError: Separate the arguments of IS_GT with a comma: IS_GT(1 2). Expected: IS_GT(<value1>, <value2>).\n     Metacommand: IF (IS_GT(1 2)) { WRITE \"ran\" }\n     Error occurred at <TIME>.\n",
+   "why": "Condition parse errors name the unknown test or explain the malformed syntax instead of reporting a parser position or unconsumed suffix; accepted syntax, error type and halt behavior stay unchanged (#118)."
+  }
+ },
+ "condition_missing_parenthesis": {
+  "stderr": {
+   "status": "accepted",
+   "upstream": "**** Error in metacommand.\n     Line 1 of script script.sql\n     Unknown metacommand\n     ASSERT TABLE_EXISTS(t\n     Metacommand: ASSERT TABLE_EXISTS(t\n     Error occurred at <TIME>.\n",
+   "execsql2": "**** Error in metacommand.\n     Line 1 of script script.sql\n     CondParserError: Missing ')' in condition: TABLE_EXISTS(t.\n     Metacommand: ASSERT TABLE_EXISTS(t\n     Error occurred at <TIME>.\n",
+   "why": "Condition parse errors name the unknown test or explain the malformed syntax instead of reporting a parser position or unconsumed suffix; accepted syntax, error type and halt behavior stay unchanged (#118)."
+  }
+ },
+ "condition_comparison_syntax": {
+  "stderr": {
+   "status": "accepted",
+   "upstream": "**** Error in metacommand.\n     Line 2 of script script.sql\n     CondParserError: Conditional expression parser did not consume entire string; remainder = = TRUE.\n     IF (TRUE = TRUE) { WRITE \"ran\" }\n     Metacommand: IF (!!flag!! = TRUE) { WRITE \"ran\" }\n     Error occurred at <TIME>.\n",
+   "execsql2": "**** Exception.\n     Line 2 of script script.sql\n     CondParserError: Not a condition test: TRUE = TRUE; compare values with EQUALS(a, b) or IS_TRUE(x).\n     Metacommand: IF (!!flag!! = TRUE) { WRITE \"ran\" }\n     Error occurred at <TIME>.\n",
+   "why": "Condition parse errors name the unknown test or explain the malformed syntax instead of reporting a parser position or unconsumed suffix; accepted syntax, error type and halt behavior stay unchanged (#118)."
+  }
+ },
  "deferred_include_while": {
   "exit": {
    "execsql2": 0,
@@ -908,10 +932,10 @@
    "why": "A block IF whose condition cannot be evaluated stops the run in execsql2, whatever METACOMMAND_ERROR_HALT says. Upstream carried on: at the top level it ran both the body and the ELSE branch; inside another IF it ran the body, skipped the ELSE, and closed the enclosing IF early, so that IF's ELSE branch ran too. Kept on purpose: no branch can be chosen (divergence: 'A condition that cannot be evaluated stops the run'; #112)."
   },
   "stderr": {
-   "execsql2": "**** Exception.\n     Line 4 of script script.sql\n     CondParserError: Conditional expression parser did not consume entire string; remainder = _SUCH_FN(x).\n     Metacommand: IF (NO_SUCH_FN(x))\n     Error occurred at <TIME>.\n",
+   "execsql2": "**** Exception.\n     Line 4 of script script.sql\n     CondParserError: Unknown condition test: NO_SUCH_FN: NO_SUCH_FN(x).\n     Metacommand: IF (NO_SUCH_FN(x))\n     Error occurred at <TIME>.\n",
    "status": "accepted",
    "upstream": "",
-   "why": "A block IF whose condition cannot be evaluated stops the run in execsql2, whatever METACOMMAND_ERROR_HALT says. Upstream carried on: at the top level it ran both the body and the ELSE branch; inside another IF it ran the body, skipped the ELSE, and closed the enclosing IF early, so that IF's ELSE branch ran too. Kept on purpose: no branch can be chosen (divergence: 'A condition that cannot be evaluated stops the run'; #112)."
+   "why": "A block IF whose condition cannot be evaluated stops the run in execsql2, whatever METACOMMAND_ERROR_HALT says. Upstream carried on: at the top level it ran both the body and the ELSE branch; inside another IF it ran the body, skipped the ELSE, and closed the enclosing IF early, so that IF's ELSE branch ran too. Kept on purpose: no branch can be chosen (divergence: 'A condition that cannot be evaluated stops the run'; #112). Condition parse errors name the unknown test or explain the malformed syntax instead of reporting a parser position or unconsumed suffix; accepted syntax, error type and halt behavior stay unchanged (#118)."
   }
  },
  "condition_error_database": {
@@ -936,10 +960,10 @@
  },
  "condition_error_script_while": {
   "stderr": {
-   "execsql2": "**** Exception.\n     Line 7 of script script.sql\n     CondParserError: Conditional expression parser did not consume entire string; remainder = _SUCH_FN(x).\n     Metacommand: EXECUTE SCRIPT s WHILE (NO_SUCH_FN(x))\n     Error occurred at <TIME>.\n",
+   "execsql2": "**** Exception.\n     Line 7 of script script.sql\n     CondParserError: Unknown condition test: NO_SUCH_FN: NO_SUCH_FN(x).\n     Metacommand: EXECUTE SCRIPT s WHILE (NO_SUCH_FN(x))\n     Error occurred at <TIME>.\n",
    "status": "accepted",
    "upstream": "**** Exception.\n     Line 4 of script script.sql\n     CondParserError: Conditional expression parser did not consume entire string; remainder = _SUCH_FN(x).\n     Metacommand: EXECUTE SCRIPT s WHILE (NO_SUCH_FN(x))\n     Error occurred at <TIME>.\n",
-   "why": "Both stop the run on an EXECUTE SCRIPT ... WHILE condition that cannot be evaluated; upstream reported a line inside the SCRIPT block, execsql2 reports the EXECUTE SCRIPT line (divergence: 'A condition that cannot be evaluated stops the run'; #112)."
+   "why": "Both stop the run on an EXECUTE SCRIPT ... WHILE condition that cannot be evaluated; upstream reported a line inside the SCRIPT block, execsql2 reports the EXECUTE SCRIPT line (divergence: 'A condition that cannot be evaluated stops the run'; #112). Condition parse errors name the unknown test or explain the malformed syntax instead of reporting a parser position or unconsumed suffix; accepted syntax, error type and halt behavior stay unchanged (#118)."
   }
  },
  "config_import_rows": {
@@ -1277,7 +1301,7 @@
    "execsql2": "failed at stage two\n",
    "status": "accepted",
    "upstream": "",
-   "why": "Upstream passed substitute_all's (text, flag) pair on as the text, so ON ERROR_HALT WRITE \u2026 TO <file> left the file empty; execsql2 writes the message (divergence: 'ON ERROR_HALT WRITE \u2026 TO a file wrote nothing')."
+   "why": "Upstream passed substitute_all's (text, flag) pair on as the text, so ON ERROR_HALT WRITE … TO <file> left the file empty; execsql2 writes the message (divergence: 'ON ERROR_HALT WRITE … TO a file wrote nothing')."
   }
  },
  "directive_from_variable": {
@@ -1346,10 +1370,10 @@
    "why": "An IF condition that cannot be evaluated stops the run in execsql2, whatever METACOMMAND_ERROR_HALT says; upstream made an inline IF's bad condition a metacommand error and carried on. Kept on purpose (#112): a condition that cannot be evaluated is a script bug, and carrying on runs the script down a branch nobody chose (divergence: 'A condition that cannot be evaluated stops the run')."
   },
   "stderr": {
-   "execsql2": "**** Exception.\n     Line 14 of script script.sql\n     CondParserError: Conditional expression parser did not consume entire string; remainder = _SUCH_FN(x).\n     Metacommand: IF (NO_SUCH_FN(x)) { WRITE \"inline body\" TO out.txt }\n     Error occurred at <TIME>.\n",
+   "execsql2": "**** Exception.\n     Line 14 of script script.sql\n     CondParserError: Unknown condition test: NO_SUCH_FN: NO_SUCH_FN(x).\n     Metacommand: IF (NO_SUCH_FN(x)) { WRITE \"inline body\" TO out.txt }\n     Error occurred at <TIME>.\n",
    "status": "accepted",
    "upstream": "",
-   "why": "An IF condition that cannot be evaluated stops the run in execsql2, whatever METACOMMAND_ERROR_HALT says; upstream made an inline IF's bad condition a metacommand error and carried on. Kept on purpose (#112): a condition that cannot be evaluated is a script bug, and carrying on runs the script down a branch nobody chose (divergence: 'A condition that cannot be evaluated stops the run')."
+   "why": "An IF condition that cannot be evaluated stops the run in execsql2, whatever METACOMMAND_ERROR_HALT says; upstream made an inline IF's bad condition a metacommand error and carried on. Kept on purpose (#112): a condition that cannot be evaluated is a script bug, and carrying on runs the script down a branch nobody chose (divergence: 'A condition that cannot be evaluated stops the run'). Condition parse errors name the unknown test or explain the malformed syntax instead of reporting a parser position or unconsumed suffix; accepted syntax, error type and halt behavior stay unchanged (#118)."
   }
  },
  "json_exact_numbers": {
@@ -1483,7 +1507,7 @@
    "execsql2": "halted after created\n",
    "status": "accepted",
    "upstream": "",
-   "why": "Upstream passed substitute_all's (text, flag) pair on as the text, so ON ERROR_HALT WRITE \u2026 TO <file> left the file empty; execsql2 writes the message (divergence: 'ON ERROR_HALT WRITE \u2026 TO a file wrote nothing')."
+   "why": "Upstream passed substitute_all's (text, flag) pair on as the text, so ON ERROR_HALT WRITE … TO <file> left the file empty; execsql2 writes the message (divergence: 'ON ERROR_HALT WRITE … TO a file wrote nothing')."
   }
  },
  "script_extend_and_write": {
@@ -2025,10 +2049,10 @@
    "why": "An unevaluable WAIT_UNTIL condition stops the run even with ERROR_HALT OFF and METACOMMAND_ERROR_HALT OFF; a failed check must not be skipped. Upstream continued after the condition error. Open batches are abandoned before the error hook instead of allowing later statements to commit a partial batch (#117; divergence: A condition that cannot be evaluated stops the run)."
   },
   "stderr": {
-   "execsql2": "**** Error in metacommand.\n     Line 3 of script script.sql\n     CondParserError: Conditional expression parser did not consume entire string; remainder = _SUCH_FN(x).\n     Metacommand: WAIT_UNTIL NO_SUCH_FN(x) CONTINUE AFTER 1 SECONDS\n     Error occurred at <TIME>.\n",
+   "execsql2": "**** Error in metacommand.\n     Line 3 of script script.sql\n     CondParserError: Unknown condition test: NO_SUCH_FN: NO_SUCH_FN(x).\n     Metacommand: WAIT_UNTIL NO_SUCH_FN(x) CONTINUE AFTER 1 SECONDS\n     Error occurred at <TIME>.\n",
    "status": "accepted",
    "upstream": "",
-   "why": "An unevaluable WAIT_UNTIL condition stops the run even with ERROR_HALT OFF and METACOMMAND_ERROR_HALT OFF; a failed check must not be skipped. Upstream continued after the condition error. Open batches are abandoned before the error hook instead of allowing later statements to commit a partial batch (#117; divergence: A condition that cannot be evaluated stops the run)."
+   "why": "An unevaluable WAIT_UNTIL condition stops the run even with ERROR_HALT OFF and METACOMMAND_ERROR_HALT OFF; a failed check must not be skipped. Upstream continued after the condition error. Open batches are abandoned before the error hook instead of allowing later statements to commit a partial batch (#117; divergence: A condition that cannot be evaluated stops the run). Condition parse errors name the unknown test or explain the malformed syntax instead of reporting a parser position or unconsumed suffix; accepted syntax, error type and halt behavior stay unchanged (#118)."
   }
  },
  "wait_until_condition_database_error": {
@@ -2048,7 +2072,7 @@
    "execsql2": "**** Error in SQL statement.\n     Line 6 of script script.sql\n     OperationalError: no such table: missing\n     select count(*) from \"missing\";\n     Metacommand: WAIT_UNTIL HASROWS(missing) CONTINUE AFTER 1 SECONDS\n     Error occurred at <TIME>.\n",
    "status": "accepted",
    "upstream": "",
-   "why": "An unevaluable WAIT_UNTIL condition stops the run even with ERROR_HALT OFF and METACOMMAND_ERROR_HALT OFF; a failed check must not be skipped. Upstream continued after the condition error. Open batches are abandoned before the error hook instead of allowing later statements to commit a partial batch (#117; divergence: A condition that cannot be evaluated stops the run)."
+   "why": "An unevaluable WAIT_UNTIL condition stops the run even with ERROR_HALT OFF and METACOMMAND_ERROR_HALT OFF; a failed check must not be skipped. Upstream continued after the condition error. Open batches are abandoned before the error hook instead of allowing later statements to commit a partial batch (#117; divergence: A condition that cannot be evaluated stops the run). Condition parse errors name the unknown test or explain the malformed syntax instead of reporting a parser position or unconsumed suffix; accepted syntax, error type and halt behavior stay unchanged (#118)."
   },
   "tables/t": {
    "execsql2": {
