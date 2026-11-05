@@ -778,14 +778,28 @@ def _check_condition(condition: str, source: str, line_no: int, issues: list[_Is
     from execsql.parser import CondParser
 
     forms = _placeholder_forms(condition) if _RX_ANY_VAR.search(condition) else [condition]
+    message = ""
     for form in forms:
         try:
             CondParser(form, _conditional_table()).parse()
-        except (CondParserError, RecursionError):  # RecursionError: nested past the parser's depth
+        except CondParserError as exc:
+            message = str(exc)
+            continue
+        except RecursionError:
+            message = "Condition nests too deeply to parse."
             continue
         return
+    if forms != [condition]:
+        # Placeholder values decide whether to report; the original text gives
+        # the diagnostic so variable names are never replaced with TRUE/1/x.
+        try:
+            CondParser(condition, _conditional_table()).parse()
+        except CondParserError as exc:
+            message = str(exc)
+        except RecursionError:
+            message = "Condition nests too deeply to parse."
     issues.append(
-        _issue("P004", source, line_no, f"unknown or malformed condition: {condition.strip()}"),
+        _issue("P004", source, line_no, message),
     )
 
 

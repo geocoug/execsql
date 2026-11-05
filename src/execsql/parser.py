@@ -23,6 +23,7 @@ Classes:
 """
 
 import re
+from difflib import get_close_matches
 from typing import Any, cast
 
 from execsql.exceptions import CondParserError, NumericParserError
@@ -204,6 +205,95 @@ class CondParser(CondTokens):
         self.cond_expr = SourceString(condexpr)
         self.conditionallist = conditionallist
 
+    def _test_syntax(self, name: str) -> str | None:
+        """Find a rejected test's documented syntax, including registered aliases."""
+        from execsql.metacommands import reference
+
+        entry = reference.condition(name)
+        if entry is not None:
+            return " or ".join(entry.forms)
+        table = self.conditionallist
+        if table is None:
+            import execsql.state as _state
+
+            table = _state.conditionallist
+        # Match only the name part of registered call patterns. This recognizes
+        # aliases such as EQUAL(S)? and HAS_ROWS without another keyword list.
+        for command in table or ():
+            prefix, opening, _ = command.pattern.partition(r"\(")
+            try:
+                named = bool(opening and re.fullmatch(prefix, name, re.I))
+            except re.error:
+                # A registration can wrap its whole pattern in a group; its
+                # prefix alone is then not a complete regular expression.
+                named = False
+            if named or name == (command.description or "").upper():
+                entry = reference.condition(command.description or "")
+                if entry is None:
+                    # Aliases and alternate quoting forms share a handler;
+                    # only the canonical registration carries its description.
+                    for other in table:
+                        if other.exec_fn is command.exec_fn:
+                            entry = reference.condition(other.description or "")
+                            if entry is not None:
+                                break
+                return " or ".join(entry.forms) if entry else f"{name}(...)"
+        return None
+
+    def _syntax_error(self, *, trailing: bool = False) -> str:
+        """Explain rejected syntax without changing what the parser accepts."""
+        source = self.cond_expr.str
+        position = self.cond_expr.currpos
+        # A literal such as NO or a NOT operator can consume the beginning of
+        # an unknown name (NO_SUCH_FN). Report the complete identifier.
+        if position < len(source) and (source[position].isalnum() or source[position] == "_"):
+            while position and (source[position - 1].isalnum() or source[position - 1] == "_"):
+                position -= 1
+        fragment = source[position:].strip()
+        if not fragment:
+            return f"Expected a condition test at the end of condition: {source.strip()}."
+        if fragment.startswith(")"):
+            return f"Unexpected ')' in condition: {source.strip()}."
+        if trailing and position == self.cond_expr.currpos and not fragment.startswith(("=", "<", ">", "!")):
+            return f"Expected AND or OR before {fragment!r} in condition: {source.strip()}."
+        match = re.match(r"(?P<name>[A-Za-z_]\w*)\s*(?P<opening>\()?", fragment)
+        if match is None or (not match["opening"] and re.match(r"[=<>!]+", fragment[match.end() :].lstrip())):
+            return f"Not a condition test: {source.strip()}; compare values with EQUALS(a, b) or IS_TRUE(x)."
+        name = match["name"].upper()
+        syntax = self._test_syntax(name)
+        if syntax is None:
+            from execsql.metacommands import reference
+
+            choices = sorted(c.name for c in reference.conditions() if "(" in c.forms[0])
+            near = get_close_matches(name, choices, n=1, cutoff=0.75)
+            hint = f" (did you mean {near[0]}?)" if near else ""
+            return f"Unknown condition test: {name}{hint}: {fragment}."
+        if match["opening"]:
+            depth = 0
+            commas = 0
+            quote = ""
+            for char in fragment[match.start("opening") :]:
+                if quote:
+                    if char == quote:
+                        quote = ""
+                elif char in "\"'`":
+                    quote = char
+                elif char == "(":
+                    depth += 1
+                elif char == ")":
+                    depth -= 1
+                    if depth == 0:
+                        break
+                elif char == "," and depth == 1:
+                    commas += 1
+            if quote:
+                return f"Missing closing quote {quote!r} in condition: {fragment}."
+            if depth > 0:
+                return f"Missing ')' in condition: {fragment}."
+            if "," in syntax and not commas:
+                return f"Separate the arguments of {name} with a comma: {fragment}. Expected: {syntax}."
+        return f"Invalid syntax for {name}: {fragment}. Expected: {syntax}."
+
     def match_not(self) -> int | None:
         """Match a NOT operator and return its token type, or None."""
         # Try to match 'NOT' operator. If not found, return None
@@ -249,14 +339,14 @@ class CondParser(CondTokens):
                 m1 = self.expression()
                 rp = self.cond_expr.match_str(")")
                 if rp is None:
+                    if not self.cond_expr.eoi():
+                        raise CondParserError(self._syntax_error(trailing=True))
                     raise CondParserError(
-                        f"Expected closing parenthesis at position {self.cond_expr.currpos} of {self.cond_expr.str}.",
+                        f"Missing ')' in condition: {self.condexpr.strip()}.",
                     )
                 return m1
             else:
-                raise CondParserError(
-                    f"Can't parse a factor at position {self.cond_expr.currpos} of {self.cond_expr.str}.",
-                )
+                raise CondParserError(self._syntax_error())
 
     def term(self) -> Any:
         """Parse a term: a factor optionally followed by AND and another term."""
@@ -282,9 +372,7 @@ class CondParser(CondTokens):
         """Parse the entire conditional expression and return the AST root."""
         exp = self.expression()
         if not self.cond_expr.eoi():
-            raise CondParserError(
-                f"Conditional expression parser did not consume entire string; remainder = {self.cond_expr.remainder()}.",
-            )
+            raise CondParserError(self._syntax_error(trailing=True))
         return exp
 
 

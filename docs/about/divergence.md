@@ -69,6 +69,13 @@ ______________________________________________________________________
 
 ### Bug Fixes
 
+Condition parse errors name unknown tests and suggest close spellings, show
+the expected syntax for malformed arguments, and identify missing parentheses,
+missing commas and unsupported comparisons. Runtime errors, `execsql lint`
+P004 findings and editor diagnostics share the wording. Upstream reports a
+parser position or an unconsumed suffix (even `_SUCH_FN` for `NO_SUCH_FN`).
+The accepted condition syntax and `CondParserError` type are unchanged (#118).
+
 `INCLUDE` filenames inside `LOOP WHILE`
 or `LOOP UNTIL` resolve deferred variables on every iteration, including through
 IF and BATCH blocks. Upstream leaves the converted `!!var!!` token unresolved

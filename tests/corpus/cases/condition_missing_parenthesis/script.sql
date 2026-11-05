@@ -1,0 +1,1 @@
+-- !x! ASSERT TABLE_EXISTS(t

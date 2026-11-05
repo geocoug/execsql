@@ -19,6 +19,8 @@ ______________________________________________________________________
 
 ### Fixed
 
+- **Condition errors in scripts, `execsql lint`, and editor diagnostics** name unknown tests, suggest close spellings, and explain malformed arguments, missing parentheses, and unsupported comparisons.
+
 - **`INCLUDE` inside `LOOP`** resolves deferred variables in filenames on each pass; use `INCLUDE part_!{i}!.sql` to select a different file per iteration.
 
 - **Firebird** table checks preserve pending work under `AUTOCOMMIT OFF` and inside batches; failed catalog and `IMPORT` / `COPY` DDL commits roll back instead of leaving work for a later commit.

@@ -287,14 +287,23 @@ insert into orders select * from staging.orders;
 
 ```text
 load.sql
-  1  error    P004  unknown or malformed condition: hasrowz(staging.orders)
-  2  error    P004  unknown or malformed condition: table_exists(staging.orders) and
-  5  error    P004  unknown or malformed condition: hasrowz(orders)
+  1  error    P004  Unknown condition test: HASROWZ (did you mean HASROWS?): hasrowz(staging.orders).
+  2  error    P004  Expected a condition test at the end of condition: table_exists(staging.orders) and.
+  5  error    P004  Unknown condition test: HASROWZ (did you mean HASROWS?): hasrowz(orders).
 ```
 
 A substitution variable in a condition is read as a placeholder value, tried as a boolean, a number and a name, so it fits wherever a variable can go: the whole condition (`IF(!!ready!!)`), a test's argument (`hasrows(!!table!!)`, `ROW_COUNT_EQ(staging.customers, !!row_count!!)`) or text in quotes. A condition that cannot parse with any of them is still reported. There is no `=` comparison, so `ASSERT !!$PG_UPSERT_QA_PASSED!! = TRUE` is an error, and `ASSERT IS_TRUE(!!$PG_UPSERT_QA_PASSED!!)` is the form to use.
 
-`execsql run` stops at an `IF`, `ELSEIF`, `ANDIF`, `ORIF` or `LOOP` whose condition does not parse, even with `METACOMMAND_ERROR_HALT OFF`. In `ASSERT` and `WAIT_UNTIL` it is a metacommand error, so with `METACOMMAND_ERROR_HALT OFF` the run carries on and the `ASSERT` never checks anything. The [`IF` metacommand](metacommands.md#if_cmd) lists every conditional test and its arguments.
+P004 uses the same diagnostic as `execsql run` and the editor. A misspelled test
+names a close match when one is available. A known test with malformed arguments
+shows its documented syntax: `IS_GT(1 2)` asks for a comma and shows
+`IS_GT(<value1>, <value2>)`. Missing parentheses and unsupported `=` comparisons
+are identified explicitly. Variable names in diagnostics remain as written.
+
+`execsql run` stops when any of these conditions cannot be parsed or evaluated,
+including in `ASSERT` and `WAIT_UNTIL`, even with `METACOMMAND_ERROR_HALT OFF`.
+Correct the test or its arguments before running again. The
+[`IF` metacommand](metacommands.md#if_cmd) lists every conditional test and its arguments.
 
 Conditions are parsed, never evaluated: lint does not connect to a database, so it cannot tell whether `hasrows(staging.orders)` would be true, only that it is a valid test.
 

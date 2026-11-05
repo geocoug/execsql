@@ -1,0 +1,2 @@
+-- !x! SUB flag TRUE
+-- !x! IF (!!flag!! = TRUE) { WRITE "ran" }
