@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.39.0] - 2026-11-05
+
 ### Changed
 
 - **`ASSERT` and `WAIT_UNTIL`** stop when a condition cannot be parsed or evaluated, even with `METACOMMAND_ERROR_HALT OFF`. Correct the condition or its query instead of skipping the check.
