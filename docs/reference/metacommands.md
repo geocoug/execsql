@@ -2191,6 +2191,11 @@ The specified file should be a script that contains SQL statements and/or metaco
 
 If the optional `IF EXISTS` clause is used, no error message will be displayed and the script will continue to run even if the file does not exist.
 
+Inside a LOOP, [deferred variables](substitution_vars.md#deferred_substitution)
+in the filename are resolved on each pass: `INCLUDE part_!{i}!.sql` can include
+a different file on every iteration. This also works within IF or BATCH blocks
+in the loop.
+
 
 ## LOG
 

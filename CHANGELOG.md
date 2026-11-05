@@ -19,6 +19,8 @@ ______________________________________________________________________
 
 ### Fixed
 
+- **`INCLUDE` inside `LOOP`** resolves deferred variables in filenames on each pass; use `INCLUDE part_!{i}!.sql` to select a different file per iteration.
+
 - **Firebird** table checks preserve pending work under `AUTOCOMMIT OFF` and inside batches; failed catalog and `IMPORT` / `COPY` DDL commits roll back instead of leaving work for a later commit.
 
 - **Firebird connections** accept the configured host, port and 30-second timeout with the `firebird-driver` extra.
