@@ -47,6 +47,8 @@ import zipfile
 from pathlib import Path
 from typing import Any
 
+from tests.subprocess_utils import DEFAULT_CLI_TIMEOUT, run_with_traceback
+
 CORPUS = Path(__file__).resolve().parent
 CASES = CORPUS / "cases"
 RESULTS = CORPUS / "results"
@@ -70,7 +72,7 @@ def requires_firebird(case: str) -> bool:
     return (CASES / case / "requires-firebird").is_file()
 
 
-def run_case(case: str, command: list[str], workdir: Path, *, timeout: int = 30) -> dict[str, Any]:
+def run_case(case: str, command: list[str], workdir: Path, *, timeout: int = DEFAULT_CLI_TIMEOUT) -> dict[str, Any]:
     """Run *case* with *command* (the execsql to call, without its arguments) in the empty *workdir*."""
     source = CASES / case
     shutil.copytree(source, workdir, dirs_exist_ok=True)
@@ -104,7 +106,7 @@ def run_case(case: str, command: list[str], workdir: Path, *, timeout: int = 30)
             os.environ.get("EXECSQL_FIREBIRD_HOST", "localhost"),
             database,
         ]
-    proc = subprocess.run(
+    proc = run_with_traceback(
         [*command, *arguments],
         cwd=workdir,
         env=env,
