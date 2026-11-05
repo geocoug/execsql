@@ -14,19 +14,15 @@ ______________________________________________________________________
 ### Changed
 
 - **`ASSERT` and `WAIT_UNTIL`** stop when a condition cannot be parsed or evaluated, even with `METACOMMAND_ERROR_HALT OFF`. Correct the condition or its query instead of skipping the check.
-
 - **`IMPORT` / `COPY … TO NEW`** report failed catalog checks as metacommand errors; restore catalog access before retrying. An open batch fails even with `METACOMMAND_ERROR_HALT OFF`.
 
 ### Fixed
 
 - **Condition errors in scripts, `execsql lint`, and editor diagnostics** name unknown tests, suggest close spellings, and explain malformed arguments, missing parentheses, and unsupported comparisons.
-
+- **`PROMPT SELECT_ROWS` with Tkinter or Textual** saves confirmed selections to the destination table, preserving typed values, duplicate selections and existing rows. Cancel discards the selections; `AUTOCOMMIT OFF` and batches retain control of the transaction.
 - **`INCLUDE` inside `LOOP`** resolves deferred variables in filenames on each pass; use `INCLUDE part_!{i}!.sql` to select a different file per iteration.
-
 - **Firebird** table checks preserve pending work under `AUTOCOMMIT OFF` and inside batches; failed catalog and `IMPORT` / `COPY` DDL commits roll back instead of leaving work for a later commit.
-
 - **Firebird connections** accept the configured host, port and 30-second timeout with the `firebird-driver` extra.
-
 - **`WRITE CREATE_TABLE … IN`, `PROMPT ENTRY_FORM`, and `PROMPT ACTION`** read sources without catalog access, preserving temporary tables and views and avoiding catalog-query rollbacks inside batches.
 
 ______________________________________________________________________
