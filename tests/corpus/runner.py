@@ -47,6 +47,8 @@ import zipfile
 from pathlib import Path
 from typing import Any
 
+from tests.subprocess_utils import run_with_traceback
+
 CORPUS = Path(__file__).resolve().parent
 CASES = CORPUS / "cases"
 RESULTS = CORPUS / "results"
@@ -104,7 +106,7 @@ def run_case(case: str, command: list[str], workdir: Path, *, timeout: int = 30)
             os.environ.get("EXECSQL_FIREBIRD_HOST", "localhost"),
             database,
         ]
-    proc = subprocess.run(
+    proc = run_with_traceback(
         [*command, *arguments],
         cwd=workdir,
         env=env,

@@ -6,9 +6,10 @@ verification helpers.  The helpers here are backend-agnostic.
 
 from __future__ import annotations
 
-import subprocess
 import sys
 import textwrap
+
+from tests.subprocess_utils import run_with_traceback
 
 
 def write_script(tmp_path, sql_text, name="test_script.sql"):
@@ -27,7 +28,7 @@ def run_execsql(tmp_path, script_path, extra_args=None, timeout=30):
     cmd = [sys.executable, "-m", "execsql", "run", str(script_path)]
     if extra_args:
         cmd.extend(extra_args)
-    return subprocess.run(
+    return run_with_traceback(
         cmd,
         cwd=str(tmp_path),
         capture_output=True,

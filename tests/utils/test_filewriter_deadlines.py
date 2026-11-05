@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import builtins
+import queue
 import threading
 import time
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -214,45 +216,45 @@ def test_flush_deadline_bounds_live_worker_and_prevents_later_output(tmp_path, m
 
 @pytest.mark.parametrize("entrypoint", ["status", "close"])
 def test_public_path_waits_use_the_default_absolute_deadline(tmp_path, monkeypatch, entrypoint):
-    entered, release = threading.Event(), threading.Event()
-    target = tmp_path / "blocked.txt"
-    real_open = builtins.open
-    original_deadline = fileio._writer_deadline
-    monkeypatch.setattr(fileio, "_writer_deadline", lambda fw, max_wait=None: original_deadline(fw, 0.04))
-
-    def blocked(*args, **kwargs):
-        filename = kwargs.get("file", args[0] if args else "")
-        if str(filename) == str(target):
-            if entrypoint == "status":
-                entered.set()
-                assert release.wait(2)
-            handle = real_open(*args, **kwargs)
-            return GatedHandle(handle, "close", entered, release, [])
-        return real_open(*args, **kwargs)
-
-    monkeypatch.setattr(fileio, "open", blocked, raising=False)
+    # A controlled clock checks the actual six-second default, without making
+    # scheduler latency on a loaded CI runner part of the assertion.
+    target = str(tmp_path / "blocked.txt")
     writer = fileio.FileWriter(open_timeout=1)
-    state.filewriter = writer
-    writer.start()
-    safety = threading.Timer(0.8, release.set)
-    safety.start()
-    try:
-        fileio.filewriter_write(str(target), "first\n")
-        if entrypoint == "status":
-            assert entered.wait(0.5)
-        started = time.monotonic()
-        action = fileio.filewriter_filestatus if entrypoint == "status" else fileio.filewriter_close
-        with pytest.raises(ErrInfo, match="File output lost") as raised:
-            action(str(target))
-        assert time.monotonic() - started <= 0.29
-        assert ("open" if entrypoint == "status" else "close") in str(raised.value)
-        assert str(target) in str(raised.value)
-    finally:
-        release.set()
-        safety.cancel()
-        fileio.filewriter_end(writer)
-        writer.join(2)
-        state.filewriter = None
+    now = 100.0
+    waits, defaults = [], []
+    original_deadline = fileio._writer_deadline
+
+    def advance(seconds):
+        nonlocal now
+        now += seconds
+
+    def deadline(fw, max_wait=None):
+        defaults.append(max_wait)
+        return original_deadline(fw, max_wait)
+
+    def reply(timeout):
+        waits.append(timeout)
+        assert len(waits) < 200, "the public call reset its deadline while polling"
+        if entrypoint == "close" and len(waits) == 1:
+            return fileio.FileWriter.FileControl.STATUS_OPEN
+        advance(timeout)
+        raise queue.Empty
+
+    writer.current_op = ("open" if entrypoint == "status" else "close", target, now)
+    monkeypatch.setattr(fileio, "time", SimpleNamespace(monotonic=lambda: now, sleep=advance))
+    monkeypatch.setattr(fileio, "_active_writer", lambda: writer)
+    monkeypatch.setattr(writer, "is_alive", lambda: True)
+    monkeypatch.setattr(writer.return_msg_queue, "get", reply)
+    monkeypatch.setattr(fileio, "_writer_deadline", deadline)
+    action = fileio.filewriter_filestatus if entrypoint == "status" else fileio.filewriter_close
+    with pytest.raises(ErrInfo, match="File output lost") as raised:
+        action(target)
+    assert defaults == [None], "the public call must use one default deadline"
+    assert now == pytest.approx(106.0)
+    assert all(0 < wait <= 0.05 for wait in waits)
+    assert writer.abandoned.is_set()
+    assert ("open" if entrypoint == "status" else "close") in str(raised.value)
+    assert target in str(raised.value)
 
 
 @pytest.mark.parametrize("encoding", ["utf-8", "utf-16", "utf-16-be", "ascii"])

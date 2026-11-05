@@ -16,12 +16,13 @@ generic glob:
 
 from __future__ import annotations
 
-import subprocess
 import sys
 import textwrap
 from pathlib import Path
 
 import pytest
+
+from tests.subprocess_utils import run_with_traceback
 
 _FIXTURES = Path(__file__).parent / "fixtures"
 _AUDIT_SMOKE = _FIXTURES / "audit_smoke.sql"
@@ -58,7 +59,7 @@ def _write_conf(tmp_path: Path, db_filename: str = "test.db") -> Path:
 def test_sql_script(tmp_path: Path, sql_script: Path) -> None:
     """Execute a self-verifying SQL script and assert exit-code 0."""
     _write_conf(tmp_path)
-    result = subprocess.run(
+    result = run_with_traceback(
         [
             sys.executable,
             "-m",
@@ -126,7 +127,7 @@ def test_audit_smoke(tmp_path: Path, variant: str, extra_flags: list[str]) -> No
         "-a",
         str(outdir),
     ]
-    result = subprocess.run(
+    result = run_with_traceback(
         cmd,
         cwd=str(tmp_path),
         capture_output=True,
@@ -151,7 +152,7 @@ def test_audit_lint_bad(tmp_path: Path) -> None:
     """``execsql lint`` on the intentionally broken fixture should
     report both planted diagnostics: an undefined substitution variable
     and a missing INCLUDE target."""
-    result = subprocess.run(
+    result = run_with_traceback(
         [sys.executable, "-m", "execsql", "lint", str(_AUDIT_LINT_BAD)],
         cwd=str(tmp_path),
         capture_output=True,
