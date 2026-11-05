@@ -216,6 +216,7 @@ class CondParser(CondTokens):
         self.conditionallist = conditionallist
         self._diagnostic_source = diagnostic_source or (lambda position: (condexpr, position))
         self._operand_start = 0
+        self._not_end = -1
 
     def _test_syntax(self, name: str) -> str | None:
         """Find a rejected test's documented syntax, including registered aliases."""
@@ -258,8 +259,10 @@ class CondParser(CondTokens):
         position = self.cond_expr.currpos
         # A literal such as NO or a NOT operator can consume the beginning of
         # an unknown name (NO_SUCH_FN). Report the complete identifier.
-        suffix = re.match(r"([A-Za-z_]\w*)\s*\(", source[position:])
-        known_suffix = suffix is not None and self._test_syntax(suffix[1].upper()) is not None
+        suffix = re.match(r"([A-Za-z_]\w*)", source[position:])
+        known_suffix = (
+            position == self._not_end and suffix is not None and self._test_syntax(suffix[1].upper()) is not None
+        )
         if not known_suffix and position < len(source) and (source[position].isalnum() or source[position] == "_"):
             while position > self._operand_start and (source[position - 1].isalnum() or source[position - 1] == "_"):
                 position -= 1
@@ -315,6 +318,7 @@ class CondParser(CondTokens):
         # Try to match 'NOT' operator. If not found, return None
         m1 = self.cond_expr.match_str("NOT")
         if m1 is not None:
+            self._not_end = self.cond_expr.currpos
             return self.NOT
         return None
 

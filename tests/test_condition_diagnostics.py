@@ -140,3 +140,15 @@ def test_adjacent_operators_do_not_become_part_of_a_known_test_name(prefix):
 @pytest.mark.parametrize("prefix", ["TRUE AND", "FALSE OR"])
 def test_recovering_an_unknown_name_does_not_cross_an_adjacent_binary_operator(prefix):
     assert _message(prefix + "NO_SUCH_FN(x)") == _message("NO_SUCH_FN(x)")
+
+
+@pytest.mark.parametrize("prefix", ["NOT", "NOTNOT", "TRUE ANDNOT", "FALSE ORNOT"])
+@pytest.mark.parametrize("bad", ["TABLE_EXISTS", "TABLE_EXISTS t)", "IS_GT", "IS_GT 1 2)"])
+def test_adjacent_not_does_not_hide_a_missing_call_or_opening_parenthesis(prefix, bad):
+    assert _message(prefix + bad) == _message(bad)
+
+
+@pytest.mark.parametrize("prefix", ["NO", "TRUE", "FALSE"])
+def test_a_boolean_literal_prefix_does_not_hide_an_unknown_identifier(prefix):
+    name = prefix + "IS_GT"
+    assert f"Unknown condition test: {name}" in _message(name + "()")
