@@ -191,6 +191,11 @@ jobs:
               # package, otherwise importing it fails and any DSN test bails.
               if: runner.os == 'macOS'
               run: brew install unixodbc
+            - name: Diagnose Windows CLI timeouts
+              if: matrix.os == 'windows-latest' && matrix.python-version == '3.14'
+              timeout-minutes: 15
+              run: |
+                  tox -e py -- --no-cov tests/test_executor.py tests/integration/test_sqlite.py tests/scripts/test_sql_scripts.py tests/corpus
             - name: Test with tox
               env:
                   DISPLAY: ""

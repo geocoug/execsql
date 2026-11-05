@@ -14,6 +14,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.subprocess_utils import run_with_traceback
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -45,7 +47,7 @@ def _run_ast(
     ]
     if extra_args:
         args.extend(extra_args)
-    return subprocess.run(
+    return run_with_traceback(
         args,
         cwd=str(tmp_path),
         capture_output=True,
@@ -59,7 +61,7 @@ def _run_legacy(script_content: str, tmp_path: Path) -> subprocess.CompletedProc
     script = tmp_path / "test.sql"
     script.write_text(script_content)
     db = tmp_path / "test.db"
-    return subprocess.run(
+    return run_with_traceback(
         [sys.executable, "-m", "execsql", "run", str(script), str(db), "-t", "l", "-n"],
         cwd=str(tmp_path),
         capture_output=True,
