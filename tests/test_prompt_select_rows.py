@@ -160,3 +160,47 @@ def test_a_separate_destination_connection_uses_its_transaction(database, tmp_pa
         )
         assert conn.execute("select * from destination").fetchall() == expected
     assert _rows(database) == [("existing", b"old", 0, "keep")]
+
+
+@pytest.mark.parametrize("backend", ["sqlite", "duckdb"])
+@pytest.mark.parametrize("mode", ["continue", "constraint", "held", "batch", "rollback", "cancel", "empty"])
+def test_selections_form_one_transaction_on_each_adapter(monkeypatch, backend, mode):
+    if backend == "duckdb":
+        pytest.importorskip("duckdb")
+        from execsql.db.duckdb import DuckDBDatabase
+
+        db = DuckDBDatabase(":memory:")
+    else:
+        db = SQLiteDatabase(":memory:")
+    try:
+        setup = run(
+            sql="create table source (id integer);\ninsert into source values (1), (2);\n"
+            "create table destination (id integer unique);\ninsert into destination values (0);\n",
+            connection=db,
+        )
+        assert setup.success, setup.errors
+
+        def choose(args):
+            rows = [args["rows1"][0]] * 2 if mode == "constraint" else args["rows1"]
+            return {"button": None if mode == "cancel" else 1, "rows": [] if mode == "empty" else rows}
+
+        _respond(monkeypatch, choose)
+        sql = COMMAND
+        if mode == "held":
+            sql = "-- !x! AUTOCOMMIT OFF\n" + sql
+        elif mode in ("batch", "rollback"):
+            sql = "-- !x! BEGIN BATCH\n" + sql
+            if mode == "rollback":
+                sql += "-- !x! ROLLBACK BATCH\n"
+            sql += "-- !x! END BATCH\n"
+        elif mode == "cancel":
+            sql = "-- !x! CANCEL_HALT OFF\n" + sql
+        result = run(sql=sql, connection=db)
+        assert result.success == (mode != "constraint"), result.errors
+        expected = [(0,), (1,), (2,)] if mode in ("continue", "held", "batch") else [(0,)]
+        assert db.select_data("select id from destination order by id")[1] == expected
+        if mode == "held":
+            db.rollback()
+            assert db.select_data("select id from destination order by id")[1] == [(0,)]
+    finally:
+        db.close()

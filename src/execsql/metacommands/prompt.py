@@ -840,6 +840,7 @@ def prompt_select_rows(button_list: list, **kwargs: Any) -> Any:
         columns = ",".join(db2.quote_identifier(header) for header in hdrs1)
         sql = f"insert into {sq_name2} ({columns}) values ({db2.paramsubs(len(hdrs1))});"
         _state.status.batch.using_db(db2)
+        db2.begin_transaction()
         for row in selections:
             db2.execute(sql, list(row))
         if not db2.holding():
