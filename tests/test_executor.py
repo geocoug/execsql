@@ -14,6 +14,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.subprocess_utils import DEFAULT_CLI_TIMEOUT, run_with_traceback
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -45,12 +47,12 @@ def _run_ast(
     ]
     if extra_args:
         args.extend(extra_args)
-    return subprocess.run(
+    return run_with_traceback(
         args,
         cwd=str(tmp_path),
         capture_output=True,
         text=True,
-        timeout=30,
+        timeout=DEFAULT_CLI_TIMEOUT,
     )
 
 
@@ -59,12 +61,12 @@ def _run_legacy(script_content: str, tmp_path: Path) -> subprocess.CompletedProc
     script = tmp_path / "test.sql"
     script.write_text(script_content)
     db = tmp_path / "test.db"
-    return subprocess.run(
+    return run_with_traceback(
         [sys.executable, "-m", "execsql", "run", str(script), str(db), "-t", "l", "-n"],
         cwd=str(tmp_path),
         capture_output=True,
         text=True,
-        timeout=30,
+        timeout=DEFAULT_CLI_TIMEOUT,
     )
 
 
@@ -99,12 +101,12 @@ _SQL_SCRIPTS = sorted(s for s in _FIXTURES.glob("*.sql") if s.name not in _DEDIC
 def test_fixture_scripts_with_ast(tmp_path: Path, sql_script: Path) -> None:
     """Execute each self-verifying fixture and assert exit-code 0."""
     db = tmp_path / "test.db"
-    result = subprocess.run(
+    result = run_with_traceback(
         [sys.executable, "-m", "execsql", "run", str(sql_script), str(db), "-t", "l", "-n"],
         cwd=str(tmp_path),
         capture_output=True,
         text=True,
-        timeout=60,
+        timeout=max(60, DEFAULT_CLI_TIMEOUT),
     )
     assert result.returncode == 0, (
         f"Script {sql_script.name} failed (rc={result.returncode}).\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
@@ -910,7 +912,7 @@ class TestInclude:
             "CREATE TABLE IF NOT EXISTS t (x INT);\n-- !x! INCLUDE test.sql",
         )
         db = tmp_path / "test.db"
-        result = subprocess.run(
+        result = run_with_traceback(
             [sys.executable, "-m", "execsql", "run", str(script_file), str(db), "-t", "l", "-n"],
             cwd=str(tmp_path),
             capture_output=True,

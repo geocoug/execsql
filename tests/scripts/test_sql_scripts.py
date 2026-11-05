@@ -16,12 +16,13 @@ generic glob:
 
 from __future__ import annotations
 
-import subprocess
 import sys
 import textwrap
 from pathlib import Path
 
 import pytest
+
+from tests.subprocess_utils import DEFAULT_CLI_TIMEOUT, run_with_traceback
 
 _FIXTURES = Path(__file__).parent / "fixtures"
 _AUDIT_SMOKE = _FIXTURES / "audit_smoke.sql"
@@ -58,7 +59,7 @@ def _write_conf(tmp_path: Path, db_filename: str = "test.db") -> Path:
 def test_sql_script(tmp_path: Path, sql_script: Path) -> None:
     """Execute a self-verifying SQL script and assert exit-code 0."""
     _write_conf(tmp_path)
-    result = subprocess.run(
+    result = run_with_traceback(
         [
             sys.executable,
             "-m",
@@ -73,7 +74,7 @@ def test_sql_script(tmp_path: Path, sql_script: Path) -> None:
         cwd=str(tmp_path),
         capture_output=True,
         text=True,
-        timeout=60,
+        timeout=max(60, DEFAULT_CLI_TIMEOUT),
     )
     assert result.returncode == 0, (
         f"Script {sql_script.name} failed (rc={result.returncode}).\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
@@ -126,12 +127,12 @@ def test_audit_smoke(tmp_path: Path, variant: str, extra_flags: list[str]) -> No
         "-a",
         str(outdir),
     ]
-    result = subprocess.run(
+    result = run_with_traceback(
         cmd,
         cwd=str(tmp_path),
         capture_output=True,
         text=True,
-        timeout=60,
+        timeout=max(60, DEFAULT_CLI_TIMEOUT),
     )
     assert result.returncode == 0, (
         f"audit_smoke variant={variant} failed (rc={result.returncode}).\n"
@@ -151,12 +152,12 @@ def test_audit_lint_bad(tmp_path: Path) -> None:
     """``execsql lint`` on the intentionally broken fixture should
     report both planted diagnostics: an undefined substitution variable
     and a missing INCLUDE target."""
-    result = subprocess.run(
+    result = run_with_traceback(
         [sys.executable, "-m", "execsql", "lint", str(_AUDIT_LINT_BAD)],
         cwd=str(tmp_path),
         capture_output=True,
         text=True,
-        timeout=30,
+        timeout=DEFAULT_CLI_TIMEOUT,
     )
     combined = result.stdout + result.stderr
     assert "totally_made_up_var" in combined, f"lint missed the undefined-variable warning.\nOUT:\n{combined}"
