@@ -191,31 +191,6 @@ jobs:
               # package, otherwise importing it fails and any DSN test bails.
               if: runner.os == 'macOS'
               run: brew install unixodbc
-            - name: Compare SQLite temporary-disk latency
-              if: runner.os == 'Windows' && matrix.python-version == '3.14'
-              timeout-minutes: 5
-              run: |
-                  @'
-                  import concurrent.futures, json, os, pathlib, sqlite3, tempfile, time
-                  def measure(base):
-                      with tempfile.TemporaryDirectory(dir=base) as directory:
-                          con = sqlite3.connect(pathlib.Path(directory) / "probe.db")
-                          try:
-                              con.execute("CREATE TABLE t (v INTEGER)")
-                              con.commit()
-                              started = time.monotonic()
-                              for value in range(10):
-                                  con.execute("INSERT INTO t VALUES (?)", (value,))
-                                  con.commit()
-                              return round(time.monotonic() - started, 4)
-                          finally:
-                              con.close()
-                  bases = [pathlib.Path.home() / "AppData/Local/Temp", pathlib.Path(os.environ["RUNNER_TEMP"])]
-                  for base in bases:
-                      with concurrent.futures.ThreadPoolExecutor(max_workers=4) as workers:
-                          results = list(workers.map(measure, [base] * 4))
-                      print(json.dumps({"directory": str(base), "ten_commits_seconds": results}), flush=True)
-                  '@ | python -
             - name: Test with tox
               env:
                   DISPLAY: ""

@@ -9,7 +9,7 @@ from __future__ import annotations
 import sys
 import textwrap
 
-from tests.subprocess_utils import run_with_traceback
+from tests.subprocess_utils import DEFAULT_CLI_TIMEOUT, run_with_traceback
 
 
 def write_script(tmp_path, sql_text, name="test_script.sql"):
@@ -19,7 +19,7 @@ def write_script(tmp_path, sql_text, name="test_script.sql"):
     return script
 
 
-def run_execsql(tmp_path, script_path, extra_args=None, timeout=30):
+def run_execsql(tmp_path, script_path, extra_args=None, timeout=DEFAULT_CLI_TIMEOUT):
     """Run execsql on the given script via subprocess.
 
     Returns the completed process.  The working directory is set to *tmp_path*

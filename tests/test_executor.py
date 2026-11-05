@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.subprocess_utils import run_with_traceback
+from tests.subprocess_utils import DEFAULT_CLI_TIMEOUT, run_with_traceback
 
 
 # ---------------------------------------------------------------------------
@@ -52,7 +52,7 @@ def _run_ast(
         cwd=str(tmp_path),
         capture_output=True,
         text=True,
-        timeout=30,
+        timeout=DEFAULT_CLI_TIMEOUT,
     )
 
 
@@ -66,7 +66,7 @@ def _run_legacy(script_content: str, tmp_path: Path) -> subprocess.CompletedProc
         cwd=str(tmp_path),
         capture_output=True,
         text=True,
-        timeout=30,
+        timeout=DEFAULT_CLI_TIMEOUT,
     )
 
 
@@ -106,7 +106,7 @@ def test_fixture_scripts_with_ast(tmp_path: Path, sql_script: Path) -> None:
         cwd=str(tmp_path),
         capture_output=True,
         text=True,
-        timeout=60,
+        timeout=max(60, DEFAULT_CLI_TIMEOUT),
     )
     assert result.returncode == 0, (
         f"Script {sql_script.name} failed (rc={result.returncode}).\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"

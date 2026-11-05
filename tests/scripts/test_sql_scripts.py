@@ -22,7 +22,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.subprocess_utils import run_with_traceback
+from tests.subprocess_utils import DEFAULT_CLI_TIMEOUT, run_with_traceback
 
 _FIXTURES = Path(__file__).parent / "fixtures"
 _AUDIT_SMOKE = _FIXTURES / "audit_smoke.sql"
@@ -74,7 +74,7 @@ def test_sql_script(tmp_path: Path, sql_script: Path) -> None:
         cwd=str(tmp_path),
         capture_output=True,
         text=True,
-        timeout=60,
+        timeout=max(60, DEFAULT_CLI_TIMEOUT),
     )
     assert result.returncode == 0, (
         f"Script {sql_script.name} failed (rc={result.returncode}).\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
@@ -132,7 +132,7 @@ def test_audit_smoke(tmp_path: Path, variant: str, extra_flags: list[str]) -> No
         cwd=str(tmp_path),
         capture_output=True,
         text=True,
-        timeout=60,
+        timeout=max(60, DEFAULT_CLI_TIMEOUT),
     )
     assert result.returncode == 0, (
         f"audit_smoke variant={variant} failed (rc={result.returncode}).\n"
@@ -157,7 +157,7 @@ def test_audit_lint_bad(tmp_path: Path) -> None:
         cwd=str(tmp_path),
         capture_output=True,
         text=True,
-        timeout=30,
+        timeout=DEFAULT_CLI_TIMEOUT,
     )
     combined = result.stdout + result.stderr
     assert "totally_made_up_var" in combined, f"lint missed the undefined-variable warning.\nOUT:\n{combined}"

@@ -3,10 +3,17 @@
 from __future__ import annotations
 
 import subprocess
+import sys
 import tempfile
 import warnings
 from pathlib import Path
 from typing import Any
+
+
+# These test databases use SQLite's normal durable commits. Shared Windows
+# runners have taken 21–28 seconds for valid scripts, and exceeded 30 seconds
+# intermittently. Explicit short timeout regressions keep their own limits.
+DEFAULT_CLI_TIMEOUT = 120 if sys.platform == "win32" else 30
 
 
 def run_with_traceback(command: list[str], *, timeout: float, **kwargs: Any) -> subprocess.CompletedProcess:
