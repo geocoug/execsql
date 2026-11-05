@@ -69,6 +69,15 @@ ______________________________________________________________________
 
 ### Bug Fixes
 
+`PROMPT SELECT_ROWS` saves rows selected in the Tkinter and Textual dialogs
+through the script's destination connection when Continue is pressed. The
+modular dialogs previously changed only their widgets, leaving the SQL table
+unchanged. Original Python values, duplicate selections and existing rows are
+preserved, with source columns matched by name and destination defaults applied
+to extra columns. Unlike upstream, which inserted from its GUI callback on
+each double-click, selections are staged until confirmation and discarded on
+Cancel. Successful writes follow AUTOCOMMIT and BATCH transaction rules (#175).
+
 `INCLUDE` filenames inside `LOOP WHILE`
 or `LOOP UNTIL` resolve deferred variables on every iteration, including through
 IF and BATCH blocks. Upstream leaves the converted `!!var!!` token unresolved

@@ -14,6 +14,12 @@ __all__ = ["DiffResult", "GuiBackend", "compare_stats", "compute_row_diffs", "fo
 DIFF_MARKER = "● "
 
 
+def selected_row_values(headers: list, row: list | tuple, destination_headers: list) -> list:
+    """Project a selected source row into the destination's display column order."""
+    values = dict(zip(headers, row))
+    return [values.get(header) for header in destination_headers]
+
+
 # ---------------------------------------------------------------------------
 # Plain-text table rendering (shared by the console backend and by
 # non-interactive metacommand fallbacks such as HALT ... DISPLAY)
@@ -275,7 +281,10 @@ class GuiBackend(ABC):
     - ``show_display``    → ``{"button": int|None, "return_value": str|None}``
     - ``show_entry_form`` → ``{"button": int|None, "return_value": list[EntrySpec]}``
     - ``show_compare``    → ``{"button": int|None}``
-    - ``show_select_rows``→ ``{"button": int|None}``
+    - ``show_select_rows``→ ``{"button": int|None, "rows": list|None}``
+      ``rows`` contains new selections in source column order, with original
+      Python values and duplicates retained. ``[]`` means no selections;
+      ``None`` means cancelled or unavailable (console fallback).
     - ``show_select_sub`` → ``{"button": int|None, "row": dict|None}``
     - ``show_action``     → ``{"button": int|None}``
     - ``show_map``        → ``{"button": int|None}``

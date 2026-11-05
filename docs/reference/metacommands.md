@@ -3013,17 +3013,28 @@ PROMPT SELECT_ROWS FROM <table1> INTO <table2>
     [HELP <url>] MESSAGE "<prompt_text>"
 ```
 
-Displays the two selected tables, similar to the [PROMPT DISPLAY](#prompt) metacommand, showing *table1* above *table2*. Double-clicking on a row in *table1* will add it to *table2*.
+Displays the source and destination tables. Double-clicking on a row in
+*table1* adds it to the destination pane. Press Continue to save the newly
+selected rows to *table2*. Cancelling discards those selections; it does not
+write them or commit the script's transaction.
 
-*Table2* must have all of the columns that are in *table1*, with identical column names and compatible data types. *Table2* may have additional columns.
+*Table2* must have all of the columns that are in *table1*, with identical column names and compatible data types. Column order may differ: values are matched by column name and retain their original data types. *Table2* may have additional columns; the database applies their defaults when the selections are saved.
 
-The same row from *table1* may be added to *table2* multiple times. The metacommand does not check for uniqueness or conflicting keys. *Table2* may be partially populated when the metacommand is run, and any conflicts between those existing data and new data to be added will also not be evaluated by the metacommand. If the data to be added to *table2* violates a unique key on that table, the DBMS will cause an error, and *execsql* will halt (unless [ERROR_HALT](#error_halt) is off).
+The same row from *table1* may be added to *table2* multiple times. Existing
+rows in *table2* are preserved. The metacommand does not deduplicate selections
+or check for conflicting keys. A database constraint violation is a
+metacommand error, governed by [METACOMMAND_ERROR_HALT](#metacommanderrorhalt);
+the transaction is rolled back as for a failed SQL statement.
 
-The background color for rows that have been selected from *table1* will be set to grey.
+With AUTOCOMMIT ON, successful selections are committed together after
+Continue. With AUTOCOMMIT OFF they remain pending for the script's COMMIT or
+ROLLBACK. Inside a BATCH, END BATCH commits them or ROLLBACK BATCH discards them;
+leaving the batch early also rolls them back under the usual batch rules.
+Continuing without adding rows leaves the destination and transaction untouched.
 
 If a URL is provided with the HELP keyword, the dialog box will include a button that will open that URL when clicked. The URL must be double-quoted if it contains spaces.
 
-**Console fallback (when an interactive GUI backend is unavailable):** PROMPT SELECT_ROWS is a *degraded no-op* under the text-only console backend — the rows of *table1* are printed alongside a `"requires a GUI backend"` notice, but the dialog cannot collect double-click row selections. *Table2* is left in whatever state it was before the metacommand fired; scripts that depend on rows being populated must guard against this case (e.g. check `$LAST_ROWCOUNT` of `table2` afterwards, or run the script under `--gui-framework tkinter` / `textual` where the dialog is fully interactive). Tkinter and Textual backends are unaffected.
+**Console fallback (when an interactive GUI backend is unavailable):** PROMPT SELECT_ROWS is a *degraded no-op* under the text-only console backend — the rows of *table1* are printed alongside a `"requires a GUI backend"` notice, but the dialog cannot collect double-click row selections. *Table2* and pending work remain unchanged. Scripts that require selections should check the destination afterwards, or use `--gui-framework tkinter` / `textual` for the interactive picker.
 
 
 ## PROMPT SELECT_SUB { #prompt_selsub }

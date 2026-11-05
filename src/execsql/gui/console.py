@@ -306,7 +306,7 @@ class ConsoleBackend(GuiBackend):
         print("(Row selection requires a GUI backend; displaying source data only.)", file=sys.stderr)
 
         btn = _prompt_buttons(button_list)
-        return {"button": btn}
+        return {"button": btn, "rows": None}
 
     def show_select_sub(self, args: dict) -> dict:
         title = args.get("title", "Select a row")

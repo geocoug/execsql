@@ -16,7 +16,7 @@ from typing import Any, cast
 from collections.abc import Callable
 
 from execsql.exceptions import ScriptExit
-from execsql.gui.base import GuiBackend
+from execsql.gui.base import GuiBackend, selected_row_values
 
 # ---------------------------------------------------------------------------
 # Tkinter import guard
@@ -675,6 +675,7 @@ class CompareDialog:
 class SelectRowsDialog:
     def __init__(self, root: tk.Tk, args: dict) -> None:
         self.result: dict = {}
+        self._selected_rows: list[list[Any]] = []
 
         win = tk.Toplevel(root)
         win.title(args.get("title", "Select rows"))
@@ -719,13 +720,16 @@ class SelectRowsDialog:
 
         src_tree = _add_tree_frame(tables_frame, "Source", headers1, rows1)
         dst_tree = _add_tree_frame(tables_frame, "Destination", headers2, rows2)
+        source_rows = {key: list(row) for key, row in zip(src_tree.get_children(), rows1)}
 
         def _on_double_click(event):
             sel = src_tree.selection()
             if sel:
                 row_id = sel[0]
-                values = src_tree.item(row_id, "values")
-                dst_tree.insert("", "end", values=values)
+                values = source_rows[row_id]
+                self._selected_rows.append(list(values))
+                display = selected_row_values(headers1, values, headers2)
+                dst_tree.insert("", "end", values=[str(value) if value is not None else "" for value in display])
 
         src_tree.bind("<Double-1>", _on_double_click)
         src_tree.bind("<Return>", _on_double_click)
@@ -735,12 +739,13 @@ class SelectRowsDialog:
         btn_frame.pack(pady=8, anchor="e")
         _add_buttons(btn_frame, button_list, lambda v: self._close(win, v))
         win.bind("<Escape>", lambda e: self._close(win, None))
+        win.protocol("WM_DELETE_WINDOW", lambda: self._close(win, None))
 
         _center_window(win, 900, 500)
         root.wait_window(win)
 
     def _close(self, win: tk.Toplevel, value: int | None) -> None:
-        self.result = {"button": value}
+        self.result = {"button": value, "rows": self._selected_rows if value is not None else None}
         if win.winfo_exists():
             win.destroy()
 

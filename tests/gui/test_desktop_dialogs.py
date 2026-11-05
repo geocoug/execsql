@@ -439,6 +439,48 @@ class TestSelectRowsDialog:
         )
         assert dlg.result == {}
 
+    @pytest.mark.parametrize("finish", ["continue", "escape", "window"])
+    def test_returns_original_selected_values_and_preserves_destination_order(self, fake_tk, root, finish):
+        from datetime import date
+        from decimal import Decimal
+
+        source, destination = _mk_widget(), _mk_widget()
+        source.get_children.return_value = ("one", "two")
+        source.selection.side_effect = [("one",), ("one",), ("two",)]
+        fake_tk.ttk.Treeview.side_effect = [source, destination]
+        rows = [(Decimal("1.234567890123456789"), None), (date(2026, 11, 5), b"\x00\xff")]
+
+        def interact(win):
+            select = next(c.args[1] for c in source.bind.call_args_list if c.args[0] == "<Double-1>")
+            for _ in range(3):
+                select(None)
+            if finish == "continue":
+                next(
+                    c.kwargs["command"] for c in fake_tk.tk.Button.call_args_list if c.kwargs.get("text") == "Continue"
+                )()
+            elif finish == "escape":
+                next(c.args[1] for c in win.bind.call_args_list if c.args[0] == "<Escape>")(None)
+            else:
+                next(c.args[1] for c in win.protocol.call_args_list if c.args[0] == "WM_DELETE_WINDOW")()
+
+        root.wait_window.side_effect = interact
+        dlg = _desk.SelectRowsDialog(
+            root,
+            {
+                "headers1": ["id", "name"],
+                "rows1": rows,
+                "headers2": ["name", "extra", "id"],
+                "rows2": [("old", "keep", 0)],
+            },
+        )
+        source.item.assert_not_called()
+        assert destination.insert.call_args_list[1].kwargs["values"] == ["", "", str(rows[0][0])]
+        assert destination.insert.call_args_list[3].kwargs["values"] == [str(rows[1][1]), "", str(rows[1][0])]
+        if finish == "continue":
+            assert dlg.result == {"button": 1, "rows": [list(rows[0]), list(rows[0]), list(rows[1])]}
+        else:
+            assert dlg.result == {"button": None, "rows": None}
+
 
 class TestSelectSubDialog:
     def test_construct(self, fake_tk, root) -> None:

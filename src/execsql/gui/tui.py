@@ -24,7 +24,7 @@ import threading
 from typing import Any, Literal, cast
 
 from execsql.exceptions import ScriptExit
-from execsql.gui.base import GuiBackend
+from execsql.gui.base import GuiBackend, selected_row_values
 
 # ---------------------------------------------------------------------------
 # Textual import guard — raises ImportError if not installed so that the
@@ -959,6 +959,11 @@ class SelectRowsScreen(_BaseDialog):
     """
     )
 
+    def __init__(self, args: dict) -> None:
+        super().__init__(args)
+        self._selected_rows: list[list[Any]] = []
+        self._source_rows: dict[Any, list[Any]] = {}
+
     def compose(self) -> ComposeResult:
         title = self.args.get("title", "Select rows")
         message = self.args.get("message", "")
@@ -980,7 +985,9 @@ class SelectRowsScreen(_BaseDialog):
             with Horizontal(id="tables"):
                 with Vertical(classes="sel-table"):
                     yield Label("Source (select rows)")
-                    yield _make_table_widget("source_table", headers1, rows1)
+                    source = _make_table_widget("source_table", headers1, rows1)
+                    self._source_rows = {key: list(row) for key, row in zip(source.rows, rows1)}
+                    yield source
                     yield Static(_row_count_text(len(rows1)), classes="row-count")
                 with Vertical(classes="sel-table"):
                     yield Label("Destination")
@@ -993,16 +1000,17 @@ class SelectRowsScreen(_BaseDialog):
         if event.data_table.id == "source_table":
             dest: DataTable = self.query_one("#dest_table", DataTable)
             row_key = event.row_key
-            src: DataTable = self.query_one("#source_table", DataTable)
-            values = [src.get_cell(row_key, col) for col in src.columns]
-            dest.add_row(*values)
+            values = self._source_rows[row_key]
+            self._selected_rows.append(list(values))
+            display = selected_row_values(self.args.get("headers1", []), values, self.args.get("headers2", []))
+            dest.add_row(*[str(value) if value is not None else "" for value in display])
 
     def action_submit(self) -> None:
         """Submit the first primary button value (triggered by Enter key)."""
         button_list = self.args.get("button_list", [("Continue", 1)])
         for btn in button_list:
             if btn[1]:
-                self._result = {"button": btn[1]}
+                self._result = {"button": btn[1], "rows": self._selected_rows}
                 self.dismiss(self._result)
                 return
 
@@ -1011,7 +1019,7 @@ class SelectRowsScreen(_BaseDialog):
         if btn_id and btn_id.startswith("btn_") and btn_id[4:].isdigit():
             idx = int(btn_id.split("_")[1])
             value = self.args.get("button_list", [("Continue", 1)])[idx][1]
-            self._result = {"button": value}
+            self._result = {"button": value, "rows": self._selected_rows if value is not None else None}
             self.dismiss(self._result)
 
 

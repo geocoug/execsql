@@ -825,6 +825,26 @@ def prompt_select_rows(button_list: list, **kwargs: Any) -> Any:
         msg = f"Halted from selection of rows from {sq_name1} into {sq_name2}"
         _state.exec_log.log_exit_halt(script, line_no, msg)
         exit_now(2, None)
+    if btn is None:
+        return btn
+    if "rows" not in user_response:
+        raise ErrInfo("error", other_msg="The row-selection dialog did not return its selections.")
+    selections = user_response["rows"]
+    if selections is None:  # The console can display the source but cannot select rows.
+        return btn
+    if not isinstance(selections, list) or any(
+        not isinstance(row, (list, tuple)) or len(row) != len(hdrs1) for row in selections
+    ):
+        raise ErrInfo("error", other_msg="The row-selection dialog returned invalid rows.")
+    if selections:
+        columns = ",".join(db2.quote_identifier(header) for header in hdrs1)
+        sql = f"insert into {sq_name2} ({columns}) values ({db2.paramsubs(len(hdrs1))});"
+        _state.status.batch.using_db(db2)
+        db2.begin_transaction()
+        for row in selections:
+            db2.execute(sql, list(row))
+        if not db2.holding():
+            db2.commit()
     return btn
 
 
