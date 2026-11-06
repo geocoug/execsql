@@ -313,7 +313,7 @@ ods_max_xml_mb=150
 
 `gui_framework` { #gui_framework }
 
-:   The GUI framework to use when `gui_level` is greater than 0. The property value must be either `tkinter` (the default) or `textual`. `tkinter` uses native desktop dialogs via Tk; `textual` provides a terminal-based UI that works in headless/SSH environments. This can also be set via the `--gui-framework` command-line option.
+:   The GUI framework to use when `gui_level` is greater than 0. The property value must be either `tkinter` (the default) or `textual`. `tkinter` uses native desktop dialogs via Tk; `textual` provides a terminal-based UI that works in headless/SSH environments. This can also be set via the `--gui-framework` command-line option. Native Tk on macOS does not require `DISPLAY` or `WAYLAND_DISPLAY`. On other POSIX systems, neither display variable being set skips Tk initialization. If Tk is unavailable or startup fails, execsql tries Textual, then console prompts if Textual is unavailable; fallback writes the reason and selected backend to standard error.
 
 <a id="config_email"></a>
 

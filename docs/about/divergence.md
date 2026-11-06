@@ -69,6 +69,13 @@ ______________________________________________________________________
 
 ### Bug Fixes
 
+Native macOS Tk is attempted when `gui_framework=tkinter`, even without
+X11/Wayland environment variables. The modular headless guard previously
+treated macOS as an X11 desktop and silently selected Textual instead.
+Other POSIX hosts without a display still skip Tk; genuine Tk startup
+failures fall back to Textual, then console prompts when Textual is
+unavailable. Fallback reports its reason and selected backend on stderr.
+
 `PROMPT CREDENTIALS` initializes and uses the configured GUI transport
 without requiring a manager thread. The modular helper previously bypassed
 Tkinter and Textual synchronous queues and read from the terminal instead.

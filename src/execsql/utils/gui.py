@@ -275,7 +275,7 @@ def gui_console_isrunning() -> bool:
 
 
 def enable_gui() -> None:
-    """Ensure the GUI subsystem is ready and the manager thread is running.
+    """Ensure the GUI subsystem has a synchronous queue or manager thread.
 
     This is idempotent — subsequent calls return immediately if already set up.
 
@@ -298,15 +298,18 @@ def enable_gui() -> None:
 
     framework = _state.conf.gui_framework if _state.conf else "tkinter"
 
-    # --- Headless POSIX guard ----------------------------------------------
-    # B20/F041: on POSIX without DISPLAY or WAYLAND_DISPLAY, Tkinter's
-    # ``tk.Tk()`` constructor raises a cryptic _tkinter.TclError. Skip
-    # straight to a non-GUI backend on headless systems so the fallback
-    # path is taken cleanly rather than after a confusing TclError that
-    # the broad ``except Exception`` would swallow.
+    # Native macOS Tk uses Aqua; other POSIX desktops require a display server.
     import os as _os
 
-    headless_posix = _os.name == "posix" and not _os.environ.get("DISPLAY") and not _os.environ.get("WAYLAND_DISPLAY")
+    headless_posix = (
+        _os.name == "posix"
+        and sys.platform != "darwin"
+        and not _os.environ.get("DISPLAY")
+        and not _os.environ.get("WAYLAND_DISPLAY")
+    )
+    fallback_reason = None
+    if framework == "tkinter" and headless_posix:
+        fallback_reason = "Tkinter has no DISPLAY or WAYLAND_DISPLAY"
 
     # --- Tkinter sync path --------------------------------------------------
     # Tkinter must run on the main thread (required on macOS).  Use a sync
@@ -321,8 +324,8 @@ def enable_gui() -> None:
             _active_backend = backend
             _state.gui_manager_queue = _TkinterSyncQueue(backend)
             return
-        except (ImportError, RuntimeError, Exception):
-            pass  # fall through to Textual
+        except Exception as exc:
+            fallback_reason = f"Tkinter startup failed: {exc}"
 
     # --- Textual sync path --------------------------------------------------
     # Each dialog runs as a short-lived Textual App in the main thread.
@@ -333,9 +336,12 @@ def enable_gui() -> None:
 
         _active_backend = TextualBackend()
         _state.gui_manager_queue = _TextualSyncQueue()
+        if fallback_reason:
+            print(f"GUI fallback: {fallback_reason}; using Textual.", file=sys.stderr)
         return
-    except ImportError:
-        pass
+    except ImportError as exc:
+        reason = f"Textual unavailable: {exc}"
+        fallback_reason = f"{fallback_reason}; {reason}" if fallback_reason else reason
 
     # --- Thread-based manager path (ConsoleBackend fallback) ----------------
     if _state.gui_manager_thread is not None and _state.gui_manager_thread.is_alive():
@@ -348,6 +354,7 @@ def enable_gui() -> None:
 
     backend = ConsoleBackend()
     _active_backend = backend
+    print(f"GUI fallback: {fallback_reason}; using console prompts.", file=sys.stderr)
 
     _state.gui_manager_queue = _queue.Queue()
     t = threading.Thread(

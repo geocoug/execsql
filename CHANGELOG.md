@@ -13,6 +13,7 @@ ______________________________________________________________________
 
 ### Fixed
 
+- **Tkinter on macOS** uses native dialogs without requiring `DISPLAY` or `WAYLAND_DISPLAY`; unavailable backends report the fallback reason.
 - **`PROMPT CREDENTIALS`** uses the configured Tkinter or Textual dialog when GUI input is enabled; Cancel follows `CANCEL_HALT` and preserves existing credentials when halting is off.
 - **Tkinter credential dialogs** open successfully with a prompt message.
 - **`PROMPT ENTRY_FORM`** assigns each global or `~local` field in its declared scope, regardless of specification order.
