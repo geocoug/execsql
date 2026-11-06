@@ -441,7 +441,7 @@ CANCEL_HALT ON|OFF
 
 When CANCEL_HALT is set to ON, which is the default, if the user presses the "Cancel" button on a dialog (such as is presented by the [PROMPT DISPLAY](#prompt) metacommand), *execsql* will halt script processing. If CANCEL_HALT is set to OFF, then *execsql* will not halt script processing, and it is the script author's responsibility to ensure that adverse consequences do not result from the lack of a response to the dialog. The [DIALOG_CANCELED](#dialog_canceled) conditional can be used to determine whether a dialog has been canceled. [Example 10](../guides/examples.md#example10) illustrates a condition in which setting CANCEL_HALT to OFF is appropriate.
 
-Tkinter and Textual apply this policy in ordinary dialogs and in the Textual console. Escape and closing a dialog follow the same cancellation policy as its Cancel button. With CANCEL_HALT OFF, a canceled entry or file/directory prompt leaves its substitution variables unchanged. With CANCEL_HALT ON, cancellation runs the configured [ON CANCEL_HALT](#cancel_halt_exec) actions before the run exits.
+Tkinter and Textual apply this policy in ordinary dialogs and in the Textual console. Escape and closing a dialog follow the same cancellation policy as its Cancel button. With CANCEL_HALT OFF, the script continues without assigning the canceled response. Variable retention follows each metacommand's rules: `ENTER_SUB` retains its previous value, while `ENTRY_FORM` fields and the primary file/directory target are cleared before opening the prompt. With CANCEL_HALT ON, cancellation runs the configured [ON CANCEL_HALT](#cancel_halt_exec) actions before the run exits.
 
 A dialog failure is a metacommand error, not a user cancellation. It follows [METACOMMAND_ERROR_HALT](#metacommanderrorhalt), is reported through `METACOMMAND_ERROR()` and `$ERROR_MESSAGE`, and prevents an open [batch](#batch) from committing even when metacommand halting is OFF. CANCEL_HALT OFF does not suppress GUI failures.
 
@@ -2710,6 +2710,8 @@ Prompts for a yes or no response to the specified question, using a dialog box, 
 When the DISPLAY clause is included, a data table or view can be displayed with the question (as shown for the [PROMPT DISPLAY](#prompt) metacommand).
 
 When the COMPARE clause is included, the two specified tables are displayed with the question, and allow interactions as described for the [PROMPT COMPARE](#prompt_compare) metacommand.
+
+In Textual, Yes and No are separate answer buttons. Selecting No assigns `"No"` and continues the script; Cancel or Escape follows [CANCEL_HALT](#cancel_halt). This applies to both DISPLAY and COMPARE prompts.
 
 Double quotes (as shown above), apostrophes, or square brackets can be used to delimit the text of the question.
 

@@ -228,12 +228,16 @@ def test_textual_cancel_reaches_the_handler(database, monkeypatch, operation, ge
         "pause": '-- !x! PROMPT PAUSE "Wait"\n',
     }
     result = run(
-        sql="-- !x! CANCEL_HALT OFF\n" + commands[operation] + "insert into events values ('continued');\n",
+        sql="-- !x! SUB chosen unchanged\n-- !x! CANCEL_HALT OFF\n"
+        + commands[operation]
+        + "insert into events values ('continued');\n",
         connection=database,
-        variables={"chosen": "unchanged"},
     )
     assert result.success, result.errors
-    assert result.variables["chosen"] == "unchanged"
+    if operation in ("openfile", "savefile", "directory", "form"):
+        assert "chosen" not in result.variables
+    else:
+        assert result.variables["chosen"] == "unchanged"
     assert database.conn.execute("select * from events").fetchall() == [("continued",)]
 
 

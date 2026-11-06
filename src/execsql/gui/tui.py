@@ -108,9 +108,9 @@ def _button_row(button_list: list, no_cancel: bool = False) -> list[Button]:
 
     A Cancel button (id ``btn_cancel_exit``) is prepended so it appears on the
     left while the primary action button sits on the far right.  Entries in
-    *button_list* with a falsy value (0 or None) are treated as the cancel
-    label source and are otherwise excluded from the numbered buttons so that
-    ``btn_N`` indices stay aligned with ``button_list`` positions.
+    *button_list* with value None supply the cancel label and are otherwise
+    excluded from numbered buttons. Zero is a real response, such as No in
+    ASK prompts. ``btn_N`` indices stay aligned with ``button_list`` positions.
 
     When *no_cancel* is set, the Cancel button is omitted — dialogs such as
     HALT have no meaningful cancel action, and cancelling one would exit with
@@ -120,7 +120,7 @@ def _button_row(button_list: list, no_cancel: bool = False) -> list[Button]:
     primary_buttons = []
     for i, btn in enumerate(button_list):
         label, value = btn[0], btn[1]
-        if not value and value != 1:  # falsy but not accidentally 1
+        if value is None:
             cancel_label = label
         else:
             variant: Literal["primary", "default"] = "primary" if i == 0 else "default"

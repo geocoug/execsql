@@ -69,6 +69,12 @@ ______________________________________________________________________
 
 ### Bug Fixes
 
+Textual `PROMPT ASK` and `PROMPT ASK … COMPARE` preserve No as a real
+answer with value zero. The modular button builder previously turned zero
+into the cancellation action, so clicking No halted the script or left the
+answer unchanged with CANCEL_HALT OFF. No now assigns the documented value
+without cancelling; Cancel and Escape remain separate.
+
 `PROMPT ENTER_SUB` applies its documented TYPE and LCASE/UCASE controls
 in Tkinter, Textual and console. The modular backends previously ignored
 these request fields. Shared submission validation retains invalid entries

@@ -13,6 +13,7 @@ ______________________________________________________________________
 
 ### Fixed
 
+- **`PROMPT ASK` in Textual** returns `No` when No is selected, including with `COMPARE`; cancellation remains a separate action.
 - **`PROMPT ENTER_SUB`** validates `TYPE INT|FLOAT|BOOL|IDENT`, expands Boolean prefixes and applies `LCASE|UCASE` in every backend; invalid entries can be corrected before confirmation.
 - **`PROMPT ENTER_SUB` in console** preserves leading and trailing spaces.
 - **`PROMPT COMPARE`** matches composite keys by column name when table columns are reordered; incomplete keys no longer produce partial matches.
