@@ -592,10 +592,50 @@ def x_prompt_action(**kwargs: Any) -> None:
     user_response = get_gui_response(return_queue, GUI_ACTION)
     btn = user_response["button"]
     script, line_no = current_script_line()
-    if not btn and _state.status.cancel_halt:
-        msg = f"Halted from entry form {tbl1}"
-        _state.exec_log.log_exit_halt(script, line_no, msg)
-        exit_now(2, None)
+    if btn is None:
+        if _state.status.cancel_halt:
+            msg = f"Halted from action form {tbl1}"
+            _state.exec_log.log_exit_halt(script, line_no, msg)
+            exit_now(2, None)
+        return
+    if btn == 0 and do_continue:
+        return
+    if not isinstance(btn, int) or not 1 <= btn <= len(action_list):
+        raise ErrInfo(type="cmd", other_msg="The action dialog returned an invalid action.")
+    action = action_list[btn - 1]
+    selected_row = user_response.get("row")
+    if action.data_required and (
+        not colnames or not isinstance(selected_row, (list, tuple)) or len(selected_row) != len(colnames)
+    ):
+        raise ErrInfo(type="cmd", other_msg="The selected action requires a selected data row.")
+
+    from execsql.metacommands.script_ext import _get_ast_script
+    from execsql.script.ast import IncludeDirective, SourceSpan
+    from execsql.script.executor import _execute_script_native, _script_args
+    from execsql.state import get_context
+
+    if not isinstance(action.script, str) or not action.script.strip():
+        raise ErrInfo(type="cmd", other_msg="A script name is required for the selected action.")
+    script_name = action.script.strip()
+    block = _get_ast_script(script_name)
+    node = IncludeDirective(
+        span=SourceSpan(script, line_no or 0),
+        target=script_name,
+        is_execute_script=True,
+        command=f"EXECUTE SCRIPT {script_name}",
+    )
+    arguments = _script_args(node, block)
+    if action.data_required:
+        assert colnames is not None and selected_row is not None
+        for name, item in zip(colnames, selected_row):
+            name = "@" + name
+            value = "" if item is None else str(item)
+            _state.subvars.add_substitution(name, value)
+            if _state.conf.log_datavars:
+                _state.exec_log.log_status_info(
+                    f"Substitution string {name} set to {{{value}}} on line {line_no} of {script}",
+                )
+    _execute_script_native(get_context(), node, block, arguments)
 
 
 def x_prompt_savefile(**kwargs: Any) -> None:

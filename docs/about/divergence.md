@@ -69,6 +69,14 @@ ______________________________________________________________________
 
 ### Bug Fixes
 
+`PROMPT ACTION` executes the selected named script through the AST executor
+after the GUI returns. The modular backends previously returned only a
+button value and the handler ran no action. Data-required actions receive
+the original selected row as data variables (NULL becomes empty text), while
+other actions and Continue preserve existing data variables. Continue has
+a distinct response and runs no action. Data-required buttons remain
+unavailable until a row is selected, including in the console backend.
+
 `PROMPT SELECT_SUB` displays and returns source rows consistently across
 Tkinter, Textual and console. The modular handler and backends disagreed on
 the request and result formats, leaving the source empty or raising an error

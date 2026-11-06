@@ -354,27 +354,43 @@ class ConsoleBackend(GuiBackend):
             print(message, file=sys.stderr)
         _print_help_url(args)
         if headers and rows:
-            _print_table(headers, rows)
+            _print_table(["#", *headers], [(i + 1, *row) for i, row in enumerate(rows)])
             print(f"  {_row_count_text(len(rows))}", file=sys.stderr)
-
-        if not button_specs:
-            input("Press Enter to continue...")
-            return {"button": 1}
 
         print("\nAvailable actions:", file=sys.stderr)
         for i, spec in enumerate(button_specs, 1):
-            print(f"  [{i}] {spec.label} — {spec.prompt}", file=sys.stderr)
+            required = " (select a data row first)" if spec.data_required else ""
+            print(f"  [{i}] {spec.label} — {spec.prompt}{required}", file=sys.stderr)
+        if headers and rows:
+            print("  R <number>: select a data row", file=sys.stderr)
+        print("  Blank input: Cancel", file=sys.stderr)
 
         include_continue = args.get("include_continue_button")
         if include_continue:
             print("  [0] Continue", file=sys.stderr)
 
+        selected_row = None
         while True:
-            raw = input("Select action: ").strip()
+            try:
+                raw = input("Select action or data row: ").strip()
+            except EOFError:
+                raw = ""
+            if not raw or raw == "\x1b":
+                return {"button": None, "row": None}
             if include_continue and raw == "0":
-                return {"button": 1}
+                return {"button": 0, "row": None}
+            parts = raw.split()
+            if len(parts) == 2 and parts[0].lower() == "r" and parts[1].isdigit():
+                index = int(parts[1]) - 1
+                if rows and 0 <= index < len(rows):
+                    selected_row = list(rows[index])
+                    continue
             if raw.isdigit() and 1 <= int(raw) <= len(button_specs):
-                return {"button": int(raw)}
+                index = int(raw) - 1
+                if button_specs[index].data_required and selected_row is None:
+                    print("Select a data row before choosing this action.", file=sys.stderr)
+                    continue
+                return {"button": index + 1, "row": selected_row if button_specs[index].data_required else None}
             print("Invalid choice.", file=sys.stderr)
 
     def show_map(self, args: dict) -> dict:

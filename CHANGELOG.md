@@ -13,6 +13,8 @@ ______________________________________________________________________
 
 ### Fixed
 
+- **`PROMPT ACTION`** runs the chosen named script with its required row data; script errors and transaction controls follow normal `EXECUTE SCRIPT` behavior.
+- **`PROMPT ACTION … CONTINUE`** closes the dialog without running an action or replacing data variables.
 - **`PROMPT SELECT_SUB`** displays source rows and assigns the selected `@column` variables in Tkinter, Textual and console, preserving numeric precision and representing NULL as an empty string.
 - **`PROMPT SELECT_SUB … CONTINUE`** offers Continue in Tkinter and console as well as Textual; continuing without a selection leaves the displayed columns' data variables undefined.
 - **GUI prompts** report dialog failures as metacommand errors instead of accepting them as successful responses; a failed prompt prevents an open batch from committing.

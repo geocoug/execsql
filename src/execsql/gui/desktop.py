@@ -843,35 +843,64 @@ class ActionDialog:
 
         headers = args.get("column_headers")
         rows = args.get("rowset")
+        tree = None
+        source_rows = {}
         if headers and rows:
-            tree = ttk.Treeview(frame, height=min(6, len(rows)))
+            tree = ttk.Treeview(frame, height=min(6, len(rows)), selectmode="browse")
             _populate_treeview(tree, headers, rows)
+            source_rows = {key: list(row) for key, row in zip(tree.get_children(), rows)}
             tree.pack(fill=tk.BOTH, expand=True, pady=(0, 4))
             ttk.Label(frame, text=_row_count_text(len(rows))).pack(anchor="w", pady=(0, 8))
 
         button_specs = args.get("button_specs", [])
+        action_buttons: list[ttk.Button] = []
+
+        def selected_row():
+            selected = tree.selection() if tree is not None else ()
+            return source_rows.get(selected[0]) if selected else None
+
+        def select_action(index):
+            row = selected_row() if button_specs[index].data_required else None
+            if button_specs[index].data_required and row is None:
+                return
+            self.result = {"button": index + 1, "row": row}
+            win.destroy()
+
+        def update_buttons(event):
+            has_row = selected_row() is not None
+            for button, spec in zip(action_buttons, button_specs):
+                button.configure(state="disabled" if spec.data_required and not has_row else "normal")
+
         for i, spec in enumerate(button_specs):
             btn_text = f"{spec.label}\n{spec.prompt}"
 
-            def _button_command(v: int = i + 1) -> None:
-                self._close(win, v)
+            def _button_command(index: int = i) -> None:
+                select_action(index)
 
-            ttk.Button(
+            button = ttk.Button(
                 frame,
                 text=btn_text,
                 command=_button_command,
-            ).pack(fill=tk.X, pady=2)
+                state="disabled" if spec.data_required else "normal",
+            )
+            button.pack(fill=tk.X, pady=2)
+            action_buttons.append(button)
+
+        if tree is not None:
+            tree.bind("<<TreeviewSelect>>", update_buttons)
 
         include_continue = args.get("include_continue_button")
         if include_continue:
-            ttk.Button(frame, text="Continue", command=lambda: self._close(win, 1)).pack(fill=tk.X, pady=2)
+            ttk.Button(frame, text="Continue", command=lambda: self._close(win, 0)).pack(fill=tk.X, pady=2)
+        ttk.Button(frame, text="Cancel", command=lambda: self._close(win, None)).pack(fill=tk.X, pady=2)
 
         win.bind("<Escape>", lambda e: self._close(win, None))
+        win.protocol("WM_DELETE_WINDOW", lambda: self._close(win, None))
         _center_window(win, 400, 100 + len(button_specs) * 50)
         root.wait_window(win)
 
     def _close(self, win: tk.Toplevel, value: int | None) -> None:
-        self.result = {"button": value}
+        self.result = {"button": value, "row": None}
         if win.winfo_exists():
             win.destroy()
 

@@ -288,7 +288,10 @@ class GuiBackend(ABC):
     - ``show_select_sub`` → ``{"button": int|None, "row": list|None}``
       ``row`` contains the original Python values in source column order;
       button 1 confirms it, 2 continues without selecting, None cancels.
-    - ``show_action``     → ``{"button": int|None}``
+    - ``show_action``     → ``{"button": int|None, "row": list|None}``
+      Buttons 1..N identify the action in ``button_specs``; 0 continues
+      without an action, None cancels. Only data-required actions return
+      original source-row values, in source column order.
     - ``show_map``        → ``{"button": int|None}``
     - ``show_open_file``  → ``{"filename": str|None}``
     - ``show_save_file``  → ``{"filename": str|None}``

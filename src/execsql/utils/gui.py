@@ -123,7 +123,7 @@ def get_gui_response(return_queue: Any, gui_type: str) -> dict:
     empty_fields: dict[str, Any] = {"button": None}
     if gui_type in (GUI_DISPLAY, GUI_ENTRY):
         empty_fields["return_value"] = None
-    elif gui_type == GUI_SELECTSUB:
+    elif gui_type in (GUI_SELECTSUB, GUI_ACTION):
         empty_fields["row"] = None
     elif gui_type == GUI_SELECTROWS:
         empty_fields["rows"] = None

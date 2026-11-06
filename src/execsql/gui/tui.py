@@ -1120,6 +1120,20 @@ class ActionScreen(_BaseDialog):
     BINDINGS = [
         *_BaseDialog.BINDINGS,
     ]
+    AUTO_FOCUS = ""
+    DEFAULT_CSS = (
+        _BaseDialog.DEFAULT_CSS
+        + """
+    #action_buttons { height: auto; }
+    #action_data { height: auto; max-height: 10; }
+    """
+    )
+
+    def __init__(self, args: dict) -> None:
+        super().__init__(args)
+        self._button_specs = args.get("button_specs", [])
+        self._source_rows: dict[Any, list] = {}
+        self._selected_row: list | None = None
 
     def compose(self) -> ComposeResult:
         title = self.args.get("title", "Actions")
@@ -1138,24 +1152,47 @@ class ActionScreen(_BaseDialog):
             if message:
                 yield Static(message, id="message")
             if headers and rows:
-                with ScrollableContainer():
-                    yield _make_table_widget("action_table", headers, rows)
+                with ScrollableContainer(id="action_data"):
+                    source = _make_table_widget("action_table", headers, rows)
+                    self._source_rows = {key: list(row) for key, row in zip(source.rows, rows)}
+                    yield source
                 yield Static(_row_count_text(len(rows)), classes="row-count")
             with Vertical(id="action_buttons"):
                 for i, spec in enumerate(button_specs):
-                    yield Button(f"{spec.label} — {spec.prompt}", id=f"action_{i}", variant="primary")
+                    yield Button(
+                        f"{spec.label} — {spec.prompt}",
+                        id=f"action_{i}",
+                        variant="primary",
+                        disabled=spec.data_required,
+                    )
                 if include_continue:
                     yield Button("Continue", id="action_continue", variant="default")
+                yield Button("Cancel", id="btn_cancel_exit", variant="warning")
 
-        self._button_specs = button_specs
+    def _select_row(self, row_key: Any) -> None:
+        self._selected_row = self._source_rows.get(row_key)
+        for i, spec in enumerate(self._button_specs):
+            self.query_one(f"#action_{i}", Button).disabled = spec.data_required and self._selected_row is None
+
+    def on_data_table_row_highlighted(self, event: DataTable.RowHighlighted) -> None:
+        if event.data_table.has_focus:
+            self._select_row(event.row_key)
+
+    def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
+        self._select_row(event.row_key)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         btn_id = event.button.id
         if btn_id == "action_continue":
-            self._result = {"button": 1}
-        elif btn_id and btn_id.startswith("action_"):
+            self._result = {"button": 0, "row": None}
+        elif btn_id and btn_id.startswith("action_") and btn_id[7:].isdigit():
             idx = int(btn_id.split("_")[1])
-            self._result = {"button": idx + 1}
+            spec = self._button_specs[idx]
+            if spec.data_required and self._selected_row is None:
+                return
+            self._result = {"button": idx + 1, "row": self._selected_row if spec.data_required else None}
+        else:
+            return
         self.dismiss(self._result)
 
 

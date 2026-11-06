@@ -2675,6 +2675,10 @@ Data variables are assigned, using values from the selected row in the data tabl
 
 After a button is clicked, the button dialog will be closed.
 
+The chosen script runs once on the script thread after the dialog closes, using normal [SCRIPT](#beginscript) scope and control flow. Its SQL follows the current [AUTOCOMMIT](#autocommit) and [batch](#batch) settings; a script error is reported under the normal error-halting rules. An action must name a registered script that can run without arguments. Invalid targets are reported before selected data replaces existing data variables.
+
+In the console backend, displayed rows are numbered. Enter `R <number>` to select a data row, then enter the action number. Actions requiring data cannot run before a row is selected. Enter `0` to Continue when offered, or submit blank input to Cancel; end-of-input also cancels. Tkinter and Textual provide the same action, Continue and cancellation outcomes.
+
 If the COMPACT \<columns\> key phrase is used, the buttons will be displayed in a grid of rows and columns, with up to *columns* buttons on each row. The description of each button's action will not be shown next to each button, but will appear in a status bar at the bottom of the dialog box when the mouse is over the button.
 
 If the CONTINUE keyword is used, the dialog box will include a "Continue" button that allows the script to continue running without requiring any of the user-specified buttons to be clicked. If the *Continue* keyword is not included, then the dialog, and the script, must be canceled if none of the buttons are to be run.

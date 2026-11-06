@@ -968,22 +968,22 @@ class TestXPromptAction:
         with pytest.raises(ErrInfo):
             _prompt.x_prompt_action(**self._kwargs())
 
-    def test_happy_path(self, fake_state) -> None:
-        s = fake_state(gui_responses={GUI_ACTION: {"button": 1}})
+    def test_continue_builds_the_dialog_without_executing_an_action(self, fake_state) -> None:
+        s = fake_state(gui_responses={GUI_ACTION: {"button": 0, "row": None}})
         self._setup_cursor(s, ["label", "prompt", "script"], [("L", "P", "S")])
         _prompt.x_prompt_action(**self._kwargs(compact="1", **{"continue": True}))
 
     def test_cancel_halts(self, fake_state, _patch_exit_now) -> None:
-        s = fake_state(gui_responses={GUI_ACTION: {"button": 0}})
+        s = fake_state(gui_responses={GUI_ACTION: {"button": None, "row": None}})
         self._setup_cursor(s, ["label", "prompt", "script"], [("L", "P", "S")])
         with pytest.raises(_patch_exit_now.HaltExc):
             _prompt.x_prompt_action(**TestXPromptAction()._kwargs())
 
     def test_with_sequence_and_display_table(self, fake_state) -> None:
-        s = fake_state(gui_responses={GUI_ACTION: {"button": 1}})
+        s = fake_state(gui_responses={GUI_ACTION: {"button": 0, "row": None}})
         self._setup_cursor(
             s,
             ["label", "prompt", "script", "sequence", "data_required"],
             [("L", "P", "S", 1, True)],
         )
-        _prompt.x_prompt_action(**self._kwargs(schemadisp="", tabledisp="td"))
+        _prompt.x_prompt_action(**self._kwargs(schemadisp="", tabledisp="td", **{"continue": True}))
