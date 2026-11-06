@@ -323,6 +323,8 @@ execsql supports three GUI backends for interactive prompts (password dialogs, p
 
 All backends implement the `GuiBackend` ABC (`gui/base.py`), which defines a `dispatch()` method that routes `GuiSpec` requests to type-specific handlers (`show_msg`, `show_pause`, `show_credentials`, `show_entry_form`, etc.).
 
+Prompt consumers read results through `utils.gui.get_gui_response()` on the script thread. Backend exceptions travel as error responses and are raised there as `ConsoleUIError`, so the executor records the metacommand failure and fails open batches. Cancellation supplies the dialog's empty result fields and updates `DIALOG_CANCELED()`; each handler applies `CANCEL_HALT` and calls the normal halt path when required. Queue adapters never interrupt the script merely because a dialog was canceled.
+
 ### GUI manager thread
 
 When `--visible-prompts` is set to level 1 or higher, a GUI manager thread (`_state.gui_manager_thread`) runs alongside the script execution thread. GUI requests are sent via `_state.gui_manager_queue` and responses are returned synchronously. The `utils/gui.py` module provides the public API (`gui_connect`, `gui_console_on`, `gui_console_off`, etc.) that metacommand handlers call.

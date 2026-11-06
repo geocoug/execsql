@@ -37,7 +37,7 @@ from execsql.gui.base import format_table, row_count_text
 from execsql.script import current_script_line
 from execsql.utils.errors import exception_desc, exit_now
 from execsql.utils.fileio import EncodedFile, check_dir
-from execsql.utils.gui import GUI_HALT, GuiSpec, enable_gui, gui_console_isrunning
+from execsql.utils.gui import ConsoleUIError, GUI_HALT, GuiSpec, enable_gui, get_gui_response, gui_console_isrunning
 
 
 def _condition_value(condition: str) -> bool:
@@ -290,6 +290,10 @@ def x_halt_msg(**kwargs: Any) -> None:
         "help_url": None,
     }
     _state.gui_manager_queue.put(GuiSpec(GUI_HALT, gui_args, return_queue))
-    return_queue.get(block=True)
+    try:
+        get_gui_response(return_queue, GUI_HALT)
+    except ConsoleUIError as error:
+        # Failure to display a halt message cannot allow the script to resume.
+        raise ErrInfo(type="cmd", other_msg=str(error), always_halt=True) from error
     _state.exec_log.log_exit_halt(*current_script_line(), msg=errmsg)
     exit_now(errlevel, None)

@@ -447,6 +447,12 @@ class TestXPromptAsk:
 
 
 class TestXAsk:
+    def test_gui_console_cancel_without_halt_preserves_the_answer(self, fake_state) -> None:
+        s = fake_state(gui_responses={GUI_DISPLAY: {"button": None}}, cancel_halt=False)
+        _state.gui_console = object()
+        _prompt.x_ask(question="Continue?", match="answer")
+        s.subvars.add_substitution.assert_not_called()
+
     def _kwargs(self, **over):
         base = {"question": "really?", "match": "ans"}
         base.update(over)

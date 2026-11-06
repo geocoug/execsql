@@ -41,6 +41,7 @@ __all__ = [
     "GUI_CONNECT",
     # Data-carrier classes
     "GuiSpec",
+    "get_gui_response",
     "ConsoleUIError",
     "ActionSpec",
     "EntrySpec",
@@ -106,6 +107,52 @@ class GuiSpec:
 
 class ConsoleUIError(Exception):
     """Raised when a GUI / console UI operation fails."""
+
+
+def get_gui_response(return_queue: Any, gui_type: str) -> dict:
+    """Receive a GUI result on the script thread, raising transport errors.
+
+    Cancellation supplies the dialog's empty result fields and records
+    DIALOG_CANCELED. The calling handler owns CANCEL_HALT and its cleanup.
+    """
+    result = return_queue.get(block=True)
+    if not isinstance(result, dict):
+        raise ConsoleUIError(f"Invalid response from {gui_type} dialog.")
+    if "error" in result:
+        raise ConsoleUIError(f"GUI {gui_type} failed: {result['error']}")
+    empty_fields: dict[str, Any] = {"button": None}
+    if gui_type in (GUI_DISPLAY, GUI_ENTRY, GUI_SELECTSUB):
+        empty_fields["return_value"] = None
+    elif gui_type == GUI_SELECTROWS:
+        empty_fields["rows"] = None
+    elif gui_type == GUI_PAUSE:
+        empty_fields["quit"] = True
+    elif gui_type in (GUI_OPENFILE, GUI_SAVEFILE):
+        empty_fields["filename"] = None
+    elif gui_type == GUI_DIRECTORY:
+        empty_fields["directory"] = None
+    elif gui_type == GUI_CREDENTIALS:
+        empty_fields.update(username="", password="")
+    elif gui_type == GUI_CONNECT:
+        empty_fields["db_type"] = None
+
+    cancelled = not result or result.get("cancelled") or ("button" in result and result["button"] is None)
+    if gui_type in (GUI_OPENFILE, GUI_SAVEFILE):
+        cancelled = cancelled or result.get("filename") is None
+    elif gui_type == GUI_DIRECTORY:
+        cancelled = cancelled or result.get("directory") is None
+    elif gui_type == GUI_PAUSE:
+        cancelled = cancelled or result.get("quit", False)
+    elif gui_type == GUI_CONNECT:
+        cancelled = cancelled or result.get("db_type") is None
+    if cancelled:
+        result = {**result, **empty_fields, "cancelled": True}
+
+    import execsql.state as _state
+
+    if gui_type != QUERY_CONSOLE and _state.status is not None:
+        _state.status.dialog_canceled = bool(cancelled)
+    return result
 
 
 class ActionSpec:
@@ -427,7 +474,7 @@ def gui_connect(
         return_queue: _queue.Queue = _queue.Queue()
         gui_args = {"alias": alias, "message": message, "help_url": help_url}
         _state.gui_manager_queue.put(GuiSpec(GUI_CONNECT, gui_args, return_queue))
-        result = return_queue.get(block=True)
+        result = get_gui_response(return_queue, GUI_CONNECT)
         db_type = result.get("db_type")
         if db_type is None:
             raise ConsoleUIError(
@@ -520,7 +567,7 @@ def gui_credentials(
         return_queue: _queue.Queue = _queue.Queue()
         gui_args = {"message": message}
         _state.gui_manager_queue.put(GuiSpec(GUI_CREDENTIALS, gui_args, return_queue))
-        result = return_queue.get(block=True)
+        result = get_gui_response(return_queue, GUI_CREDENTIALS)
         uname = result.get("username", "")
         passwd = result.get("password", "")
     else:

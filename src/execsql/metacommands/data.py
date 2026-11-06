@@ -37,7 +37,7 @@ from execsql.script import current_script_line
 from execsql.utils.crypto import Encrypt
 from execsql.utils.errors import exception_desc, exit_now
 from execsql.utils.fileio import register_secret
-from execsql.utils.gui import GUI_SELECTSUB, GuiSpec, enable_gui
+from execsql.utils.gui import GUI_SELECTSUB, GuiSpec, enable_gui, get_gui_response
 from execsql.utils.strings import get_subvarset, unquoted
 
 
@@ -240,7 +240,7 @@ def x_prompt_selectsub(**kwargs: Any) -> None:
         "help_url": help_url,
     }
     _state.gui_manager_queue.put(GuiSpec(GUI_SELECTSUB, gui_args, return_queue))
-    user_response = return_queue.get(block=True)
+    user_response = get_gui_response(return_queue, GUI_SELECTSUB)
     btn_val = user_response["button"]
     return_val = user_response["return_value"]
     selected_row = None

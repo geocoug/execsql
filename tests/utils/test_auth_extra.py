@@ -220,6 +220,25 @@ class TestGetPasswordGuiManagerThreadDetection:
 class TestGetPasswordGuiDialog:
     """Test the GUI dialog branch (lines 154-184)."""
 
+    @pytest.mark.parametrize("query_console", [False, True])
+    def test_gui_failure_is_not_silently_retried_in_terminal(self, minimal_conf, monkeypatch, query_console):
+        from execsql.utils.gui import ConsoleUIError
+
+        minimal_conf.gui_level = 1
+        monkeypatch.setattr(_state, "gui_manager_thread", MagicMock() if query_console else None)
+
+        class Manager:
+            def put(self, spec):
+                spec.return_queue.put({"error": "dialog exploded", "button": None})
+
+        monkeypatch.setattr(_state, "gui_manager_queue", Manager())
+        monkeypatch.setattr("execsql.utils.gui.enable_gui", lambda: None)
+        terminal = MagicMock(side_effect=AssertionError("Unexpected terminal password request"))
+        monkeypatch.setattr(auth_mod.getpass, "getpass", terminal)
+        with pytest.raises(ConsoleUIError, match="dialog exploded"):
+            get_password("PostgreSQL", "mydb", "user1", skip_keyring=True)
+        terminal.assert_not_called()
+
     def test_gui_level_zero_uses_getpass_directly(self, minimal_conf):
         """gui_level == 0 (default) goes straight to the else-branch getpass."""
         with (

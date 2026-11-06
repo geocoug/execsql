@@ -15,7 +15,6 @@ import time
 from typing import Any, cast
 from collections.abc import Callable
 
-from execsql.exceptions import ScriptExit
 from execsql.gui.base import GuiBackend, selected_row_values
 
 # ---------------------------------------------------------------------------
@@ -1482,24 +1481,6 @@ class _TkinterSyncQueue:
     def __init__(self, backend: TkinterBackend) -> None:
         self._backend = backend
 
-    # GUI types for which a None/cancelled result means the user wants to exit.
-    # File/directory/credentials/connect dialogs are intentionally excluded
-    # because cancelling those just means "no selection" rather than "quit".
-    _EXIT_ON_CANCEL = frozenset(
-        [
-            "halt",
-            "msg",
-            "pause",
-            "display",
-            "entry",
-            "compare",
-            "selectrows",
-            "selectsub",
-            "action",
-            "map",
-        ],
-    )
-
     def put(self, spec: Any, block: bool = True, timeout: Any = None) -> None:
         if spec is None:
             return
@@ -1518,8 +1499,6 @@ class _TkinterSyncQueue:
                     pass  # Tk event loop may be torn down.
         except Exception as exc:
             result = {"error": str(exc), "button": None}
-        if result is not None and spec.gui_type in self._EXIT_ON_CANCEL and result.get("button") is None:
-            raise ScriptExit(2)
         spec.return_queue.put(result if result is not None else {})
 
     def get_nowait(self) -> Any:

@@ -11,6 +11,12 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Fixed
+
+- **GUI prompts** report dialog failures as metacommand errors instead of accepting them as successful responses; a failed prompt prevents an open batch from committing.
+- **`CANCEL_HALT` in Tkinter and Textual** honors `OFF` and runs `ON CANCEL_HALT` cleanup when `ON`, including in the Textual console. Escape and Cancel agree for file and directory prompts.
+- **`DIALOG_CANCELED()`** reports whether the last dialog was canceled; a subsequent accepted dialog clears it.
+
 ______________________________________________________________________
 
 ## [2.39.0] - 2026-11-05

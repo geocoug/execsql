@@ -60,6 +60,7 @@ from execsql.utils.gui import (
     GuiSpec,
     QUERY_CONSOLE,
     enable_gui,
+    get_gui_response,
     get_yn,
     get_yn_win,
     gui_connect,
@@ -92,7 +93,7 @@ def x_prompt(**kwargs: Any) -> None:
         "help_url": help_url,
     }
     _state.gui_manager_queue.put(GuiSpec(GUI_DISPLAY, gui_args, return_queue))
-    user_response = return_queue.get(block=True)
+    user_response = get_gui_response(return_queue, GUI_DISPLAY)
     btn = user_response["button"]
     if not btn and _state.status.cancel_halt:
         msg = f"Halted from display of {sq_name}"
@@ -133,7 +134,7 @@ def x_prompt_enter(**kwargs: Any) -> None:
         "help_url": help_url,
     }
     _state.gui_manager_queue.put(GuiSpec(GUI_DISPLAY, gui_args, return_queue))
-    user_response = return_queue.get(block=True)
+    user_response = get_gui_response(return_queue, GUI_DISPLAY)
     btnval = user_response["button"]
     txtval = user_response["return_value"]
     if btnval is None:
@@ -292,7 +293,7 @@ def x_prompt_entryform(**kwargs: Any) -> None:
         "help_url": help_url,
     }
     _state.gui_manager_queue.put(GuiSpec(GUI_ENTRY, gui_args, return_queue))
-    user_response = return_queue.get(block=True)
+    user_response = get_gui_response(return_queue, GUI_ENTRY)
     btn = user_response["button"]
     entries = user_response["return_value"]
     script, line_no = current_script_line()
@@ -342,7 +343,7 @@ def x_prompt_pause(**kwargs: Any) -> None:
         "countdown": maxtime_secs,
     }
     _state.gui_manager_queue.put(GuiSpec(GUI_PAUSE, gui_args, return_queue))
-    user_response = return_queue.get(block=True)
+    user_response = get_gui_response(return_queue, GUI_PAUSE)
     quit = user_response["quit"]
     return_queue.task_done()
     if quit and _state.status.cancel_halt:
@@ -410,7 +411,7 @@ def prompt_compare(button_list: list, **kwargs: Any) -> Any:
         "help_url": help_url,
     }
     _state.gui_manager_queue.put(GuiSpec(GUI_COMPARE, gui_args, return_queue))
-    user_response = return_queue.get(block=True)
+    user_response = get_gui_response(return_queue, GUI_COMPARE)
     btn = user_response["button"]
     if btn is None and _state.status.cancel_halt:
         script, line_no = current_script_line()
@@ -463,7 +464,7 @@ def x_prompt_ask(**kwargs: Any) -> None:
         "help_url": help_url,
     }
     _state.gui_manager_queue.put(GuiSpec(GUI_DISPLAY, gui_args, return_queue))
-    user_response = return_queue.get(block=True)
+    user_response = get_gui_response(return_queue, GUI_DISPLAY)
     btn = user_response["button"]
     if btn is None:
         if _state.status.cancel_halt:
@@ -508,7 +509,7 @@ def x_prompt_map(**kwargs: Any) -> None:
         "color_col": color_col,
     }
     _state.gui_manager_queue.put(GuiSpec(GUI_MAP, gui_args, return_queue))
-    user_response = return_queue.get(block=True)
+    user_response = get_gui_response(return_queue, GUI_MAP)
     btn = user_response["button"]
     if not btn and _state.status.cancel_halt:
         msg = f"Halted from map of {sq_name}"
@@ -588,7 +589,7 @@ def x_prompt_action(**kwargs: Any) -> None:
         "rowset": rows,
     }
     _state.gui_manager_queue.put(GuiSpec(GUI_ACTION, gui_args, return_queue))
-    user_response = return_queue.get(block=True)
+    user_response = get_gui_response(return_queue, GUI_ACTION)
     btn = user_response["button"]
     script, line_no = current_script_line()
     if not btn and _state.status.cancel_halt:
@@ -613,7 +614,7 @@ def x_prompt_savefile(**kwargs: Any) -> None:
         return_queue: _queue.Queue[Any] = _queue.Queue()
         gui_args = {"working_dir": working_dir, "script": script}
         _state.gui_manager_queue.put(GuiSpec(GUI_SAVEFILE, gui_args, return_queue))
-        user_response = return_queue.get(block=True)
+        user_response = get_gui_response(return_queue, GUI_SAVEFILE)
         fn = user_response["filename"]
         if not fn:
             if _state.status.cancel_halt:
@@ -686,7 +687,7 @@ def x_prompt_openfile(**kwargs: Any) -> None:
         return_queue: _queue.Queue[Any] = _queue.Queue()
         gui_args = {"working_dir": working_dir, "script": script}
         _state.gui_manager_queue.put(GuiSpec(GUI_OPENFILE, gui_args, return_queue))
-        user_response = return_queue.get(block=True)
+        user_response = get_gui_response(return_queue, GUI_OPENFILE)
         fn = user_response["filename"]
         if not fn:
             if _state.status.cancel_halt:
@@ -745,7 +746,7 @@ def x_prompt_directory(**kwargs: Any) -> None:
         return_queue: _queue.Queue[Any] = _queue.Queue()
         gui_args = {"working_dir": working_dir, "script": script}
         _state.gui_manager_queue.put(GuiSpec(GUI_DIRECTORY, gui_args, return_queue))
-        user_response = return_queue.get(block=True)
+        user_response = get_gui_response(return_queue, GUI_DIRECTORY)
         dirname = user_response["directory"]
         if not dirname:
             if _state.status.cancel_halt:
@@ -818,7 +819,7 @@ def prompt_select_rows(button_list: list, **kwargs: Any) -> Any:
         "help_url": help_url,
     }
     _state.gui_manager_queue.put(GuiSpec(GUI_SELECTROWS, gui_args, return_queue))
-    user_response = return_queue.get(block=True)
+    user_response = get_gui_response(return_queue, GUI_SELECTROWS)
     btn = user_response["button"]
     if btn is None and _state.status.cancel_halt:
         script, line_no = current_script_line()
@@ -880,12 +881,13 @@ def x_ask(**kwargs: Any) -> None:
             "button_list": [("Yes", 1, "y"), ("No", 0, "n")],
         }
         _state.gui_manager_queue.put(GuiSpec(GUI_DISPLAY, gui_args, return_queue))
-        user_response = return_queue.get(block=True)
+        user_response = get_gui_response(return_queue, GUI_DISPLAY)
         btn = user_response["button"]
         if btn is None:
             if _state.status.cancel_halt:
                 _state.exec_log.log_exit_halt(script, lno, msg="Quit from ASK metacommand")
                 exit_now(2, None)
+            return None
         else:
             respstr = "Yes" if btn == 1 else "No"
     else:
@@ -927,7 +929,7 @@ def x_pause(**kwargs: Any) -> None:
     if _state.gui_manager_thread:
         return_queue: _queue.Queue[Any] = _queue.Queue()
         _state.gui_manager_queue.put(GuiSpec(QUERY_CONSOLE, {}, return_queue))
-        user_response = return_queue.get(block=True)
+        user_response = get_gui_response(return_queue, QUERY_CONSOLE)
         use_gui = user_response["console_running"]
     if use_gui or _state.conf.gui_level > 0:
         enable_gui()
@@ -938,7 +940,7 @@ def x_pause(**kwargs: Any) -> None:
             "countdown": maxtime_secs,
         }
         _state.gui_manager_queue.put(GuiSpec(GUI_PAUSE, gui_args, return_queue))
-        user_response = return_queue.get(block=True)
+        user_response = get_gui_response(return_queue, GUI_PAUSE)
         quit = user_response["quit"]
         return_queue.task_done()
     else:
@@ -957,12 +959,15 @@ def x_pause(**kwargs: Any) -> None:
 
 def x_msg(**kwargs: Any) -> None:
     message = kwargs["message"]
-    current_script_line()
+    script, line_no = current_script_line()
     enable_gui()
     return_queue: _queue.Queue[Any] = _queue.Queue()
     gui_args = {"title": "Message", "message": message}
     _state.gui_manager_queue.put(GuiSpec(GUI_MSG, gui_args, return_queue))
-    return_queue.get(block=True)
+    response = get_gui_response(return_queue, GUI_MSG)
+    if response["button"] is None and _state.status.cancel_halt:
+        _state.exec_log.log_exit_halt(script, line_no, msg="Quit from PROMPT MESSAGE metacommand")
+        exit_now(2, None)
     return None
 
 

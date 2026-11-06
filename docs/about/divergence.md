@@ -69,6 +69,14 @@ ______________________________________________________________________
 
 ### Bug Fixes
 
+GUI backend failures are reported as metacommand errors and fail open batches,
+rather than being accepted as successful confirmations. Tkinter and Textual
+return cancellation to the script thread so `CANCEL_HALT` and `ON CANCEL_HALT`
+actions apply consistently, including in the persistent Textual console.
+Escape and Cancel agree for path pickers, and `DIALOG_CANCELED()` reflects the
+last dialog. Error and cancellation policy runs in the script's normal
+metacommand path; a failure to display a HALT message still stops the run.
+
 Condition parse errors name unknown tests and suggest close spellings, show
 the expected syntax for malformed arguments, and identify missing parentheses,
 missing commas and unsupported comparisons. Runtime errors, `execsql lint`

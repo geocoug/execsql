@@ -23,7 +23,6 @@ import queue as _stdlib_queue
 import threading
 from typing import Any, Literal, cast
 
-from execsql.exceptions import ScriptExit
 from execsql.gui.base import GuiBackend, selected_row_values
 
 # ---------------------------------------------------------------------------
@@ -202,7 +201,7 @@ class _BaseDialog(ModalScreen):
 
     @on(Button.Pressed, "#btn_cancel_exit")
     def _on_cancel_exit(self, event: Button.Pressed) -> None:
-        """Universal Cancel handler — dismisses with cancelled=True so the sync queue can exit."""
+        """Return cancellation to the script's prompt handler."""
         event.stop()
         self._result = {"button": None, "cancelled": True}
         self.dismiss(self._result)
@@ -1457,8 +1456,6 @@ class _TextualSyncQueue:
         except Exception as exc:
             spec.return_queue.put({"error": str(exc), "button": None})
             return
-        if result is not None and result.get("cancelled"):
-            raise ScriptExit(2)
         spec.return_queue.put(result if result is not None else {})
 
     def get_nowait(self) -> Any:
@@ -1605,19 +1602,11 @@ class ConsoleApp(App):
             return
 
         async def _push() -> None:
-            result = await self.push_screen_wait(screen_class(spec.args))
-            if result is not None and result.get("cancelled"):
-                # Interrupt the worker thread
-                if self._script_thread and self._script_thread.is_alive():
-                    tid = self._script_thread.ident
-                    if tid is not None:
-                        ctypes.pythonapi.PyThreadState_SetAsyncExc(
-                            ctypes.c_ulong(tid),
-                            ctypes.py_object(ScriptExit),
-                        )
-                spec.return_queue.put(result if result is not None else {})
-            else:
-                spec.return_queue.put(result if result is not None else {})
+            try:
+                result = await self.push_screen_wait(screen_class(spec.args))
+            except Exception as exc:
+                result = {"error": str(exc), "button": None}
+            spec.return_queue.put(result if result is not None else {})
 
         self.run_worker(cast(Any, _push), exclusive=False)
 

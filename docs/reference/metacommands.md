@@ -441,6 +441,10 @@ CANCEL_HALT ON|OFF
 
 When CANCEL_HALT is set to ON, which is the default, if the user presses the "Cancel" button on a dialog (such as is presented by the [PROMPT DISPLAY](#prompt) metacommand), *execsql* will halt script processing. If CANCEL_HALT is set to OFF, then *execsql* will not halt script processing, and it is the script author's responsibility to ensure that adverse consequences do not result from the lack of a response to the dialog. The [DIALOG_CANCELED](#dialog_canceled) conditional can be used to determine whether a dialog has been canceled. [Example 10](../guides/examples.md#example10) illustrates a condition in which setting CANCEL_HALT to OFF is appropriate.
 
+Tkinter and Textual apply this policy in ordinary dialogs and in the Textual console. Escape and closing a dialog follow the same cancellation policy as its Cancel button. With CANCEL_HALT OFF, a canceled entry or file/directory prompt leaves its substitution variables unchanged. With CANCEL_HALT ON, cancellation runs the configured [ON CANCEL_HALT](#cancel_halt_exec) actions before the run exits.
+
+A dialog failure is a metacommand error, not a user cancellation. It follows [METACOMMAND_ERROR_HALT](#metacommanderrorhalt), is reported through `METACOMMAND_ERROR()` and `$ERROR_MESSAGE`, and prevents an open [batch](#batch) from committing even when metacommand halting is OFF. CANCEL_HALT OFF does not suppress GUI failures.
+
 
 ## CD
 
@@ -1514,6 +1518,8 @@ The error message and the DISPLAY table are reported in a dialog only when the r
 
 A DISPLAY table with no rows is shown on the console as its column headings and a count of zero rows; in a dialog, an empty table is omitted.
 
+If the dialog fails, HALT still stops the run and reports the GUI error, even with METACOMMAND_ERROR_HALT OFF.
+
 ```sql
 -- Fail the run and print the offending rows, in a cron job or in a GUI session.
 -- !x! if(hasrows(bad_rows)) { halt message "Validation failed." display bad_rows exit_status 7 }
@@ -1700,6 +1706,8 @@ DIALOG_CANCELED()
 ```
 
 Returns True or False depending on whether the previous GUI dialog was canceled by either clicking on a 'Cancel' button, hitting the Escape key, or closing the window.
+
+A subsequent accepted dialog sets the flag to False. [RESET DIALOG_CANCELED](#reset-dialog_canceled) clears it without displaying another dialog.
 
 
 ### *DIRECTORY_EXISTS*
