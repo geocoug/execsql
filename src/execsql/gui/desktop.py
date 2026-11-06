@@ -15,7 +15,7 @@ import time
 from typing import Any, cast
 from collections.abc import Callable
 
-from execsql.gui.base import GuiBackend, _key_column_indices, selected_row_values
+from execsql.gui.base import GuiBackend, _key_column_indices, normalize_text_entry, selected_row_values
 
 # ---------------------------------------------------------------------------
 # Tkinter import guard
@@ -224,6 +224,7 @@ class PauseDialog:
 class DisplayDialog:
     def __init__(self, root: tk.Tk, args: dict) -> None:
         self.result: dict = {}
+        self._args = args
 
         win = tk.Toplevel(root)
         win.title(args.get("title", ""))
@@ -282,10 +283,20 @@ class DisplayDialog:
         root.wait_window(win)
 
     def _close(self, win: tk.Toplevel, value: int | None) -> None:
-        self.result = {
-            "button": value,
-            "return_value": self._text_var.get() if self._text_var else None,
-        }
+        return_value = self._text_var.get() if self._text_var else None
+        if value is not None and return_value is not None:
+            try:
+                return_value = normalize_text_entry(
+                    return_value,
+                    self._args.get("textentrytype"),
+                    self._args.get("textentrycase"),
+                )
+            except ValueError as exc:
+                from tkinter import messagebox
+
+                messagebox.showerror("Invalid entry", str(exc), parent=win)
+                return
+        self.result = {"button": value, "return_value": return_value}
         if win.winfo_exists():
             win.destroy()
 

@@ -14,6 +14,40 @@ __all__ = ["DiffResult", "GuiBackend", "compare_stats", "compute_row_diffs", "fo
 DIFF_MARKER = "● "
 
 
+def normalize_text_entry(value: str, entry_type: str | None = None, entry_case: str | None = None) -> str:
+    """Validate an ENTER_SUB value, expand BOOL prefixes, then apply requested case.
+
+    Empty values are allowed for every type. Numeric values remain textual,
+    preserving leading zeros and the entered decimal representation.
+    Validation errors do not include the value, which may be a password.
+    """
+    import re
+
+    kind = (entry_type or "text").lower()
+    if not isinstance(value, str):
+        raise ValueError("The entered value must be text.")
+    if value:
+        if kind == "int" and not re.fullmatch(r"-?[0-9]+", value):
+            raise ValueError("Enter digits with an optional leading minus sign.")
+        if kind == "float" and not re.fullmatch(r"-?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)", value):
+            raise ValueError("Enter digits with at most one decimal point and an optional leading minus sign.")
+        if kind == "ident" and not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*", value):
+            raise ValueError("Start with a letter and use only letters, digits and underscores.")
+        if kind == "bool":
+            if "true".startswith(value.lower()):
+                value = "True"
+            elif "false".startswith(value.lower()):
+                value = "False"
+            else:
+                raise ValueError("Enter True or False, or a nonempty prefix of either word.")
+    case = (entry_case or "any").lower()
+    if case == "lcase":
+        return value.lower()
+    if case == "ucase":
+        return value.upper()
+    return value
+
+
 def selected_row_values(headers: list, row: list | tuple, destination_headers: list) -> list:
     """Project a selected source row into the destination's display column order."""
     values = dict(zip(headers, row))

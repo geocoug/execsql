@@ -13,6 +13,8 @@ ______________________________________________________________________
 
 ### Fixed
 
+- **`PROMPT ENTER_SUB`** validates `TYPE INT|FLOAT|BOOL|IDENT`, expands Boolean prefixes and applies `LCASE|UCASE` in every backend; invalid entries can be corrected before confirmation.
+- **`PROMPT ENTER_SUB` in console** preserves leading and trailing spaces.
 - **`PROMPT COMPARE`** matches composite keys by column name when table columns are reordered; incomplete keys no longer produce partial matches.
 - **Tkinter on macOS** uses native dialogs without requiring `DISPLAY` or `WAYLAND_DISPLAY`; unavailable backends report the fallback reason.
 - **`PROMPT CREDENTIALS`** uses the configured Tkinter or Textual dialog when GUI input is enabled; Cancel follows `CANCEL_HALT` and preserves existing credentials when halting is off.

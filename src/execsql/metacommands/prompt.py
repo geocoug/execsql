@@ -1,5 +1,6 @@
 from __future__ import annotations
 from execsql.exceptions import ErrInfo
+from execsql.gui.base import normalize_text_entry
 
 """
 Interactive user prompt metacommand handlers for execsql.
@@ -142,6 +143,7 @@ def x_prompt_enter(**kwargs: Any) -> None:
             _state.exec_log.log_exit_halt(*current_script_line(), msg="Quit from prompt to enter a SUB value.")
             exit_now(2, None)
     else:
+        txtval = normalize_text_entry(txtval, texttype, textcase)
         subvarset = _state.subvars if sub_var[0] != "~" else _state.current_localvars()
         subvarset.add_substitution(sub_var, txtval)
         script_name, lno = current_script_line()

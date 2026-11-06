@@ -16,6 +16,7 @@ from execsql.gui.base import (
     compare_stats as _compare_stats,
     compute_row_diffs,
     format_table,
+    normalize_text_entry,
     row_count_text as _row_count_text,
 )
 
@@ -143,17 +144,26 @@ class ConsoleBackend(GuiBackend):
             _print_table(headers, rows)
             print(f"  {_row_count_text(len(rows))}", file=sys.stderr)
 
-        return_value = None
-        if textentry:
+        if not textentry:
+            return {"button": _prompt_buttons(button_list), "return_value": None}
+        while True:
             if hidetext:
                 import getpass
 
-                return_value = getpass.getpass("Enter value: ")
+                entered = getpass.getpass("Enter value: ")
             else:
-                return_value = input(f"Enter value [{initial}]: ").strip() or initial
-
-        btn = _prompt_buttons(button_list)
-        return {"button": btn, "return_value": return_value}
+                entered = input(f"Enter value [{initial or ''}]: ")
+                if not entered:
+                    entered = initial or ""
+            btn = _prompt_buttons(button_list)
+            if btn is None:
+                return {"button": None, "return_value": None}
+            try:
+                value = normalize_text_entry(entered, args.get("textentrytype"), args.get("textentrycase"))
+            except ValueError as exc:
+                print(f"Invalid entry: {exc}", file=sys.stderr)
+                continue
+            return {"button": btn, "return_value": value}
 
     def show_entry_form(self, args: dict) -> dict:
         title = args.get("title", "Entry")

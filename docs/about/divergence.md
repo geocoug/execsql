@@ -69,6 +69,14 @@ ______________________________________________________________________
 
 ### Bug Fixes
 
+`PROMPT ENTER_SUB` applies its documented TYPE and LCASE/UCASE controls
+in Tkinter, Textual and console. The modular backends previously ignored
+these request fields. Shared submission validation retains invalid entries
+for correction, allows empty values, expands BOOL prefixes and then applies
+case conversion. The script handler also checks confirmed values before
+assignment. Console plain-text entry preserves spaces instead of stripping
+them; its existing blank-response default for INITIALLY is retained.
+
 `PROMPT COMPARE` uses the declared composite-key order for row differences
 and Tkinter/Textual cross-table selection. The modular backends previously
 assembled keys in each table's physical column order, falsely separating

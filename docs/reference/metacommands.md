@@ -2846,6 +2846,10 @@ The "TYPE" keyword can be used to limit the type of entry provided. This keyword
 
 The keywords "LCASE" and "UCASE" force the returned value to be all lowercase or all uppercase, respectively.
 
+Validation runs when OK or Enter submits the value. An invalid value displays an explanation and keeps the prompt open for correction. Empty values remain valid for every TYPE. INT and FLOAT use digits `0`–`9`; FLOAT accepts forms such as `12`, `12.`, `.5` and `-.5`, but does not accept a leading plus sign, exponent notation or whitespace. IDENT uses letters `A`–`Z`/`a`–`z`, digits and underscores, with a letter first. Numeric values remain text, so leading zeros and decimal spelling are preserved.
+
+BOOL prefixes are expanded before case conversion: `TYPE BOOL UCASE` turns `f` into `FALSE`, while `TYPE BOOL LCASE` turns `t` into `true`. Plain text and password entries use the same case rules. Console text entry preserves spaces; a blank console response keeps an INITIALLY value when one is provided, otherwise it submits an empty string.
+
 If the INITIALLY clause is used, the provided text must be double-quoted and must not contain a double quote character.
 
 If a URL is provided with the HELP keyword, the dialog box will include a button that will open that URL when clicked. The URL must be double-quoted if it contains spaces.

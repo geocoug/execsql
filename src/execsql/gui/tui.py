@@ -68,6 +68,7 @@ from execsql.gui.base import (
     _key_column_indices,
     compare_stats as _compare_stats,
     compute_row_diffs,
+    normalize_text_entry,
 )
 
 # ---------------------------------------------------------------------------
@@ -437,8 +438,26 @@ class DisplayScreen(_BaseDialog):
                 break
         if value is None:
             return
+        self._submit(value)
+
+    @on(Input.Submitted, "#text_input")
+    def _on_text_submitted(self, event: Input.Submitted) -> None:
+        event.stop()
+        self.action_submit()
+
+    def _submit(self, value: int | None) -> None:
         text_input = self.query_one("#text_input", Input) if self.args.get("textentry") else None
         return_value = text_input.value if text_input else None
+        if value is not None and return_value is not None:
+            try:
+                return_value = normalize_text_entry(
+                    return_value,
+                    self.args.get("textentrytype"),
+                    self.args.get("textentrycase"),
+                )
+            except ValueError as exc:
+                self.notify(str(exc), title="Invalid entry", severity="error")
+                return
         self._result = {"button": value, "return_value": return_value}
         self.dismiss(self._result)
 
@@ -448,10 +467,7 @@ class DisplayScreen(_BaseDialog):
             idx = int(btn_id.split("_")[1])
             button_list = self.args.get("button_list", [("Continue", 1)])
             value = button_list[idx][1]
-            text_input = self.query_one("#text_input", Input) if self.args.get("textentry") else None
-            return_value = text_input.value if text_input else None
-            self._result = {"button": value, "return_value": return_value}
-            self.dismiss(self._result)
+            self._submit(value)
 
 
 # ---------------------------------------------------------------------------
