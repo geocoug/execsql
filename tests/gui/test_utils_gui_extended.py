@@ -381,7 +381,8 @@ class TestApplyConnectResult:
 
 
 class TestGuiCredentialsRouted:
-    def test_routed_through_queue(self) -> None:
+    def test_routed_through_queue(self, monkeypatch) -> None:
+        monkeypatch.setattr(_gui, "enable_gui", lambda: None)
         _state.conf = SimpleNamespace(gui_level=2)
         thread = MagicMock()
         thread.is_alive.return_value = True

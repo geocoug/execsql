@@ -1332,9 +1332,9 @@ class CredentialsScreen(_BaseDialog):
         if event.button.id == "btn_ok":
             username = self.query_one("#username_input", Input).value
             password = self.query_one("#password_input", Input).value
-            self._result = {"username": username, "password": password}
+            self._result = {"button": 1, "username": username, "password": password}
         else:
-            self._result = {"username": "", "password": ""}
+            self._result = {"button": None, "username": "", "password": ""}
         self.dismiss(self._result)
 
 

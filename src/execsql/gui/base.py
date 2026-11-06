@@ -437,7 +437,11 @@ class GuiBackend(ABC):
 
     @abstractmethod
     def show_credentials(self, args: dict) -> dict:
-        """Show a credentials (username + password) dialog."""
+        """Show a credentials dialog returning username and password strings.
+
+        GUI backends return button=1 for OK or button=None for cancellation;
+        confirming empty credentials is distinct from cancelling.
+        """
 
     @abstractmethod
     def show_connect(self, args: dict) -> dict:

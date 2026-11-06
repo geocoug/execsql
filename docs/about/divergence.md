@@ -69,6 +69,15 @@ ______________________________________________________________________
 
 ### Bug Fixes
 
+`PROMPT CREDENTIALS` initializes and uses the configured GUI transport
+without requiring a manager thread. The modular helper previously bypassed
+Tkinter and Textual synchronous queues and read from the terminal instead.
+Cancellation follows `CANCEL_HALT`, preserving old values with halting off
+and clearing the named variables before halting and cleanup when on.
+An accepted pair of empty fields remains distinguishable from cancellation.
+Tkinter credential dialogs keep packed message/help widgets separate from
+the gridded fields, so a nonempty message no longer prevents construction.
+
 `PROMPT ENTRY_FORM` assigns each field in its declared global or `~local`
 scope rather than using the final specification row for every field.
 Textual widget IDs are independent of variable names, so local fields can

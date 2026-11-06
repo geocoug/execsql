@@ -545,8 +545,9 @@ def gui_credentials(
 ) -> None:
     """Prompt the user for credentials.
 
-    Routes through the GUI manager queue when gui_level > 0 and the manager
-    thread is running; otherwise falls back to the terminal.
+    Initializes the configured GUI transport when gui_level > 0; level zero
+    uses terminal input. Cancellation follows CANCEL_HALT without assigning
+    empty credentials over existing values when halting is off.
 
     Parameters
     ----------
@@ -565,11 +566,23 @@ def gui_credentials(
     import execsql.state as _state
 
     gui_level = _state.conf.gui_level if _state.conf else 0
-    if gui_level > 0 and _state.gui_manager_thread is not None and _state.gui_manager_thread.is_alive():
+    if gui_level > 0:
+        enable_gui()
         return_queue: _queue.Queue = _queue.Queue()
         gui_args = {"message": message}
         _state.gui_manager_queue.put(GuiSpec(GUI_CREDENTIALS, gui_args, return_queue))
         result = get_gui_response(return_queue, GUI_CREDENTIALS)
+        if result.get("cancelled"):
+            if _state.status.cancel_halt:
+                from execsql.script import current_script_line
+                from execsql.utils.errors import exit_now
+
+                for name in (username, pwtext):
+                    if name:
+                        _state.subvars.remove_substitution(name)
+                _state.exec_log.log_exit_halt(*current_script_line(), msg="Quit from prompt for credentials.")
+                exit_now(2, None)
+            return
         uname = result.get("username", "")
         passwd = result.get("password", "")
     else:

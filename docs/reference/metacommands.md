@@ -2778,7 +2778,9 @@ If a URL is provided with the HELP keyword, the dialog box will include a button
 PROMPT [MESSAGE "<text>"] CREDENTIALS <user_var> <pw_var>
 ```
 
-Prompts for a user name and password, using a dialog box, and assigns the entered values to the *user_var* and *pw_var* [substitution variables](substitution_vars.md#substitution_vars). If the prompt is canceled, unless [CANCEL_HALT](#cancel_halt) is set to OFF, script processing is halted, and the system exit value is set to 2. If [CANCEL_HALT](#cancel_halt) is set to ON, the specified substitution variables will be undefined.
+Prompts for a user name and password and assigns the entered values to the *user_var* and *pw_var* [substitution variables](substitution_vars.md#substitution_vars). With `gui_level` greater than zero, the prompt initializes the configured Tkinter or Textual backend and displays its credentials dialog. At level zero it uses terminal input with a hidden password prompt.
+
+Cancel, Escape and closing the Tkinter dialog follow [CANCEL_HALT](#cancel_halt): ON stops with exit status 2, leaves the named variables undefined and runs any `ON CANCEL_HALT` cleanup; OFF continues and preserves their previous values. Cancellation sets `DIALOG_CANCELED()`. Confirming with empty fields assigns empty strings and clears the cancellation flag. A failed GUI dialog is a metacommand error rather than a request for terminal input.
 
 
 <a id="prompt_dir"></a>

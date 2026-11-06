@@ -1097,31 +1097,39 @@ class CredentialsDialog:
                 pady=(0, 8),
             )
 
+        form = ttk.Frame(frame)
+        form.pack(fill=tk.BOTH, expand=True)
+
         user_var = tk.StringVar()
         pw_var = tk.StringVar()
 
-        ttk.Label(frame, text="Username:").grid(row=0, column=0, sticky="e", padx=4, pady=4)
-        ttk.Entry(frame, textvariable=user_var, width=30).grid(row=0, column=1, sticky="ew", pady=4)
+        ttk.Label(form, text="Username:").grid(row=0, column=0, sticky="e", padx=4, pady=4)
+        ttk.Entry(form, textvariable=user_var, width=30).grid(row=0, column=1, sticky="ew", pady=4)
 
-        ttk.Label(frame, text="Password:").grid(row=1, column=0, sticky="e", padx=4, pady=4)
-        ttk.Entry(frame, textvariable=pw_var, show="*", width=30).grid(row=1, column=1, sticky="ew", pady=4)
-        frame.columnconfigure(1, weight=1)
+        ttk.Label(form, text="Password:").grid(row=1, column=0, sticky="e", padx=4, pady=4)
+        ttk.Entry(form, textvariable=pw_var, show="*", width=30).grid(row=1, column=1, sticky="ew", pady=4)
+        form.columnconfigure(1, weight=1)
 
-        btn_frame = ttk.Frame(frame)
+        btn_frame = ttk.Frame(form)
         btn_frame.grid(row=2, column=0, columnspan=2, pady=8, sticky="e")
         ttk.Button(btn_frame, text="OK", command=lambda: self._close(win, user_var.get(), pw_var.get())).pack(
             side=tk.LEFT,
             padx=4,
         )
-        ttk.Button(btn_frame, text="Cancel", command=lambda: self._close(win, "", "")).pack(side=tk.LEFT, padx=4)
+        ttk.Button(btn_frame, text="Cancel", command=lambda: self._close(win, "", "", cancelled=True)).pack(
+            side=tk.LEFT,
+            padx=4,
+        )
         win.bind("<Return>", lambda e: self._close(win, user_var.get(), pw_var.get()))
-        win.bind("<Escape>", lambda e: self._close(win, "", ""))
+        win.bind("<Escape>", lambda e: self._close(win, "", "", cancelled=True))
+
+        win.protocol("WM_DELETE_WINDOW", lambda: self._close(win, "", "", cancelled=True))
 
         _center_window(win, 380, 180)
         root.wait_window(win)
 
-    def _close(self, win: tk.Toplevel, username: str, password: str) -> None:
-        self.result = {"username": username, "password": password}
+    def _close(self, win: tk.Toplevel, username: str, password: str, *, cancelled: bool = False) -> None:
+        self.result = {"button": None if cancelled else 1, "username": username, "password": password}
         if win.winfo_exists():
             win.destroy()
 

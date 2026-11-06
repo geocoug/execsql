@@ -13,6 +13,8 @@ ______________________________________________________________________
 
 ### Fixed
 
+- **`PROMPT CREDENTIALS`** uses the configured Tkinter or Textual dialog when GUI input is enabled; Cancel follows `CANCEL_HALT` and preserves existing credentials when halting is off.
+- **Tkinter credential dialogs** open successfully with a prompt message.
 - **`PROMPT ENTRY_FORM`** assigns each global or `~local` field in its declared scope, regardless of specification order.
 - **`PROMPT ENTRY_FORM` in Textual** accepts selected listbox values, preserves SQL quoting and rejects dropdown values outside the lookup list.
 - **`PROMPT ACTION`** runs the chosen named script with its required row data; script errors and transaction controls follow normal `EXECUTE SCRIPT` behavior.
