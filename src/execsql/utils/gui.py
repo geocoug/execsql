@@ -121,8 +121,10 @@ def get_gui_response(return_queue: Any, gui_type: str) -> dict:
     if "error" in result:
         raise ConsoleUIError(f"GUI {gui_type} failed: {result['error']}")
     empty_fields: dict[str, Any] = {"button": None}
-    if gui_type in (GUI_DISPLAY, GUI_ENTRY, GUI_SELECTSUB):
+    if gui_type in (GUI_DISPLAY, GUI_ENTRY):
         empty_fields["return_value"] = None
+    elif gui_type == GUI_SELECTSUB:
+        empty_fields["row"] = None
     elif gui_type == GUI_SELECTROWS:
         empty_fields["rows"] = None
     elif gui_type == GUI_PAUSE:

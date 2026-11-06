@@ -3054,11 +3054,11 @@ PROMPT SELECT_SUB <table_or_view> MESSAGE "<prompt_text>" [CONTINUE]
 
 Displays the selected data table or view, similar to the PROMPT DISPLAY metacommand, but allows you to select a single row of data, and then assigns the data values from that row to a set of substitution variables corresponding to the column names, but prefixed with the "@" character. This prefix prevents any conflict between these automatically-assigned substitution variables and any others that you may have created with the SUB command or by any other means---except for the SELECT_SUB metacommand, which uses the same prefix for substitution variables.
 
-Data can be selected from the display either by highlighting the row with a single mouse click and then clicking on the "OK" button, or by double-clicking on a row. If data selection is canceled either with the "Cancel" button or by hitting the Escape key, script processing will be halted and the system exit value will be set to 2, unless [CANCEL_HALT](#cancel_halt) has been set to OFF.
+In Tkinter and Textual, data can be selected from the display either by highlighting the row with a single mouse click and then clicking on the "OK" button, or by double-clicking on a row. In the console backend, enter the displayed row number. If data selection is canceled either with the "Cancel" button or by hitting the Escape key, script processing will be halted and the system exit value will be set to 2, unless [CANCEL_HALT](#cancel_halt) has been set to OFF. Blank console input or end-of-input also cancels.
 
-Null values in the selected data row will be represented by substitution variables with zero-length string values.
+Null values in the selected data row will be represented by substitution variables with zero-length string values. Values come from the original database row, so large integers and decimals keep their full precision when converted to substitution text.
 
-If the CONTINUE keyword is used, then a "Continue" button will also be displayed in the dialog box. This option allows the user to close the dialog without either selecting an item or canceling the script.
+If the CONTINUE keyword is used, then a "Continue" button will also be displayed in the dialog box. This option allows the user to close the dialog without either selecting an item or canceling the script. In the console, enter `C` when offered to continue without a selection. In Tkinter and Textual, Enter chooses Continue when this option is present; otherwise it confirms the highlighted row. Double-clicking a row or clicking OK still confirms that row when CONTINUE is available.
 
 If no data value is selected (i.e., either the "Continue" button has been used, or the "Cancel" button has been used and CANCEL_HALT has been set to OFF), all substitution variables corresponding to column names of the table that was displayed will be undefined, even if they were defined before the table was displayed.
 

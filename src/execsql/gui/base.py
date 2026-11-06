@@ -285,7 +285,9 @@ class GuiBackend(ABC):
       ``rows`` contains new selections in source column order, with original
       Python values and duplicates retained. ``[]`` means no selections;
       ``None`` means cancelled or unavailable (console fallback).
-    - ``show_select_sub`` → ``{"button": int|None, "row": dict|None}``
+    - ``show_select_sub`` → ``{"button": int|None, "row": list|None}``
+      ``row`` contains the original Python values in source column order;
+      button 1 confirms it, 2 continues without selecting, None cancels.
     - ``show_action``     → ``{"button": int|None}``
     - ``show_map``        → ``{"button": int|None}``
     - ``show_open_file``  → ``{"filename": str|None}``

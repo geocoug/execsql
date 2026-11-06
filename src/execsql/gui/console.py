@@ -317,15 +317,27 @@ class ConsoleBackend(GuiBackend):
         print(f"\n=== {title} ===", file=sys.stderr)
         if message:
             print(message, file=sys.stderr)
+        _print_help_url(args)
+        can_continue = any(button[1] == 2 for button in args.get("button_list", []))
         if headers and rows:
             for i, row in enumerate(rows, 1):
                 print(f"  [{i}] " + ", ".join(f"{h}={v}" for h, v in zip(headers, row)), file=sys.stderr)
             while True:
-                raw = input("Select row number (or blank to cancel): ").strip()
+                prompt = (
+                    "Select row number, C to continue without selecting, or blank to cancel: "
+                    if can_continue
+                    else "Select row number (or blank to cancel): "
+                )
+                try:
+                    raw = input(prompt).strip()
+                except EOFError:
+                    raw = ""
                 if not raw:
                     return {"button": None, "row": None}
+                if can_continue and raw.lower() == "c":
+                    return {"button": 2, "row": None}
                 if raw.isdigit() and 1 <= int(raw) <= len(rows):
-                    row = dict(zip(headers, rows[int(raw) - 1]))
+                    row = list(rows[int(raw) - 1])
                     return {"button": 1, "row": row}
                 print("Invalid selection.", file=sys.stderr)
         return {"button": None, "row": None}

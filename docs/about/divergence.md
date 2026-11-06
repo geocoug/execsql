@@ -69,6 +69,14 @@ ______________________________________________________________________
 
 ### Bug Fixes
 
+`PROMPT SELECT_SUB` displays and returns source rows consistently across
+Tkinter, Textual and console. The modular handler and backends disagreed on
+the request and result formats, leaving the source empty or raising an error
+instead of assigning data variables. Selection retains original Python
+values until conversion to substitution text, including exact decimals and
+NULL as an empty string. Continue is available on every backend and leaves
+the source columns' data variables undefined, as documented.
+
 GUI backend failures are reported as metacommand errors and fail open batches,
 rather than being accepted as successful confirmations. Tkinter and Textual
 return cancellation to the script thread so `CANCEL_HALT` and `ON CANCEL_HALT`

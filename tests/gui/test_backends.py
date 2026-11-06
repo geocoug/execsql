@@ -1105,8 +1105,8 @@ class TestConsoleBackendExtended:
         assert result["button"] is None
         assert result["row"] is None
 
-    def test_show_select_sub_valid_row_returns_dict(self, monkeypatch):
-        """Valid row number returns the row as a header-keyed dict."""
+    def test_show_select_sub_valid_row_returns_original_values(self, monkeypatch):
+        """Valid row number returns the original row in column order."""
         monkeypatch.setattr("builtins.input", lambda *a: "2")
         result = self.backend.show_select_sub(
             {
@@ -1115,7 +1115,7 @@ class TestConsoleBackendExtended:
             },
         )
         assert result["button"] == 1
-        assert result["row"] == {"id": 2, "name": "Bob"}
+        assert result["row"] == [2, "Bob"]
 
     def test_show_select_sub_invalid_then_valid(self, monkeypatch):
         """show_select_sub loops on invalid input until a valid row number is given."""
@@ -1128,7 +1128,7 @@ class TestConsoleBackendExtended:
             },
         )
         assert result["button"] == 1
-        assert result["row"] == {"x": "value_x"}
+        assert result["row"] == ["value_x"]
 
     def test_show_select_sub_no_rows_returns_none(self, monkeypatch):
         """With no rows, show_select_sub immediately returns button=None."""

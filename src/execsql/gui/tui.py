@@ -36,10 +36,11 @@ except ImportError as _e:
         "Textual is not installed. It is a dependency of execsql2; reinstall execsql2 to restore it.",
     ) from _e
 
-from textual import on
+from textual import events, on
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Container, Horizontal, ScrollableContainer, Vertical
+from textual.message import Message
 from textual.screen import ModalScreen
 from textual.widgets import (
     Button,
@@ -73,9 +74,15 @@ def _row_count_text(n: int) -> str:
     return f"{n:,} row{'s' if n != 1 else ''}"
 
 
-def _make_table_widget(table_id: str, headers: list, rows: list) -> DataTable:
+def _make_table_widget(
+    table_id: str,
+    headers: list,
+    rows: list,
+    *,
+    table_class: type[DataTable] = DataTable,
+) -> DataTable:
     """Build a DataTable widget populated with data."""
-    dt: DataTable = DataTable(id=table_id, zebra_stripes=True, cursor_type="row")
+    dt: DataTable = table_class(id=table_id, zebra_stripes=True, cursor_type="row")
     dt.add_columns(*[str(h) for h in headers])
     for row in rows:
         dt.add_row(*[str(c) if c is not None else "" for c in row])
@@ -1027,20 +1034,36 @@ class SelectRowsScreen(_BaseDialog):
 # ---------------------------------------------------------------------------
 
 
+class _SelectSubTable(DataTable):
+    """Confirm on a double-click, retaining single clicks for highlighting."""
+
+    class Confirmed(Message):
+        def __init__(self, row_key: Any) -> None:
+            super().__init__()
+            self.row_key = row_key
+
+    def on_click(self, event: events.Click) -> None:
+        row_index = event.style.meta.get("row", -1)
+        if event.chain == 2 and not event.style.meta.get("out_of_bounds") and 0 <= row_index < len(self.rows):
+            self.post_message(self.Confirmed(self.ordered_rows[row_index].key))
+
+
 class SelectSubScreen(_BaseDialog):
     """Single-row selection dialog: pick one row and assign column values to vars."""
 
+    BINDINGS = [*_BaseDialog.BINDINGS, Binding("enter", "submit", "Submit", priority=True)]
+
     def __init__(self, args: dict) -> None:
         super().__init__(args)
-        self._selected_row: dict | None = None
-        self._headers: list = args.get("headers", [])
+        self._selected_row: list | None = None
+        self._source_rows: dict[Any, list] = {}
 
     def compose(self) -> ComposeResult:
         title = self.args.get("title", "Select a row")
         message = self.args.get("message", "")
         headers = self.args.get("headers", [])
         rows = self.args.get("rows", [])
-        button_list = self.args.get("button_list", [("OK", 1), ("Cancel", 0)])
+        button_list = self.args.get("button_list", [("OK", 1)])
 
         with Container(id="dialog"):
             if title:
@@ -1052,24 +1075,38 @@ class SelectSubScreen(_BaseDialog):
                 yield Static(message, id="message")
             yield Static("Click a row to select it.", id="hint")
             with ScrollableContainer():
-                yield _make_table_widget("sel_table", headers, rows)
+                source = _make_table_widget("sel_table", headers, rows, table_class=_SelectSubTable)
+                self._source_rows = {key: list(row) for key, row in zip(source.rows, rows)}
+                yield source
             yield Static(_row_count_text(len(rows)), classes="row-count")
             with Horizontal(id="buttons"):
                 yield from _button_row(button_list)
 
     def on_data_table_row_highlighted(self, event: DataTable.RowHighlighted) -> None:
-        row_key = event.row_key
-        tbl: DataTable = self.query_one("#sel_table", DataTable)
-        values = [tbl.get_cell(row_key, col) for col in tbl.columns]
-        self._selected_row = dict(zip(self._headers, values))
+        self._selected_row = self._source_rows.get(event.row_key)
+
+    @on(_SelectSubTable.Confirmed)
+    def _on_row_confirmed(self, event: _SelectSubTable.Confirmed) -> None:
+        self._selected_row = self._source_rows.get(event.row_key)
+        self._submit(1)
+
+    def _submit(self, value: int | None) -> None:
+        if value == 1 and self._selected_row is None:
+            return
+        self._result = {"button": value, "row": self._selected_row if value == 1 else None}
+        self.dismiss(self._result)
+
+    def action_submit(self) -> None:
+        buttons = self.args.get("button_list", [("OK", 1)])
+        value = next((b[1] for b in buttons if len(b) > 2 and b[2] == "<Return>"), 1)
+        self._submit(value)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         btn_id = event.button.id
         if btn_id and btn_id.startswith("btn_") and btn_id[4:].isdigit():
             idx = int(btn_id.split("_")[1])
-            value = self.args.get("button_list", [("OK", 1), ("Cancel", 0)])[idx][1]
-            self._result = {"button": value, "row": self._selected_row}
-            self.dismiss(self._result)
+            value = self.args.get("button_list", [("OK", 1)])[idx][1]
+            self._submit(value)
 
 
 # ---------------------------------------------------------------------------

@@ -13,6 +13,8 @@ ______________________________________________________________________
 
 ### Fixed
 
+- **`PROMPT SELECT_SUB`** displays source rows and assigns the selected `@column` variables in Tkinter, Textual and console, preserving numeric precision and representing NULL as an empty string.
+- **`PROMPT SELECT_SUB … CONTINUE`** offers Continue in Tkinter and console as well as Textual; continuing without a selection leaves the displayed columns' data variables undefined.
 - **GUI prompts** report dialog failures as metacommand errors instead of accepting them as successful responses; a failed prompt prevents an open batch from committing.
 - **`CANCEL_HALT` in Tkinter and Textual** honors `OFF` and runs `ON CANCEL_HALT` cleanup when `ON`, including in the Textual console. Escape and Cancel agree for file and directory prompts.
 - **`DIALOG_CANCELED()`** reports whether the last dialog was canceled; a subsequent accepted dialog clears it.

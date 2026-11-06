@@ -780,26 +780,33 @@ class SelectSubDialog:
         tree_frame.pack(fill=tk.BOTH, expand=True)
         tree = ttk.Treeview(tree_frame, height=min(10, len(rows)))
         _populate_treeview(tree, headers, rows)
+        source_rows = {key: list(row) for key, row in zip(tree.get_children(), rows)}
         vsb = ttk.Scrollbar(tree_frame, orient=tk.VERTICAL, command=tree.yview)
         tree.configure(yscrollcommand=vsb.set)
         tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         vsb.pack(side=tk.RIGHT, fill=tk.Y)
         ttk.Label(frame, text=_row_count_text(len(rows))).pack(anchor="w")
 
-        def _select():
-            sel = tree.selection()
-            if sel:
-                vals = tree.item(sel[0], "values")
-                row_dict = dict(zip(headers, vals))
-                self.result = {"button": 1, "row": row_dict}
-                win.destroy()
+        def _select(value=1):
+            selected_row = None
+            if value == 1:
+                sel = tree.selection()
+                if not sel:
+                    return
+                selected_row = source_rows[sel[0]]
+            self.result = {"button": value, "row": selected_row}
+            win.destroy()
 
         btn_frame = ttk.Frame(frame)
         btn_frame.pack(pady=8, anchor="e")
-        ttk.Button(btn_frame, text="OK", command=_select).pack(side=tk.LEFT, padx=4)
+        button_list = args.get("button_list", [("OK", 1, "<Return>")])
+        _add_buttons(btn_frame, button_list, _select)
         ttk.Button(btn_frame, text="Cancel", command=lambda: self._close(win)).pack(side=tk.LEFT, padx=4)
         tree.bind("<Double-1>", lambda e: _select())
+        if not any(len(button) > 2 and button[2] == "<Return>" for button in button_list):
+            win.bind("<Return>", lambda e: _select())
         win.bind("<Escape>", lambda e: self._close(win))
+        win.protocol("WM_DELETE_WINDOW", lambda: self._close(win))
 
         _center_window(win, 600, 350)
         root.wait_window(win)

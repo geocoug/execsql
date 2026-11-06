@@ -484,23 +484,16 @@ class TestSelectRowsDialog:
 
 class TestSelectSubDialog:
     def test_construct(self, fake_tk, root) -> None:
-        # The SelectSubDialog signature can vary — pass a comprehensive args
-        # dict.  If the dialog raises, this test will fail and we'll narrow.
         args = {
             "title": "Choose",
             "message": "select a sub var",
             "button_list": [("OK", 1, None)],
-            "items": ["one", "two", "three"],
-            "subvar_name": "$pick",
+            "headers": ["value"],
+            "rows": [("one",), ("two",), ("three",)],
             "help_url": "",
         }
-        try:
-            dlg = _desk.SelectSubDialog(root, args)
-            assert dlg.result == {}
-        except (KeyError, TypeError):
-            # Args shape differs; the import path / class definition was
-            # still exercised — that's the coverage we wanted.
-            pytest.skip("SelectSubDialog args shape unverified in this test")
+        dlg = _desk.SelectSubDialog(root, args)
+        assert dlg.result == {}
 
 
 # ---------------------------------------------------------------------------
