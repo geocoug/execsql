@@ -2860,6 +2860,10 @@ PROMPT ENTRY_FORM <specification_table> [HELP <url>] MESSAGE "<text>"
 
 Dynamically creates a data entry form following the specifications in the specification_table and assigns the entered values to the substitution variables named in the specification table.
 
+Each field uses its own variable scope: a name beginning with `~` belongs to the current script, while an unprefixed name is global. Mixed forms work in any specification order; global values remain after the script returns and local values do not escape it. An empty field leaves only that named variable undefined; unrelated variables are preserved.
+
+In Textual, dropdown and select fields show the available lookup values beside the input. Enter one of those values exactly; an unlisted value keeps the form open with a validation error. Listboxes return the selected items as a SQL list, including doubled apostrophes and repeated values when separate matching rows are selected.
+
 The data entry form will have one data entry prompt for every row in the specification table. The following columns in the specification table will be used to construct the data entry form:
 
 `sub_var`

@@ -483,6 +483,7 @@ class EntryFormScreen(_BaseDialog):
     def __init__(self, args: dict) -> None:
         super().__init__(args)
         self._inputs: dict[str, Any] = {}
+        self._browse_fields: dict[str, str] = {}
 
     def compose(self) -> ComposeResult:
         title = self.args.get("title", "Entry")
@@ -504,9 +505,9 @@ class EntryFormScreen(_BaseDialog):
                     yield _make_table_widget("form_table", headers, rows)
                 yield Static(_row_count_text(len(rows)), classes="row-count")
             with ScrollableContainer(id="fields"):
-                for spec in specs:
+                for index, spec in enumerate(specs):
                     etype = (spec.entry_type or "text").lower()
-                    field_id = f"field_{spec.varname}"
+                    field_id = f"field_{index}"
                     # Compute the display label (radiobuttons uses semicolon-delimited)
                     if etype == "radiobuttons":
                         parts = (spec.label or "").split(";")
@@ -518,8 +519,8 @@ class EntryFormScreen(_BaseDialog):
                         # Multi-row widget — render label + SelectionList vertically
                         yield Static(field_label, classes="row-count")
                         height = spec.default_height or 4
-                        sl = SelectionList[str](
-                            *[(str(v), str(v), False) for v in spec.lookup_list if v is not None],
+                        sl = SelectionList[tuple[int, str]](
+                            *[(str(v), (i, str(v)), False) for i, v in enumerate(spec.lookup_list) if v is not None],
                             id=field_id,
                         )
                         sl.styles.height = height + 2
@@ -572,9 +573,11 @@ class EntryFormScreen(_BaseDialog):
                                     placeholder="Enter file path or click Browse",
                                 )
                                 yield inp
+                                browse_id = f"browse_{index}"
+                                self._browse_fields[browse_id] = spec.varname
                                 yield Button(
                                     "Browse…",
-                                    id=f"browse_{spec.varname}",
+                                    id=browse_id,
                                     variant="default",
                                 )
                                 self._inputs[spec.varname] = inp
@@ -605,7 +608,7 @@ class EntryFormScreen(_BaseDialog):
         if not btn_id.startswith("browse_"):
             return
         event.stop()
-        varname = btn_id[len("browse_") :]
+        varname = self._browse_fields[btn_id]
         tree = self.query_one("#file_tree", DirectoryTree)
         if tree.styles.display == "none":
             self._browse_target = varname
@@ -634,8 +637,7 @@ class EntryFormScreen(_BaseDialog):
             if etype == "checkbox":
                 spec.value = "1" if widget.value else "0"
             elif etype == "listbox" and isinstance(widget, SelectionList):
-                selected = widget.selected
-                items = [str(widget.get_option_at_index(i).value) for i in selected]
+                items = [value for _, value in widget.selected]
                 spec.value = ",".join(f"'{v.replace(chr(39), chr(39) + chr(39))}'" for v in items)
             elif etype == "radiobuttons" and isinstance(widget, RadioSet):
                 spec.value = str(widget.pressed_index + 1) if widget.pressed_index >= 0 else "1"
@@ -652,6 +654,10 @@ class EntryFormScreen(_BaseDialog):
             etype = (spec.entry_type or "text").lower()
             if spec.required and not val and etype != "checkbox":
                 errors.append(f"{spec.label or spec.varname}: required")
+            if etype in ("dropdown", "select") and spec.lookup_list:
+                valid = [str(value) for value in spec.lookup_list if value is not None]
+                if val not in valid:
+                    errors.append(f"{spec.label or spec.varname}: choose a valid value")
             if spec.validation_regex and val and not _re.fullmatch(spec.validation_regex, val):
                 errors.append(f"{spec.label or spec.varname}: does not match pattern")
         return errors

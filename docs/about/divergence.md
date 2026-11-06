@@ -69,6 +69,14 @@ ______________________________________________________________________
 
 ### Bug Fixes
 
+`PROMPT ENTRY_FORM` assigns each field in its declared global or `~local`
+scope rather than using the final specification row for every field.
+Textual widget IDs are independent of variable names, so local fields can
+open normally. Textual listboxes serialize selected values with SQL quoting
+and preserve separately selected rows with identical labels. Dropdown and
+select fields reject values absent from their lookup list, matching the
+restriction already applied by Tkinter and console.
+
 `PROMPT ACTION` executes the selected named script through the AST executor
 after the GUI returns. The modular backends previously returned only a
 button value and the handler ran no action. Data-required actions receive

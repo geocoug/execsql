@@ -13,6 +13,8 @@ ______________________________________________________________________
 
 ### Fixed
 
+- **`PROMPT ENTRY_FORM`** assigns each global or `~local` field in its declared scope, regardless of specification order.
+- **`PROMPT ENTRY_FORM` in Textual** accepts selected listbox values, preserves SQL quoting and rejects dropdown values outside the lookup list.
 - **`PROMPT ACTION`** runs the chosen named script with its required row data; script errors and transaction controls follow normal `EXECUTE SCRIPT` behavior.
 - **`PROMPT ACTION … CONTINUE`** closes the dialog without running an action or replacing data variables.
 - **`PROMPT SELECT_SUB`** displays source rows and assigns the selected `@column` variables in Tkinter, Textual and console, preserving numeric precision and representing NULL as an empty string.

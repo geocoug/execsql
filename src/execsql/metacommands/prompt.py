@@ -299,17 +299,17 @@ def x_prompt_entryform(**kwargs: Any) -> None:
     script, line_no = current_script_line()
     if btn:
         assert entries is not None
-        assert subvar is not None
         for entry in entries:
+            subvarset = _state.subvars if entry.name[0] != "~" else _state.current_localvars()
             if entry.value:
                 value = str(entry.value)
-                subvarset = _state.subvars if subvar[0] != "~" else _state.current_localvars()
                 subvarset.add_substitution(entry.name, value)
                 _state.exec_log.log_status_info(
                     f"Substitution variable {entry.name} set to {{{value}}} on line {line_no} of {script}",
                 )
             else:
-                if _state.subvars.sub_exists(entry.name):
+                if subvarset.sub_exists(entry.name):
+                    subvarset.remove_substitution(entry.name)
                     _state.exec_log.log_status_info(
                         f"Substitution variable {entry.name} removed on line {line_no} of {script}",
                     )
