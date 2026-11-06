@@ -956,14 +956,25 @@ def _execute_script_textual_console(tree: Any, conf: ConfigData) -> None:
     import execsql.utils.gui as _gui
     from execsql.gui.tui import ConsoleApp, _ConsoleDialogQueue
 
-    from execsql.script.executor import execute
+    from execsql.script.executor import _CONTROL_FLOW, _roll_back_after_interrupt, execute
 
     dialog_queue = _ConsoleDialogQueue()
     _state.gui_manager_queue = dialog_queue
 
     ctx = _state.get_context()
+
+    def run_script() -> None:
+        with _state.active_context(ctx):
+            try:
+                execute(tree, ctx=ctx)
+            except (*_CONTROL_FLOW, Exception):
+                raise
+            except BaseException:
+                _roll_back_after_interrupt(ctx)
+                raise
+
     app = ConsoleApp(
-        script_runner=lambda: execute(tree, ctx=ctx),
+        script_runner=run_script,
         dialog_queue=dialog_queue,
         wait_on_exit=conf.gui_wait_on_exit,
     )
@@ -974,8 +985,14 @@ def _execute_script_textual_console(tree: Any, conf: ConfigData) -> None:
     try:
         app.run()
     finally:
+        app.wait_for_script()
         _state.output.reset()
         _gui._active_backend._console_app = None
+
+    if app._quit_requested or isinstance(app._script_exception, KeyboardInterrupt):
+        _state.exec_log.log_exit_interrupted()
+        _state.exec_log.log_status_info(f"{_state.cmds_run} commands run")
+        raise SystemExit(130)
 
     if app._script_exception is not None:
         exc = app._script_exception

@@ -112,12 +112,16 @@ class ConsoleUIError(Exception):
 def get_gui_response(return_queue: Any, gui_type: str) -> dict:
     """Receive a GUI result on the script thread, raising transport errors.
 
+    Console shutdown raises KeyboardInterrupt here on the worker thread so
+    its transaction cleanup finishes before the UI closes.
     Cancellation supplies the dialog's empty result fields and records
     DIALOG_CANCELED. The calling handler owns CANCEL_HALT and its cleanup.
     """
     result = return_queue.get(block=True)
     if not isinstance(result, dict):
         raise ConsoleUIError(f"Invalid response from {gui_type} dialog.")
+    if result.get("interrupted"):
+        raise KeyboardInterrupt
     if "error" in result:
         raise ConsoleUIError(f"GUI {gui_type} failed: {result['error']}")
     empty_fields: dict[str, Any] = {"button": None}

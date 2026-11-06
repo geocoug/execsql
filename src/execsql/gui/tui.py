@@ -1586,11 +1586,40 @@ class _ConsoleDialogQueue:
 
     def __init__(self) -> None:
         self._q: _stdlib_queue.Queue = _stdlib_queue.Queue()
+        self._pending: dict[int, Any] = {}
+        self._lock = threading.Lock()
+        self._closing = False
 
     def put(self, spec: Any, block: bool = True, timeout: Any = None) -> None:
         if spec is None:
             return
-        self._q.put(spec, block=block, timeout=timeout)
+        with self._lock:
+            if self._closing:
+                spec.return_queue.put({"interrupted": True})
+                return
+            self._pending[id(spec)] = spec
+            self._q.put(spec, block=block, timeout=timeout)
+
+    def reply(self, spec: Any, result: dict) -> None:
+        """Reply once; shutdown may already have interrupted this request."""
+        with self._lock:
+            if self._pending.pop(id(spec), None) is not None:
+                spec.return_queue.put(result)
+
+    def interrupt(self) -> bool:
+        """Stop admitting dialogs and wake every pending response waiter."""
+        with self._lock:
+            self._closing = True
+            pending = list(self._pending.values())
+            self._pending.clear()
+            while True:
+                try:
+                    self._q.get_nowait()
+                except _stdlib_queue.Empty:
+                    break
+            for spec in pending:
+                spec.return_queue.put({"interrupted": True})
+            return bool(pending)
 
     def get_nowait(self) -> Any:
         return self._q.get_nowait()
@@ -1617,7 +1646,7 @@ class ConsoleApp(App):
     request as a ``ModalScreen`` overlay via ``push_screen_wait()``.
     """
 
-    BINDINGS = [Binding("ctrl+c", "request_quit", "Quit", show=True)]
+    BINDINGS = [Binding("ctrl+c", "request_quit", "Quit", show=True, priority=True)]
 
     DEFAULT_CSS = """
     ConsoleApp {
@@ -1654,6 +1683,8 @@ class ConsoleApp(App):
         self._wait_on_exit = wait_on_exit
         self._script_thread: threading.Thread | None = None
         self._script_exception: BaseException | None = None
+        self._quit_requested = False
+        self._completion_reported = False
         self._screen_map: dict | None = None
         self._console_lines: list[str] = []
 
@@ -1673,17 +1704,36 @@ class ConsoleApp(App):
         )
         self._script_thread.start()
         self.set_interval(0.05, self._poll_dialog_queue)
+        self.set_interval(0.05, self._poll_script_finished)
 
     def _run_script(self) -> None:
         try:
             self._script_runner()
         except BaseException as exc:
             self._script_exception = exc
-        finally:
-            self.call_from_thread(self._on_script_done)
+
+    def _poll_script_finished(self) -> None:
+        if self._script_thread is not None and not self._script_thread.is_alive() and not self._completion_reported:
+            self._completion_reported = True
+            self._on_script_done()
+
+    def wait_for_script(self) -> None:
+        """Join after app.run() returns, before the CLI tears down output/connections."""
+        if self._script_thread is not None:
+            self._script_thread.join()
+
+    async def on_unmount(self) -> None:
+        # Unexpected app shutdown must also leave the loop available for worker
+        # output callbacks until interruption and rollback have finished.
+        import asyncio
+
+        if self._script_thread is not None and self._script_thread.is_alive():
+            self.action_request_quit()
+            while self._script_thread.is_alive():
+                await asyncio.sleep(0.05)
 
     def _on_script_done(self) -> None:
-        if self._wait_on_exit:
+        if self._wait_on_exit and not self._quit_requested:
             self.query_one("#status_bar", Label).update(
                 "Script complete — press Ctrl+C or close window to exit.",
             )
@@ -1691,6 +1741,8 @@ class ConsoleApp(App):
             self.exit()
 
     def _poll_dialog_queue(self) -> None:
+        if self._quit_requested:
+            return
         try:
             spec = self._dialog_queue.get_nowait()
         except _stdlib_queue.Empty:
@@ -1698,21 +1750,23 @@ class ConsoleApp(App):
         from execsql.utils.gui import QUERY_CONSOLE
 
         if spec.gui_type == QUERY_CONSOLE:
-            spec.return_queue.put({"console_running": True})
+            self._dialog_queue.reply(spec, {"console_running": True})
             return
         if self._screen_map is None:
             self._screen_map = _build_screen_map()
         screen_class = self._screen_map.get(spec.gui_type)
         if screen_class is None:
-            spec.return_queue.put({"error": f"Unknown GUI type: {spec.gui_type}", "button": None})
+            self._dialog_queue.reply(spec, {"error": f"Unknown GUI type: {spec.gui_type}", "button": None})
             return
 
         async def _push() -> None:
+            if self._quit_requested:
+                return
             try:
                 result = await self.push_screen_wait(screen_class(spec.args))
             except Exception as exc:
                 result = {"error": str(exc), "button": None}
-            spec.return_queue.put(result if result is not None else {})
+            self._dialog_queue.reply(spec, result if result is not None else {})
 
         self.run_worker(cast(Any, _push), exclusive=False)
 
@@ -1739,6 +1793,8 @@ class ConsoleApp(App):
         self.call_from_thread(self._update_status, msg)
 
     def _update_status(self, msg: str) -> None:
+        if self._quit_requested:
+            msg = "Stopping… waiting for script cleanup."
         try:
             self.query_one("#status_bar", Label).update(msg)
         except Exception:
@@ -1755,16 +1811,28 @@ class ConsoleApp(App):
             pass  # Widget may not be mounted yet.
 
     def action_request_quit(self) -> None:
-        # A plain SystemExit, not ScriptExit: quitting while a statement runs
-        # interrupts it, and it is rolled back like a failed one.
-        if self._script_thread and self._script_thread.is_alive():
+        if self._script_thread is None or not self._script_thread.is_alive():
+            self.exit()
+            return
+        if self._quit_requested:
+            return
+        self._quit_requested = True
+        self._update_status("Stopping… waiting for script cleanup.")
+        waiting_for_dialog = self._dialog_queue.interrupt()
+        if waiting_for_dialog:
+            # The checked response receiver raises on the worker thread. Do not
+            # inject another exception while that worker may already be rolling back.
+            if self.screen_stack and isinstance(self.screen, _BaseDialog) and self.screen.is_mounted:
+                self.screen.dismiss({"interrupted": True})
+        else:
+            # A driver wait receives this plain interrupt when it next returns
+            # to Python. Keep the UI alive until the worker has fully unwound.
             tid = self._script_thread.ident
             if tid is not None:
-                ctypes.pythonapi.PyThreadState_SetAsyncExc(
-                    ctypes.c_ulong(tid),
-                    ctypes.py_object(SystemExit),
-                )
-        self.exit()
+                ctypes.pythonapi.PyThreadState_SetAsyncExc(ctypes.c_ulong(tid), ctypes.py_object(SystemExit))
+
+    async def action_quit(self) -> None:
+        self.action_request_quit()
 
 
 # ---------------------------------------------------------------------------

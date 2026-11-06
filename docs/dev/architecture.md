@@ -325,6 +325,8 @@ All backends implement the `GuiBackend` ABC (`gui/base.py`), which defines a `di
 
 Prompt consumers read results through `utils.gui.get_gui_response()` on the script thread. Backend exceptions travel as error responses and are raised there as `ConsoleUIError`, so the executor records the metacommand failure and fails open batches. Cancellation supplies the dialog's empty result fields and updates `DIALOG_CANCELED()`; each handler applies `CANCEL_HALT` and calls the normal halt path when required. Queue adapters never interrupt the script merely because a dialog was canceled.
 
+The persistent Textual console runs the script on a worker and polls for its actual termination. Quit sends one interruption request, releases pending and future dialog requests through `_ConsoleDialogQueue`, and keeps the event loop available for cleanup output. A blocked driver may delay completion indefinitely. The CLI joins the worker before resetting output; an interrupted console run logs interruption and exits 130. Worker completion does not call back into an event loop that may already be closing.
+
 ### GUI manager thread
 
 When `--visible-prompts` is set to level 1 or higher, a GUI manager thread (`_state.gui_manager_thread`) runs alongside the script execution thread. GUI requests are sent via `_state.gui_manager_queue` and responses are returned synchronously. The `utils/gui.py` module provides the public API (`gui_connect`, `gui_console_on`, `gui_console_off`, etc.) that metacommand handlers call.

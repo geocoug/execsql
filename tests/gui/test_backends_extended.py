@@ -233,11 +233,12 @@ class TestConsoleAppDialogCancel:
         import ctypes
         import threading
 
-        from execsql.gui.tui import ConsoleApp
+        from execsql.gui.tui import ConsoleApp, _ConsoleDialogQueue
 
         app = object.__new__(ConsoleApp)
         spec = _FakeSpec("msg", {"message": "hi"})
-        app._dialog_queue = _stdlib_queue.Queue()
+        app._dialog_queue = _ConsoleDialogQueue()
+        app._quit_requested = False
         app._dialog_queue.put(spec)
         app._screen_map = {"msg": lambda args: None}
         release = threading.Event()

@@ -69,6 +69,16 @@ ______________________________________________________________________
 
 ### Bug Fixes
 
+Textual console Quit waits for script-worker termination and interrupt
+rollback before output/connection cleanup. The modular console previously
+closed its event loop immediately and could log normal completion while the
+worker was still running. Pending dialog waiters receive a distinct
+interruption response, and later dialog requests cannot block shutdown.
+Repeated Quit requests do not inject another interrupt into cleanup. The
+console stays responsive while waiting for a blocked driver to return, then
+reports interruption with exit status 130. Normal completion and deliberate
+HALT retain their own outcomes.
+
 Textual `PROMPT ASK` and `PROMPT ASK … COMPARE` preserve No as a real
 answer with value zero. The modular button builder previously turned zero
 into the cancellation action, so clicking No halted the script or left the

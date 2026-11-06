@@ -55,6 +55,7 @@ def transport(request, monkeypatch):
         from execsql.gui.tui import ConsoleApp, _build_screen_map, _ConsoleDialogQueue
 
         app = object.__new__(ConsoleApp)
+        app._quit_requested = False
         app._dialog_queue = _ConsoleDialogQueue()
         app._screen_map = _build_screen_map()
         app._script_thread = None
