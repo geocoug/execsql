@@ -136,6 +136,13 @@ class DiffResult:
     summary: str = ""
 
 
+def _key_column_indices(headers: list[str], keylist: list) -> list[int]:
+    """Return every key column's index in declared order, or no indices if incomplete."""
+    if any(key not in headers for key in keylist):
+        return []
+    return [headers.index(key) for key in keylist]
+
+
 def compute_row_diffs(
     headers1: list,
     rows1: list,
@@ -164,8 +171,8 @@ def compute_row_diffs(
         return None
     headers1_str = [str(h) for h in headers1]
     headers2_str = [str(h) for h in headers2]
-    key_idx1 = [i for i, h in enumerate(headers1_str) if h in keylist]
-    key_idx2 = [i for i, h in enumerate(headers2_str) if h in keylist]
+    key_idx1 = _key_column_indices(headers1_str, keylist)
+    key_idx2 = _key_column_indices(headers2_str, keylist)
     if not key_idx1 or not key_idx2:
         return None
 

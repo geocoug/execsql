@@ -62,7 +62,13 @@ from textual.widgets import (
 
 __all__ = ["TextualBackend"]
 
-from execsql.gui.base import DIFF_MARKER, DiffResult, compare_stats as _compare_stats, compute_row_diffs
+from execsql.gui.base import (
+    DIFF_MARKER,
+    DiffResult,
+    _key_column_indices,
+    compare_stats as _compare_stats,
+    compute_row_diffs,
+)
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -798,8 +804,12 @@ class CompareScreen(_BaseDialog):
         rows1 = self.args.get("rows1", [])
         rows2 = self.args.get("rows2", [])
 
-        self._key_idx1 = [i for i, h in enumerate(headers1) if h in keylist]
-        self._key_idx2 = [i for i, h in enumerate(headers2) if h in keylist]
+        key_idx1 = _key_column_indices(headers1, keylist)
+        key_idx2 = _key_column_indices(headers2, keylist)
+        if not key_idx1 or not key_idx2:
+            return
+        self._key_idx1 = key_idx1
+        self._key_idx2 = key_idx2
 
         # Syncing uses display-consistent string normalization (DataTable
         # cells are strings).  The diff engine in base.py has its own

@@ -15,7 +15,7 @@ import time
 from typing import Any, cast
 from collections.abc import Callable
 
-from execsql.gui.base import GuiBackend, selected_row_values
+from execsql.gui.base import GuiBackend, _key_column_indices, selected_row_values
 
 # ---------------------------------------------------------------------------
 # Tkinter import guard
@@ -520,14 +520,13 @@ class CompareDialog:
 
         tree1 = _add_tree(tables_frame, "Table 1", headers1, rows1)
         tree2 = _add_tree(tables_frame, "Table 2", headers2, rows2)
+        iids1 = tree1.get_children()
+        iids2 = tree2.get_children()
 
         # Cross-table row highlighting based on key columns
-        if keylist:
-            headers1_str = [str(h) for h in headers1]
-            headers2_str = [str(h) for h in headers2]
-            key_idx1 = [i for i, h in enumerate(headers1_str) if h in keylist]
-            key_idx2 = [i for i, h in enumerate(headers2_str) if h in keylist]
-
+        key_idx1 = _key_column_indices([str(h) for h in headers1], keylist)
+        key_idx2 = _key_column_indices([str(h) for h in headers2], keylist)
+        if key_idx1 and key_idx2:
             # Syncing uses display-consistent string normalization (treeview
             # values are strings).  The diff engine in base.py has its own
             # _pk_tuple with native-equality semantics — it does not share
@@ -535,8 +534,6 @@ class CompareDialog:
             def _kv(row, idxs):
                 return tuple(str(row[i]) if row[i] is not None else "" for i in idxs)
 
-            iids1 = tree1.get_children()
-            iids2 = tree2.get_children()
             iid_to_kv1 = {iid: _kv(rows1[i], key_idx1) for i, iid in enumerate(iids1)}
             iid_to_kv2 = {iid: _kv(rows2[i], key_idx2) for i, iid in enumerate(iids2)}
             # First occurrence wins for duplicate PKs (consistent with compute_row_diffs).

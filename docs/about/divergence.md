@@ -69,6 +69,13 @@ ______________________________________________________________________
 
 ### Bug Fixes
 
+`PROMPT COMPARE` uses the declared composite-key order for row differences
+and Tkinter/Textual cross-table selection. The modular backends previously
+assembled keys in each table's physical column order, falsely separating
+matching rows when key columns were reordered. A missing key column now
+disables keyed comparison and selection rather than using a partial key.
+The existing first-row rule for repeated keys is preserved.
+
 Native macOS Tk is attempted when `gui_framework=tkinter`, even without
 X11/Wayland environment variables. The modular headless guard previously
 treated macOS as an X11 desktop and silently selected Textual instead.

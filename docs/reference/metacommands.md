@@ -2727,6 +2727,8 @@ PROMPT COMPARE <table1> [IN <alias1>] AND|BESIDE <table2> [IN <alias2>]
 
 Displays the two specified tables in a graphical interface. The two tables must have at least one column name in common. Clicking on a row in one of the tables will highlight that row and all matching rows in the other table. The names of all columns that are to be used to match rows must be specified within the parentheses of the `KEY()` phrase. When more than one column name is listed, each additional column name must be preceded by a comma.
 
+Key columns are matched by name in the declared `KEY()` order, so their physical column order may differ between the tables. Every named key column must exist in both tables; an incomplete key disables keyed row matching and diff results rather than comparing only the available key columns. If a table repeats a key, its first row supplies the comparison and matching target; later duplicates do not increase the summary counts.
+
 When the `AND` keyword is used, the second table is displayed below the first table. When the `BESIDE` keyword is used, the second table is displayed to the right of the first table. A sash between the two tables allows their relative sizes to be adjusted with the mouse.
 
 The alias names used with the `IN <alias>` key phrases should be either an alias name assigned with the [CONNECT](#connect) metacommand, or "initial" to refer to the database that was opened when *execsql* started. If no alias is specified, the database currently in [USE](#use) will be used.
