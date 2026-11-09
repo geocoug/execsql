@@ -1558,8 +1558,8 @@ class _SingleDialogApp(App):
 class _TextualSyncQueue:
     """Drop-in replacement for ``_state.gui_manager_queue`` on the Textual path.
 
-    gui_level >= 1 with Textual installed: instead of an async manager thread,
-    ``put()`` runs the dialog synchronously in the main thread by launching a
+    ``put()`` runs an ordinary Textual dialog synchronously in the calling
+    thread by launching a
     short-lived ``_SingleDialogApp``.  After ``put()`` returns, the result is
     already on ``spec.return_queue`` so the calling metacommand's ``get()``
     unblocks immediately.
@@ -1867,15 +1867,13 @@ class ConsoleApp(App):
 
 
 class TextualBackend(GuiBackend):
-    """GUI backend for the Textual path (gui_level 1 or 2).
+    """Textual backend lifecycle hooks and directly callable dialog methods.
 
-    Dialog dispatch goes through ``_TextualSyncQueue`` (set as
-    ``_state.gui_manager_queue`` by ``enable_gui()``), so the ``show_*``
-    methods below are the canonical implementations — called by
-    ``gui_manager_loop`` via ``dispatch()`` — but only used when the
-    thread-based manager path is taken (which it isn't for Textual; the sync
-    queue handles everything).  They are implemented here to satisfy the ABC
-    and in case the backend is ever called directly.
+    Ordinary requests use ``_TextualSyncQueue``, which launches a short-lived
+    ``_SingleDialogApp`` through its screen map in the caller's thread. Direct
+    ``show_*`` calls use the same app mechanism. Neither starts a manager thread.
+    For the persistent CLI console, ``_console_app`` points to ``ConsoleApp``;
+    its main-thread UI serves modal requests queued by the script worker.
     """
 
     def __init__(self) -> None:

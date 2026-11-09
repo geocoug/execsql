@@ -1565,15 +1565,14 @@ class TkinterBackend(GuiBackend):
 
 
 # ---------------------------------------------------------------------------
-# _TkinterSyncQueue — synchronous gui_manager_queue replacement for level 3
+# _TkinterSyncQueue — synchronous gui_manager_queue replacement
 # ---------------------------------------------------------------------------
 
 
 class _TkinterSyncQueue:
     """Drop-in replacement for ``_state.gui_manager_queue`` on the Tkinter path.
 
-    gui_level == 3 with tkinter available: instead of a background manager
-    thread, ``put()`` dispatches the dialog synchronously in the calling
+    ``put()`` dispatches native Tk dialogs synchronously in the calling
     (main) thread.  After ``put()`` returns, the result is already on
     ``spec.return_queue`` so the calling metacommand's ``get()`` unblocks
     immediately.

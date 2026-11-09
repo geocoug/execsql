@@ -97,7 +97,7 @@ GUI_CONNECT = "connect"
 
 
 class GuiSpec:
-    """A request sent to the GUI manager thread."""
+    """A GUI request passed through the active queue adapter."""
 
     def __init__(self, gui_type: str, args: dict, return_queue: Any) -> None:
         self.gui_type = gui_type
