@@ -23,6 +23,7 @@ ______________________________________________________________________
 
 ### Fixed
 
+- **SQLite in the full Textual console** runs scripts and closes initial and additional connections without thread-ownership errors.
 - **Password-free PostgreSQL, MySQL/MariaDB, Oracle, Firebird and DSN connections** retain the requested username; skipping a password prompt no longer selects a different account.
 - **Firebird connections** use the driver's default identity when no username is supplied.
 - **`PROMPT ACTION` in Tkinter** fits its initial window to the content, wraps descriptions and scrolls long content while keeping Continue and Cancel visible.

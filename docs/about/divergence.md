@@ -69,6 +69,8 @@ ______________________________________________________________________
 
 ### Bug Fixes
 
+The full Textual CLI console opens, uses and closes database connections on its script worker, including the initial SQLite connection and connections added by `CONNECT` or `PROMPT CONNECT`. Cleanup finishes before the worker stops on normal completion, halts, errors and interruption. SQLite retains its same-thread connection guard.
+
 PostgreSQL, MySQL/MariaDB, Oracle, Firebird and ODBC DSN connections forward an explicit username independently of password presence. `--no-passwd`, `password_prompt=No`, `CONNECT ... NEED_PWD=FALSE` and blank-password `PROMPT CONNECT` requests therefore keep the selected identity. Supplied passwords, including explicit empty strings at the adapter API, are passed independently of the prompt flag; omitted passwords leave driver authentication defaults available. Firebird preserves an omitted username rather than converting it into a literal account name.
 
 Tkinter and Textual `PROMPT SELECT_ROWS` can remove a staged destination copy by double-click or Enter, without deleting rows already stored in the destination table. Duplicate copies remain independent, and removed copies are excluded from the eventual write. Textual uses single clicks to highlight and double-clicks/Enter to change the staged selection. Native `PROMPT ACTION` measures content for its initial size, wraps descriptions and provides scrolling with a persistent Continue/Cancel footer, replacing the fixed-height layout that clipped controls.
