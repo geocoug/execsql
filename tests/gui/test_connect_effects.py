@@ -305,8 +305,17 @@ def submit():
         entry.insert(0, value)
     combos[1].set('LATIN1')
     next(w for w in controls if isinstance(w, ttk.Button) and w.cget('text') == 'Connect').invoke()
-root.after(150, submit)
-root.after(3000, root.destroy)
+wait_window = root.wait_window
+def wait_for_dialog(win):
+    def ready():
+        if not win.winfo_viewable():
+            root.after(10, ready)
+            return
+        root.after_idle(submit)
+    root.after_idle(ready)
+    root.after(20000, root.destroy)
+    return wait_window(win)
+root.wait_window = wait_for_dialog
 try:
     dialog = ConnectDialog(root, {'message':'Select a connection'})
     assert not errors, errors
@@ -314,7 +323,7 @@ try:
 finally:
     root.destroy()
 """
-    completed = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True, timeout=10)
+    completed = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True, timeout=30)
     if completed.returncode == 77 and "TK_UNAVAILABLE:" in completed.stdout:
         pytest.skip(completed.stdout.strip())
     assert completed.returncode == 0, completed.stdout + completed.stderr

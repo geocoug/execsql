@@ -114,7 +114,11 @@ def test_runtime_sqlite_alias_is_closed_on_its_worker(console_cli, tmp_path, pro
     path = tmp_path / "alias.sqlite"
     if prompt:
         sqlite3.connect(path).close()
-    connect = "-- !x! PROMPT CONNECT AS other\n" if prompt else f"-- !x! CONNECT TO SQLITE(FILE={path}, NEW) AS other\n"
+    connect = (
+        "-- !x! PROMPT CONNECT AS other\n"
+        if prompt
+        else f'-- !x! CONNECT TO SQLITE(FILE="{path.as_posix()}", NEW) AS other\n'
+    )
     result = invoke(
         connect + "-- !x! USE other\ncreate table t(n integer);\ninsert into t values(7);",
         dsn="sqlite:///:memory:",
@@ -186,7 +190,7 @@ def test_quit_during_connection_cleanup_finishes_on_worker(console_cli, monkeypa
     monkeypatch.setattr(SQLiteDatabase, "close", close)
     try:
         result = invoke(
-            f"-- !x! CONNECT TO SQLITE(FILE={tmp_path / 'other.sqlite'}, NEW) AS other\nselect 1;",
+            f'-- !x! CONNECT TO SQLITE(FILE="{(tmp_path / "other.sqlite").as_posix()}", NEW) AS other\nselect 1;',
             dsn="sqlite:///:memory:",
             close_gate=(entered, release),
         )

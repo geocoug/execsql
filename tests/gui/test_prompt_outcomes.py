@@ -262,16 +262,16 @@ def test_persistent_textual_escape_continues_the_real_script_worker(database, mo
 
     async def interact():
         async with app.run_test() as pilot:
-            for _ in range(100):
-                if isinstance(app.screen, DisplayScreen):
-                    break
-                await pilot.pause(0.01)
+
+            async def wait_for(predicate):
+                while not predicate():
+                    assert app._script_exception is None, app._script_exception
+                    await pilot.pause(0.01)
+
+            await asyncio.wait_for(wait_for(lambda: isinstance(app.screen, DisplayScreen)), timeout=20)
             assert isinstance(app.screen, DisplayScreen)
             await pilot.press("escape")
-            for _ in range(100):
-                if not results.empty():
-                    break
-                await pilot.pause(0.01)
+            await asyncio.wait_for(wait_for(lambda: not results.empty()), timeout=20)
             assert not results.empty()
 
     asyncio.run(interact())

@@ -79,8 +79,17 @@ def inspect():
     root.update()
     assert not action.instate(['disabled'])
     action.invoke()
-root.after(200,inspect)
-root.after(5000,root.destroy)
+wait_window = root.wait_window
+def wait_for_dialog(win):
+    def ready():
+        if not win.winfo_viewable():
+            root.after(10, ready)
+            return
+        root.after_idle(inspect)
+    root.after_idle(ready)
+    root.after(20000, root.destroy)
+    return wait_window(win)
+root.wait_window = wait_for_dialog
 try:
     dialog=ActionDialog(root,args)
     assert not errors,errors
@@ -95,7 +104,7 @@ finally:
         [sys.executable, "-c", script, json.dumps({"overflow": overflow})],
         capture_output=True,
         text=True,
-        timeout=10,
+        timeout=30,
     )
     if completed.returncode == 77 and "TK_UNAVAILABLE:" in completed.stdout:
         pytest.skip(completed.stdout.strip())
