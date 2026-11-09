@@ -443,7 +443,7 @@ When CANCEL_HALT is set to ON, which is the default, if the user presses the "Ca
 
 Tkinter and Textual apply this policy in ordinary dialogs and in the Textual console. Escape and closing a dialog follow the same cancellation policy as its Cancel button. With CANCEL_HALT OFF, the script continues without assigning the canceled response. Variable retention follows each metacommand's rules: `ENTER_SUB` retains its previous value, while `ENTRY_FORM` fields and the primary file/directory target are cleared before opening the prompt. With CANCEL_HALT ON, cancellation runs the configured [ON CANCEL_HALT](#cancel_halt_exec) actions before the run exits.
 
-A dialog failure is a metacommand error, not a user cancellation. It follows [METACOMMAND_ERROR_HALT](#metacommanderrorhalt), is reported through `METACOMMAND_ERROR()` and `$ERROR_MESSAGE`, and prevents an open [batch](#batch) from committing even when metacommand halting is OFF. CANCEL_HALT OFF does not suppress GUI failures.
+A dialog failure is a metacommand error, not a user cancellation. It follows [METACOMMAND_ERROR_HALT](#metacommanderrorhalt), is reported through `METACOMMAND_ERROR()` and `$ERROR_MESSAGE`, and prevents an open [batch](#batch) from committing even when metacommand halting is OFF. CANCEL_HALT OFF does not suppress GUI failures. Errors while a Textual dialog is being created or its controls process input follow the same policy, both in ordinary prompts and in the full Textual console. With METACOMMAND_ERROR_HALT OFF, the failed dialog closes and later prompts can still open. Ctrl+C in the full console remains a request to interrupt the script.
 
 
 ## CD

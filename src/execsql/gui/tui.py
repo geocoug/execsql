@@ -1551,7 +1551,30 @@ def _build_screen_map() -> dict:
 # ---------------------------------------------------------------------------
 
 
-class _SingleDialogApp(App):
+class _DialogApp(App):
+    """Return failures in the owned modal's message pump through its result."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self._dialog_screen: ModalScreen | None = None
+
+    def _handle_exception(self, error: Exception) -> None:
+        from textual._context import active_message_pump
+
+        dialog = self._dialog_screen
+        pump = active_message_pump.get(None)
+        if (
+            dialog is not None
+            and self.screen is dialog
+            and (pump is dialog or dialog in getattr(pump, "ancestors", ()))
+        ):
+            self._dialog_screen = None
+            dialog.dismiss({"error": str(error) or type(error).__name__, "button": None})
+            return
+        super()._handle_exception(error)
+
+
+class _SingleDialogApp(_DialogApp):
     """Runs a single ModalScreen dialog, returns its result, then exits.
 
     Used by ``_run_dialog_sync`` to show a dialog from the main thread without
@@ -1573,9 +1596,11 @@ class _SingleDialogApp(App):
     def on_mount(self) -> None:
         # push_screen with a callback avoids the worker requirement of
         # push_screen_wait; the callback fires when the screen is dismissed.
-        self.push_screen(self._screen_class(self._screen_args), self._on_result)
+        self._dialog_screen = self._screen_class(self._screen_args)
+        self.push_screen(self._dialog_screen, self._on_result)
 
     def _on_result(self, result: Any) -> None:
+        self._dialog_screen = None
         self.exit(result)
 
 
@@ -1688,7 +1713,7 @@ class _ConsoleDialogQueue:
 # ---------------------------------------------------------------------------
 
 
-class ConsoleApp(App):
+class ConsoleApp(_DialogApp):
     """Persistent Textual console for gui_level 3.
 
     The SQL script runs in a background worker thread.  This app runs in the
@@ -1818,9 +1843,12 @@ class ConsoleApp(App):
             if self._quit_requested:
                 return
             try:
-                result = await self.push_screen_wait(screen_class(spec.args))
+                self._dialog_screen = screen_class(spec.args)
+                result = await self.push_screen_wait(self._dialog_screen)
             except Exception as exc:
                 result = {"error": str(exc), "button": None}
+            finally:
+                self._dialog_screen = None
             self._dialog_queue.reply(spec, result if result is not None else {})
 
         self.run_worker(cast(Any, _push), exclusive=False)

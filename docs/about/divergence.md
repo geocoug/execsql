@@ -69,6 +69,8 @@ ______________________________________________________________________
 
 ### Bug Fixes
 
+Textual dialog construction and control failures follow the script's metacommand error policy in ordinary prompts and the full console. They close the failed dialog and fail open batches; with `METACOMMAND_ERROR_HALT OFF`, later prompts remain usable. They do not count as user cancellation or console Quit.
+
 The full Textual CLI console opens, uses and closes database connections on its script worker, including the initial SQLite connection and connections added by `CONNECT` or `PROMPT CONNECT`. Cleanup finishes before the worker stops on normal completion, halts, errors and interruption. SQLite retains its same-thread connection guard.
 
 PostgreSQL, MySQL/MariaDB, Oracle, Firebird and ODBC DSN connections forward an explicit username independently of password presence. `--no-passwd`, `password_prompt=No`, `CONNECT ... NEED_PWD=FALSE` and blank-password `PROMPT CONNECT` requests therefore keep the selected identity. Supplied passwords, including explicit empty strings at the adapter API, are passed independently of the prompt flag; omitted passwords leave driver authentication defaults available. Firebird preserves an omitted username rather than converting it into a literal account name.
