@@ -55,7 +55,7 @@ The section and property names that may be used in a configuration file are list
 :   The port number for the client-server database. This is equivalent to the "-p" command-line option.
 
 `username`
-:   The name of the database user, for client-server databases. This is equivalent to the "-u" command-line option.
+:   The name of the database user, for client-server databases. This is equivalent to the "-u" command-line option. A supplied username is retained when `password_prompt=No`; leave it unspecified to use the driver's default identity.
 
 `access_username`
 :   The name of the database user, for MS-Access databases only. When using MS-Access, a password will be prompted for only if this configuration option is set or the "-u" command-line option is used, regardless of the setting of the username configuration parameter.

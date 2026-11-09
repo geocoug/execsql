@@ -131,10 +131,12 @@ class OracleDatabase(Database):
 
         def db_conn(db: OracleDatabase, db_name: str):
             dsn = driver.makedsn(db.server_name, db.port, service_name=db_name)
-            if db.user and db.password:
-                return driver.connect(user=db.user, password=db.password, dsn=dsn)
-            else:
-                return driver.connect(dsn=dsn)
+            credentials = {}
+            if db.user:
+                credentials["user"] = db.user
+            if db.password is not None:
+                credentials["password"] = db.password
+            return driver.connect(dsn=dsn, **credentials)
 
         if self.conn is None:
             try:

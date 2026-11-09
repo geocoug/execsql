@@ -23,6 +23,8 @@ ______________________________________________________________________
 
 ### Fixed
 
+- **Password-free PostgreSQL, MySQL/MariaDB, Oracle, Firebird and DSN connections** retain the requested username; skipping a password prompt no longer selects a different account.
+- **Firebird connections** use the driver's default identity when no username is supplied.
 - **`PROMPT ACTION` in Tkinter** fits its initial window to the content, wraps descriptions and scrolls long content while keeping Continue and Cancel visible.
 - **`CONSOLE WIDTH|HEIGHT` and console sizing configuration** resize the native Tk console and retain the chosen size across `CONSOLE OFF` / `ON`.
 - **`PROMPT CONNECT`** accepts port, encoding and masked password inputs in Tkinter, Textual and console; file-based databases show file selection instead of network fields.

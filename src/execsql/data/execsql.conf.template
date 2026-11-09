@@ -42,6 +42,7 @@
 #access_username=
 
 # Whether to prompt for a password.
+# Server/DSN usernames are retained when prompting is disabled.
 # Values: Yes or No.  Default: Yes.
 #password_prompt=Yes
 

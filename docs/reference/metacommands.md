@@ -891,7 +891,7 @@ CONNECT TO DSN(DSN=<DSN_name>
       PASSWORD=<password>] [, ENCODING=<encoding>]) AS <alias_name>
 ```
 
-Establishes a connection to another database. The keyword values are equivalent to arguments and options that can be specified on the command line when *execsql* is run.
+Establishes a connection to another database. The keyword values are equivalent to arguments and options that can be specified on the command line when *execsql* is run. For PostgreSQL, MySQL/MariaDB, Oracle, Firebird and DSN connections, `NEED_PWD=FALSE` suppresses a password prompt while retaining the supplied `USER`; it does not select the driver's default identity. A supplied password is passed independently of whether a prompt was requested.
 
 
 The CONNECT metacommands, without the "USER" keyword, for Postgres, MySQL/MariaDB, Access, Oracle, and DSN connections allow a password to be specified. If a password is needed for any database but is not provided, *execsql* will display a prompt for the password. Embedding a password in a SQL script is a security weakness, but may be needed when a script is to be run regularly as a system job. This risk can be minimized by either:
@@ -2772,7 +2772,7 @@ Tkinter offers the same fields, including an editable encoding list. Textual and
 
 Leave port blank to use the DBMS default, or enter an integer from 1 through 65535. An invalid port can be corrected before connecting. A DSN uses its configured server and port, so those fields are hidden or omitted; its database field contains the DSN name.
 
-A supplied password is passed unchanged, including any spaces. A blank password attempts the connection without an additional password prompt or execsql keyring lookup. The driver's own authentication configuration may still apply, such as PostgreSQL service/password files or an ODBC DSN's authentication settings. An authentication failure is reported normally; execsql does not open another password dialog. This policy applies to `PROMPT CONNECT`; ordinary CLI/configuration connections retain their existing password behavior. Passwords entered here are masked and registered for log redaction.
+A supplied password is passed unchanged, including any spaces. A blank password attempts the connection with the entered username, without an additional password prompt or execsql keyring lookup. Leaving the username blank allows the driver's default identity. The driver's own authentication configuration may still apply, such as PostgreSQL service/password files or an ODBC DSN's authentication settings. An authentication failure is reported normally; execsql does not open another password dialog. This policy applies to `PROMPT CONNECT`; ordinary CLI/configuration connections retain their existing password-prompt policy. Passwords entered here are masked and registered for log redaction.
 
 Selecting SQLite, DuckDB or MS-Access switches to an existing database file path and hides irrelevant network/authentication fields. Tkinter also offers a Browse button that opens the native file chooser; Textual and console accept a typed path. Hidden values from a previously selected network database are ignored. These file connections do not offer password or encoding overrides.
 

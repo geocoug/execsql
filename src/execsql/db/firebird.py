@@ -66,7 +66,7 @@ class FirebirdDatabase(Database):
         super().__init__(
             server_name=str(server_name),
             db_name=str(db_name),
-            user_name=str(user_name),
+            user_name=str(user_name) if user_name is not None else None,
             need_passwd=need_passwd,
             port=port if port else 3050,
         )
@@ -112,14 +112,12 @@ class FirebirdDatabase(Database):
                 database.server.value = config_name
                 database.database.value = self.db_name
                 database.timeout.value = connect_timeout
-                if self.user and self.password:
-                    return firebird_lib.connect(
-                        config_name,
-                        user=self.user,
-                        password=self.password,
-                        charset=self.encoding,
-                    )
-                return firebird_lib.connect(config_name, charset=self.encoding)
+                credentials = {}
+                if self.user:
+                    credentials["user"] = self.user
+                if self.password is not None:
+                    credentials["password"] = self.password
+                return firebird_lib.connect(config_name, charset=self.encoding, **credentials)
 
         if self.conn is None:
             try:

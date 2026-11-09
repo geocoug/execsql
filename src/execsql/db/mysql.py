@@ -270,26 +270,20 @@ class MySQLDatabase(Database):
         connect_timeout = 30
 
         def db_conn():
-            if self.user and self.password:
-                return mysql_lib.connect(
-                    host=self.server_name,
-                    database=self.db_name,
-                    port=self.port,
-                    user=self.user,
-                    password=self.password,
-                    charset=self.encoding,
-                    local_infile=True,
-                    connect_timeout=connect_timeout,
-                )
-            else:
-                return mysql_lib.connect(
-                    host=self.server_name,
-                    database=self.db_name,
-                    port=self.port,
-                    charset=self.encoding,
-                    local_infile=True,
-                    connect_timeout=connect_timeout,
-                )
+            credentials = {}
+            if self.user:
+                credentials["user"] = self.user
+            if self.password is not None:
+                credentials["password"] = self.password
+            return mysql_lib.connect(
+                host=self.server_name,
+                database=self.db_name,
+                port=self.port,
+                charset=self.encoding,
+                local_infile=True,
+                connect_timeout=connect_timeout,
+                **credentials,
+            )
 
         if self.conn is None:
             try:

@@ -69,6 +69,8 @@ ______________________________________________________________________
 
 ### Bug Fixes
 
+PostgreSQL, MySQL/MariaDB, Oracle, Firebird and ODBC DSN connections forward an explicit username independently of password presence. `--no-passwd`, `password_prompt=No`, `CONNECT ... NEED_PWD=FALSE` and blank-password `PROMPT CONNECT` requests therefore keep the selected identity. Supplied passwords, including explicit empty strings at the adapter API, are passed independently of the prompt flag; omitted passwords leave driver authentication defaults available. Firebird preserves an omitted username rather than converting it into a literal account name.
+
 Tkinter and Textual `PROMPT SELECT_ROWS` can remove a staged destination copy by double-click or Enter, without deleting rows already stored in the destination table. Duplicate copies remain independent, and removed copies are excluded from the eventual write. Textual uses single clicks to highlight and double-clicks/Enter to change the staged selection. Native `PROMPT ACTION` measures content for its initial size, wraps descriptions and provides scrolling with a persistent Continue/Cancel footer, replacing the fixed-height layout that clipped controls.
 
 Native Tk console sizing uses the active backend: configuration values apply at creation, and `CONSOLE WIDTH` / `HEIGHT` resize the actual text widget and window. Commanded dimensions persist across OFF/ON and manual window closure; resizing preserves position and does not show a hidden window. The modular implementation previously updated a disconnected legacy handle and left the console at fixed defaults. Textual and console backends retain the settings without resizing their host terminal.
