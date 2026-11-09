@@ -313,6 +313,8 @@ ods_max_xml_mb=150
 
 With the Textual console (`gui_framework=textual`, `gui_level=3`), database connections, including SQLite and connections opened by `CONNECT` or `PROMPT CONNECT`, are opened, used and closed on the script worker. Connections close before the worker stops, including after errors or cancellation. Ctrl+C requests script interruption and shows **Stopping… waiting for script cleanup.** The console remains responsive until the worker has stopped and transaction cleanup has finished, then exits with status 130 and an interrupted log record. Pending dialogs are closed and released as interruptions, independently of CANCEL_HALT. Repeated Quit requests do not interrupt rollback again.
 
+Fatal script errors run `ON ERROR_HALT EXECUTE SCRIPT` on the script worker before its database connections close, including errors in a script selected through `PROMPT ACTION`. An open batch is rolled back before the cleanup script runs, so the cleanup script can write and commit its own SQL.
+
 There is no forced-exit deadline: a blocked database/driver call must return before its worker can finish cleanup. Closing an already completed script is a normal exit, including when the console was kept open for reading after completion.
 
 `gui_framework` { #gui_framework }

@@ -991,7 +991,25 @@ def _execute_script_textual_console(
 
                             error = exc if isinstance(exc, ErrInfo) else ErrInfo("exception", exception_msg=str(exc))
                             exit_now(1, error)
-                    execute(tree, ctx=ctx)
+                    try:
+                        execute(tree, ctx=ctx)
+                    except ConfigError:
+                        raise
+                    except Exception as exc:
+                        from execsql.utils.errors import exit_now
+
+                        if isinstance(exc, ErrInfo):
+                            error = exc
+                        else:
+                            strace = traceback.extract_tb(exc.__traceback__)[-1:]
+                            lno = strace[0][1] if strace else "?"
+                            msg = f"{Path(sys.argv[0]).name}: Uncaught exception {type(exc)} ({exc}) on line {lno}"
+                            script, slno = current_script_line()
+                            if script is not None:
+                                msg += f" in script {script}, line {slno}"
+                            error = ErrInfo("exception", exception_msg=msg)
+                        # Deferred error scripts need the worker's live connections.
+                        exit_now(1, error)
                     _state.dbs.do_rollback = False
                 finally:
                     if initialize is not None:

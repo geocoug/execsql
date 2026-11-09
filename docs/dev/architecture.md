@@ -362,6 +362,8 @@ The persistent Textual console polls for actual script-thread termination. Quit 
 
 `ConsoleApp` keeps its event loop available while the worker unwinds and emits cleanup output, including during unexpected app unmount. The CLI's worker wrapper runs the existing interrupt rollback backstop in the same `RuntimeContext`; the interrupt backstop leaves autocommit-off transactions to the script. Final CLI pool cleanup also runs on the worker before it stops, just as process cleanup closes connections in the synchronous CLI. After the app returns, `wait_for_script()` joins the worker before output redirection is reset. An interrupted console run logs interruption and exits 130. Normal completion and a script's requested HALT status retain their usual outcomes; closing a console kept open after completion is normal.
 
+Raw script errors are finalized with `exit_now()` on the worker before its pool-closing `finally`: deferred `ON ERROR_HALT` scripts retain their connections and run after batch rollback, while the UI loop can still service requests. Deliberate control flow, configuration errors and interrupts keep their separate handling.
+
 Completion is detected by a UI timer, so worker completion cannot schedule a callback onto an already closed event loop. The request queue replies at most once when a modal response and shutdown compete. See [interface configuration](../reference/configuration.md) for the user-facing shutdown policy. `tests/gui/test_prompt_outcomes.py` and `tests/gui/test_console_shutdown.py` exercise response ownership, interrupt cleanup and shutdown ordering; native sizing is covered in `tests/gui/test_console_sizing.py`.
 
 ______________________________________________________________________

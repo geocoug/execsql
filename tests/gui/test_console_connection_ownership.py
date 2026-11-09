@@ -14,7 +14,7 @@ pytest.importorskip("textual")
 
 from execsql.cli import app as cli  # noqa: E402
 from execsql.db.sqlite import SQLiteDatabase  # noqa: E402
-from execsql.gui.tui import ConnectScreen, ConsoleApp, DisplayScreen, MsgScreen  # noqa: E402
+from execsql.gui.tui import ActionScreen, ConnectScreen, ConsoleApp, DisplayScreen, MsgScreen  # noqa: E402
 
 
 @pytest.fixture
@@ -70,6 +70,9 @@ def console_cli(monkeypatch, tmp_path):
                                 await pilot.click("#btn_ok")
                         elif isinstance(app.screen, MsgScreen) and app.screen.query("#btn_0"):
                             await pilot.click("#btn_0")
+                        elif isinstance(app.screen, ActionScreen) and app.screen.query("#action_0"):
+                            await pilot.pause()
+                            await pilot.click("#action_0")
                         elif interrupt and isinstance(app.screen, DisplayScreen):
                             app.action_request_quit()
                         await pilot.pause(0.01)
@@ -174,6 +177,53 @@ def test_initial_connection_failure_exits_without_waiting_for_a_closed_console(c
     result = invoke("select 1;", dsn=f"sqlite:///{tmp_path / 'missing' / 'db.sqlite'}")
     assert result.exit_code == 1, (result.output, result.exception)
     assert not operations
+
+
+@pytest.mark.parametrize("action", [False, True])
+@pytest.mark.parametrize("unexpected", [False, True])
+def test_fatal_error_runs_cleanup_before_worker_connections_close(
+    console_cli,
+    monkeypatch,
+    tmp_path,
+    action,
+    unexpected,
+):
+    invoke, operations, connections, main_thread = console_cli
+    path = tmp_path / "fatal.sqlite"
+    with sqlite3.connect(path) as conn:
+        conn.executescript(
+            "create table marker (value text);"
+            "create table actions (sequence integer, label text, prompt text, script text, data_required boolean);"
+            "insert into actions values (1, 'Run', 'Run failing script', 'failing', 0);",
+        )
+    if unexpected:
+
+        def fail_condition(*args, **kwargs):
+            raise RuntimeError("condition engine failed")
+
+        monkeypatch.setattr("execsql.script.executor._condition_holds", fail_condition)
+    command = '-- !x! PROMPT ACTION actions MESSAGE "Choose"\n' if action else "-- !x! EXECUTE SCRIPT failing\n"
+    result = invoke(
+        "-- !x! METACOMMAND_ERROR_HALT OFF\n"
+        "-- !x! ON ERROR_HALT EXECUTE SCRIPT failed\n"
+        "-- !x! BEGIN SCRIPT failed\ninsert into marker values ('cleanup');\n-- !x! END SCRIPT\n"
+        "-- !x! BEGIN SCRIPT failing\n-- !x! IF (HAS_ROWZ(marker))\n-- !x! ENDIF\n-- !x! END SCRIPT\n"
+        "-- !x! BEGIN BATCH\ninsert into marker values ('pending');\n"
+        + command
+        + "-- !x! END BATCH\ninsert into marker values ('continued');\n",
+        dsn=f"sqlite:///{path}",
+    )
+    assert result.exit_code == 1, (result.output, result.exception)
+    assert isinstance(result.exception, SystemExit), (result.output, result.exception)
+    from execsql import state
+
+    message = "condition engine failed" if unexpected else "Unknown condition test"
+    assert message in state.halt_error.errmsg()
+    assert len({thread for _, thread in operations}) == 1
+    assert main_thread not in {thread for _, thread in operations}
+    assert all(db.conn is None for db in connections)
+    with sqlite3.connect(path) as conn:
+        assert conn.execute("select * from marker").fetchall() == [("cleanup",)]
 
 
 def test_quit_during_connection_cleanup_finishes_on_worker(console_cli, monkeypatch, tmp_path):

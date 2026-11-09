@@ -23,6 +23,7 @@ ______________________________________________________________________
 
 ### Fixed
 
+- **Textual console errors** run `ON ERROR_HALT` cleanup before closing database connections.
 - **`PROMPT ACTION`** stops after a selected script's unevaluable condition or other fatal error, even with `METACOMMAND_ERROR_HALT OFF`.
 - **Textual dialog failures** follow `METACOMMAND_ERROR_HALT` instead of quitting the console; with halting off, later prompts remain usable.
 - **SQLite in the full Textual console** runs scripts and closes initial and additional connections without thread-ownership errors.
