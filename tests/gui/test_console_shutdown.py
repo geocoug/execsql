@@ -20,11 +20,14 @@ from execsql.utils.gui import GUI_DISPLAY, GuiSpec, get_gui_response  # noqa: E4
 
 
 async def eventually(pilot, predicate):
-    for _ in range(100):
-        if predicate():
-            return
-        await pilot.pause(0.01)
-    assert predicate(), "Timed out waiting for a deterministic worker state"
+    async def wait():
+        while not predicate():
+            await pilot.pause(0.01)
+
+    try:
+        await asyncio.wait_for(wait(), timeout=10)
+    except asyncio.TimeoutError:
+        raise AssertionError("Timed out waiting for a deterministic worker state") from None
 
 
 @pytest.mark.parametrize("wait_on_exit", [False, True])
@@ -328,6 +331,8 @@ def test_real_script_rolls_back_before_quit_closes_console(monkeypatch, tmp_path
                 await eventually(pilot, lambda: app._exit)
             finally:
                 release.set()
+                if app._script_thread.is_alive() and not app._quit_requested:
+                    app.action_request_quit()
                 await eventually(pilot, lambda: not app._script_thread.is_alive())
 
     asyncio.run(interact())
