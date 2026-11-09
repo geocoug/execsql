@@ -335,3 +335,118 @@ def test_data_required_action_cannot_run_without_display_data(database, selector
     assert result.success, result.errors
     assert database.conn.execute("select * from marker").fetchall() == [("standalone",)]
     assert result.variables["seen_name"] == "[old]"
+
+
+@pytest.mark.parametrize("invocation", ["action", "execute"])
+@pytest.mark.parametrize(
+    ("body", "message", "cleanup"),
+    [
+        pytest.param("-- !x! IF (HASROWS(missing_table))\n-- !x! ENDIF\n", "missing_table", False, id="database-if"),
+        pytest.param("-- !x! IF (HAS_ROWZ(source))\n-- !x! ENDIF\n", "Unknown condition test", False, id="if"),
+        pytest.param(
+            "-- !x! IF (FALSE)\n-- !x! ELSEIF (HAS_ROWZ(source))\n-- !x! ENDIF\n",
+            "Unknown condition test",
+            False,
+            id="elseif",
+        ),
+        pytest.param(
+            "-- !x! IF (TRUE)\n-- !x! ANDIF (HAS_ROWZ(source))\n-- !x! ENDIF\n",
+            "Unknown condition test",
+            False,
+            id="andif",
+        ),
+        pytest.param(
+            "-- !x! IF (FALSE)\n-- !x! ORIF (HAS_ROWZ(source))\n-- !x! ENDIF\n",
+            "Unknown condition test",
+            False,
+            id="orif",
+        ),
+        pytest.param(
+            "-- !x! LOOP WHILE (HAS_ROWZ(source))\n-- !x! END LOOP\n",
+            "Unknown condition test",
+            False,
+            id="loop",
+        ),
+        pytest.param("-- !x! ASSERT HAS_ROWZ(source)\n", "Unknown condition test", True, id="assert"),
+        pytest.param(
+            "-- !x! WAIT_UNTIL HAS_ROWZ(source) CONTINUE AFTER 1 SECONDS\n",
+            "Unknown condition test",
+            True,
+            id="wait-until",
+        ),
+        pytest.param("-- !x! NO_SUCH_COMMAND\n", "Unknown metacommand", False, id="unknown-command"),
+    ],
+)
+def test_action_preserves_required_script_halts(database, selector, invocation, body, message, cleanup):
+    selector.kind = "standalone"
+    command = COMMAND if invocation == "action" else "-- !x! EXECUTE SCRIPT standalone\n"
+    result = run(
+        sql=(
+            "-- !x! METACOMMAND_ERROR_HALT OFF\n"
+            "-- !x! ON ERROR_HALT EXECUTE SCRIPT failed\n"
+            "-- !x! BEGIN SCRIPT failed\ninsert into marker values ('cleanup');\n-- !x! END SCRIPT\n"
+            "-- !x! BEGIN SCRIPT standalone\n"
+            + body
+            + "insert into marker values ('inner continued');\n-- !x! END SCRIPT\n"
+            + command
+            + "insert into marker values ('caller continued');\n-- !x! SUB reached yes\n"
+        ),
+        connection=database,
+    )
+    assert not result.success
+    assert len(result.errors) == 1
+    assert message in result.errors[0].message
+    assert result.errors[0].source == "<inline>"
+    assert "reached" not in result.variables
+    assert database.conn.execute("select * from marker").fetchall() == ([("cleanup",)] if cleanup else [])
+
+
+@pytest.mark.parametrize("invocation", ["action", "execute"])
+def test_action_preserves_unexpected_script_errors(database, selector, monkeypatch, invocation):
+    selector.kind = "standalone"
+
+    def fail_condition(*args, **kwargs):
+        raise RuntimeError("script condition engine failed")
+
+    monkeypatch.setattr("execsql.script.executor._condition_holds", fail_condition)
+    command = COMMAND if invocation == "action" else "-- !x! EXECUTE SCRIPT standalone\n"
+    result = run(
+        sql=(
+            "-- !x! METACOMMAND_ERROR_HALT OFF\n"
+            "-- !x! BEGIN SCRIPT standalone\n-- !x! IF (TRUE)\n-- !x! ENDIF\n-- !x! END SCRIPT\n"
+            + command
+            + "insert into marker values ('continued');\n"
+        ),
+        connection=database,
+    )
+    assert not result.success
+    assert len(result.errors) == 1
+    assert result.errors[0].message == "script condition engine failed"
+    assert result.errors[0].source == "<runtime>"
+    assert database.conn.execute("select * from marker").fetchall() == []
+
+
+@pytest.mark.parametrize("invocation", ["action", "execute"])
+def test_cli_action_fatal_condition_rolls_back_before_one_error_cleanup(database, selector, monkeypatch, invocation):
+    from typer.testing import CliRunner
+    from execsql.cli import app
+
+    selector.kind = "standalone"
+    monkeypatch.setattr("execsql.utils.gui._active_backend", None)
+    monkeypatch.setattr("execsql.utils.gui._console_running", False)
+    command = COMMAND if invocation == "action" else "-- !x! EXECUTE SCRIPT standalone\n"
+    sql = (
+        "-- !x! METACOMMAND_ERROR_HALT OFF\n"
+        "-- !x! ON ERROR_HALT EXECUTE SCRIPT failed\n"
+        "-- !x! BEGIN SCRIPT failed\ninsert into marker values ('cleanup');\n-- !x! END SCRIPT\n"
+        "-- !x! BEGIN SCRIPT standalone\n-- !x! IF (HASROWS(missing_table))\n-- !x! ENDIF\n-- !x! END SCRIPT\n"
+        "-- !x! BEGIN BATCH\ninsert into marker values ('pending');\n"
+        + command
+        + "-- !x! END BATCH\ninsert into marker values ('caller continued');\n"
+    )
+    try:
+        result = CliRunner().invoke(app, ["run", "--dsn", f"sqlite:///{database.db_name}", "-c", sql])
+    finally:
+        state.dbs.closeall()
+    assert result.exit_code == 1, (result.output, result.exception)
+    assert database.conn.execute("select * from marker").fetchall() == [("cleanup",)]

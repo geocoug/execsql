@@ -69,6 +69,8 @@ ______________________________________________________________________
 
 ### Bug Fixes
 
+`PROMPT ACTION` preserves the selected script's fatal errors. An unevaluable condition or other error that stops `EXECUTE SCRIPT` also stops ACTION execution, even with `METACOMMAND_ERROR_HALT OFF`; errors are not downgraded to ignorable prompt failures. Invalid targets and missing arguments still follow the prompt's normal error policy.
+
 Textual dialog construction and control failures follow the script's metacommand error policy in ordinary prompts and the full console. They close the failed dialog and fail open batches; with `METACOMMAND_ERROR_HALT OFF`, later prompts remain usable. They do not count as user cancellation or console Quit.
 
 The full Textual CLI console opens, uses and closes database connections on its script worker, including the initial SQLite connection and connections added by `CONNECT` or `PROMPT CONNECT`. Cleanup finishes before the worker stops on normal completion, halts, errors and interruption. SQLite retains its same-thread connection guard.

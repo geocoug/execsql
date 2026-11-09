@@ -23,6 +23,7 @@ ______________________________________________________________________
 
 ### Fixed
 
+- **`PROMPT ACTION`** stops after a selected script's unevaluable condition or other fatal error, even with `METACOMMAND_ERROR_HALT OFF`.
 - **Textual dialog failures** follow `METACOMMAND_ERROR_HALT` instead of quitting the console; with halting off, later prompts remain usable.
 - **SQLite in the full Textual console** runs scripts and closes initial and additional connections without thread-ownership errors.
 - **Password-free PostgreSQL, MySQL/MariaDB, Oracle, Firebird and DSN connections** retain the requested username; skipping a password prompt no longer selects a different account.

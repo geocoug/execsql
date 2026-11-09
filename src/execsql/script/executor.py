@@ -456,6 +456,14 @@ def _metacommand_failed(
     status.error_history.append((source, line_no, cmd, e.errmsg()))
 
 
+class _ScriptExecutionError(BaseException):
+    """Carry a called script's error past metacommand handlers to its AST caller."""
+
+    def __init__(self, error: Exception) -> None:
+        super().__init__(str(error))
+        self.error = error
+
+
 def _exec_metacommand(
     ctx: RuntimeContext,
     cmd: str,
@@ -488,6 +496,9 @@ def _exec_metacommand(
             if (manifest := _manifest.current()) is not None:
                 manifest.record_metacommand(cmd, source, line_no, metacommandlist)
             return result
+    except _ScriptExecutionError as failure:
+        # The called script already owns its error policy; do not apply the prompt's again.
+        raise failure.error from failure.error.__cause__
     except Exception as exc:
         e = _as_errinfo(exc)
     except _CONTROL_FLOW:

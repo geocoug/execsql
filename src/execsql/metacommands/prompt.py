@@ -613,7 +613,7 @@ def x_prompt_action(**kwargs: Any) -> None:
 
     from execsql.metacommands.script_ext import _get_ast_script
     from execsql.script.ast import IncludeDirective, SourceSpan
-    from execsql.script.executor import _execute_script_native, _script_args
+    from execsql.script.executor import _ScriptExecutionError, _execute_script_native, _script_args
     from execsql.state import get_context
 
     if not isinstance(action.script, str) or not action.script.strip():
@@ -637,7 +637,10 @@ def x_prompt_action(**kwargs: Any) -> None:
                 _state.exec_log.log_status_info(
                     f"Substitution string {name} set to {{{value}}} on line {line_no} of {script}",
                 )
-    _execute_script_native(get_context(), node, block, arguments)
+    try:
+        _execute_script_native(get_context(), node, block, arguments)
+    except Exception as error:
+        raise _ScriptExecutionError(error) from error
 
 
 def x_prompt_savefile(**kwargs: Any) -> None:
