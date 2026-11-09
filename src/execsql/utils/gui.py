@@ -253,8 +253,8 @@ class EntrySpec:
 # ---------------------------------------------------------------------------
 
 _console_running: bool = False
-_console_width: int = 80
-_console_height: int = 24
+_console_width: int = 100
+_console_height: int = 25
 _dialog_canceled: bool = False
 
 # Active backend (set by enable_gui(); None before first call)
@@ -430,35 +430,39 @@ def gui_console_wait_user(message: str = "") -> None:
 
 
 def gui_console_width(width: int | None = None) -> int:
-    """Get or set the console width in characters.
+    """Get/set the configured character width, resizing the active native console.
 
-    When *width* is provided, updates the active GUI console (if any).
-    Always returns the current width.
+    A setting made before CONSOLE ON is retained. Terminal backends do not resize
+    their host window. The runtime configuration takes precedence over fallback
+    values from calls made without a configuration.
     """
+    import execsql.state as _state
+
     global _console_width
     if width is not None:
-        import execsql.state as _state
-
         _console_width = int(width)
-        if _state.gui_console is not None and hasattr(_state.gui_console, "set_width"):
-            _state.gui_console.set_width(_console_width)
-    return _console_width
+        if _state.conf is not None:
+            _state.conf.gui_console_width = _console_width
+        if _active_backend is not None:
+            _active_backend.console_resize(_console_width, gui_console_height())
+    return int(getattr(_state.conf, "gui_console_width", _console_width))
 
 
 def gui_console_height(height: int | None = None) -> int:
-    """Get or set the console height in lines.
+    """Get/set configured text lines, retaining the size across native OFF/ON.
 
-    When *height* is provided, updates the active GUI console (if any).
-    Always returns the current height.
+    Terminal backends store the setting without changing their host window.
     """
+    import execsql.state as _state
+
     global _console_height
     if height is not None:
-        import execsql.state as _state
-
         _console_height = int(height)
-        if _state.gui_console is not None and hasattr(_state.gui_console, "set_height"):
-            _state.gui_console.set_height(_console_height)
-    return _console_height
+        if _state.conf is not None:
+            _state.conf.gui_console_height = _console_height
+        if _active_backend is not None:
+            _active_backend.console_resize(gui_console_width(), _console_height)
+    return int(getattr(_state.conf, "gui_console_height", _console_height))
 
 
 # ---------------------------------------------------------------------------

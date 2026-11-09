@@ -69,6 +69,8 @@ ______________________________________________________________________
 
 ### Bug Fixes
 
+Native Tk console sizing uses the active backend: configuration values apply at creation, and `CONSOLE WIDTH` / `HEIGHT` resize the actual text widget and window. Commanded dimensions persist across OFF/ON and manual window closure; resizing preserves position and does not show a hidden window. The modular implementation previously updated a disconnected legacy handle and left the console at fixed defaults. Textual and console backends retain the settings without resizing their host terminal.
+
 `PROMPT CONNECT` collects and forwards optional port, encoding and masked password inputs in all three backends. An empty password explicitly attempts a connection without another execsql password prompt or keyring lookup; normal driver authentication settings may still apply. SQLite, DuckDB and Access use file-path presentation, with native Browse in Tkinter, and ignore hidden network fields. DSNs use their configured server/port. Invalid ports remain editable before submission. See [PROMPT CONNECT](../reference/metacommands.md#prompt_connect) for supported controls and defaults.
 
 Textual console Quit waits for script-worker termination and interrupt

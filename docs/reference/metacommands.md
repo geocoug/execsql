@@ -934,13 +934,15 @@ Hides or shows the console window. Text will still be written to the console win
 CONSOLE HEIGHT <lines>
 ```
 
-Changes the height of any existing console window, and specifies the height of any console window that is subsequently created with CONSOLE ON. The resulting height will be approximately *lines* lines tall.
+Changes the height of an existing native Tkinter console window and sets the height for a later `CONSOLE ON`. The text area will be approximately *lines* lines tall. The setting is retained across `CONSOLE OFF` / `ON`, and resizing a hidden console keeps it hidden.
 
 ```
 CONSOLE WIDTH <chars>
 ```
 
-Changes the width of any existing console window, and specifies the width of any console window that is subsequently created with CONSOLE ON. The resulting width will be approximately *chars* characters wide.
+Changes the width of an existing native Tkinter console window and sets the width for a later `CONSOLE ON`. The text area will be approximately *chars* characters wide. The setting is retained across `CONSOLE OFF` / `ON`; resizing preserves the window position.
+
+Both dimensions initially use the `interface.console_width` / `interface.console_height` configuration values (defaults: 100 characters and 25 lines). Textual and console backends retain these settings but do not resize the host terminal or constrain an internal output panel; their display follows the terminal dimensions.
 
 ```
 CONSOLE STATUS "<message>"

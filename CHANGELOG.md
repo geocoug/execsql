@@ -18,6 +18,7 @@ ______________________________________________________________________
 
 ### Fixed
 
+- **`CONSOLE WIDTH|HEIGHT` and console sizing configuration** resize the native Tk console and retain the chosen size across `CONSOLE OFF` / `ON`.
 - **`PROMPT CONNECT`** accepts port, encoding and masked password inputs in Tkinter, Textual and console; file-based databases show file selection instead of network fields.
 - **Textual console interruption** exits with status 130 after cleanup, without recording normal completion or closing output while the script is still active.
 - **`PROMPT ASK` in Textual** returns `No` when No is selected, including with `COMPARE`; cancellation remains a separate action.

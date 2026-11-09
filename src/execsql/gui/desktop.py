@@ -1329,7 +1329,20 @@ class ConsoleWindow:
         )
 
         self._running = True
-        _center_window(self._win, self._width * 8, self._height * 20)
+        self._win.update_idletasks()
+        _center_window(self._win, self._win.winfo_reqwidth(), self._win.winfo_reqheight())
+
+    def resize(self, width: int, height: int) -> None:
+        """Apply requested text dimensions and let Tk fit the window around them.
+
+        Clearing the explicit pixel size also handles windows resized manually.
+        The existing position and hidden/visible state are preserved.
+        """
+        self._width, self._height = width, height
+        if self._text is not None and self._win is not None:
+            self._text.configure(width=width, height=height)
+            self._win.geometry("")
+            self._win.update_idletasks()
 
     def _on_close(self) -> None:
         self._running = False
@@ -1422,14 +1435,23 @@ class TkinterBackend(GuiBackend):
     # ------------------------------------------------------------------
 
     def console_on(self) -> None:
+        from execsql.utils.gui import gui_console_height, gui_console_width
+
         root = self._root_or_raise()
+        width, height = gui_console_width(), gui_console_height()
         if self._console is None:
-            self._console = ConsoleWindow(root)
+            self._console = ConsoleWindow(root, width=width, height=height)
+        else:
+            self._console.resize(width, height)
         self._console.start()
         import execsql.state as _state
 
         _state.output.redir_stdout(self._console.write)
         _state.output.redir_stderr(self._console.write)
+
+    def console_resize(self, width: int, height: int) -> None:
+        if self._console is not None:
+            self._console.resize(width, height)
 
     def console_off(self) -> None:
         if self._console:

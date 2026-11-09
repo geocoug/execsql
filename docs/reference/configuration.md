@@ -271,7 +271,7 @@ ods_max_xml_mb=150
 
 `console_height`
 
-:   Specifies the approximate height, in lines of text, for a console window that is created with the [CONSOLE ON](metacommands.md#console) metacommand.
+:   Specifies the approximate text-area height, in lines, of a native Tkinter console created with [CONSOLE ON](metacommands.md#console) or GUI level 3. Default: 25; minimum: 5. `CONSOLE HEIGHT` changes the active window and the value used by subsequent OFF/ON cycles. This setting has no sizing effect on Textual or console backends, which follow the host terminal dimensions.
 
 `console_wait_when_done`
 
@@ -284,7 +284,7 @@ ods_max_xml_mb=150
 
 `console_width`
 
-:   Specifies the approximate width, in characters, for a console window that is created with the [CONSOLE ON](metacommands.md#console) metacommand.
+:   Specifies the approximate text-area width, in characters, of a native Tkinter console created with [CONSOLE ON](metacommands.md#console) or GUI level 3. Default: 100; minimum: 20. `CONSOLE WIDTH` changes the active window and the value used by subsequent OFF/ON cycles. This setting has no sizing effect on Textual or console backends, which follow the host terminal dimensions.
 
 `write_warnings` { #write_warnings }
 

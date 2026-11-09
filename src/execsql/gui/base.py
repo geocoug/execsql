@@ -460,6 +460,9 @@ class GuiBackend(ABC):
     def console_show(self) -> None:
         """Show the console window (if applicable)."""
 
+    def console_resize(self, width: int, height: int) -> None:
+        """Resize a native console in characters/lines; terminal backends do nothing."""
+
     def console_progress(self, num: float, total: float | None = None) -> None:
         """Update the progress indicator."""
 

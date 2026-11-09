@@ -157,13 +157,11 @@ def x_console_hideshow(**kwargs: Any) -> None:
 
 def x_consolewidth(**kwargs: Any) -> None:
     width = kwargs["width"]
-    _state.conf.gui_console_width = int(width)
     gui_console_width(width)
 
 
 def x_consoleheight(**kwargs: Any) -> None:
     height = kwargs["height"]
-    _state.conf.gui_console_height = int(height)
     gui_console_height(height)
 
 
