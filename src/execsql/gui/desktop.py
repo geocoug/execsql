@@ -1178,56 +1178,88 @@ class ConnectDialog:
                 pady=(0, 8),
             )
 
-        type_var = tk.StringVar(value="p")
-        server_var = tk.StringVar()
-        db_var = tk.StringVar()
-        user_var = tk.StringVar()
+        from execsql.gui.base import CONNECTION_ENCODINGS, FILE_DATABASES, connection_result
 
-        def _make_row(parent, row, label, widget_factory):
-            ttk.Label(parent, text=label, anchor="e").grid(row=row, column=0, sticky="e", padx=4, pady=4)
-            w = widget_factory(parent)
-            w.grid(row=row, column=1, sticky="ew", pady=4)
-            return w
-
+        variables = {
+            name: tk.StringVar() for name in ("server", "database", "username", "password", "port", "encoding")
+        }
         form = ttk.Frame(frame)
         form.pack(fill=tk.BOTH, expand=True)
         form.columnconfigure(1, weight=1)
-
-        type_labels = [f"{k} — {v}" for k, v in _DB_TYPE_OPTIONS]
         type_values = [k for k, v in _DB_TYPE_OPTIONS]
-        type_combo = ttk.Combobox(form, textvariable=type_var, values=type_labels, state="readonly", width=30)
+        ttk.Label(form, text="Database type:").grid(row=0, column=0, sticky="e", padx=4, pady=4)
+        type_combo = ttk.Combobox(form, values=[f"{k} — {v}" for k, v in _DB_TYPE_OPTIONS], state="readonly", width=35)
         type_combo.current(0)
-        type_var.trace_add("write", lambda *a: None)  # placeholder
-        _make_row(form, 0, "Database type:", lambda p: type_combo)
-        ttk.Label(form, text="Server:").grid(row=1, column=0, sticky="e", padx=4, pady=4)
-        ttk.Entry(form, textvariable=server_var, width=35).grid(row=1, column=1, sticky="ew", pady=4)
-        ttk.Label(form, text="Database/File:").grid(row=2, column=0, sticky="e", padx=4, pady=4)
-        ttk.Entry(form, textvariable=db_var, width=35).grid(row=2, column=1, sticky="ew", pady=4)
-        ttk.Label(form, text="Username:").grid(row=3, column=0, sticky="e", padx=4, pady=4)
-        ttk.Entry(form, textvariable=user_var, width=35).grid(row=3, column=1, sticky="ew", pady=4)
+        type_combo.grid(row=0, column=1, sticky="ew", pady=4)
+        rows = {}
+        for row, (name, label) in enumerate(
+            (
+                ("server", "Server:"),
+                ("database", "Database:"),
+                ("username", "Username:"),
+                ("password", "Password:"),
+                ("port", "Port (optional):"),
+                ("encoding", "Encoding (optional):"),
+            ),
+            1,
+        ):
+            caption = ttk.Label(form, text=label)
+            caption.grid(row=row, column=0, sticky="e", padx=4, pady=4)
+            entry: ttk.Entry
+            if name == "encoding":
+                entry = ttk.Combobox(form, textvariable=variables[name], values=CONNECTION_ENCODINGS, width=35)
+            else:
+                entry = ttk.Entry(form, textvariable=variables[name], width=35, show="*" if name == "password" else "")
+            entry.grid(row=row, column=1, sticky="ew", pady=4)
+            rows[name] = (caption, entry)
 
+        def kind():
+            idx = type_combo.current()
+            return type_values[idx] if idx >= 0 else "p"
+
+        def browse():
+            selected = filedialog.askopenfilename(parent=win, title="Select database file")
+            if selected:
+                variables["database"].set(selected)
+
+        browse_button = ttk.Button(form, text="Browse…", command=browse)
+        browse_button.grid(row=2, column=2, padx=4)
+
+        def update_fields(*_):
+            db_type = kind()
+            file_based = db_type in FILE_DATABASES
+            for name in ("server", "username", "password", "port", "encoding"):
+                visible = not file_based and not (db_type == "d" and name in ("server", "port"))
+                for widget in rows[name]:
+                    widget.grid() if visible else widget.grid_remove()
+            rows["database"][0].configure(
+                text="File path:" if file_based else "DSN:" if db_type == "d" else "Database:",
+            )
+            browse_button.grid() if file_based else browse_button.grid_remove()
+
+        type_combo.bind("<<ComboboxSelected>>", update_fields)
+        update_fields()
+        ttk.Label(frame, text="Blank password: no additional password prompt.").pack(anchor="w", pady=4)
+        error = ttk.Label(frame, text="", wraplength=440)
+        error.pack(anchor="w")
         btn_frame = ttk.Frame(frame)
         btn_frame.pack(pady=8, anchor="e")
 
         def _on_connect():
-            idx = type_combo.current()
-            db_type = type_values[idx] if idx >= 0 else "p"
-            db = db_var.get().strip() or None
-            self.result = {
-                "db_type": db_type,
-                "server": server_var.get().strip() or None,
-                "database": db,
-                "db_file": db if db_type in ("l", "k", "a") else None,
-                "username": user_var.get().strip() or None,
-            }
+            try:
+                self.result = dict(connection_result(kind(), **{name: var.get() for name, var in variables.items()}))
+            except ValueError as exc:
+                error.configure(text=str(exc))
+                rows["port"][1].focus_set()
+                return
             win.destroy()
 
         ttk.Button(btn_frame, text="Connect", command=_on_connect).pack(side=tk.LEFT, padx=4)
         ttk.Button(btn_frame, text="Cancel", command=lambda: self._close(win)).pack(side=tk.LEFT, padx=4)
         win.bind("<Return>", lambda e: _on_connect())
         win.bind("<Escape>", lambda e: self._close(win))
-
-        _center_window(win, 440, 240)
+        win.protocol("WM_DELETE_WINDOW", lambda: self._close(win))
+        _center_window(win, 560, 450)
         root.wait_window(win)
 
     def _close(self, win: tk.Toplevel) -> None:

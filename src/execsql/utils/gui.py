@@ -474,8 +474,8 @@ def gui_connect(
 ) -> None:
     """Prompt the user to select a database connection.
 
-    Routes through the GUI manager queue when gui_level > 0 and the manager
-    thread is running; otherwise raises ConsoleUIError.
+    Initializes the configured backend and routes through its queue when
+    gui_level > 0; otherwise raises ConsoleUIError.
     """
     import queue as _queue
 
@@ -517,31 +517,56 @@ def _apply_connect_result(alias: str, result: dict) -> None:
         db_SqlServer,
     )
 
-    db_type = result.get("db_type", "l")
-    server = str(result.get("server") or "")
-    database = str(result.get("database") or "")
-    db_file = str(result.get("db_file") or "")
-    username = str(result.get("username") or "")
+    from execsql.gui.base import connection_result
+    from execsql.utils.fileio import register_secret
 
+    try:
+        inputs = connection_result(
+            result.get("db_type", "l"),
+            result.get("server") or "",
+            (result.get("db_file") or result.get("database") or "")
+            if result.get("db_type") in ("l", "k", "a")
+            else result.get("database") or "",
+            result.get("username") or "",
+            result.get("password") or "",
+            result.get("port"),
+            result.get("encoding") or "",
+        )
+    except ValueError as exc:
+        raise ConsoleUIError(str(exc)) from exc
+    db_type = inputs["db_type"]
+    database = inputs["database"] or ""
+    db_file = inputs["db_file"] or ""
+    server = inputs["server"] or ""
+    password = inputs["password"]
+    if password:
+        register_secret(password)
+    auth: dict[str, Any] = {
+        "user": inputs["username"],
+        "pw_needed": bool(password),
+        "password": password,
+        "encoding": inputs["encoding"],
+    }
+    network = dict(**auth, port=inputs["port"])
     db: Any
     if db_type == "p":
-        db = db_Postgres(server, database, user=username, pw_needed=True)
+        db = db_Postgres(server, database, **network)
     elif db_type == "s":
-        db = db_SqlServer(server, database, user=username, pw_needed=True)
+        db = db_SqlServer(server, database, **network)
     elif db_type == "l":
-        db = db_SQLite(db_file or database)
+        db = db_SQLite(db_file)
     elif db_type == "m":
-        db = db_MySQL(server, database, user=username, pw_needed=True)
+        db = db_MySQL(server, database, **network)
     elif db_type == "k":
-        db = db_DuckDB(db_file or database)
+        db = db_DuckDB(db_file)
     elif db_type == "o":
-        db = db_Oracle(server, database, user=username, pw_needed=True)
+        db = db_Oracle(server, database, **network)
     elif db_type == "f":
-        db = db_Firebird(server, database, user=username, pw_needed=True)
+        db = db_Firebird(server, database, **network)
     elif db_type == "a":
-        db = db_Access(db_file or database)
+        db = db_Access(db_file)
     elif db_type == "d":
-        db = db_Dsn(database, user=username, pw_needed=True)
+        db = db_Dsn(database, **auth)
     else:
         raise ConsoleUIError(f"Unknown database type from connect dialog: {db_type!r}")
 

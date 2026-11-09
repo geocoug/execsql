@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypedDict
 
 if TYPE_CHECKING:
     pass
@@ -12,6 +12,62 @@ if TYPE_CHECKING:
 __all__ = ["DiffResult", "GuiBackend", "compare_stats", "compute_row_diffs", "format_table", "row_count_text"]
 
 DIFF_MARKER = "● "
+
+
+FILE_DATABASES = frozenset(("l", "k", "a"))
+CONNECTION_ENCODINGS = ("UTF8", "LATIN1", "ASCII", "UTF16")
+
+
+class ConnectResult(TypedDict):
+    """Confirmed connection inputs; a blank password never requests another prompt."""
+
+    db_type: str | None
+    server: str | None
+    database: str | None
+    db_file: str | None
+    username: str | None
+    password: str | None
+    port: int | None
+    encoding: str | None
+
+
+def connection_result(
+    db_type: str,
+    server: str = "",
+    database: str = "",
+    username: str = "",
+    password: str = "",
+    port: str | int | None = None,
+    encoding: str = "",
+) -> ConnectResult:
+    """Normalize visible connection fields and reject invalid ports before connecting.
+
+    File databases ignore hidden network controls. DSNs use their configured host
+    and port. Password whitespace is significant and is never stripped.
+    """
+    if db_type not in "pslmkofad" or len(db_type) != 1:
+        raise ValueError("Select a database type.")
+    file_based = db_type in FILE_DATABASES
+    port_number = None
+    if isinstance(port, str):
+        port = port.strip()
+    if not file_based and db_type != "d" and port not in (None, ""):
+        try:
+            port_number = int(str(port).strip())
+        except ValueError as exc:
+            raise ValueError("Port must be an integer from 1 to 65535.") from exc
+        if not 1 <= port_number <= 65535:
+            raise ValueError("Port must be an integer from 1 to 65535.")
+    return ConnectResult(
+        db_type=db_type,
+        server=None if file_based or db_type == "d" else server.strip() or None,
+        database=None if file_based else database.strip() or None,
+        db_file=(database.strip() or None) if file_based else None,
+        username=None if file_based else username.strip() or None,
+        password=None if file_based else password or None,
+        port=port_number,
+        encoding=None if file_based else encoding.strip() or None,
+    )
 
 
 def normalize_text_entry(value: str, entry_type: str | None = None, entry_case: str | None = None) -> str:
@@ -486,4 +542,9 @@ class GuiBackend(ABC):
 
     @abstractmethod
     def show_connect(self, args: dict) -> dict:
-        """Show a database connection selection dialog."""
+        """Collect connection inputs using the shared ConnectResult field names.
+
+        Confirmed inputs pass through connection_result; cancellation omits
+        db_type or returns None for it. Blank passwords do not request a
+        secondary password prompt. Password strings retain their whitespace.
+        """

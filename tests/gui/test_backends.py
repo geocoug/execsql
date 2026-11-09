@@ -1203,7 +1203,8 @@ class TestConsoleBackendExtended:
 
     def test_show_connect_with_message_prints_to_stderr(self, monkeypatch, capsys):
         """When message is set, show_connect prints it to stderr."""
-        inputs = iter(["p", "", "mydb", "", ""])
+        inputs = iter(["p", "", "mydb", "", "", ""])
+        monkeypatch.setattr("getpass.getpass", lambda *a: "")
         monkeypatch.setattr("builtins.input", lambda *a: next(inputs))
         self.backend.show_connect({"message": "Please connect to the database"})
         captured = capsys.readouterr()
@@ -1211,10 +1212,20 @@ class TestConsoleBackendExtended:
 
     def test_show_connect_returns_typed_dict(self, monkeypatch):
         """show_connect returns a dict with the expected keys."""
-        inputs = iter(["p", "localhost", "mydb", "", "admin"])
+        inputs = iter(["p", "localhost", "mydb", "admin", "", ""])
+        monkeypatch.setattr("getpass.getpass", lambda *a: "")
         monkeypatch.setattr("builtins.input", lambda *a: next(inputs))
         result = self.backend.show_connect({})
-        assert set(result.keys()) == {"db_type", "server", "database", "db_file", "username"}
+        assert set(result.keys()) == {
+            "db_type",
+            "server",
+            "database",
+            "db_file",
+            "username",
+            "port",
+            "encoding",
+            "password",
+        }
         assert result["db_type"] == "p"
         assert result["server"] == "localhost"
         assert result["database"] == "mydb"
@@ -1223,7 +1234,7 @@ class TestConsoleBackendExtended:
 
     def test_show_connect_blank_fields_become_none(self, monkeypatch):
         """Blank input for optional fields is stored as None."""
-        inputs = iter(["l", "", "", "/tmp/test.db", ""])
+        inputs = iter(["l", "/tmp/test.db"])
         monkeypatch.setattr("builtins.input", lambda *a: next(inputs))
         result = self.backend.show_connect({})
         assert result["server"] is None
@@ -1233,7 +1244,8 @@ class TestConsoleBackendExtended:
 
     def test_show_connect_no_message_no_extra_output(self, monkeypatch, capsys):
         """No extra message is printed when message is empty."""
-        inputs = iter(["s", "", "", "", ""])
+        inputs = iter(["s", "", "", "", "", ""])
+        monkeypatch.setattr("getpass.getpass", lambda *a: "")
         monkeypatch.setattr("builtins.input", lambda *a: next(inputs))
         self.backend.show_connect({})
         captured = capsys.readouterr()

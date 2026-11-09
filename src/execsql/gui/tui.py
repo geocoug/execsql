@@ -1388,12 +1388,15 @@ class ConnectScreen(_BaseDialog):
     DEFAULT_CSS = (
         _BaseDialog.DEFAULT_CSS
         + """
-    .field-row {
-        height: 3;
-        margin-bottom: 1;
+    ConnectScreen #connect_fields {
+        height: auto;
     }
-    .field-label {
-        width: 14;
+    ConnectScreen .field-row {
+        height: 3;
+        margin-bottom: 0;
+    }
+    ConnectScreen .field-label {
+        width: 16;
         content-align: right middle;
         padding-right: 1;
     }
@@ -1401,47 +1404,70 @@ class ConnectScreen(_BaseDialog):
     )
 
     def compose(self) -> ComposeResult:
-        message = self.args.get("message", "")
+        from execsql.gui.base import CONNECTION_ENCODINGS
+
         with Container(id="dialog"):
             yield Label("Connect to Database", id="title")
             help_btn = _help_button(self.args.get("help_url"))
             if help_btn:
                 yield help_btn
-            if message:
-                yield Static(message, id="message")
-            with Horizontal(classes="field-row"):
-                yield Label("Database type:", classes="field-label")
-                yield Select(
-                    options=[(v, k) for k, v in _DB_TYPES],
-                    id="db_type_select",
-                )
-            with Horizontal(classes="field-row"):
-                yield Label("Server:", classes="field-label")
-                yield Input(id="server_input", placeholder="Hostname or IP")
-            with Horizontal(classes="field-row"):
-                yield Label("Database:", classes="field-label")
-                yield Input(id="database_input", placeholder="Database name or file path")
-            with Horizontal(classes="field-row"):
-                yield Label("Username:", classes="field-label")
-                yield Input(id="username_input", placeholder="(optional)")
+            if self.args.get("message"):
+                yield Static(self.args["message"], id="message")
+            with Vertical(id="connect_fields"):
+                with Horizontal(classes="field-row"):
+                    yield Label("Database type:", classes="field-label")
+                    yield Select(
+                        options=[(v, k) for k, v in _DB_TYPES],
+                        value="p",
+                        allow_blank=False,
+                        id="db_type_select",
+                    )
+                for name, label, placeholder in (
+                    ("server", "Server:", "Hostname or IP"),
+                    ("database", "Database:", "Database name"),
+                    ("username", "Username:", "(optional)"),
+                    ("password", "Password:", "Blank: no additional prompt"),
+                    ("port", "Port:", "Blank: DBMS default"),
+                    ("encoding", "Encoding:", "Blank: driver default; " + ", ".join(CONNECTION_ENCODINGS)),
+                ):
+                    with Horizontal(classes="field-row", id=f"{name}_row"):
+                        yield Label(label, classes="field-label", id=f"{name}_label")
+                        yield Input(id=f"{name}_input", placeholder=placeholder, password=name == "password")
+                yield Static("", id="connect_error")
             with Horizontal(id="buttons"):
                 yield Button("Connect", id="btn_ok", variant="primary")
                 yield Button("Cancel", id="btn_cancel", variant="default")
 
+    def on_select_changed(self, event: Select.Changed) -> None:
+        from execsql.gui.base import FILE_DATABASES
+
+        if event.select.id != "db_type_select":
+            return
+        kind = str(event.value)
+        file_based = kind in FILE_DATABASES
+        for name in ("server", "username", "password", "port", "encoding"):
+            self.query_one(f"#{name}_row").display = not file_based and not (kind == "d" and name in ("server", "port"))
+        self.query_one("#database_label", Label).update(
+            "File path:" if file_based else "DSN:" if kind == "d" else "Database:",
+        )
+        self.query_one("#database_input", Input).placeholder = (
+            "Existing database file" if file_based else "Database name or DSN"
+        )
+
     def on_button_pressed(self, event: Button.Pressed) -> None:
+        from execsql.gui.base import connection_result
+
         if event.button.id == "btn_ok":
-            db_type_sel = self.query_one("#db_type_select", Select)
-            db_type = str(db_type_sel.value) if db_type_sel.value else "l"
-            server = self.query_one("#server_input", Input).value.strip() or None
-            database = self.query_one("#database_input", Input).value.strip() or None
-            username = self.query_one("#username_input", Input).value.strip() or None
-            self._result = {
-                "db_type": db_type,
-                "server": server,
-                "database": database,
-                "db_file": database if db_type in ("l", "k", "a") else None,
-                "username": username,
+            values = {
+                name: self.query_one(f"#{name}_input", Input).value
+                for name in ("server", "database", "username", "password", "port", "encoding")
             }
+            try:
+                self._result = dict(connection_result(str(self.query_one("#db_type_select", Select).value), **values))
+            except ValueError as exc:
+                self.query_one("#connect_error", Static).update(str(exc))
+                self.query_one("#port_input", Input).focus()
+                return
         else:
             self._result = {"db_type": None}
         self.dismiss(self._result)

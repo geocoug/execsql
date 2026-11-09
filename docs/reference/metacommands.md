@@ -2760,18 +2760,21 @@ PROMPT [MESSAGE "<text>"] CONNECT AS <alias> [HELP <url>]
 
 Prompts for database connection parameters in a dialog box, and assigns that connection to the specified database alias. Any database connection previously associated with this alias will be closed, even if the prompt is canceled.
 
-The connection dialog looks like this:
+The Textual connection dialog provides server, database, username, masked password, optional port and encoding fields:
 
-![Database connection dialog](../images/connect.png)
+![Textual database connection dialog with server, database, username, masked password, port and encoding inputs](../images/connect-textual.svg)
 
-The prompt provides several common options for the database encoding. If the database uses a different encoding, you can type in the name of that encoding.
+Tkinter offers the same fields, including an editable encoding list. Textual and console accept an encoding name as text; common choices include UTF8, LATIN1, ASCII and UTF16. Leave encoding blank to use the adapter's default. Encoding support and interpretation depend on the selected DBMS and driver.
 
-If the port is not specified, the default port for the selected DBMS will be used.
+Leave port blank to use the DBMS default, or enter an integer from 1 through 65535. An invalid port can be corrected before connecting. A DSN uses its configured server and port, so those fields are hidden or omitted; its database field contains the DSN name.
 
-If a password is not provided, a connection will be attempted without using any password; there will be no additional prompt for a password.
+A supplied password is passed unchanged, including any spaces. A blank password attempts the connection without an additional password prompt or execsql keyring lookup. The driver's own authentication configuration may still apply, such as PostgreSQL service/password files or an ODBC DSN's authentication settings. An authentication failure is reported normally; execsql does not open another password dialog. This policy applies to `PROMPT CONNECT`; ordinary CLI/configuration connections retain their existing password behavior. Passwords entered here are masked and registered for log redaction.
 
+Selecting SQLite, DuckDB or MS-Access switches to an existing database file path and hides irrelevant network/authentication fields. Tkinter also offers a Browse button that opens the native file chooser; Textual and console accept a typed path. Hidden values from a previously selected network database are ignored. These file connections do not offer password or encoding overrides.
 
-If a file-based DBMS (MS-Access or SQLite) is selected, the prompt for the server and other information will be replaced by a prompt for a file name.
+![Textual file database connection dialog with network fields hidden](../images/connect-file-textual.svg)
+
+The selected driver must be installed; see [installation extras](../getting-started/installation.md). These fields do not change the adapters' documented support levels. To connect noninteractively, use the [CONNECT](#connect) metacommand, CLI connection options or a configuration file.
 
 If a URL is provided with the HELP keyword, the dialog box will include a button that will open that URL when clicked. The URL must be double-quoted if it contains spaces.
 

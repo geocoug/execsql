@@ -69,6 +69,8 @@ ______________________________________________________________________
 
 ### Bug Fixes
 
+`PROMPT CONNECT` collects and forwards optional port, encoding and masked password inputs in all three backends. An empty password explicitly attempts a connection without another execsql password prompt or keyring lookup; normal driver authentication settings may still apply. SQLite, DuckDB and Access use file-path presentation, with native Browse in Tkinter, and ignore hidden network fields. DSNs use their configured server/port. Invalid ports remain editable before submission. See [PROMPT CONNECT](../reference/metacommands.md#prompt_connect) for supported controls and defaults.
+
 Textual console Quit waits for script-worker termination and interrupt
 rollback before output/connection cleanup. The modular console previously
 closed its event loop immediately and could log normal completion while the

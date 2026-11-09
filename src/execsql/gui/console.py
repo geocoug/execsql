@@ -488,14 +488,23 @@ class ConsoleBackend(GuiBackend):
         for k, v in db_types.items():
             print(f"  {k} — {v}", file=sys.stderr)
         db_type = input("Database type: ").strip().lower()
-        server = input("Server (or blank): ").strip() or None
-        database = input("Database (or blank): ").strip() or None
-        db_file = input("File path (or blank): ").strip() or None
-        username = input("Username (or blank): ").strip() or None
-        return {
-            "db_type": db_type,
-            "server": server,
-            "database": database,
-            "db_file": db_file,
-            "username": username,
-        }
+        while db_type not in db_types:
+            print("Select one of the listed database types.", file=sys.stderr)
+            db_type = input("Database type: ").strip().lower()
+        import getpass
+
+        from execsql.gui.base import FILE_DATABASES, connection_result
+
+        if db_type in FILE_DATABASES:
+            return dict(connection_result(db_type, database=input("File path: ")))
+        server = input("Server (or blank): ") if db_type != "d" else ""
+        database = input("DSN: " if db_type == "d" else "Database (or blank): ")
+        username = input("Username (or blank): ")
+        password = getpass.getpass("Password (blank: no additional password prompt): ")
+        encoding = input("Encoding (blank: driver default): ")
+        while True:
+            port = input("Port (blank: DBMS default): ") if db_type != "d" else ""
+            try:
+                return dict(connection_result(db_type, server, database, username, password, port, encoding))
+            except ValueError as exc:
+                print(str(exc), file=sys.stderr)

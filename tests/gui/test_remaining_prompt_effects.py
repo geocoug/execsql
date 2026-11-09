@@ -304,12 +304,13 @@ def test_actual_connect_widget_creates_usable_sqlite_alias(driver, tmp_path):
     path = tmp_path / "selected.sqlite"
     with sqlite3.connect(path) as conn:
         conn.execute("create table effects (value text)")
-    driver.answers = ["l", "", str(path), "", ""]
+    driver.answers = ["l", str(path)]
     if driver.name == "textual":
         from textual.widgets import Input, Select
 
         async def interact(app, pilot):
             app.screen.query_one("#db_type_select", Select).value = "l"
+            await pilot.pause()
             app.screen.query_one("#database_input", Input).value = str(path)
             assert await pilot.click("#btn_ok")
 

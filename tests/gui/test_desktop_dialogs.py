@@ -509,6 +509,9 @@ class TestCredentialsDialog:
 
 class TestConnectDialog:
     def test_construct(self, fake_tk, root) -> None:
+        combo = _mk_widget()
+        combo.current.return_value = 0
+        fake_tk.ttk.Combobox.side_effect = lambda *a, **kw: combo
         dlg = _desk.ConnectDialog(
             root,
             {
