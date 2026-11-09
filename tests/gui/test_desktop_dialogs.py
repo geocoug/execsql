@@ -41,6 +41,10 @@ def _mk_widget() -> MagicMock:
     w.winfo_exists.return_value = True
     w.winfo_screenwidth.return_value = 1920
     w.winfo_screenheight.return_value = 1080
+    w.winfo_reqwidth.return_value = 400
+    w.winfo_reqheight.return_value = 300
+    w.winfo_width.return_value = 400
+    w.winfo_height.return_value = 300
     w.winfo_toplevel.return_value = w
     # Item access on widget — `widget["columns"] = ...` is common
     w.__getitem__ = MagicMock(side_effect=lambda key: 0 if key == "value" else None)

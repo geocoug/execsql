@@ -975,6 +975,23 @@ class CompareScreen(_BaseDialog):
 # ---------------------------------------------------------------------------
 
 
+class _SelectRowsTable(DataTable):
+    """Highlight on a single click; add/remove a row on double-click or Enter."""
+
+    def on_click(self, event: events.Click) -> None:
+        row = event.style.meta.get("row", -1)
+        if row == -1 and not event.style.meta.get("out_of_bounds"):
+            return
+        event.prevent_default()
+        event.stop()
+        if event.style.meta.get("out_of_bounds") or not 0 <= row < len(self.rows):
+            return
+        self.focus()
+        self.move_cursor(row=row)
+        if event.chain == 2:
+            self.post_message(DataTable.RowSelected(self, row, self.ordered_rows[row].key))
+
+
 class SelectRowsScreen(_BaseDialog):
     """Row selection dialog: pick rows from source table and add to target."""
 
@@ -1001,6 +1018,7 @@ class SelectRowsScreen(_BaseDialog):
         super().__init__(args)
         self._selected_rows: list[list[Any]] = []
         self._source_rows: dict[Any, list[Any]] = {}
+        self._pending_rows: dict[Any, list[Any]] = {}
 
     def compose(self) -> ComposeResult:
         title = self.args.get("title", "Select rows")
@@ -1019,29 +1037,40 @@ class SelectRowsScreen(_BaseDialog):
                 yield help_btn
             if message:
                 yield Static(message, id="message")
-            yield Static("Double-click or press Enter on a row to add it to the right table.", id="hint")
+            yield Static(
+                "Double-click or press Enter: source adds a copy; an added destination row removes that copy. Existing rows are kept.",
+                id="hint",
+            )
             with Horizontal(id="tables"):
                 with Vertical(classes="sel-table"):
                     yield Label("Source (select rows)")
-                    source = _make_table_widget("source_table", headers1, rows1)
+                    source = _make_table_widget("source_table", headers1, rows1, table_class=_SelectRowsTable)
                     self._source_rows = {key: list(row) for key, row in zip(source.rows, rows1)}
                     yield source
                     yield Static(_row_count_text(len(rows1)), classes="row-count")
                 with Vertical(classes="sel-table"):
                     yield Label("Destination")
-                    yield _make_table_widget("dest_table", headers2, rows2)
-                    yield Static(_row_count_text(len(rows2)), classes="row-count")
+                    yield _make_table_widget("dest_table", headers2, rows2, table_class=_SelectRowsTable)
+                    yield Static(_row_count_text(len(rows2)), classes="row-count", id="destination_count")
             with Horizontal(id="buttons"):
                 yield from _button_row(button_list)
 
     def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
+        dest = self.query_one("#dest_table", DataTable)
         if event.data_table.id == "source_table":
-            dest: DataTable = self.query_one("#dest_table", DataTable)
             row_key = event.row_key
             values = self._source_rows[row_key]
-            self._selected_rows.append(list(values))
+            selected = list(values)
+            self._selected_rows.append(selected)
             display = selected_row_values(self.args.get("headers1", []), values, self.args.get("headers2", []))
-            dest.add_row(*[str(value) if value is not None else "" for value in display])
+            key = dest.add_row(*[str(value) if value is not None else "" for value in display])
+            self._pending_rows[key] = selected
+        elif event.data_table.id == "dest_table":
+            removed = self._pending_rows.pop(event.row_key, None)
+            if removed is not None:
+                self._selected_rows = [row for row in self._selected_rows if row is not removed]
+                dest.remove_row(event.row_key)
+        self.query_one("#destination_count", Static).update(_row_count_text(dest.row_count))
 
     def action_submit(self) -> None:
         """Submit the first primary button value (triggered by Enter key)."""

@@ -698,7 +698,10 @@ class SelectRowsDialog:
                 anchor="w",
                 pady=(0, 4),
             )
-        ttk.Label(frame, text="Double-click a row to copy it to the destination table.").pack(
+        ttk.Label(
+            frame,
+            text="Double-click a source row to add it; double-click an added destination row to remove that copy. Existing rows are kept.",
+        ).pack(
             anchor="w",
             pady=(0, 8),
         )
@@ -722,22 +725,40 @@ class SelectRowsDialog:
             tree.configure(yscrollcommand=vsb.set)
             tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
             vsb.pack(side=tk.RIGHT, fill=tk.Y)
-            ttk.Label(lf, text=_row_count_text(len(rows))).pack(anchor="w")
-            return tree
+            count = ttk.Label(lf, text=_row_count_text(len(rows)))
+            count.pack(anchor="w")
+            return tree, count
 
-        src_tree = _add_tree_frame(tables_frame, "Source", headers1, rows1)
-        dst_tree = _add_tree_frame(tables_frame, "Destination", headers2, rows2)
+        src_tree, _ = _add_tree_frame(tables_frame, "Source", headers1, rows1)
+        dst_tree, dst_count = _add_tree_frame(tables_frame, "Destination", headers2, rows2)
         source_rows = {key: list(row) for key, row in zip(src_tree.get_children(), rows1)}
+
+        pending_rows = {}
 
         def _on_double_click(event):
             sel = src_tree.selection()
             if sel:
                 row_id = sel[0]
                 values = source_rows[row_id]
-                self._selected_rows.append(list(values))
+                selected = list(values)
+                self._selected_rows.append(selected)
                 display = selected_row_values(headers1, values, headers2)
-                dst_tree.insert("", "end", values=[str(value) if value is not None else "" for value in display])
+                key = dst_tree.insert("", "end", values=[str(value) if value is not None else "" for value in display])
+                pending_rows[key] = selected
+                dst_count.configure(text=_row_count_text(len(rows2) + len(self._selected_rows)))
 
+        def _remove_row(event=None):
+            selection = dst_tree.selection()
+            key = dst_tree.identify_row(event.y) if event is not None else selection[0] if selection else None
+            selected = pending_rows.pop(key, None)
+            if selected is not None:
+                self._selected_rows = [row for row in self._selected_rows if row is not selected]
+                dst_tree.delete(key)
+                dst_count.configure(text=_row_count_text(len(rows2) + len(self._selected_rows)))
+            return "break"
+
+        dst_tree.bind("<Double-1>", _remove_row)
+        dst_tree.bind("<Return>", lambda event: _remove_row())
         src_tree.bind("<Double-1>", _on_double_click)
         src_tree.bind("<Return>", _on_double_click)
 
@@ -840,25 +861,42 @@ class ActionDialog:
 
         frame = ttk.Frame(win, padding=12)
         frame.pack(fill=tk.BOTH, expand=True)
+        frame.columnconfigure(0, weight=1)
+        frame.rowconfigure(0, weight=1)
         _add_help_button(frame, args.get("help_url"))
 
+        canvas = tk.Canvas(frame, width=600, height=1, highlightthickness=0, yscrollincrement=20)
+        canvas.grid(row=0, column=0, sticky="nsew")
+        scrollbar = ttk.Scrollbar(frame, orient=tk.VERTICAL, command=canvas.yview)
+        scrollbar.grid(row=0, column=1, sticky="ns")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        content = ttk.Frame(canvas)
+        content_window = canvas.create_window((0, 0), window=content, anchor="nw")
+        content.bind("<Configure>", lambda event: canvas.configure(scrollregion=canvas.bbox("all")))
+
+        wrapped_labels = []
         message = args.get("message", "")
         if message:
-            ttk.Label(frame, text=message, wraplength=580, anchor="w", justify="left").pack(
-                anchor="w",
-                pady=(0, 8),
-            )
+            message_label = ttk.Label(content, text=message, wraplength=580, anchor="w", justify="left")
+            message_label.pack(fill=tk.X, pady=(0, 8))
+            wrapped_labels.append(message_label)
 
+        def fit_width(event):
+            canvas.itemconfigure(content_window, width=event.width)
+            for label in wrapped_labels:
+                label.configure(wraplength=max(1, event.width))
+
+        canvas.bind("<Configure>", fit_width)
         headers = args.get("column_headers")
         rows = args.get("rowset")
         tree = None
         source_rows = {}
         if headers and rows:
-            tree = ttk.Treeview(frame, height=min(6, len(rows)), selectmode="browse")
+            tree = ttk.Treeview(content, height=min(6, len(rows)), selectmode="browse")
             _populate_treeview(tree, headers, rows)
             source_rows = {key: list(row) for key, row in zip(tree.get_children(), rows)}
-            tree.pack(fill=tk.BOTH, expand=True, pady=(0, 4))
-            ttk.Label(frame, text=_row_count_text(len(rows))).pack(anchor="w", pady=(0, 8))
+            tree.pack(fill=tk.X, pady=(0, 4))
+            ttk.Label(content, text=_row_count_text(len(rows))).pack(anchor="w", pady=(0, 8))
 
         button_specs = args.get("button_specs", [])
         action_buttons: list[ttk.Button] = []
@@ -879,32 +917,75 @@ class ActionDialog:
             for button, spec in zip(action_buttons, button_specs):
                 button.configure(state="disabled" if spec.data_required and not has_row else "normal")
 
+        def reveal_action(event):
+            top = canvas.canvasy(0)
+            y = event.widget.winfo_rooty() - content.winfo_rooty()
+            bottom = y + event.widget.winfo_height()
+            height = max(1, content.winfo_height())
+            if y < top:
+                canvas.yview_moveto(y / height)
+            elif bottom > top + canvas.winfo_height():
+                canvas.yview_moveto((bottom - canvas.winfo_height()) / height)
+
         for i, spec in enumerate(button_specs):
-            btn_text = f"{spec.label}\n{spec.prompt}"
+            action_row = ttk.Frame(content)
+            action_row.pack(fill=tk.X, pady=4)
+            action_row.columnconfigure(1, weight=1)
 
             def _button_command(index: int = i) -> None:
                 select_action(index)
 
             button = ttk.Button(
-                frame,
-                text=btn_text,
+                action_row,
+                text=spec.label,
                 command=_button_command,
                 state="disabled" if spec.data_required else "normal",
             )
-            button.pack(fill=tk.X, pady=2)
+            button.grid(row=0, column=0, sticky="nw", padx=(0, 8))
+            button.bind("<FocusIn>", reveal_action)
+            description = ttk.Label(action_row, text=spec.prompt, wraplength=360, anchor="w", justify="left")
+            description.grid(row=0, column=1, sticky="ew")
+            description.bind("<Configure>", lambda event: event.widget.configure(wraplength=max(1, event.width)))
             action_buttons.append(button)
 
         if tree is not None:
             tree.bind("<<TreeviewSelect>>", update_buttons)
 
-        include_continue = args.get("include_continue_button")
-        if include_continue:
-            ttk.Button(frame, text="Continue", command=lambda: self._close(win, 0)).pack(fill=tk.X, pady=2)
-        ttk.Button(frame, text="Cancel", command=lambda: self._close(win, None)).pack(fill=tk.X, pady=2)
+        footer = ttk.Frame(frame)
+        footer.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(8, 0))
+        ttk.Button(footer, text="Cancel", command=lambda: self._close(win, None)).pack(side=tk.RIGHT, padx=4)
+        if args.get("include_continue_button"):
+            ttk.Button(footer, text="Continue", command=lambda: self._close(win, 0)).pack(side=tk.RIGHT, padx=4)
 
+        def scroll(event):
+            if content.winfo_height() > canvas.winfo_height():
+                if event.num in (4, 5):
+                    units = -1 if event.num == 4 else 1
+                else:
+                    units = -int(event.delta / 120) if abs(event.delta) >= 120 else -event.delta
+                canvas.yview_scroll(units, "units")
+            return "break"
+
+        win.bind("<MouseWheel>", scroll)
+        win.bind("<Button-4>", scroll)
+        win.bind("<Button-5>", scroll)
+        win.bind("<Prior>", lambda event: canvas.yview_scroll(-1, "pages"))
+        win.bind("<Next>", lambda event: canvas.yview_scroll(1, "pages"))
         win.bind("<Escape>", lambda e: self._close(win, None))
         win.protocol("WM_DELETE_WINDOW", lambda: self._close(win, None))
-        _center_window(win, 400, 100 + len(button_specs) * 50)
+
+        width = min(640, win.winfo_screenwidth() - 80)
+        win.update_idletasks()
+        canvas.configure(width=max(1, width - 24 - scrollbar.winfo_reqwidth()))
+        win.update_idletasks()
+        canvas.itemconfigure(content_window, width=canvas.winfo_reqwidth())
+        win.update_idletasks()
+        available_height = max(80, win.winfo_screenheight() - 150 - footer.winfo_reqheight())
+        canvas.configure(height=min(content.winfo_reqheight(), available_height))
+        win.update_idletasks()
+        height = min(win.winfo_reqheight(), win.winfo_screenheight() - 100)
+        _center_window(win, width, height)
+        win.minsize(min(width, 400), min(height, 180))
         root.wait_window(win)
 
     def _close(self, win: tk.Toplevel, value: int | None) -> None:

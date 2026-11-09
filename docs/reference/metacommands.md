@@ -2677,6 +2677,8 @@ Data variables are assigned, using values from the selected row in the data tabl
 
 After a button is clicked, the button dialog will be closed.
 
+In Tkinter, the initial window fits its content within the screen. Messages and action descriptions wrap, and long content scrolls without requiring the window to be maximized. Continue (when offered) and Cancel stay visible below the scrolling area. Tab focus brings an action into view.
+
 The chosen script runs once on the script thread after the dialog closes, using normal [SCRIPT](#beginscript) scope and control flow. Its SQL follows the current [AUTOCOMMIT](#autocommit) and [batch](#batch) settings; a script error is reported under the normal error-halting rules. An action must name a registered script that can run without arguments. Invalid targets are reported before selected data replaces existing data variables.
 
 In the console backend, displayed rows are numbered. Enter `R <number>` to select a data row, then enter the action number. Actions requiring data cannot run before a row is selected. Enter `0` to Continue when offered, or submit blank input to Cancel; end-of-input also cancels. Tkinter and Textual provide the same action, Continue and cancellation outcomes.
@@ -3046,8 +3048,11 @@ PROMPT SELECT_ROWS FROM <table1> INTO <table2>
 
 Displays the source and destination tables. Double-clicking on a row in
 *table1* adds it to the destination pane. Press Continue to save the newly
-selected rows to *table2*. Cancelling discards those selections; it does not
-write them or commit the script's transaction.
+selected rows to *table2*. Before confirming, double-click an added row in the destination pane to remove that copy. If you added the same source row several times, removing one copy leaves the others selected. Existing rows already stored in *table2* are protected and cannot be removed here.
+
+In Tkinter and Textual, Enter on a focused destination row also removes an added copy. Textual uses single clicks for highlighting; double-click or Enter on a source row adds a copy. The destination row count updates as copies are added or removed.
+
+Cancelling discards the pending selections; it does not write them or commit the script's transaction.
 
 *Table2* must have all of the columns that are in *table1*, with identical column names and compatible data types. Column order may differ: values are matched by column name and retain their original data types. *Table2* may have additional columns; the database applies their defaults when the selections are saved.
 

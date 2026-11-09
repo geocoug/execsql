@@ -458,3 +458,114 @@ def test_textual_ask_cancel_is_distinct_from_no(driver, compare, escape, halt):
     assert result.variables.get("after") == (None if halt else "yes")
     if halt:
         assert any("exit status 2" in error.message for error in result.errors)
+
+
+@pytest.mark.parametrize("driver", ["textual", "tk"], indirect=True)
+@pytest.mark.parametrize("cancel", [False, True])
+@pytest.mark.parametrize("remove_all", [False, True])
+def test_removing_pending_rows_preserves_existing_data_and_other_copies(row_database, driver, cancel, remove_all):
+    if driver.name == "textual":
+        from textual.widgets import DataTable
+
+        async def interact(app, pilot):
+            source = app.screen.query_one("#source_table", DataTable)
+            dest = app.screen.query_one("#dest_table", DataTable)
+            source.focus()
+            await pilot.press("enter", "enter", "down", "enter")
+            await pilot.pause()
+            assert dest.row_count == 4
+            dest.focus()
+            dest.move_cursor(row=0)
+            await pilot.press("enter")  # Existing stored row is protected.
+            assert dest.row_count == 4
+            dest.move_cursor(row=1)
+            await pilot.press("enter")  # Remove only one of the two equal copies.
+            await pilot.pause()
+            assert dest.row_count == 3
+            if remove_all:
+                dest.move_cursor(row=1)
+                await pilot.press("enter")
+                dest.move_cursor(row=1)
+                await pilot.press("enter")
+                await pilot.pause()
+                assert dest.row_count == 1
+            if cancel:
+                await pilot.press("escape")
+            else:
+                assert await pilot.click("#btn_0")
+
+        driver.interact = interact
+    else:
+        from tests.gui.test_desktop_dialogs import _mk_widget
+
+        tk, ttk = driver.widgets
+        source, dest = _mk_widget(), _mk_widget()
+        source.get_children.return_value = ("first", "second")
+        dest.get_children.return_value = ("existing",)
+        dest.insert.side_effect = ["existing", "new1", "new2", "new3"]
+        ttk.Treeview.side_effect = [source, dest]
+
+        def interact(win, tk, ttk):
+            add = next(c.args[1] for c in source.bind.call_args_list if c.args[0] == "<Double-1>")
+            for key in ("first", "first", "second"):
+                source.selection.return_value = (key,)
+                add(None)
+            remove = next(c.args[1] for c in dest.bind.call_args_list if c.args[0] == "<Double-1>")
+            for key in ["existing", "new1"] + (["new2", "new3"] if remove_all else []):
+                dest.identify_row.return_value = key
+                dest.selection.return_value = (key,)
+                remove(SimpleNamespace(y=40))
+            expected_deleted = ["new1", "new2", "new3"] if remove_all else ["new1"]
+            assert [c.args[0] for c in dest.delete.call_args_list] == expected_deleted
+            if cancel:
+                next(c.args[1] for c in win.bind.call_args_list if c.args[0] == "<Escape>")(None)
+            else:
+                next(c.kwargs["command"] for c in tk.Button.call_args_list if c.kwargs.get("text") == "Continue")()
+
+        driver.tk = interact
+    result = run(sql="-- !x! CANCEL_HALT OFF\n" + ROW_COMMAND, connection=row_database)
+    assert result.success, result.errors
+    expected = [("existing", None, 0, "keep")]
+    if not cancel and not remove_all:
+        expected += [("new", b"", 2, None), ("new", b"\x00\xff", 2**60, "O'Brien")]
+    assert stored_rows(row_database) == expected
+
+
+@pytest.mark.parametrize("driver", ["textual"], indirect=True)
+def test_picker_double_click_changes_only_one_copy_and_single_click_only_highlights(row_database, driver):
+    from textual import events
+    from textual.widgets import DataTable
+
+    async def interact(app, pilot):
+        async def double_click(table, offset):
+            # Textual 1.0 Pilot leaks Click's chain into MouseDown for times > 1.
+            # Use the same real Click route as the SELECT_SUB gesture tests.
+            assert await pilot._post_mouse_events([events.Click], table, offset=offset, times=2)
+
+        source = app.screen.query_one("#source_table", DataTable)
+        dest = app.screen.query_one("#dest_table", DataTable)
+        assert await pilot.click(source, offset=(3, 1))
+        assert dest.row_count == 1
+        await double_click(source, (3, 1))
+        await pilot.pause()
+        assert dest.row_count == 2
+        await double_click(source, (3, 1))
+        await pilot.pause()
+        assert dest.row_count == 3
+        assert await pilot.click(dest, offset=(3, 2))
+        assert dest.row_count == 3
+        await double_click(dest, (3, 2))
+        await pilot.pause()
+        assert dest.row_count == 2
+        await double_click(dest, (3, 0))
+        assert dest.row_count == 2
+        dest.styles.height = 8
+        await pilot.pause()
+        await double_click(dest, (3, 6))
+        assert dest.row_count == 2
+        assert await pilot.click("#btn_0")
+
+    driver.interact = interact
+    result = run(sql=ROW_COMMAND, connection=row_database)
+    assert result.success, result.errors
+    assert stored_rows(row_database) == [("existing", None, 0, "keep"), ("new", b"\x00\xff", 2**60, "O'Brien")]

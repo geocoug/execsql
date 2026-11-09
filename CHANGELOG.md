@@ -11,13 +11,19 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Added
+
+- **`PROMPT SELECT_ROWS` in Tkinter and Textual** lets you remove one newly selected destination copy with a double-click or Enter before saving; existing destination rows are preserved.
+
 ### Changed
 
+- **`PROMPT SELECT_ROWS` in Textual** highlights on a single click; double-click or Enter adds a source copy or removes an added destination copy.
 - **`PROMPT CONNECT`** attempts a connection without another password prompt when its password field is blank.
 - **Textual console Quit** keeps the console responsive while waiting for the script worker and rollback to finish; a blocked driver may delay shutdown until it returns.
 
 ### Fixed
 
+- **`PROMPT ACTION` in Tkinter** fits its initial window to the content, wraps descriptions and scrolls long content while keeping Continue and Cancel visible.
 - **`CONSOLE WIDTH|HEIGHT` and console sizing configuration** resize the native Tk console and retain the chosen size across `CONSOLE OFF` / `ON`.
 - **`PROMPT CONNECT`** accepts port, encoding and masked password inputs in Tkinter, Textual and console; file-based databases show file selection instead of network fields.
 - **Textual console interruption** exits with status 130 after cleanup, without recording normal completion or closing output while the script is still active.

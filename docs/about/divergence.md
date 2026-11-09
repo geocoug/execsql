@@ -69,6 +69,8 @@ ______________________________________________________________________
 
 ### Bug Fixes
 
+Tkinter and Textual `PROMPT SELECT_ROWS` can remove a staged destination copy by double-click or Enter, without deleting rows already stored in the destination table. Duplicate copies remain independent, and removed copies are excluded from the eventual write. Textual uses single clicks to highlight and double-clicks/Enter to change the staged selection. Native `PROMPT ACTION` measures content for its initial size, wraps descriptions and provides scrolling with a persistent Continue/Cancel footer, replacing the fixed-height layout that clipped controls.
+
 Native Tk console sizing uses the active backend: configuration values apply at creation, and `CONSOLE WIDTH` / `HEIGHT` resize the actual text widget and window. Commanded dimensions persist across OFF/ON and manual window closure; resizing preserves position and does not show a hidden window. The modular implementation previously updated a disconnected legacy handle and left the console at fixed defaults. Textual and console backends retain the settings without resizing their host terminal.
 
 `PROMPT CONNECT` collects and forwards optional port, encoding and masked password inputs in all three backends. An empty password explicitly attempts a connection without another execsql password prompt or keyring lookup; normal driver authentication settings may still apply. SQLite, DuckDB and Access use file-path presentation, with native Browse in Tkinter, and ignore hidden network fields. DSNs use their configured server/port. Invalid ports remain editable before submission. See [PROMPT CONNECT](../reference/metacommands.md#prompt_connect) for supported controls and defaults.
