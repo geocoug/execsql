@@ -90,24 +90,19 @@ class PostgresDatabase(Database):
                 # between runs; a cached plan whose result type then changes triggers
                 # PostgreSQL's "cached plan must not change result type" error.  psycopg2
                 # never auto-prepared, so this preserves backwards-compatible behavior.
-                if db.user and db.password:
-                    return psycopg.connect(
-                        host=str(db.server_name),
-                        dbname=str(db_name),
-                        port=db.port,
-                        user=db.user,
-                        password=db.password,
-                        connect_timeout=db.connect_timeout,
-                        prepare_threshold=None,
-                    )
-                else:
-                    return psycopg.connect(
-                        host=str(db.server_name),
-                        dbname=db_name,
-                        port=db.port,
-                        connect_timeout=db.connect_timeout,
-                        prepare_threshold=None,
-                    )
+                credentials = {}
+                if db.user:
+                    credentials["user"] = db.user
+                if db.password is not None:
+                    credentials["password"] = db.password
+                return psycopg.connect(
+                    host=str(db.server_name),
+                    dbname=db_name,
+                    port=db.port,
+                    connect_timeout=db.connect_timeout,
+                    prepare_threshold=None,
+                    **credentials,
+                )
             except Exception as e:
                 msg = (
                     f"Failed to open PostgreSQL database {self.db_name} on {self.server_name}; "

@@ -297,29 +297,43 @@ class TestSelectRowsScreen:
 
 class TestSelectSubScreen:
     def _build_args(self):
-        """Construct args that work with the SelectSubScreen signature.
-
-        We don't know the exact shape — try a few common keys.
-        """
         return {
             "title": "Choose",
             "message": "select",
             "button_list": [("OK", 1, None)],
-            "items": ["one", "two", "three"],
-            "sub_var": "$pick",
             "help_url": "",
-            "column_headers": ["v"],
-            "rowset": [("one",), ("two",), ("three",)],
+            "headers": ["v"],
+            "rows": [("one",), ("two",), ("three",)],
         }
 
     def test_basic(self):
         async def interact(pilot):
+            from textual.widgets import DataTable
+
+            assert pilot.app.screen.query_one("#sel_table", DataTable).row_count == 3
             await pilot.press("escape")
             await pilot.pause()
 
-        try:
-            result = _run_dialog(SelectSubScreen, self._build_args(), interact)
-        except (KeyError, TypeError, AttributeError):
-            pytest.skip("SelectSubScreen args shape differs — compose path was exercised")
-            return
-        assert isinstance(result, dict)
+        result = _run_dialog(SelectSubScreen, self._build_args(), interact)
+        assert result["button"] is None
+        assert result["cancelled"] is True
+
+    def test_selection_returns_the_native_source_values(self):
+        from datetime import date
+        from decimal import Decimal
+
+        row = [Decimal("1.234567890123456789"), date(2026, 11, 5), None, b"\x00\xff", True, 2**60]
+
+        async def interact(pilot):
+            assert await pilot.click("#sel_table", offset=(2, 1))
+            await pilot.pause()
+            assert isinstance(pilot.app.screen, SelectSubScreen)
+            await pilot.click("#btn_0")
+            await pilot.pause()
+
+        result = _run_dialog(
+            SelectSubScreen,
+            {**self._build_args(), "headers": ["decimal", "date", "null", "blob", "bool", "bigint"], "rows": [row]},
+            interact,
+        )
+        assert result == {"button": 1, "row": row}

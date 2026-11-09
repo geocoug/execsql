@@ -42,6 +42,7 @@
 #access_username=
 
 # Whether to prompt for a password.
+# Server/DSN usernames are retained when prompting is disabled.
 # Values: Yes or No.  Default: Yes.
 #password_prompt=Yes
 
@@ -243,11 +244,13 @@
 #   3: open a console window immediately
 #gui_level=0
 
-# The height (in lines) of the console window.
+# The height (in text lines) of the native Tkinter console.
+# Textual/console backends use the host terminal dimensions.
 # Value: An integer >= 5.  Default: 25.
 #console_height=25
 
-# The width (in characters) of the console window.
+# The width (in characters) of the native Tkinter console.
+# Textual/console backends use the host terminal dimensions.
 # Value: An integer >= 20.  Default: 100.
 #console_width=100
 

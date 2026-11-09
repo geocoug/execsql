@@ -23,7 +23,6 @@ import queue as _stdlib_queue
 import threading
 from typing import Any, Literal, cast
 
-from execsql.exceptions import ScriptExit
 from execsql.gui.base import GuiBackend, selected_row_values
 
 # ---------------------------------------------------------------------------
@@ -37,10 +36,11 @@ except ImportError as _e:
         "Textual is not installed. It is a dependency of execsql2; reinstall execsql2 to restore it.",
     ) from _e
 
-from textual import on
+from textual import events, on
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Container, Horizontal, ScrollableContainer, Vertical
+from textual.message import Message
 from textual.screen import ModalScreen
 from textual.widgets import (
     Button,
@@ -62,7 +62,14 @@ from textual.widgets import (
 
 __all__ = ["TextualBackend"]
 
-from execsql.gui.base import DIFF_MARKER, DiffResult, compare_stats as _compare_stats, compute_row_diffs
+from execsql.gui.base import (
+    DIFF_MARKER,
+    DiffResult,
+    _key_column_indices,
+    compare_stats as _compare_stats,
+    compute_row_diffs,
+    normalize_text_entry,
+)
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -74,9 +81,15 @@ def _row_count_text(n: int) -> str:
     return f"{n:,} row{'s' if n != 1 else ''}"
 
 
-def _make_table_widget(table_id: str, headers: list, rows: list) -> DataTable:
+def _make_table_widget(
+    table_id: str,
+    headers: list,
+    rows: list,
+    *,
+    table_class: type[DataTable] = DataTable,
+) -> DataTable:
     """Build a DataTable widget populated with data."""
-    dt: DataTable = DataTable(id=table_id, zebra_stripes=True, cursor_type="row")
+    dt: DataTable = table_class(id=table_id, zebra_stripes=True, cursor_type="row")
     dt.add_columns(*[str(h) for h in headers])
     for row in rows:
         dt.add_row(*[str(c) if c is not None else "" for c in row])
@@ -95,9 +108,9 @@ def _button_row(button_list: list, no_cancel: bool = False) -> list[Button]:
 
     A Cancel button (id ``btn_cancel_exit``) is prepended so it appears on the
     left while the primary action button sits on the far right.  Entries in
-    *button_list* with a falsy value (0 or None) are treated as the cancel
-    label source and are otherwise excluded from the numbered buttons so that
-    ``btn_N`` indices stay aligned with ``button_list`` positions.
+    *button_list* with value None supply the cancel label and are otherwise
+    excluded from numbered buttons. Zero is a real response, such as No in
+    ASK prompts. ``btn_N`` indices stay aligned with ``button_list`` positions.
 
     When *no_cancel* is set, the Cancel button is omitted — dialogs such as
     HALT have no meaningful cancel action, and cancelling one would exit with
@@ -107,7 +120,7 @@ def _button_row(button_list: list, no_cancel: bool = False) -> list[Button]:
     primary_buttons = []
     for i, btn in enumerate(button_list):
         label, value = btn[0], btn[1]
-        if not value and value != 1:  # falsy but not accidentally 1
+        if value is None:
             cancel_label = label
         else:
             variant: Literal["primary", "default"] = "primary" if i == 0 else "default"
@@ -202,7 +215,7 @@ class _BaseDialog(ModalScreen):
 
     @on(Button.Pressed, "#btn_cancel_exit")
     def _on_cancel_exit(self, event: Button.Pressed) -> None:
-        """Universal Cancel handler — dismisses with cancelled=True so the sync queue can exit."""
+        """Return cancellation to the script's prompt handler."""
         event.stop()
         self._result = {"button": None, "cancelled": True}
         self.dismiss(self._result)
@@ -425,8 +438,26 @@ class DisplayScreen(_BaseDialog):
                 break
         if value is None:
             return
+        self._submit(value)
+
+    @on(Input.Submitted, "#text_input")
+    def _on_text_submitted(self, event: Input.Submitted) -> None:
+        event.stop()
+        self.action_submit()
+
+    def _submit(self, value: int | None) -> None:
         text_input = self.query_one("#text_input", Input) if self.args.get("textentry") else None
         return_value = text_input.value if text_input else None
+        if value is not None and return_value is not None:
+            try:
+                return_value = normalize_text_entry(
+                    return_value,
+                    self.args.get("textentrytype"),
+                    self.args.get("textentrycase"),
+                )
+            except ValueError as exc:
+                self.notify(str(exc), title="Invalid entry", severity="error")
+                return
         self._result = {"button": value, "return_value": return_value}
         self.dismiss(self._result)
 
@@ -436,10 +467,7 @@ class DisplayScreen(_BaseDialog):
             idx = int(btn_id.split("_")[1])
             button_list = self.args.get("button_list", [("Continue", 1)])
             value = button_list[idx][1]
-            text_input = self.query_one("#text_input", Input) if self.args.get("textentry") else None
-            return_value = text_input.value if text_input else None
-            self._result = {"button": value, "return_value": return_value}
-            self.dismiss(self._result)
+            self._submit(value)
 
 
 # ---------------------------------------------------------------------------
@@ -477,6 +505,7 @@ class EntryFormScreen(_BaseDialog):
     def __init__(self, args: dict) -> None:
         super().__init__(args)
         self._inputs: dict[str, Any] = {}
+        self._browse_fields: dict[str, str] = {}
 
     def compose(self) -> ComposeResult:
         title = self.args.get("title", "Entry")
@@ -498,9 +527,9 @@ class EntryFormScreen(_BaseDialog):
                     yield _make_table_widget("form_table", headers, rows)
                 yield Static(_row_count_text(len(rows)), classes="row-count")
             with ScrollableContainer(id="fields"):
-                for spec in specs:
+                for index, spec in enumerate(specs):
                     etype = (spec.entry_type or "text").lower()
-                    field_id = f"field_{spec.varname}"
+                    field_id = f"field_{index}"
                     # Compute the display label (radiobuttons uses semicolon-delimited)
                     if etype == "radiobuttons":
                         parts = (spec.label or "").split(";")
@@ -512,8 +541,8 @@ class EntryFormScreen(_BaseDialog):
                         # Multi-row widget — render label + SelectionList vertically
                         yield Static(field_label, classes="row-count")
                         height = spec.default_height or 4
-                        sl = SelectionList[str](
-                            *[(str(v), str(v), False) for v in spec.lookup_list if v is not None],
+                        sl = SelectionList[tuple[int, str]](
+                            *[(str(v), (i, str(v)), False) for i, v in enumerate(spec.lookup_list) if v is not None],
                             id=field_id,
                         )
                         sl.styles.height = height + 2
@@ -566,9 +595,11 @@ class EntryFormScreen(_BaseDialog):
                                     placeholder="Enter file path or click Browse",
                                 )
                                 yield inp
+                                browse_id = f"browse_{index}"
+                                self._browse_fields[browse_id] = spec.varname
                                 yield Button(
                                     "Browse…",
-                                    id=f"browse_{spec.varname}",
+                                    id=browse_id,
                                     variant="default",
                                 )
                                 self._inputs[spec.varname] = inp
@@ -599,7 +630,7 @@ class EntryFormScreen(_BaseDialog):
         if not btn_id.startswith("browse_"):
             return
         event.stop()
-        varname = btn_id[len("browse_") :]
+        varname = self._browse_fields[btn_id]
         tree = self.query_one("#file_tree", DirectoryTree)
         if tree.styles.display == "none":
             self._browse_target = varname
@@ -628,8 +659,7 @@ class EntryFormScreen(_BaseDialog):
             if etype == "checkbox":
                 spec.value = "1" if widget.value else "0"
             elif etype == "listbox" and isinstance(widget, SelectionList):
-                selected = widget.selected
-                items = [str(widget.get_option_at_index(i).value) for i in selected]
+                items = [value for _, value in widget.selected]
                 spec.value = ",".join(f"'{v.replace(chr(39), chr(39) + chr(39))}'" for v in items)
             elif etype == "radiobuttons" and isinstance(widget, RadioSet):
                 spec.value = str(widget.pressed_index + 1) if widget.pressed_index >= 0 else "1"
@@ -646,6 +676,10 @@ class EntryFormScreen(_BaseDialog):
             etype = (spec.entry_type or "text").lower()
             if spec.required and not val and etype != "checkbox":
                 errors.append(f"{spec.label or spec.varname}: required")
+            if etype in ("dropdown", "select") and spec.lookup_list:
+                valid = [str(value) for value in spec.lookup_list if value is not None]
+                if val not in valid:
+                    errors.append(f"{spec.label or spec.varname}: choose a valid value")
             if spec.validation_regex and val and not _re.fullmatch(spec.validation_regex, val):
                 errors.append(f"{spec.label or spec.varname}: does not match pattern")
         return errors
@@ -786,8 +820,12 @@ class CompareScreen(_BaseDialog):
         rows1 = self.args.get("rows1", [])
         rows2 = self.args.get("rows2", [])
 
-        self._key_idx1 = [i for i, h in enumerate(headers1) if h in keylist]
-        self._key_idx2 = [i for i, h in enumerate(headers2) if h in keylist]
+        key_idx1 = _key_column_indices(headers1, keylist)
+        key_idx2 = _key_column_indices(headers2, keylist)
+        if not key_idx1 or not key_idx2:
+            return
+        self._key_idx1 = key_idx1
+        self._key_idx2 = key_idx2
 
         # Syncing uses display-consistent string normalization (DataTable
         # cells are strings).  The diff engine in base.py has its own
@@ -937,6 +975,23 @@ class CompareScreen(_BaseDialog):
 # ---------------------------------------------------------------------------
 
 
+class _SelectRowsTable(DataTable):
+    """Highlight on a single click; add/remove a row on double-click or Enter."""
+
+    def on_click(self, event: events.Click) -> None:
+        row = event.style.meta.get("row", -1)
+        if row == -1 and not event.style.meta.get("out_of_bounds"):
+            return
+        event.prevent_default()
+        event.stop()
+        if event.style.meta.get("out_of_bounds") or not 0 <= row < len(self.rows):
+            return
+        self.focus()
+        self.move_cursor(row=row)
+        if event.chain == 2:
+            self.post_message(DataTable.RowSelected(self, row, self.ordered_rows[row].key))
+
+
 class SelectRowsScreen(_BaseDialog):
     """Row selection dialog: pick rows from source table and add to target."""
 
@@ -963,6 +1018,7 @@ class SelectRowsScreen(_BaseDialog):
         super().__init__(args)
         self._selected_rows: list[list[Any]] = []
         self._source_rows: dict[Any, list[Any]] = {}
+        self._pending_rows: dict[Any, list[Any]] = {}
 
     def compose(self) -> ComposeResult:
         title = self.args.get("title", "Select rows")
@@ -981,29 +1037,40 @@ class SelectRowsScreen(_BaseDialog):
                 yield help_btn
             if message:
                 yield Static(message, id="message")
-            yield Static("Double-click or press Enter on a row to add it to the right table.", id="hint")
+            yield Static(
+                "Double-click or press Enter: source adds a copy; an added destination row removes that copy. Existing rows are kept.",
+                id="hint",
+            )
             with Horizontal(id="tables"):
                 with Vertical(classes="sel-table"):
                     yield Label("Source (select rows)")
-                    source = _make_table_widget("source_table", headers1, rows1)
+                    source = _make_table_widget("source_table", headers1, rows1, table_class=_SelectRowsTable)
                     self._source_rows = {key: list(row) for key, row in zip(source.rows, rows1)}
                     yield source
                     yield Static(_row_count_text(len(rows1)), classes="row-count")
                 with Vertical(classes="sel-table"):
                     yield Label("Destination")
-                    yield _make_table_widget("dest_table", headers2, rows2)
-                    yield Static(_row_count_text(len(rows2)), classes="row-count")
+                    yield _make_table_widget("dest_table", headers2, rows2, table_class=_SelectRowsTable)
+                    yield Static(_row_count_text(len(rows2)), classes="row-count", id="destination_count")
             with Horizontal(id="buttons"):
                 yield from _button_row(button_list)
 
     def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
+        dest = self.query_one("#dest_table", DataTable)
         if event.data_table.id == "source_table":
-            dest: DataTable = self.query_one("#dest_table", DataTable)
             row_key = event.row_key
             values = self._source_rows[row_key]
-            self._selected_rows.append(list(values))
+            selected = list(values)
+            self._selected_rows.append(selected)
             display = selected_row_values(self.args.get("headers1", []), values, self.args.get("headers2", []))
-            dest.add_row(*[str(value) if value is not None else "" for value in display])
+            key = dest.add_row(*[str(value) if value is not None else "" for value in display])
+            self._pending_rows[key] = selected
+        elif event.data_table.id == "dest_table":
+            removed = self._pending_rows.pop(event.row_key, None)
+            if removed is not None:
+                self._selected_rows = [row for row in self._selected_rows if row is not removed]
+                dest.remove_row(event.row_key)
+        self.query_one("#destination_count", Static).update(_row_count_text(dest.row_count))
 
     def action_submit(self) -> None:
         """Submit the first primary button value (triggered by Enter key)."""
@@ -1028,20 +1095,36 @@ class SelectRowsScreen(_BaseDialog):
 # ---------------------------------------------------------------------------
 
 
+class _SelectSubTable(DataTable):
+    """Confirm on a double-click, retaining single clicks for highlighting."""
+
+    class Confirmed(Message):
+        def __init__(self, row_key: Any) -> None:
+            super().__init__()
+            self.row_key = row_key
+
+    def on_click(self, event: events.Click) -> None:
+        row_index = event.style.meta.get("row", -1)
+        if event.chain == 2 and not event.style.meta.get("out_of_bounds") and 0 <= row_index < len(self.rows):
+            self.post_message(self.Confirmed(self.ordered_rows[row_index].key))
+
+
 class SelectSubScreen(_BaseDialog):
     """Single-row selection dialog: pick one row and assign column values to vars."""
 
+    BINDINGS = [*_BaseDialog.BINDINGS, Binding("enter", "submit", "Submit", priority=True)]
+
     def __init__(self, args: dict) -> None:
         super().__init__(args)
-        self._selected_row: dict | None = None
-        self._headers: list = args.get("headers", [])
+        self._selected_row: list | None = None
+        self._source_rows: dict[Any, list] = {}
 
     def compose(self) -> ComposeResult:
         title = self.args.get("title", "Select a row")
         message = self.args.get("message", "")
         headers = self.args.get("headers", [])
         rows = self.args.get("rows", [])
-        button_list = self.args.get("button_list", [("OK", 1), ("Cancel", 0)])
+        button_list = self.args.get("button_list", [("OK", 1)])
 
         with Container(id="dialog"):
             if title:
@@ -1053,24 +1136,38 @@ class SelectSubScreen(_BaseDialog):
                 yield Static(message, id="message")
             yield Static("Click a row to select it.", id="hint")
             with ScrollableContainer():
-                yield _make_table_widget("sel_table", headers, rows)
+                source = _make_table_widget("sel_table", headers, rows, table_class=_SelectSubTable)
+                self._source_rows = {key: list(row) for key, row in zip(source.rows, rows)}
+                yield source
             yield Static(_row_count_text(len(rows)), classes="row-count")
             with Horizontal(id="buttons"):
                 yield from _button_row(button_list)
 
     def on_data_table_row_highlighted(self, event: DataTable.RowHighlighted) -> None:
-        row_key = event.row_key
-        tbl: DataTable = self.query_one("#sel_table", DataTable)
-        values = [tbl.get_cell(row_key, col) for col in tbl.columns]
-        self._selected_row = dict(zip(self._headers, values))
+        self._selected_row = self._source_rows.get(event.row_key)
+
+    @on(_SelectSubTable.Confirmed)
+    def _on_row_confirmed(self, event: _SelectSubTable.Confirmed) -> None:
+        self._selected_row = self._source_rows.get(event.row_key)
+        self._submit(1)
+
+    def _submit(self, value: int | None) -> None:
+        if value == 1 and self._selected_row is None:
+            return
+        self._result = {"button": value, "row": self._selected_row if value == 1 else None}
+        self.dismiss(self._result)
+
+    def action_submit(self) -> None:
+        buttons = self.args.get("button_list", [("OK", 1)])
+        value = next((b[1] for b in buttons if len(b) > 2 and b[2] == "<Return>"), 1)
+        self._submit(value)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         btn_id = event.button.id
         if btn_id and btn_id.startswith("btn_") and btn_id[4:].isdigit():
             idx = int(btn_id.split("_")[1])
-            value = self.args.get("button_list", [("OK", 1), ("Cancel", 0)])[idx][1]
-            self._result = {"button": value, "row": self._selected_row}
-            self.dismiss(self._result)
+            value = self.args.get("button_list", [("OK", 1)])[idx][1]
+            self._submit(value)
 
 
 # ---------------------------------------------------------------------------
@@ -1084,6 +1181,20 @@ class ActionScreen(_BaseDialog):
     BINDINGS = [
         *_BaseDialog.BINDINGS,
     ]
+    AUTO_FOCUS = ""
+    DEFAULT_CSS = (
+        _BaseDialog.DEFAULT_CSS
+        + """
+    #action_buttons { height: auto; }
+    #action_data { height: auto; max-height: 10; }
+    """
+    )
+
+    def __init__(self, args: dict) -> None:
+        super().__init__(args)
+        self._button_specs = args.get("button_specs", [])
+        self._source_rows: dict[Any, list] = {}
+        self._selected_row: list | None = None
 
     def compose(self) -> ComposeResult:
         title = self.args.get("title", "Actions")
@@ -1102,24 +1213,47 @@ class ActionScreen(_BaseDialog):
             if message:
                 yield Static(message, id="message")
             if headers and rows:
-                with ScrollableContainer():
-                    yield _make_table_widget("action_table", headers, rows)
+                with ScrollableContainer(id="action_data"):
+                    source = _make_table_widget("action_table", headers, rows)
+                    self._source_rows = {key: list(row) for key, row in zip(source.rows, rows)}
+                    yield source
                 yield Static(_row_count_text(len(rows)), classes="row-count")
             with Vertical(id="action_buttons"):
                 for i, spec in enumerate(button_specs):
-                    yield Button(f"{spec.label} — {spec.prompt}", id=f"action_{i}", variant="primary")
+                    yield Button(
+                        f"{spec.label} — {spec.prompt}",
+                        id=f"action_{i}",
+                        variant="primary",
+                        disabled=spec.data_required,
+                    )
                 if include_continue:
                     yield Button("Continue", id="action_continue", variant="default")
+                yield Button("Cancel", id="btn_cancel_exit", variant="warning")
 
-        self._button_specs = button_specs
+    def _select_row(self, row_key: Any) -> None:
+        self._selected_row = self._source_rows.get(row_key)
+        for i, spec in enumerate(self._button_specs):
+            self.query_one(f"#action_{i}", Button).disabled = spec.data_required and self._selected_row is None
+
+    def on_data_table_row_highlighted(self, event: DataTable.RowHighlighted) -> None:
+        if event.data_table.has_focus:
+            self._select_row(event.row_key)
+
+    def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
+        self._select_row(event.row_key)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         btn_id = event.button.id
         if btn_id == "action_continue":
-            self._result = {"button": 1}
-        elif btn_id and btn_id.startswith("action_"):
+            self._result = {"button": 0, "row": None}
+        elif btn_id and btn_id.startswith("action_") and btn_id[7:].isdigit():
             idx = int(btn_id.split("_")[1])
-            self._result = {"button": idx + 1}
+            spec = self._button_specs[idx]
+            if spec.data_required and self._selected_row is None:
+                return
+            self._result = {"button": idx + 1, "row": self._selected_row if spec.data_required else None}
+        else:
+            return
         self.dismiss(self._result)
 
 
@@ -1253,9 +1387,9 @@ class CredentialsScreen(_BaseDialog):
         if event.button.id == "btn_ok":
             username = self.query_one("#username_input", Input).value
             password = self.query_one("#password_input", Input).value
-            self._result = {"username": username, "password": password}
+            self._result = {"button": 1, "username": username, "password": password}
         else:
-            self._result = {"username": "", "password": ""}
+            self._result = {"button": None, "username": "", "password": ""}
         self.dismiss(self._result)
 
 
@@ -1283,12 +1417,15 @@ class ConnectScreen(_BaseDialog):
     DEFAULT_CSS = (
         _BaseDialog.DEFAULT_CSS
         + """
-    .field-row {
-        height: 3;
-        margin-bottom: 1;
+    ConnectScreen #connect_fields {
+        height: auto;
     }
-    .field-label {
-        width: 14;
+    ConnectScreen .field-row {
+        height: 3;
+        margin-bottom: 0;
+    }
+    ConnectScreen .field-label {
+        width: 16;
         content-align: right middle;
         padding-right: 1;
     }
@@ -1296,47 +1433,70 @@ class ConnectScreen(_BaseDialog):
     )
 
     def compose(self) -> ComposeResult:
-        message = self.args.get("message", "")
+        from execsql.gui.base import CONNECTION_ENCODINGS
+
         with Container(id="dialog"):
             yield Label("Connect to Database", id="title")
             help_btn = _help_button(self.args.get("help_url"))
             if help_btn:
                 yield help_btn
-            if message:
-                yield Static(message, id="message")
-            with Horizontal(classes="field-row"):
-                yield Label("Database type:", classes="field-label")
-                yield Select(
-                    options=[(v, k) for k, v in _DB_TYPES],
-                    id="db_type_select",
-                )
-            with Horizontal(classes="field-row"):
-                yield Label("Server:", classes="field-label")
-                yield Input(id="server_input", placeholder="Hostname or IP")
-            with Horizontal(classes="field-row"):
-                yield Label("Database:", classes="field-label")
-                yield Input(id="database_input", placeholder="Database name or file path")
-            with Horizontal(classes="field-row"):
-                yield Label("Username:", classes="field-label")
-                yield Input(id="username_input", placeholder="(optional)")
+            if self.args.get("message"):
+                yield Static(self.args["message"], id="message")
+            with Vertical(id="connect_fields"):
+                with Horizontal(classes="field-row"):
+                    yield Label("Database type:", classes="field-label")
+                    yield Select(
+                        options=[(v, k) for k, v in _DB_TYPES],
+                        value="p",
+                        allow_blank=False,
+                        id="db_type_select",
+                    )
+                for name, label, placeholder in (
+                    ("server", "Server:", "Hostname or IP"),
+                    ("database", "Database:", "Database name"),
+                    ("username", "Username:", "(optional)"),
+                    ("password", "Password:", "Blank: no additional prompt"),
+                    ("port", "Port:", "Blank: DBMS default"),
+                    ("encoding", "Encoding:", "Blank: driver default; " + ", ".join(CONNECTION_ENCODINGS)),
+                ):
+                    with Horizontal(classes="field-row", id=f"{name}_row"):
+                        yield Label(label, classes="field-label", id=f"{name}_label")
+                        yield Input(id=f"{name}_input", placeholder=placeholder, password=name == "password")
+                yield Static("", id="connect_error")
             with Horizontal(id="buttons"):
                 yield Button("Connect", id="btn_ok", variant="primary")
                 yield Button("Cancel", id="btn_cancel", variant="default")
 
+    def on_select_changed(self, event: Select.Changed) -> None:
+        from execsql.gui.base import FILE_DATABASES
+
+        if event.select.id != "db_type_select":
+            return
+        kind = str(event.value)
+        file_based = kind in FILE_DATABASES
+        for name in ("server", "username", "password", "port", "encoding"):
+            self.query_one(f"#{name}_row").display = not file_based and not (kind == "d" and name in ("server", "port"))
+        self.query_one("#database_label", Label).update(
+            "File path:" if file_based else "DSN:" if kind == "d" else "Database:",
+        )
+        self.query_one("#database_input", Input).placeholder = (
+            "Existing database file" if file_based else "Database name or DSN"
+        )
+
     def on_button_pressed(self, event: Button.Pressed) -> None:
+        from execsql.gui.base import connection_result
+
         if event.button.id == "btn_ok":
-            db_type_sel = self.query_one("#db_type_select", Select)
-            db_type = str(db_type_sel.value) if db_type_sel.value else "l"
-            server = self.query_one("#server_input", Input).value.strip() or None
-            database = self.query_one("#database_input", Input).value.strip() or None
-            username = self.query_one("#username_input", Input).value.strip() or None
-            self._result = {
-                "db_type": db_type,
-                "server": server,
-                "database": database,
-                "db_file": database if db_type in ("l", "k", "a") else None,
-                "username": username,
+            values = {
+                name: self.query_one(f"#{name}_input", Input).value
+                for name in ("server", "database", "username", "password", "port", "encoding")
             }
+            try:
+                self._result = dict(connection_result(str(self.query_one("#db_type_select", Select).value), **values))
+            except ValueError as exc:
+                self.query_one("#connect_error", Static).update(str(exc))
+                self.query_one("#port_input", Input).focus()
+                return
         else:
             self._result = {"db_type": None}
         self.dismiss(self._result)
@@ -1391,7 +1551,30 @@ def _build_screen_map() -> dict:
 # ---------------------------------------------------------------------------
 
 
-class _SingleDialogApp(App):
+class _DialogApp(App):
+    """Return failures in the owned modal's message pump through its result."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self._dialog_screen: ModalScreen | None = None
+
+    def _handle_exception(self, error: Exception) -> None:
+        from textual._context import active_message_pump
+
+        dialog = self._dialog_screen
+        pump = active_message_pump.get(None)
+        if (
+            dialog is not None
+            and self.screen is dialog
+            and (pump is dialog or dialog in getattr(pump, "ancestors", ()))
+        ):
+            self._dialog_screen = None
+            dialog.dismiss({"error": str(error) or type(error).__name__, "button": None})
+            return
+        super()._handle_exception(error)
+
+
+class _SingleDialogApp(_DialogApp):
     """Runs a single ModalScreen dialog, returns its result, then exits.
 
     Used by ``_run_dialog_sync`` to show a dialog from the main thread without
@@ -1413,9 +1596,11 @@ class _SingleDialogApp(App):
     def on_mount(self) -> None:
         # push_screen with a callback avoids the worker requirement of
         # push_screen_wait; the callback fires when the screen is dismissed.
-        self.push_screen(self._screen_class(self._screen_args), self._on_result)
+        self._dialog_screen = self._screen_class(self._screen_args)
+        self.push_screen(self._dialog_screen, self._on_result)
 
     def _on_result(self, result: Any) -> None:
+        self._dialog_screen = None
         self.exit(result)
 
 
@@ -1427,8 +1612,8 @@ class _SingleDialogApp(App):
 class _TextualSyncQueue:
     """Drop-in replacement for ``_state.gui_manager_queue`` on the Textual path.
 
-    gui_level >= 1 with Textual installed: instead of an async manager thread,
-    ``put()`` runs the dialog synchronously in the main thread by launching a
+    ``put()`` runs an ordinary Textual dialog synchronously in the calling
+    thread by launching a
     short-lived ``_SingleDialogApp``.  After ``put()`` returns, the result is
     already on ``spec.return_queue`` so the calling metacommand's ``get()``
     unblocks immediately.
@@ -1457,8 +1642,6 @@ class _TextualSyncQueue:
         except Exception as exc:
             spec.return_queue.put({"error": str(exc), "button": None})
             return
-        if result is not None and result.get("cancelled"):
-            raise ScriptExit(2)
         spec.return_queue.put(result if result is not None else {})
 
     def get_nowait(self) -> Any:
@@ -1483,11 +1666,40 @@ class _ConsoleDialogQueue:
 
     def __init__(self) -> None:
         self._q: _stdlib_queue.Queue = _stdlib_queue.Queue()
+        self._pending: dict[int, Any] = {}
+        self._lock = threading.Lock()
+        self._closing = False
 
     def put(self, spec: Any, block: bool = True, timeout: Any = None) -> None:
         if spec is None:
             return
-        self._q.put(spec, block=block, timeout=timeout)
+        with self._lock:
+            if self._closing:
+                spec.return_queue.put({"interrupted": True})
+                return
+            self._pending[id(spec)] = spec
+            self._q.put(spec, block=block, timeout=timeout)
+
+    def reply(self, spec: Any, result: dict) -> None:
+        """Reply once; shutdown may already have interrupted this request."""
+        with self._lock:
+            if self._pending.pop(id(spec), None) is not None:
+                spec.return_queue.put(result)
+
+    def interrupt(self) -> bool:
+        """Stop admitting dialogs and wake every pending response waiter."""
+        with self._lock:
+            self._closing = True
+            pending = list(self._pending.values())
+            self._pending.clear()
+            while True:
+                try:
+                    self._q.get_nowait()
+                except _stdlib_queue.Empty:
+                    break
+            for spec in pending:
+                spec.return_queue.put({"interrupted": True})
+            return bool(pending)
 
     def get_nowait(self) -> Any:
         return self._q.get_nowait()
@@ -1501,7 +1713,7 @@ class _ConsoleDialogQueue:
 # ---------------------------------------------------------------------------
 
 
-class ConsoleApp(App):
+class ConsoleApp(_DialogApp):
     """Persistent Textual console for gui_level 3.
 
     The SQL script runs in a background worker thread.  This app runs in the
@@ -1514,7 +1726,7 @@ class ConsoleApp(App):
     request as a ``ModalScreen`` overlay via ``push_screen_wait()``.
     """
 
-    BINDINGS = [Binding("ctrl+c", "request_quit", "Quit", show=True)]
+    BINDINGS = [Binding("ctrl+c", "request_quit", "Quit", show=True, priority=True)]
 
     DEFAULT_CSS = """
     ConsoleApp {
@@ -1551,6 +1763,8 @@ class ConsoleApp(App):
         self._wait_on_exit = wait_on_exit
         self._script_thread: threading.Thread | None = None
         self._script_exception: BaseException | None = None
+        self._quit_requested = False
+        self._completion_reported = False
         self._screen_map: dict | None = None
         self._console_lines: list[str] = []
 
@@ -1570,17 +1784,36 @@ class ConsoleApp(App):
         )
         self._script_thread.start()
         self.set_interval(0.05, self._poll_dialog_queue)
+        self.set_interval(0.05, self._poll_script_finished)
 
     def _run_script(self) -> None:
         try:
             self._script_runner()
         except BaseException as exc:
             self._script_exception = exc
-        finally:
-            self.call_from_thread(self._on_script_done)
+
+    def _poll_script_finished(self) -> None:
+        if self._script_thread is not None and not self._script_thread.is_alive() and not self._completion_reported:
+            self._completion_reported = True
+            self._on_script_done()
+
+    def wait_for_script(self) -> None:
+        """Join after app.run() returns, before the CLI tears down output/connections."""
+        if self._script_thread is not None:
+            self._script_thread.join()
+
+    async def on_unmount(self) -> None:
+        # Unexpected app shutdown must also leave the loop available for worker
+        # output callbacks until interruption and rollback have finished.
+        import asyncio
+
+        if self._script_thread is not None and self._script_thread.is_alive():
+            self.action_request_quit()
+            while self._script_thread.is_alive():
+                await asyncio.sleep(0.05)
 
     def _on_script_done(self) -> None:
-        if self._wait_on_exit:
+        if self._wait_on_exit and not self._quit_requested:
             self.query_one("#status_bar", Label).update(
                 "Script complete — press Ctrl+C or close window to exit.",
             )
@@ -1588,6 +1821,8 @@ class ConsoleApp(App):
             self.exit()
 
     def _poll_dialog_queue(self) -> None:
+        if self._quit_requested:
+            return
         try:
             spec = self._dialog_queue.get_nowait()
         except _stdlib_queue.Empty:
@@ -1595,29 +1830,26 @@ class ConsoleApp(App):
         from execsql.utils.gui import QUERY_CONSOLE
 
         if spec.gui_type == QUERY_CONSOLE:
-            spec.return_queue.put({"console_running": True})
+            self._dialog_queue.reply(spec, {"console_running": True})
             return
         if self._screen_map is None:
             self._screen_map = _build_screen_map()
         screen_class = self._screen_map.get(spec.gui_type)
         if screen_class is None:
-            spec.return_queue.put({"error": f"Unknown GUI type: {spec.gui_type}", "button": None})
+            self._dialog_queue.reply(spec, {"error": f"Unknown GUI type: {spec.gui_type}", "button": None})
             return
 
         async def _push() -> None:
-            result = await self.push_screen_wait(screen_class(spec.args))
-            if result is not None and result.get("cancelled"):
-                # Interrupt the worker thread
-                if self._script_thread and self._script_thread.is_alive():
-                    tid = self._script_thread.ident
-                    if tid is not None:
-                        ctypes.pythonapi.PyThreadState_SetAsyncExc(
-                            ctypes.c_ulong(tid),
-                            ctypes.py_object(ScriptExit),
-                        )
-                spec.return_queue.put(result if result is not None else {})
-            else:
-                spec.return_queue.put(result if result is not None else {})
+            if self._quit_requested:
+                return
+            try:
+                self._dialog_screen = screen_class(spec.args)
+                result = await self.push_screen_wait(self._dialog_screen)
+            except Exception as exc:
+                result = {"error": str(exc), "button": None}
+            finally:
+                self._dialog_screen = None
+            self._dialog_queue.reply(spec, result if result is not None else {})
 
         self.run_worker(cast(Any, _push), exclusive=False)
 
@@ -1644,6 +1876,8 @@ class ConsoleApp(App):
         self.call_from_thread(self._update_status, msg)
 
     def _update_status(self, msg: str) -> None:
+        if self._quit_requested:
+            msg = "Stopping… waiting for script cleanup."
         try:
             self.query_one("#status_bar", Label).update(msg)
         except Exception:
@@ -1660,16 +1894,28 @@ class ConsoleApp(App):
             pass  # Widget may not be mounted yet.
 
     def action_request_quit(self) -> None:
-        # A plain SystemExit, not ScriptExit: quitting while a statement runs
-        # interrupts it, and it is rolled back like a failed one.
-        if self._script_thread and self._script_thread.is_alive():
+        if self._script_thread is None or not self._script_thread.is_alive():
+            self.exit()
+            return
+        if self._quit_requested:
+            return
+        self._quit_requested = True
+        self._update_status("Stopping… waiting for script cleanup.")
+        waiting_for_dialog = self._dialog_queue.interrupt()
+        if waiting_for_dialog:
+            # The checked response receiver raises on the worker thread. Do not
+            # inject another exception while that worker may already be rolling back.
+            if self.screen_stack and isinstance(self.screen, _BaseDialog) and self.screen.is_mounted:
+                self.screen.dismiss({"interrupted": True})
+        else:
+            # A driver wait receives this plain interrupt when it next returns
+            # to Python. Keep the UI alive until the worker has fully unwound.
             tid = self._script_thread.ident
             if tid is not None:
-                ctypes.pythonapi.PyThreadState_SetAsyncExc(
-                    ctypes.c_ulong(tid),
-                    ctypes.py_object(SystemExit),
-                )
-        self.exit()
+                ctypes.pythonapi.PyThreadState_SetAsyncExc(ctypes.c_ulong(tid), ctypes.py_object(SystemExit))
+
+    async def action_quit(self) -> None:
+        self.action_request_quit()
 
 
 # ---------------------------------------------------------------------------
@@ -1678,15 +1924,13 @@ class ConsoleApp(App):
 
 
 class TextualBackend(GuiBackend):
-    """GUI backend for the Textual path (gui_level 1 or 2).
+    """Textual backend lifecycle hooks and directly callable dialog methods.
 
-    Dialog dispatch goes through ``_TextualSyncQueue`` (set as
-    ``_state.gui_manager_queue`` by ``enable_gui()``), so the ``show_*``
-    methods below are the canonical implementations — called by
-    ``gui_manager_loop`` via ``dispatch()`` — but only used when the
-    thread-based manager path is taken (which it isn't for Textual; the sync
-    queue handles everything).  They are implemented here to satisfy the ABC
-    and in case the backend is ever called directly.
+    Ordinary requests use ``_TextualSyncQueue``, which launches a short-lived
+    ``_SingleDialogApp`` through its screen map in the caller's thread. Direct
+    ``show_*`` calls use the same app mechanism. Neither starts a manager thread.
+    For the persistent CLI console, ``_console_app`` points to ``ConsoleApp``;
+    its main-thread UI serves modal requests queued by the script worker.
     """
 
     def __init__(self) -> None:

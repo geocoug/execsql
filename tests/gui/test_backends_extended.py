@@ -12,7 +12,7 @@ For each backend:
   are exercised by attaching a MagicMock console.
 - The sync queue ``put()`` paths are exercised end-to-end with a fake
   spec + return queue: QUERY_CONSOLE, unknown gui_type, runtime exception,
-  cancellation→SystemExit, and the happy path.
+  cancellation returned to the handler, and the happy path.
 """
 
 from __future__ import annotations
@@ -181,15 +181,12 @@ class TestTextualSyncQueue:
         assert "error" in resp
         assert "boom" in resp["error"]
 
-    def test_cancelled_result_raises_script_exit(self, queue) -> None:
-        from execsql.exceptions import ScriptExit
-
+    def test_cancelled_result_is_returned_to_handler(self, queue) -> None:
         spec = _FakeSpec("msg", {"message": "hi"})
         with patch("execsql.gui.tui._SingleDialogApp") as mock_app:
             mock_app.return_value.run.return_value = {"cancelled": True}
-            with pytest.raises(ScriptExit) as exc:
-                queue.put(spec)
-        assert exc.value.code == 2
+            queue.put(spec)
+        assert spec.return_queue.get_nowait() == {"cancelled": True}
 
     def test_happy_path_puts_result(self, queue) -> None:
         spec = _FakeSpec("msg", {"message": "hi"})
@@ -230,19 +227,18 @@ class TestConsoleDialogQueue:
 
 
 class TestConsoleAppDialogCancel:
-    def test_a_cancelled_dialog_stops_the_script_thread_with_script_exit(self) -> None:
-        """The cancel is execsql ending the run, not an interrupt of the statement."""
+    def test_a_cancelled_dialog_returns_without_interrupting_the_worker(self) -> None:
         pytest.importorskip("textual")
         import asyncio
         import ctypes
         import threading
 
-        from execsql.exceptions import ScriptExit
-        from execsql.gui.tui import ConsoleApp
+        from execsql.gui.tui import ConsoleApp, _ConsoleDialogQueue
 
         app = object.__new__(ConsoleApp)
         spec = _FakeSpec("msg", {"message": "hi"})
-        app._dialog_queue = _stdlib_queue.Queue()
+        app._dialog_queue = _ConsoleDialogQueue()
+        app._quit_requested = False
         app._dialog_queue.put(spec)
         app._screen_map = {"msg": lambda args: None}
         release = threading.Event()
@@ -260,7 +256,8 @@ class TestConsoleAppDialogCancel:
         finally:
             release.set()
             app._script_thread.join(10)
-        assert inject.call_args.args[1].value is ScriptExit
+        inject.assert_not_called()
+        assert spec.return_queue.get_nowait() == {"cancelled": True}
 
 
 # ---------------------------------------------------------------------------
@@ -436,8 +433,6 @@ class TestTkinterSyncQueue:
         assert spec.return_queue.get_nowait() == {"button": 1}
 
     def test_exception_in_dispatch_returns_error(self, queue) -> None:
-        # Use "openfile" — not in _EXIT_ON_CANCEL — so the None-button error
-        # result doesn't trip the cancel-halt SystemExit branch.
         q, backend = queue
         backend.dispatch.side_effect = RuntimeError("boom")
         spec = _FakeSpec("openfile", {})
@@ -445,15 +440,12 @@ class TestTkinterSyncQueue:
         resp = spec.return_queue.get_nowait()
         assert "error" in resp and "boom" in resp["error"]
 
-    def test_cancel_triggers_script_exit(self, queue) -> None:
-        from execsql.exceptions import ScriptExit
-
+    def test_cancel_is_returned_to_handler(self, queue) -> None:
         q, backend = queue
         backend.dispatch.return_value = {"button": None}
         spec = _FakeSpec("msg", {"message": "hi"})
-        with pytest.raises(ScriptExit) as exc:
-            q.put(spec)
-        assert exc.value.code == 2
+        q.put(spec)
+        assert spec.return_queue.get_nowait() == {"button": None}
 
     def test_no_exit_for_filedialog_cancel(self, queue) -> None:
         """File/directory dialogs return button=None on cancel but should not exit."""

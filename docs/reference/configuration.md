@@ -55,7 +55,7 @@ The section and property names that may be used in a configuration file are list
 :   The port number for the client-server database. This is equivalent to the "-p" command-line option.
 
 `username`
-:   The name of the database user, for client-server databases. This is equivalent to the "-u" command-line option.
+:   The name of the database user, for client-server databases. This is equivalent to the "-u" command-line option. A supplied username is retained when `password_prompt=No`; leave it unspecified to use the driver's default identity.
 
 `access_username`
 :   The name of the database user, for MS-Access databases only. When using MS-Access, a password will be prompted for only if this configuration option is set or the "-u" command-line option is used, regardless of the setting of the username configuration parameter.
@@ -271,7 +271,7 @@ ods_max_xml_mb=150
 
 `console_height`
 
-:   Specifies the approximate height, in lines of text, for a console window that is created with the [CONSOLE ON](metacommands.md#console) metacommand.
+:   Specifies the approximate text-area height, in lines, of a native Tkinter console created with [CONSOLE ON](metacommands.md#console) or GUI level 3. Default: 25; minimum: 5. `CONSOLE HEIGHT` changes the active window and the value used by subsequent OFF/ON cycles. This setting has no sizing effect on Textual or console backends, which follow the host terminal dimensions.
 
 `console_wait_when_done`
 
@@ -284,7 +284,7 @@ ods_max_xml_mb=150
 
 `console_width`
 
-:   Specifies the approximate width, in characters, for a console window that is created with the [CONSOLE ON](metacommands.md#console) metacommand.
+:   Specifies the approximate text-area width, in characters, of a native Tkinter console created with [CONSOLE ON](metacommands.md#console) or GUI level 3. Default: 100; minimum: 20. `CONSOLE WIDTH` changes the active window and the value used by subsequent OFF/ON cycles. This setting has no sizing effect on Textual or console backends, which follow the host terminal dimensions.
 
 `write_warnings` { #write_warnings }
 
@@ -311,9 +311,14 @@ ods_max_xml_mb=150
     - 2: Also use a GUI dialog if a message is included with the [HALT](metacommands.md#halt) metacommand, and prompt for the initial database to use if no database connection parameters are specified in a configuration file or on the command line. At levels 0 and 1, a HALT message is written to the console instead, and the script exits without waiting for input.
     - 3: Additionally, open a GUI console when *execsql* starts.
 
-`gui_framework` { #gui_framework }
+With the Textual console (`gui_framework=textual`, `gui_level=3`), database connections, including SQLite and connections opened by `CONNECT` or `PROMPT CONNECT`, are opened, used and closed on the script worker. Connections close before the worker stops, including after errors or cancellation. Ctrl+C requests script interruption and shows **Stopping… waiting for script cleanup.** The console remains responsive until the worker has stopped and transaction cleanup has finished, then exits with status 130 and an interrupted log record. Pending dialogs are closed and released as interruptions, independently of CANCEL_HALT. Repeated Quit requests do not interrupt rollback again.
 
-:   The GUI framework to use when `gui_level` is greater than 0. The property value must be either `tkinter` (the default) or `textual`. `tkinter` uses native desktop dialogs via Tk; `textual` provides a terminal-based UI that works in headless/SSH environments. This can also be set via the `--gui-framework` command-line option.
+Fatal script errors run `ON ERROR_HALT EXECUTE SCRIPT` on the script worker before its database connections close, including errors in a script selected through `PROMPT ACTION`. An open batch is rolled back before the cleanup script runs, so the cleanup script can write and commit its own SQL.
+
+There is no forced-exit deadline: a blocked database/driver call must return before its worker can finish cleanup. Closing an already completed script is a normal exit, including when the console was kept open for reading after completion.
+
+`gui_framework` { #gui_framework }
+:   The GUI framework to use when `gui_level` is greater than 0. The property value must be either `tkinter` (the default) or `textual`. `tkinter` uses native desktop dialogs via Tk; `textual` provides a terminal-based UI that works in headless/SSH environments. This can also be set via the `--gui-framework` command-line option. Native Tk on macOS does not require `DISPLAY` or `WAYLAND_DISPLAY`. On other POSIX systems, neither display variable being set skips Tk initialization. If Tk is unavailable or startup fails, execsql tries Textual, then console prompts if Textual is unavailable; fallback writes the reason and selected backend to standard error.
 
 <a id="config_email"></a>
 

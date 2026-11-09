@@ -69,6 +69,99 @@ ______________________________________________________________________
 
 ### Bug Fixes
 
+`PROMPT ACTION` preserves the selected script's fatal errors. An unevaluable condition or other error that stops `EXECUTE SCRIPT` also stops ACTION execution, even with `METACOMMAND_ERROR_HALT OFF`; errors are not downgraded to ignorable prompt failures. Invalid targets and missing arguments still follow the prompt's normal error policy.
+
+Textual dialog construction and control failures follow the script's metacommand error policy in ordinary prompts and the full console. They close the failed dialog and fail open batches; with `METACOMMAND_ERROR_HALT OFF`, later prompts remain usable. They do not count as user cancellation or console Quit.
+
+The full Textual CLI console opens, uses and closes database connections on its script worker, including the initial SQLite connection and connections added by `CONNECT` or `PROMPT CONNECT`. Cleanup finishes before the worker stops on normal completion, halts, errors and interruption. Fatal errors, including those from an ACTION-selected script, run `ON ERROR_HALT` cleanup before the connections close. SQLite retains its same-thread connection guard.
+
+PostgreSQL, MySQL/MariaDB, Oracle, Firebird and ODBC DSN connections forward an explicit username independently of password presence. `--no-passwd`, `password_prompt=No`, `CONNECT ... NEED_PWD=FALSE` and blank-password `PROMPT CONNECT` requests therefore keep the selected identity. Supplied passwords, including explicit empty strings at the adapter API, are passed independently of the prompt flag; omitted passwords leave driver authentication defaults available. Firebird preserves an omitted username rather than converting it into a literal account name.
+
+Tkinter and Textual `PROMPT SELECT_ROWS` can remove a staged destination copy by double-click or Enter, without deleting rows already stored in the destination table. Duplicate copies remain independent, and removed copies are excluded from the eventual write. Textual uses single clicks to highlight and double-clicks/Enter to change the staged selection. Native `PROMPT ACTION` measures content for its initial size, wraps descriptions and provides scrolling with a persistent Continue/Cancel footer, replacing the fixed-height layout that clipped controls.
+
+Native Tk console sizing uses the active backend: configuration values apply at creation, and `CONSOLE WIDTH` / `HEIGHT` resize the actual text widget and window. Commanded dimensions persist across OFF/ON and manual window closure; resizing preserves position and does not show a hidden window. The modular implementation previously updated a disconnected legacy handle and left the console at fixed defaults. Textual and console backends retain the settings without resizing their host terminal.
+
+`PROMPT CONNECT` collects and forwards optional port, encoding and masked password inputs in all three backends. An empty password explicitly attempts a connection without another execsql password prompt or keyring lookup; normal driver authentication settings may still apply. SQLite, DuckDB and Access use file-path presentation, with native Browse in Tkinter, and ignore hidden network fields. DSNs use their configured server/port. Invalid ports remain editable before submission. See [PROMPT CONNECT](../reference/metacommands.md#prompt_connect) for supported controls and defaults.
+
+Textual console Quit waits for script-worker termination and interrupt
+rollback before output/connection cleanup. The modular console previously
+closed its event loop immediately and could log normal completion while the
+worker was still running. Pending dialog waiters receive a distinct
+interruption response, and later dialog requests cannot block shutdown.
+Repeated Quit requests do not inject another interrupt into cleanup. The
+console stays responsive while waiting for a blocked driver to return, then
+reports interruption with exit status 130. Normal completion and deliberate
+HALT retain their own outcomes.
+
+Textual `PROMPT ASK` and `PROMPT ASK … COMPARE` preserve No as a real
+answer with value zero. The modular button builder previously turned zero
+into the cancellation action, so clicking No halted the script or left the
+answer unchanged with CANCEL_HALT OFF. No now assigns the documented value
+without cancelling; Cancel and Escape remain separate.
+
+`PROMPT ENTER_SUB` applies its documented TYPE and LCASE/UCASE controls
+in Tkinter, Textual and console. The modular backends previously ignored
+these request fields. Shared submission validation retains invalid entries
+for correction, allows empty values, expands BOOL prefixes and then applies
+case conversion. The script handler also checks confirmed values before
+assignment. Console plain-text entry preserves spaces instead of stripping
+them; its existing blank-response default for INITIALLY is retained.
+
+`PROMPT COMPARE` uses the declared composite-key order for row differences
+and Tkinter/Textual cross-table selection. The modular backends previously
+assembled keys in each table's physical column order, falsely separating
+matching rows when key columns were reordered. A missing key column now
+disables keyed comparison and selection rather than using a partial key.
+The existing first-row rule for repeated keys is preserved.
+
+Native macOS Tk is attempted when `gui_framework=tkinter`, even without
+X11/Wayland environment variables. The modular headless guard previously
+treated macOS as an X11 desktop and silently selected Textual instead.
+Other POSIX hosts without a display still skip Tk; genuine Tk startup
+failures fall back to Textual, then console prompts when Textual is
+unavailable. Fallback reports its reason and selected backend on stderr.
+
+`PROMPT CREDENTIALS` initializes and uses the configured GUI transport
+without requiring a manager thread. The modular helper previously bypassed
+Tkinter and Textual synchronous queues and read from the terminal instead.
+Cancellation follows `CANCEL_HALT`, preserving old values with halting off
+and clearing the named variables before halting and cleanup when on.
+An accepted pair of empty fields remains distinguishable from cancellation.
+Tkinter credential dialogs keep packed message/help widgets separate from
+the gridded fields, so a nonempty message no longer prevents construction.
+
+`PROMPT ENTRY_FORM` assigns each field in its declared global or `~local`
+scope rather than using the final specification row for every field.
+Textual widget IDs are independent of variable names, so local fields can
+open normally. Textual listboxes serialize selected values with SQL quoting
+and preserve separately selected rows with identical labels. Dropdown and
+select fields reject values absent from their lookup list, matching the
+restriction already applied by Tkinter and console.
+
+`PROMPT ACTION` executes the selected named script through the AST executor
+after the GUI returns. The modular backends previously returned only a
+button value and the handler ran no action. Data-required actions receive
+the original selected row as data variables (NULL becomes empty text), while
+other actions and Continue preserve existing data variables. Continue has
+a distinct response and runs no action. Data-required buttons remain
+unavailable until a row is selected, including in the console backend.
+
+`PROMPT SELECT_SUB` displays and returns source rows consistently across
+Tkinter, Textual and console. The modular handler and backends disagreed on
+the request and result formats, leaving the source empty or raising an error
+instead of assigning data variables. Selection retains original Python
+values until conversion to substitution text, including exact decimals and
+NULL as an empty string. Continue is available on every backend and leaves
+the source columns' data variables undefined, as documented.
+
+GUI backend failures are reported as metacommand errors and fail open batches,
+rather than being accepted as successful confirmations. Tkinter and Textual
+return cancellation to the script thread so `CANCEL_HALT` and `ON CANCEL_HALT`
+actions apply consistently, including in the persistent Textual console.
+Escape and Cancel agree for path pickers, and `DIALOG_CANCELED()` reflects the
+last dialog. Error and cancellation policy runs in the script's normal
+metacommand path; a failure to display a HALT message still stops the run.
+
 Condition parse errors name unknown tests and suggest close spellings, show
 the expected syntax for malformed arguments, and identify missing parentheses,
 missing commas and unsupported comparisons. Runtime errors, `execsql lint`

@@ -15,8 +15,7 @@ import time
 from typing import Any, cast
 from collections.abc import Callable
 
-from execsql.exceptions import ScriptExit
-from execsql.gui.base import GuiBackend, selected_row_values
+from execsql.gui.base import GuiBackend, _key_column_indices, normalize_text_entry, selected_row_values
 
 # ---------------------------------------------------------------------------
 # Tkinter import guard
@@ -225,6 +224,7 @@ class PauseDialog:
 class DisplayDialog:
     def __init__(self, root: tk.Tk, args: dict) -> None:
         self.result: dict = {}
+        self._args = args
 
         win = tk.Toplevel(root)
         win.title(args.get("title", ""))
@@ -283,10 +283,20 @@ class DisplayDialog:
         root.wait_window(win)
 
     def _close(self, win: tk.Toplevel, value: int | None) -> None:
-        self.result = {
-            "button": value,
-            "return_value": self._text_var.get() if self._text_var else None,
-        }
+        return_value = self._text_var.get() if self._text_var else None
+        if value is not None and return_value is not None:
+            try:
+                return_value = normalize_text_entry(
+                    return_value,
+                    self._args.get("textentrytype"),
+                    self._args.get("textentrycase"),
+                )
+            except ValueError as exc:
+                from tkinter import messagebox
+
+                messagebox.showerror("Invalid entry", str(exc), parent=win)
+                return
+        self.result = {"button": value, "return_value": return_value}
         if win.winfo_exists():
             win.destroy()
 
@@ -521,14 +531,13 @@ class CompareDialog:
 
         tree1 = _add_tree(tables_frame, "Table 1", headers1, rows1)
         tree2 = _add_tree(tables_frame, "Table 2", headers2, rows2)
+        iids1 = tree1.get_children()
+        iids2 = tree2.get_children()
 
         # Cross-table row highlighting based on key columns
-        if keylist:
-            headers1_str = [str(h) for h in headers1]
-            headers2_str = [str(h) for h in headers2]
-            key_idx1 = [i for i, h in enumerate(headers1_str) if h in keylist]
-            key_idx2 = [i for i, h in enumerate(headers2_str) if h in keylist]
-
+        key_idx1 = _key_column_indices([str(h) for h in headers1], keylist)
+        key_idx2 = _key_column_indices([str(h) for h in headers2], keylist)
+        if key_idx1 and key_idx2:
             # Syncing uses display-consistent string normalization (treeview
             # values are strings).  The diff engine in base.py has its own
             # _pk_tuple with native-equality semantics — it does not share
@@ -536,8 +545,6 @@ class CompareDialog:
             def _kv(row, idxs):
                 return tuple(str(row[i]) if row[i] is not None else "" for i in idxs)
 
-            iids1 = tree1.get_children()
-            iids2 = tree2.get_children()
             iid_to_kv1 = {iid: _kv(rows1[i], key_idx1) for i, iid in enumerate(iids1)}
             iid_to_kv2 = {iid: _kv(rows2[i], key_idx2) for i, iid in enumerate(iids2)}
             # First occurrence wins for duplicate PKs (consistent with compute_row_diffs).
@@ -691,7 +698,10 @@ class SelectRowsDialog:
                 anchor="w",
                 pady=(0, 4),
             )
-        ttk.Label(frame, text="Double-click a row to copy it to the destination table.").pack(
+        ttk.Label(
+            frame,
+            text="Double-click a source row to add it; double-click an added destination row to remove that copy. Existing rows are kept.",
+        ).pack(
             anchor="w",
             pady=(0, 8),
         )
@@ -715,22 +725,40 @@ class SelectRowsDialog:
             tree.configure(yscrollcommand=vsb.set)
             tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
             vsb.pack(side=tk.RIGHT, fill=tk.Y)
-            ttk.Label(lf, text=_row_count_text(len(rows))).pack(anchor="w")
-            return tree
+            count = ttk.Label(lf, text=_row_count_text(len(rows)))
+            count.pack(anchor="w")
+            return tree, count
 
-        src_tree = _add_tree_frame(tables_frame, "Source", headers1, rows1)
-        dst_tree = _add_tree_frame(tables_frame, "Destination", headers2, rows2)
+        src_tree, _ = _add_tree_frame(tables_frame, "Source", headers1, rows1)
+        dst_tree, dst_count = _add_tree_frame(tables_frame, "Destination", headers2, rows2)
         source_rows = {key: list(row) for key, row in zip(src_tree.get_children(), rows1)}
+
+        pending_rows = {}
 
         def _on_double_click(event):
             sel = src_tree.selection()
             if sel:
                 row_id = sel[0]
                 values = source_rows[row_id]
-                self._selected_rows.append(list(values))
+                selected = list(values)
+                self._selected_rows.append(selected)
                 display = selected_row_values(headers1, values, headers2)
-                dst_tree.insert("", "end", values=[str(value) if value is not None else "" for value in display])
+                key = dst_tree.insert("", "end", values=[str(value) if value is not None else "" for value in display])
+                pending_rows[key] = selected
+                dst_count.configure(text=_row_count_text(len(rows2) + len(self._selected_rows)))
 
+        def _remove_row(event=None):
+            selection = dst_tree.selection()
+            key = dst_tree.identify_row(event.y) if event is not None else selection[0] if selection else None
+            selected = pending_rows.pop(key, None)
+            if selected is not None:
+                self._selected_rows = [row for row in self._selected_rows if row is not selected]
+                dst_tree.delete(key)
+                dst_count.configure(text=_row_count_text(len(rows2) + len(self._selected_rows)))
+            return "break"
+
+        dst_tree.bind("<Double-1>", _remove_row)
+        dst_tree.bind("<Return>", lambda event: _remove_row())
         src_tree.bind("<Double-1>", _on_double_click)
         src_tree.bind("<Return>", _on_double_click)
 
@@ -781,26 +809,33 @@ class SelectSubDialog:
         tree_frame.pack(fill=tk.BOTH, expand=True)
         tree = ttk.Treeview(tree_frame, height=min(10, len(rows)))
         _populate_treeview(tree, headers, rows)
+        source_rows = {key: list(row) for key, row in zip(tree.get_children(), rows)}
         vsb = ttk.Scrollbar(tree_frame, orient=tk.VERTICAL, command=tree.yview)
         tree.configure(yscrollcommand=vsb.set)
         tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         vsb.pack(side=tk.RIGHT, fill=tk.Y)
         ttk.Label(frame, text=_row_count_text(len(rows))).pack(anchor="w")
 
-        def _select():
-            sel = tree.selection()
-            if sel:
-                vals = tree.item(sel[0], "values")
-                row_dict = dict(zip(headers, vals))
-                self.result = {"button": 1, "row": row_dict}
-                win.destroy()
+        def _select(value=1):
+            selected_row = None
+            if value == 1:
+                sel = tree.selection()
+                if not sel:
+                    return
+                selected_row = source_rows[sel[0]]
+            self.result = {"button": value, "row": selected_row}
+            win.destroy()
 
         btn_frame = ttk.Frame(frame)
         btn_frame.pack(pady=8, anchor="e")
-        ttk.Button(btn_frame, text="OK", command=_select).pack(side=tk.LEFT, padx=4)
+        button_list = args.get("button_list", [("OK", 1, "<Return>")])
+        _add_buttons(btn_frame, button_list, _select)
         ttk.Button(btn_frame, text="Cancel", command=lambda: self._close(win)).pack(side=tk.LEFT, padx=4)
         tree.bind("<Double-1>", lambda e: _select())
+        if not any(len(button) > 2 and button[2] == "<Return>" for button in button_list):
+            win.bind("<Return>", lambda e: _select())
         win.bind("<Escape>", lambda e: self._close(win))
+        win.protocol("WM_DELETE_WINDOW", lambda: self._close(win))
 
         _center_window(win, 600, 350)
         root.wait_window(win)
@@ -826,46 +861,135 @@ class ActionDialog:
 
         frame = ttk.Frame(win, padding=12)
         frame.pack(fill=tk.BOTH, expand=True)
+        frame.columnconfigure(0, weight=1)
+        frame.rowconfigure(0, weight=1)
         _add_help_button(frame, args.get("help_url"))
 
+        canvas = tk.Canvas(frame, width=600, height=1, highlightthickness=0, yscrollincrement=20)
+        canvas.grid(row=0, column=0, sticky="nsew")
+        scrollbar = ttk.Scrollbar(frame, orient=tk.VERTICAL, command=canvas.yview)
+        scrollbar.grid(row=0, column=1, sticky="ns")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        content = ttk.Frame(canvas)
+        content_window = canvas.create_window((0, 0), window=content, anchor="nw")
+        content.bind("<Configure>", lambda event: canvas.configure(scrollregion=canvas.bbox("all")))
+
+        wrapped_labels = []
         message = args.get("message", "")
         if message:
-            ttk.Label(frame, text=message, wraplength=580, anchor="w", justify="left").pack(
-                anchor="w",
-                pady=(0, 8),
-            )
+            message_label = ttk.Label(content, text=message, wraplength=580, anchor="w", justify="left")
+            message_label.pack(fill=tk.X, pady=(0, 8))
+            wrapped_labels.append(message_label)
 
+        def fit_width(event):
+            canvas.itemconfigure(content_window, width=event.width)
+            for label in wrapped_labels:
+                label.configure(wraplength=max(1, event.width))
+
+        canvas.bind("<Configure>", fit_width)
         headers = args.get("column_headers")
         rows = args.get("rowset")
+        tree = None
+        source_rows = {}
         if headers and rows:
-            tree = ttk.Treeview(frame, height=min(6, len(rows)))
+            tree = ttk.Treeview(content, height=min(6, len(rows)), selectmode="browse")
             _populate_treeview(tree, headers, rows)
-            tree.pack(fill=tk.BOTH, expand=True, pady=(0, 4))
-            ttk.Label(frame, text=_row_count_text(len(rows))).pack(anchor="w", pady=(0, 8))
+            source_rows = {key: list(row) for key, row in zip(tree.get_children(), rows)}
+            tree.pack(fill=tk.X, pady=(0, 4))
+            ttk.Label(content, text=_row_count_text(len(rows))).pack(anchor="w", pady=(0, 8))
 
         button_specs = args.get("button_specs", [])
+        action_buttons: list[ttk.Button] = []
+
+        def selected_row():
+            selected = tree.selection() if tree is not None else ()
+            return source_rows.get(selected[0]) if selected else None
+
+        def select_action(index):
+            row = selected_row() if button_specs[index].data_required else None
+            if button_specs[index].data_required and row is None:
+                return
+            self.result = {"button": index + 1, "row": row}
+            win.destroy()
+
+        def update_buttons(event):
+            has_row = selected_row() is not None
+            for button, spec in zip(action_buttons, button_specs):
+                button.configure(state="disabled" if spec.data_required and not has_row else "normal")
+
+        def reveal_action(event):
+            top = canvas.canvasy(0)
+            y = event.widget.winfo_rooty() - content.winfo_rooty()
+            bottom = y + event.widget.winfo_height()
+            height = max(1, content.winfo_height())
+            if y < top:
+                canvas.yview_moveto(y / height)
+            elif bottom > top + canvas.winfo_height():
+                canvas.yview_moveto((bottom - canvas.winfo_height()) / height)
+
         for i, spec in enumerate(button_specs):
-            btn_text = f"{spec.label}\n{spec.prompt}"
+            action_row = ttk.Frame(content)
+            action_row.pack(fill=tk.X, pady=4)
+            action_row.columnconfigure(1, weight=1)
 
-            def _button_command(v: int = i + 1) -> None:
-                self._close(win, v)
+            def _button_command(index: int = i) -> None:
+                select_action(index)
 
-            ttk.Button(
-                frame,
-                text=btn_text,
+            button = ttk.Button(
+                action_row,
+                text=spec.label,
                 command=_button_command,
-            ).pack(fill=tk.X, pady=2)
+                state="disabled" if spec.data_required else "normal",
+            )
+            button.grid(row=0, column=0, sticky="nw", padx=(0, 8))
+            button.bind("<FocusIn>", reveal_action)
+            description = ttk.Label(action_row, text=spec.prompt, wraplength=360, anchor="w", justify="left")
+            description.grid(row=0, column=1, sticky="ew")
+            description.bind("<Configure>", lambda event: event.widget.configure(wraplength=max(1, event.width)))
+            action_buttons.append(button)
 
-        include_continue = args.get("include_continue_button")
-        if include_continue:
-            ttk.Button(frame, text="Continue", command=lambda: self._close(win, 1)).pack(fill=tk.X, pady=2)
+        if tree is not None:
+            tree.bind("<<TreeviewSelect>>", update_buttons)
 
+        footer = ttk.Frame(frame)
+        footer.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(8, 0))
+        ttk.Button(footer, text="Cancel", command=lambda: self._close(win, None)).pack(side=tk.RIGHT, padx=4)
+        if args.get("include_continue_button"):
+            ttk.Button(footer, text="Continue", command=lambda: self._close(win, 0)).pack(side=tk.RIGHT, padx=4)
+
+        def scroll(event):
+            if content.winfo_height() > canvas.winfo_height():
+                if event.num in (4, 5):
+                    units = -1 if event.num == 4 else 1
+                else:
+                    units = -int(event.delta / 120) if abs(event.delta) >= 120 else -event.delta
+                canvas.yview_scroll(units, "units")
+            return "break"
+
+        win.bind("<MouseWheel>", scroll)
+        win.bind("<Button-4>", scroll)
+        win.bind("<Button-5>", scroll)
+        win.bind("<Prior>", lambda event: canvas.yview_scroll(-1, "pages"))
+        win.bind("<Next>", lambda event: canvas.yview_scroll(1, "pages"))
         win.bind("<Escape>", lambda e: self._close(win, None))
-        _center_window(win, 400, 100 + len(button_specs) * 50)
+        win.protocol("WM_DELETE_WINDOW", lambda: self._close(win, None))
+
+        width = min(640, win.winfo_screenwidth() - 80)
+        win.update_idletasks()
+        canvas.configure(width=max(1, width - 24 - scrollbar.winfo_reqwidth()))
+        win.update_idletasks()
+        canvas.itemconfigure(content_window, width=canvas.winfo_reqwidth())
+        win.update_idletasks()
+        available_height = max(80, win.winfo_screenheight() - 150 - footer.winfo_reqheight())
+        canvas.configure(height=min(content.winfo_reqheight(), available_height))
+        win.update_idletasks()
+        height = min(win.winfo_reqheight(), win.winfo_screenheight() - 100)
+        _center_window(win, width, height)
+        win.minsize(min(width, 400), min(height, 180))
         root.wait_window(win)
 
     def _close(self, win: tk.Toplevel, value: int | None) -> None:
-        self.result = {"button": value}
+        self.result = {"button": value, "row": None}
         if win.winfo_exists():
             win.destroy()
 
@@ -1062,31 +1186,39 @@ class CredentialsDialog:
                 pady=(0, 8),
             )
 
+        form = ttk.Frame(frame)
+        form.pack(fill=tk.BOTH, expand=True)
+
         user_var = tk.StringVar()
         pw_var = tk.StringVar()
 
-        ttk.Label(frame, text="Username:").grid(row=0, column=0, sticky="e", padx=4, pady=4)
-        ttk.Entry(frame, textvariable=user_var, width=30).grid(row=0, column=1, sticky="ew", pady=4)
+        ttk.Label(form, text="Username:").grid(row=0, column=0, sticky="e", padx=4, pady=4)
+        ttk.Entry(form, textvariable=user_var, width=30).grid(row=0, column=1, sticky="ew", pady=4)
 
-        ttk.Label(frame, text="Password:").grid(row=1, column=0, sticky="e", padx=4, pady=4)
-        ttk.Entry(frame, textvariable=pw_var, show="*", width=30).grid(row=1, column=1, sticky="ew", pady=4)
-        frame.columnconfigure(1, weight=1)
+        ttk.Label(form, text="Password:").grid(row=1, column=0, sticky="e", padx=4, pady=4)
+        ttk.Entry(form, textvariable=pw_var, show="*", width=30).grid(row=1, column=1, sticky="ew", pady=4)
+        form.columnconfigure(1, weight=1)
 
-        btn_frame = ttk.Frame(frame)
+        btn_frame = ttk.Frame(form)
         btn_frame.grid(row=2, column=0, columnspan=2, pady=8, sticky="e")
         ttk.Button(btn_frame, text="OK", command=lambda: self._close(win, user_var.get(), pw_var.get())).pack(
             side=tk.LEFT,
             padx=4,
         )
-        ttk.Button(btn_frame, text="Cancel", command=lambda: self._close(win, "", "")).pack(side=tk.LEFT, padx=4)
+        ttk.Button(btn_frame, text="Cancel", command=lambda: self._close(win, "", "", cancelled=True)).pack(
+            side=tk.LEFT,
+            padx=4,
+        )
         win.bind("<Return>", lambda e: self._close(win, user_var.get(), pw_var.get()))
-        win.bind("<Escape>", lambda e: self._close(win, "", ""))
+        win.bind("<Escape>", lambda e: self._close(win, "", "", cancelled=True))
+
+        win.protocol("WM_DELETE_WINDOW", lambda: self._close(win, "", "", cancelled=True))
 
         _center_window(win, 380, 180)
         root.wait_window(win)
 
-    def _close(self, win: tk.Toplevel, username: str, password: str) -> None:
-        self.result = {"username": username, "password": password}
+    def _close(self, win: tk.Toplevel, username: str, password: str, *, cancelled: bool = False) -> None:
+        self.result = {"button": None if cancelled else 1, "username": username, "password": password}
         if win.winfo_exists():
             win.destroy()
 
@@ -1127,56 +1259,88 @@ class ConnectDialog:
                 pady=(0, 8),
             )
 
-        type_var = tk.StringVar(value="p")
-        server_var = tk.StringVar()
-        db_var = tk.StringVar()
-        user_var = tk.StringVar()
+        from execsql.gui.base import CONNECTION_ENCODINGS, FILE_DATABASES, connection_result
 
-        def _make_row(parent, row, label, widget_factory):
-            ttk.Label(parent, text=label, anchor="e").grid(row=row, column=0, sticky="e", padx=4, pady=4)
-            w = widget_factory(parent)
-            w.grid(row=row, column=1, sticky="ew", pady=4)
-            return w
-
+        variables = {
+            name: tk.StringVar() for name in ("server", "database", "username", "password", "port", "encoding")
+        }
         form = ttk.Frame(frame)
         form.pack(fill=tk.BOTH, expand=True)
         form.columnconfigure(1, weight=1)
-
-        type_labels = [f"{k} — {v}" for k, v in _DB_TYPE_OPTIONS]
         type_values = [k for k, v in _DB_TYPE_OPTIONS]
-        type_combo = ttk.Combobox(form, textvariable=type_var, values=type_labels, state="readonly", width=30)
+        ttk.Label(form, text="Database type:").grid(row=0, column=0, sticky="e", padx=4, pady=4)
+        type_combo = ttk.Combobox(form, values=[f"{k} — {v}" for k, v in _DB_TYPE_OPTIONS], state="readonly", width=35)
         type_combo.current(0)
-        type_var.trace_add("write", lambda *a: None)  # placeholder
-        _make_row(form, 0, "Database type:", lambda p: type_combo)
-        ttk.Label(form, text="Server:").grid(row=1, column=0, sticky="e", padx=4, pady=4)
-        ttk.Entry(form, textvariable=server_var, width=35).grid(row=1, column=1, sticky="ew", pady=4)
-        ttk.Label(form, text="Database/File:").grid(row=2, column=0, sticky="e", padx=4, pady=4)
-        ttk.Entry(form, textvariable=db_var, width=35).grid(row=2, column=1, sticky="ew", pady=4)
-        ttk.Label(form, text="Username:").grid(row=3, column=0, sticky="e", padx=4, pady=4)
-        ttk.Entry(form, textvariable=user_var, width=35).grid(row=3, column=1, sticky="ew", pady=4)
+        type_combo.grid(row=0, column=1, sticky="ew", pady=4)
+        rows = {}
+        for row, (name, label) in enumerate(
+            (
+                ("server", "Server:"),
+                ("database", "Database:"),
+                ("username", "Username:"),
+                ("password", "Password:"),
+                ("port", "Port (optional):"),
+                ("encoding", "Encoding (optional):"),
+            ),
+            1,
+        ):
+            caption = ttk.Label(form, text=label)
+            caption.grid(row=row, column=0, sticky="e", padx=4, pady=4)
+            entry: ttk.Entry
+            if name == "encoding":
+                entry = ttk.Combobox(form, textvariable=variables[name], values=CONNECTION_ENCODINGS, width=35)
+            else:
+                entry = ttk.Entry(form, textvariable=variables[name], width=35, show="*" if name == "password" else "")
+            entry.grid(row=row, column=1, sticky="ew", pady=4)
+            rows[name] = (caption, entry)
 
+        def kind():
+            idx = type_combo.current()
+            return type_values[idx] if idx >= 0 else "p"
+
+        def browse():
+            selected = filedialog.askopenfilename(parent=win, title="Select database file")
+            if selected:
+                variables["database"].set(selected)
+
+        browse_button = ttk.Button(form, text="Browse…", command=browse)
+        browse_button.grid(row=2, column=2, padx=4)
+
+        def update_fields(*_):
+            db_type = kind()
+            file_based = db_type in FILE_DATABASES
+            for name in ("server", "username", "password", "port", "encoding"):
+                visible = not file_based and not (db_type == "d" and name in ("server", "port"))
+                for widget in rows[name]:
+                    widget.grid() if visible else widget.grid_remove()
+            rows["database"][0].configure(
+                text="File path:" if file_based else "DSN:" if db_type == "d" else "Database:",
+            )
+            browse_button.grid() if file_based else browse_button.grid_remove()
+
+        type_combo.bind("<<ComboboxSelected>>", update_fields)
+        update_fields()
+        ttk.Label(frame, text="Blank password: no additional password prompt.").pack(anchor="w", pady=4)
+        error = ttk.Label(frame, text="", wraplength=440)
+        error.pack(anchor="w")
         btn_frame = ttk.Frame(frame)
         btn_frame.pack(pady=8, anchor="e")
 
         def _on_connect():
-            idx = type_combo.current()
-            db_type = type_values[idx] if idx >= 0 else "p"
-            db = db_var.get().strip() or None
-            self.result = {
-                "db_type": db_type,
-                "server": server_var.get().strip() or None,
-                "database": db,
-                "db_file": db if db_type in ("l", "k", "a") else None,
-                "username": user_var.get().strip() or None,
-            }
+            try:
+                self.result = dict(connection_result(kind(), **{name: var.get() for name, var in variables.items()}))
+            except ValueError as exc:
+                error.configure(text=str(exc))
+                rows["port"][1].focus_set()
+                return
             win.destroy()
 
         ttk.Button(btn_frame, text="Connect", command=_on_connect).pack(side=tk.LEFT, padx=4)
         ttk.Button(btn_frame, text="Cancel", command=lambda: self._close(win)).pack(side=tk.LEFT, padx=4)
         win.bind("<Return>", lambda e: _on_connect())
         win.bind("<Escape>", lambda e: self._close(win))
-
-        _center_window(win, 440, 240)
+        win.protocol("WM_DELETE_WINDOW", lambda: self._close(win))
+        _center_window(win, 560, 450)
         root.wait_window(win)
 
     def _close(self, win: tk.Toplevel) -> None:
@@ -1246,7 +1410,20 @@ class ConsoleWindow:
         )
 
         self._running = True
-        _center_window(self._win, self._width * 8, self._height * 20)
+        self._win.update_idletasks()
+        _center_window(self._win, self._win.winfo_reqwidth(), self._win.winfo_reqheight())
+
+    def resize(self, width: int, height: int) -> None:
+        """Apply requested text dimensions and let Tk fit the window around them.
+
+        Clearing the explicit pixel size also handles windows resized manually.
+        The existing position and hidden/visible state are preserved.
+        """
+        self._width, self._height = width, height
+        if self._text is not None and self._win is not None:
+            self._text.configure(width=width, height=height)
+            self._win.geometry("")
+            self._win.update_idletasks()
 
     def _on_close(self) -> None:
         self._running = False
@@ -1339,14 +1516,23 @@ class TkinterBackend(GuiBackend):
     # ------------------------------------------------------------------
 
     def console_on(self) -> None:
+        from execsql.utils.gui import gui_console_height, gui_console_width
+
         root = self._root_or_raise()
+        width, height = gui_console_width(), gui_console_height()
         if self._console is None:
-            self._console = ConsoleWindow(root)
+            self._console = ConsoleWindow(root, width=width, height=height)
+        else:
+            self._console.resize(width, height)
         self._console.start()
         import execsql.state as _state
 
         _state.output.redir_stdout(self._console.write)
         _state.output.redir_stderr(self._console.write)
+
+    def console_resize(self, width: int, height: int) -> None:
+        if self._console is not None:
+            self._console.resize(width, height)
 
     def console_off(self) -> None:
         if self._console:
@@ -1460,15 +1646,14 @@ class TkinterBackend(GuiBackend):
 
 
 # ---------------------------------------------------------------------------
-# _TkinterSyncQueue — synchronous gui_manager_queue replacement for level 3
+# _TkinterSyncQueue — synchronous gui_manager_queue replacement
 # ---------------------------------------------------------------------------
 
 
 class _TkinterSyncQueue:
     """Drop-in replacement for ``_state.gui_manager_queue`` on the Tkinter path.
 
-    gui_level == 3 with tkinter available: instead of a background manager
-    thread, ``put()`` dispatches the dialog synchronously in the calling
+    ``put()`` dispatches native Tk dialogs synchronously in the calling
     (main) thread.  After ``put()`` returns, the result is already on
     ``spec.return_queue`` so the calling metacommand's ``get()`` unblocks
     immediately.
@@ -1481,24 +1666,6 @@ class _TkinterSyncQueue:
 
     def __init__(self, backend: TkinterBackend) -> None:
         self._backend = backend
-
-    # GUI types for which a None/cancelled result means the user wants to exit.
-    # File/directory/credentials/connect dialogs are intentionally excluded
-    # because cancelling those just means "no selection" rather than "quit".
-    _EXIT_ON_CANCEL = frozenset(
-        [
-            "halt",
-            "msg",
-            "pause",
-            "display",
-            "entry",
-            "compare",
-            "selectrows",
-            "selectsub",
-            "action",
-            "map",
-        ],
-    )
 
     def put(self, spec: Any, block: bool = True, timeout: Any = None) -> None:
         if spec is None:
@@ -1518,8 +1685,6 @@ class _TkinterSyncQueue:
                     pass  # Tk event loop may be torn down.
         except Exception as exc:
             result = {"error": str(exc), "button": None}
-        if result is not None and spec.gui_type in self._EXIT_ON_CANCEL and result.get("button") is None:
-            raise ScriptExit(2)
         spec.return_queue.put(result if result is not None else {})
 
     def get_nowait(self) -> Any:

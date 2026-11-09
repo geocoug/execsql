@@ -1105,8 +1105,8 @@ class TestConsoleBackendExtended:
         assert result["button"] is None
         assert result["row"] is None
 
-    def test_show_select_sub_valid_row_returns_dict(self, monkeypatch):
-        """Valid row number returns the row as a header-keyed dict."""
+    def test_show_select_sub_valid_row_returns_original_values(self, monkeypatch):
+        """Valid row number returns the original row in column order."""
         monkeypatch.setattr("builtins.input", lambda *a: "2")
         result = self.backend.show_select_sub(
             {
@@ -1115,7 +1115,7 @@ class TestConsoleBackendExtended:
             },
         )
         assert result["button"] == 1
-        assert result["row"] == {"id": 2, "name": "Bob"}
+        assert result["row"] == [2, "Bob"]
 
     def test_show_select_sub_invalid_then_valid(self, monkeypatch):
         """show_select_sub loops on invalid input until a valid row number is given."""
@@ -1128,7 +1128,7 @@ class TestConsoleBackendExtended:
             },
         )
         assert result["button"] == 1
-        assert result["row"] == {"x": "value_x"}
+        assert result["row"] == ["value_x"]
 
     def test_show_select_sub_no_rows_returns_none(self, monkeypatch):
         """With no rows, show_select_sub immediately returns button=None."""
@@ -1153,14 +1153,12 @@ class TestConsoleBackendExtended:
     # show_action — include_continue_button branch (lines 269-276)
     # ------------------------------------------------------------------
 
-    def test_show_action_no_button_specs_returns_1(self, monkeypatch):
-        """With no button_specs, show_action prompts for Enter and returns button=1."""
+    def test_show_action_without_actions_or_continue_can_be_cancelled(self, monkeypatch):
         monkeypatch.setattr("builtins.input", lambda *a: "")
         result = self.backend.show_action({"button_specs": []})
-        assert result["button"] == 1
+        assert result == {"button": None, "row": None}
 
-    def test_show_action_include_continue_button_zero_returns_1(self, monkeypatch):
-        """Choosing '0' when include_continue_button is set returns button=1."""
+    def test_show_action_continue_is_distinct_from_the_first_action(self, monkeypatch):
         spec = ActionSpec("Run", "Run it", "run.sql")
         inputs = iter(["0"])
         monkeypatch.setattr("builtins.input", lambda *a: next(inputs))
@@ -1170,7 +1168,7 @@ class TestConsoleBackendExtended:
                 "include_continue_button": True,
             },
         )
-        assert result["button"] == 1
+        assert result == {"button": 0, "row": None}
 
     def test_show_action_include_continue_button_invalid_then_valid(self, monkeypatch):
         """show_action loops on bad input; accepting '0' continues when include_continue_button."""
@@ -1183,7 +1181,7 @@ class TestConsoleBackendExtended:
                 "include_continue_button": True,
             },
         )
-        assert result["button"] == 1
+        assert result == {"button": 0, "row": None}
 
     def test_show_action_with_table_data(self, monkeypatch, capsys):
         """column_headers + rowset are printed when both are present."""
@@ -1205,7 +1203,8 @@ class TestConsoleBackendExtended:
 
     def test_show_connect_with_message_prints_to_stderr(self, monkeypatch, capsys):
         """When message is set, show_connect prints it to stderr."""
-        inputs = iter(["p", "", "mydb", "", ""])
+        inputs = iter(["p", "", "mydb", "", "", ""])
+        monkeypatch.setattr("getpass.getpass", lambda *a: "")
         monkeypatch.setattr("builtins.input", lambda *a: next(inputs))
         self.backend.show_connect({"message": "Please connect to the database"})
         captured = capsys.readouterr()
@@ -1213,10 +1212,20 @@ class TestConsoleBackendExtended:
 
     def test_show_connect_returns_typed_dict(self, monkeypatch):
         """show_connect returns a dict with the expected keys."""
-        inputs = iter(["p", "localhost", "mydb", "", "admin"])
+        inputs = iter(["p", "localhost", "mydb", "admin", "", ""])
+        monkeypatch.setattr("getpass.getpass", lambda *a: "")
         monkeypatch.setattr("builtins.input", lambda *a: next(inputs))
         result = self.backend.show_connect({})
-        assert set(result.keys()) == {"db_type", "server", "database", "db_file", "username"}
+        assert set(result.keys()) == {
+            "db_type",
+            "server",
+            "database",
+            "db_file",
+            "username",
+            "port",
+            "encoding",
+            "password",
+        }
         assert result["db_type"] == "p"
         assert result["server"] == "localhost"
         assert result["database"] == "mydb"
@@ -1225,7 +1234,7 @@ class TestConsoleBackendExtended:
 
     def test_show_connect_blank_fields_become_none(self, monkeypatch):
         """Blank input for optional fields is stored as None."""
-        inputs = iter(["l", "", "", "/tmp/test.db", ""])
+        inputs = iter(["l", "/tmp/test.db"])
         monkeypatch.setattr("builtins.input", lambda *a: next(inputs))
         result = self.backend.show_connect({})
         assert result["server"] is None
@@ -1235,7 +1244,8 @@ class TestConsoleBackendExtended:
 
     def test_show_connect_no_message_no_extra_output(self, monkeypatch, capsys):
         """No extra message is printed when message is empty."""
-        inputs = iter(["s", "", "", "", ""])
+        inputs = iter(["s", "", "", "", "", ""])
+        monkeypatch.setattr("getpass.getpass", lambda *a: "")
         monkeypatch.setattr("builtins.input", lambda *a: next(inputs))
         self.backend.show_connect({})
         captured = capsys.readouterr()

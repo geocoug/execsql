@@ -8,6 +8,7 @@ import pytest
 
 import execsql.state as _state
 from execsql.exceptions import ErrInfo
+from execsql.utils.gui import gui_console_height, gui_console_width
 
 
 # ---------------------------------------------------------------------------
@@ -87,7 +88,10 @@ class TestXConsoleWidth:
     def test_sets_width(self, minimal_conf):
         from execsql.metacommands.system import x_consolewidth
 
-        with patch("execsql.metacommands.system.gui_console_width") as mock_w:
+        with patch(
+            "execsql.metacommands.system.gui_console_width",
+            wraps=gui_console_width,
+        ) as mock_w:
             x_consolewidth(width="120")
             assert minimal_conf.gui_console_width == 120
             mock_w.assert_called_once_with("120")
@@ -97,7 +101,10 @@ class TestXConsoleHeight:
     def test_sets_height(self, minimal_conf):
         from execsql.metacommands.system import x_consoleheight
 
-        with patch("execsql.metacommands.system.gui_console_height") as mock_h:
+        with patch(
+            "execsql.metacommands.system.gui_console_height",
+            wraps=gui_console_height,
+        ) as mock_h:
             x_consoleheight(height="40")
             assert minimal_conf.gui_console_height == 40
             mock_h.assert_called_once_with("40")

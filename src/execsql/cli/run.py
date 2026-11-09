@@ -14,6 +14,7 @@ import os
 import platform
 import sys
 import traceback
+from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -807,54 +808,54 @@ def _run(
     if conf.gui_level > 2:
         gui_console_on()
 
-    # ------------------------------------------------------------------
-    # Establish database connection
-    # ------------------------------------------------------------------
-    if conf.server is None and conf.db is None and conf.db_file is None:
-        if conf.gui_level > 1:
-            gui_connect("initial", f"Select the database to use with {script_name or '<inline>'}.")
-            db = _state.dbs.current()
+    def initialize() -> None:
+        """Connect and initialize script state on the execution thread."""
+        if conf.server is None and conf.db is None and conf.db_file is None:
+            if conf.gui_level > 1:
+                gui_connect("initial", f"Select the database to use with {script_name or '<inline>'}.")
+                db = _state.dbs.current()
+            else:
+                from execsql.utils.errors import fatal_error
+
+                fatal_error(
+                    "Database not specified in configuration files or command-line arguments, and prompt not requested.",
+                )
         else:
-            from execsql.utils.errors import fatal_error
+            db = _connect_initial_db(conf)
+            _state.dbs.add("initial", db)
 
-            fatal_error(
-                "Database not specified in configuration files or command-line arguments, and prompt not requested.",
-            )
+        _state.exec_log.log_db_connect(db)
+        if manifest is not None:
+            manifest.set_database(db)
+        _state.subvars.add_substitution("$CURRENT_DBMS", db.type.dbms_id)
+        _state.subvars.add_substitution("$CURRENT_DATABASE", db.name())
+        _state.subvars.add_substitution("$DB_SERVER", db.server_name)
+        _state.subvars.add_substitution("$SYSTEM_CMD_EXIT_STATUS", "0")
+
+        atexit.register(_state.dbs.closeall)
+        _state.dbs.do_rollback = True
+
+        if profile:
+            _state.profile_data = []
+
+        if debug:
+            _state.step_mode = True
+
+        if no_system_cmd:
+            conf.allow_system_cmd = False
+
+        if no_rm_file:
+            conf.allow_rm_file = False
+
+        if no_serve:
+            conf.allow_serve = False
+
+    if _ast_tree is not None and _uses_textual_console(conf):
+        _execute_script_ast(_ast_tree, conf, profile=profile, profile_limit=profile_limit, initialize=initialize)
     else:
-        db = _connect_initial_db(conf)
-        _state.dbs.add("initial", db)
-
-    _state.exec_log.log_db_connect(db)
-    if manifest is not None:
-        manifest.set_database(db)
-    _state.subvars.add_substitution("$CURRENT_DBMS", db.type.dbms_id)
-    _state.subvars.add_substitution("$CURRENT_DATABASE", db.name())
-    _state.subvars.add_substitution("$DB_SERVER", db.server_name)
-    _state.subvars.add_substitution("$SYSTEM_CMD_EXIT_STATUS", "0")
-
-    # ------------------------------------------------------------------
-    # Execute the script
-    # ------------------------------------------------------------------
-    atexit.register(_state.dbs.closeall)
-    _state.dbs.do_rollback = True
-
-    if profile:
-        _state.profile_data = []
-
-    if debug:
-        _state.step_mode = True
-
-    if no_system_cmd:
-        conf.allow_system_cmd = False
-
-    if no_rm_file:
-        conf.allow_rm_file = False
-
-    if no_serve:
-        conf.allow_serve = False
-
-    if _ast_tree is not None:
-        _execute_script_ast(_ast_tree, conf, profile=profile, profile_limit=profile_limit)
+        initialize()
+        if _ast_tree is not None:
+            _execute_script_ast(_ast_tree, conf, profile=profile, profile_limit=profile_limit)
     if manifest is not None:
         manifest.finish(0)
 
@@ -881,29 +882,37 @@ def _end_run_on_sigterm() -> None:
     signal.signal(signal.SIGTERM, terminate)
 
 
+def _uses_textual_console(conf: ConfigData) -> bool:
+    import execsql.utils.gui as _gui
+
+    if conf.gui_level > 2:
+        try:
+            from execsql.gui.tui import TextualBackend
+
+            return isinstance(_gui._active_backend, TextualBackend)
+        except ImportError:
+            pass
+    return False
+
+
 def _execute_script_ast(
     tree: Any,
     conf: ConfigData,
     *,
     profile: bool = False,
     profile_limit: int = 20,
+    initialize: Callable[[], None] | None = None,
 ) -> None:
-    """Execute a script using the AST executor."""
+    """Execute a script, optionally initializing its connections on its owning thread."""
     import execsql.state as _state
-    import execsql.utils.gui as _gui
 
     from execsql.script.executor import execute
 
-    # For Textual + gui_level 3, run in background thread with ConsoleApp.
-    if conf.gui_level > 2:
-        try:
-            from execsql.gui.tui import TextualBackend
-
-            if isinstance(_gui._active_backend, TextualBackend):
-                _execute_script_textual_console(tree, conf)
-                return
-        except ImportError:
-            pass
+    if _uses_textual_console(conf):
+        _execute_script_textual_console(tree, conf, initialize=initialize)
+        return
+    if initialize is not None:
+        initialize()
 
     try:
         execute(tree)
@@ -950,20 +959,72 @@ def _execute_script_ast(
     _state.exec_log.log_exit_end()
 
 
-def _execute_script_textual_console(tree: Any, conf: ConfigData) -> None:
-    """Run the script in a background thread while ConsoleApp runs in the main thread."""
+def _execute_script_textual_console(
+    tree: Any,
+    conf: ConfigData,
+    *,
+    initialize: Callable[[], None] | None = None,
+) -> None:
+    """Run the script while ConsoleApp runs on main; own connections when initializing."""
     import execsql.state as _state
     import execsql.utils.gui as _gui
     from execsql.gui.tui import ConsoleApp, _ConsoleDialogQueue
 
-    from execsql.script.executor import execute
+    from execsql.script.executor import _CONTROL_FLOW, _roll_back_after_interrupt, execute
 
     dialog_queue = _ConsoleDialogQueue()
     _state.gui_manager_queue = dialog_queue
 
     ctx = _state.get_context()
+
+    def run_script() -> None:
+        with _state.active_context(ctx):
+            try:
+                try:
+                    if initialize is not None:
+                        try:
+                            initialize()
+                        except ConfigError:
+                            raise
+                        except Exception as exc:
+                            from execsql.utils.errors import exit_now
+
+                            error = exc if isinstance(exc, ErrInfo) else ErrInfo("exception", exception_msg=str(exc))
+                            exit_now(1, error)
+                    try:
+                        execute(tree, ctx=ctx)
+                    except ConfigError:
+                        raise
+                    except Exception as exc:
+                        from execsql.utils.errors import exit_now
+
+                        if isinstance(exc, ErrInfo):
+                            error = exc
+                        else:
+                            strace = traceback.extract_tb(exc.__traceback__)[-1:]
+                            lno = strace[0][1] if strace else "?"
+                            msg = f"{Path(sys.argv[0]).name}: Uncaught exception {type(exc)} ({exc}) on line {lno}"
+                            script, slno = current_script_line()
+                            if script is not None:
+                                msg += f" in script {script}, line {slno}"
+                            error = ErrInfo("exception", exception_msg=msg)
+                        # Deferred error scripts need the worker's live connections.
+                        exit_now(1, error)
+                    _state.dbs.do_rollback = False
+                finally:
+                    if initialize is not None:
+                        _state.dbs.closeall()
+            except (*_CONTROL_FLOW, Exception):
+                raise
+            except BaseException:
+                _roll_back_after_interrupt(ctx)
+                if initialize is not None:
+                    # Quit can arrive during closeall itself; finish cleanup on its owner.
+                    _state.dbs.closeall()
+                raise
+
     app = ConsoleApp(
-        script_runner=lambda: execute(tree, ctx=ctx),
+        script_runner=run_script,
         dialog_queue=dialog_queue,
         wait_on_exit=conf.gui_wait_on_exit,
     )
@@ -974,8 +1035,14 @@ def _execute_script_textual_console(tree: Any, conf: ConfigData) -> None:
     try:
         app.run()
     finally:
+        app.wait_for_script()
         _state.output.reset()
         _gui._active_backend._console_app = None
+
+    if app._quit_requested or isinstance(app._script_exception, KeyboardInterrupt):
+        _state.exec_log.log_exit_interrupted()
+        _state.exec_log.log_status_info(f"{_state.cmds_run} commands run")
+        raise SystemExit(130)
 
     if app._script_exception is not None:
         exc = app._script_exception

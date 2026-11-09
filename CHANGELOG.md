@@ -11,6 +11,45 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Added
+
+- **`PROMPT SELECT_ROWS` in Tkinter and Textual** lets you remove one newly selected destination copy with a double-click or Enter before saving; existing destination rows are preserved.
+
+### Changed
+
+- **`PROMPT SELECT_ROWS` in Textual** highlights on a single click; double-click or Enter adds a source copy or removes an added destination copy.
+- **`PROMPT CONNECT`** attempts a connection without another password prompt when its password field is blank.
+- **Textual console Quit** keeps the console responsive while waiting for the script worker and rollback to finish; a blocked driver may delay shutdown until it returns.
+
+### Fixed
+
+- **Textual console errors** run `ON ERROR_HALT` cleanup before closing database connections.
+- **`PROMPT ACTION`** stops after a selected script's unevaluable condition or other fatal error, even with `METACOMMAND_ERROR_HALT OFF`.
+- **Textual dialog failures** follow `METACOMMAND_ERROR_HALT` instead of quitting the console; with halting off, later prompts remain usable.
+- **SQLite in the full Textual console** runs scripts and closes initial and additional connections without thread-ownership errors.
+- **Password-free PostgreSQL, MySQL/MariaDB, Oracle, Firebird and DSN connections** retain the requested username; skipping a password prompt no longer selects a different account.
+- **Firebird connections** use the driver's default identity when no username is supplied.
+- **`PROMPT ACTION` in Tkinter** fits its initial window to the content, wraps descriptions and scrolls long content while keeping Continue and Cancel visible.
+- **`CONSOLE WIDTH|HEIGHT` and console sizing configuration** resize the native Tk console and retain the chosen size across `CONSOLE OFF` / `ON`.
+- **`PROMPT CONNECT`** accepts port, encoding and masked password inputs in Tkinter, Textual and console; file-based databases show file selection instead of network fields.
+- **Textual console interruption** exits with status 130 after cleanup, without recording normal completion or closing output while the script is still active.
+- **`PROMPT ASK` in Textual** returns `No` when No is selected, including with `COMPARE`; cancellation remains a separate action.
+- **`PROMPT ENTER_SUB`** validates `TYPE INT|FLOAT|BOOL|IDENT`, expands Boolean prefixes and applies `LCASE|UCASE` in every backend; invalid entries can be corrected before confirmation.
+- **`PROMPT ENTER_SUB` in console** preserves leading and trailing spaces.
+- **`PROMPT COMPARE`** matches composite keys by column name when table columns are reordered; incomplete keys no longer produce partial matches.
+- **Tkinter on macOS** uses native dialogs without requiring `DISPLAY` or `WAYLAND_DISPLAY`; unavailable backends report the fallback reason.
+- **`PROMPT CREDENTIALS`** uses the configured Tkinter or Textual dialog when GUI input is enabled; Cancel follows `CANCEL_HALT` and preserves existing credentials when halting is off.
+- **Tkinter credential dialogs** open successfully with a prompt message.
+- **`PROMPT ENTRY_FORM`** assigns each global or `~local` field in its declared scope, regardless of specification order.
+- **`PROMPT ENTRY_FORM` in Textual** accepts selected listbox values, preserves SQL quoting and rejects dropdown values outside the lookup list.
+- **`PROMPT ACTION`** runs the chosen named script with its required row data; script errors and transaction controls follow normal `EXECUTE SCRIPT` behavior.
+- **`PROMPT ACTION … CONTINUE`** closes the dialog without running an action or replacing data variables.
+- **`PROMPT SELECT_SUB`** displays source rows and assigns the selected `@column` variables in Tkinter, Textual and console, preserving numeric precision and representing NULL as an empty string.
+- **`PROMPT SELECT_SUB … CONTINUE`** offers Continue in Tkinter and console as well as Textual; continuing without a selection leaves the displayed columns' data variables undefined.
+- **GUI prompts** report dialog failures as metacommand errors instead of accepting them as successful responses; a failed prompt prevents an open batch from committing.
+- **`CANCEL_HALT` in Tkinter and Textual** honors `OFF` and runs `ON CANCEL_HALT` cleanup when `ON`, including in the Textual console. Escape and Cancel agree for file and directory prompts.
+- **`DIALOG_CANCELED()`** reports whether the last dialog was canceled; a subsequent accepted dialog clears it.
+
 ______________________________________________________________________
 
 ## [2.39.0] - 2026-11-05

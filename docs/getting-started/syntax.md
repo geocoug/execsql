@@ -236,7 +236,7 @@ See the individual references for [config](../reference/cli/config.md), [list](.
 
 `-w`, `--no-passwd`
 
-:   Skip the password prompt when a user name is specified.
+:   Skip the password prompt when a username is specified. Server databases and ODBC DSNs retain that username; the driver can use its configured password-free authentication or stored credentials. To use the driver's default identity, leave the username unspecified. The same identity rule applies to `password_prompt=No` and `CONNECT ... NEED_PWD=FALSE`.
 
 `-n`, `--new-db`
 

@@ -41,6 +41,7 @@ __all__ = [
     "GUI_CONNECT",
     # Data-carrier classes
     "GuiSpec",
+    "get_gui_response",
     "ConsoleUIError",
     "ActionSpec",
     "EntrySpec",
@@ -96,7 +97,7 @@ GUI_CONNECT = "connect"
 
 
 class GuiSpec:
-    """A request sent to the GUI manager thread."""
+    """A GUI request passed through the active queue adapter."""
 
     def __init__(self, gui_type: str, args: dict, return_queue: Any) -> None:
         self.gui_type = gui_type
@@ -106,6 +107,58 @@ class GuiSpec:
 
 class ConsoleUIError(Exception):
     """Raised when a GUI / console UI operation fails."""
+
+
+def get_gui_response(return_queue: Any, gui_type: str) -> dict:
+    """Receive a GUI result on the script thread, raising transport errors.
+
+    Console shutdown raises KeyboardInterrupt here on the worker thread so
+    its transaction cleanup finishes before the UI closes.
+    Cancellation supplies the dialog's empty result fields and records
+    DIALOG_CANCELED. The calling handler owns CANCEL_HALT and its cleanup.
+    """
+    result = return_queue.get(block=True)
+    if not isinstance(result, dict):
+        raise ConsoleUIError(f"Invalid response from {gui_type} dialog.")
+    if result.get("interrupted"):
+        raise KeyboardInterrupt
+    if "error" in result:
+        raise ConsoleUIError(f"GUI {gui_type} failed: {result['error']}")
+    empty_fields: dict[str, Any] = {"button": None}
+    if gui_type in (GUI_DISPLAY, GUI_ENTRY):
+        empty_fields["return_value"] = None
+    elif gui_type in (GUI_SELECTSUB, GUI_ACTION):
+        empty_fields["row"] = None
+    elif gui_type == GUI_SELECTROWS:
+        empty_fields["rows"] = None
+    elif gui_type == GUI_PAUSE:
+        empty_fields["quit"] = True
+    elif gui_type in (GUI_OPENFILE, GUI_SAVEFILE):
+        empty_fields["filename"] = None
+    elif gui_type == GUI_DIRECTORY:
+        empty_fields["directory"] = None
+    elif gui_type == GUI_CREDENTIALS:
+        empty_fields.update(username="", password="")
+    elif gui_type == GUI_CONNECT:
+        empty_fields["db_type"] = None
+
+    cancelled = not result or result.get("cancelled") or ("button" in result and result["button"] is None)
+    if gui_type in (GUI_OPENFILE, GUI_SAVEFILE):
+        cancelled = cancelled or result.get("filename") is None
+    elif gui_type == GUI_DIRECTORY:
+        cancelled = cancelled or result.get("directory") is None
+    elif gui_type == GUI_PAUSE:
+        cancelled = cancelled or result.get("quit", False)
+    elif gui_type == GUI_CONNECT:
+        cancelled = cancelled or result.get("db_type") is None
+    if cancelled:
+        result = {**result, **empty_fields, "cancelled": True}
+
+    import execsql.state as _state
+
+    if gui_type != QUERY_CONSOLE and _state.status is not None:
+        _state.status.dialog_canceled = bool(cancelled)
+    return result
 
 
 class ActionSpec:
@@ -200,8 +253,8 @@ class EntrySpec:
 # ---------------------------------------------------------------------------
 
 _console_running: bool = False
-_console_width: int = 80
-_console_height: int = 24
+_console_width: int = 100
+_console_height: int = 25
 _dialog_canceled: bool = False
 
 # Active backend (set by enable_gui(); None before first call)
@@ -226,7 +279,7 @@ def gui_console_isrunning() -> bool:
 
 
 def enable_gui() -> None:
-    """Ensure the GUI subsystem is ready and the manager thread is running.
+    """Ensure the GUI subsystem has a synchronous queue or manager thread.
 
     This is idempotent — subsequent calls return immediately if already set up.
 
@@ -249,15 +302,18 @@ def enable_gui() -> None:
 
     framework = _state.conf.gui_framework if _state.conf else "tkinter"
 
-    # --- Headless POSIX guard ----------------------------------------------
-    # B20/F041: on POSIX without DISPLAY or WAYLAND_DISPLAY, Tkinter's
-    # ``tk.Tk()`` constructor raises a cryptic _tkinter.TclError. Skip
-    # straight to a non-GUI backend on headless systems so the fallback
-    # path is taken cleanly rather than after a confusing TclError that
-    # the broad ``except Exception`` would swallow.
+    # Native macOS Tk uses Aqua; other POSIX desktops require a display server.
     import os as _os
 
-    headless_posix = _os.name == "posix" and not _os.environ.get("DISPLAY") and not _os.environ.get("WAYLAND_DISPLAY")
+    headless_posix = (
+        _os.name == "posix"
+        and sys.platform != "darwin"
+        and not _os.environ.get("DISPLAY")
+        and not _os.environ.get("WAYLAND_DISPLAY")
+    )
+    fallback_reason = None
+    if framework == "tkinter" and headless_posix:
+        fallback_reason = "Tkinter has no DISPLAY or WAYLAND_DISPLAY"
 
     # --- Tkinter sync path --------------------------------------------------
     # Tkinter must run on the main thread (required on macOS).  Use a sync
@@ -272,8 +328,8 @@ def enable_gui() -> None:
             _active_backend = backend
             _state.gui_manager_queue = _TkinterSyncQueue(backend)
             return
-        except (ImportError, RuntimeError, Exception):
-            pass  # fall through to Textual
+        except Exception as exc:
+            fallback_reason = f"Tkinter startup failed: {exc}"
 
     # --- Textual sync path --------------------------------------------------
     # Each dialog runs as a short-lived Textual App in the main thread.
@@ -284,9 +340,12 @@ def enable_gui() -> None:
 
         _active_backend = TextualBackend()
         _state.gui_manager_queue = _TextualSyncQueue()
+        if fallback_reason:
+            print(f"GUI fallback: {fallback_reason}; using Textual.", file=sys.stderr)
         return
-    except ImportError:
-        pass
+    except ImportError as exc:
+        reason = f"Textual unavailable: {exc}"
+        fallback_reason = f"{fallback_reason}; {reason}" if fallback_reason else reason
 
     # --- Thread-based manager path (ConsoleBackend fallback) ----------------
     if _state.gui_manager_thread is not None and _state.gui_manager_thread.is_alive():
@@ -299,6 +358,7 @@ def enable_gui() -> None:
 
     backend = ConsoleBackend()
     _active_backend = backend
+    print(f"GUI fallback: {fallback_reason}; using console prompts.", file=sys.stderr)
 
     _state.gui_manager_queue = _queue.Queue()
     t = threading.Thread(
@@ -370,35 +430,39 @@ def gui_console_wait_user(message: str = "") -> None:
 
 
 def gui_console_width(width: int | None = None) -> int:
-    """Get or set the console width in characters.
+    """Get/set the configured character width, resizing the active native console.
 
-    When *width* is provided, updates the active GUI console (if any).
-    Always returns the current width.
+    A setting made before CONSOLE ON is retained. Terminal backends do not resize
+    their host window. The runtime configuration takes precedence over fallback
+    values from calls made without a configuration.
     """
+    import execsql.state as _state
+
     global _console_width
     if width is not None:
-        import execsql.state as _state
-
         _console_width = int(width)
-        if _state.gui_console is not None and hasattr(_state.gui_console, "set_width"):
-            _state.gui_console.set_width(_console_width)
-    return _console_width
+        if _state.conf is not None:
+            _state.conf.gui_console_width = _console_width
+        if _active_backend is not None:
+            _active_backend.console_resize(_console_width, gui_console_height())
+    return int(getattr(_state.conf, "gui_console_width", _console_width))
 
 
 def gui_console_height(height: int | None = None) -> int:
-    """Get or set the console height in lines.
+    """Get/set configured text lines, retaining the size across native OFF/ON.
 
-    When *height* is provided, updates the active GUI console (if any).
-    Always returns the current height.
+    Terminal backends store the setting without changing their host window.
     """
+    import execsql.state as _state
+
     global _console_height
     if height is not None:
-        import execsql.state as _state
-
         _console_height = int(height)
-        if _state.gui_console is not None and hasattr(_state.gui_console, "set_height"):
-            _state.gui_console.set_height(_console_height)
-    return _console_height
+        if _state.conf is not None:
+            _state.conf.gui_console_height = _console_height
+        if _active_backend is not None:
+            _active_backend.console_resize(gui_console_width(), _console_height)
+    return int(getattr(_state.conf, "gui_console_height", _console_height))
 
 
 # ---------------------------------------------------------------------------
@@ -414,8 +478,8 @@ def gui_connect(
 ) -> None:
     """Prompt the user to select a database connection.
 
-    Routes through the GUI manager queue when gui_level > 0 and the manager
-    thread is running; otherwise raises ConsoleUIError.
+    Initializes the configured backend and routes through its queue when
+    gui_level > 0; otherwise raises ConsoleUIError.
     """
     import queue as _queue
 
@@ -427,7 +491,7 @@ def gui_connect(
         return_queue: _queue.Queue = _queue.Queue()
         gui_args = {"alias": alias, "message": message, "help_url": help_url}
         _state.gui_manager_queue.put(GuiSpec(GUI_CONNECT, gui_args, return_queue))
-        result = return_queue.get(block=True)
+        result = get_gui_response(return_queue, GUI_CONNECT)
         db_type = result.get("db_type")
         if db_type is None:
             raise ConsoleUIError(
@@ -457,31 +521,56 @@ def _apply_connect_result(alias: str, result: dict) -> None:
         db_SqlServer,
     )
 
-    db_type = result.get("db_type", "l")
-    server = str(result.get("server") or "")
-    database = str(result.get("database") or "")
-    db_file = str(result.get("db_file") or "")
-    username = str(result.get("username") or "")
+    from execsql.gui.base import connection_result
+    from execsql.utils.fileio import register_secret
 
+    try:
+        inputs = connection_result(
+            result.get("db_type", "l"),
+            result.get("server") or "",
+            (result.get("db_file") or result.get("database") or "")
+            if result.get("db_type") in ("l", "k", "a")
+            else result.get("database") or "",
+            result.get("username") or "",
+            result.get("password") or "",
+            result.get("port"),
+            result.get("encoding") or "",
+        )
+    except ValueError as exc:
+        raise ConsoleUIError(str(exc)) from exc
+    db_type = inputs["db_type"]
+    database = inputs["database"] or ""
+    db_file = inputs["db_file"] or ""
+    server = inputs["server"] or ""
+    password = inputs["password"]
+    if password:
+        register_secret(password)
+    auth: dict[str, Any] = {
+        "user": inputs["username"],
+        "pw_needed": bool(password),
+        "password": password,
+        "encoding": inputs["encoding"],
+    }
+    network = dict(**auth, port=inputs["port"])
     db: Any
     if db_type == "p":
-        db = db_Postgres(server, database, user=username, pw_needed=True)
+        db = db_Postgres(server, database, **network)
     elif db_type == "s":
-        db = db_SqlServer(server, database, user=username, pw_needed=True)
+        db = db_SqlServer(server, database, **network)
     elif db_type == "l":
-        db = db_SQLite(db_file or database)
+        db = db_SQLite(db_file)
     elif db_type == "m":
-        db = db_MySQL(server, database, user=username, pw_needed=True)
+        db = db_MySQL(server, database, **network)
     elif db_type == "k":
-        db = db_DuckDB(db_file or database)
+        db = db_DuckDB(db_file)
     elif db_type == "o":
-        db = db_Oracle(server, database, user=username, pw_needed=True)
+        db = db_Oracle(server, database, **network)
     elif db_type == "f":
-        db = db_Firebird(server, database, user=username, pw_needed=True)
+        db = db_Firebird(server, database, **network)
     elif db_type == "a":
-        db = db_Access(db_file or database)
+        db = db_Access(db_file)
     elif db_type == "d":
-        db = db_Dsn(database, user=username, pw_needed=True)
+        db = db_Dsn(database, **auth)
     else:
         raise ConsoleUIError(f"Unknown database type from connect dialog: {db_type!r}")
 
@@ -496,8 +585,9 @@ def gui_credentials(
 ) -> None:
     """Prompt the user for credentials.
 
-    Routes through the GUI manager queue when gui_level > 0 and the manager
-    thread is running; otherwise falls back to the terminal.
+    Initializes the configured GUI transport when gui_level > 0; level zero
+    uses terminal input. Cancellation follows CANCEL_HALT without assigning
+    empty credentials over existing values when halting is off.
 
     Parameters
     ----------
@@ -516,11 +606,23 @@ def gui_credentials(
     import execsql.state as _state
 
     gui_level = _state.conf.gui_level if _state.conf else 0
-    if gui_level > 0 and _state.gui_manager_thread is not None and _state.gui_manager_thread.is_alive():
+    if gui_level > 0:
+        enable_gui()
         return_queue: _queue.Queue = _queue.Queue()
         gui_args = {"message": message}
         _state.gui_manager_queue.put(GuiSpec(GUI_CREDENTIALS, gui_args, return_queue))
-        result = return_queue.get(block=True)
+        result = get_gui_response(return_queue, GUI_CREDENTIALS)
+        if result.get("cancelled"):
+            if _state.status.cancel_halt:
+                from execsql.script import current_script_line
+                from execsql.utils.errors import exit_now
+
+                for name in (username, pwtext):
+                    if name:
+                        _state.subvars.remove_substitution(name)
+                _state.exec_log.log_exit_halt(*current_script_line(), msg="Quit from prompt for credentials.")
+                exit_now(2, None)
+            return
         uname = result.get("username", "")
         passwd = result.get("password", "")
     else:

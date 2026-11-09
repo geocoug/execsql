@@ -1481,6 +1481,7 @@ class TestTextualConsoleContextPropagation:
 
         fake_app = MagicMock()
         fake_app._script_exception = None
+        fake_app._quit_requested = False
 
         def capture_constructor(*args, **kwargs):
             captured["script_runner"] = kwargs.get("script_runner")

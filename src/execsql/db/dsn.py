@@ -100,10 +100,9 @@ class DsnDatabase(Database):
             # so that ``;``, ``=`` and other ODBC delimiters in user-
             # supplied credentials cannot inject additional attributes.
             parts = [f"DSN={_odbc_quote(self.db_name)}"]
-            if self.need_passwd:
-                assert self.user is not None
-                assert self.password is not None
+            if self.user:
                 parts.append(f"UID={_odbc_quote(self.user)}")
+            if self.password is not None:
                 parts.append(f"PWD={_odbc_quote(self.password)}")
             connstr = ";".join(parts) + ";"
             kwargs = {"autocommit": autocommit} if autocommit else {}
