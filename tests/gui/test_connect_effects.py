@@ -311,7 +311,8 @@ def wait_for_dialog(win):
         if not win.winfo_viewable():
             root.after(10, ready)
             return
-        root.after_idle(submit)
+        # Submission destroys the window; use a timer rather than an Aqua idle callback.
+        root.after(0, submit)
     root.after_idle(ready)
     root.after(20000, root.destroy)
     return wait_window(win)

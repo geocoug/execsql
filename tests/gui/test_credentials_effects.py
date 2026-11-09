@@ -253,8 +253,17 @@ def submit():
     entries[0].insert(0, "native-user")
     entries[1].insert(0, "native-password")
     next(w for w in controls if isinstance(w, ttk.Button) and w.cget("text") == "OK").invoke()
-root.after(150, submit)
-root.after(3000, root.destroy)
+wait_window = root.wait_window
+def wait_for_dialog(win):
+    def ready():
+        if not win.winfo_viewable():
+            root.after(10, ready)
+            return
+        root.after(0, submit)
+    root.after_idle(ready)
+    root.after(20000, root.destroy)
+    return wait_window(win)
+root.wait_window = wait_for_dialog
 try:
     dialog = CredentialsDialog(root, {"message": "Log in"})
     assert dialog.result["username"] == "native-user"
@@ -262,7 +271,7 @@ try:
 finally:
     root.destroy()
 """
-    completed = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True, timeout=10)
+    completed = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True, timeout=30)
     if completed.returncode == 77 and "TK_UNAVAILABLE:" in completed.stdout:
         pytest.skip(completed.stdout.strip())
     assert completed.returncode == 0, completed.stdout + completed.stderr
