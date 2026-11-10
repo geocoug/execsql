@@ -304,6 +304,7 @@ def enable_gui() -> None:
 
     # Native macOS Tk uses Aqua; other POSIX desktops require a display server.
     import os as _os
+    import threading
 
     headless_posix = (
         _os.name == "posix"
@@ -314,12 +315,18 @@ def enable_gui() -> None:
     fallback_reason = None
     if framework == "tkinter" and headless_posix:
         fallback_reason = "Tkinter has no DISPLAY or WAYLAND_DISPLAY"
+    elif (
+        framework == "tkinter"
+        and sys.platform == "darwin"
+        and threading.current_thread() is not threading.main_thread()
+    ):
+        fallback_reason = "Tkinter on macOS requires the main thread"
 
     # --- Tkinter sync path --------------------------------------------------
     # Tkinter must run on the main thread (required on macOS).  Use a sync
     # queue that dispatches dialogs directly in the calling thread instead of
     # routing through a background manager thread.
-    if framework == "tkinter" and not headless_posix:
+    if framework == "tkinter" and fallback_reason is None:
         try:
             from execsql.gui.desktop import TkinterBackend, _TkinterSyncQueue
 

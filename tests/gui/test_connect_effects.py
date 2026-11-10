@@ -84,6 +84,7 @@ def connection_ui(request, monkeypatch):
             pytest.importorskip("textual")
             from textual.widgets import Input, Select
             from execsql.gui.tui import ConnectScreen, _SingleDialogApp
+            from tests.gui.textual_helpers import finish_dialog
 
             async def run():
                 app = _SingleDialogApp(ConnectScreen, {})
@@ -106,10 +107,10 @@ def connection_ui(request, monkeypatch):
                         screen.query_one("#port_input", Input).value = values["port"]
                         await pilot.pause(0.5)
                     if cancel:
-                        await pilot.press("escape")
+                        await finish_dialog(pilot, pilot.press("escape"))
                     else:
-                        assert await pilot.click("#btn_ok")
-                    await pilot.pause()
+                        await pilot.pause()
+                        await finish_dialog(pilot, pilot.click("#btn_ok"))
                 return app.return_value
 
             return asyncio.run(run())

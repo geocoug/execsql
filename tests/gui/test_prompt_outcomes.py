@@ -201,17 +201,17 @@ def test_message_cancel_obeys_the_script_policy(database, transport, halt):
 def test_textual_cancel_reaches_the_handler(database, monkeypatch, operation, gesture):
     pytest.importorskip("textual")
     from execsql.gui.tui import _SingleDialogApp, _TextualSyncQueue
+    from tests.gui.textual_helpers import finish_dialog
 
     def headless_run(app):
         async def interact():
             async with app.run_test() as pilot:
                 await pilot.pause()
                 if gesture == "escape":
-                    await pilot.press("escape")
+                    await finish_dialog(pilot, pilot.press("escape"))
                 else:
                     button = "btn_cancel" if operation in ("openfile", "savefile", "directory") else "btn_cancel_exit"
-                    assert await pilot.click(f"#{button}")
-                await pilot.pause()
+                    await finish_dialog(pilot, pilot.click(f"#{button}"))
             return app.return_value
 
         return asyncio.run(interact())

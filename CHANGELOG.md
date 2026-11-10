@@ -23,7 +23,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- **Textual console errors** run `ON ERROR_HALT` cleanup before closing database connections.
+- **Textual console errors**, including failed final file writes, run `ON ERROR_HALT` cleanup before closing database connections.
 - **`PROMPT ACTION`** stops after a selected script's unevaluable condition or other fatal error, even with `METACOMMAND_ERROR_HALT OFF`.
 - **Textual dialog failures** follow `METACOMMAND_ERROR_HALT` instead of quitting the console; with halting off, later prompts remain usable.
 - **SQLite in the full Textual console** runs scripts and closes initial and additional connections without thread-ownership errors.
@@ -37,7 +37,7 @@ ______________________________________________________________________
 - **`PROMPT ENTER_SUB`** validates `TYPE INT|FLOAT|BOOL|IDENT`, expands Boolean prefixes and applies `LCASE|UCASE` in every backend; invalid entries can be corrected before confirmation.
 - **`PROMPT ENTER_SUB` in console** preserves leading and trailing spaces.
 - **`PROMPT COMPARE`** matches composite keys by column name when table columns are reordered; incomplete keys no longer produce partial matches.
-- **Tkinter on macOS** uses native dialogs without requiring `DISPLAY` or `WAYLAND_DISPLAY`; unavailable backends report the fallback reason.
+- **Tkinter on macOS** uses native dialogs on the main thread without requiring `DISPLAY` or `WAYLAND_DISPLAY`; initialization from a worker falls back to Textual with a diagnostic.
 - **`PROMPT CREDENTIALS`** uses the configured Tkinter or Textual dialog when GUI input is enabled; Cancel follows `CANCEL_HALT` and preserves existing credentials when halting is off.
 - **Tkinter credential dialogs** open successfully with a prompt message.
 - **`PROMPT ENTRY_FORM`** assigns each global or `~local` field in its declared scope, regardless of specification order.

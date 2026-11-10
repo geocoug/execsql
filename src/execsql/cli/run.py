@@ -1010,6 +1010,7 @@ def _execute_script_textual_console(
                             error = ErrInfo("exception", exception_msg=msg)
                         # Deferred error scripts need the worker's live connections.
                         exit_now(1, error)
+                    _flush_output_files()
                     _state.dbs.do_rollback = False
                 finally:
                     if initialize is not None:
@@ -1067,7 +1068,6 @@ def _execute_script_textual_console(
             exit_now(1, ErrInfo("exception", exception_msg=msg))
 
     _state.dbs.do_rollback = False
-    _flush_output_files()
     _state.exec_log.log_status_info(f"{_state.cmds_run} commands run")
     _state.exec_log.log_exit_end()
 

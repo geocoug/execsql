@@ -51,31 +51,39 @@ def console_cli(monkeypatch, tmp_path):
         def headless(app):
             async def interact():
                 async with app.run_test(size=(100, 40)) as pilot:
-                    for _ in range(400):
-                        if app._exit:
-                            break
-                        if close_gate is not None and close_gate[0].is_set():
-                            app.action_request_quit()
-                            close_gate[1].set()
-                        if isinstance(app.screen, ConnectScreen):
-                            await pilot.pause()
-                            if cancel:
-                                await pilot.click("#btn_cancel")
-                            elif connect is not None:
-                                from textual.widgets import Input, Select
 
-                                app.screen.query_one("#db_type_select", Select).value = "l"
-                                app.screen.query_one("#database_input", Input).value = str(connect)
+                    async def drive():
+                        while not app._exit:
+                            if close_gate is not None and close_gate[0].is_set():
+                                app.action_request_quit()
+                                close_gate[1].set()
+                            if isinstance(app.screen, ConnectScreen):
                                 await pilot.pause()
-                                await pilot.click("#btn_ok")
-                        elif isinstance(app.screen, MsgScreen) and app.screen.query("#btn_0"):
-                            await pilot.click("#btn_0")
-                        elif isinstance(app.screen, ActionScreen) and app.screen.query("#action_0"):
-                            await pilot.pause()
-                            await pilot.click("#action_0")
-                        elif interrupt and isinstance(app.screen, DisplayScreen):
+                                if cancel:
+                                    await pilot.click("#btn_cancel")
+                                elif connect is not None:
+                                    from textual.widgets import Input, Select
+
+                                    app.screen.query_one("#db_type_select", Select).value = "l"
+                                    app.screen.query_one("#database_input", Input).value = str(connect)
+                                    await pilot.pause()
+                                    await pilot.click("#btn_ok")
+                            elif isinstance(app.screen, MsgScreen) and app.screen.query("#btn_0"):
+                                await pilot.click("#btn_0")
+                            elif isinstance(app.screen, ActionScreen) and app.screen.query("#action_0"):
+                                await pilot.pause()
+                                await pilot.click("#action_0")
+                            elif interrupt and isinstance(app.screen, DisplayScreen):
+                                app.action_request_quit()
+                            await pilot.pause(0.01)
+
+                    try:
+                        await asyncio.wait_for(drive(), timeout=10)
+                    except asyncio.TimeoutError:
+                        assert app._exit, "Console did not finish"
+                    finally:
+                        if app._script_thread.is_alive() and not app._quit_requested:
                             app.action_request_quit()
-                        await pilot.pause(0.01)
                     assert app._exit, "Console did not finish"
                 assert not app._script_thread.is_alive()
 
@@ -224,6 +232,33 @@ def test_fatal_error_runs_cleanup_before_worker_connections_close(
     assert all(db.conn is None for db in connections)
     with sqlite3.connect(path) as conn:
         assert conn.execute("select * from marker").fetchall() == [("cleanup",)]
+
+
+@pytest.mark.parametrize("directory", [False, True])
+def test_final_file_output_keeps_error_cleanup_connections_available(console_cli, tmp_path, directory):
+    invoke, operations, connections, main_thread = console_cli
+    path = tmp_path / "output.sqlite"
+    with sqlite3.connect(path) as conn:
+        conn.execute("create table marker(value text)")
+    target = tmp_path / "output"
+    if directory:
+        target.mkdir()
+    result = invoke(
+        "-- !x! ON ERROR_HALT EXECUTE SCRIPT failed\n"
+        "-- !x! BEGIN SCRIPT failed\ninsert into marker values ('cleanup');\n-- !x! END SCRIPT\n"
+        f'-- !x! WRITE "lost" TO "{target.as_posix()}"\nselect 1;\n',
+        dsn=f"sqlite:///{path}",
+    )
+    assert result.exit_code == (1 if directory else 0), (result.output, result.exception)
+    if directory:
+        assert isinstance(result.exception, SystemExit), (result.output, result.exception)
+    else:
+        assert target.read_text().strip() == "lost"
+    with sqlite3.connect(path) as conn:
+        assert conn.execute("select * from marker").fetchall() == ([("cleanup",)] if directory else [])
+    assert len({thread for _, thread in operations}) == 1
+    assert main_thread not in {thread for _, thread in operations}
+    assert all(db.conn is None for db in connections)
 
 
 def test_quit_during_connection_cleanup_finishes_on_worker(console_cli, monkeypatch, tmp_path):

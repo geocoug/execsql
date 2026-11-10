@@ -5,6 +5,7 @@ from __future__ import annotations
 import builtins
 import os
 import sys
+import threading
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
@@ -90,6 +91,29 @@ def test_real_tk_startup_failure_falls_back_with_reason(backends, capsys, error)
     assert gui._active_backend is backends.textual
     output = capsys.readouterr()
     assert str(error) in output.err and "Textual" in output.err
+
+
+def test_macos_worker_skips_native_startup_before_falling_back(backends, capsys):
+    ctx = state.get_context()
+    errors = []
+
+    def select_backend():
+        try:
+            with state.active_context(ctx):
+                gui.enable_gui()
+        except BaseException as exc:
+            errors.append(exc)
+
+    with patch.object(sys, "platform", "darwin"), patch.object(os, "name", "posix"):
+        worker = threading.Thread(target=select_backend)
+        worker.start()
+        worker.join(2)
+    assert not worker.is_alive()
+    assert not errors
+    backends.native.start.assert_not_called()
+    assert gui._active_backend is backends.textual
+    output = capsys.readouterr()
+    assert "main thread" in output.err and "Textual" in output.err
 
 
 def test_unavailable_textual_uses_manager_fallback(backends, monkeypatch, capsys):

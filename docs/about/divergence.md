@@ -73,7 +73,7 @@ ______________________________________________________________________
 
 Textual dialog construction and control failures follow the script's metacommand error policy in ordinary prompts and the full console. They close the failed dialog and fail open batches; with `METACOMMAND_ERROR_HALT OFF`, later prompts remain usable. They do not count as user cancellation or console Quit.
 
-The full Textual CLI console opens, uses and closes database connections on its script worker, including the initial SQLite connection and connections added by `CONNECT` or `PROMPT CONNECT`. Cleanup finishes before the worker stops on normal completion, halts, errors and interruption. Fatal errors, including those from an ACTION-selected script, run `ON ERROR_HALT` cleanup before the connections close. SQLite retains its same-thread connection guard.
+The full Textual CLI console opens, uses and closes database connections on its script worker, including the initial SQLite connection and connections added by `CONNECT` or `PROMPT CONNECT`. Cleanup finishes before the worker stops on normal completion, halts, errors and interruption. Fatal errors, including those from an ACTION-selected script or final file-output flush, run `ON ERROR_HALT` cleanup before the connections close. SQLite retains its same-thread connection guard.
 
 PostgreSQL, MySQL/MariaDB, Oracle, Firebird and ODBC DSN connections forward an explicit username independently of password presence. `--no-passwd`, `password_prompt=No`, `CONNECT ... NEED_PWD=FALSE` and blank-password `PROMPT CONNECT` requests therefore keep the selected identity. Supplied passwords, including explicit empty strings at the adapter API, are passed independently of the prompt flag; omitted passwords leave driver authentication defaults available. Firebird preserves an omitted username rather than converting it into a literal account name.
 
@@ -116,7 +116,7 @@ The existing first-row rule for repeated keys is preserved.
 
 Native macOS Tk is attempted when `gui_framework=tkinter`, even without
 X11/Wayland environment variables. The modular headless guard previously
-treated macOS as an X11 desktop and silently selected Textual instead.
+treated macOS as an X11 desktop and silently selected Textual instead. Native Tk initialization from a macOS worker thread is skipped before creating any Tk windows; the existing Textual/console fallback reports that native Tk requires the main thread.
 Other POSIX hosts without a display still skip Tk; genuine Tk startup
 failures fall back to Textual, then console prompts when Textual is
 unavailable. Fallback reports its reason and selected backend on stderr.
