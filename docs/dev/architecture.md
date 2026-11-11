@@ -313,19 +313,58 @@ ______________________________________________________________________
 
 ## GUI Subsystem
 
-execsql supports three GUI backends for interactive prompts (password dialogs, pause screens, data displays, console windows):
+### Backend selection and readiness
 
-| Backend          | Module           | When used                                                      |
-| ---------------- | ---------------- | -------------------------------------------------------------- |
-| `TkinterBackend` | `gui/desktop.py` | Default when `--gui-framework tkinter` or Tkinter is available |
-| `TextualBackend` | `gui/tui.py`     | When `--gui-framework textual` is specified                    |
-| `ConsoleBackend` | `gui/console.py` | Fallback when no GUI framework is available                    |
+`utils.gui.enable_gui()` initializes the GUI lazily and returns immediately on later calls once `_active_backend` is set. The configured `gui_framework` chooses the backend; `gui_level` controls when callers request prompts or a console.
 
-All backends implement the `GuiBackend` ABC (`gui/base.py`), which defines a `dispatch()` method that routes `GuiSpec` requests to type-specific handlers (`show_msg`, `show_pause`, `show_credentials`, `show_entry_form`, etc.).
+| Backend          | Module           | Selection                                                                                            |
+| ---------------- | ---------------- | ---------------------------------------------------------------------------------------------------- |
+| `TkinterBackend` | `gui/desktop.py` | First choice for `gui_framework=tkinter`; native macOS Tk is attempted without X11/Wayland variables |
+| `TextualBackend` | `gui/tui.py`     | Selected for `gui_framework=textual`, or when Tk is unavailable                                      |
+| `ConsoleBackend` | `gui/console.py` | Terminal input/output fallback when Textual is unavailable                                           |
 
-### GUI manager thread
+On POSIX hosts other than macOS, absent `DISPLAY` and `WAYLAND_DISPLAY` skip Tk initialization. A Tk startup error also falls through to Textual. Fallback reasons are written to stderr. Backend selection follows the configured framework even when another toolkit is installed.
 
-When `--visible-prompts` is set to level 1 or higher, a GUI manager thread (`_state.gui_manager_thread`) runs alongside the script execution thread. GUI requests are sent via `_state.gui_manager_queue` and responses are returned synchronously. The `utils/gui.py` module provides the public API (`gui_connect`, `gui_console_on`, `gui_console_off`, etc.) that metacommand handlers call.
+The GUI backend reference in `utils.gui` is module-global. Call `enable_gui()` before posting a GUI request. Initialization installs a queue-compatible object in `_state.gui_manager_queue`; the concrete object determines where dispatch occurs. `_state.gui_manager_thread` exists only for the console fallback. Its presence or liveness cannot establish readiness for the synchronous Tk/Textual paths. `gui_console_isrunning()` queries the active backend for console state; a backend can be initialized while no console is open.
+
+### Execution modes
+
+The three backend classes implement `GuiBackend` (`gui/base.py`). Its `dispatch()` method maps `GuiSpec.gui_type` to handlers such as `show_msg`, `show_credentials` and `show_entry_form`. Textual queue adapters use a screen-class map directly; the backend's `show_*` methods also support direct calls through short-lived apps.
+
+| Mode                           | Script execution                                                         | Dialog/UI execution                                                                | Request transport              |
+| ------------------------------ | ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- | ------------------------------ |
+| Native Tk                      | Calling thread, normally the CLI main thread                             | Same thread; native dialogs run during `put()`                                     | `_TkinterSyncQueue`            |
+| Ordinary Textual prompts       | Calling thread                                                           | Same thread; each request runs a short-lived `_SingleDialogApp`                    | `_TextualSyncQueue`            |
+| Persistent Textual CLI console | `execsql-script` worker with the run's `RuntimeContext` explicitly bound | Main thread runs `ConsoleApp` and its modal screens                                | `_ConsoleDialogQueue`          |
+| Console fallback               | Calling thread                                                           | Daemon `execsql-gui-manager` thread runs `gui_manager_loop()` and terminal prompts | Standard-library `queue.Queue` |
+
+Tk widget operations must run on the main thread, particularly on macOS. `_TkinterSyncQueue.put()` calls `backend.dispatch()` synchronously, places the response on the request's return queue and services pending Tk events. Ordinary Textual dispatch likewise finishes its modal app before `put()` returns. Neither path creates a GUI manager thread.
+
+The persistent Textual mode is selected by `cli.run._execute_script_ast()` when GUI level is greater than 2 and the active backend is Textual. `_execute_script_textual_console()` replaces the ordinary synchronous queue, redirects output to the app and starts connection initialization and script execution on the worker. The initial connection and runtime `CONNECT` / `PROMPT CONNECT` connections share that worker as their owner; SQLite retains its default same-thread guard. The worker closes its connection pool before terminating on success, halt, error or interruption, leaving the main-thread `atexit` callback an empty pool. Startup connection failures are reported while the UI loop is still available. A timer on the UI thread polls for requests, opens each modal screen and returns its result through the queue. Worker output/status updates use `call_from_thread()` to reach UI widgets. This CLI execution mode is distinct from merely issuing `CONSOLE ON` during an otherwise synchronous run.
+
+The console fallback is the path where `enable_gui()` starts `gui_manager_loop()`. The loop dequeues requests and calls `backend.dispatch()`. It recognizes `None` as a stop sentinel; the thread is a daemon. This queue loop and the persistent Textual script worker have separate lifecycles.
+
+### Responses, failures and cancellation
+
+A `GuiSpec` carries its dialog type, argument dictionary and return queue. Consumers submit it through `_state.gui_manager_queue.put(spec)` and call `utils.gui.get_gui_response()` on the script thread. In synchronous modes the result is already queued when `put()` returns; threaded modes wait for the UI response.
+
+Transport adapters turn backend `Exception` failures into dictionaries containing `error`. The Textual apps also intercept failures from the owned modal screen or its descendant message pumps during composition, mounting and input handling, dismissing that modal with an error result. Errors elsewhere in the app retain Textual's fatal-error handling. The checked receiver raises `ConsoleUIError` on the script thread before processing cancellation. The executor can then record a metacommand failure, fail open batches and apply the configured error-halt policy. Widget code collects answers; script-side consumers own variable assignments, destination-table writes and execution of a selected ACTION script. An error escaping that script travels through dispatch in `_ScriptExecutionError`; `_exec_metacommand()` re-raises the original exception to the AST caller. This preserves the called script's halt and cleanup behavior instead of applying the outer prompt's error policy. Target and argument validation remains an ordinary prompt error.
+
+Cancellation returns dialog-specific empty fields and updates `DIALOG_CANCELED()`. A successful answer clears the flag; a console-state query leaves it unchanged. The receiving command owns its cancellation policy, including `CANCEL_HALT` and the normal halt/cleanup path where supported. No queue adapter injects an exit merely because a dialog was canceled. Numeric answer zero, such as No, remains a valid result; `None` represents a canceled button. See [CANCEL_HALT](../reference/metacommands.md#cancel_halt) and each prompt's reference for assignment/clearing rules.
+
+Persistent-console Quit uses an `interrupted` response for pending or future dialog requests. The checked receiver raises `KeyboardInterrupt` on the worker, allowing the executor's interrupt and rollback handling to run. This shutdown request follows the console lifecycle below.
+
+### Console lifecycle and shutdown
+
+Native Tk's `ConsoleWindow` owns its output widget and window. `TkinterBackend.console_on()` uses the runtime configuration's character/line dimensions; `console_resize()` updates the live widget and requested window geometry. Size choices survive OFF/ON and manual closure, and resizing preserves position and hidden state. The base sizing hook is a no-op for terminal backends. See [CONSOLE](../reference/metacommands.md#console) for the backend-specific controls.
+
+The persistent Textual console polls for actual script-thread termination. Quit requests interruption once and stops admitting dialogs. Pending dialog waiters receive the interruption response; otherwise the app requests a plain `SystemExit` on the script worker. Repeated Quit leaves cleanup uninterrupted. A blocked driver call must return to Python before the interruption can be delivered, so there is no forced shutdown deadline.
+
+`ConsoleApp` keeps its event loop available while the worker unwinds and emits cleanup output, including during unexpected app unmount. The CLI's worker wrapper runs the existing interrupt rollback backstop in the same `RuntimeContext`; the interrupt backstop leaves autocommit-off transactions to the script. Final CLI pool cleanup also runs on the worker before it stops, just as process cleanup closes connections in the synchronous CLI. After the app returns, `wait_for_script()` joins the worker before output redirection is reset. An interrupted console run logs interruption and exits 130. Normal completion and a script's requested HALT status retain their usual outcomes; closing a console kept open after completion is normal.
+
+Script execution and the final file-output flush finish on the worker before its pool-closing `finally`. Raw script errors and flush failures are finalized there with `exit_now()`: deferred `ON ERROR_HALT` scripts retain their connections and run after batch rollback, while the UI loop can still service requests. Deliberate control flow, configuration errors and interrupts keep their separate handling.
+
+Completion is detected by a UI timer, so worker completion cannot schedule a callback onto an already closed event loop. The request queue replies at most once when a modal response and shutdown compete. See [interface configuration](../reference/configuration.md) for the user-facing shutdown policy. `tests/gui/test_prompt_outcomes.py` and `tests/gui/test_console_shutdown.py` exercise response ownership, interrupt cleanup and shutdown ordering; native sizing is covered in `tests/gui/test_console_sizing.py`.
 
 ______________________________________________________________________
 
@@ -337,7 +376,7 @@ ______________________________________________________________________
 import execsql.state as _state
 ```
 
-This import pattern (always as `_state`, always accessed inside function/method bodies) avoids circular imports at load time. The module stores all mutable state in a `threading.local()` instance, so each thread gets its own isolated `RuntimeContext`. The module provides two management functions:
+This import pattern (always as `_state`, always accessed inside function/method bodies) avoids circular imports at load time. Runtime state is accessed through a `threading.local()` proxy. Each thread receives its own default `RuntimeContext`; `active_context(ctx)` can explicitly bind an existing context, as the persistent Textual script worker does. GUI backend selection keeps the separate module-global reference described above. The module provides two management functions:
 
 - **`initialize(config, dispatch_table, conditional_table)`** -- Called once from `_run()` to create runtime singletons (`DatabasePool`, `CounterVars`, `BatchLevels`, etc.).
 - **`reset()`** -- Tears down all state for test isolation.

@@ -195,45 +195,29 @@ class TestConsoleWidthHeight:
     def test_width_getter_default(self) -> None:
         assert isinstance(gui_console_width(), int)
 
-    def test_width_set_without_gui_console(self) -> None:
-        prev = _gui._console_width
-        try:
-            _state.gui_console = None
-            gui_console_width(100)
-            assert gui_console_width() == 100
-        finally:
-            _gui._console_width = prev
+    def test_width_set_without_backend(self, monkeypatch) -> None:
+        monkeypatch.setattr(_gui, "_active_backend", None)
+        monkeypatch.setattr(_gui, "_console_width", 100)
+        gui_console_width(120)
+        assert gui_console_width() == 120
 
-    def test_width_set_with_gui_console_set_width(self) -> None:
-        prev = _gui._console_width
-        try:
-            mock_console = MagicMock()
-            _state.gui_console = mock_console
-            gui_console_width(120)
-            mock_console.set_width.assert_called_once_with(120)
-        finally:
-            _gui._console_width = prev
-            _state.gui_console = None
+    def test_width_routes_to_active_backend(self, fake_backend, monkeypatch) -> None:
+        monkeypatch.setattr(_gui, "_console_width", 100)
+        height = gui_console_height()
+        gui_console_width(120)
+        fake_backend.console_resize.assert_called_once_with(120, height)
 
-    def test_height_set_without_gui_console(self) -> None:
-        prev = _gui._console_height
-        try:
-            _state.gui_console = None
-            gui_console_height(40)
-            assert gui_console_height() == 40
-        finally:
-            _gui._console_height = prev
+    def test_height_set_without_backend(self, monkeypatch) -> None:
+        monkeypatch.setattr(_gui, "_active_backend", None)
+        monkeypatch.setattr(_gui, "_console_height", 25)
+        gui_console_height(40)
+        assert gui_console_height() == 40
 
-    def test_height_set_with_gui_console_set_height(self) -> None:
-        prev = _gui._console_height
-        try:
-            mock_console = MagicMock()
-            _state.gui_console = mock_console
-            gui_console_height(50)
-            mock_console.set_height.assert_called_once_with(50)
-        finally:
-            _gui._console_height = prev
-            _state.gui_console = None
+    def test_height_routes_to_active_backend(self, fake_backend, monkeypatch) -> None:
+        monkeypatch.setattr(_gui, "_console_height", 25)
+        width = gui_console_width()
+        gui_console_height(50)
+        fake_backend.console_resize.assert_called_once_with(width, 50)
 
 
 # ---------------------------------------------------------------------------
@@ -381,7 +365,8 @@ class TestApplyConnectResult:
 
 
 class TestGuiCredentialsRouted:
-    def test_routed_through_queue(self) -> None:
+    def test_routed_through_queue(self, monkeypatch) -> None:
+        monkeypatch.setattr(_gui, "enable_gui", lambda: None)
         _state.conf = SimpleNamespace(gui_level=2)
         thread = MagicMock()
         thread.is_alive.return_value = True

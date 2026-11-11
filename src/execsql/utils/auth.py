@@ -36,6 +36,7 @@ from typing import Any, cast
 
 import execsql.state as _state
 from execsql.utils.fileio import register_secret
+from execsql.utils.gui import ConsoleUIError
 
 __all__ = [
     "begin_login",
@@ -343,21 +344,23 @@ def get_password(
         gui_manager_queue = getattr(_state, "gui_manager_queue", None)
         if gui_manager_thread:
             return_queue: queue.Queue[Any] = queue.Queue()
-            from execsql.utils.gui import GuiSpec, QUERY_CONSOLE
+            from execsql.utils.gui import GuiSpec, QUERY_CONSOLE, get_gui_response
 
             assert gui_manager_queue is not None
             gui_manager_queue.put(GuiSpec(QUERY_CONSOLE, {}, return_queue))
-            user_response = return_queue.get(block=True)
+            user_response = get_gui_response(return_queue, QUERY_CONSOLE)
             use_gui = user_response["console_running"]
+    except ConsoleUIError:
+        raise
     except Exception:
-        pass  # GUI query failed; fall back to non-GUI password prompt.
+        pass  # GUI query unavailable; fall back to non-GUI password prompt.
 
     conf = _state.conf
     if use_gui or (conf is not None and conf.gui_level > 0):
         import queue as _queue
 
         try:
-            from execsql.utils.gui import enable_gui, GuiSpec, GUI_DISPLAY
+            from execsql.utils.gui import enable_gui, GuiSpec, GUI_DISPLAY, get_gui_response
 
             enable_gui()
             return_queue = _queue.Queue()
@@ -371,9 +374,9 @@ def get_password(
             gui_manager_queue = getattr(_state, "gui_manager_queue", None)
             assert gui_manager_queue is not None
             gui_manager_queue.put(GuiSpec(GUI_DISPLAY, gui_args, return_queue))
-            user_response = return_queue.get(block=True)
+            user_response = get_gui_response(return_queue, GUI_DISPLAY)
             btn = user_response["button"]
-            passwd = cast(str, user_response["return_value"])
+            passwd = cast(str, user_response["return_value"] or "")
             if not btn and _state.status and _state.status.cancel_halt:
                 if _state.exec_log:
                     _state.exec_log.log_exit_halt(
@@ -382,6 +385,8 @@ def get_password(
                         f"Canceled on password prompt for {dbms_name} database {database_name}, user {user_name}",
                     )
                 exit_now(2, None)
+        except ConsoleUIError:
+            raise
         except Exception:
             prompt_text = prompt.replace("\n", " ", 1).replace("\n", ", ") + " >"
             passwd = getpass.getpass(str(prompt_text))

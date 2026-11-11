@@ -3,14 +3,14 @@
 * F040 — ``utils/auth.is_plaintext_keyring()`` returns True when the
   active keyring backend is ``keyrings.alt.file.PlaintextKeyring``
   or any other backend whose module path begins with ``keyrings.alt``.
-* F041 — ``utils/gui.enable_gui()`` skips the Tkinter path on POSIX
-  when neither ``$DISPLAY`` nor ``$WAYLAND_DISPLAY`` is set, falling
-  straight through to a non-GUI backend.
+* ``utils/gui.enable_gui()`` skips the Tkinter path on Linux when neither
+  ``$DISPLAY`` nor ``$WAYLAND_DISPLAY`` is set; macOS uses native Aqua Tk.
 """
 
 from __future__ import annotations
 
 import os
+import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -112,8 +112,8 @@ def test_a_chained_backend_is_judged_by_where_a_password_is_saved(first, plainte
 @pytest.mark.skipif(os.name != "posix", reason="DISPLAY check is POSIX-only")
 class TestHeadlessPosixGuiFallback:
     def test_enable_gui_skips_tkinter_when_no_display(self, monkeypatch):
-        """B20/F041: with no DISPLAY/WAYLAND_DISPLAY on POSIX,
-        enable_gui must NOT attempt the Tkinter import path."""
+        """Without a display server, Linux must skip native Tk initialization."""
+        monkeypatch.setattr(sys, "platform", "linux")
         import execsql.utils.gui as gui_mod
 
         # Reset the module-level backend cache.
@@ -131,8 +131,5 @@ class TestHeadlessPosixGuiFallback:
         # If the Tkinter path were taken, this import patch would never
         # be touched. Patch it anyway to ensure no attempt is made.
         with patch("execsql.gui.desktop.TkinterBackend") as mock_tk:
-            try:
-                gui_mod.enable_gui()
-            except Exception:
-                pass  # We don't care if textual / console also fail.
+            gui_mod.enable_gui()
             mock_tk.assert_not_called()

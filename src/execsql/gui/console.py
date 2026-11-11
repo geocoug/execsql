@@ -16,6 +16,7 @@ from execsql.gui.base import (
     compare_stats as _compare_stats,
     compute_row_diffs,
     format_table,
+    normalize_text_entry,
     row_count_text as _row_count_text,
 )
 
@@ -143,17 +144,26 @@ class ConsoleBackend(GuiBackend):
             _print_table(headers, rows)
             print(f"  {_row_count_text(len(rows))}", file=sys.stderr)
 
-        return_value = None
-        if textentry:
+        if not textentry:
+            return {"button": _prompt_buttons(button_list), "return_value": None}
+        while True:
             if hidetext:
                 import getpass
 
-                return_value = getpass.getpass("Enter value: ")
+                entered = getpass.getpass("Enter value: ")
             else:
-                return_value = input(f"Enter value [{initial}]: ").strip() or initial
-
-        btn = _prompt_buttons(button_list)
-        return {"button": btn, "return_value": return_value}
+                entered = input(f"Enter value [{initial or ''}]: ")
+                if not entered:
+                    entered = initial or ""
+            btn = _prompt_buttons(button_list)
+            if btn is None:
+                return {"button": None, "return_value": None}
+            try:
+                value = normalize_text_entry(entered, args.get("textentrytype"), args.get("textentrycase"))
+            except ValueError as exc:
+                print(f"Invalid entry: {exc}", file=sys.stderr)
+                continue
+            return {"button": btn, "return_value": value}
 
     def show_entry_form(self, args: dict) -> dict:
         title = args.get("title", "Entry")
@@ -317,15 +327,27 @@ class ConsoleBackend(GuiBackend):
         print(f"\n=== {title} ===", file=sys.stderr)
         if message:
             print(message, file=sys.stderr)
+        _print_help_url(args)
+        can_continue = any(button[1] == 2 for button in args.get("button_list", []))
         if headers and rows:
             for i, row in enumerate(rows, 1):
                 print(f"  [{i}] " + ", ".join(f"{h}={v}" for h, v in zip(headers, row)), file=sys.stderr)
             while True:
-                raw = input("Select row number (or blank to cancel): ").strip()
+                prompt = (
+                    "Select row number, C to continue without selecting, or blank to cancel: "
+                    if can_continue
+                    else "Select row number (or blank to cancel): "
+                )
+                try:
+                    raw = input(prompt).strip()
+                except EOFError:
+                    raw = ""
                 if not raw:
                     return {"button": None, "row": None}
+                if can_continue and raw.lower() == "c":
+                    return {"button": 2, "row": None}
                 if raw.isdigit() and 1 <= int(raw) <= len(rows):
-                    row = dict(zip(headers, rows[int(raw) - 1]))
+                    row = list(rows[int(raw) - 1])
                     return {"button": 1, "row": row}
                 print("Invalid selection.", file=sys.stderr)
         return {"button": None, "row": None}
@@ -342,27 +364,43 @@ class ConsoleBackend(GuiBackend):
             print(message, file=sys.stderr)
         _print_help_url(args)
         if headers and rows:
-            _print_table(headers, rows)
+            _print_table(["#", *headers], [(i + 1, *row) for i, row in enumerate(rows)])
             print(f"  {_row_count_text(len(rows))}", file=sys.stderr)
-
-        if not button_specs:
-            input("Press Enter to continue...")
-            return {"button": 1}
 
         print("\nAvailable actions:", file=sys.stderr)
         for i, spec in enumerate(button_specs, 1):
-            print(f"  [{i}] {spec.label} — {spec.prompt}", file=sys.stderr)
+            required = " (select a data row first)" if spec.data_required else ""
+            print(f"  [{i}] {spec.label} — {spec.prompt}{required}", file=sys.stderr)
+        if headers and rows:
+            print("  R <number>: select a data row", file=sys.stderr)
+        print("  Blank input: Cancel", file=sys.stderr)
 
         include_continue = args.get("include_continue_button")
         if include_continue:
             print("  [0] Continue", file=sys.stderr)
 
+        selected_row = None
         while True:
-            raw = input("Select action: ").strip()
+            try:
+                raw = input("Select action or data row: ").strip()
+            except EOFError:
+                raw = ""
+            if not raw or raw == "\x1b":
+                return {"button": None, "row": None}
             if include_continue and raw == "0":
-                return {"button": 1}
+                return {"button": 0, "row": None}
+            parts = raw.split()
+            if len(parts) == 2 and parts[0].lower() == "r" and parts[1].isdigit():
+                index = int(parts[1]) - 1
+                if rows and 0 <= index < len(rows):
+                    selected_row = list(rows[index])
+                    continue
             if raw.isdigit() and 1 <= int(raw) <= len(button_specs):
-                return {"button": int(raw)}
+                index = int(raw) - 1
+                if button_specs[index].data_required and selected_row is None:
+                    print("Select a data row before choosing this action.", file=sys.stderr)
+                    continue
+                return {"button": index + 1, "row": selected_row if button_specs[index].data_required else None}
             print("Invalid choice.", file=sys.stderr)
 
     def show_map(self, args: dict) -> dict:
@@ -450,14 +488,23 @@ class ConsoleBackend(GuiBackend):
         for k, v in db_types.items():
             print(f"  {k} — {v}", file=sys.stderr)
         db_type = input("Database type: ").strip().lower()
-        server = input("Server (or blank): ").strip() or None
-        database = input("Database (or blank): ").strip() or None
-        db_file = input("File path (or blank): ").strip() or None
-        username = input("Username (or blank): ").strip() or None
-        return {
-            "db_type": db_type,
-            "server": server,
-            "database": database,
-            "db_file": db_file,
-            "username": username,
-        }
+        while db_type not in db_types:
+            print("Select one of the listed database types.", file=sys.stderr)
+            db_type = input("Database type: ").strip().lower()
+        import getpass
+
+        from execsql.gui.base import FILE_DATABASES, connection_result
+
+        if db_type in FILE_DATABASES:
+            return dict(connection_result(db_type, database=input("File path: ")))
+        server = input("Server (or blank): ") if db_type != "d" else ""
+        database = input("DSN: " if db_type == "d" else "Database (or blank): ")
+        username = input("Username (or blank): ")
+        password = getpass.getpass("Password (blank: no additional password prompt): ")
+        encoding = input("Encoding (blank: driver default): ")
+        while True:
+            port = input("Port (blank: DBMS default): ") if db_type != "d" else ""
+            try:
+                return dict(connection_result(db_type, server, database, username, password, port, encoding))
+            except ValueError as exc:
+                print(str(exc), file=sys.stderr)

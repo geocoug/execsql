@@ -1346,7 +1346,7 @@ class TestControlHaltExtended:
             patch("queue.Queue") as mock_q_cls,
         ):
             rq = create_autospec(_REAL_QUEUE, instance=True)
-            rq.get.return_value = None
+            rq.get.return_value = {"button": 1}
             mock_q_cls.return_value = rq
             x_halt_msg(
                 errmsg="halt msg",
@@ -1383,7 +1383,7 @@ class TestControlHaltExtended:
             patch("queue.Queue") as mock_q_cls,
         ):
             rq = create_autospec(_REAL_QUEUE, instance=True)
-            rq.get.return_value = None
+            rq.get.return_value = {"button": 1}
             mock_q_cls.return_value = rq
             x_halt_msg(
                 errmsg="halt with table",
@@ -1415,7 +1415,7 @@ class TestControlHaltExtended:
             patch("queue.Queue") as mock_q_cls,
         ):
             rq = create_autospec(_REAL_QUEUE, instance=True)
-            rq.get.return_value = None
+            rq.get.return_value = {"button": 1}
             mock_q_cls.return_value = rq
             x_halt_msg(
                 errmsg="written to file",
@@ -1444,7 +1444,7 @@ class TestControlHaltExtended:
             patch("queue.Queue") as mock_q_cls,
         ):
             rq = create_autospec(_REAL_QUEUE, instance=True)
-            rq.get.return_value = None
+            rq.get.return_value = {"button": 1}
             mock_q_cls.return_value = rq
             x_halt_msg(
                 errmsg="error",
@@ -1472,7 +1472,7 @@ class TestControlHaltExtended:
             patch("queue.Queue") as mock_q_cls,
         ):
             rq = create_autospec(_REAL_QUEUE, instance=True)
-            rq.get.return_value = None
+            rq.get.return_value = {"button": 1}
             mock_q_cls.return_value = rq
             x_halt_msg(
                 errmsg="error",
@@ -1591,7 +1591,7 @@ class TestControlHaltExtended:
             patch("queue.Queue") as mock_q_cls,
         ):
             rq = create_autospec(_REAL_QUEUE, instance=True)
-            rq.get.return_value = None
+            rq.get.return_value = {"button": 1}
             mock_q_cls.return_value = rq
             x_halt_msg(
                 errmsg="boom",

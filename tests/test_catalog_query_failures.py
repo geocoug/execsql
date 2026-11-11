@@ -154,14 +154,19 @@ def test_readable_sources_need_no_catalog_access(tmp_path, monkeypatch, source_k
 
     def respond(spec):
         dialogs.append(spec)
-        spec.return_queue.put({"button": 1, "return_value": []})
+        response = {"button": 1, "row": None} if spec.gui_type == "action" else {"button": 1, "return_value": []}
+        spec.return_queue.put(response)
 
     def enable_gui():
         state.gui_manager_queue = SimpleNamespace(put=respond)
 
     monkeypatch.setattr("execsql.metacommands.prompt.enable_gui", enable_gui)
     script = f"create {source_kind} lookup as {query};\n-- !x! {command}\n"
+    if command.startswith("PROMPT ACTION"):
+        script += "-- !x! BEGIN SCRIPT noop\n-- !x! SUB action_ran yes\n-- !x! END SCRIPT\n"
     result = run(sql=script, dsn=f"sqlite:///{tmp_path / 't.db'}", new_db=True)
     assert result.success, result.errors
+    if command.startswith("PROMPT ACTION"):
+        assert result.variables["action_ran"] == "yes"
     catalog.assert_not_called()
     assert len(dialogs) == (1 if command.startswith("PROMPT") else 0)

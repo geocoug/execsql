@@ -555,8 +555,8 @@ class TestXPromptSelectsub:
             patch("queue.Queue") as mock_q_cls,
         ):
             rq = create_autospec(_REAL_QUEUE, instance=True)
-            # User selected row index 0 with OK (button=1)
-            rq.get.return_value = {"button": 1, "return_value": [0]}
+            # User confirmed the original first row with OK (button=1)
+            rq.get.return_value = {"button": 1, "row": ["Alice", "30"]}
             mock_q_cls.return_value = rq
             x_prompt_selectsub(
                 schema="public",
@@ -584,7 +584,7 @@ class TestXPromptSelectsub:
             patch("queue.Queue") as mock_q_cls,
         ):
             rq = create_autospec(_REAL_QUEUE, instance=True)
-            rq.get.return_value = {"button": 1, "return_value": [0]}
+            rq.get.return_value = {"button": 1, "row": ["Widget"]}
             mock_q_cls.return_value = rq
             x_prompt_selectsub(
                 schema="dbo",
@@ -617,7 +617,7 @@ class TestXPromptSelectsub:
         ):
             rq = create_autospec(_REAL_QUEUE, instance=True)
             # User closed dialog without selecting
-            rq.get.return_value = {"button": None, "return_value": None}
+            rq.get.return_value = {"button": None, "row": None}
             mock_q_cls.return_value = rq
             x_prompt_selectsub(
                 schema="dbo",
@@ -646,7 +646,7 @@ class TestXPromptSelectsub:
             patch("queue.Queue") as mock_q_cls,
         ):
             rq = create_autospec(_REAL_QUEUE, instance=True)
-            rq.get.return_value = {"button": None, "return_value": None}
+            rq.get.return_value = {"button": None, "row": None}
             mock_q_cls.return_value = rq
             x_prompt_selectsub(
                 schema="dbo",
@@ -673,7 +673,7 @@ class TestXPromptSelectsub:
             patch("queue.Queue") as mock_q_cls,
         ):
             rq = create_autospec(_REAL_QUEUE, instance=True)
-            rq.get.return_value = {"button": 1, "return_value": [0]}
+            rq.get.return_value = {"button": 1, "row": ["Widget"]}
             mock_q_cls.return_value = rq
             x_prompt_selectsub(
                 schema="dbo",
@@ -702,7 +702,7 @@ class TestXPromptSelectsub:
             patch("queue.Queue") as mock_q_cls,
         ):
             rq = create_autospec(_REAL_QUEUE, instance=True)
-            rq.get.return_value = {"button": 1, "return_value": [0]}
+            rq.get.return_value = {"button": 1, "row": ["hello", None]}
             mock_q_cls.return_value = rq
             x_prompt_selectsub(
                 schema="dbo",
@@ -730,7 +730,7 @@ class TestXPromptSelectsub:
             patch("queue.Queue") as mock_q_cls,
         ):
             rq = create_autospec(_REAL_QUEUE, instance=True)
-            rq.get.return_value = {"button": 1, "return_value": [0]}
+            rq.get.return_value = {"button": 1, "row": ["val"]}
             mock_q_cls.return_value = rq
             x_prompt_selectsub(
                 schema="dbo",
@@ -758,7 +758,7 @@ class TestXPromptSelectsub:
             patch("queue.Queue") as mock_q_cls,
         ):
             rq = create_autospec(_REAL_QUEUE, instance=True)
-            rq.get.return_value = {"button": 1, "return_value": [0]}
+            rq.get.return_value = {"button": 1, "row": ["fresh_value"]}
             mock_q_cls.return_value = rq
             x_prompt_selectsub(
                 schema="dbo",
@@ -785,7 +785,7 @@ class TestXPromptSelectsub:
             patch("queue.Queue") as mock_q_cls,
         ):
             rq = create_autospec(_REAL_QUEUE, instance=True)
-            rq.get.return_value = {"button": 2, "return_value": None}
+            rq.get.return_value = {"button": 2, "row": None}
             mock_q_cls.return_value = rq
             x_prompt_selectsub(
                 schema="dbo",

@@ -1,5 +1,6 @@
 from __future__ import annotations
 from execsql.exceptions import ErrInfo
+from execsql.gui.base import normalize_text_entry
 
 """
 Interactive user prompt metacommand handlers for execsql.
@@ -60,6 +61,7 @@ from execsql.utils.gui import (
     GuiSpec,
     QUERY_CONSOLE,
     enable_gui,
+    get_gui_response,
     get_yn,
     get_yn_win,
     gui_connect,
@@ -92,7 +94,7 @@ def x_prompt(**kwargs: Any) -> None:
         "help_url": help_url,
     }
     _state.gui_manager_queue.put(GuiSpec(GUI_DISPLAY, gui_args, return_queue))
-    user_response = return_queue.get(block=True)
+    user_response = get_gui_response(return_queue, GUI_DISPLAY)
     btn = user_response["button"]
     if not btn and _state.status.cancel_halt:
         msg = f"Halted from display of {sq_name}"
@@ -133,7 +135,7 @@ def x_prompt_enter(**kwargs: Any) -> None:
         "help_url": help_url,
     }
     _state.gui_manager_queue.put(GuiSpec(GUI_DISPLAY, gui_args, return_queue))
-    user_response = return_queue.get(block=True)
+    user_response = get_gui_response(return_queue, GUI_DISPLAY)
     btnval = user_response["button"]
     txtval = user_response["return_value"]
     if btnval is None:
@@ -141,6 +143,7 @@ def x_prompt_enter(**kwargs: Any) -> None:
             _state.exec_log.log_exit_halt(*current_script_line(), msg="Quit from prompt to enter a SUB value.")
             exit_now(2, None)
     else:
+        txtval = normalize_text_entry(txtval, texttype, textcase)
         subvarset = _state.subvars if sub_var[0] != "~" else _state.current_localvars()
         subvarset.add_substitution(sub_var, txtval)
         script_name, lno = current_script_line()
@@ -292,23 +295,23 @@ def x_prompt_entryform(**kwargs: Any) -> None:
         "help_url": help_url,
     }
     _state.gui_manager_queue.put(GuiSpec(GUI_ENTRY, gui_args, return_queue))
-    user_response = return_queue.get(block=True)
+    user_response = get_gui_response(return_queue, GUI_ENTRY)
     btn = user_response["button"]
     entries = user_response["return_value"]
     script, line_no = current_script_line()
     if btn:
         assert entries is not None
-        assert subvar is not None
         for entry in entries:
+            subvarset = _state.subvars if entry.name[0] != "~" else _state.current_localvars()
             if entry.value:
                 value = str(entry.value)
-                subvarset = _state.subvars if subvar[0] != "~" else _state.current_localvars()
                 subvarset.add_substitution(entry.name, value)
                 _state.exec_log.log_status_info(
                     f"Substitution variable {entry.name} set to {{{value}}} on line {line_no} of {script}",
                 )
             else:
-                if _state.subvars.sub_exists(entry.name):
+                if subvarset.sub_exists(entry.name):
+                    subvarset.remove_substitution(entry.name)
                     _state.exec_log.log_status_info(
                         f"Substitution variable {entry.name} removed on line {line_no} of {script}",
                     )
@@ -342,7 +345,7 @@ def x_prompt_pause(**kwargs: Any) -> None:
         "countdown": maxtime_secs,
     }
     _state.gui_manager_queue.put(GuiSpec(GUI_PAUSE, gui_args, return_queue))
-    user_response = return_queue.get(block=True)
+    user_response = get_gui_response(return_queue, GUI_PAUSE)
     quit = user_response["quit"]
     return_queue.task_done()
     if quit and _state.status.cancel_halt:
@@ -410,7 +413,7 @@ def prompt_compare(button_list: list, **kwargs: Any) -> Any:
         "help_url": help_url,
     }
     _state.gui_manager_queue.put(GuiSpec(GUI_COMPARE, gui_args, return_queue))
-    user_response = return_queue.get(block=True)
+    user_response = get_gui_response(return_queue, GUI_COMPARE)
     btn = user_response["button"]
     if btn is None and _state.status.cancel_halt:
         script, line_no = current_script_line()
@@ -463,7 +466,7 @@ def x_prompt_ask(**kwargs: Any) -> None:
         "help_url": help_url,
     }
     _state.gui_manager_queue.put(GuiSpec(GUI_DISPLAY, gui_args, return_queue))
-    user_response = return_queue.get(block=True)
+    user_response = get_gui_response(return_queue, GUI_DISPLAY)
     btn = user_response["button"]
     if btn is None:
         if _state.status.cancel_halt:
@@ -508,7 +511,7 @@ def x_prompt_map(**kwargs: Any) -> None:
         "color_col": color_col,
     }
     _state.gui_manager_queue.put(GuiSpec(GUI_MAP, gui_args, return_queue))
-    user_response = return_queue.get(block=True)
+    user_response = get_gui_response(return_queue, GUI_MAP)
     btn = user_response["button"]
     if not btn and _state.status.cancel_halt:
         msg = f"Halted from map of {sq_name}"
@@ -588,13 +591,56 @@ def x_prompt_action(**kwargs: Any) -> None:
         "rowset": rows,
     }
     _state.gui_manager_queue.put(GuiSpec(GUI_ACTION, gui_args, return_queue))
-    user_response = return_queue.get(block=True)
+    user_response = get_gui_response(return_queue, GUI_ACTION)
     btn = user_response["button"]
     script, line_no = current_script_line()
-    if not btn and _state.status.cancel_halt:
-        msg = f"Halted from entry form {tbl1}"
-        _state.exec_log.log_exit_halt(script, line_no, msg)
-        exit_now(2, None)
+    if btn is None:
+        if _state.status.cancel_halt:
+            msg = f"Halted from action form {tbl1}"
+            _state.exec_log.log_exit_halt(script, line_no, msg)
+            exit_now(2, None)
+        return
+    if btn == 0 and do_continue:
+        return
+    if not isinstance(btn, int) or not 1 <= btn <= len(action_list):
+        raise ErrInfo(type="cmd", other_msg="The action dialog returned an invalid action.")
+    action = action_list[btn - 1]
+    selected_row = user_response.get("row")
+    if action.data_required and (
+        not colnames or not isinstance(selected_row, (list, tuple)) or len(selected_row) != len(colnames)
+    ):
+        raise ErrInfo(type="cmd", other_msg="The selected action requires a selected data row.")
+
+    from execsql.metacommands.script_ext import _get_ast_script
+    from execsql.script.ast import IncludeDirective, SourceSpan
+    from execsql.script.executor import _ScriptExecutionError, _execute_script_native, _script_args
+    from execsql.state import get_context
+
+    if not isinstance(action.script, str) or not action.script.strip():
+        raise ErrInfo(type="cmd", other_msg="A script name is required for the selected action.")
+    script_name = action.script.strip()
+    block = _get_ast_script(script_name)
+    node = IncludeDirective(
+        span=SourceSpan(script, line_no or 0),
+        target=script_name,
+        is_execute_script=True,
+        command=f"EXECUTE SCRIPT {script_name}",
+    )
+    arguments = _script_args(node, block)
+    if action.data_required:
+        assert colnames is not None and selected_row is not None
+        for name, item in zip(colnames, selected_row):
+            name = "@" + name
+            value = "" if item is None else str(item)
+            _state.subvars.add_substitution(name, value)
+            if _state.conf.log_datavars:
+                _state.exec_log.log_status_info(
+                    f"Substitution string {name} set to {{{value}}} on line {line_no} of {script}",
+                )
+    try:
+        _execute_script_native(get_context(), node, block, arguments)
+    except Exception as error:
+        raise _ScriptExecutionError(error) from error
 
 
 def x_prompt_savefile(**kwargs: Any) -> None:
@@ -613,7 +659,7 @@ def x_prompt_savefile(**kwargs: Any) -> None:
         return_queue: _queue.Queue[Any] = _queue.Queue()
         gui_args = {"working_dir": working_dir, "script": script}
         _state.gui_manager_queue.put(GuiSpec(GUI_SAVEFILE, gui_args, return_queue))
-        user_response = return_queue.get(block=True)
+        user_response = get_gui_response(return_queue, GUI_SAVEFILE)
         fn = user_response["filename"]
         if not fn:
             if _state.status.cancel_halt:
@@ -686,7 +732,7 @@ def x_prompt_openfile(**kwargs: Any) -> None:
         return_queue: _queue.Queue[Any] = _queue.Queue()
         gui_args = {"working_dir": working_dir, "script": script}
         _state.gui_manager_queue.put(GuiSpec(GUI_OPENFILE, gui_args, return_queue))
-        user_response = return_queue.get(block=True)
+        user_response = get_gui_response(return_queue, GUI_OPENFILE)
         fn = user_response["filename"]
         if not fn:
             if _state.status.cancel_halt:
@@ -745,7 +791,7 @@ def x_prompt_directory(**kwargs: Any) -> None:
         return_queue: _queue.Queue[Any] = _queue.Queue()
         gui_args = {"working_dir": working_dir, "script": script}
         _state.gui_manager_queue.put(GuiSpec(GUI_DIRECTORY, gui_args, return_queue))
-        user_response = return_queue.get(block=True)
+        user_response = get_gui_response(return_queue, GUI_DIRECTORY)
         dirname = user_response["directory"]
         if not dirname:
             if _state.status.cancel_halt:
@@ -818,7 +864,7 @@ def prompt_select_rows(button_list: list, **kwargs: Any) -> Any:
         "help_url": help_url,
     }
     _state.gui_manager_queue.put(GuiSpec(GUI_SELECTROWS, gui_args, return_queue))
-    user_response = return_queue.get(block=True)
+    user_response = get_gui_response(return_queue, GUI_SELECTROWS)
     btn = user_response["button"]
     if btn is None and _state.status.cancel_halt:
         script, line_no = current_script_line()
@@ -880,12 +926,13 @@ def x_ask(**kwargs: Any) -> None:
             "button_list": [("Yes", 1, "y"), ("No", 0, "n")],
         }
         _state.gui_manager_queue.put(GuiSpec(GUI_DISPLAY, gui_args, return_queue))
-        user_response = return_queue.get(block=True)
+        user_response = get_gui_response(return_queue, GUI_DISPLAY)
         btn = user_response["button"]
         if btn is None:
             if _state.status.cancel_halt:
                 _state.exec_log.log_exit_halt(script, lno, msg="Quit from ASK metacommand")
                 exit_now(2, None)
+            return None
         else:
             respstr = "Yes" if btn == 1 else "No"
     else:
@@ -927,7 +974,7 @@ def x_pause(**kwargs: Any) -> None:
     if _state.gui_manager_thread:
         return_queue: _queue.Queue[Any] = _queue.Queue()
         _state.gui_manager_queue.put(GuiSpec(QUERY_CONSOLE, {}, return_queue))
-        user_response = return_queue.get(block=True)
+        user_response = get_gui_response(return_queue, QUERY_CONSOLE)
         use_gui = user_response["console_running"]
     if use_gui or _state.conf.gui_level > 0:
         enable_gui()
@@ -938,7 +985,7 @@ def x_pause(**kwargs: Any) -> None:
             "countdown": maxtime_secs,
         }
         _state.gui_manager_queue.put(GuiSpec(GUI_PAUSE, gui_args, return_queue))
-        user_response = return_queue.get(block=True)
+        user_response = get_gui_response(return_queue, GUI_PAUSE)
         quit = user_response["quit"]
         return_queue.task_done()
     else:
@@ -957,12 +1004,15 @@ def x_pause(**kwargs: Any) -> None:
 
 def x_msg(**kwargs: Any) -> None:
     message = kwargs["message"]
-    current_script_line()
+    script, line_no = current_script_line()
     enable_gui()
     return_queue: _queue.Queue[Any] = _queue.Queue()
     gui_args = {"title": "Message", "message": message}
     _state.gui_manager_queue.put(GuiSpec(GUI_MSG, gui_args, return_queue))
-    return_queue.get(block=True)
+    response = get_gui_response(return_queue, GUI_MSG)
+    if response["button"] is None and _state.status.cancel_halt:
+        _state.exec_log.log_exit_halt(script, line_no, msg="Quit from PROMPT MESSAGE metacommand")
+        exit_now(2, None)
     return None
 
 

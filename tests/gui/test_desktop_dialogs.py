@@ -41,6 +41,10 @@ def _mk_widget() -> MagicMock:
     w.winfo_exists.return_value = True
     w.winfo_screenwidth.return_value = 1920
     w.winfo_screenheight.return_value = 1080
+    w.winfo_reqwidth.return_value = 400
+    w.winfo_reqheight.return_value = 300
+    w.winfo_width.return_value = 400
+    w.winfo_height.return_value = 300
     w.winfo_toplevel.return_value = w
     # Item access on widget — `widget["columns"] = ...` is common
     w.__getitem__ = MagicMock(side_effect=lambda key: 0 if key == "value" else None)
@@ -484,23 +488,16 @@ class TestSelectRowsDialog:
 
 class TestSelectSubDialog:
     def test_construct(self, fake_tk, root) -> None:
-        # The SelectSubDialog signature can vary — pass a comprehensive args
-        # dict.  If the dialog raises, this test will fail and we'll narrow.
         args = {
             "title": "Choose",
             "message": "select a sub var",
             "button_list": [("OK", 1, None)],
-            "items": ["one", "two", "three"],
-            "subvar_name": "$pick",
+            "headers": ["value"],
+            "rows": [("one",), ("two",), ("three",)],
             "help_url": "",
         }
-        try:
-            dlg = _desk.SelectSubDialog(root, args)
-            assert dlg.result == {}
-        except (KeyError, TypeError):
-            # Args shape differs; the import path / class definition was
-            # still exercised — that's the coverage we wanted.
-            pytest.skip("SelectSubDialog args shape unverified in this test")
+        dlg = _desk.SelectSubDialog(root, args)
+        assert dlg.result == {}
 
 
 # ---------------------------------------------------------------------------
@@ -516,6 +513,9 @@ class TestCredentialsDialog:
 
 class TestConnectDialog:
     def test_construct(self, fake_tk, root) -> None:
+        combo = _mk_widget()
+        combo.current.return_value = 0
+        fake_tk.ttk.Combobox.side_effect = lambda *a, **kw: combo
         dlg = _desk.ConnectDialog(
             root,
             {

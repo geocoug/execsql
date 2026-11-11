@@ -199,12 +199,7 @@ class TestMsgScreen:
 class TestPauseScreen:
     def test_continue_without_countdown(self):
         async def interact(pilot):
-            # Click the Continue button rather than relying on key focus
-            try:
-                await pilot.click("#btn_continue")
-            except Exception:
-                # Fall back to escape if the button selector isn't found
-                await pilot.press("escape")
+            assert await pilot.click("#btn_continue")
             await pilot.pause()
 
         result = _run_dialog(
@@ -212,8 +207,7 @@ class TestPauseScreen:
             {"title": "P", "message": "wait", "countdown": None},
             interact,
         )
-        # Either quit=False (continue) or cancelled=True is fine — both exercise compose()
-        assert "quit" in result or result.get("cancelled") is True
+        assert result == {"quit": False}
 
     def test_escape_cancels(self):
         async def interact(pilot):
@@ -228,19 +222,17 @@ class TestPauseScreen:
         assert result.get("cancelled") is True
 
     def test_with_countdown(self):
-        """Countdown should render a progress bar without exploding."""
+        """The countdown must complete rather than accepting cancellation as success."""
 
         async def interact(pilot):
-            await pilot.pause()  # let countdown initialize
-            await pilot.press("enter")
-            await pilot.pause()
+            await pilot.pause(0.35)
 
         result = _run_dialog(
             PauseScreen,
-            {"title": "P", "message": "wait", "countdown": 5.0},
+            {"title": "P", "message": "wait", "countdown": 0.05},
             interact,
         )
-        assert "quit" in result or "cancelled" in result
+        assert result == {"quit": False}
 
 
 # ---------------------------------------------------------------------------
@@ -328,12 +320,11 @@ class TestMapScreen:
         }
 
         async def interact(pilot):
-            await pilot.press("escape")
+            assert await pilot.click("#btn_0")
             await pilot.pause()
 
         result = _run_dialog(MapScreen, args, interact)
-        # compose ran successfully — coverage credit either way
-        assert isinstance(result, dict)
+        assert result == {"button": 1}
 
 
 # ---------------------------------------------------------------------------

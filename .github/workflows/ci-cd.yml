@@ -182,9 +182,17 @@ jobs:
                   python -m pip install --upgrade pip
                   python -m pip install tox tox-uv
                   python -m pip install ".[formats,formatter,lsp]" --group test
-            - name: Install tkinter (Ubuntu)
+            - name: Ensure tkinter (Ubuntu)
               if: runner.os == 'Linux'
-              run: sudo apt-get install -y python3-tk
+              # setup-python can already provide a working Tcl/Tk runtime.
+              # Avoid downloading the system Python's Tk package when the
+              # selected interpreter can initialize Tcl without it.
+              run: |
+                  if ! python -c 'import tkinter; tkinter.Tcl()'; then
+                      sudo apt-get update
+                      sudo apt-get install -y python3-tk
+                      python -c 'import tkinter; tkinter.Tcl()'
+                  fi
             - name: Install unixodbc (macOS)
               # tox installs the [all] extra which pulls in pyodbc; pyodbc's
               # native .so depends on libodbc.2.dylib from the unixodbc

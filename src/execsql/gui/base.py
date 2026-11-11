@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypedDict
 
 if TYPE_CHECKING:
     pass
@@ -12,6 +12,96 @@ if TYPE_CHECKING:
 __all__ = ["DiffResult", "GuiBackend", "compare_stats", "compute_row_diffs", "format_table", "row_count_text"]
 
 DIFF_MARKER = "● "
+
+
+FILE_DATABASES = frozenset(("l", "k", "a"))
+CONNECTION_ENCODINGS = ("UTF8", "LATIN1", "ASCII", "UTF16")
+
+
+class ConnectResult(TypedDict):
+    """Confirmed connection inputs; a blank password never requests another prompt."""
+
+    db_type: str | None
+    server: str | None
+    database: str | None
+    db_file: str | None
+    username: str | None
+    password: str | None
+    port: int | None
+    encoding: str | None
+
+
+def connection_result(
+    db_type: str,
+    server: str = "",
+    database: str = "",
+    username: str = "",
+    password: str = "",
+    port: str | int | None = None,
+    encoding: str = "",
+) -> ConnectResult:
+    """Normalize visible connection fields and reject invalid ports before connecting.
+
+    File databases ignore hidden network controls. DSNs use their configured host
+    and port. Password whitespace is significant and is never stripped.
+    """
+    if db_type not in "pslmkofad" or len(db_type) != 1:
+        raise ValueError("Select a database type.")
+    file_based = db_type in FILE_DATABASES
+    port_number = None
+    if isinstance(port, str):
+        port = port.strip()
+    if not file_based and db_type != "d" and port not in (None, ""):
+        try:
+            port_number = int(str(port).strip())
+        except ValueError as exc:
+            raise ValueError("Port must be an integer from 1 to 65535.") from exc
+        if not 1 <= port_number <= 65535:
+            raise ValueError("Port must be an integer from 1 to 65535.")
+    return ConnectResult(
+        db_type=db_type,
+        server=None if file_based or db_type == "d" else server.strip() or None,
+        database=None if file_based else database.strip() or None,
+        db_file=(database.strip() or None) if file_based else None,
+        username=None if file_based else username.strip() or None,
+        password=None if file_based else password or None,
+        port=port_number,
+        encoding=None if file_based else encoding.strip() or None,
+    )
+
+
+def normalize_text_entry(value: str, entry_type: str | None = None, entry_case: str | None = None) -> str:
+    """Validate an ENTER_SUB value, expand BOOL prefixes, then apply requested case.
+
+    Empty values are allowed for every type. Numeric values remain textual,
+    preserving leading zeros and the entered decimal representation.
+    Validation errors do not include the value, which may be a password.
+    """
+    import re
+
+    kind = (entry_type or "text").lower()
+    if not isinstance(value, str):
+        raise ValueError("The entered value must be text.")
+    if value:
+        if kind == "int" and not re.fullmatch(r"-?[0-9]+", value):
+            raise ValueError("Enter digits with an optional leading minus sign.")
+        if kind == "float" and not re.fullmatch(r"-?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)", value):
+            raise ValueError("Enter digits with at most one decimal point and an optional leading minus sign.")
+        if kind == "ident" and not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*", value):
+            raise ValueError("Start with a letter and use only letters, digits and underscores.")
+        if kind == "bool":
+            if "true".startswith(value.lower()):
+                value = "True"
+            elif "false".startswith(value.lower()):
+                value = "False"
+            else:
+                raise ValueError("Enter True or False, or a nonempty prefix of either word.")
+    case = (entry_case or "any").lower()
+    if case == "lcase":
+        return value.lower()
+    if case == "ucase":
+        return value.upper()
+    return value
 
 
 def selected_row_values(headers: list, row: list | tuple, destination_headers: list) -> list:
@@ -136,6 +226,13 @@ class DiffResult:
     summary: str = ""
 
 
+def _key_column_indices(headers: list[str], keylist: list) -> list[int]:
+    """Return every key column's index in declared order, or no indices if incomplete."""
+    if any(key not in headers for key in keylist):
+        return []
+    return [headers.index(key) for key in keylist]
+
+
 def compute_row_diffs(
     headers1: list,
     rows1: list,
@@ -164,8 +261,8 @@ def compute_row_diffs(
         return None
     headers1_str = [str(h) for h in headers1]
     headers2_str = [str(h) for h in headers2]
-    key_idx1 = [i for i, h in enumerate(headers1_str) if h in keylist]
-    key_idx2 = [i for i, h in enumerate(headers2_str) if h in keylist]
+    key_idx1 = _key_column_indices(headers1_str, keylist)
+    key_idx2 = _key_column_indices(headers2_str, keylist)
     if not key_idx1 or not key_idx2:
         return None
 
@@ -285,8 +382,13 @@ class GuiBackend(ABC):
       ``rows`` contains new selections in source column order, with original
       Python values and duplicates retained. ``[]`` means no selections;
       ``None`` means cancelled or unavailable (console fallback).
-    - ``show_select_sub`` → ``{"button": int|None, "row": dict|None}``
-    - ``show_action``     → ``{"button": int|None}``
+    - ``show_select_sub`` → ``{"button": int|None, "row": list|None}``
+      ``row`` contains the original Python values in source column order;
+      button 1 confirms it, 2 continues without selecting, None cancels.
+    - ``show_action``     → ``{"button": int|None, "row": list|None}``
+      Buttons 1..N identify the action in ``button_specs``; 0 continues
+      without an action, None cancels. Only data-required actions return
+      original source-row values, in source column order.
     - ``show_map``        → ``{"button": int|None}``
     - ``show_open_file``  → ``{"filename": str|None}``
     - ``show_save_file``  → ``{"filename": str|None}``
@@ -357,6 +459,9 @@ class GuiBackend(ABC):
 
     def console_show(self) -> None:
         """Show the console window (if applicable)."""
+
+    def console_resize(self, width: int, height: int) -> None:
+        """Resize a native console in characters/lines; terminal backends do nothing."""
 
     def console_progress(self, num: float, total: float | None = None) -> None:
         """Update the progress indicator."""
@@ -432,8 +537,17 @@ class GuiBackend(ABC):
 
     @abstractmethod
     def show_credentials(self, args: dict) -> dict:
-        """Show a credentials (username + password) dialog."""
+        """Show a credentials dialog returning username and password strings.
+
+        GUI backends return button=1 for OK or button=None for cancellation;
+        confirming empty credentials is distinct from cancelling.
+        """
 
     @abstractmethod
     def show_connect(self, args: dict) -> dict:
-        """Show a database connection selection dialog."""
+        """Collect connection inputs using the shared ConnectResult field names.
+
+        Confirmed inputs pass through connection_result; cancellation omits
+        db_type or returns None for it. Blank passwords do not request a
+        secondary password prompt. Password strings retain their whitespace.
+        """

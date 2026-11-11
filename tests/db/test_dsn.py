@@ -120,7 +120,7 @@ class TestDsnDatabaseOpenDb:
     """open_db() connection logic (with pyodbc mocked)."""
 
     def test_successful_connection_without_password(self):
-        """No-password path calls pyodbc.connect with just the DSN string."""
+        """No-password path retains the username without adding a password."""
         conn = _make_conn()
         mock_connect = MagicMock(return_value=conn)
 
@@ -140,6 +140,9 @@ class TestDsnDatabaseOpenDb:
 
         assert db.conn is conn
         mock_connect.assert_called()
+        connection_string = mock_connect.call_args_list[0].args[0]
+        assert "UID={alice}" in connection_string
+        assert "PWD=" not in connection_string
         _, first_call_kwargs = mock_connect.call_args_list[0]
         assert "autocommit" not in first_call_kwargs
 

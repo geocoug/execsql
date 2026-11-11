@@ -1,16 +1,19 @@
-"""The GUI manager thread for execsql.
+"""GUI backend dispatch and the terminal fallback's manager loop.
 
-Usage
------
-Call ``enable_gui()`` (via ``execsql.utils.gui``) to initialise the backend
-and start the manager thread.  All dialog requests are then placed on
-``_state.gui_manager_queue`` as ``GuiSpec`` objects and dispatched by
-``gui_manager_loop()``.
+``execsql.utils.gui.enable_gui()`` selects a backend by configured framework::
 
-``enable_gui()`` picks the backend by framework, not by level:
+    tkinter -> TkinterBackend -> TextualBackend -> ConsoleBackend
+    textual -> TextualBackend -> ConsoleBackend
 
-    framework "tkinter" → TkinterBackend → TextualBackend → ConsoleBackend
-    framework "textual" → TextualBackend → ConsoleBackend
+Native Tk and ordinary Textual dialogs use synchronous queue adapters that run
+in the calling thread. Only the ConsoleBackend fallback starts
+``gui_manager_loop()`` on a daemon manager thread. The persistent Textual CLI
+console instead runs its UI on the main thread and its script on a worker,
+with ``_ConsoleDialogQueue`` carrying modal requests and responses.
+
+Every request contains a return queue. Script-side consumers receive checked
+results through ``get_gui_response()`` and own error/cancellation policy. See
+``docs/dev/architecture.md`` for execution modes and shutdown ownership.
 """
 
 from __future__ import annotations

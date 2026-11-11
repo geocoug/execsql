@@ -441,6 +441,10 @@ CANCEL_HALT ON|OFF
 
 When CANCEL_HALT is set to ON, which is the default, if the user presses the "Cancel" button on a dialog (such as is presented by the [PROMPT DISPLAY](#prompt) metacommand), *execsql* will halt script processing. If CANCEL_HALT is set to OFF, then *execsql* will not halt script processing, and it is the script author's responsibility to ensure that adverse consequences do not result from the lack of a response to the dialog. The [DIALOG_CANCELED](#dialog_canceled) conditional can be used to determine whether a dialog has been canceled. [Example 10](../guides/examples.md#example10) illustrates a condition in which setting CANCEL_HALT to OFF is appropriate.
 
+Tkinter and Textual apply this policy in ordinary dialogs and in the Textual console. Escape and closing a dialog follow the same cancellation policy as its Cancel button. With CANCEL_HALT OFF, the script continues without assigning the canceled response. Variable retention follows each metacommand's rules: `ENTER_SUB` retains its previous value, while `ENTRY_FORM` fields and the primary file/directory target are cleared before opening the prompt. With CANCEL_HALT ON, cancellation runs the configured [ON CANCEL_HALT](#cancel_halt_exec) actions before the run exits.
+
+A dialog failure is a metacommand error, not a user cancellation. It follows [METACOMMAND_ERROR_HALT](#metacommanderrorhalt), is reported through `METACOMMAND_ERROR()` and `$ERROR_MESSAGE`, and prevents an open [batch](#batch) from committing even when metacommand halting is OFF. CANCEL_HALT OFF does not suppress GUI failures. Errors while a Textual dialog is being created or its controls process input follow the same policy, both in ordinary prompts and in the full Textual console. With METACOMMAND_ERROR_HALT OFF, the failed dialog closes and later prompts can still open. Ctrl+C in the full console remains a request to interrupt the script.
+
 
 ## CD
 
@@ -887,7 +891,7 @@ CONNECT TO DSN(DSN=<DSN_name>
       PASSWORD=<password>] [, ENCODING=<encoding>]) AS <alias_name>
 ```
 
-Establishes a connection to another database. The keyword values are equivalent to arguments and options that can be specified on the command line when *execsql* is run.
+Establishes a connection to another database. The keyword values are equivalent to arguments and options that can be specified on the command line when *execsql* is run. For PostgreSQL, MySQL/MariaDB, Oracle, Firebird and DSN connections, `NEED_PWD=FALSE` suppresses a password prompt while retaining the supplied `USER`; it does not select the driver's default identity. A supplied password is passed independently of whether a prompt was requested.
 
 
 The CONNECT metacommands, without the "USER" keyword, for Postgres, MySQL/MariaDB, Access, Oracle, and DSN connections allow a password to be specified. If a password is needed for any database but is not provided, *execsql* will display a prompt for the password. Embedding a password in a SQL script is a security weakness, but may be needed when a script is to be run regularly as a system job. This risk can be minimized by either:
@@ -930,13 +934,15 @@ Hides or shows the console window. Text will still be written to the console win
 CONSOLE HEIGHT <lines>
 ```
 
-Changes the height of any existing console window, and specifies the height of any console window that is subsequently created with CONSOLE ON. The resulting height will be approximately *lines* lines tall.
+Changes the height of an existing native Tkinter console window and sets the height for a later `CONSOLE ON`. The text area will be approximately *lines* lines tall. The setting is retained across `CONSOLE OFF` / `ON`, and resizing a hidden console keeps it hidden.
 
 ```
 CONSOLE WIDTH <chars>
 ```
 
-Changes the width of any existing console window, and specifies the width of any console window that is subsequently created with CONSOLE ON. The resulting width will be approximately *chars* characters wide.
+Changes the width of an existing native Tkinter console window and sets the width for a later `CONSOLE ON`. The text area will be approximately *chars* characters wide. The setting is retained across `CONSOLE OFF` / `ON`; resizing preserves the window position.
+
+Both dimensions initially use the `interface.console_width` / `interface.console_height` configuration values (defaults: 100 characters and 25 lines). Textual and console backends retain these settings but do not resize the host terminal or constrain an internal output panel; their display follows the terminal dimensions.
 
 ```
 CONSOLE STATUS "<message>"
@@ -1514,6 +1520,8 @@ The error message and the DISPLAY table are reported in a dialog only when the r
 
 A DISPLAY table with no rows is shown on the console as its column headings and a count of zero rows; in a dialog, an empty table is omitted.
 
+If the dialog fails, HALT still stops the run and reports the GUI error, even with METACOMMAND_ERROR_HALT OFF.
+
 ```sql
 -- Fail the run and print the offending rows, in a cron job or in a GUI session.
 -- !x! if(hasrows(bad_rows)) { halt message "Validation failed." display bad_rows exit_status 7 }
@@ -1700,6 +1708,8 @@ DIALOG_CANCELED()
 ```
 
 Returns True or False depending on whether the previous GUI dialog was canceled by either clicking on a 'Cancel' button, hitting the Escape key, or closing the window.
+
+A subsequent accepted dialog sets the flag to False. [RESET DIALOG_CANCELED](#reset-dialog_canceled) clears it without displaying another dialog.
 
 
 ### *DIRECTORY_EXISTS*
@@ -2667,6 +2677,12 @@ Data variables are assigned, using values from the selected row in the data tabl
 
 After a button is clicked, the button dialog will be closed.
 
+In Tkinter, the initial window fits its content within the screen. Messages and action descriptions wrap, and long content scrolls without requiring the window to be maximized. Continue (when offered) and Cancel stay visible below the scrolling area. Tab focus brings an action into view.
+
+The chosen script runs once on the script thread after the dialog closes, using normal [SCRIPT](#beginscript) scope and control flow. Its SQL follows the current [AUTOCOMMIT](#autocommit) and [batch](#batch) settings; a script error is reported under the normal error-halting rules. A condition that cannot be evaluated, or another script error that must halt, stops the run even with `METACOMMAND_ERROR_HALT OFF`, just as with `EXECUTE SCRIPT`. Errors in the selected script are not reclassified as prompt errors. An action must name a registered script that can run without arguments. Invalid targets are reported before selected data replaces existing data variables.
+
+In the console backend, displayed rows are numbered. Enter `R <number>` to select a data row, then enter the action number. Actions requiring data cannot run before a row is selected. Enter `0` to Continue when offered, or submit blank input to Cancel; end-of-input also cancels. Tkinter and Textual provide the same action, Continue and cancellation outcomes.
+
 If the COMPACT \<columns\> key phrase is used, the buttons will be displayed in a grid of rows and columns, with up to *columns* buttons on each row. The description of each button's action will not be shown next to each button, but will appear in a status bar at the bottom of the dialog box when the mouse is over the button.
 
 If the CONTINUE keyword is used, the dialog box will include a "Continue" button that allows the script to continue running without requiring any of the user-specified buttons to be clicked. If the *Continue* keyword is not included, then the dialog, and the script, must be canceled if none of the buttons are to be run.
@@ -2699,6 +2715,8 @@ When the DISPLAY clause is included, a data table or view can be displayed with 
 
 When the COMPARE clause is included, the two specified tables are displayed with the question, and allow interactions as described for the [PROMPT COMPARE](#prompt_compare) metacommand.
 
+In Textual, Yes and No are separate answer buttons. Selecting No assigns `"No"` and continues the script; Cancel or Escape follows [CANCEL_HALT](#cancel_halt). This applies to both DISPLAY and COMPARE prompts.
+
 Double quotes (as shown above), apostrophes, or square brackets can be used to delimit the text of the question.
 
 If a URL is provided with the HELP keyword, the dialog box will include a button that will open that URL when clicked. The URL must be double-quoted if it contains spaces.
@@ -2714,6 +2732,8 @@ PROMPT COMPARE <table1> [IN <alias1>] AND|BESIDE <table2> [IN <alias2>]
 ```
 
 Displays the two specified tables in a graphical interface. The two tables must have at least one column name in common. Clicking on a row in one of the tables will highlight that row and all matching rows in the other table. The names of all columns that are to be used to match rows must be specified within the parentheses of the `KEY()` phrase. When more than one column name is listed, each additional column name must be preceded by a comma.
+
+Key columns are matched by name in the declared `KEY()` order, so their physical column order may differ between the tables. Every named key column must exist in both tables; an incomplete key disables keyed row matching and diff results rather than comparing only the available key columns. If a table repeats a key, its first row supplies the comparison and matching target; later duplicates do not increase the summary counts.
 
 When the `AND` keyword is used, the second table is displayed below the first table. When the `BESIDE` keyword is used, the second table is displayed to the right of the first table. A sash between the two tables allows their relative sizes to be adjusted with the mouse.
 
@@ -2744,18 +2764,21 @@ PROMPT [MESSAGE "<text>"] CONNECT AS <alias> [HELP <url>]
 
 Prompts for database connection parameters in a dialog box, and assigns that connection to the specified database alias. Any database connection previously associated with this alias will be closed, even if the prompt is canceled.
 
-The connection dialog looks like this:
+The Textual connection dialog provides server, database, username, masked password, optional port and encoding fields:
 
-![Database connection dialog](../images/connect.png)
+![Textual database connection dialog with server, database, username, masked password, port and encoding inputs](../images/connect-textual.svg)
 
-The prompt provides several common options for the database encoding. If the database uses a different encoding, you can type in the name of that encoding.
+Tkinter offers the same fields, including an editable encoding list. Textual and console accept an encoding name as text; common choices include UTF8, LATIN1, ASCII and UTF16. Leave encoding blank to use the adapter's default. Encoding support and interpretation depend on the selected DBMS and driver.
 
-If the port is not specified, the default port for the selected DBMS will be used.
+Leave port blank to use the DBMS default, or enter an integer from 1 through 65535. An invalid port can be corrected before connecting. A DSN uses its configured server and port, so those fields are hidden or omitted; its database field contains the DSN name.
 
-If a password is not provided, a connection will be attempted without using any password; there will be no additional prompt for a password.
+A supplied password is passed unchanged, including any spaces. A blank password attempts the connection with the entered username, without an additional password prompt or execsql keyring lookup. Leaving the username blank allows the driver's default identity. The driver's own authentication configuration may still apply, such as PostgreSQL service/password files or an ODBC DSN's authentication settings. An authentication failure is reported normally; execsql does not open another password dialog. This policy applies to `PROMPT CONNECT`; ordinary CLI/configuration connections retain their existing password-prompt policy. Passwords entered here are masked and registered for log redaction.
 
+Selecting SQLite, DuckDB or MS-Access switches to an existing database file path and hides irrelevant network/authentication fields. Tkinter also offers a Browse button that opens the native file chooser; Textual and console accept a typed path. Hidden values from a previously selected network database are ignored. These file connections do not offer password or encoding overrides.
 
-If a file-based DBMS (MS-Access or SQLite) is selected, the prompt for the server and other information will be replaced by a prompt for a file name.
+![Textual file database connection dialog with network fields hidden](../images/connect-file-textual.svg)
+
+The selected driver must be installed; see [installation extras](../getting-started/installation.md). These fields do not change the adapters' documented support levels. To connect noninteractively, use the [CONNECT](#connect) metacommand, CLI connection options or a configuration file.
 
 If a URL is provided with the HELP keyword, the dialog box will include a button that will open that URL when clicked. The URL must be double-quoted if it contains spaces.
 
@@ -2766,7 +2789,9 @@ If a URL is provided with the HELP keyword, the dialog box will include a button
 PROMPT [MESSAGE "<text>"] CREDENTIALS <user_var> <pw_var>
 ```
 
-Prompts for a user name and password, using a dialog box, and assigns the entered values to the *user_var* and *pw_var* [substitution variables](substitution_vars.md#substitution_vars). If the prompt is canceled, unless [CANCEL_HALT](#cancel_halt) is set to OFF, script processing is halted, and the system exit value is set to 2. If [CANCEL_HALT](#cancel_halt) is set to ON, the specified substitution variables will be undefined.
+Prompts for a user name and password and assigns the entered values to the *user_var* and *pw_var* [substitution variables](substitution_vars.md#substitution_vars). With `gui_level` greater than zero, the prompt initializes the configured Tkinter or Textual backend and displays its credentials dialog. At level zero it uses terminal input with a hidden password prompt.
+
+Cancel, Escape and closing the Tkinter dialog follow [CANCEL_HALT](#cancel_halt): ON stops with exit status 2, leaves the named variables undefined and runs any `ON CANCEL_HALT` cleanup; OFF continues and preserves their previous values. Cancellation sets `DIALOG_CANCELED()`. Confirming with empty fields assigns empty strings and clears the cancellation flag. A failed GUI dialog is a metacommand error rather than a request for terminal input.
 
 
 <a id="prompt_dir"></a>
@@ -2830,6 +2855,10 @@ The "TYPE" keyword can be used to limit the type of entry provided. This keyword
 
 The keywords "LCASE" and "UCASE" force the returned value to be all lowercase or all uppercase, respectively.
 
+Validation runs when OK or Enter submits the value. An invalid value displays an explanation and keeps the prompt open for correction. Empty values remain valid for every TYPE. INT and FLOAT use digits `0`–`9`; FLOAT accepts forms such as `12`, `12.`, `.5` and `-.5`, but does not accept a leading plus sign, exponent notation or whitespace. IDENT uses letters `A`–`Z`/`a`–`z`, digits and underscores, with a letter first. Numeric values remain text, so leading zeros and decimal spelling are preserved.
+
+BOOL prefixes are expanded before case conversion: `TYPE BOOL UCASE` turns `f` into `FALSE`, while `TYPE BOOL LCASE` turns `t` into `true`. Plain text and password entries use the same case rules. Console text entry preserves spaces; a blank console response keeps an INITIALLY value when one is provided, otherwise it submits an empty string.
+
 If the INITIALLY clause is used, the provided text must be double-quoted and must not contain a double quote character.
 
 If a URL is provided with the HELP keyword, the dialog box will include a button that will open that URL when clicked. The URL must be double-quoted if it contains spaces.
@@ -2847,6 +2876,10 @@ PROMPT ENTRY_FORM <specification_table> [HELP <url>] MESSAGE "<text>"
 ```
 
 Dynamically creates a data entry form following the specifications in the specification_table and assigns the entered values to the substitution variables named in the specification table.
+
+Each field uses its own variable scope: a name beginning with `~` belongs to the current script, while an unprefixed name is global. Mixed forms work in any specification order; global values remain after the script returns and local values do not escape it. An empty field leaves only that named variable undefined; unrelated variables are preserved.
+
+In Textual, dropdown and select fields show the available lookup values beside the input. Enter one of those values exactly; an unlisted value keeps the form open with a validation error. Listboxes return the selected items as a SQL list, including doubled apostrophes and repeated values when separate matching rows are selected.
 
 The data entry form will have one data entry prompt for every row in the specification table. The following columns in the specification table will be used to construct the data entry form:
 
@@ -3015,8 +3048,11 @@ PROMPT SELECT_ROWS FROM <table1> INTO <table2>
 
 Displays the source and destination tables. Double-clicking on a row in
 *table1* adds it to the destination pane. Press Continue to save the newly
-selected rows to *table2*. Cancelling discards those selections; it does not
-write them or commit the script's transaction.
+selected rows to *table2*. Before confirming, double-click an added row in the destination pane to remove that copy. If you added the same source row several times, removing one copy leaves the others selected. Existing rows already stored in *table2* are protected and cannot be removed here.
+
+In Tkinter and Textual, Enter on a focused destination row also removes an added copy. Textual uses single clicks for highlighting; double-click or Enter on a source row adds a copy. The destination row count updates as copies are added or removed.
+
+Cancelling discards the pending selections; it does not write them or commit the script's transaction.
 
 *Table2* must have all of the columns that are in *table1*, with identical column names and compatible data types. Column order may differ: values are matched by column name and retain their original data types. *Table2* may have additional columns; the database applies their defaults when the selections are saved.
 
@@ -3046,11 +3082,11 @@ PROMPT SELECT_SUB <table_or_view> MESSAGE "<prompt_text>" [CONTINUE]
 
 Displays the selected data table or view, similar to the PROMPT DISPLAY metacommand, but allows you to select a single row of data, and then assigns the data values from that row to a set of substitution variables corresponding to the column names, but prefixed with the "@" character. This prefix prevents any conflict between these automatically-assigned substitution variables and any others that you may have created with the SUB command or by any other means---except for the SELECT_SUB metacommand, which uses the same prefix for substitution variables.
 
-Data can be selected from the display either by highlighting the row with a single mouse click and then clicking on the "OK" button, or by double-clicking on a row. If data selection is canceled either with the "Cancel" button or by hitting the Escape key, script processing will be halted and the system exit value will be set to 2, unless [CANCEL_HALT](#cancel_halt) has been set to OFF.
+In Tkinter and Textual, data can be selected from the display either by highlighting the row with a single mouse click and then clicking on the "OK" button, or by double-clicking on a row. In the console backend, enter the displayed row number. If data selection is canceled either with the "Cancel" button or by hitting the Escape key, script processing will be halted and the system exit value will be set to 2, unless [CANCEL_HALT](#cancel_halt) has been set to OFF. Blank console input or end-of-input also cancels.
 
-Null values in the selected data row will be represented by substitution variables with zero-length string values.
+Null values in the selected data row will be represented by substitution variables with zero-length string values. Values come from the original database row, so large integers and decimals keep their full precision when converted to substitution text.
 
-If the CONTINUE keyword is used, then a "Continue" button will also be displayed in the dialog box. This option allows the user to close the dialog without either selecting an item or canceling the script.
+If the CONTINUE keyword is used, then a "Continue" button will also be displayed in the dialog box. This option allows the user to close the dialog without either selecting an item or canceling the script. In the console, enter `C` when offered to continue without a selection. In Tkinter and Textual, Enter chooses Continue when this option is present; otherwise it confirms the highlighted row. Double-clicking a row or clicking OK still confirms that row when CONTINUE is available.
 
 If no data value is selected (i.e., either the "Continue" button has been used, or the "Cancel" button has been used and CANCEL_HALT has been set to OFF), all substitution variables corresponding to column names of the table that was displayed will be undefined, even if they were defined before the table was displayed.
 
