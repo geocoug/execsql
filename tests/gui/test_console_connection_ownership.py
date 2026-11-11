@@ -4,12 +4,8 @@ from __future__ import annotations
 
 import asyncio
 import functools
-import queue
 import sqlite3
-import sys
 import threading
-import time
-import traceback
 
 import pytest
 from typer.testing import CliRunner
@@ -19,6 +15,7 @@ pytest.importorskip("textual")
 from execsql.cli import app as cli  # noqa: E402
 from execsql.db.sqlite import SQLiteDatabase  # noqa: E402
 from execsql.gui.tui import ActionScreen, ConnectScreen, ConsoleApp, DisplayScreen, MsgScreen  # noqa: E402
+from tests.gui.textual_helpers import wait_for_release  # noqa: E402
 
 
 @pytest.fixture
@@ -53,46 +50,15 @@ def console_cli(monkeypatch, tmp_path):
         config.write_text("[interface]\nconsole_wait_when_done=No\nconsole_wait_when_error_halt=No\n")
 
         def headless(app):
-            cleanup_released = False
-            started = time.perf_counter()
-            timeline = []
-            polls = []
-            original_poll = app._poll_script_finished
-
-            def poll():
-                polls.append(time.perf_counter() - started)
-                original_poll()
-
-            app._poll_script_finished = poll
-
-            def unfinished():
-                thread = app._script_thread
-                frame = sys._current_frames().get(thread.ident) if thread is not None else None
-                return (
-                    f"Console did not finish: quit={app._quit_requested}, "
-                    f"worker_alive={thread is not None and thread.is_alive()}, "
-                    f"wait_on_exit={app._wait_on_exit}, completion_reported={app._completion_reported}, "
-                    f"gate={(close_gate[0].is_set(), cleanup_released) if close_gate else None}\n"
-                    f"timeline={timeline}, polls={polls[:3]}...{polls[-3:]}\n"
-                    f"close_entry={getattr(close_gate[0], 'debug_close', None) if close_gate else None}\n"
-                    + ("".join(traceback.format_stack(frame)) if frame is not None else "No worker frame")
-                )
-
             def release_cleanup(message):
-                nonlocal cleanup_released
                 # The worker can reach closeall while run_test is still waiting
                 # for its initial screen, before the Pilot driver starts.
-                if close_gate is not None and close_gate[0].is_set() and not cleanup_released:
-                    cleanup_released = True
-                    timeline.append(("quit", time.perf_counter() - started))
+                if close_gate is not None and close_gate[0].is_set() and not close_gate[1].is_set():
                     app.action_request_quit()
-                    timeline.append(("release", time.perf_counter() - started))
-                    close_gate[1].put(None)
+                    close_gate[1].set()
 
             async def interact():
-                timeline.append(("run_test", time.perf_counter() - started))
                 async with app.run_test(size=(100, 40), message_hook=release_cleanup) as pilot:
-                    timeline.append(("pilot_ready", time.perf_counter() - started))
 
                     async def drive():
                         while not app._exit:
@@ -119,20 +85,14 @@ def console_cli(monkeypatch, tmp_path):
                     try:
                         await asyncio.wait_for(drive(), timeout=10)
                     except asyncio.TimeoutError:
-                        assert app._exit, unfinished()
+                        assert app._exit, "Console did not finish"
                     finally:
                         if app._script_thread.is_alive() and not app._quit_requested:
                             app.action_request_quit()
-                    assert app._exit, unfinished()
+                    assert app._exit, "Console did not finish"
                 assert not app._script_thread.is_alive()
 
-            try:
-                asyncio.run(interact())
-            finally:
-                sys.__stderr__.write(
-                    f"CONSOLE TRACE timeline={timeline}, polls={polls[:3]}...{polls[-3:]}, "
-                    f"close_entry={getattr(close_gate[0], 'debug_close', None) if close_gate else None}\n",
-                )
+            asyncio.run(interact())
 
         monkeypatch.setattr(ConsoleApp, "run", headless)
         args = ["run", "--config", str(config), "-v3", "--gui-framework", "textual", "-c", sql]
@@ -308,14 +268,13 @@ def test_final_file_output_keeps_error_cleanup_connections_available(console_cli
 
 def test_quit_during_connection_cleanup_finishes_on_worker(console_cli, monkeypatch, tmp_path):
     invoke, operations, connections, main_thread = console_cli
-    entered, release = threading.Event(), queue.SimpleQueue()
+    entered, release = threading.Event(), threading.Event()
     original = SQLiteDatabase.close
 
     def close(db):
         if not entered.is_set():
-            entered.debug_close = (threading.get_ident(), time.perf_counter(), traceback.format_stack())
             entered.set()
-            release.get(timeout=20)
+            wait_for_release(release)
         original(db)
 
     monkeypatch.setattr(SQLiteDatabase, "close", close)
@@ -326,7 +285,7 @@ def test_quit_during_connection_cleanup_finishes_on_worker(console_cli, monkeypa
             close_gate=(entered, release),
         )
     finally:
-        release.put(None)
+        release.set()
     assert result.exit_code == 130, (result.output, result.exception)
     assert entered.is_set()
     assert len(connections) == 2

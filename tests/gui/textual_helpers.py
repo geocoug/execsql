@@ -3,7 +3,23 @@
 from __future__ import annotations
 
 import asyncio
+import threading
+import time
 from contextlib import suppress
+
+
+def wait_for_release(event: threading.Event, timeout: float = 20) -> None:
+    """Wait for a synthetic driver release without holding a condition lock.
+
+    Injecting SystemExit into Event.wait() can block the UI's Event.set()
+    under the Windows coverage tracer. Polling leaves no condition lock in
+    the interrupt path, while retaining a deadline for a broken test driver.
+    """
+    deadline = time.monotonic() + timeout
+    while not event.is_set():
+        if time.monotonic() >= deadline:
+            raise AssertionError("Timed out waiting for the worker release gate")
+        time.sleep(0.01)
 
 
 async def finish_dialog(pilot, action):
