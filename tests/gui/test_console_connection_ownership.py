@@ -5,7 +5,9 @@ from __future__ import annotations
 import asyncio
 import functools
 import sqlite3
+import sys
 import threading
+import traceback
 
 import pytest
 from typer.testing import CliRunner
@@ -49,6 +51,17 @@ def console_cli(monkeypatch, tmp_path):
         config.write_text("[interface]\nconsole_wait_when_done=No\nconsole_wait_when_error_halt=No\n")
 
         def headless(app):
+            def unfinished():
+                thread = app._script_thread
+                frame = sys._current_frames().get(thread.ident) if thread is not None else None
+                return (
+                    f"Console did not finish: quit={app._quit_requested}, "
+                    f"worker_alive={thread is not None and thread.is_alive()}, "
+                    f"wait_on_exit={app._wait_on_exit}, completion_reported={app._completion_reported}, "
+                    f"gate={tuple(event.is_set() for event in close_gate) if close_gate else None}\n"
+                    + ("".join(traceback.format_stack(frame)) if frame is not None else "No worker frame")
+                )
+
             def release_cleanup(message):
                 # The worker can reach closeall while run_test is still waiting
                 # for its initial screen, before the Pilot driver starts.
@@ -84,11 +97,11 @@ def console_cli(monkeypatch, tmp_path):
                     try:
                         await asyncio.wait_for(drive(), timeout=10)
                     except asyncio.TimeoutError:
-                        assert app._exit, "Console did not finish"
+                        assert app._exit, unfinished()
                     finally:
                         if app._script_thread.is_alive() and not app._quit_requested:
                             app.action_request_quit()
-                    assert app._exit, "Console did not finish"
+                    assert app._exit, unfinished()
                 assert not app._script_thread.is_alive()
 
             asyncio.run(interact())
