@@ -7,6 +7,7 @@ import functools
 import sqlite3
 import sys
 import threading
+import time
 import traceback
 
 import pytest
@@ -51,6 +52,17 @@ def console_cli(monkeypatch, tmp_path):
         config.write_text("[interface]\nconsole_wait_when_done=No\nconsole_wait_when_error_halt=No\n")
 
         def headless(app):
+            started = time.perf_counter()
+            timeline = []
+            polls = []
+            original_poll = app._poll_script_finished
+
+            def poll():
+                polls.append(time.perf_counter() - started)
+                original_poll()
+
+            app._poll_script_finished = poll
+
             def unfinished():
                 thread = app._script_thread
                 frame = sys._current_frames().get(thread.ident) if thread is not None else None
@@ -59,6 +71,7 @@ def console_cli(monkeypatch, tmp_path):
                     f"worker_alive={thread is not None and thread.is_alive()}, "
                     f"wait_on_exit={app._wait_on_exit}, completion_reported={app._completion_reported}, "
                     f"gate={tuple(event.is_set() for event in close_gate) if close_gate else None}\n"
+                    f"timeline={timeline}, polls={polls[:3]}...{polls[-3:]}\n"
                     + ("".join(traceback.format_stack(frame)) if frame is not None else "No worker frame")
                 )
 
@@ -66,11 +79,15 @@ def console_cli(monkeypatch, tmp_path):
                 # The worker can reach closeall while run_test is still waiting
                 # for its initial screen, before the Pilot driver starts.
                 if close_gate is not None and close_gate[0].is_set() and not close_gate[1].is_set():
+                    timeline.append(("quit", time.perf_counter() - started))
                     app.action_request_quit()
+                    timeline.append(("release", time.perf_counter() - started))
                     close_gate[1].set()
 
             async def interact():
+                timeline.append(("run_test", time.perf_counter() - started))
                 async with app.run_test(size=(100, 40), message_hook=release_cleanup) as pilot:
+                    timeline.append(("pilot_ready", time.perf_counter() - started))
 
                     async def drive():
                         while not app._exit:
