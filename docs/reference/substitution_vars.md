@@ -52,6 +52,8 @@ All defined substitution variables can be displayed with the [DEBUG](../guides/d
 
 <a id="local_vars"></a>
 
+A variable can supply a block's arguments, such as `IF (!!condition!!)`, but cannot supply the block metacommand itself (`-- !x! !!cmd!!` holding `IF`, `LOOP`, `END LOOP`, `BEGIN SCRIPT`, `BEGIN SQL` or another block boundary). Write the complete block directly in the script. Each unsupported dynamic boundary is a metacommand error governed by `METACOMMAND_ERROR_HALT`; with halting off, check `METACOMMAND_ERROR()` immediately afterward.
+
 ## Local Variables
 
 Ordinary user-defined substitution variables, system variables, data variables, and environment variables are all global in scope: they can be referenced anywhere, including within other scripts that are [INCLUDEEd](metacommands.md#include) or defined with the [SCRIPT](metacommands.md#beginscript) metacommand.

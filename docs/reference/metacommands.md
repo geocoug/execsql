@@ -1496,6 +1496,19 @@ EXTEND SCRIPT <script> WITH METACOMMAND <metacommand>
 
 Appends the metacommand statement to the end of the specified script. The metacommand should not start with either "-- !x!" or "!x!".
 
+`WITH METACOMMAND` adds a complete single command, including an inline `IF (...) { ... }`, `INCLUDE` or `EXECUTE SCRIPT`. It cannot add block boundaries such as `IF (...)`, `ENDIF`, `LOOP`, `END LOOP`, `BEGIN BATCH`, `END BATCH`, `BEGIN SCRIPT`, `END SCRIPT`, `BEGIN SQL` or `END SQL`, including a boundary inside an inline IF. The extension fails immediately without adding the boundary. With `METACOMMAND_ERROR_HALT OFF`, test `METACOMMAND_ERROR()` immediately after the extension to detect the failure.
+
+To append a complete block, define it in a named script and use `WITH SCRIPT`:
+
+```sql
+-- !x! BEGIN SCRIPT extra
+-- !x! IF (TRUE)
+-- !x! WRITE "extra work"
+-- !x! ENDIF
+-- !x! END SCRIPT
+-- !x! EXTEND SCRIPT cleanup WITH SCRIPT extra
+```
+
 Substitution variables will be evaluated twice: once when the EXTEND SCRIPT metacommand is run, and a second time when the metacommand statement itself is run. [Deferred substitution](substitution_vars.md#deferred_substitution) may be needed to ensure that some substitution variables are replaced when the metacommand is run.
 
 ```
