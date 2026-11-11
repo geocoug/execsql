@@ -1,4 +1,4 @@
-"""Wait for dialog completion without waiting on widgets being unmounted."""
+"""Coordinate Textual test drivers, worker releases, and dialog completion."""
 
 from __future__ import annotations
 
