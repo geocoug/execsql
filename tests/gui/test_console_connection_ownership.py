@@ -72,6 +72,7 @@ def console_cli(monkeypatch, tmp_path):
                     f"wait_on_exit={app._wait_on_exit}, completion_reported={app._completion_reported}, "
                     f"gate={tuple(event.is_set() for event in close_gate) if close_gate else None}\n"
                     f"timeline={timeline}, polls={polls[:3]}...{polls[-3:]}\n"
+                    f"close_entry={getattr(close_gate[0], 'debug_close', None) if close_gate else None}\n"
                     + ("".join(traceback.format_stack(frame)) if frame is not None else "No worker frame")
                 )
 
@@ -302,6 +303,7 @@ def test_quit_during_connection_cleanup_finishes_on_worker(console_cli, monkeypa
 
     def close(db):
         if not entered.is_set():
+            entered.debug_close = (threading.get_ident(), time.perf_counter(), traceback.format_stack())
             entered.set()
             assert release.wait(20)
         original(db)
