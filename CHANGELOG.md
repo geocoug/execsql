@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.39.1] - 2026-11-11
+
 ### Added
 
 - **`PROMPT SELECT_ROWS` in Tkinter and Textual** lets you remove one newly selected destination copy with a double-click or Enter before saving; existing destination rows are preserved.
