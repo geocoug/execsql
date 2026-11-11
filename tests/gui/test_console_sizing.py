@@ -162,6 +162,7 @@ def test_native_tk_resizing_preserves_position_visibility_and_off_on():
 
     pytest.importorskip("tkinter")
     script = """
+import faulthandler
 import tkinter as tk
 from types import SimpleNamespace
 from unittest.mock import Mock
@@ -169,6 +170,7 @@ from execsql import state
 from execsql.gui.desktop import TkinterBackend
 from execsql.metacommands.system import x_consolewidth, x_consoleheight
 from execsql.utils import gui
+faulthandler.dump_traceback_later(8)
 try:
     root = tk.Tk()
 except tk.TclError as exc:
@@ -181,38 +183,40 @@ backend = TkinterBackend()
 backend._root = root
 gui._active_backend = backend
 try:
+    # Settle geometry without entering a nested native input event loop.
     backend.console_on()
     console = backend._console
     win = console._win
-    root.update()
+    root.update_idletasks()
     assert (int(console._text.cget('width')), int(console._text.cget('height'))) == (100,25)
     initial = (win.winfo_width(),win.winfo_height())
     win.geometry('300x200+200+140')
-    root.update()
+    root.update_idletasks()
     position = (win.winfo_x(),win.winfo_y())
     x_consolewidth(width='120')
     x_consoleheight(height='30')
-    root.update()
+    root.update_idletasks()
     assert (int(console._text.cget('width')),int(console._text.cget('height'))) == (120,30)
     assert win.winfo_width() > initial[0]
     assert win.winfo_height() > initial[1]
     assert (win.winfo_x(),win.winfo_y()) == position
     backend.console_hide()
-    root.update()
+    root.update_idletasks()
     x_consolewidth(width='80')
     x_consoleheight(height='20')
-    root.update()
+    root.update_idletasks()
     assert win.state() == 'withdrawn'
     backend.console_show()
-    root.update()
+    root.update_idletasks()
     assert win.winfo_width() < initial[0]
     assert win.winfo_height() < initial[1]
     backend.console_off()
     backend.console_on()
-    root.update()
+    root.update_idletasks()
     assert (int(backend._console._text.cget('width')),int(backend._console._text.cget('height'))) == (80,20)
 finally:
     backend.stop()
+faulthandler.cancel_dump_traceback_later()
 """
     completed = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True, timeout=10)
     if completed.returncode == 77 and "TK_UNAVAILABLE:" in completed.stdout:

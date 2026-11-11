@@ -49,14 +49,18 @@ def console_cli(monkeypatch, tmp_path):
         config.write_text("[interface]\nconsole_wait_when_done=No\nconsole_wait_when_error_halt=No\n")
 
         def headless(app):
+            def release_cleanup(message):
+                # The worker can reach closeall while run_test is still waiting
+                # for its initial screen, before the Pilot driver starts.
+                if close_gate is not None and close_gate[0].is_set() and not close_gate[1].is_set():
+                    app.action_request_quit()
+                    close_gate[1].set()
+
             async def interact():
-                async with app.run_test(size=(100, 40)) as pilot:
+                async with app.run_test(size=(100, 40), message_hook=release_cleanup) as pilot:
 
                     async def drive():
                         while not app._exit:
-                            if close_gate is not None and close_gate[0].is_set():
-                                app.action_request_quit()
-                                close_gate[1].set()
                             if isinstance(app.screen, ConnectScreen):
                                 await pilot.pause()
                                 if cancel:
