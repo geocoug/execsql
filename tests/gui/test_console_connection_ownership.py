@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import functools
+import queue
 import sqlite3
 import sys
 import threading
@@ -52,6 +53,7 @@ def console_cli(monkeypatch, tmp_path):
         config.write_text("[interface]\nconsole_wait_when_done=No\nconsole_wait_when_error_halt=No\n")
 
         def headless(app):
+            cleanup_released = False
             started = time.perf_counter()
             timeline = []
             polls = []
@@ -70,20 +72,22 @@ def console_cli(monkeypatch, tmp_path):
                     f"Console did not finish: quit={app._quit_requested}, "
                     f"worker_alive={thread is not None and thread.is_alive()}, "
                     f"wait_on_exit={app._wait_on_exit}, completion_reported={app._completion_reported}, "
-                    f"gate={tuple(event.is_set() for event in close_gate) if close_gate else None}\n"
+                    f"gate={(close_gate[0].is_set(), cleanup_released) if close_gate else None}\n"
                     f"timeline={timeline}, polls={polls[:3]}...{polls[-3:]}\n"
                     f"close_entry={getattr(close_gate[0], 'debug_close', None) if close_gate else None}\n"
                     + ("".join(traceback.format_stack(frame)) if frame is not None else "No worker frame")
                 )
 
             def release_cleanup(message):
+                nonlocal cleanup_released
                 # The worker can reach closeall while run_test is still waiting
                 # for its initial screen, before the Pilot driver starts.
-                if close_gate is not None and close_gate[0].is_set() and not close_gate[1].is_set():
+                if close_gate is not None and close_gate[0].is_set() and not cleanup_released:
+                    cleanup_released = True
                     timeline.append(("quit", time.perf_counter() - started))
                     app.action_request_quit()
                     timeline.append(("release", time.perf_counter() - started))
-                    close_gate[1].set()
+                    close_gate[1].put(None)
 
             async def interact():
                 timeline.append(("run_test", time.perf_counter() - started))
@@ -304,14 +308,14 @@ def test_final_file_output_keeps_error_cleanup_connections_available(console_cli
 
 def test_quit_during_connection_cleanup_finishes_on_worker(console_cli, monkeypatch, tmp_path):
     invoke, operations, connections, main_thread = console_cli
-    entered, release = threading.Event(), threading.Event()
+    entered, release = threading.Event(), queue.SimpleQueue()
     original = SQLiteDatabase.close
 
     def close(db):
         if not entered.is_set():
             entered.debug_close = (threading.get_ident(), time.perf_counter(), traceback.format_stack())
             entered.set()
-            assert release.wait(20)
+            release.get(timeout=20)
         original(db)
 
     monkeypatch.setattr(SQLiteDatabase, "close", close)
@@ -322,7 +326,7 @@ def test_quit_during_connection_cleanup_finishes_on_worker(console_cli, monkeypa
             close_gate=(entered, release),
         )
     finally:
-        release.set()
+        release.put(None)
     assert result.exit_code == 130, (result.output, result.exception)
     assert entered.is_set()
     assert len(connections) == 2
