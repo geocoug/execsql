@@ -122,7 +122,13 @@ def console_cli(monkeypatch, tmp_path):
                     assert app._exit, unfinished()
                 assert not app._script_thread.is_alive()
 
-            asyncio.run(interact())
+            try:
+                asyncio.run(interact())
+            finally:
+                sys.__stderr__.write(
+                    f"CONSOLE TRACE timeline={timeline}, polls={polls[:3]}...{polls[-3:]}, "
+                    f"close_entry={getattr(close_gate[0], 'debug_close', None) if close_gate else None}\n",
+                )
 
         monkeypatch.setattr(ConsoleApp, "run", headless)
         args = ["run", "--config", str(config), "-v3", "--gui-framework", "textual", "-c", sql]

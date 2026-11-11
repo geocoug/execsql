@@ -46,7 +46,7 @@ jobs:
                                       name=f"{item.originalname}[repeat-{index}]",
                                       callobj=item.obj,
                                   )
-                                  for index in range(100)
+                                  for index in range(3)
                               )
                           items[:] = repeated
 
@@ -54,7 +54,7 @@ jobs:
                   faulthandler.dump_traceback_later(5, repeat=True)
                   node = "tests/gui/test_console_connection_ownership.py::test_quit_during_connection_cleanup_finishes_on_worker"
                   raise SystemExit(pytest.main(
-                      [node, "-n", "0", "--cov-fail-under=0", "-q", "-x"],
+                      [node, "-n", "0", "--cov-fail-under=0", "-q", "-s", "-x"],
                       plugins=[RepeatCleanup()],
                   ))
                   PY
