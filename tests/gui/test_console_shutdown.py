@@ -17,6 +17,7 @@ from execsql.cli.run import _execute_script_textual_console  # noqa: E402
 from execsql.exceptions import ScriptExit  # noqa: E402
 from execsql.gui.tui import ConsoleApp, DisplayScreen, _ConsoleDialogQueue  # noqa: E402
 from execsql.utils.gui import GUI_DISPLAY, GuiSpec, get_gui_response  # noqa: E402
+from tests.gui.textual_helpers import wait_for_release  # noqa: E402
 
 
 async def eventually(pilot, predicate):
@@ -40,10 +41,10 @@ def test_quit_keeps_ui_alive_until_blocked_work_and_cleanup_finish(wait_on_exit)
     def runner():
         entered.set()
         try:
-            work.wait(20)
+            wait_for_release(work)
         finally:
             cleaning.set()
-            cleanup.wait(20)
+            wait_for_release(cleanup)
             finished.set()
 
     app = ConsoleApp(runner, _ConsoleDialogQueue(), wait_on_exit=wait_on_exit)
@@ -165,7 +166,7 @@ def test_cli_waits_for_worker_rollback_before_reset_and_interrupted_exit(monkeyp
     def rollback():
         assert state.get_context() is expected_ctx
         cleaning.set()
-        cleanup.wait(20)
+        wait_for_release(cleanup)
         events.append("rollback")
 
     db.rollback.side_effect = rollback
@@ -182,7 +183,7 @@ def test_cli_waits_for_worker_rollback_before_reset_and_interrupted_exit(monkeyp
     def execute(tree, *, ctx):
         assert ctx is expected_ctx
         entered.set()
-        work.wait(20)
+        wait_for_release(work)
 
     monkeypatch.setattr("execsql.script.executor.execute", execute)
 
@@ -302,7 +303,7 @@ def test_real_script_rolls_back_before_quit_closes_console(monkeypatch, tmp_path
 
     def rollback(db):
         cleaning.set()
-        release.wait(20)
+        wait_for_release(release)
         original_rollback(db)
         rolled_back.set()
 

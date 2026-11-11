@@ -15,6 +15,7 @@ pytest.importorskip("textual")
 from execsql.cli import app as cli  # noqa: E402
 from execsql.db.sqlite import SQLiteDatabase  # noqa: E402
 from execsql.gui.tui import ActionScreen, ConnectScreen, ConsoleApp, DisplayScreen, MsgScreen  # noqa: E402
+from tests.gui.textual_helpers import wait_for_release  # noqa: E402
 
 
 @pytest.fixture
@@ -273,7 +274,7 @@ def test_quit_during_connection_cleanup_finishes_on_worker(console_cli, monkeypa
     def close(db):
         if not entered.is_set():
             entered.set()
-            assert release.wait(20)
+            wait_for_release(release)
         original(db)
 
     monkeypatch.setattr(SQLiteDatabase, "close", close)
