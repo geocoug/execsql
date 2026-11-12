@@ -36,7 +36,7 @@ Scripts are ordinary SQL plus metacommands embedded in comments (`-- !x!`), whic
 | `execsql list`                             | Metacommands, encodings, plugins, or the keyword vocabulary                                                                                                           | No                |
 | `execsql init`                             | Set up a project: config file, a script with a header, pre-commit hooks                                                                                               | No                |
 | `execsql lsp`                              | [Language server](https://execsql2.readthedocs.io/en/stable/guides/editors/): lint findings, completion, hover, navigation, quick fixes and formatting in your editor | No                |
-| `execsql inspect database`                 | Inspect tables, columns, types and relationships as JSON                                                                                                              | Yes               |
+| `execsql inspect database`                 | Inspect tables, columns, types and relationships as text or JSON                                                                                                      | Yes               |
 | [VS Code extension](extras/vscode-execsql) | Highlighting plus everything `execsql lsp` provides                                                                                                                   | No                |
 
 `format` and `lint` take files or directories.
@@ -264,6 +264,11 @@ Inspect a table without running a script or reading its rows:
 ```sh
 execsql inspect database --dsn sqlite:///project.sqlite --schema main --table samples
 ```
+
+`--connection-string` is an alias for `--dsn`, matching `execsql run`.
+The default output is a readable overview; `--table` shows columns and relationships.
+Use `--output-format json` for automation. Text mode on a terminal can prompt
+for a URL user's password; `--no-passwd` uses supplied or driver credentials.
 
 Python callers can use `execsql.inspect_schema()` with a connection URL or an
 existing execsql adapter. See [schema discovery](https://execsql2.readthedocs.io/en/stable/reference/schema/)

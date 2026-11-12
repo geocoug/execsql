@@ -9,6 +9,7 @@ from typing import Annotated
 import typer
 
 from execsql.cli.application import ExecsqlCommand, ExecsqlSubGroup, app
+from execsql.cli.options import NoPasswdOpt, OutputFormat, OutputFormatOpt, RequiredDsnOpt
 
 inspect_app = typer.Typer(
     cls=ExecsqlSubGroup,
@@ -23,17 +24,41 @@ app.add_typer(inspect_app, name="inspect")
 
 @inspect_app.command(cls=ExecsqlCommand, name="database")
 def database_cmd(
-    dsn: Annotated[str, typer.Option("--dsn", help="Connection URL; inspection never prompts for a password.")],
+    dsn: RequiredDsnOpt,
     schema: Annotated[str | None, typer.Option("--schema", help="Exact schema name (case-sensitive). ")] = None,
     table: Annotated[str | None, typer.Option("--table", help="Exact table or view name (case-sensitive). ")] = None,
+    output_format: OutputFormatOpt = OutputFormat.text,
+    no_passwd: NoPasswdOpt = False,
+    prompt_password: Annotated[
+        bool,
+        typer.Option("--prompt-password", help="Allow a password prompt on a terminal, including with JSON output."),
+    ] = False,
 ) -> None:
-    """Inspect tables, columns and keys as versioned JSON without reading rows."""
+    """Inspect tables, columns and keys without reading rows. Text by default."""
     from execsql.schema import inspect_schema
 
+    from execsql.cli.inspection import print_inspection, print_inspection_error
+
+    if prompt_password and no_passwd:
+        raise typer.BadParameter("--prompt-password and --no-passwd cannot be combined.")
+    terminal = _terminal_available()
+    if prompt_password and not terminal:
+        raise typer.BadParameter("Password prompting requires an interactive terminal.")
+    allow_prompt = not no_passwd and terminal and (prompt_password or output_format is OutputFormat.text)
     try:
-        result = inspect_schema(dsn=dsn, schema=schema, table=table)
+        result = inspect_schema(dsn=dsn, schema=schema, table=table, prompt_password=allow_prompt)
     except ValueError as exc:
         raise typer.BadParameter(str(exc)) from exc
-    sys.stdout.write(json.dumps(result, indent=2, ensure_ascii=True) + "\n")
+    if output_format is OutputFormat.json:
+        sys.stdout.write(json.dumps(result, indent=2, ensure_ascii=True) + "\n")
+    elif result["success"]:
+        print_inspection(result, detailed=table is not None)
+    else:
+        print_inspection_error(result, dsn)
     if not result["success"]:
         raise typer.Exit(code=1)
+
+
+def _terminal_available() -> bool:
+    """Never let an automatic password prompt consume redirected input."""
+    return sys.stdin is not None and sys.stdin.isatty()

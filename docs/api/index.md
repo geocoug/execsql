@@ -11,7 +11,8 @@ For programmatic use, see the [Library API](#library-api) section below. For a h
 Use `execsql.inspect_schema(dsn=..., schema=..., table=...)` to inspect database
 metadata without running a script. It also accepts `connection=` for an existing
 execsql adapter. See [schema discovery](../reference/schema.md) for the shared
-CLI/Python JSON contract, connection ownership and adapter coverage.
+CLI/Python JSON contract, optional terminal password prompting, connection
+ownership and adapter coverage.
 
 The primary public API is `execsql.run()`:
 

@@ -7,6 +7,8 @@ error paths roll back the caller's transaction. No reader commits or rolls back.
 from __future__ import annotations
 
 import re
+import sys
+from pathlib import Path
 from typing import Any, cast
 
 from execsql.db.base import Database
@@ -400,6 +402,7 @@ def inspect_schema(
     connection: Database | None = None,
     schema: str | None = None,
     table: str | None = None,
+    prompt_password: bool = False,
 ) -> dict[str, Any]:
     """Return JSON-compatible metadata; see the schema discovery reference.
 
@@ -408,11 +411,15 @@ def inspect_schema(
     Owned connections close on every exit; borrowed connections are never closed,
     committed or rolled back. Driver exceptions are deliberately not echoed, as
     their messages can contain credentials. KeyboardInterrupt/SystemExit propagate.
+    Password prompting is disabled unless explicitly enabled with *prompt_password*;
+    URL callers enabling it must provide an interactive terminal.
     """
     from execsql.api import _connect_from_dsn, _LibraryConfig
     from execsql.exceptions import ScriptExit
     from execsql.state import RuntimeContext, active_context
 
+    if prompt_password and dsn is not None and (sys.stdin is None or not sys.stdin.isatty()):
+        raise ValueError("Password prompting requires an interactive terminal.")
     if (dsn is None) == (connection is None):
         raise ValueError("Provide exactly one of 'dsn' or 'connection'.")
     for name, value in (("schema", schema), ("table", table)):
@@ -435,7 +442,7 @@ def inspect_schema(
         try:
             if db is None:
                 assert dsn is not None
-                db = _connect_from_dsn(dsn, prompt_password=False)
+                db = _connect_from_dsn(dsn, prompt_password=prompt_password)
             phase = "metadata"
             dialect = db.type.dbms_id
             result["adapter"] = dialect
@@ -456,8 +463,8 @@ def inspect_schema(
                 item["columns"].sort(key=lambda c: c["ordinal_position"])
             result["tables"] = sorted(tables, key=lambda t: (t["catalog"] or "", t["schema"] or "", t["name"]))
             result["success"] = True
-        except (Exception, ScriptExit):
-            result["error"] = {"code": f"{phase}_error", "message": f"Schema discovery {phase} failed."}
+        except (Exception, ScriptExit) as exc:
+            result["error"] = _inspection_error(phase, exc, dsn)
         finally:
             if dsn is not None and db is not None:
                 try:
@@ -467,3 +474,27 @@ def inspect_schema(
                     result["tables"] = []
                     result["error"] = {"code": "close_error", "message": "Schema discovery connection cleanup failed."}
     return result
+
+
+def _inspection_error(phase: str, exc: BaseException, dsn: str | None) -> dict[str, str]:
+    """Classify common connection problems without echoing secret-bearing errors."""
+    message = f"Schema discovery {phase} failed."
+    if phase == "connection" and dsn is not None:
+        from execsql.cli.dsn import _parse_connection_string
+        from execsql.utils.auth import is_login_failure
+
+        try:
+            params = _parse_connection_string(dsn)
+        except Exception:
+            message = "Invalid database connection URL."
+        else:
+            file = params["db_file"]
+            try:
+                missing_file = bool(file and file != ":memory:" and not Path(file).is_file())
+            except (OSError, ValueError):
+                missing_file = False  # Diagnostic checks must not replace the original failure.
+            if missing_file:
+                message = "Database file does not exist."
+            elif is_login_failure(exc):
+                message = "Database authentication failed."
+    return {"code": f"{phase}_error", "message": message}

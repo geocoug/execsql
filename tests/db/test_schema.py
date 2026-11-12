@@ -396,3 +396,21 @@ def test_mysql_primary_keys_distinguish_case_sensitive_table_names(dbms, tmp_pat
         for name in reversed(created):
             db.execute(f"DROP TABLE IF EXISTS {name}")
         db.close()
+
+
+@pytest.mark.parametrize("stream", [None, SimpleNamespace(isatty=lambda: False)])
+def test_api_password_prompt_requires_a_terminal(monkeypatch, stream):
+    monkeypatch.setattr("sys.stdin", stream)
+    with pytest.raises(ValueError, match="interactive terminal"):
+        inspect_schema(dsn="postgresql://user@host/db", prompt_password=True)
+
+
+def test_explicit_api_prompt_is_forwarded_without_changing_default_ownership(sqlite_db, monkeypatch):
+    from unittest.mock import MagicMock
+
+    monkeypatch.setattr("sys.stdin.isatty", lambda: True)
+    connect = MagicMock(return_value=sqlite_db)
+    monkeypatch.setattr("execsql.api._connect_from_dsn", connect)
+    assert inspect_schema(dsn="sqlite:///:memory:", prompt_password=True)["success"]
+    assert connect.call_args.kwargs["prompt_password"] is True
+    assert sqlite_db.conn is None

@@ -20,7 +20,8 @@ parser rather than adding a separate execution engine.
 Schema discovery is available through `execsql inspect database` and Python
 `execsql.inspect_schema()` ([#190](https://github.com/geocoug/execsql/issues/190)).
 The [schema discovery reference](docs/reference/schema.md) defines its contract
-and adapter coverage. It provides:
+and adapter coverage. The CLI prints readable text by default and exposes the
+shared machine contract with `--output-format json`. It provides:
 
 - Filtered metadata for a selected schema or table: tables, columns, types, keys,
     relationships and database dialect, without requiring the whole catalog in the
