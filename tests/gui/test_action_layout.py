@@ -46,7 +46,6 @@ phase=['dialog to become visible']
 def wait_until(predicate, callback, description):
     phase[0]=description
     def poll():
-        root.update_idletasks()
         if predicate():
             callback()
         else:
@@ -54,47 +53,49 @@ def wait_until(predicate, callback, description):
     root.after(0, poll)
 def inspect():
     win=next(w for w in root.winfo_children() if isinstance(w,tk.Toplevel))
-    root.update_idletasks()
     controls=list(walk(win))
     cancel=next(w for w in controls if isinstance(w,ttk.Button) and w.cget('text')=='Cancel')
     action=next(w for w in controls if isinstance(w,ttk.Button) and str(w.cget('text')).split('\\n')[0]=='Record selected row')
     canvas=next(w for w in controls if isinstance(w,tk.Canvas))
-    assert inside(cancel,win),'Cancel is clipped at the initial size'
-    assert win.winfo_height() <= win.winfo_screenheight()-60
-    assert win.winfo_width() <= win.winfo_screenwidth()-40
-    def inspect_resized():
-        assert inside(cancel,win), 'Cancel is clipped after resizing'
-        canvas.yview_moveto(1)
-        root.update_idletasks()
-        last=next(w for w in controls if isinstance(w,ttk.Button) and w.cget('text')==('Action 11' if options['overflow'] else 'Record selected row'))
+    last=next(w for w in controls if isinstance(w,ttk.Button) and w.cget('text')==('Action 11' if options['overflow'] else 'Record selected row'))
+    def accept_selection():
+        assert not action.instate(['disabled'])
+        action.invoke()
+    def inspect_scrolled():
         assert inside(last,win), 'Resized content cannot scroll to its last action'
         assert action.instate(['disabled'])
         tree=next(w for w in controls if isinstance(w,ttk.Treeview))
-        def accept_selection():
-            assert not action.instate(['disabled'])
-            action.invoke()
         tree.selection_set(tree.get_children()[1])
         tree.event_generate('<<TreeviewSelect>>')
         wait_until(lambda: not action.instate(['disabled']), accept_selection, 'selected row to enable its action')
+    def inspect_resized():
+        assert inside(cancel,win), 'Cancel is clipped after resizing'
+        canvas.yview_moveto(1)
+        wait_until(lambda: inside(last,win), inspect_scrolled, 'resized content to scroll to its last action')
     def resize():
         win.geometry('440x260')
-        wait_until(lambda: (win.winfo_width(),win.winfo_height()) == (440,260), inspect_resized, 'resized window geometry')
-    if options['overflow']:
-        canvas.yview_moveto(1)
-        root.update_idletasks()
-        last=next(w for w in controls if isinstance(w,ttk.Button) and w.cget('text')=='Action 11')
+        wait_until(lambda: (win.winfo_width(),win.winfo_height()) == (440,260) and inside(cancel,win), inspect_resized, 'resized window and Cancel control geometry')
+    def inspect_focused():
+        assert inside(action,win),'Keyboard focus does not reveal the action'
+        resize()
+    def inspect_overflow():
         assert inside(last,win),'Overflow action cannot be reached by scrolling'
-        def inspect_focused():
-            assert inside(action,win),'Keyboard focus does not reveal the action'
-            resize()
         action.focus_force()
         wait_until(lambda: inside(action,win), inspect_focused, 'keyboard focus to reveal the action')
-    else:
-        assert inside(action,win),'Action is clipped at the initial size'
-        for label in [w for w in controls if isinstance(w,ttk.Label) and w.cget('text')]:
-            assert label.winfo_width() >= label.winfo_reqwidth(), 'Description is clipped horizontally'
-            assert label.winfo_height() >= label.winfo_reqheight(), 'Description is clipped vertically'
-        resize()
+    def inspect_initial():
+        assert inside(cancel,win),'Cancel is clipped at the initial size'
+        assert win.winfo_height() <= win.winfo_screenheight()-60
+        assert win.winfo_width() <= win.winfo_screenwidth()-40
+        if options['overflow']:
+            canvas.yview_moveto(1)
+            wait_until(lambda: inside(last,win), inspect_overflow, 'initial content to scroll to its last action')
+        else:
+            assert inside(action,win),'Action is clipped at the initial size'
+            for label in [w for w in controls if isinstance(w,ttk.Label) and w.cget('text')]:
+                assert label.winfo_width() >= label.winfo_reqwidth(), 'Description is clipped horizontally'
+                assert label.winfo_height() >= label.winfo_reqheight(), 'Description is clipped vertically'
+            resize()
+    wait_until(lambda: inside(cancel,win), inspect_initial, 'initial Cancel control geometry')
 wait_window = root.wait_window
 def wait_for_dialog(win):
     def ready():
@@ -102,10 +103,11 @@ def wait_for_dialog(win):
             root.after(10, ready)
             return
         if options['busy_events']:
-            # A live timer stream must not prevent the inspection from finishing.
+            # Keep work arriving while allowing geometry and timers to run.
+            # An unbounded zero-delay or idle loop can starve Tk itself.
             def keep_busy():
-                root.after(0, keep_busy)
-            root.after(0, keep_busy)
+                root.after(1, keep_busy)
+            root.after(1, keep_busy)
         # Older Aqua Tk can crash when a window is destroyed from an idle callback.
         root.after(0, inspect)
     def timed_out():
