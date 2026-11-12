@@ -21,6 +21,7 @@ __all__ = [
     "OutputFormat",
     "OutputFormatOpt",
     "PortOpt",
+    "RequiredDsnOpt",
     "ScriptEncodingOpt",
     "UserOpt",
 ]
@@ -42,19 +43,26 @@ DbTypeOpt = Annotated[
     ),
 ]
 
+_CONNECTION_URL_FLAGS = ("--dsn", "--connection-string")
+_CONNECTION_URL_HELP = (
+    "Database connection URL, e.g. postgresql://user@host:5432/db. "
+    "Supported schemes: postgresql (postgres), mysql (mariadb), mssql (sqlserver), oracle, firebird, sqlite, duckdb."
+)
+
 DsnOpt = Annotated[
     str | None,
     typer.Option(
-        "--dsn",
-        "--connection-string",
+        *_CONNECTION_URL_FLAGS,
         metavar="URL",
-        help=(
-            "Database connection URL, e.g. postgresql://user:pass@host:5432/db. "
-            "Supported schemes: postgresql (postgres), mysql (mariadb), mssql (sqlserver), oracle, firebird, sqlite, duckdb. "
-            "Overrides -t/-u/-p and positional server/db args."
-        ),
+        help=_CONNECTION_URL_HELP + " Overrides -t/-u/-p and positional server/db args.",
     ),
 ]
+
+RequiredDsnOpt = Annotated[
+    str,
+    typer.Option(*_CONNECTION_URL_FLAGS, metavar="URL", help=_CONNECTION_URL_HELP),
+]
+
 
 UserOpt = Annotated[str | None, typer.Option("-u", "--user", help="Database user name.")]
 

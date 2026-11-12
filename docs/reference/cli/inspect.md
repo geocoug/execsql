@@ -18,6 +18,8 @@ For automation, request the shared versioned JSON contract explicitly:
 execsql inspect database --dsn sqlite:///project.sqlite --output-format json > schema.json
 ```
 
+`--dsn` and `--connection-string` are interchangeable, as they are for `execsql run`.
+
 For a server requiring a password, include the user but omit the password:
 
 ```sh
@@ -34,14 +36,14 @@ Failures exit with status 1. Text mode puts errors and diagnostic hints on stder
 JSON mode returns the API's structured error on stdout. Driver exception text and
 credential-bearing URLs are not echoed.
 
-| Option                       | Meaning                                                                                   |
-| ---------------------------- | ----------------------------------------------------------------------------------------- |
-| `--dsn URL`                  | Required connection URL. Include the user for password prompting.                         |
-| `--schema NAME`              | Optional exact, case-sensitive schema name.                                               |
-| `--table NAME`               | Optional exact, case-sensitive table or view name; shows column/key details in text mode. |
-| `--output-format text\|json` | Readable text (default) or versioned JSON.                                                |
-| `-w`, `--no-passwd`          | Disable password prompting; use supplied or driver credentials.                           |
-| `--prompt-password`          | Allow a hidden password prompt for a URL user on a terminal, including in JSON mode.      |
+| Option                                 | Meaning                                                                                   |
+| -------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `--dsn URL`, `--connection-string URL` | Required connection URL. Include the user for password prompting.                         |
+| `--schema NAME`                        | Optional exact, case-sensitive schema name.                                               |
+| `--table NAME`                         | Optional exact, case-sensitive table or view name; shows column/key details in text mode. |
+| `--output-format text\|json`           | Readable text (default) or versioned JSON.                                                |
+| `-w`, `--no-passwd`                    | Disable password prompting; use supplied or driver credentials.                           |
+| `--prompt-password`                    | Allow a hidden password prompt for a URL user on a terminal, including in JSON mode.      |
 
 See [schema discovery](../schema.md) for the JSON contract, examples, errors,
 connection ownership and adapter coverage. Run `execsql inspect --help` to list

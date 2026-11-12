@@ -13,7 +13,10 @@ ______________________________________________________________________
 
 ### Added
 
+- `execsql inspect database` accepts `--connection-string` as an alias for `--dsn`, matching `execsql run`.
+
 - `execsql inspect database --prompt-password` and Python `inspect_schema(prompt_password=True)` allow password prompting on a terminal (automatic for CLI text output); `--no-passwd` disables CLI prompting.
+
 - Python `inspect_schema()` and `execsql inspect database --output-format json` return filtered, versioned metadata for tables, columns and keys.
 
 ### Changed

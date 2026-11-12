@@ -10,7 +10,8 @@ from execsql import inspect_schema
 from execsql.cli import app
 
 
-def test_cli_matches_python_and_reads_no_rows(tmp_path):
+@pytest.mark.parametrize("flag", ["--dsn", "--connection-string"])
+def test_cli_matches_python_and_reads_no_rows(tmp_path, flag):
     path = tmp_path / "project.sqlite"
     with sqlite3.connect(path) as db:
         db.execute('CREATE TABLE "samples%" (id INTEGER PRIMARY KEY, location_id INT)')
@@ -18,7 +19,7 @@ def test_cli_matches_python_and_reads_no_rows(tmp_path):
     dsn = f"sqlite:///{path}"
     result = CliRunner().invoke(
         app,
-        ["inspect", "database", "--dsn", dsn, "--schema", "main", "--table", "samples%", "--output-format", "json"],
+        ["inspect", "database", flag, dsn, "--schema", "main", "--table", "samples%", "--output-format", "json"],
     )
     assert result.exit_code == 0, result.output
     metadata = json.loads(result.stdout)
@@ -40,10 +41,12 @@ def test_cli_error_is_json_and_nonzero(tmp_path):
 def test_cli_help():
     result = CliRunner().invoke(app, ["inspect", "database", "--help"])
     assert result.exit_code == 0
-    assert "--dsn" in result.stdout and "--schema" in result.stdout and "--table" in result.stdout
+    assert "--dsn" in result.stdout and "--connection-string" in result.stdout
+    assert "--schema" in result.stdout and "--table" in result.stdout
 
 
-def test_default_output_is_a_readable_overview_and_selected_table_details(tmp_path):
+@pytest.mark.parametrize("flag", ["--dsn", "--connection-string"])
+def test_default_output_is_a_readable_overview_and_selected_table_details(tmp_path, flag):
     path = tmp_path / "demo.sqlite"
     with sqlite3.connect(path) as db:
         db.executescript("""
@@ -51,7 +54,7 @@ def test_default_output_is_a_readable_overview_and_selected_table_details(tmp_pa
         CREATE TABLE samples(id INTEGER PRIMARY KEY, location_id INT REFERENCES locations(id));
         CREATE VIEW sample_ids AS SELECT id FROM samples;
         """)
-    args = ["inspect", "database", "--dsn", f"sqlite:///{path}"]
+    args = ["inspect", "database", flag, f"sqlite:///{path}"]
     overview = CliRunner().invoke(app, args)
     assert overview.exit_code == 0, overview.output
     assert "Object" in overview.stdout and "Columns" in overview.stdout

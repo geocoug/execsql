@@ -9,7 +9,7 @@ from typing import Annotated
 import typer
 
 from execsql.cli.application import ExecsqlCommand, ExecsqlSubGroup, app
-from execsql.cli.options import NoPasswdOpt, OutputFormat, OutputFormatOpt
+from execsql.cli.options import NoPasswdOpt, OutputFormat, OutputFormatOpt, RequiredDsnOpt
 
 inspect_app = typer.Typer(
     cls=ExecsqlSubGroup,
@@ -24,7 +24,7 @@ app.add_typer(inspect_app, name="inspect")
 
 @inspect_app.command(cls=ExecsqlCommand, name="database")
 def database_cmd(
-    dsn: Annotated[str, typer.Option("--dsn", help="Database connection URL, e.g. postgresql://user@host/database.")],
+    dsn: RequiredDsnOpt,
     schema: Annotated[str | None, typer.Option("--schema", help="Exact schema name (case-sensitive). ")] = None,
     table: Annotated[str | None, typer.Option("--table", help="Exact table or view name (case-sensitive). ")] = None,
     output_format: OutputFormatOpt = OutputFormat.text,

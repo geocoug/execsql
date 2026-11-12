@@ -162,7 +162,7 @@ class TestSurface:
         assert list(inspection.list_commands(None)) == ["database"]
         command = inspection.commands["database"]
         assert _options(command, hidden=False) == {
-            "--dsn",
+            "--dsn --connection-string",
             "--schema",
             "--table",
             "--output-format",

@@ -7,6 +7,8 @@ execsql inspect database --dsn sqlite:///project.sqlite --schema main --table sa
 execsql inspect database --dsn postgresql://localhost/project --schema public
 ```
 
+`--dsn` and `--connection-string` accept the same connection URL.
+
 The CLI prints readable text by default: an overview of matching tables/views,
 column counts and key summaries, or ordered columns and relationships when
 `--table` is selected. Missing metadata is labeled unavailable or unknown.

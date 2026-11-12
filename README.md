@@ -265,6 +265,7 @@ Inspect a table without running a script or reading its rows:
 execsql inspect database --dsn sqlite:///project.sqlite --schema main --table samples
 ```
 
+`--connection-string` is an alias for `--dsn`, matching `execsql run`.
 The default output is a readable overview; `--table` shows columns and relationships.
 Use `--output-format json` for automation. Text mode on a terminal can prompt
 for a URL user's password; `--no-passwd` uses supplied or driver credentials.

@@ -205,7 +205,7 @@ When `-t` is not specified, the default is SQLite (`l`).
 
 ## Options Reference { #options }
 
-`execsql inspect database` has its own options: required `--dsn URL`, optional
+`execsql inspect database` has its own options: required `--dsn URL` (alias `--connection-string URL`), optional
 `--schema NAME` and `--table NAME` (exact, case-sensitive names), and
 `--output-format text|json` (text by default). Without `--table`, text summarizes
 matching objects; with it, text shows columns and relationships. Text on a terminal
