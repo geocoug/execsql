@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.40.0] - 2026-11-12
+
 ### Changed
 
 - `EXTEND SCRIPT ... WITH METACOMMAND` rejects block boundaries before adding them; define complete blocks with `BEGIN SCRIPT` and append them with `WITH SCRIPT`.
