@@ -418,7 +418,7 @@ def inspect_schema(
     from execsql.exceptions import ScriptExit
     from execsql.state import RuntimeContext, active_context
 
-    if prompt_password and dsn is not None and not sys.stdin.isatty():
+    if prompt_password and dsn is not None and (sys.stdin is None or not sys.stdin.isatty()):
         raise ValueError("Password prompting requires an interactive terminal.")
     if (dsn is None) == (connection is None):
         raise ValueError("Provide exactly one of 'dsn' or 'connection'.")

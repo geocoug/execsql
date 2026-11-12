@@ -3,6 +3,7 @@
 import json
 import sqlite3
 
+import pytest
 from typer.testing import CliRunner
 
 from execsql import inspect_schema
@@ -84,12 +85,13 @@ def test_human_errors_go_to_stderr_with_a_useful_hint(tmp_path):
     assert "never creates" in result.stderr
 
 
-def test_unavailable_keys_and_unknown_column_metadata_are_explicit(monkeypatch):
+@pytest.mark.parametrize("namespace", [None, ""])
+def test_unavailable_keys_and_unknown_column_metadata_are_explicit(monkeypatch, namespace):
     from execsql import schema as discovery
 
     item = {
-        "catalog": None,
-        "schema": None,
+        "catalog": namespace,
+        "schema": namespace,
         "name": "sensitive[bold]name",
         "kind": "table",
         "columns": [{"name": "v", "data_type": None, "nullable": None}],
@@ -101,7 +103,7 @@ def test_unavailable_keys_and_unknown_column_metadata_are_explicit(monkeypatch):
     result = CliRunner().invoke(app, ["inspect", "database", "--dsn", "unused", "--table", item["name"]])
     assert result.exit_code == 0, result.output
     assert "DSN (dialect unknown)" in result.stdout
-    assert "sensitive[bold]name" in result.stdout  # metadata is never Rich markup
+    assert "\nsensitive[bold]name (table)\n" in result.stdout  # metadata is never Rich markup
     assert "unknown" in result.stdout and "unavailable" in result.stdout
     assert "Primary key: unavailable" in result.stdout and "Foreign keys: unavailable" in result.stdout
 

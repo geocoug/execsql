@@ -61,4 +61,4 @@ def database_cmd(
 
 def _terminal_available() -> bool:
     """Never let an automatic password prompt consume redirected input."""
-    return sys.stdin.isatty()
+    return sys.stdin is not None and sys.stdin.isatty()

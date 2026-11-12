@@ -26,7 +26,7 @@ def _name(item: dict[str, Any], *, referenced: bool = False) -> str:
         item.get(prefix + "schema"),
         item.get("referenced_table" if referenced else "name"),
     )
-    return ".".join(str(p) for p in parts if p is not None)
+    return ".".join(str(p) for p in parts if p not in (None, ""))
 
 
 def _primary_key(item: dict[str, Any]) -> str:

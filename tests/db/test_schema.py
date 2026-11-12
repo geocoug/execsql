@@ -398,8 +398,9 @@ def test_mysql_primary_keys_distinguish_case_sensitive_table_names(dbms, tmp_pat
         db.close()
 
 
-def test_api_password_prompt_requires_a_terminal(monkeypatch):
-    monkeypatch.setattr("sys.stdin.isatty", lambda: False)
+@pytest.mark.parametrize("stream", [None, SimpleNamespace(isatty=lambda: False)])
+def test_api_password_prompt_requires_a_terminal(monkeypatch, stream):
+    monkeypatch.setattr("sys.stdin", stream)
     with pytest.raises(ValueError, match="interactive terminal"):
         inspect_schema(dsn="postgresql://user@host/db", prompt_password=True)
 
