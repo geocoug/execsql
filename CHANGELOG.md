@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Changed
+
+- **Nested substitution variables** expand faster in scripts with many defined variables.
+
 ______________________________________________________________________
 
 ## [2.40.0] - 2026-11-12
